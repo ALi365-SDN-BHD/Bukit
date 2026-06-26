@@ -149,6 +149,14 @@ public static class NotionOptionsMapper
         string root = request.Context.RootDir;
         string reportPath = ReadOptionalStringOption(request, "--report", diagnostics)
             ?? Path.Combine(root, ".bukit", "reports", "plugin-output", "notion", "notion-push-report.json");
+        string resolvedReportPath = NotionPathGuard.ResolvePath(root, reportPath);
+        if (!IsAllowedReportPath(root, resolvedReportPath))
+        {
+            diagnostics.Add(Error(
+                "notion.reportPathOutsideAllowedOutput",
+                "Report path must stay under .bukit/reports/plugin-output/notion or .bukit/tmp/notion.",
+                resolvedReportPath));
+        }
 
         if (diagnostics.Count > 0)
         {
@@ -163,7 +171,7 @@ public static class NotionOptionsMapper
                 DatabaseMapPath: NotionPathGuard.ResolvePath(root, databaseMapPath!),
                 Mode: mode,
                 DryRun: dryRun,
-                ReportPath: NotionPathGuard.ResolvePath(root, reportPath),
+                ReportPath: resolvedReportPath,
                 TokenEnvironmentVariable: tokenEnvironmentVariable,
                 ConfirmReplace: confirmReplace)),
             []);
@@ -242,4 +250,10 @@ public static class NotionOptionsMapper
             return true;
         }
     }
+
+    private static bool IsAllowedReportPath(string root, string reportPath)
+        => NotionPathGuard.IsWithinAnyRoot(
+            reportPath,
+            Path.Combine(root, ".bukit", "reports", "plugin-output", "notion"),
+            Path.Combine(root, ".bukit", "tmp", "notion"));
 }

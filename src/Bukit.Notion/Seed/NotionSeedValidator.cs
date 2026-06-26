@@ -40,6 +40,7 @@ public static class NotionSeedValidator
 
         NotionSeedSet seedSet = NotionSeedLoader.Load(resolvedSeedDirectory, out IReadOnlyList<NotionSeedDiagnostic> loadDiagnostics);
         var diagnostics = new List<NotionSeedDiagnostic>(loadDiagnostics);
+        AddUnsupportedImportSeedWarnings(resolvedSeedDirectory, diagnostics);
         foreach (NotionSeedCollection collection in seedSet.Collections)
         {
             foreach (NotionSeedRecord record in collection.Records)
@@ -53,7 +54,27 @@ public static class NotionSeedValidator
             return new NotionSeedValidationResult(false, 2, seedSet, diagnostics, []);
         }
 
-        return NotionSeedValidationResult.Succeeded(seedSet);
+        return NotionSeedValidationResult.Succeeded(seedSet, diagnostics);
+    }
+
+    private static void AddUnsupportedImportSeedWarnings(
+        string seedDirectory,
+        List<NotionSeedDiagnostic> diagnostics)
+    {
+        string[] unsupportedFiles = NotionSeedLoader.ImportGeneratedSeedFiles
+            .Except(NotionSeedLoader.SupportedSeedFiles, StringComparer.Ordinal)
+            .Where(file => File.Exists(Path.Combine(seedDirectory, file)))
+            .ToArray();
+        if (unsupportedFiles.Length == 0)
+        {
+            return;
+        }
+
+        diagnostics.Add(new NotionSeedDiagnostic(
+            "notion.seedUnsupportedFiles",
+            NotionDiagnosticSeverity.Warning,
+            $"Unsupported Import seed files are present and will not be pushed in this phase: {string.Join(", ", unsupportedFiles)}.",
+            seedDirectory));
     }
 
     private static void ValidateRecord(

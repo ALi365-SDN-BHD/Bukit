@@ -73,6 +73,13 @@ databases:
     seed: pages.json
     collection: page
     uniqueField: Slug
+    properties:
+      Title:
+        source: title
+        type: title
+      Slug:
+        source: slug
+        type: rich_text
 """);
 
         NotionDatabaseMapValidationResult result = NotionDatabaseMapValidator.Validate(_projectRoot, path);
@@ -91,6 +98,13 @@ databases:
     collection: page
     databaseId: legacy-db
     uniqueField: Slug
+    properties:
+      Title:
+        source: title
+        type: title
+      Slug:
+        source: slug
+        type: rich_text
 """);
 
         NotionDatabaseMapValidationResult result = NotionDatabaseMapValidator.Validate(_projectRoot, path);
@@ -111,6 +125,12 @@ databases:
     properties:
       Title:
         source: title
+        type: title
+      Slug:
+        source: slug
+        type: rich_text
+      Bad:
+        source: bad
         type: unsupported
 """);
 
@@ -147,12 +167,122 @@ databases:
             lines.Add("    uniqueField: Slug");
         }
 
+        lines.AddRange(
+        [
+            "    properties:",
+            "      Title:",
+            "        source: title",
+            "        type: title",
+            "      Slug:",
+            "        source: slug",
+            "        type: rich_text"
+        ]);
+
         string path = WriteMap(string.Join(Environment.NewLine, lines));
 
         NotionDatabaseMapValidationResult result = NotionDatabaseMapValidator.Validate(_projectRoot, path);
 
         Assert.False(result.Success);
         Assert.Equal(expectedCode, Assert.Single(result.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void Validate_ParentDirectorySymlinkOutsideProjectFails()
+    {
+        string outside = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "bukit-notion-map-parent-outside-" + Guid.NewGuid().ToString("N"))).FullName;
+        string outsideSeed = Directory.CreateDirectory(Path.Combine(outside, "notion-seed")).FullName;
+        string outsideMap = Path.Combine(outsideSeed, "notion-database-map.yaml");
+        File.WriteAllText(outsideMap, ValidMap());
+        string linkedParent = Path.Combine(_projectRoot, "linked-parent");
+
+        try
+        {
+            Directory.CreateSymbolicLink(linkedParent, outside);
+            string linkedMap = Path.Combine(linkedParent, "notion-seed", "notion-database-map.yaml");
+
+            NotionDatabaseMapValidationResult result = NotionDatabaseMapValidator.Validate(_projectRoot, linkedMap);
+
+            Assert.False(result.Success);
+            Assert.Equal("notion.databaseMapOutsideProject", Assert.Single(result.Diagnostics).Code);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return;
+        }
+        finally
+        {
+            if (Directory.Exists(linkedParent))
+            {
+                Directory.Delete(linkedParent);
+            }
+
+            if (Directory.Exists(outside))
+            {
+                Directory.Delete(outside, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Validate_MissingPropertiesFails()
+    {
+        string path = WriteMap("""
+databases:
+  pages:
+    seed: pages.json
+    collection: page
+    dataSourceId: ds
+    uniqueField: Slug
+""");
+
+        NotionDatabaseMapValidationResult result = NotionDatabaseMapValidator.Validate(_projectRoot, path);
+
+        Assert.False(result.Success);
+        Assert.Equal("notion.databaseMapMissingProperties", Assert.Single(result.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void Validate_MissingTitlePropertyFails()
+    {
+        string path = WriteMap("""
+databases:
+  pages:
+    seed: pages.json
+    collection: page
+    dataSourceId: ds
+    uniqueField: Slug
+    properties:
+      Slug:
+        source: slug
+        type: rich_text
+""");
+
+        NotionDatabaseMapValidationResult result = NotionDatabaseMapValidator.Validate(_projectRoot, path);
+
+        Assert.False(result.Success);
+        Assert.Equal("notion.databaseMapMissingTitleProperty", Assert.Single(result.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void Validate_UniqueFieldNotMappedFails()
+    {
+        string path = WriteMap("""
+databases:
+  pages:
+    seed: pages.json
+    collection: page
+    dataSourceId: ds
+    uniqueField: Slug
+    properties:
+      Title:
+        source: title
+        type: title
+""");
+
+        NotionDatabaseMapValidationResult result = NotionDatabaseMapValidator.Validate(_projectRoot, path);
+
+        Assert.False(result.Success);
+        Assert.Equal("notion.databaseMapUniqueFieldNotMapped", Assert.Single(result.Diagnostics).Code);
     }
 
     private string WriteMap(string yaml)

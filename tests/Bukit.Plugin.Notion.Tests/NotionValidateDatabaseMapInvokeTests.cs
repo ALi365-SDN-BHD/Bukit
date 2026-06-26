@@ -95,6 +95,13 @@ databases:
     collection: page
     dataSourceId: ds
     uniqueField: Slug
+    properties:
+      Title:
+        source: title
+        type: title
+      Slug:
+        source: slug
+        type: rich_text
 """);
         return path;
     }

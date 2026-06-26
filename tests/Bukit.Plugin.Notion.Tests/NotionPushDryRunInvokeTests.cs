@@ -150,6 +150,90 @@ databases:
         Assert.Equal(0, report.RootElement.GetProperty("plannedReplace").GetInt32());
     }
 
+    [Fact]
+    public void App_PushDryRun_ReportAbsolutePathOutsideAllowedOutputFails()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        string outsideReportPath = Path.Combine(Path.GetTempPath(), "bukit-notion-report-" + Guid.NewGuid().ToString("N") + ".json");
+        PluginInvokeRequest request = CreatePushRequest(
+            seedDir,
+            mapPath,
+            mode: "create",
+            options => options["--report"] = JsonSerializer.SerializeToElement(outsideReportPath));
+
+        string json = NotionPluginApp.Handle(Serialize(request));
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        JsonElement root = document.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal(2, root.GetProperty("exitCode").GetInt32());
+        Assert.Equal("notion.reportPathOutsideAllowedOutput", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+        Assert.False(File.Exists(outsideReportPath));
+    }
+
+    [Fact]
+    public void App_PushDryRun_ReportRelativeTraversalOutsideAllowedOutputFails()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        string escapedReportPath = Path.Combine("..", "notion-report.json");
+        PluginInvokeRequest request = CreatePushRequest(
+            seedDir,
+            mapPath,
+            mode: "create",
+            options => options["--report"] = JsonSerializer.SerializeToElement(escapedReportPath));
+
+        string json = NotionPluginApp.Handle(Serialize(request));
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        JsonElement root = document.RootElement;
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal(2, root.GetProperty("exitCode").GetInt32());
+        Assert.Equal("notion.reportPathOutsideAllowedOutput", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public void App_PushDryRun_ReportParentSymlinkOutsideAllowedOutputFails()
+    {
+        string outside = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "bukit-notion-report-outside-" + Guid.NewGuid().ToString("N"))).FullName;
+        string allowedRoot = Directory.CreateDirectory(Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion")).FullName;
+        string linkedParent = Path.Combine(allowedRoot, "linked-parent");
+
+        try
+        {
+            Directory.CreateSymbolicLink(linkedParent, outside);
+            (string seedDir, string mapPath) = WriteValidHandoff();
+            PluginInvokeRequest request = CreatePushRequest(
+                seedDir,
+                mapPath,
+                mode: "create",
+                options => options["--report"] = JsonSerializer.SerializeToElement(Path.Combine(linkedParent, "notion-push-report.json")));
+
+            string json = NotionPluginApp.Handle(Serialize(request));
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            JsonElement root = document.RootElement;
+            Assert.False(root.GetProperty("success").GetBoolean());
+            Assert.Equal("notion.reportPathOutsideAllowedOutput", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+            Assert.False(File.Exists(Path.Combine(outside, "notion-push-report.json")));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return;
+        }
+        finally
+        {
+            if (Directory.Exists(linkedParent))
+            {
+                Directory.Delete(linkedParent);
+            }
+
+            if (Directory.Exists(outside))
+            {
+                Directory.Delete(outside, recursive: true);
+            }
+        }
+    }
+
     private (string SeedDir, string MapPath) WriteValidHandoff()
     {
         string seedDir = WriteValidSeed();
@@ -200,7 +284,29 @@ databases:
         return mapPath;
     }
 
-    private PluginInvokeRequest CreatePushRequest(string seedDir, string mapPath, string mode)
+    private PluginInvokeRequest CreatePushRequest(
+        string seedDir,
+        string mapPath,
+        string mode,
+        Action<Dictionary<string, JsonElement>>? configureOptions = null)
+    {
+        var options = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+        {
+            ["--seed"] = JsonSerializer.SerializeToElement(seedDir),
+            ["--database-map"] = JsonSerializer.SerializeToElement(mapPath),
+            ["--mode"] = JsonSerializer.SerializeToElement(mode),
+            ["--dry-run"] = JsonSerializer.SerializeToElement(true)
+        };
+        configureOptions?.Invoke(options);
+
+        return CreatePushRequest(seedDir, mapPath, mode, options);
+    }
+
+    private PluginInvokeRequest CreatePushRequest(
+        string seedDir,
+        string mapPath,
+        string mode,
+        Dictionary<string, JsonElement> options)
         => new(
             Type: PluginProtocolConstants.Invoke,
             Protocol: PluginProtocolConstants.ProtocolVersion,
@@ -210,13 +316,7 @@ databases:
                 Name: "notion",
                 Path: ["notion", "push"],
                 Arguments: [],
-                Options: new Dictionary<string, JsonElement>(StringComparer.Ordinal)
-                {
-                    ["--seed"] = JsonSerializer.SerializeToElement(seedDir),
-                    ["--database-map"] = JsonSerializer.SerializeToElement(mapPath),
-                    ["--mode"] = JsonSerializer.SerializeToElement(mode),
-                    ["--dry-run"] = JsonSerializer.SerializeToElement(true)
-                }),
+                Options: options),
             Context: new PluginInvokeContext(_projectRoot, _projectRoot),
             Permissions: new PluginPermissionSet());
 

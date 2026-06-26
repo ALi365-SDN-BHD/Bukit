@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Net;
 using Bukit.Notion.Client;
 using Bukit.Notion.Push;
 using Xunit;
@@ -66,6 +67,40 @@ public sealed class NotionPushCreateTests : IDisposable
     }
 
     [Fact]
+    public async Task PushAsync_CreateMode_AppendsContentBlocksAfterCreatingPage()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff(includeContent: true);
+        string reportPath = Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "notion-push-report.json");
+        var client = new RecordingNotionClient();
+        var service = new NotionPushService(
+            new RecordingNotionClientFactory(client),
+            new DictionaryNotionTokenProvider(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["NOTION_TOKEN"] = SecretToken
+            }));
+
+        NotionPushResult result = await service.PushAsync(new NotionPushOptions(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            DatabaseMapPath: mapPath,
+            Mode: NotionPushMode.Create,
+            DryRun: false,
+            ReportPath: reportPath,
+            TokenEnvironmentVariable: "NOTION_TOKEN"), CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, client.CreateRequests.Count);
+        (string blockId, IReadOnlyList<NotionBlock> children) = Assert.Single(client.AppendRequests);
+        Assert.Equal("page-01", blockId);
+        NotionBlock block = Assert.Single(children);
+        using JsonDocument blockJson = JsonDocument.Parse(block.Json);
+        Assert.Equal("paragraph", blockJson.RootElement.GetProperty("type").GetString());
+        Assert.Equal(
+            "Body content",
+            blockJson.RootElement.GetProperty("paragraph").GetProperty("rich_text")[0].GetProperty("text").GetProperty("content").GetString());
+    }
+
+    [Fact]
     public async Task PushAsync_CreateMode_RejectsNonAllowlistedTokenEnvironmentVariable()
     {
         (string seedDir, string mapPath) = WriteValidHandoff();
@@ -95,6 +130,7 @@ public sealed class NotionPushCreateTests : IDisposable
     public async Task PushAsync_CreateMode_MissingTokenFailsWithoutCallingNotion()
     {
         (string seedDir, string mapPath) = WriteValidHandoff();
+        string reportPath = Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "missing-token-report.json");
         var client = new RecordingNotionClient();
         var service = new NotionPushService(
             new RecordingNotionClientFactory(client),
@@ -106,12 +142,16 @@ public sealed class NotionPushCreateTests : IDisposable
             DatabaseMapPath: mapPath,
             Mode: NotionPushMode.Create,
             DryRun: false,
-            ReportPath: Path.Combine(_projectRoot, "report.json"),
+            ReportPath: reportPath,
             TokenEnvironmentVariable: "NOTION_TOKEN"), CancellationToken.None);
 
         Assert.False(result.Success);
+        Assert.Equal(2, result.ExitCode);
         Assert.Equal("notion.tokenMissing", Assert.Single(result.Diagnostics).Code);
         Assert.Empty(client.CreateRequests);
+        Assert.True(File.Exists(reportPath));
+        using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
+        Assert.Equal("notion.tokenMissing", report.RootElement.GetProperty("diagnostics")[0].GetProperty("code").GetString());
     }
 
     [Fact]
@@ -164,19 +204,68 @@ public sealed class NotionPushCreateTests : IDisposable
 
         NotionPushDiagnostic diagnostic = Assert.Single(result.Diagnostics);
         Assert.False(result.Success);
+        Assert.Equal(1, result.ExitCode);
         Assert.Equal("notion.httpError", diagnostic.Code);
         Assert.DoesNotContain(SecretToken, diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(_projectRoot, "report.json")));
     }
 
-    private (string SeedDir, string MapPath) WriteValidHandoff()
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, "unauthorized", "notion.apiUnauthorized")]
+    [InlineData(HttpStatusCode.Forbidden, "restricted_resource", "notion.apiForbidden")]
+    [InlineData(HttpStatusCode.NotFound, "object_not_found", "notion.apiNotFound")]
+    [InlineData(HttpStatusCode.Conflict, "conflict_error", "notion.apiConflict")]
+    [InlineData((HttpStatusCode)429, "rate_limited", "notion.rateLimited")]
+    [InlineData(HttpStatusCode.InternalServerError, "internal_server_error", "notion.apiFailed")]
+    public async Task PushAsync_CreateMode_MapsApiFailuresToStableDiagnosticCodes(
+        HttpStatusCode statusCode,
+        string notionCode,
+        string expectedCode)
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        string reportPath = Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", $"api-{(int)statusCode}.json");
+        var client = new RecordingNotionClient
+        {
+            CreateException = new NotionApiException(statusCode, notionCode)
+        };
+        var service = new NotionPushService(
+            new RecordingNotionClientFactory(client),
+            new DictionaryNotionTokenProvider(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["NOTION_TOKEN"] = SecretToken
+            }));
+
+        NotionPushResult result = await service.PushAsync(new NotionPushOptions(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            DatabaseMapPath: mapPath,
+            Mode: NotionPushMode.Create,
+            DryRun: false,
+            ReportPath: reportPath,
+            TokenEnvironmentVariable: "NOTION_TOKEN"), CancellationToken.None);
+
+        NotionPushDiagnostic diagnostic = Assert.Single(result.Diagnostics);
+        Assert.False(result.Success);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(expectedCode, diagnostic.Code);
+        Assert.True(File.Exists(reportPath));
+        using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
+        Assert.Equal(expectedCode, report.RootElement.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+    }
+
+    private (string SeedDir, string MapPath) WriteValidHandoff(bool includeContent = false)
     {
         string seedDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "notion-seed")).FullName;
-        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+        string contentField = includeContent ? """
+    ,
+    "content": "Body content"
+""" : string.Empty;
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), $$"""
 [
   {
     "title": "Home",
     "slug": "home",
-    "published": true
+    "published": true{{contentField}}
   },
   {
     "title": "About",
@@ -242,6 +331,8 @@ databases:
     {
         public List<NotionCreatePageRequest> CreateRequests { get; } = [];
 
+        public List<(string BlockId, IReadOnlyList<NotionBlock> Children)> AppendRequests { get; } = [];
+
         public Exception? CreateException { get; init; }
 
         public Task<NotionQueryResult> QueryDataSourceAsync(
@@ -273,7 +364,10 @@ databases:
             string blockId,
             IReadOnlyList<NotionBlock> children,
             CancellationToken cancellationToken)
-            => throw new NotSupportedException();
+        {
+            AppendRequests.Add((blockId, children));
+            return Task.CompletedTask;
+        }
 
         public Task<IReadOnlyList<NotionBlockResult>> ListBlockChildrenAsync(
             string blockId,

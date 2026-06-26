@@ -1,3 +1,4 @@
+using Bukit.Notion;
 using Bukit.Notion.Seed;
 using Xunit;
 
@@ -75,6 +76,47 @@ public sealed class NotionSeedValidatorTests : IDisposable
             if (Directory.Exists(linked))
             {
                 Directory.Delete(linked);
+            }
+
+            if (Directory.Exists(outside))
+            {
+                Directory.Delete(outside, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Validate_SeedDirParentSymlinkOutsideProjectFails()
+    {
+        string outside = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "bukit-notion-seed-parent-outside-" + Guid.NewGuid().ToString("N"))).FullName;
+        string outsideSeedDir = Directory.CreateDirectory(Path.Combine(outside, "notion-seed")).FullName;
+        WriteSeed(outsideSeedDir, "pages.json", """
+[
+  {
+    "title": "Outside",
+    "slug": "outside"
+  }
+]
+""");
+        string linkedParent = Path.Combine(_projectRoot, "linked-parent");
+
+        try
+        {
+            Directory.CreateSymbolicLink(linkedParent, outside);
+            NotionSeedValidationResult result = NotionSeedValidator.Validate(_projectRoot, Path.Combine(linkedParent, "notion-seed"));
+
+            Assert.False(result.Success);
+            Assert.Equal("notion.seedDirOutsideProject", Assert.Single(result.Diagnostics).Code);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return;
+        }
+        finally
+        {
+            if (Directory.Exists(linkedParent))
+            {
+                Directory.Delete(linkedParent);
             }
 
             if (Directory.Exists(outside))
@@ -197,6 +239,35 @@ public sealed class NotionSeedValidatorTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Equal("notion.seedInvalidRecord", Assert.Single(result.Diagnostics).Code);
+    }
+
+    [Fact]
+    public void Validate_UnsupportedImportSeedFilesEmitWarning()
+    {
+        string seedDir = CreateSeedDir();
+        WriteSeed(seedDir, "pages.json", """
+[
+  {
+    "title": "Home",
+    "slug": "home"
+  }
+]
+""");
+        WriteSeed(seedDir, "sections.json", """
+[
+  {
+    "title": "Hero",
+    "slug": "hero"
+  }
+]
+""");
+
+        NotionSeedValidationResult result = NotionSeedValidator.Validate(_projectRoot, seedDir);
+
+        Assert.True(result.Success);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == "notion.seedUnsupportedFiles"
+            && diagnostic.Severity == "warning");
     }
 
     private string CreateSeedDir()

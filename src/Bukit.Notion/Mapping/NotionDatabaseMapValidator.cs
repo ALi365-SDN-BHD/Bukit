@@ -104,6 +104,35 @@ public static class NotionDatabaseMapValidator
                 path));
         }
 
+        if (entry.Properties.Count == 0)
+        {
+            diagnostics.Add(new NotionDatabaseMapDiagnostic(
+                "notion.databaseMapMissingProperties",
+                NotionDiagnosticSeverity.Error,
+                "Database map entry must contain at least one property mapping.",
+                $"{path}.properties"));
+            return;
+        }
+
+        if (!entry.Properties.Values.Any(static property => string.Equals(property.Type, "title", StringComparison.Ordinal)))
+        {
+            diagnostics.Add(new NotionDatabaseMapDiagnostic(
+                "notion.databaseMapMissingTitleProperty",
+                NotionDiagnosticSeverity.Error,
+                "Database map entry must contain at least one title property mapping.",
+                $"{path}.properties"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(entry.UniqueField)
+            && !entry.Properties.ContainsKey(entry.UniqueField))
+        {
+            diagnostics.Add(new NotionDatabaseMapDiagnostic(
+                "notion.databaseMapUniqueFieldNotMapped",
+                NotionDiagnosticSeverity.Error,
+                "Database map uniqueField must resolve to a property mapping.",
+                $"{path}.uniqueField"));
+        }
+
         foreach (NotionPropertyMapping property in entry.Properties.Values)
         {
             ValidateProperty(path, property, diagnostics);

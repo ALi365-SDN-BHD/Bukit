@@ -117,6 +117,7 @@ public sealed class NotionPluginManifestTests
         PluginOptionSpec tokenEnv = Assert.Single(command.Options, option => option.Name == "--token-env");
         Assert.Equal("string", tokenEnv.Type);
         Assert.False(tokenEnv.Required);
+        Assert.Equal(["NOTION_TOKEN"], tokenEnv.AllowedValues);
 
         PluginOptionSpec mode = Assert.Single(command.Options, option => option.Name == "--mode");
         Assert.Equal("string", mode.Type);

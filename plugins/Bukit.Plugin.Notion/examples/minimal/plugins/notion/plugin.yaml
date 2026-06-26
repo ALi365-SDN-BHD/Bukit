@@ -45,6 +45,8 @@ commands:
             type: string
             description: Allowlisted environment variable that contains the Notion token.
             required: false
+            allowedValues:
+              - NOTION_TOKEN
           - name: --mode
             type: string
             description: 'Push mode: create, upsert, or replace.'

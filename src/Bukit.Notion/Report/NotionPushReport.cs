@@ -8,7 +8,9 @@ public sealed record NotionPushReport(
     int PlannedCreate,
     int PlannedUpdate,
     int PlannedReplace,
-    IReadOnlyList<NotionPushRecordResult>? Records = null)
+    IReadOnlyList<NotionPushRecordResult>? Records = null,
+    IReadOnlyList<NotionPushDiagnostic>? Diagnostics = null)
 {
     public IReadOnlyList<NotionPushRecordResult> Records { get; init; } = Records ?? [];
+    public IReadOnlyList<NotionPushDiagnostic> Diagnostics { get; init; } = Diagnostics ?? [];
 }

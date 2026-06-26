@@ -24,6 +24,12 @@ catch (JsonException ex)
     Console.Out.Write(SerializeError("unknown", "plugin.notion.invalidJson", "Request JSON is invalid."));
     return 1;
 }
+catch (Exception ex)
+{
+    Console.Error.WriteLine(ex.Message);
+    Console.Out.Write(SerializeError(TryReadRequestId(input), "plugin.notion.executionFailed", "Notion plugin execution failed."));
+    return 1;
+}
 
 static string SerializeError(string requestId, string code, string message)
 {
@@ -35,4 +41,19 @@ static string SerializeError(string requestId, string code, string message)
         Error: new PluginError(code, message));
 
     return JsonSerializer.Serialize(response, PluginJsonSerializerContext.Default.PluginResponseEnvelope);
+}
+
+static string TryReadRequestId(string input)
+{
+    try
+    {
+        using JsonDocument document = JsonDocument.Parse(input);
+        return document.RootElement.TryGetProperty("requestId", out JsonElement requestIdElement)
+            ? requestIdElement.GetString() ?? "unknown"
+            : "unknown";
+    }
+    catch (JsonException)
+    {
+        return "unknown";
+    }
 }

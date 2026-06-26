@@ -12,19 +12,12 @@ public sealed record NotionSeedValidationResult(
     public IReadOnlyList<NotionSeedDiagnostic> Diagnostics { get; init; } = Diagnostics ?? [];
     public IReadOnlyList<NotionSeedArtifact> Artifacts { get; init; } = Artifacts ?? [];
 
-    public static NotionSeedValidationResult Succeeded(NotionSeedSet seedSet)
+    public static NotionSeedValidationResult Succeeded(NotionSeedSet seedSet, IReadOnlyList<NotionSeedDiagnostic>? diagnostics = null)
         => new(
             Success: true,
             ExitCode: 0,
             SeedSet: seedSet,
-            Diagnostics:
-            [
-                new NotionSeedDiagnostic(
-                    "notion.seedValid",
-                    NotionDiagnosticSeverity.Info,
-                    "Notion seed artifacts are valid.",
-                    seedSet.SeedDirectory)
-            ],
+            Diagnostics: BuildSuccessDiagnostics(seedSet, diagnostics),
             Artifacts:
             [
                 new NotionSeedArtifact(
@@ -35,4 +28,19 @@ public sealed record NotionSeedValidationResult(
 
     public static NotionSeedValidationResult Failed(params NotionSeedDiagnostic[] diagnostics)
         => new(false, 2, Diagnostics: diagnostics, Artifacts: []);
+
+    private static IReadOnlyList<NotionSeedDiagnostic> BuildSuccessDiagnostics(
+        NotionSeedSet seedSet,
+        IReadOnlyList<NotionSeedDiagnostic>? diagnostics)
+    {
+        var successDiagnostics = new List<NotionSeedDiagnostic>(diagnostics ?? [])
+        {
+            new(
+                "notion.seedValid",
+                NotionDiagnosticSeverity.Info,
+                "Notion seed artifacts are valid.",
+                seedSet.SeedDirectory)
+        };
+        return successDiagnostics;
+    }
 }

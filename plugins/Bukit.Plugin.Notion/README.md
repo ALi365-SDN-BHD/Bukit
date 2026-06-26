@@ -34,7 +34,8 @@ bukit notion push \
 
 - `create`: creates one Notion page per seed record.
 - `upsert`: queries by `uniqueField`; updates properties when one page matches, otherwise creates.
-- `replace`: requires `--confirm-replace`; queries by `uniqueField`, updates properties, deletes existing children, and appends replacement paragraph blocks from seed content.
+- `replace`: requires `--confirm-replace`; queries by `uniqueField`, updates properties, deletes existing children, and appends replacement blocks from seed content. This is not atomic: properties may be updated before child-block replacement fails.
+- Seed content from `content`, `body`, `markdown`, or `content_markdown` is converted into Notion blocks for paragraphs, headings, bullet/numbered lists, quotes, and fenced code blocks. Long text is split to fit Notion rich-text limits.
 - `--dry-run`: validates seed/map and writes planned reports without reading token or calling Notion.
 
 ## Reports

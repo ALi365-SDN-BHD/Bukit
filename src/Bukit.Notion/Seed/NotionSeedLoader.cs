@@ -14,6 +14,19 @@ public static class NotionSeedLoader
         "services.json"
     ];
 
+    public static readonly IReadOnlyList<string> ImportGeneratedSeedFiles =
+    [
+        "pages.json",
+        "navigation.json",
+        "sections.json",
+        "posts.json",
+        "companies.json",
+        "services.json",
+        "faqs.json",
+        "media.json",
+        "components.json"
+    ];
+
     public static NotionSeedSet Load(string seedDirectory, out IReadOnlyList<NotionSeedDiagnostic> diagnostics)
     {
         var collections = new List<NotionSeedCollection>();

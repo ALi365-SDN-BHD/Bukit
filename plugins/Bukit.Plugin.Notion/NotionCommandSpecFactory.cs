@@ -59,7 +59,8 @@ public static class NotionCommandSpecFactory
                 new PluginOptionSpec(
                     Name: "--token-env",
                     Type: "string",
-                    Description: "Allowlisted environment variable that contains the Notion token."),
+                    Description: "Allowlisted environment variable that contains the Notion token.",
+                    AllowedValues: [NotionPluginConstants.TokenEnvironmentVariable]),
                 new PluginOptionSpec(
                     Name: "--mode",
                     Type: "string",

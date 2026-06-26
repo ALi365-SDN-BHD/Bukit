@@ -35,10 +35,28 @@ public static class NotionPushReportWriter
                 $"| {Escape(record.Operation)} | {Escape(record.Collection)} | {Escape(record.SeedFile)} | {Escape(record.Title)} | {Escape(record.UniqueField)} | {Escape(record.UniqueValue)} | {Escape(record.DataSourceId)} |");
         }
 
+        if (report.Diagnostics.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("## Diagnostics");
+            builder.AppendLine();
+            builder.AppendLine("| Severity | Code | Message | Path |");
+            builder.AppendLine("| --- | --- | --- | --- |");
+            foreach (NotionPushDiagnostic diagnostic in report.Diagnostics)
+            {
+                builder.AppendLine(
+                    $"| {Escape(diagnostic.Severity)} | {Escape(diagnostic.Code)} | {Escape(diagnostic.Message)} | {Escape(diagnostic.Path)} |");
+            }
+        }
+
         File.WriteAllText(path, builder.ToString());
     }
 
-    public static NotionPushReport CreateReport(NotionPushMode mode, bool dryRun, IReadOnlyList<NotionPushRecordResult> records)
+    public static NotionPushReport CreateReport(
+        NotionPushMode mode,
+        bool dryRun,
+        IReadOnlyList<NotionPushRecordResult> records,
+        IReadOnlyList<NotionPushDiagnostic>? diagnostics = null)
     {
         string operation = ToOperation(mode);
         return new NotionPushReport(
@@ -47,7 +65,8 @@ public static class NotionPushReportWriter
             PlannedCreate: records.Count(static record => string.Equals(record.Operation, "create", StringComparison.Ordinal)),
             PlannedUpdate: records.Count(static record => string.Equals(record.Operation, "update", StringComparison.Ordinal)),
             PlannedReplace: records.Count(static record => string.Equals(record.Operation, "replace", StringComparison.Ordinal)),
-            Records: records);
+            Records: records,
+            Diagnostics: diagnostics);
     }
 
     public static string ToOperation(NotionPushMode mode)

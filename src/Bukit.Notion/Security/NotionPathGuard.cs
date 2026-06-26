@@ -1,3 +1,5 @@
+using Bukit.Shared;
+
 namespace Bukit.Notion.Security;
 
 public static class NotionPathGuard
@@ -6,12 +8,10 @@ public static class NotionPathGuard
         => Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(rootDir, path));
 
     public static bool IsWithinRoot(string rootDir, string path)
-    {
-        string root = NormalizeRoot(rootDir);
-        string fullPath = Path.GetFullPath(path);
-        return string.Equals(fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), PathComparison)
-            || fullPath.StartsWith(root, PathComparison);
-    }
+        => PathUtils.IsSameOrSubPathOf(path, rootDir);
+
+    public static bool IsWithinAnyRoot(string path, params string[] allowedRoots)
+        => allowedRoots.Any(root => PathUtils.IsSameOrSubPathOf(path, root));
 
     public static string ResolveFinalDirectoryPath(string path)
     {
@@ -27,12 +27,4 @@ public static class NotionPathGuard
         return Path.GetFullPath(target?.FullName ?? file.FullName);
     }
 
-    private static string NormalizeRoot(string rootDir)
-        => Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-           + Path.DirectorySeparatorChar;
-
-    private static StringComparison PathComparison
-        => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
 }

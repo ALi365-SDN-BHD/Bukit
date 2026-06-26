@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bukit.Notion.Client;
+using Bukit.Notion.Conversion;
 using Bukit.Notion.Mapping;
 using Bukit.Notion.Report;
 using Bukit.Notion.Seed;
@@ -78,7 +79,7 @@ public sealed class NotionPushService : INotionPushService
             NotionPushResult? tokenValidation = ValidateNonDryRunPush(options);
             if (tokenValidation is not null)
             {
-                return tokenValidation;
+                return WriteFailureReport(options, records, tokenValidation);
             }
 
             NotionPushResult? pushResult = await PushNonDryRunAsync(
@@ -89,7 +90,7 @@ public sealed class NotionPushService : INotionPushService
                 cancellationToken).ConfigureAwait(false);
             if (pushResult is not null)
             {
-                return pushResult;
+                return WriteFailureReport(options, records, pushResult);
             }
         }
 
@@ -246,9 +247,18 @@ public sealed class NotionPushService : INotionPushService
                         }
                     }
 
-                    await client.CreatePageAsync(
+                    NotionPageResult createdPage = await client.CreatePageAsync(
                         new NotionCreatePageRequest(BuildCreatePageJson(entry, record)),
                         cancellationToken).ConfigureAwait(false);
+                    IReadOnlyList<NotionBlock> contentBlocks = BuildReplacementBlocks(record);
+                    if (!string.IsNullOrWhiteSpace(createdPage.Id) && contentBlocks.Count > 0)
+                    {
+                        await client.AppendBlockChildrenAsync(
+                            createdPage.Id,
+                            contentBlocks,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
                     actualRecords.Add(planned with { Operation = "create" });
                 }
             }
@@ -257,14 +267,14 @@ public sealed class NotionPushService : INotionPushService
         {
             return new NotionPushResult(
                 false,
-                2,
+                1,
                 options.DryRun,
                 options.Mode,
                 records,
                 Diagnostics:
                 [
                     new NotionPushDiagnostic(
-                        "notion.apiError",
+                        MapNotionApiDiagnosticCode(ex),
                         NotionDiagnosticSeverity.Error,
                         $"Notion API request failed with status {(int)ex.StatusCode}, code {ex.Code ?? "unknown"}.")
                 ],
@@ -274,7 +284,7 @@ public sealed class NotionPushService : INotionPushService
         {
             return new NotionPushResult(
                 false,
-                2,
+                1,
                 options.DryRun,
                 options.Mode,
                 records,
@@ -409,26 +419,7 @@ public sealed class NotionPushService : INotionPushService
             return [];
         }
 
-        var block = new JsonObject
-        {
-            ["object"] = "block",
-            ["type"] = "paragraph",
-            ["paragraph"] = new JsonObject
-            {
-                ["rich_text"] = new JsonArray
-                {
-                    new JsonObject
-                    {
-                        ["type"] = "text",
-                        ["text"] = new JsonObject
-                        {
-                            ["content"] = content
-                        }
-                    }
-                }
-            }
-        };
-        return [new NotionBlock(block.ToJsonString())];
+        return MarkdownToNotionBlocks.Convert(content);
     }
 
     private static JsonObject BuildPropertiesJsonObject(NotionDatabaseMapEntry entry, NotionSeedRecord record)
@@ -756,5 +747,47 @@ public sealed class NotionPushService : INotionPushService
                 diagnostic.Message,
                 diagnostic.Path)).ToArray(),
             Artifacts: []);
+
+    private static NotionPushResult WriteFailureReport(
+        NotionPushOptions options,
+        IReadOnlyList<NotionPushRecordResult> records,
+        NotionPushResult result)
+    {
+        NotionPushReport report = NotionPushReportWriter.CreateReport(options.Mode, options.DryRun, records, result.Diagnostics);
+        NotionPushReportWriter.WriteJson(options.ReportPath, report);
+        string markdownReportPath = Path.ChangeExtension(options.ReportPath, ".md");
+        NotionPushReportWriter.WriteMarkdown(markdownReportPath, report);
+
+        return result with
+        {
+            Records = records,
+            Artifacts =
+            [
+                new NotionPushArtifact(
+                    "notion-push-report",
+                    options.ReportPath,
+                    "Notion push failure JSON report."),
+                new NotionPushArtifact(
+                    "notion-push-report-md",
+                    markdownReportPath,
+                    "Notion push failure Markdown report.")
+            ]
+        };
+    }
+
+    private static string MapNotionApiDiagnosticCode(NotionApiException ex)
+    {
+        int statusCode = (int)ex.StatusCode;
+        return statusCode switch
+        {
+            401 => "notion.apiUnauthorized",
+            403 => "notion.apiForbidden",
+            404 => "notion.apiNotFound",
+            409 => "notion.apiConflict",
+            429 => "notion.rateLimited",
+            >= 500 and <= 599 => "notion.apiFailed",
+            _ => "notion.apiError"
+        };
+    }
 
 }
