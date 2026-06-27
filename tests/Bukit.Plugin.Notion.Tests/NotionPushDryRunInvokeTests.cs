@@ -90,6 +90,7 @@ public sealed class NotionPushDryRunInvokeTests : IDisposable
         JsonElement root = document.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.Equal("notion.seedMissingTitle", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+        AssertValidationFailureReport("notion.seedMissingTitle");
     }
 
     [Fact]
@@ -112,6 +113,7 @@ databases:
         JsonElement root = document.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.Equal("notion.databaseMapMissingDataSource", root.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+        AssertValidationFailureReport("notion.databaseMapMissingDataSource");
     }
 
     [Fact]
@@ -133,7 +135,7 @@ databases:
     }
 
     [Fact]
-    public void App_PushDryRun_UpsertPlansUpdateRecords()
+    public void App_PushDryRun_UpsertPlansUpsertRecords()
     {
         (string seedDir, string mapPath) = WriteValidHandoff();
         PluginInvokeRequest request = CreatePushRequest(seedDir, mapPath, mode: "upsert");
@@ -145,9 +147,14 @@ databases:
 
         string reportPath = Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "notion-push-report.json");
         using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
+        Assert.Equal("upsert", report.RootElement.GetProperty("mode").GetString());
         Assert.Equal(0, report.RootElement.GetProperty("plannedCreate").GetInt32());
-        Assert.Equal(2, report.RootElement.GetProperty("plannedUpdate").GetInt32());
+        Assert.Equal(0, report.RootElement.GetProperty("plannedUpdate").GetInt32());
+        Assert.Equal(2, report.RootElement.GetProperty("plannedUpsert").GetInt32());
         Assert.Equal(0, report.RootElement.GetProperty("plannedReplace").GetInt32());
+        Assert.All(
+            report.RootElement.GetProperty("records").EnumerateArray(),
+            record => Assert.Equal("upsert", record.GetProperty("operation").GetString()));
     }
 
     [Fact]
@@ -322,6 +329,15 @@ databases:
 
     private static string Serialize(PluginInvokeRequest request)
         => JsonSerializer.Serialize(request, PluginJsonSerializerContext.Default.PluginInvokeRequest);
+
+    private void AssertValidationFailureReport(string expectedCode)
+    {
+        string reportPath = Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "notion-push-report.json");
+        Assert.True(File.Exists(reportPath));
+        Assert.True(File.Exists(Path.ChangeExtension(reportPath, ".md")));
+        using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
+        Assert.Equal(expectedCode, report.RootElement.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+    }
 
     private sealed class EnvironmentVariableScope : IDisposable
     {

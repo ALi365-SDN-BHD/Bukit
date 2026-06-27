@@ -55,7 +55,9 @@ public sealed class NotionPushCreateTests : IDisposable
         JsonElement root = createBody.RootElement;
         Assert.Equal("ds-pages", root.GetProperty("parent").GetProperty("data_source_id").GetString());
         JsonElement properties = root.GetProperty("properties");
+        Assert.Equal("text", properties.GetProperty("Title").GetProperty("title")[0].GetProperty("type").GetString());
         Assert.Equal("Home", properties.GetProperty("Title").GetProperty("title")[0].GetProperty("text").GetProperty("content").GetString());
+        Assert.Equal("text", properties.GetProperty("Slug").GetProperty("rich_text")[0].GetProperty("type").GetString());
         Assert.Equal("home", properties.GetProperty("Slug").GetProperty("rich_text")[0].GetProperty("text").GetProperty("content").GetString());
         Assert.True(properties.GetProperty("Published").GetProperty("checkbox").GetBoolean());
 
@@ -98,6 +100,155 @@ public sealed class NotionPushCreateTests : IDisposable
         Assert.Equal(
             "Body content",
             blockJson.RootElement.GetProperty("paragraph").GetProperty("rich_text")[0].GetProperty("text").GetProperty("content").GetString());
+    }
+
+    [Fact]
+    public async Task PushAsync_CreateMode_AppendsContentBlocksInApiSizedBatches()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        string content = string.Join("\n\n", Enumerable.Range(1, 101).Select(index => $"Paragraph {index}"));
+        File.WriteAllText(
+            Path.Combine(seedDir, "pages.json"),
+            JsonSerializer.Serialize(new[]
+            {
+                new { title = "Home", slug = "home", published = true, content }
+            }));
+        var client = new RecordingNotionClient();
+        var service = new NotionPushService(
+            new RecordingNotionClientFactory(client),
+            new DictionaryNotionTokenProvider(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["NOTION_TOKEN"] = SecretToken
+            }));
+
+        NotionPushResult result = await service.PushAsync(new NotionPushOptions(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            DatabaseMapPath: mapPath,
+            Mode: NotionPushMode.Create,
+            DryRun: false,
+            ReportPath: Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "batch-report.json"),
+            TokenEnvironmentVariable: "NOTION_TOKEN"), CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, client.AppendRequests.Count);
+        Assert.Equal(100, client.AppendRequests[0].Children.Count);
+        Assert.Single(client.AppendRequests[1].Children);
+    }
+
+    [Fact]
+    public async Task PushAsync_DryRun_MissingMappedPropertyFailsPlanning()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  {
+    "title": "Home",
+    "slug": "home"
+  }
+]
+""");
+
+        NotionPushResult result = await CreateDryRunService().PushAsync(CreateDryRunOptions(seedDir, mapPath), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("notion.recordMissingMappedProperty", Assert.Single(result.Diagnostics).Code);
+        Assert.Empty(result.Records);
+    }
+
+    [Fact]
+    public async Task PushAsync_DryRun_InvalidMappedPropertyTypeFailsPlanning()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  {
+    "title": "Home",
+    "slug": "home",
+    "published": true,
+    "rank": "one"
+  }
+]
+""");
+        File.WriteAllText(mapPath, """
+databases:
+  pages:
+    seed: pages.json
+    collection: page
+    dataSourceId: ds-pages
+    uniqueField: Slug
+    properties:
+      Title:
+        source: title
+        type: title
+      Slug:
+        source: slug
+        type: rich_text
+      Published:
+        source: published
+        type: checkbox
+      Rank:
+        source: rank
+        type: number
+""");
+
+        NotionPushResult result = await CreateDryRunService().PushAsync(CreateDryRunOptions(seedDir, mapPath), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("notion.recordInvalidMappedPropertyType", Assert.Single(result.Diagnostics).Code);
+        Assert.Empty(result.Records);
+    }
+
+    [Fact]
+    public async Task PushAsync_DryRun_NumberForRichTextMappingFailsPlanning()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  {
+    "title": "Home",
+    "slug": 42,
+    "published": true
+  }
+]
+""");
+
+        NotionPushResult result = await CreateDryRunService().PushAsync(CreateDryRunOptions(seedDir, mapPath), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("notion.recordInvalidMappedPropertyType", Assert.Single(result.Diagnostics).Code);
+        Assert.Empty(result.Records);
+    }
+
+    [Fact]
+    public async Task PushAsync_DryRun_MissingMappedTitleValueFailsPlanning()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        File.WriteAllText(mapPath, """
+databases:
+  pages:
+    seed: pages.json
+    collection: page
+    dataSourceId: ds-pages
+    uniqueField: Slug
+    properties:
+      Title:
+        source: headline
+        type: title
+      Slug:
+        source: slug
+        type: rich_text
+      Published:
+        source: published
+        type: checkbox
+""");
+
+        NotionPushResult result = await CreateDryRunService().PushAsync(CreateDryRunOptions(seedDir, mapPath), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(2, result.Diagnostics.Count);
+        Assert.All(result.Diagnostics, diagnostic => Assert.Equal("notion.recordMissingTitlePropertyValue", diagnostic.Code));
+        Assert.Empty(result.Records);
     }
 
     [Fact]
@@ -295,6 +446,21 @@ databases:
 """);
         return (seedDir, mapPath);
     }
+
+    private NotionPushService CreateDryRunService()
+        => new(
+            new RecordingNotionClientFactory(new RecordingNotionClient()),
+            new DictionaryNotionTokenProvider(new Dictionary<string, string>(StringComparer.Ordinal)));
+
+    private NotionPushOptions CreateDryRunOptions(string seedDir, string mapPath)
+        => new(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            DatabaseMapPath: mapPath,
+            Mode: NotionPushMode.Create,
+            DryRun: true,
+            ReportPath: Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "validation-report.json"),
+            TokenEnvironmentVariable: "NOTION_TOKEN");
 
     private sealed class RecordingNotionClientFactory : INotionClientFactory
     {

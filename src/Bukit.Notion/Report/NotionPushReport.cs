@@ -11,6 +11,8 @@ public sealed record NotionPushReport(
     IReadOnlyList<NotionPushRecordResult>? Records = null,
     IReadOnlyList<NotionPushDiagnostic>? Diagnostics = null)
 {
+    public int PlannedUpsert { get; init; }
+
     public IReadOnlyList<NotionPushRecordResult> Records { get; init; } = Records ?? [];
     public IReadOnlyList<NotionPushDiagnostic> Diagnostics { get; init; } = Diagnostics ?? [];
 }

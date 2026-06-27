@@ -642,6 +642,7 @@ report 中标记：
 dryRun: true
 plannedCreate
 plannedUpdate
+plannedUpsert
 plannedReplace
 输出 artifact
 .bukit/reports/plugin-output/notion/notion-push-report.json
@@ -767,6 +768,7 @@ bukit notion push \
 子任务
 读取 map entry 的 uniqueField。
 从 seed record 中取 unique value。
+unique value 支持 string、number、boolean，并按 property type 生成对应 filter。
 查询 data source：
 filter unique property equals value。
 无匹配：
@@ -776,7 +778,7 @@ update page properties。
 append blocks 或按策略处理 content。
 多个匹配：
 diagnostic notion.upsertMultipleMatches
-默认跳过。
+默认失败并跳过远端写入，不得静默更新第一个匹配页面。
 支持 --dry-run 只计划。
 report 中记录：
 created
@@ -828,11 +830,13 @@ update properties。
 list block children。
 delete supported child blocks。
 append new blocks。
+append children 必须按每批最多 100 blocks 顺序提交。
 删除 block 失败：
 标记 replace-failed。
 不 append。
 append 失败：
 标记 append-failed。
+replace 不是原子操作；delete/append 失败诊断必须说明 properties 可能已先更新。
 report 记录每一步。
 错误码
 notion.replaceRequiresConfirmation
@@ -852,6 +856,9 @@ multiple matches fails
 目标
 
 所有 push 模式都生成统一报告。
+
+seed、database map、逐记录 planning、token 和 API 失败路径也必须写 JSON/Markdown failure report。
+dry-run upsert 使用 operation=upsert 和 plannedUpsert；plannedUpdate 仅统计已确认的实际 update。
 
 JSON 报告
 {
@@ -1018,6 +1025,9 @@ notion.queryFailed
 notion.createPageFailed
 notion.updatePageFailed
 notion.upsertMultipleMatches
+notion.recordMissingMappedProperty
+notion.recordInvalidMappedPropertyType
+notion.recordMissingTitlePropertyValue
 notion.replaceRequiresConfirmation
 notion.replaceNoMatch
 notion.replaceMultipleMatches

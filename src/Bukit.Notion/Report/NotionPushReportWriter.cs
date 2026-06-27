@@ -25,6 +25,7 @@ public static class NotionPushReportWriter
         builder.AppendLine($"- Mode: {report.Mode}");
         builder.AppendLine($"- Planned create: {report.PlannedCreate}");
         builder.AppendLine($"- Planned update: {report.PlannedUpdate}");
+        builder.AppendLine($"- Planned upsert: {report.PlannedUpsert}");
         builder.AppendLine($"- Planned replace: {report.PlannedReplace}");
         builder.AppendLine();
         builder.AppendLine("| Operation | Collection | Seed file | Title | Unique field | Unique value | Data source |");
@@ -66,14 +67,17 @@ public static class NotionPushReportWriter
             PlannedUpdate: records.Count(static record => string.Equals(record.Operation, "update", StringComparison.Ordinal)),
             PlannedReplace: records.Count(static record => string.Equals(record.Operation, "replace", StringComparison.Ordinal)),
             Records: records,
-            Diagnostics: diagnostics);
+            Diagnostics: diagnostics)
+        {
+            PlannedUpsert = records.Count(static record => string.Equals(record.Operation, "upsert", StringComparison.Ordinal))
+        };
     }
 
     public static string ToOperation(NotionPushMode mode)
         => mode switch
         {
             NotionPushMode.Create => "create",
-            NotionPushMode.Upsert => "update",
+            NotionPushMode.Upsert => "upsert",
             NotionPushMode.Replace => "replace",
             _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
         };

@@ -86,6 +86,37 @@ public sealed class NotionPushReplaceTests : IDisposable
     }
 
     [Fact]
+    public async Task PushAsync_ReplaceMode_AppendsReplacementBlocksInApiSizedBatches()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        string content = string.Join("\n\n", Enumerable.Range(1, 101).Select(index => $"Paragraph {index}"));
+        File.WriteAllText(
+            Path.Combine(seedDir, "pages.json"),
+            JsonSerializer.Serialize(new[]
+            {
+                new { title = "Home", slug = "home", published = true, content }
+            }));
+        var client = new RecordingNotionClient();
+        client.QueryResults["home"] = ["page-home"];
+        var service = CreateService(client);
+
+        NotionPushResult result = await service.PushAsync(new NotionPushOptions(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            DatabaseMapPath: mapPath,
+            Mode: NotionPushMode.Replace,
+            DryRun: false,
+            ReportPath: Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "batch-report.json"),
+            TokenEnvironmentVariable: "NOTION_TOKEN",
+            ConfirmReplace: true), CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, client.AppendRequests.Count);
+        Assert.Equal(100, client.AppendRequests[0].Children.Count);
+        Assert.Single(client.AppendRequests[1].Children);
+    }
+
+    [Fact]
     public async Task PushAsync_ReplaceMode_MultipleMatchesFails()
     {
         (string seedDir, string mapPath) = WriteValidHandoff();
@@ -132,7 +163,9 @@ public sealed class NotionPushReplaceTests : IDisposable
             ConfirmReplace: true), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("notion.replaceDeleteFailed", Assert.Single(result.Diagnostics).Code);
+        NotionPushDiagnostic diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("notion.replaceDeleteFailed", diagnostic.Code);
+        Assert.Contains("properties may have been updated", diagnostic.Message, StringComparison.Ordinal);
         Assert.Empty(client.AppendRequests);
     }
 
@@ -158,7 +191,9 @@ public sealed class NotionPushReplaceTests : IDisposable
             ConfirmReplace: true), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("notion.replaceAppendFailed", Assert.Single(result.Diagnostics).Code);
+        NotionPushDiagnostic diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal("notion.replaceAppendFailed", diagnostic.Code);
+        Assert.Contains("properties may have been updated", diagnostic.Message, StringComparison.Ordinal);
     }
 
     private NotionPushService CreateService(INotionClient client)

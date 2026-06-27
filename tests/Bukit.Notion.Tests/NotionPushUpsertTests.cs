@@ -67,6 +67,114 @@ public sealed class NotionPushUpsertTests : IDisposable
         Assert.Equal(0, reportJson.RootElement.GetProperty("plannedReplace").GetInt32());
     }
 
+    [Fact]
+    public async Task PushAsync_UpsertMode_MultipleMatchesFailsWithoutUpdatingOrCreating()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        string reportPath = Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "multiple-matches.json");
+        var client = new RecordingNotionClient();
+        client.QueryResults["home"] = ["page-home-1", "page-home-2"];
+        var service = new NotionPushService(
+            new RecordingNotionClientFactory(client),
+            new DictionaryNotionTokenProvider(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["NOTION_TOKEN"] = SecretToken
+            }));
+
+        NotionPushResult result = await service.PushAsync(new NotionPushOptions(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            DatabaseMapPath: mapPath,
+            Mode: NotionPushMode.Upsert,
+            DryRun: false,
+            ReportPath: reportPath,
+            TokenEnvironmentVariable: "NOTION_TOKEN"), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("notion.upsertMultipleMatches", Assert.Single(result.Diagnostics).Code);
+        Assert.Empty(client.UpdateRequests);
+        Assert.Empty(client.CreateRequests);
+        Assert.True(File.Exists(reportPath));
+    }
+
+    [Fact]
+    public async Task PushAsync_UpsertMode_NumberUniqueFieldUsesNumberFilter()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  {
+    "title": "Home",
+    "rank": 42
+  }
+]
+""");
+        File.WriteAllText(mapPath, """
+databases:
+  pages:
+    seed: pages.json
+    collection: page
+    dataSourceId: ds-pages
+    uniqueField: Rank
+    properties:
+      Title:
+        source: title
+        type: title
+      Rank:
+        source: rank
+        type: number
+""");
+        var client = new RecordingNotionClient();
+        client.QueryResults["42"] = ["page-42"];
+        var service = CreateService(client);
+
+        NotionPushResult result = await service.PushAsync(CreateOptions(seedDir, mapPath), CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Single(client.UpdateRequests);
+        using JsonDocument query = JsonDocument.Parse(Assert.Single(client.QueryRequests).Request.Json);
+        Assert.Equal(42, query.RootElement.GetProperty("filter").GetProperty("number").GetProperty("equals").GetInt32());
+    }
+
+    [Fact]
+    public async Task PushAsync_UpsertMode_CheckboxUniqueFieldUsesBooleanFilter()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  {
+    "title": "Home",
+    "published": true
+  }
+]
+""");
+        File.WriteAllText(mapPath, """
+databases:
+  pages:
+    seed: pages.json
+    collection: page
+    dataSourceId: ds-pages
+    uniqueField: Published
+    properties:
+      Title:
+        source: title
+        type: title
+      Published:
+        source: published
+        type: checkbox
+""");
+        var client = new RecordingNotionClient();
+        client.QueryResults["true"] = ["page-published"];
+        var service = CreateService(client);
+
+        NotionPushResult result = await service.PushAsync(CreateOptions(seedDir, mapPath), CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Single(client.UpdateRequests);
+        using JsonDocument query = JsonDocument.Parse(Assert.Single(client.QueryRequests).Request.Json);
+        Assert.True(query.RootElement.GetProperty("filter").GetProperty("checkbox").GetProperty("equals").GetBoolean());
+    }
+
     private (string SeedDir, string MapPath) WriteValidHandoff()
     {
         string seedDir = Directory.CreateDirectory(Path.Combine(_projectRoot, "notion-seed")).FullName;
@@ -105,6 +213,24 @@ databases:
 """);
         return (seedDir, mapPath);
     }
+
+    private NotionPushService CreateService(INotionClient client)
+        => new(
+            new RecordingNotionClientFactory(client),
+            new DictionaryNotionTokenProvider(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["NOTION_TOKEN"] = SecretToken
+            }));
+
+    private NotionPushOptions CreateOptions(string seedDir, string mapPath)
+        => new(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            DatabaseMapPath: mapPath,
+            Mode: NotionPushMode.Upsert,
+            DryRun: false,
+            ReportPath: Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "typed-unique-report.json"),
+            TokenEnvironmentVariable: "NOTION_TOKEN");
 
     private sealed class RecordingNotionClientFactory : INotionClientFactory
     {
@@ -149,11 +275,17 @@ databases:
         {
             QueryRequests.Add((dataSourceId, request));
             using JsonDocument document = JsonDocument.Parse(request.Json);
-            string uniqueValue = document.RootElement
-                .GetProperty("filter")
-                .GetProperty("rich_text")
-                .GetProperty("equals")
-                .GetString()!;
+            JsonElement filter = document.RootElement.GetProperty("filter");
+            JsonProperty typedFilter = filter.EnumerateObject().Single(property => property.Name != "property");
+            JsonElement equals = typedFilter.Value.GetProperty("equals");
+            string uniqueValue = equals.ValueKind switch
+            {
+                JsonValueKind.String => equals.GetString()!,
+                JsonValueKind.Number => equals.GetRawText(),
+                JsonValueKind.True => "true",
+                JsonValueKind.False => "false",
+                _ => throw new InvalidOperationException("Unsupported test filter value.")
+            };
             return Task.FromResult(new NotionQueryResult(
                 QueryResults.TryGetValue(uniqueValue, out IReadOnlyList<string>? ids) ? ids : [],
                 "{}"));

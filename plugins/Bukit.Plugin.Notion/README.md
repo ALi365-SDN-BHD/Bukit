@@ -33,19 +33,23 @@ bukit notion push \
 ## Push Modes
 
 - `create`: creates one Notion page per seed record.
-- `upsert`: queries by `uniqueField`; updates properties when one page matches, otherwise creates.
+- `upsert`: queries by `uniqueField`; updates properties when one page matches, otherwise creates. Multiple matches fail with `notion.upsertMultipleMatches` and do not modify a page.
 - `replace`: requires `--confirm-replace`; queries by `uniqueField`, updates properties, deletes existing children, and appends replacement blocks from seed content. This is not atomic: properties may be updated before child-block replacement fails.
-- Seed content from `content`, `body`, `markdown`, or `content_markdown` is converted into Notion blocks for paragraphs, headings, bullet/numbered lists, quotes, and fenced code blocks. Long text is split to fit Notion rich-text limits.
+- `uniqueField` values may be strings, numbers, or booleans when their mapped Notion property type supports that value.
+- Every mapped property is validated per seed record before push. Missing values, incompatible types, and missing title values fail planning with record-level diagnostics.
+- Seed content from `content`, `body`, `markdown`, or `content_markdown` is converted into Notion blocks for paragraphs, headings, bullet/numbered lists, quotes, and fenced code blocks. Long text is split to fit Notion rich-text limits, and append requests are sent in batches of at most 100 blocks.
 - `--dry-run`: validates seed/map and writes planned reports without reading token or calling Notion.
 
 ## Reports
 
-Successful push and dry-run commands write:
+Successful and failed push commands write:
 
 - `.bukit/reports/plugin-output/notion/notion-push-report.json`
 - `.bukit/reports/plugin-output/notion/notion-push-report.md`
 
 Reports must not contain the Notion token or raw secret values.
+
+Dry-run upsert reports use `operation: upsert` and `plannedUpsert`; `plannedUpdate` is reserved for updates confirmed by a non-dry-run push.
 
 ## Packaging
 
