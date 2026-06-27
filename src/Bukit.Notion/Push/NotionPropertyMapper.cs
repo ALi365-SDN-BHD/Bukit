@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Bukit.Notion.Conversion;
 using Bukit.Notion.Mapping;
 using Bukit.Notion.Seed;
 
@@ -58,6 +59,19 @@ internal static class NotionPropertyMapper
                 continue;
             }
 
+            if (IsTextProperty(property.Type)
+                && ElementToString(value) is string text
+                && text.Length > NotionTextChunker.MaxRichTextPropertyLength)
+            {
+                diagnostics.Add(new NotionPushDiagnostic(
+                    "notion.recordTextPropertyTooLong",
+                    NotionDiagnosticSeverity.Error,
+                    $"Seed record value for mapped property {property.Name} exceeds the Notion limit of {NotionTextChunker.MaxRichTextArrayItems} rich-text items.",
+                    recordPath));
+                valid = false;
+                continue;
+            }
+
             if (ToNotionPropertyValue(property.Type, value) is null)
             {
                 diagnostics.Add(new NotionPushDiagnostic(
@@ -101,21 +115,34 @@ internal static class NotionPropertyMapper
             return null;
         }
 
+        IReadOnlyList<string> chunks = NotionTextChunker.Chunk(value);
+        if (chunks.Count > NotionTextChunker.MaxRichTextArrayItems)
+        {
+            return null;
+        }
+
+        var items = new JsonArray();
+        foreach (string chunk in chunks)
+        {
+            items.Add(new JsonObject
+            {
+                ["type"] = "text",
+                ["text"] = new JsonObject
+                {
+                    ["content"] = chunk
+                }
+            });
+        }
+
         return new JsonObject
         {
-            [type] = new JsonArray
-            {
-                new JsonObject
-                {
-                    ["type"] = "text",
-                    ["text"] = new JsonObject
-                    {
-                        ["content"] = value
-                    }
-                }
-            }
+            [type] = items
         };
     }
+
+    private static bool IsTextProperty(string type)
+        => string.Equals(type, "title", StringComparison.Ordinal)
+           || string.Equals(type, "rich_text", StringComparison.Ordinal);
 
     private static JsonObject? CreateNamedProperty(string type, string? value)
     {

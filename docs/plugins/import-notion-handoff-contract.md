@@ -45,6 +45,11 @@ The domain import also emits:
 diagnostic: import.notionHandoffReady
 ```
 
+The generated database map leaves `databaseId` empty for the user to fill, but
+each supported seed entry includes compatible default mappings for `Title`,
+`Slug`, and `Published`. This allows the Notion plugin validator to accept the
+property schema without requiring users to reconstruct it manually.
+
 ## `--no-seed`
 
 `--no-seed` disables handoff seed generation and omits Notion seed artifacts.

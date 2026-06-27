@@ -111,7 +111,8 @@ public sealed class NotionPushCreateTests : IDisposable
             JsonSerializer.Serialize(new[]
             {
                 new { title = "Home", slug = "home", published = true, content = "Home body" },
-                new { title = "About", slug = "about", published = false, content = "About body" }
+                new { title = "About", slug = "about", published = false, content = "About body" },
+                new { title = "Contact", slug = "contact", published = false, content = "Contact body" }
             }));
         string reportPath = Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "partial-failure-report.json");
         var client = new RecordingNotionClient
@@ -139,16 +140,98 @@ public sealed class NotionPushCreateTests : IDisposable
         using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
         Assert.Equal(1, report.RootElement.GetProperty("created").GetInt32());
         Assert.Equal(1, report.RootElement.GetProperty("failed").GetInt32());
+        Assert.Equal(1, report.RootElement.GetProperty("skipped").GetInt32());
         Assert.Equal(0, report.RootElement.GetProperty("planned").GetInt32());
         JsonElement records = report.RootElement.GetProperty("records");
-        Assert.Equal(2, records.GetArrayLength());
+        Assert.Equal(3, records.GetArrayLength());
         Assert.Equal("created", records[0].GetProperty("status").GetString());
         Assert.Equal("page-01", records[0].GetProperty("remotePageId").GetString());
         Assert.Equal("failed", records[1].GetProperty("status").GetString());
         Assert.Equal("page-02", records[1].GetProperty("remotePageId").GetString());
         Assert.Equal("notion.httpError", records[1].GetProperty("errorCode").GetString());
         Assert.Equal("Notion HTTP request failed.", records[1].GetProperty("errorMessage").GetString());
+        Assert.Equal("skipped", records[2].GetProperty("status").GetString());
+        Assert.Equal("contact", records[2].GetProperty("uniqueValue").GetString());
+        Assert.Equal("notion.pushNotExecuted", records[2].GetProperty("errorCode").GetString());
         Assert.DoesNotContain(SecretToken, File.ReadAllText(reportPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PushAsync_CreateMode_ChunksLongTitleAndRichTextProperties()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        string title = new('T', 2_500);
+        string summary = new('S', 4_500);
+        File.WriteAllText(
+            Path.Combine(seedDir, "pages.json"),
+            JsonSerializer.Serialize(new[]
+            {
+                new { title, slug = "long-text", published = true, summary }
+            }));
+        File.AppendAllText(mapPath, """
+
+      Summary:
+        source: summary
+        type: rich_text
+""");
+        var client = new RecordingNotionClient();
+        var service = new NotionPushService(
+            new RecordingNotionClientFactory(client),
+            new DictionaryNotionTokenProvider(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["NOTION_TOKEN"] = SecretToken
+            }));
+
+        NotionPushResult result = await service.PushAsync(new NotionPushOptions(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            DatabaseMapPath: mapPath,
+            Mode: NotionPushMode.Create,
+            DryRun: false,
+            ReportPath: Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "chunked-properties-report.json"),
+            TokenEnvironmentVariable: "NOTION_TOKEN"), CancellationToken.None);
+
+        Assert.True(result.Success, string.Join(Environment.NewLine, result.Diagnostics.Select(diagnostic =>
+            $"{diagnostic.Code}: {diagnostic.Message}")));
+        using JsonDocument request = JsonDocument.Parse(Assert.Single(client.CreateRequests).Json);
+        JsonElement properties = request.RootElement.GetProperty("properties");
+        JsonElement titleItems = properties.GetProperty("Title").GetProperty("title");
+        JsonElement summaryItems = properties.GetProperty("Summary").GetProperty("rich_text");
+        Assert.Equal(2, titleItems.GetArrayLength());
+        Assert.Equal(3, summaryItems.GetArrayLength());
+        Assert.Equal(title, JoinTextItems(titleItems));
+        Assert.Equal(summary, JoinTextItems(summaryItems));
+        Assert.All(titleItems.EnumerateArray(), item =>
+            Assert.InRange(item.GetProperty("text").GetProperty("content").GetString()!.Length, 1, 2_000));
+        Assert.All(summaryItems.EnumerateArray(), item =>
+            Assert.InRange(item.GetProperty("text").GetProperty("content").GetString()!.Length, 1, 2_000));
+    }
+
+    [Fact]
+    public async Task PushAsync_DryRun_TextPropertyBeyondNotionArrayLimitFailsPlanning()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        string summary = new('S', 200_001);
+        File.WriteAllText(
+            Path.Combine(seedDir, "pages.json"),
+            JsonSerializer.Serialize(new[]
+            {
+                new { title = "Long summary", slug = "long-summary", published = true, summary }
+            }));
+        File.AppendAllText(mapPath, """
+
+      Summary:
+        source: summary
+        type: rich_text
+""");
+
+        NotionPushResult result = await CreateDryRunService().PushAsync(
+            CreateDryRunOptions(seedDir, mapPath),
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(2, result.ExitCode);
+        Assert.Equal("notion.recordTextPropertyTooLong", Assert.Single(result.Diagnostics).Code);
     }
 
     [Fact]
@@ -585,6 +668,10 @@ databases:
             DryRun: true,
             ReportPath: Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "validation-report.json"),
             TokenEnvironmentVariable: "NOTION_TOKEN");
+
+    private static string JoinTextItems(JsonElement items)
+        => string.Concat(items.EnumerateArray().Select(item =>
+            item.GetProperty("text").GetProperty("content").GetString()));
 
     private sealed class RecordingNotionClientFactory : INotionClientFactory
     {

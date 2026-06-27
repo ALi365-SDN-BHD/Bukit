@@ -243,6 +243,7 @@ public sealed class NotionPushService : INotionPushService
                                 planned,
                                 queryResult,
                                 actualRecords,
+                                records,
                                 cancellationToken).ConfigureAwait(false);
                             if (replaceResult is not null)
                             {
@@ -258,6 +259,7 @@ public sealed class NotionPushService : INotionPushService
                             return NotionPushRuntimeFailure.Create(
                                 options,
                                 actualRecords,
+                                records,
                                 planned,
                                 null,
                                 "notion.upsertMultipleMatches",
@@ -314,6 +316,7 @@ public sealed class NotionPushService : INotionPushService
             return NotionPushRuntimeFailure.Create(
                 options,
                 actualRecords,
+                records,
                 currentRecord,
                 currentRemotePageId,
                 NotionPushRuntimeFailure.MapApiDiagnosticCode(ex),
@@ -324,6 +327,7 @@ public sealed class NotionPushService : INotionPushService
             return NotionPushRuntimeFailure.Create(
                 options,
                 actualRecords,
+                records,
                 currentRecord,
                 currentRemotePageId,
                 "notion.httpError",
@@ -343,6 +347,7 @@ public sealed class NotionPushService : INotionPushService
         NotionPushRecordResult planned,
         NotionQueryResult queryResult,
         List<NotionPushRecordResult> actualRecords,
+        IReadOnlyList<NotionPushRecordResult> plannedRecords,
         CancellationToken cancellationToken)
     {
         if (queryResult.ResultIds.Count == 0)
@@ -350,6 +355,7 @@ public sealed class NotionPushService : INotionPushService
             return NotionPushRuntimeFailure.Create(
                 options,
                 actualRecords,
+                plannedRecords,
                 planned,
                 null,
                 "notion.replaceNoMatch",
@@ -363,6 +369,7 @@ public sealed class NotionPushService : INotionPushService
             return NotionPushRuntimeFailure.Create(
                 options,
                 actualRecords,
+                plannedRecords,
                 planned,
                 null,
                 "notion.replaceMultipleMatches",
@@ -392,11 +399,11 @@ public sealed class NotionPushService : INotionPushService
                     return NotionPushRuntimeFailure.Create(
                         options,
                         actualRecords,
+                        plannedRecords,
                         planned,
                         pageId,
                         "notion.replaceDeleteFailed",
-                        errorMessage,
-                        exitCode: 2);
+                        errorMessage);
                 }
             }
         }
@@ -418,11 +425,11 @@ public sealed class NotionPushService : INotionPushService
                 return NotionPushRuntimeFailure.Create(
                     options,
                     actualRecords,
+                    plannedRecords,
                     planned,
                     pageId,
                     "notion.replaceAppendFailed",
-                    errorMessage,
-                    exitCode: 2);
+                    errorMessage);
             }
         }
 

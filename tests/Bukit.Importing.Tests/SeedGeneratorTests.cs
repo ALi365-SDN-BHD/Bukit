@@ -74,6 +74,16 @@ public sealed class SeedGeneratorTests : IDisposable
         Assert.Contains("    seed: pages.json", map);
         Assert.Contains("    collection: page", map);
         Assert.Contains("    databaseId: \"\"", map);
+        Assert.Contains("    properties:", map);
+        Assert.Contains("      Title:", map);
+        Assert.Contains("        source: title", map);
+        Assert.Contains("        type: title", map);
+        Assert.Contains("      Slug:", map);
+        Assert.Contains("        source: slug", map);
+        Assert.Contains("        type: rich_text", map);
+        Assert.Contains("      Published:", map);
+        Assert.Contains("        source: published", map);
+        Assert.Contains("        type: checkbox", map);
         Assert.Contains("  posts:", map);
         Assert.Contains("    seed: posts.json", map);
         Assert.Contains("  companies:", map);

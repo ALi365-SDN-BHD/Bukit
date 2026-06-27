@@ -163,6 +163,7 @@ public sealed class NotionPushReplaceTests : IDisposable
             ConfirmReplace: true), CancellationToken.None);
 
         Assert.False(result.Success);
+        Assert.Equal(1, result.ExitCode);
         NotionPushDiagnostic diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal("notion.replaceDeleteFailed", diagnostic.Code);
         Assert.Contains("properties may have been updated", diagnostic.Message, StringComparison.Ordinal);
@@ -201,6 +202,7 @@ public sealed class NotionPushReplaceTests : IDisposable
             ConfirmReplace: true), CancellationToken.None);
 
         Assert.False(result.Success);
+        Assert.Equal(1, result.ExitCode);
         NotionPushDiagnostic diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal("notion.replaceAppendFailed", diagnostic.Code);
         Assert.Contains("properties may have been updated", diagnostic.Message, StringComparison.Ordinal);

@@ -3,6 +3,8 @@ namespace Bukit.Notion.Conversion;
 public static class NotionTextChunker
 {
     public const int MaxTextContentLength = 2_000;
+    public const int MaxRichTextArrayItems = 100;
+    public const int MaxRichTextPropertyLength = MaxTextContentLength * MaxRichTextArrayItems;
 
     public static IReadOnlyList<string> Chunk(string content, int maxLength = MaxTextContentLength)
     {

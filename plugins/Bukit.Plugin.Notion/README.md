@@ -40,6 +40,8 @@ bukit notion push \
 - Seed property types are strict: `checkbox` requires JSON `true`/`false`, and `number` requires an unquoted JSON number. Strings such as `"true"` or `"3"` are rejected with `notion.recordInvalidMappedPropertyType`; v1 does not coerce them.
 - Duplicate `(collection, seedFile, uniqueField, uniqueValue)` records fail planning with `notion.seedDuplicateUniqueValue` before any network access.
 - Seed content from `content`, `body`, `markdown`, or `content_markdown` is converted into Notion blocks for paragraphs, headings, bullet/numbered lists, quotes, and fenced code blocks. Long text is split to fit Notion rich-text limits, and append requests are sent in batches of at most 100 blocks.
+- `title` and `rich_text` properties are split into rich-text items of at most 2,000 characters. Property arrays are limited to 100 items; larger values fail local planning with `notion.recordTextPropertyTooLong`.
+- If a real push stops mid-run, the report preserves completed remote writes, marks the current record `failed`, and marks every later record `skipped` with `notion.pushNotExecuted`.
 - `--dry-run`: validates seed/map and writes planned reports without reading token or calling Notion.
 
 ## Reports

@@ -567,7 +567,9 @@ uniqueField
 每个 entry 必须包含：
 dataSourceId 或 databaseId
 seed 必须指向 seed-dir 内存在的文件，或者在 standalone validate-map 时只做相对路径格式校验。
-properties 可选，但如果存在必须是 mapping。
+properties 必填且必须是非空 mapping。
+properties 中必须至少包含一个 title property。
+uniqueField 必须映射到 properties 中的同名 property。
 properties.*.type 必须是受支持类型。
 properties.*.source 必须非空。
 支持 legacy databaseId。
@@ -587,6 +589,8 @@ url
 email
 phone_number
 date
+
+title 与 rich_text property 都按 rich-text object 数组写入。每个 text.content 最多 2000 字符，超过时必须分块；数组最多 100 项，超过 200000 字符的属性值必须在 planning 阶段失败，不得发送无效 API 请求。
 
 后续支持：
 
@@ -861,7 +865,7 @@ multiple matches fails
 
 seed、database map、逐记录 planning、token 和 API 失败路径也必须写 JSON/Markdown failure report。
 dry-run upsert 使用 operation=upsert 和 plannedUpsert；plannedUpdate 仅统计已确认的实际 update。
-每条 record 必须包含 status、remotePageId、errorCode、errorMessage。真实 push 中途失败时，只报告已完成的远端写入和当前失败记录，不得把尚未执行的 planned records 混入实际结果。
+每条 record 必须包含 status、remotePageId、errorCode、errorMessage。真实 push 中途失败时，报告必须按顺序包含已完成的远端写入、当前失败记录，以及所有后续未执行且标记为 skipped 的记录；不得遗留 status=planned 的记录。
 status 取值：planned、created、updated、replaced、failed、skipped。
 
 JSON 报告

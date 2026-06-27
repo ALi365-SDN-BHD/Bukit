@@ -244,6 +244,16 @@ internal static class SeedGenerator
         sb.AppendLine($"    collection: {collection}");
         sb.AppendLine("    databaseId: \"\"");
         sb.AppendLine("    uniqueField: Slug");
+        sb.AppendLine("    properties:");
+        sb.AppendLine("      Title:");
+        sb.AppendLine("        source: title");
+        sb.AppendLine("        type: title");
+        sb.AppendLine("      Slug:");
+        sb.AppendLine("        source: slug");
+        sb.AppendLine("        type: rich_text");
+        sb.AppendLine("      Published:");
+        sb.AppendLine("        source: published");
+        sb.AppendLine("        type: checkbox");
     }
 
     private static void WritePagesYaml(string path, List<PageRecord> records, bool overwrite)
