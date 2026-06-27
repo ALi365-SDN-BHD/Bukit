@@ -166,7 +166,17 @@ public sealed class NotionPushReplaceTests : IDisposable
         NotionPushDiagnostic diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal("notion.replaceDeleteFailed", diagnostic.Code);
         Assert.Contains("properties may have been updated", diagnostic.Message, StringComparison.Ordinal);
+        NotionPushRecordResult failedRecord = Assert.Single(result.Records);
+        Assert.Equal("failed", failedRecord.Status);
+        Assert.Equal("page-home", failedRecord.RemotePageId);
+        Assert.Equal("notion.replaceDeleteFailed", failedRecord.ErrorCode);
+        Assert.Equal(diagnostic.Message, failedRecord.ErrorMessage);
         Assert.Empty(client.AppendRequests);
+
+        using JsonDocument report = JsonDocument.Parse(File.ReadAllText(Path.Combine(_projectRoot, "report.json")));
+        JsonElement reportRecord = Assert.Single(report.RootElement.GetProperty("records").EnumerateArray());
+        Assert.Equal("failed", reportRecord.GetProperty("status").GetString());
+        Assert.Equal("page-home", reportRecord.GetProperty("remotePageId").GetString());
     }
 
     [Fact]

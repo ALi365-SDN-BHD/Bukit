@@ -7,4 +7,8 @@ public sealed record NotionPushRecordResult(
     string? Title,
     string UniqueField,
     string UniqueValue,
-    string DataSourceId);
+    string DataSourceId,
+    string Status = NotionPushRecordStatus.Planned,
+    string? RemotePageId = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);

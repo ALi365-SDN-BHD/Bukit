@@ -111,11 +111,20 @@ internal static class NotionUniqueValueResolver
         value = element.ValueKind switch
         {
             JsonValueKind.String => element.GetString(),
-            JsonValueKind.Number => element.GetRawText(),
+            JsonValueKind.Number => NormalizeNumber(element),
             JsonValueKind.True => "true",
             JsonValueKind.False => "false",
             _ => null
         };
         return !string.IsNullOrWhiteSpace(value);
     }
+
+    private static string? NormalizeNumber(JsonElement element)
+        => decimal.TryParse(
+            element.GetRawText(),
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out decimal value)
+                ? value.ToString("G29", CultureInfo.InvariantCulture)
+                : null;
 }

@@ -37,6 +37,8 @@ bukit notion push \
 - `replace`: requires `--confirm-replace`; queries by `uniqueField`, updates properties, deletes existing children, and appends replacement blocks from seed content. This is not atomic: properties may be updated before child-block replacement fails.
 - `uniqueField` values may be strings, numbers, or booleans when their mapped Notion property type supports that value.
 - Every mapped property is validated per seed record before push. Missing values, incompatible types, and missing title values fail planning with record-level diagnostics.
+- Seed property types are strict: `checkbox` requires JSON `true`/`false`, and `number` requires an unquoted JSON number. Strings such as `"true"` or `"3"` are rejected with `notion.recordInvalidMappedPropertyType`; v1 does not coerce them.
+- Duplicate `(collection, seedFile, uniqueField, uniqueValue)` records fail planning with `notion.seedDuplicateUniqueValue` before any network access.
 - Seed content from `content`, `body`, `markdown`, or `content_markdown` is converted into Notion blocks for paragraphs, headings, bullet/numbered lists, quotes, and fenced code blocks. Long text is split to fit Notion rich-text limits, and append requests are sent in batches of at most 100 blocks.
 - `--dry-run`: validates seed/map and writes planned reports without reading token or calling Notion.
 
@@ -48,6 +50,8 @@ Successful and failed push commands write:
 - `.bukit/reports/plugin-output/notion/notion-push-report.md`
 
 Reports must not contain the Notion token or raw secret values.
+
+Each record reports `status` (`planned`, `created`, `updated`, `replaced`, `failed`, or `skipped`), `remotePageId`, `errorCode`, and `errorMessage`. If a real push fails after earlier writes, the report contains the completed remote writes plus the current failed record, not the unexecuted plan.
 
 Dry-run upsert reports use `operation: upsert` and `plannedUpsert`; `plannedUpdate` is reserved for updates confirmed by a non-dry-run push.
 

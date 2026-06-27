@@ -103,6 +103,55 @@ public sealed class NotionPushCreateTests : IDisposable
     }
 
     [Fact]
+    public async Task PushAsync_CreateMode_AppendFailureReportsCompletedAndFailedRemoteWrites()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        File.WriteAllText(
+            Path.Combine(seedDir, "pages.json"),
+            JsonSerializer.Serialize(new[]
+            {
+                new { title = "Home", slug = "home", published = true, content = "Home body" },
+                new { title = "About", slug = "about", published = false, content = "About body" }
+            }));
+        string reportPath = Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "partial-failure-report.json");
+        var client = new RecordingNotionClient
+        {
+            AppendException = new HttpRequestException("append failed for secret-token-should-not-appear"),
+            AppendExceptionOnCall = 2
+        };
+        var service = new NotionPushService(
+            new RecordingNotionClientFactory(client),
+            new DictionaryNotionTokenProvider(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["NOTION_TOKEN"] = SecretToken
+            }));
+
+        NotionPushResult result = await service.PushAsync(new NotionPushOptions(
+            ProjectRoot: _projectRoot,
+            SeedDirectory: seedDir,
+            DatabaseMapPath: mapPath,
+            Mode: NotionPushMode.Create,
+            DryRun: false,
+            ReportPath: reportPath,
+            TokenEnvironmentVariable: "NOTION_TOKEN"), CancellationToken.None);
+
+        Assert.False(result.Success);
+        using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
+        Assert.Equal(1, report.RootElement.GetProperty("created").GetInt32());
+        Assert.Equal(1, report.RootElement.GetProperty("failed").GetInt32());
+        Assert.Equal(0, report.RootElement.GetProperty("planned").GetInt32());
+        JsonElement records = report.RootElement.GetProperty("records");
+        Assert.Equal(2, records.GetArrayLength());
+        Assert.Equal("created", records[0].GetProperty("status").GetString());
+        Assert.Equal("page-01", records[0].GetProperty("remotePageId").GetString());
+        Assert.Equal("failed", records[1].GetProperty("status").GetString());
+        Assert.Equal("page-02", records[1].GetProperty("remotePageId").GetString());
+        Assert.Equal("notion.httpError", records[1].GetProperty("errorCode").GetString());
+        Assert.Equal("Notion HTTP request failed.", records[1].GetProperty("errorMessage").GetString());
+        Assert.DoesNotContain(SecretToken, File.ReadAllText(reportPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task PushAsync_CreateMode_AppendsContentBlocksInApiSizedBatches()
     {
         (string seedDir, string mapPath) = WriteValidHandoff();
@@ -154,6 +203,81 @@ public sealed class NotionPushCreateTests : IDisposable
         Assert.False(result.Success);
         Assert.Equal("notion.recordMissingMappedProperty", Assert.Single(result.Diagnostics).Code);
         Assert.Empty(result.Records);
+    }
+
+    [Fact]
+    public async Task PushAsync_DryRun_DuplicateUniqueValueFailsPlanning()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  {
+    "title": "Home A",
+    "slug": "home",
+    "published": true
+  },
+  {
+    "title": "Home B",
+    "slug": "home",
+    "published": false
+  }
+]
+""");
+
+        NotionPushResult result = await CreateDryRunService().PushAsync(CreateDryRunOptions(seedDir, mapPath), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(2, result.ExitCode);
+        Assert.Equal("notion.seedDuplicateUniqueValue", Assert.Single(result.Diagnostics).Code);
+        Assert.Equal(2, result.Records.Count);
+        Assert.Equal("planned", result.Records[0].Status);
+        Assert.Equal("failed", result.Records[1].Status);
+        Assert.Equal("notion.seedDuplicateUniqueValue", result.Records[1].ErrorCode);
+
+        string reportPath = Path.Combine(_projectRoot, ".bukit", "reports", "plugin-output", "notion", "validation-report.json");
+        using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
+        Assert.Equal(1, report.RootElement.GetProperty("planned").GetInt32());
+        Assert.Equal(1, report.RootElement.GetProperty("failed").GetInt32());
+    }
+
+    [Fact]
+    public async Task PushAsync_DryRun_EquivalentNumberUniqueValuesFailPlanning()
+    {
+        (string seedDir, string mapPath) = WriteValidHandoff();
+        File.WriteAllText(Path.Combine(seedDir, "pages.json"), """
+[
+  {
+    "title": "Rank A",
+    "rank": 3
+  },
+  {
+    "title": "Rank B",
+    "rank": 3.0
+  }
+]
+""");
+        File.WriteAllText(mapPath, """
+databases:
+  pages:
+    seed: pages.json
+    collection: page
+    dataSourceId: ds-pages
+    uniqueField: Rank
+    properties:
+      Title:
+        source: title
+        type: title
+      Rank:
+        source: rank
+        type: number
+""");
+
+        NotionPushResult result = await CreateDryRunService().PushAsync(CreateDryRunOptions(seedDir, mapPath), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("notion.seedDuplicateUniqueValue", Assert.Single(result.Diagnostics).Code);
+        Assert.Equal("3", result.Records[0].UniqueValue);
+        Assert.Equal("3", result.Records[1].UniqueValue);
     }
 
     [Fact]
@@ -501,6 +625,12 @@ databases:
 
         public Exception? CreateException { get; init; }
 
+        public Exception? AppendException { get; init; }
+
+        public int? AppendExceptionOnCall { get; init; }
+
+        private int _appendCallCount;
+
         public Task<NotionQueryResult> QueryDataSourceAsync(
             string dataSourceId,
             NotionQueryRequest request,
@@ -531,6 +661,12 @@ databases:
             IReadOnlyList<NotionBlock> children,
             CancellationToken cancellationToken)
         {
+            _appendCallCount++;
+            if (AppendException is not null && _appendCallCount == AppendExceptionOnCall)
+            {
+                throw AppendException;
+            }
+
             AppendRequests.Add((blockId, children));
             return Task.CompletedTask;
         }

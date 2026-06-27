@@ -45,6 +45,7 @@ public sealed class NotionPushService : INotionPushService
         NotionDatabaseMap databaseMap = mapValidation.DatabaseMap!;
         var diagnostics = new List<NotionPushDiagnostic>();
         var records = new List<NotionPushRecordResult>();
+        var planner = new NotionPushPlanner(options.Mode, diagnostics);
 
         foreach (NotionDatabaseMapEntry entry in databaseMap.Databases.Values)
         {
@@ -61,7 +62,7 @@ public sealed class NotionPushService : INotionPushService
 
             foreach (NotionSeedRecord record in collection.Records)
             {
-                NotionPushRecordResult? planned = PlanRecord(options.Mode, entry, collection, record, diagnostics);
+                NotionPushRecordResult? planned = planner.Plan(entry, collection, record);
                 if (planned is not null)
                 {
                     records.Add(planned);
@@ -98,7 +99,7 @@ public sealed class NotionPushService : INotionPushService
                 cancellationToken).ConfigureAwait(false);
             if (pushResult is not null)
             {
-                return WriteFailureReport(options, records, pushResult);
+                return WriteFailureReport(options, pushResult.Records, pushResult);
             }
         }
 
@@ -194,6 +195,8 @@ public sealed class NotionPushService : INotionPushService
         string token = _tokenProvider.GetToken(options.TokenEnvironmentVariable)!;
         INotionClient client = _clientFactory.Create(new NotionRequestOptions(token));
         var actualRecords = new List<NotionPushRecordResult>();
+        NotionPushRecordResult? currentRecord = null;
+        string? currentRemotePageId = null;
 
         try
         {
@@ -217,6 +220,9 @@ public sealed class NotionPushService : INotionPushService
                         continue;
                     }
 
+                    currentRecord = planned;
+                    currentRemotePageId = null;
+
                     if (options.Mode is NotionPushMode.Upsert or NotionPushMode.Replace)
                     {
                         NotionQueryResult queryResult = await client.QueryDataSourceAsync(
@@ -226,6 +232,9 @@ public sealed class NotionPushService : INotionPushService
 
                         if (options.Mode == NotionPushMode.Replace)
                         {
+                            currentRemotePageId = queryResult.ResultIds.Count == 1
+                                ? queryResult.ResultIds[0]
+                                : null;
                             NotionPushResult? replaceResult = await ReplaceRecordAsync(
                                 client,
                                 options,
@@ -240,28 +249,38 @@ public sealed class NotionPushService : INotionPushService
                                 return replaceResult;
                             }
 
+                            currentRecord = null;
                             continue;
                         }
 
                         if (queryResult.ResultIds.Count > 1)
                         {
-                            return NotionPushResult.Failed(
-                                options.Mode,
-                                options.DryRun,
-                                new NotionPushDiagnostic(
-                                    "notion.upsertMultipleMatches",
-                                    NotionDiagnosticSeverity.Error,
-                                    $"Upsert mode found multiple Notion pages for {planned.UniqueField}."));
+                            return NotionPushRuntimeFailure.Create(
+                                options,
+                                actualRecords,
+                                planned,
+                                null,
+                                "notion.upsertMultipleMatches",
+                                $"Upsert mode found multiple Notion pages for {planned.UniqueField}.",
+                                exitCode: 2,
+                                status: NotionPushRecordStatus.Skipped);
                         }
 
                         string? pageId = queryResult.ResultIds.FirstOrDefault();
                         if (!string.IsNullOrWhiteSpace(pageId))
                         {
+                            currentRemotePageId = pageId;
                             await client.UpdatePagePropertiesAsync(
                                 pageId,
                                 new NotionUpdatePageRequest(BuildUpdatePageJson(entry, record)),
                                 cancellationToken).ConfigureAwait(false);
-                            actualRecords.Add(planned with { Operation = "update" });
+                            actualRecords.Add(planned with
+                            {
+                                Operation = "update",
+                                Status = NotionPushRecordStatus.Updated,
+                                RemotePageId = pageId
+                            });
+                            currentRecord = null;
                             continue;
                         }
                     }
@@ -269,6 +288,7 @@ public sealed class NotionPushService : INotionPushService
                     NotionPageResult createdPage = await client.CreatePageAsync(
                         new NotionCreatePageRequest(BuildCreatePageJson(entry, record)),
                         cancellationToken).ConfigureAwait(false);
+                    currentRemotePageId = createdPage.Id;
                     IReadOnlyList<NotionBlock> contentBlocks = BuildReplacementBlocks(record);
                     if (!string.IsNullOrWhiteSpace(createdPage.Id) && contentBlocks.Count > 0)
                     {
@@ -279,43 +299,35 @@ public sealed class NotionPushService : INotionPushService
                             cancellationToken).ConfigureAwait(false);
                     }
 
-                    actualRecords.Add(planned with { Operation = "create" });
+                    actualRecords.Add(planned with
+                    {
+                        Operation = "create",
+                        Status = NotionPushRecordStatus.Created,
+                        RemotePageId = createdPage.Id
+                    });
+                    currentRecord = null;
                 }
             }
         }
         catch (NotionApiException ex)
         {
-            return new NotionPushResult(
-                false,
-                1,
-                options.DryRun,
-                options.Mode,
-                records,
-                Diagnostics:
-                [
-                    new NotionPushDiagnostic(
-                        MapNotionApiDiagnosticCode(ex),
-                        NotionDiagnosticSeverity.Error,
-                        $"Notion API request failed with status {(int)ex.StatusCode}, code {ex.Code ?? "unknown"}.")
-                ],
-                Artifacts: []);
+            return NotionPushRuntimeFailure.Create(
+                options,
+                actualRecords,
+                currentRecord,
+                currentRemotePageId,
+                NotionPushRuntimeFailure.MapApiDiagnosticCode(ex),
+                $"Notion API request failed with status {(int)ex.StatusCode}, code {ex.Code ?? "unknown"}.");
         }
         catch (HttpRequestException)
         {
-            return new NotionPushResult(
-                false,
-                1,
-                options.DryRun,
-                options.Mode,
-                records,
-                Diagnostics:
-                [
-                    new NotionPushDiagnostic(
-                        "notion.httpError",
-                        NotionDiagnosticSeverity.Error,
-                        "Notion HTTP request failed.")
-                ],
-                Artifacts: []);
+            return NotionPushRuntimeFailure.Create(
+                options,
+                actualRecords,
+                currentRecord,
+                currentRemotePageId,
+                "notion.httpError",
+                "Notion HTTP request failed.");
         }
 
         records.Clear();
@@ -335,24 +347,28 @@ public sealed class NotionPushService : INotionPushService
     {
         if (queryResult.ResultIds.Count == 0)
         {
-            return NotionPushResult.Failed(
-                options.Mode,
-                options.DryRun,
-                new NotionPushDiagnostic(
-                    "notion.replaceNoMatch",
-                    NotionDiagnosticSeverity.Error,
-                    $"Replace mode found no Notion page for {planned.UniqueField}."));
+            return NotionPushRuntimeFailure.Create(
+                options,
+                actualRecords,
+                planned,
+                null,
+                "notion.replaceNoMatch",
+                $"Replace mode found no Notion page for {planned.UniqueField}.",
+                exitCode: 2,
+                status: NotionPushRecordStatus.Skipped);
         }
 
         if (queryResult.ResultIds.Count > 1)
         {
-            return NotionPushResult.Failed(
-                options.Mode,
-                options.DryRun,
-                new NotionPushDiagnostic(
-                    "notion.replaceMultipleMatches",
-                    NotionDiagnosticSeverity.Error,
-                    $"Replace mode found multiple Notion pages for {planned.UniqueField}."));
+            return NotionPushRuntimeFailure.Create(
+                options,
+                actualRecords,
+                planned,
+                null,
+                "notion.replaceMultipleMatches",
+                $"Replace mode found multiple Notion pages for {planned.UniqueField}.",
+                exitCode: 2,
+                status: NotionPushRecordStatus.Skipped);
         }
 
         string pageId = queryResult.ResultIds[0];
@@ -372,13 +388,15 @@ public sealed class NotionPushService : INotionPushService
                 }
                 catch (Exception ex) when (ex is NotionApiException or HttpRequestException)
                 {
-                    return NotionPushResult.Failed(
-                        options.Mode,
-                        options.DryRun,
-                        new NotionPushDiagnostic(
-                            "notion.replaceDeleteFailed",
-                            NotionDiagnosticSeverity.Error,
-                            "Replace mode is not atomic; page properties may have been updated before block deletion failed."));
+                    const string errorMessage = "Replace mode is not atomic; page properties may have been updated before block deletion failed.";
+                    return NotionPushRuntimeFailure.Create(
+                        options,
+                        actualRecords,
+                        planned,
+                        pageId,
+                        "notion.replaceDeleteFailed",
+                        errorMessage,
+                        exitCode: 2);
                 }
             }
         }
@@ -396,17 +414,24 @@ public sealed class NotionPushService : INotionPushService
             }
             catch (Exception ex) when (ex is NotionApiException or HttpRequestException)
             {
-                return NotionPushResult.Failed(
-                    options.Mode,
-                    options.DryRun,
-                    new NotionPushDiagnostic(
-                        "notion.replaceAppendFailed",
-                        NotionDiagnosticSeverity.Error,
-                        "Replace mode is not atomic; page properties may have been updated before block append failed."));
+                const string errorMessage = "Replace mode is not atomic; page properties may have been updated before block append failed.";
+                return NotionPushRuntimeFailure.Create(
+                    options,
+                    actualRecords,
+                    planned,
+                    pageId,
+                    "notion.replaceAppendFailed",
+                    errorMessage,
+                    exitCode: 2);
             }
         }
 
-        actualRecords.Add(planned with { Operation = "replace" });
+        actualRecords.Add(planned with
+        {
+            Operation = "replace",
+            Status = NotionPushRecordStatus.Replaced,
+            RemotePageId = pageId
+        });
         return null;
     }
 
@@ -456,49 +481,6 @@ public sealed class NotionPushService : INotionPushService
         }
 
         return MarkdownToNotionBlocks.Convert(content);
-    }
-
-    private NotionPushRecordResult? PlanRecord(
-        NotionPushMode mode,
-        NotionDatabaseMapEntry entry,
-        NotionSeedCollection collection,
-        NotionSeedRecord record,
-        List<NotionPushDiagnostic> diagnostics)
-    {
-        string recordPath = $"{collection.Path}#{record.Index}";
-        if (string.IsNullOrWhiteSpace(entry.UniqueField))
-        {
-            diagnostics.Add(new NotionPushDiagnostic(
-                "notion.uniqueFieldMissing",
-                NotionDiagnosticSeverity.Error,
-                "Database map entry uniqueField is required for push planning.",
-                recordPath));
-            return null;
-        }
-
-        if (!NotionUniqueValueResolver.TryResolve(entry, record, out string? uniqueValue))
-        {
-            diagnostics.Add(new NotionPushDiagnostic(
-                "notion.uniqueFieldMissing",
-                NotionDiagnosticSeverity.Error,
-                $"Seed record does not contain a value for unique field {entry.UniqueField}.",
-                recordPath));
-            return null;
-        }
-
-        if (!NotionPropertyMapper.Validate(entry, record, recordPath, diagnostics))
-        {
-            return null;
-        }
-
-        return new NotionPushRecordResult(
-            Collection: entry.Collection ?? collection.Name,
-            SeedFile: Path.GetFileName(collection.Path),
-            Operation: NotionPushReportWriter.ToOperation(mode),
-            Title: ReadOptionalString(record, "title") ?? ReadOptionalString(record, "name"),
-            UniqueField: entry.UniqueField,
-            UniqueValue: uniqueValue!,
-            DataSourceId: entry.EffectiveDataSourceId!);
     }
 
     private static NotionSeedCollection? FindSeedCollection(NotionSeedSet seedSet, string? seedFile)
@@ -569,21 +551,6 @@ public sealed class NotionPushService : INotionPushService
                     markdownReportPath,
                     "Notion push failure Markdown report.")
             ]
-        };
-    }
-
-    private static string MapNotionApiDiagnosticCode(NotionApiException ex)
-    {
-        int statusCode = (int)ex.StatusCode;
-        return statusCode switch
-        {
-            401 => "notion.apiUnauthorized",
-            403 => "notion.apiForbidden",
-            404 => "notion.apiNotFound",
-            409 => "notion.apiConflict",
-            429 => "notion.rateLimited",
-            >= 500 and <= 599 => "notion.apiFailed",
-            _ => "notion.apiError"
         };
     }
 

@@ -632,7 +632,9 @@ bukit notion push \
 将 collection 绑定到 seed file。
 将 record 转换为 planned page operation。
 校验每条 record 的 unique field。
+按 collection + seedFile + uniqueField + uniqueValue 检测本地重复值；重复时返回 notion.seedDuplicateUniqueValue，exitCode=2。
 校验每条 record 的 property mapping。
+property mapping 使用严格 JSON 类型：checkbox 只接受 JSON boolean，number 只接受 JSON number；字符串 "true"/"false"/"3" 不隐式转换。
 生成 dry-run report。
 返回 diagnostics 和 artifacts。
 不调用 Notion API。
@@ -859,6 +861,8 @@ multiple matches fails
 
 seed、database map、逐记录 planning、token 和 API 失败路径也必须写 JSON/Markdown failure report。
 dry-run upsert 使用 operation=upsert 和 plannedUpsert；plannedUpdate 仅统计已确认的实际 update。
+每条 record 必须包含 status、remotePageId、errorCode、errorMessage。真实 push 中途失败时，只报告已完成的远端写入和当前失败记录，不得把尚未执行的 planned records 混入实际结果。
+status 取值：planned、created、updated、replaced、failed、skipped。
 
 JSON 报告
 {
@@ -1025,6 +1029,7 @@ notion.queryFailed
 notion.createPageFailed
 notion.updatePageFailed
 notion.upsertMultipleMatches
+notion.seedDuplicateUniqueValue
 notion.recordMissingMappedProperty
 notion.recordInvalidMappedPropertyType
 notion.recordMissingTitlePropertyValue

@@ -13,6 +13,18 @@ public sealed record NotionPushReport(
 {
     public int PlannedUpsert { get; init; }
 
+    public int Planned { get; init; }
+
+    public int Created { get; init; }
+
+    public int Updated { get; init; }
+
+    public int Replaced { get; init; }
+
+    public int Failed { get; init; }
+
+    public int Skipped { get; init; }
+
     public IReadOnlyList<NotionPushRecordResult> Records { get; init; } = Records ?? [];
     public IReadOnlyList<NotionPushDiagnostic> Diagnostics { get; init; } = Diagnostics ?? [];
 }
