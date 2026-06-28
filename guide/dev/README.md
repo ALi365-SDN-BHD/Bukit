@@ -28,8 +28,8 @@ Source anchors:
    schema generation, or examples.
 4. Use [Content](./content.md), [Routing](./routing.md), and
    [Rendering](./rendering-scriban.md) for build behavior.
-5. Use [Theme](./theme.md) and [Built-in Plugins](./built-in-plugins.md) for
-   runtime extension points that are still part of Core.
+5. Use [Theme](./theme.md), [Built-in Plugins](./built-in-plugins.md), and
+   [Core Plugin Boundary](./core-plugin-boundary.md) for extension boundaries.
 6. Use [Testing](./testing.md), [Release](./release.md), and
    [Documentation Governance](./documentation-governance.md) before publishing
    docs or binaries.
@@ -49,6 +49,7 @@ Source anchors:
 | Scriban rendering | [rendering-scriban.md](./rendering-scriban.md) |
 | Theme runtime | [theme.md](./theme.md) |
 | Built-in plugin runtime | [built-in-plugins.md](./built-in-plugins.md) |
+| Core plugin boundary | [core-plugin-boundary.md](./core-plugin-boundary.md) |
 | Engine outputs | [engine-outputs.md](./engine-outputs.md) |
 | Incremental build | [incremental-build.md](./incremental-build.md) |
 | Cache and clean behavior | [cache-clean.md](./cache-clean.md) |
