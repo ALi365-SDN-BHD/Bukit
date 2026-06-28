@@ -1163,3 +1163,68 @@ Notion push 拥有独立权限边界
 未来可独立演进 Notion 多数据库 / upsert / replace
 Core 不被外部集成污染
 插件体系不发生职责漂移
+
+25. v1.1：远端 Schema 验证
+
+25.1 命令
+
+bukit notion schema validate \
+  --database-map ./sites/demo/notion-seed/notion-database-map.yaml \
+  --token-env NOTION_TOKEN \
+  [--report ./.bukit/reports/plugin-output/notion/notion-schema-validation-report.json]
+
+该命令在 push 前读取本地 database map，并通过：
+
+GET /v1/data_sources/{data_source_id}
+
+获取远端 properties。请求继续使用 bearer token 与
+Notion-Version: 2026-03-11。
+
+25.2 标识符兼容
+
+dataSourceId 优先。databaseId 保持现有 legacy alias 语义，仍作为 data
+source identifier 使用；本阶段不把它解释成 database container，也不在
+多个 child data sources 中自动选择。
+
+25.3 验证规则
+
+1. 先复用本地 NotionDatabaseMapValidator；本地失败不得访问网络。
+2. 对每个有效 map entry 顺序调用 retrieve data source。
+3. property name 使用 ordinal、大小写敏感的精确匹配。
+4. property type 使用 ordinal、大小写敏感的精确匹配。
+5. 远端必须恰好存在一个 title property。
+6. uniqueField 必须存在于远端 properties。
+7. 单个 entry 失败后继续验证后续 entry，并聚合报告。
+8. 额外远端 properties 不导致失败；该能力属于后续 schema diff。
+
+25.4 报告
+
+.bukit/reports/plugin-output/notion/notion-schema-validation-report.json
+.bukit/reports/plugin-output/notion/notion-schema-validation-report.md
+
+JSON schema identifier：
+
+bukit.notion.schema.validation.report.v1
+
+报告包含 entry、collection、effective dataSourceId、identifierSource、
+titleProperty、uniqueField、逐属性 expected/actual/status 与 diagnostics。
+报告不得包含 token、Authorization header 或 raw API response body。
+
+25.5 错误码与退出码
+
+notion.remoteSchemaDataSourceNotFound
+notion.remoteSchemaPropertyMissing
+notion.remoteSchemaPropertyTypeMismatch
+notion.remoteSchemaTitleMissing
+notion.remoteSchemaTitleNotUnique
+notion.remoteSchemaUniqueFieldMissing
+notion.remoteSchemaValidationFailed
+
+exitCode=0：所有远端 schema 匹配。
+exitCode=2：输入、token、data source not found 或 schema validation 失败。
+exitCode=1：认证、授权、传输、rate limit 或 Notion 服务失败。
+
+25.6 非目标
+
+本阶段不实现 schema diff、schema sync、自动创建/删除/重命名/改类型、
+database/data source 创建、push state/resume，且不自动挂接到 notion push。

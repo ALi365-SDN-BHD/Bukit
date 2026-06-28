@@ -44,6 +44,7 @@ public sealed class NotionPluginManifestTests
         Assert.Equal("notion", notion.Name);
         AssertValidateSeedContract(Assert.Single(notion.Subcommands, command => command.Name == "validate-seed"));
         AssertValidateDatabaseMapContract(Assert.Single(notion.Subcommands, command => command.Name == "validate-database-map"));
+        AssertSchemaValidateContract(notion);
         AssertPushContract(Assert.Single(notion.Subcommands, command => command.Name == "push"));
         AssertNotionPermissions(manifest.RequiredPermissions);
     }
