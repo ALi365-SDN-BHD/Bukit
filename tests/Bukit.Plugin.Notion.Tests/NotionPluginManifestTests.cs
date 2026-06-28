@@ -16,6 +16,7 @@ public sealed class NotionPluginManifestTests
         Assert.Equal("notion", notion.Name);
         AssertValidateSeedContract(Assert.Single(notion.Subcommands, command => command.Name == "validate-seed"));
         AssertValidateDatabaseMapContract(Assert.Single(notion.Subcommands, command => command.Name == "validate-database-map"));
+        AssertSchemaValidateContract(notion);
         AssertPushContract(Assert.Single(notion.Subcommands, command => command.Name == "push"));
         AssertNotionPermissions(manifest.RequiredPermissions);
     }
@@ -44,6 +45,7 @@ public sealed class NotionPluginManifestTests
         Assert.Equal("notion", notion.Name);
         AssertValidateSeedContract(Assert.Single(notion.Subcommands, command => command.Name == "validate-seed"));
         AssertValidateDatabaseMapContract(Assert.Single(notion.Subcommands, command => command.Name == "validate-database-map"));
+        AssertSchemaValidateContract(notion);
         AssertPushContract(Assert.Single(notion.Subcommands, command => command.Name == "push"));
         AssertNotionPermissions(manifest.RequiredPermissions);
     }
@@ -101,6 +103,26 @@ public sealed class NotionPluginManifestTests
         Assert.Equal("database-map", databaseMap.Name);
         Assert.True(databaseMap.Required);
         Assert.Empty(command.Options);
+    }
+
+    private static void AssertSchemaValidateContract(PluginCommandSpec notion)
+    {
+        PluginCommandSpec schema = Assert.Single(notion.Subcommands, command => command.Name == "schema");
+        PluginCommandSpec validate = Assert.Single(schema.Subcommands, command => command.Name == "validate");
+        Assert.Empty(validate.Arguments);
+
+        PluginOptionSpec databaseMap = Assert.Single(validate.Options, option => option.Name == "--database-map");
+        Assert.Equal("string", databaseMap.Type);
+        Assert.True(databaseMap.Required);
+
+        PluginOptionSpec tokenEnv = Assert.Single(validate.Options, option => option.Name == "--token-env");
+        Assert.Equal("string", tokenEnv.Type);
+        Assert.False(tokenEnv.Required);
+        Assert.Equal(["NOTION_TOKEN"], tokenEnv.AllowedValues);
+
+        PluginOptionSpec report = Assert.Single(validate.Options, option => option.Name == "--report");
+        Assert.Equal("string", report.Type);
+        Assert.False(report.Required);
     }
 
     private static void AssertPushContract(PluginCommandSpec command)

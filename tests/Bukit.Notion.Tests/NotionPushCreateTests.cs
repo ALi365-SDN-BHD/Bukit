@@ -718,6 +718,11 @@ databases:
 
         private int _appendCallCount;
 
+        public Task<NotionDataSourceResult> RetrieveDataSourceAsync(
+            string dataSourceId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         public Task<NotionQueryResult> QueryDataSourceAsync(
             string dataSourceId,
             NotionQueryRequest request,

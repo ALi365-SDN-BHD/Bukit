@@ -1056,6 +1056,49 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task PluginNestedSubcommandInvoke_UsesFullThreeSegmentPathAndOptions()
+    {
+        var client = new RuntimePermissionProtocolClient(new PluginPermissionSet());
+        var plugin = new ResolvedPlugin(
+            "notion",
+            "1.0.0",
+            "test-rid",
+            "/tmp/notion",
+            _tempDir,
+            new PluginHostInfo("Bukit", "1.0.0", "test-rid"));
+        var command = new PluginCommandSpec(
+            "notion",
+            "Notion",
+            Subcommands:
+            [
+                new PluginCommandSpec(
+                    "schema",
+                    "Schema",
+                    Subcommands:
+                    [
+                        new PluginCommandSpec(
+                            "validate",
+                            "Validate",
+                            Options:
+                            [
+                                new PluginOptionSpec("--database-map", "string", "Map", Required: true),
+                                new PluginOptionSpec("--token-env", "string", "Token")
+                            ])
+                    ])
+            ]);
+        CommandDescriptor descriptor = PluginCommandDescriptorFactory.Create(plugin, command, client);
+        var parsed = Bukit.Cli.Shared.Cli.Parsing.CliParser.Parse(
+            descriptor.Spec,
+            ["schema", "validate", "--database-map", "./map.yaml", "--token-env", "NOTION_TOKEN"]);
+
+        Assert.True(parsed.IsSuccess);
+        Assert.Equal(0, await descriptor.DispatchAsync(parsed));
+        Assert.Equal(["notion", "schema", "validate"], client.LastInvokeRequest!.Command.Path);
+        Assert.Equal("./map.yaml", client.LastInvokeRequest.Command.Options["--database-map"].GetString());
+        Assert.Equal("NOTION_TOKEN", client.LastInvokeRequest.Command.Options["--token-env"].GetString());
+    }
+
+    [Fact]
     public async Task PluginInvoke_UsesTypedJsonOptionValues()
     {
         var client = new RuntimePermissionProtocolClient(new PluginPermissionSet());

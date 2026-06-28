@@ -8,6 +8,36 @@ namespace Bukit.Notion.Tests;
 public sealed class NotionHttpClientTests
 {
     [Fact]
+    public async Task RetrieveDataSourceAsync_GetsSchemaWithRequiredHeaders()
+    {
+        using var handler = new RecordingHandler(_ => JsonResponse(
+            HttpStatusCode.OK,
+            """
+            {
+              "object": "data_source",
+              "id": "ds-pages",
+              "properties": {
+                "Name": { "id": "title", "name": "Name", "type": "title", "title": {} },
+                "Slug": { "id": "slug", "name": "Slug", "type": "rich_text", "rich_text": {} }
+              }
+            }
+            """));
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.notion.com") };
+        var client = new NotionHttpClient(httpClient, new NotionRequestOptions("secret-token", "2026-03-11"));
+
+        NotionDataSourceResult result = await client.RetrieveDataSourceAsync("ds-pages", CancellationToken.None);
+
+        HttpRequestMessage request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal("/v1/data_sources/ds-pages", request.RequestUri!.PathAndQuery);
+        Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
+        Assert.Equal("2026-03-11", Assert.Single(request.Headers.GetValues("Notion-Version")));
+        Assert.Equal("ds-pages", result.Id);
+        Assert.Equal("title", result.Properties["Name"]);
+        Assert.Equal("rich_text", result.Properties["Slug"]);
+    }
+
+    [Fact]
     public async Task CreatePageAsync_SetsAuthorizationAndNotionVersionHeaders()
     {
         using var handler = new RecordingHandler(_ => JsonResponse(HttpStatusCode.OK, """{"id":"page-1"}"""));

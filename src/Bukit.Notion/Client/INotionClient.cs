@@ -2,6 +2,10 @@ namespace Bukit.Notion.Client;
 
 public interface INotionClient
 {
+    Task<NotionDataSourceResult> RetrieveDataSourceAsync(
+        string dataSourceId,
+        CancellationToken cancellationToken);
+
     Task<NotionQueryResult> QueryDataSourceAsync(
         string dataSourceId,
         NotionQueryRequest request,

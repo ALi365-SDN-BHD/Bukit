@@ -58,19 +58,28 @@ public sealed record CommandDescriptor(
         var child = ResolveChild(sub.SubcommandName);
         if (child is not null && child.Handler is not null)
         {
-            var merged = CliBoundCommand.MergeForSubcommand(
-                sub.BoundCommand, sub.SubcommandName, sub.InnerResult.BoundCommand);
+            CliBoundCommand merged = MergeSubcommandHierarchy(sub);
             return await child.Handler(merged);
         }
 
         if (Handler is not null)
         {
-            var merged = CliBoundCommand.MergeForSubcommand(
-                sub.BoundCommand, sub.SubcommandName, sub.InnerResult.BoundCommand);
+            CliBoundCommand merged = MergeSubcommandHierarchy(sub);
             return await Handler(merged);
         }
 
         return UnknownCommand($"{Spec.Name} {sub.SubcommandName}");
+    }
+
+    private static CliBoundCommand MergeSubcommandHierarchy(SubcommandParseResult sub)
+    {
+        CliBoundCommand innerBound = sub.InnerResult is SubcommandParseResult nested
+            ? MergeSubcommandHierarchy(nested)
+            : sub.InnerResult.BoundCommand;
+        return CliBoundCommand.MergeForSubcommand(
+            sub.BoundCommand,
+            sub.SubcommandName,
+            innerBound);
     }
 
     public IEnumerable<CommandDescriptor> Flatten()

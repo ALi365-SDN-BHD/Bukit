@@ -1,5 +1,6 @@
 using Bukit.Notion.Security;
 using Bukit.Notion.Push;
+using Bukit.Notion.RemoteSchema;
 using Bukit.Notion;
 using Bukit.Plugin.Abstractions.Protocol;
 using Bukit.Plugin.Abstractions.Results;
@@ -13,6 +14,14 @@ public sealed record NotionValidateSeedOptions(
 public sealed record NotionValidateDatabaseMapOptions(
     string ProjectRoot,
     string DatabaseMapPath);
+
+public sealed record NotionRemoteSchemaValidateMapperResult(
+    bool Success,
+    NotionRemoteSchemaOptions? Options,
+    IReadOnlyList<PluginDiagnostic>? Diagnostics = null)
+{
+    public IReadOnlyList<PluginDiagnostic> Diagnostics { get; init; } = Diagnostics ?? [];
+}
 
 public sealed record NotionPushMapperOptions(
     NotionPushOptions PushOptions);
@@ -174,6 +183,73 @@ public static class NotionOptionsMapper
                 ReportPath: resolvedReportPath,
                 TokenEnvironmentVariable: tokenEnvironmentVariable,
                 ConfirmReplace: confirmReplace)),
+            []);
+    }
+
+    public static NotionRemoteSchemaValidateMapperResult MapRemoteSchemaValidateOptions(
+        PluginInvokeRequest request)
+    {
+        var diagnostics = new List<PluginDiagnostic>();
+        if (!request.Command.Path.SequenceEqual(["notion", "schema", "validate"], StringComparer.Ordinal))
+        {
+            diagnostics.Add(Error(
+                "plugin.notion.unsupportedCommand",
+                "Expected notion schema validate command path."));
+        }
+
+        string? databaseMapPath = ReadRequiredStringOption(
+            request,
+            "--database-map",
+            "notion.remoteSchemaMissingDatabaseMap",
+            diagnostics);
+        string tokenEnvironmentVariable = NotionPluginConstants.TokenEnvironmentVariable;
+        if (request.Command.Options.TryGetValue("--token-env", out var tokenEnvElement))
+        {
+            if (tokenEnvElement.ValueKind != System.Text.Json.JsonValueKind.String
+                || string.IsNullOrWhiteSpace(tokenEnvElement.GetString()))
+            {
+                diagnostics.Add(Error("notion.tokenEnvInvalid", "--token-env must be a non-empty JSON string."));
+            }
+            else if (!NotionPluginConstants.IsAllowedTokenEnvironmentVariable(tokenEnvElement.GetString()!))
+            {
+                diagnostics.Add(Error("notion.tokenEnvNotAllowed", "--token-env must name an allowlisted environment variable."));
+            }
+            else
+            {
+                tokenEnvironmentVariable = tokenEnvElement.GetString()!;
+            }
+        }
+
+        string root = request.Context.RootDir;
+        string reportPath = ReadOptionalStringOption(request, "--report", diagnostics)
+            ?? Path.Combine(
+                root,
+                ".bukit",
+                "reports",
+                "plugin-output",
+                "notion",
+                NotionPluginConstants.RemoteSchemaReportFileName);
+        string resolvedReportPath = NotionPathGuard.ResolvePath(root, reportPath);
+        if (!IsAllowedReportPath(root, resolvedReportPath))
+        {
+            diagnostics.Add(Error(
+                "notion.reportPathOutsideAllowedOutput",
+                "Report path must stay under .bukit/reports/plugin-output/notion or .bukit/tmp/notion.",
+                resolvedReportPath));
+        }
+
+        if (diagnostics.Count > 0)
+        {
+            return new NotionRemoteSchemaValidateMapperResult(false, null, diagnostics);
+        }
+
+        return new NotionRemoteSchemaValidateMapperResult(
+            true,
+            new NotionRemoteSchemaOptions(
+                ProjectRoot: root,
+                DatabaseMapPath: NotionPathGuard.ResolvePath(root, databaseMapPath!),
+                ReportPath: resolvedReportPath,
+                TokenEnvironmentVariable: tokenEnvironmentVariable),
             []);
     }
 

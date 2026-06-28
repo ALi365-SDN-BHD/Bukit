@@ -30,6 +30,26 @@ commands:
           - name: database-map
             description: Path to notion-database-map.yaml.
             required: true
+      - name: schema
+        description: Inspect and validate remote Notion data-source schemas.
+        subcommands:
+          - name: validate
+            description: Validate a local database map against remote Notion schemas.
+            options:
+              - name: --database-map
+                type: string
+                description: Path to notion-database-map.yaml.
+                required: true
+              - name: --token-env
+                type: string
+                description: Allowlisted environment variable containing the Notion token.
+                required: false
+                allowedValues:
+                  - NOTION_TOKEN
+              - name: --report
+                type: string
+                description: Optional JSON report output path.
+                required: false
       - name: push
         description: Push validated handoff seed data to Notion.
         options:

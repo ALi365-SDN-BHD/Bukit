@@ -15,6 +15,10 @@ The plugin is intentionally separate from Import. Import remains a local handoff
 bukit notion validate-seed ./notion-seed
 bukit notion validate-database-map ./notion-seed/notion-database-map.yaml
 
+bukit notion schema validate \
+  --database-map ./notion-seed/notion-database-map.yaml \
+  --token-env NOTION_TOKEN
+
 bukit notion push \
   --seed ./notion-seed \
   --database-map ./notion-seed/notion-database-map.yaml \
@@ -34,6 +38,24 @@ bukit notion push \
   --confirm-replace \
   --token-env NOTION_TOKEN
 ```
+
+## Remote Schema Validation
+
+`notion schema validate` retrieves every mapped Notion data source before push
+and checks:
+
+- every mapped property name exists using ordinal, case-sensitive matching;
+- every mapped property type exactly matches the remote type;
+- the remote schema contains exactly one `title` property;
+- the map's `uniqueField` exists remotely.
+
+`dataSourceId` takes precedence. `databaseId` remains a legacy alias for a data
+source identifier. Extra remote properties do not fail validation; reporting
+them is deferred to `notion schema diff`.
+
+The command requires the allowlisted `NOTION_TOKEN` variable and is read-only.
+Schema mismatches exit `2`; authentication, transport, and Notion service
+failures exit `1`.
 
 ## Push Modes
 
@@ -55,6 +77,11 @@ Successful and failed push commands write:
 
 - `.bukit/reports/plugin-output/notion/notion-push-report.json`
 - `.bukit/reports/plugin-output/notion/notion-push-report.md`
+
+Successful and failed remote schema validations write:
+
+- `.bukit/reports/plugin-output/notion/notion-schema-validation-report.json`
+- `.bukit/reports/plugin-output/notion/notion-schema-validation-report.md`
 
 Reports must not contain the Notion token or raw secret values.
 
