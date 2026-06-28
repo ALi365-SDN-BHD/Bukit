@@ -7,6 +7,7 @@ public static class NotionPluginConstants
     public const string Version = "0.1.0";
     public const string CommandName = "notion";
     public const string TokenEnvironmentVariable = "NOTION_TOKEN";
+    public const string RemoteSchemaReportFileName = "notion-schema-validation-report.json";
     public const string ReportOutputDirectory = "./.bukit/reports/plugin-output/notion";
     public const string TemporaryOutputDirectory = "./.bukit/tmp/notion";
 

@@ -13,6 +13,7 @@ public static class NotionCommandSpecFactory
             [
                 CreateValidateSeedCommand(),
                 CreateValidateDatabaseMapCommand(),
+                CreateSchemaCommand(),
                 CreatePushCommand()
             ]);
 
@@ -38,6 +39,34 @@ public static class NotionCommandSpecFactory
                     Name: "database-map",
                     Description: "Path to notion-database-map.yaml.",
                     Required: true)
+            ]);
+
+    private static PluginCommandSpec CreateSchemaCommand()
+        => new(
+            Name: "schema",
+            Description: "Inspect and validate remote Notion data-source schemas.",
+            Subcommands: [CreateSchemaValidateCommand()]);
+
+    private static PluginCommandSpec CreateSchemaValidateCommand()
+        => new(
+            Name: "validate",
+            Description: "Validate a local database map against remote Notion schemas.",
+            Options:
+            [
+                new PluginOptionSpec(
+                    Name: "--database-map",
+                    Type: "string",
+                    Description: "Path to notion-database-map.yaml.",
+                    Required: true),
+                new PluginOptionSpec(
+                    Name: "--token-env",
+                    Type: "string",
+                    Description: "Allowlisted environment variable containing the Notion token.",
+                    AllowedValues: [NotionPluginConstants.TokenEnvironmentVariable]),
+                new PluginOptionSpec(
+                    Name: "--report",
+                    Type: "string",
+                    Description: "Optional JSON report output path.")
             ]);
 
     private static PluginCommandSpec CreatePushCommand()
