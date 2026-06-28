@@ -2,8 +2,7 @@
 
 ## Status
 
-Design approved in conversation on 2026-06-28; written specification pending
-user review.
+Approved for implementation on 2026-06-28.
 
 ## Goal
 
