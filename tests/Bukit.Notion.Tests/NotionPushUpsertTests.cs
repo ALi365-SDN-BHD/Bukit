@@ -268,6 +268,11 @@ databases:
 
         public List<(string PageId, NotionUpdatePageRequest Request)> UpdateRequests { get; } = [];
 
+        public Task<NotionDataSourceResult> RetrieveDataSourceAsync(
+            string dataSourceId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         public Task<NotionQueryResult> QueryDataSourceAsync(
             string dataSourceId,
             NotionQueryRequest request,

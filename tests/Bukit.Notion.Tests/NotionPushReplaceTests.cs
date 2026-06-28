@@ -295,6 +295,11 @@ databases:
 
         public Exception? AppendException { get; init; }
 
+        public Task<NotionDataSourceResult> RetrieveDataSourceAsync(
+            string dataSourceId,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
         public Task<NotionQueryResult> QueryDataSourceAsync(
             string dataSourceId,
             NotionQueryRequest request,

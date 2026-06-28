@@ -1,5 +1,9 @@
 namespace Bukit.Notion.Client;
 
+public sealed record NotionDataSourceResult(
+    string Id,
+    IReadOnlyDictionary<string, string?> Properties);
+
 public sealed record NotionQueryRequest(string Json);
 
 public sealed record NotionCreatePageRequest(string Json);

@@ -20,6 +20,39 @@ public sealed class NotionHttpClient : INotionClient
         _httpClient.BaseAddress ??= options.EffectiveBaseUri;
     }
 
+    public async Task<NotionDataSourceResult> RetrieveDataSourceAsync(
+        string dataSourceId,
+        CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await SendAsync(
+            HttpMethod.Get,
+            $"/v1/data_sources/{Uri.EscapeDataString(dataSourceId)}",
+            json: null,
+            cancellationToken).ConfigureAwait(false);
+        string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = JsonDocument.Parse(json);
+        JsonElement root = document.RootElement;
+        string id = root.TryGetProperty("id", out JsonElement idElement)
+            && idElement.ValueKind == JsonValueKind.String
+                ? idElement.GetString() ?? dataSourceId
+                : dataSourceId;
+        var properties = new Dictionary<string, string?>(StringComparer.Ordinal);
+        if (root.TryGetProperty("properties", out JsonElement propertyObject)
+            && propertyObject.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty property in propertyObject.EnumerateObject())
+            {
+                string? type = property.Value.TryGetProperty("type", out JsonElement typeElement)
+                    && typeElement.ValueKind == JsonValueKind.String
+                        ? typeElement.GetString()
+                        : null;
+                properties[property.Name] = type;
+            }
+        }
+
+        return new NotionDataSourceResult(id, properties);
+    }
+
     public async Task<NotionQueryResult> QueryDataSourceAsync(
         string dataSourceId,
         NotionQueryRequest request,
