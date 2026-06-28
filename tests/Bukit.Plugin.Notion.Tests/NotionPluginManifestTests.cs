@@ -35,6 +35,7 @@ public sealed class NotionPluginManifestTests
         PluginManifest manifest = await new PluginManifestLoader().LoadAsync(pluginRoot, CancellationToken.None);
 
         Assert.Equal("notion", manifest.Id);
+        Assert.Equal("1.0.0-rc.1", manifest.Version);
         Assert.Equal("bukit-plugin-v1", manifest.Protocol);
         Assert.Equal("process", manifest.Kind);
         Assert.Equal("self-contained", manifest.Distribution);

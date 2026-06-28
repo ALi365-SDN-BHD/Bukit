@@ -39,6 +39,14 @@ bash scripts/checks/official-plugin-packages.sh
 echo "=== release: full gate ==="
 COVERAGE_SUMMARY_FILE="${artifact_dir}/coverage-summary.txt" bash scripts/gates/ci-full.sh "$configuration"
 
+echo "=== release: official plugin packages ==="
+import_package_root="${artifact_dir}/plugin-packages/import"
+notion_package_root="${artifact_dir}/plugin-packages/notion"
+bash scripts/build/import-plugin-package.sh "$import_package_root" "$configuration"
+bash scripts/smoke/import-plugin-package.sh "$import_package_root" "$configuration"
+bash scripts/build/notion-plugin-package.sh "$notion_package_root" "$configuration"
+bash scripts/smoke/notion-plugin-package.sh "$notion_package_root" "$configuration"
+
 if is_truthy "${GITHUB_ACTIONS:-0}"; then
   echo "=== release: workflow evidence check ==="
   bash scripts/checks/ci-workflow-evidence.sh "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" "ci.yml" "$artifact_dir/ci-workflow-evidence.json" 1 "$artifact_dir/rc-gate-evidence.md" "$required_branches"

@@ -4,7 +4,7 @@ public static class NotionPluginConstants
 {
     public const string Id = "notion";
     public const string Name = "Bukit Notion Plugin";
-    public const string Version = "0.1.0";
+    public const string Version = "1.0.0-rc.1";
     public const string CommandName = "notion";
     public const string TokenEnvironmentVariable = "NOTION_TOKEN";
     public const string ReportOutputDirectory = "./.bukit/reports/plugin-output/notion";

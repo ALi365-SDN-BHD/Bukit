@@ -1286,7 +1286,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
             $$"""
             id: import
             name: Bukit Import Plugin
-            version: 0.1.0
+            version: 1.0.0-rc.1
             protocol: bukit-plugin-v1
             kind: process
             distribution: self-contained

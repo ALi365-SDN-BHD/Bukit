@@ -15,7 +15,7 @@ public static class ImportPluginManifestProvider
             Plugin: new PluginIdentity(
                 Id: "import",
                 Name: "Bukit Import Plugin",
-                Version: "0.1.0",
+                Version: "1.0.0-rc.1",
                 Platform: platform,
                 Capabilities: ["cli-command"]));
 

@@ -6,6 +6,14 @@ namespace Bukit.Plugin.Import.Tests;
 public sealed class ImportPluginSkeletonTests
 {
     [Fact]
+    public void HandshakeProvider_ReturnsV1RcVersion()
+    {
+        var handshake = ImportPluginManifestProvider.CreateHandshakeResponse("req-handshake");
+
+        Assert.Equal("1.0.0-rc.1", handshake.Plugin?.Version);
+    }
+
+    [Fact]
     public void ManifestProvider_ReturnsImportCommand()
     {
         var manifest = ImportPluginManifestProvider.CreateManifestResponse("req-1");

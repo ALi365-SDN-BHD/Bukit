@@ -3,6 +3,9 @@
 This document defines the `Notion handoff design` module for the external
 Import process plugin.
 
+For the operator workflow, see
+[Import to Notion Handoff Usage](import-notion-handoff-usage.md).
+
 ## Scope
 
 `bukit import html-demo <demo-dir> --theme <name>` now exposes local handoff

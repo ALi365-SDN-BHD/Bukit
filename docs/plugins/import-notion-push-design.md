@@ -33,21 +33,18 @@ Keeping Import local-only preserves:
 - predictable stdout JSON and stderr logs
 - static manifest policy where runtime capabilities do not exceed `plugin.yaml`
 
-## Future Direction
+## Current Implementation
 
-A dedicated Notion plugin can declare network and token permissions explicitly
-and own workflows such as:
+`Bukit.Plugin.Notion` now declares network and token permissions explicitly and
+owns:
 
-- schema validation against a live Notion workspace
-- database creation
-- upsert/push
-- sync reports that contain remote IDs
+- local seed and database-map validation
+- create/upsert/replace push modes
+- dry-run and execution reports containing remote IDs
 
-Alternatively, a future Core Host Action or command-level plugin permission
-model can allow Import to request elevated Notion permissions only for a single
-push command.
+Database creation remains outside the `1.0.0-rc.1` scope. Import remains
+local-only even if a future command-level permission model is introduced.
 
 ## Non-Goals
 
-This ADR does not define a Notion API client, database schema writer, or push
-command implementation.
+This ADR does not move the Notion API client or push implementation into Import.

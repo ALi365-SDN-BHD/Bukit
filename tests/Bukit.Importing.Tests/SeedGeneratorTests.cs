@@ -1,4 +1,5 @@
 using Bukit.Importing;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Importing.Tests;
@@ -142,6 +143,7 @@ public sealed class SeedGeneratorTests : IDisposable
         Assert.False(File.Exists(Path.Combine(dataDir, "pages.json")));
         var yaml = File.ReadAllText(Path.Combine(dataDir, "pages.yaml"));
         Assert.Contains("title: \"Home\"", yaml);
+        Assert.Contains("slug: \"index\"", yaml);
     }
 
     [Fact]
@@ -225,6 +227,8 @@ public sealed class SeedGeneratorTests : IDisposable
 
         Assert.True(result);
         var json = File.ReadAllText(Path.Combine(_tempDir, "sites", "test-pages", "notion-seed", "pages.json"));
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal("index", document.RootElement[0].GetProperty("slug").GetString());
         Assert.Contains("\"Home\"", json);
         Assert.Contains("\"About\"", json);
         Assert.Contains("\"about\"", json);

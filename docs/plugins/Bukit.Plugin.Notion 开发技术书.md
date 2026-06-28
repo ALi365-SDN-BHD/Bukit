@@ -261,7 +261,7 @@ CI 中执行真实 push 必须显式打开，并使用测试 workspace/token。
 6.2 plugins/notion/plugin.yaml 示例
 id: notion
 name: Bukit Notion Plugin
-version: 0.1.0
+version: 1.0.0-rc.1
 protocol: bukit-plugin-v1
 kind: process
 distribution: self-contained

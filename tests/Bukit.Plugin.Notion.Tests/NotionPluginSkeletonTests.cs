@@ -6,6 +6,14 @@ namespace Bukit.Plugin.Notion.Tests;
 public sealed class NotionPluginSkeletonTests
 {
     [Fact]
+    public void HandshakeProvider_ReturnsV1RcVersion()
+    {
+        var handshake = NotionPluginManifestProvider.CreateHandshakeResponse("req-handshake");
+
+        Assert.Equal("1.0.0-rc.1", handshake.Plugin?.Version);
+    }
+
+    [Fact]
     public void ManifestProvider_ReturnsNotionCommand()
     {
         var manifest = NotionPluginManifestProvider.CreateManifestResponse("req-1");

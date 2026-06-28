@@ -63,3 +63,4 @@ tests/fixtures/*
 !tests/fixtures/release-assets/**
 !tests/fixtures/workflow-evidence/
 !tests/fixtures/workflow-evidence/**
+.smoke-all-run/

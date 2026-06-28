@@ -61,7 +61,7 @@ internal static class SeedGenerator
         WriteArray(path, records, overwrite, (sb, r, i, last) =>
         {
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
-            sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
+            sb.AppendLine($"    \"slug\": {JsonStr(NormalizePageSlug(r))},");
             sb.AppendLine($"    \"type\": {JsonStr(r.Type)},");
             sb.AppendLine($"    \"template\": {JsonStr(r.Template)},");
             sb.AppendLine($"    \"summary\": {JsonVal(r.Summary)},");
@@ -261,7 +261,7 @@ internal static class SeedGenerator
         WriteYamlArray(path, records, overwrite, (sb, r) =>
         {
             YamlField(sb, "title", r.Title);
-            YamlField(sb, "slug", r.Slug);
+            YamlField(sb, "slug", NormalizePageSlug(r));
             YamlField(sb, "type", r.Type);
             YamlField(sb, "template", r.Template);
             YamlField(sb, "summary", r.Summary);
@@ -286,6 +286,9 @@ internal static class SeedGenerator
             YamlBool(sb, "published", r.Published);
         });
     }
+
+    private static string NormalizePageSlug(PageRecord record)
+        => string.IsNullOrWhiteSpace(record.Slug) ? "index" : record.Slug;
 
     private static void WriteSectionsYaml(string path, List<SectionRecord> records, bool overwrite)
     {
