@@ -1,8 +1,6 @@
-using System.Reflection;
 using Bukit.Cli;
 using Bukit.Cli.Commands;
 using Bukit.Config;
-using Bukit.Labs.Cli;
 using Bukit.Shared;
 using Xunit;
 
@@ -60,13 +58,21 @@ public sealed class CoreBoundaryTests
     }
 
     [Fact]
-    public void LabsCliAssembly_DoesNotUseCoreCliCommandNamespaces()
+    public void LabsSources_DoNotUseCoreCliCommandNamespaces()
     {
-        var offenders = typeof(LabsCliAssemblyMarker).Assembly
-            .GetTypes()
-            .Where(t => t.Namespace is not null &&
-                t.Namespace.StartsWith("Bukit.Cli.", StringComparison.Ordinal))
-            .Select(t => t.FullName)
+        var labsDir = Path.Combine(FindRepoRoot(), "experimental");
+        if (!Directory.Exists(labsDir))
+        {
+            return;
+        }
+
+        var offenders = Directory
+            .EnumerateFiles(labsDir, "*.cs", SearchOption.AllDirectories)
+            .SelectMany(path => File.ReadLines(path)
+                .Select((line, index) => new { Path = path, Line = index + 1, Text = line }))
+            .Where(x => x.Text.Contains("namespace Bukit.Cli", StringComparison.Ordinal)
+                || x.Text.Contains("using Bukit.Cli.Commands", StringComparison.Ordinal))
+            .Select(x => $"{Path.GetRelativePath(labsDir, x.Path)}:{x.Line}: {x.Text.Trim()}")
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToArray();
 
@@ -74,11 +80,51 @@ public sealed class CoreBoundaryTests
     }
 
     [Fact]
-    public void CoreCliProject_DoesNotReferenceImporting()
+    public void CoreCliProject_DoesNotReferenceOutOfCoreProjects()
     {
         var projectText = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "Bukit.Cli", "Bukit.Cli.csproj"));
 
         Assert.DoesNotContain("Bukit.Importing", projectText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Bukit.PluginHost", projectText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Bukit.Plugin.Abstractions", projectText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CoreSolution_IncludesOnlyCoreProjects()
+    {
+        var solutionText = File.ReadAllText(Path.Combine(FindRepoRoot(), "bukit.slnx"));
+        var projectPaths = solutionText
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => line.StartsWith("<Project Path=", StringComparison.Ordinal))
+            .Select(line => line.Split('"')[1])
+            .ToArray();
+
+        Assert.Equal(
+            [
+                "src/Bukit.Cli/Bukit.Cli.csproj",
+                "src/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj",
+                "src/Bukit.Config/Bukit.Config.csproj",
+                "src/Bukit.Content/Bukit.Content.csproj",
+                "src/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj",
+                "src/Bukit.Engine/Bukit.Engine.csproj",
+                "src/Bukit.Notion/Bukit.Notion.csproj",
+                "src/Bukit.Rendering/Bukit.Rendering.csproj",
+                "src/Bukit.Routing/Bukit.Routing.csproj",
+                "src/Bukit.Shared/Bukit.Shared.csproj",
+                "src/Bukit.Theme/Bukit.Theme.csproj",
+                "tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj",
+                "tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj",
+                "tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj",
+                "tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj",
+                "tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
+                "tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj",
+                "tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj",
+                "tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj",
+                "tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj",
+                "tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+            ],
+            projectPaths);
     }
 
     [Fact]
@@ -128,14 +174,6 @@ public sealed class CoreBoundaryTests
         Assert.DoesNotContain("ThemeSourceManager", sourceText, StringComparison.Ordinal);
         Assert.DoesNotContain("ProcessGitRunner", sourceText, StringComparison.Ordinal);
         Assert.DoesNotContain("IGitRunner", sourceText, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void CoreSolution_IncludesThemeRuntimeProject()
-    {
-        var solutionText = File.ReadAllText(Path.Combine(FindRepoRoot(), "bukit.slnx"));
-
-        Assert.Contains("src/Bukit.Theme/Bukit.Theme.csproj", solutionText, StringComparison.Ordinal);
     }
 
     [Fact]
