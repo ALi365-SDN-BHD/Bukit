@@ -4,7 +4,6 @@
     <ProjectReference Include="..\Bukit.Cli.Shared\Bukit.Cli.Shared.csproj" />
     <ProjectReference Include="..\Bukit.Engine\Bukit.Engine.csproj" />
     <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
-    <ProjectReference Include="..\Bukit.PluginHost\Bukit.PluginHost.csproj" />
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
   </ItemGroup>
 
@@ -67,7 +66,7 @@
   <Target Name="ValidateStripSymbolsTooling"
           BeforeTargets="Publish"
           Condition="'$(StripSymbols)' == 'true' and $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-'))">
-    <Exec Command="command -v llvm-objcopy >/dev/null 2&gt;&amp;1 || command -v objcopy >/dev/null 2&gt;&amp;1"
+    <Exec Command="command -v llvm-objcopy &gt;/dev/null 2&gt;&amp;1 || command -v objcopy &gt;/dev/null 2&gt;&amp;1"
           ConsoleToMsBuild="true"
           IgnoreExitCode="true">
       <Output TaskParameter="ExitCode" PropertyName="BukitObjcopyExitCode" />
