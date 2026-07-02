@@ -7,8 +7,8 @@ verified_by:
   - "guide/skills/scripts/check-cli-commands.py"
   - "tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs"
 source_anchors:
-  - "src/Bukit.Cli/Cli/BukitCliSpecs.cs"
-  - "src/Bukit.Cli/Cli/BukitCliDescriptors.cs"
+  - "src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs"
+  - "src/Bukit-Core/Bukit.Cli/Cli/BukitCliDescriptors.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

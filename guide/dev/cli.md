@@ -1,7 +1,7 @@
 # CLI
 
-The Core CLI surface is defined in `src/Bukit.Cli/Cli/BukitCliSpecs.cs` and
-wired to handlers in `src/Bukit.Cli/Cli/BukitCliDescriptors.cs`.
+The Core CLI surface is defined in `src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs` and
+wired to handlers in `src/Bukit-Core/Bukit.Cli/Cli/BukitCliDescriptors.cs`.
 
 Do not document a command in the Core guide unless it exists in that registry.
 

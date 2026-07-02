@@ -39,7 +39,7 @@
       "requires": [],
       "source_anchors": [
         "tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs",
-        "src/Bukit.Cli/Cli/BukitCliSpecs.cs",
+        "src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs",
         "guide/skills/skills-index.yaml"
       ],
       "verified_by": [
@@ -60,8 +60,8 @@
       "path": "bukit-cli-reference/SKILL.md",
       "requires": [],
       "source_anchors": [
-        "src/Bukit.Cli/Cli/BukitCliSpecs.cs",
-        "src/Bukit.Cli/Cli/BukitCliDescriptors.cs"
+        "src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs",
+        "src/Bukit-Core/Bukit.Cli/Cli/BukitCliDescriptors.cs"
       ],
       "verified_by": [
         "guide/skills/scripts/check-cli-commands.py",
@@ -83,10 +83,10 @@
         "bukit-cli-reference"
       ],
       "source_anchors": [
-        "src/Bukit.Config/AppConfig.cs",
-        "src/Bukit.Config/ConfigLoader.cs",
-        "src/Bukit.Config/ConfigValidator.cs",
-        "src/Bukit.Config/ConfigStrictFieldValidator.cs"
+        "src/Bukit-Core/Bukit.Config/AppConfig.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigLoader.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigValidator.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs"
       ],
       "verified_by": [
         "tests/Bukit.Config.Tests/ConfigLoaderFullCoverageTests.cs",
@@ -108,9 +108,9 @@
         "bukit-config"
       ],
       "source_anchors": [
-        "src/Bukit.Config/AppConfig.cs",
-        "src/Bukit.Engine/ContentProviderFactory.cs",
-        "src/Bukit.Content/Markdown/MarkdownFolderProvider.cs"
+        "src/Bukit-Core/Bukit.Config/AppConfig.cs",
+        "src/Bukit-Core/Bukit.Engine/ContentProviderFactory.cs",
+        "src/Bukit-Core/Bukit.Content/Markdown/MarkdownFolderProvider.cs"
       ],
       "verified_by": [
         "tests/Bukit.Engine.Tests/ContentProviderFactoryTests.cs",
@@ -133,10 +133,10 @@
         "bukit-content"
       ],
       "source_anchors": [
-        "src/Bukit.Config/ProviderValidators.cs",
-        "src/Bukit.Content/Notion/NotionContentProvider.cs",
-        "src/Bukit.Content/Notion/NotionPropertyParser.cs",
-        "src/Bukit.Content/Notion/NotionBlockRendererRegistry.cs"
+        "src/Bukit-Core/Bukit.Config/ProviderValidators.cs",
+        "src/Bukit-Core/Bukit.Content/Notion/NotionContentProvider.cs",
+        "src/Bukit-Core/Bukit.Content/Notion/NotionPropertyParser.cs",
+        "src/Bukit-Core/Bukit.Content/Notion/NotionBlockRendererRegistry.cs"
       ],
       "verified_by": [
         "tests/Bukit.Content.Tests/NotionPropertyParserTests.cs",
@@ -159,10 +159,10 @@
         "bukit-content"
       ],
       "source_anchors": [
-        "src/Bukit.Routing/RoutePathBuilder.cs",
-        "src/Bukit.Routing/RouteGenerator.cs",
-        "src/Bukit.Routing/RouteSecurityValidator.cs",
-        "src/Bukit.Engine/RouteInventoryValidator.cs"
+        "src/Bukit-Core/Bukit.Routing/RoutePathBuilder.cs",
+        "src/Bukit-Core/Bukit.Routing/RouteGenerator.cs",
+        "src/Bukit-Core/Bukit.Routing/RouteSecurityValidator.cs",
+        "src/Bukit-Core/Bukit.Engine/RouteInventoryValidator.cs"
       ],
       "verified_by": [
         "tests/Bukit.Routing.Tests/RoutePathBuilderTests.cs",
@@ -184,11 +184,11 @@
         "bukit-config"
       ],
       "source_anchors": [
-        "src/Bukit.Engine/ThemePathResolver.cs",
-        "src/Bukit.Config/ConfigValidator.cs",
-        "src/Bukit.Config/ThemeManifestStrictValidator.cs",
-        "src/Bukit.Theme/ThemeManifestLoader.cs",
-        "src/Bukit.Theme/ThemeComponentRegistry.cs"
+        "src/Bukit-Core/Bukit.Engine/ThemePathResolver.cs",
+        "src/Bukit-Core/Bukit.Config/ConfigValidator.cs",
+        "src/Bukit-Core/Bukit.Config/ThemeManifestStrictValidator.cs",
+        "src/Bukit-Core/Bukit.Theme/ThemeManifestLoader.cs",
+        "src/Bukit-Core/Bukit.Theme/ThemeComponentRegistry.cs"
       ],
       "verified_by": [
         "tests/Bukit.Theme.Tests/ThemeManifestLoaderTests.cs",
@@ -210,10 +210,10 @@
         "bukit-theme"
       ],
       "source_anchors": [
-        "src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs",
-        "src/Bukit.Rendering/Scriban/TemplateContextBuilder.cs",
-        "src/Bukit.Engine/ScribanTemplateLinter.cs",
-        "src/Bukit.Engine/TemplateCapabilitiesResolver.cs"
+        "src/Bukit-Core/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs",
+        "src/Bukit-Core/Bukit.Rendering/Scriban/TemplateContextBuilder.cs",
+        "src/Bukit-Core/Bukit.Engine/ScribanTemplateLinter.cs",
+        "src/Bukit-Core/Bukit.Engine/TemplateCapabilitiesResolver.cs"
       ],
       "verified_by": [
         "tests/Bukit.Rendering.Tests/ScribanTemplateRendererTests.cs",
@@ -236,8 +236,8 @@
         "bukit-routing"
       ],
       "source_anchors": [
-        "src/Bukit.Config/I18nValidator.cs",
-        "src/Bukit.Engine/I18nOutputMerger.cs"
+        "src/Bukit-Core/Bukit.Config/I18nValidator.cs",
+        "src/Bukit-Core/Bukit.Engine/I18nOutputMerger.cs"
       ],
       "verified_by": [
         "tests/Bukit.Engine.Tests/I18nOutputMergerTests.cs"
@@ -259,9 +259,9 @@
         "bukit-cli-reference"
       ],
       "source_anchors": [
-        "src/Bukit.Cli/Commands/SeoCommand.cs",
-        "src/Bukit.Cli/Commands/SeoReportValidator.cs",
-        "src/Bukit.Engine/BuildReporter.cs"
+        "src/Bukit-Core/Bukit.Cli/Commands/SeoCommand.cs",
+        "src/Bukit-Core/Bukit.Cli/Commands/SeoReportValidator.cs",
+        "src/Bukit-Core/Bukit.Engine/BuildReporter.cs"
       ],
       "verified_by": [
         "tests/Bukit.Cli.Tests/SeoReportValidatorTests.cs",
@@ -284,8 +284,8 @@
         "bukit-seo"
       ],
       "source_anchors": [
-        "src/Bukit.Cli/Commands/GeoCommand.cs",
-        "src/Bukit.Engine/BuildReporter.cs"
+        "src/Bukit-Core/Bukit.Cli/Commands/GeoCommand.cs",
+        "src/Bukit-Core/Bukit.Engine/BuildReporter.cs"
       ],
       "verified_by": [
         "tests/Bukit.Engine.Tests/GeoDiagnosticsTests.cs",
@@ -307,7 +307,7 @@
         "bukit-cli-reference"
       ],
       "source_anchors": [
-        "src/Bukit.Cli/Commands/PreviewCommand.cs"
+        "src/Bukit-Core/Bukit.Cli/Commands/PreviewCommand.cs"
       ],
       "verified_by": [
         "tests/Bukit.Cli.Tests/PreviewCommandTests.cs",
@@ -330,10 +330,10 @@
         "bukit-config"
       ],
       "source_anchors": [
-        "src/Bukit.Cli/Commands/DevCommand.cs",
-        "src/Bukit.Cli/Commands/Dev/DevFileWatcher.cs",
-        "src/Bukit.Cli/Commands/Dev/DevWebSocketHub.cs",
-        "src/Bukit.Cli/Commands/Dev/DevRequestHandler.cs"
+        "src/Bukit-Core/Bukit.Cli/Commands/DevCommand.cs",
+        "src/Bukit-Core/Bukit.Cli/Commands/Dev/DevFileWatcher.cs",
+        "src/Bukit-Core/Bukit.Cli/Commands/Dev/DevWebSocketHub.cs",
+        "src/Bukit-Core/Bukit.Cli/Commands/Dev/DevRequestHandler.cs"
       ],
       "verified_by": [
         "tests/Bukit.Cli.Tests/DevCommandTests.cs"
@@ -355,10 +355,10 @@
         "bukit-config"
       ],
       "source_anchors": [
-        "src/Bukit.Cli/Commands/DeployCommand.cs",
-        "src/Bukit.Cli/Deploy/GitHubPagesDeployProvider.cs",
-        "src/Bukit.Config/DeployConfig.cs",
-        "src/Bukit.Config/ProviderValidators.cs"
+        "src/Bukit-Core/Bukit.Cli/Commands/DeployCommand.cs",
+        "src/Bukit-Core/Bukit.Cli/Deploy/GitHubPagesDeployProvider.cs",
+        "src/Bukit-Core/Bukit.Config/DeployConfig.cs",
+        "src/Bukit-Core/Bukit.Config/ProviderValidators.cs"
       ],
       "verified_by": [
         "tests/Bukit.Cli.Tests/DeployCommandTests.cs",
@@ -381,10 +381,10 @@
         "bukit-config"
       ],
       "source_anchors": [
-        "src/Bukit.Cli/Commands/BuildCommand.cs",
-        "src/Bukit.Cli/Commands/DoctorCommand.cs",
-        "src/Bukit.Engine/Plugins/PluginRegistry.cs",
-        "src/Bukit.Engine/BuildReporter.cs"
+        "src/Bukit-Core/Bukit.Cli/Commands/BuildCommand.cs",
+        "src/Bukit-Core/Bukit.Cli/Commands/DoctorCommand.cs",
+        "src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs",
+        "src/Bukit-Core/Bukit.Engine/BuildReporter.cs"
       ],
       "verified_by": [
         "tests/Bukit.Engine.Tests/PluginRegistryTests.cs",

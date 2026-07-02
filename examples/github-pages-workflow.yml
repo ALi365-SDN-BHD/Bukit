@@ -31,7 +31,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Publish bukit (Native AOT)
-        run: dotnet publish src/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
+        run: dotnet publish src/Bukit-Core/Bukit.Cli -c AOT -r linux-x64 -o out/bukit
 
       - name: Compute base URL and site URL
         id: urls

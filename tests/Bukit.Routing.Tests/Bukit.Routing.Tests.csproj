@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Routing\Bukit.Routing.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.Shared\Bukit.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Routing\Bukit.Routing.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Shared\Bukit.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

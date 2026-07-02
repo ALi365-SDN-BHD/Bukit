@@ -48,10 +48,16 @@ echo "=== checks: CLI docs sync fixtures ==="
 bash scripts/checks/test-cli-docs-sync-fixtures.sh
 
 echo "=== restore ==="
-dotnet restore bukit.slnx
+dotnet restore bukit-core.slnx
+dotnet restore bukit-plugins.slnx
+dotnet restore bukit-labs.slnx
+dotnet restore bukit-test.slnx
 
 echo "=== build ==="
-dotnet build bukit.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
+dotnet build bukit-core.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
+dotnet build bukit-plugins.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
+dotnet build bukit-labs.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
+dotnet build bukit-test.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
 
 echo "=== test ==="
 test_args=(
@@ -86,7 +92,7 @@ else
 fi
 test_args+=("--verbosity" "normal")
 
-test_project="bukit.slnx"
+test_project="bukit-test.slnx"
 if [[ -n "${CI_FAST_TEST_PROJECT:-}" ]]; then
   test_project="$CI_FAST_TEST_PROJECT"
 fi
@@ -132,7 +138,9 @@ for test_project in "${test_projects[@]}"; do
 done
 
 echo "=== format ==="
-dotnet format bukit.slnx --verify-no-changes --no-restore
+for solution in bukit-core.slnx bukit-plugins.slnx bukit-labs.slnx bukit-test.slnx; do
+  dotnet format "$solution" --verify-no-changes --no-restore
+done
 
 echo "=== docs consistency ==="
 bash scripts/checks/docs-consistency.sh

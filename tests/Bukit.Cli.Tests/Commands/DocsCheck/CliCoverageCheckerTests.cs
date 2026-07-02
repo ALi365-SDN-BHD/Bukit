@@ -13,7 +13,7 @@ public sealed class CliCoverageCheckerTests
             """
             ```bash
             bukit build --output dist
-            dotnet run --project src/Bukit.Cli/Bukit.Cli.csproj -c Release -- config check --config site.yaml
+            dotnet run --project src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj -c Release -- config check --config site.yaml
             bukit import old-demo
             ```
             """);

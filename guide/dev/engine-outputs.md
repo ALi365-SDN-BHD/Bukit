@@ -5,11 +5,11 @@ projections. Output shape is owned by the engine and validated by tests.
 
 Source anchors:
 
-- `src/Bukit.Engine/BuildReporter.cs`
-- `src/Bukit.Engine/SeoAuditReportWriter.cs`
-- `src/Bukit.Engine/PublishAuditReportWriter.cs`
-- `src/Bukit.Engine/PublishAggregateProjectionWriters.cs`
-- `src/Bukit.Engine/I18nOutputMerger.cs`
+- `src/Bukit-Core/Bukit.Engine/BuildReporter.cs`
+- `src/Bukit-Core/Bukit.Engine/SeoAuditReportWriter.cs`
+- `src/Bukit-Core/Bukit.Engine/PublishAuditReportWriter.cs`
+- `src/Bukit-Core/Bukit.Engine/PublishAggregateProjectionWriters.cs`
+- `src/Bukit-Core/Bukit.Engine/I18nOutputMerger.cs`
 
 ## Main Output
 

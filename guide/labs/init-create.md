@@ -7,7 +7,7 @@ commands. They are not in the Core 1.0 command registry.
 
 ## Core Boundary
 
-Core commands are defined by `src/Bukit.Cli/Cli/BukitCliSpecs.cs`. The stable
+Core commands are defined by `src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs`. The stable
 registry does not include init or create scaffolding commands.
 
 ## Historical Shape

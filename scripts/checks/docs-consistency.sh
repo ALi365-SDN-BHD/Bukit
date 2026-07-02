@@ -30,7 +30,10 @@ allow_keywords=(
 )
 
 required_paths=(
-  "bukit.slnx"
+  "bukit-core.slnx"
+  "bukit-labs.slnx"
+  "bukit-plugins.slnx"
+  "bukit-test.slnx"
   "guide/dev"
   "guide/user"
   "guide/skills"

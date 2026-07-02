@@ -7,8 +7,8 @@ verified_by:
   - "tests/Bukit.Engine.Tests/GeoDiagnosticsTests.cs"
   - "tests/Bukit.Engine.Tests/GeoSeoModelBuilderTests.cs"
 source_anchors:
-  - "src/Bukit.Cli/Commands/GeoCommand.cs"
-  - "src/Bukit.Engine/BuildReporter.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/GeoCommand.cs"
+  - "src/Bukit-Core/Bukit.Engine/BuildReporter.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

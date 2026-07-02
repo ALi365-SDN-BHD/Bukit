@@ -8,16 +8,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Shared\Bukit.Shared.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.Cli.Shared\Bukit.Cli.Shared.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.Config\Bukit.Config.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.Routing\Bukit.Routing.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.Content\Bukit.Content.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.Rendering\Bukit.Rendering.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.Engine\Bukit.Engine.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.Cli\Bukit.Cli.csproj" />
-    <ProjectReference Include="..\..\experimental\Bukit.Labs.Cli\Bukit.Labs.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Shared\Bukit.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Cli.Shared\Bukit.Cli.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Routing\Bukit.Routing.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Content\Bukit.Content.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Rendering\Bukit.Rendering.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Engine\Bukit.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Cli\Bukit.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Labs\Bukit.Labs.Cli\Bukit.Labs.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>

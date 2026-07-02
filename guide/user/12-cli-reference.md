@@ -1,6 +1,6 @@
 # CLI Reference
 
-Bukit Core 1.0 command metadata is defined in `src/Bukit.Cli/Cli/BukitCliSpecs.cs`.
+Bukit Core 1.0 command metadata is defined in `src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs`.
 
 | Command | Purpose |
 |---|---|

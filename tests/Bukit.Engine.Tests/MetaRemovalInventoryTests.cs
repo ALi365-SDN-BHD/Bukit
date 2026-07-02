@@ -31,7 +31,7 @@ public sealed class MetaRemovalInventoryTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "bukit.slnx")))
+            if (File.Exists(Path.Combine(directory.FullName, "bukit-core.slnx")))
             {
                 return directory.FullName;
             }
@@ -96,12 +96,12 @@ public sealed class MetaRemovalInventoryTests
             return true;
         }
 
-        if (relativePath.StartsWith("src/Bukit.Content/", StringComparison.Ordinal))
+        if (relativePath.StartsWith("src/Bukit-Core/Bukit.Content/", StringComparison.Ordinal))
         {
             return true;
         }
 
-        if (relativePath.StartsWith("src/Bukit.Engine/Normalization/", StringComparison.Ordinal))
+        if (relativePath.StartsWith("src/Bukit-Core/Bukit.Engine/Normalization/", StringComparison.Ordinal))
         {
             return true;
         }

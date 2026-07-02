@@ -5,10 +5,10 @@ and report files.
 
 Source anchors:
 
-- `src/Bukit.Shared/Logger.cs`
-- `src/Bukit.Shared/DiagnosticCode.cs`
-- `src/Bukit.Engine/MetricsWriter.cs`
-- `src/Bukit.Engine/BuildReporter.cs`
+- `src/Bukit-Core/Bukit.Shared/Logger.cs`
+- `src/Bukit-Core/Bukit.Shared/DiagnosticCode.cs`
+- `src/Bukit-Core/Bukit.Engine/MetricsWriter.cs`
+- `src/Bukit-Core/Bukit.Engine/BuildReporter.cs`
 
 ## Logging
 

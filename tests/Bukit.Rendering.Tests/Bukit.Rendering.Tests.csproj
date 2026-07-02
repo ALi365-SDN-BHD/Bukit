@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Rendering\Bukit.Rendering.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Rendering\Bukit.Rendering.csproj" />
   </ItemGroup>
 
   <ItemGroup>

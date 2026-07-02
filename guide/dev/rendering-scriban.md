@@ -4,10 +4,10 @@ Bukit renders content, list pages, and static HTML through the Scriban runtime.
 
 Source anchors:
 
-- `src/Bukit.Rendering/Scriban/`
-- `src/Bukit.Engine/PageRenderDispatcher.cs`
-- `src/Bukit.Engine/ScribanTemplateLinter.cs`
-- `src/Bukit.Engine/TemplateCapabilitiesResolver.cs`
+- `src/Bukit-Core/Bukit.Rendering/Scriban/`
+- `src/Bukit-Core/Bukit.Engine/PageRenderDispatcher.cs`
+- `src/Bukit-Core/Bukit.Engine/ScribanTemplateLinter.cs`
+- `src/Bukit-Core/Bukit.Engine/TemplateCapabilitiesResolver.cs`
 
 ## Render Entry Kinds
 

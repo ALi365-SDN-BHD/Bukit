@@ -587,7 +587,6 @@ logging:
                 HasFeatureModules: false,
                 HasCallToActionModule: false)
         };
-
     private sealed record TemplateProfile(
         string Title,
         string Brand,

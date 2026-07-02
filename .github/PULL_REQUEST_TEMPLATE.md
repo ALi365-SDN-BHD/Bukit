@@ -31,7 +31,7 @@
 
 - [ ] 本地已通过 `bash scripts/quality-gate.sh`
 - [ ] 覆盖率 ≥ 80%（详见 TestResults/coverage-report/Summary.txt）
-- [ ] `dotnet format bukit.slnx --verify-no-changes` 无变更
+- [ ] `dotnet format bukit-core.slnx --verify-no-changes` 无变更
 - [ ] 单文件 ≤ 600 行（由 quality-gate 自动检查）
 
 ## 风险与回滚

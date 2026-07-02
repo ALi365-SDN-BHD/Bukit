@@ -7,7 +7,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Theme\Bukit.Theme.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Theme\Bukit.Theme.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />

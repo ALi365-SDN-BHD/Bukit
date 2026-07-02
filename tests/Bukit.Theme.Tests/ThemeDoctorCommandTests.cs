@@ -53,7 +53,7 @@ public sealed class ThemeDoctorCommandTests : IDisposable
         {
             Name = "test",
             Version = "1.0",
-            Assets = new ThemeAssets { Css = ["missing.css"] }
+            Assets = new ThemeAssetsConfig { Css = ["missing.css"] }
         };
         var registry = new ThemeComponentRegistry(_testDir, manifest);
 

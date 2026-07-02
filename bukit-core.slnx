@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/Bukit-Core/">
+    <Project Path="src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Config/Bukit.Config.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Content/Bukit.Content.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.PluginHost/Bukit.PluginHost.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Rendering/Bukit.Rendering.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Shared/Bukit.Shared.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Theme/Bukit.Theme.csproj" />
+  </Folder>
+</Solution>

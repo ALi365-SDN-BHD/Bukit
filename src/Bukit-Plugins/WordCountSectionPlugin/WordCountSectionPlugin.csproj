@@ -1,14 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
   <ItemGroup>
-    <ProjectReference Include="..\..\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
   </ItemGroup>
-
 </Project>

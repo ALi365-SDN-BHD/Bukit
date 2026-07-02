@@ -7,10 +7,10 @@ verified_by:
   - "tests/Bukit.Engine.Tests/PluginRegistryTests.cs"
   - "tests/Bukit.Engine.Tests/BuildReporterTests.cs"
 source_anchors:
-  - "src/Bukit.Cli/Commands/BuildCommand.cs"
-  - "src/Bukit.Cli/Commands/DoctorCommand.cs"
-  - "src/Bukit.Engine/Plugins/PluginRegistry.cs"
-  - "src/Bukit.Engine/BuildReporter.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/BuildCommand.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/DoctorCommand.cs"
+  - "src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs"
+  - "src/Bukit-Core/Bukit.Engine/BuildReporter.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

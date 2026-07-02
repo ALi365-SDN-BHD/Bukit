@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Shared\Bukit.Shared.csproj" />
   </ItemGroup>
 
 </Project>

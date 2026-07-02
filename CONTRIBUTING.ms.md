@@ -10,13 +10,13 @@ Terima kasih atas minat anda untuk menyumbang kepada Bukit.
 ```bash
 git clone <repo-url>
 cd Bukit
-dotnet build bukit.slnx -c Release
+dotnet build bukit-core.slnx -c Release
 ```
 
 3. Jalankan ujian:
 
 ```bash
-dotnet test bukit.slnx -c Release
+dotnet test bukit-test.slnx -c Release
 ```
 
 4. Jalankan ujian asap (Windows):
@@ -33,7 +33,7 @@ Untuk panduan pembangun baharu: [guide/dev/new-developer-30min.md](guide/dev/new
 - Formatkan kod sebelum commit:
 
 ```bash
-dotnet format bukit.slnx --verify-no-changes
+dotnet format bukit-core.slnx --verify-no-changes
 ```
 
 ## Seni Bina

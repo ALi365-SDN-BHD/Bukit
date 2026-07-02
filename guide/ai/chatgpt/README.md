@@ -15,10 +15,10 @@ This directory provides copy-paste prompts and instructions to move your site-cr
 3. Run local closed loop:
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- intent validate intent.yaml
-dotnet run --project src/Bukit.Cli -c Release -- intent apply intent.yaml --out site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clean --site-url https://example.com
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- intent validate intent.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- intent apply intent.yaml --out site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- doctor --config site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- build --config site.yaml --clean --site-url https://example.com
 ```
 
 4. If `intent validate` or `doctor` fails, paste the error output back to ChatGPT and use [prompt_fix_config.md](./prompt_fix_config.md) to request corrected YAML only.

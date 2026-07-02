@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate Bukit Core CLI command references in guide/skills.
 
-The source of truth is src/Bukit.Cli/Cli/BukitCliSpecs.cs.
+The source of truth is src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs.
 The primary documented surface is guide/skills/bukit-cli-reference/SKILL.md.
 All top-level Core skill files are also scanned for accidental non-Core command
 references. Labs and validator scripts are intentionally skipped.
@@ -69,7 +69,7 @@ def extract_parameters(block: str, diff_options: list[str]) -> list[str]:
 
 
 def extract_spec() -> tuple[dict[str, list[str]], set[str]]:
-    spec_path = repo_root() / "src" / "Bukit.Cli" / "Cli" / "BukitCliSpecs.cs"
+    spec_path = repo_root() / "src" / "Bukit-Core" / "Bukit.Cli" / "Cli" / "BukitCliSpecs.cs"
     if not spec_path.exists():
         raise FileNotFoundError(f"Missing CLI spec: {spec_path}")
 

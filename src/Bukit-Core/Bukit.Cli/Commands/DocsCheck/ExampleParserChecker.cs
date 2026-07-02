@@ -63,7 +63,7 @@ public static class ExampleParserChecker
                     command = parts[0];
                     args = parts.Skip(1).ToArray();
                 }
-                else if (content.Contains("dotnet run --project src/Bukit.Cli", StringComparison.Ordinal))
+                else if (content.Contains("dotnet run --project src/Bukit-Core/Bukit.Cli", StringComparison.Ordinal))
                 {
                     var separatorIndex = content.LastIndexOf(" -- ", StringComparison.Ordinal);
                     if (separatorIndex < 0)

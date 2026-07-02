@@ -7,11 +7,11 @@ verified_by:
   - "tests/Bukit.Theme.Tests/ThemeManifestLoaderTests.cs"
   - "tests/Bukit.Engine.Tests/ThemePathResolverTests.cs"
 source_anchors:
-  - "src/Bukit.Engine/ThemePathResolver.cs"
-  - "src/Bukit.Config/ConfigValidator.cs"
-  - "src/Bukit.Config/ThemeManifestStrictValidator.cs"
-  - "src/Bukit.Theme/ThemeManifestLoader.cs"
-  - "src/Bukit.Theme/ThemeComponentRegistry.cs"
+  - "src/Bukit-Core/Bukit.Engine/ThemePathResolver.cs"
+  - "src/Bukit-Core/Bukit.Config/ConfigValidator.cs"
+  - "src/Bukit-Core/Bukit.Config/ThemeManifestStrictValidator.cs"
+  - "src/Bukit-Core/Bukit.Theme/ThemeManifestLoader.cs"
+  - "src/Bukit-Core/Bukit.Theme/ThemeComponentRegistry.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

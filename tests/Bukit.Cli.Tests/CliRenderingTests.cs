@@ -63,7 +63,7 @@ public sealed class CliRenderingTests
     {
         var cliRoot = FindRepoRoot();
         var sourceFiles = Directory.EnumerateFiles(
-            Path.Combine(cliRoot, "src", "Bukit.Cli"),
+            Path.Combine(cliRoot, "src", "Bukit-Core", "Bukit.Cli"),
             "*.cs",
             SearchOption.AllDirectories);
 
@@ -79,7 +79,7 @@ public sealed class CliRenderingTests
     public void DevCommandSource_UsesLiveReloadBanner()
     {
         var cliRoot = FindRepoRoot();
-        var text = File.ReadAllText(Path.Combine(cliRoot, "src", "Bukit.Cli", "Commands", "DevCommand.cs"));
+        var text = File.ReadAllText(Path.Combine(cliRoot, "src", "Bukit-Core", "Bukit.Cli", "Commands", "DevCommand.cs"));
 
         Assert.Contains("bukit dev — LiveReload development server", text, StringComparison.Ordinal);
         Assert.DoesNotContain("bukit dev - HMR development server", text, StringComparison.Ordinal);
@@ -92,7 +92,7 @@ public sealed class CliRenderingTests
         var current = new DirectoryInfo(AppContext.BaseDirectory);
         while (current is not null)
         {
-            if (Directory.Exists(Path.Combine(current.FullName, "src", "Bukit.Cli"))
+            if (Directory.Exists(Path.Combine(current.FullName, "src", "Bukit-Core", "Bukit.Cli"))
                 && File.Exists(Path.Combine(current.FullName, "tests", "Bukit.Cli.Tests", "Bukit.Cli.Tests.csproj")))
             {
                 return current.FullName;

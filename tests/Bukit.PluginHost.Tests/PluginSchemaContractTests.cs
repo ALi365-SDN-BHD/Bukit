@@ -87,8 +87,8 @@ public sealed class PluginSchemaContractTests
     }
 
     [Theory]
-    [InlineData("plugins/Bukit.Plugin.Import/plugin.yaml")]
-    [InlineData("plugins/Bukit.Plugin.Clone/plugin.yaml")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.Import/plugin.yaml")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.Clone/plugin.yaml")]
     public void OfficialPluginPackageManifestPolicy_WhenPresent_MustBeStatic(string relativePath)
     {
         string path = Path.Combine(RepoRoot, relativePath);
@@ -102,8 +102,8 @@ public sealed class PluginSchemaContractTests
     }
 
     [Theory]
-    [InlineData("plugins/Bukit.Plugin.Import", "import")]
-    [InlineData("plugins/Bukit.Plugin.Clone", "clone")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.Import", "import")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.Clone", "clone")]
     public async Task OfficialPluginPackageExampleConfig_WhenPackageExists_MustLoad(string packagePath, string pluginId)
     {
         string fullPackagePath = Path.Combine(RepoRoot, packagePath);
@@ -128,8 +128,8 @@ public sealed class PluginSchemaContractTests
     }
 
     [Theory]
-    [InlineData("plugins/Bukit.Plugin.Import", "import")]
-    [InlineData("plugins/Bukit.Plugin.Clone", "clone")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.Import", "import")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.Clone", "clone")]
     public async Task OfficialPluginPackageExampleManifest_WhenPackageExists_MustLoad(string packagePath, string pluginId)
     {
         string fullPackagePath = Path.Combine(RepoRoot, packagePath);
@@ -153,8 +153,8 @@ public sealed class PluginSchemaContractTests
     }
 
     [Theory]
-    [InlineData("plugins/Bukit.Plugin.Import")]
-    [InlineData("plugins/Bukit.Plugin.Clone")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.Import")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.Clone")]
     public void OfficialPluginPackageExampleConfig_WhenPackageExists_MustNotDeclareForbiddenRuntimeFields(string packagePath)
     {
         string fullPackagePath = Path.Combine(RepoRoot, packagePath);
@@ -214,7 +214,7 @@ public sealed class PluginSchemaContractTests
         string? current = AppContext.BaseDirectory;
         while (current is not null)
         {
-            if (File.Exists(Path.Combine(current, "bukit.slnx")))
+            if (File.Exists(Path.Combine(current, "bukit-core.slnx")))
             {
                 return current;
             }

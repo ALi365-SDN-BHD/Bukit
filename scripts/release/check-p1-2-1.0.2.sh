@@ -29,7 +29,7 @@ echo "==> Coverage baseline JSON check"
 bash scripts/checks/coverage-baseline-schema.sh
 
 echo "==> Full solution test"
-dotnet test bukit.slnx
+dotnet test bukit-test.slnx
 
 echo "==> Dev server rebuild regression tests"
 dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"

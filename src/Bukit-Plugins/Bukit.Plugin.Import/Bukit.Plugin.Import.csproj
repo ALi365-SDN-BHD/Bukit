@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Plugin.Abstractions\Bukit.Plugin.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Plugin.Abstractions\Bukit.Plugin.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

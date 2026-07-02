@@ -6,8 +6,8 @@ since: "v4.0.0-core1"
 verified_by:
   - "tests/Bukit.Engine.Tests/I18nOutputMergerTests.cs"
 source_anchors:
-  - "src/Bukit.Config/I18nValidator.cs"
-  - "src/Bukit.Engine/I18nOutputMerger.cs"
+  - "src/Bukit-Core/Bukit.Config/I18nValidator.cs"
+  - "src/Bukit-Core/Bukit.Engine/I18nOutputMerger.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

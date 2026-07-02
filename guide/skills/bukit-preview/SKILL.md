@@ -7,7 +7,7 @@ verified_by:
   - "tests/Bukit.Cli.Tests/PreviewCommandTests.cs"
   - "tests/Bukit.Cli.Tests/PreviewCommandExtendedTests.cs"
 source_anchors:
-  - "src/Bukit.Cli/Commands/PreviewCommand.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/PreviewCommand.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

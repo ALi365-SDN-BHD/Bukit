@@ -8,10 +8,6 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
-  </ItemGroup>
-
   <Import Project="VisualFeedbackPlugin.projitems" />
 
 </Project>

@@ -5,10 +5,10 @@ watches source inputs, rebuilds incrementally, and refreshes connected browsers.
 
 Source anchors:
 
-- `src/Bukit.Cli/Commands/DevCommand.cs`
-- `src/Bukit.Cli/Commands/Dev/DevFileWatcher.cs`
-- `src/Bukit.Cli/Commands/Dev/DevWebSocketHub.cs`
-- `src/Bukit.Cli/Commands/Dev/DevRequestHandler.cs`
+- `src/Bukit-Core/Bukit.Cli/Commands/DevCommand.cs`
+- `src/Bukit-Core/Bukit.Cli/Commands/Dev/DevFileWatcher.cs`
+- `src/Bukit-Core/Bukit.Cli/Commands/Dev/DevWebSocketHub.cs`
+- `src/Bukit-Core/Bukit.Cli/Commands/Dev/DevRequestHandler.cs`
 
 ## Usage
 

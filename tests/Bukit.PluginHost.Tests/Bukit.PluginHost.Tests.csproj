@@ -8,9 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Plugin.Abstractions\Bukit.Plugin.Abstractions.csproj" />
-    <ProjectReference Include="..\..\src\Bukit.PluginHost\Bukit.PluginHost.csproj" />
-    <ProjectReference Include="..\..\plugins\Bukit.Plugin.Echo\Bukit.Plugin.Echo.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Plugin.Abstractions\Bukit.Plugin.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.PluginHost\Bukit.PluginHost.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Plugins\Bukit.Plugin.Echo\Bukit.Plugin.Echo.csproj" />
     <ProjectReference Include="..\PluginProcessProbe\PluginProcessProbe.csproj" />
   </ItemGroup>
 

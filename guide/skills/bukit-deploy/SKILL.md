@@ -7,10 +7,10 @@ verified_by:
   - "tests/Bukit.Cli.Tests/DeployCommandTests.cs"
   - "tests/Bukit.Engine.Tests/DeployConfigTests.cs"
 source_anchors:
-  - "src/Bukit.Cli/Commands/DeployCommand.cs"
-  - "src/Bukit.Cli/Deploy/GitHubPagesDeployProvider.cs"
-  - "src/Bukit.Config/DeployConfig.cs"
-  - "src/Bukit.Config/ProviderValidators.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/DeployCommand.cs"
+  - "src/Bukit-Core/Bukit.Cli/Deploy/GitHubPagesDeployProvider.cs"
+  - "src/Bukit-Core/Bukit.Config/DeployConfig.cs"
+  - "src/Bukit-Core/Bukit.Config/ProviderValidators.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

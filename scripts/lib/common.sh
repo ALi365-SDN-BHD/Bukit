@@ -28,7 +28,7 @@ bukit_host_rid() {
 bukit_cli() {
   local configuration="$1"
   shift
-  dotnet run --project src/Bukit.Cli -c "$configuration" -- "$@"
+  dotnet run --project src/Bukit-Core/Bukit.Cli -c "$configuration" -- "$@"
 }
 
 bukit_sha256() {

@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\experimental\Bukit.Labs.Cli\Bukit.Labs.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Labs\Bukit.Labs.Cli\Bukit.Labs.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>

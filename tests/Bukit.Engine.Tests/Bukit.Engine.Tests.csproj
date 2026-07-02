@@ -7,7 +7,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Engine\Bukit.Engine.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Engine\Bukit.Engine.csproj" />
     <ProjectReference Include="..\ThrowingPlugin\ThrowingPlugin.csproj" />
   </ItemGroup>
 

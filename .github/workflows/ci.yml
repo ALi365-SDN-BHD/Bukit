@@ -51,8 +51,8 @@ jobs:
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: 10.0.x
-      - run: dotnet restore bukit.slnx
-      - run: dotnet build bukit.slnx -c Release
+      - run: dotnet restore bukit-core.slnx
+      - run: dotnet build bukit-core.slnx -c Release
       - run: CI_FULL_SKIP_FAST=1 bash scripts/gates/ci-full.sh Release
       - run: bash scripts/checks/ci-workflow-evidence.sh "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" "ci.yml" "TestResults/ci-workflow-evidence.json" 0 "TestResults/ci-workflow-evidence.md"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -78,9 +78,9 @@ jobs:
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: 10.0.x
-      - run: dotnet restore bukit.slnx
-      - run: dotnet build bukit.slnx -c Release
-      - run: dotnet test bukit.slnx -c Release --no-build --verbosity normal -maxcpucount:1 -nodeReuse:false --logger "console;verbosity=minimal" --logger "trx;LogFileName=cross-platform.trx" --blame-hang --blame-hang-timeout 10m --blame-hang-dump-type full --diag TestResults/cross-platform/testhost.log --results-directory TestResults/cross-platform
+      - run: dotnet restore bukit-test.slnx
+      - run: dotnet build bukit-test.slnx -c Release
+      - run: dotnet test bukit-test.slnx -c Release --no-build --verbosity normal -maxcpucount:1 -nodeReuse:false --logger "console;verbosity=minimal" --logger "trx;LogFileName=cross-platform.trx" --blame-hang --blame-hang-timeout 10m --blame-hang-dump-type full --diag TestResults/cross-platform/testhost.log --results-directory TestResults/cross-platform
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

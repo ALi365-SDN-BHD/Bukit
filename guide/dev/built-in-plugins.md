@@ -1,7 +1,7 @@
 # Built-in Plugin Runtime
 
 Bukit Core 1.0 loads built-in plugins only. The source of truth is
-`src/Bukit.Engine/Plugins/PluginRegistry.cs`.
+`src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs`.
 
 ## Registry Source
 

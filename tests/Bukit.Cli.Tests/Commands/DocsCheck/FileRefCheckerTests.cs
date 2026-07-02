@@ -134,7 +134,7 @@ public class FileRefCheckerTests
     public void Check_ShouldReportMissingRealFileRefs()
     {
         var docContent = """
-            Reference: `src/Bukit.Cli/Commands/NonExistentFile.cs`
+            Reference: `src/Bukit-Core/Bukit.Cli/Commands/NonExistentFile.cs`
             """;
 
         var docPath = CreateTempFile(docContent);

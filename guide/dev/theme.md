@@ -5,9 +5,9 @@ theme command surface.
 
 Source anchors:
 
-- `src/Bukit.Theme/ThemeManifestLoader.cs`
-- `src/Bukit.Engine/ThemePathResolver.cs`
-- `src/Bukit.Config/ThemeManifestStrictValidator.cs`
+- `src/Bukit-Core/Bukit.Theme/ThemeManifestLoader.cs`
+- `src/Bukit-Core/Bukit.Engine/ThemePathResolver.cs`
+- `src/Bukit-Core/Bukit.Config/ThemeManifestStrictValidator.cs`
 
 ## Directory Contract
 

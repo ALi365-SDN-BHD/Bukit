@@ -7,13 +7,13 @@ disagree, docs are wrong until proven otherwise.
 
 | Topic | Source |
 |---|---|
-| Commands and options | `src/Bukit.Cli/Cli/BukitCliSpecs.cs` |
-| Command handlers | `src/Bukit.Cli/Cli/BukitCliDescriptors.cs` |
-| Config fields | `src/Bukit.Config/AppConfig.cs` |
-| Strict field validation | `src/Bukit.Config/ConfigStrictFieldValidator.cs` |
-| Generated schema | `src/Bukit.Config/ConfigJsonSchemaGenerator.cs` |
-| Built-in plugins | `src/Bukit.Engine/Plugins/PluginRegistry.cs` |
-| Theme manifest | `src/Bukit.Theme/ThemeManifestLoader.cs` |
+| Commands and options | `src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs` |
+| Command handlers | `src/Bukit-Core/Bukit.Cli/Cli/BukitCliDescriptors.cs` |
+| Config fields | `src/Bukit-Core/Bukit.Config/AppConfig.cs` |
+| Strict field validation | `src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs` |
+| Generated schema | `src/Bukit-Core/Bukit.Config/ConfigJsonSchemaGenerator.cs` |
+| Built-in plugins | `src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs` |
+| Theme manifest | `src/Bukit-Core/Bukit.Theme/ThemeManifestLoader.cs` |
 | Boundary tests | `tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs` |
 
 ## Update Order

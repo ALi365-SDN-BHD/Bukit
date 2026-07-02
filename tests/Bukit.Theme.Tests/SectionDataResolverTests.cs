@@ -89,9 +89,9 @@ public sealed class SectionDataResolverTests
 
         var result = SectionDataResolver.Resolve(sectionDef, items);
         Assert.Equal(3, result.Count);
-        Assert.Equal("Alpha", result[0].Item.Title);
-        Assert.Equal("Bravo", result[1].Item.Title);
-        Assert.Equal("Charlie", result[2].Item.Title);
+        Assert.Equal("Alpha", result[0].Document.Title);
+        Assert.Equal("Bravo", result[1].Document.Title);
+        Assert.Equal("Charlie", result[2].Document.Title);
     }
 
     [Fact]
@@ -124,8 +124,8 @@ public sealed class SectionDataResolverTests
 
         var result = SectionDataResolver.Resolve(sectionDef, items);
         Assert.Equal(2, result.Count);
-        Assert.Contains(result, r => r.Item.Title == "Featured A");
-        Assert.Contains(result, r => r.Item.Title == "Featured C");
+        Assert.Contains(result, r => r.Document.Title == "Featured A");
+        Assert.Contains(result, r => r.Document.Title == "Featured C");
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public sealed class SectionDataResolverTests
 
         var result = SectionDataResolver.Resolve(sectionDef, items);
         Assert.Equal(2, result.Count);
-        Assert.All(result, r => Assert.Equal("post", ContentFieldReader.GetText(r.Item.Fields, "type")));
+        Assert.All(result, r => Assert.Equal("post", ContentFieldReader.GetText(r.Document.CustomFields, "type")));
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public sealed class SectionDataResolverTests
         var result = SectionDataResolver.Resolve(sectionDef, items);
 
         Assert.Single(result);
-        Assert.Equal("A", result[0].Item.Title);
+        Assert.Equal("A", result[0].Document.Title);
     }
 
     [Fact]

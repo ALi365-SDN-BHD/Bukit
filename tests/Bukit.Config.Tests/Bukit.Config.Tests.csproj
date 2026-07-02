@@ -6,7 +6,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Config\Bukit.Config.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

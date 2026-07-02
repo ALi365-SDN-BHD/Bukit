@@ -40,10 +40,10 @@ Bukit 不是 SaaS 平台、全功能 CMS 后端、可视化页面构建器，也
 从本仓库开发 Bukit 时：
 
 ```bash
-dotnet build bukit.slnx -c Release
-dotnet run --project src/Bukit.Cli -c Release -- config check --config path/to/site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config path/to/site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- build --config path/to/site.yaml --clean --site-url https://example.com
+dotnet build bukit-core.slnx -c Release
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- config check --config path/to/site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- doctor --config path/to/site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- build --config path/to/site.yaml --clean --site-url https://example.com
 ```
 
 在站点目录中使用已安装或已下载的 Bukit 二进制时：

@@ -17,14 +17,14 @@ jit_output=".smoke-all-run/perf-jit-$$/dist"
 aot_output=".smoke-all-run/perf-aot-$$/dist"
 aot_publish_dir="TestResults/perf-aot/$rid"
 
-dotnet build bukit.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
+dotnet build bukit-core.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
 CONFIGURATION="$configuration" bash scripts/build/native-aot.sh "$rid" "$aot_publish_dir"
 
 config_dir="$(dirname "$sample_config")"
 trap 'rm -rf "$config_dir/.smoke-all-run/perf-jit-$$" "$config_dir/.smoke-all-run/perf-aot-$$"' EXIT
 
 echo "== JIT baseline =="
-/usr/bin/time dotnet run --project src/Bukit.Cli -c "$configuration" -- \
+/usr/bin/time dotnet run --project src/Bukit-Core/Bukit.Cli -c "$configuration" -- \
   build --config "$sample_config" --output "$jit_output" --clean --metrics "$jit_output-metrics.json" --site-url https://example.com
 
 binary="$aot_publish_dir/bukit"

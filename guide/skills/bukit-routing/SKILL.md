@@ -7,10 +7,10 @@ verified_by:
   - "tests/Bukit.Routing.Tests/RoutePathBuilderTests.cs"
   - "tests/Bukit.Engine.Tests/RouteGeneratorTests.cs"
 source_anchors:
-  - "src/Bukit.Routing/RoutePathBuilder.cs"
-  - "src/Bukit.Routing/RouteGenerator.cs"
-  - "src/Bukit.Routing/RouteSecurityValidator.cs"
-  - "src/Bukit.Engine/RouteInventoryValidator.cs"
+  - "src/Bukit-Core/Bukit.Routing/RoutePathBuilder.cs"
+  - "src/Bukit-Core/Bukit.Routing/RouteGenerator.cs"
+  - "src/Bukit-Core/Bukit.Routing/RouteSecurityValidator.cs"
+  - "src/Bukit-Core/Bukit.Engine/RouteInventoryValidator.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

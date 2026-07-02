@@ -59,9 +59,9 @@ public sealed class CoreUserFacingTextTests
 
     private static readonly string[] ScanRoots =
     [
-        "src/Bukit.Cli",
-        "src/Bukit.Config",
-        "src/Bukit.Engine",
+        "src/Bukit-Core/Bukit.Cli",
+        "src/Bukit-Core/Bukit.Config",
+        "src/Bukit-Core/Bukit.Engine",
         "guide/user",
         "guide/dev",
         "guide/skills"
@@ -226,7 +226,7 @@ public sealed class CoreUserFacingTextTests
         var current = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (current is not null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "bukit.slnx")))
+            if (File.Exists(Path.Combine(current.FullName, "bukit-core.slnx")))
             {
                 return current.FullName;
             }

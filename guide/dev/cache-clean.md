@@ -5,9 +5,9 @@ protecting source directories and non-Bukit paths.
 
 Source anchors:
 
-- `src/Bukit.Cli/Commands/CleanCommand.cs`
-- `src/Bukit.Engine/BuildPipeline.cs`
-- `src/Bukit.Engine/BuildOutputCleaner.cs`
+- `src/Bukit-Core/Bukit.Cli/Commands/CleanCommand.cs`
+- `src/Bukit-Core/Bukit.Engine/BuildPipeline.cs`
+- `src/Bukit-Core/Bukit.Engine/BuildOutputCleaner.cs`
 
 ## Cache Directory
 

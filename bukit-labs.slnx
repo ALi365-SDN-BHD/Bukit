@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/Bukit-Labs/">
+    <Project Path="src/Bukit-Labs/Bukit.Labs.Cli/Bukit.Labs.Cli.csproj" />
+    <Project Path="src/Bukit-Labs/Bukit.Labs.Protocol/SamplePlugins/PathReportPlugin/PathReportPlugin.csproj" />
+    <Project Path="src/Bukit-Labs/Bukit.Labs.Protocol/SamplePlugins/SampleAfterBuildPlugin/SampleAfterBuildPlugin.csproj" />
+    <Project Path="src/Bukit-Labs/Bukit.Labs.Protocol/SamplePlugins/VisualFeedbackPlugin/VisualFeedbackPlugin.csproj" />
+  </Folder>
+</Solution>

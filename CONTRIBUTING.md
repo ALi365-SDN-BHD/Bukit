@@ -10,13 +10,13 @@ Thank you for your interest in contributing to Bukit.
 ```bash
 git clone <repo-url>
 cd Bukit
-dotnet build bukit.slnx -c Release
+dotnet build bukit-core.slnx -c Release
 ```
 
 3. Run tests:
 
 ```bash
-dotnet test bukit.slnx -c Release
+dotnet test bukit-test.slnx -c Release
 ```
 
 4. Run the smoke test (Windows):
@@ -33,7 +33,7 @@ For a new developer walkthrough, see [guide/dev/new-developer-30min.md](guide/de
 - Format your code before committing:
 
 ```bash
-dotnet format bukit.slnx --verify-no-changes
+dotnet format bukit-core.slnx --verify-no-changes
 ```
 
 - C# code follows the conventions in [.editorconfig](.editorconfig)

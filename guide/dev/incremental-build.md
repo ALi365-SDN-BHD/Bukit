@@ -5,9 +5,9 @@ template, and content changes visible.
 
 Source anchors:
 
-- `src/Bukit.Engine/Incremental/`
-- `src/Bukit.Engine/PageRenderDispatcher.cs`
-- `src/Bukit.Engine/RenderDependencyHasher.cs`
+- `src/Bukit-Core/Bukit.Engine/Incremental/`
+- `src/Bukit-Core/Bukit.Engine/PageRenderDispatcher.cs`
+- `src/Bukit-Core/Bukit.Engine/RenderDependencyHasher.cs`
 
 ## Switches
 

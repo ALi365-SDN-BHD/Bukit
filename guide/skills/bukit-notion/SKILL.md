@@ -7,10 +7,10 @@ verified_by:
   - "tests/Bukit.Content.Tests/NotionPropertyParserTests.cs"
   - "tests/Bukit.Engine.Tests/NotionSchemaDrivenMappingTests.cs"
 source_anchors:
-  - "src/Bukit.Config/ProviderValidators.cs"
-  - "src/Bukit.Content/Notion/NotionContentProvider.cs"
-  - "src/Bukit.Content/Notion/NotionPropertyParser.cs"
-  - "src/Bukit.Content/Notion/NotionBlockRendererRegistry.cs"
+  - "src/Bukit-Core/Bukit.Config/ProviderValidators.cs"
+  - "src/Bukit-Core/Bukit.Content/Notion/NotionContentProvider.cs"
+  - "src/Bukit-Core/Bukit.Content/Notion/NotionPropertyParser.cs"
+  - "src/Bukit-Core/Bukit.Content/Notion/NotionBlockRendererRegistry.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

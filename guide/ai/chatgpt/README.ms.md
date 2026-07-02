@@ -15,10 +15,10 @@ Direktori ini menyediakan prompt dan arahan yang boleh terus salin-tampal untuk 
 3. Jalankan gelung tempatan:
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- intent validate intent.yaml
-dotnet run --project src/Bukit.Cli -c Release -- intent apply intent.yaml --out site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clean --site-url https://example.com
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- intent validate intent.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- intent apply intent.yaml --out site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- doctor --config site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- build --config site.yaml --clean --site-url https://example.com
 ```
 
 4. Jika `intent validate` atau `doctor` gagal, tampal output ralat kepada ChatGPT dan guna [prompt_fix_config.md](./prompt_fix_config.md) untuk minta YAML yang telah diperbaiki sahaja.

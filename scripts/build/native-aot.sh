@@ -30,7 +30,7 @@ fi
 mkdir -p "$(dirname "$log_file")" "$out_dir"
 rm -f "$log_file"
 
-dotnet publish src/Bukit.Cli/Bukit.Cli.csproj \
+dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
   -c "$configuration" \
   -r "$rid" \
   -o "$out_dir" \

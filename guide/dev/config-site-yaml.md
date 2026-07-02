@@ -2,9 +2,9 @@
 
 `site.yaml` is strict in Core 1.0. The source contract is:
 
-- `src/Bukit.Config/AppConfig.cs`
-- `src/Bukit.Config/ConfigStrictFieldValidator.cs`
-- `src/Bukit.Config/ConfigJsonSchemaGenerator.cs`
+- `src/Bukit-Core/Bukit.Config/AppConfig.cs`
+- `src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs`
+- `src/Bukit-Core/Bukit.Config/ConfigJsonSchemaGenerator.cs`
 
 Unknown fields fail during config loading. Do not keep legacy examples in the
 Core guide to preserve old behavior.

@@ -460,7 +460,7 @@ public sealed class ConfigContractDriftTests
         var current = new DirectoryInfo(AppContext.BaseDirectory);
         while (current is not null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "bukit.slnx")))
+            if (File.Exists(Path.Combine(current.FullName, "bukit-core.slnx")))
             {
                 return current.FullName;
             }

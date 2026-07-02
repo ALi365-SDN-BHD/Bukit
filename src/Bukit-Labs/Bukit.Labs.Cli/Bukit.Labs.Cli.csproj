@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>bukit-labs</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseAppHost>false</UseAppHost>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Cli.Shared\Bukit.Cli.Shared.csproj" />
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Engine\Bukit.Engine.csproj" />
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Bukit-Plugins\Bukit.Importing\Bukit.Importing.csproj" />
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Shared\Bukit.Shared.csproj" />
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Theme\Bukit.Theme.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bukit.Labs.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

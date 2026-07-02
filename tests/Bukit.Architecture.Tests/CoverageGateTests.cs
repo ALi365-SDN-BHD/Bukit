@@ -43,7 +43,7 @@ public sealed class CoverageGateTests
         var script = ReadRepoFile("scripts", "checks", "coverage.sh");
 
         Assert.Contains("tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj", script, StringComparison.Ordinal);
-        Assert.Contains("tests/Bukit.Theme.Tests is intentionally outside this gate", script, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Theme.Tests remains intentionally outside the coverage gate", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -106,11 +106,14 @@ public sealed class CoverageGateTests
     }
 
     [Fact]
-    public void Solution_IncludesLabsCoverageTestProject()
+    public void TestSolution_IncludesLabsCoverageTestProject()
     {
-        var solution = ReadRepoFile("bukit.slnx");
+        var solution = ReadRepoFile("bukit-test.slnx");
 
         Assert.Contains("tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj", solution, StringComparison.Ordinal);
+        Assert.DoesNotContain("src/Bukit-Core/", solution, StringComparison.Ordinal);
+        Assert.DoesNotContain("src/Bukit-Labs/", solution, StringComparison.Ordinal);
+        Assert.DoesNotContain("src/Bukit-Plugins/", solution, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -141,7 +144,7 @@ public sealed class CoverageGateTests
         var dir = Directory.GetCurrentDirectory();
         for (var i = 0; i < 8; i++)
         {
-            if (File.Exists(Path.Combine(dir, "bukit.slnx")))
+            if (File.Exists(Path.Combine(dir, "bukit-core.slnx")))
             {
                 return dir;
             }

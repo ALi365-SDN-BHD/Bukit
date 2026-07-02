@@ -23,12 +23,12 @@ the current script layout and Core command surface.
 
 | Surface | Source |
 |---|---|
-| CLI commands | `src/Bukit.Cli/Cli/BukitCliSpecs.cs` |
-| CLI handlers | `src/Bukit.Cli/Cli/BukitCliDescriptors.cs` |
-| Config fields | `src/Bukit.Config/AppConfig.cs` |
-| Strict config fields | `src/Bukit.Config/ConfigStrictFieldValidator.cs` |
-| JSON Schema | `src/Bukit.Config/ConfigJsonSchemaGenerator.cs` |
-| Built-in plugins | `src/Bukit.Engine/Plugins/PluginRegistry.cs` |
+| CLI commands | `src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs` |
+| CLI handlers | `src/Bukit-Core/Bukit.Cli/Cli/BukitCliDescriptors.cs` |
+| Config fields | `src/Bukit-Core/Bukit.Config/AppConfig.cs` |
+| Strict config fields | `src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs` |
+| JSON Schema | `src/Bukit-Core/Bukit.Config/ConfigJsonSchemaGenerator.cs` |
+| Built-in plugins | `src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs` |
 | Core boundary | `tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs` |
 | Agent skills | `guide/skills/` |
 | Developer guide | `guide/dev/` |

@@ -6,10 +6,10 @@ since: "v4.0.0-core1"
 verified_by:
   - "tests/Bukit.Cli.Tests/DevCommandTests.cs"
 source_anchors:
-  - "src/Bukit.Cli/Commands/DevCommand.cs"
-  - "src/Bukit.Cli/Commands/Dev/DevFileWatcher.cs"
-  - "src/Bukit.Cli/Commands/Dev/DevWebSocketHub.cs"
-  - "src/Bukit.Cli/Commands/Dev/DevRequestHandler.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/DevCommand.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/Dev/DevFileWatcher.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/Dev/DevWebSocketHub.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/Dev/DevRequestHandler.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

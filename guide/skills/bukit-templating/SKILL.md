@@ -7,10 +7,10 @@ verified_by:
   - "tests/Bukit.Rendering.Tests/ScribanTemplateRendererTests.cs"
   - "tests/Bukit.Engine.Tests/ScribanTemplateLinterTests.cs"
 source_anchors:
-  - "src/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs"
-  - "src/Bukit.Rendering/Scriban/TemplateContextBuilder.cs"
-  - "src/Bukit.Engine/ScribanTemplateLinter.cs"
-  - "src/Bukit.Engine/TemplateCapabilitiesResolver.cs"
+  - "src/Bukit-Core/Bukit.Rendering/Scriban/ScribanTemplateRenderer.cs"
+  - "src/Bukit-Core/Bukit.Rendering/Scriban/TemplateContextBuilder.cs"
+  - "src/Bukit-Core/Bukit.Engine/ScribanTemplateLinter.cs"
+  - "src/Bukit-Core/Bukit.Engine/TemplateCapabilitiesResolver.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

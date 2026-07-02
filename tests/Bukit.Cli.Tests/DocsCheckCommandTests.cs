@@ -81,7 +81,7 @@ public sealed class DocsCheckCommandTests : IDisposable
     {
         var repoRoot = Path.Combine(_tempDir, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(repoRoot);
-        File.WriteAllText(Path.Combine(repoRoot, "bukit.slnx"), "<Solution />");
+        File.WriteAllText(Path.Combine(repoRoot, "bukit-core.slnx"), "<Solution />");
         return repoRoot;
     }
 

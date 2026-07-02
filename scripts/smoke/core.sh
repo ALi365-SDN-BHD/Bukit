@@ -17,7 +17,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [ "${SMOKE_SKIP_BUILD:-0}" != "1" ]; then
-  dotnet build bukit.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
+  dotnet build bukit-core.slnx -c "$configuration" -maxcpucount:1 -nodeReuse:false
 fi
 
 mkdir -p "$fixture/$smoke_root"

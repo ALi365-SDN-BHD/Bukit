@@ -14,7 +14,7 @@
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <!-- DESKTOP-REMOVED: Wasmtime is no longer supported (AOT only). -->
     <!-- <PackageVersion Include="Wasmtime" Version="34.0.2" /> -->
-    <PackageVersion Include="Scriban" Version="7.2.0" />
+    <PackageVersion Include="Scriban" Version="7.2.5" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
     <PackageVersion Include="AngleSharp" Version="1.2.0" />

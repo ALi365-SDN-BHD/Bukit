@@ -7,12 +7,12 @@ Core has two separate concerns:
 
 Source anchors:
 
-- `src/Bukit.Cli/Commands/SeoCommand.cs`
-- `src/Bukit.Cli/Commands/GeoCommand.cs`
-- `src/Bukit.Cli/Commands/PublishCommand.cs`
-- `src/Bukit.Cli/Commands/DeployCommand.cs`
-- `src/Bukit.Cli/Deploy/GitHubPagesDeployProvider.cs`
-- `src/Bukit.Config/DeployConfig.cs`
+- `src/Bukit-Core/Bukit.Cli/Commands/SeoCommand.cs`
+- `src/Bukit-Core/Bukit.Cli/Commands/GeoCommand.cs`
+- `src/Bukit-Core/Bukit.Cli/Commands/PublishCommand.cs`
+- `src/Bukit-Core/Bukit.Cli/Commands/DeployCommand.cs`
+- `src/Bukit-Core/Bukit.Cli/Deploy/GitHubPagesDeployProvider.cs`
+- `src/Bukit-Core/Bukit.Config/DeployConfig.cs`
 
 ## Publish Gates
 

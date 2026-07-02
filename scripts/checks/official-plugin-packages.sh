@@ -5,8 +5,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$repo_root"
 
 official_packages=(
-  "plugins/Bukit.Plugin.Import:import"
-  "plugins/Bukit.Plugin.Clone:clone"
+  "src/Bukit-Plugins/Bukit.Plugin.Import:import"
+  "src/Bukit-Plugins/Bukit.Plugin.Clone:clone"
 )
 
 checked=0

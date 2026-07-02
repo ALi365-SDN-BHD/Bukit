@@ -1,6 +1,6 @@
 # Maintenance
 
-The source of truth for Core command availability is `src/Bukit.Cli/Cli/BukitCliSpecs.cs`, backed by `tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs`.
+The source of truth for Core command availability is `src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs`, backed by `tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs`.
 
 When the Core CLI registry changes:
 

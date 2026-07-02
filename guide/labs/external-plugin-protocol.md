@@ -8,7 +8,7 @@ project-local plugin configuration. Core 1.0 removed that default path.
 ## Core Boundary
 
 Core currently loads built-in plugins only through
-`src/Bukit.Engine/Plugins/PluginRegistry.cs`.
+`src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs`.
 
 Core strict config rejects old project-local plugin fields such as:
 

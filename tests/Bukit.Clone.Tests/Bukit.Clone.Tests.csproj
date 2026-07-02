@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Clone\Bukit.Clone.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Plugins\Bukit.Clone\Bukit.Clone.csproj" />
   </ItemGroup>
 
   <ItemGroup>

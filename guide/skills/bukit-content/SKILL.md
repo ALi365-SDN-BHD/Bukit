@@ -7,9 +7,9 @@ verified_by:
   - "tests/Bukit.Engine.Tests/ContentProviderFactoryTests.cs"
   - "tests/Bukit.Config.Tests/ConfigLoaderTests.cs"
 source_anchors:
-  - "src/Bukit.Config/AppConfig.cs"
-  - "src/Bukit.Engine/ContentProviderFactory.cs"
-  - "src/Bukit.Content/Markdown/MarkdownFolderProvider.cs"
+  - "src/Bukit-Core/Bukit.Config/AppConfig.cs"
+  - "src/Bukit-Core/Bukit.Engine/ContentProviderFactory.cs"
+  - "src/Bukit-Core/Bukit.Content/Markdown/MarkdownFolderProvider.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

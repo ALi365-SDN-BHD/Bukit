@@ -7,9 +7,9 @@ verified_by:
   - "tests/Bukit.Cli.Tests/SeoReportValidatorTests.cs"
   - "tests/Bukit.Engine.Tests/SeoDiagnosticsTests.cs"
 source_anchors:
-  - "src/Bukit.Cli/Commands/SeoCommand.cs"
-  - "src/Bukit.Cli/Commands/SeoReportValidator.cs"
-  - "src/Bukit.Engine/BuildReporter.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/SeoCommand.cs"
+  - "src/Bukit-Core/Bukit.Cli/Commands/SeoReportValidator.cs"
+  - "src/Bukit-Core/Bukit.Engine/BuildReporter.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

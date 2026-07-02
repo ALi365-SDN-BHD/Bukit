@@ -83,7 +83,7 @@ jobs:
       - name: Publish Native AOT
         shell: bash
         run: >
-          dotnet publish src/Bukit.Cli/Bukit.Cli.csproj
+          dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj
           -c Release
           -r ${{ matrix.rid }}
           -o out/bukit-${{ matrix.rid }}

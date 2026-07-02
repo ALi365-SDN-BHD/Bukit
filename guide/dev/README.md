@@ -10,13 +10,13 @@ Core command registry:
 
 Source anchors:
 
-- `src/Bukit.Cli/Cli/BukitCliSpecs.cs`
-- `src/Bukit.Cli/Cli/BukitCliDescriptors.cs`
+- `src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs`
+- `src/Bukit-Core/Bukit.Cli/Cli/BukitCliDescriptors.cs`
 - `tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs`
-- `src/Bukit.Config/AppConfig.cs`
-- `src/Bukit.Config/ConfigStrictFieldValidator.cs`
-- `src/Bukit.Config/ConfigJsonSchemaGenerator.cs`
-- `src/Bukit.Engine/Plugins/PluginRegistry.cs`
+- `src/Bukit-Core/Bukit.Config/AppConfig.cs`
+- `src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs`
+- `src/Bukit-Core/Bukit.Config/ConfigJsonSchemaGenerator.cs`
+- `src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs`
 
 ## Maintainer Path
 

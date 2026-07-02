@@ -76,7 +76,7 @@ public sealed class CoreBoundaryTests
     [Fact]
     public void CoreCliProject_DoesNotReferenceImporting()
     {
-        var projectText = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "Bukit.Cli", "Bukit.Cli.csproj"));
+        var projectText = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "Bukit-Core", "Bukit.Cli", "Bukit.Cli.csproj"));
 
         Assert.DoesNotContain("Bukit.Importing", projectText, StringComparison.Ordinal);
     }
@@ -84,7 +84,7 @@ public sealed class CoreBoundaryTests
     [Fact]
     public void PluginRegistry_DoesNotLoadExternalProtocolSource()
     {
-        var sourceText = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "Bukit.Engine", "Plugins", "PluginRegistry.cs"));
+        var sourceText = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "Bukit-Core", "Bukit.Engine", "Plugins", "PluginRegistry.cs"));
 
         Assert.DoesNotContain("external-protocol", sourceText, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ExternalProtocolPluginSource", sourceText, StringComparison.Ordinal);
@@ -119,7 +119,7 @@ public sealed class CoreBoundaryTests
     [Fact]
     public void CoreEngine_DoesNotContainRemoteThemeSourceTooling()
     {
-        var engineDir = Path.Combine(FindRepoRoot(), "src", "Bukit.Engine");
+        var engineDir = Path.Combine(FindRepoRoot(), "src", "Bukit-Core", "Bukit.Engine");
         var sourceText = string.Join(
             Environment.NewLine,
             Directory.EnumerateFiles(engineDir, "*.cs", SearchOption.AllDirectories)
@@ -133,9 +133,10 @@ public sealed class CoreBoundaryTests
     [Fact]
     public void CoreSolution_IncludesThemeRuntimeProject()
     {
-        var solutionText = File.ReadAllText(Path.Combine(FindRepoRoot(), "bukit.slnx"));
+        var solutionText = File.ReadAllText(Path.Combine(FindRepoRoot(), "bukit-core.slnx"));
 
-        Assert.Contains("src/Bukit.Theme/Bukit.Theme.csproj", solutionText, StringComparison.Ordinal);
+        Assert.Contains("src/Bukit-Core/Bukit.Theme/Bukit.Theme.csproj", solutionText, StringComparison.Ordinal);
+        Assert.DoesNotContain("tests/", solutionText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -188,7 +189,7 @@ public sealed class CoreBoundaryTests
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "src", "Bukit.Cli", "Bukit.Cli.csproj")))
+            if (File.Exists(Path.Combine(dir.FullName, "bukit-core.slnx")))
             {
                 return dir.FullName;
             }

@@ -1,0 +1,5 @@
+<Project>
+  <ItemGroup>
+    <Compile Include="..\..\AbstractionsProtocol\*.cs" Link="AbstractionsProtocol\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

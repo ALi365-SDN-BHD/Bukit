@@ -40,10 +40,10 @@ Bukit is not a SaaS platform, a full CMS backend, a visual page builder, or a re
 When developing Bukit from this repository:
 
 ```bash
-dotnet build bukit.slnx -c Release
-dotnet run --project src/Bukit.Cli -c Release -- config check --config path/to/site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config path/to/site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- build --config path/to/site.yaml --clean --site-url https://example.com
+dotnet build bukit-core.slnx -c Release
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- config check --config path/to/site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- doctor --config path/to/site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- build --config path/to/site.yaml --clean --site-url https://example.com
 ```
 
 When using an installed or downloaded Bukit binary from a site directory:

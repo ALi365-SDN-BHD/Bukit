@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

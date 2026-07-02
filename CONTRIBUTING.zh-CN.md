@@ -10,13 +10,13 @@
 ```bash
 git clone <repo-url>
 cd Bukit
-dotnet build bukit.slnx -c Release
+dotnet build bukit-core.slnx -c Release
 ```
 
 3. 运行测试：
 
 ```bash
-dotnet test bukit.slnx -c Release
+dotnet test bukit-test.slnx -c Release
 ```
 
 4. 运行冒烟测试（Windows）：
@@ -33,7 +33,7 @@ powershell -ExecutionPolicy Bypass -File scripts/smoke.ps1
 - 提交前格式化代码：
 
 ```bash
-dotnet format bukit.slnx --verify-no-changes
+dotnet format bukit-core.slnx --verify-no-changes
 ```
 
 - C# 代码遵循 [.editorconfig](.editorconfig) 约定

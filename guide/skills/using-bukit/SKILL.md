@@ -10,7 +10,7 @@ verified_by:
   - "tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs"
 source_anchors:
   - "tests/Bukit.Architecture.Tests/CoreBoundaryTests.cs"
-  - "src/Bukit.Cli/Cli/BukitCliSpecs.cs"
+  - "src/Bukit-Core/Bukit.Cli/Cli/BukitCliSpecs.cs"
   - "guide/skills/skills-index.yaml"
 guide_chapters:
   - "guide/skills/README.md"

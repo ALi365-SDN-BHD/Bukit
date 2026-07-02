@@ -13,7 +13,7 @@ public sealed class ExampleParserCheckerTests
             """
             ```bash
             bukit build --output dist --jobs 2
-            dotnet run --project src/Bukit.Cli/Bukit.Cli.csproj -- config check --config site.yaml
+            dotnet run --project src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj -- config check --config site.yaml
             bukit deploy --message "ship site" --dry-run --skip-build
             ```
             """);

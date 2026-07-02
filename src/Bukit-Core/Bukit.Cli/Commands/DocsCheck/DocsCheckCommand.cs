@@ -42,7 +42,7 @@ public static class DocsCheckCommand
         var repoRoot = FindRepoRoot();
         if (repoRoot is null)
         {
-            Console.Error.WriteLine("Error: Could not find repository root (looking for bukit.slnx)");
+            Console.Error.WriteLine("Error: Could not find repository root (looking for bukit-core.slnx)");
             return Task.FromResult(1);
         }
 
@@ -110,7 +110,7 @@ public static class DocsCheckCommand
         for (var i = 0; i < 8; i++)
         {
             if (string.IsNullOrEmpty(dir)) break;
-            if (File.Exists(Path.Combine(dir, "bukit.slnx")))
+            if (File.Exists(Path.Combine(dir, "bukit-core.slnx")))
             {
                 return dir;
             }

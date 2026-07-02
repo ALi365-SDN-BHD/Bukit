@@ -148,8 +148,8 @@ coverage_solution_test_projects=(
 coverage_extra_test_projects=(
   tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj
 )
-# tests/Bukit.Theme.Tests is intentionally outside this gate until it is added
-# to bukit.slnx and restored to the current code contracts.
+# tests/Bukit.Theme.Tests remains intentionally outside the coverage gate even
+# though it is present in bukit-test.slnx.
 
 run_coverage_project() {
   local project="$1"

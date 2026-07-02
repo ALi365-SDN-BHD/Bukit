@@ -7,10 +7,10 @@ verified_by:
   - "tests/Bukit.Config.Tests/ConfigLoaderFullCoverageTests.cs"
   - "tests/Bukit.Engine.Tests/ConfigValidatorTests.cs"
 source_anchors:
-  - "src/Bukit.Config/AppConfig.cs"
-  - "src/Bukit.Config/ConfigLoader.cs"
-  - "src/Bukit.Config/ConfigValidator.cs"
-  - "src/Bukit.Config/ConfigStrictFieldValidator.cs"
+  - "src/Bukit-Core/Bukit.Config/AppConfig.cs"
+  - "src/Bukit-Core/Bukit.Config/ConfigLoader.cs"
+  - "src/Bukit-Core/Bukit.Config/ConfigValidator.cs"
+  - "src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs"
 guide_chapters:
   - "guide/skills/README.md"
 ---

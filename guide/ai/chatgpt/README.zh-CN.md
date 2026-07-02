@@ -15,10 +15,10 @@
 3. 本地闭环（推荐先跑校验再构建）：
 
 ```bash
-dotnet run --project src/Bukit.Cli -c Release -- intent validate intent.yaml
-dotnet run --project src/Bukit.Cli -c Release -- intent apply intent.yaml --out site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- doctor --config site.yaml
-dotnet run --project src/Bukit.Cli -c Release -- build --config site.yaml --clean --site-url https://example.com
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- intent validate intent.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- intent apply intent.yaml --out site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- doctor --config site.yaml
+dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- build --config site.yaml --clean --site-url https://example.com
 ```
 
 4. 如果 `intent validate` / `doctor` 报错：把错误输出粘贴给 ChatGPT，并使用 [prompt_fix_config.md](./prompt_fix_config.md) 让 AI 只返回修复后的 YAML。
