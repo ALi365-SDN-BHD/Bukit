@@ -790,6 +790,17 @@ Bukit.Cli
 - 读取 `.csproj` 文本和 compiled assembly references 双重检查。
 - 明确 official plugin 可引用列表：`Bukit.Plugin.Abstractions`，可选 `Bukit.Shared`，可选稳定领域库如 `Bukit.Importing` 或 `Bukit.Clone`。禁止 `Bukit.Engine`、`Bukit.Engine.Abstractions`、`Bukit.Cli`、`Bukit.PluginHost`、`Bukit.Labs`。
 
+当前补充（2026-07-06）：
+
+- 已新增 `tests/Bukit.Architecture.Tests/PluginBoundaryTests.cs`，将插件边界从文档约束提升为架构测试门禁。
+- `PluginBoundaryTests` 同时读取 `.csproj` 文本和 compiled assembly references，双重覆盖 `PluginHost`、`Plugin.Abstractions`、official process plugin、plugin-domain library 的禁止引用。
+- `PluginHost` 当前只允许引用 `Bukit.Plugin.Abstractions` 和 `Bukit.Shared`；不得引用 Core runtime、Labs 或插件实现。
+- `Plugin.Abstractions` 当前不得引用其他 Bukit assembly，继续保持 protocol DTO 包定位，不成为 Core SDK。
+- official process plugin 不得引用 `Bukit.PluginHost`、`Bukit.Cli`、`Bukit.Engine`、Labs 或旧进程内插件。
+- plugin-domain library 不得引用 PluginHost、Core runtime、Labs 或 official plugin implementation。
+- 原 `bukit.slnx` 已不存在；当前测试改为锁定 `bukit-core.slnx`、`bukit-plugins.slnx`、`bukit-labs.slnx`、`bukit-test.slnx` 的 split solution 分层。
+- `bukit-plugins.slnx` 中的 `WordCountSectionPlugin` 仍按 F-07 temporary legacy exception 保留；F-06 只把它明确排除在 official process plugin 边界之外，不执行删除或迁移。
+
 ### F-07：`Bukit.Clone` 在 `bukit.slnx` 中的边界需要明确
 
 证据：
@@ -994,8 +1005,8 @@ Bukit.Cli
 3. Rendering/Theme 仍有 section plugin 接入链。
 4. `experimental/Bukit.Labs.Protocol` 原先保留旧 `site.externalPlugins` 模型；当前已删除，但历史文档中的旧名词仍需按 legacy/deprecated 解释。
 5. `manifestPolicy: runtime-only` 已限定为 development/Labs/test 显式上下文；默认正式加载路径拒绝。
-6. `bukit.slnx` 同时包含 Core、Plugins、Labs tests，不是严格 Core-only 边界。
-7. 架构测试缺少 PluginHost、Plugin.Abstractions、official plugins 的硬引用边界。
+6. 原 `bukit.slnx` 混合边界问题已改为 split solutions，并已由 `PluginBoundaryTests` 锁定；剩余 solution 噪音是 F-07 中暂时保留的 `WordCountSectionPlugin`。
+7. 架构测试已补充 PluginHost、Plugin.Abstractions、official plugins、plugin-domain libraries 的 project reference 和 compiled assembly reference 双重边界。
 
 因此，正确整改方向不是开发 SDK，也不是让插件引用 `Engine.Abstractions`。正确方向是：
 
