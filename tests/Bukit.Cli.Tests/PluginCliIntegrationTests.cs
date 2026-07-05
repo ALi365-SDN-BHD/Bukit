@@ -255,28 +255,93 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Main_OfficialImportFixture_InvokesSkeletonAndWritesLockAndReport()
+    public async Task Main_OfficialImportFixture_ValidateManifest_PrintsOk()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);
         await InstallImportFixtureAsync(enabled: true);
 
-        var result = await InvokeEntryPointAsync(["import"]);
+        var result = await InvokeEntryPointAsync(["plugin", "validate-manifest", "plugins/import"]);
 
-        Assert.Equal(1, result.ExitCode);
-        Assert.Contains("plugin.import.notImplemented", result.StdErr, StringComparison.Ordinal);
-        string lockText = File.ReadAllText(Path.Combine(_tempDir, ".bukit", "plugins.lock.yaml"));
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Plugin manifest OK:", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_SeedCommand_WritesContentLockAndReport()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        CreateSeedInput("seed");
+
+        var result = await InvokeEntryPointAsync(["import", "seed", "seed", "--output", "content", "--force"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("seed import 完成: records=1 written=1", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "content", "posts", "hello.md")));
+        string lockText = ReadImportLock();
         Assert.Contains("resolved:", lockText, StringComparison.Ordinal);
         Assert.Contains("  import:", lockText, StringComparison.Ordinal);
         Assert.Contains("source: plugins/import", lockText, StringComparison.Ordinal);
         Assert.Contains("entry: plugins/import/bin/", lockText, StringComparison.Ordinal);
         Assert.Contains("protocol: bukit-plugin-v1", lockText, StringComparison.Ordinal);
-        string reportPath = Assert.Single(Directory.EnumerateFiles(
-            Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions"),
-            "import-invoke-*.json"));
-        string report = File.ReadAllText(reportPath);
+        string report = ReadSingleImportExecutionReport();
         Assert.Contains("\"pluginId\": \"import\"", report, StringComparison.Ordinal);
-        Assert.Contains("\"command\": \"import\"", report, StringComparison.Ordinal);
-        Assert.Contains("\"plugin.import.notImplemented\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"commandPath\": [", report, StringComparison.Ordinal);
+        Assert.Contains("\"seed\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"success\": true", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_HtmlDemoDryRun_ReturnsSuccessLockAndReport()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        CreateMinimalDemo("demo");
+
+        var result = await InvokeEntryPointAsync(["import", "html-demo", "demo", "--theme", "demo", "--dry-run"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("未提取到共享布局", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "themes", "demo")));
+        string lockText = ReadImportLock();
+        Assert.Contains("source: plugins/import", lockText, StringComparison.Ordinal);
+        Assert.Contains("entry: plugins/import/bin/", lockText, StringComparison.Ordinal);
+        string report = ReadSingleImportExecutionReport();
+        Assert.Contains("\"pluginId\": \"import\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"html-demo\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"success\": true", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_HtmlDemoPushNotionDryRun_ReturnsTwoAndMasksEnvInReport()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        CreateMinimalDemo("demo");
+        string? originalToken = Environment.GetEnvironmentVariable("NOTION_TOKEN");
+        Environment.SetEnvironmentVariable("NOTION_TOKEN", "task9-secret-token");
+
+        try
+        {
+            var result = await InvokeEntryPointAsync(["import", "html-demo", "demo", "--theme", "demo", "--push-notion", "--dry-run"]);
+
+            Assert.Equal(2, result.ExitCode);
+            Assert.Contains("--push-notion 不能与 --dry-run 同时使用。先生成草稿后再执行实际推送。", result.StdErr, StringComparison.Ordinal);
+            string lockText = ReadImportLock();
+            Assert.Contains("source: plugins/import", lockText, StringComparison.Ordinal);
+            string report = ReadSingleImportExecutionReport();
+            Assert.Contains("\"pluginId\": \"import\"", report, StringComparison.Ordinal);
+            Assert.Contains("\"success\": false", report, StringComparison.Ordinal);
+            Assert.Contains("\"NOTION_TOKEN\": \"***\"", report, StringComparison.Ordinal);
+            Assert.DoesNotContain("task9-secret-token", report, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NOTION_TOKEN", originalToken);
+        }
     }
 
     [Fact]
@@ -963,44 +1028,118 @@ public sealed class PluginCliIntegrationTests : IDisposable
     {
         var resolver = new PluginPlatformResolver();
         string rid = resolver.GetCurrentRid();
+        CopyDirectory(FindImportFixtureRoot(), _tempDir);
         string pluginRoot = Path.Combine(_tempDir, "plugins/import");
         string binRoot = Path.Combine(pluginRoot, "bin", rid);
         Directory.CreateDirectory(binRoot);
         string executablePath = CopyImportPlugin(binRoot);
         string sha256 = await Sha256Async(executablePath);
 
-        Directory.CreateDirectory(Path.Combine(_tempDir, ".bukit"));
-        File.WriteAllText(Path.Combine(_tempDir, ".bukit", "plugins.yaml"),
-            $$"""
-            version: 1
-            plugins:
-              import:
-                enabled: {{enabled.ToString().ToLowerInvariant()}}
-                source: plugins/import
-                exposeCommands:
-                  - import
-                allowInCi: true
-                permissions: {}
-            """);
+        string configPath = Path.Combine(_tempDir, ".bukit", "plugins.yaml");
+        string config = File.ReadAllText(configPath);
+        config = config.Replace("enabled: true", $"enabled: {enabled.ToString().ToLowerInvariant()}", StringComparison.Ordinal);
+        File.WriteAllText(configPath, config);
 
-        File.WriteAllText(Path.Combine(pluginRoot, "plugin.yaml"),
-            $$"""
-            id: import
-            name: Bukit Import Plugin
-            version: 0.1.0
-            protocol: bukit-plugin-v1
-            kind: process
-            distribution: self-contained
-            platforms:
-              {{rid}}:
-                entry: bin/{{rid}}/{{Path.GetFileName(executablePath)}}
-                sha256: {{sha256}}
-            commands:
-              - name: import
-                summary: Import command
-            requiredPermissions:
-              network: false
-            """);
+        string manifestPath = Path.Combine(pluginRoot, "plugin.yaml");
+        string manifest = File.ReadAllText(manifestPath);
+        File.WriteAllText(manifestPath, ReplaceImportFixturePlatform(manifest, rid, Path.GetFileName(executablePath), sha256));
+    }
+
+    private string ReadImportLock()
+        => File.ReadAllText(Path.Combine(_tempDir, ".bukit", "plugins.lock.yaml"));
+
+    private string ReadSingleImportExecutionReport()
+    {
+        string reportPath = Assert.Single(Directory.EnumerateFiles(
+            Path.Combine(_tempDir, ".bukit", "reports", "plugin-executions"),
+            "import-invoke-*.json"));
+        return File.ReadAllText(reportPath);
+    }
+
+    private void CreateSeedInput(string relativePath)
+    {
+        string seedDir = Path.Combine(_tempDir, relativePath);
+        Directory.CreateDirectory(seedDir);
+        File.WriteAllText(Path.Combine(seedDir, "posts.json"), """
+[
+  { "title": "Hello", "slug": "hello", "content": "Body" }
+]
+""");
+    }
+
+    private void CreateMinimalDemo(string relativePath)
+    {
+        string demoDir = Path.Combine(_tempDir, relativePath);
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), """
+<!doctype html>
+<html>
+<head><title>Demo</title></head>
+<body><main><h1>Hello</h1><p>World</p></main></body>
+</html>
+""");
+    }
+
+    private static string FindImportFixtureRoot()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            string candidate = Path.Combine(
+                directory.FullName,
+                "src",
+                "Bukit-Plugins",
+                "Bukit.Plugin.Import",
+                "examples",
+                "minimal");
+            if (File.Exists(Path.Combine(candidate, "plugins", "import", "plugin.yaml")))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate Bukit.Plugin.Import examples/minimal fixture.");
+    }
+
+    private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+    {
+        Directory.CreateDirectory(destinationDirectory);
+        foreach (string directory in Directory.EnumerateDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, directory)));
+        }
+
+        foreach (string file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        {
+            string target = Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target, overwrite: true);
+        }
+    }
+
+    private static string ReplaceImportFixturePlatform(string manifest, string rid, string executableName, string sha256)
+    {
+        const string fixturePlatform = """
+        platforms:
+          osx-arm64:
+            entry: bin/osx-arm64/bukit-plugin-import
+            sha256: 0000000000000000000000000000000000000000000000000000000000000000
+        """;
+        string runtimePlatform = $$"""
+        platforms:
+          {{rid}}:
+            entry: bin/{{rid}}/{{executableName}}
+            sha256: {{sha256}}
+        """;
+        string replaced = manifest.Replace(fixturePlatform, runtimePlatform, StringComparison.Ordinal);
+        if (ReferenceEquals(replaced, manifest) || replaced == manifest)
+        {
+            throw new InvalidOperationException("Import fixture platform block was not replaced.");
+        }
+
+        return replaced;
     }
 
     private static string CopyEchoPlugin(string destinationDirectory)
