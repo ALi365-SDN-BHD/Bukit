@@ -238,6 +238,46 @@ public class DependencyMatrixTests
     }
 
     [Fact]
+    public void TemplateContextContributor_MustRemainCoreInternal()
+    {
+        var contributorType = RenderingAssembly.GetType(
+            "Bukit.Rendering.Scriban.ITemplateContextContributor",
+            throwOnError: true)!;
+
+        Assert.False(contributorType.IsPublic, "ITemplateContextContributor must remain Core internal.");
+
+        var rendererType = RenderingAssembly.GetType(
+            "Bukit.Rendering.Scriban.ScribanTemplateRenderer",
+            throwOnError: true)!;
+        var publicConstructors = rendererType.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
+
+        foreach (var constructor in publicConstructors)
+        {
+            foreach (var parameter in constructor.GetParameters())
+            {
+                Assert.False(
+                    TypeContains(parameter.ParameterType, contributorType),
+                    $"Public ScribanTemplateRenderer constructor exposes {contributorType.FullName}.");
+            }
+        }
+
+        var pluginDocsDir = Path.Combine(FindRepoRoot(), "docs", "plugins");
+        var offenders = Directory
+            .EnumerateFiles(pluginDocsDir, "*.md", SearchOption.AllDirectories)
+            .SelectMany(path => File.ReadLines(path)
+                .Select((line, index) => new { Path = path, Line = index + 1, Text = line }))
+            .Where(x =>
+                x.Text.Contains("ITemplateContextContributor", StringComparison.Ordinal) ||
+                x.Text.Contains("TemplateContextContributor", StringComparison.Ordinal) ||
+                x.Text.Contains("ContextContributor", StringComparison.Ordinal))
+            .Select(x => $"{Path.GetRelativePath(FindRepoRoot(), x.Path)}:{x.Line}: {x.Text.Trim()}")
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
     public void WordCountSectionPlugin_MustNotReferenceCoreSectionPluginAbstractions()
     {
         var projectText = File.ReadAllText(Path.Combine(
@@ -265,6 +305,23 @@ public class DependencyMatrixTests
         }
 
         throw new InvalidOperationException("Could not locate repository root.");
+    }
+
+    private static bool TypeContains(Type candidate, Type target)
+    {
+        if (candidate == target)
+        {
+            return true;
+        }
+
+        if (candidate.IsGenericType)
+        {
+            return candidate.GetGenericArguments().Any(x => TypeContains(x, target));
+        }
+
+        return candidate.HasElementType &&
+            candidate.GetElementType() is { } elementType &&
+            TypeContains(elementType, target);
     }
 }
 

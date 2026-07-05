@@ -702,6 +702,13 @@ Bukit.Cli
 - 若有内部用途，将其保持 internal 或放在 Core internal namespace，不对插件文档公开。
 - 不要把它作为未来 SDK 的基础。未来 SDK 应通过协议提供上下文，而不是让插件注入 Scriban runtime。
 
+当前补充（2026-07-05）：
+
+- 已采用 Core internal 方案：`ITemplateContextContributor` 不再作为 public API 暴露，仅作为 Core Rendering 内部模板上下文组合点。
+- `ScribanTemplateRenderer` 的 public 构造函数不再接受 `ITemplateContextContributor`，避免外部调用方把它当作模板插件注入接口。
+- `docs/plugins` 不公开该接口，并已增加架构测试防止后续把它写入插件文档。
+- 注释语义已从 “plugins and extensions” 收紧为 Core internal helpers；后续不得把该接口作为插件 SDK 基础。
+
 ### F-04：`experimental/Bukit.Labs.Protocol` 保留旧 `site.externalPlugins` 模型
 
 证据：
@@ -945,7 +952,8 @@ Bukit.Cli
 1. `WordCountSectionPlugin` 暂时保留；后续作为单独任务决定删除、迁移到测试夹具，或改造为明确的 Core internal 能力。
 2. `ISectionPlugin`、`SectionPluginRegistry` 已 internal 化，并增加架构测试防止重新 public 暴露。
 3. `theme.yaml.sections.*.plugin` 已禁止；渲染链 section plugin hook 仅保留为 Core internal 路径，不允许第三方主题通过 manifest 注入。
-4. 清理或 deprecated `experimental/Bukit.Labs.Protocol`。
+4. `ITemplateContextContributor` 已 Core internal 化，并从 public renderer 构造函数和插件文档中移除。
+5. 清理或 deprecated `experimental/Bukit.Labs.Protocol`。
 
 ### 第三阶段：文档和技能对齐
 

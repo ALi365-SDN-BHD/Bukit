@@ -14,8 +14,8 @@ namespace Bukit.Engine;
 /// <see cref="ParseTemplateText"/> and <see cref="RenderTemplateCore"/>
 /// for a specific template engine.
 /// This base is Scriban-free — it only depends on <see cref="ITemplateRenderer"/>
-/// and <see cref="ITemplateContextContributor"/>, making it straightforward to
-/// swap in a different template engine.
+/// and rendering models, making it straightforward to swap in a different
+/// template engine.
 /// </summary>
 public abstract class TemplateRendererBase : ITemplateRenderer
 {
@@ -25,7 +25,7 @@ public abstract class TemplateRendererBase : ITemplateRenderer
     protected string? ParentLayoutsDir { get; }
     protected string? UserLayoutsDir { get; }
     protected IReadOnlyDictionary<string, string>? Shortcodes { get; }
-    protected IReadOnlyList<ITemplateContextContributor> ContextContributors { get; } = Array.Empty<ITemplateContextContributor>();
+    internal IReadOnlyList<ITemplateContextContributor> ContextContributors { get; } = Array.Empty<ITemplateContextContributor>();
 
     private readonly ConcurrentDictionary<string, CachedTemplateInfo> _templateCache = new(StringComparer.OrdinalIgnoreCase);
 
