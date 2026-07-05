@@ -59,6 +59,30 @@ public sealed class PluginBoundaryTests
         "WordCountSectionPlugin"
     ];
 
+    private static readonly string[] ImportingWorkflowAllowedProjectReferences =
+    [
+        "Bukit.Cli.Shared",
+        "Bukit.Config",
+        "Bukit.Engine",
+        "Bukit.Engine.Abstractions",
+        "Bukit.Shared"
+    ];
+
+    private static readonly string[] ImportingWorkflowForbiddenProjectReferences =
+    [
+        "Bukit.Cli",
+        "Bukit.Clone",
+        "Bukit.Content",
+        "Bukit.Plugin.Abstractions",
+        "Bukit.PluginHost",
+        "Bukit.Plugin.Echo",
+        "Bukit.Plugin.Import",
+        "Bukit.Rendering",
+        "Bukit.Routing",
+        "Bukit.Labs.Cli",
+        "WordCountSectionPlugin"
+    ];
+
     private static readonly string[] PluginHostForbiddenAssemblyReferences =
     [
         "Bukit.Cli",
@@ -100,6 +124,21 @@ public sealed class PluginBoundaryTests
         "Bukit.Content",
         "Bukit.Engine",
         "Bukit.Engine.Abstractions",
+        "Bukit.Plugin.Abstractions",
+        "Bukit.PluginHost",
+        "bukit-plugin-echo",
+        "bukit-plugin-import",
+        "Bukit.Rendering",
+        "Bukit.Routing",
+        "bukit-labs",
+        "WordCountSectionPlugin"
+    ];
+
+    private static readonly string[] ImportingWorkflowForbiddenAssemblyReferences =
+    [
+        "Bukit.Cli",
+        "Bukit.Clone",
+        "Bukit.Content",
         "Bukit.Plugin.Abstractions",
         "Bukit.PluginHost",
         "bukit-plugin-echo",
@@ -153,8 +192,7 @@ public sealed class PluginBoundaryTests
     {
         var domainProjects = new[]
         {
-            "src/Bukit-Plugins/Bukit.Clone/Bukit.Clone.csproj",
-            "src/Bukit-Plugins/Bukit.Importing/Bukit.Importing.csproj"
+            "src/Bukit-Plugins/Bukit.Clone/Bukit.Clone.csproj"
         };
 
         foreach (string project in domainProjects)
@@ -163,6 +201,15 @@ public sealed class PluginBoundaryTests
 
             AssertDoesNotContainAny(references, PluginDomainForbiddenProjectReferences, project);
         }
+    }
+
+    [Fact]
+    public void ImportingWorkflowProject_MayReferenceCoreWorkflowButNotHostLabsOrPluginImplementations()
+    {
+        var references = ReadProjectReferenceNames("src/Bukit-Plugins/Bukit.Importing/Bukit.Importing.csproj");
+
+        Assert.Equal(ImportingWorkflowAllowedProjectReferences, references);
+        AssertDoesNotContainAny(references, ImportingWorkflowForbiddenProjectReferences, "Bukit.Importing project reference");
     }
 
     [Fact]
@@ -204,8 +251,7 @@ public sealed class PluginBoundaryTests
     {
         var assemblies = new[]
         {
-            typeof(Bukit.Clone.CloneDomainBlueprint).Assembly,
-            typeof(Bukit.Importing.RouteMapConfig).Assembly
+            typeof(Bukit.Clone.CloneDomainBlueprint).Assembly
         };
 
         foreach (Assembly assembly in assemblies)
@@ -213,6 +259,12 @@ public sealed class PluginBoundaryTests
             AssertAssemblyDoesNotReferenceAny(assembly, PluginDomainForbiddenAssemblyReferences);
         }
     }
+
+    [Fact]
+    public void ImportingWorkflowAssembly_MayDependOnCoreWorkflowButNotHostLabsOrPluginImplementations()
+        => AssertAssemblyDoesNotReferenceAny(
+            typeof(Bukit.Importing.RouteMapConfig).Assembly,
+            ImportingWorkflowForbiddenAssemblyReferences);
 
     [Fact]
     public void LegacySrcPluginsDirectory_DoesNotContainFormalPluginProjects()
