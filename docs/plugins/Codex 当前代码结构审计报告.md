@@ -173,14 +173,15 @@ Clone 现状：
 
 ## 7. 旧 external protocol 残留
 
-旧 external protocol 代码已经从 Core 移入 experimental：
+旧 external protocol 代码曾从 Core 移入 experimental，现已删除：
 
 ```text
-experimental/Bukit.Labs.Protocol/
-experimental/Bukit.Labs.Protocol.Tests/
+src/Bukit-Labs/Bukit.Labs.Protocol/
+tests/Bukit.Labs.Protocol.Tests/
+tests/ProtocolEchoPlugin/
 ```
 
-其中包含：
+已删除内容包括：
 
 - `AbstractionsProtocol/ProcessPluginHost.cs`
 - `EngineProtocol/ExternalProtocolPluginSource.cs`
@@ -188,7 +189,7 @@ experimental/Bukit.Labs.Protocol.Tests/
 - legacy external protocol tests
 - sample plugins
 
-这些代码仍提及 `site.externalPlugins`，但位于 experimental，不能直接搬入 Core。新版 `Bukit.PluginHost` 应按 `docs/plugins` 新协议重新实现，不应复用旧 runtime DLL/external protocol 配置模型，也不应把旧 `ExternalProtocolPluginSource` 接回 Core Engine。
+当前 `bukit-labs.slnx`、`bukit-test.slnx` 和 coverage filter 已不再引用这些项目或 assembly。新版 `Bukit.PluginHost` 按 `docs/plugins` 新协议实现，不应复用旧 runtime DLL/external protocol 配置模型，也不应把旧 `ExternalProtocolPluginSource` 接回 Core Engine。`CoreBoundaryTests` 已增加防回归断言，防止 legacy Labs Protocol 目录、solution 引用和 coverage filter 入口回流。
 
 ## 8. 插件源码目录现状
 

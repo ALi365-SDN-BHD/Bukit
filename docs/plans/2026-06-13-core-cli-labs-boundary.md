@@ -2,6 +2,8 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
+> Historical status note (2026-07-05): This is a historical implementation plan and keeps the migration paths and legacy mechanism names from that point in time. Mentions of `experimental/Bukit.Labs.Protocol`, `site.externalPlugins`, `ExternalProtocolPluginSource`, `ProtocolEchoPlugin`, or sample plugins do not describe the current implementation. The current formal external plugin path is `Bukit.PluginHost` + `bukit-plugin-v1`; legacy Labs Protocol source, sample plugins, and protocol echo fixtures have been removed.
+
 **Goal:** Freeze the Bukit 1.0 Core CLI contract while physically isolating migration, debugging, and experimental tooling behind a Labs boundary.
 
 **Architecture:** `bukit` remains the stable Core binary with only build, diagnostics, preview, cleanup, quality-gate, and deploy commands. `bukit-labs` owns clone/import/notion-push/plugin-external/intent/visual/webhook/data/theme/docs/route tooling and may depend on Core, but Core must not depend on Labs or `Bukit.Importing`.

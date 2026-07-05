@@ -30,12 +30,22 @@ public sealed class ScribanTemplateRenderer
     private readonly TemplateContextBuilder _contextBuilder;
     private readonly IReadOnlyList<ITemplateContextContributor>? _contributors;
 
-    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null, IReadOnlyList<ITemplateContextContributor>? contributors = null)
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir = null, IReadOnlyDictionary<string, string>? shortcodes = null, IReadOnlyDictionary<string, ComponentDefinition>? components = null, string? userLayoutsDir = null)
+        : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null)
+    {
+    }
+
+    internal ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, IReadOnlyList<ITemplateContextContributor>? contributors)
         : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, null, null, null, "off", null, null, contributors)
     {
     }
 
-    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages = null, IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins = null, IReadOnlyList<ITemplateContextContributor>? contributors = null)
+    public ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages = null)
+        : this(layoutsDir, parentLayoutsDir, shortcodes, components, userLayoutsDir, themeRegistry, schemaValidator, dataResolver, componentValidation, allPages, null, null)
+    {
+    }
+
+    internal ScribanTemplateRenderer(string layoutsDir, string? parentLayoutsDir, IReadOnlyDictionary<string, string>? shortcodes, IReadOnlyDictionary<string, ComponentDefinition>? components, string? userLayoutsDir, ThemeComponentRegistry? themeRegistry, SectionSchemaValidator? schemaValidator, SectionDataResolverAccessor? dataResolver, string componentValidation, IReadOnlyList<(ContentDocument, RouteInfo?)>? allPages, IReadOnlyDictionary<string, ISectionPlugin>? sectionPlugins, IReadOnlyList<ITemplateContextContributor>? contributors = null)
     {
         _layoutsDir = layoutsDir;
         _templateLoader = new FileTemplateLoader(_layoutsDir, parentLayoutsDir, userLayoutsDir);

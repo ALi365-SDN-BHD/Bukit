@@ -413,7 +413,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
             new PluginPermissionSet(),
             commands: [new PluginCommandSpec("runtime", "Runtime command")]);
         var loader = new PluginCliLoader(
-            new PluginConfigLoader(),
+            new PluginConfigLoader(PluginRuntimeOnlyContext.Test),
             new PluginManifestLoader(),
             new PluginPathValidator(),
             new FixedPlatformResolver("test-rid"),
@@ -423,6 +423,28 @@ public sealed class PluginCliIntegrationTests : IDisposable
         PluginCliLoadResult result = await loader.LoadAsync(_tempDir, CancellationToken.None);
 
         Assert.NotNull(BukitCliDescriptors.ResolveDescriptor(result.Descriptors, "runtime"));
+    }
+
+    [Fact]
+    public async Task LoadAsync_RuntimeOnlyManifestPolicy_InDefaultContext_ThrowsConfigException()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(staticCommands: string.Empty, manifestPolicy: "runtime-only");
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            commands: [new PluginCommandSpec("runtime", "Runtime command")]);
+        var loader = new PluginCliLoader(
+            new PluginConfigLoader(),
+            new PluginManifestLoader(),
+            new PluginPathValidator(),
+            new FixedPlatformResolver("test-rid"),
+            new PassingHashVerifier(),
+            client);
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(_tempDir, CancellationToken.None));
+
+        Assert.Contains("runtime-only is only allowed in development, Labs, or test contexts", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

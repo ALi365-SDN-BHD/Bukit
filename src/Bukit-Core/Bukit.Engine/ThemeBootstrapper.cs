@@ -12,8 +12,10 @@ public sealed record ThemeBootstrapResult(
     string? ParentThemeRoot,
     ThemeManifestV2? Manifest,
     ThemeComponentRegistry? Registry,
-    SectionSchemaValidator? SchemaValidator,
-    IReadOnlyDictionary<string, ISectionPlugin>? SectionPlugins);
+    SectionSchemaValidator? SchemaValidator)
+{
+    internal IReadOnlyDictionary<string, ISectionPlugin>? SectionPlugins { get; init; }
+}
 
 public static class ThemeBootstrapper
 {
@@ -43,7 +45,7 @@ public static class ThemeBootstrapper
             themeManifest = LoadThemeManifest(resolved.LayoutsDir, required: false, logPathLabel: "theme.yaml");
             if (themeManifest is null)
             {
-                return new ThemeBootstrapResult(themeName, null, null, null, null, null, null);
+                return new ThemeBootstrapResult(themeName, null, null, null, null, null);
             }
 
             themeRoot = resolved.LayoutsDir;
@@ -53,7 +55,7 @@ public static class ThemeBootstrapper
             themeManifest = LoadThemeManifest(themeRoot, required: requireThemeManifest, logPathLabel: "theme.yaml");
             if (themeManifest is null)
             {
-                return new ThemeBootstrapResult(themeName, themeRoot, null, null, null, null, null);
+                return new ThemeBootstrapResult(themeName, themeRoot, null, null, null, null);
             }
         }
 
@@ -111,7 +113,10 @@ public static class ThemeBootstrapper
         };
         schemaValidator = new SectionSchemaValidator(validationMode, themeRoot, log);
 
-        return new ThemeBootstrapResult(themeName, themeRoot, parentThemeRoot, themeManifest, themeRegistry, schemaValidator, resolvedSectionPlugins);
+        return new ThemeBootstrapResult(themeName, themeRoot, parentThemeRoot, themeManifest, themeRegistry, schemaValidator)
+        {
+            SectionPlugins = resolvedSectionPlugins
+        };
     }
 
     private static ThemeManifestV2? LoadThemeManifest(string themeRoot, bool required, string logPathLabel)

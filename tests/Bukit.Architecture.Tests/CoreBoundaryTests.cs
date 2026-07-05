@@ -91,6 +91,42 @@ public sealed class CoreBoundaryTests
     }
 
     [Fact]
+    public void LegacyLabsProtocol_IsNotPresentInActiveTree()
+    {
+        var repoRoot = FindRepoRoot();
+        var forbiddenDirectories = new[]
+        {
+            Path.Combine(repoRoot, "src", "Bukit-Labs", "Bukit.Labs.Protocol"),
+            Path.Combine(repoRoot, "tests", "Bukit.Labs.Protocol.Tests"),
+            Path.Combine(repoRoot, "tests", "ProtocolEchoPlugin")
+        };
+        var forbiddenMarkers = new[]
+        {
+            "Bukit.Labs.Protocol",
+            "ExternalProtocolPluginSource",
+            "ProtocolEchoPlugin",
+            "SampleAfterBuildPlugin",
+            "VisualFeedbackPlugin",
+            "PathReportPlugin"
+        };
+
+        foreach (var path in forbiddenDirectories)
+        {
+            Assert.False(Directory.Exists(path), $"Legacy Labs Protocol directory should not exist: {path}");
+        }
+
+        foreach (var relativePath in new[] { "bukit-labs.slnx", "bukit-test.slnx", Path.Combine("scripts", "checks", "coverage.sh") })
+        {
+            var text = File.ReadAllText(Path.Combine(repoRoot, relativePath));
+
+            foreach (var marker in forbiddenMarkers)
+            {
+                Assert.DoesNotContain(marker, text, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    [Fact]
     public void DeployProvider_RequiresExplicitGitHubPagesWhenDeploySectionPresent()
     {
         var missingProvider = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(CreateConfig(provider: null)));

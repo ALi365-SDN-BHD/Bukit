@@ -17,6 +17,12 @@
     <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Rendering\Bukit.Rendering.csproj" />
     <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Engine\Bukit.Engine.csproj" />
     <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Cli\Bukit.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Plugin.Abstractions\Bukit.Plugin.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.PluginHost\Bukit.PluginHost.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Plugins\Bukit.Clone\Bukit.Clone.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Plugins\Bukit.Importing\Bukit.Importing.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Plugins\Bukit.Plugin.Echo\Bukit.Plugin.Echo.csproj" />
+    <ProjectReference Include="..\..\src\Bukit-Plugins\Bukit.Plugin.Import\Bukit.Plugin.Import.csproj" />
     <ProjectReference Include="..\..\src\Bukit-Labs\Bukit.Labs.Cli\Bukit.Labs.Cli.csproj" />
   </ItemGroup>
 

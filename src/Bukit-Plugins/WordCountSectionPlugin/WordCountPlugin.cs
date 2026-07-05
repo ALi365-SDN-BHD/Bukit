@@ -1,17 +1,13 @@
-using Bukit.Engine.Abstractions.Plugins;
-
 namespace Bukit.Plugins;
 
-public sealed class WordCountPlugin : ISectionPlugin
+public sealed class WordCountPlugin
 {
-    public SectionHook SupportedHook => SectionHook.AfterRender;
-
-    public Task ExecuteAsync(SectionContext context, CancellationToken ct = default)
+    public string AppendBadge(string renderedHtml)
     {
-        if (context.RenderedHtml is null) return Task.CompletedTask;
+        if (string.IsNullOrEmpty(renderedHtml)) return renderedHtml;
 
-        var wordCount = CountWords(context.RenderedHtml);
-        var charCount = context.RenderedHtml.Length;
+        var wordCount = CountWords(renderedHtml);
+        var charCount = renderedHtml.Length;
 
         var badge = $"""
             <div style="border-top:1px solid #e2e8f0;margin-top:16px;padding-top:12px;font-size:0.85rem;color:#64748b">
@@ -19,9 +15,7 @@ public sealed class WordCountPlugin : ISectionPlugin
             </div>
             """;
 
-        context.RenderedHtml += badge;
-
-        return Task.CompletedTask;
+        return renderedHtml + badge;
     }
 
     private static int CountWords(string html)

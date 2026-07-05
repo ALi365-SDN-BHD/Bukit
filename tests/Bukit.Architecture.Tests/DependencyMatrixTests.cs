@@ -177,10 +177,12 @@ public class DependencyMatrixTests
     // ── InternalsVisibleTo guard ──────────────────────────────────
 
     [Fact]
-    public void InternalsVisibleTo_MustOnlyExposeTo_TestAssemblies()
+    public void InternalsVisibleTo_MustOnlyExposeTo_CoreInternalOrTestAssemblies()
     {
         var allowedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
+            "Bukit.Engine",
+            "Bukit.Rendering",
             "Bukit.Engine.Tests",
             "Bukit.Engine.Abstractions.Tests",
             "Bukit.Content.Tests",
@@ -215,6 +217,111 @@ public class DependencyMatrixTests
                     "which is not in the allowed whitelist.");
             }
         }
+    }
+
+    [Fact]
+    public void SectionPluginMechanism_MustRemainCoreInternal()
+    {
+        var typeNames = new[]
+        {
+            "Bukit.Engine.Abstractions.Plugins.SectionHook",
+            "Bukit.Engine.Abstractions.Plugins.SectionContext",
+            "Bukit.Engine.Abstractions.Plugins.ISectionPlugin",
+            "Bukit.Engine.Abstractions.Plugins.SectionPluginRegistry"
+        };
+
+        foreach (var typeName in typeNames)
+        {
+            var type = AbstractionsAssembly.GetType(typeName, throwOnError: true)!;
+            Assert.False(type.IsPublic, $"{typeName} must remain internal to Core assemblies.");
+        }
+    }
+
+    [Fact]
+    public void TemplateContextContributor_MustRemainCoreInternal()
+    {
+        var contributorType = RenderingAssembly.GetType(
+            "Bukit.Rendering.Scriban.ITemplateContextContributor",
+            throwOnError: true)!;
+
+        Assert.False(contributorType.IsPublic, "ITemplateContextContributor must remain Core internal.");
+
+        var rendererType = RenderingAssembly.GetType(
+            "Bukit.Rendering.Scriban.ScribanTemplateRenderer",
+            throwOnError: true)!;
+        var publicConstructors = rendererType.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
+
+        foreach (var constructor in publicConstructors)
+        {
+            foreach (var parameter in constructor.GetParameters())
+            {
+                Assert.False(
+                    TypeContains(parameter.ParameterType, contributorType),
+                    $"Public ScribanTemplateRenderer constructor exposes {contributorType.FullName}.");
+            }
+        }
+
+        var pluginDocsDir = Path.Combine(FindRepoRoot(), "docs", "plugins");
+        var offenders = Directory
+            .EnumerateFiles(pluginDocsDir, "*.md", SearchOption.AllDirectories)
+            .SelectMany(path => File.ReadLines(path)
+                .Select((line, index) => new { Path = path, Line = index + 1, Text = line }))
+            .Where(x =>
+                x.Text.Contains("ITemplateContextContributor", StringComparison.Ordinal) ||
+                x.Text.Contains("TemplateContextContributor", StringComparison.Ordinal) ||
+                x.Text.Contains("ContextContributor", StringComparison.Ordinal))
+            .Select(x => $"{Path.GetRelativePath(FindRepoRoot(), x.Path)}:{x.Line}: {x.Text.Trim()}")
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void WordCountSectionPlugin_MustNotReferenceCoreSectionPluginAbstractions()
+    {
+        var projectText = File.ReadAllText(Path.Combine(
+            FindRepoRoot(),
+            "src",
+            "Bukit-Plugins",
+            "WordCountSectionPlugin",
+            "WordCountSectionPlugin.csproj"));
+
+        Assert.DoesNotContain("Bukit.Engine.Abstractions", projectText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Bukit-Core", projectText, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            if (File.Exists(Path.Combine(dir, "bukit-core.slnx")))
+            {
+                return dir;
+            }
+
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        throw new InvalidOperationException("Could not locate repository root.");
+    }
+
+    private static bool TypeContains(Type candidate, Type target)
+    {
+        if (candidate == target)
+        {
+            return true;
+        }
+
+        if (candidate.IsGenericType)
+        {
+            return candidate.GetGenericArguments().Any(x => TypeContains(x, target));
+        }
+
+        return candidate.HasElementType &&
+            candidate.GetElementType() is { } elementType &&
+            TypeContains(elementType, target);
     }
 }
 

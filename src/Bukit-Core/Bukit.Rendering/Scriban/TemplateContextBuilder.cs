@@ -118,7 +118,7 @@ internal sealed class TemplateContextBuilder
         context.PushGlobal(new ScriptObject { ["util"] = utilObj });
 
         // Run all registered contributors before pushing model globals.
-        // This lets plugins inject custom template functions/objects without
+        // This lets Core internals inject custom template functions/objects without
         // modifying this builder.
         foreach (var contributor in _contributors)
         {

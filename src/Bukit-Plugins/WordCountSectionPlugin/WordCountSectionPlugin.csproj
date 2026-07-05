@@ -4,7 +4,4 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\Bukit-Core\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
-  </ItemGroup>
 </Project>

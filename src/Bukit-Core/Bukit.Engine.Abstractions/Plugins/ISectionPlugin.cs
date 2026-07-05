@@ -2,14 +2,14 @@ using System.Collections.Concurrent;
 
 namespace Bukit.Engine.Abstractions.Plugins;
 
-public enum SectionHook
+internal enum SectionHook
 {
     BeforeRender,
     AfterRender,
     ResolveItems
 }
 
-public sealed class SectionContext
+internal sealed class SectionContext
 {
     public required string SectionType { get; init; }
     public string? Variant { get; init; }
@@ -18,13 +18,13 @@ public sealed class SectionContext
     public Dictionary<string, object?> Data { get; init; } = new();
 }
 
-public interface ISectionPlugin
+internal interface ISectionPlugin
 {
     SectionHook SupportedHook { get; }
     Task ExecuteAsync(SectionContext context, CancellationToken ct = default);
 }
 
-public static class SectionPluginRegistry
+internal static class SectionPluginRegistry
 {
     private static readonly ConcurrentDictionary<string, ISectionPlugin> _plugins = new(StringComparer.OrdinalIgnoreCase);
 

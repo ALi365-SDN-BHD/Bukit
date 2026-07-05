@@ -6,6 +6,8 @@
 
 新增前提（2026-06-08）：Bukit 1.0 按全新项目实施。各模块不采用兼容模式，不承诺历史文件、历史网站、旧配置、旧主题或旧插件协议可继续运行。1.0 前允许集中清理旧行为；1.0 后只稳定全新契约。
 
+历史文档状态标注（2026-07-05）：本文是历史计划，保留当时的迁移路径和旧机制名词。文中的 `experimental/Bukit.Labs.Protocol`、`site.externalPlugins`、`ExternalProtocolPluginSource`、`ProtocolEchoPlugin` 或 sample plugin 描述不代表当前实现；当前正式外部插件路径为 `Bukit.PluginHost` + `bukit-plugin-v1`，legacy Labs Protocol source、sample plugin、protocol echo fixture 已删除。
+
 ## 0. 结论
 
 Bukit 1.0 应按“信任优先”发布，而不是按“功能完整”发布。当前 main 已经具备进入 1.0 收口的基础：配置模型、内容模型、路由生成、安全路径校验、主题模板能力、外部插件协议、诊断码、`.bukit/` 报告、smoke 与 security 脚本都已经存在。现在的关键风险不是缺少能力，而是公开契约、文档、示例、审计产物和全新项目规则还没有形成一个稳定、可验证、可回滚的整体。

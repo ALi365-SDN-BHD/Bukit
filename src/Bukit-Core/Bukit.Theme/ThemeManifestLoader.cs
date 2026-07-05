@@ -71,8 +71,7 @@ public static class ThemeManifestLoader
         "preview",
         "description",
         "variants",
-        "data",
-        "plugin"
+        "data"
     };
 
     private static readonly HashSet<string> KnownSectionVariantFields = new(StringComparer.OrdinalIgnoreCase)
@@ -311,8 +310,7 @@ public static class ThemeManifestLoader
                 Preview = GetString(sectionMap, "preview"),
                 Description = GetString(sectionMap, "description"),
                 Variants = ParseVariants(GetMap(sectionMap, "variants"), sectionPath),
-                Data = ParseDataBinding(GetMap(sectionMap, "data"), $"{sectionPath}.data"),
-                Plugin = GetString(sectionMap, "plugin")
+                Data = ParseDataBinding(GetMap(sectionMap, "data"), $"{sectionPath}.data")
             };
         }
 

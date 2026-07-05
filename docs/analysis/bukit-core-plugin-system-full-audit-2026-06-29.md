@@ -6,6 +6,8 @@
 
 审计约束：本报告只审计并生成文档，不修改插件系统代码，不删除代码，不调整配置，不运行会改变构建产物或执行插件的命令。
 
+历史文档状态标注（2026-07-05）：本文保留 2026-06-29 审计时的历史风险证据和旧机制名词。文中的 `experimental/Bukit.Labs.Protocol`、`site.externalPlugins`、`ExternalProtocolPluginSource`、`ProtocolEchoPlugin` 或 sample plugin 描述不代表当前实现；当前正式外部插件路径为 `Bukit.PluginHost` + `bukit-plugin-v1`，legacy Labs Protocol source、sample plugin、protocol echo fixture 已删除。
+
 ## 1. 审计目标
 
 本次审计回答以下问题：
@@ -41,6 +43,8 @@ Bukit.Cli
 7. `site.externalPlugins`、动态 DLL、`Assembly.LoadFrom`、in-process 第三方插件、WASM、Docker、marketplace 自动下载都不是当前正式 v1 插件系统能力。
 
 本次审计认为：当前正式主线路径整体符合“除 Core 内置插件外，外部插件严禁调用 Core 代码；所有插件必须按照插件协议进行开发调用”的架构要求。主要风险不在 PluginHost 主路径本身，而在历史遗留概念和 in-process 扩展点可能被误用，包括 `src/Bukit.Engine.Abstractions/Plugins/ISectionPlugin.cs`、`src/Bukit.Rendering/Scriban/ITemplateContextContributor.cs`、`experimental/Bukit.Labs.Protocol/EngineProtocol/ExternalProtocolPluginSource.cs`。
+
+当前补充（2026-07-05）：legacy Labs Protocol source、sample plugin、protocol echo fixture 已删除，并已从 `bukit-labs.slnx`、`bukit-test.slnx`、coverage filter 中移除；`CoreBoundaryTests` 已增加防回归断言。
 
 ## 3. 术语和边界定义
 
@@ -1852,6 +1856,8 @@ experimental/Bukit.Labs.Protocol/EngineProtocol/ExternalProtocolPluginSource.cs
 
 该文件仍然读取 `site.externalPlugins` 并处理旧式 external protocol plugin source。当前正式配置规范已明确禁止恢复 `site.externalPlugins`。
 
+当前补充（2026-07-05）：该 legacy Labs Protocol 路径已删除，不再作为 active source 或测试 fixture 存在；后续不得通过 solution、coverage filter 或 Core runtime 重新接回。
+
 风险：
 
 1. 如果 experimental 路径被重新接入 Core，会绕过当前 `.bukit/plugins.yaml` 分层。
@@ -2153,9 +2159,9 @@ experimental/Bukit.Labs.Protocol/EngineProtocol/ExternalProtocolPluginSource.cs
 
 建议：
 
-1. 不接入 Core 主线。
+1. 保持删除状态，不接入 Core 主线。
 2. 不作为迁移基础。
-3. 后续如清理 Labs，可删除。
+3. 不恢复 `site.externalPlugins`、legacy protocol DTO/host、legacy sample plugin 或 `ExternalProtocolPluginSource`。
 4. 如果暂保留，应在文件头标注 legacy/experimental/not formal plugin protocol。
 
 ### 21.3 建议三：正式插件包禁止 runtime-only

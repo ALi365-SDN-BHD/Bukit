@@ -5,6 +5,8 @@
 报告类型：只读审计报告文件  
 审计主题：Bukit Core 分层、正式外部插件协议边界、`Bukit.PluginHost`、`Bukit.Plugin.Abstractions`、遗留进程内扩展点和不需要继续保留的代码层。  
 
+历史文档状态标注（2026-07-05）：本文保留 2026-06-28 审计时的历史风险证据和旧机制名词。文中的 `experimental/Bukit.Labs.Protocol`、`site.externalPlugins`、`ExternalProtocolPluginSource`、`ProtocolEchoPlugin` 或 sample plugin 描述不代表当前实现；当前正式外部插件路径为 `Bukit.PluginHost` + `bukit-plugin-v1`，legacy Labs Protocol source、sample plugin、protocol echo fixture 已删除。
+
 ## 1. 用户要求逐项拆解
 
 本报告按以下明确要求审计，不把目标缩小为普通代码风格审查。
@@ -676,6 +678,12 @@ Bukit.Cli
 - 若有当前产品需求，必须改为 Core internal，不允许外部插件或第三方主题作者通过该机制注入代码。
 - 对外文档中不得把该机制描述为插件开发方式。
 
+当前补充（2026-07-05）：
+
+- 已采用 Core internal 方案：`ISectionPlugin`、`SectionPluginRegistry`、`SectionHook`、`SectionContext` 不再作为 public API 暴露，只通过受控 `InternalsVisibleTo` 给 Core 内部的 Engine/Rendering 使用。
+- `theme.yaml.sections.*.plugin` 不再是合法主题 manifest 字段，第三方主题作者不能通过 manifest 指定进程内插件名。
+- `WordCountSectionPlugin` 暂时保留，但已移除对 `Bukit.Engine.Abstractions` 的引用，不再实现或注册 Core 内部 section plugin 接口。
+
 ### F-03：`ITemplateContextContributor` 存在外部扩展语义
 
 证据：
@@ -695,6 +703,13 @@ Bukit.Cli
 - 若没有生产实现者，删除该接口和构造参数。
 - 若有内部用途，将其保持 internal 或放在 Core internal namespace，不对插件文档公开。
 - 不要把它作为未来 SDK 的基础。未来 SDK 应通过协议提供上下文，而不是让插件注入 Scriban runtime。
+
+当前补充（2026-07-05）：
+
+- 已采用 Core internal 方案：`ITemplateContextContributor` 不再作为 public API 暴露，仅作为 Core Rendering 内部模板上下文组合点。
+- `ScribanTemplateRenderer` 的 public 构造函数不再接受 `ITemplateContextContributor`，避免外部调用方把它当作模板插件注入接口。
+- `docs/plugins` 不公开该接口，并已增加架构测试防止后续把它写入插件文档。
+- 注释语义已从 “plugins and extensions” 收紧为 Core internal helpers；后续不得把该接口作为插件 SDK 基础。
 
 ### F-04：`experimental/Bukit.Labs.Protocol` 保留旧 `site.externalPlugins` 模型
 
@@ -717,6 +732,12 @@ Bukit.Cli
 - 若不再需要，删除。
 - 若保留用于历史对照，必须在 README 或目录级说明中写明不得迁回 Core，不得作为新插件实现模板。
 
+当前补充（2026-07-05）：
+
+- 已删除 legacy Labs Protocol 源码、sample plugin 和 protocol echo fixture，并从 `bukit-labs.slnx`、`bukit-test.slnx`、coverage assembly filter 中移除对应入口。
+- Core 主线继续通过 `ConfigLoaderTests`、`BuildCommandTests`、`CoreBoundaryTests` 覆盖旧 `site.externalPlugins` 拒绝和 `ExternalProtocolPluginSource` 不回流。
+- 后续不得恢复 `site.externalPlugins`、Engine `ExternalProtocolPluginSource`、legacy protocol DTO/host 或 legacy sample plugin；当前正式插件路径只保留 PluginHost + `bukit-plugin-v1`。
+
 ### F-05：`manifestPolicy: runtime-only` 在 loader 层仍可用
 
 证据：
@@ -738,6 +759,13 @@ Bukit.Cli
 - 保留当前 loader 行为可以接受，但必须通过文档和脚本声明 runtime-only 非正式发布路径。
 - 更严格方案：新增环境变量或 config mode，只在 dev/Labs/test 场景允许 runtime-only。
 - 架构测试或 schema 测试继续保证 official examples 不使用 runtime-only。
+
+当前补充（2026-07-06）：
+
+- 已采用更严格方案：`PluginConfigLoader` 默认上下文拒绝 `manifestPolicy: runtime-only`。
+- 只有显式传入 `PluginRuntimeOnlyContext.Development`、`PluginRuntimeOnlyContext.Labs` 或 `PluginRuntimeOnlyContext.Test` 时才允许读取 `runtime-only`。
+- CLI 默认路径继续使用默认上下文，因此普通正式用户项目不能直接启用 `runtime-only`。
+- `docs/plugins/Bukit 插件配置规范.md` 已同步说明 runtime-only 只属于 development/Labs/test 特权上下文。
 
 ### F-06：架构测试未覆盖新插件边界
 
@@ -762,6 +790,17 @@ Bukit.Cli
 - 读取 `.csproj` 文本和 compiled assembly references 双重检查。
 - 明确 official plugin 可引用列表：`Bukit.Plugin.Abstractions`，可选 `Bukit.Shared`，可选稳定领域库如 `Bukit.Importing` 或 `Bukit.Clone`。禁止 `Bukit.Engine`、`Bukit.Engine.Abstractions`、`Bukit.Cli`、`Bukit.PluginHost`、`Bukit.Labs`。
 
+当前补充（2026-07-06）：
+
+- 已新增 `tests/Bukit.Architecture.Tests/PluginBoundaryTests.cs`，将插件边界从文档约束提升为架构测试门禁。
+- `PluginBoundaryTests` 同时读取 `.csproj` 文本和 compiled assembly references，双重覆盖 `PluginHost`、`Plugin.Abstractions`、official process plugin、plugin-domain library 的禁止引用。
+- `PluginHost` 当前只允许引用 `Bukit.Plugin.Abstractions` 和 `Bukit.Shared`；不得引用 Core runtime、Labs 或插件实现。
+- `Plugin.Abstractions` 当前不得引用其他 Bukit assembly，继续保持 protocol DTO 包定位，不成为 Core SDK。
+- official process plugin 不得引用 `Bukit.PluginHost`、`Bukit.Cli`、`Bukit.Engine`、Labs 或旧进程内插件。
+- plugin-domain library 不得引用 PluginHost、Core runtime、Labs 或 official plugin implementation。
+- 原 `bukit.slnx` 已不存在；当前测试改为锁定 `bukit-core.slnx`、`bukit-plugins.slnx`、`bukit-labs.slnx`、`bukit-test.slnx` 的 split solution 分层。
+- `bukit-plugins.slnx` 中的 `WordCountSectionPlugin` 仍按 F-07 temporary legacy exception 保留；F-06 只把它明确排除在 official process plugin 边界之外，不执行删除或迁移。
+
 ### F-07：`Bukit.Clone` 在 `bukit.slnx` 中的边界需要明确
 
 证据：
@@ -782,107 +821,123 @@ Bukit.Cli
 - 若拆 solution，把它移入 plugin/clone 相关 solution 或 tracked-only gate。
 - 不允许外部第三方插件默认引用它；它只应服务官方 Clone 插件迁移。
 
+当前补充（2026-07-05）：
+
+- 当前仓库已拆分为 `bukit-core.slnx`、`bukit-plugins.slnx`、`bukit-labs.slnx`、`bukit-test.slnx`，`Bukit.Clone` 已归入 plugin-domain solution，原始 `bukit.slnx` 混入 Core 的问题已不再是当前主要风险。
+- F-07 的剩余问题转为：`bukit-plugins.slnx` 仍包含 `WordCountSectionPlugin`，会继续混淆“正式外部插件”和“旧进程内插件”。
+- 当前处理策略：暂时保留，不在本轮 F-07 修复中移动或删除；后续按单项任务逐项处理旧式进程内插件残留。
+
 ## 11. 删除、保留、隔离清单
+
+当前校准（2026-07-06）：
+
+- 本章以当前仓库为准，不再沿用旧 `src/plugins/WordCountSectionPlugin`、旧 `src/Bukit.Clone`、旧 `bukit.slnx` 作为当前事实。
+- F-02、F-03、F-04、F-05、F-06 已有实现和架构测试保护，后续处理重点不是重复修改这些项。
+- P1/F-07 剩余项 `src/Bukit-Plugins/WordCountSectionPlugin` 已明确暂时保留，后续单独逐项处理；本报告后续章节只把它标记为已知延期项。
 
 ### 11.1 应保留
 
 | 对象 | 保留理由 |
 |---|---|
-| `src/Bukit.PluginHost` | 外部进程插件宿主，是协议、安全、路径和 CLI 扩展边界核心。 |
-| `src/Bukit.Plugin.Abstractions` | 协议 DTO 和序列化模型包，官方 .NET 插件可用，但不是 SDK。 |
-| `src/Bukit.Engine/Plugins/PluginRegistry.cs` | Core 内置插件注册表，只注册 built-in source。 |
-| `src/Bukit.Engine/Plugins/PluginRunner.cs` | Core 内置插件执行器，服务 derive-pages 和 after-build 内置流程。 |
+| `src/Bukit-Core/Bukit.PluginHost` | 外部进程插件宿主，是协议、安全、路径、权限、超时、输出和 CLI 扩展边界核心。 |
+| `src/Bukit-Core/Bukit.Plugin.Abstractions` | 协议 DTO 和序列化模型包，官方 .NET 插件可引用；它不是 SDK，也不应引用 Core runtime。 |
+| `src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs` | Core 内置插件注册表，只服务 built-in source，不加载外部进程插件。 |
+| `src/Bukit-Core/Bukit.Engine/Plugins/PluginRunner.cs` | Core 内置插件执行器，服务 derive-pages 和 after-build 内置流程；不等同于正式外部插件协议。 |
 | `.bukit/plugins.yaml` 机制 | 项目级外部插件启用配置，和 `site.yaml` 分离。 |
-| `plugins/Bukit.Plugin.Echo` | 合规的外部进程插件示例/测试插件。 |
-| `plugins/Bukit.Plugin.Import` | 合规的 Import 插件协议 shell；功能完整性另行判断。 |
+| `src/Bukit-Plugins/Bukit.Plugin.Echo` | 合规的外部进程插件示例/测试插件。 |
+| `src/Bukit-Plugins/Bukit.Plugin.Import` | 合规的 Import 插件协议 shell；功能完整性另行判断。 |
+| `src/Bukit-Plugins/Bukit.Clone` | 官方 Clone 插件领域库，不是 Core runtime 必需层。 |
+| `src/Bukit-Plugins/Bukit.Importing` | 官方 Import 插件领域库，不是 Core runtime 必需层。 |
+| `bukit-core.slnx`、`bukit-plugins.slnx`、`bukit-labs.slnx`、`bukit-test.slnx` | 当前 split solution 边界；已取代旧 `bukit.slnx` 混合边界。 |
 | `scripts/checks/official-plugin-packages.sh` | 官方插件包示例配置门禁，禁止 runtime-only、entry、`.bukit/plugins`、`site.externalPlugins`。 |
 
-### 11.2 应删除或迁移
+### 11.2 已处理并应保持隔离
 
-| 对象 | 当前问题 | 建议处理 |
+| 对象 | 当前状态 | 后续要求 |
 |---|---|---|
-| `src/plugins/WordCountSectionPlugin` | 旧式进程内插件，引用 `Engine.Abstractions`，位于旧插件路径。 | 删除；若仍需作为测试资产，迁到 tests fixture；若作为内置能力，迁到 Core internal。 |
-| `src/Bukit.Engine.Abstractions/Plugins/ISectionPlugin.cs` 中的 `SectionPluginRegistry` | 全局进程内插件注册表，容易成为第三方插件入口。 | 删除或 internal 化；不对外部插件开放。 |
-| `ThemeSectionDefinition.Plugin` | 主题 manifest 可指向进程内插件名。 | 若无内置需求则删除字段和解析逻辑。 |
-| `ThemeBootstrapper` section plugin resolve | 把主题引导和进程内插件注册表耦合。 | 随 `SectionPluginRegistry` 一起删除或 internal 化。 |
-| `SectionRenderHelper` section plugin hook | 渲染阶段执行进程内插件。 | 随 section plugin 机制一起删除或 internal 化。 |
-| `ITemplateContextContributor` 对外扩展语义 | 容易被误用为模板插件 SDK。 | 无生产实现则删除；有内部用途则 internal 化。 |
-| `experimental/Bukit.Labs.Protocol` 旧协议 | 仍使用 `site.externalPlugins`、旧 ExternalProtocol source。 | 标记 deprecated 或删除；不得迁回 Core。 |
+| `src/Bukit-Core/Bukit.Engine.Abstractions/Plugins/ISectionPlugin.cs` | `SectionHook`、`SectionContext`、`ISectionPlugin`、`SectionPluginRegistry` 已 internal 化。 | 保持 Core internal，不允许外部插件或第三方主题通过该机制注入代码。 |
+| `ThemeSectionDefinition.Plugin`、`ThemeBootstrapper`、`SectionRenderHelper` | section plugin 链路仍存在，但只能作为 Core internal 路径使用。 | 不对插件文档公开；后续若清理，应另开任务评估删除或重命名。 |
+| `src/Bukit-Core/Bukit.Rendering/Scriban/ITemplateContextContributor.cs` | 已 internal 化，public renderer 构造函数不再暴露它。 | 不作为插件 SDK 基础，不写入 `docs/plugins`。 |
+| `src/Bukit-Labs/Bukit.Labs.Protocol` | legacy source、sample plugin、protocol echo fixture 已删除，并从 solution/coverage 引用中移除。 | 保持删除状态；不得恢复 `site.externalPlugins` 或 `ExternalProtocolPluginSource`。 |
+| `manifestPolicy: runtime-only` | `PluginConfigLoader` 默认上下文拒绝；仅显式 Development/Labs/Test 上下文允许。 | 正式用户路径和官方插件包继续使用 `static`，不得把 runtime manifest 当正式命令来源。 |
 
-### 11.3 应保留但改分类
+### 11.3 已知延期项
 
-| 对象 | 当前状态 | 建议分类 |
+| 对象 | 当前状态 | 后续处理 |
 |---|---|---|
-| `src/Bukit.Clone` | 在 `bukit.slnx`，未来 Clone 领域库骨架。 | plugin-domain library，不是 Core runtime 必需层。 |
-| `src/Bukit.Importing` | 在 experimental solution，Import 领域库。 | official plugin-domain library，供 `Bukit.Plugin.Import` 后续引用。 |
+| `src/Bukit-Plugins/WordCountSectionPlugin` | 暂时保留在 `bukit-plugins.slnx`；当前 `.csproj` 无 ProjectReference，已不再引用 `Bukit.Engine.Abstractions`，也不再实现 Core internal `ISectionPlugin`。 | P1/F-07 intentional deferred。后续单独决定删除、迁入测试夹具、重命名为 internal sample，或改造成真正 `bukit-plugin-v1` 外部进程插件。 |
+| `src/plugins/` 旧目录残留 | 当前只发现旧 sample plugin 的 ignored `obj`/restore 残留，没有正式 `.csproj` 源码。 | 可作为 repo hygiene 单独清理；不应作为当前正式插件边界证据。 |
 | `tests/ThrowingPlugin` | 引用 `Engine.Abstractions`，用于 Engine tests。 | 测试夹具，不是外部插件；建议改名避免误导。 |
 | `tests/PluginProcessProbe` | 插件进程 probe。 | PluginHost 测试工具，保留。 |
 
-## 12. 需要新增的门禁和测试
+### 11.4 已过期的旧分类
+
+以下表述只代表 2026-06-28 原始审计时的历史状态，不应再作为当前仓库事实使用：
+
+| 旧表述 | 当前状态 |
+|---|---|
+| `src/plugins/WordCountSectionPlugin` 是当前源码位置 | 当前源码位置是 `src/Bukit-Plugins/WordCountSectionPlugin`。旧 `src/plugins` 下没有正式 `.csproj` 源码。 |
+| `WordCountSectionPlugin` 引用 `Engine.Abstractions` | 当前 `.csproj` 无 ProjectReference；`DependencyMatrixTests` 已锁定不得引用 `Bukit.Engine.Abstractions` 或 `Bukit-Core`。 |
+| `src/Bukit.Clone` 在 `bukit.slnx` | 当前为 `src/Bukit-Plugins/Bukit.Clone`，并归入 `bukit-plugins.slnx`。 |
+| `src/Bukit.Importing` 在 experimental solution | 当前为 `src/Bukit-Plugins/Bukit.Importing`，并归入 `bukit-plugins.slnx`。 |
+| `bukit.slnx` 是当前 solution 边界问题 | 旧 `bukit.slnx` 已不存在；当前由 split solutions 和 `PluginBoundaryTests` 约束。 |
+
+## 12. 已有门禁和测试
 
 ### 12.1 插件项目引用白名单测试
 
-新增测试应扫描 `plugins/Bukit.Plugin.*/*.csproj`：
+已新增 `tests/Bukit.Architecture.Tests/PluginBoundaryTests.cs`，覆盖以下边界：
 
-允许引用：
-
-- `src/Bukit.Plugin.Abstractions`
-- 可选 `src/Bukit.Shared`
-- 可选官方领域库：`src/Bukit.Importing`、`src/Bukit.Clone`
-
-禁止引用：
-
-- `src/Bukit.Cli`
-- `src/Bukit.Engine`
-- `src/Bukit.Engine.Abstractions`
-- `src/Bukit.Content`
-- `src/Bukit.Rendering`
-- `src/Bukit.Routing`
-- `src/Bukit.Theme`
-- `src/Bukit.PluginHost`
-- `experimental/Bukit.Labs.*`
+1. `PluginHostProject_OnlyReferencesProtocolAbstractionsAndShared`：`Bukit.PluginHost` 只允许引用 `Bukit.Plugin.Abstractions` 和 `Bukit.Shared`。
+2. `PluginAbstractionsProject_DoesNotReferenceBukitRuntimeProjects`：`Bukit.Plugin.Abstractions` 不得引用任何 Bukit runtime 项目。
+3. `OfficialProcessPluginProjects_DoNotReferenceHostRuntimeLabsOrLegacyPlugins`：`Bukit.Plugin.Echo`、`Bukit.Plugin.Import` 不得引用 Host、Core runtime、Labs 或旧进程内插件。
+4. `PluginDomainProjects_DoNotReferenceHostRuntimeLabsOrOfficialPluginImplementations`：`Bukit.Clone`、`Bukit.Importing` 不得引用 Host、Core runtime、Labs 或 official plugin implementation。
+5. 对 compiled assembly references 做同等禁止引用检查，避免只检查 `.csproj` 文本造成漏判。
 
 ### 12.2 PluginHost 依赖边界测试
 
-新增测试应确认 `src/Bukit.PluginHost/Bukit.PluginHost.csproj` 只引用：
+当前已由 `PluginBoundaryTests` 同时验证项目引用和 compiled assembly reference：
 
-- `src/Bukit.Plugin.Abstractions`
-- `src/Bukit.Shared`
-
-并禁止引用：
-
-- `plugins/Bukit.Plugin.*`
-- `src/Bukit.Engine`
-- `src/Bukit.Cli`
-- `experimental/*`
+- `Bukit.PluginHost` 不得引用 `Bukit.Cli`、`Bukit.Engine`、`Bukit.Engine.Abstractions`、`Bukit.Rendering`、`Bukit.Routing`、`Bukit.Clone`、`Bukit.Importing`、official plugin implementation、Labs 或 `WordCountSectionPlugin`。
+- 这使 PluginHost 保持外部进程协议宿主定位，而不是 Core runtime 或插件实现聚合层。
 
 ### 12.3 Plugin.Abstractions 零 Core 依赖测试
 
-新增测试应确认 `src/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj` 没有任何 ProjectReference。它应保持纯协议模型包。
+当前已由 `PluginBoundaryTests` 验证：
+
+- `src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj` 没有 Bukit ProjectReference。
+- `Bukit.Plugin.Abstractions` compiled assembly 不引用其他 Bukit assembly。
+- 它只应作为协议 DTO/serializer package 保留，不得变成 Core SDK。
 
 ### 12.4 旧机制禁止回归测试
 
-新增测试应扫描 Core 源码，禁止出现：
+当前已有以下回归保护：
 
-- `site.externalPlugins`
-- `ExternalProtocolPluginSource`
-- `Assembly.LoadFrom`
-- `externalAssemblyAllowlist`
-- `ExternalAssembly`
-- `src/plugins/` 下正式插件源码
-
-注意：文档和 experimental 可能保留历史说明；测试范围应限定 Core runtime、PluginHost runtime 和正式 plugin source，不要误伤历史文档。
+1. `CoreBoundaryTests.LegacyLabsProtocol_IsNotPresentInActiveTree`：禁止 `src/Bukit-Labs/Bukit.Labs.Protocol`、`tests/Bukit.Labs.Protocol.Tests`、`tests/ProtocolEchoPlugin` 回到活动树。
+2. `CoreBoundaryTests.PluginRegistry_DoesNotLoadExternalProtocolSource`：禁止 Core `PluginRegistry` 重新接入 `ExternalProtocolPluginSource`。
+3. `ConfigLoaderTests` 和 `BuildCommandTests`：覆盖旧 `site.externalPlugins` 配置拒绝。
+4. `PluginSchemaContractTests` 和 `scripts/checks/official-plugin-packages.sh`：禁止官方示例配置包含 `manifestPolicy: runtime-only`、`entry:`、`.bukit/plugins`、`site.externalPlugins`。
+5. `PluginBoundaryTests.LegacySrcPluginsDirectory_DoesNotContainFormalPluginProjects`：禁止旧 `src/plugins/` 下出现正式插件 `.csproj`。
 
 ### 12.5 Solution 边界测试
 
-如果定义 `bukit.core.slnx`：
+当前不再使用旧 `bukit.slnx` 作为混合 solution。`PluginBoundaryTests.SplitSolutions_ContainOnlyProjectsFromTheirOwnedLayer` 已锁定：
 
-- 不应包含 `plugins/Bukit.Plugin.*`。
-- 不应包含 `experimental/*`。
-- 不应包含 `tests/Bukit.Labs.Cli.Tests`。
-- 可以包含 PluginHost 和 Plugin.Abstractions，因为它们是 Core plugin host 基础设施。
+- `bukit-core.slnx` 只包含 `src/Bukit-Core/`。
+- `bukit-plugins.slnx` 只包含 `src/Bukit-Plugins/`，其中 `WordCountSectionPlugin` 是 F-07 临时例外。
+- `bukit-labs.slnx` 只包含 `src/Bukit-Labs/`。
+- `bukit-test.slnx` 只包含 `tests/`。
+- 旧 `bukit.slnx` 不应恢复。
 
-如果继续使用 `bukit.slnx` 作为 all-in-one solution，则文档和脚本必须说明它不是 Core-only 证明面。
+### 12.6 Core internal 扩展点保护测试
+
+当前已由 `DependencyMatrixTests` 覆盖：
+
+1. `SectionPluginMechanism_MustRemainCoreInternal`：`SectionHook`、`SectionContext`、`ISectionPlugin`、`SectionPluginRegistry` 必须保持非 public。
+2. `TemplateContextContributor_MustRemainCoreInternal`：`ITemplateContextContributor` 必须保持非 public，public `ScribanTemplateRenderer` 构造函数不得暴露该类型，`docs/plugins` 不得公开该接口。
+3. `WordCountSectionPlugin_MustNotReferenceCoreSectionPluginAbstractions`：`WordCountSectionPlugin` 不得引用 `Bukit.Engine.Abstractions` 或 `Bukit-Core`。
+
+因此，Section 12 的当前状态不是“需要新增门禁”，而是“已有门禁必须保持并随新增插件继续扩展”。
 
 ## 13. SDK 边界
 
@@ -895,6 +950,7 @@ Bukit.Cli
 3. 当前不应把 `Bukit.Shared` 当 SDK。
 4. 当前不应把 `Bukit.Plugin.Abstractions` 宣传成 SDK。
 5. 当前正式外部插件只应依赖协议：stdin request、stdout response、stderr log、exit code、`plugin.yaml`、`.bukit/plugins.yaml`。
+6. 当前 `src/Bukit-Plugins/Bukit.Clone` 和 `src/Bukit-Plugins/Bukit.Importing` 是官方 plugin-domain library，不是面向第三方插件的通用 SDK。
 
 未来如果开发 SDK，至少应满足：
 
@@ -909,63 +965,66 @@ Bukit.Cli
 
 | 项目 | 当前状态 | 结论 |
 |---|---|---|
-| 正式外部插件是否直接引用 Core | `Echo` 和 `Import` 只引用 `Plugin.Abstractions`。 | 当前合规。 |
-| Core 是否直接引用正式插件实现 | `Bukit.Cli`、`Bukit.Engine`、`PluginHost` csproj 未引用 `plugins/Bukit.Plugin.*`。 | 当前合规。 |
+| 正式外部插件是否直接引用 Core | `Bukit.Plugin.Echo` 和 `Bukit.Plugin.Import` 由 `PluginBoundaryTests` 检查，不得引用 Core runtime、Host、Labs 或 legacy plugin。 | 当前合规。 |
+| Core 是否直接引用正式插件实现 | `PluginBoundaryTests` 对 project reference 和 compiled assembly reference 双重检查，防止 Core/Host 回连 official plugin implementation。 | 当前合规。 |
 | PluginHost 是否按协议调用插件 | 有 config、manifest、path、hash、process、handshake、manifest、invoke、report 实现。 | 当前合规。 |
 | Engine 是否加载外部插件 | `PluginRegistry` 只有 `BuiltInPluginSource`。 | 当前合规。 |
-| `site.externalPlugins` 是否仍在 Core config | Core 测试覆盖其拒绝；旧模型只在 docs/experimental 中。 | Core 主路径合规，experimental 需隔离。 |
-| 是否存在进程内插件残留 | `WordCountSectionPlugin`、`SectionPluginRegistry` 存在。 | 不合规或高风险，应删除/隔离。 |
+| `site.externalPlugins` 是否仍在 Core config | Core 测试覆盖其拒绝；legacy Labs Protocol 代码已删除，仅历史文档仍保留旧名词。 | Core 主路径合规；保持删除状态并禁止旧模型回流。 |
+| 是否存在进程内插件残留 | `SectionPluginRegistry` 已 internal 化；`WordCountSectionPlugin` 暂时保留但不再引用 Core section plugin 抽象。 | 外部插件边界已隔离；`WordCountSectionPlugin` 是 P1/F-07 已知延期项。 |
 | `Plugin.Abstractions` 是否是 SDK | 不是；它是协议 DTO 包。 | 保留但不能对外宣传为 SDK。 |
-| solution 是否体现严格 Core 边界 | `bukit.slnx` 包含 plugins 和 Labs tests。 | 不严格，应拆分或改名定位。 |
-| 架构测试是否覆盖插件边界 | 当前覆盖不足。 | 需要新增测试。 |
+| solution 是否体现严格 Core 边界 | 当前已拆分为 `bukit-core.slnx`、`bukit-plugins.slnx`、`bukit-labs.slnx`、`bukit-test.slnx`，并由测试锁定。 | 当前合规；旧 `bukit.slnx` 不应恢复。 |
+| 架构测试是否覆盖插件边界 | `PluginBoundaryTests`、`DependencyMatrixTests`、`CoreBoundaryTests` 已覆盖新插件边界、Core internal 扩展点和旧 Labs Protocol 回归。 | 当前合规；未来新增插件必须扩展相同门禁。 |
 
 ## 15. 推荐整改顺序
 
-### 第一阶段：不改业务逻辑，先补边界门禁
+### 第一阶段：边界门禁已完成，继续保持
 
-1. 新增 `PluginBoundaryTests`，锁死 PluginHost、Plugin.Abstractions、official plugins 的 ProjectReference 边界。
-2. 新增 `src/plugins` 禁止正式插件源码测试。
-3. 新增 old mechanism scan，禁止 Core runtime 出现 `site.externalPlugins`、`ExternalProtocolPluginSource`、`Assembly.LoadFrom`。
-4. 明确 `bukit.slnx` 是 all-in-one 还是 Core-only。如果是 all-in-one，新建 core-only solution。
+1. 已新增 `PluginBoundaryTests`，锁死 PluginHost、Plugin.Abstractions、official process plugins、plugin-domain libraries 的 ProjectReference 和 compiled assembly reference 边界。
+2. 已新增旧 `src/plugins` 禁止正式插件源码测试。
+3. 已新增 legacy Labs Protocol 回归测试，禁止 `site.externalPlugins`、`ExternalProtocolPluginSource`、legacy protocol/sample fixture 回到活动树。
+4. 已用 split solutions 取代旧 `bukit.slnx`，并通过测试锁定各 solution 的拥有层。
+5. 后续新增官方插件、领域库或 Labs 项目时，必须同步更新 `PluginBoundaryTests`，不能绕过该门禁。
 
-### 第二阶段：删除或隔离旧式进程内插件残留
+### 第二阶段：隔离旧式进程内插件残留
 
-1. 删除或迁移 `src/plugins/WordCountSectionPlugin`。
-2. 删除或 internal 化 `ISectionPlugin`、`SectionPluginRegistry`。
-3. 删除或 internal 化 `ThemeSectionDefinition.Plugin` 和渲染链 section plugin hook。
-4. 清理或 deprecated `experimental/Bukit.Labs.Protocol`。
+1. `WordCountSectionPlugin` 暂时保留；后续作为单独任务决定删除、迁移到测试夹具，或改造为明确的 Core internal 能力。
+2. `ISectionPlugin`、`SectionPluginRegistry` 已 internal 化，并增加架构测试防止重新 public 暴露。
+3. `theme.yaml.sections.*.plugin` 已禁止；渲染链 section plugin hook 仅保留为 Core internal 路径，不允许第三方主题通过 manifest 注入。
+4. `ITemplateContextContributor` 已 Core internal 化，并从 public renderer 构造函数和插件文档中移除。
+5. `experimental/Bukit.Labs.Protocol` 已删除；继续通过架构测试防止目录、solution 引用和 coverage filter 回流。
 
 ### 第三阶段：文档和技能对齐
 
-1. 更新文档中任何把 `site.externalPlugins`、动态 DLL、WASM 描述成当前机制的内容。
-2. 保留历史文档时加上 legacy/deprecated 标记。
-3. 明确 `Plugin.Abstractions` 不是 SDK。
-4. 明确未来 SDK 暂不做。
+1. 当前文档后续章节已经把旧 `src/plugins/WordCountSectionPlugin`、旧 `bukit.slnx`、旧“架构测试缺口”校准为当前状态。
+2. 对更早章节中保留的 2026-06-28 历史证据，应继续依赖文首历史状态标注解释，避免误读为当前实现。
+3. `docs/plugins` 继续不得公开 `ISectionPlugin`、`SectionPluginRegistry`、`ITemplateContextContributor` 作为插件开发机制。
+4. 明确 `Plugin.Abstractions` 不是 SDK，未来 SDK 暂不做。
 
 ### 第四阶段：正式插件迁移继续推进
 
 1. Import 插件仍是协议 shell；功能迁移应另开任务。
-2. Clone 插件应先稳定 `Bukit.Clone` 领域库，再创建外部进程插件。
+2. Clone 插件应先稳定 `src/Bukit-Plugins/Bukit.Clone` 领域库，再创建外部进程插件。
 3. Notion 插件若恢复，应遵循 PluginHost 协议，不复用旧 `site.externalPlugins`。
 
 ## 16. 最终审计结论
 
-当前 Bukit 已经建立了正确的正式外部插件主线：`Bukit.Cli -> Bukit.PluginHost -> external process plugin`。`Bukit.PluginHost` 和 `Bukit.Plugin.Abstractions` 都是必要层，不应删除。顶层正式插件项目当前没有直接引用 Core 代码的证据。
+当前 Bukit 已经建立了正确的正式外部插件主线：`Bukit.Cli -> Bukit.PluginHost -> external process plugin`。`Bukit.PluginHost` 和 `Bukit.Plugin.Abstractions` 都是必要层，不应删除。当前正式插件项目没有直接引用 Core 代码的证据。
 
-但是，仓库还不能宣称插件边界已经达到最严格状态。原因不是当前正式插件已经违规，而是以下遗留和门禁缺口仍存在：
+截至 2026-07-06，Section 10 中 F-02 到 F-06 的执行状态已经和当前仓库对齐：
 
-1. `src/plugins/WordCountSectionPlugin` 是旧式进程内插件残留。
-2. `ISectionPlugin` 和 `SectionPluginRegistry` 仍暴露进程内扩展机制。
-3. Rendering/Theme 仍有 section plugin 接入链。
-4. `experimental/Bukit.Labs.Protocol` 保留旧 `site.externalPlugins` 模型。
-5. `manifestPolicy: runtime-only` 在 loader 层可用，需要继续限定在 dev/Labs/test 或用 official gate 禁止。
-6. `bukit.slnx` 同时包含 Core、Plugins、Labs tests，不是严格 Core-only 边界。
-7. 架构测试缺少 PluginHost、Plugin.Abstractions、official plugins 的硬引用边界。
+1. `ISectionPlugin` 和 `SectionPluginRegistry` 已改为 Core internal，不再作为外部插件 API。
+2. `ITemplateContextContributor` 已改为 Core internal，不再通过 public renderer constructor 或 `docs/plugins` 暴露。
+3. `src/Bukit-Labs/Bukit.Labs.Protocol` 已删除，旧 `site.externalPlugins` 模型不得回流。
+4. `manifestPolicy: runtime-only` 已限定为 Development/Labs/Test 显式上下文，默认正式路径拒绝。
+5. `PluginBoundaryTests` 已补充 PluginHost、Plugin.Abstractions、official process plugins、plugin-domain libraries 的 project reference 和 compiled assembly reference 双重边界。
+6. 旧 `bukit.slnx` 已由 split solutions 取代，并由架构测试锁定。
+
+当前不能宣称插件边界已经达到最严格状态的唯一主要原因，是 P1/F-07 中暂时保留的 `src/Bukit-Plugins/WordCountSectionPlugin`。它已经不再引用 Core section plugin 抽象，也不再是正式外部插件协议样板，但仍位于 `bukit-plugins.slnx`，会持续制造“正式外部插件”和“旧进程内/section-era 插件”的概念混淆。该项按当前决策暂不处理，后续逐项解决。
 
 因此，正确整改方向不是开发 SDK，也不是让插件引用 `Engine.Abstractions`。正确方向是：
 
 ```text
-先锁边界 -> 再删旧机制 -> 再清文档 -> 最后推进官方插件功能迁移
+保持边界门禁 -> 后续单独解决 WordCountSectionPlugin -> 继续清理历史文档语义 -> 最后推进官方插件功能迁移
 ```
 
 在 SDK 暂不做的前提下，外部插件唯一稳定接入方式必须继续保持为：
