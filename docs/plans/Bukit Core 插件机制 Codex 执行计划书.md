@@ -5,6 +5,8 @@ Bukit Core 插件机制 Codex 执行计划书
 核心目标：先建立 Bukit Core 插件机制基础设施，再迁移 Import / Clone 等正式插件
 技术原则：C# 规范、面向对象、面向接口、高内聚、低耦合、敏捷小步提交、Native AOT 友好
 
+历史文档状态标注（2026-07-05）：本文是历史执行计划，保留当时的迁移路径和旧机制名词。文中的 `experimental/Bukit.Labs.Protocol`、`site.externalPlugins`、`ExternalProtocolPluginSource`、`ProtocolEchoPlugin` 或 sample plugin 描述不代表当前实现；当前正式外部插件路径为 `Bukit.PluginHost` + `bukit-plugin-v1`，legacy Labs Protocol source、sample plugin、protocol echo fixture 已删除。
+
 0. 执行前强制要求：先阅读并深度理解插件文档
 
 Codex 在写任何代码前，必须先完整阅读并理解 docs/plugins 下的全部插件化文档。

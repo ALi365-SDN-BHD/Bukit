@@ -6,6 +6,8 @@
 
 审计约束：本报告只审计并生成文档，不修改插件系统代码，不删除代码，不调整配置，不运行会改变构建产物或执行插件的命令。
 
+历史文档状态标注（2026-07-05）：本文保留 2026-06-29 审计时的历史风险证据和旧机制名词。文中的 `experimental/Bukit.Labs.Protocol`、`site.externalPlugins`、`ExternalProtocolPluginSource`、`ProtocolEchoPlugin` 或 sample plugin 描述不代表当前实现；当前正式外部插件路径为 `Bukit.PluginHost` + `bukit-plugin-v1`，legacy Labs Protocol source、sample plugin、protocol echo fixture 已删除。
+
 ## 1. 审计目标
 
 本次审计回答以下问题：

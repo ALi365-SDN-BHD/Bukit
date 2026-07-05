@@ -5,6 +5,8 @@
 报告类型：只读审计报告文件  
 审计主题：Bukit Core 分层、正式外部插件协议边界、`Bukit.PluginHost`、`Bukit.Plugin.Abstractions`、遗留进程内扩展点和不需要继续保留的代码层。  
 
+历史文档状态标注（2026-07-05）：本文保留 2026-06-28 审计时的历史风险证据和旧机制名词。文中的 `experimental/Bukit.Labs.Protocol`、`site.externalPlugins`、`ExternalProtocolPluginSource`、`ProtocolEchoPlugin` 或 sample plugin 描述不代表当前实现；当前正式外部插件路径为 `Bukit.PluginHost` + `bukit-plugin-v1`，legacy Labs Protocol source、sample plugin、protocol echo fixture 已删除。
+
 ## 1. 用户要求逐项拆解
 
 本报告按以下明确要求审计，不把目标缩小为普通代码风格审查。

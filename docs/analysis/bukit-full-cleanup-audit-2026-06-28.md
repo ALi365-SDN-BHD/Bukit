@@ -4,6 +4,8 @@
 范围：`/Users/ali/mydev/Git/Github/Bukit` 全仓目录、源码、脚本、测试、门禁、文档、生成物和备份区。  
 方式：只读扫描与轻量门禁检查；本报告生成前未删除、移动或修改任何项目文件。  
 
+历史文档状态标注（2026-07-05）：本文保留 2026-06-28 审计时的历史路径和旧机制名词。文中的 `experimental/Bukit.Labs.Protocol`、`site.externalPlugins`、`ExternalProtocolPluginSource`、`ProtocolEchoPlugin` 或 sample plugin 描述不代表当前实现；当前正式外部插件路径为 `Bukit.PluginHost` + `bukit-plugin-v1`，legacy Labs Protocol source、sample plugin、protocol echo fixture 已删除。
+
 ## 1. 审计结论
 
 Bukit 当前主线是 Core 1.0：稳定 CLI、严格配置、Markdown/Notion 内容源、路由、主题、Scriban 渲染、内建插件、部署、报告和门禁脚本。仓库整体结构可继续支撑当前项目，但存在明显清理对象和边界噪音：

@@ -3,6 +3,8 @@
 日期：2026-06-08  
 来源计划书：[2026-06-07-bukit-1-0-ga-trust-plan.zh-CN.md](./2026-06-07-bukit-1-0-ga-trust-plan.zh-CN.md)
 
+历史文档状态标注（2026-07-05）：本文是历史执行计划，保留当时的迁移路径和旧机制名词。文中的 `experimental/Bukit.Labs.Protocol`、`site.externalPlugins`、`ExternalProtocolPluginSource`、`ProtocolEchoPlugin` 或 sample plugin 描述不代表当前实现；当前正式外部插件路径为 `Bukit.PluginHost` + `bukit-plugin-v1`，legacy Labs Protocol source、sample plugin、protocol echo fixture 已删除。
+
 ## 0. 执行定位
 
 Trae + DeepSeek V4 Pro 负责架构判断、跨模块实现、契约冻结、安全边界、release gate 和最终产品语义。它必须读完整计划书，并以 Bukit 1.0 全新项目为唯一目标面。
