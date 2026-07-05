@@ -206,11 +206,11 @@ Bukit 当前主线是 Core 1.0：稳定 CLI、严格配置、Markdown/Notion 内
 保留：
 
 - `experimental/Bukit.Labs.Cli`
-- `experimental/Bukit.Labs.Protocol`
-- `experimental/Bukit.Labs.Protocol.Tests`
 - `bukit.experimental.slnx`
 - `guide/labs`
 - `guide/labs-skills`
+
+当前补充（2026-07-05）：legacy Labs Protocol 已删除，不再属于保留实验区；对应 source、sample plugin、protocol echo fixture、solution 引用和 coverage filter 入口都已移除。
 
 理由：
 

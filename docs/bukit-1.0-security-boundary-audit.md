@@ -37,10 +37,11 @@
 ### Plugin
 
 - **边界入口**
-  - `src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs`
-  - `src/Bukit.Engine/Plugins/Protocol/ExternalProtocolPluginSource.cs`
-  - `src/Bukit.Engine/Plugins/Protocol/ProcessPluginInvoker.cs`
-  - `src/Bukit.Engine/Plugins/Protocol/ProtocolHandshakeNegotiator.cs`
+  - `src/Bukit-Core/Bukit.PluginHost/PluginManifestLoader.cs`
+  - `src/Bukit-Core/Bukit.PluginHost/PluginHashVerifier.cs`
+  - `src/Bukit-Core/Bukit.PluginHost/PluginProtocolClient.cs`
+  - `src/Bukit-Core/Bukit.PluginHost/PluginProcessInvoker.cs`
+  - `src/Bukit-Core/Bukit.PluginHost/PluginPermissionEvaluator.cs`
 - **已覆盖风险**
   - handshake 协议版本与 capabilities 必填检查；
   - plugin entry hash 校验（`sha256`）；
@@ -48,7 +49,7 @@
   - 超时与 stdout/stderr 限制，超限中断；
   - 结果码与错误封装转为 `ConfigException`。
 - **结论**
-  - **通过：** 插件执行链的关键边界均有拒绝和可观测行为，`security-regression` 已覆盖对应路径。
+  - **通过：** 插件执行链的关键边界均有拒绝和可观测行为，当前正式路径为 `Bukit.PluginHost` + `bukit-plugin-v1`，legacy Labs Protocol 已删除。
 
 ### Media / Download
 
@@ -90,9 +91,9 @@
 - [x] 远程/本地主题来源安全：由主题源解析链控制，未配置 `lock` 的构建路径不应作为默认信任入口。
 
 3. Plugin
-- [x] `capabilities` 与 `version` 边界：`PluginCapabilityEnforcer` 与 `ProtocolHandshakeNegotiator` 在无能力/旧协议时拒绝并产生日志。
-- [x] 运行时隔离边界：`ProcessPluginInvoker` 限制 env 白名单、超时、stdout/stderr 上限。
-- [x] 外部输入 hash/签名链：`ExternalProtocolPluginSource` 与执行层记录 plugin entry hash。
+- [x] `capabilities` 与 `protocol` 边界：`PluginManifestLoader` 与 `PluginProtocolClient` 在 manifest/handshake 不合规时拒绝。
+- [x] 运行时隔离边界：`PluginProcessInvoker` 限制进程调用、超时、stdout/stderr 上限。
+- [x] 外部输入 hash/签名链：`PluginHashVerifier`、`PluginCiPolicy`、lock/report 执行层记录 plugin entry hash。
 
 4. Media / URL
 - [x] URL 协议与私网边界：`SafeUrl` / `SsrfGuard` 拒绝私网与危险协议。

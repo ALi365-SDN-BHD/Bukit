@@ -72,15 +72,15 @@
 | 能力 | 1.0 等级 | 允许配置 | 拒绝行为 | 测试要求 |
 |------|----------|----------|----------|----------|
 | Built-in plugin lifecycle | `GA-locked` | 内建插件顺序/失败策略/输出归属冻结 | N/A | PluginRunner 测试 |
-| External process protocol plugin | `GA-limited` | 协议 v2、capability、env/output 边界稳定 | 无 capability rejected + BKT-0704 | ProtocolEchoPlugin 测试 |
-| Protocol handshake v2 | `GA-locked` | 仅 v2 | v1 rejected + BKT-0705 | ProtocolHandshakeNegotiator 测试 |
-| Plugin capabilities 声明 | `GA-locked` | 必填 | 缺失 rejected + BKT-0704 | PluginCapabilityEnforcer 测试 |
-| Plugin env isolation | `GA-locked` | 冻结 | N/A | ProcessPluginInvoker 测试 |
-| Plugin timeout | `GA-locked` | 冻结 | 超时 rejected + BKT-0702 | ProcessPluginInvoker 测试 |
-| Plugin stdout/stderr limits | `GA-locked` | 冻结 | 超限 rejected + BKT-0703 | ProcessPluginInvoker 测试 |
-| Plugin output traversal | `GA-locked` | 冻结 | 路径逃逸 rejected + BKT-0706 | ProcessPluginInvoker 测试 |
-| Plugin stale output cleanup | `GA-locked` | 冻结 | 清理失败 + BKT-0707 | ProcessPluginInvoker 测试 |
-| Plugin SHA256 校验 | `GA-locked` | 冻结 | 不匹配 rejected + BKT-0701 | ExternalProtocolPluginSource 测试 |
+| External process protocol plugin | `GA-limited` | `bukit-plugin-v1`、manifest capability、permission/output 边界稳定 | manifest/handshake 不合规 rejected | PluginHost + Echo plugin integration 测试 |
+| Protocol handshake v1 | `GA-locked` | 仅 `bukit-plugin-v1` | 非 v1 rejected | PluginProtocolClient 测试 |
+| Plugin capabilities 声明 | `GA-locked` | manifest 必填 | 缺失 rejected | PluginManifestLoader / PluginCommandManifestValidator 测试 |
+| Plugin env isolation | `GA-locked` | 冻结 | N/A | PluginProcessInvoker 测试 |
+| Plugin timeout | `GA-locked` | 冻结 | 超时 rejected | PluginProcessInvoker 测试 |
+| Plugin stdout/stderr limits | `GA-locked` | 冻结 | 超限 rejected | PluginProcessInvoker 测试 |
+| Plugin output traversal | `GA-locked` | 冻结 | 路径逃逸 rejected | PluginPermissionEvaluator 测试 |
+| Plugin stale output cleanup | `GA-locked` | 冻结 | 清理失败 rejected | PluginExecutionReporter / PluginHost 集成测试 |
+| Plugin SHA256 校验 | `GA-locked` | 冻结 | 不匹配 rejected | PluginHashVerifier / PluginCiPolicy 测试 |
 | Source-generated plugin SDK | `GA-limited` | 若对外暴露需独立版本说明 | N/A | PluginSourceGenerator 测试 |
 
 ### 构建与审计

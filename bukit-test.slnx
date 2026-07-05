@@ -9,7 +9,6 @@
     <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
     <Project Path="tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj" />
     <Project Path="tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj" />
-    <Project Path="tests/Bukit.Labs.Protocol.Tests/Fixtures/ProtocolEchoPlugin/ProtocolEchoPlugin.csproj" />
     <Project Path="tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj" />
     <Project Path="tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj" />
     <Project Path="tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj" />
