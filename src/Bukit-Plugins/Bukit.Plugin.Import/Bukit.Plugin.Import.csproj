@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Bukit-Core\Bukit.Plugin.Abstractions\Bukit.Plugin.Abstractions.csproj" />
+    <ProjectReference Include="..\Bukit.Importing\Bukit.Importing.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,5 @@
 using Bukit.Plugin.Abstractions.Manifest;
 using Bukit.Plugin.Abstractions.Protocol;
-using Bukit.Plugin.Abstractions.Security;
 
 namespace Bukit.Plugin.Import;
 
@@ -26,11 +25,6 @@ public static class ImportPluginManifestProvider
             RequestId: requestId,
             Success: true,
             Capabilities: ["cli-command"],
-            Commands:
-            [
-                new PluginCommandSpec(
-                    Name: "import",
-                    Description: "Import content into a Bukit site.")
-            ],
-            RequiredPermissions: new PluginPermissionSet());
+            Commands: ImportPluginCommandSpecs.CreateCommands(),
+            RequiredPermissions: ImportPluginCommandSpecs.CreateRequiredPermissions());
 }

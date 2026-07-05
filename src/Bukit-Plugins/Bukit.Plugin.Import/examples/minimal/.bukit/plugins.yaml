@@ -11,12 +11,16 @@ plugins:
         read:
           - .
         write:
+          - ./themes
+          - ./sites
           - ./content
           - ./data
           - ./docs/research
-      network: false
+          - .bukit/reports/plugin-output/import
+      network: true
       environment:
-        read: []
+        read:
+          - NOTION_TOKEN
     timeout:
       handshakeMs: 5000
       manifestMs: 5000

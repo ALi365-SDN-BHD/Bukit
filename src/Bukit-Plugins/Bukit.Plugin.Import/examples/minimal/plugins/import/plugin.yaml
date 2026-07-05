@@ -11,5 +11,125 @@ platforms:
 commands:
   - name: import
     description: Import content into a Bukit site.
+    subcommands:
+      - name: html-demo
+        description: Import an HTML demo into a Bukit theme and site.
+        arguments:
+          - name: demo-dir
+            description: HTML demo directory.
+            required: true
+        options:
+          - name: --config
+            type: string
+            description: Config file path.
+          - name: --site
+            type: string
+            description: Site config name.
+          - name: --theme
+            type: string
+            description: Theme name.
+            required: true
+          - name: --force
+            type: flag
+            description: Overwrite existing theme files.
+          - name: --use
+            type: flag
+            description: Set the imported theme as the active theme.
+          - name: --verify
+            type: flag
+            description: Build the imported site after import.
+          - name: --no-extract-content
+            type: flag
+            description: Disable content extraction.
+          - name: --no-seed
+            type: flag
+            description: Disable seed generation.
+          - name: --content-source
+            type: string
+            description: Generated content source type.
+          - name: --build-source
+            type: string
+            description: Build content source type.
+          - name: --site-path
+            type: string
+            description: Generated site path.
+          - name: --language
+            type: string
+            description: Content language.
+          - name: --dry-run
+            type: flag
+            description: Analyze without writing files.
+          - name: --strict
+            type: string
+            description: Strict mode.
+          - name: --overwrite
+            type: flag
+            description: Overwrite generated content files.
+          - name: --no-preserve-html
+            type: flag
+            description: Do not preserve source HTML.
+          - name: --no-report
+            type: flag
+            description: Do not write import report.
+          - name: --base-url
+            type: string
+            description: Base URL for generated site config.
+          - name: --route-map
+            type: string
+            description: Route map path.
+          - name: --push-notion
+            type: flag
+            description: Push generated seed data to Notion.
+          - name: --notion-database-id
+            type: string
+            description: Single Notion database id.
+          - name: --notion-database-map
+            type: string
+            description: Notion database map path.
+          - name: --create-missing-notion-databases
+            type: flag
+            description: Create missing Notion databases.
+          - name: --notion-parent-page-id
+            type: string
+            description: Parent page for created Notion databases.
+          - name: --notion-generated-database-map
+            type: string
+            description: Generated Notion database map path.
+          - name: --notion-token-env
+            type: string
+            description: Environment variable containing the Notion token.
+          - name: --notion-report
+            type: string
+            description: Notion push report path.
+          - name: --no-validate-notion-schema
+            type: flag
+            description: Disable Notion schema validation.
+      - name: seed
+        description: Convert import seed files into markdown content.
+        arguments:
+          - name: seed-dir
+            description: Seed directory.
+            required: true
+        options:
+          - name: --output
+            type: string
+            description: Content output directory.
+            required: true
+          - name: --force
+            type: flag
+            description: Overwrite existing markdown files.
 requiredPermissions:
-  network: false
+  fileSystem:
+    read:
+      - .
+    write:
+      - ./themes
+      - ./sites
+      - ./content
+      - ./data
+      - ./docs/research
+      - .bukit/reports/plugin-output/import
+  network: true
+  environment:
+    read:
+      - NOTION_TOKEN
