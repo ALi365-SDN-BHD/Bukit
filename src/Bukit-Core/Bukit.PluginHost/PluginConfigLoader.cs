@@ -8,6 +8,13 @@ namespace Bukit.PluginHost;
 
 public sealed class PluginConfigLoader : IPluginConfigLoader
 {
+    private readonly PluginRuntimeOnlyContext _runtimeOnlyContext;
+
+    public PluginConfigLoader(PluginRuntimeOnlyContext runtimeOnlyContext = PluginRuntimeOnlyContext.None)
+    {
+        _runtimeOnlyContext = runtimeOnlyContext;
+    }
+
     public async Task<PluginHostConfig> LoadAsync(string projectRoot, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(projectRoot))
@@ -83,7 +90,7 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
         return root;
     }
 
-    private static PluginConfigEntry ReadPluginEntry(YamlMappingNode node, string id)
+    private PluginConfigEntry ReadPluginEntry(YamlMappingNode node, string id)
     {
         bool enabled = PluginYaml.GetOptionalBool(node, "enabled") ?? false;
         string source = PluginYaml.GetRequiredString(node, "source", $"plugins.{id}.source");
@@ -95,6 +102,13 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
         {
             throw new ConfigException(
                 $"plugins.{id}.manifestPolicy must be static or runtime-only.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (manifestPolicy == "runtime-only" && _runtimeOnlyContext == PluginRuntimeOnlyContext.None)
+        {
+            throw new ConfigException(
+                $"plugins.{id}.manifestPolicy runtime-only is only allowed in development, Labs, or test contexts.",
                 DiagnosticCode.ConfigInvalidValue);
         }
 

@@ -54,7 +54,8 @@
         "manifestPolicy": {
           "type": "string",
           "enum": ["static", "runtime-only"],
-          "default": "static"
+          "default": "static",
+          "description": "Use static for normal plugin loading. runtime-only is accepted only when the host explicitly uses a development, Labs, or test runtime-only context."
         },
         "allowInCi": {
           "type": "boolean",

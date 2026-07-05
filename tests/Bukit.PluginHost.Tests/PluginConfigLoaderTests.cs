@@ -56,7 +56,7 @@ public sealed class PluginConfigLoaderTests
                       - BUKIT_TEST
             """);
 
-        var loader = new PluginConfigLoader();
+        var loader = new PluginConfigLoader(PluginRuntimeOnlyContext.Test);
 
         PluginHostConfig config = await loader.LoadAsync(directory.Path, CancellationToken.None);
 
@@ -80,6 +80,58 @@ public sealed class PluginConfigLoaderTests
         Assert.Equal(["content"], echo.Permissions.FileSystem.Read);
         Assert.Equal([".bukit/reports/plugin-output/echo"], echo.Permissions.FileSystem.Write);
         Assert.Equal(["BUKIT_TEST"], echo.Permissions.Environment.Read);
+    }
+
+    [Fact]
+    public async Task LoadAsync_RuntimeOnlyManifestPolicy_InDefaultContext_ThrowsConfigException()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                exposeCommands: []
+                manifestPolicy: runtime-only
+                permissions: {}
+            """);
+
+        var loader = new PluginConfigLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(directory.Path, CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("runtime-only is only allowed in development, Labs, or test contexts", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(PluginRuntimeOnlyContext.Development)]
+    [InlineData(PluginRuntimeOnlyContext.Labs)]
+    [InlineData(PluginRuntimeOnlyContext.Test)]
+    public async Task LoadAsync_RuntimeOnlyManifestPolicy_InPrivilegedContext_LoadsConfig(PluginRuntimeOnlyContext context)
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                exposeCommands: []
+                manifestPolicy: runtime-only
+                permissions: {}
+            """);
+
+        var loader = new PluginConfigLoader(context);
+
+        PluginHostConfig config = await loader.LoadAsync(directory.Path, CancellationToken.None);
+
+        PluginConfigEntry entry = Assert.Single(config.Plugins).Value;
+        Assert.Equal("runtime-only", entry.ManifestPolicy);
     }
 
     [Fact]

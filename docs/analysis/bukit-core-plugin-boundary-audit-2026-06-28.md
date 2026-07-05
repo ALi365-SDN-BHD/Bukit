@@ -760,6 +760,13 @@ Bukit.Cli
 - 更严格方案：新增环境变量或 config mode，只在 dev/Labs/test 场景允许 runtime-only。
 - 架构测试或 schema 测试继续保证 official examples 不使用 runtime-only。
 
+当前补充（2026-07-06）：
+
+- 已采用更严格方案：`PluginConfigLoader` 默认上下文拒绝 `manifestPolicy: runtime-only`。
+- 只有显式传入 `PluginRuntimeOnlyContext.Development`、`PluginRuntimeOnlyContext.Labs` 或 `PluginRuntimeOnlyContext.Test` 时才允许读取 `runtime-only`。
+- CLI 默认路径继续使用默认上下文，因此普通正式用户项目不能直接启用 `runtime-only`。
+- `docs/plugins/Bukit 插件配置规范.md` 已同步说明 runtime-only 只属于 development/Labs/test 特权上下文。
+
 ### F-06：架构测试未覆盖新插件边界
 
 证据：
@@ -986,7 +993,7 @@ Bukit.Cli
 2. `ISectionPlugin` 和 `SectionPluginRegistry` 仍暴露进程内扩展机制。
 3. Rendering/Theme 仍有 section plugin 接入链。
 4. `experimental/Bukit.Labs.Protocol` 原先保留旧 `site.externalPlugins` 模型；当前已删除，但历史文档中的旧名词仍需按 legacy/deprecated 解释。
-5. `manifestPolicy: runtime-only` 在 loader 层可用，需要继续限定在 dev/Labs/test 或用 official gate 禁止。
+5. `manifestPolicy: runtime-only` 已限定为 development/Labs/test 显式上下文；默认正式加载路径拒绝。
 6. `bukit.slnx` 同时包含 Core、Plugins、Labs tests，不是严格 Core-only 边界。
 7. 架构测试缺少 PluginHost、Plugin.Abstractions、official plugins 的硬引用边界。
 

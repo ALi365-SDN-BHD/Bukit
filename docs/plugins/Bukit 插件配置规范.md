@@ -336,9 +336,9 @@ plugins:
 | 值             | 说明 |
 | ------------- | ---- |
 | `static`      | 默认值。`plugin.yaml` 的 `commands` 必须非空，runtime manifest 不得声明超出 static manifest 的命令、参数、选项或子命令。 |
-| `runtime-only` | 仅用于开发、Labs、兼容或临时动态插件；允许 runtime manifest 作为命令来源。 |
+| `runtime-only` | 仅用于开发、Labs 或测试上下文；允许 runtime manifest 作为命令来源。普通正式插件加载路径默认拒绝该值。 |
 
-正式发布插件必须使用 `static`。`runtime-only` 不建议用于 Official Plugin，也不得作为正式发布插件的默认策略。
+正式发布插件必须使用 `static`。`runtime-only` 不建议用于 Official Plugin，也不得作为正式发布插件的默认策略。PluginHost 默认加载上下文会拒绝 `runtime-only`；只有调用方显式使用 development、Labs 或 test 上下文时才允许。
 
 ---
 
