@@ -184,4 +184,19 @@ public sealed class ThemeManifestLoaderTests : IDisposable
         var ex = Assert.Throws<ThemeManifestException>(() => ThemeManifestLoader.Load(_testDir));
         Assert.Contains("theme.yaml.templates.article.accepts.unknown_accept", ex.Message);
     }
+
+    [Fact]
+    public void Load_WithSectionPluginField_Throws()
+    {
+        File.WriteAllText(Path.Combine(_testDir, "theme.yaml"), """
+            name: test-theme
+            sections:
+              hero:
+                template: sections/hero.html
+                plugin: word-count
+            """);
+
+        var ex = Assert.Throws<ThemeManifestException>(() => ThemeManifestLoader.Load(_testDir));
+        Assert.Contains("theme.yaml.sections.hero.plugin", ex.Message, StringComparison.Ordinal);
+    }
 }

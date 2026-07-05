@@ -177,10 +177,12 @@ public class DependencyMatrixTests
     // ── InternalsVisibleTo guard ──────────────────────────────────
 
     [Fact]
-    public void InternalsVisibleTo_MustOnlyExposeTo_TestAssemblies()
+    public void InternalsVisibleTo_MustOnlyExposeTo_CoreInternalOrTestAssemblies()
     {
         var allowedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
+            "Bukit.Engine",
+            "Bukit.Rendering",
             "Bukit.Engine.Tests",
             "Bukit.Engine.Abstractions.Tests",
             "Bukit.Content.Tests",
@@ -215,6 +217,54 @@ public class DependencyMatrixTests
                     "which is not in the allowed whitelist.");
             }
         }
+    }
+
+    [Fact]
+    public void SectionPluginMechanism_MustRemainCoreInternal()
+    {
+        var typeNames = new[]
+        {
+            "Bukit.Engine.Abstractions.Plugins.SectionHook",
+            "Bukit.Engine.Abstractions.Plugins.SectionContext",
+            "Bukit.Engine.Abstractions.Plugins.ISectionPlugin",
+            "Bukit.Engine.Abstractions.Plugins.SectionPluginRegistry"
+        };
+
+        foreach (var typeName in typeNames)
+        {
+            var type = AbstractionsAssembly.GetType(typeName, throwOnError: true)!;
+            Assert.False(type.IsPublic, $"{typeName} must remain internal to Core assemblies.");
+        }
+    }
+
+    [Fact]
+    public void WordCountSectionPlugin_MustNotReferenceCoreSectionPluginAbstractions()
+    {
+        var projectText = File.ReadAllText(Path.Combine(
+            FindRepoRoot(),
+            "src",
+            "Bukit-Plugins",
+            "WordCountSectionPlugin",
+            "WordCountSectionPlugin.csproj"));
+
+        Assert.DoesNotContain("Bukit.Engine.Abstractions", projectText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Bukit-Core", projectText, StringComparison.Ordinal);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (dir is not null)
+        {
+            if (File.Exists(Path.Combine(dir, "bukit-core.slnx")))
+            {
+                return dir;
+            }
+
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+
+        throw new InvalidOperationException("Could not locate repository root.");
     }
 }
 

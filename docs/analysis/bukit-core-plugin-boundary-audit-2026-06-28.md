@@ -676,6 +676,12 @@ Bukit.Cli
 - 若有当前产品需求，必须改为 Core internal，不允许外部插件或第三方主题作者通过该机制注入代码。
 - 对外文档中不得把该机制描述为插件开发方式。
 
+当前补充（2026-07-05）：
+
+- 已采用 Core internal 方案：`ISectionPlugin`、`SectionPluginRegistry`、`SectionHook`、`SectionContext` 不再作为 public API 暴露，只通过受控 `InternalsVisibleTo` 给 Core 内部的 Engine/Rendering 使用。
+- `theme.yaml.sections.*.plugin` 不再是合法主题 manifest 字段，第三方主题作者不能通过 manifest 指定进程内插件名。
+- `WordCountSectionPlugin` 暂时保留，但已移除对 `Bukit.Engine.Abstractions` 的引用，不再实现或注册 Core 内部 section plugin 接口。
+
 ### F-03：`ITemplateContextContributor` 存在外部扩展语义
 
 证据：
@@ -781,6 +787,12 @@ Bukit.Cli
 - 将 `Bukit.Clone` 标注为 plugin-domain library，而不是 Core runtime。
 - 若拆 solution，把它移入 plugin/clone 相关 solution 或 tracked-only gate。
 - 不允许外部第三方插件默认引用它；它只应服务官方 Clone 插件迁移。
+
+当前补充（2026-07-05）：
+
+- 当前仓库已拆分为 `bukit-core.slnx`、`bukit-plugins.slnx`、`bukit-labs.slnx`、`bukit-test.slnx`，`Bukit.Clone` 已归入 plugin-domain solution，原始 `bukit.slnx` 混入 Core 的问题已不再是当前主要风险。
+- F-07 的剩余问题转为：`bukit-plugins.slnx` 仍包含 `WordCountSectionPlugin`，会继续混淆“正式外部插件”和“旧进程内插件”。
+- 当前处理策略：暂时保留，不在本轮 F-07 修复中移动或删除；后续按单项任务逐项处理旧式进程内插件残留。
 
 ## 11. 删除、保留、隔离清单
 
@@ -930,9 +942,9 @@ Bukit.Cli
 
 ### 第二阶段：删除或隔离旧式进程内插件残留
 
-1. 删除或迁移 `src/plugins/WordCountSectionPlugin`。
-2. 删除或 internal 化 `ISectionPlugin`、`SectionPluginRegistry`。
-3. 删除或 internal 化 `ThemeSectionDefinition.Plugin` 和渲染链 section plugin hook。
+1. `WordCountSectionPlugin` 暂时保留；后续作为单独任务决定删除、迁移到测试夹具，或改造为明确的 Core internal 能力。
+2. `ISectionPlugin`、`SectionPluginRegistry` 已 internal 化，并增加架构测试防止重新 public 暴露。
+3. `theme.yaml.sections.*.plugin` 已禁止；渲染链 section plugin hook 仅保留为 Core internal 路径，不允许第三方主题通过 manifest 注入。
 4. 清理或 deprecated `experimental/Bukit.Labs.Protocol`。
 
 ### 第三阶段：文档和技能对齐
