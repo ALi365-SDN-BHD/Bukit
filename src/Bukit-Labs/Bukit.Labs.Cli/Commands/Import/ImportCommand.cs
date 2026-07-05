@@ -1,10 +1,6 @@
 using Bukit.Cli.Shared;
 using Bukit.Cli.Shared.Cli.Binding;
-using Bukit.Config;
-using Bukit.Engine;
 using Bukit.Importing;
-using Bukit.Shared;
-using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Labs.Cli.Commands;
 
@@ -220,7 +216,7 @@ public static class ImportCommand
         {
             var resolved2 = ConfigPathResolver.Resolve(
                 command.GetString("--config"), command.GetString("--site"));
-            var useResult = await ThemeCommand.SetThemeAsync(themeName,
+            var useResult = await ImportThemeSelectionService.SetThemeAsync(themeName,
                 resolved2.FullConfigPath, resolved2.RootDir,
                 brand: null, primaryColor: null, accentColor: null);
             if (useResult != 0) return useResult;
@@ -229,159 +225,33 @@ public static class ImportCommand
 
         if (pushNotion)
         {
-            var pushResult = await PushGeneratedSeedToNotionAsync(
-                result,
-                rootDir,
-                themeName,
-                contentSource,
-                notionDatabaseId,
-                notionDatabaseMap,
-                createMissingNotionDatabases,
-                notionParentPageId,
-                notionGeneratedDatabaseMap,
-                notionTokenEnv,
-                notionReport,
-                validateNotionSchema);
+            var pushResult = await ImportNotionPushWorkflow.PushGeneratedSeedAsync(
+                new ImportGeneratedNotionPushOptions
+                {
+                    ImportResult = result,
+                    RootDir = rootDir,
+                    ThemeName = themeName,
+                    ContentSource = contentSource,
+                    DatabaseId = notionDatabaseId,
+                    DatabaseMap = notionDatabaseMap,
+                    CreateMissingDatabases = createMissingNotionDatabases,
+                    ParentPageId = notionParentPageId,
+                    GeneratedDatabaseMap = notionGeneratedDatabaseMap,
+                    TokenEnv = notionTokenEnv,
+                    ReportPath = notionReport,
+                    ValidateSchema = validateNotionSchema,
+                    DryRun = dryRun,
+                    GenerateSeed = generateSeed
+                });
             if (pushResult != 0) return pushResult;
         }
 
         if (verify)
         {
-            var verifyResult = await VerifyImportAsync(result, rootDir, themeName);
+            var verifyResult = await ImportVerifyWorkflow.VerifyAsync(result, rootDir, themeName);
             if (verifyResult != 0) return verifyResult;
         }
 
-        return 0;
-    }
-
-    private static async Task<int> PushGeneratedSeedToNotionAsync(
-        ImportResult result,
-        string rootDir,
-        string themeName,
-        string contentSource,
-        string? databaseId,
-        string? databaseMap,
-        bool createMissingDatabases,
-        string? parentPageId,
-        string? generatedDatabaseMap,
-        string tokenEnv,
-        string? reportPath,
-        bool validateSchema)
-    {
-        var siteDir = string.IsNullOrWhiteSpace(result.SitePath)
-            ? Path.Combine(rootDir, "sites", themeName)
-            : result.SitePath;
-
-        var seedDir = contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase)
-            ? Path.Combine(siteDir, "notion-seed")
-            : Path.Combine(siteDir, "data");
-        var effectiveDatabaseMap = databaseMap;
-        if (string.IsNullOrWhiteSpace(databaseId) &&
-            string.IsNullOrWhiteSpace(effectiveDatabaseMap) &&
-            contentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
-        {
-            var defaultMap = Path.Combine(seedDir, "notion-database-map.yaml");
-            if (File.Exists(defaultMap))
-                effectiveDatabaseMap = defaultMap;
-        }
-
-        var options = new Dictionary<string, string?>
-        {
-            ["--input"] = seedDir,
-            ["--token-env"] = tokenEnv,
-            ["--mode"] = "upsert",
-            ["--unique-field"] = "Slug",
-            ["--update-content"] = "replace"
-        };
-        if (!string.IsNullOrWhiteSpace(databaseId))
-            options["--database-id"] = databaseId;
-        if (!string.IsNullOrWhiteSpace(effectiveDatabaseMap))
-        {
-            options["--database-map"] = Path.IsPathRooted(effectiveDatabaseMap)
-                ? effectiveDatabaseMap
-                : Path.Combine(siteDir, effectiveDatabaseMap);
-            if (!createMissingDatabases && DatabaseMapHasMissingDatabaseIds(options["--database-map"]!, seedDir))
-            {
-                Console.Error.WriteLine("Notion database map exists but one or more databaseId values are empty.");
-                Console.Error.WriteLine("Use --create-missing-notion-databases --notion-parent-page-id <id>, or fill databaseId in the map.");
-                return 2;
-            }
-        }
-        if (createMissingDatabases)
-        {
-            options["--create-missing-databases"] = "true";
-            options["--parent-page-id"] = parentPageId;
-        }
-        if (!string.IsNullOrWhiteSpace(generatedDatabaseMap))
-            options["--generated-database-map"] = Path.IsPathRooted(generatedDatabaseMap)
-                ? generatedDatabaseMap
-                : Path.Combine(siteDir, generatedDatabaseMap);
-        if (!validateSchema)
-            options["--no-validate-schema"] = "true";
-        if (!string.IsNullOrWhiteSpace(reportPath))
-            options["--report"] = Path.IsPathRooted(reportPath)
-                ? reportPath
-                : Path.Combine(siteDir, reportPath);
-
-        return await NotionCommand.RunAsync(new CliBoundCommand(options, ["push"]));
-    }
-
-    private static bool DatabaseMapHasMissingDatabaseIds(string databaseMapPath, string seedDir)
-    {
-        if (!File.Exists(databaseMapPath))
-            return false;
-
-        var stream = new YamlStream();
-        using var reader = File.OpenText(databaseMapPath);
-        stream.Load(reader);
-        if (stream.Documents.Count == 0 ||
-            stream.Documents[0].RootNode is not YamlMappingNode root ||
-            root.Children.FirstOrDefault(kv =>
-                kv.Key is YamlScalarNode scalar && scalar.Value == "databases").Value is not YamlMappingNode databases)
-            return false;
-
-        foreach (var kv in databases.Children)
-        {
-            if (kv.Key is not YamlScalarNode key ||
-                string.IsNullOrWhiteSpace(key.Value) ||
-                kv.Value is not YamlMappingNode database)
-                continue;
-            var seed = database.Children.FirstOrDefault(entry =>
-                entry.Key is YamlScalarNode scalar && scalar.Value == "seed").Value is YamlScalarNode seedNode
-                ? seedNode.Value
-                : $"{key.Value.Trim()}.json";
-            if (string.IsNullOrWhiteSpace(seed) || !File.Exists(Path.Combine(seedDir, seed)))
-                continue;
-            var id = database.Children.FirstOrDefault(entry =>
-                entry.Key is YamlScalarNode scalar && scalar.Value == "databaseId").Value as YamlScalarNode;
-            if (string.IsNullOrWhiteSpace(id?.Value))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static async Task<int> VerifyImportAsync(ImportResult result, string rootDir, string themeName)
-    {
-        var siteDir = string.IsNullOrWhiteSpace(result.SitePath)
-            ? Path.Combine(rootDir, "sites", themeName)
-            : result.SitePath;
-        var siteConfig = Path.Combine(siteDir, "site.yaml");
-
-        var resolved = ConfigPathResolver.Resolve(siteConfig, site: null);
-        var config = ConfigLoader.Load(resolved.FullConfigPath);
-        try
-        {
-            ConfigValidator.Validate(config);
-        }
-        catch (ConfigException ex)
-        {
-            Console.Error.WriteLine(ex.Message);
-            return 1;
-        }
-
-        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Warn));
-        await engine.BuildAsync(config, resolved.RootDir, new ConfigOverrides { IsCI = true });
         return 0;
     }
 
