@@ -5,18 +5,26 @@ namespace Bukit.Plugin.Import;
 
 public static class ImportPluginInvoker
 {
-    public static PluginInvokeResponse InvokeNotImplemented(string requestId)
-        => new(
-            Type: "invokeResponse",
-            Protocol: PluginProtocolConstants.ProtocolVersion,
-            RequestId: requestId,
-            Success: false,
-            ExitCode: 1,
-            Diagnostics:
-            [
-                new PluginDiagnostic(
-                    Code: "plugin.import.notImplemented",
-                    Severity: "info",
-                    Message: "Import plugin skeleton is present. Business logic migration is intentionally not implemented in this phase.")
-            ]);
+    public static async Task<PluginInvokeResponse> InvokeAsync(PluginInvokeRequest request)
+    {
+        try
+        {
+            var options = ImportPluginOptionsMapper.Map(request);
+            var capture = await ImportPluginConsoleCapture.CaptureAsync(() =>
+                Importing.ImportCommandWorkflow.RunAsync(options));
+
+            if (capture.Exception is not null)
+                return ImportPluginResponseMapper.FromException(request, capture.Exception);
+
+            return ImportPluginResponseMapper.FromResult(request, capture.Result!, capture);
+        }
+        catch (ImportPluginOptionsException ex)
+        {
+            return ImportPluginResponseMapper.FromOptionsException(request, ex);
+        }
+        catch (Exception ex)
+        {
+            return ImportPluginResponseMapper.FromException(request, ex);
+        }
+    }
 }

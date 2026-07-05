@@ -8,6 +8,9 @@ namespace Bukit.Plugin.Import;
 public static class ImportPluginApp
 {
     public static string Handle(string input)
+        => HandleAsync(input).GetAwaiter().GetResult();
+
+    public static async Task<string> HandleAsync(string input)
     {
         using JsonDocument document = JsonDocument.Parse(input);
         JsonElement root = document.RootElement;
@@ -22,7 +25,7 @@ public static class ImportPluginApp
         {
             PluginProtocolConstants.Handshake => Serialize(ImportPluginManifestProvider.CreateHandshakeResponse(requestId, ReadHostPlatform(root))),
             PluginProtocolConstants.Manifest => Serialize(ImportPluginManifestProvider.CreateManifestResponse(requestId)),
-            PluginProtocolConstants.Invoke => Serialize(ImportPluginInvoker.InvokeNotImplemented(requestId)),
+            PluginProtocolConstants.Invoke => Serialize(await ImportPluginInvoker.InvokeAsync(DeserializeInvoke(input))),
             _ => Serialize(new PluginResponseEnvelope(
                 Type: "errorResponse",
                 Protocol: PluginProtocolConstants.ProtocolVersion,
@@ -49,4 +52,8 @@ public static class ImportPluginApp
 
     private static string Serialize(PluginResponseEnvelope response)
         => JsonSerializer.Serialize(response, PluginJsonSerializerContext.Default.PluginResponseEnvelope);
+
+    private static PluginInvokeRequest DeserializeInvoke(string input)
+        => JsonSerializer.Deserialize(input, PluginJsonSerializerContext.Default.PluginInvokeRequest)
+           ?? throw new JsonException("Invoke request was null.");
 }

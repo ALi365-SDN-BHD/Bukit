@@ -1,6 +1,6 @@
 using Bukit.Plugin.Import;
 
 string input = await Console.In.ReadToEndAsync();
-Console.Error.WriteLine("bukit-plugin-import skeleton invoked");
-Console.Out.Write(ImportPluginApp.Handle(input));
+Console.Error.WriteLine("bukit-plugin-import invoked");
+Console.Out.Write(await ImportPluginApp.HandleAsync(input));
 return 0;
