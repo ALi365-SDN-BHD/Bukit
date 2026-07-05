@@ -1,7 +1,6 @@
-using Bukit.Labs.Cli.Commands;
 using Xunit;
 
-namespace Bukit.Labs.Cli.Tests;
+namespace Bukit.Importing.Tests;
 
 public sealed class ImportSeedContentWriterTests : IDisposable
 {
@@ -9,7 +8,7 @@ public sealed class ImportSeedContentWriterTests : IDisposable
 
     public ImportSeedContentWriterTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), "bukit-labs-import-seed-writer-" + Guid.NewGuid().ToString("N"));
+        _tempDir = Path.Combine(Path.GetTempPath(), "bukit-importing-seed-writer-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -34,10 +33,11 @@ public sealed class ImportSeedContentWriterTests : IDisposable
 
         var written = ImportSeedContentWriter.WriteMarkdown(_tempDir, [record], overwrite: false);
 
-        Assert.Equal(1, written);
+        Assert.Single(written);
 
         var path = Path.Combine(_tempDir, "posts", "hello-labs.md");
         Assert.True(File.Exists(path));
+        Assert.Equal(path, Assert.Single(written));
 
         var markdown = File.ReadAllText(path);
         Assert.Contains("slug: \"hello-labs\"", markdown, StringComparison.Ordinal);
@@ -63,8 +63,8 @@ public sealed class ImportSeedContentWriterTests : IDisposable
                 ["tagline"] = "Fast \\ \"safe\""
             });
 
-        Assert.Equal(1, ImportSeedContentWriter.WriteMarkdown(_tempDir, [record], overwrite: false));
-        Assert.Equal(0, ImportSeedContentWriter.WriteMarkdown(_tempDir, [record with { Content = "Body v2" }], overwrite: false));
+        Assert.Single(ImportSeedContentWriter.WriteMarkdown(_tempDir, [record], overwrite: false));
+        Assert.Empty(ImportSeedContentWriter.WriteMarkdown(_tempDir, [record with { Content = "Body v2" }], overwrite: false));
 
         var markdown = File.ReadAllText(Path.Combine(_tempDir, "services", "migration.md"));
         Assert.Contains("featured: true", markdown, StringComparison.Ordinal);

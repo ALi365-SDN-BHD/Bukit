@@ -1,7 +1,6 @@
-using Bukit.Labs.Cli.Commands;
 using Xunit;
 
-namespace Bukit.Labs.Cli.Tests;
+namespace Bukit.Importing.Tests;
 
 public sealed class ImportSeedRecordReaderTests : IDisposable
 {
@@ -9,7 +8,7 @@ public sealed class ImportSeedRecordReaderTests : IDisposable
 
     public ImportSeedRecordReaderTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), "bukit-labs-import-seed-reader-" + Guid.NewGuid().ToString("N"));
+        _tempDir = Path.Combine(Path.GetTempPath(), "bukit-importing-seed-reader-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }
 

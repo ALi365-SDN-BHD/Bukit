@@ -45,10 +45,17 @@ public static class ImportCommand
         }
 
         var outputDir = Path.GetFullPath(output);
-        var records = ImportSeedRecordReader.ReadDirectory(inputDir);
-        var written = ImportSeedContentWriter.WriteMarkdown(outputDir, records, command.GetBool("--force"));
-        Console.WriteLine($"seed import 完成: records={records.Count} written={written} output={outputDir}");
-        return Task.FromResult(0);
+        try
+        {
+            var result = ImportSeedService.Import(inputDir, outputDir, command.GetBool("--force"));
+            Console.WriteLine($"seed import 完成: records={result.RecordsRead} written={result.FilesWritten} output={result.OutputDir}");
+            return Task.FromResult(0);
+        }
+        catch (ImportException ex) when (ex.Kind == ImportErrorKind.UserInput)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return Task.FromResult(2);
+        }
     }
 
     private static async Task<int> HtmlDemoAsync(CliBoundCommand command)

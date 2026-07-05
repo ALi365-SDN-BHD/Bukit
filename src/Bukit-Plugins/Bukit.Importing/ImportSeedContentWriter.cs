@@ -1,14 +1,17 @@
 using System.Text;
 using Bukit.Shared;
 
-namespace Bukit.Labs.Cli.Commands;
+namespace Bukit.Importing;
 
-internal static class ImportSeedContentWriter
+public static class ImportSeedContentWriter
 {
-    internal static int WriteMarkdown(string outputDir, IReadOnlyList<ImportSeedRecord> records, bool overwrite)
+    public static IReadOnlyList<string> WriteMarkdown(
+        string outputDir,
+        IReadOnlyList<ImportSeedRecord> records,
+        bool overwrite)
     {
         Directory.CreateDirectory(outputDir);
-        var written = 0;
+        var written = new List<string>();
 
         foreach (var record in records)
         {
@@ -18,7 +21,7 @@ internal static class ImportSeedContentWriter
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, BuildMarkdown(record, slug));
-            written++;
+            written.Add(path);
         }
 
         return written;

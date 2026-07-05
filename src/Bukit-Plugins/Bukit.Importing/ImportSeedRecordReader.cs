@@ -1,23 +1,11 @@
 using System.Text.Json;
 using YamlDotNet.RepresentationModel;
 
-namespace Bukit.Labs.Cli.Commands;
+namespace Bukit.Importing;
 
-internal sealed record ImportSeedRecord(
-    string Collection,
-    string Title,
-    string Slug,
-    string? Summary,
-    string? Content,
-    string? Language,
-    bool Published,
-    string? SeoTitle,
-    string? SeoDescription,
-    IReadOnlyDictionary<string, object?>? ExtraFields = null);
-
-internal static class ImportSeedRecordReader
+public static class ImportSeedRecordReader
 {
-    internal static readonly (string FileBase, string Collection)[] KnownFiles =
+    public static readonly (string FileBase, string Collection)[] KnownFiles =
     [
         ("pages", "page"),
         ("navigation", "navigation"),
@@ -26,7 +14,7 @@ internal static class ImportSeedRecordReader
         ("services", "service")
     ];
 
-    internal static List<ImportSeedRecord> ReadDirectory(string inputDir)
+    public static List<ImportSeedRecord> ReadDirectory(string inputDir)
     {
         var records = new List<ImportSeedRecord>();
         foreach (var (fileBase, collection) in KnownFiles)
@@ -47,7 +35,7 @@ internal static class ImportSeedRecordReader
         return records;
     }
 
-    internal static List<ImportSeedRecord> ReadSeedFile(string inputDir, string seedFile, string collection)
+    public static List<ImportSeedRecord> ReadSeedFile(string inputDir, string seedFile, string collection)
     {
         var path = Path.Combine(inputDir, seedFile);
         if (!File.Exists(path)) return [];
