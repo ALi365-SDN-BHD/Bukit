@@ -103,14 +103,14 @@ Import Report 生成
 
 ## 2.3 当前耦合问题
 
-当前 Labs Import 命令仍存在较多 CLI / Labs / Core 内部耦合。
+迁移前 Labs Import 命令存在较多 CLI / Labs / Core 内部耦合。
 
 主要问题：
 
 ```text
 ImportCommand 直接处理大量参数解析
 ImportCommand 直接调用 ThemeCommand
-ImportCommand 直接调用 NotionCommand
+ImportCommand 直接调用 NotionCommand（已迁入 Import 插件内部 workflow）
 ImportCommand 直接调用 ConfigLoader / ConfigValidator
 ImportCommand 直接调用 SiteEngine.BuildAsync
 ImportCommand 输出直接使用 Console
@@ -926,23 +926,23 @@ core.theme.set
 
 ## 12.4 `--push-notion` 处理策略
 
-当前 `--push-notion` 直接调用 NotionCommand。
+当前 `--push-notion` 由 Import 插件内部 workflow 处理，不再调用 Labs NotionCommand。
 
-迁移后建议：
+已采用方案：
 
 ### 第一阶段
 
-保留在 Import 插件内部，但改为 Import 插件内部服务，不再调用 Labs NotionCommand。
+保留在 Import 插件内部，作为 `import html-demo --push-notion` 和 `notion push` 共用的 Importing workflow。
 
 ### 第二阶段
 
-拆为独立 Notion Plugin：
+历史备选方案是拆为独立 Notion Plugin：
 
 ```text
 Bukit.Plugin.Notion
 ```
 
-Import 插件只生成 seed 和 artifacts，不直接 push Notion。
+当前决策是不创建独立 Notion Plugin；Notion push 与 import 视为同一 Import 插件能力。
 
 ### 推荐长期方案
 
@@ -1473,8 +1473,8 @@ import 命令提示 disabled
 解决：
 
 ```text
-短期：保留内部实现但不依赖 Labs NotionCommand
-长期：拆为 Bukit.Plugin.Notion
+当前：保留 Import 插件内部实现但不依赖 Labs NotionCommand
+历史备选：拆为 Bukit.Plugin.Notion
 ```
 
 ---

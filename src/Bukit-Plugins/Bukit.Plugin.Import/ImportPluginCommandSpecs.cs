@@ -73,6 +73,40 @@ public static class ImportPluginCommandSpecs
                             StringOption("--output", "Content output directory.", required: true),
                             FlagOption("--force", "Overwrite existing markdown files.")
                         ])
+                ]),
+            new PluginCommandSpec(
+                Name: "notion",
+                Description: "Push import seed data to Notion and validate database schema.",
+                Subcommands:
+                [
+                    new PluginCommandSpec(
+                        Name: "push",
+                        Description: "Push Notion seed records into one or more Notion databases.",
+                        Options:
+                        [
+                            StringOption("--input", "Seed directory."),
+                            StringOption("--database-id", "Single Notion database id."),
+                            StringOption("--database-map", "Notion database map path."),
+                            FlagOption("--create-missing-databases", "Create missing Notion databases."),
+                            StringOption("--parent-page-id", "Parent page for created Notion databases."),
+                            StringOption("--generated-database-map", "Generated Notion database map path."),
+                            StringOption("--token-env", "Environment variable containing the Notion token."),
+                            StringOption("--mode", "Push mode: create or upsert."),
+                            StringOption("--unique-field", "Property used to match records during upsert."),
+                            StringOption("--update-content", "Content update mode: append or replace."),
+                            FlagOption("--dry-run", "Generate a local review plan without calling Notion."),
+                            StringOption("--report", "Notion push report path."),
+                            FlagOption("--no-validate-schema", "Disable Notion schema validation.")
+                        ]),
+                    new PluginCommandSpec(
+                        Name: "validate-schema",
+                        Description: "Validate that a Notion database contains the seed push schema.",
+                        Options:
+                        [
+                            StringOption("--database-id", "Notion database id."),
+                            StringOption("--token-env", "Environment variable containing the Notion token."),
+                            StringOption("--report", "Schema validation report path.")
+                        ])
                 ])
         ];
 

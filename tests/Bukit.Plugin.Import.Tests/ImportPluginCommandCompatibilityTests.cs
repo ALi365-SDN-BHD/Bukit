@@ -39,11 +39,32 @@ public sealed class ImportPluginCommandCompatibilityTests
 
     private static readonly string[] SeedOptions = ["--output", "--force"];
 
+    private static readonly string[] NotionPushOptions =
+    [
+        "--input",
+        "--database-id",
+        "--database-map",
+        "--create-missing-databases",
+        "--parent-page-id",
+        "--generated-database-map",
+        "--token-env",
+        "--mode",
+        "--unique-field",
+        "--update-content",
+        "--dry-run",
+        "--report",
+        "--no-validate-schema"
+    ];
+
+    private static readonly string[] NotionValidateSchemaOptions = ["--database-id", "--token-env", "--report"];
+
     [Fact]
-    public void Manifest_DeclaresFullCurrentImportCommandSurface()
+    public void Manifest_DeclaresFullCurrentImportAndNotionCommandSurface()
     {
         var response = ImportPluginManifestProvider.CreateManifestResponse("req-compat");
-        var import = Assert.Single(response.Commands);
+        Assert.Equal(["import", "notion"], response.Commands.Select(command => command.Name).OrderBy(name => name, StringComparer.Ordinal));
+
+        var import = Assert.Single(response.Commands, command => command.Name == "import");
         Assert.Equal("import", import.Name);
 
         var htmlDemo = Assert.Single(import.Subcommands, command => command.Name == "html-demo");
@@ -57,6 +78,17 @@ public sealed class ImportPluginCommandCompatibilityTests
         Assert.Equal(
             SeedOptions.OrderBy(value => value, StringComparer.Ordinal),
             seed.Options.Select(option => option.Name).OrderBy(value => value, StringComparer.Ordinal));
+
+        var notion = Assert.Single(response.Commands, command => command.Name == "notion");
+        var push = Assert.Single(notion.Subcommands, command => command.Name == "push");
+        Assert.Equal(
+            NotionPushOptions.OrderBy(value => value, StringComparer.Ordinal),
+            push.Options.Select(option => option.Name).OrderBy(value => value, StringComparer.Ordinal));
+
+        var validateSchema = Assert.Single(notion.Subcommands, command => command.Name == "validate-schema");
+        Assert.Equal(
+            NotionValidateSchemaOptions.OrderBy(value => value, StringComparer.Ordinal),
+            validateSchema.Options.Select(option => option.Name).OrderBy(value => value, StringComparer.Ordinal));
     }
 
     [Fact]

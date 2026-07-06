@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bukit.Importing;
 using Bukit.Plugin.Abstractions.Protocol;
 using Bukit.Plugin.Abstractions.Runtime;
 using Bukit.Plugin.Abstractions.Security;
@@ -102,6 +103,88 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
         var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.Map(request));
 
         Assert.Equal("plugin.import.pathDenied", ex.Code);
+    }
+
+    [Fact]
+    public void MapInvocation_NotionPush_PreservesLabsCompatibleOptions()
+    {
+        var request = Request(
+            path: ["notion", "push"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--input"] = Json("seed"),
+                ["--database-id"] = Json("db-single"),
+                ["--database-map"] = Json("maps/notion.yaml"),
+                ["--create-missing-databases"] = Json(true),
+                ["--parent-page-id"] = Json("parent"),
+                ["--generated-database-map"] = Json("maps/generated.yaml"),
+                ["--mode"] = Json("upsert"),
+                ["--unique-field"] = Json("Slug"),
+                ["--update-content"] = Json("replace"),
+                ["--dry-run"] = Json(true),
+                ["--report"] = Json("reports/notion.json"),
+                ["--no-validate-schema"] = Json(true)
+            });
+
+        var invocation = ImportPluginOptionsMapper.MapInvocation(request);
+
+        Assert.Equal(ImportPluginInvocationKind.NotionPush, invocation.Kind);
+        var options = Assert.IsType<ImportNotionSeedPushOptions>(invocation.NotionPushOptions);
+        Assert.Equal(Path.Combine(_rootDir, "seed"), options.InputDir);
+        Assert.Equal("db-single", options.DatabaseId);
+        Assert.Equal(Path.Combine(_rootDir, "maps", "notion.yaml"), options.DatabaseMapPath);
+        Assert.True(options.CreateMissingDatabases);
+        Assert.Equal("parent", options.ParentPageId);
+        Assert.Equal(Path.Combine(_rootDir, "maps", "generated.yaml"), options.GeneratedDatabaseMapPath);
+        Assert.Equal("upsert", options.Mode);
+        Assert.Equal("Slug", options.UniqueField);
+        Assert.Equal("replace", options.UpdateContent);
+        Assert.True(options.DryRun);
+        Assert.Equal(Path.Combine(_rootDir, "reports", "notion.json"), options.ReportPath);
+        Assert.False(options.ValidateSchema);
+    }
+
+    [Fact]
+    public void MapInvocation_NotionPushRejectsCustomTokenEnvWithoutGrant()
+    {
+        var request = Request(
+            path: ["notion", "push"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--input"] = Json("seed"),
+                ["--dry-run"] = Json(true),
+                ["--token-env"] = Json("CUSTOM_TOKEN")
+            },
+            permissions: new PluginPermissionSet(Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"])));
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.MapInvocation(request));
+
+        Assert.Equal("plugin.import.envDenied", ex.Code);
+    }
+
+    [Fact]
+    public void MapInvocation_NotionValidateSchema_PreservesLabsCompatibleOptions()
+    {
+        var request = Request(
+            path: ["notion", "validate-schema"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--database-id"] = Json("db-schema"),
+                ["--token-env"] = Json("CUSTOM_TOKEN"),
+                ["--report"] = Json("reports/schema.json")
+            },
+            permissions: new PluginPermissionSet(Environment: new PluginEnvironmentPermission(Read: ["CUSTOM_TOKEN"])));
+
+        var invocation = ImportPluginOptionsMapper.MapInvocation(request);
+
+        Assert.Equal(ImportPluginInvocationKind.NotionValidateSchema, invocation.Kind);
+        var options = Assert.IsType<ImportNotionSchemaValidationOptions>(invocation.SchemaValidationOptions);
+        Assert.Equal("db-schema", options.DatabaseId);
+        Assert.Equal("CUSTOM_TOKEN", options.TokenEnv);
+        Assert.Equal(Path.Combine(_rootDir, "reports", "schema.json"), options.ReportPath);
     }
 
     private PluginInvokeRequest Request(

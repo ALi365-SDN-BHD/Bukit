@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Bukit.Importing.Tests" />
+    <InternalsVisibleTo Include="Bukit.Plugin.Import.Tests" />
   </ItemGroup>
 
   <ItemGroup>

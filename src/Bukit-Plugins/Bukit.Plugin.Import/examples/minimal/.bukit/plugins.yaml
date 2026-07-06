@@ -6,6 +6,7 @@ plugins:
     source: plugins/import
     exposeCommands:
       - import
+      - notion
     permissions:
       fileSystem:
         read:

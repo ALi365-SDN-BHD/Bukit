@@ -21,46 +21,6 @@ public sealed class NotionAndWebhookCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task Notion_RunAsync_UnknownSubcommand_ReturnsTwo()
-    {
-        var result = await CommandTestSupport.CaptureAsync(() =>
-            NotionCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>(), ["mystery"])));
-
-        Assert.Equal(2, result.ExitCode);
-        Assert.Contains("未知的 notion 子命令: mystery", result.StdErr, StringComparison.Ordinal);
-        Assert.Contains("可用: push, validate-schema", result.StdErr, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Notion_RunAsync_PushWithoutInput_ReturnsTwo()
-    {
-        var result = await CommandTestSupport.CaptureAsync(() =>
-            NotionCommand.RunAsync(new CliBoundCommand(new Dictionary<string, string?>(), ["push"])));
-
-        Assert.Equal(2, result.ExitCode);
-        Assert.Contains("缺少必填选项: --input <seed-dir>", result.StdErr, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Notion_RunAsync_PushWithUnsupportedMode_ReturnsTwo()
-    {
-        var inputDir = Path.Combine(_rootDir, "seed");
-        Directory.CreateDirectory(inputDir);
-
-        var result = await CommandTestSupport.CaptureAsync(() =>
-            NotionCommand.RunAsync(new CliBoundCommand(
-                new Dictionary<string, string?>
-                {
-                    ["--input"] = inputDir,
-                    ["--mode"] = "replace"
-                },
-                ["push"])));
-
-        Assert.Equal(2, result.ExitCode);
-        Assert.Contains("不支持的推送模式: replace", result.StdErr, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task Webhook_RunAsync_Help_ReturnsZero()
     {
         var result = await CommandTestSupport.CaptureAsync(() =>

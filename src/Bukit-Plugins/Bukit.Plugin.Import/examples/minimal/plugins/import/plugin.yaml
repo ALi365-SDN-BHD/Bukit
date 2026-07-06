@@ -118,6 +118,63 @@ commands:
           - name: --force
             type: flag
             description: Overwrite existing markdown files.
+  - name: notion
+    description: Push import seed data to Notion and validate database schema.
+    subcommands:
+      - name: push
+        description: Push Notion seed records into one or more Notion databases.
+        options:
+          - name: --input
+            type: string
+            description: Seed directory.
+          - name: --database-id
+            type: string
+            description: Single Notion database id.
+          - name: --database-map
+            type: string
+            description: Notion database map path.
+          - name: --create-missing-databases
+            type: flag
+            description: Create missing Notion databases.
+          - name: --parent-page-id
+            type: string
+            description: Parent page for created Notion databases.
+          - name: --generated-database-map
+            type: string
+            description: Generated Notion database map path.
+          - name: --token-env
+            type: string
+            description: Environment variable containing the Notion token.
+          - name: --mode
+            type: string
+            description: "Push mode: create or upsert."
+          - name: --unique-field
+            type: string
+            description: Property used to match records during upsert.
+          - name: --update-content
+            type: string
+            description: "Content update mode: append or replace."
+          - name: --dry-run
+            type: flag
+            description: Generate a local review plan without calling Notion.
+          - name: --report
+            type: string
+            description: Notion push report path.
+          - name: --no-validate-schema
+            type: flag
+            description: Disable Notion schema validation.
+      - name: validate-schema
+        description: Validate that a Notion database contains the seed push schema.
+        options:
+          - name: --database-id
+            type: string
+            description: Notion database id.
+          - name: --token-env
+            type: string
+            description: Environment variable containing the Notion token.
+          - name: --report
+            type: string
+            description: Schema validation report path.
 requiredPermissions:
   fileSystem:
     read:

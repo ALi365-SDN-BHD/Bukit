@@ -14,9 +14,7 @@ try
 {
     return command.ToLowerInvariant() switch
     {
-        "import" => await ImportCommand.RunAsync(BindPermissive(commandArgs)),
         "clone" => await CloneCommand.RunAsync(BindPermissive(commandArgs)),
-        "notion" => await NotionCommand.RunAsync(BindPermissive(commandArgs)),
         "intent" => await IntentCommand.RunAsync(BindPermissive(commandArgs)),
         "visual" => await VisualCommand.RunAsync(BindPermissive(commandArgs)),
         "webhook" => await WebhookCommand.RunAsync(BindPermissive(commandArgs)),
@@ -78,9 +76,7 @@ static void PrintHelp()
     Console.WriteLine("Usage: bukit-labs <command> [options]");
     Console.WriteLine();
     Console.WriteLine("Commands:");
-    Console.WriteLine("  import       HTML demo and seed import workflows");
     Console.WriteLine("  clone        Clone/import website experiments");
-    Console.WriteLine("  notion       Notion push and schema validation experiments");
     Console.WriteLine("  intent       Intent-driven site config experiments");
     Console.WriteLine("  visual       Visual feedback experiments");
     Console.WriteLine("  webhook      Webhook service experiments");

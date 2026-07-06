@@ -14,7 +14,8 @@ public sealed class ImportPluginSkeletonTests
         var manifest = ImportPluginManifestProvider.CreateManifestResponse("req-1");
 
         Assert.True(manifest.Success);
-        Assert.Equal("import", Assert.Single(manifest.Commands).Name);
+        Assert.Contains(manifest.Commands, command => command.Name == "import");
+        Assert.Contains(manifest.Commands, command => command.Name == "notion");
         Assert.Contains("cli-command", manifest.Capabilities);
     }
 

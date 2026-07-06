@@ -294,6 +294,56 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_OfficialImportFixture_NotionPushDryRun_RoutesThroughImportPlugin()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        CreateSeedInput("seed");
+
+        var result = await InvokeEntryPointAsync([
+            "notion",
+            "push",
+            "--input",
+            "seed",
+            "--database-id",
+            "db-single",
+            "--dry-run",
+            "--report",
+            "reports/notion-plan.json"
+        ]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("notion push dry-run 完成: records=1", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "reports", "notion-plan.json")));
+        string lockText = ReadImportLock();
+        Assert.Contains("  import:", lockText, StringComparison.Ordinal);
+        Assert.Contains("source: plugins/import", lockText, StringComparison.Ordinal);
+        string report = ReadSingleImportExecutionReport();
+        Assert.Contains("\"pluginId\": \"import\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"commandPath\": [", report, StringComparison.Ordinal);
+        Assert.Contains("\"notion\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"push\"", report, StringComparison.Ordinal);
+        Assert.Contains("\"success\": true", report, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Main_OfficialImportFixture_ExposeImportOnlyDoesNotExposeNotion()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        await InstallImportFixtureAsync(enabled: true);
+        string configPath = Path.Combine(_tempDir, ".bukit", "plugins.yaml");
+        string config = File.ReadAllText(configPath)
+            .Replace("      - import\n      - notion", "      - import", StringComparison.Ordinal);
+        File.WriteAllText(configPath, config);
+
+        var result = await InvokeEntryPointAsync(["notion", "push", "--input", "seed", "--dry-run"]);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("Unknown command: notion", result.StdErr, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Main_OfficialImportFixture_HtmlDemoDryRun_ReturnsSuccessLockAndReport()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);

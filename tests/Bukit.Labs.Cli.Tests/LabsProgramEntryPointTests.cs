@@ -27,12 +27,12 @@ public sealed class LabsProgramEntryPointTests
     }
 
     [Fact]
-    public async Task Main_ImportUnknownSubcommand_ReturnsTwo()
+    public async Task Main_ImportCommand_ReturnsUnknown()
     {
         var result = await InvokeEntryPointAsync(["import", "mystery"]);
 
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains("未知的 import 子命令: mystery", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("Unknown labs command: import", result.StdErr, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -90,6 +90,42 @@ public static class ImportNotionPushWorkflow
         });
     }
 
+    public static async Task<int> ValidateSchemaAsync(ImportNotionSchemaValidationOptions options)
+    {
+        var databaseId = options.DatabaseId;
+        if (string.IsNullOrWhiteSpace(databaseId))
+        {
+            Console.Error.WriteLine("缺少必填选项: --database-id <id>");
+            return 2;
+        }
+
+        var token = Environment.GetEnvironmentVariable(options.TokenEnv);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            Console.Error.WriteLine($"{options.TokenEnv} is required for notion validate-schema.");
+            return 2;
+        }
+
+        var reportPath = string.IsNullOrWhiteSpace(options.ReportPath)
+            ? null
+            : Path.GetFullPath(options.ReportPath);
+
+        using var http = CreateHttpClient();
+        var report = await NotionSchemaValidator.ValidateAsync(http, databaseId, token, reportPath);
+
+        Console.WriteLine($"schema validation: {(report.Success ? "PASSED" : "FAILED")}");
+        foreach (var f in report.FieldResults)
+            Console.WriteLine($"  {f.Name,-18} {f.ExpectedType,-10} {f.Result}");
+        if (!report.Success)
+        {
+            foreach (var e in report.Errors)
+                Console.Error.WriteLine($"  ERROR: {e}");
+            return 1;
+        }
+
+        return 0;
+    }
+
     public static async Task<int> PushSeedDirectoryAsync(ImportNotionSeedPushOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.InputDir))
@@ -185,6 +221,8 @@ public static class ImportNotionPushWorkflow
         foreach (var target in targets)
         {
             var activeTarget = target;
+            var records = ImportSeedRecordReader.ReadSeedFile(inputDir, activeTarget.SeedFile, activeTarget.Collection);
+            var additionalSchemaFields = BuildAdditionalSchemaFields(activeTarget.Collection, records);
             if (string.IsNullOrWhiteSpace(activeTarget.DatabaseId))
             {
                 if (options.DryRun)
@@ -194,7 +232,12 @@ public static class ImportNotionPushWorkflow
                     continue;
                 }
 
-                var createdDatabaseId = await CreateDatabaseAsync(http, token, options.ParentPageId!, activeTarget.Title, activeTarget.Collection);
+                var createdDatabaseId = await CreateDatabaseAsync(
+                    http,
+                    token,
+                    options.ParentPageId!,
+                    activeTarget.Title,
+                    additionalSchemaFields);
                 if (string.IsNullOrWhiteSpace(createdDatabaseId))
                 {
                     failed = true;
@@ -209,7 +252,7 @@ public static class ImportNotionPushWorkflow
                         activeTarget.DatabaseId!,
                         token,
                         null,
-                        GetAdditionalSchemaFields(activeTarget.Collection));
+                        additionalSchemaFields);
                     if (!schemaReport.Success)
                     {
                         failed = true;
@@ -229,7 +272,7 @@ public static class ImportNotionPushWorkflow
                     activeTarget.DatabaseId!,
                     token,
                     null,
-                    GetAdditionalSchemaFields(activeTarget.Collection));
+                    additionalSchemaFields);
                 if (!schemaReport.Success)
                 {
                     failed = true;
@@ -242,7 +285,6 @@ public static class ImportNotionPushWorkflow
                 }
             }
 
-            var records = ImportSeedRecordReader.ReadSeedFile(inputDir, activeTarget.SeedFile, activeTarget.Collection);
             var result = await NotionSeedPusher.PushAsync(http, records, new NotionPushOptions(
                 DatabaseId: activeTarget.DatabaseId ?? "",
                 Token: token,
@@ -290,11 +332,17 @@ public static class ImportNotionPushWorkflow
         bool validateSchema)
     {
         var records = ImportSeedRecordReader.ReadDirectory(inputDir);
+        var additionalSchemaFields = BuildAdditionalSchemaFields(collection: "", records);
         using var http = CreateHttpClient();
         var token = Environment.GetEnvironmentVariable(tokenEnv) ?? "";
         if (!dryRun && validateSchema)
         {
-            var schemaReport = await NotionSchemaValidator.ValidateAsync(http, databaseId, token, null);
+            var schemaReport = await NotionSchemaValidator.ValidateAsync(
+                http,
+                databaseId,
+                token,
+                null,
+                additionalSchemaFields);
             if (!schemaReport.Success)
             {
                 Console.Error.WriteLine($"Notion schema validation failed for {databaseId}:");
@@ -386,13 +434,21 @@ public static class ImportNotionPushWorkflow
         return targets.Where(t => File.Exists(Path.Combine(inputDir, t.SeedFile))).ToList();
     }
 
-    private static async Task<string?> CreateDatabaseAsync(HttpClient http, string token, string parentPageId, string title, string collection)
+    private static async Task<string?> CreateDatabaseAsync(
+        HttpClient http,
+        string token,
+        string parentPageId,
+        string title,
+        IReadOnlyList<(string Name, string ExpectedType)> additionalSchemaFields)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post,
             $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/databases");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
-        request.Content = new StringContent(BuildCreateDatabasePayload(parentPageId, title, collection), Encoding.UTF8, "application/json");
+        request.Content = new StringContent(
+            BuildCreateDatabasePayload(parentPageId, title, additionalSchemaFields),
+            Encoding.UTF8,
+            "application/json");
 
         using var response = await http.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
@@ -406,7 +462,10 @@ public static class ImportNotionPushWorkflow
         return doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
     }
 
-    private static string BuildCreateDatabasePayload(string parentPageId, string title, string collection)
+    private static string BuildCreateDatabasePayload(
+        string parentPageId,
+        string title,
+        IReadOnlyList<(string Name, string ExpectedType)> additionalSchemaFields)
     {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
@@ -433,12 +492,8 @@ public static class ImportNotionPushWorkflow
         WriteDatabaseProperty(writer, "Published", "checkbox");
         WriteDatabaseProperty(writer, "SeoTitle", "rich_text");
         WriteDatabaseProperty(writer, "SeoDescription", "rich_text");
-        if (collection.Equals("navigation", StringComparison.OrdinalIgnoreCase))
-        {
-            WriteDatabaseProperty(writer, "Link", "url");
-            WriteDatabaseProperty(writer, "Order", "number");
-            WriteDatabaseProperty(writer, "Enabled", "checkbox");
-        }
+        foreach (var (name, expectedType) in additionalSchemaFields)
+            WriteDatabaseProperty(writer, name, expectedType);
         writer.WriteEndObject();
         writer.WriteEndObject();
         writer.Flush();
@@ -453,10 +508,65 @@ public static class ImportNotionPushWorkflow
         writer.WriteEndObject();
     }
 
-    private static IReadOnlyList<(string Name, string ExpectedType)>? GetAdditionalSchemaFields(string collection)
-        => collection.Equals("navigation", StringComparison.OrdinalIgnoreCase)
-            ? [("Link", "url"), ("Order", "number")]
-            : null;
+    private static IReadOnlyList<(string Name, string ExpectedType)> BuildAdditionalSchemaFields(
+        string collection,
+        IReadOnlyList<ImportSeedRecord> records)
+    {
+        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (collection.Equals("navigation", StringComparison.OrdinalIgnoreCase))
+        {
+            fields["Link"] = "url";
+            fields["Order"] = "number";
+            fields["Enabled"] = "checkbox";
+        }
+
+        foreach (var record in records)
+        {
+            if (record.ExtraFields is null)
+                continue;
+
+            foreach (var (name, value) in record.ExtraFields)
+            {
+                var propertyName = ToNotionPropertyName(name);
+                if (string.IsNullOrWhiteSpace(propertyName) || IsCoreProperty(propertyName) || value is null)
+                    continue;
+
+                fields.TryAdd(propertyName, ToNotionPropertyType(propertyName, value));
+            }
+        }
+
+        return fields
+            .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(f => (f.Key, f.Value))
+            .ToArray();
+    }
+
+    private static string ToNotionPropertyType(string propertyName, object value)
+    {
+        if (value is bool)
+            return "checkbox";
+        if (value is int or long or float or double or decimal)
+            return "number";
+        if (propertyName is "Link" or "Url" or "Href")
+            return "url";
+        return "rich_text";
+    }
+
+    private static string ToNotionPropertyName(string name)
+        => name.Trim().ToLowerInvariant() switch
+        {
+            "link" => "Link",
+            "url" => "Url",
+            "href" => "Href",
+            "order" or "sort_order" => "Order",
+            "enabled" => "Enabled",
+            _ => string.Concat(name.Trim().Split(['_', '-', ' '], StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => char.ToUpperInvariant(p[0]) + p[1..]))
+        };
+
+    private static bool IsCoreProperty(string name)
+        => name is "Title" or "Slug" or "Type" or "Summary" or "Content" or "Language" or
+           "Published" or "SeoTitle" or "SeoDescription";
 
     private static NotionPushResult BuildDryRunResult(string inputDir, NotionDatabaseTarget target)
     {

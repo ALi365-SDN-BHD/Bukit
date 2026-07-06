@@ -35,6 +35,13 @@ public sealed record ImportNotionSeedPushOptions
     public bool ValidateSchema { get; init; } = true;
 }
 
+public sealed record ImportNotionSchemaValidationOptions
+{
+    public string? DatabaseId { get; init; }
+    public string TokenEnv { get; init; } = "NOTION_TOKEN";
+    public string? ReportPath { get; init; }
+}
+
 internal sealed record NotionDatabaseTarget(
     string Key,
     string Title,

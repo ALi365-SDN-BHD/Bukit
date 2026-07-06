@@ -8,17 +8,48 @@ public static class ImportPluginOptionsMapper
 {
     public static ImportCommandOptions Map(PluginInvokeRequest request)
     {
+        var invocation = MapInvocation(request);
+        if (invocation.Kind == ImportPluginInvocationKind.Import && invocation.ImportOptions is not null)
+            return invocation.ImportOptions;
+
+        throw new ImportPluginOptionsException(
+            "plugin.import.unsupportedCommand",
+            $"未知的 import 子命令: {string.Join(" ", GetCommandPath(request))}");
+    }
+
+    public static ImportPluginMappedInvocation MapInvocation(PluginInvokeRequest request)
+    {
         var rootDir = ImportPluginPathGuard.NormalizeRoot(request.Context.RootDir);
         var workingDir = ImportPluginPathGuard.NormalizeWorkingDir(rootDir, request.Context.WorkingDir);
-        var path = request.Command.Path.Count > 0
-            ? request.Command.Path
-            : [request.Command.Name];
+        var path = GetCommandPath(request);
 
         if (path.SequenceEqual(["import", "html-demo"], StringComparer.Ordinal))
-            return MapHtmlDemo(request, rootDir, workingDir);
+        {
+            return new ImportPluginMappedInvocation(
+                ImportPluginInvocationKind.Import,
+                ImportOptions: MapHtmlDemo(request, rootDir, workingDir));
+        }
 
         if (path.SequenceEqual(["import", "seed"], StringComparer.Ordinal))
-            return MapSeed(request, rootDir, workingDir);
+        {
+            return new ImportPluginMappedInvocation(
+                ImportPluginInvocationKind.Import,
+                ImportOptions: MapSeed(request, rootDir, workingDir));
+        }
+
+        if (path.SequenceEqual(["notion", "push"], StringComparer.Ordinal))
+        {
+            return new ImportPluginMappedInvocation(
+                ImportPluginInvocationKind.NotionPush,
+                NotionPushOptions: MapNotionPush(request, rootDir, workingDir));
+        }
+
+        if (path.SequenceEqual(["notion", "validate-schema"], StringComparer.Ordinal))
+        {
+            return new ImportPluginMappedInvocation(
+                ImportPluginInvocationKind.NotionValidateSchema,
+                SchemaValidationOptions: MapNotionValidateSchema(request, rootDir, workingDir));
+        }
 
         throw new ImportPluginOptionsException(
             "plugin.import.unsupportedCommand",
@@ -107,6 +138,54 @@ public static class ImportPluginOptionsMapper
             Force = ReadBool(request, "--force")
         };
 
+    private static ImportNotionSeedPushOptions MapNotionPush(
+        PluginInvokeRequest request,
+        string rootDir,
+        string workingDir)
+    {
+        var dryRun = ReadBool(request, "--dry-run");
+        var tokenEnv = ReadString(request, "--token-env") ?? "NOTION_TOKEN";
+        if (!dryRun || request.Command.Options.ContainsKey("--token-env"))
+            EnsureEnvironmentGranted(request, tokenEnv);
+
+        return new ImportNotionSeedPushOptions
+        {
+            InputDir = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--input"), "--input") ?? "",
+            DatabaseId = ReadString(request, "--database-id"),
+            DatabaseMapPath = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--database-map"), "--database-map"),
+            CreateMissingDatabases = ReadBool(request, "--create-missing-databases"),
+            ParentPageId = ReadString(request, "--parent-page-id"),
+            GeneratedDatabaseMapPath = ImportPluginPathGuard.ResolveOptionalPath(
+                rootDir,
+                workingDir,
+                ReadString(request, "--generated-database-map"),
+                "--generated-database-map"),
+            TokenEnv = tokenEnv,
+            Mode = ReadString(request, "--mode") ?? "create",
+            UniqueField = ReadString(request, "--unique-field") ?? "Slug",
+            UpdateContent = ReadString(request, "--update-content") ?? "",
+            DryRun = dryRun,
+            ReportPath = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--report"), "--report"),
+            ValidateSchema = !ReadBool(request, "--no-validate-schema")
+        };
+    }
+
+    private static ImportNotionSchemaValidationOptions MapNotionValidateSchema(
+        PluginInvokeRequest request,
+        string rootDir,
+        string workingDir)
+    {
+        var tokenEnv = ReadString(request, "--token-env") ?? "NOTION_TOKEN";
+        EnsureEnvironmentGranted(request, tokenEnv);
+
+        return new ImportNotionSchemaValidationOptions
+        {
+            DatabaseId = ReadString(request, "--database-id"),
+            TokenEnv = tokenEnv,
+            ReportPath = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--report"), "--report")
+        };
+    }
+
     private static void EnsureEnvironmentGranted(PluginInvokeRequest request, string tokenEnv)
     {
         if (string.IsNullOrWhiteSpace(tokenEnv))
@@ -124,6 +203,11 @@ public static class ImportPluginOptionsMapper
         => value is null
             ? null
             : string.Equals(value, "warn", StringComparison.OrdinalIgnoreCase) ? "warn" : "fail";
+
+    private static IReadOnlyList<string> GetCommandPath(PluginInvokeRequest request)
+        => request.Command.Path.Count > 0
+            ? request.Command.Path
+            : [request.Command.Name];
 
     private static string? ReadString(PluginInvokeRequest request, string name)
     {
@@ -156,3 +240,16 @@ public static class ImportPluginOptionsMapper
         };
     }
 }
+
+public enum ImportPluginInvocationKind
+{
+    Import,
+    NotionPush,
+    NotionValidateSchema
+}
+
+public sealed record ImportPluginMappedInvocation(
+    ImportPluginInvocationKind Kind,
+    ImportCommandOptions? ImportOptions = null,
+    ImportNotionSeedPushOptions? NotionPushOptions = null,
+    ImportNotionSchemaValidationOptions? SchemaValidationOptions = null);

@@ -151,13 +151,13 @@ public class DependencyMatrixTests
     }
 
     [Fact]
-    public void LabsCli_MayDependOn_Importing()
+    public void LabsCli_MustNotDependOn_Importing()
     {
         var references = LabsCliAssembly.GetReferencedAssemblies()
             .Select(a => a.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.Contains("Bukit.Importing", references);
+        Assert.DoesNotContain("Bukit.Importing", references);
     }
 
     // ── Naming conventions ───────────────────────────────────────
