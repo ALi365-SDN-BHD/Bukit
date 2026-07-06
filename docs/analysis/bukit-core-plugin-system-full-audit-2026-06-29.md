@@ -200,14 +200,14 @@ Invoke = "invoke"
 
 字段：
 
-| 字段 | 类型 | 作用 |
-| --- | --- | --- |
-| `type` | string | 请求类型，只允许 `handshake`、`manifest`、`invoke` |
-| `protocol` | string | 协议版本，必须是 `bukit-plugin-v1` |
-| `requestId` | string | 请求 ID，用于 response 关联 |
-| `host.name` | string | Host 名称 |
-| `host.version` | string | Host 版本 |
-| `host.platform` | string | Host 当前运行平台 |
+| 字段              | 类型     | 作用                                       |
+| --------------- | ------ | ---------------------------------------- |
+| `type`          | string | 请求类型，只允许 `handshake`、`manifest`、`invoke` |
+| `protocol`      | string | 协议版本，必须是 `bukit-plugin-v1`               |
+| `requestId`     | string | 请求 ID，用于 response 关联                     |
+| `host.name`     | string | Host 名称                                  |
+| `host.version`  | string | Host 版本                                  |
+| `host.platform` | string | Host 当前运行平台                              |
 
 安全意义：
 
@@ -222,15 +222,15 @@ Invoke = "invoke"
 
 字段：
 
-| 字段 | 类型 | 作用 |
-| --- | --- | --- |
-| `type` | string | 响应类型，必须匹配请求对应 response |
-| `protocol` | string | 协议版本，必须是 `bukit-plugin-v1` |
-| `requestId` | string | 必须与 request 一致 |
-| `success` | bool | 协议层成功状态 |
-| `error` | object/null | 失败错误 |
-| `messages` | array/null | 普通消息 |
-| `diagnostics` | array/null | 结构化诊断 |
+| 字段            | 类型          | 作用                         |
+| ------------- | ----------- | -------------------------- |
+| `type`        | string      | 响应类型，必须匹配请求对应 response     |
+| `protocol`    | string      | 协议版本，必须是 `bukit-plugin-v1` |
+| `requestId`   | string      | 必须与 request 一致             |
+| `success`     | bool        | 协议层成功状态                    |
+| `error`       | object/null | 失败错误                       |
+| `messages`    | array/null  | 普通消息                       |
+| `diagnostics` | array/null  | 结构化诊断                      |
 
 Host 校验点：
 
@@ -270,12 +270,12 @@ PluginHandshakeRequest(
 
 字段解释：
 
-| 字段 | 来源 | 作用 |
-| --- | --- | --- |
-| `Type` | Host | 固定为 `handshake` |
-| `Protocol` | Host | 固定为 `bukit-plugin-v1` |
-| `RequestId` | Host | 单次请求唯一 ID |
-| `Host` | Host | 包含 host name/version/platform |
+| 字段          | 来源   | 作用                            |
+| ----------- | ---- | ----------------------------- |
+| `Type`      | Host | 固定为 `handshake`               |
+| `Protocol`  | Host | 固定为 `bukit-plugin-v1`         |
+| `RequestId` | Host | 单次请求唯一 ID                     |
+| `Host`      | Host | 包含 host name/version/platform |
 
 插件必须读取该 request，并返回 handshake response。
 
@@ -350,12 +350,12 @@ PluginManifestRequest(
 
 字段：
 
-| 字段 | 作用 |
-| --- | --- |
-| `Type` | 固定为 `manifest` |
-| `Protocol` | 固定为 `bukit-plugin-v1` |
-| `RequestId` | 请求关联 |
-| `Host` | Host 基础信息 |
+| 字段          | 作用                    |
+| ----------- | --------------------- |
+| `Type`      | 固定为 `manifest`        |
+| `Protocol`  | 固定为 `bukit-plugin-v1` |
+| `RequestId` | 请求关联                  |
+| `Host`      | Host 基础信息             |
 
 ### 6.3 manifest response
 
@@ -378,14 +378,14 @@ PluginManifestResponse(
 
 字段作用：
 
-| 字段 | 作用 |
-| --- | --- |
-| `Capabilities` | 插件能力标签，用于 Host 和报告识别 |
-| `Commands` | 插件运行时命令列表 |
-| `RequiredPermissions` | 插件运行时声明所需权限 |
-| `Error` | manifest 失败错误 |
-| `Messages` | 普通消息 |
-| `Diagnostics` | 结构化诊断 |
+| 字段                    | 作用                   |
+| --------------------- | -------------------- |
+| `Capabilities`        | 插件能力标签，用于 Host 和报告识别 |
+| `Commands`            | 插件运行时命令列表            |
+| `RequiredPermissions` | 插件运行时声明所需权限          |
+| `Error`               | manifest 失败错误        |
+| `Messages`            | 普通消息                 |
+| `Diagnostics`         | 结构化诊断                |
 
 Host 校验：
 
@@ -419,14 +419,14 @@ PluginCommandSpec(
 
 字段作用：
 
-| 字段 | 作用 | 风险边界 |
-| --- | --- | --- |
-| `Name` | CLI 命令名 | 不能覆盖 Core 命令，不能与其他插件冲突 |
-| `Description` | 命令说明 | 仅展示，不应承载执行逻辑 |
-| `Aliases` | 命令别名 | alias 也必须参与冲突检查 |
-| `Arguments` | 位置参数 | 由 CLI binder 转换为 invoke arguments |
-| `Options` | 命令选项 | 由 CLI binder 转换为 invoke options |
-| `Subcommands` | 子命令 | 递归注册和校验 |
+| 字段            | 作用      | 风险边界                              |
+| ------------- | ------- | --------------------------------- |
+| `Name`        | CLI 命令名 | 不能覆盖 Core 命令，不能与其他插件冲突            |
+| `Description` | 命令说明    | 仅展示，不应承载执行逻辑                      |
+| `Aliases`     | 命令别名    | alias 也必须参与冲突检查                   |
+| `Arguments`   | 位置参数    | 由 CLI binder 转换为 invoke arguments |
+| `Options`     | 命令选项    | 由 CLI binder 转换为 invoke options   |
+| `Subcommands` | 子命令     | 递归注册和校验                           |
 
 ### 6.5 option spec
 
@@ -504,15 +504,15 @@ PluginInvokeRequest(
 
 字段作用：
 
-| 字段 | 类型 | 作用 |
-| --- | --- | --- |
-| `Type` | string | 固定为 `invoke` |
-| `Protocol` | string | 固定为 `bukit-plugin-v1` |
-| `RequestId` | string | 请求关联 |
-| `Host` | object | Host 信息 |
-| `Command` | object | 用户执行的命令、子命令、参数、选项 |
-| `Context` | object | 项目上下文 |
-| `Permissions` | object | Host 授予权限 |
+| 字段            | 类型     | 作用                    |
+| ------------- | ------ | --------------------- |
+| `Type`        | string | 固定为 `invoke`          |
+| `Protocol`    | string | 固定为 `bukit-plugin-v1` |
+| `RequestId`   | string | 请求关联                  |
+| `Host`        | object | Host 信息               |
+| `Command`     | object | 用户执行的命令、子命令、参数、选项     |
+| `Context`     | object | 项目上下文                 |
+| `Permissions` | object | Host 授予权限             |
 
 ### 7.3 command runtime object
 
@@ -529,12 +529,12 @@ PluginInvokeCommand(
 
 字段：
 
-| 字段 | 作用 |
-| --- | --- |
-| `Name` | 顶层命令名 |
-| `Path` | 子命令路径 |
+| 字段          | 作用    |
+| ----------- | ----- |
+| `Name`      | 顶层命令名 |
+| `Path`      | 子命令路径 |
 | `Arguments` | 位置参数值 |
-| `Options` | 选项值 |
+| `Options`   | 选项值   |
 
 安全边界：
 
@@ -559,12 +559,12 @@ PluginInvokeContext(
 
 字段作用：
 
-| 字段 | 作用 | 安全说明 |
-| --- | --- | --- |
-| `RootDir` | 项目根目录 | 插件路径判断应以此为边界 |
-| `WorkingDir` | 当前工作目录 | 不等于任意文件写权限 |
-| `ConfigPath` | 配置文件路径 | 只说明配置位置，不自动授权读取 |
-| `OutputDir` | 输出目录 | 只说明输出位置，不自动授权写入 |
+| 字段            | 作用               | 安全说明            |
+| ------------- | ---------------- | --------------- |
+| `RootDir`     | 项目根目录            | 插件路径判断应以此为边界    |
+| `WorkingDir`  | 当前工作目录           | 不等于任意文件写权限      |
+| `ConfigPath`  | 配置文件路径           | 只说明配置位置，不自动授权读取 |
+| `OutputDir`   | 输出目录             | 只说明输出位置，不自动授权写入 |
 | `Environment` | allowlisted 环境变量 | Host 只传被授权读取的变量 |
 
 ### 7.5 invoke permissions
@@ -593,14 +593,14 @@ PluginInvokeResponse(
 
 字段作用：
 
-| 字段 | 作用 |
-| --- | --- |
-| `Success` | 插件协议层是否成功 |
-| `ExitCode` | CLI 最终可返回的执行码 |
-| `Error` | 失败错误 |
-| `Messages` | 普通消息 |
-| `Diagnostics` | 结构化诊断 |
-| `Artifacts` | 插件产物列表 |
+| 字段            | 作用            |
+| ------------- | ------------- |
+| `Success`     | 插件协议层是否成功     |
+| `ExitCode`    | CLI 最终可返回的执行码 |
+| `Error`       | 失败错误          |
+| `Messages`    | 普通消息          |
+| `Diagnostics` | 结构化诊断         |
+| `Artifacts`   | 插件产物列表        |
 
 Host 校验：
 
@@ -743,10 +743,10 @@ PluginHostConfig(
 
 字段：
 
-| 字段 | 作用 |
-| --- | --- |
+| 字段        | 作用           |
+| --------- | ------------ |
 | `version` | 配置版本，当前要求为 1 |
-| `plugins` | 插件配置 map |
+| `plugins` | 插件配置 map     |
 
 ### 9.2 单个插件配置
 
@@ -771,17 +771,17 @@ PluginConfigEntry(
 
 字段详解：
 
-| 字段 | 作用 | 安全意义 |
-| --- | --- | --- |
-| `enabled` | 是否启用插件 | disabled 时不执行插件进程 |
-| `source` | 插件目录 | 必须是 `plugins/<id>` |
-| `exposeCommands` | 暴露到 CLI 的命令 | 必须显式声明，不能缺省 |
-| `permissions` | 授予权限 | 控制插件可访问资源 |
-| `timeout` | 超时设置 | 防止插件 hang |
-| `output` | 输出大小限制 | 防止 stdout/stderr/response 爆量 |
-| `failMode` | 失败策略 | 默认 strict |
-| `allowInCi` | 是否允许 CI 执行 | CI 安全开关 |
-| `description` | 描述 | 人类可读信息 |
+| 字段               | 作用          | 安全意义                          |
+| ---------------- | ----------- | ----------------------------- |
+| `enabled`        | 是否启用插件      | disabled 时不执行插件进程             |
+| `source`         | 插件目录        | 必须是 `plugins/<id>`            |
+| `exposeCommands` | 暴露到 CLI 的命令 | 必须显式声明，不能缺省                   |
+| `permissions`    | 授予权限        | 控制插件可访问资源                     |
+| `timeout`        | 超时设置        | 防止插件 hang                     |
+| `output`         | 输出大小限制      | 防止 stdout/stderr/response 爆量  |
+| `failMode`       | 失败策略        | 默认 strict                     |
+| `allowInCi`      | 是否允许 CI 执行  | CI 安全开关                       |
+| `description`    | 描述          | 人类可读信息                        |
 | `manifestPolicy` | manifest 策略 | 默认 static，runtime-only 仅限特殊场景 |
 
 ### 9.3 enabled
@@ -831,10 +831,10 @@ PluginConfigEntry(
 
 支持值：
 
-| 值 | 含义 | 审计结论 |
-| --- | --- | --- |
-| `static` | 以 `plugin.yaml` 静态命令为准，runtime manifest 不能扩大命令面 | 正式插件必须使用 |
-| `runtime-only` | 允许 runtime manifest 决定命令面 | 仅限 dev/Labs/兼容/临时动态插件 |
+| 值              | 含义                                              | 审计结论                  |
+| -------------- | ----------------------------------------------- | --------------------- |
+| `static`       | 以 `plugin.yaml` 静态命令为准，runtime manifest 不能扩大命令面 | 正式插件必须使用              |
+| `runtime-only` | 允许 runtime manifest 决定命令面                       | 仅限 dev/Labs/兼容/临时动态插件 |
 
 `runtime-only` 是当前风险最高的配置例外。它不应作为官方正式插件默认策略，也不应进入 release 插件包。
 
@@ -862,17 +862,17 @@ PluginManifest(
 
 字段详解：
 
-| 字段 | 作用 | Host 校验 |
-| --- | --- | --- |
-| `id` | 插件 ID | 必须合法，必须与 `.bukit/plugins.yaml` key 一致 |
-| `name` | 插件名称 | 用于展示和报告 |
-| `version` | 插件版本 | handshake 必须返回同版本 |
-| `protocol` | 协议版本 | 必须是 `bukit-plugin-v1` |
-| `kind` | 插件类型 | 必须是 `process` |
-| `distribution` | 分发形态 | 当前必须是 `self-contained` |
-| `platforms` | 平台入口 map | 当前平台必须可解析 |
-| `commands` | 静态命令声明 | static policy 下必须非空 |
-| `requiredPermissions` | 插件所需权限 | 必须小于等于项目授予权限 |
+| 字段                    | 作用       | Host 校验                               |
+| --------------------- | -------- | ------------------------------------- |
+| `id`                  | 插件 ID    | 必须合法，必须与 `.bukit/plugins.yaml` key 一致 |
+| `name`                | 插件名称     | 用于展示和报告                               |
+| `version`             | 插件版本     | handshake 必须返回同版本                     |
+| `protocol`            | 协议版本     | 必须是 `bukit-plugin-v1`                 |
+| `kind`                | 插件类型     | 必须是 `process`                         |
+| `distribution`        | 分发形态     | 当前必须是 `self-contained`                |
+| `platforms`           | 平台入口 map | 当前平台必须可解析                             |
+| `commands`            | 静态命令声明   | static policy 下必须非空                   |
+| `requiredPermissions` | 插件所需权限   | 必须小于等于项目授予权限                          |
 
 ### 10.2 kind
 
