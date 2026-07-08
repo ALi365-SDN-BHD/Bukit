@@ -1,11 +1,10 @@
 {% layout "layouts/base.html" %}
 
-{{ items = page.fields.items.value }}
-{{ taxonomy = page.fields.taxonomy.value }}
-{{ pagination = page.fields.pagination.value }}
 {{ base_url = site.base_url }}
 {{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
-{{ term_url = base_url + "/" + taxonomy.kind + "/" + taxonomy.slug + "/" }}
+{{ taxonomy_route_prefix = taxonomy.route_prefix }}
+{{ if !taxonomy_route_prefix }}{{ taxonomy_route_prefix = "/" + taxonomy.kind }}{{ end }}
+{{ if taxonomy_route_prefix == "/" }}{{ taxonomy_route_prefix = "" }}{{ end }}
 
 <header class="page-header">
   <p class="eyebrow">{{ taxonomy.kind }}</p>
@@ -16,7 +15,7 @@
   {{ if taxonomy.ancestors }}
     <nav class="breadcrumb">
     {{ for ancestor in taxonomy.ancestors }}
-      / <a href="{{ base_url }}/{{ taxonomy.kind }}/{{ ancestor }}/">{{ ancestor }}</a>
+      / <a href="{{ base_url }}{{ taxonomy_route_prefix }}/{{ ancestor }}/">{{ ancestor }}</a>
     {{ end }}
     </nav>
   {{ end }}

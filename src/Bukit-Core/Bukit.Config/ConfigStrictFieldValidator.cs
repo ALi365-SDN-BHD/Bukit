@@ -63,7 +63,7 @@ internal static class ConfigStrictFieldValidator
 
                 if (Seq(collection, "filteredLists") is { } filteredLists)
                 {
-                    ValidateSequenceMappings(filteredLists, Set("field", "value", "listRoute", "listTemplate"), $"site.collections.{name}.filteredLists");
+                    ValidateSequenceMappings(filteredLists, Set("field", "operator", "value", "values", "listRoute", "listTemplate", "pageSize", "urlPattern", "emptyBehavior"), $"site.collections.{name}.filteredLists");
                 }
             }
         }
@@ -217,7 +217,7 @@ internal static class ConfigStrictFieldValidator
         RequireOnly(taxonomy, TaxonomyKeys, "taxonomy");
         if (Seq(taxonomy, "kinds") is { } kinds)
         {
-            ValidateSequenceMappings(kinds, Set("key", "kind", "title", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical"), "taxonomy.kinds");
+            ValidateSequenceMappings(kinds, Set("key", "kind", "title", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"), "taxonomy.kinds");
         }
     }
 

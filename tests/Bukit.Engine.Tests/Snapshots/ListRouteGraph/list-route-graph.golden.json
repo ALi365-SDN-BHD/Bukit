@@ -1,0 +1,121 @@
+{
+  "schema": "bukit.list-route-graph",
+  "schemaVersion": "1",
+  "routes": [
+    {
+      "routeId": "collection:insights:1",
+      "kind": "collectionList",
+      "url": "/insights/",
+      "outputPath": "insights/index.html",
+      "template": "pages/insights-list.html",
+      "collection": "insights",
+      "pageNumber": 1,
+      "pageSize": 2,
+      "totalItems": 3,
+      "itemIds": [
+        "insight-1",
+        "insight-2"
+      ],
+      "canonicalUrl": "/insights/",
+      "nextUrl": "/insights/page/2/"
+    },
+    {
+      "routeId": "collection:insights:2",
+      "kind": "collectionPage",
+      "url": "/insights/page/2/",
+      "outputPath": "insights/page/2/index.html",
+      "template": "pages/insights-list.html",
+      "collection": "insights",
+      "pageNumber": 2,
+      "pageSize": 2,
+      "totalItems": 3,
+      "itemIds": [
+        "insight-3"
+      ],
+      "canonicalUrl": "/insights/page/2/",
+      "prevUrl": "/insights/"
+    },
+    {
+      "routeId": "taxonomy:category:market:1",
+      "kind": "taxonomyTermPage",
+      "url": "/category/market/",
+      "outputPath": "category/market/index.html",
+      "template": "pages/category.html",
+      "collection": "insights",
+      "pageNumber": 1,
+      "pageSize": 2,
+      "totalItems": 3,
+      "itemIds": [
+        "insight-1",
+        "insight-2"
+      ],
+      "canonicalUrl": "/category/market/",
+      "nextUrl": "/category/market/page/2/",
+      "taxonomyContext": {
+        "kind": "category",
+        "term": "Market",
+        "slug": "market",
+        "isIndex": false
+      }
+    },
+    {
+      "routeId": "taxonomy:category:market:2",
+      "kind": "taxonomyTermPage",
+      "url": "/category/market/page/2/",
+      "outputPath": "category/market/page/2/index.html",
+      "template": "pages/category.html",
+      "collection": "insights",
+      "pageNumber": 2,
+      "pageSize": 2,
+      "totalItems": 3,
+      "itemIds": [
+        "insight-3"
+      ],
+      "canonicalUrl": "/category/market/page/2/",
+      "prevUrl": "/category/market/",
+      "taxonomyContext": {
+        "kind": "category",
+        "term": "Market",
+        "slug": "market",
+        "isIndex": false
+      }
+    },
+    {
+      "routeId": "taxonomy:category:index",
+      "kind": "taxonomyIndex",
+      "url": "/category/",
+      "outputPath": "category/index.html",
+      "template": "pages/category-index.html",
+      "pageNumber": 1,
+      "pageSize": 10,
+      "totalItems": 0,
+      "itemIds": [],
+      "canonicalUrl": "/category/",
+      "taxonomyContext": {
+        "kind": "category",
+        "isIndex": true
+      }
+    },
+    {
+      "routeId": "filter:companies:country:malaysia:1",
+      "kind": "filteredListPage",
+      "url": "/companies/malaysia/",
+      "outputPath": "companies/malaysia/index.html",
+      "template": "pages/company-list.html",
+      "collection": "companies",
+      "pageNumber": 1,
+      "pageSize": 10,
+      "totalItems": 1,
+      "itemIds": [
+        "insight-1"
+      ],
+      "canonicalUrl": "/companies/malaysia/",
+      "filterContext": {
+        "field": "country",
+        "operator": "equals",
+        "value": "Malaysia",
+        "values": []
+      }
+    }
+  ]
+}

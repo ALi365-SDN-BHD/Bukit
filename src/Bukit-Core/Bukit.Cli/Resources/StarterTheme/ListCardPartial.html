@@ -1,13 +1,40 @@
 {{ base_url = site.base_url }}
 {{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
 <li class="card">
+  {{ if item.fields && item.fields.cover }}
+    <a class="card-media" href="{{ base_url }}{{ item.url }}">
+      <img class="card-cover" src="{{ item.fields.cover.value }}" alt="{{ item.title }}">
+    </a>
+  {{ end }}
   <h2 class="card-title">
     <a href="{{ base_url }}{{ item.url }}">{{ item.title }}</a>
   </h2>
-  {{ if item.publish_date }}
-    <p class="meta"><time datetime="{{ item.publish_date | date.to_string "%Y-%m-%d" }}">{{ item.publish_date | date.to_string "%Y-%m-%d" }}</time></p>
-  {{ end }}
+  <p class="meta">
+    {{ if item.publish_date }}
+      <time datetime="{{ item.publish_date | date.to_string "%Y-%m-%d" }}">{{ item.publish_date | date.to_string "%Y-%m-%d" }}</time>
+    {{ end }}
+    {{ if item.fields && item.fields.country }}
+      <span>{{ item.fields.country.value }}</span>
+    {{ end }}
+    {{ if item.fields && item.fields.industry }}
+      <span>{{ item.fields.industry.value }}</span>
+    {{ end }}
+  </p>
   {{ if item.summary }}
     <p class="summary">{{ item.summary }}</p>
+  {{ end }}
+  {{ if item.fields && item.fields.categories }}
+    <p class="tag-list">
+      {{ for category in item.fields.categories.value }}
+        <span class="tag">{{ category }}</span>
+      {{ end }}
+    </p>
+  {{ end }}
+  {{ if item.fields && item.fields.tags }}
+    <p class="tag-list">
+      {{ for tag in item.fields.tags.value }}
+        <span class="tag">{{ tag }}</span>
+      {{ end }}
+    </p>
   {{ end }}
 </li>

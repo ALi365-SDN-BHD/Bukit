@@ -101,8 +101,8 @@ public sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
                 switch (format)
                 {
                     case "rss":
-                        RssGenerator.GenerateMerged(context.OutputDir, siteUrl, context.BaseUrl, title,
-                            collectionPosts, limit, description);
+                        RssGenerator.GenerateAtPath(context.OutputDir, siteUrl, context.BaseUrl, title,
+                            collectionPosts, feedBase, limit, description);
                         break;
                     case "atom":
                         AtomFeedGenerator.Generate(context.OutputDir, siteUrl, context.BaseUrl, title,

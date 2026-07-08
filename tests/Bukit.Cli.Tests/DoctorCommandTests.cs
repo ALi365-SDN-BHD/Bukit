@@ -175,7 +175,7 @@ public sealed class DoctorCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_ReturnsError_WhenPluginTemplateRequirementHasNoThemeMatch()
+    public async Task RunAsync_DoesNotRequireLegacyPaginationTemplate_WhenListRouteGraphOwnsPagination()
     {
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """
                                                                            name: test
@@ -226,9 +226,10 @@ public sealed class DoctorCommandTests : IDisposable
 
         var (exitCode, output) = await RunDoctorAsync();
 
-        Assert.Equal(1, exitCode);
-        Assert.Contains("Plugin template requirement error", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("pagination", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Doctor passed", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Plugin template requirement error", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("pagination", output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

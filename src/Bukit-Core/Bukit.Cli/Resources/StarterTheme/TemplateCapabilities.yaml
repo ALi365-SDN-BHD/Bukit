@@ -8,7 +8,7 @@ templates:
   pages/list.html:
     capabilities:
       needs_page_content: false
-      supports_pagination: false
+      supports_pagination: true
       supports_taxonomy: false
       supports_search_snippets: false
   pages/pagination.html:

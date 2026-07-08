@@ -1390,6 +1390,11 @@ public sealed class SiteEngineIntegrationTests
                         dir: content
                   media:
                     downloadToLocal: false
+                taxonomy:
+                  kinds:
+                    - key: tags
+                      kind: tags
+                      routePrefix: /topics/tags
                 build:
                   output: dist
                 theme:
@@ -1459,15 +1464,209 @@ public sealed class SiteEngineIntegrationTests
             var soloHtml = File.ReadAllText(Path.Combine(root, "dist", "en-US", "pages", "solo", "index.html"));
             Assert.DoesNotContain("hreflang=", soloHtml, StringComparison.Ordinal);
 
-            var tagHtml = File.ReadAllText(Path.Combine(root, "dist", "en-US", "tags", "shared", "index.html"));
-            Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en-US/tags/shared/\"", tagHtml, StringComparison.Ordinal);
-            Assert.Contains("hreflang=\"en-US\" href=\"https://example.com/en-US/tags/shared/\"", tagHtml, StringComparison.Ordinal);
-            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/tags/shared/\"", tagHtml, StringComparison.Ordinal);
+            var tagHtml = File.ReadAllText(Path.Combine(root, "dist", "en-US", "topics", "tags", "shared", "index.html"));
+            Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en-US/topics/tags/shared/\"", tagHtml, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"en-US\" href=\"https://example.com/en-US/topics/tags/shared/\"", tagHtml, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/topics/tags/shared/\"", tagHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/en-US/tags/shared/", tagHtml, StringComparison.Ordinal);
 
             var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
             Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en-US/pages/hello/\"", sitemap, StringComparison.Ordinal);
             Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/pages/helo/\"", sitemap, StringComparison.Ordinal);
-            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/tags/shared/\"", sitemap, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"ms-MY\" href=\"https://example.com/ms-MY/topics/tags/shared/\"", sitemap, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/ms-MY/tags/shared/", sitemap, StringComparison.Ordinal);
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_TaxonomyKindRoutePrefix_RendersBusinessPath()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-route-prefix-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: taxonomy-route-prefix
+                  title: Taxonomy Route Prefix
+                  collections:
+                    post:
+                      permalink: /insights/{slug}/
+                      template: pages/post.html
+                content:
+                  sources:
+                    - type: markdown
+                      name: posts
+                      collection: post
+                      markdown:
+                        dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                taxonomy:
+                  outputMode: pages
+                  kinds:
+                    - key: categories
+                      kind: category
+                      title: Categories
+                      singularTitlePrefix: Category
+                      routePrefix: /insights/category
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "market.md"), """
+                ---
+                type: post
+                collection: post
+                title: Market Watch
+                slug: market-watch
+                categories: [市场观察]
+                ---
+                # Market Watch
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-index.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-term.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var indexPath = Path.Combine(root, "dist", "insights", "category", "index.html");
+            var termPath = Path.Combine(root, "dist", "insights", "category", "市场观察", "index.html");
+            Assert.True(File.Exists(indexPath));
+            Assert.True(File.Exists(termPath));
+            Assert.False(File.Exists(Path.Combine(root, "dist", "category", "市场观察", "index.html")));
+
+            var indexHtml = File.ReadAllText(indexPath);
+            Assert.Contains("/insights/category/市场观察/", indexHtml, StringComparison.Ordinal);
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_TaxonomyTermTemplate_ExposesListCompatibleContext()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-list-context-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: taxonomy-list-context
+                  title: Taxonomy List Context
+                  url: https://example.com
+                  collections:
+                    post:
+                      permalink: /insights/{slug}/
+                      template: pages/post.html
+                  seo:
+                    renderMode: inject
+                content:
+                  sources:
+                    - type: markdown
+                      name: posts
+                      collection: post
+                      markdown:
+                        dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                taxonomy:
+                  outputMode: pages
+                  pageSize: 1
+                  itemFields:
+                    - cover
+                    - categories
+                    - summary
+                    - date
+                  kinds:
+                    - key: categories
+                      kind: category
+                      title: Categories
+                      singularTitlePrefix: Category
+                      routePrefix: /insights/category
+                """);
+
+            for (var i = 1; i <= 2; i++)
+            {
+                File.WriteAllText(Path.Combine(root, "content", $"market-{i}.md"), $$"""
+                    ---
+                    type: post
+                    collection: post
+                    title: Market {{i}}
+                    slug: market-{{i}}
+                    publishAt: 2024-06-0{{i}}T00:00:00Z
+                    categories: [市场观察]
+                    cover: /covers/market-{{i}}.jpg
+                    summary: Summary {{i}}
+                    ---
+                    # Market {{i}}
+                    """);
+            }
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-index.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-term.html"), """
+                {% layout "layouts/base.html" %}
+                {{ taxonomy.kind }} page={{ pagination.page }} total={{ pagination.total_pages }} items={{ for item in items }}{{ item.title }}{{ end }} {{ for item in pages }}[{{ item.title }}|{{ item.fields.cover.value }}|{{ item.fields.summary.value }}|{{ item.fields.date.value }}]{{ end }}
+                """);
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var page1 = File.ReadAllText(Path.Combine(root, "dist", "insights", "category", "市场观察", "index.html"));
+            Assert.Contains("category page=1 total=2", page1, StringComparison.Ordinal);
+            Assert.Contains("items=Market 2", page1, StringComparison.Ordinal);
+            Assert.Contains("[Market 2|/covers/market-2.jpg|Summary 2|2024-06-02]", page1, StringComparison.Ordinal);
+            Assert.DoesNotContain("Market 1", page1, StringComparison.Ordinal);
+
+            var page2 = File.ReadAllText(Path.Combine(root, "dist", "insights", "category", "市场观察", "page", "2", "index.html"));
+            Assert.Contains("category page=2 total=2", page2, StringComparison.Ordinal);
+            Assert.Contains("items=Market 1", page2, StringComparison.Ordinal);
+            Assert.Contains("[Market 1|/covers/market-1.jpg|Summary 1|2024-06-01]", page2, StringComparison.Ordinal);
+            Assert.Contains("rel=\"canonical\" href=\"https://example.com/insights/category/市场观察/page/2/\"", page2, StringComparison.Ordinal);
+            Assert.Contains("Browse 1 content items in 市场观察. Page 2 of 2.", page2, StringComparison.Ordinal);
+
+            var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
+            Assert.Contains("<loc>https://example.com/insights/category/市场观察/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.Contains("<loc>https://example.com/insights/category/市场观察/page/2/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/category/市场观察/", sitemap, StringComparison.Ordinal);
             Assert.Empty(logger.Errors);
         }
         finally
@@ -2505,7 +2704,7 @@ public sealed class SiteEngineIntegrationTests
                 new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
 
             Assert.Contains("route conflict", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("pagination", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("/blog/page/2", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -2525,7 +2724,8 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }} {{ page.url }}");
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "Page: {{ page.title }}");
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "Blog List");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"),
+                "Blog List page={{ page.fields.pagination.value.page }} total={{ page.fields.pagination.value.total_pages }} {{ for item in pages }}[{{ item.title }}]{{ end }}");
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "pagination.html"),
                 "Page {{ pagination.page }} of {{ pagination.total_pages }}");
 
@@ -2578,11 +2778,495 @@ public sealed class SiteEngineIntegrationTests
             Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "index.html")));
             var listContent = File.ReadAllText(Path.Combine(root, "dist", "blog", "index.html"));
             Assert.Contains("Blog List", listContent, StringComparison.Ordinal);
+            Assert.Contains("page=1 total=3", listContent, StringComparison.Ordinal);
+            Assert.Contains("[Post 5][Post 4]", listContent, StringComparison.Ordinal);
+            Assert.DoesNotContain("[Post 3]", listContent, StringComparison.Ordinal);
 
-            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "page", "2", "index.html")));
-            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "page", "3", "index.html")));
+            var page2 = Path.Combine(root, "dist", "blog", "page", "2", "index.html");
+            Assert.True(File.Exists(page2));
+            var page2Content = File.ReadAllText(page2);
+            Assert.Contains("page=2 total=3", page2Content, StringComparison.Ordinal);
+            Assert.Contains("[Post 3][Post 2]", page2Content, StringComparison.Ordinal);
+            Assert.DoesNotContain("[Post 5]", page2Content, StringComparison.Ordinal);
+
+            var page3 = Path.Combine(root, "dist", "blog", "page", "3", "index.html");
+            Assert.True(File.Exists(page3));
+            var page3Content = File.ReadAllText(page3);
+            Assert.Contains("page=3 total=3", page3Content, StringComparison.Ordinal);
+            Assert.Contains("[Post 1]", page3Content, StringComparison.Ordinal);
+            Assert.DoesNotContain("[Post 2]", page3Content, StringComparison.Ordinal);
 
             Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "post-1", "index.html")));
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_PaginationUrlPatternAndFirstPagePolicy_RendersConfiguredRoutes()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }} {{ page.url }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "Page: {{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"),
+                "List page={{ page.fields.pagination.value.page }} {{ for item in pages }}[{{ item.title }}]{{ end }}");
+
+            for (var i = 1; i <= 3; i++)
+            {
+                File.WriteAllText(Path.Combine(root, "content", $"post{i}.md"), $$"""
+                    ---
+                    type: post
+                    collection: post
+                    title: Post {{i}}
+                    slug: post-{{i}}
+                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    ---
+                    # Post {{i}}
+                    """);
+            }
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            Template = "pages/post.html",
+                            ListRoute = "/blog/",
+                            ListTemplate = "pages/list.html",
+                            Pagination = new CollectionPaginationConfig
+                            {
+                                Enabled = true,
+                                PageSize = 2,
+                                UrlPattern = "p/{page}/",
+                                FirstPageUsesListRoute = false
+                            }
+                        }
+                    }
+                },
+                Content = TestContent.Markdown(collection: "post") with
+                {
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            WriteTestThemeTemplates(root);
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.False(File.Exists(Path.Combine(root, "dist", "blog", "index.html")));
+
+            var page1 = Path.Combine(root, "dist", "blog", "p", "1", "index.html");
+            Assert.True(File.Exists(page1));
+            var page1Content = File.ReadAllText(page1);
+            Assert.Contains("page=1", page1Content, StringComparison.Ordinal);
+            Assert.Contains("[Post 3][Post 2]", page1Content, StringComparison.Ordinal);
+
+            var page2 = Path.Combine(root, "dist", "blog", "p", "2", "index.html");
+            Assert.True(File.Exists(page2));
+            var page2Content = File.ReadAllText(page2);
+            Assert.Contains("page=2", page2Content, StringComparison.Ordinal);
+            Assert.Contains("[Post 1]", page2Content, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_MultiplePaginatedCollections_RendersAllCollectionPages()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "posts"));
+            Directory.CreateDirectory(Path.Combine(root, "companies"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.title }} {{ page.url }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "company.html"), "{{ page.title }} {{ page.url }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "Page: {{ page.title }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"),
+                "{{ page.url }} page={{ page.fields.pagination.value.page }} {{ for item in pages }}[{{ item.title }}]{{ end }}");
+
+            for (var i = 1; i <= 3; i++)
+            {
+                File.WriteAllText(Path.Combine(root, "posts", $"post{i}.md"), $$"""
+                    ---
+                    type: post
+                    collection: post
+                    title: Post {{i}}
+                    slug: post-{{i}}
+                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    ---
+                    # Post {{i}}
+                    """);
+                File.WriteAllText(Path.Combine(root, "companies", $"company{i}.md"), $$"""
+                    ---
+                    type: company
+                    collection: company
+                    title: Company {{i}}
+                    slug: company-{{i}}
+                    publishAt: 2024-07-0{{i}}:00:00:00Z
+                    ---
+                    # Company {{i}}
+                    """);
+            }
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "T",
+                    Url = "https://example.com",
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            Template = "pages/post.html",
+                            ListRoute = "/blog/",
+                            ListTemplate = "pages/list.html",
+                            Pagination = new CollectionPaginationConfig
+                            {
+                                Enabled = true,
+                                PageSize = 2
+                            }
+                        },
+                        ["company"] = new()
+                        {
+                            Permalink = "/companies/{slug}/",
+                            Template = "pages/company.html",
+                            ListRoute = "/companies/",
+                            ListTemplate = "pages/list.html",
+                            Pagination = new CollectionPaginationConfig
+                            {
+                                Enabled = true,
+                                PageSize = 2,
+                                UrlPattern = "p/{page}/"
+                            }
+                        }
+                    }
+                },
+                Content = ContentConfigFactory.FromSources(
+                    [
+                        TestContent.MarkdownSource("posts", "post"),
+                        TestContent.MarkdownSource("companies", "company")
+                    ],
+                    media: new MediaConfig { DownloadToLocal = false }),
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            WriteTestThemeTemplates(root);
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var blogPage1Path = Path.Combine(root, "dist", "blog", "index.html");
+            Assert.True(File.Exists(blogPage1Path));
+            var blogPage1 = File.ReadAllText(blogPage1Path);
+            Assert.Contains("/blog/ page=1", blogPage1, StringComparison.Ordinal);
+            Assert.Contains("[Post 3][Post 2]", blogPage1, StringComparison.Ordinal);
+            Assert.DoesNotContain("[Company", blogPage1, StringComparison.Ordinal);
+
+            var blogPage2Path = Path.Combine(root, "dist", "blog", "page", "2", "index.html");
+            Assert.True(File.Exists(blogPage2Path));
+            var blogPage2 = File.ReadAllText(blogPage2Path);
+            Assert.Contains("/blog/page/2/ page=2", blogPage2, StringComparison.Ordinal);
+            Assert.Contains("[Post 1]", blogPage2, StringComparison.Ordinal);
+
+            var companyPage1Path = Path.Combine(root, "dist", "companies", "index.html");
+            Assert.True(File.Exists(companyPage1Path));
+            var companyPage1 = File.ReadAllText(companyPage1Path);
+            Assert.Contains("/companies/ page=1", companyPage1, StringComparison.Ordinal);
+            Assert.Contains("[Company 3][Company 2]", companyPage1, StringComparison.Ordinal);
+            Assert.DoesNotContain("[Post", companyPage1, StringComparison.Ordinal);
+
+            var companyPage2Path = Path.Combine(root, "dist", "companies", "p", "2", "index.html");
+            Assert.True(File.Exists(companyPage2Path));
+            var companyPage2 = File.ReadAllText(companyPage2Path);
+            Assert.Contains("/companies/p/2/ page=2", companyPage2, StringComparison.Ordinal);
+            Assert.Contains("[Company 1]", companyPage2, StringComparison.Ordinal);
+
+            var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
+            Assert.Contains("<loc>https://example.com/blog/page/2/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.Contains("<loc>https://example.com/companies/p/2/</loc>", sitemap, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_FilteredLists_FromSiteYaml_RendersHtmlSitemapAndSeo()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-filtered-list-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content", "companies"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: filtered-list-integration
+                  title: Filtered List Integration
+                  url: https://example.com
+                  baseUrl: /
+                  collections:
+                    company:
+                      permalink: /companies/{slug}/
+                      template: pages/company.html
+                      listRoute: /companies/
+                      listTemplate: pages/company-list.html
+                      pagination:
+                        enabled: true
+                        pageSize: 2
+                      filteredLists:
+                        - field: country
+                          operator: equals
+                          value: Malaysia
+                          listRoute: /companies/malaysia/
+                          listTemplate: pages/company-list.html
+                          pageSize: 2
+                          urlPattern: page/{page}/
+                  seo:
+                    renderMode: inject
+                content:
+                  sources:
+                    - type: markdown
+                      name: companies
+                      collection: company
+                      markdown:
+                        dir: content/companies
+                  media:
+                    downloadToLocal: false
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "companies", "malaysia-one.md"), """
+                ---
+                type: company
+                collection: company
+                title: Malaysia One
+                slug: malaysia-one
+                country: Malaysia
+                publishAt: 2026-01-01T00:00:00Z
+                ---
+                # Malaysia One
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "companies", "malaysia-two.md"), """
+                ---
+                type: company
+                collection: company
+                title: Malaysia Two
+                slug: malaysia-two
+                country: Malaysia
+                publishAt: 2026-01-02T00:00:00Z
+                ---
+                # Malaysia Two
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "companies", "singapore.md"), """
+                ---
+                type: company
+                collection: company
+                title: Singapore One
+                slug: singapore-one
+                country: Singapore
+                publishAt: 2026-01-03T00:00:00Z
+                ---
+                # Singapore One
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "companies", "malaysia-three.md"), """
+                ---
+                type: company
+                collection: company
+                title: Malaysia Three
+                slug: malaysia-three
+                country: Malaysia
+                publishAt: 2026-01-04T00:00:00Z
+                ---
+                # Malaysia Three
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "company.html"), "{% layout \"layouts/base.html\" %}\n{{ page.title }} {{ page.url }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "company-list.html"), """
+                {% layout "layouts/base.html" %}
+                url={{ page.url }} collection={{ collection.key }} filter={{ filter.field }}:{{ filter.operator }}:{{ filter.value }} page={{ pagination.page }} total={{ pagination.total_pages }} prev={{ pagination.prev_url }} next={{ pagination.next_url }} items={{ for item in items }}[{{ item.title }}|{{ item.fields.country.value }}]{{ end }} legacy={{ for item in pages }}({{ item.title }}){{ end }}
+                """);
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var filteredPage1 = File.ReadAllText(Path.Combine(root, "dist", "companies", "malaysia", "index.html"));
+            Assert.Contains("url=/companies/malaysia/ collection=company filter=country:equals:Malaysia page=1 total=2", filteredPage1, StringComparison.Ordinal);
+            Assert.Contains("next=/companies/malaysia/page/2/", filteredPage1, StringComparison.Ordinal);
+            Assert.Contains("items=[Malaysia Three|Malaysia][Malaysia Two|Malaysia]", filteredPage1, StringComparison.Ordinal);
+            Assert.Contains("legacy=(Malaysia Three)(Malaysia Two)", filteredPage1, StringComparison.Ordinal);
+            Assert.DoesNotContain("Singapore One", filteredPage1, StringComparison.Ordinal);
+            Assert.Contains("rel=\"canonical\" href=\"https://example.com/companies/malaysia/\"", filteredPage1, StringComparison.Ordinal);
+            Assert.Contains("rel=\"next\" href=\"https://example.com/companies/malaysia/page/2/\"", filteredPage1, StringComparison.Ordinal);
+
+            var filteredPage2 = File.ReadAllText(Path.Combine(root, "dist", "companies", "malaysia", "page", "2", "index.html"));
+            Assert.Contains("page=2 total=2 prev=/companies/malaysia/", filteredPage2, StringComparison.Ordinal);
+            Assert.Contains("items=[Malaysia One|Malaysia]", filteredPage2, StringComparison.Ordinal);
+            Assert.DoesNotContain("Malaysia Two", filteredPage2, StringComparison.Ordinal);
+            Assert.DoesNotContain("Singapore One", filteredPage2, StringComparison.Ordinal);
+            Assert.Contains("rel=\"canonical\" href=\"https://example.com/companies/malaysia/page/2/\"", filteredPage2, StringComparison.Ordinal);
+            Assert.Contains("rel=\"prev\" href=\"https://example.com/companies/malaysia/\"", filteredPage2, StringComparison.Ordinal);
+            Assert.DoesNotContain("rel=\"next\"", filteredPage2, StringComparison.Ordinal);
+
+            var collectionPage = File.ReadAllText(Path.Combine(root, "dist", "companies", "index.html"));
+            Assert.Contains("url=/companies/ collection=company", collectionPage, StringComparison.Ordinal);
+            Assert.Contains("items=[Malaysia Three|Malaysia][Singapore One|Singapore]", collectionPage, StringComparison.Ordinal);
+            Assert.Contains("legacy=(Malaysia Three)(Singapore One)", collectionPage, StringComparison.Ordinal);
+            Assert.True(File.Exists(Path.Combine(root, "dist", "companies", "malaysia-one", "index.html")));
+
+            var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
+            Assert.Contains("<loc>https://example.com/companies/malaysia/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.Contains("<loc>https://example.com/companies/malaysia/page/2/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.Contains("<loc>https://example.com/companies/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_I18nFilteredListRoutes_EmitMutualHreflangInHtmlAndSitemap()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-filtered-list-i18n-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content", "companies"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: filtered-list-i18n
+                  title: Filtered List I18n
+                  url: https://example.com
+                  baseUrl: /
+                  language: en
+                  languages: [en, zh]
+                  defaultLanguage: en
+                  sitemapMode: merged
+                  collections:
+                    company:
+                      permalink: /companies/{slug}/
+                      template: pages/company.html
+                      listRoute: /companies/
+                      listTemplate: pages/company-list.html
+                      filteredLists:
+                        - field: country
+                          value: Malaysia
+                          listRoute: /companies/malaysia/
+                          pageSize: 2
+                          urlPattern: page/{page}/
+                  seo:
+                    renderMode: inject
+                content:
+                  sources:
+                    - type: markdown
+                      name: companies
+                      collection: company
+                      markdown:
+                        dir: content/companies
+                  media:
+                    downloadToLocal: false
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+
+            foreach (var language in new[] { "en", "zh" })
+            {
+                for (var i = 1; i <= 3; i++)
+                {
+                    File.WriteAllText(Path.Combine(root, "content", "companies", $"{language}-company-{i}.md"), $$"""
+                        ---
+                        type: company
+                        collection: company
+                        title: {{language.ToUpperInvariant()}} Company {{i}}
+                        slug: {{language}}-company-{{i}}
+                        country: Malaysia
+                        language: {{language}}
+                        publishAt: 2026-02-0{{i}}T00:00:00Z
+                        ---
+                        # {{language.ToUpperInvariant()}} Company {{i}}
+                        """);
+                }
+            }
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "company.html"), "{% layout \"layouts/base.html\" %}\n{{ page.title }} {{ page.url }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\nList");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "company-list.html"), "{% layout \"layouts/base.html\" %}\n{{ page.url }} page={{ pagination.page }} {{ for item in items }}[{{ item.title }}]{{ end }}");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            WriteTestThemeTemplates(root);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var enPage2 = File.ReadAllText(Path.Combine(root, "dist", "en", "companies", "malaysia", "page", "2", "index.html"));
+            Assert.Contains("/companies/malaysia/page/2/ page=2 [EN Company 1]", enPage2, StringComparison.Ordinal);
+            Assert.DoesNotContain("ZH Company", enPage2, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en/companies/malaysia/page/2/\"", enPage2, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"en\" href=\"https://example.com/en/companies/malaysia/page/2/\"", enPage2, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"zh\" href=\"https://example.com/zh/companies/malaysia/page/2/\"", enPage2, StringComparison.Ordinal);
+
+            var zhPage2 = File.ReadAllText(Path.Combine(root, "dist", "zh", "companies", "malaysia", "page", "2", "index.html"));
+            Assert.Contains("/companies/malaysia/page/2/ page=2 [ZH Company 1]", zhPage2, StringComparison.Ordinal);
+            Assert.DoesNotContain("EN Company", zhPage2, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"en\" href=\"https://example.com/en/companies/malaysia/page/2/\"", zhPage2, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"zh\" href=\"https://example.com/zh/companies/malaysia/page/2/\"", zhPage2, StringComparison.Ordinal);
+
+            var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
+            Assert.Contains("<loc>https://example.com/en/companies/malaysia/page/2/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en/companies/malaysia/page/2/\"", sitemap, StringComparison.Ordinal);
+            Assert.Contains("hreflang=\"zh\" href=\"https://example.com/zh/companies/malaysia/page/2/\"", sitemap, StringComparison.Ordinal);
+            Assert.Empty(logger.Errors);
         }
         finally
         {

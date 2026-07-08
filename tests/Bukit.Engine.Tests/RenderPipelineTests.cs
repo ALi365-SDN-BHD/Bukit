@@ -47,6 +47,7 @@ public sealed class RenderPipelineTests
             ManifestEntries: null,
             MaxDegreeOfParallelism: 1,
             Logger: new ConsoleLogger(LogLevel.Error),
+            ListRouteGraph: ListRouteGraphBuilder.Build(routedDocuments, CreateCollections(), "pretty"),
             RenderDocuments: routedDocuments,
             RoutedDocuments: routedDocuments), CancellationToken.None);
 
@@ -98,6 +99,7 @@ public sealed class RenderPipelineTests
             ManifestEntries: manifestEntries,
             MaxDegreeOfParallelism: 1,
             Logger: new ConsoleLogger(LogLevel.Error),
+            ListRouteGraph: ListRouteGraphBuilder.Build(routedDocuments, CreateCollections(), "pretty"),
             RenderDocuments: routedDocuments,
             RoutedDocuments: routedDocuments), CancellationToken.None);
 

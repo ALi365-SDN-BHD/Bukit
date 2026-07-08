@@ -153,6 +153,21 @@ img {
   color: var(--text);
 }
 
+.card-media {
+  display: block;
+  margin: -4px -4px 14px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+
+.card-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;
@@ -165,6 +180,26 @@ img {
 .summary {
   margin: 0;
   color: var(--muted);
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 650;
 }
 
 .article {

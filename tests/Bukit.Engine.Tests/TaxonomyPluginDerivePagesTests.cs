@@ -230,6 +230,100 @@ public sealed class TaxonomyPluginDerivePagesTests
     }
 
     [Fact]
+    public void DerivePages_TaxonomyKindRoutePrefix_UsesConfiguredBusinessPath()
+    {
+        var config = new TaxonomyConfig
+        {
+            OutputMode = "pages",
+            IndexEnabled = true,
+            PageSize = 1,
+            Kinds = new List<TaxonomyKindConfig>
+            {
+                new()
+                {
+                    Key = "categories",
+                    Kind = "category",
+                    Title = "Categories",
+                    SingularTitlePrefix = "Category",
+                    RoutePrefix = "/insights/category"
+                }
+            }
+        };
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
+        {
+            CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: new[] { "市场观察" }),
+            CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: new[] { "市场观察" })
+        };
+        var ctx = CreateContext(routed, taxonomyConfig: config);
+
+        var derived = new TaxonomyPlugin().DerivePages(ctx);
+
+        var index = Assert.Single(derived, x => x.Route.Url == "/insights/category/");
+        var termPage = Assert.Single(derived, x => x.Route.Url == "/insights/category/市场观察/");
+        Assert.Contains(derived, x => x.Route.Url == "/insights/category/市场观察/page/2/");
+        Assert.DoesNotContain(derived, x => x.Route.Url == "/category/市场观察/");
+
+        var terms = Assert.IsType<List<object>>(index.Document.CustomFields!["terms"].Value);
+        var term = Assert.IsType<Dictionary<string, object>>(terms[0]);
+        Assert.Equal("/insights/category/市场观察/", term["url"]);
+        var taxonomy = Assert.IsType<Dictionary<string, object>>(termPage.Document.CustomFields!["taxonomy"].Value);
+        Assert.Equal("/insights/category", taxonomy["route_prefix"]);
+        Assert.Equal("/insights/category", taxonomy["routePrefix"]);
+        Assert.Equal("/insights/category/市场观察/", taxonomy["url"]);
+
+        var siteTaxonomy = Assert.IsType<Dictionary<string, object>>(ctx.Data["taxonomy"]);
+        var categoryData = Assert.IsType<Dictionary<string, object>>(siteTaxonomy["category"]);
+        var dataTerms = Assert.IsType<List<object>>(categoryData["terms"]);
+        var dataTerm = Assert.IsType<Dictionary<string, object>>(dataTerms[0]);
+        Assert.Equal("/insights/category/市场观察/", dataTerm["url"]);
+    }
+
+    [Fact]
+    public void DerivePages_TaxonomyKindRoutePrefix_CanBeMergedIntoListRouteGraph()
+    {
+        var config = new TaxonomyConfig
+        {
+            OutputMode = "pages",
+            IndexEnabled = true,
+            PageSize = 1,
+            Kinds = new List<TaxonomyKindConfig>
+            {
+                new()
+                {
+                    Key = "categories",
+                    Kind = "category",
+                    Title = "Categories",
+                    RoutePrefix = "/insights/category"
+                }
+            }
+        };
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
+        {
+            CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: new[] { "market" }),
+            CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: new[] { "market" })
+        };
+        var ctx = CreateContext(routed, taxonomyConfig: config);
+        var derived = new TaxonomyPlugin().DerivePages(ctx);
+
+        var graph = ListRouteGraphBuilder.AddDerivedTaxonomyRoutes(ListRouteGraph.Empty, derived);
+
+        Assert.Contains(graph.Routes, route =>
+            route.Kind == ListRouteKind.TaxonomyIndex &&
+            route.Url == "/insights/category/" &&
+            route.TaxonomyContext?.IsIndex is true &&
+            route.Items.Single().Url == "/insights/category/market/");
+        Assert.Contains(graph.Routes, route =>
+            route.Kind == ListRouteKind.TaxonomyTermPage &&
+            route.Url == "/insights/category/market/" &&
+            route.NextUrl == "/insights/category/market/page/2/" &&
+            route.TaxonomyContext?.Slug == "market");
+        Assert.Contains(graph.Routes, route =>
+            route.Kind == ListRouteKind.TaxonomyTermPage &&
+            route.Url == "/insights/category/market/page/2/" &&
+            route.PrevUrl == "/insights/category/market/");
+    }
+
+    [Fact]
     public void DerivePages_EmptyItems_ReturnsEmpty()
     {
         var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>());
@@ -296,6 +390,48 @@ public sealed class TaxonomyPluginDerivePagesTests
         var items = Assert.IsType<List<object>>(termPage.Document.CustomFields!["items"].Value);
         var first = Assert.IsType<Dictionary<string, object>>(items[0]);
         Assert.Equal("Canonical taxonomy summary", first["summary"]);
+    }
+
+    [Fact]
+    public void DerivePages_ItemFields_ProjectListCompatibleItemFields()
+    {
+        var publishAt = new DateTimeOffset(2024, 6, 2, 0, 0, 0, TimeSpan.Zero);
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Post 1",
+            slug: "p1",
+            publishAt: publishAt,
+            contentHtml: "<p>Post 1</p>",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["tags"] = new("list", new object[] { "alpha" }),
+                ["categories"] = new("list", new object[] { "市场观察" }),
+                ["cover"] = new("text", "/covers/market.jpg"),
+                ["description"] = new("text", "Canonical fallback summary")
+            });
+        var route = new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html");
+        var taxonomy = new TaxonomyConfig
+        {
+            OutputMode = "pages",
+            ItemFields = new[] { "cover", "categories", "summary", "date" }
+        };
+        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) }, taxonomyConfig: taxonomy);
+
+        var derived = new TaxonomyPlugin().DerivePages(ctx);
+
+        var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alpha/");
+        var items = Assert.IsType<List<object>>(termPage.Document.CustomFields!["items"].Value);
+        var first = Assert.IsType<Dictionary<string, object>>(items[0]);
+        var fields = Assert.IsType<Dictionary<string, object>>(first["fields"]);
+        var cover = Assert.IsType<Dictionary<string, object?>>(fields["cover"]);
+        var categories = Assert.IsType<Dictionary<string, object?>>(fields["categories"]);
+        var summary = Assert.IsType<Dictionary<string, object?>>(fields["summary"]);
+        var date = Assert.IsType<Dictionary<string, object?>>(fields["date"]);
+
+        Assert.Equal("/covers/market.jpg", cover["value"]);
+        Assert.Equal(new object[] { "市场观察" }, Assert.IsType<object[]>(categories["value"]));
+        Assert.Equal("Canonical fallback summary", summary["value"]);
+        Assert.Equal("2024-06-02", date["value"]);
     }
 
     [Fact]

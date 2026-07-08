@@ -264,11 +264,27 @@ internal static class RenderDependencyHasher
                     hasher.AppendData(newline);
                     IncrementalBuildEngine.AppendUtf8(hasher, fl.Field);
                     hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.Operator);
+                    hasher.AppendData(newline);
                     IncrementalBuildEngine.AppendUtf8(hasher, fl.Value);
+                    if (fl.Values is { Count: > 0 })
+                    {
+                        foreach (var value in fl.Values.OrderBy(x => x, StringComparer.Ordinal))
+                        {
+                            hasher.AppendData(newline);
+                            IncrementalBuildEngine.AppendUtf8(hasher, value);
+                        }
+                    }
                     hasher.AppendData(newline);
                     IncrementalBuildEngine.AppendUtf8(hasher, fl.ListRoute);
                     hasher.AppendData(newline);
                     IncrementalBuildEngine.AppendUtf8(hasher, fl.ListTemplate);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.PageSize?.ToString());
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.UrlPattern);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.EmptyBehavior);
                 }
             }
         }
@@ -382,6 +398,8 @@ internal static class RenderDependencyHasher
                 IncrementalBuildEngine.AppendUtf8(hasher, kind.IndexEnabled?.ToString());
                 hasher.AppendData(newline);
                 IncrementalBuildEngine.AppendUtf8(hasher, kind.Hierarchical.ToString());
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.RoutePrefix);
             }
         }
     }

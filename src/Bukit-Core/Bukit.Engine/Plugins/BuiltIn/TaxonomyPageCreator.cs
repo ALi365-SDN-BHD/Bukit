@@ -11,6 +11,7 @@ internal static class TaxonomyPageCreator
     internal static IReadOnlyList<RoutedContentDocument> CreateKind(
         string baseUrlPrefix,
         string kind,
+        string? routePrefix,
         string title,
         string singularTitlePrefix,
         Dictionary<string, TaxonomyTerm> terms,
@@ -26,6 +27,7 @@ internal static class TaxonomyPageCreator
             ? TaxonomyHierarchyBuilder.BuildHierarchy(terms)
             : new Dictionary<string, TaxonomyHierarchyBuilder.HierarchyInfo>(StringComparer.OrdinalIgnoreCase);
         var derived = new List<RoutedContentDocument>();
+        var normalizedRoutePrefix = NormalizeRoutePrefix(kind, routePrefix);
         var items = terms.Values
             .OrderByDescending(x => x.Weight)
             .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -39,7 +41,7 @@ internal static class TaxonomyPageCreator
         if (indexEnabled)
         {
             var visibleTerms = items.Where(t => t.IsVisible).ToList();
-            derived.Add(CreateIndexPage(baseUrlPrefix, kind, title, visibleTerms, hierarchy, indexTemplate, publishAt, emitContentHtml, outputPathEncoding));
+            derived.Add(CreateIndexPage(baseUrlPrefix, kind, normalizedRoutePrefix, title, visibleTerms, hierarchy, indexTemplate, publishAt, emitContentHtml, outputPathEncoding));
         }
 
         foreach (var term in items)
@@ -50,6 +52,7 @@ internal static class TaxonomyPageCreator
                 derived.Add(CreateTermPage(
                     baseUrlPrefix,
                     kind,
+                    normalizedRoutePrefix,
                     singularTitlePrefix,
                     term,
                     hi,
@@ -73,6 +76,7 @@ internal static class TaxonomyPageCreator
                 derived.Add(CreateTermPage(
                     baseUrlPrefix,
                     kind,
+                    normalizedRoutePrefix,
                     singularTitlePrefix,
                     term,
                     hi,
@@ -93,6 +97,7 @@ internal static class TaxonomyPageCreator
     internal static RoutedContentDocument CreateIndexPage(
         string baseUrlPrefix,
         string kind,
+        string routePrefix,
         string title,
         IReadOnlyList<TaxonomyTerm> terms,
         IReadOnlyDictionary<string, TaxonomyHierarchyBuilder.HierarchyInfo> hierarchy,
@@ -108,14 +113,14 @@ internal static class TaxonomyPageCreator
             sb.AppendLine("<ul>");
             foreach (var term in terms)
             {
-                var href = $"{baseUrlPrefix}/{kind}/{term.Slug}/";
+                var href = $"{baseUrlPrefix}{BuildTermUrl(routePrefix, term.Slug)}";
                 sb.AppendLine($"  <li><a href=\"{EscapeAttr(href)}\">{EscapeHtml(term.DisplayName)}</a> <small>({term.Pages.Count})</small></li>");
             }
             sb.AppendLine("</ul>");
             html = sb.ToString();
         }
 
-        var url = "/" + kind + "/";
+        var url = BuildIndexUrl(routePrefix);
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -132,7 +137,7 @@ internal static class TaxonomyPageCreator
             {
                 ["title"] = term.DisplayName,
                 ["slug"] = term.Slug,
-                ["url"] = "/" + kind + "/" + term.Slug + "/",
+                ["url"] = BuildTermUrl(routePrefix, term.Slug),
                 ["count"] = term.Pages.Count
             };
             if (!string.IsNullOrWhiteSpace(term.Description))
@@ -174,6 +179,14 @@ internal static class TaxonomyPageCreator
             ["type"] = new ContentField("text", "derived"),
             ["collection"] = new ContentField("text", "page"),
             ["summary"] = new ContentField("text", meta["summary"]),
+            ["taxonomy"] = new ContentField("object", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["kind"] = kind,
+                ["is_index"] = true,
+                ["route_prefix"] = routePrefix,
+                ["routePrefix"] = routePrefix,
+                ["url"] = url
+            }),
             ["terms"] = new ContentField("list", termsValue)
         };
 
@@ -191,6 +204,7 @@ internal static class TaxonomyPageCreator
     internal static RoutedContentDocument CreateTermPage(
         string baseUrlPrefix,
         string kind,
+        string routePrefix,
         string singularTitlePrefix,
         TaxonomyTerm term,
         TaxonomyHierarchyBuilder.HierarchyInfo? hierarchyInfo,
@@ -221,8 +235,8 @@ internal static class TaxonomyPageCreator
 
         var isFirstPage = page <= 1;
         var url = isFirstPage
-            ? "/" + kind + "/" + term.Slug + "/"
-            : "/" + kind + "/" + term.Slug + "/page/" + page + "/";
+            ? BuildTermUrl(routePrefix, term.Slug)
+            : BuildTermPageUrl(routePrefix, term.Slug, page);
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, template);
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -237,6 +251,7 @@ internal static class TaxonomyPageCreator
         {
             var obj = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
+                ["id"] = pageItem.Id,
                 ["title"] = pageItem.Title,
                 ["url"] = pageItem.Url,
                 ["publish_date"] = pageItem.PublishAt.DateTime
@@ -248,12 +263,24 @@ internal static class TaxonomyPageCreator
 
             if (pageItem.Extra is not null)
             {
+                var fieldsValue = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
                 foreach (var kv in pageItem.Extra)
                 {
                     if (!obj.ContainsKey(kv.Key))
                     {
                         obj[kv.Key] = kv.Value;
                     }
+
+                    fieldsValue[kv.Key] = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["type"] = InferContentFieldType(kv.Value),
+                        ["value"] = kv.Value
+                    };
+                }
+
+                if (fieldsValue.Count > 0)
+                {
+                    obj["fields"] = fieldsValue;
                 }
             }
 
@@ -265,6 +292,9 @@ internal static class TaxonomyPageCreator
             ["kind"] = kind,
             ["term"] = term.DisplayName,
             ["slug"] = term.Slug,
+            ["route_prefix"] = routePrefix,
+            ["routePrefix"] = routePrefix,
+            ["url"] = url,
             ["count"] = term.Pages.Count
         };
         if (!string.IsNullOrWhiteSpace(term.Description))
@@ -299,14 +329,23 @@ internal static class TaxonomyPageCreator
             }
         }
 
-        var paginationValue = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var paginationValue = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
             ["page"] = page,
             ["page_size"] = pageSize,
             ["total"] = term.Pages.Count,
+            ["total_items"] = term.Pages.Count,
             ["total_pages"] = totalPages,
             ["has_prev"] = page > 1,
-            ["has_next"] = page < totalPages
+            ["has_next"] = page < totalPages,
+            ["prev_url"] = page > 1
+                ? page == 2
+                    ? BuildTermUrl(routePrefix, term.Slug)
+                    : BuildTermPageUrl(routePrefix, term.Slug, page - 1)
+                : null,
+            ["next_url"] = page < totalPages
+                ? BuildTermPageUrl(routePrefix, term.Slug, page + 1)
+                : null
         };
 
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
@@ -357,5 +396,52 @@ internal static class TaxonomyPageCreator
     internal static string EscapeAttr(string value)
     {
         return EscapeHtml(value);
+    }
+
+    private static string InferContentFieldType(object? value)
+    {
+        return value switch
+        {
+            null => "object",
+            string => "text",
+            bool => "boolean",
+            int or long or float or double or decimal => "number",
+            DateTime or DateTimeOffset => "date",
+            IReadOnlyDictionary<string, object> or IDictionary<string, object> => "object",
+            IEnumerable<object> => "list",
+            _ => "object"
+        };
+    }
+
+    internal static string NormalizeRoutePrefix(string kind, string? routePrefix)
+    {
+        var value = string.IsNullOrWhiteSpace(routePrefix)
+            ? "/" + (kind ?? string.Empty).Trim().Trim('/')
+            : routePrefix.Trim();
+
+        if (!value.StartsWith("/", StringComparison.Ordinal))
+        {
+            value = "/" + value;
+        }
+
+        value = value.TrimEnd('/');
+        return string.IsNullOrWhiteSpace(value) ? "/" : value;
+    }
+
+    internal static string BuildIndexUrl(string routePrefix)
+    {
+        return routePrefix == "/" ? "/" : routePrefix + "/";
+    }
+
+    internal static string BuildTermUrl(string routePrefix, string termSlug)
+    {
+        var prefix = routePrefix == "/" ? string.Empty : routePrefix;
+        return $"{prefix}/{termSlug}/";
+    }
+
+    internal static string BuildTermPageUrl(string routePrefix, string termSlug, int page)
+    {
+        var prefix = routePrefix == "/" ? string.Empty : routePrefix;
+        return $"{prefix}/{termSlug}/page/{page}/";
     }
 }

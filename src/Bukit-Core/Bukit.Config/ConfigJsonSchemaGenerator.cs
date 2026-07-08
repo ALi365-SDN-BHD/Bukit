@@ -120,7 +120,8 @@ public static class ConfigJsonSchemaGenerator
                 ("indexTemplate", StringSchema()),
                 ("termTemplate", StringSchema()),
                 ("indexEnabled", BoolSchema()),
-                ("hierarchical", BoolSchema()))))))))));
+                ("hierarchical", BoolSchema()),
+                ("routePrefix", StringSchema()))))))))));
 
     private static JsonObject DeploySchema()
         => Obj(("type", "object"), ("properties", Obj(
@@ -384,12 +385,17 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject CollectionFilteredListItemSchema()
     {
         var schema = Obj(("type", "object"));
-        schema["required"] = Arr("field", "value", "listRoute");
+        schema["required"] = Arr("field", "listRoute");
         schema["properties"] = Obj(
             ("field", StringSchema()),
+            ("operator", EnumSchema("equals", "contains", "in")),
             ("value", StringSchema()),
+            ("values", StringArraySchema()),
             ("listRoute", StringSchema()),
-            ("listTemplate", StringSchema()));
+            ("listTemplate", StringSchema()),
+            ("pageSize", IntSchema(1)),
+            ("urlPattern", StringSchema()),
+            ("emptyBehavior", EnumSchema("render", "skip")));
         return schema;
     }
 

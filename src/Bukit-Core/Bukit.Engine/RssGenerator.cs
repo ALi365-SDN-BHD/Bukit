@@ -120,6 +120,51 @@ public static class RssGenerator
         FileWriter.WriteUtf8(outputDir, "rss.xml", RenderFeed(siteTitle, siteDescription, homeUrl, feedUrl, sorted));
     }
 
+    internal static void GenerateAtPath(
+        string outputDir,
+        string siteUrl,
+        string baseUrl,
+        string siteTitle,
+        IReadOnlyList<Post> posts,
+        string feedPath,
+        int maxItems = 20,
+        string? siteDescription = null)
+    {
+        if (string.IsNullOrWhiteSpace(feedPath))
+        {
+            throw new ArgumentException("RSS feed path must be non-empty.", nameof(feedPath));
+        }
+
+        var normalizedSiteUrl = InternalNormalizeSiteUrl(siteUrl);
+        var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
+        var normalizedFeedPath = NormalizeRelativeFeedPath(feedPath);
+
+        var sorted = posts
+            .OrderByDescending(x => x.PublishAt)
+            .GroupBy(x => x.AbsoluteUrl, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .Take(maxItems)
+            .ToList();
+
+        var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/" + normalizedFeedPath);
+        var homeUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
+        FileWriter.WriteUtf8(outputDir, normalizedFeedPath, RenderFeed(siteTitle, siteDescription, homeUrl, feedUrl, sorted));
+    }
+
+    private static string NormalizeRelativeFeedPath(string feedPath)
+    {
+        var normalized = feedPath.Trim().Replace('\\', '/').TrimStart('/');
+        if (string.IsNullOrWhiteSpace(normalized) ||
+            normalized.Split('/', StringSplitOptions.RemoveEmptyEntries).Any(segment => segment == ".."))
+        {
+            throw new ArgumentException("RSS feed path must be a safe relative path.", nameof(feedPath));
+        }
+
+        return normalized.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)
+            ? normalized
+            : normalized.TrimEnd('/') + "/rss.xml";
+    }
+
     private static string RenderFeed(string siteTitle, string? siteDescription, string homeUrl, string feedUrl, IReadOnlyList<Post> posts)
     {
         var channelDescription = string.IsNullOrWhiteSpace(siteDescription) ? siteTitle : siteDescription.Trim();

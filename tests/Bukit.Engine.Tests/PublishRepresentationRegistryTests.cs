@@ -266,6 +266,145 @@ public sealed class PublishRepresentationRegistryTests
     }
 
     [Fact]
+    public void SitemapProjection_IncludesListRouteGraphEntriesAndRespectsCollectionExclusions()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit_projection_list_sitemap_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+        try
+        {
+            var graph = ListRouteGraph.Create(new[]
+            {
+                ListRoute("collection:post:1", ListRouteKind.CollectionList, "/blog/", "blog/index.html", "post"),
+                ListRoute("collection:post:2", ListRouteKind.CollectionPage, "/blog/page/2/", "blog/page/2/index.html", "post"),
+                ListRoute("collection:company:1", ListRouteKind.CollectionList, "/companies/", "companies/index.html", "company"),
+                ListRoute("filter:company:country:Malaysia:2", ListRouteKind.FilteredListPage, "/companies/malaysia/page/2/", "companies/malaysia/page/2/index.html", "company")
+            });
+            foreach (var route in graph.Routes)
+            {
+                WriteHtml(outputDir, route.OutputPath);
+            }
+
+            var context = new PublishProjectionContext(
+                Config: new AppConfig
+                {
+                    Site = new SiteConfig
+                    {
+                        Name = "test",
+                        Title = "Test",
+                        Url = "https://example.com",
+                        Collections = new Dictionary<string, CollectionConfig>
+                        {
+                            ["post"] = new()
+                            {
+                                Permalink = "/blog/{slug}/",
+                                ListRoute = "/blog/",
+                                ListTemplate = "list.html",
+                                Output = new CollectionOutputConfig { Sitemap = true }
+                            },
+                            ["company"] = new()
+                            {
+                                Permalink = "/companies/{slug}/",
+                                ListRoute = "/companies/",
+                                ListTemplate = "list.html",
+                                Output = new CollectionOutputConfig { Sitemap = false }
+                            }
+                        }
+                    },
+                    Content = TestContent.Markdown()
+                },
+                OutputDir: outputDir,
+                ContentGraph: CanonicalContentGraph.Empty,
+                SeoIndex: graph.Routes.ToDictionary(
+                    route => BuildPathUtils.NormalizeRelPath(route.OutputPath),
+                    route => new SeoIndexEntry(route.ToRouteInfo(), $"https://example.com{route.Url}", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, "list", IsDerived: true),
+                    StringComparer.OrdinalIgnoreCase),
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+                RoutedDocuments: Array.Empty<RoutedContentDocument>(),
+                ListRouteGraph: graph);
+
+            new SitemapPublishProjection().Project(context);
+
+            var sitemap = File.ReadAllText(Path.Combine(outputDir, "sitemap.xml"));
+            Assert.Contains("<loc>https://example.com/blog/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.Contains("<loc>https://example.com/blog/page/2/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/companies/", sitemap, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/companies/malaysia/page/2/", sitemap, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDir))
+            {
+                Directory.Delete(outputDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void FeedProjections_WritePerCollectionFeedsToCollectionFeedPath()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit_projection_collection_feed_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+        try
+        {
+            var route = new RouteInfo("/post/", "post/index.html", "post.html");
+            var document = Document("post", "Post");
+            var context = new PublishProjectionContext(
+                Config: new AppConfig
+                {
+                    Site = new SiteConfig
+                    {
+                        Name = "test",
+                        Title = "Test",
+                        Url = "https://example.com",
+                        Feed = new FeedConfig { Formats = ["rss", "atom", "json"] },
+                        Collections = new Dictionary<string, CollectionConfig>
+                        {
+                            ["post"] = new()
+                            {
+                                Permalink = "/post/{slug}/",
+                                Output = new CollectionOutputConfig
+                                {
+                                    Rss = true,
+                                    FeedPath = "feeds/posts",
+                                    FeedTitle = "Post Feed"
+                                }
+                            }
+                        }
+                    },
+                    Content = TestContent.Markdown()
+                },
+                OutputDir: outputDir,
+                ContentGraph: CanonicalContentGraph.Empty,
+                SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["post/index.html"] = new SeoIndexEntry(route, "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), document.Id, "post")
+                },
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+                BodyStore: new InlineBodyStore("<p>Post body</p>"),
+                BaseUrl: "/",
+                RoutedDocuments: new[] { new RoutedContentDocument(document, route) });
+
+            foreach (var projection in PublishRepresentationRegistry.AggregateProjectionAdapters()
+                         .Where(x => x.Representation.Kind is "feed" or "atom" or "jsonfeed"))
+            {
+                projection.Project(context);
+            }
+
+            Assert.True(File.Exists(Path.Combine(outputDir, "feeds", "posts", "rss.xml")));
+            Assert.True(File.Exists(Path.Combine(outputDir, "feeds", "posts", "atom.xml")));
+            Assert.True(File.Exists(Path.Combine(outputDir, "feeds", "posts", "feed.json")));
+            Assert.Contains("<title>Post Feed</title>", File.ReadAllText(Path.Combine(outputDir, "feeds", "posts", "rss.xml")), StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDir))
+            {
+                Directory.Delete(outputDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void SearchProjection_GeneratesSearchUiPartial()
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit_projection_search_ui_" + Guid.NewGuid().ToString("N"));
@@ -355,6 +494,28 @@ public sealed class PublishRepresentationRegistryTests
                 ["type"] = "post",
                 ["collection"] = "post"
             }));
+
+    private static ListRoutePlan ListRoute(string id, ListRouteKind kind, string url, string outputPath, string collection)
+        => new()
+        {
+            RouteId = id,
+            Kind = kind,
+            Url = url,
+            OutputPath = outputPath,
+            Template = "list.html",
+            Collection = collection,
+            PageNumber = url.Contains("/page/", StringComparison.OrdinalIgnoreCase) ? 2 : 1,
+            PageSize = 10,
+            TotalItems = 20,
+            CanonicalUrl = url
+        };
+
+    private static void WriteHtml(string outputDir, string outputPath)
+    {
+        var path = Path.Combine(outputDir, outputPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "<!doctype html><html><head></head><body></body></html>");
+    }
 
     private sealed class InlineBodyStore : IContentBodyStore
     {

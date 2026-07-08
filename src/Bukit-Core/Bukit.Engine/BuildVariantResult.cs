@@ -20,6 +20,7 @@ internal sealed record BuildVariantResult(
     BuildStageMetrics StageMetrics,
     IReadOnlyList<RoutedContentDocument> RoutedDocuments,
     CanonicalContentGraph? ContentGraph = null,
+    ListRouteGraph? ListRouteGraph = null,
     IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null,
     IReadOnlyList<PublishProjectionResult>? ProjectionResults = null,
     IReadOnlyList<RouteInfo>? StaticRoutes = null,

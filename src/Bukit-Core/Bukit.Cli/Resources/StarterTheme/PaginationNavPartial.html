@@ -2,18 +2,16 @@
 {{ page_total = 1 }}
 {{ prev_url = "" }}
 {{ next_url = "" }}
+{{ nav_base_url = site.base_url }}
+{{ if nav_base_url == "/" }}{{ nav_base_url = "" }}{{ end }}
 {{ if pagination }}
   {{ page_num = pagination.page }}
   {{ page_total = pagination.total_pages }}
-  {{ if pagination.has_prev }}
-    {{ if page_num == 2 }}
-      {{ prev_url = base_url }}
-    {{ else }}
-      {{ prev_url = base_url + "page/" + (page_num - 1) + "/" }}
-    {{ end }}
+  {{ if pagination.prev_url }}
+    {{ prev_url = nav_base_url + pagination.prev_url }}
   {{ end }}
-  {{ if pagination.has_next }}
-    {{ next_url = base_url + "page/" + (page_num + 1) + "/" }}
+  {{ if pagination.next_url }}
+    {{ next_url = nav_base_url + pagination.next_url }}
   {{ end }}
 {{ end }}
 {{ if page_total > 1 }}

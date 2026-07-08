@@ -129,7 +129,66 @@ Rules:
 - `permalink` is required and must include `{slug}`.
 - `listRoute`, when set, must start with `/`.
 - `schemaFailMode`, when set, is `off`, `warn`, or `strict`.
-- `filteredLists` can create additional list routes based on a field/value pair.
+- `filteredLists` can create additional list routes based on an explicit field/operator match when `listRoute` is set.
+
+### Filtered Lists
+
+`site.collections.<name>.filteredLists` is for manually configured static entry
+pages. Use it when the route itself is an editorial or product decision, such as
+a fixed country page, industry page, topic landing page, or curated list.
+Each entry is an explicit match against one `field`; Bukit does not expand tags,
+categories, topics, or other terms into filtered-list routes.
+
+```yaml
+site:
+  collections:
+    company:
+      permalink: /companies/{slug}/
+      template: pages/company.html
+      listRoute: /companies/
+      filteredLists:
+        - field: country
+          operator: equals
+          value: Malaysia
+          listRoute: /companies/malaysia/
+          listTemplate: pages/company-list.html
+          pageSize: 10
+          urlPattern: page/{page}/
+          emptyBehavior: render
+        - field: category
+          operator: in
+          values:
+            - 市场观察
+            - 政策动态
+          listRoute: /companies/market/
+```
+
+Do not use `filteredLists` as a replacement for dynamic taxonomy pages. If a
+site should generate one page per tag, category, topic, or term from content
+metadata, configure `taxonomy.kinds` instead. `filteredLists` stays intentionally
+explicit: each route is declared by hand and represents one fixed filter.
+Filtered-list routes are generated only when the parent collection also defines
+`listRoute`; without that collection list route, Bukit warns and skips the
+filtered-list route.
+
+`operator` defaults to `equals`. Supported operators are:
+
+- `equals`: matches a scalar field, select field, list item, or date field by
+  case-insensitive text, slug-equivalent text, or calendar date.
+- `contains`: matches when a scalar text field contains `value`; list fields
+  match when any item contains `value`.
+- `in`: matches when a scalar field or any list item equals one of `values`.
+
+Use `value` with `equals` and `contains`; use `values` with `in`.
+
+Filtered lists use build-time pagination. `pageSize` controls the number of
+matched items per static page, `urlPattern` controls page 2 and later under the
+filtered `listRoute`, and `emptyBehavior` is `render` or `skip`. With the example
+above, Bukit can generate `/companies/malaysia/` and
+`/companies/malaysia/page/2/`.
+
+For a step-by-step migration from JavaScript pagination or browser-side filters
+to build-time list routes, see [18 Static List Routes Migration](./18-static-list-routes-migration.md).
 
 ## `content`
 
@@ -252,6 +311,12 @@ taxonomy:
 ```
 
 `taxonomy.outputMode` is `both`, `pages`, `data`, or `fields_only`.
+
+Use taxonomy when routes should be generated from content metadata terms, such
+as every tag or category. Use `site.collections.*.filteredLists` only for fixed,
+manually selected filter pages.
+
+For category route migration examples, see [18 Static List Routes Migration](./18-static-list-routes-migration.md).
 
 ## `deploy`
 

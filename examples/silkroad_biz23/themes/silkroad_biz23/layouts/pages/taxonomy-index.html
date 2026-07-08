@@ -1,0 +1,17 @@
+{% layout "layouts/base.html" %}
+
+{{ terms = page.fields.terms.value }}
+
+<header class="page-header">
+  <p class="eyebrow">Categories</p>
+  <h1>{{ page.title }}</h1>
+</header>
+
+<section class="grid" data-section="category-index">
+  {{ for term in terms }}
+    <article class="card">
+      <h3><a href="{{ term.url }}">{{ term.title }}</a></h3>
+      <p>{{ term.count }} insights</p>
+    </article>
+  {{ end }}
+</section>

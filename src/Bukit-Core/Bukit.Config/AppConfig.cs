@@ -147,9 +147,14 @@ public sealed record ArchiveDetailConfig
 public sealed record FilteredListConfig
 {
     public required string Field { get; init; }
-    public required string Value { get; init; }
+    public string Operator { get; init; } = "equals";
+    public string? Value { get; init; }
+    public IReadOnlyList<string>? Values { get; init; }
     public required string ListRoute { get; init; }
     public string? ListTemplate { get; init; }
+    public int? PageSize { get; init; }
+    public string? UrlPattern { get; init; }
+    public string EmptyBehavior { get; init; } = "render";
 }
 
 public sealed record ContentConfig
@@ -409,6 +414,7 @@ public sealed record TaxonomyKindConfig
     public string? TermTemplate { get; init; }
     public bool? IndexEnabled { get; init; }
     public bool Hierarchical { get; init; }
+    public string? RoutePrefix { get; init; }
 }
 
 public sealed record LoggingConfig

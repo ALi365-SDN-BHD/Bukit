@@ -26,6 +26,7 @@ LiveReload development, SEO/GEO reports, and GitHub Pages deployment.
 | Copy common patterns | [15 Recipes](./15-recipes.md) |
 | Find field and option names quickly | [16 Parameter Cheatsheet](./16-parameter-cheatsheet.md) |
 | Prepare AI-readable outputs | [17 GEO](./17-geo.md) |
+| Migrate JS lists to static routes | [18 Static List Routes Migration](./18-static-list-routes-migration.md) |
 
 ## Stable Core Commands
 
@@ -55,4 +56,3 @@ bukit dev
 
 Use `preview` when you only want to serve an already-built output directory.
 Use `dev` when you want file watching, incremental rebuilds, and browser reload.
-

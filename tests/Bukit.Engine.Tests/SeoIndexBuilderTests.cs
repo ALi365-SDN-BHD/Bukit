@@ -151,6 +151,174 @@ public sealed class SeoIndexBuilderTests
     }
 
     [Fact]
+    public void Build_WithListRouteGraph_UsesTaxonomyGraphRouteForSeoEntry()
+    {
+        var config = CreateConfig();
+        var derivedDocument = ContentDocument.Create(
+            id: "category-market-page-2",
+            title: "Category: Market (Page 2)",
+            slug: "market",
+            publishAt: new DateTimeOffset(2026, 7, 2, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "derived",
+                ["collection"] = "page",
+                ["summary"] = "Browse 1 content items in Market. Page 2 of 2."
+            }));
+        var route = new RouteInfo("/insights/category/market/page/2/", "insights/category/market/page/2/index.html", "pages/taxonomy-term.html");
+        var routed = new[] { (derivedDocument, route) };
+        var graph = ListRouteGraph.Create(new[]
+        {
+            new ListRoutePlan
+            {
+                RouteId = "taxonomy:category:market:2",
+                Kind = ListRouteKind.TaxonomyTermPage,
+                Url = route.Url,
+                OutputPath = route.OutputPath,
+                Template = route.Template,
+                PageNumber = 2,
+                PageSize = 1,
+                TotalItems = 2,
+                Items = new[]
+                {
+                    new ListRouteItem
+                    {
+                        Id = "market-1",
+                        Title = "Market 1",
+                        Url = "/insights/market-1/",
+                        Summary = "Summary 1",
+                        PublishDate = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
+                    }
+                },
+                CanonicalUrl = route.Url,
+                PrevUrl = "/insights/category/market/",
+                TaxonomyContext = new ListRouteTaxonomyContext
+                {
+                    Kind = "category",
+                    Term = "Market",
+                    Slug = "market"
+                }
+            }
+        });
+        var alternates = new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.OrdinalIgnoreCase)
+        {
+            [$"route:{route.Url}"] = new[] { new SeoAlternateModel("en", "https://example.com/insights/category/market/page/2/") }
+        };
+
+        var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), alternates, graph);
+
+        Assert.Single(result.Entries);
+        var entry = result.Entries["insights/category/market/page/2/index.html"];
+        Assert.Equal("taxonomy", entry.ContentType);
+        Assert.True(entry.IsDerived);
+        Assert.Null(entry.SourceItemId);
+        Assert.Equal("https://example.com/insights/category/market/page/2/", entry.Canonical);
+
+        var model = result.Models["insights/category/market/page/2/index.html"];
+        Assert.Equal("Category: Market (Page 2)", model.Title);
+        Assert.Equal("Browse 1 content items in Market. Page 2 of 2.", model.Description);
+        Assert.Single(model.Alternates);
+    }
+
+    [Fact]
+    public void Build_WithListRouteGraph_IncludesFilteredPaginationPage()
+    {
+        var config = CreateConfig();
+        var route = new ListRoutePlan
+        {
+            RouteId = "filter:companies:country:Malaysia:2",
+            Kind = ListRouteKind.FilteredListPage,
+            Url = "/companies/malaysia/page/2/",
+            OutputPath = "companies/malaysia/page/2/index.html",
+            Template = "pages/company-list.html",
+            Collection = "companies",
+            PageNumber = 2,
+            PageSize = 2,
+            TotalItems = 3,
+            Items = new[]
+            {
+                new ListRouteItem
+                {
+                    Id = "company-1",
+                    Title = "Company 1",
+                    Url = "/companies/company-1/",
+                    Summary = "Company summary",
+                    PublishDate = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
+                }
+            },
+            CanonicalUrl = "/companies/malaysia/page/2/",
+            PrevUrl = "/companies/malaysia/",
+            FilterContext = new ListRouteFilterContext
+            {
+                Field = "country",
+                Value = "Malaysia"
+            }
+        };
+        var graph = ListRouteGraph.Create(new[] { route });
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+
+        Assert.Single(result.Entries);
+        var entry = result.Entries["companies/malaysia/page/2/index.html"];
+        Assert.Equal("list", entry.ContentType);
+        Assert.True(entry.IsDerived);
+        Assert.Null(entry.SourceItemId);
+        Assert.Equal("https://example.com/companies/malaysia/page/2/", entry.Canonical);
+        Assert.True(entry.Indexable);
+
+        Assert.True(result.Models.ContainsKey("companies/malaysia/page/2/index.html"));
+        var model = result.Models["companies/malaysia/page/2/index.html"];
+        Assert.Equal("https://example.com/companies/malaysia/page/2/", model.Canonical);
+        Assert.Equal("https://example.com/companies/malaysia/", model.Prev);
+        Assert.Null(model.Next);
+    }
+
+    [Fact]
+    public void Build_WithListRouteGraph_UsesGraphCanonicalPrevAndNext()
+    {
+        var config = CreateConfig();
+        var route = new ListRoutePlan
+        {
+            RouteId = "collection:insights:2",
+            Kind = ListRouteKind.CollectionPage,
+            Url = "/insights/page-two/",
+            OutputPath = "insights/page-two/index.html",
+            Template = "pages/insight-list.html",
+            Collection = "insight",
+            PageNumber = 2,
+            PageSize = 10,
+            TotalItems = 30,
+            CanonicalUrl = "/insights/p/2/",
+            PrevUrl = "/insights/",
+            NextUrl = "/insights/p/3/"
+        };
+        var graph = ListRouteGraph.Create(new[] { route });
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+
+        var entry = result.Entries["insights/page-two/index.html"];
+        Assert.Equal("https://example.com/insights/p/2/", entry.Canonical);
+
+        var model = result.Models["insights/page-two/index.html"];
+        Assert.Equal("https://example.com/insights/p/2/", model.Canonical);
+        Assert.Equal("https://example.com/insights/", model.Prev);
+        Assert.Equal("https://example.com/insights/p/3/", model.Next);
+    }
+
+    [Fact]
     public void Build_DerivedDocuments_AreMarkedExplicitly()
     {
         var config = CreateConfig();

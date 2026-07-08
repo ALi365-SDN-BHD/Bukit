@@ -378,7 +378,7 @@ public static class DoctorCommand
             return 1;
         }
 
-        var listRoutes = SiteEngine.GetListRoutes(config.Site.Collections, templateResolver);
+        IReadOnlyList<RouteInfo> listRoutes;
         IReadOnlyList<string> pluginRequirementTemplates;
         try
         {
@@ -394,6 +394,7 @@ public static class DoctorCommand
                 TemplateResolver = templateResolver.ResolveKindTemplate,
                 Logger = new ConsoleLogger(LogLevel.Info)
             };
+            listRoutes = SiteEngine.GetListRoutes(routedPluginContext, templateResolver);
             pluginRequirementTemplates = DoctorTemplateAnalyzer.CollectPluginRequirementTemplates(routedPluginContext, templateResolver);
         }
         catch (ConfigException ex)

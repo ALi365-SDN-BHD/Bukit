@@ -27,8 +27,7 @@
 <section>
   <h2 class="section-heading">{{ if site.params && site.params.latest_heading }}{{ site.params.latest_heading }}{{ else }}Latest content{{ end }}</h2>
   <ul class="card-list">
-  {{ for p in pages }}
-    {{ item = p }}
+  {{ for item in items }}
     {{ include "partials/list-card.html" }}
   {{ end }}
   </ul>

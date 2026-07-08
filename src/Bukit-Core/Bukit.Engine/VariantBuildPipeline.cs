@@ -37,7 +37,7 @@ internal sealed record SeoStageResult(
     IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> SeoAlternates,
     int MaxDegreeOfParallelism);
 
-internal sealed class VariantBuildPipeline
+internal sealed partial class VariantBuildPipeline
 {
     internal DataModuleResult PrepareDataModules(
         IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore)
@@ -194,6 +194,11 @@ internal sealed class VariantBuildPipeline
             config, documents, dataModules.DataDocuments, bodyStore, ctx, logger, variantStageMetrics, templateResolver, cancellationToken);
 
         await RunPluginDeriveStageAsync(routePipelineResult.PluginContext, variantStageMetrics, cancellationToken);
+        routePipelineResult = routePipelineResult with
+        {
+            RouteResult = AddDerivedListRoutesToGraph(routePipelineResult.RouteResult, routePipelineResult.PluginContext)
+        };
+        ValidatePostDeriveRoutes(routePipelineResult);
 
         var allPagesForSections = bootstrap.Registry is not null
             ? routePipelineResult.RouteResult.RoutedDocuments.Select(x => (x.Document, (RouteInfo?)x.Route)).ToList()
@@ -212,12 +217,12 @@ internal sealed class VariantBuildPipeline
         var listRoutes = routePipelineResult.RouteResult.ListRoutes;
 
         var seoStage = await BuildSeoStageAsync(
-            config, baseUrl, renderDocuments, listRoutes, siteModel.Analytics, logger,
+            config, baseUrl, renderDocuments, listRoutes, routePipelineResult.RouteResult.ListRouteGraph, siteModel.Analytics, logger,
             ctx.SeoAlternates, ctx.RootBaseUrl, ctx.DefaultLanguage, overrides,
             routePipelineResult.PluginContext);
 
         var renderPipelineResult = await RenderPagesStageAsync(
-            renderDocuments, routePipelineResult.RouteResult.RoutedDocuments, bodyStore, renderer, siteModel,
+            renderDocuments, routePipelineResult.RouteResult.RoutedDocuments, routePipelineResult.RouteResult.ListRouteGraph, bodyStore, renderer, siteModel,
             config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
             variantStageMetrics, logger, templateResolver, cancellationToken);
 
@@ -244,6 +249,7 @@ internal sealed class VariantBuildPipeline
             config, baseUrl, outputDir, searchSnippetsEnabled, bodyStore,
             ctx.ContentGraph,
             routePipelineResult.PluginContext,
+            routePipelineResult.RouteResult.ListRouteGraph,
             seoStage.SeoResult, renderPipelineResult, variantStageMetrics, logger, ctx.DefaultLanguage);
     }
 
@@ -293,6 +299,7 @@ internal sealed class VariantBuildPipeline
             TemplateResolver = templateResolver.ResolveKindTemplate,
             Logger = logger
         };
+        pluginContext.Data[ListRouteGraphBuilder.BuildContextDataKey] = routeResult.ListRouteGraph;
 
         var taxonomyStopwatch = Stopwatch.StartNew();
         TaxonomyTermsInjector.InjectFromDataDocuments(pluginContext, dataDocuments);
@@ -344,6 +351,7 @@ internal sealed class VariantBuildPipeline
         string baseUrl,
         IReadOnlyList<RoutedContentDocument> renderQueue,
         IReadOnlyList<RouteInfo> listRoutes,
+        ListRouteGraph listRouteGraph,
         AnalyticsModel analytics,
         ILogger logger,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> seoAlternateInputs,
@@ -353,15 +361,16 @@ internal sealed class VariantBuildPipeline
         BuildContext pluginContext)
     {
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
-            config, seoAlternateInputs, listRoutes, rootBaseUrl, defaultLanguage);
+            config, seoAlternateInputs, listRouteGraph, rootBaseUrl, defaultLanguage);
         var maxDegreeOfParallelism = Math.Clamp(
             overrides.Jobs ?? Environment.ProcessorCount,
             1,
             Math.Max(1, Environment.ProcessorCount * 2));
 
         var seoResult = new SeoPipeline().Execute(
-            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger);
+            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
+        pluginContext.Data[BuildContextDataKeys.SeoModels] = seoResult.SeoIndex.Models;
 
         return Task.FromResult(new SeoStageResult(seoResult, seoAlternates, maxDegreeOfParallelism));
     }
@@ -369,6 +378,7 @@ internal sealed class VariantBuildPipeline
     private async Task<RenderPipelineResult> RenderPagesStageAsync(
         IReadOnlyList<RoutedContentDocument> renderDocuments,
         IReadOnlyList<RoutedContentDocument> routedDocuments,
+        ListRouteGraph listRouteGraph,
         IContentBodyStore bodyStore,
         ITemplateRenderer renderer,
         SiteModel siteModel,
@@ -402,6 +412,7 @@ internal sealed class VariantBuildPipeline
             Manifest: manifestSetup.Manifest,
             ManifestEntries: manifestSetup.ManifestEntries,
             MaxDegreeOfParallelism: seoStage.MaxDegreeOfParallelism, Logger: logger,
+            ListRouteGraph: listRouteGraph,
             StaticEntries: staticEntries,
             SeoBuilder: seoStage.SeoResult.SeoBuilder,
             HtmlPostProcessor: seoStage.SeoResult.HtmlPostProcessor,
@@ -482,6 +493,7 @@ internal sealed class VariantBuildPipeline
         IContentBodyStore bodyStore,
         CanonicalContentGraph contentGraph,
         BuildContext pluginContext,
+        ListRouteGraph listRouteGraph,
         SeoPipelineResult seoResult,
         RenderPipelineResult renderPipelineResult,
         BuildStageMetricsCollector variantStageMetrics,
@@ -498,6 +510,7 @@ internal sealed class VariantBuildPipeline
             BaseUrl: baseUrl, SearchSnippetsEnabled: searchSnippetsEnabled,
             BodyStore: bodyStore,
             RoutedDocuments: pluginContext.RoutedDocuments,
+            ListRouteGraph: listRouteGraph,
             DerivedDocuments: pluginContext.DerivedDocuments,
             DerivedRoutes: pluginContext.DerivedRoutes,
             SeoIndex: seoResult.SeoIndex.Entries,

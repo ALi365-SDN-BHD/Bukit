@@ -99,8 +99,8 @@ public sealed class PreviewCommandTests
             occupiedPort.Start();
             var port = ((IPEndPoint)occupiedPort.LocalEndpoint).Port;
 
-            var command = BuildCommand("--dir", dir, "--port", port.ToString(), "--strict-port", "true");
-            await Assert.ThrowsAnyAsync<HttpListenerException>(() => PreviewCommand.RunAsync(command));
+            var command = BuildCommand("--dir", dir, "--host", IPAddress.Loopback.ToString(), "--port", port.ToString(), "--strict-port", "true");
+            await Assert.ThrowsAnyAsync<InvalidOperationException>(() => PreviewCommand.RunAsync(command));
         }
         finally
         {

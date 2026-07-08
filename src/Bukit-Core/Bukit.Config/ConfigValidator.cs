@@ -270,6 +270,73 @@ public static class ConfigValidator
         {
             throw new ConfigException($"{prefix}.termTemplate must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
+
+        if (kind.RoutePrefix is not null)
+        {
+            ValidateTaxonomyRoutePrefix($"{prefix}.routePrefix", kind.RoutePrefix);
+        }
+    }
+
+    private static void ValidateTaxonomyRoutePrefix(string fieldName, string routePrefix)
+    {
+        if (string.IsNullOrWhiteSpace(routePrefix))
+        {
+            throw new ConfigException($"{fieldName} must be a non-empty internal URL path when set.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        var value = routePrefix.Trim();
+        if (value.Any(char.IsControl))
+        {
+            throw new ConfigException($"{fieldName} must not contain control characters.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (!value.StartsWith("/", StringComparison.Ordinal))
+        {
+            throw new ConfigException($"{fieldName} must start with '/'.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (value.StartsWith("//", StringComparison.Ordinal) || value.Contains("://", StringComparison.Ordinal))
+        {
+            throw new ConfigException($"{fieldName} must be an internal URL path.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (value.Contains('\\'))
+        {
+            throw new ConfigException($"{fieldName} must not contain backslashes.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (value.Contains('?') || value.Contains('#'))
+        {
+            throw new ConfigException($"{fieldName} must not contain query strings or fragments.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        foreach (var segment in value.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (segment is "." or "..")
+            {
+                throw new ConfigException($"{fieldName} must not contain '..' path traversal segments.", DiagnosticCode.ConfigPathTraversal);
+            }
+
+            string decoded;
+            try
+            {
+                decoded = Uri.UnescapeDataString(segment);
+            }
+            catch
+            {
+                throw new ConfigException($"{fieldName} must contain valid percent-encoding.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            if (decoded is "." or "..")
+            {
+                throw new ConfigException($"{fieldName} must not contain '..' path traversal segments.", DiagnosticCode.ConfigPathTraversal);
+            }
+
+            if (decoded.Contains('/') || decoded.Contains('\\'))
+            {
+                throw new ConfigException($"{fieldName} must not contain encoded slashes.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
     }
 
     private static bool IsValidTimeZone(string timeZoneId)

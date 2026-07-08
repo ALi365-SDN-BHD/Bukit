@@ -79,9 +79,14 @@ internal static class ConfigCollectionReader
             filteredLists.Add(new FilteredListConfig
             {
                 Field = ConfigYamlHelpers.GetRequiredString(filterNode, "field"),
-                Value = ConfigYamlHelpers.GetRequiredString(filterNode, "value"),
+                Operator = ConfigYamlHelpers.GetOptionalString(filterNode, "operator") ?? "equals",
+                Value = ConfigYamlHelpers.GetOptionalString(filterNode, "value"),
+                Values = ConfigYamlHelpers.ReadStringList(filterNode, "values"),
                 ListRoute = ConfigYamlHelpers.GetRequiredString(filterNode, "listRoute"),
-                ListTemplate = ConfigYamlHelpers.GetOptionalString(filterNode, "listTemplate")
+                ListTemplate = ConfigYamlHelpers.GetOptionalString(filterNode, "listTemplate"),
+                PageSize = ConfigYamlHelpers.GetOptionalIntStrict(filterNode, "pageSize"),
+                UrlPattern = ConfigYamlHelpers.GetOptionalString(filterNode, "urlPattern"),
+                EmptyBehavior = ConfigYamlHelpers.GetOptionalString(filterNode, "emptyBehavior") ?? "render"
             });
         }
 

@@ -96,6 +96,8 @@ public sealed class ScribanModelBinderTests
                 Title = "SEO Page Title",
                 Description = "SEO description here",
                 Canonical = "https://example.com/test-page/",
+                Prev = "https://example.com/test-page/prev/",
+                Next = "https://example.com/test-page/next/",
                 Robots = "index,follow",
                 Og = new SeoOpenGraphModel
                 {
@@ -461,6 +463,8 @@ public sealed class ScribanModelBinderTests
         Assert.Equal("SEO Page Title", seo["title"]);
         Assert.Equal("SEO description here", seo["description"]);
         Assert.Equal("https://example.com/test-page/", seo["canonical"]);
+        Assert.Equal("https://example.com/test-page/prev/", seo["prev"]);
+        Assert.Equal("https://example.com/test-page/next/", seo["next"]);
         Assert.Equal("index,follow", seo["robots"]);
     }
 
@@ -791,6 +795,159 @@ public sealed class ScribanModelBinderTests
         Assert.Null(pageC["summary"]);
         Assert.Null(pageC["publish_date"]);
         Assert.False(pageC.TryGetValue("seo", out var _));
+    }
+
+    [Fact]
+    public void ToScriptObject_ListPageModel_ExposesStableListFields()
+    {
+        var seo = new SeoModel
+        {
+            Title = "Market list",
+            Canonical = "https://example.com/market/"
+        };
+        var first = new PageInfo { Title = "A", Url = "/a/", Content = "" };
+        var second = new PageInfo { Title = "B", Url = "/b/", Content = "" };
+        var model = new ListPageModel
+        {
+            Site = CreateFullSite(),
+            Page = new PageInfo
+            {
+                Title = "Market",
+                Url = "/market/",
+                Content = "",
+                Seo = seo
+            },
+            Pages = new[] { first, second },
+            Items = new[] { first, second },
+            Pagination = new ListPaginationModel
+            {
+                Page = 2,
+                PageSize = 10,
+                TotalPages = 3,
+                TotalItems = 25,
+                HasPrev = true,
+                HasNext = true,
+                PrevUrl = "/market/",
+                NextUrl = "/market/page/3/"
+            },
+            Collection = new ListCollectionModel { Key = "posts" },
+            Taxonomy = new ListTaxonomyModel
+            {
+                Kind = "category",
+                Term = "市场观察",
+                Slug = "market",
+                RoutePrefix = "/insights/category",
+                Url = "/insights/category/market/",
+                IsIndex = false
+            },
+            Filter = new ListFilterModel
+            {
+                Field = "category",
+                Operator = "in",
+                Value = "市场观察",
+                Values = new[] { "市场观察", "政策动态" }
+            },
+            Seo = seo
+        };
+
+        var obj = ScribanModelBinder.ToScriptObject(model);
+
+        Assert.Equal(2, Assert.IsType<ScriptArray>(obj["pages"]).Count);
+        Assert.Equal(2, Assert.IsType<ScriptArray>(obj["items"]).Count);
+
+        var pagination = Assert.IsType<ScriptObject>(obj["pagination"]);
+        Assert.Equal(2, pagination["page"]);
+        Assert.Equal(10, pagination["page_size"]);
+        Assert.Equal(3, pagination["total_pages"]);
+        Assert.Equal(25, pagination["total_items"]);
+        Assert.Equal(25, pagination["total"]);
+        Assert.Equal(true, pagination["has_prev"]);
+        Assert.Equal(true, pagination["has_next"]);
+        Assert.Equal("/market/", pagination["prev_url"]);
+        Assert.Equal("/market/page/3/", pagination["next_url"]);
+
+        var collection = Assert.IsType<ScriptObject>(obj["collection"]);
+        Assert.Equal("posts", collection["key"]);
+
+        var taxonomy = Assert.IsType<ScriptObject>(obj["taxonomy"]);
+        Assert.Equal("category", taxonomy["kind"]);
+        Assert.Equal("市场观察", taxonomy["term"]);
+        Assert.Equal("market", taxonomy["slug"]);
+        Assert.Equal("/insights/category", taxonomy["route_prefix"]);
+        Assert.Equal("/insights/category", taxonomy["routePrefix"]);
+        Assert.Equal("/insights/category/market/", taxonomy["url"]);
+        Assert.Equal(false, taxonomy["is_index"]);
+
+        var filter = Assert.IsType<ScriptObject>(obj["filter"]);
+        Assert.Equal("category", filter["field"]);
+        Assert.Equal("in", filter["operator"]);
+        Assert.Equal("市场观察", filter["value"]);
+        var filterValues = Assert.IsType<ScriptArray>(filter["values"]);
+        Assert.Equal(new[] { "市场观察", "政策动态" }, filterValues.Cast<string>().ToArray());
+
+        var seoObject = Assert.IsType<ScriptObject>(obj["seo"]);
+        Assert.Equal("Market list", seoObject["title"]);
+        Assert.Equal("https://example.com/market/", seoObject["canonical"]);
+    }
+
+    [Fact]
+    public void ToScriptObject_PageModel_DerivedListAliasesExposeStableFields()
+    {
+        var model = new PageModel
+        {
+            Site = CreateMinimalSite(),
+            Page = new PageInfo
+            {
+                Title = "Taxonomy",
+                Url = "/category/market/",
+                Content = "",
+                Seo = new SeoModel
+                {
+                    Title = "Taxonomy SEO",
+                    Canonical = "https://example.com/category/market/"
+                },
+                Fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["type"] = new("text", "derived"),
+                    ["collection"] = new("text", "posts"),
+                    ["items"] = new("list", new[]
+                    {
+                        new Dictionary<string, object?>
+                        {
+                            ["title"] = "A",
+                            ["url"] = "/a/"
+                        }
+                    }),
+                    ["pagination"] = new("object", new Dictionary<string, object?>
+                    {
+                        ["page"] = 1,
+                        ["page_size"] = 10,
+                        ["total"] = 1,
+                        ["total_items"] = 1,
+                        ["total_pages"] = 1
+                    }),
+                    ["taxonomy"] = new("object", new Dictionary<string, object?>
+                    {
+                        ["kind"] = "category",
+                        ["term"] = "Market",
+                        ["slug"] = "market"
+                    })
+                }
+            }
+        };
+
+        var obj = ScribanModelBinder.ToScriptObject(model);
+
+        Assert.Single(Assert.IsType<ScriptArray>(obj["items"]));
+        Assert.Single(Assert.IsType<ScriptArray>(obj["pages"]));
+        var pagination = Assert.IsType<ScriptObject>(obj["pagination"]);
+        Assert.Equal(1, pagination["total_items"]);
+        var collection = Assert.IsType<ScriptObject>(obj["collection"]);
+        Assert.Equal("posts", collection["key"]);
+        var taxonomy = Assert.IsType<ScriptObject>(obj["taxonomy"]);
+        Assert.Equal("category", taxonomy["kind"]);
+        var seo = Assert.IsType<ScriptObject>(obj["seo"]);
+        Assert.Equal("Taxonomy SEO", seo["title"]);
     }
 
     [Fact]

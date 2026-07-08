@@ -73,6 +73,28 @@ public sealed class TaxonomyRedirectWriterTests : IDisposable
     }
 
     [Fact]
+    public void WriteRedirects_WithRoutePrefix_WritesAliasUnderConfiguredTaxonomyRoute()
+    {
+        var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["market"] = new TaxonomyTerm("Market", "market")
+            {
+                Aliases = new[] { "market-watch" }
+            }
+        };
+
+        TaxonomyRedirectWriter.WriteRedirects(_tempDir, "category", terms, "/insights/category");
+
+        var aliasPath = Path.Combine(_tempDir, "insights", "category", "market-watch", "index.html");
+        Assert.True(File.Exists(aliasPath));
+        Assert.False(File.Exists(Path.Combine(_tempDir, "category", "market-watch", "index.html")));
+
+        var content = File.ReadAllText(aliasPath);
+        Assert.Contains("url=/insights/category/market/", content, StringComparison.Ordinal);
+        Assert.Contains("href=\"/insights/category/market/\"", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void WriteRedirects_EmptyTerms_DoesNotThrow()
     {
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase);

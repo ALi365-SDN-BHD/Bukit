@@ -29,6 +29,8 @@ internal static class SpecialListRenderer
         int maxDegreeOfParallelism,
         int outerCount,
         bool includeContent,
+        IReadOnlyDictionary<string, ContentField>? pageFields,
+        ListPageContext? pageContext,
         CancellationToken cancellationToken,
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder,
@@ -38,14 +40,14 @@ internal static class SpecialListRenderer
         var listBuildStopwatch = Stopwatch.StartNew();
         var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, outerCount, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
         var listPage = CreateListPageInfo(siteModel, listRoute);
+        if (pageFields is not null)
+        {
+            listPage = listPage with { Fields = pageFields };
+        }
+
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
-        var html = renderer.RenderList(listRoute.Template, new ListPageModel
-        {
-            Site = siteModel,
-            Page = listPage,
-            Pages = pageInfos
-        });
+        var html = renderer.RenderList(listRoute.Template, CreateListPageModel(siteModel, listPage, pageInfos, pageContext));
         if (listHtmlPostProcessor is not null)
         {
             html = listHtmlPostProcessor(listRoute, listPage, html);
@@ -72,6 +74,8 @@ internal static class SpecialListRenderer
         int maxDegreeOfParallelism,
         int outerCount,
         bool includeContent,
+        IReadOnlyDictionary<string, ContentField>? pageFields,
+        ListPageContext? pageContext,
         CancellationToken cancellationToken,
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder,
@@ -105,14 +109,14 @@ internal static class SpecialListRenderer
         var listBuildStopwatch = Stopwatch.StartNew();
         var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, outerCount, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
         var listPage = CreateListPageInfo(siteModel, listRoute);
+        if (pageFields is not null)
+        {
+            listPage = listPage with { Fields = pageFields };
+        }
+
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
-        var html = renderer.RenderList(listRoute.Template, new ListPageModel
-        {
-            Site = siteModel,
-            Page = listPage,
-            Pages = pageInfos
-        });
+        var html = renderer.RenderList(listRoute.Template, CreateListPageModel(siteModel, listPage, pageInfos, pageContext));
         if (listHtmlPostProcessor is not null)
         {
             html = listHtmlPostProcessor(listRoute, listPage, html);
@@ -238,6 +242,26 @@ internal static class SpecialListRenderer
             Content = string.Empty,
             Summary = BuildListSummary(siteModel, listRoute),
             Representations = PublishRepresentationRegistry.DocumentKinds()
+        };
+    }
+
+    internal static ListPageModel CreateListPageModel(
+        SiteModel siteModel,
+        PageInfo listPage,
+        IReadOnlyList<PageInfo> pageInfos,
+        ListPageContext? pageContext)
+    {
+        return new ListPageModel
+        {
+            Site = siteModel,
+            Page = listPage,
+            Pages = pageInfos,
+            Items = pageInfos,
+            Pagination = pageContext?.Pagination,
+            Collection = pageContext?.Collection,
+            Taxonomy = pageContext?.Taxonomy,
+            Filter = pageContext?.Filter,
+            Seo = listPage.Seo
         };
     }
 

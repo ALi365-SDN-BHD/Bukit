@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
@@ -352,7 +353,7 @@ public sealed class SiteEngineHelperTests
     [Fact]
     public void BuildListRoutes_WithNullCollections_IncludesDefaults()
     {
-        var result = SeoAlternatesService.BuildListRoutes(null!);
+        var result = SiteEngine.GetListRoutes((IReadOnlyDictionary<string, CollectionConfig>?)null);
 
         Assert.Contains(result, r => r.Url == "/");
         Assert.DoesNotContain(result, r => r.Url == "/blog/");
@@ -368,11 +369,58 @@ public sealed class SiteEngineHelperTests
             ["project"] = new CollectionConfig { Permalink = "/work/:slug/", Template = "pages/project.html", ListRoute = "/work/", ListTemplate = "pages/list.html" }
         };
 
-        var result = SeoAlternatesService.BuildListRoutes(collections);
+        var result = SiteEngine.GetListRoutes(collections);
 
         Assert.Contains(result, r => r.Url == "/");
         Assert.Contains(result, r => r.Url == "/articles/");
         Assert.Contains(result, r => r.Url == "/work/");
+    }
+
+    [Fact]
+    public void BuildListRoutes_WithBuildContext_StoresCurrentListRouteGraph()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "t",
+                Title = "t",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["post"] = new()
+                    {
+                        Permalink = "/blog/{slug}/",
+                        Template = "pages/post.html",
+                        ListRoute = "/blog/",
+                        ListTemplate = "pages/list.html",
+                        Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 1 }
+                    }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
+        var routed = new[]
+        {
+            CreateRoutedPost("p1", "/blog/p1/", "blog/p1/index.html"),
+            CreateRoutedPost("p2", "/blog/p2/", "blog/p2/index.html")
+        };
+        var context = new BuildContext
+        {
+            Config = config,
+            RootDir = ".",
+            OutputDir = "dist",
+            BaseUrl = "/",
+            LayoutsDir = "layouts",
+            RoutedDocuments = routed,
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var result = SiteEngine.GetListRoutes(context);
+
+        Assert.Contains(result, r => r.Url == "/blog/");
+        Assert.Contains(result, r => r.Url == "/blog/page/2/");
+        var graph = Assert.IsType<ListRouteGraph>(context.Data[ListRouteGraphBuilder.BuildContextDataKey]);
+        Assert.Equal(graph.Routes.Select(route => route.Url), result.Select(route => route.Url));
     }
 
     [Fact]
@@ -420,5 +468,21 @@ public sealed class SiteEngineHelperTests
         Assert.Equal(75, snapshot.DurationsMs["render"]);
         Assert.Equal(5, snapshot.Counts["pages"]);
         Assert.Equal(1, snapshot.Counts["errors"]);
+    }
+
+    private static RoutedContentDocument CreateRoutedPost(string id, string url, string outputPath)
+    {
+        var document = ContentDocument.Create(
+            id,
+            id,
+            id,
+            DateTimeOffset.UtcNow,
+            $"<p>{id}</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "post",
+                ["collection"] = "post"
+            }));
+        return new RoutedContentDocument(document, new RouteInfo(url, outputPath, "pages/post.html"));
     }
 }

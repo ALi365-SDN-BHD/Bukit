@@ -144,6 +144,11 @@ public static partial class PreviewCommand
             }
 
             var prefix = $"http://{baseHost}:{candidatePort}/";
+            if (!IsTcpPortAvailable(baseHost, candidatePort))
+            {
+                continue;
+            }
+
             var listener = new HttpListener();
             listener.Prefixes.Add(prefix);
 
@@ -164,6 +169,29 @@ public static partial class PreviewCommand
         }
 
         throw new InvalidOperationException($"Failed to listen on http://{baseHost}:{port}/ (port conflict). Try --port auto or a different --port.");
+    }
+
+    private static bool IsTcpPortAvailable(string host, int port)
+    {
+        var address = IPAddress.TryParse(host, out var parsedAddress)
+            ? parsedAddress
+            : IPAddress.Loopback;
+
+        TcpListener? probe = null;
+        try
+        {
+            probe = new TcpListener(address, port);
+            probe.Start();
+            return true;
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
+        finally
+        {
+            probe?.Stop();
+        }
     }
 
     private static bool IsPortConflict(HttpListenerException ex)

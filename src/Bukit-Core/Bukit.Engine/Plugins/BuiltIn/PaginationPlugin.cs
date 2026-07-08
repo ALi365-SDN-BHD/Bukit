@@ -21,6 +21,11 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
             return Array.Empty<string>();
         }
 
+        if (IsHandledByListRouteGraph(context, paginationCollection.Value.Key))
+        {
+            return Array.Empty<string>();
+        }
+
         var pageSize = paginationCollection.Value.Config.Pagination.PageSize;
         var posts = CollectionRouteIndex.GetOrBuild(context).GetByCollection(paginationCollection.Value.Key);
         return posts.Count > pageSize ? new[] { "pagination" } : Array.Empty<string>();
@@ -37,6 +42,11 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
         var pageSize = paginationCollection.Value.Config.Pagination.PageSize;
         var collectionKey = paginationCollection.Value.Key;
         var listRoute = paginationCollection.Value.Config.ListRoute;
+        if (IsHandledByListRouteGraph(context, collectionKey))
+        {
+            return Array.Empty<RoutedContentDocument>();
+        }
+
         var index = CollectionRouteIndex.GetOrBuild(context);
         var posts = index.GetByCollection(collectionKey);
 
@@ -145,6 +155,15 @@ public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITempla
         }
 
         return null;
+    }
+
+    private static bool IsHandledByListRouteGraph(BuildContext context, string collectionKey)
+    {
+        return context.Data.TryGetValue(ListRouteGraphBuilder.BuildContextDataKey, out var value) &&
+               value is ListRouteGraph graph &&
+               graph.Routes.Any(route =>
+                   route.Kind == ListRouteKind.CollectionPage &&
+                   string.Equals(route.Collection, collectionKey, StringComparison.OrdinalIgnoreCase));
     }
 
     private static List<object> BuildItems(IReadOnlyList<RoutedContentDocument> posts)

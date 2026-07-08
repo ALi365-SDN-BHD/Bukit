@@ -10,7 +10,9 @@ namespace Bukit.Engine;
 internal sealed record SpecialListDefinition(
     RouteInfo Route,
     IReadOnlyList<RoutedContentDocument> Items,
-    bool IncludeContent);
+    bool IncludeContent,
+    IReadOnlyDictionary<string, ContentField>? PageFields = null,
+    ListPageContext? PageContext = null);
 
 public static class SpecialListRouteBuilder
 {
@@ -22,81 +24,20 @@ public static class SpecialListRouteBuilder
         string outputPathEncoding,
         ThemeTemplateResolver? templateResolver = null)
     {
-        var index = CollectionRouteIndex.Create(routed);
-        var list = new List<SpecialListDefinition>();
-        var homeRoute = new RouteInfo("/", "index.html", templateResolver?.ResolveHomeTemplate() ?? ThemeTemplateResolver.DefaultHomeTemplate);
-        list.Add(new SpecialListDefinition(
-            homeRoute,
-            index.AllOrdered,
-            TemplateCapabilitiesResolver.ShouldIncludeListPageContent(homeRoute.Template, layoutsDir, listPageContentMode)));
-
-        if (collections is null || collections.Count == 0)
-        {
-            return list;
-        }
-
-        foreach (var (key, collection) in collections)
-        {
-            if (string.IsNullOrWhiteSpace(collection.ListRoute))
-            {
-                continue;
-            }
-
-            var url = RoutePathBuilder.NormalizeListRoute(collection.ListRoute);
-            var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
-            var template = ResolveListTemplate(collection.ListTemplate, templateResolver);
-            var route = new RouteInfo(url, outputPath, template);
-            var items = index.GetByCollection(key);
-            list.Add(new SpecialListDefinition(
-                route,
-                items,
-                TemplateCapabilitiesResolver.ShouldIncludeListPageContent(route.Template, layoutsDir, listPageContentMode)));
-
-            if (collection.FilteredLists is { Count: > 0 })
-            {
-                foreach (var filter in collection.FilteredLists)
-                {
-                    var filtered = items
-                        .Where(x => TryMatchFieldValue(x.Document.CustomFields, filter.Field, filter.Value))
-                        .ToList();
-
-                    var filterUrl = RoutePathBuilder.NormalizeListRoute(filter.ListRoute);
-                    var filterOutputPath = RoutePathBuilder.BuildOutputPathFromUrl(filterUrl, outputPathEncoding);
-                    var filterTemplate = string.IsNullOrWhiteSpace(filter.ListTemplate) ? template : filter.ListTemplate.Trim();
-                    var filterRoute = new RouteInfo(filterUrl, filterOutputPath, filterTemplate);
-                    list.Add(new SpecialListDefinition(
-                        filterRoute,
-                        filtered,
-                        TemplateCapabilitiesResolver.ShouldIncludeListPageContent(filterRoute.Template, layoutsDir, listPageContentMode)));
-                }
-            }
-        }
-
-        return list;
+        var graph = ListRouteGraphBuilder.Build(routed, collections, outputPathEncoding, templateResolver);
+        return ListRouteRenderPlanBuilder
+            .Build(graph, routed, layoutsDir, listPageContentMode)
+            .ToList();
     }
 
     internal static bool TryMatchFieldValue(IReadOnlyDictionary<string, ContentField>? fields, string field, string expectedValue)
     {
-        if (fields is null || !fields.TryGetValue(field, out var cf) || cf.Value is null)
+        return FilteredListMatcher.Matches(fields, new FilteredListConfig
         {
-            return false;
-        }
-
-        return string.Equals(cf.Value.ToString(), expectedValue, StringComparison.OrdinalIgnoreCase);
+            Field = field,
+            Value = expectedValue,
+            ListRoute = "/"
+        });
     }
 
-    private static string ResolveListTemplate(string? explicitTemplate, ThemeTemplateResolver? templateResolver)
-    {
-        if (!string.IsNullOrWhiteSpace(explicitTemplate))
-        {
-            return explicitTemplate.Trim();
-        }
-
-        if (templateResolver is null)
-        {
-            throw new ConfigException("No list template was configured. Add site.collections.*.listTemplate or a matching theme.yaml templates entry.", DiagnosticCode.ConfigInvalidValue);
-        }
-
-        return templateResolver.ResolveKindTemplate("list");
-    }
 }

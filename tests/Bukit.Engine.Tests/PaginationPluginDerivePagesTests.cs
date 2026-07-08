@@ -297,4 +297,62 @@ public sealed class PaginationPluginDerivePagesTests
         Assert.Equal(4, derived.Count);
         Assert.Contains(derived, x => x.Route.Url == "/blog/page/5/");
     }
+
+    [Fact]
+    public void DerivePages_WhenListRouteGraphOwnsPagination_ReturnsEmpty()
+    {
+        var routed = Enumerable.Range(0, 12)
+            .Select(i => CreateRoutedItem(i))
+            .ToList();
+        var ctx = CreateContext(routed, pageSize: 5);
+        ctx.Data[ListRouteGraphBuilder.BuildContextDataKey] = ListRouteGraph.Create(new[]
+        {
+            new ListRoutePlan
+            {
+                RouteId = "collection:post:2",
+                Kind = ListRouteKind.CollectionPage,
+                Url = "/blog/page/2/",
+                OutputPath = "blog/page/2/index.html",
+                Template = "pages/list.html",
+                Collection = "post",
+                PageNumber = 2,
+                PageSize = 5,
+                TotalItems = 12,
+                CanonicalUrl = "/blog/page/2/"
+            }
+        });
+
+        var derived = new PaginationPlugin().DerivePages(ctx);
+
+        Assert.Empty(derived);
+    }
+
+    [Fact]
+    public void GetTemplateRequirementKinds_WhenListRouteGraphOwnsPagination_ReturnsEmpty()
+    {
+        var routed = Enumerable.Range(0, 12)
+            .Select(i => CreateRoutedItem(i))
+            .ToList();
+        var ctx = CreateContext(routed, pageSize: 5);
+        ctx.Data[ListRouteGraphBuilder.BuildContextDataKey] = ListRouteGraph.Create(new[]
+        {
+            new ListRoutePlan
+            {
+                RouteId = "collection:post:2",
+                Kind = ListRouteKind.CollectionPage,
+                Url = "/blog/page/2/",
+                OutputPath = "blog/page/2/index.html",
+                Template = "pages/list.html",
+                Collection = "post",
+                PageNumber = 2,
+                PageSize = 5,
+                TotalItems = 12,
+                CanonicalUrl = "/blog/page/2/"
+            }
+        });
+
+        var requirements = new PaginationPlugin().GetTemplateRequirementKinds(ctx);
+
+        Assert.Empty(requirements);
+    }
 }

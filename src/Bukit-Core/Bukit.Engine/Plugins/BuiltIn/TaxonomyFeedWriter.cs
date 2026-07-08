@@ -13,10 +13,13 @@ internal static class TaxonomyFeedWriter
         string baseUrl,
         string siteTitle,
         Dictionary<string, TaxonomyTerm> terms,
-        string kind)
+        string kind,
+        string? routePrefix = null)
     {
         var normalizedSiteUrl = NormalizeFeedUrl(siteUrl);
         var normalizedBaseUrl = NormalizeFeedUrl(baseUrl);
+        var normalizedRoutePrefix = TaxonomyPageCreator.NormalizeRoutePrefix(kind, routePrefix);
+        var outputPrefix = normalizedRoutePrefix.Trim('/');
 
         foreach (var term in terms.Values)
         {
@@ -35,14 +38,34 @@ internal static class TaxonomyFeedWriter
                 continue;
             }
 
-            var termUrl = $"{normalizedSiteUrl}{normalizedBaseUrl}/{kind}/{term.Slug}/";
+            var termPath = BuildTermPath(normalizedRoutePrefix, term.Slug);
+            var termUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, termPath);
             var feedUrl = $"{termUrl}feed.xml";
             var xml = RenderFeed($"{siteTitle}: {term.DisplayName}", term.Description, termUrl, feedUrl, posts, normalizedSiteUrl, normalizedBaseUrl);
 
-            var feedDir = Path.Combine(outputDir, kind, term.Slug);
+            var feedDir = string.IsNullOrWhiteSpace(outputPrefix)
+                ? Path.Combine(outputDir, term.Slug)
+                : Path.Combine(outputDir, Path.Combine(outputPrefix.Split('/')), term.Slug);
             Directory.CreateDirectory(feedDir);
             File.WriteAllText(Path.Combine(feedDir, "feed.xml"), xml, Encoding.UTF8);
         }
+    }
+
+    private static string BuildTermPath(string routePrefix, string slug)
+    {
+        var prefix = routePrefix == "/" ? string.Empty : routePrefix;
+        return $"{prefix}/{slug}/";
+    }
+
+    private static string BuildAbsoluteUrl(string siteUrl, string baseUrl, string path)
+    {
+        var normalizedPath = path.StartsWith('/') ? path : "/" + path;
+        if (baseUrl == "/")
+        {
+            return siteUrl + normalizedPath;
+        }
+
+        return siteUrl + baseUrl + normalizedPath;
     }
 
     private static string RenderFeed(

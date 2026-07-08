@@ -27,9 +27,10 @@ internal sealed class SeoPipeline
         IReadOnlyList<RouteInfo> listRoutes,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> seoAlternates,
         AnalyticsModel analytics,
-        ILogger logger)
+        ILogger logger,
+        ListRouteGraph? listRouteGraph = null)
     {
-        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates);
+        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph);
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, logger);
 
         var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
@@ -38,7 +39,7 @@ internal sealed class SeoPipeline
 
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = shouldProvideSeoModel
             ? (_, route) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model) ? model : null!
-            : null;
+        : null;
 
         Func<ContentDocument, RouteInfo, PageInfo, string, string>? htmlPostProcessor = shouldProvideSeoModel
             ? (document, route, page, html) =>
@@ -63,14 +64,31 @@ internal sealed class SeoPipeline
             : null;
 
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = shouldProvideSeoModel
-            ? (route, page) => seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model)
-                ? model
-                : SeoModelBuilder.BuildForList(
+            ? (route, page) =>
+            {
+                if (seoIndex.Models.TryGetValue(BuildPathUtils.NormalizeRelPath(route.OutputPath), out var model))
+                {
+                    return model;
+                }
+
+                var graphRoute = FindGraphRoute(listRouteGraph, route);
+                if (graphRoute is not null)
+                {
+                    return SeoModelBuilder.BuildForList(
+                        config,
+                        baseUrl,
+                        page,
+                        graphRoute,
+                        SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(graphRoute.ToRouteInfo())));
+                }
+
+                return SeoModelBuilder.BuildForList(
                     config,
                     baseUrl,
                     page,
-                    SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(route)))
-            : null;
+                    SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(route)));
+            }
+        : null;
 
         Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = shouldProvideSeoModel
             ? (route, page, html) =>
@@ -105,5 +123,19 @@ internal sealed class SeoPipeline
         }
 
         return alternates.TryGetValue(key, out var list) ? list : null;
+    }
+
+    private static ListRoutePlan? FindGraphRoute(ListRouteGraph? graph, RouteInfo route)
+    {
+        if (graph is null || graph.Routes.Count == 0)
+        {
+            return null;
+        }
+
+        var outputPath = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+        return graph.Routes.FirstOrDefault(candidate =>
+            string.Equals(BuildPathUtils.NormalizeRelPath(candidate.OutputPath), outputPath, StringComparison.OrdinalIgnoreCase)) ??
+            graph.Routes.FirstOrDefault(candidate =>
+                string.Equals(candidate.Url, route.Url, StringComparison.OrdinalIgnoreCase));
     }
 }

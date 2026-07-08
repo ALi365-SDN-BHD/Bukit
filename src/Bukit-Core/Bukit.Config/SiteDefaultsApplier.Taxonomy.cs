@@ -74,7 +74,8 @@ internal static partial class SiteDefaultsApplier
                 IndexTemplate = ConfigYamlHelpers.GetOptionalString(m, "indexTemplate"),
                 TermTemplate = ConfigYamlHelpers.GetOptionalString(m, "termTemplate"),
                 IndexEnabled = ConfigYamlHelpers.GetOptionalBool(m, "indexEnabled"),
-                Hierarchical = ConfigYamlHelpers.GetOptionalBool(m, "hierarchical") ?? false
+                Hierarchical = ConfigYamlHelpers.GetOptionalBool(m, "hierarchical") ?? false,
+                RoutePrefix = ConfigYamlHelpers.GetOptionalString(m, "routePrefix")
             });
         }
 

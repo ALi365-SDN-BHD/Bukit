@@ -105,6 +105,55 @@ public sealed class ScribanTemplateRendererTests : IDisposable
     }
 
     [Fact]
+    public void RenderList_ExposesStableListPageModelFields()
+    {
+        var templatePath = Path.Combine(_layoutsDir, "list.html");
+        File.WriteAllText(templatePath, "{{ collection.key }} {{ pagination.page }}/{{ pagination.total_pages }} {{ filter.operator }} {{ seo.canonical }} {{ for item in items }}{{ item.title }}|{{ end }} {{ for page in pages }}{{ page.title }}|{{ end }}");
+
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var model = new ListPageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo
+            {
+                Title = "List",
+                Url = "/list/",
+                Content = "",
+                Seo = new SeoModel
+                {
+                    Title = "List SEO",
+                    Canonical = "https://example.com/list/"
+                }
+            },
+            Pages = new[]
+            {
+                new PageInfo { Title = "A", Url = "/a/", Content = "" },
+                new PageInfo { Title = "B", Url = "/b/", Content = "" }
+            },
+            Pagination = new ListPaginationModel
+            {
+                Page = 1,
+                PageSize = 10,
+                TotalPages = 2,
+                TotalItems = 12,
+                HasNext = true,
+                NextUrl = "/list/page/2/"
+            },
+            Collection = new ListCollectionModel { Key = "posts" },
+            Filter = new ListFilterModel
+            {
+                Field = "category",
+                Operator = "contains",
+                Value = "market"
+            }
+        };
+
+        var result = renderer.RenderList("list.html", model);
+
+        Assert.Contains("posts 1/2 contains https://example.com/list/ A|B| A|B|", result);
+    }
+
+    [Fact]
     public async Task RenderPage_WithComponents_UsesRendererLocalStateUnderParallelRendering()
     {
         var leftLayouts = Path.Combine(_layoutsDir, "left");

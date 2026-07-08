@@ -9,6 +9,12 @@ public static class ScribanModelBinder
         var root = new ScriptObject();
         root.SetValue("site", ToScriptObject(model.Site), readOnly: true);
         root.SetValue("page", ToScriptObject(model.Page), readOnly: true);
+        if (model.Page.Seo is not null)
+        {
+            root.SetValue("seo", ToScriptObject(model.Page.Seo), readOnly: true);
+        }
+
+        AddDerivedListAliases(root, model.Page.Fields);
         return root;
     }
 
@@ -24,14 +30,50 @@ public static class ScribanModelBinder
             Content = string.Empty
         }), readOnly: true);
 
+        var pages = ToPageInfoScriptArray(model.Pages);
+        var items = ToPageInfoScriptArray(model.Items ?? model.Pages);
+
+        root.SetValue("pages", pages, readOnly: true);
+        root.SetValue("items", items, readOnly: true);
+
+        if (model.Pagination is not null)
+        {
+            root.SetValue("pagination", ToScriptObject(model.Pagination), readOnly: true);
+        }
+
+        if (model.Collection is not null)
+        {
+            root.SetValue("collection", ToScriptObject(model.Collection), readOnly: true);
+        }
+
+        if (model.Taxonomy is not null)
+        {
+            root.SetValue("taxonomy", ToScriptObject(model.Taxonomy), readOnly: true);
+        }
+
+        if (model.Filter is not null)
+        {
+            root.SetValue("filter", ToScriptObject(model.Filter), readOnly: true);
+        }
+
+        var seo = model.Seo ?? model.Page?.Seo;
+        if (seo is not null)
+        {
+            root.SetValue("seo", ToScriptObject(seo), readOnly: true);
+        }
+
+        return root;
+    }
+
+    private static ScriptArray ToPageInfoScriptArray(IReadOnlyList<PageInfo> source)
+    {
         var pages = new ScriptArray();
-        foreach (var page in model.Pages)
+        foreach (var page in source)
         {
             pages.Add(ToScriptObject(page));
         }
 
-        root.SetValue("pages", pages, readOnly: true);
-        return root;
+        return pages;
     }
 
     private static ScriptObject ToScriptObject(SiteModel model)
@@ -143,6 +185,96 @@ public static class ScribanModelBinder
         return obj;
     }
 
+    private static void AddDerivedListAliases(ScriptObject root, IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        if (!IsDerivedListLikePage(fields))
+        {
+            return;
+        }
+
+        if (TryGetFieldValue(fields, "items", out var items))
+        {
+            var itemsValue = ToScribanValue(items);
+            root.SetValue("items", itemsValue, readOnly: true);
+            root.SetValue("pages", itemsValue, readOnly: true);
+        }
+
+        if (TryGetFieldValue(fields, "pagination", out var pagination))
+        {
+            root.SetValue("pagination", ToScribanValue(pagination), readOnly: true);
+        }
+
+        if (TryGetFieldValue(fields, "taxonomy", out var taxonomy))
+        {
+            root.SetValue("taxonomy", ToScribanValue(taxonomy), readOnly: true);
+        }
+
+        if (TryGetFieldValue(fields, "filter", out var filter))
+        {
+            root.SetValue("filter", ToScribanValue(filter), readOnly: true);
+        }
+
+        if (TryGetFieldValue(fields, "collection", out var collection))
+        {
+            root.SetValue("collection", ToCollectionAlias(collection), readOnly: true);
+        }
+    }
+
+    private static object ToCollectionAlias(object? value)
+    {
+        if (value is IReadOnlyDictionary<string, object> or IDictionary<string, object>)
+        {
+            return ToScribanValue(value);
+        }
+
+        var obj = new ScriptObject();
+        obj.SetValue("key", value?.ToString(), readOnly: true);
+        return obj;
+    }
+
+    private static bool IsDerivedListLikePage(IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        if (fields is null)
+        {
+            return false;
+        }
+
+        if (!TryGetFieldValue(fields, "items", out _))
+        {
+            return false;
+        }
+
+        if (!TryGetFieldValue(fields, "pagination", out _) && !TryGetFieldValue(fields, "taxonomy", out _))
+        {
+            return false;
+        }
+
+        return TryGetFieldValue(fields, "type", out var type) &&
+               string.Equals(type?.ToString(), "derived", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetFieldValue(IReadOnlyDictionary<string, ContentField>? fields, string key, out object? value)
+    {
+        value = null;
+        if (fields is null)
+        {
+            return false;
+        }
+
+        foreach (var kv in fields)
+        {
+            if (!string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            value = kv.Value.Value;
+            return true;
+        }
+
+        return false;
+    }
+
     private static ScriptArray ToTableOfContentsScriptArray(IReadOnlyList<TableOfContentsEntry>? entries)
     {
         var arr = new ScriptArray();
@@ -178,6 +310,8 @@ public static class ScribanModelBinder
         obj.SetValue("title", model.Title, readOnly: true);
         obj.SetValue("description", model.Description, readOnly: true);
         obj.SetValue("canonical", model.Canonical, readOnly: true);
+        obj.SetValue("prev", model.Prev, readOnly: true);
+        obj.SetValue("next", model.Next, readOnly: true);
         obj.SetValue("robots", model.Robots, readOnly: true);
         obj.SetValue("og", ToScriptObject(model.Og), readOnly: true);
         obj.SetValue("twitter", ToScriptObject(model.Twitter), readOnly: true);
@@ -248,6 +382,58 @@ public static class ScribanModelBinder
         var obj = new ScriptObject();
         obj.SetValue("hreflang", model.Hreflang, readOnly: true);
         obj.SetValue("href", model.Href, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(ListPaginationModel model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("page", model.Page, readOnly: true);
+        obj.SetValue("page_size", model.PageSize, readOnly: true);
+        obj.SetValue("total_pages", model.TotalPages, readOnly: true);
+        obj.SetValue("total_items", model.TotalItems, readOnly: true);
+        obj.SetValue("total", model.TotalItems, readOnly: true);
+        obj.SetValue("has_prev", model.HasPrev, readOnly: true);
+        obj.SetValue("has_next", model.HasNext, readOnly: true);
+        obj.SetValue("prev_url", model.PrevUrl, readOnly: true);
+        obj.SetValue("next_url", model.NextUrl, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(ListCollectionModel model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("key", model.Key, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(ListTaxonomyModel model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("kind", model.Kind, readOnly: true);
+        obj.SetValue("term", model.Term, readOnly: true);
+        obj.SetValue("slug", model.Slug, readOnly: true);
+        obj.SetValue("route_prefix", model.RoutePrefix, readOnly: true);
+        obj.SetValue("routePrefix", model.RoutePrefix, readOnly: true);
+        obj.SetValue("url", model.Url, readOnly: true);
+        obj.SetValue("is_index", model.IsIndex, readOnly: true);
+        return obj;
+    }
+
+    private static ScriptObject ToScriptObject(ListFilterModel model)
+    {
+        var obj = new ScriptObject();
+        obj.SetValue("field", model.Field, readOnly: true);
+        obj.SetValue("operator", model.Operator, readOnly: true);
+        obj.SetValue("value", model.Value, readOnly: true);
+
+        var values = new ScriptArray();
+        foreach (var value in model.Values)
+        {
+            values.Add(value);
+        }
+
+        obj.SetValue("values", values, readOnly: true);
         return obj;
     }
 

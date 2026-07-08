@@ -26,6 +26,7 @@ internal sealed record RenderPipelineContext(
     ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries,
     int MaxDegreeOfParallelism,
     ILogger Logger,
+    ListRouteGraph ListRouteGraph,
     IReadOnlyList<RoutedContentDocument> RenderDocuments,
     IReadOnlyList<RoutedContentDocument> RoutedDocuments,
     IReadOnlyList<RenderEntry>? StaticEntries = null,
@@ -57,10 +58,14 @@ internal sealed class RenderPipeline
             entries.Add(RenderEntry.ForPage(document.Document, document.Route));
         }
 
-        var specialLists = SpecialListRouteBuilder.Build(context.RoutedDocuments, context.Collections, context.LayoutsDir, context.ListPageContentMode, context.OutputPathEncoding, context.TemplateResolver);
+        var specialLists = ListRouteRenderPlanBuilder.Build(
+            context.ListRouteGraph,
+            context.RoutedDocuments,
+            context.LayoutsDir,
+            context.ListPageContentMode);
         foreach (var x in specialLists)
         {
-            entries.Add(RenderEntry.ForList(x.Route, x.Items, x.IncludeContent));
+            entries.Add(RenderEntry.ForList(x.Route, x.Items, x.IncludeContent, x.PageFields, x.PageContext));
         }
 
         if (context.StaticEntries is { Count: > 0 })

@@ -9,7 +9,10 @@ namespace Bukit.Engine;
 public sealed record RoutePipelineResult(
     IReadOnlyList<ContentDocument> ContentDocuments,
     IReadOnlyList<RoutedContentDocument> RoutedDocuments,
-    IReadOnlyList<RouteInfo> ListRoutes);
+    IReadOnlyList<RouteInfo> ListRoutes)
+{
+    internal ListRouteGraph ListRouteGraph { get; init; } = ListRouteGraph.Empty;
+}
 
 public sealed class RoutePipeline
 {
@@ -38,8 +41,16 @@ public sealed class RoutePipeline
             .ToList();
         RouteInventoryValidator.ValidateContentRoutes(routedDocuments);
 
-        var listRoutes = SeoAlternatesService.BuildListRoutes(config.Site.Collections, templateResolver);
-        return new RoutePipelineResult(contentDocuments, routedDocuments, listRoutes);
+        var listRouteGraph = ListRouteGraphBuilder.Build(
+            routedDocuments,
+            config.Site.Collections,
+            config.Site.OutputPathEncoding,
+            templateResolver);
+        var listRoutes = listRouteGraph.Routes.Select(route => route.ToRouteInfo()).ToArray();
+        return new RoutePipelineResult(contentDocuments, routedDocuments, listRoutes)
+        {
+            ListRouteGraph = listRouteGraph
+        };
     }
 
     private static RouteInfo ResolveRouteTemplate(ContentDocument document, RouteInfo route, ThemeTemplateResolver? templateResolver)

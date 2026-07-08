@@ -249,6 +249,124 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
+    public void Compute_DifferentFilteredListPaginationConfig_ProducesDifferentHash()
+    {
+        var baseConfig = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["company"] = new CollectionConfig
+                    {
+                        Permalink = "/companies/{slug}/",
+                        Template = "pages/company.html",
+                        ListRoute = "/companies/",
+                        FilteredLists = new[]
+                        {
+                            new FilteredListConfig
+                            {
+                                Field = "country",
+                                Value = "Malaysia",
+                                ListRoute = "/companies/malaysia/",
+                                PageSize = 2,
+                                UrlPattern = "page/{page}/",
+                                EmptyBehavior = "render"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var config2 = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["company"] = new CollectionConfig
+                    {
+                        Permalink = "/companies/{slug}/",
+                        Template = "pages/company.html",
+                        ListRoute = "/companies/",
+                        FilteredLists = new[]
+                        {
+                            new FilteredListConfig
+                            {
+                                Field = "country",
+                                Value = "Malaysia",
+                                ListRoute = "/companies/malaysia/",
+                                PageSize = 3,
+                                UrlPattern = "p/{page}/",
+                                EmptyBehavior = "skip"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_DifferentFilteredListOperatorConfig_ProducesDifferentHash()
+    {
+        var baseConfig = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["company"] = new CollectionConfig
+                    {
+                        Permalink = "/companies/{slug}/",
+                        Template = "pages/company.html",
+                        ListRoute = "/companies/",
+                        FilteredLists = new[]
+                        {
+                            new FilteredListConfig
+                            {
+                                Field = "category",
+                                Operator = "equals",
+                                Value = "市场观察",
+                                ListRoute = "/companies/market/"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var config2 = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["company"] = new CollectionConfig
+                    {
+                        Permalink = "/companies/{slug}/",
+                        Template = "pages/company.html",
+                        ListRoute = "/companies/",
+                        FilteredLists = new[]
+                        {
+                            new FilteredListConfig
+                            {
+                                Field = "category",
+                                Operator = "in",
+                                Values = new[] { "市场观察", "政策动态" },
+                                ListRoute = "/companies/market/"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));
+    }
+
+    [Fact]
     public void Compute_DifferentCollectionOutputRss_ProducesDifferentHash()
     {
         var baseConfig = CreateBaseConfig() with
@@ -327,6 +445,26 @@ public sealed class RenderDependencyHasherTests
             Taxonomy = new TaxonomyConfig
             {
                 Kinds = new[] { new TaxonomyKindConfig { Key = "tags", Template = "pages/tag-alt.html" } }
+            }
+        };
+        Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_DifferentTaxonomyKindRoutePrefix_ProducesDifferentHash()
+    {
+        var baseConfig = CreateBaseConfig() with
+        {
+            Taxonomy = new TaxonomyConfig
+            {
+                Kinds = new[] { new TaxonomyKindConfig { Key = "categories", Kind = "category" } }
+            }
+        };
+        var config2 = baseConfig with
+        {
+            Taxonomy = new TaxonomyConfig
+            {
+                Kinds = new[] { new TaxonomyKindConfig { Key = "categories", Kind = "category", RoutePrefix = "/insights/category" } }
             }
         };
         Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));

@@ -82,6 +82,60 @@ public sealed class SeoPipelineTests
         Assert.Null(result.SeoBuilder);
     }
 
+    [Fact]
+    public void Execute_ListSeoBuilder_UsesGraphBackedIndexModel()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Url = "https://example.com",
+                Seo = new SeoConfig { Enabled = true, RenderMode = "model" }
+            },
+            Content = TestContent.Markdown()
+        };
+        var graphRoute = new ListRoutePlan
+        {
+            RouteId = "collection:insights:2",
+            Kind = ListRouteKind.CollectionPage,
+            Url = "/insights/page-two/",
+            OutputPath = "insights/page-two/index.html",
+            Template = "pages/insight-list.html",
+            Collection = "insight",
+            PageNumber = 2,
+            PageSize = 10,
+            TotalItems = 30,
+            CanonicalUrl = "/insights/p/2/",
+            PrevUrl = "/insights/",
+            NextUrl = "/insights/p/3/"
+        };
+        var graph = ListRouteGraph.Create(new[] { graphRoute });
+        var logger = new RecordingLogger();
+
+        var result = new SeoPipeline().Execute(
+            config,
+            baseUrl: "/",
+            renderQueue: Array.Empty<RoutedContentDocument>(),
+            listRoutes: graph.Routes.Select(route => route.ToRouteInfo()).ToArray(),
+            seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            analytics: new AnalyticsModel { Enabled = false },
+            logger,
+            graph);
+
+        var model = result.ListSeoBuilder!(graphRoute.ToRouteInfo(), new PageInfo
+        {
+            Title = "Insights Page Two",
+            Url = graphRoute.Url,
+            Content = string.Empty
+        });
+
+        Assert.Equal("https://example.com/insights/p/2/", model.Canonical);
+        Assert.Equal("https://example.com/insights/", model.Prev);
+        Assert.Equal("https://example.com/insights/p/3/", model.Next);
+    }
+
     private sealed class RecordingLogger : ILogger
     {
         public void Debug(string message) { }

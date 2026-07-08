@@ -30,7 +30,7 @@ internal static class TaxonomyDataWriter
                 }
 
                 var title = string.IsNullOrWhiteSpace(kindConfig.Title) ? kind : kindConfig.Title.Trim();
-                taxonomy[kind] = BuildKindData(key, kind, title, terms);
+                taxonomy[kind] = BuildKindData(key, kind, title, terms, kindConfig.RoutePrefix);
             }
         }
         else
@@ -60,8 +60,10 @@ internal static class TaxonomyDataWriter
         string key,
         string kind,
         string title,
-        Dictionary<string, TaxonomyTerm> terms)
+        Dictionary<string, TaxonomyTerm> terms,
+        string? routePrefix = null)
     {
+        var normalizedRoutePrefix = TaxonomyPageCreator.NormalizeRoutePrefix(kind, routePrefix);
         var hierarchy = TaxonomyHierarchyBuilder.BuildHierarchy(terms);
         var termsValue = new List<object>();
         var itemsByTerm = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -74,7 +76,7 @@ internal static class TaxonomyDataWriter
             {
                 ["title"] = term.DisplayName,
                 ["slug"] = term.Slug,
-                ["url"] = "/" + kind + "/" + term.Slug + "/",
+                ["url"] = TaxonomyPageCreator.BuildTermUrl(normalizedRoutePrefix, term.Slug),
                 ["count"] = term.Pages.Count
             };
             if (!string.IsNullOrWhiteSpace(term.Description))
@@ -146,6 +148,9 @@ internal static class TaxonomyDataWriter
             ["key"] = key,
             ["kind"] = kind,
             ["title"] = title,
+            ["route_prefix"] = normalizedRoutePrefix,
+            ["routePrefix"] = normalizedRoutePrefix,
+            ["url"] = TaxonomyPageCreator.BuildIndexUrl(normalizedRoutePrefix),
             ["terms"] = termsValue,
             ["items_by_term"] = itemsByTerm
         };
@@ -157,13 +162,18 @@ internal static class TaxonomyDataWriter
         string key,
         string kind,
         string title,
-        Dictionary<string, TaxonomyTerm> terms)
+        Dictionary<string, TaxonomyTerm> terms,
+        string? routePrefix = null)
     {
+        var normalizedRoutePrefix = TaxonomyPageCreator.NormalizeRoutePrefix(kind, routePrefix);
         var hierarchy = TaxonomyHierarchyBuilder.BuildHierarchy(terms);
         writer.WriteStartObject();
         writer.WriteString("key", key);
         writer.WriteString("kind", kind);
         writer.WriteString("title", title);
+        writer.WriteString("routePrefix", normalizedRoutePrefix);
+        writer.WriteString("route_prefix", normalizedRoutePrefix);
+        writer.WriteString("url", NormalizeUrl(baseUrl, TaxonomyPageCreator.BuildIndexUrl(normalizedRoutePrefix)));
 
         writer.WriteStartArray("terms");
         foreach (var term in terms.Values
@@ -173,7 +183,7 @@ internal static class TaxonomyDataWriter
             writer.WriteStartObject();
             writer.WriteString("title", term.DisplayName);
             writer.WriteString("slug", term.Slug);
-            writer.WriteString("url", NormalizeUrl(baseUrl, "/" + kind + "/" + term.Slug + "/"));
+            writer.WriteString("url", NormalizeUrl(baseUrl, TaxonomyPageCreator.BuildTermUrl(normalizedRoutePrefix, term.Slug)));
             writer.WriteNumber("count", term.Pages.Count);
             if (!string.IsNullOrWhiteSpace(term.Description))
             {

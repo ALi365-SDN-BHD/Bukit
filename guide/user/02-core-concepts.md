@@ -77,6 +77,12 @@ content:
         dir: content/posts
 ```
 
+Filtered lists are fixed, manually declared list routes under a collection, such
+as `/companies/malaysia/` or `/insights/policy/`. They use explicit `field` and
+`value` equality matches and require the parent collection to define `listRoute`.
+Use taxonomy when Bukit should generate pages automatically for every tag,
+category, topic, or term found in content metadata.
+
 ## Themes and Templates
 
 Themes are filesystem directories. A Core theme normally contains:

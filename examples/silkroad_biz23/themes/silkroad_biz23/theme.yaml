@@ -1,0 +1,27 @@
+name: silkroad_biz23
+version: 1.0.0
+description: Business news and company directory example theme.
+templates:
+  home:
+    template: pages/index.html
+    required: true
+  insight:
+    template: pages/insight.html
+    accepts:
+      collection: insight
+  company:
+    template: pages/company.html
+    accepts:
+      collection: company
+  list:
+    template: pages/insight-list.html
+    accepts:
+      kind: list
+  taxonomy_index:
+    template: pages/taxonomy-index.html
+    accepts:
+      kind: taxonomy_index
+  taxonomy_term:
+    template: pages/insight-list.html
+    accepts:
+      kind: taxonomy_term

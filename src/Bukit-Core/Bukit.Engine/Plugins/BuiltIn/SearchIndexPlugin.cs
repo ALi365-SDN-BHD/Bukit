@@ -3,6 +3,7 @@ using Bukit.Engine.Abstractions.Content;
 using System.Text;
 using System.Text.Json;
 using Bukit.Engine;
+using Bukit.Rendering;
 
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
@@ -77,6 +78,14 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
     {
         var emitSnippet = TryResolveTemplate(context, "search", out var searchTemplate) &&
             TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
+        var listRouteGraph = context.Data.TryGetValue(ListRouteGraphBuilder.BuildContextDataKey, out var graphValue) &&
+            graphValue is ListRouteGraph graph
+                ? graph
+                : null;
+        var seoModels = context.Data.TryGetValue(BuildContextDataKeys.SeoModels, out var seoModelsValue) &&
+            seoModelsValue is IReadOnlyDictionary<string, SeoModel> models
+                ? models
+                : null;
         SearchIndexBuilder.GenerateSingleSearchIndex(
             context.OutputDir,
             context.BaseUrl,
@@ -85,7 +94,9 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             context.RoutedDocuments,
             context.DerivedDocuments,
             context.SeoIndex,
-            context.BodyStore);
+            context.BodyStore,
+            listRouteGraph,
+            seoModels);
         WriteSearchUi(context.Config, context.OutputDir);
     }
 

@@ -91,10 +91,30 @@ internal static class SeoModelBuilder
         string baseUrl,
         PageInfo page,
         IReadOnlyList<SeoAlternateModel>? alternates = null)
+        => BuildForListCore(config, baseUrl, page, page.Url, prevUrl: null, nextUrl: null, alternates);
+
+    internal static SeoModel BuildForList(
+        AppConfig config,
+        string baseUrl,
+        PageInfo page,
+        ListRoutePlan route,
+        IReadOnlyList<SeoAlternateModel>? alternates = null)
+        => BuildForListCore(config, baseUrl, page, route.CanonicalUrl, route.PrevUrl, route.NextUrl, alternates);
+
+    private static SeoModel BuildForListCore(
+        AppConfig config,
+        string baseUrl,
+        PageInfo page,
+        string canonicalUrl,
+        string? prevUrl,
+        string? nextUrl,
+        IReadOnlyList<SeoAlternateModel>? alternates)
     {
         var title = page.Title;
         var description = page.Summary ?? config.Site.Description;
-        var canonical = BuildAbsoluteUrl(config.Site.Url, baseUrl, page.Url);
+        var canonical = BuildAbsoluteUrl(config.Site.Url, baseUrl, canonicalUrl);
+        var prev = string.IsNullOrWhiteSpace(prevUrl) ? null : BuildAbsoluteUrl(config.Site.Url, baseUrl, prevUrl);
+        var next = string.IsNullOrWhiteSpace(nextUrl) ? null : BuildAbsoluteUrl(config.Site.Url, baseUrl, nextUrl);
         var image = BuildMaybeAbsoluteUrl(config.Site.Url, baseUrl, config.Site.Seo.DefaultImage);
 
         return new SeoModel
@@ -102,6 +122,8 @@ internal static class SeoModelBuilder
             Title = title,
             Description = description,
             Canonical = canonical,
+            Prev = prev,
+            Next = next,
             Og = new SeoOpenGraphModel
             {
                 Title = title,
@@ -121,7 +143,7 @@ internal static class SeoModelBuilder
                 Site = config.Site.Seo.TwitterSite
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
-            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, page.Url, document: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null)
+            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, canonicalUrl, document: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null)
         };
     }
 

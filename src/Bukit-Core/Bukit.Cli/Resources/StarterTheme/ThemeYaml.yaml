@@ -1,9 +1,12 @@
 name: starter
+display_name: Starter
 version: 1.0.0
+engine: bukit
 description: Default starter theme for bukit
-author: Bukit
-license: MIT
-tags: [starter, minimal, blog]
+capabilities:
+  seo: true
+  taxonomy: true
+  search: true
 templates:
   home:
     template: pages/index.html
@@ -40,20 +43,6 @@ templates:
     template: pages/taxonomy-term.html
     accepts:
       kind: taxonomy_term
-params:
-  - key: brand
-    label: Site Brand
-    type: string
-    default: My Site
-  - key: primary_color
-    label: Primary Color
-    type: color
-    default: "#0b5fff"
-  - key: accent_color
-    label: Accent Color
-    type: color
-    default: "#0f7b6c"
-  - key: footer_text
-    label: Footer Text
-    type: string
-    default: My Site
+assets:
+  css:
+    - assets/style.css

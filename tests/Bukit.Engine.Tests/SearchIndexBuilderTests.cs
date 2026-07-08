@@ -1,8 +1,10 @@
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Rendering;
 using System.Text.Json;
 using Xunit;
 
@@ -333,4 +335,142 @@ public sealed class SearchIndexBuilderTests
         Assert.Equal("bukit", doc.RootElement.GetProperty("tags")[0].GetString());
         Assert.Equal("docs", doc.RootElement.GetProperty("categories")[0].GetString());
     }
+
+    [Fact]
+    public void GenerateSingleSearchIndex_WithGraphOnlyListRoute_IncludesListRoute()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-search-list-route-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var route = CreateGraphOnlyListRoute();
+            var graph = ListRouteGraph.Create(new[] { route });
+            var routeInfo = route.ToRouteInfo();
+            var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                [route.OutputPath] = new(routeInfo, "https://example.com/companies/malaysia/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, "list", IsDerived: true)
+            };
+            var seoModels = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+            {
+                [route.OutputPath] = new()
+                {
+                    Title = "Malaysia Companies",
+                    Description = "Companies operating in Malaysia",
+                    Canonical = "https://example.com/companies/malaysia/"
+                }
+            };
+
+            SearchIndexBuilder.GenerateSingleSearchIndex(
+                tempDir,
+                "/",
+                includeDerived: false,
+                emitSnippet: true,
+                routed: Array.Empty<RoutedContentDocument>(),
+                derivedRouted: Array.Empty<RoutedContentDocument>(),
+                seoIndex,
+                NullContentBodyStore.Instance,
+                graph,
+                seoModels);
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
+            var item = Assert.Single(doc.RootElement.EnumerateArray());
+            Assert.Equal("filter:companies:country:malaysia:1", item.GetProperty("id").GetString());
+            Assert.Equal("Malaysia Companies", item.GetProperty("title").GetString());
+            Assert.Equal("/companies/malaysia/", item.GetProperty("url").GetString());
+            Assert.Equal("filter", item.GetProperty("type").GetString());
+            Assert.Contains("Acme Malaysia", item.GetProperty("content").GetString(), StringComparison.Ordinal);
+            Assert.Equal("Companies operating in Malaysia", item.GetProperty("snippet").GetString());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void GenerateMergedSearchIndex_WithGraphOnlyListRoute_IncludesListRoute()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-search-merged-list-route-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var route = CreateGraphOnlyListRoute();
+            var routeInfo = route.ToRouteInfo();
+            var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                [route.OutputPath] = new(routeInfo, "https://example.com/en/companies/malaysia/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, "list", IsDerived: true)
+            };
+            var seoModels = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+            {
+                [route.OutputPath] = new()
+                {
+                    Title = "Malaysia Companies",
+                    Description = "Companies operating in Malaysia",
+                    Canonical = "https://example.com/en/companies/malaysia/"
+                }
+            };
+            var result = new BuildVariantResult(
+                Language: "en",
+                OutputDir: tempDir,
+                BaseUrl: "/en",
+                SearchSnippetsEnabled: true,
+                BodyStore: NullContentBodyStore.Instance,
+                DerivedRoutes: Array.Empty<(RouteInfo, DateTimeOffset)>(),
+                SeoIndex: seoIndex,
+                SeoModels: seoModels,
+                PluginExecutions: Array.Empty<PluginExecutionInfo>(),
+                RenderedCount: 0,
+                SkippedCount: 0,
+                RenderReasons: new Dictionary<string, int>(),
+                StageMetrics: BuildStageMetrics.Empty,
+                RoutedDocuments: Array.Empty<RoutedContentDocument>(),
+                ListRouteGraph: ListRouteGraph.Create(new[] { route }));
+
+            SearchIndexBuilder.GenerateMergedSearchIndex(tempDir, new[] { result }, includeDerived: false);
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
+            var item = Assert.Single(doc.RootElement.EnumerateArray());
+            Assert.Equal("Malaysia Companies", item.GetProperty("title").GetString());
+            Assert.Equal("/en/companies/malaysia/", item.GetProperty("url").GetString());
+            Assert.Contains("Acme Malaysia", item.GetProperty("content").GetString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    private static ListRoutePlan CreateGraphOnlyListRoute()
+        => new()
+        {
+            RouteId = "filter:companies:country:malaysia:1",
+            Kind = ListRouteKind.FilteredListPage,
+            Url = "/companies/malaysia/",
+            OutputPath = "companies/malaysia/index.html",
+            Template = "pages/company-list.html",
+            Collection = "companies",
+            PageNumber = 1,
+            PageSize = 10,
+            TotalItems = 1,
+            Items = new[]
+            {
+                new ListRouteItem
+                {
+                    Id = "company-1",
+                    Title = "Acme Malaysia",
+                    Url = "/companies/acme-malaysia/",
+                    Summary = "Malaysia logistics company"
+                }
+            },
+            CanonicalUrl = "/companies/malaysia/",
+            FilterContext = new ListRouteFilterContext
+            {
+                Field = "country",
+                Value = "Malaysia"
+            }
+        };
 }

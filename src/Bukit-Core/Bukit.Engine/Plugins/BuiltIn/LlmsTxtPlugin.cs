@@ -55,7 +55,7 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             context.RoutedDocuments,
             context.DerivedDocuments,
             context.SeoIndex,
-            context.Data.TryGetValue("__seo_models", out var m) && m is IReadOnlyDictionary<string, SeoModel> models
+            context.Data.TryGetValue(BuildContextDataKeys.SeoModels, out var m) && m is IReadOnlyDictionary<string, SeoModel> models
                 ? models
                 : new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
             geo);

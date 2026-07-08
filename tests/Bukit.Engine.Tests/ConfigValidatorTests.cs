@@ -32,6 +32,24 @@ public sealed class ConfigValidatorTests
     private static AppConfig ConfigWithTheme(Func<ThemeConfig, ThemeConfig> theme) =>
         ValidConfig(c => c with { Theme = theme(c.Theme) });
 
+    private static AppConfig ConfigWithFilteredList(FilteredListConfig filter) =>
+        ValidConfig() with
+        {
+            Site = ValidConfig().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["article"] = new()
+                    {
+                        Permalink = "/articles/{slug}/",
+                        Template = "pages/post.html",
+                        ListRoute = "/articles/",
+                        FilteredLists = new[] { filter }
+                    }
+                }
+            }
+        };
+
     [Fact]
     public void Validate_ValidConfig_Passes()
     {
@@ -557,6 +575,324 @@ public sealed class ConfigValidatorTests
 
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Contains("listRoute", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("/page/{page}/")]
+    [InlineData("https://example.com/page/{page}/")]
+    [InlineData("../page/{page}/")]
+    [InlineData("page/")]
+    [InlineData("page/{page}?sort=asc")]
+    [InlineData("page/{page}#top")]
+    [InlineData("page\\{page}\\")]
+    [InlineData("page/%2F/{page}/")]
+    [InlineData("page/{section}/{page}/")]
+    [InlineData("page/{page")]
+    public void Validate_Collections_InvalidPaginationUrlPattern_Throws(string urlPattern)
+    {
+        var config = ValidConfig() with
+        {
+            Site = ValidConfig().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["article"] = new()
+                    {
+                        Permalink = "/articles/{slug}/",
+                        Template = "pages/post.html",
+                        ListRoute = "/articles/",
+                        Pagination = new CollectionPaginationConfig
+                        {
+                            Enabled = true,
+                            PageSize = 10,
+                            UrlPattern = urlPattern
+                        }
+                    }
+                }
+            }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("urlPattern", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("page/:num/")]
+    [InlineData("page/{num}/")]
+    [InlineData("p/{page}/")]
+    [InlineData("p/{page}")]
+    [InlineData("{collection}/{slug}/p/{page}/")]
+    [InlineData("{Collection}/{Slug}/p/{Page}/")]
+    public void Validate_Collections_ValidPaginationUrlPattern_Passes(string urlPattern)
+    {
+        var config = ValidConfig() with
+        {
+            Site = ValidConfig().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["article"] = new()
+                    {
+                        Permalink = "/articles/{slug}/",
+                        Template = "pages/post.html",
+                        ListRoute = "/articles/",
+                        Pagination = new CollectionPaginationConfig
+                        {
+                            Enabled = true,
+                            PageSize = 10,
+                            UrlPattern = urlPattern
+                        }
+                    }
+                }
+            }
+        };
+
+        ConfigValidator.Validate(config);
+    }
+
+    [Fact]
+    public void Validate_FilteredLists_InvalidPageSize_Throws()
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "country",
+            Value = "Malaysia",
+            ListRoute = "/articles/malaysia/",
+            PageSize = 0
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("filteredLists[0].pageSize", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_FilteredLists_InvalidOperator_Throws()
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "country",
+            Operator = "startsWith",
+            Value = "Malaysia",
+            ListRoute = "/articles/malaysia/"
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("filteredLists[0].operator", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("equals")]
+    [InlineData("contains")]
+    public void Validate_FilteredLists_SingleValueOperatorWithoutValue_Throws(string filterOperator)
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "country",
+            Operator = filterOperator,
+            ListRoute = "/articles/malaysia/"
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("filteredLists[0].value", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_FilteredLists_InOperatorWithoutValues_Throws()
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "category",
+            Operator = "in",
+            ListRoute = "/articles/market/"
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("filteredLists[0].values", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_FilteredLists_SingleValueOperatorWithValues_Throws()
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "category",
+            Operator = "equals",
+            Value = "市场观察",
+            Values = new[] { "市场观察", "政策动态" },
+            ListRoute = "/articles/market/"
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("filteredLists[0].values", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_FilteredLists_InOperatorWithValue_Throws()
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "category",
+            Operator = "in",
+            Value = "市场观察",
+            Values = new[] { "市场观察", "政策动态" },
+            ListRoute = "/articles/market/"
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("filteredLists[0].value", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("/page/{page}/")]
+    [InlineData("https://example.com/page/{page}/")]
+    [InlineData("../page/{page}/")]
+    [InlineData("page/")]
+    [InlineData("page/{page}?sort=asc")]
+    [InlineData("page/{page}#top")]
+    [InlineData("page\\{page}\\")]
+    [InlineData("page/%2F/{page}/")]
+    [InlineData("page/{section}/{page}/")]
+    [InlineData("page/{page")]
+    public void Validate_FilteredLists_InvalidUrlPattern_Throws(string urlPattern)
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "country",
+            Value = "Malaysia",
+            ListRoute = "/articles/malaysia/",
+            UrlPattern = urlPattern
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("filteredLists[0].urlPattern", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_FilteredLists_InvalidEmptyBehavior_Throws()
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "country",
+            Value = "Malaysia",
+            ListRoute = "/articles/malaysia/",
+            EmptyBehavior = "drop"
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("filteredLists[0].emptyBehavior", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_FilteredLists_BlankListTemplate_Throws()
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "country",
+            Value = "Malaysia",
+            ListRoute = "/articles/malaysia/",
+            ListTemplate = "   "
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("filteredLists[0].listTemplate", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_FilteredLists_PaginationConfig_Passes()
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "country",
+            Value = "Malaysia",
+            ListRoute = "/articles/malaysia/",
+            ListTemplate = "pages/filter.html",
+            PageSize = 2,
+            UrlPattern = "page/{page}/",
+            EmptyBehavior = "skip"
+        });
+
+        ConfigValidator.Validate(config);
+    }
+
+    [Fact]
+    public void Validate_FilteredLists_InOperatorWithValues_Passes()
+    {
+        var config = ConfigWithFilteredList(new FilteredListConfig
+        {
+            Field = "category",
+            Operator = "in",
+            Values = new[] { "市场观察", "政策动态" },
+            ListRoute = "/articles/market/"
+        });
+
+        ConfigValidator.Validate(config);
+    }
+
+    [Theory]
+    [InlineData("/insights/category")]
+    [InlineData("/insights/category/")]
+    [InlineData("/分类/category")]
+    public void Validate_TaxonomyKindRoutePrefix_ValidValues_Passes(string routePrefix)
+    {
+        var config = ValidConfig() with
+        {
+            Taxonomy = new TaxonomyConfig
+            {
+                Kinds = new[]
+                {
+                    new TaxonomyKindConfig
+                    {
+                        Key = "categories",
+                        Kind = "category",
+                        RoutePrefix = routePrefix
+                    }
+                }
+            }
+        };
+
+        ConfigValidator.Validate(config);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("insights/category")]
+    [InlineData("//example.com/category")]
+    [InlineData("https://example.com/category")]
+    [InlineData("/insights/../category")]
+    [InlineData("/insights/%2Fcategory")]
+    [InlineData("/insights/category?x=1")]
+    public void Validate_TaxonomyKindRoutePrefix_InvalidValues_Throws(string routePrefix)
+    {
+        var config = ValidConfig() with
+        {
+            Taxonomy = new TaxonomyConfig
+            {
+                Kinds = new[]
+                {
+                    new TaxonomyKindConfig
+                    {
+                        Key = "categories",
+                        Kind = "category",
+                        RoutePrefix = routePrefix
+                    }
+                }
+            }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+        Assert.Contains("routePrefix", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

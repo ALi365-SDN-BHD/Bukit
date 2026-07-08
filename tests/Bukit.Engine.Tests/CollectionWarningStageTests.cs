@@ -32,12 +32,12 @@ public sealed class CollectionWarningStageTests
             CustomFields: fieldMap));
     }
 
-    private static ContentStageInput CreateInput(IReadOnlyList<ContentDocument> documents, ILogger logger)
+    private static ContentStageInput CreateInput(IReadOnlyList<ContentDocument> documents, ILogger logger, AppConfig? config = null)
     {
         return new ContentStageInput(
             documents,
             EmptyContentBodyStore.Instance,
-            new AppConfig
+            config ?? new AppConfig
             {
                 Site = new SiteConfig { Name = "t", Title = "T" },
                 Content = TestContent.Markdown() with
@@ -230,5 +230,102 @@ public sealed class CollectionWarningStageTests
 
         Assert.Single(logger.Warnings);
         Assert.Contains("type=post", logger.Warnings[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_FilteredLists_EmitStaticRoutePositioningWarning()
+    {
+        var logger = new TestLogger();
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "t",
+                Title = "T",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["companies"] = new()
+                    {
+                        Permalink = "/companies/{slug}/",
+                        Template = "pages/company.html",
+                        ListRoute = "/companies/",
+                        FilteredLists = new[]
+                        {
+                            new FilteredListConfig
+                            {
+                                Field = "country",
+                                Value = "Malaysia",
+                                ListRoute = "/companies/malaysia/"
+                            }
+                        }
+                    }
+                }
+            },
+            Content = TestContent.Markdown() with
+            {
+                Media = new MediaConfig { DownloadToLocal = false }
+            },
+            Build = new BuildConfig { Output = "dist" },
+            Theme = new ThemeConfig { Layouts = "layouts" }
+        };
+        var input = CreateInput(Array.Empty<ContentDocument>(), logger, config);
+        var stage = new CollectionWarningStage();
+
+        await stage.ExecuteAsync(input, CancellationToken.None);
+
+        Assert.Single(logger.Warnings);
+        Assert.Contains("site.collections.companies.filteredLists[0]", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("manual static filtered list route", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("field=country", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("value=Malaysia", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("taxonomy.kinds", logger.Warnings[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_FilteredListsWithoutParentListRoute_WarnsRouteWillNotBeGenerated()
+    {
+        var logger = new TestLogger();
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "t",
+                Title = "T",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["companies"] = new()
+                    {
+                        Permalink = "/companies/{slug}/",
+                        Template = "pages/company.html",
+                        FilteredLists = new[]
+                        {
+                            new FilteredListConfig
+                            {
+                                Field = "country",
+                                Value = "Malaysia",
+                                ListRoute = "/companies/malaysia/"
+                            }
+                        }
+                    }
+                }
+            },
+            Content = TestContent.Markdown() with
+            {
+                Media = new MediaConfig { DownloadToLocal = false }
+            },
+            Build = new BuildConfig { Output = "dist" },
+            Theme = new ThemeConfig { Layouts = "layouts" }
+        };
+        var input = CreateInput(Array.Empty<ContentDocument>(), logger, config);
+        var stage = new CollectionWarningStage();
+
+        await stage.ExecuteAsync(input, CancellationToken.None);
+
+        Assert.Single(logger.Warnings);
+        Assert.Contains("site.collections.companies.filteredLists[0]", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("site.collections.companies.listRoute is missing", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("will not be generated", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("Add listRoute", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("taxonomy.kinds", logger.Warnings[0], StringComparison.Ordinal);
     }
 }

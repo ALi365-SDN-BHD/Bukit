@@ -30,6 +30,16 @@ internal static class SeoHtmlRenderer
     {
         var sb = new StringBuilder();
         sb.AppendLine($"  <link rel=\"canonical\" href=\"{Attr(seo.Canonical)}\" />");
+        if (!string.IsNullOrWhiteSpace(seo.Prev))
+        {
+            sb.AppendLine($"  <link rel=\"prev\" href=\"{Attr(seo.Prev!)}\" />");
+        }
+
+        if (!string.IsNullOrWhiteSpace(seo.Next))
+        {
+            sb.AppendLine($"  <link rel=\"next\" href=\"{Attr(seo.Next!)}\" />");
+        }
+
         if (!string.IsNullOrWhiteSpace(seo.Description))
         {
             sb.AppendLine($"  <meta name=\"description\" content=\"{Attr(seo.Description!)}\" />");
@@ -202,6 +212,8 @@ internal static class SeoHtmlRenderer
         {
             var rel = GetAttribute(tag, "rel");
             return string.Equals(rel, "canonical", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(rel, "prev", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(rel, "next", StringComparison.OrdinalIgnoreCase) ||
                    (string.Equals(rel, "alternate", StringComparison.OrdinalIgnoreCase) &&
                     !string.IsNullOrWhiteSpace(GetAttribute(tag, "hreflang")));
         }

@@ -263,6 +263,66 @@ public sealed class PageRenderDispatcherLazyBodyTests
     }
 
     [Fact]
+    public async Task RenderSpecialListsAsync_PassesFilteredListPageFields()
+    {
+        var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"), "layouts");
+        Directory.CreateDirectory(Path.Combine(layoutsDir, "pages"));
+        await File.WriteAllTextAsync(Path.Combine(layoutsDir, "index.html"), "{{ page.url }}");
+        await File.WriteAllTextAsync(Path.Combine(layoutsDir, "pages", "list.html"), "{{ page.url }}");
+
+        var renderer = new CaptureRenderer();
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+
+        await PageRenderDispatcher.RenderSpecialListsAsync(
+            CreateFilteredRoutedItems().ToRoutedDocuments(),
+            new CountingBodyStore(),
+            renderer,
+            CreateSiteModel(),
+            CreateFilteredCollections(),
+            layoutsDir,
+            "auto",
+            "none",
+            outputDir,
+            "template-hash",
+            renderDependencyHash: string.Empty,
+            incrementalEnabled: false,
+            manifest: new BuildManifest(),
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+            renderReasons: new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
+            cancellationToken: CancellationToken.None);
+
+        Assert.True(renderer.ListPageFieldsByUrl.TryGetValue("/blog/malaysia/page/2/", out var fields));
+        var pagination = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(fields["pagination"].Value);
+        Assert.Equal(2, pagination["page"]);
+        Assert.Equal(1, pagination["page_size"]);
+        Assert.Equal(2, pagination["total_pages"]);
+        Assert.Equal("/blog/malaysia/", pagination["prev_url"]);
+        Assert.Null(pagination["next_url"]);
+
+        var filter = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(fields["filter"].Value);
+        Assert.Equal("country", filter["field"]);
+        Assert.Equal("equals", filter["operator"]);
+        Assert.Equal("Malaysia", filter["value"]);
+
+        Assert.True(renderer.ListPageModelsByUrl.TryGetValue("/blog/malaysia/page/2/", out var model));
+        Assert.Equal("/blog/malaysia/page/2/", model.Page?.Url);
+        Assert.Equal("post", model.Collection?.Key);
+        Assert.Equal(2, model.Pagination?.Page);
+        Assert.Equal(1, model.Pagination?.PageSize);
+        Assert.Equal(2, model.Pagination?.TotalPages);
+        Assert.Equal(2, model.Pagination?.TotalItems);
+        Assert.Equal("/blog/malaysia/", model.Pagination?.PrevUrl);
+        Assert.Null(model.Pagination?.NextUrl);
+        Assert.Equal("country", model.Filter?.Field);
+        Assert.Equal("equals", model.Filter?.Operator);
+        Assert.Equal("Malaysia", model.Filter?.Value);
+        Assert.Equal(model.Pages.Count, model.Items?.Count);
+        Assert.Equal(new[] { "Malaysia Two" }, model.Items?.Select(item => item.Title).ToArray());
+    }
+
+    [Fact]
     public async Task RenderSpecialListsAsync_HydratesBodies_WhenModeIsAuto_AndTemplateUsesContent()
     {
         var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"), "layouts");
@@ -411,6 +471,43 @@ public sealed class PageRenderDispatcherLazyBodyTests
         };
     }
 
+    private static List<(ContentDocument Item, RouteInfo Route)> CreateFilteredRoutedItems()
+    {
+        var first = ContentDocument.Create(
+            id: "id-malaysia-1",
+            title: "Malaysia One",
+            slug: "malaysia-one",
+            publishAt: DateTimeOffset.Parse("2026-01-02T00:00:00Z"),
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["collection"] = "post",
+                ["country"] = "Malaysia",
+                ["summary"] = "summary"
+            }),
+            bodyKey: "body-malaysia-1");
+
+        var second = ContentDocument.Create(
+            id: "id-malaysia-2",
+            title: "Malaysia Two",
+            slug: "malaysia-two",
+            publishAt: DateTimeOffset.Parse("2026-01-01T00:00:00Z"),
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["collection"] = "post",
+                ["country"] = "Malaysia",
+                ["summary"] = "summary"
+            }),
+            bodyKey: "body-malaysia-2");
+
+        return new List<(ContentDocument Item, RouteInfo Route)>
+        {
+            (first, new RouteInfo("/blog/malaysia-one/", "blog/malaysia-one/index.html", "pages/post.html")),
+            (second, new RouteInfo("/blog/malaysia-two/", "blog/malaysia-two/index.html", "pages/post.html"))
+        };
+    }
+
     private static SiteModel CreateSiteModel()
     {
         return new SiteModel
@@ -439,6 +536,29 @@ public sealed class PageRenderDispatcherLazyBodyTests
             }
         };
 
+    private static IReadOnlyDictionary<string, CollectionConfig> CreateFilteredCollections()
+        => new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post"] = new()
+            {
+                Permalink = "/blog/{slug}/",
+                ListRoute = "/blog/",
+                ListTemplate = "pages/list.html",
+                FilteredLists = new[]
+                {
+                    new FilteredListConfig
+                    {
+                        Field = "country",
+                        Value = "Malaysia",
+                        ListRoute = "/blog/malaysia/",
+                        ListTemplate = "pages/list.html",
+                        PageSize = 1,
+                        UrlPattern = "page/{page}/"
+                    }
+                }
+            }
+        };
+
     private sealed class CaptureRenderer : ITemplateRenderer
     {
         public string? LastPageContent { get; private set; }
@@ -446,6 +566,8 @@ public sealed class PageRenderDispatcherLazyBodyTests
         public string? LastPageSource { get; private set; }
         public string? LastPageReviewStatus { get; private set; }
         public List<string> ListPageUrls { get; } = new();
+        public Dictionary<string, IReadOnlyDictionary<string, ContentField>> ListPageFieldsByUrl { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, ListPageModel> ListPageModelsByUrl { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         public string RenderPage(string templateRelativePath, PageModel model)
         {
@@ -458,7 +580,14 @@ public sealed class PageRenderDispatcherLazyBodyTests
 
         public string RenderList(string templateRelativePath, ListPageModel model)
         {
-            ListPageUrls.Add(model.Page?.Url ?? string.Empty);
+            var url = model.Page?.Url ?? string.Empty;
+            ListPageUrls.Add(url);
+            ListPageModelsByUrl[url] = model;
+            if (model.Page?.Fields is { } fields)
+            {
+                ListPageFieldsByUrl[model.Page.Url] = fields;
+            }
+
             return string.Empty;
         }
     }

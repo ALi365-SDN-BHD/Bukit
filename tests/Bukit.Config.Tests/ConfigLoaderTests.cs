@@ -481,6 +481,21 @@ public sealed class ConfigLoaderTests : IDisposable
                     pageSize: 15
                     urlPattern: p/:num/
                     firstPageUsesListRoute: false
+                  filteredLists:
+                    - field: country
+                      operator: equals
+                      value: Malaysia
+                      listRoute: /blog/malaysia/
+                      listTemplate: pages/blog-filter.html
+                      pageSize: 6
+                      urlPattern: page/{page}/
+                      emptyBehavior: skip
+                    - field: category
+                      operator: in
+                      values:
+                        - 市场观察
+                        - 政策动态
+                      listRoute: /blog/market/
                   output:
                     rss: true
                     sitemap: true
@@ -517,6 +532,22 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal(15, posts.Pagination.PageSize);
         Assert.Equal("p/:num/", posts.Pagination.UrlPattern);
         Assert.False(posts.Pagination.FirstPageUsesListRoute);
+        Assert.Equal(2, posts.FilteredLists!.Count);
+        var filtered = posts.FilteredLists[0];
+        Assert.Equal("country", filtered.Field);
+        Assert.Equal("equals", filtered.Operator);
+        Assert.Equal("Malaysia", filtered.Value);
+        Assert.Equal("/blog/malaysia/", filtered.ListRoute);
+        Assert.Equal("pages/blog-filter.html", filtered.ListTemplate);
+        Assert.Equal(6, filtered.PageSize);
+        Assert.Equal("page/{page}/", filtered.UrlPattern);
+        Assert.Equal("skip", filtered.EmptyBehavior);
+        var inFilter = posts.FilteredLists[1];
+        Assert.Equal("category", inFilter.Field);
+        Assert.Equal("in", inFilter.Operator);
+        Assert.Null(inFilter.Value);
+        Assert.Equal(new[] { "市场观察", "政策动态" }, inFilter.Values);
+        Assert.Equal("/blog/market/", inFilter.ListRoute);
         Assert.True(posts.Output.Rss);
         Assert.True(posts.Output.Sitemap);
         Assert.True(posts.Output.Archive);
@@ -533,6 +564,126 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("pages/page.html", pages.Template);
         Assert.False(pages.Pagination.Enabled);
         Assert.Equal(10, pages.Pagination.PageSize);
+    }
+
+    [Fact]
+    public void Load_FilteredLists_DefaultOptionalFields()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              collections:
+                posts:
+                  permalink: /posts/{slug}/
+                  template: pages/post.html
+                  filteredLists:
+                    - field: country
+                      value: Malaysia
+                      listRoute: /posts/malaysia/
+            content:
+              sources:
+                - type: markdown
+                  collection: posts
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+
+        var filter = Assert.Single(config.Site.Collections!["posts"].FilteredLists!);
+        Assert.Equal("equals", filter.Operator);
+        Assert.Equal("Malaysia", filter.Value);
+        Assert.Null(filter.Values);
+        Assert.Null(filter.ListTemplate);
+        Assert.Null(filter.PageSize);
+        Assert.Null(filter.UrlPattern);
+        Assert.Equal("render", filter.EmptyBehavior);
+    }
+
+    [Fact]
+    public void Load_FilteredLists_ThrowsUnknownNestedField()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              collections:
+                posts:
+                  permalink: /posts/{slug}/
+                  template: pages/post.html
+                  filteredLists:
+                    - field: country
+                      value: Malaysia
+                      listRoute: /posts/malaysia/
+                      unexpected: true
+            content:
+              sources:
+                - type: markdown
+                  collection: posts
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains("Unknown config field 'site.collections.posts.filteredLists[0].unexpected'.", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_CollectionPagination_ThrowsUnknownNestedField()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              collections:
+                posts:
+                  permalink: /posts/{slug}/
+                  template: pages/post.html
+                  pagination:
+                    enabled: true
+                    pageSize: 10
+                    unexpected: true
+            content:
+              sources:
+                - type: markdown
+                  collection: posts
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains("Unknown config field 'site.collections.posts.pagination.unexpected'.", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_TaxonomyKinds_ThrowsUnknownNestedField()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            taxonomy:
+              kinds:
+                - key: tags
+                  routePrefix: topics
+                  unexpected: true
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains("Unknown config field 'taxonomy.kinds[0].unexpected'.", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -900,6 +1051,7 @@ public sealed class ConfigLoaderTests : IDisposable
                   indexTemplate: pages/tag-index.html
                   termTemplate: pages/tag-term.html
                   indexEnabled: true
+                  routePrefix: /insights/tags
                 - key: categories
                   kind: category
                   title: Categories
@@ -921,6 +1073,7 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("pages/tag-index.html", tags.IndexTemplate);
         Assert.Equal("pages/tag-term.html", tags.TermTemplate);
         Assert.True(tags.IndexEnabled);
+        Assert.Equal("/insights/tags", tags.RoutePrefix);
 
         var categories = config.Taxonomy.Kinds[1];
         Assert.Equal("categories", categories.Key);

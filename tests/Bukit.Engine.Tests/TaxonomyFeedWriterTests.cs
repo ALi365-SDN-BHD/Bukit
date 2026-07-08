@@ -31,8 +31,8 @@ public sealed class TaxonomyFeedWriterTests : IDisposable
                 Description = "All about tech"
             }
         };
-        terms["tech"].Pages.Add(new TaxonomyPage("Post One", "/blog/one/", DateTimeOffset.UtcNow, "Summary one", null, false, null));
-        terms["tech"].Pages.Add(new TaxonomyPage("Post Two", "/blog/two/", DateTimeOffset.UtcNow.AddDays(-1), "Summary two", null, false, null));
+        terms["tech"].Pages.Add(new TaxonomyPage("post-one", "Post One", "/blog/one/", DateTimeOffset.UtcNow, "Summary one", null, false, null));
+        terms["tech"].Pages.Add(new TaxonomyPage("post-two", "Post Two", "/blog/two/", DateTimeOffset.UtcNow.AddDays(-1), "Summary two", null, false, null));
 
         TaxonomyFeedWriter.WriteFeeds(_tempDir, "https://example.com", "/", "My Site", terms, "tags");
 
@@ -59,6 +59,26 @@ public sealed class TaxonomyFeedWriterTests : IDisposable
 
         var feedPath = Path.Combine(_tempDir, "tags", "tech", "feed.xml");
         Assert.False(File.Exists(feedPath));
+    }
+
+    [Fact]
+    public void WriteFeeds_WithRoutePrefix_WritesFeedUnderConfiguredTaxonomyRoute()
+    {
+        var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tech"] = new TaxonomyTerm("Tech", "tech")
+        };
+        terms["tech"].Pages.Add(new TaxonomyPage("post-one", "Post One", "/blog/one/", DateTimeOffset.UtcNow, "Summary one", null, false, null));
+
+        TaxonomyFeedWriter.WriteFeeds(_tempDir, "https://example.com", "/docs", "My Site", terms, "category", "/insights/category");
+
+        var feedPath = Path.Combine(_tempDir, "insights", "category", "tech", "feed.xml");
+        Assert.True(File.Exists(feedPath));
+
+        var content = File.ReadAllText(feedPath);
+        Assert.Contains("<link>https://example.com/docs/insights/category/tech/</link>", content, StringComparison.Ordinal);
+        Assert.Contains("href=\"https://example.com/docs/insights/category/tech/feed.xml\"", content, StringComparison.Ordinal);
+        Assert.False(File.Exists(Path.Combine(_tempDir, "category", "tech", "feed.xml")));
     }
 
     [Fact]

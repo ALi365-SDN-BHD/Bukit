@@ -53,7 +53,29 @@ public sealed class SiteEngine
     public static IReadOnlyList<RouteInfo> GetListRoutes(
         IReadOnlyDictionary<string, CollectionConfig>? collections,
         ThemeTemplateResolver? templateResolver = null)
-        => SeoAlternatesService.GetListRoutes(collections, templateResolver);
+    {
+        var graph = ListRouteGraphBuilder.Build(
+            Array.Empty<RoutedContentDocument>(),
+            collections,
+            outputPathEncoding: "none",
+            templateResolver);
+        return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
+    }
+
+    public static IReadOnlyList<RouteInfo> GetListRoutes(
+        BuildContext context,
+        ThemeTemplateResolver? templateResolver = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var graph = ListRouteGraphBuilder.Build(
+            context.RoutedDocuments,
+            context.Config.Site.Collections,
+            context.Config.Site.OutputPathEncoding,
+            templateResolver);
+        context.Data[ListRouteGraphBuilder.BuildContextDataKey] = graph;
+        return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
+    }
 
     public async Task BuildAsync(IContentProvider provider, BuildOptions options, CancellationToken cancellationToken = default)
     {
@@ -156,7 +178,7 @@ public sealed class SiteEngine
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
         var templateResolver = new ThemeTemplateResolver(ThemeBootstrapper.BootstrapRequired(config, rootDir, _logger).Manifest);
-        var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, documents, languages, defaultLanguage, rootBaseUrl, templateResolver);
+        var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, documents, languages, defaultLanguage, rootBaseUrl, templateResolver, rootDir, layoutsDir);
         var results = new BuildVariantResult[languages.Count];
 
         var languageJobs = Math.Max(1, config.Build.LanguageJobs);

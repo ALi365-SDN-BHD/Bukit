@@ -12,14 +12,21 @@ internal sealed record RenderEntry(
     RouteInfo Route,
     IReadOnlyList<RoutedContentDocument>? SourceDocuments,
     bool IncludeContent,
+    IReadOnlyDictionary<string, ContentField>? ListPageFields,
+    ListPageContext? ListPageContext,
     string? RawContent,
     string Title)
 {
     internal static RenderEntry ForPage(ContentDocument document, RouteInfo route) =>
-        new(RenderEntryKind.Page, document, route, null, false, null, document.Title);
+        new(RenderEntryKind.Page, document, route, null, false, null, null, null, document.Title);
 
-    internal static RenderEntry ForList(RouteInfo listRoute, IReadOnlyList<RoutedContentDocument> source, bool includeContent) =>
-        new(RenderEntryKind.List, null, listRoute, source, includeContent, null, listRoute.Url);
+    internal static RenderEntry ForList(
+        RouteInfo listRoute,
+        IReadOnlyList<RoutedContentDocument> source,
+        bool includeContent,
+        IReadOnlyDictionary<string, ContentField>? pageFields = null,
+        ListPageContext? pageContext = null) =>
+        new(RenderEntryKind.List, null, listRoute, source, includeContent, pageFields, pageContext, null, listRoute.Url);
 
     internal static IReadOnlyList<RenderEntry> ForStaticDir(string staticDir, string template, Action<string> warn, bool publishDotFiles)
     {
@@ -51,7 +58,7 @@ internal sealed record RenderEntry(
 
             var route = new RouteInfo(url, outputPath, template);
             var rawContent = File.ReadAllText(file);
-            entries.Add(new RenderEntry(RenderEntryKind.Static, null, route, null, false, rawContent, title));
+            entries.Add(new RenderEntry(RenderEntryKind.Static, null, route, null, false, null, null, rawContent, title));
         }
 
         return entries;

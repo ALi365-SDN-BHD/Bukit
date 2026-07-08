@@ -198,6 +198,11 @@ internal static class I18nOutputMerger
                          .Where(x => x.Value.Indexable)
                          .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
             {
+                if (ListRouteSitemapPolicy.IsExcluded(config, r.ListRouteGraph, seo))
+                {
+                    continue;
+                }
+
                 if (IsExcludedFile(Path.Combine(r.OutputDir, seo.Route.OutputPath)))
                 {
                     continue;

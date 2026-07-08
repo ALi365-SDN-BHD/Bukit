@@ -1,0 +1,19 @@
+{% layout "layouts/base.html" %}
+
+<header class="page-header">
+  <p class="eyebrow">{{ if taxonomy }}{{ taxonomy.kind }}{{ else }}Business Insights{{ end }}</p>
+  <h1>{{ page.title }}</h1>
+  {{ if taxonomy && taxonomy.term }}
+    <p data-taxonomy-term>{{ taxonomy.term }}</p>
+  {{ end }}
+</header>
+
+<section data-section="business-insights-list">
+  <div class="grid">
+    {{ for item in items }}
+      {{ include "partials/business-card.html" }}
+    {{ end }}
+  </div>
+</section>
+
+{{ include "partials/pagination.html" }}

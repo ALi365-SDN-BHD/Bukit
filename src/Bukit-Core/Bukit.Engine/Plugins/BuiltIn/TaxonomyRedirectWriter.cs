@@ -2,11 +2,11 @@ using System.Text;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-using Bukit.Engine.Abstractions.Plugins;
 internal static class TaxonomyRedirectWriter
 {
-    internal static void WriteRedirects(string outputDir, string kind, Dictionary<string, TaxonomyTerm> terms)
+    internal static void WriteRedirects(string outputDir, string kind, Dictionary<string, TaxonomyTerm> terms, string? routePrefix = null)
     {
+        var normalizedRoutePrefix = TaxonomyPageCreator.NormalizeRoutePrefix(kind, routePrefix);
         foreach (var term in terms.Values)
         {
             if (term.Aliases is not { Count: > 0 })
@@ -14,7 +14,7 @@ internal static class TaxonomyRedirectWriter
                 continue;
             }
 
-            var targetUrl = $"/{kind}/{term.Slug}/";
+            var targetUrl = TaxonomyPageCreator.BuildTermUrl(normalizedRoutePrefix, term.Slug);
 
             foreach (var alias in term.Aliases)
             {
@@ -29,13 +29,26 @@ internal static class TaxonomyRedirectWriter
                     continue;
                 }
 
-                var aliasDir = Path.Combine(outputDir, kind, aliasSlug);
+                var aliasUrl = TaxonomyPageCreator.BuildTermUrl(normalizedRoutePrefix, aliasSlug);
+                var aliasDir = BuildOutputDirectory(outputDir, aliasUrl);
                 Directory.CreateDirectory(aliasDir);
 
                 var html = RenderRedirect(targetUrl);
                 File.WriteAllText(Path.Combine(aliasDir, "index.html"), html, Encoding.UTF8);
             }
         }
+    }
+
+    private static string BuildOutputDirectory(string outputDir, string url)
+    {
+        var segments = url.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var path = outputDir;
+        foreach (var segment in segments)
+        {
+            path = Path.Combine(path, segment);
+        }
+
+        return path;
     }
 
     private static string RenderRedirect(string targetUrl)

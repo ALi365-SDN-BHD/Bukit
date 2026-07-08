@@ -1,0 +1,29 @@
+{% layout "layouts/base.html" %}
+
+<section class="hero">
+  <p class="eyebrow">Build-time market directory</p>
+  <h1>{{ site.title }}</h1>
+  <p>{{ site.description }}</p>
+</section>
+
+<section data-section="business-insights">
+  <h2>Business Insights</h2>
+  <div class="grid">
+    {{ for item in items }}
+      {{ if item.fields && item.fields.collection && item.fields.collection.value == "insight" }}
+        {{ include "partials/business-card.html" }}
+      {{ end }}
+    {{ end }}
+  </div>
+</section>
+
+<section data-section="company-directory">
+  <h2>Company Directory</h2>
+  <div class="grid">
+    {{ for item in items }}
+      {{ if item.fields && item.fields.collection && item.fields.collection.value == "company" }}
+        {{ include "partials/company-card.html" }}
+      {{ end }}
+    {{ end }}
+  </div>
+</section>

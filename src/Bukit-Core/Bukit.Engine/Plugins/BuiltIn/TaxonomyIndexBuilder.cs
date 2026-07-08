@@ -62,7 +62,7 @@ internal static class TaxonomyIndexBuilder
             }
 
             var summary = record?.Presentation.Summary ?? ContentFieldReader.GetSummary(item);
-            var extra = ExtractExtraFields(item, itemFields);
+            var extra = ExtractExtraFields(item, itemFields, summary);
             var sourceKey = GetSourceKey(item);
             var pinField = ResolvePinField(config, sourceKey);
             var pinOrderField = ResolvePinOrderField(config, sourceKey);
@@ -92,7 +92,7 @@ internal static class TaxonomyIndexBuilder
                     terms[slug] = term;
                 }
 
-                term.Pages.Add(new TaxonomyPage(item.Title, route.Url, item.PublishAt, summary, extra, isPinned, pinOrder));
+                term.Pages.Add(new TaxonomyPage(item.Id, item.Title, route.Url, item.PublishAt, summary, extra, isPinned, pinOrder));
             }
         }
 
@@ -126,7 +126,7 @@ internal static class TaxonomyIndexBuilder
         return ContentFieldReader.GetTextList(item.CustomFields, key);
     }
 
-    internal static IReadOnlyDictionary<string, object>? ExtractExtraFields(ContentDocument item, IReadOnlyList<string> itemFields)
+    internal static IReadOnlyDictionary<string, object>? ExtractExtraFields(ContentDocument item, IReadOnlyList<string> itemFields, string? summary)
     {
         if (itemFields.Count == 0)
         {
@@ -145,6 +145,10 @@ internal static class TaxonomyIndexBuilder
             if (key.Equals("date", StringComparison.OrdinalIgnoreCase))
             {
                 dict["date"] = item.PublishAt.UtcDateTime.ToString("yyyy-MM-dd");
+            }
+            else if (key.Equals("summary", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(summary))
+            {
+                dict["summary"] = summary;
             }
         }
 

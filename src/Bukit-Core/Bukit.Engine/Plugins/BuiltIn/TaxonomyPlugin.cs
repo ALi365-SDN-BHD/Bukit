@@ -110,7 +110,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
                     : kindConfig.SingularTitlePrefix.Trim();
                 var indexEnabled = kindConfig.IndexEnabled ?? context.Config.Taxonomy.IndexEnabled;
 
-                derived.AddRange(TaxonomyPageCreator.CreateKind(baseUrlPrefix, kind, title, singularTitlePrefix, terms, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, indexEnabled, kindConfig.Hierarchical, context.Config.Site.OutputPathEncoding));
+                derived.AddRange(TaxonomyPageCreator.CreateKind(baseUrlPrefix, kind, kindConfig.RoutePrefix, title, singularTitlePrefix, terms, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, indexEnabled, kindConfig.Hierarchical, context.Config.Site.OutputPathEncoding));
             }
 
             return derived;
@@ -133,13 +133,13 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         if (tags.Count > 0)
         {
             var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "tags", context.ResolveTemplateKind);
-            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "tags", title: "Tags", singularTitlePrefix: "Tag", tags, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
+            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "tags", routePrefix: null, title: "Tags", singularTitlePrefix: "Tag", tags, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
         }
 
         if (categories.Count > 0)
         {
             var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "categories", context.ResolveTemplateKind);
-            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "categories", title: "Categories", singularTitlePrefix: "Category", categories, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
+            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "categories", routePrefix: null, title: "Categories", singularTitlePrefix: "Category", categories, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
         }
 
         return derived;
@@ -155,7 +155,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
 
         var itemFields = NormalizeItemFields(context.Config.Taxonomy.ItemFields);
 
-        var kindTerms = new List<(string Key, string Kind, string Title, Dictionary<string, TaxonomyTerm> Terms)>();
+        var kindTerms = new List<(string Key, string Kind, string Title, Dictionary<string, TaxonomyTerm> Terms, string? RoutePrefix)>();
 
         if (context.Config.Taxonomy.Kinds is { Count: > 0 } kinds)
         {
@@ -177,7 +177,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
                 }
 
                 var title = string.IsNullOrWhiteSpace(kindConfig.Title) ? kind : kindConfig.Title.Trim();
-                kindTerms.Add((key, kind, title, terms));
+                kindTerms.Add((key, kind, title, terms, kindConfig.RoutePrefix));
             }
         }
         else
@@ -187,7 +187,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
             TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", tags);
             if (tags.Count > 0)
             {
-                kindTerms.Add(("tags", "tags", "Tags", tags));
+                kindTerms.Add(("tags", "tags", "Tags", tags, null));
             }
 
             var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields);
@@ -195,7 +195,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
             TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", categories);
             if (categories.Count > 0)
             {
-                kindTerms.Add(("categories", "categories", "Categories", categories));
+                kindTerms.Add(("categories", "categories", "Categories", categories, null));
             }
         }
 
@@ -209,22 +209,22 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         writer.WriteNumber("schema", 2);
 
         writer.WriteStartArray("kinds");
-        foreach (var (key, kind, title, terms) in kindTerms)
+        foreach (var (key, kind, title, terms, routePrefix) in kindTerms)
         {
-            TaxonomyDataWriter.WriteKind(writer, context.BaseUrl, key, kind, title, terms);
+            TaxonomyDataWriter.WriteKind(writer, context.BaseUrl, key, kind, title, terms, routePrefix);
         }
         writer.WriteEndArray();
         writer.WriteEndObject();
         writer.Flush();
 
-        foreach (var (_, kind, _, terms) in kindTerms)
+        foreach (var (_, kind, _, terms, routePrefix) in kindTerms)
         {
-            TaxonomyFeedWriter.WriteFeeds(context.OutputDir, context.Config.Site.Url ?? string.Empty, context.BaseUrl, context.Config.Site.Title, terms, kind);
+            TaxonomyFeedWriter.WriteFeeds(context.OutputDir, context.Config.Site.Url ?? string.Empty, context.BaseUrl, context.Config.Site.Title, terms, kind, routePrefix);
         }
 
-        foreach (var (_, kind, _, terms) in kindTerms)
+        foreach (var (_, kind, _, terms, routePrefix) in kindTerms)
         {
-            TaxonomyRedirectWriter.WriteRedirects(context.OutputDir, kind, terms);
+            TaxonomyRedirectWriter.WriteRedirects(context.OutputDir, kind, terms, routePrefix);
         }
     }
 
@@ -318,4 +318,4 @@ internal sealed class TaxonomyTerm
     public List<TaxonomyPage> Pages { get; init; } = new();
 }
 
-internal sealed record TaxonomyPage(string Title, string Url, DateTimeOffset PublishAt, string? Summary, IReadOnlyDictionary<string, object>? Extra, bool IsPinned, int? PinOrder);
+internal sealed record TaxonomyPage(string Id, string Title, string Url, DateTimeOffset PublishAt, string? Summary, IReadOnlyDictionary<string, object>? Extra, bool IsPinned, int? PinOrder);

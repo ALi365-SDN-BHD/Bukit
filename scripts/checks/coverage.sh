@@ -136,11 +136,15 @@ mkdir -p "$coverage_root"
 coverage_solution_test_projects=(
   tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj
   tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj
+  tests/Bukit.Clone.Tests/Bukit.Clone.Tests.csproj
   tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj
   tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj
   tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj
   tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj
   tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj
+  tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj
+  tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj
+  tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj
   tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj
   tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj
   tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj

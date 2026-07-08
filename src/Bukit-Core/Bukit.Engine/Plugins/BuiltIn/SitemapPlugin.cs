@@ -25,6 +25,7 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
 
         var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>(context.SeoIndex.Count);
         var typedExclusions = BuildTypedSitemapExclusions(context);
+        var listRouteExclusions = BuildListRouteSitemapExclusions(context);
         foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             if (!seo.Indexable)
@@ -33,6 +34,11 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
             }
 
             if (typedExclusions.Contains(BuildPathUtils.NormalizeRelPath(seo.Route.OutputPath)))
+            {
+                continue;
+            }
+
+            if (listRouteExclusions.Contains(BuildPathUtils.NormalizeRelPath(seo.Route.OutputPath)))
             {
                 continue;
             }
@@ -60,5 +66,13 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
             .Where(x => x.Document.Publish.ExcludeFromSitemap)
             .Select(x => BuildPathUtils.NormalizeRelPath(x.Route.OutputPath))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static HashSet<string> BuildListRouteSitemapExclusions(BuildContext context)
+    {
+        var graph = context.Data.TryGetValue(ListRouteGraphBuilder.BuildContextDataKey, out var value) && value is ListRouteGraph routeGraph
+            ? routeGraph
+            : null;
+        return ListRouteSitemapPolicy.BuildExcludedOutputPaths(context.Config, graph);
     }
 }

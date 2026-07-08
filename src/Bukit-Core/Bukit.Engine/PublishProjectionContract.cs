@@ -25,6 +25,7 @@ internal sealed record PublishProjectionContext(
     string BaseUrl = "/",
     bool SearchSnippetsEnabled = false,
     ILogger? Logger = null,
+    ListRouteGraph? ListRouteGraph = null,
     IReadOnlyList<BuildVariantResult>? VariantResults = null,
     IReadOnlyList<RoutedContentDocument>? DerivedDocuments = null)
 {
@@ -297,6 +298,11 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
         foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             if (!seo.Indexable)
+            {
+                continue;
+            }
+
+            if (ListRouteSitemapPolicy.IsExcluded(context.Config, context.ListRouteGraph, seo))
             {
                 continue;
             }

@@ -1,6 +1,8 @@
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
@@ -16,7 +18,9 @@ public static class SeoAlternatesService
         IReadOnlyList<string> languages,
         string defaultLanguage,
         string rootBaseUrl,
-        ThemeTemplateResolver? templateResolver = null)
+        ThemeTemplateResolver? templateResolver = null,
+        string? rootDir = null,
+        string? layoutsDir = null)
     {
         if (string.IsNullOrWhiteSpace(config.Site.Url) || languages.Count == 0)
         {
@@ -30,9 +34,12 @@ public static class SeoAlternatesService
             var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, language);
             var variantDocuments = I18nOutputMerger
                 .FilterDocumentsByLanguage(documents, language, defaultLanguage)
+                .ToList();
+            var variantContentDocuments = variantDocuments
                 .Where(i => !ContentFieldReader.IsDataItem(i))
                 .ToList();
             var variantRouted = variantDocuments
+                .Where(i => !ContentFieldReader.IsDataItem(i))
                 .Select(i => new RoutedContentDocument(i, RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
                 .ToList();
 
@@ -41,19 +48,24 @@ public static class SeoAlternatesService
                 AddAlternate(grouped, SeoModelBuilder.BuildAlternateKey(routed.Document, routed.Route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, routed.Route.Url));
             }
 
-            foreach (var route in BuildListRoutesCore(config.Site.Collections, config.Site.OutputPathEncoding, templateResolver))
+            var listRouteGraph = ListRouteGraphBuilder.Build(
+                variantRouted,
+                config.Site.Collections,
+                config.Site.OutputPathEncoding,
+                templateResolver);
+            listRouteGraph = AddTaxonomyRoutesForAlternates(
+                config,
+                baseUrl,
+                rootDir,
+                layoutsDir,
+                templateResolver,
+                variantDocuments,
+                variantContentDocuments,
+                variantRouted,
+                listRouteGraph);
+            foreach (var route in listRouteGraph.Routes)
             {
-                AddAlternate(grouped, SeoModelBuilder.BuildListAlternateKey(route), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url));
-            }
-
-            foreach (var url in BuildTaxonomyRouteUrls(config, variantRouted))
-            {
-                AddAlternate(grouped, $"route:{url}", language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, url));
-            }
-
-            foreach (var url in BuildPaginationRouteUrls(config, variantRouted))
-            {
-                AddAlternate(grouped, $"route:{url}", language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, url));
+                AddAlternate(grouped, SeoModelBuilder.BuildListAlternateKey(route.ToRouteInfo()), language, SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, route.CanonicalUrl));
             }
         }
 
@@ -88,7 +100,7 @@ public static class SeoAlternatesService
     internal static IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> AddVariantRouteAlternates(
         AppConfig config,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> existing,
-        IEnumerable<RouteInfo> routes,
+        ListRouteGraph listRouteGraph,
         string? rootBaseUrl,
         string? defaultLanguage)
     {
@@ -101,227 +113,55 @@ public static class SeoAlternatesService
             return existing;
         }
 
-        Dictionary<string, IReadOnlyList<SeoAlternateModel>>? result = null;
-        foreach (var route in routes)
-        {
-            var key = SeoModelBuilder.BuildListAlternateKey(route);
-            if (existing.ContainsKey(key))
-            {
-                continue;
-            }
-
-            result ??= new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(existing, StringComparer.Ordinal);
-            var alternates = new List<SeoAlternateModel>(languages.Count + 1);
-            alternates.Add(new SeoAlternateModel(
-                "x-default",
-                SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, defaultLanguage), route.Url)));
-
-            foreach (var language in languages)
-            {
-                alternates.Add(new SeoAlternateModel(
-                    language,
-                    SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, language), route.Url)));
-            }
-
-            result[key] = alternates;
-        }
-
-        return result ?? existing;
+        return existing;
     }
 
-    internal static IReadOnlyList<RouteInfo> GetListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections, ThemeTemplateResolver? templateResolver = null)
-        => BuildListRoutesCore(collections, "none", templateResolver);
-
-    internal static IReadOnlyList<RouteInfo> BuildListRoutes(IReadOnlyDictionary<string, CollectionConfig>? collections, ThemeTemplateResolver? templateResolver = null)
-        => BuildListRoutesCore(collections, "none", templateResolver);
-
-    internal static IReadOnlyList<RouteInfo> BuildListRoutesCore(IReadOnlyDictionary<string, CollectionConfig>? collections, string outputPathEncoding, ThemeTemplateResolver? templateResolver = null)
+    private static ListRouteGraph AddTaxonomyRoutesForAlternates(
+        AppConfig config,
+        string baseUrl,
+        string? rootDir,
+        string? layoutsDir,
+        ThemeTemplateResolver? templateResolver,
+        IReadOnlyList<ContentDocument> variantDocuments,
+        IReadOnlyList<ContentDocument> variantContentDocuments,
+        IReadOnlyList<RoutedContentDocument> variantRouted,
+        ListRouteGraph listRouteGraph)
     {
-        var routes = new List<RouteInfo>
+        if (string.Equals(TaxonomyPlugin.NormalizeOutputMode(config.Taxonomy.OutputMode), "data", StringComparison.OrdinalIgnoreCase))
         {
-            new("/", "index.html", templateResolver?.ResolveHomeTemplate() ?? ThemeTemplateResolver.DefaultHomeTemplate)
+            return listRouteGraph;
+        }
+
+        var effectiveRootDir = string.IsNullOrWhiteSpace(rootDir)
+            ? Directory.GetCurrentDirectory()
+            : rootDir;
+        var effectiveLayoutsDir = string.IsNullOrWhiteSpace(layoutsDir)
+            ? effectiveRootDir
+            : layoutsDir;
+        var pluginContext = new BuildContext
+        {
+            Config = config,
+            RootDir = effectiveRootDir,
+            OutputDir = Path.Combine(Path.GetTempPath(), "bukit-seo-alternates"),
+            BaseUrl = baseUrl,
+            LayoutsDir = effectiveLayoutsDir,
+            RoutedDocuments = variantRouted,
+            StaticHtmlRoutes = Array.Empty<RouteInfo>(),
+            ContentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(variantContentDocuments),
+            BodyStore = NullContentBodyStore.Instance,
+            TemplateResolver = templateResolver is null
+                ? _ => throw new ConfigException(
+                    "No taxonomy template resolver is available while building SEO alternates.",
+                    DiagnosticCode.ConfigRequiredFieldMissing)
+                : kind => templateResolver.ResolveKindTemplate(kind),
+            Logger = new ConsoleLogger(LogLevel.Error)
         };
+        pluginContext.Data[ListRouteGraphBuilder.BuildContextDataKey] = listRouteGraph;
 
-        if (collections is null || collections.Count == 0)
-        {
-            return routes;
-        }
-
-        foreach (var (_, collection) in collections)
-        {
-            if (string.IsNullOrWhiteSpace(collection.ListRoute))
-            {
-                continue;
-            }
-
-            var url = RoutePathBuilder.NormalizeListRoute(collection.ListRoute);
-            var template = ResolveListTemplate(collection.ListTemplate, templateResolver);
-            routes.Add(new RouteInfo(url, RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding), template));
-
-            if (collection.FilteredLists is { Count: > 0 })
-            {
-                foreach (var filter in collection.FilteredLists)
-                {
-                    var filterUrl = RoutePathBuilder.NormalizeListRoute(filter.ListRoute);
-                    var filterTemplate = string.IsNullOrWhiteSpace(filter.ListTemplate) ? template : filter.ListTemplate.Trim();
-                    routes.Add(new RouteInfo(filterUrl, RoutePathBuilder.BuildOutputPathFromUrl(filterUrl, outputPathEncoding), filterTemplate));
-                }
-            }
-        }
-
-        return routes;
-    }
-
-    private static string ResolveListTemplate(string? explicitTemplate, ThemeTemplateResolver? templateResolver)
-    {
-        if (!string.IsNullOrWhiteSpace(explicitTemplate))
-        {
-            return explicitTemplate.Trim();
-        }
-
-        if (templateResolver is null)
-        {
-            throw new ConfigException("No list template was configured. Add site.collections.*.listTemplate or a matching theme.yaml templates entry.", DiagnosticCode.ConfigRequiredFieldMissing);
-        }
-
-        return templateResolver.ResolveKindTemplate("list");
-    }
-
-    internal static IReadOnlyList<string> BuildTaxonomyRouteUrls(
-        AppConfig config,
-        IReadOnlyList<RoutedContentDocument> routed)
-    {
-        if (string.Equals((config.Taxonomy.OutputMode ?? string.Empty).Trim(), "data", StringComparison.OrdinalIgnoreCase) ||
-            routed.Count == 0)
-        {
-            return Array.Empty<string>();
-        }
-
-        var pageSize = NormalizePageSize(config.Taxonomy.PageSize);
-        var result = new List<string>();
-        if (config.Taxonomy.Kinds is { Count: > 0 } kinds)
-        {
-            foreach (var kindConfig in kinds)
-            {
-                var key = (kindConfig.Key ?? string.Empty).Trim();
-                if (string.IsNullOrWhiteSpace(key))
-                {
-                    continue;
-                }
-
-                var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
-                AddTaxonomyKindRoutes(result, kind, BuildTaxonomyTermCounts(routed, key), pageSize, kindConfig.IndexEnabled ?? config.Taxonomy.IndexEnabled);
-            }
-
-            return result;
-        }
-
-        AddTaxonomyKindRoutes(result, "tags", BuildTaxonomyTermCounts(routed, "tags"), pageSize, config.Taxonomy.IndexEnabled);
-        AddTaxonomyKindRoutes(result, "categories", BuildTaxonomyTermCounts(routed, "categories"), pageSize, config.Taxonomy.IndexEnabled);
-        return result;
-    }
-
-    internal static IReadOnlyList<string> BuildPaginationRouteUrls(
-        AppConfig config,
-        IReadOnlyList<RoutedContentDocument> routed)
-    {
-        if (routed.Count == 0)
-        {
-            return Array.Empty<string>();
-        }
-
-        if (config.Site.Collections is not { Count: > 0 })
-        {
-            return Array.Empty<string>();
-        }
-
-        var paginationCollection = config.Site.Collections.FirstOrDefault(x => x.Value.Pagination.Enabled);
-        if (paginationCollection.Value is null || string.IsNullOrWhiteSpace(paginationCollection.Value.ListRoute))
-        {
-            return Array.Empty<string>();
-        }
-
-        var collectionKey = paginationCollection.Key;
-        var listRoute = paginationCollection.Value.ListRoute;
-        var pageSize = paginationCollection.Value.Pagination.PageSize;
-        pageSize = NormalizePageSize(pageSize);
-        var count = routed.Count(x => string.Equals(GetCollection(x.Document), collectionKey, StringComparison.OrdinalIgnoreCase));
-        if (count <= pageSize)
-        {
-            return Array.Empty<string>();
-        }
-
-        var totalPages = (int)Math.Ceiling(count / (double)pageSize);
-        var normalizedListRoute = RoutePathBuilder.NormalizeListRoute(listRoute);
-        var result = new List<string>(totalPages - 1);
-        for (var page = 2; page <= totalPages; page++)
-        {
-            result.Add($"{normalizedListRoute}page/{page}/");
-        }
-
-        return result;
-    }
-
-    internal static void AddTaxonomyKindRoutes(
-        List<string> result,
-        string kind,
-        IReadOnlyDictionary<string, int> termCounts,
-        int pageSize,
-        bool indexEnabled)
-    {
-        if (string.IsNullOrWhiteSpace(kind) || termCounts.Count == 0)
-        {
-            return;
-        }
-
-        var normalizedKind = kind.Trim().Trim('/');
-        if (string.IsNullOrWhiteSpace(normalizedKind))
-        {
-            return;
-        }
-
-        if (indexEnabled)
-        {
-            result.Add($"/{normalizedKind}/");
-        }
-
-        foreach (var (slug, count) in termCounts)
-        {
-            result.Add($"/{normalizedKind}/{slug}/");
-            var totalPages = (int)Math.Ceiling(count / (double)pageSize);
-            for (var page = 2; page <= totalPages; page++)
-            {
-                result.Add($"/{normalizedKind}/{slug}/page/{page}/");
-            }
-        }
-    }
-
-    internal static IReadOnlyDictionary<string, int> BuildTaxonomyTermCounts(
-        IReadOnlyList<RoutedContentDocument> routed,
-        string key)
-    {
-        var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var routedDocument in routed)
-        {
-            var values = ContentFieldReader.GetTextList(routedDocument.Document.CustomFields, key);
-            if (values is null)
-            {
-                continue;
-            }
-
-            foreach (var value in values)
-            {
-                var slug = SlugHelper.Slugify(value);
-                if (string.IsNullOrWhiteSpace(slug))
-                {
-                    continue;
-                }
-
-                result[slug] = result.TryGetValue(slug, out var count) ? count + 1 : 1;
-            }
-        }
-
-        return result;
+        var dataDocuments = variantDocuments.Where(ContentFieldReader.IsDataItem).ToList();
+        TaxonomyTermsInjector.InjectFromDataDocuments(pluginContext, dataDocuments);
+        var derived = new TaxonomyPlugin().DerivePages(pluginContext);
+        return ListRouteGraphBuilder.AddDerivedTaxonomyRoutes(listRouteGraph, derived);
     }
 
     internal static IReadOnlyList<string>? GetSeoStringList(IReadOnlyDictionary<string, ContentField>? fields, string key)

@@ -63,6 +63,44 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.True(geo.TryGetProperty("llmsTxtOptionalLinks", out _));
         Assert.False(geo.TryGetProperty("faqSchema", out _));
 
+        var collectionPagination = properties
+            .GetProperty("site")
+            .GetProperty("properties")
+            .GetProperty("collections")
+            .GetProperty("additionalProperties")
+            .GetProperty("properties")
+            .GetProperty("pagination")
+            .GetProperty("properties");
+        Assert.True(collectionPagination.TryGetProperty("enabled", out _));
+        Assert.True(collectionPagination.TryGetProperty("pageSize", out _));
+        Assert.True(collectionPagination.TryGetProperty("urlPattern", out _));
+        Assert.True(collectionPagination.TryGetProperty("firstPageUsesListRoute", out _));
+        Assert.Equal(1, collectionPagination.GetProperty("pageSize").GetProperty("minimum").GetInt32());
+        Assert.Equal("boolean", collectionPagination.GetProperty("firstPageUsesListRoute").GetProperty("type").GetString());
+
+        var filteredListItem = properties
+            .GetProperty("site")
+            .GetProperty("properties")
+            .GetProperty("collections")
+            .GetProperty("additionalProperties")
+            .GetProperty("properties")
+            .GetProperty("filteredLists")
+            .GetProperty("items");
+        var filteredList = filteredListItem.GetProperty("properties");
+        Assert.True(filteredList.TryGetProperty("field", out _));
+        Assert.True(filteredList.TryGetProperty("operator", out _));
+        Assert.True(filteredList.TryGetProperty("value", out _));
+        Assert.True(filteredList.TryGetProperty("values", out _));
+        Assert.True(filteredList.TryGetProperty("listRoute", out _));
+        Assert.True(filteredList.TryGetProperty("listTemplate", out _));
+        Assert.True(filteredList.TryGetProperty("pageSize", out _));
+        Assert.True(filteredList.TryGetProperty("urlPattern", out _));
+        Assert.True(filteredList.TryGetProperty("emptyBehavior", out _));
+        Assert.Equal(new[] { "field", "listRoute" }, filteredListItem.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(new[] { "equals", "contains", "in" }, filteredList.GetProperty("operator").GetProperty("enum").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(new[] { "render", "skip" }, filteredList.GetProperty("emptyBehavior").GetProperty("enum").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(1, filteredList.GetProperty("pageSize").GetProperty("minimum").GetInt32());
+
         var scss = properties
             .GetProperty("theme")
             .GetProperty("properties")
@@ -99,6 +137,12 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.True(taxonomy.TryGetProperty("pinOrderField", out _));
         Assert.True(taxonomy.TryGetProperty("pinFieldBySource", out _));
         Assert.True(taxonomy.TryGetProperty("pinOrderFieldBySource", out _));
+
+        var taxonomyKind = taxonomy
+            .GetProperty("kinds")
+            .GetProperty("items")
+            .GetProperty("properties");
+        Assert.True(taxonomyKind.TryGetProperty("routePrefix", out _));
     }
 
     [Fact]

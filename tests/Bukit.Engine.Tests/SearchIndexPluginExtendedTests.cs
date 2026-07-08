@@ -4,9 +4,11 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -250,6 +252,101 @@ public sealed class SearchIndexPluginExtendedTests
 
             var indexPath = Path.Combine(tempDir, "search.json");
             Assert.True(File.Exists(indexPath));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void AfterBuild_WithGraphOnlyListRoute_UsesSeoModelForSearchItem()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_search_list_seo_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "Test Site",
+                    BaseUrl = "https://example.com"
+                },
+                Content = TestContent.Markdown()
+            };
+
+            var route = new ListRoutePlan
+            {
+                RouteId = "filter:companies:country:malaysia:1",
+                Kind = ListRouteKind.FilteredListPage,
+                Url = "/companies/malaysia/",
+                OutputPath = "companies/malaysia/index.html",
+                Template = "pages/company-list.html",
+                Collection = "companies",
+                PageNumber = 1,
+                PageSize = 10,
+                TotalItems = 1,
+                CanonicalUrl = "/companies/malaysia/",
+                FilterContext = new ListRouteFilterContext
+                {
+                    Field = "country",
+                    Operator = "equals",
+                    Value = "malaysia",
+                    Values = new[] { "malaysia" }
+                },
+                Items = new[]
+                {
+                    new ListRouteItem
+                    {
+                        Id = "company-1",
+                        Title = "Acme Malaysia",
+                        Url = "/companies/acme/",
+                        OutputPath = "companies/acme/index.html",
+                        Summary = "Regional logistics partner"
+                    }
+                }
+            };
+            var routeInfo = route.ToRouteInfo();
+            var context = new BuildContext
+            {
+                Config = config,
+                RootDir = tempDir,
+                OutputDir = tempDir,
+                BaseUrl = "/",
+                LayoutsDir = tempDir,
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+                BodyStore = NullContentBodyStore.Instance,
+                Logger = new ConsoleLogger(LogLevel.Debug),
+            };
+            context.SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                [route.OutputPath] = new(routeInfo, "https://example.com/companies/malaysia/", null, true, DateTimeOffset.UtcNow, null, "list", IsDerived: true)
+            };
+            context.Data[ListRouteGraphBuilder.BuildContextDataKey] = ListRouteGraph.Create(new[] { route });
+            context.Data[BuildContextDataKeys.SeoModels] = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+            {
+                [route.OutputPath] = new()
+                {
+                    Title = "Malaysia Companies",
+                    Description = "Companies operating in Malaysia",
+                    Canonical = "https://example.com/companies/malaysia/"
+                }
+            };
+
+            var plugin = new SearchIndexPlugin();
+            plugin.AfterBuild(context);
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
+            var item = Assert.Single(doc.RootElement.EnumerateArray());
+            Assert.Equal("Malaysia Companies", item.GetProperty("title").GetString());
+            Assert.Equal("Companies operating in Malaysia", item.GetProperty("summary").GetString());
+            Assert.Contains("Companies operating in Malaysia", item.GetProperty("content").GetString(), StringComparison.Ordinal);
         }
         finally
         {

@@ -18,7 +18,8 @@ internal static class SeoIndexBuilder
         string baseUrl,
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyList<RouteInfo> listRoutes,
-        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates)
+        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates,
+        ListRouteGraph? listRouteGraph = null)
     {
         var entries = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -52,6 +53,16 @@ internal static class SeoIndexBuilder
                 IsDerived(document));
         }
 
+        if (listRouteGraph is not null && listRouteGraph.Routes.Count > 0)
+        {
+            foreach (var route in listRouteGraph.Routes)
+            {
+                AddGraphRoute(config, baseUrl, routed, alternates, entries, models, route);
+            }
+
+            return new SeoIndexBuildResult(entries, models);
+        }
+
         foreach (var route in listRoutes)
         {
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
@@ -77,6 +88,37 @@ internal static class SeoIndexBuilder
         return new SeoIndexBuildResult(entries, models);
     }
 
+    private static void AddGraphRoute(
+        AppConfig config,
+        string baseUrl,
+        IReadOnlyList<RoutedContentDocument> routed,
+        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates,
+        Dictionary<string, SeoIndexEntry> entries,
+        Dictionary<string, SeoModel> models,
+        ListRoutePlan route)
+    {
+        var routeInfo = route.ToRouteInfo();
+        var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+        var page = BuildListPageInfo(config, route, routed);
+        var alternateKey = SeoModelBuilder.BuildListAlternateKey(routeInfo);
+        var model = SeoModelBuilder.BuildForList(
+            config,
+            baseUrl,
+            page,
+            route,
+            alternates.TryGetValue(alternateKey, out var alts) ? alts : null);
+        models[key] = model;
+        entries[key] = new SeoIndexEntry(
+            routeInfo,
+            model.Canonical,
+            model.Robots,
+            SeoModelBuilder.IsIndexable(model.Robots),
+            ResolveListLastModified(config, route, routed),
+            SourceItemId: null,
+            ContentType: route.TaxonomyContext is null ? "list" : "taxonomy",
+            IsDerived: true);
+    }
+
     internal static PageInfo BuildListPageInfo(
         AppConfig config,
         RouteInfo route,
@@ -89,6 +131,26 @@ internal static class SeoIndexBuilder
             Content = string.Empty,
             Summary = BuildListSummary(config, route, routed),
             Fields = routed is null ? null : BuildListFields(config, route, routed)
+        };
+    }
+
+    internal static PageInfo BuildListPageInfo(
+        AppConfig config,
+        ListRoutePlan route,
+        IReadOnlyList<RoutedContentDocument>? routed = null)
+    {
+        var matched = FindByOutputPath(route.OutputPath, routed);
+        var summary = matched is null
+            ? BuildListSummary(config, route)
+            : ContentFieldReader.GetSummary(matched.Document) ?? BuildListSummary(config, route);
+
+        return new PageInfo
+        {
+            Title = matched?.Document.Title ?? (route.Url == "/" ? config.Site.Title : BuildListTitle(route.Url)),
+            Url = route.Url,
+            Content = string.Empty,
+            Summary = summary,
+            Fields = ListRouteRenderPlanBuilder.BuildPageFields(route)
         };
     }
 
@@ -114,6 +176,29 @@ internal static class SeoIndexBuilder
         }
 
         return count is > 0
+            ? $"Browse {count} items in {title} from {siteTitle}."
+            : $"Browse {title} from {siteTitle}.";
+    }
+
+    private static string BuildListSummary(AppConfig config, ListRoutePlan route)
+    {
+        if (!string.IsNullOrWhiteSpace(config.Site.Description) && route.Url == "/")
+        {
+            return config.Site.Description!;
+        }
+
+        var siteTitle = string.IsNullOrWhiteSpace(config.Site.Title) ? config.Site.Name : config.Site.Title;
+        var title = route.Url == "/" ? siteTitle : BuildListTitle(route.Url);
+        var count = route.TotalItems;
+
+        if (route.Url == "/")
+        {
+            return count > 0
+                ? $"Browse {count} content items from {siteTitle}."
+                : $"Browse the latest content from {siteTitle}.";
+        }
+
+        return count > 0
             ? $"Browse {count} items in {title} from {siteTitle}."
             : $"Browse {title} from {siteTitle}.";
     }
@@ -231,6 +316,46 @@ internal static class SeoIndexBuilder
         return items.Count == 0
             ? DateTimeOffset.UnixEpoch
             : items.Max(x => SitemapPolicy.ResolveLastModified(x.Document));
+    }
+
+    private static DateTimeOffset ResolveListLastModified(
+        AppConfig config,
+        ListRoutePlan route,
+        IReadOnlyList<RoutedContentDocument> routed)
+    {
+        var matched = FindByOutputPath(route.OutputPath, routed);
+        if (matched is not null)
+        {
+            return SitemapPolicy.ResolveLastModified(matched.Document);
+        }
+
+        var itemDates = route.Items
+            .Select(item => item.PublishDate)
+            .Where(date => date is not null)
+            .Select(date => date!.Value)
+            .ToArray();
+        if (itemDates.Length > 0)
+        {
+            return itemDates.Max();
+        }
+
+        return ResolveListLastModified(config, route.ToRouteInfo(), routed);
+    }
+
+    private static RoutedContentDocument? FindByOutputPath(
+        string outputPath,
+        IReadOnlyList<RoutedContentDocument>? routed)
+    {
+        if (routed is null || routed.Count == 0)
+        {
+            return null;
+        }
+
+        var key = BuildPathUtils.NormalizeRelPath(outputPath);
+        return routed.FirstOrDefault(x => string.Equals(
+            BuildPathUtils.NormalizeRelPath(x.Route.OutputPath),
+            key,
+            StringComparison.OrdinalIgnoreCase));
     }
 
     private static string NormalizeListUrl(string url)

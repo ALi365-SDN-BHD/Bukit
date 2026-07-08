@@ -54,6 +54,8 @@ public sealed record SeoModel
     public required string Title { get; init; }
     public string? Description { get; init; }
     public required string Canonical { get; init; }
+    public string? Prev { get; init; }
+    public string? Next { get; init; }
     public string? Robots { get; init; }
     public SeoOpenGraphModel Og { get; init; } = new();
     public SeoTwitterModel Twitter { get; init; } = new();
@@ -133,9 +135,50 @@ public sealed record PageModel
     public required PageInfo Page { get; init; }
 }
 
+public sealed record ListPaginationModel
+{
+    public int Page { get; init; } = 1;
+    public int? PageSize { get; init; }
+    public int TotalPages { get; init; } = 1;
+    public int TotalItems { get; init; }
+    public bool HasPrev { get; init; }
+    public bool HasNext { get; init; }
+    public string? PrevUrl { get; init; }
+    public string? NextUrl { get; init; }
+}
+
+public sealed record ListCollectionModel
+{
+    public required string Key { get; init; }
+}
+
+public sealed record ListTaxonomyModel
+{
+    public required string Kind { get; init; }
+    public string? Term { get; init; }
+    public string? Slug { get; init; }
+    public string? RoutePrefix { get; init; }
+    public string? Url { get; init; }
+    public bool IsIndex { get; init; }
+}
+
+public sealed record ListFilterModel
+{
+    public required string Field { get; init; }
+    public string Operator { get; init; } = "equals";
+    public string? Value { get; init; }
+    public IReadOnlyList<string> Values { get; init; } = Array.Empty<string>();
+}
+
 public sealed record ListPageModel
 {
     public required SiteModel Site { get; init; }
     public PageInfo? Page { get; init; }
     public required IReadOnlyList<PageInfo> Pages { get; init; }
+    public IReadOnlyList<PageInfo>? Items { get; init; }
+    public ListPaginationModel? Pagination { get; init; }
+    public ListCollectionModel? Collection { get; init; }
+    public ListTaxonomyModel? Taxonomy { get; init; }
+    public ListFilterModel? Filter { get; init; }
+    public SeoModel? Seo { get; init; }
 }
