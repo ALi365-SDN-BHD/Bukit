@@ -94,10 +94,34 @@ public sealed class ImageAssetLocalizerTests
             DefaultImageUrl = "/assets/images/noneimg-news.jpg"
         };
 
-        using var localizer = new ImageAssetLocalizer(cfg);
+        var logger = new RecordingLogger();
+        using var localizer = new ImageAssetLocalizer(cfg, logger);
         var result = await localizer.LocalizeAsync("/assets/style.png", CancellationToken.None);
 
         Assert.Equal("/assets/style.png", result);
+        Assert.Empty(logger.Warnings);
+        Assert.Single(logger.Debugs);
+        Assert.Contains("event=media.skip_local", logger.Debugs[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_WhenUrlIsNonHttpExternalReference_StillWarns()
+    {
+        var cfg = new MediaConfig
+        {
+            DownloadToLocal = true,
+            DownloadDir = Path.GetTempPath(),
+            UrlBase = "/assets/uploads",
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+
+        var logger = new RecordingLogger();
+        using var localizer = new ImageAssetLocalizer(cfg, logger);
+        var result = await localizer.LocalizeAsync("data:image/svg+xml,<svg></svg>", CancellationToken.None);
+
+        Assert.Equal("data:image/svg+xml,<svg></svg>", result);
+        Assert.Single(logger.Warnings);
+        Assert.Contains("event=media.skip_non_http", logger.Warnings[0], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -925,6 +949,17 @@ public sealed class ImageAssetLocalizerTests
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
             return Task.FromResult(response);
         }
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<string> Debugs { get; } = new();
+        public List<string> Warnings { get; } = new();
+
+        public void Debug(string message) => Debugs.Add(message);
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Add(message);
+        public void Error(string message) { }
     }
 
     private static HttpResponseMessage Response(HttpStatusCode statusCode, string contentType, string payload)

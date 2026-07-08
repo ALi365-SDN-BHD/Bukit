@@ -43,6 +43,13 @@ public sealed class SilkroadBiz23ExampleTests
             Assert.Contains("href=\"/insights/page/2/\"", insights, StringComparison.Ordinal);
             AssertNoFrontendPaginationScript(insights);
 
+            var insightsPage2 = ReadOutput(root, "insights", "page", "2", "index.html");
+            Assert.Contains("<title>Insights - Page 2 | Silkroad Biz23</title>", insightsPage2, StringComparison.Ordinal);
+            Assert.Contains("Browse page 2 of Insights from Silkroad Biz23, showing item 3 of 3.", insightsPage2, StringComparison.Ordinal);
+            Assert.Equal(1, CountOccurrences(insightsPage2, "data-business-card"));
+            Assert.Contains("ASEAN Green Logistics Incentives", insightsPage2, StringComparison.Ordinal);
+            AssertNoFrontendPaginationScript(insightsPage2);
+
             var companies = ReadOutput(root, "companies", "index.html");
             Assert.Equal(2, CountOccurrences(companies, "data-company-card"));
             Assert.Contains("Nusantara Logistics", companies, StringComparison.Ordinal);
@@ -52,6 +59,8 @@ public sealed class SilkroadBiz23ExampleTests
             AssertNoFrontendPaginationScript(companies);
 
             var companyPage2 = ReadOutput(root, "companies", "page", "2", "index.html");
+            Assert.Contains("<title>Companies - Page 2 | Silkroad Biz23</title>", companyPage2, StringComparison.Ordinal);
+            Assert.Contains("Browse page 2 of Companies from Silkroad Biz23, showing item 3 of 3.", companyPage2, StringComparison.Ordinal);
             Assert.Equal(1, CountOccurrences(companyPage2, "data-company-card"));
             Assert.Contains("Johor Solar Components", companyPage2, StringComparison.Ordinal);
             Assert.DoesNotContain("Nusantara Logistics", companyPage2, StringComparison.Ordinal);

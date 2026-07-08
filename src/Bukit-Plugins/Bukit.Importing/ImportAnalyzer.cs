@@ -42,7 +42,10 @@ internal static class ImportAnalyzer
         var content = options.ExtractContent ? ContentExtractor.Extract(pages) : new ExtractedContent();
 
         if (options.ExtractContent)
+        {
             NavigationImportAdvisor.AddMissingNavigationWarnings(pages, content, warnings);
+            ImportContentMetadataAuditor.AddDiagnostics(options, content, diagnostics);
+        }
 
         // Asset import happens during commit, not analysis.
         // Return a placeholder — the real AssetImportResult is produced during commit.

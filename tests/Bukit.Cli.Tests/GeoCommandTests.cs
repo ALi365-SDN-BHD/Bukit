@@ -78,6 +78,35 @@ public sealed class GeoCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_Audit_WhenReportGeneratedLlmsButFileMissing_PrintsConsistencyWarning()
+    {
+        var distDir = Path.Combine(_tempDir, "dist-missing-llms");
+        var reportDir = Path.Combine(distDir, ".bukit");
+        Directory.CreateDirectory(reportDir);
+        File.WriteAllText(Path.Combine(reportDir, "geo-report.json"), ValidGeoReportJson(
+            geoEnhancedCount: 1,
+            llmsTxtGenerated: true,
+            llmsFullTxtGenerated: true,
+            routesJson: """
+            [
+              {
+                "url": "/post/",
+                "schemaTypes": ["Article"]
+              }
+            ]
+            """));
+
+        var result = await InvokeAsync(() => GeoCommand.RunAsync(new CliBoundCommand(
+            new Dictionary<string, string?> { ["--dir"] = distDir },
+            ["audit"])));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Warning: geo report says llms.txt was generated, but the file is missing.", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("Warning: geo report says llms-full.txt was generated, but the file is missing.", result.StdOut, StringComparison.Ordinal);
+        Assert.DoesNotContain("Recommendation: Enable site.seo.geo.llmsTxt to generate llms.txt.", result.StdOut, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunAsync_Audit_WithInvalidJson_ReturnsOne()
     {
         var distDir = Path.Combine(_tempDir, "dist-invalid");

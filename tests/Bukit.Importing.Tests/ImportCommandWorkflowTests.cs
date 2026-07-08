@@ -84,6 +84,13 @@ public sealed class ImportCommandWorkflowTests : IDisposable
         Assert.NotNull(result.HtmlDemoResult);
         Assert.False(Directory.Exists(Path.Combine(_rootDir, "themes", "demo-theme")));
         Assert.Contains(result.Messages, m => m.Level == "info" && m.Message.Contains("未提取到共享布局", StringComparison.Ordinal));
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == "import.content.author_missing" &&
+            diagnostic.Severity == "warning" &&
+            diagnostic.Path == Path.Combine(_rootDir, "sites", "demo-theme", "content"));
+        Assert.Contains(result.HtmlDemoResult.Diagnostics, diagnostic =>
+            diagnostic.Code == "import.content.entities_missing" &&
+            diagnostic.Severity == ImportDiagnosticSeverity.Warning);
     }
 
     [Fact]

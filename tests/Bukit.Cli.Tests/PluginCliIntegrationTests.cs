@@ -828,6 +828,37 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task InvokeAsync_PrintsWarningPluginDiagnosticsToStdout()
+    {
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            invokeResponse: new PluginInvokeResponse(
+                "invokeResponse",
+                "bukit-plugin-v1",
+                "req-3",
+                Success: true,
+                ExitCode: 0,
+                Diagnostics: [new PluginDiagnostic("plugin.import.warning", "warning", "Check imported metadata")]));
+        var plugin = new ResolvedPlugin(
+            "echo",
+            "1.0.0",
+            "test-rid",
+            "/tmp/echo",
+            _tempDir,
+            new PluginHostInfo("Bukit", "1.0.0", "test-rid"));
+
+        var result = await CaptureConsoleAsync(() => PluginCommandInvoker.InvokeAsync(
+            new CliBoundCommand(new Dictionary<string, string?>(), ["hello"]),
+            plugin,
+            new PluginCommandSpec("echo", "Echo"),
+            client));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("plugin.import.warning: Check imported metadata", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+    }
+
+    [Fact]
     public void PluginDescriptorFactory_MapsRequiredPluginOptionToCliOption()
     {
         var plugin = new ResolvedPlugin(

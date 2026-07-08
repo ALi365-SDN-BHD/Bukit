@@ -223,6 +223,10 @@ internal static class RenderDependencyHasher
             hasher.AppendData(newline);
             IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.ListRoute);
             hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.ListTitle);
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.ListDescription);
+            hasher.AppendData(newline);
             IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.ListTemplate);
             hasher.AppendData(newline);
             IncrementalBuildEngine.AppendUtf8(hasher, kv.Value.SchemaFailMode);
@@ -277,6 +281,10 @@ internal static class RenderDependencyHasher
                     }
                     hasher.AppendData(newline);
                     IncrementalBuildEngine.AppendUtf8(hasher, fl.ListRoute);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.Title);
+                    hasher.AppendData(newline);
+                    IncrementalBuildEngine.AppendUtf8(hasher, fl.Description);
                     hasher.AppendData(newline);
                     IncrementalBuildEngine.AppendUtf8(hasher, fl.ListTemplate);
                     hasher.AppendData(newline);
@@ -386,6 +394,8 @@ internal static class RenderDependencyHasher
                 IncrementalBuildEngine.AppendUtf8(hasher, kind.Kind);
                 hasher.AppendData(newline);
                 IncrementalBuildEngine.AppendUtf8(hasher, kind.Title);
+                hasher.AppendData(newline);
+                IncrementalBuildEngine.AppendUtf8(hasher, kind.Description);
                 hasher.AppendData(newline);
                 IncrementalBuildEngine.AppendUtf8(hasher, kind.SingularTitlePrefix);
                 hasher.AppendData(newline);

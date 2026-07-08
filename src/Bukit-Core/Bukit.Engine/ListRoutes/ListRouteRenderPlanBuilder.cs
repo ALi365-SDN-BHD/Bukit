@@ -68,6 +68,16 @@ internal static class ListRouteRenderPlanBuilder
             ["items"] = new("list", BuildItems(route.Items))
         };
 
+        if (!string.IsNullOrWhiteSpace(route.Title))
+        {
+            fields["title"] = new("text", route.Title);
+        }
+
+        if (!string.IsNullOrWhiteSpace(route.Summary))
+        {
+            fields["summary"] = new("text", route.Summary);
+        }
+
         if (route.PageSize is not null)
         {
             fields["pagination"] = new("object", new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
@@ -133,17 +143,7 @@ internal static class ListRouteRenderPlanBuilder
         {
             Pagination = route.PageSize is null
                 ? null
-                : new ListPaginationModel
-                {
-                    Page = route.PageNumber ?? 1,
-                    PageSize = route.PageSize.Value,
-                    TotalPages = route.TotalPages ?? 1,
-                    TotalItems = route.TotalItems,
-                    HasPrev = !string.IsNullOrWhiteSpace(route.PrevUrl),
-                    HasNext = !string.IsNullOrWhiteSpace(route.NextUrl),
-                    PrevUrl = route.PrevUrl,
-                    NextUrl = route.NextUrl
-                },
+                : ListPageMetadataBuilder.BuildPagination(route),
             Collection = string.IsNullOrWhiteSpace(route.Collection)
                 ? null
                 : new ListCollectionModel

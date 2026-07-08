@@ -87,6 +87,12 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         if (!Uri.TryCreate(source, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
+            if (IsLocalAssetReference(source))
+            {
+                _logger?.Debug($"event=media.skip_local source={UrlRedactor.Redact(source)}");
+                return source;
+            }
+
             _logger?.Warn($"event=media.skip_non_http source={UrlRedactor.Redact(source)}");
             return source;
         }
@@ -241,6 +247,23 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
             }
         }
+    }
+
+    private static bool IsLocalAssetReference(string source)
+    {
+        if (source.StartsWith("//", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (source.StartsWith("/", StringComparison.Ordinal) ||
+            source.StartsWith("./", StringComparison.Ordinal) ||
+            source.StartsWith("../", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return !Uri.TryCreate(source, UriKind.Absolute, out _);
     }
 
     private string RecordFailure(string sourceUrl, string reason)

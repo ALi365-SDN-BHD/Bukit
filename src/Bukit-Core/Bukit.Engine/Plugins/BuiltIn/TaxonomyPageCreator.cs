@@ -13,6 +13,7 @@ internal static class TaxonomyPageCreator
         string kind,
         string? routePrefix,
         string title,
+        string? description,
         string singularTitlePrefix,
         Dictionary<string, TaxonomyTerm> terms,
         string indexTemplate,
@@ -41,7 +42,7 @@ internal static class TaxonomyPageCreator
         if (indexEnabled)
         {
             var visibleTerms = items.Where(t => t.IsVisible).ToList();
-            derived.Add(CreateIndexPage(baseUrlPrefix, kind, normalizedRoutePrefix, title, visibleTerms, hierarchy, indexTemplate, publishAt, emitContentHtml, outputPathEncoding));
+            derived.Add(CreateIndexPage(baseUrlPrefix, kind, normalizedRoutePrefix, title, description, visibleTerms, hierarchy, indexTemplate, publishAt, emitContentHtml, outputPathEncoding));
         }
 
         foreach (var term in items)
@@ -99,6 +100,7 @@ internal static class TaxonomyPageCreator
         string kind,
         string routePrefix,
         string title,
+        string? description,
         IReadOnlyList<TaxonomyTerm> terms,
         IReadOnlyDictionary<string, TaxonomyHierarchyBuilder.HierarchyInfo> hierarchy,
         string template,
@@ -127,7 +129,7 @@ internal static class TaxonomyPageCreator
         {
             ["type"] = "derived",
             ["collection"] = "page",
-            ["summary"] = $"Browse all {kind}."
+            ["summary"] = string.IsNullOrWhiteSpace(description) ? $"Browse all {kind}." : description.Trim()
         };
 
         var termsValue = new List<object>(terms.Count);

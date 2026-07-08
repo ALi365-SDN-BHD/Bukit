@@ -105,7 +105,9 @@ internal static partial class ListRouteGraphBuilder
                 outputPathEncoding,
                 pageSize: null,
                 totalItems: collectionItems.Count,
-                nextUrl: null);
+                nextUrl: null,
+                collection.ListTitle,
+                collection.ListDescription);
             yield break;
         }
 
@@ -123,7 +125,9 @@ internal static partial class ListRouteGraphBuilder
             outputPathEncoding,
             pageSize,
             totalItems,
-            totalPages > 1 ? BuildCollectionPageUrl(url, collectionKey, collection.Pagination, 2) : null);
+            totalPages > 1 ? BuildCollectionPageUrl(url, collectionKey, collection.Pagination, 2) : null,
+            collection.ListTitle,
+            collection.ListDescription);
 
         for (var page = 2; page <= totalPages; page++)
         {
@@ -135,6 +139,8 @@ internal static partial class ListRouteGraphBuilder
                 Url = pageUrl,
                 OutputPath = RoutePathBuilder.BuildOutputPathFromUrl(pageUrl, outputPathEncoding),
                 Template = template,
+                Title = collection.ListTitle,
+                Summary = collection.ListDescription,
                 Collection = collectionKey,
                 PageNumber = page,
                 PageSize = pageSize,
@@ -155,7 +161,9 @@ internal static partial class ListRouteGraphBuilder
         string outputPathEncoding,
         int? pageSize,
         int totalItems,
-        string? nextUrl)
+        string? nextUrl,
+        string? title = null,
+        string? summary = null)
     {
         return new ListRoutePlan
         {
@@ -164,6 +172,8 @@ internal static partial class ListRouteGraphBuilder
             Url = url,
             OutputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding),
             Template = template,
+            Title = title,
+            Summary = summary,
             Collection = collectionKey,
             PageNumber = 1,
             PageSize = pageSize,
@@ -222,6 +232,8 @@ internal static partial class ListRouteGraphBuilder
                 Url = pageUrl,
                 OutputPath = RoutePathBuilder.BuildOutputPathFromUrl(pageUrl, outputPathEncoding),
                 Template = template,
+                Title = filter.Title,
+                Summary = filter.Description,
                 Collection = collectionKey,
                 PageNumber = page,
                 PageSize = pageSize,

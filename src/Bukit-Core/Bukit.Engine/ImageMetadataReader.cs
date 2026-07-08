@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text;
+using System.Xml;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
@@ -13,12 +15,17 @@ internal static class ImageMetadataReader
         Span<byte> buffer = stackalloc byte[64];
         using var stream = File.OpenRead(path);
         var read = stream.Read(buffer);
+        var bytes = buffer[..read];
+        if (IsSvgCandidate(path, bytes))
+        {
+            return TryReadSvgMetadata(path);
+        }
+
         if (read < 10)
         {
             return null;
         }
 
-        var bytes = buffer[..read];
         if (bytes[0] == 0x89 &&
             bytes[1] == 0x50 &&
             bytes[2] == 0x4E &&
@@ -52,6 +59,56 @@ internal static class ImageMetadataReader
         if (bytes[0] == 0xFF && bytes[1] == 0xD8)
         {
             return TryReadJpegMetadata(path);
+        }
+
+        return null;
+    }
+
+    internal static ImageMetadata? TryReadSvgMetadata(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            using var reader = XmlReader.Create(stream, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Ignore,
+                IgnoreComments = true,
+                IgnoreProcessingInstructions = true,
+                IgnoreWhitespace = true,
+                XmlResolver = null
+            });
+
+            while (reader.Read())
+            {
+                if (reader.NodeType != XmlNodeType.Element)
+                {
+                    continue;
+                }
+
+                if (!reader.LocalName.Equals("svg", StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+
+                var width = ParseSvgDimension(reader.GetAttribute("width"));
+                var height = ParseSvgDimension(reader.GetAttribute("height"));
+                if (width <= 0 || height <= 0)
+                {
+                    var viewBox = ParseSvgViewBox(reader.GetAttribute("viewBox"));
+                    width = width > 0 ? width : viewBox.Width;
+                    height = height > 0 ? height : viewBox.Height;
+                }
+
+                return new ImageMetadata("image/svg+xml", width, height);
+            }
+        }
+        catch (XmlException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
         }
 
         return null;
@@ -152,6 +209,73 @@ internal static class ImageMetadataReader
         var high = stream.ReadByte();
         var low = stream.ReadByte();
         return high < 0 || low < 0 ? 0 : (high << 8) | low;
+    }
+
+    private static bool IsSvgCandidate(string path, ReadOnlySpan<byte> bytes)
+    {
+        if (Path.GetExtension(path).Equals(".svg", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var sample = Encoding.UTF8.GetString(bytes).TrimStart();
+        return sample.StartsWith("<svg", StringComparison.OrdinalIgnoreCase) ||
+               sample.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase) && sample.Contains("<svg", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ParseSvgDimension(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        var trimmed = value.Trim();
+        if (trimmed.EndsWith('%'))
+        {
+            return 0;
+        }
+
+        var length = 0;
+        while (length < trimmed.Length)
+        {
+            var c = trimmed[length];
+            if (!char.IsDigit(c) && c is not '.' and not '+' and not '-')
+            {
+                break;
+            }
+
+            length++;
+        }
+
+        if (length == 0)
+        {
+            return 0;
+        }
+
+        return double.TryParse(trimmed[..length], NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && number > 0
+            ? (int)Math.Ceiling(number)
+            : 0;
+    }
+
+    private static (int Width, int Height) ParseSvgViewBox(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return (0, 0);
+        }
+
+        var parts = value
+            .Split([' ', '\t', '\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => double.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : 0)
+            .ToArray();
+
+        if (parts.Length < 4 || parts[2] <= 0 || parts[3] <= 0)
+        {
+            return (0, 0);
+        }
+
+        return ((int)Math.Ceiling(parts[2]), (int)Math.Ceiling(parts[3]));
     }
 
     internal static void AnalyzeImage(AppConfig config, string codePrefix, string routeUrl, string? image, string outputDir, List<SeoAuditIssue> issues)

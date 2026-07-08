@@ -1,7 +1,0 @@
-{{ if pagination && pagination.total_pages > 1 }}
-<nav class="pagination" data-pagination>
-  <span>{{ if pagination.prev_url }}<a href="{{ pagination.prev_url }}" data-prev>Previous</a>{{ end }}</span>
-  <span>Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
-  <span>{{ if pagination.next_url }}<a href="{{ pagination.next_url }}" data-next>Next</a>{{ end }}</span>
-</nav>
-{{ end }}

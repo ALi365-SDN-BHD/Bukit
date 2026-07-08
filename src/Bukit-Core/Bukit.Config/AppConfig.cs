@@ -105,6 +105,8 @@ public sealed record CollectionConfig
     public required string Permalink { get; init; }
     public string? Template { get; init; }
     public string? ListRoute { get; init; }
+    public string? ListTitle { get; init; }
+    public string? ListDescription { get; init; }
     public string? ListTemplate { get; init; }
     public string? SchemaFailMode { get; init; }
     public CollectionPaginationConfig Pagination { get; init; } = new();
@@ -151,6 +153,8 @@ public sealed record FilteredListConfig
     public string? Value { get; init; }
     public IReadOnlyList<string>? Values { get; init; }
     public required string ListRoute { get; init; }
+    public string? Title { get; init; }
+    public string? Description { get; init; }
     public string? ListTemplate { get; init; }
     public int? PageSize { get; init; }
     public string? UrlPattern { get; init; }
@@ -408,6 +412,7 @@ public sealed record TaxonomyKindConfig
     public required string Key { get; init; }
     public string? Kind { get; init; }
     public string? Title { get; init; }
+    public string? Description { get; init; }
     public string? SingularTitlePrefix { get; init; }
     public string? Template { get; init; }
     public string? IndexTemplate { get; init; }

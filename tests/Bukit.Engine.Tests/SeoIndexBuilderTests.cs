@@ -319,6 +319,109 @@ public sealed class SeoIndexBuilderTests
     }
 
     [Fact]
+    public void Build_WithListRouteGraph_UsesCollectionPaginationTitleAndDescription()
+    {
+        var config = CreateConfig();
+        var route = new ListRoutePlan
+        {
+            RouteId = "collection:insights:2",
+            Kind = ListRouteKind.CollectionPage,
+            Url = "/insights/page/2/",
+            OutputPath = "insights/page/2/index.html",
+            Template = "pages/insight-list.html",
+            Collection = "insights",
+            PageNumber = 2,
+            PageSize = 2,
+            TotalItems = 3,
+            Items = new[]
+            {
+                new ListRouteItem
+                {
+                    Id = "insight-3",
+                    Title = "Insight 3",
+                    Url = "/insights/insight-3/",
+                    Summary = "Insight summary",
+                    PublishDate = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero)
+                }
+            },
+            CanonicalUrl = "/insights/page/2/",
+            PrevUrl = "/insights/"
+        };
+        var graph = ListRouteGraph.Create(new[] { route });
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+
+        var model = result.Models["insights/page/2/index.html"];
+        Assert.Equal("Insights - Page 2", model.Title);
+        Assert.Equal("Browse page 2 of Insights from Test Site, showing item 3 of 3.", model.Description);
+    }
+
+    [Fact]
+    public void Build_WithListRouteGraph_UsesExplicitListMetadata()
+    {
+        var config = CreateConfig();
+        var route = new ListRoutePlan
+        {
+            RouteId = "collection:post:1",
+            Kind = ListRouteKind.CollectionList,
+            Url = "/insights/",
+            OutputPath = "insights/index.html",
+            Template = "pages/insights.html",
+            Title = "商务资讯",
+            Summary = "聚焦中马商业合作、政策动态、市场趋势、企业新闻、投资机会与出海指南。",
+            Collection = "post",
+            PageNumber = 1,
+            PageSize = 9,
+            TotalItems = 3,
+            CanonicalUrl = "/insights/"
+        };
+        var filteredRoute = new ListRoutePlan
+        {
+            RouteId = "filter:company:country:china:1",
+            Kind = ListRouteKind.FilteredListPage,
+            Url = "/china-companies/",
+            OutputPath = "china-companies/index.html",
+            Template = "pages/china-companies.html",
+            Title = "中国企业",
+            Summary = "展示已进入或计划进入马来西亚市场的中国企业、品牌与项目方。",
+            Collection = "company",
+            PageNumber = 1,
+            PageSize = 9,
+            TotalItems = 1,
+            CanonicalUrl = "/china-companies/",
+            FilterContext = new ListRouteFilterContext
+            {
+                Field = "country",
+                Value = "China",
+                Values = new[] { "China" }
+            }
+        };
+        var graph = ListRouteGraph.Create(new[] { route, filteredRoute });
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+
+        var listModel = result.Models["insights/index.html"];
+        Assert.Equal("商务资讯", listModel.Title);
+        Assert.Equal("聚焦中马商业合作、政策动态、市场趋势、企业新闻、投资机会与出海指南。", listModel.Description);
+
+        var filteredModel = result.Models["china-companies/index.html"];
+        Assert.Equal("中国企业", filteredModel.Title);
+        Assert.Equal("展示已进入或计划进入马来西亚市场的中国企业、品牌与项目方。", filteredModel.Description);
+    }
+
+    [Fact]
     public void Build_DerivedDocuments_AreMarkedExplicitly()
     {
         var config = CreateConfig();

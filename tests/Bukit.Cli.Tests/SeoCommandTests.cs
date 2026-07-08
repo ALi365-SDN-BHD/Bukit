@@ -52,6 +52,54 @@ public sealed class SeoCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task AuditAsync_GroupsSeoPublishAndGeoIssues()
+    {
+        var reportPath = Path.Combine(_tempDir, "mixed-seo-report.json");
+        File.WriteAllText(reportPath, ValidSeoReportJson(
+            issuesJson: """
+            [
+              {
+                "severity": "error",
+                "code": "seo.title_missing",
+                "message": "Missing title",
+                "route": "/"
+              },
+              {
+                "severity": "warning",
+                "code": "publish.author_missing",
+                "message": "Missing author",
+                "route": "/post/"
+              },
+              {
+                "severity": "warning",
+                "code": "geo.llms_txt_missing",
+                "message": "Missing llms.txt",
+                "route": "-"
+              }
+            ]
+            """,
+            errorCount: 1,
+            warningCount: 2));
+
+        var result = await InvokeAsync(() => SeoCommand.AuditAsync(
+            reportPath,
+            _tempDir,
+            strict: false,
+            external: false,
+            label: "SEO"));
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("SEO issues by group:", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("  seo: errors=1 warnings=0", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("  publish: errors=0 warnings=1", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("  geo: errors=0 warnings=1", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("=== SEO Issues ===", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("=== Publish Issues ===", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("=== GEO Issues ===", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("warning publish.author_missing /post/ Missing author", result.StdOut, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunAsync_Audit_WhenReportMissing_ReturnsOne()
     {
         var distDir = Path.Combine(_tempDir, "dist");

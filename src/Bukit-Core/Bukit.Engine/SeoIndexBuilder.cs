@@ -126,7 +126,7 @@ internal static class SeoIndexBuilder
     {
         return new PageInfo
         {
-            Title = route.Url == "/" ? config.Site.Title : BuildListTitle(route.Url),
+            Title = ListPageMetadataBuilder.BuildTitle(config.Site, route),
             Url = route.Url,
             Content = string.Empty,
             Summary = BuildListSummary(config, route, routed),
@@ -140,13 +140,18 @@ internal static class SeoIndexBuilder
         IReadOnlyList<RoutedContentDocument>? routed = null)
     {
         var matched = FindByOutputPath(route.OutputPath, routed);
-        var summary = matched is null
-            ? BuildListSummary(config, route)
-            : ContentFieldReader.GetSummary(matched.Document) ?? BuildListSummary(config, route);
+        var pagination = ListPageMetadataBuilder.BuildPagination(route);
+        var summary = !string.IsNullOrWhiteSpace(route.Summary)
+            ? route.Summary.Trim()
+            : matched is null
+                ? ListPageMetadataBuilder.BuildSummary(config.Site, route, pagination)
+                : ContentFieldReader.GetSummary(matched.Document) ?? BuildListSummary(config, route);
 
         return new PageInfo
         {
-            Title = matched?.Document.Title ?? (route.Url == "/" ? config.Site.Title : BuildListTitle(route.Url)),
+            Title = !string.IsNullOrWhiteSpace(route.Title)
+                ? ListPageMetadataBuilder.BuildTitle(config.Site, route, pagination)
+                : matched?.Document.Title ?? ListPageMetadataBuilder.BuildTitle(config.Site, route, pagination),
             Url = route.Url,
             Content = string.Empty,
             Summary = summary,
@@ -180,27 +185,14 @@ internal static class SeoIndexBuilder
             : $"Browse {title} from {siteTitle}.";
     }
 
-    private static string BuildListSummary(AppConfig config, ListRoutePlan route)
+    private static string BuildListSummary(AppConfig config, ListRoutePlan route, ListPaginationModel? pagination = null)
     {
         if (!string.IsNullOrWhiteSpace(config.Site.Description) && route.Url == "/")
         {
             return config.Site.Description!;
         }
 
-        var siteTitle = string.IsNullOrWhiteSpace(config.Site.Title) ? config.Site.Name : config.Site.Title;
-        var title = route.Url == "/" ? siteTitle : BuildListTitle(route.Url);
-        var count = route.TotalItems;
-
-        if (route.Url == "/")
-        {
-            return count > 0
-                ? $"Browse {count} content items from {siteTitle}."
-                : $"Browse the latest content from {siteTitle}.";
-        }
-
-        return count > 0
-            ? $"Browse {count} items in {title} from {siteTitle}."
-            : $"Browse {title} from {siteTitle}.";
+        return ListPageMetadataBuilder.BuildSummary(config.Site, route, pagination);
     }
 
     private static bool IsIndexableContent(ContentDocument document, string? robots)

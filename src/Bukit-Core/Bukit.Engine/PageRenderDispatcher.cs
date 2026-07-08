@@ -182,10 +182,11 @@ internal static class PageRenderDispatcher
                         }
 
                         var pageInfos = await SpecialListRenderer.BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, entries.Count, ct, stageMetrics, "listBodyLoad", seoBuilder);
-                        var listPage = SpecialListRenderer.CreateListPageInfo(siteModel, listRoute);
+                        var listPage = SpecialListRenderer.CreateListPageInfo(siteModel, listRoute, entry.ListPageContext);
                         if (entry.ListPageFields is not null)
                         {
                             listPage = listPage with { Fields = entry.ListPageFields };
+                            listPage = SpecialListRenderer.ApplyListPageFieldOverrides(listPage, entry.ListPageFields);
                         }
 
                         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };

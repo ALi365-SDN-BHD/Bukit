@@ -12,9 +12,10 @@ public sealed class CollectionWarningStageTests
     private sealed class TestLogger : ILogger
     {
         public List<string> Warnings { get; } = new();
+        public List<string> Infos { get; } = new();
 
         public void Debug(string message) { }
-        public void Info(string message) { }
+        public void Info(string message) => Infos.Add(message);
         public void Warn(string message) => Warnings.Add(message);
         public void Error(string message) { }
     }
@@ -233,7 +234,7 @@ public sealed class CollectionWarningStageTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_FilteredLists_EmitStaticRoutePositioningWarning()
+    public async Task ExecuteAsync_FilteredListsWithParentListRoute_EmitStaticRoutePositioningInfo()
     {
         var logger = new TestLogger();
         var config = new AppConfig
@@ -256,6 +257,12 @@ public sealed class CollectionWarningStageTests
                                 Field = "country",
                                 Value = "Malaysia",
                                 ListRoute = "/companies/malaysia/"
+                            },
+                            new FilteredListConfig
+                            {
+                                Field = "country",
+                                Value = "Singapore",
+                                ListRoute = "/companies/singapore/"
                             }
                         }
                     }
@@ -273,12 +280,14 @@ public sealed class CollectionWarningStageTests
 
         await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Single(logger.Warnings);
-        Assert.Contains("site.collections.companies.filteredLists[0]", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("manual static filtered list route", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("field=country", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("value=Malaysia", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("taxonomy.kinds", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Empty(logger.Warnings);
+        Assert.Single(logger.Infos);
+        Assert.Contains("site.collections.companies.filteredLists", logger.Infos[0], StringComparison.Ordinal);
+        Assert.Contains("defines 2 manual static filtered list routes", logger.Infos[0], StringComparison.Ordinal);
+        Assert.Contains("field=country", logger.Infos[0], StringComparison.Ordinal);
+        Assert.Contains("value=Malaysia", logger.Infos[0], StringComparison.Ordinal);
+        Assert.Contains("taxonomy.kinds", logger.Infos[0], StringComparison.Ordinal);
+        Assert.Contains("only when automatically generated", logger.Infos[0], StringComparison.Ordinal);
     }
 
     [Fact]

@@ -51,7 +51,14 @@ public static class PluginCommandInvoker
 
         foreach (var diagnostic in response.Diagnostics)
         {
-            Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            if (diagnostic.Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.Error.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            }
+            else
+            {
+                Console.WriteLine($"{diagnostic.Code}: {diagnostic.Message}");
+            }
         }
 
         return response.ExitCode;

@@ -46,7 +46,7 @@ internal static class ConfigStrictFieldValidator
         {
             foreach (var (name, collection) in MappingChildren(collections, "site.collections"))
             {
-                RequireOnly(collection, Set("permalink", "template", "listRoute", "listTemplate", "schemaFailMode", "pagination", "output", "filteredLists"), $"site.collections.{name}");
+                RequireOnly(collection, Set("permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "pagination", "output", "filteredLists"), $"site.collections.{name}");
                 if (Map(collection, "pagination") is { } collectionPagination)
                 {
                     RequireOnly(collectionPagination, Set("enabled", "pageSize", "urlPattern", "firstPageUsesListRoute"), $"site.collections.{name}.pagination");
@@ -63,7 +63,7 @@ internal static class ConfigStrictFieldValidator
 
                 if (Seq(collection, "filteredLists") is { } filteredLists)
                 {
-                    ValidateSequenceMappings(filteredLists, Set("field", "operator", "value", "values", "listRoute", "listTemplate", "pageSize", "urlPattern", "emptyBehavior"), $"site.collections.{name}.filteredLists");
+                    ValidateSequenceMappings(filteredLists, Set("field", "operator", "value", "values", "listRoute", "title", "description", "listTemplate", "pageSize", "urlPattern", "emptyBehavior"), $"site.collections.{name}.filteredLists");
                 }
             }
         }
@@ -217,7 +217,7 @@ internal static class ConfigStrictFieldValidator
         RequireOnly(taxonomy, TaxonomyKeys, "taxonomy");
         if (Seq(taxonomy, "kinds") is { } kinds)
         {
-            ValidateSequenceMappings(kinds, Set("key", "kind", "title", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"), "taxonomy.kinds");
+            ValidateSequenceMappings(kinds, Set("key", "kind", "title", "description", "singularTitlePrefix", "template", "indexTemplate", "termTemplate", "indexEnabled", "hierarchical", "routePrefix"), "taxonomy.kinds");
         }
     }
 

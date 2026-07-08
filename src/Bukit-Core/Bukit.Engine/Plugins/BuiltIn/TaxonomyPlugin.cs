@@ -105,12 +105,13 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
 
                 var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind, context.ResolveTemplateKind, kindConfig);
                 var title = string.IsNullOrWhiteSpace(kindConfig.Title) ? kind : kindConfig.Title.Trim();
+                var description = string.IsNullOrWhiteSpace(kindConfig.Description) ? null : kindConfig.Description.Trim();
                 var singularTitlePrefix = string.IsNullOrWhiteSpace(kindConfig.SingularTitlePrefix)
                     ? title
                     : kindConfig.SingularTitlePrefix.Trim();
                 var indexEnabled = kindConfig.IndexEnabled ?? context.Config.Taxonomy.IndexEnabled;
 
-                derived.AddRange(TaxonomyPageCreator.CreateKind(baseUrlPrefix, kind, kindConfig.RoutePrefix, title, singularTitlePrefix, terms, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, indexEnabled, kindConfig.Hierarchical, context.Config.Site.OutputPathEncoding));
+                derived.AddRange(TaxonomyPageCreator.CreateKind(baseUrlPrefix, kind, kindConfig.RoutePrefix, title, description, singularTitlePrefix, terms, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, indexEnabled, kindConfig.Hierarchical, context.Config.Site.OutputPathEncoding));
             }
 
             return derived;
@@ -133,13 +134,13 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         if (tags.Count > 0)
         {
             var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "tags", context.ResolveTemplateKind);
-            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "tags", routePrefix: null, title: "Tags", singularTitlePrefix: "Tag", tags, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
+            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "tags", routePrefix: null, title: "Tags", description: null, singularTitlePrefix: "Tag", tags, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
         }
 
         if (categories.Count > 0)
         {
             var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "categories", context.ResolveTemplateKind);
-            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "categories", routePrefix: null, title: "Categories", singularTitlePrefix: "Category", categories, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
+            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "categories", routePrefix: null, title: "Categories", description: null, singularTitlePrefix: "Category", categories, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
         }
 
         return derived;

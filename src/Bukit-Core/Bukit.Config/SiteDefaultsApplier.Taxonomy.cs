@@ -69,6 +69,7 @@ internal static partial class SiteDefaultsApplier
                 Key = ConfigYamlHelpers.GetRequiredString(m, "key"),
                 Kind = ConfigYamlHelpers.GetOptionalString(m, "kind"),
                 Title = ConfigYamlHelpers.GetOptionalString(m, "title"),
+                Description = ConfigYamlHelpers.GetOptionalString(m, "description"),
                 SingularTitlePrefix = ConfigYamlHelpers.GetOptionalString(m, "singularTitlePrefix"),
                 Template = ConfigYamlHelpers.GetOptionalString(m, "template"),
                 IndexTemplate = ConfigYamlHelpers.GetOptionalString(m, "indexTemplate"),

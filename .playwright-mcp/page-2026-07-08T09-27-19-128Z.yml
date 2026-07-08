@@ -1,0 +1,256 @@
+- banner [ref=e2]:
+  - generic [ref=e3]:
+    - link "丝路商讯首页" [ref=e4] [cursor=pointer]:
+      - /url: index.html
+      - generic [ref=e6]:
+        - strong [ref=e7]: 丝路商讯
+        - generic [ref=e8]: Silk Road Business
+    - navigation "主导航" [ref=e9]:
+      - main [ref=e10]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: China · Malaysia · Business
+          - heading [level=1]
+          - paragraph
+          - generic [ref=e16]:
+            - link "查看商务资讯" [ref=e17] [cursor=pointer]:
+              - /url: insights.html
+            - link "浏览企业列表" [ref=e18] [cursor=pointer]:
+              - /url: companies.html
+            - link "申请企业入驻" [ref=e19] [cursor=pointer]:
+              - /url: join.html
+        - generic [ref=e21]:
+          - generic [ref=e23]:
+            - generic [ref=e24]: Core Entrances
+            - heading "两大核心入口，连接信息与资源" [level=2] [ref=e25]
+            - paragraph [ref=e26]: 通过商务资讯了解市场，通过企业列表建立合作，让商业机会从信息走向连接。
+          - generic [ref=e27]:
+            - article [ref=e28]:
+              - heading "商务资讯" [level=3] [ref=e29]
+              - paragraph [ref=e30]: 洞察中马商业动态，发现市场机会
+              - paragraph [ref=e31]: 聚焦中马经贸合作、马来西亚市场趋势、政策动态、企业新闻、投资机会与出海指南，为企业提供及时、专业、可信的商业资讯参考。
+              - generic [ref=e32]:
+                - generic [ref=e33]:
+                  - strong [ref=e34]: 政策动态
+                  - text: 投资、签证、税务、贸易与企业合规
+                - generic [ref=e35]:
+                  - strong [ref=e36]: 市场观察
+                  - text: 行业趋势、消费变化与项目机会
+              - link "查看商讯" [ref=e38] [cursor=pointer]:
+                - /url: insights.html
+            - article [ref=e39]:
+              - heading "企业列表" [level=3] [ref=e40]
+              - paragraph [ref=e41]: 汇聚中马企业资源，连接合作伙伴
+              - paragraph [ref=e42]: 展示中国企业、马来西亚企业及跨境服务机构信息，帮助企业提升曝光、建立信任、寻找客户、服务资源与合作机会。
+              - generic [ref=e43]:
+                - generic [ref=e44]:
+                  - strong [ref=e45]: 中国企业
+                  - text: 已进入或计划拓展马来西亚市场的品牌与项目
+                - generic [ref=e46]:
+                  - strong [ref=e47]: 马来西亚企业
+                  - text: 希望连接中国市场与跨境合作的本地企业
+              - link "浏览企业" [ref=e49] [cursor=pointer]:
+                - /url: companies.html
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - generic [ref=e53]:
+              - generic [ref=e54]: Latest Insights
+              - heading "最新商务资讯" [level=2] [ref=e55]
+              - paragraph [ref=e56]: 围绕中马商业合作、政策动态、企业出海与市场机会，提供可用于企业判断的信息参考。
+            - link "全部资讯" [ref=e57] [cursor=pointer]:
+              - /url: insights.html
+          - generic [ref=e58]:
+            - article [ref=e59]:
+              - article [ref=e60]:
+                - img "出海指南封面" [ref=e61]
+                - generic [ref=e62]:
+                  - generic [ref=e63]:
+                    - generic [ref=e64]: 出海指南
+                    - time [ref=e65]: 2026-06-03
+                  - heading "申请企业入驻" [level=3] [ref=e66]
+                  - paragraph [ref=e67]: 将企业展示在丝路商讯企业列表中，建立面向中马市场的可信展示入口与合作连接机会。
+                  - link "申请企业入驻" [ref=e68] [cursor=pointer]:
+                    - /url: /join/
+            - article [ref=e69]:
+              - article [ref=e70]:
+                - img "出海指南封面" [ref=e71]
+                - generic [ref=e72]:
+                  - generic [ref=e73]:
+                    - generic [ref=e74]: 出海指南
+                    - time [ref=e75]: 2026-06-03
+                  - heading "联系我们" [level=3] [ref=e76]
+                  - paragraph [ref=e77]: 欢迎企业、服务机构、商会组织与项目方联系丝路商讯，开展内容发布、企业入驻与商务合作。
+                  - link "联系我们" [ref=e78] [cursor=pointer]:
+                    - /url: /contact/
+            - article [ref=e79]:
+              - article [ref=e80]:
+                - img "出海指南封面" [ref=e81]
+                - generic [ref=e82]:
+                  - generic [ref=e83]:
+                    - generic [ref=e84]: 出海指南
+                    - time [ref=e85]: 2026-06-03
+                  - heading "关于丝路商讯" [level=3] [ref=e86]
+                  - paragraph [ref=e87]: 丝路商讯致力于成为连接中国与马来西亚商业资讯、企业资源和合作机会的内容平台。
+                  - link "关于丝路商讯" [ref=e88] [cursor=pointer]:
+                    - /url: /about/
+            - article [ref=e89]:
+              - article [ref=e90]:
+                - img "出海指南封面" [ref=e91]
+                - generic [ref=e92]:
+                  - generic [ref=e93]:
+                    - generic [ref=e94]: 出海指南
+                    - time [ref=e95]: 2026-06-03
+                  - heading "Nanyang Trade Services" [level=3] [ref=e96]
+                  - paragraph [ref=e97]: 为跨境企业提供公司注册、会计税务、签证申请与本地市场落地咨询服务。
+                  - link "Nanyang Trade Services" [ref=e98] [cursor=pointer]:
+                    - /url: /companies/nanyang-trade-services/
+            - article [ref=e99]:
+              - article [ref=e100]:
+                - img "出海指南封面" [ref=e101]
+                - generic [ref=e102]:
+                  - generic [ref=e103]:
+                    - generic [ref=e104]: 出海指南
+                    - time [ref=e105]: 2026-06-03
+                  - heading "Journey Hub Sdn Bhd" [level=3] [ref=e106]
+                  - paragraph [ref=e107]: 面向中国游客与企业客户提供入境旅游、商务考察、MICE 与定制旅行服务的马来西亚本地服务机构。
+                  - link "Journey Hub Sdn Bhd" [ref=e108] [cursor=pointer]:
+                    - /url: /companies/journey-hub-sdn-bhd/
+            - article [ref=e109]:
+              - article [ref=e110]:
+                - img "出海指南封面" [ref=e111]
+                - generic [ref=e112]:
+                  - generic [ref=e113]:
+                    - generic [ref=e114]: 出海指南
+                    - time [ref=e115]: 2026-06-03
+                  - heading "华南智能科技" [level=3] [ref=e116]
+                  - paragraph [ref=e117]: 专注 AIoT、智能设备与企业数字化方案，计划拓展马来西亚及东南亚合作伙伴网络。
+                  - link "华南智能科技" [ref=e118] [cursor=pointer]:
+                    - /url: /companies/huanan-smart-technology/
+            - article [ref=e119]:
+              - article [ref=e120]:
+                - img "出海指南封面" [ref=e121]
+                - generic [ref=e122]:
+                  - generic [ref=e123]:
+                    - generic [ref=e124]: 出海指南
+                    - time [ref=e125]: 2026-06-03
+                  - heading "马来西亚数字经济持续发展，中国企业可关注三类市场机会" [level=3] [ref=e126]
+                  - paragraph [ref=e127]: 围绕数字服务、跨境电商与企业级解决方案，马来西亚正在成为中国企业布局东南亚的重要窗口。
+                  - link "马来西亚数字经济持续发展，中国企业可关注三类市场机会" [ref=e128] [cursor=pointer]:
+                    - /url: /insights/malaysia-digital-economy-opportunities/
+            - article [ref=e129]:
+              - article [ref=e130]:
+                - img "出海指南封面" [ref=e131]
+                - generic [ref=e132]:
+                  - generic [ref=e133]:
+                    - generic [ref=e134]: 出海指南
+                    - time [ref=e135]: 2026-06-03
+                  - heading "中国企业进入马来西亚市场，需要先了解哪些基础事项？" [level=3] [ref=e136]
+                  - paragraph [ref=e137]: 从公司注册、用工签证、税务合规到本地服务伙伴，企业出海前应建立清晰的信息判断框架。
+                  - link "中国企业进入马来西亚市场，需要先了解哪些基础事项？" [ref=e138] [cursor=pointer]:
+                    - /url: /insights/china-companies-enter-malaysia-basics/
+            - article [ref=e139]:
+              - article [ref=e140]:
+                - img "出海指南封面" [ref=e141]
+                - generic [ref=e142]:
+                  - generic [ref=e143]:
+                    - generic [ref=e144]: 出海指南
+                    - time [ref=e145]: 2026-06-03
+                  - heading "商务考察与文旅融合，正在成为中马企业交流的新入口" [level=3] [ref=e146]
+                  - paragraph [ref=e147]: 企业参访、产业园考察、会奖旅游与定制行程结合，为跨境合作提供更高效的线下连接场景。
+                  - link "商务考察与文旅融合，正在成为中马企业交流的新入口" [ref=e148] [cursor=pointer]:
+                    - /url: /insights/business-visit-cultural-tourism-bridge/
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - generic [ref=e152]:
+              - generic [ref=e153]: Featured Companies
+              - heading "精选企业资源" [level=2] [ref=e154]
+              - paragraph [ref=e155]: 展示中马两地企业与跨境服务机构，为企业合作、项目落地和资源对接建立基础入口。
+            - link "浏览企业列表" [ref=e156] [cursor=pointer]:
+              - /url: companies.html
+          - generic [ref=e157]:
+            - article [ref=e158]:
+              - generic [ref=e159]:
+                - img "Journey Hub 企业 Logo" [ref=e160]
+                - generic [ref=e161]:
+                  - generic [ref=e162]: Malaysia
+                  - generic [ref=e163]: Tourism
+                  - generic [ref=e164]: 服务机构
+                - heading "Journey Hub Sdn Bhd" [level=3] [ref=e165]
+                - paragraph [ref=e166]: 面向中国游客与企业客户提供入境旅游、商务考察、MICE 与定制旅行服务。
+                - link "查看企业 →" [ref=e167] [cursor=pointer]:
+                  - /url: company-detail.html
+            - article [ref=e168]:
+              - generic [ref=e169]:
+                - img "华南智能科技企业 Logo" [ref=e170]
+                - generic [ref=e171]:
+                  - generic [ref=e172]: China
+                  - generic [ref=e173]: Technology
+                  - generic [ref=e174]: 中国企业
+                - heading "华南智能科技" [level=3] [ref=e175]
+                - paragraph [ref=e176]: 专注 AIoT、智能设备与企业数字化方案，计划拓展马来西亚及东南亚合作伙伴网络。
+                - link "查看企业 →" [ref=e177] [cursor=pointer]:
+                  - /url: company-detail.html
+            - article [ref=e178]:
+              - generic [ref=e179]:
+                - img "Nanyang Trade Services 企业 Logo" [ref=e180]
+                - generic [ref=e181]:
+                  - generic [ref=e182]: Malaysia
+                  - generic [ref=e183]: Business Service
+                  - generic [ref=e184]: 服务机构
+                - heading "Nanyang Trade Services" [level=3] [ref=e185]
+                - paragraph [ref=e186]: 为跨境企业提供公司注册、会计税务、签证申请与本地市场落地咨询服务。
+                - link "查看企业 →" [ref=e187] [cursor=pointer]:
+                  - /url: company-detail.html
+        - generic [ref=e189]:
+          - generic [ref=e191]:
+            - generic [ref=e192]: Platform Value
+            - heading "从信息到连接，服务中马商业合作" [level=2] [ref=e193]
+            - paragraph [ref=e194]: 丝路商讯不只是资讯站，也是一套面向企业展示、合作发现与服务对接的商业资源入口。
+          - generic [ref=e195]:
+            - generic [ref=e196]:
+              - strong [ref=e197]: 信息参考
+              - paragraph [ref=e198]: 持续整理政策、市场、项目与企业动态。
+            - generic [ref=e199]:
+              - strong [ref=e200]: 企业展示
+              - paragraph [ref=e201]: 为入驻企业建立可信、结构化的线上资料页。
+            - generic [ref=e202]:
+              - strong [ref=e203]: 资源连接
+              - paragraph [ref=e204]: 帮助企业找到服务机构、渠道伙伴与合作机会。
+            - generic [ref=e205]:
+              - strong [ref=e206]: 内容资产
+              - paragraph [ref=e207]: 以资讯和企业内容积累长期 SEO / GEO 价值。
+        - generic [ref=e210]:
+          - heading "适合入驻丝路商讯的企业" [level=2] [ref=e211]
+          - paragraph [ref=e212]: 已进入或计划进入马来西亚市场的中国企业、希望连接中国市场的马来西亚企业，以及提供注册、会计、签证、法律、营销、物流、IT 等跨境服务的机构，都可以申请展示。
+          - generic [ref=e213]:
+            - link "申请企业入驻" [ref=e214] [cursor=pointer]:
+              - /url: join.html
+            - link "联系平台合作" [ref=e215] [cursor=pointer]:
+              - /url: contact.html
+      - generic [ref=e217]:
+        - generic [ref=e218]:
+          - generic [ref=e219]:
+            - heading "丝路商讯" [level=3] [ref=e220]
+            - paragraph [ref=e221]: 连接中国与马来西亚的商业资讯、企业资源与合作机会，帮助企业看见市场、建立信任、找到伙伴。
+          - generic [ref=e222]:
+            - heading "核心入口" [level=4] [ref=e223]
+            - link "商务资讯" [ref=e224] [cursor=pointer]:
+              - /url: insights.html
+            - link "企业列表" [ref=e225] [cursor=pointer]:
+              - /url: companies.html
+            - link "申请入驻" [ref=e226] [cursor=pointer]:
+              - /url: join.html
+          - generic [ref=e227]:
+            - heading "企业分类" [level=4] [ref=e228]
+            - link "马来西亚企业" [ref=e229] [cursor=pointer]:
+              - /url: malaysia-companies.html
+            - link "服务机构" [ref=e230] [cursor=pointer]:
+              - /url: companies.html
+          - generic [ref=e231]:
+            - heading "联系合作" [level=4] [ref=e232]
+            - link "联系我们" [ref=e233] [cursor=pointer]:
+              - /url: contact.html
+            - link "关于平台" [ref=e234] [cursor=pointer]:
+              - /url: about.html
+            - link "提交企业资料" [ref=e235] [cursor=pointer]:
+              - /url: join.html
+        - generic [ref=e236]: © 2026 丝路商讯 Silk Road Business News. Demo for Bukit AI Demo-to-CMS workflow.

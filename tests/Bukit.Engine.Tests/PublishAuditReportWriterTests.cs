@@ -139,6 +139,33 @@ public sealed class PublishAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_DoesNotReportJsonLdTitleMismatchForAuxiliarySchemaNames()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body><header></header><nav></nav><main><article><h1>Visible Post</h1><time datetime="2026-06-05">June 5</time><p>Visible page text.</p></article></main><footer></footer></body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Entry("/post/", "post/index.html", "https://example.com/post/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Visible Post", "https://example.com/post/",
+                """{"@context":"https://schema.org","@type":"WebSite","name":"Example Site","url":"https://example.com/"}""",
+                """{"@context":"https://schema.org","@type":"WebPage","name":"Visible Post","description":"Visible Post description","url":"https://example.com/post/"}""",
+                """{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Blog","item":"https://example.com/blog/"},{"@type":"ListItem","position":2,"name":"Visible Post","item":"https://example.com/post/"}]}""")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, ContentGraph());
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "publish.jsonld_title_mismatch" && x.Route == "/post/");
+    }
+
+    [Fact]
     public void PublishAuditBuilder_BuildsDocumentsAndSummary()
     {
         var seoReport = new SeoAuditReport(

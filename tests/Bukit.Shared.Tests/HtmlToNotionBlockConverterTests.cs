@@ -158,4 +158,36 @@ public sealed class HtmlToNotionBlockConverterTests
                 Assert.Equal("https://example.com/docs", segment.LinkUrl);
             });
     }
+
+    [Theory]
+    [InlineData("contact.html")]
+    [InlineData("/contact/")]
+    [InlineData("//example.com/contact")]
+    public void Convert_RendersUnsupportedNotionLinksAsPlainText(string href)
+    {
+        var blocks = HtmlToNotionBlockConverter.Convert(
+            $"""<p>Go to <a href="{href}">Contact</a></p>""");
+
+        var paragraph = Assert.Single(blocks);
+        var block = Assert.IsType<ParagraphBlock>(paragraph);
+        Assert.Collection(block.Segments,
+            segment => Assert.Equal("Go to", segment.Text),
+            segment =>
+            {
+                Assert.Equal("Contact", segment.Text);
+                Assert.Null(segment.LinkUrl);
+            });
+    }
+
+    [Theory]
+    [InlineData("assets/images/hero.png")]
+    [InlineData("/assets/images/hero.png")]
+    [InlineData("//cdn.example.com/hero.png")]
+    public void Convert_SkipsUnsupportedNotionImageUrls(string src)
+    {
+        var blocks = HtmlToNotionBlockConverter.Convert(
+            $"""<img src="{src}" alt="Hero" />""");
+
+        Assert.Empty(blocks);
+    }
 }

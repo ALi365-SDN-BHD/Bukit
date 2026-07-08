@@ -215,6 +215,64 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_RecognizesSameSiteSvgOpenGraphImageFromViewBox()
+    {
+        WriteOutput("svg/index.html");
+        var imagePath = Path.Combine(_outputDir, "assets", "og.svg");
+        Directory.CreateDirectory(Path.GetDirectoryName(imagePath)!);
+        File.WriteAllText(imagePath, """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630"></svg>""");
+
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["svg/index.html"] = Entry("/svg/", "svg/index.html", "https://example.com/svg/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["svg/index.html"] = new()
+            {
+                Title = "SVG",
+                Description = "SVG description",
+                Canonical = "https://example.com/svg/",
+                Og = new SeoOpenGraphModel { Image = "https://example.com/assets/og.svg" }
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.og_image_mime_unknown" && x.Route == "/svg/");
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.og_image_too_small" && x.Route == "/svg/");
+    }
+
+    [Fact]
+    public void Build_ReportsSvgImageSizeWithoutMimeUnknownWhenDimensionsMissing()
+    {
+        WriteOutput("svg-missing-size/index.html");
+        var imagePath = Path.Combine(_outputDir, "assets", "missing-size.svg");
+        Directory.CreateDirectory(Path.GetDirectoryName(imagePath)!);
+        File.WriteAllText(imagePath, """<svg xmlns="http://www.w3.org/2000/svg"></svg>""");
+
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["svg-missing-size/index.html"] = Entry("/svg-missing-size/", "svg-missing-size/index.html", "https://example.com/svg-missing-size/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["svg-missing-size/index.html"] = new()
+            {
+                Title = "SVG Missing Size",
+                Description = "SVG missing size description",
+                Canonical = "https://example.com/svg-missing-size/",
+                Og = new SeoOpenGraphModel { Image = "https://example.com/assets/missing-size.svg" }
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.og_image_mime_unknown" && x.Route == "/svg-missing-size/");
+        Assert.Contains(report.Issues, x => x.Code == "seo.og_image_too_small" && x.Route == "/svg-missing-size/");
+    }
+
+    [Fact]
     public void Build_ReportsMissingSemanticMainAndArticle()
     {
         WriteOutput("post/index.html", """

@@ -81,9 +81,26 @@ public static class GeoCommand
             Console.WriteLine($"  Report llms-full.txt generated: {llmsFullTxtGenerated}");
             Console.WriteLine($"  GEO Score: {geoScore}/100");
 
-            if (!llmsTxtExists)
+            if (!llmsTxtExists && llmsTxtGenerated)
+            {
+                Console.WriteLine("  Warning: geo report says llms.txt was generated, but the file is missing.");
+            }
+            else if (!llmsTxtExists)
             {
                 Console.WriteLine("  Recommendation: Enable site.seo.geo.llmsTxt to generate llms.txt.");
+            }
+            else if (!llmsTxtGenerated)
+            {
+                Console.WriteLine("  Warning: llms.txt exists, but geo report marks it as not generated.");
+            }
+
+            if (!llmsFullTxtExists && llmsFullTxtGenerated)
+            {
+                Console.WriteLine("  Warning: geo report says llms-full.txt was generated, but the file is missing.");
+            }
+            else if (llmsFullTxtExists && !llmsFullTxtGenerated)
+            {
+                Console.WriteLine("  Warning: llms-full.txt exists, but geo report marks it as not generated.");
             }
 
             if (geoEnhanced == 0)

@@ -112,14 +112,7 @@ public static class SeoCommand
             WriteSummaryBuckets(summary, label);
             if (doc.RootElement.TryGetProperty("issues", out var issues))
             {
-                foreach (var issue in issues.EnumerateArray())
-                {
-                    var severity = SeoReportValidator.ReadString(issue, "severity");
-                    var code = SeoReportValidator.ReadString(issue, "code");
-                    var route = SeoReportValidator.ReadString(issue, "route") ?? "-";
-                    var message = SeoReportValidator.ReadString(issue, "message");
-                    Console.WriteLine($"{severity} {code} {route} {message}");
-                }
+                WriteIssues(ReadIssueRows(issues), label);
             }
 
             if (external)
@@ -289,4 +282,83 @@ public static class SeoCommand
 
         Console.WriteLine($"{label} summary: publishIssues={publishIssues ?? 0} machineReadability={machineReadability ?? 0} trust={trustIssues ?? 0} representationGaps={representationGaps ?? 0}");
     }
+
+    private static IReadOnlyList<AuditIssueRow> ReadIssueRows(JsonElement issues)
+        => issues.EnumerateArray()
+            .Select(issue => new AuditIssueRow(
+                Severity: SeoReportValidator.ReadString(issue, "severity") ?? "warning",
+                Code: SeoReportValidator.ReadString(issue, "code") ?? "unknown",
+                Route: SeoReportValidator.ReadString(issue, "route") ?? "-",
+                Message: SeoReportValidator.ReadString(issue, "message") ?? string.Empty))
+            .ToArray();
+
+    private static void WriteIssues(IReadOnlyList<AuditIssueRow> issues, string label)
+    {
+        if (issues.Count == 0)
+        {
+            return;
+        }
+
+        var grouped = issues
+            .GroupBy(issue => GetIssueGroup(issue.Code), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => IssueGroupOrder(group.Key))
+            .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Console.WriteLine($"{label} issues by group:");
+        foreach (var group in grouped)
+        {
+            var errors = group.Count(issue => issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase));
+            var warnings = group.Count(issue => issue.Severity.Equals("warning", StringComparison.OrdinalIgnoreCase));
+            Console.WriteLine($"  {group.Key}: errors={errors} warnings={warnings}");
+        }
+
+        foreach (var group in grouped)
+        {
+            Console.WriteLine($"=== {FormatIssueGroupName(group.Key)} Issues ===");
+            foreach (var issue in group)
+            {
+                Console.WriteLine($"{issue.Severity} {issue.Code} {issue.Route} {issue.Message}");
+            }
+        }
+    }
+
+    private static string GetIssueGroup(string? code)
+    {
+        if (code is null)
+        {
+            return "seo";
+        }
+
+        if (code.StartsWith("publish.", StringComparison.OrdinalIgnoreCase))
+        {
+            return "publish";
+        }
+
+        if (code.StartsWith("geo.", StringComparison.OrdinalIgnoreCase))
+        {
+            return "geo";
+        }
+
+        return "seo";
+    }
+
+    private static int IssueGroupOrder(string group)
+        => group.ToLowerInvariant() switch
+        {
+            "seo" => 0,
+            "publish" => 1,
+            "geo" => 2,
+            _ => 3
+        };
+
+    private static string FormatIssueGroupName(string group)
+        => group.ToLowerInvariant() switch
+        {
+            "seo" => "SEO",
+            "geo" => "GEO",
+            _ => char.ToUpperInvariant(group[0]) + group[1..].ToLowerInvariant()
+        };
+
+    private sealed record AuditIssueRow(string Severity, string Code, string Route, string Message);
 }

@@ -89,8 +89,9 @@ public static class HtmlToNotionBlockConverter
                 {
                     var src = GetAttribute(token.Attributes, "src");
                     var alt = GetAttribute(token.Attributes, "alt");
-                    if (!string.IsNullOrWhiteSpace(src))
-                        blocks.Add(new ImageBlock(src, alt));
+                    var notionUrl = ToNotionExternalUrl(src);
+                    if (!string.IsNullOrWhiteSpace(notionUrl))
+                        blocks.Add(new ImageBlock(notionUrl, alt));
                 }
                 i++;
                 continue;
@@ -215,8 +216,9 @@ public static class HtmlToNotionBlockConverter
                 {
                     var src = GetAttribute(attrs, "src");
                     var alt = GetAttribute(attrs, "alt");
-                    if (!string.IsNullOrWhiteSpace(src))
-                        blocks.Add(new ImageBlock(src, alt));
+                    var notionUrl = ToNotionExternalUrl(src);
+                    if (!string.IsNullOrWhiteSpace(notionUrl))
+                        blocks.Add(new ImageBlock(notionUrl, alt));
                     i++;
                     continue;
                 }
@@ -239,7 +241,7 @@ public static class HtmlToNotionBlockConverter
                     {
                         var segments = new List<RichTextSegment>
                         {
-                            new RichTextSegment(linkText, LinkUrl: href)
+                            new RichTextSegment(linkText, LinkUrl: ToNotionLinkUrl(href))
                         };
                         blocks.Add(new ParagraphBlock(segments));
                     }
@@ -360,7 +362,7 @@ public static class HtmlToNotionBlockConverter
                 i++;
                 var linkText = CollectTextUntilClose(tokens, ref i, "a");
                 if (!string.IsNullOrWhiteSpace(linkText))
-                    segments.Add(new RichTextSegment(linkText, LinkUrl: href));
+                    segments.Add(new RichTextSegment(linkText, LinkUrl: ToNotionLinkUrl(href)));
             }
             else if (t.Type == HtmlTokenizer.HtmlTokenType.OpenTag &&
                      (t.TagName == "strong" || t.TagName == "b"))
@@ -398,6 +400,24 @@ public static class HtmlToNotionBlockConverter
         }
 
         return segments;
+    }
+
+    private static string? ToNotionLinkUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        var trimmed = url.Trim();
+        if (trimmed.StartsWith("//", StringComparison.Ordinal)) return null;
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)) return null;
+        return uri.Scheme is "http" or "https" or "mailto" or "tel" ? trimmed : null;
+    }
+
+    private static string? ToNotionExternalUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        var trimmed = url.Trim();
+        if (trimmed.StartsWith("//", StringComparison.Ordinal)) return null;
+        if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)) return null;
+        return uri.Scheme is "http" or "https" ? trimmed : null;
     }
 
     private sealed record FaqParseResult(

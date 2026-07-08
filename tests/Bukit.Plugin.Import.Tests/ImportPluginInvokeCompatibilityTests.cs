@@ -155,6 +155,30 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
         Assert.Equal(0, response.ExitCode);
         Assert.False(Directory.Exists(Path.Combine(_rootDir, "themes", "demo-theme")));
         Assert.Contains(response.Messages, message => message.Message.Contains("未提取到共享布局", StringComparison.Ordinal));
+        Assert.Contains(response.Diagnostics, diagnostic =>
+            diagnostic.Code == "import.content.author_missing" &&
+            diagnostic.Severity == "warning" &&
+            diagnostic.Path == "sites/demo-theme/content");
+    }
+
+    [Fact]
+    public async Task Invoke_HtmlDemoSitePathProjectRoot_ReturnsSafeArtifactPaths()
+    {
+        CreateMinimalDemo();
+
+        var response = await ImportPluginInvoker.InvokeAsync(Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--site-path"] = Json(".")
+            }));
+
+        Assert.True(response.Success);
+        Assert.Equal(0, response.ExitCode);
+        Assert.DoesNotContain(response.Artifacts, artifact => artifact.Path is "." or "");
+        Assert.Contains(response.Artifacts, artifact => artifact.Type == "site" && artifact.Path == "site.yaml");
     }
 
     [Fact]

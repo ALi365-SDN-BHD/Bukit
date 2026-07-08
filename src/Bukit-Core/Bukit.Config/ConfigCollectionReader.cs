@@ -34,6 +34,8 @@ internal static class ConfigCollectionReader
                 Permalink = ConfigYamlHelpers.GetRequiredString(collectionNode, "permalink"),
                 Template = ConfigYamlHelpers.GetOptionalString(collectionNode, "template"),
                 ListRoute = ConfigYamlHelpers.GetOptionalString(collectionNode, "listRoute"),
+                ListTitle = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTitle"),
+                ListDescription = ConfigYamlHelpers.GetOptionalString(collectionNode, "listDescription"),
                 ListTemplate = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTemplate"),
                 SchemaFailMode = ConfigYamlHelpers.GetOptionalString(collectionNode, "schemaFailMode"),
                 Pagination = new CollectionPaginationConfig
@@ -83,6 +85,8 @@ internal static class ConfigCollectionReader
                 Value = ConfigYamlHelpers.GetOptionalString(filterNode, "value"),
                 Values = ConfigYamlHelpers.ReadStringList(filterNode, "values"),
                 ListRoute = ConfigYamlHelpers.GetRequiredString(filterNode, "listRoute"),
+                Title = ConfigYamlHelpers.GetOptionalString(filterNode, "title"),
+                Description = ConfigYamlHelpers.GetOptionalString(filterNode, "description"),
                 ListTemplate = ConfigYamlHelpers.GetOptionalString(filterNode, "listTemplate"),
                 PageSize = ConfigYamlHelpers.GetOptionalIntStrict(filterNode, "pageSize"),
                 UrlPattern = ConfigYamlHelpers.GetOptionalString(filterNode, "urlPattern"),

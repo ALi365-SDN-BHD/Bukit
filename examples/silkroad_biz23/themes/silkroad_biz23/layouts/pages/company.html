@@ -1,8 +1,0 @@
-{% layout "layouts/base.html" %}
-
-<article class="article">
-  <p class="eyebrow">Company Profile</p>
-  <h1>{{ page.title }}</h1>
-  {{ if page.fields && page.fields.industry }}<p class="summary">{{ page.fields.industry.value }}</p>{{ end }}
-  {{ page.content }}
-</article>

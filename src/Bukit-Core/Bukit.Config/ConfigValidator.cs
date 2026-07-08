@@ -251,6 +251,11 @@ public static class ConfigValidator
             throw new ConfigException($"{prefix}.title must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
         }
 
+        if (kind.Description is not null && string.IsNullOrWhiteSpace(kind.Description))
+        {
+            throw new ConfigException($"{prefix}.description must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);
+        }
+
         if (kind.SingularTitlePrefix is not null && string.IsNullOrWhiteSpace(kind.SingularTitlePrefix))
         {
             throw new ConfigException($"{prefix}.singularTitlePrefix must be a non-empty string when set.", DiagnosticCode.ConfigInvalidValue);

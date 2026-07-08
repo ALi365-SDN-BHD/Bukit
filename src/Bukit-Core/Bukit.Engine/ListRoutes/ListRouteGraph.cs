@@ -112,6 +112,8 @@ internal sealed record ListRoutePlan
     public required string Url { get; init; }
     public required string OutputPath { get; init; }
     public required string Template { get; init; }
+    public string? Title { get; init; }
+    public string? Summary { get; init; }
     public string? Collection { get; init; }
     public int? PageNumber { get; init; }
     public int? PageSize { get; init; }
@@ -263,6 +265,8 @@ internal sealed record ListRoutePlanSnapshot
     public required string Url { get; init; }
     public required string OutputPath { get; init; }
     public required string Template { get; init; }
+    public string? Title { get; init; }
+    public string? Summary { get; init; }
     public string? Collection { get; init; }
     public int? PageNumber { get; init; }
     public int? PageSize { get; init; }
@@ -285,6 +289,8 @@ internal sealed record ListRoutePlanSnapshot
             Url = plan.Url,
             OutputPath = plan.OutputPath,
             Template = plan.Template,
+            Title = plan.Title,
+            Summary = plan.Summary,
             Collection = plan.Collection,
             PageNumber = plan.PageNumber,
             PageSize = plan.PageSize,

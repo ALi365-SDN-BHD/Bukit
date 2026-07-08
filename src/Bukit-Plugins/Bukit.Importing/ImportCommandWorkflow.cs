@@ -160,7 +160,13 @@ public static class ImportCommandWorkflow
             if (useCapture.Exception is not null)
                 return ExceptionResult(1, messages, useCapture.Exception);
             if (useCapture.Result != 0)
-                return new ImportCommandResult { ExitCode = useCapture.Result, Messages = messages };
+                return new ImportCommandResult
+                {
+                    ExitCode = useCapture.Result,
+                    HtmlDemoResult = result,
+                    Messages = messages,
+                    Diagnostics = BuildCommandDiagnostics(result)
+                };
             messages.Add(new ImportCommandMessage("info", "  主题已设置"));
         }
 
@@ -189,7 +195,13 @@ public static class ImportCommandWorkflow
             if (pushCapture.Exception is not null)
                 return ExceptionResult(1, messages, pushCapture.Exception);
             if (pushCapture.Result != 0)
-                return new ImportCommandResult { ExitCode = pushCapture.Result, HtmlDemoResult = result, Messages = messages };
+                return new ImportCommandResult
+                {
+                    ExitCode = pushCapture.Result,
+                    HtmlDemoResult = result,
+                    Messages = messages,
+                    Diagnostics = BuildCommandDiagnostics(result)
+                };
         }
 
         if (options.Verify)
@@ -199,7 +211,13 @@ public static class ImportCommandWorkflow
             if (verifyCapture.Exception is not null)
                 return ExceptionResult(1, messages, verifyCapture.Exception);
             if (verifyCapture.Result != 0)
-                return new ImportCommandResult { ExitCode = verifyCapture.Result, HtmlDemoResult = result, Messages = messages };
+                return new ImportCommandResult
+                {
+                    ExitCode = verifyCapture.Result,
+                    HtmlDemoResult = result,
+                    Messages = messages,
+                    Diagnostics = BuildCommandDiagnostics(result)
+                };
         }
 
         return new ImportCommandResult
@@ -207,6 +225,7 @@ public static class ImportCommandWorkflow
             ExitCode = 0,
             HtmlDemoResult = result,
             Messages = messages,
+            Diagnostics = BuildCommandDiagnostics(result),
             Artifacts = BuildHtmlDemoArtifacts(result)
         };
     }
@@ -318,6 +337,23 @@ public static class ImportCommandWorkflow
 
         return artifacts;
     }
+
+    private static IReadOnlyList<ImportCommandDiagnostic> BuildCommandDiagnostics(ImportResult result)
+        => result.Diagnostics
+            .Select(diagnostic => new ImportCommandDiagnostic(
+                diagnostic.Code,
+                ToCommandSeverity(diagnostic.Severity),
+                diagnostic.Message,
+                diagnostic.FilePath))
+            .ToArray();
+
+    private static string ToCommandSeverity(ImportDiagnosticSeverity severity)
+        => severity switch
+        {
+            ImportDiagnosticSeverity.Error => "error",
+            ImportDiagnosticSeverity.Warning => "warning",
+            _ => "info"
+        };
 
     private static async Task<CapturedConsole<T>> CaptureConsoleAsync<T>(Func<Task<T>> action)
     {

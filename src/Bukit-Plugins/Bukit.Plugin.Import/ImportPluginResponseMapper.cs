@@ -43,7 +43,7 @@ public static class ImportPluginResponseMapper
             Artifacts: result.Artifacts
                 .Select(artifact => new PluginArtifact(
                     artifact.Type,
-                    ToProjectRelativePath(request.Context.RootDir, artifact.Path) ?? NormalizeRelativePath(artifact.Path),
+                    ToSafeArtifactPath(request.Context.RootDir, artifact.Path),
                     artifact.Description))
                 .ToArray());
     }
@@ -98,6 +98,14 @@ public static class ImportPluginResponseMapper
         }
 
         return normalized;
+    }
+
+    private static string ToSafeArtifactPath(string rootDir, string path)
+    {
+        var relative = ToProjectRelativePath(rootDir, path) ?? NormalizeRelativePath(path);
+        return relative is "." or ""
+            ? "site.yaml"
+            : relative;
     }
 
     private static string NormalizeRelativePath(string path)

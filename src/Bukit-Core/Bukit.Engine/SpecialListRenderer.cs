@@ -39,10 +39,11 @@ internal static class SpecialListRenderer
         var stageMetrics = new BuildStageMetricsCollector();
         var listBuildStopwatch = Stopwatch.StartNew();
         var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, outerCount, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
-        var listPage = CreateListPageInfo(siteModel, listRoute);
+        var listPage = CreateListPageInfo(siteModel, listRoute, pageContext);
         if (pageFields is not null)
         {
             listPage = listPage with { Fields = pageFields };
+            listPage = ApplyListPageFieldOverrides(listPage, pageFields);
         }
 
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
@@ -108,10 +109,11 @@ internal static class SpecialListRenderer
 
         var listBuildStopwatch = Stopwatch.StartNew();
         var pageInfos = await BuildPageInfosAsync(source, bodyStore, includeContent, maxDegreeOfParallelism, outerCount, cancellationToken, stageMetrics, "listBodyLoad", seoBuilder);
-        var listPage = CreateListPageInfo(siteModel, listRoute);
+        var listPage = CreateListPageInfo(siteModel, listRoute, pageContext);
         if (pageFields is not null)
         {
             listPage = listPage with { Fields = pageFields };
+            listPage = ApplyListPageFieldOverrides(listPage, pageFields);
         }
 
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
@@ -234,14 +236,35 @@ internal static class SpecialListRenderer
             : null;
 
     internal static PageInfo CreateListPageInfo(SiteModel siteModel, RouteInfo listRoute)
+        => CreateListPageInfo(siteModel, listRoute, pageContext: null);
+
+    internal static PageInfo CreateListPageInfo(SiteModel siteModel, RouteInfo listRoute, ListPageContext? pageContext)
     {
         return new PageInfo
         {
-            Title = listRoute.Url == "/" ? siteModel.Title : BuildListTitle(listRoute.Url),
+            Title = ListPageMetadataBuilder.BuildTitle(siteModel, listRoute, pageContext?.Pagination),
             Url = listRoute.Url,
             Content = string.Empty,
-            Summary = BuildListSummary(siteModel, listRoute),
+            Summary = ListPageMetadataBuilder.BuildSummary(siteModel, listRoute, pagination: pageContext?.Pagination),
             Representations = PublishRepresentationRegistry.DocumentKinds()
+        };
+    }
+
+    internal static PageInfo ApplyListPageFieldOverrides(
+        PageInfo pageInfo,
+        IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        if (fields is null)
+        {
+            return pageInfo;
+        }
+
+        var title = ContentFieldReader.GetText(fields, "title");
+        var summary = ContentFieldReader.GetText(fields, "summary");
+        return pageInfo with
+        {
+            Title = string.IsNullOrWhiteSpace(title) ? pageInfo.Title : title.Trim(),
+            Summary = string.IsNullOrWhiteSpace(summary) ? pageInfo.Summary : summary.Trim()
         };
     }
 

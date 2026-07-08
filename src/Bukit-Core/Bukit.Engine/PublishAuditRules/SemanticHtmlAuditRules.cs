@@ -125,7 +125,9 @@ internal static class SemanticHtmlAuditRules
                 using var parsed = JsonDocument.Parse(jsonLd);
                 foreach (var node in EnumerateNodes(parsed.RootElement))
                 {
-                    var title = ReadString(node, "headline") ?? ReadString(node, "name");
+                    var title = IsPrimaryPageSchema(node)
+                        ? ReadString(node, "headline") ?? ReadString(node, "name")
+                        : null;
                     if (!string.IsNullOrWhiteSpace(title) &&
                         !titleMismatchReported &&
                         !string.Equals(NormalizeText(title), visibleHeading, StringComparison.OrdinalIgnoreCase))
@@ -167,6 +169,43 @@ internal static class SemanticHtmlAuditRules
                 return;
             }
         }
+    }
+
+    private static bool IsPrimaryPageSchema(JsonElement node)
+    {
+        foreach (var type in ReadTypes(node))
+        {
+            if (type is "Article" or "BlogPosting" or "NewsArticle" or "WebPage" or "CollectionPage" or "AboutPage" or "ContactPage" or "FAQPage" or "HowTo")
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyList<string> ReadTypes(JsonElement node)
+    {
+        if (!node.TryGetProperty("@type", out var type))
+        {
+            return Array.Empty<string>();
+        }
+
+        if (type.ValueKind == JsonValueKind.String)
+        {
+            var value = type.GetString();
+            return string.IsNullOrWhiteSpace(value) ? Array.Empty<string>() : new[] { value! };
+        }
+
+        if (type.ValueKind == JsonValueKind.Array)
+        {
+            return type.EnumerateArray()
+                .Where(x => x.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(x.GetString()))
+                .Select(x => x.GetString()!)
+                .ToArray();
+        }
+
+        return Array.Empty<string>();
     }
 
     private static IEnumerable<JsonElement> EnumerateNodes(JsonElement root)

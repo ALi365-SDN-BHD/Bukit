@@ -244,6 +244,7 @@ public sealed class TaxonomyPluginDerivePagesTests
                     Key = "categories",
                     Kind = "category",
                     Title = "Categories",
+                    Description = "Browse business insight categories.",
                     SingularTitlePrefix = "Category",
                     RoutePrefix = "/insights/category"
                 }
@@ -264,6 +265,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         Assert.DoesNotContain(derived, x => x.Route.Url == "/category/市场观察/");
 
         var terms = Assert.IsType<List<object>>(index.Document.CustomFields!["terms"].Value);
+        Assert.Equal("Browse business insight categories.", index.Document.CustomFields!["summary"].Value);
         var term = Assert.IsType<Dictionary<string, object>>(terms[0]);
         Assert.Equal("/insights/category/市场观察/", term["url"]);
         var taxonomy = Assert.IsType<Dictionary<string, object>>(termPage.Document.CustomFields!["taxonomy"].Value);
