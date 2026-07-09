@@ -26,16 +26,32 @@ internal static class SyncCacheManager
             : Path.GetFullPath(Path.Combine(rootDir, cacheFile));
 
         var root = Path.GetFullPath(rootDir);
-        var relative = Path.GetRelativePath(root, path).Replace('\\', '/');
-        if (Path.IsPathFullyQualified(relative) ||
-            relative.Equals("..", StringComparison.Ordinal) ||
-            relative.StartsWith("../", StringComparison.Ordinal))
+        if (!IsUnderDirectory(root, path))
         {
             throw new InvalidOperationException("wechat-sync cacheFile must stay under the project root.");
         }
 
+        var cacheRoot = Path.GetFullPath(Path.Combine(root, ".cache", "wechat-sync"));
+        if (PathsEqual(path, cacheRoot) || !IsUnderDirectory(cacheRoot, path))
+        {
+            throw new InvalidOperationException("wechat-sync cacheFile must stay under .cache/wechat-sync.");
+        }
+
         return path;
     }
+
+    private static bool IsUnderDirectory(string rootDir, string path)
+    {
+        var root = Path.GetFullPath(rootDir);
+        var full = Path.GetFullPath(path);
+        var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
+        return !Path.IsPathFullyQualified(relative) &&
+               !relative.Equals("..", StringComparison.Ordinal) &&
+               !relative.StartsWith("../", StringComparison.Ordinal);
+    }
+
+    private static bool PathsEqual(string left, string right)
+        => string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), StringComparison.Ordinal);
 
     internal static SyncCache LoadCache(string path, Bukit.Shared.ILogger logger)
     {

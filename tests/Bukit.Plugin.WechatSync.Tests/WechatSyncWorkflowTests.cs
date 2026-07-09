@@ -355,6 +355,51 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task ThumbResolver_FallsBackToHashMediaCacheWhenIndexFileIsInvalid()
+    {
+        var logger = new RecordingLogger();
+        var gateway = new FakeWechatDraftGateway();
+        var resolver = new ThumbResolver(
+            gateway,
+            (_, _) => Task.FromResult(Array.Empty<byte>()),
+            logger);
+        var cacheDir = Path.Combine(_rootDir, ".cache", "media");
+        Directory.CreateDirectory(cacheDir);
+        var coverUrl = "https://cdn.example.com/cover.png";
+        var normalizedKey = WechatSyncHelpers.NormalizeMediaSourceUrlKey(coverUrl);
+        File.WriteAllBytes(Path.Combine(cacheDir, "empty.png"), []);
+        File.WriteAllText(Path.Combine(cacheDir, ".media-index.json"), $$"""
+{
+  "{{normalizedKey}}": "empty.png"
+}
+""");
+        var hashFileName = WechatSyncHelpers.BuildMediaCacheStableFileName(
+            normalizedKey,
+            WechatSyncHelpers.ResolveMediaCacheExtension(coverUrl));
+        File.WriteAllBytes(Path.Combine(cacheDir, hashFileName), TinyPng);
+        var context = WithMediaDownloadDir(
+            WithLogger(ContextWithCover("<p>Hello</p>", coverUrl), logger),
+            cacheDir);
+        var options = Options("app", "secret") with
+        {
+            DefaultThumbMediaId = null,
+            DefaultImageUrl = null
+        };
+
+        var (thumbMediaId, cacheUpdated) = await resolver.ResolveAndUploadThumbAsync(
+            context,
+            context.Routed[0].Item,
+            options,
+            new SyncCache(2, new Dictionary<string, SyncRecord>(StringComparer.Ordinal)),
+            CancellationToken.None);
+
+        Assert.Equal("uploaded-thumb", thumbMediaId);
+        Assert.True(cacheUpdated);
+        Assert.Equal(1, gateway.UploadThumbCount);
+        Assert.Contains(logger.Warnings, warning => warning.Contains("file empty", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task RunAsync_PublishFailureDoesNotMarkCandidateSyncedOrWriteSuccessfulCacheRecord()
     {
         using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
@@ -434,6 +479,22 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         var ex = Assert.Throws<InvalidOperationException>(() => SyncCacheManager.ResolvePath(_rootDir, "../cache.json"));
 
         Assert.Contains("project root", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SyncCacheManager_RejectsCachePathOutsideWechatSyncCacheDirectory()
+    {
+        var ex = Assert.Throws<InvalidOperationException>(() => SyncCacheManager.ResolvePath(_rootDir, "site.yaml"));
+
+        Assert.Contains(".cache/wechat-sync", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SyncCacheManager_AllowsCachePathUnderWechatSyncCacheDirectory()
+    {
+        var path = SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/custom.json");
+
+        Assert.Equal(Path.Combine(_rootDir, ".cache", "wechat-sync", "custom.json"), path);
     }
 
     [Fact]

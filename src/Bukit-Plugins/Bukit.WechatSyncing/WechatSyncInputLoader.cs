@@ -71,7 +71,11 @@ public static class WechatSyncInputLoader
             }
 
             var routeUrl = string.IsNullOrWhiteSpace(content.Route) ? document.Route : content.Route;
-            var outputPath = InferHtmlOutputPath(routeUrl);
+            var htmlUrl = document.Representations
+                .FirstOrDefault(x => x.Kind.Equals("html", StringComparison.OrdinalIgnoreCase))
+                ?.Url;
+            var htmlLocatorUrl = string.IsNullOrWhiteSpace(htmlUrl) ? routeUrl : htmlUrl;
+            var outputPath = InferHtmlOutputPath(htmlLocatorUrl, baseUrl);
             var renderedHtml = TryReadRenderedHtml(outputDir, outputPath);
             var bodyHtml = !string.IsNullOrWhiteSpace(content.Body) ? content.Body : renderedHtml;
 
@@ -143,9 +147,9 @@ public static class WechatSyncInputLoader
         return full;
     }
 
-    internal static string InferHtmlOutputPath(string routeUrl)
+    internal static string InferHtmlOutputPath(string routeUrl, string? baseUrl = null)
     {
-        var route = (routeUrl ?? string.Empty).Trim();
+        var route = NormalizeHtmlLocatorUrl(routeUrl, baseUrl);
         if (route.Length == 0 || route == "/")
         {
             return "index.html";
@@ -160,6 +164,43 @@ public static class WechatSyncInputLoader
         return Path.HasExtension(route)
             ? route
             : route + "/index.html";
+    }
+
+    private static string NormalizeHtmlLocatorUrl(string? url, string? baseUrl)
+    {
+        var route = (url ?? string.Empty).Trim();
+        if (route.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (Uri.TryCreate(route, UriKind.Absolute, out var uri) &&
+            (string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+        {
+            route = uri.AbsolutePath;
+        }
+
+        var normalizedBase = string.IsNullOrWhiteSpace(baseUrl) ? "/" : baseUrl.Trim();
+        if (!normalizedBase.StartsWith('/'))
+        {
+            normalizedBase = "/" + normalizedBase;
+        }
+
+        normalizedBase = normalizedBase.Length > 1 ? normalizedBase.TrimEnd('/') : "/";
+        if (normalizedBase == "/")
+        {
+            return route;
+        }
+
+        if (route.Equals(normalizedBase, StringComparison.OrdinalIgnoreCase))
+        {
+            return "/";
+        }
+
+        return route.StartsWith(normalizedBase + "/", StringComparison.OrdinalIgnoreCase)
+            ? route[normalizedBase.Length..]
+            : route;
     }
 
     private static string ResolveOutputPath(string outputDir, string relativePath, string name)

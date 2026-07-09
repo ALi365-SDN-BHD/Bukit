@@ -51,19 +51,39 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
         Assert.Contains("build output", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    private Task<WechatSyncContext> LoadAsync(string outputDir)
+    [Fact]
+    public async Task LoadAsync_UsesHtmlRepresentationAndStripsBaseUrlForRenderedHtmlFallback()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(Path.Combine(outputDir, "content"));
+        Directory.CreateDirectory(Path.Combine(outputDir, "blog", "hello"));
+        WriteManifest(outputDir, "content/post-1.json", "/docs/blog/hello/", "/docs/blog/hello/");
+        File.WriteAllText(Path.Combine(outputDir, "content", "post-1.json"), ContentJson(body: null, route: "/docs/blog/hello/"));
+        File.WriteAllText(Path.Combine(outputDir, "blog", "hello", "index.html"), "<main>rendered html</main>");
+
+        var context = await LoadAsync(outputDir, baseUrl: "/docs");
+
+        var (item, route) = Assert.Single(context.Routed);
+        Assert.Equal("<main>rendered html</main>", item.ContentHtml);
+        Assert.Equal("blog/hello/index.html", route.OutputPath.Replace('\\', '/'));
+    }
+
+    private Task<WechatSyncContext> LoadAsync(string outputDir, string baseUrl = "/")
         => WechatSyncInputLoader.LoadAsync(
             _rootDir,
             outputDir,
             null,
             "Bukit",
             "https://example.com",
-            "/",
+            baseUrl,
             null,
             new ConsoleLogger(LogLevel.Error));
 
-    private static void WriteManifest(string outputDir, string jsonUrl, string route)
+    private static void WriteManifest(string outputDir, string jsonUrl, string route, string? htmlUrl = null)
     {
+        var htmlRepresentation = htmlUrl is null
+            ? string.Empty
+            : ",\n        { \"kind\": \"html\", \"url\": \"" + htmlUrl + "\" }";
         File.WriteAllText(Path.Combine(outputDir, "agent-manifest.json"), $$"""
 {
   "schema": "bukit.agent-manifest",
@@ -79,7 +99,7 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
       "source": "notion",
       "entities": [],
       "representations": [
-        { "kind": "json", "url": "{{jsonUrl}}" }
+        { "kind": "json", "url": "{{jsonUrl}}" }{{htmlRepresentation}}
       ],
       "publishedAt": "2026-01-01T00:00:00Z"
     }

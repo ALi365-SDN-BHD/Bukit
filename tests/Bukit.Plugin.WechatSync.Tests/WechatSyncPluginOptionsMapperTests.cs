@@ -54,6 +54,7 @@ public sealed class WechatSyncPluginOptionsMapperTests : IDisposable
         Assert.True(invocation.Options.Passthrough);
         Assert.Equal(new HashSet<string>(["notion", "manual"], StringComparer.OrdinalIgnoreCase), invocation.Options.SourceNames);
         Assert.Equal(new HashSet<string>(["post", "page"], StringComparer.OrdinalIgnoreCase), invocation.Options.ContentTypes);
+        Assert.Equal(".cache/wechat-sync/cache.json", invocation.Options.CacheFile);
         Assert.Equal("/blog", invocation.Options.BaseUrl);
         Assert.Equal("Docs", invocation.Options.SiteName);
         Assert.Equal("https://example.com", invocation.Options.SiteUrl);
@@ -101,6 +102,23 @@ public sealed class WechatSyncPluginOptionsMapperTests : IDisposable
         var ex = Assert.Throws<WechatSyncPluginOptionsException>(() => WechatSyncPluginOptionsMapper.Map(request));
 
         Assert.Equal("plugin.wechat-sync.envMissing", ex.Code);
+    }
+
+    [Fact]
+    public void Map_RejectsCacheFileOutsideWechatSyncCacheDirectory()
+    {
+        var request = Request(
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--cache-file"] = Json("site.yaml"),
+                ["--dry-run"] = Json(true)
+            });
+
+        var ex = Assert.Throws<WechatSyncPluginOptionsException>(() => WechatSyncPluginOptionsMapper.Map(request));
+
+        Assert.Equal("plugin.wechat-sync.pathDenied", ex.Code);
+        Assert.Contains(".cache/wechat-sync", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

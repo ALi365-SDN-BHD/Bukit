@@ -60,6 +60,9 @@ public static class WechatSyncPluginOptionsMapper
             mediaDownloadDir = ResolveUnderRoot(rootDir, workingDir, mediaDownloadDir, "--media-download-dir");
         }
 
+        var cacheFile = ReadString(request, "--cache-file") ?? ".cache/wechat-sync/sync-cache.json";
+        EnsureCacheFileUnderWechatSyncCache(rootDir, cacheFile);
+
         var target = ReadString(request, "--target") ?? "draft";
         if (!target.Equals("draft", StringComparison.OrdinalIgnoreCase) &&
             !target.Equals("publish", StringComparison.OrdinalIgnoreCase))
@@ -83,7 +86,7 @@ public static class WechatSyncPluginOptionsMapper
             SourceNames: ParseSet(ReadString(request, "--source-names")),
             ContentTypes: contentTypes,
             DefaultTypesWhenMissing: defaultTypes,
-            CacheFile: ReadString(request, "--cache-file") ?? ".cache/wechat-sync/sync-cache.json",
+            CacheFile: cacheFile,
             MaxAttempts: ReadPositiveInt(request, "--max-attempts", 3),
             BaseDelayMs: ReadPositiveInt(request, "--base-delay-ms", 1000),
             BackoffFactor: ReadPositiveInt(request, "--backoff-factor", 2),
@@ -137,16 +140,40 @@ public static class WechatSyncPluginOptionsMapper
 
     private static void EnsureUnderRoot(string rootDir, string path, string name)
     {
-        var root = Path.GetFullPath(rootDir);
-        var full = Path.GetFullPath(path);
-        var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
-        if (Path.IsPathFullyQualified(relative) ||
-            relative.Equals("..", StringComparison.Ordinal) ||
-            relative.StartsWith("../", StringComparison.Ordinal))
+        if (!IsUnderDirectory(rootDir, path))
         {
             throw new WechatSyncPluginOptionsException("plugin.wechat-sync.pathDenied", $"{name} must stay under the project root.");
         }
     }
+
+    private static void EnsureCacheFileUnderWechatSyncCache(string rootDir, string cacheFile)
+    {
+        var full = Path.IsPathRooted(cacheFile)
+            ? Path.GetFullPath(cacheFile)
+            : Path.GetFullPath(Path.Combine(rootDir, cacheFile));
+        EnsureUnderRoot(rootDir, full, "--cache-file");
+
+        var cacheRoot = Path.GetFullPath(Path.Combine(rootDir, ".cache", "wechat-sync"));
+        if (PathsEqual(full, cacheRoot) || !IsUnderDirectory(cacheRoot, full))
+        {
+            throw new WechatSyncPluginOptionsException(
+                "plugin.wechat-sync.pathDenied",
+                "--cache-file must stay under .cache/wechat-sync.");
+        }
+    }
+
+    private static bool IsUnderDirectory(string rootDir, string path)
+    {
+        var root = Path.GetFullPath(rootDir);
+        var full = Path.GetFullPath(path);
+        var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
+        return !Path.IsPathFullyQualified(relative) &&
+               !relative.Equals("..", StringComparison.Ordinal) &&
+               !relative.StartsWith("../", StringComparison.Ordinal);
+    }
+
+    private static bool PathsEqual(string left, string right)
+        => string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), StringComparison.Ordinal);
 
     private static void EnsureNetworkGranted(PluginInvokeRequest request)
     {

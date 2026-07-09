@@ -295,13 +295,42 @@ internal sealed class ThumbResolver
             return null;
         }
 
-        if (!TryResolveLocalAssetPath(context, absoluteThumbUrl, out var filePath))
+        if (TryResolveLocalAssetPath(context, absoluteThumbUrl, out var filePath))
         {
-            var effectiveDownloadDir = ResolveEffectiveMediaDownloadDir(context);
-            filePath = TryResolveFromMediaIndex(effectiveDownloadDir, normalizedForIndex)
-                ?? TryResolveFromMediaHashName(effectiveDownloadDir, normalizedForIndex, absoluteThumbUrl);
+            return await TryUploadThumbFromResolvedMediaFileAsync(filePath, absoluteThumbUrl, cache, cancellationToken);
         }
 
+        var effectiveDownloadDir = ResolveEffectiveMediaDownloadDir(context);
+        var indexPath = TryResolveFromMediaIndex(effectiveDownloadDir, normalizedForIndex);
+        if (!string.IsNullOrWhiteSpace(indexPath) && File.Exists(indexPath))
+        {
+            var uploadedFromIndex = await TryUploadThumbFromResolvedMediaFileAsync(
+                indexPath,
+                absoluteThumbUrl,
+                cache,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(uploadedFromIndex))
+            {
+                return uploadedFromIndex;
+            }
+        }
+
+        var hashPath = TryResolveFromMediaHashName(effectiveDownloadDir, normalizedForIndex, absoluteThumbUrl);
+        if (!string.IsNullOrWhiteSpace(hashPath) && File.Exists(hashPath))
+        {
+            return await TryUploadThumbFromResolvedMediaFileAsync(hashPath, absoluteThumbUrl, cache, cancellationToken);
+        }
+
+        _logger.Warn("plugin wechat-sync local media cache miss for cover url");
+        return null;
+    }
+
+    private async Task<string?> TryUploadThumbFromResolvedMediaFileAsync(
+        string filePath,
+        string absoluteThumbUrl,
+        SyncCache cache,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         {
             _logger.Warn("plugin wechat-sync local media cache miss for cover url");
