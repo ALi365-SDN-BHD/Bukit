@@ -6,16 +6,25 @@ This file defines non-code operating rules for future changes in this repository
 
 ### 1) Backup-only areas (do not modify by default)
 
-- `guide-0.1/` is backup/reference documentation only.
-- `scripts-0.1/` is backup/reference scripts only.
+- `guide-0.1/` and `guide-0.2/` are backup/reference documentation only.
+- `scripts-0.1/` and `scripts-0.2/` are backup/reference scripts only.
+- Backup/reference directories must not be used as official documentation,
+  active quality gates, CI script sources, release script sources, or runtime
+  behavior references.
 
 Default behavior:
 - Do not make fixes, updates, or refactors inside these directories unless explicitly requested.
-- If a task touches quality gates, CI, or runtime behavior, prefer mainline paths and avoid `guide-0.1/` and `scripts-0.1/` as targets.
+- If a task touches quality gates, CI, release, official documentation, or
+  runtime behavior, use mainline paths and avoid `guide-0.1/`, `scripts-0.1/`,
+  `guide-0.2/`, and `scripts-0.2/` as targets or executable sources.
+- If useful material exists only in a backup/reference directory, port it into
+  `guide/` or `scripts/` and verify it there instead of linking to or executing
+  the backup copy.
 
 ### 2) Mainline change preference
 
-- Prefer files under `guide/` and `scripts/` for documentation or code repairs.
+- Files under `guide/` and `scripts/` are the official documentation and script
+  surfaces for repository work.
 - Keep backup directories aligned for historical consistency only, with no active rule or behavior changes.
 
 ### 3) Agent task execution discipline

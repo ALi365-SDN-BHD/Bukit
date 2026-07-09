@@ -1,0 +1,24 @@
+# Release
+
+Release work is broader than the fast docs gate. It should be explicit and
+artifact-driven.
+
+## Release Surfaces
+
+- CLI command help and static command registry.
+- Config schema and strict validation.
+- Native AOT publishing.
+- Release artifact packaging.
+- Smoke tests against packaged binaries.
+- SEO, GEO, publish, security, and route report schemas.
+- README and guide links.
+
+## Thin Gates
+
+The current `scripts/gates/ci-fast.sh` is intentionally thin. It validates docs,
+config-docs contracts, skills, README links, and Core CLI script boundaries
+without running expensive release work.
+
+`scripts/gates/ci-full.sh` is the Core source gate: it runs `ci-fast` and the
+explicit Core test project list in `scripts/checks/core-tests.sh`. Release
+artifact checks must still be invoked explicitly during release tasks.

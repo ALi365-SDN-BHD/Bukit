@@ -1,0 +1,6 @@
+{
+  "name": "bukit-core-skills",
+  "version": "1.0.0",
+  "description": "Core-only Bukit skills generated from the current source tree.",
+  "skillsPath": "guide/skills"
+}

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - "1.0.*"
+      - "release/**"
+      - "maintenance/**"
+  workflow_dispatch:
+    inputs:
+      gate:
+        description: Gate to run
+        required: true
+        default: core
+        type: choice
+        options:
+          - fast
+          - core
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-contracts:
+    name: Fast contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Restore Core
+        run: dotnet restore bukit-core.slnx
+      - name: Run fast gate
+        run: bash scripts/gates/ci-fast.sh Release
+
+  core-tests:
+    name: Core tests
+    runs-on: ubuntu-latest
+    needs: fast-contracts
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.gate == 'core' }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Restore tests
+        run: dotnet restore bukit-test.slnx
+      - name: Run Core tests
+        run: BUKIT_CI_FULL_SKIP_FAST=1 bash scripts/gates/ci-full.sh Release
