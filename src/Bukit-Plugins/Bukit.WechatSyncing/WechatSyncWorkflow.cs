@@ -145,26 +145,26 @@ public sealed class WechatSyncWorkflow
         SyncCache cache,
         CancellationToken cancellationToken)
     {
-        var (thumbMediaId, thumbCacheUpdated) = await thumbResolver.ResolveAndUploadThumbAsync(
-            context, candidate.Item, options, cache, cancellationToken);
-
-        var processedHtml = ContentBodyResolver.GetHtml(candidate.Item);
-        if (!options.Passthrough)
-        {
-            processedHtml = ContentProcessor.ProcessContent(processedHtml);
-
-            if (imageProcessor is not null)
-            {
-                processedHtml = await imageProcessor.ProcessImagesAsync(context, processedHtml, options, cancellationToken);
-            }
-        }
-
         Exception? last = null;
         for (var attempt = 1; attempt <= options.MaxAttempts; attempt++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
+                var (thumbMediaId, thumbCacheUpdated) = await thumbResolver.ResolveAndUploadThumbAsync(
+                    context, candidate.Item, options, cache, cancellationToken);
+
+                var processedHtml = ContentBodyResolver.GetHtml(candidate.Item);
+                if (!options.Passthrough)
+                {
+                    processedHtml = ContentProcessor.ProcessContent(processedHtml);
+
+                    if (imageProcessor is not null)
+                    {
+                        processedHtml = await imageProcessor.ProcessImagesAsync(context, processedHtml, options, cancellationToken);
+                    }
+                }
+
                 var req = BuildDraftRequest(candidate, options, thumbMediaId, processedHtml);
 
                 if (req.ContentHtml is { Length: > 0 })

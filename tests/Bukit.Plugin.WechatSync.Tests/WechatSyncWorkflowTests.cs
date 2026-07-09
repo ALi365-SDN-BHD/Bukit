@@ -122,6 +122,28 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_RetriesCoverUploadFailureWithinSyncAttemptBudget()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway { FailUploadThumbOnAttempt = 1 };
+        var workflow = new WechatSyncWorkflow(gateway, delayAsync: (_, _) => Task.CompletedTask);
+        var context = ContextWithCover("<p>Hello</p>", "/assets/cover.png");
+        var options = Options(appId.Name, secret.Name) with
+        {
+            DefaultThumbMediaId = null,
+            MaxAttempts = 2
+        };
+
+        var result = await workflow.RunAsync(context, options);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Synced);
+        Assert.Equal(2, gateway.UploadThumbCount);
+        Assert.Equal(1, gateway.AddDraftCount);
+    }
+
+    [Fact]
     public void SyncCacheManager_RejectsAbsoluteCachePathOutsideProjectRoot()
     {
         var outside = Path.Combine(Path.GetTempPath(), "bukit-wechat-outside-" + Guid.NewGuid().ToString("N"), "cache.json");
@@ -171,6 +193,29 @@ public sealed class WechatSyncWorkflowTests : IDisposable
 
     private WechatSyncContext Context(string html)
         => Context(("post-1", "page-1", html));
+
+    private WechatSyncContext ContextWithCover(string html, string coverPath)
+    {
+        var context = Context(html);
+        var assetsDir = Path.Combine(context.OutputDir, "assets");
+        Directory.CreateDirectory(assetsDir);
+        File.WriteAllBytes(Path.Combine(assetsDir, "cover.png"), TinyPng);
+
+        var (item, route) = context.Routed[0];
+        var fields = item.Fields.ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+        fields["cover"] = new WechatSyncField("string", coverPath);
+
+        return new WechatSyncContext
+        {
+            RootDir = context.RootDir,
+            OutputDir = context.OutputDir,
+            BaseUrl = context.BaseUrl,
+            SiteName = context.SiteName,
+            SiteUrl = context.SiteUrl,
+            Logger = context.Logger,
+            Routed = [(item with { Fields = fields }, route)]
+        };
+    }
 
     private WechatSyncContext Context(params (string Id, string SourceId, string Html)[] entries)
     {
@@ -231,8 +276,10 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     private sealed class FakeWechatDraftGateway : IWechatDraftGateway
     {
         public int AddDraftCount { get; private set; }
+        public int UploadThumbCount { get; private set; }
         public int PublishStatus { get; init; }
         public int? FailAddDraftOnAttempt { get; init; }
+        public int? FailUploadThumbOnAttempt { get; init; }
 
         public Task<string> AddDraftAsync(WechatDraftRequest request, CancellationToken cancellationToken)
         {
@@ -246,7 +293,15 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         }
 
         public Task<string> UploadThumbAsync(byte[] bytes, string fileName, string contentType, CancellationToken cancellationToken)
-            => Task.FromResult("uploaded-thumb");
+        {
+            UploadThumbCount++;
+            if (UploadThumbCount == FailUploadThumbOnAttempt)
+            {
+                throw new InvalidOperationException("thumb upload failed");
+            }
+
+            return Task.FromResult("uploaded-thumb");
+        }
 
         public Task<string> UploadContentImageAsync(byte[] bytes, string fileName, string contentType, CancellationToken cancellationToken)
             => Task.FromResult("https://mmbiz.qpic.cn/image.jpg");
@@ -276,4 +331,17 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         public void Dispose()
             => Environment.SetEnvironmentVariable(_name, _previous);
     }
+
+    private static readonly byte[] TinyPng =
+    [
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+        0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41,
+        0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+        0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+        0x42, 0x60, 0x82
+    ];
 }

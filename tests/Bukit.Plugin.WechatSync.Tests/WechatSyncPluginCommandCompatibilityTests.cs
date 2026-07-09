@@ -5,6 +5,8 @@ namespace Bukit.Plugin.WechatSync.Tests;
 
 public sealed class WechatSyncPluginCommandCompatibilityTests
 {
+    private static readonly string RepoRoot = FindRepoRoot();
+
     private static readonly string[] SyncOptions =
     [
         "--output",
@@ -70,5 +72,41 @@ public sealed class WechatSyncPluginCommandCompatibilityTests
         Assert.Contains("WECHAT_APP_ID", response.RequiredPermissions.Environment.Read);
         Assert.Contains("WECHAT_APP_SECRET", response.RequiredPermissions.Environment.Read);
         Assert.Contains("BUKIT_WECHAT_FORCE_RETRY", response.RequiredPermissions.Environment.Read);
+    }
+
+    [Fact]
+    public void MinimalExample_DocumentsManifestAsCompatibilityFixtureUntilReleasePackageExists()
+    {
+        var readmePath = Path.Combine(
+            RepoRoot,
+            "src",
+            "Bukit-Plugins",
+            "Bukit.Plugin.WechatSync",
+            "examples",
+            "minimal",
+            "README.md");
+
+        Assert.True(File.Exists(readmePath), $"Missing WeChat sync minimal fixture README: {readmePath}");
+        var text = File.ReadAllText(readmePath);
+
+        Assert.Contains("compatibility fixture", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not a runnable release package", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("placeholder sha256", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FindRepoRoot()
+    {
+        string? current = AppContext.BaseDirectory;
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current, "bukit-core.slnx")))
+            {
+                return current;
+            }
+
+            current = Directory.GetParent(current)?.FullName;
+        }
+
+        throw new InvalidOperationException("Could not locate repository root.");
     }
 }

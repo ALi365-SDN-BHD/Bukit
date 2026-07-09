@@ -53,6 +53,8 @@ public sealed record WechatDraftRequest(
 /// </summary>
 internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
 {
+    internal const int MaxDownloadedImageBytes = ImageConverter.MaterialImageMaxBytes;
+
     private readonly HttpClient _httpClient;
     private readonly Bukit.Shared.ILogger _logger;
     private readonly string _appId;
@@ -614,8 +616,15 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         }
 
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-        using var resp = await httpClient.GetAsync(uri, cancellationToken);
-        var bytes = await resp.Content.ReadAsByteArrayAsync(cancellationToken);
+        using var resp = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (resp.Content.Headers.ContentLength is long contentLength &&
+            contentLength > MaxDownloadedImageBytes)
+        {
+            throw new InvalidOperationException(
+                $"wechat thumb download too large imageUrl={url} size={contentLength} max={MaxDownloadedImageBytes}");
+        }
+
+        var bytes = await ReadContentWithLimitAsync(resp.Content, MaxDownloadedImageBytes, url, cancellationToken);
         if (!resp.IsSuccessStatusCode)
         {
             var detail = SanitizeErrorResponseBody(bytes);
@@ -628,6 +637,33 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         }
 
         return bytes;
+    }
+
+    private static async Task<byte[]> ReadContentWithLimitAsync(
+        HttpContent content,
+        int maxBytes,
+        string url,
+        CancellationToken cancellationToken)
+    {
+        await using var stream = await content.ReadAsStreamAsync(cancellationToken);
+        using var buffer = new MemoryStream(capacity: Math.Min(maxBytes, 81920));
+        var chunk = new byte[81920];
+        while (true)
+        {
+            var read = await stream.ReadAsync(chunk.AsMemory(0, chunk.Length), cancellationToken);
+            if (read == 0)
+            {
+                return buffer.ToArray();
+            }
+
+            if (buffer.Length + read > maxBytes)
+            {
+                throw new InvalidOperationException(
+                    $"wechat thumb download too large imageUrl={url} max={maxBytes}");
+            }
+
+            buffer.Write(chunk, 0, read);
+        }
     }
 
     public void Dispose() => _httpClient.Dispose();
