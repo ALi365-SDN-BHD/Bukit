@@ -349,7 +349,16 @@ internal static class WechatSyncHelpers
             normalizedBase = normalizedBase.TrimEnd('/');
         }
 
-        var route = routeUrl.StartsWith('/') ? routeUrl : "/" + routeUrl;
+        var route = string.IsNullOrWhiteSpace(routeUrl) ? "/" : routeUrl.Trim();
+        route = route.StartsWith('/') ? route : "/" + route;
+
+        if (normalizedBase != "/" &&
+            (route.Equals(normalizedBase, StringComparison.OrdinalIgnoreCase) ||
+             route.StartsWith(normalizedBase + "/", StringComparison.OrdinalIgnoreCase)))
+        {
+            return $"{site}{route}";
+        }
+
         return normalizedBase == "/" ? $"{site}{route}" : $"{site}{normalizedBase}{route}";
     }
 

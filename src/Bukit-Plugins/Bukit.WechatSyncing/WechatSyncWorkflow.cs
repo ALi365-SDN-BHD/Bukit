@@ -186,7 +186,7 @@ public sealed class WechatSyncWorkflow
                 var draftId = await gateway.AddDraftAsync(req, cancellationToken);
                 return (draftId, thumbCacheUpdated);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 last = ex;
                 if (attempt >= options.MaxAttempts)
@@ -252,7 +252,7 @@ public sealed class WechatSyncWorkflow
             context.Logger.Warn($"plugin wechat-sync publish status poll timeout: publishId={publishId} after {maxPolls} polls");
             return false;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             context.Logger.Warn($"plugin wechat-sync publish failed: {ex.Message}");
             return false;

@@ -217,8 +217,13 @@ internal sealed class ThumbResolver
             return null;
         }
 
-        var bytes = await File.ReadAllBytesAsync(localPath, cancellationToken);
-        if (bytes.Length == 0)
+        var bytes = await ImageConverter.TryReadImageFileWithLimitAsync(
+            localPath,
+            ImageConverter.MaterialImageMaxBytes,
+            "cover local file",
+            _logger,
+            cancellationToken);
+        if (bytes is null || bytes.Length == 0)
         {
             return null;
         }
@@ -249,7 +254,7 @@ internal sealed class ThumbResolver
             var contentType = GuessImageContentType(fileName);
             return await TryUploadIfSupportedAsync(bytes, fileName, contentType, cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Warn($"plugin wechat-sync download and upload failed url={absoluteUrl}: {ex.Message}");
             return null;
@@ -312,8 +317,13 @@ internal sealed class ThumbResolver
 
         try
         {
-            var bytes = await File.ReadAllBytesAsync(filePath, cancellationToken);
-            if (bytes.Length == 0)
+            var bytes = await ImageConverter.TryReadImageFileWithLimitAsync(
+                filePath,
+                ImageConverter.MaterialImageMaxBytes,
+                "cover media cache file",
+                _logger,
+                cancellationToken);
+            if (bytes is null || bytes.Length == 0)
             {
                 _logger.Warn("plugin wechat-sync local media cache file has zero bytes");
                 return null;
@@ -336,7 +346,7 @@ internal sealed class ThumbResolver
             cache.ThumbMediaIds[thumbKey] = uploaded;
             return uploaded;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Warn($"plugin wechat-sync local media cache upload failed: {ex.Message}");
             return null;
@@ -373,7 +383,17 @@ internal sealed class ThumbResolver
 
                     try
                     {
-                        var bytes = File.ReadAllBytes(filePath);
+                        var bytes = await ImageConverter.TryReadImageFileWithLimitAsync(
+                            filePath,
+                            ImageConverter.MaterialImageMaxBytes,
+                            "defaultImageUrl local file",
+                            _logger,
+                            cancellationToken);
+                        if (bytes is null)
+                        {
+                            return cfg.DefaultThumbMediaId?.Trim();
+                        }
+
                         var fileName = Path.GetFileName(filePath);
                         if (string.IsNullOrWhiteSpace(Path.GetExtension(fileName)))
                         {
@@ -390,7 +410,7 @@ internal sealed class ThumbResolver
 
                         return uploaded ?? cfg.DefaultThumbMediaId?.Trim();
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         _logger.Warn($"plugin wechat-sync defaultImageUrl local upload failed, fallback to wechat.defaultThumbMediaId: {ex.Message}");
                         return cfg.DefaultThumbMediaId?.Trim();
@@ -456,7 +476,7 @@ internal sealed class ThumbResolver
 
             return uploaded;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Warn($"plugin wechat-sync defaultImageUrl download failed, fallback to wechat.defaultThumbMediaId: {ex.Message}");
             return null;

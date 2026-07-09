@@ -79,6 +79,281 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         Assert.Equal(2, gateway.AddDraftCount);
     }
 
+    [Theory]
+    [MemberData(nameof(DraftRequestOptionChanges))]
+    public async Task RunAsync_DraftRequestOptionChangeBypassesExistingCacheRecord(
+        string caseName,
+        Func<WechatSyncOptions, WechatSyncOptions> mutateOptions,
+        Action<WechatDraftRequest> assertRequest)
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(gateway);
+        var context = Context("<p>Hello</p>");
+        var options = Options(appId.Name, secret.Name);
+
+        Assert.False(string.IsNullOrWhiteSpace(caseName));
+
+        var first = await workflow.RunAsync(context, options);
+        var second = await workflow.RunAsync(context, mutateOptions(options));
+
+        Assert.True(first.Success);
+        Assert.True(second.Success);
+        Assert.Equal(1, second.Synced);
+        Assert.Equal(0, second.Skipped);
+        Assert.Equal(2, gateway.AddDraftCount);
+        assertRequest(gateway.Requests[^1]);
+    }
+
+    public static IEnumerable<object[]> DraftRequestOptionChanges()
+    {
+        yield return
+        [
+            "author",
+            new Func<WechatSyncOptions, WechatSyncOptions>(options => options with { Author = "Writer" }),
+            new Action<WechatDraftRequest>(request => Assert.Equal("Writer", request.Author))
+        ];
+
+        yield return
+        [
+            "comment-options",
+            new Func<WechatSyncOptions, WechatSyncOptions>(options => options with
+            {
+                NeedOpenComment = true,
+                OnlyFansCanComment = true
+            }),
+            new Action<WechatDraftRequest>(request =>
+            {
+                Assert.True(request.NeedOpenComment);
+                Assert.True(request.OnlyFansCanComment);
+            })
+        ];
+
+        yield return
+        [
+            "content-source-url",
+            new Func<WechatSyncOptions, WechatSyncOptions>(options => options with
+            {
+                SiteUrl = "https://changed.example",
+                BaseUrl = "/docs"
+            }),
+            new Action<WechatDraftRequest>(request => Assert.Equal("https://changed.example/docs/posts/post-1/", request.ContentSourceUrl))
+        ];
+
+        yield return
+        [
+            "default-thumb-media-id",
+            new Func<WechatSyncOptions, WechatSyncOptions>(options => options with { DefaultThumbMediaId = "thumb-media-id-2" }),
+            new Action<WechatDraftRequest>(request => Assert.Equal("thumb-media-id-2", request.ThumbMediaId))
+        ];
+    }
+
+    [Fact]
+    public async Task RunAsync_ContentSourceUrlDoesNotDuplicateConfiguredBaseUrl()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(gateway);
+        var context = Context("<p>Hello</p>");
+        var (item, route) = context.Routed[0];
+        context = new WechatSyncContext
+        {
+            RootDir = context.RootDir,
+            OutputDir = context.OutputDir,
+            BaseUrl = "/docs",
+            SiteName = context.SiteName,
+            SiteUrl = context.SiteUrl,
+            MediaDownloadDir = context.MediaDownloadDir,
+            Logger = context.Logger,
+            Routed = [(item, route with { Url = "/docs/posts/post-1/" })]
+        };
+        var options = Options(appId.Name, secret.Name) with
+        {
+            SiteUrl = "https://example.com",
+            BaseUrl = "/docs"
+        };
+
+        var result = await workflow.RunAsync(context, options);
+
+        Assert.True(result.Success);
+        Assert.Equal("https://example.com/docs/posts/post-1/", gateway.Requests.Single().ContentSourceUrl);
+    }
+
+    [Fact]
+    public async Task RunAsync_PropagatesCancellationFromDraftUploadWithoutRetrying()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway { CancelAddDraft = true };
+        var workflow = new WechatSyncWorkflow(gateway, delayAsync: (_, _) => Task.CompletedTask);
+        var options = Options(appId.Name, secret.Name) with { MaxAttempts = 2 };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.RunAsync(Context("<p>Hello</p>"), options));
+
+        Assert.Equal(1, gateway.AddDraftCount);
+    }
+
+    [Fact]
+    public async Task RunAsync_PropagatesCancellationFromPublish()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway { CancelPublish = true };
+        var workflow = new WechatSyncWorkflow(gateway, delayAsync: (_, _) => Task.CompletedTask);
+        var options = Options(appId.Name, secret.Name) with
+        {
+            Target = "publish",
+            PublishPollMaxAttempts = 1,
+            PublishPollIntervalSeconds = 1
+        };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => workflow.RunAsync(Context("<p>Hello</p>"), options));
+    }
+
+    [Fact]
+    public async Task RunAsync_PropagatesCancellationFromImageDownload()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(
+            gateway,
+            downloadImageAsync: (_, _) => throw new OperationCanceledException("download canceled"));
+        var options = Options(appId.Name, secret.Name) with { ProcessImages = true };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            workflow.RunAsync(Context("""<p><img src="https://cdn.example.com/image.png"></p>"""), options));
+
+        Assert.Equal(0, gateway.AddDraftCount);
+    }
+
+    [Fact]
+    public async Task ContentImageProcessor_RejectsOversizedLocalImageBeforeConversion()
+    {
+        var logger = new RecordingLogger();
+        var gateway = new FakeWechatDraftGateway();
+        var processor = new ContentImageProcessor(
+            gateway,
+            (_, _) => throw new InvalidOperationException("network should not be used for local image"),
+            logger);
+        var baseContext = Context("""<p><img src="/assets/huge.png"></p>""");
+        var context = WithLogger(baseContext, logger);
+        var assetsDir = Path.Combine(context.OutputDir, "assets");
+        Directory.CreateDirectory(assetsDir);
+        WritePngLikeFile(Path.Combine(assetsDir, "huge.png"), ImageConverter.ContentImageMaxBytes + 1);
+
+        var html = await processor.ProcessImagesAsync(
+            context,
+            """<p><img src="/assets/huge.png"></p>""",
+            Options("app", "secret") with { ProcessImages = true },
+            CancellationToken.None);
+
+        Assert.Contains("/assets/huge.png", html, StringComparison.Ordinal);
+        Assert.Equal(0, gateway.UploadContentImageCount);
+        Assert.Contains(logger.Warnings, warning => warning.Contains("too large", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ContentImageProcessor_RejectsOversizedMediaCacheImageBeforeConversion()
+    {
+        var logger = new RecordingLogger();
+        var gateway = new FakeWechatDraftGateway();
+        var processor = new ContentImageProcessor(
+            gateway,
+            (_, _) => throw new InvalidOperationException("network should not be used after oversized cache hit"),
+            logger);
+        var cacheDir = Path.Combine(_rootDir, ".cache", "media");
+        Directory.CreateDirectory(cacheDir);
+        WritePngLikeFile(Path.Combine(cacheDir, "huge.png"), ImageConverter.ContentImageMaxBytes + 1);
+        File.WriteAllText(Path.Combine(cacheDir, ".media-index.json"), """
+{
+  "https://cdn.example.com/huge.png": "huge.png"
+}
+""");
+        var context = WithMediaDownloadDir(
+            WithLogger(Context("""<p><img src="https://cdn.example.com/huge.png"></p>"""), logger),
+            cacheDir);
+
+        var html = await processor.ProcessImagesAsync(
+            context,
+            """<p><img src="https://cdn.example.com/huge.png"></p>""",
+            Options("app", "secret") with { ProcessImages = true },
+            CancellationToken.None);
+
+        Assert.Contains("https://cdn.example.com/huge.png", html, StringComparison.Ordinal);
+        Assert.Equal(0, gateway.UploadContentImageCount);
+        Assert.Contains(logger.Warnings, warning => warning.Contains("too large", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ThumbResolver_RejectsOversizedLocalCoverBeforeConversion()
+    {
+        var logger = new RecordingLogger();
+        var gateway = new FakeWechatDraftGateway();
+        var resolver = new ThumbResolver(
+            gateway,
+            (_, _) => throw new InvalidOperationException("network should not be used for local cover"),
+            logger);
+        var context = WithLogger(ContextWithCover("<p>Hello</p>", "/assets/cover.png"), logger);
+        WritePngLikeFile(Path.Combine(context.OutputDir, "assets", "cover.png"), ImageConverter.MaterialImageMaxBytes + 1);
+        var options = Options("app", "secret") with
+        {
+            DefaultThumbMediaId = null,
+            DefaultImageUrl = null
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            resolver.ResolveAndUploadThumbAsync(
+                context,
+                context.Routed[0].Item,
+                options,
+                new SyncCache(2, new Dictionary<string, SyncRecord>(StringComparer.Ordinal)),
+                CancellationToken.None));
+
+        Assert.Equal(0, gateway.UploadThumbCount);
+        Assert.Contains(logger.Warnings, warning => warning.Contains("too large", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ThumbResolver_RejectsOversizedMediaCacheCoverBeforeConversion()
+    {
+        var logger = new RecordingLogger();
+        var gateway = new FakeWechatDraftGateway();
+        var resolver = new ThumbResolver(
+            gateway,
+            (_, _) => Task.FromResult(Array.Empty<byte>()),
+            logger);
+        var cacheDir = Path.Combine(_rootDir, ".cache", "media");
+        Directory.CreateDirectory(cacheDir);
+        WritePngLikeFile(Path.Combine(cacheDir, "huge.png"), ImageConverter.MaterialImageMaxBytes + 1);
+        File.WriteAllText(Path.Combine(cacheDir, ".media-index.json"), """
+{
+  "https://cdn.example.com/cover.png": "huge.png"
+}
+""");
+        var context = WithMediaDownloadDir(
+            WithLogger(ContextWithCover("<p>Hello</p>", "https://cdn.example.com/cover.png"), logger),
+            cacheDir);
+        var options = Options("app", "secret") with
+        {
+            DefaultThumbMediaId = null,
+            DefaultImageUrl = null
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            resolver.ResolveAndUploadThumbAsync(
+                context,
+                context.Routed[0].Item,
+                options,
+                new SyncCache(2, new Dictionary<string, SyncRecord>(StringComparer.Ordinal)),
+                CancellationToken.None));
+
+        Assert.Equal(0, gateway.UploadThumbCount);
+        Assert.Contains(logger.Warnings, warning => warning.Contains("too large", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public async Task RunAsync_PublishFailureDoesNotMarkCandidateSyncedOrWriteSuccessfulCacheRecord()
     {
@@ -253,6 +528,32 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         };
     }
 
+    private static WechatSyncContext WithLogger(WechatSyncContext context, ILogger logger)
+        => new()
+        {
+            RootDir = context.RootDir,
+            OutputDir = context.OutputDir,
+            BaseUrl = context.BaseUrl,
+            SiteName = context.SiteName,
+            SiteUrl = context.SiteUrl,
+            MediaDownloadDir = context.MediaDownloadDir,
+            Logger = logger,
+            Routed = context.Routed
+        };
+
+    private static WechatSyncContext WithMediaDownloadDir(WechatSyncContext context, string mediaDownloadDir)
+        => new()
+        {
+            RootDir = context.RootDir,
+            OutputDir = context.OutputDir,
+            BaseUrl = context.BaseUrl,
+            SiteName = context.SiteName,
+            SiteUrl = context.SiteUrl,
+            MediaDownloadDir = mediaDownloadDir,
+            Logger = context.Logger,
+            Routed = context.Routed
+        };
+
     private static WechatSyncOptions Options(string appIdEnv, string appSecretEnv)
         => new(
             SourceNames: [],
@@ -277,13 +578,23 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     {
         public int AddDraftCount { get; private set; }
         public int UploadThumbCount { get; private set; }
+        public int UploadContentImageCount { get; private set; }
+        public List<WechatDraftRequest> Requests { get; } = [];
         public int PublishStatus { get; init; }
         public int? FailAddDraftOnAttempt { get; init; }
         public int? FailUploadThumbOnAttempt { get; init; }
+        public bool CancelAddDraft { get; init; }
+        public bool CancelPublish { get; init; }
 
         public Task<string> AddDraftAsync(WechatDraftRequest request, CancellationToken cancellationToken)
         {
             AddDraftCount++;
+            Requests.Add(request);
+            if (CancelAddDraft)
+            {
+                throw new OperationCanceledException("draft canceled");
+            }
+
             if (AddDraftCount == FailAddDraftOnAttempt)
             {
                 throw new InvalidOperationException("draft failed");
@@ -304,10 +615,20 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         }
 
         public Task<string> UploadContentImageAsync(byte[] bytes, string fileName, string contentType, CancellationToken cancellationToken)
-            => Task.FromResult("https://mmbiz.qpic.cn/image.jpg");
+        {
+            UploadContentImageCount++;
+            return Task.FromResult("https://mmbiz.qpic.cn/image.jpg");
+        }
 
         public Task<string> PublishAsync(string mediaId, CancellationToken cancellationToken)
-            => Task.FromResult("publish-1");
+        {
+            if (CancelPublish)
+            {
+                throw new OperationCanceledException("publish canceled");
+            }
+
+            return Task.FromResult("publish-1");
+        }
 
         public Task<WechatPublishStatusResult> CheckPublishStatusAsync(string publishId, CancellationToken cancellationToken)
             => Task.FromResult(new WechatPublishStatusResult(publishId, PublishStatus, null));
@@ -330,6 +651,33 @@ public sealed class WechatSyncWorkflowTests : IDisposable
 
         public void Dispose()
             => Environment.SetEnvironmentVariable(_name, _previous);
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<string> Warnings { get; } = [];
+
+        public void Debug(string message)
+        {
+        }
+
+        public void Info(string message)
+        {
+        }
+
+        public void Warn(string message)
+            => Warnings.Add(message);
+
+        public void Error(string message)
+        {
+        }
+    }
+
+    private static void WritePngLikeFile(string path, int length)
+    {
+        var bytes = new byte[length];
+        TinyPng.CopyTo(bytes, 0);
+        File.WriteAllBytes(path, bytes);
     }
 
     private static readonly byte[] TinyPng =

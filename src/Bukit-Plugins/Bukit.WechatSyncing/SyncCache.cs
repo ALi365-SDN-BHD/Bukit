@@ -87,11 +87,26 @@ internal static class SyncCacheManager
         WechatSyncOptions options)
     {
         using var sha = SHA256.Create();
+        var author = string.IsNullOrWhiteSpace(options.Author) ? options.SiteName : options.Author;
+        var contentSourceUrl = WechatSyncHelpers.CombineAbsoluteUrl(options.SiteUrl, options.BaseUrl, route.Url);
+        var summary = WechatSyncHelpers.ReadMetaString(item.Metadata, "summary");
+        var thumbSource = ThumbResolver.ResolveThumbSource(item, options) ?? string.Empty;
         var payload = string.Join('\n',
+            "wechat-sync-cache-v3",
             item.Id,
             item.Title ?? string.Empty,
             html,
             route.Url,
+            summary,
+            author,
+            contentSourceUrl,
+            thumbSource,
+            options.DefaultThumbMediaId ?? string.Empty,
+            options.DefaultImageUrl ?? string.Empty,
+            options.NeedOpenComment.ToString(),
+            options.OnlyFansCanComment.ToString(),
+            options.SiteUrl ?? string.Empty,
+            options.BaseUrl,
             options.ProcessImages.ToString(),
             options.Passthrough.ToString(),
             options.Target);

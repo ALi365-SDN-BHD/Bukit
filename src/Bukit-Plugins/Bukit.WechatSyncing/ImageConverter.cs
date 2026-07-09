@@ -21,6 +21,61 @@ internal static class ImageConverter
     /// </summary>
     internal const int MaterialImageMaxBytes = 10 * 1024 * 1024;
 
+    internal static async Task<byte[]?> TryReadImageFileWithLimitAsync(
+        string path,
+        int maxBytes,
+        string description,
+        Bukit.Shared.ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var info = new FileInfo(path);
+        if (!info.Exists)
+        {
+            return null;
+        }
+
+        if (info.Length == 0)
+        {
+            logger.Warn($"plugin wechat-sync {description} file empty path={path}");
+            return null;
+        }
+
+        if (info.Length > maxBytes)
+        {
+            logger.Warn($"plugin wechat-sync {description} too large path={path} size={info.Length} max={maxBytes}");
+            return null;
+        }
+
+        return await File.ReadAllBytesAsync(path, cancellationToken);
+    }
+
+    internal static byte[]? TryReadImageFileWithLimit(
+        string path,
+        int maxBytes,
+        string description,
+        Bukit.Shared.ILogger logger)
+    {
+        var info = new FileInfo(path);
+        if (!info.Exists)
+        {
+            return null;
+        }
+
+        if (info.Length == 0)
+        {
+            logger.Warn($"plugin wechat-sync {description} file empty path={path}");
+            return null;
+        }
+
+        if (info.Length > maxBytes)
+        {
+            logger.Warn($"plugin wechat-sync {description} too large path={path} size={info.Length} max={maxBytes}");
+            return null;
+        }
+
+        return File.ReadAllBytes(path);
+    }
+
     /// <summary>
     /// Ensures image bytes are in a WeChat-compatible format (JPEG or PNG)
     /// and within the specified size limit. Converts and/or compresses as needed.

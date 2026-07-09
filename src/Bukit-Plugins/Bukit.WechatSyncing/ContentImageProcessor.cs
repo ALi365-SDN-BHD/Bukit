@@ -171,7 +171,7 @@ internal sealed class ContentImageProcessor
 
             return BuildReplacedImgTag(imgTag, wechatUrl, candidateUrl);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Warn($"plugin wechat-sync inline image upload failed for {absoluteUrl}: {ex.Message}");
             return null;
@@ -301,22 +301,36 @@ internal sealed class ContentImageProcessor
         if (!string.Equals(candidateUrl, absoluteUrl, StringComparison.Ordinal) &&
             ThumbResolver.TryResolveLocalAssetPath(context, candidateUrl, out var localPath1))
         {
-            if (File.Exists(localPath1) && new FileInfo(localPath1).Length > 0)
+            var bytes = await ImageConverter.TryReadImageFileWithLimitAsync(
+                localPath1,
+                ImageConverter.ContentImageMaxBytes,
+                "inline image local file",
+                _logger,
+                cancellationToken);
+            if (bytes is not null)
             {
                 _logger.Info($"plugin wechat-sync resolved image from local path (candidateUrl): {candidateUrl}");
-                return await File.ReadAllBytesAsync(localPath1, cancellationToken);
             }
+
+            return bytes;
         }
 
         // 2. Try resolving the absoluteUrl to a local file
         //    (TryResolveLocalAssetPath now strips site domain, so https://0060.my/assets/... works)
         if (ThumbResolver.TryResolveLocalAssetPath(context, absoluteUrl, out var localPath2))
         {
-            if (File.Exists(localPath2) && new FileInfo(localPath2).Length > 0)
+            var bytes = await ImageConverter.TryReadImageFileWithLimitAsync(
+                localPath2,
+                ImageConverter.ContentImageMaxBytes,
+                "inline image local file",
+                _logger,
+                cancellationToken);
+            if (bytes is not null)
             {
                 _logger.Info($"plugin wechat-sync resolved image from local path (absoluteUrl): {absoluteUrl}");
-                return await File.ReadAllBytesAsync(localPath2, cancellationToken);
             }
+
+            return bytes;
         }
 
         // 3. Try media cache: look up .media-index.json and hash-based filenames
@@ -332,7 +346,7 @@ internal sealed class ContentImageProcessor
         {
             return await _downloadImageAsync(absoluteUrl, cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Warn($"plugin wechat-sync inline image download failed url={absoluteUrl}: {ex.Message}");
             return null;
@@ -363,10 +377,14 @@ internal sealed class ContentImageProcessor
         var indexPath = ThumbResolver.TryResolveFromMediaIndex(downloadDir, normalizedKey);
         if (!string.IsNullOrWhiteSpace(indexPath) && File.Exists(indexPath))
         {
-            var info = new FileInfo(indexPath);
-            if (info.Length > 0)
+            var bytes = ImageConverter.TryReadImageFileWithLimit(
+                indexPath,
+                ImageConverter.ContentImageMaxBytes,
+                "inline image media cache file",
+                _logger);
+            if (bytes is not null)
             {
-                return File.ReadAllBytes(indexPath);
+                return bytes;
             }
         }
 
@@ -374,11 +392,11 @@ internal sealed class ContentImageProcessor
         var hashPath = ThumbResolver.TryResolveFromMediaHashName(downloadDir, normalizedKey, absoluteUrl);
         if (!string.IsNullOrWhiteSpace(hashPath) && File.Exists(hashPath))
         {
-            var info = new FileInfo(hashPath);
-            if (info.Length > 0)
-            {
-                return File.ReadAllBytes(hashPath);
-            }
+            return ImageConverter.TryReadImageFileWithLimit(
+                hashPath,
+                ImageConverter.ContentImageMaxBytes,
+                "inline image media cache file",
+                _logger);
         }
 
         return null;
