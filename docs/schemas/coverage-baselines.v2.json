@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/coverage-baselines.v2.json",
+  "title": "Bukit Core Coverage Baselines",
+  "type": "object",
+  "required": ["version", "scope", "metric", "sourceRoot", "minimums"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": "2.0.0"
+    },
+    "scope": {
+      "const": "core"
+    },
+    "metric": {
+      "const": "line"
+    },
+    "sourceRoot": {
+      "const": "src/Bukit-Core"
+    },
+    "minimums": {
+      "type": "object",
+      "required": ["overall", "projectFloor"],
+      "properties": {
+        "overall": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "projectFloor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

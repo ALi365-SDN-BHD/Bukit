@@ -9,6 +9,7 @@ artifact-driven.
 - Config schema and strict validation.
 - Native AOT publishing.
 - Release artifact packaging.
+- Core coverage summary from `scripts/checks/coverage.sh`.
 - Smoke tests against packaged binaries.
 - SEO, GEO, publish, security, and route report schemas.
 - README and guide links.
@@ -22,3 +23,11 @@ without running expensive release work.
 `scripts/gates/ci-full.sh` is the Core source gate: it runs `ci-fast` and the
 explicit Core test project list in `scripts/checks/core-tests.sh`. Release
 artifact checks must still be invoked explicitly during release tasks.
+
+Core coverage is separate from `ci-full` so it can print visible per-project
+progress. Run:
+
+```bash
+bash scripts/checks/coverage-baseline-schema.sh
+bash scripts/checks/coverage.sh Release
+```

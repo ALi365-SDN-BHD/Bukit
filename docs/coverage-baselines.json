@@ -1,21 +1,11 @@
 {
-  "version": "1.0.3",
-  "core": {
-    "blocking": true,
-    "minimum": 80
-  },
-  "cli": {
-    "blocking": true,
-    "minimum": 75
-  },
-  "importing": {
-    "blocking": false,
-    "trackedOnly": true,
-    "baseline": 39.70
-  },
-  "labs": {
-    "blocking": false,
-    "trackedOnly": true,
-    "baseline": 62.96
+  "$schema": "schemas/coverage-baselines.v2.json",
+  "version": "2.0.0",
+  "scope": "core",
+  "metric": "line",
+  "sourceRoot": "src/Bukit-Core",
+  "minimums": {
+    "overall": 84.0,
+    "projectFloor": 70.0
   }
 }

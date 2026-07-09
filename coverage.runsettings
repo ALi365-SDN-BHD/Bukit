@@ -4,7 +4,6 @@
     <DataCollectors>
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
-          <Exclude>[PathReportPlugin]*,[ThrowingPlugin]*,[Bukit.Shared]System.Text.RegularExpressions.Generated.*,[Bukit.Theme]*</Exclude>
           <ExcludeByFile>**/obj/**/*.g.cs</ExcludeByFile>
         </Configuration>
       </DataCollector>

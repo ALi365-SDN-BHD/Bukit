@@ -5,108 +5,86 @@ namespace Bukit.Architecture.Tests;
 public sealed class CoverageGateTests
 {
     [Fact]
-    public void CoreCoveragePartition_ExcludesExperimentalAssemblies()
+    public void CoverageEntrypoint_IsThinAndDelegatesToSmallSteps()
     {
         var script = ReadRepoFile("scripts", "checks", "coverage.sh");
 
-        Assert.Contains("-bukit-labs", script, StringComparison.Ordinal);
-        Assert.Contains("-Bukit.Importing", script, StringComparison.Ordinal);
+        Assert.Contains("coverage policy", script, StringComparison.Ordinal);
+        Assert.Contains("coverage project:", script, StringComparison.Ordinal);
+        Assert.Contains("coverage summary", script, StringComparison.Ordinal);
+        Assert.Contains("scripts/checks/coverage/list-core-projects.sh", script, StringComparison.Ordinal);
+        Assert.Contains("scripts/checks/coverage/run-one.sh", script, StringComparison.Ordinal);
+        Assert.Contains("scripts/checks/coverage/find-results.sh", script, StringComparison.Ordinal);
+        Assert.Contains("scripts/checks/coverage/summarize.py", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("--collect:\"XPlat Code Coverage\"", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("coverage.cobertura.xml", script, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void CoverageScript_TracksImportingAndLabsSeparately()
+    public void CoverageSmallScripts_ArePresentAndSinglePurpose()
     {
-        var script = ReadRepoFile("scripts", "checks", "coverage.sh");
+        var listProjects = ReadRepoFile("scripts", "checks", "coverage", "list-core-projects.sh");
+        var runOne = ReadRepoFile("scripts", "checks", "coverage", "run-one.sh");
+        var findResults = ReadRepoFile("scripts", "checks", "coverage", "find-results.sh");
+        var summarize = ReadRepoFile("scripts", "checks", "coverage", "summarize.py");
+        var validatePolicy = ReadRepoFile("scripts", "checks", "coverage", "validate-policy.py");
 
-        Assert.Contains("importing_coverage_report_dir", script, StringComparison.Ordinal);
-        Assert.Contains("labs_coverage_report_dir", script, StringComparison.Ordinal);
-        Assert.Contains("+Bukit.Importing", script, StringComparison.Ordinal);
-        Assert.Contains("+bukit-labs", script, StringComparison.Ordinal);
-        Assert.Contains("IMPORTING_COVERAGE_THRESHOLD", script, StringComparison.Ordinal);
-        Assert.Contains("LABS_COVERAGE_THRESHOLD", script, StringComparison.Ordinal);
-        Assert.Contains("print_coverage_status \"importing\"", script, StringComparison.Ordinal);
-        Assert.Contains("print_coverage_status \"labs\"", script, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj", listProjects, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Theme.Tests/Bukit.Theme.Tests.csproj", listProjects, StringComparison.Ordinal);
+        Assert.DoesNotContain("tests/Bukit.Importing.Tests", listProjects, StringComparison.Ordinal);
+        Assert.DoesNotContain("tests/Bukit.Labs.Cli.Tests", listProjects, StringComparison.Ordinal);
+        Assert.Contains("--collect:XPlat Code Coverage", runOne, StringComparison.Ordinal);
+        Assert.Contains("coverage.cobertura.xml", findResults, StringComparison.Ordinal);
+        Assert.Contains("src/Bukit-Core", summarize, StringComparison.Ordinal);
+        Assert.Contains("projectFloor", validatePolicy, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void CoverageScript_UsesExplicitCoreAndCliThresholdVariables()
+    public void CoveragePolicy_IsCoreOnlyV2Contract()
     {
-        var script = ReadRepoFile("scripts", "checks", "coverage.sh");
+        var policy = ReadRepoFile("docs", "coverage-baselines.json");
+        var repoRoot = FindRepoRoot();
 
-        Assert.Contains("CORE_COVERAGE_THRESHOLD", script, StringComparison.Ordinal);
-        Assert.Contains("CLI_COVERAGE_THRESHOLD", script, StringComparison.Ordinal);
+        Assert.Contains("\"version\": \"2.0.0\"", policy, StringComparison.Ordinal);
+        Assert.Contains("\"scope\": \"core\"", policy, StringComparison.Ordinal);
+        Assert.Contains("\"metric\": \"line\"", policy, StringComparison.Ordinal);
+        Assert.Contains("\"overall\": 84.0", policy, StringComparison.Ordinal);
+        Assert.Contains("\"projectFloor\": 70.0", policy, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"cli\"", policy, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"importing\"", policy, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"labs\"", policy, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"blocking\"", policy, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(repoRoot, "docs", "schemas", "coverage-baselines.v2.json")));
+        Assert.False(File.Exists(Path.Combine(repoRoot, "docs", "schemas", "coverage-baselines.v1.json")));
     }
 
     [Fact]
-    public void CoverageScript_IncludesImportingTestProject()
-    {
-        var script = ReadRepoFile("scripts", "checks", "coverage.sh");
-
-        Assert.Contains("tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj", script, StringComparison.Ordinal);
-        Assert.Contains("tests/Bukit.Theme.Tests remains intentionally outside the coverage gate", script, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void CoverageScript_CollectsEveryCoverageProjectIntoIsolatedResultsDirectories()
-    {
-        var script = ReadRepoFile("scripts", "checks", "coverage.sh");
-
-        Assert.Contains("coverage_solution_test_projects=(", script, StringComparison.Ordinal);
-        Assert.Contains("tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj", script, StringComparison.Ordinal);
-        Assert.Contains("tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj", script, StringComparison.Ordinal);
-        Assert.Contains("tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj", script, StringComparison.Ordinal);
-        Assert.Contains("tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj", script, StringComparison.Ordinal);
-        Assert.Contains("tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj", script, StringComparison.Ordinal);
-        Assert.Contains("project_results_dir", script, StringComparison.Ordinal);
-        Assert.Contains("expected_coverage_file_count", script, StringComparison.Ordinal);
-        Assert.Contains("-mindepth 3 -maxdepth 3", script, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void CoverageScript_WritesCompleteSummaryContract()
-    {
-        var script = ReadRepoFile("scripts", "checks", "coverage.sh");
-
-        foreach (var key in new[]
-        {
-            "overall",
-            "core",
-            "cli",
-            "importing",
-            "labs",
-            "core_blocking",
-            "cli_blocking",
-            "importing_blocking",
-            "labs_blocking",
-            "core_baseline",
-            "cli_baseline",
-            "importing_baseline",
-            "labs_baseline",
-            "core_threshold",
-            "cli_threshold",
-            "importing_threshold",
-            "labs_threshold"
-        })
-        {
-            Assert.Contains($"printf \"{key}=%s\\n\"", script, StringComparison.Ordinal);
-        }
-    }
-
-    [Fact]
-    public void CoverageBaselineParserContract_IsCoveredBySchemaGate()
+    public void CoverageBaselineParserContract_IsCoveredBySmallPolicyGate()
     {
         var schemaGate = ReadRepoFile("scripts", "checks", "coverage-baseline-schema.sh");
+        var validatePolicy = ReadRepoFile("scripts", "checks", "coverage", "validate-policy.py");
 
-        Assert.Contains("core-blocking-false", schemaGate, StringComparison.Ordinal);
-        Assert.Contains("cli-blocking-false", schemaGate, StringComparison.Ordinal);
-        Assert.Contains("missing-importing-baseline", schemaGate, StringComparison.Ordinal);
-        Assert.Contains("missing-labs-baseline", schemaGate, StringComparison.Ordinal);
-        Assert.Contains("core-minimum-above-100", schemaGate, StringComparison.Ordinal);
-        Assert.Contains("extra-core-property", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("missing-scope", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("plugin-scope", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("overall-above-100", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("legacy-cli-field", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("legacy-labs-field", schemaGate, StringComparison.Ordinal);
+        Assert.Contains("\"scope\"", validatePolicy, StringComparison.Ordinal);
+        Assert.Contains("\"minimums\"", validatePolicy, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TestSolution_IncludesLabsCoverageTestProject()
+    public void CoverageRunsettings_DoesNotExcludeThemeAssembly()
+    {
+        var runsettings = ReadRepoFile("coverage.runsettings");
+
+        Assert.Contains("<ExcludeByFile>**/obj/**/*.g.cs</ExcludeByFile>", runsettings, StringComparison.Ordinal);
+        Assert.DoesNotContain("[Bukit.Theme]*", runsettings, StringComparison.Ordinal);
+        Assert.DoesNotContain("<Exclude>", runsettings, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TestSolution_KeepsRuntimeTestProjectsOnly()
     {
         var solution = ReadRepoFile("bukit-test.slnx");
 
@@ -117,15 +95,19 @@ public sealed class CoverageGateTests
     }
 
     [Fact]
-    public void CiWorkflows_UseExplicitCoreCoverageThresholdVariable()
+    public void CiWorkflows_RunCoreCoverageGateFromYamlWorkflows()
     {
-        var ciWorkflow = ReadRepoFile(".github", "workflows", "ci.yml");
-        var releaseWorkflow = ReadRepoFile(".github", "workflows", "release.yml");
+        var ciWorkflow = ReadRepoFile(".github", "workflows", "ci.yaml");
+        var releaseWorkflow = ReadRepoFile(".github", "workflows", "release.yaml");
 
-        Assert.Contains("CORE_COVERAGE_THRESHOLD:", ciWorkflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("\n      COVERAGE_THRESHOLD:", ciWorkflow, StringComparison.Ordinal);
-        Assert.Contains("CORE_COVERAGE_THRESHOLD:", releaseWorkflow, StringComparison.Ordinal);
-        Assert.DoesNotContain("\n      COVERAGE_THRESHOLD:", releaseWorkflow, StringComparison.Ordinal);
+        Assert.Contains("Core coverage", ciWorkflow, StringComparison.Ordinal);
+        Assert.Contains("bash scripts/checks/coverage-baseline-schema.sh", ciWorkflow, StringComparison.Ordinal);
+        Assert.Contains("bash scripts/checks/coverage.sh Release", ciWorkflow, StringComparison.Ordinal);
+        Assert.Contains("Core coverage", releaseWorkflow, StringComparison.Ordinal);
+        Assert.Contains("bash scripts/checks/coverage-baseline-schema.sh", releaseWorkflow, StringComparison.Ordinal);
+        Assert.Contains("bash scripts/checks/coverage.sh Release", releaseWorkflow, StringComparison.Ordinal);
+        Assert.DoesNotContain(".github/workflows/ci.yml", ciWorkflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("CORE_COVERAGE_THRESHOLD:", ciWorkflow, StringComparison.Ordinal);
     }
 
     private static string ReadRepoFile(params string[] segments)
