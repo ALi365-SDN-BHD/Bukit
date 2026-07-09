@@ -21,8 +21,10 @@ public sealed class PluginBoundaryTests
         "Bukit.Labs.Cli",
         "Bukit.Clone",
         "Bukit.Importing",
+        "Bukit.WechatSyncing",
         "Bukit.Plugin.Echo",
         "Bukit.Plugin.Import",
+        "Bukit.Plugin.WechatSync",
         "WordCountSectionPlugin"
     ];
 
@@ -53,6 +55,7 @@ public sealed class PluginBoundaryTests
         "Bukit.PluginHost",
         "Bukit.Plugin.Echo",
         "Bukit.Plugin.Import",
+        "Bukit.Plugin.WechatSync",
         "Bukit.Rendering",
         "Bukit.Routing",
         "Bukit.Labs.Cli",
@@ -98,6 +101,7 @@ public sealed class PluginBoundaryTests
         "Bukit.Importing",
         "bukit-plugin-echo",
         "bukit-plugin-import",
+        "bukit-plugin-wechat-sync",
         "WordCountSectionPlugin"
     ];
 
@@ -128,6 +132,7 @@ public sealed class PluginBoundaryTests
         "Bukit.PluginHost",
         "bukit-plugin-echo",
         "bukit-plugin-import",
+        "bukit-plugin-wechat-sync",
         "Bukit.Rendering",
         "Bukit.Routing",
         "bukit-labs",
@@ -175,7 +180,8 @@ public sealed class PluginBoundaryTests
         var pluginProjects = new[]
         {
             "src/Bukit-Plugins/Bukit.Plugin.Echo/Bukit.Plugin.Echo.csproj",
-            "src/Bukit-Plugins/Bukit.Plugin.Import/Bukit.Plugin.Import.csproj"
+            "src/Bukit-Plugins/Bukit.Plugin.Import/Bukit.Plugin.Import.csproj",
+            "src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj"
         };
 
         foreach (string project in pluginProjects)
@@ -192,7 +198,8 @@ public sealed class PluginBoundaryTests
     {
         var domainProjects = new[]
         {
-            "src/Bukit-Plugins/Bukit.Clone/Bukit.Clone.csproj"
+            "src/Bukit-Plugins/Bukit.Clone/Bukit.Clone.csproj",
+            "src/Bukit-Plugins/Bukit.WechatSyncing/Bukit.WechatSyncing.csproj"
         };
 
         foreach (string project in domainProjects)
@@ -237,7 +244,8 @@ public sealed class PluginBoundaryTests
         var assemblies = new[]
         {
             typeof(Bukit.Plugin.Echo.EchoPluginMarker).Assembly,
-            typeof(Bukit.Plugin.Import.ImportPluginApp).Assembly
+            typeof(Bukit.Plugin.Import.ImportPluginApp).Assembly,
+            typeof(Bukit.Plugin.WechatSync.WechatSyncPluginApp).Assembly
         };
 
         foreach (Assembly assembly in assemblies)
@@ -251,7 +259,8 @@ public sealed class PluginBoundaryTests
     {
         var assemblies = new[]
         {
-            typeof(Bukit.Clone.CloneDomainBlueprint).Assembly
+            typeof(Bukit.Clone.CloneDomainBlueprint).Assembly,
+            typeof(Bukit.WechatSyncing.WechatSyncWorkflow).Assembly
         };
 
         foreach (Assembly assembly in assemblies)
@@ -300,6 +309,8 @@ public sealed class PluginBoundaryTests
             "src/Bukit-Plugins/Bukit.Importing/Bukit.Importing.csproj",
             "src/Bukit-Plugins/Bukit.Plugin.Echo/Bukit.Plugin.Echo.csproj",
             "src/Bukit-Plugins/Bukit.Plugin.Import/Bukit.Plugin.Import.csproj",
+            "src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj",
+            "src/Bukit-Plugins/Bukit.WechatSyncing/Bukit.WechatSyncing.csproj",
             "src/Bukit-Plugins/WordCountSectionPlugin/WordCountSectionPlugin.csproj"
         };
 
