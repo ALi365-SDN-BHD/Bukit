@@ -29,26 +29,26 @@
 
 | ID | 兼容项 | 当前状态 | 代码位置 | 风险 | 建议动作 | 目标版本 | 建议负责人 |
 |---|---|---|---|---|---|---|---|
-| `CG-001` | `content.provider` 已移除，`content.sources[]` 是唯一内容源入口 | `rejected-with-message` | [ConfigLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigLoader.cs:82), [ContentProviderFactory.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ContentProviderFactory.cs:15) | 中 | 保持拒绝；文档和 AI prompt 只能生成 `content.sources[]`；测试必须覆盖 `content.provider` fail fast 与迁移提示。 | `current` | Config / Engine |
-| `CG-002` | SEO 审计不再发现根路径 `dist/seo-report.json` | `rejected-with-message` | [SeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/SeoCommand.cs:8) | 低 | 默认只发现 `.bukit/seo-report.json`，并以 `.bukit/publish-audit-report.json` 作为次级兼容输入。不要依赖根路径输出，需重新 build。 | `current` | CLI |
-| `CG-003` | GEO 审计不再发现根路径 `dist/seo-report.json` | `rejected-with-message` | [GeoCommand.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Cli/Commands/GeoCommand.cs:26) | 低 | 默认只发现 `.bukit/seo-report.json`，并以 `.bukit/publish-audit-report.json` 作为次级兼容输入。不要依赖根路径输出，需重新 build。 | `current` | CLI |
-| `CG-004` | 无 `theme.yaml` 的旧主题仍可渲染 | `rejected-with-message` | [ThemeManifestLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Theme/ThemeManifestLoader.cs:7), [ThemeBootstrapper.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ThemeBootstrapper.cs:11), [BuildCompatibilityTests.cs](/Users/ali/mydev/Git/Github/Bukit/tests/Bukit.Theme.Tests/BuildCompatibilityTests.cs:121) | 高 | 构建与 doctor 阶段要求 `theme.yaml`，否则返回明确错误提示；保留迁移指引用于生成或补齐清单。 | `current` | Theme |
-| `CG-005` | 主题模板 `fallbackDir` 与默认首页模板回退链 | `supported` | [FileTemplateLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Rendering/Scriban/FileTemplateLoader.cs:15), [ThemeTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/ThemeTemplateResolver.cs:17) | 中 | 保留；`FileTemplateLoaderTests` 已补齐 override/child/parent 三层优先级回退验证。 | `v1.x` | Rendering / Theme |
-| `CG-006` | taxonomy 新 `kinds[]` 与旧 `tags/categories` 模板配置并存 | `removed` | [TaxonomyTemplateResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/BuiltIn/TaxonomyTemplateResolver.cs:16) | 中 | 1.0 文档与 starter 仅记录 `taxonomy.kinds[]` 为可宣告路径，保留 legacy 仅作迁移背景说明。 | `current` | Engine |
-| `CG-007` | 外部协议插件 handshake `v2 -> v1` 回退 | `rejected-with-message` | [ProtocolAfterBuildRunner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProtocolAfterBuildRunner.cs:92), [ProtocolHandshakeNegotiator.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProtocolHandshakeNegotiator.cs:23) | 中 | 强制 v2 握手 schema，拒绝 v1 响应并给迁移指引。 | `current` | Plugin |
-| `CG-008` | 外部插件未声明 `capabilities` 时默认放行 | `rejected-with-message` | [PluginCapabilityEnforcer.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/PluginCapabilityEnforcer.cs:10) | 高 | 缺少 `capabilities` 直接拒绝并给迁移提示：按 hook 补齐 `derive-pages` 或 `emit-outputs`。 | `current` | Plugin / Security |
-| `CG-009` | 旧插件参数键 `options.arguments` | `rejected` | [ProcessArgumentsBuilder.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/Protocol/ProcessArgumentsBuilder.cs:16) | 低 | 保持拒绝；文档不要再把它写成兼容项。 | `current` | Plugin |
-| `CG-010` | `site.rssMode` 仍影响 feed 行为 | `rejected-with-message` | [ConfigLoader.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigLoader.cs:68), [FeedPlugin.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/BuiltIn/FeedPlugin.cs:24) | 中 | 1.0 下保持拒绝；迁移指引改为 `site.feed.formats`。 | `current` | Config / Engine |
-| `CG-011` | `site.plugins.rss` 的弃用警告 | `warned-only` | [ConfigDeprecationScanner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigDeprecationScanner.cs:36) | 中 | 文档明确这是“仅警告”，不是自动运行兼容。 | `v1.1` 文档清理 | Config |
-| `CG-012` | `collections.*.rss` 的弃用警告 | `warned-only` | [ConfigDeprecationScanner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigDeprecationScanner.cs:63) | 中 | 与 `CG-011` 同处理，避免误写为 supported。 | `v1.1` 文档清理 | Config |
-| `CG-013` | `site.collection` 到 `site.collections` 的迁移警告 | `warned-only` | [ConfigDeprecationScanner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigDeprecationScanner.cs:80) | 中 | 文档改成“迁移提示”而不是“仍支持”；若想真兼容，应显式补解析逻辑。 | `v1.1` 文档清理 | Config |
-| `CG-014` | `content.notion.rootPageId` 到 `rootBlockId` 的迁移警告 | `warned-only` | [ConfigDeprecationScanner.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigDeprecationScanner.cs:89), [SiteDefaultsApplier.Content.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/SiteDefaultsApplier.Content.cs:7) | 中 | 明确 warning 不等于运行兼容；如果存量用户多，再评估是否补 alias 解析。 | `v1.2` 决策 | Config / Notion |
-| `CG-015` | front matter 顶层 `outputPath` | `rejected-with-message` | [RouteGenerator.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Routing/RouteGenerator.cs:41) | 低 | 继续保持拒绝并给出迁移提示；在 routing 文档中列为 breaking rule。 | `current` | Routing |
-| `CG-016` | 旧 SEO 字段名 `seodesc` 兜底 | `removed` | [LlmsTxtPlugin.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/BuiltIn/LlmsTxtPlugin.cs:300) | 低 | 文档和示例统一使用 `summary` 与 `seo_desc` 作为 1.0 主字段。 | `current` | SEO |
-| `CG-017` | Windows 时区 fallback 映射表 | `supported` | [ConfigValidator.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/ConfigValidator.cs:323), [TimeZoneCompatibility.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Config/TimeZoneCompatibility.cs:3) | 低 | 保留；补参数化测试；定期审查映射表。 | `v1.x` | Config |
-| `CG-018` | obsolete 的同步 body resolver API 仍被内部调用 | `deprecated-behavior` | [ContentBodyResolver.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine.Abstractions/ContentBodyResolver.cs:18), [DataModuleBuilder.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/DataModuleBuilder.cs:43), [SearchIndexBuilder.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/SearchIndexBuilder.cs:65) | 高 | 先把内部调用迁移到 async，再评估公开 API 移除。 | `v1.2` 内部清理，`v2.0` 视情况移除 | Engine |
-| `CG-019` | AOT 构建禁用动态程序集插件，统一 process protocol | `supported-by-policy` | [PluginRegistry.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Plugins/PluginRegistry.cs:1), [Bukit.Engine.csproj](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Engine/Bukit.Engine.csproj:17) | 中 | 明确写成产品边界，不要描述成兼容层。 | `v1.1` 文档清理 | Engine / Docs |
-| `CG-020` | import 流程在输入缺失时默认启用较宽的 `pageTypes` 集合 | `deprecated-behavior` | [SiteConfigGenerator.cs](/Users/ali/mydev/Git/Github/Bukit/src/Bukit.Importing/SiteConfigGenerator.cs:28) | 中 | 先评估 fixture 影响，再改为更窄默认或显式策略。 | `v1.3` | Import |
+| `CG-001` | `content.provider` 已移除，`content.sources[]` 是唯一内容源入口 | `rejected-with-message` | [ConfigLoader.cs](../src/Bukit-Core/Bukit.Config/ConfigLoader.cs), [ContentProviderFactory.cs](../src/Bukit-Core/Bukit.Engine/ContentProviderFactory.cs) | 中 | 保持拒绝；文档和 AI prompt 只能生成 `content.sources[]`；测试必须覆盖 `content.provider` fail fast 与迁移提示。 | `current` | Config / Engine |
+| `CG-002` | SEO 审计不再发现根路径 `dist/seo-report.json` | `rejected-with-message` | [SeoCommand.cs](../src/Bukit-Core/Bukit.Cli/Commands/SeoCommand.cs) | 低 | 默认只发现 `.bukit/seo-report.json`，并以 `.bukit/publish-audit-report.json` 作为次级兼容输入。不要依赖根路径输出，需重新 build。 | `current` | CLI |
+| `CG-003` | GEO 审计不再发现根路径 `dist/seo-report.json` | `rejected-with-message` | [GeoCommand.cs](../src/Bukit-Core/Bukit.Cli/Commands/GeoCommand.cs) | 低 | 默认只发现 `.bukit/seo-report.json`，并以 `.bukit/publish-audit-report.json` 作为次级兼容输入。不要依赖根路径输出，需重新 build。 | `current` | CLI |
+| `CG-004` | 无 `theme.yaml` 的旧主题仍可渲染 | `rejected-with-message` | [ThemeManifestLoader.cs](../src/Bukit-Core/Bukit.Theme/ThemeManifestLoader.cs), [ThemeBootstrapper.cs](../src/Bukit-Core/Bukit.Engine/ThemeBootstrapper.cs), [BuildCompatibilityTests.cs](../tests/Bukit.Theme.Tests/BuildCompatibilityTests.cs) | 高 | 构建与 doctor 阶段要求 `theme.yaml`，否则返回明确错误提示；保留迁移指引用于生成或补齐清单。 | `current` | Theme |
+| `CG-005` | 主题模板 `fallbackDir` 与默认首页模板回退链 | `supported` | [FileTemplateLoader.cs](../src/Bukit-Core/Bukit.Rendering/Scriban/FileTemplateLoader.cs), [ThemeTemplateResolver.cs](../src/Bukit-Core/Bukit.Engine/ThemeTemplateResolver.cs) | 中 | 保留；`FileTemplateLoaderTests` 已补齐 override/child/parent 三层优先级回退验证。 | `v1.x` | Rendering / Theme |
+| `CG-006` | taxonomy 新 `kinds[]` 与旧 `tags/categories` 模板配置并存 | `removed` | [TaxonomyTemplateResolver.cs](../src/Bukit-Core/Bukit.Engine/Plugins/BuiltIn/TaxonomyTemplateResolver.cs) | 中 | 1.0 文档与 starter 仅记录 `taxonomy.kinds[]` 为可宣告路径，保留 legacy 仅作迁移背景说明。 | `current` | Engine |
+| `CG-007` | 外部协议插件 `v1` handshake 回退 | `rejected-with-message` | [PluginProtocolClient.cs](../src/Bukit-Core/Bukit.PluginHost/PluginProtocolClient.cs), [PluginProtocolConstants.cs](../src/Bukit-Core/Bukit.Plugin.Abstractions/Protocol/PluginProtocolConstants.cs) | 中 | 强制 `bukit-plugin-v1` 协议消息，拒绝不支持的协议响应并给迁移指引。 | `current` | Plugin |
+| `CG-008` | 外部插件命令元数据未在 manifest 中声明 | `rejected-with-message` | [PluginCommandManifestValidator.cs](../src/Bukit-Core/Bukit.PluginHost/PluginCommandManifestValidator.cs), [PluginSchemaContractTests.cs](../tests/Bukit.PluginHost.Tests/PluginSchemaContractTests.cs) | 高 | 运行时命令元数据必须在 `plugin.yaml` 中声明；未声明的运行时命令、alias、argument 和 option 均会验证失败。 | `current` | Plugin / Security |
+| `CG-009` | 旧插件参数键 `options.arguments` | `rejected` | [PluginManifestLoader.cs](../src/Bukit-Core/Bukit.PluginHost/PluginManifestLoader.cs), [PluginCommandManifestValidator.cs](../src/Bukit-Core/Bukit.PluginHost/PluginCommandManifestValidator.cs) | 低 | 保持拒绝；文档应记录 `commands[].arguments` 和 `commands[].options`，不要再把 `options.arguments` 写成兼容项。 | `current` | Plugin |
+| `CG-010` | `site.rssMode` 仍影响 feed 行为 | `rejected-with-message` | [ConfigLoader.cs](../src/Bukit-Core/Bukit.Config/ConfigLoader.cs), [FeedPlugin.cs](../src/Bukit-Core/Bukit.Engine/Plugins/BuiltIn/FeedPlugin.cs) | 中 | 1.0 下保持拒绝；迁移指引改为 `site.feed.formats`。 | `current` | Config / Engine |
+| `CG-011` | `site.plugins.<name>` 仍是 Core 内置插件开关 | `supported` | [SiteDefaultsApplier.Theme.cs](../src/Bukit-Core/Bukit.Config/SiteDefaultsApplier.Theme.cs), [built-in-plugins.md](../guide/dev/built-in-plugins.md) | 中 | 只把它记录为 Core 内置插件开关。不要描述成外部进程插件配置；外部插件配置属于 `.bukit/plugins.yaml`。 | `current` | Config / Engine |
+| `CG-012` | 旧 `site.collections.*.rss` 快捷写法 | `rejected` | [ConfigStrictFieldValidator.cs](../src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs), [ConfigLoaderTests.cs](../tests/Bukit.Config.Tests/ConfigLoaderTests.cs) | 中 | 保持由严格配置字段校验拒绝。集合 feed 输出使用 `site.collections.*.output.rss`。 | `current` | Config |
+| `CG-013` | 单数 `site.collection` 配置 | `rejected` | [ConfigStrictFieldValidator.cs](../src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs), [ConfigLoader.cs](../src/Bukit-Core/Bukit.Config/ConfigLoader.cs) | 中 | 保持由严格配置字段校验拒绝。使用 `site.collections`。 | `current` | Config |
+| `CG-014` | `rootPageId`/`rootBlockId` 等旧 Notion 页面根字段 | `rejected` | [ConfigStrictFieldValidator.cs](../src/Bukit-Core/Bukit.Config/ConfigStrictFieldValidator.cs), [SiteDefaultsApplier.Content.cs](../src/Bukit-Core/Bukit.Config/SiteDefaultsApplier.Content.cs), [ProviderValidators.cs](../src/Bukit-Core/Bukit.Config/ProviderValidators.cs) | 中 | 保持当前 `content.sources[].notion.databaseId` 契约。不要把页面根 alias 写成 warning-only 兼容。 | `current` | Config / Notion |
+| `CG-015` | front matter 顶层 `outputPath` | `rejected-with-message` | [RouteGenerator.cs](../src/Bukit-Core/Bukit.Routing/RouteGenerator.cs) | 低 | 继续保持拒绝并给出迁移提示；在 routing 文档中列为 breaking rule。 | `current` | Routing |
+| `CG-016` | 旧 SEO 字段名 `seodesc` 兜底 | `removed` | [LlmsTxtPlugin.cs](../src/Bukit-Core/Bukit.Engine/Plugins/BuiltIn/LlmsTxtPlugin.cs) | 低 | 文档和示例统一使用 `summary` 与 `seo_desc` 作为 1.0 主字段。 | `current` | SEO |
+| `CG-017` | Windows 时区 fallback 映射表 | `supported` | [ConfigValidator.cs](../src/Bukit-Core/Bukit.Config/ConfigValidator.cs), [TimeZoneCompatibility.cs](../src/Bukit-Core/Bukit.Config/TimeZoneCompatibility.cs) | 低 | 保留；补参数化测试；定期审查映射表。 | `v1.x` | Config |
+| `CG-018` | obsolete 的同步 body resolver API 仍被内部调用 | `deprecated-behavior` | [ContentBodyResolver.cs](../src/Bukit-Core/Bukit.Engine.Abstractions/ContentBodyResolver.cs), [DataModuleBuilder.cs](../src/Bukit-Core/Bukit.Engine/DataModuleBuilder.cs), [SearchIndexBuilder.cs](../src/Bukit-Core/Bukit.Engine/SearchIndexBuilder.cs) | 高 | 先把内部调用迁移到 async，再评估公开 API 移除。 | `v1.2` 内部清理，`v2.0` 视情况移除 | Engine |
+| `CG-019` | AOT 构建禁用动态程序集插件，统一 process protocol | `supported-by-policy` | [PluginRegistry.cs](../src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs), [Bukit.Engine.csproj](../src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj) | 中 | 明确写成产品边界，不要描述成兼容层。 | `v1.1` 文档清理 | Engine / Docs |
+| `CG-020` | import 流程在输入缺失时默认启用较宽的 `pageTypes` 集合 | `deprecated-behavior` | [SiteConfigGenerator.cs](../src/Bukit-Plugins/Bukit.Importing/SiteConfigGenerator.cs) | 中 | 先评估 fixture 影响，再改为更窄默认或显式策略。 | `v1.3` | Import |
 
 ## 当前治理优先级
 
@@ -59,15 +59,15 @@
 - `CG-004` 无 `theme.yaml` 的旧主题
 - `CG-007` 外部协议 `v1` 回退
 - `CG-008` 未声明 `capabilities` 的外部插件
-- `CG-011` `site.plugins.rss`
-- `CG-012` `collections.*.rss`
-- `CG-013` `site.collection`
-- `CG-014` `content.notion.rootPageId`
+- `CG-012` 旧 `site.collections.*.rss`
+- `CG-013` 单数 `site.collection`
+- `CG-014` 旧 Notion 页面根字段
 
 预期结果：
 
 - 文档不再把 warning-only 项写成运行兼容。
 - 迁移说明与解析器真实行为一致。
+- `site.plugins.<name>` 明确只属于 Core 内置插件开关，不属于外部进程插件配置。
 
 ### P1：补回归测试
 
@@ -107,7 +107,9 @@
 - [ ] 补协议 handshake 拒绝测试（`version` not `2`、`ok=false`、无效 JSON、空 stdout）
 - [ ] 补插件 `capabilities` 缺省行为测试
 - [ ] 补 Windows 时区 fallback 参数化测试
-- [ ] 决定 `rootPageId` 保持 warning-only 还是新增 alias 解析
+- [ ] 确认旧集合 feed 快捷写法继续由严格字段校验拒绝
+- [ ] 确认单数 `site.collection` 继续由严格字段校验拒绝
+- [ ] 确认旧 Notion 页面根字段继续被拒绝，并以 `databaseId` 为准
 - [ ] 为 `site.rssMode` 发布 sunset 版本计划
 - [ ] 替换内部同步 `ContentBodyResolver.GetHtml()` 调用
 

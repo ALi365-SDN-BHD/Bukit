@@ -13,19 +13,21 @@ cd Bukit
 dotnet build bukit-core.slnx -c Release
 ```
 
-3. 运行测试：
+3. 运行快速贡献门禁：
+
+```bash
+bash scripts/quality-gate.sh Release
+```
+
+`scripts/quality-gate.sh` 是 `scripts/gates/ci-fast.sh` 的兼容包装器。它检查文档一致性、活跃 workflow 边界、配置文档契约、CLI 文档同步、skill 元数据、README 同步和 Core CLI 脚本契约。它不是完整发布门禁。
+
+4. 代码变更需运行测试：
 
 ```bash
 dotnet test bukit-test.slnx -c Release
 ```
 
-4. 运行冒烟测试（Windows）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/smoke.ps1
-```
-
-新开发者参考：[guide/dev/new-developer-30min.md](guide/dev/new-developer-30min.md)。
+当前开发文档地图见 [guide/dev/README.md](guide/dev/README.md)。
 
 ## 代码风格
 
@@ -41,33 +43,36 @@ dotnet format bukit-core.slnx --verify-no-changes
 
 ## 架构
 
-按改动类型定位源码入口见：[guide/dev/maintainer-entrypoints.md](guide/dev/maintainer-entrypoints.md)。
+主要开发入口见 [guide/dev/README.md](guide/dev/README.md)。
 
 核心架构文档：
 - [guide/dev/architecture.md](guide/dev/architecture.md) — 模块职责与依赖
-- [guide/dev/code-wiki.md](guide/dev/code-wiki.md) — 仓库结构与关键类
-- [guide/dev/governance-checklist.md](guide/dev/governance-checklist.md) — 发布前检查清单
+- [guide/dev/release.md](guide/dev/release.md) — CI、测试与发布门禁边界
+- [guide/dev/release-checklist.md](guide/dev/release-checklist.md) — 发布专用清单
+- [guide/dev/documentation-governance.md](guide/dev/documentation-governance.md) — 文档治理
 
 ## 测试
 
 - 单元测试在 `tests/` 目录，使用 xUnit
-- 冒烟测试：`scripts/smoke.ps1` 和 `scripts/smoke.sh`
-- 测试策略见：[guide/dev/testing-smoke.md](guide/dev/testing-smoke.md)
+- Core 测试项目由 `scripts/checks/core-tests.sh` 列出
+- 冒烟入口是 `scripts/smoke.sh` 和 `scripts/smoke/core.sh`
+- 测试策略见 [guide/dev/testing.md](guide/dev/testing.md)
 
 ## AOT 兼容性
 
 本项目发布为 Native AOT。所有新代码必须 AOT 兼容：
 - 避免对受 trim 影响的类型使用反射
 - Scriban 变更见 AOT 适配说明：[guide/dev/aot.md](guide/dev/aot.md)
-- 运行 `scripts/check-aot-warnings.sh` 验证零 AOT 警告
+- 发布专用 Native AOT 打包使用 `scripts/build/package-native-aot.sh`
 
 ## Pull Request 流程
 
 1. 若变更影响用户行为，请更新文档
-2. 运行 `scripts/check-doc-asset-consistency.ps1` 验证文档一致性
-3. 运行 `bash scripts/quality-gate.sh`，确认完整门禁通过（build + test + coverage + format + smoke）
-4. CI 的 `full` Job 使用 `CI_FULL_SKIP_FAST=1` 在独立环境中执行，覆盖率阶段会走独立构建路径，不依赖 `ci-fast` 的构建产物。
-5. 创建 PR 前 rebase 到 main 分支
+2. 本地运行 `bash scripts/quality-gate.sh Release`，确保快速文档与契约门禁通过
+3. 代码变更先运行目标测试，再在交付前运行 `BUKIT_CI_FULL_SKIP_FAST=1 bash scripts/gates/ci-full.sh Release`
+4. 发布产物、Native AOT、冒烟和安全验证属于发布专用检查，仅在变更触及对应表面时运行
+5. GitHub Actions 使用 `.github/workflows/ci.yaml` 处理 PR 和分支 push
+6. 创建 PR 前 rebase 到 main 分支
 
 ## 许可证
 

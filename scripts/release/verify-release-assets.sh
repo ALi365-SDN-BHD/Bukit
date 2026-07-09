@@ -6,7 +6,7 @@ commit="${2:-}"
 asset_dir="${3:-}"
 
 if [[ -z "$version" || -z "$commit" || -z "$asset_dir" ]]; then
-  echo "usage: bash scripts/release/verify-release-assets.sh <version> <commit> <asset-dir>" >&2
+  echo "usage: bash scripts/release/verify-release-assets.sh <version> <commit> <asset-dir> [expected-rid...]" >&2
   exit 2
 fi
 
@@ -15,13 +15,16 @@ if [[ ! -d "$asset_dir" ]]; then
   exit 1
 fi
 
-python3 - "$version" "$commit" "$asset_dir" <<'PY'
+shift 3
+
+python3 - "$version" "$commit" "$asset_dir" "$@" <<'PY'
 import hashlib
 import json
 import pathlib
 import sys
 
 version, commit, asset_dir = sys.argv[1], sys.argv[2], pathlib.Path(sys.argv[3])
+expected_rids = sys.argv[4:]
 manifest_path = asset_dir / "release-manifest.json"
 checksums_path = asset_dir / "checksums.txt"
 checksums_json_path = asset_dir / "checksums.json"
@@ -44,6 +47,22 @@ if not isinstance(assets, list) or not assets:
     raise SystemExit("release manifest must list at least one asset")
 if checksums_json.get("assets") != assets:
     raise SystemExit("checksums.json does not match release-manifest.json")
+
+if expected_rids:
+    known_rids = {"linux-x64", "osx-arm64", "win-x64"}
+    unknown = sorted(set(expected_rids) - known_rids)
+    if unknown:
+        raise SystemExit(f"unsupported expected release RID(s): {', '.join(unknown)}")
+
+    expected_names = {
+        f"bukit-{version}-{rid}.zip" if rid == "win-x64" else f"bukit-{version}-{rid}.tar.gz"
+        for rid in expected_rids
+    }
+    actual_names = {asset.get("name") for asset in assets}
+    if actual_names != expected_names:
+        missing = sorted(expected_names - actual_names)
+        extra = sorted(actual_names - expected_names)
+        raise SystemExit(f"release asset RID set mismatch; missing={missing} extra={extra}")
 
 expected = {}
 for line in checksums_path.read_text(encoding="utf-8").splitlines():
