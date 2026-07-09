@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Bukit.Shared;
 
 [assembly: InternalsVisibleTo("Bukit.Plugin.WechatSync.Tests")]
 
@@ -615,7 +616,13 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
             throw new InvalidOperationException($"wechat thumb url must be absolute: {url}");
         }
 
-        using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        using var httpClient = new HttpClient(new SocketsHttpHandler
+        {
+            ConnectCallback = SsrfGuard.SsrfSafeConnectAsync
+        })
+        {
+            Timeout = TimeSpan.FromSeconds(60)
+        };
         using var resp = await httpClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (resp.Content.Headers.ContentLength is long contentLength &&
             contentLength > MaxDownloadedImageBytes)
@@ -639,7 +646,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         return bytes;
     }
 
-    private static async Task<byte[]> ReadContentWithLimitAsync(
+    internal static async Task<byte[]> ReadContentWithLimitAsync(
         HttpContent content,
         int maxBytes,
         string url,

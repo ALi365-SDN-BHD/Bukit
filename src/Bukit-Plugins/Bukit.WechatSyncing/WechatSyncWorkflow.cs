@@ -68,7 +68,7 @@ public sealed class WechatSyncWorkflow
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var rawHtml = ContentBodyResolver.GetHtml(candidate.Item);
-                var contentHash = SyncCacheManager.ComputeContentHash(candidate.Item, candidate.Route, rawHtml, options);
+                var contentHash = SyncCacheManager.ComputeContentHash(candidate.Item, candidate.Route, rawHtml, options, context);
                 if (!forceRetryIgnoreCache &&
                     cache.Records.TryGetValue(candidate.SyncKey, out var existing) &&
                     string.Equals(existing.ContentHash, contentHash, StringComparison.Ordinal))
@@ -79,6 +79,7 @@ public sealed class WechatSyncWorkflow
 
                 var (draftId, cacheUpdated) = await SyncWithRetryAsync(
                     context, gateway, thumbResolver, imageProcessor, candidate, options, cache, cancellationToken);
+                updated |= cacheUpdated;
 
                 if (options.Target == "publish" && !string.IsNullOrWhiteSpace(draftId))
                 {
@@ -102,7 +103,6 @@ public sealed class WechatSyncWorkflow
                     candidate.Item.Title ?? string.Empty);
                 synced++;
                 updated = true;
-                updated |= cacheUpdated;
             }
 
             if (updated)

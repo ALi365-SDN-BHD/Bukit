@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using Bukit.Shared;
 
 namespace Bukit.WechatSyncing;
 
@@ -26,32 +28,19 @@ internal static class SyncCacheManager
             : Path.GetFullPath(Path.Combine(rootDir, cacheFile));
 
         var root = Path.GetFullPath(rootDir);
-        if (!IsUnderDirectory(root, path))
+        if (!PathUtils.IsSameOrSubPathOf(path, root))
         {
             throw new InvalidOperationException("wechat-sync cacheFile must stay under the project root.");
         }
 
         var cacheRoot = Path.GetFullPath(Path.Combine(root, ".cache", "wechat-sync"));
-        if (PathsEqual(path, cacheRoot) || !IsUnderDirectory(cacheRoot, path))
+        if (!PathUtils.IsSubPathOf(path, cacheRoot))
         {
             throw new InvalidOperationException("wechat-sync cacheFile must stay under .cache/wechat-sync.");
         }
 
         return path;
     }
-
-    private static bool IsUnderDirectory(string rootDir, string path)
-    {
-        var root = Path.GetFullPath(rootDir);
-        var full = Path.GetFullPath(path);
-        var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
-        return !Path.IsPathFullyQualified(relative) &&
-               !relative.Equals("..", StringComparison.Ordinal) &&
-               !relative.StartsWith("../", StringComparison.Ordinal);
-    }
-
-    private static bool PathsEqual(string left, string right)
-        => string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), StringComparison.Ordinal);
 
     internal static SyncCache LoadCache(string path, Bukit.Shared.ILogger logger)
     {
@@ -100,13 +89,15 @@ internal static class SyncCacheManager
         WechatSyncItem item,
         WechatSyncRoute route,
         string html,
-        WechatSyncOptions options)
+        WechatSyncOptions options,
+        WechatSyncContext? context = null)
     {
         using var sha = SHA256.Create();
         var author = string.IsNullOrWhiteSpace(options.Author) ? options.SiteName : options.Author;
         var contentSourceUrl = WechatSyncHelpers.CombineAbsoluteUrl(options.SiteUrl, options.BaseUrl, route.Url);
         var summary = WechatSyncHelpers.ReadMetaString(item.Metadata, "summary");
         var thumbSource = ThumbResolver.ResolveThumbSource(item, options) ?? string.Empty;
+        var mediaFingerprint = ComputeMediaFingerprint(context, item, html, options);
         var payload = string.Join('\n',
             "wechat-sync-cache-v3",
             item.Id,
@@ -125,9 +116,109 @@ internal static class SyncCacheManager
             options.BaseUrl,
             options.ProcessImages.ToString(),
             options.Passthrough.ToString(),
-            options.Target);
+            options.Target,
+            mediaFingerprint);
         var bytes = Encoding.UTF8.GetBytes(payload);
         return Convert.ToHexString(sha.ComputeHash(bytes)).ToLowerInvariant();
+    }
+
+    internal static string ComputeFileSignature(string path)
+    {
+        var fullPath = Path.GetFullPath(path).Replace('\\', '/');
+        try
+        {
+            using var stream = File.OpenRead(path);
+            using var sha = SHA256.Create();
+            var hash = Convert.ToHexString(sha.ComputeHash(stream)).ToLowerInvariant();
+            return $"{fullPath}|sha256:{hash}";
+        }
+        catch (FileNotFoundException)
+        {
+            return $"{fullPath}|missing";
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return $"{fullPath}|missing";
+        }
+        catch (IOException ex)
+        {
+            return $"{fullPath}|unreadable:{ex.GetType().Name}";
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return $"{fullPath}|unreadable:{ex.GetType().Name}";
+        }
+    }
+
+    private static string ComputeMediaFingerprint(
+        WechatSyncContext? context,
+        WechatSyncItem item,
+        string html,
+        WechatSyncOptions options)
+    {
+        if (context is null)
+        {
+            return string.Empty;
+        }
+
+        var parts = new List<string>();
+        AddMediaFingerprint(parts, "thumb", context, ThumbResolver.ResolveThumbSource(item, options), options);
+
+        if (options.ProcessImages && !string.IsNullOrWhiteSpace(html))
+        {
+            foreach (Match match in Regex.Matches(html, @"<img\b[^>]*/?>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            {
+                AddMediaFingerprint(parts, "inline", context, ContentImageProcessor.ResolveBestImageUrl(match.Value), options);
+            }
+        }
+
+        return string.Join('\n', parts.OrderBy(x => x, StringComparer.Ordinal));
+    }
+
+    private static void AddMediaFingerprint(
+        List<string> parts,
+        string kind,
+        WechatSyncContext context,
+        string? source,
+        WechatSyncOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return;
+        }
+
+        source = source.Trim();
+        if (source.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(source, @"\.svg(\?|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            return;
+        }
+
+        if (ThumbResolver.TryResolveLocalAssetPath(context, source, out var localPath))
+        {
+            parts.Add($"{kind}:local:{ComputeFileSignature(localPath)}");
+            return;
+        }
+
+        if (!WechatSyncHelpers.TryNormalizeToAbsoluteUrl(source, options.SiteUrl, options.BaseUrl, out var absoluteUrl) ||
+            !WechatSyncHelpers.IsHttpUrl(absoluteUrl))
+        {
+            return;
+        }
+
+        var normalizedKey = WechatSyncHelpers.NormalizeMediaSourceUrlKey(absoluteUrl);
+        if (string.IsNullOrWhiteSpace(normalizedKey))
+        {
+            return;
+        }
+
+        var downloadDir = ThumbResolver.ResolveEffectiveMediaDownloadDir(context);
+        var mediaPath = ThumbResolver.TryResolveFromMediaIndex(downloadDir, normalizedKey)
+            ?? ThumbResolver.TryResolveFromMediaHashName(downloadDir, normalizedKey, absoluteUrl);
+        if (!string.IsNullOrWhiteSpace(mediaPath))
+        {
+            parts.Add($"{kind}:media-cache:{normalizedKey}:{ComputeFileSignature(mediaPath)}");
+        }
     }
 
     private static SyncCache CreateEmpty()

@@ -136,6 +136,58 @@ public sealed class WechatSyncPluginOptionsMapperTests : IDisposable
         Assert.Equal("plugin.wechat-sync.pathDenied", ex.Code);
     }
 
+    [Fact]
+    public void Map_RejectsOutputPathSymlinkEscapingProjectRoot()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-plugin-wechat-map-output-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(_rootDir, "dist"), outsideDir);
+            var request = Request(
+                options: new Dictionary<string, JsonElement>
+                {
+                    ["--output"] = Json("dist"),
+                    ["--dry-run"] = Json(true)
+                });
+
+            var ex = Assert.Throws<WechatSyncPluginOptionsException>(() => WechatSyncPluginOptionsMapper.Map(request));
+
+            Assert.Equal("plugin.wechat-sync.pathDenied", ex.Code);
+        }
+        finally
+        {
+            Directory.Delete(outsideDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Map_RejectsCacheFileWhenCacheDirectoryIsSymlinkOutsideProject()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-plugin-wechat-map-cache-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        Directory.CreateDirectory(Path.Combine(_rootDir, ".cache"));
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(_rootDir, ".cache", "wechat-sync"), outsideDir);
+            var request = Request(
+                options: new Dictionary<string, JsonElement>
+                {
+                    ["--output"] = Json("dist"),
+                    ["--cache-file"] = Json(".cache/wechat-sync/sync-cache.json"),
+                    ["--dry-run"] = Json(true)
+                });
+
+            var ex = Assert.Throws<WechatSyncPluginOptionsException>(() => WechatSyncPluginOptionsMapper.Map(request));
+
+            Assert.Equal("plugin.wechat-sync.pathDenied", ex.Code);
+        }
+        finally
+        {
+            Directory.Delete(outsideDir, recursive: true);
+        }
+    }
+
     private PluginInvokeRequest Request(
         IReadOnlyDictionary<string, JsonElement> options,
         PluginPermissionSet? permissions = null)

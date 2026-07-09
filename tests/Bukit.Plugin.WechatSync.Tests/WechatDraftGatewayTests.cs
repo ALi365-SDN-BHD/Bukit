@@ -9,15 +9,29 @@ namespace Bukit.Plugin.WechatSync.Tests;
 public sealed class WechatDraftGatewayTests
 {
     [Fact]
-    public async Task DefaultDownloadImageAsync_RejectsResponseLargerThanWechatImageLimit()
+    public async Task ReadContentWithLimitAsync_RejectsResponseLargerThanWechatImageLimit()
     {
-        var body = new byte[ImageConverter.MaterialImageMaxBytes + 1];
-        using var server = new LoopbackImageServer(body);
+        using var content = new ByteArrayContent(new byte[ImageConverter.MaterialImageMaxBytes + 1]);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            WechatDraftGateway.DefaultDownloadImageAsync(server.Url, CancellationToken.None));
+            WechatDraftGateway.ReadContentWithLimitAsync(
+                content,
+                ImageConverter.MaterialImageMaxBytes,
+                "https://example.com/image.jpg",
+                CancellationToken.None));
 
         Assert.Contains("too large", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task DefaultDownloadImageAsync_RejectsPrivateNetworkImageUrl()
+    {
+        using var server = new LoopbackImageServer([1, 2, 3]);
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            WechatDraftGateway.DefaultDownloadImageAsync(server.Url, CancellationToken.None));
+
+        Assert.Contains("SSRF blocked", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class LoopbackImageServer : IDisposable

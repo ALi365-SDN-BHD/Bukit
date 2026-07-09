@@ -136,10 +136,7 @@ public static class WechatSyncInputLoader
             : Path.Combine(workingDir, value);
         var full = Path.GetFullPath(combined);
         var root = Path.GetFullPath(rootDir);
-        var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
-        if (Path.IsPathFullyQualified(relative) ||
-            relative.Equals("..", StringComparison.Ordinal) ||
-            relative.StartsWith("../", StringComparison.Ordinal))
+        if (!PathUtils.IsSameOrSubPathOf(full, root))
         {
             throw new InvalidOperationException($"{name} must stay under the project root.");
         }
@@ -232,10 +229,7 @@ public static class WechatSyncInputLoader
         var rel = (relativePath ?? string.Empty).Trim().TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
         var full = Path.GetFullPath(Path.Combine(outputDir, rel));
         var root = Path.GetFullPath(outputDir);
-        var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
-        if (Path.IsPathFullyQualified(relative) ||
-            relative.Equals("..", StringComparison.Ordinal) ||
-            relative.StartsWith("../", StringComparison.Ordinal))
+        if (!PathUtils.IsSameOrSubPathOf(full, root))
         {
             throw new InvalidOperationException($"{name} must stay under the build output directory.");
         }

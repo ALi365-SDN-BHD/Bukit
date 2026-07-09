@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Bukit.Plugin.Abstractions.Protocol;
+using Bukit.Shared;
 using Bukit.WechatSyncing;
 
 namespace Bukit.Plugin.WechatSync;
@@ -163,17 +164,10 @@ public static class WechatSyncPluginOptionsMapper
     }
 
     private static bool IsUnderDirectory(string rootDir, string path)
-    {
-        var root = Path.GetFullPath(rootDir);
-        var full = Path.GetFullPath(path);
-        var relative = Path.GetRelativePath(root, full).Replace('\\', '/');
-        return !Path.IsPathFullyQualified(relative) &&
-               !relative.Equals("..", StringComparison.Ordinal) &&
-               !relative.StartsWith("../", StringComparison.Ordinal);
-    }
+        => PathUtils.IsSameOrSubPathOf(path, rootDir);
 
     private static bool PathsEqual(string left, string right)
-        => string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), StringComparison.Ordinal);
+        => PathUtils.IsSameOrSubPathOf(left, right) && PathUtils.IsSameOrSubPathOf(right, left);
 
     private static void EnsureNetworkGranted(PluginInvokeRequest request)
     {

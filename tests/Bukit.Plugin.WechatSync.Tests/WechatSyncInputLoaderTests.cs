@@ -85,6 +85,33 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
         Assert.Equal("fallback/index.html", route.OutputPath.Replace('\\', '/'));
     }
 
+    [Fact]
+    public async Task LoadAsync_RejectsRenderedHtmlSymlinkEscapingOutputDirectory()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(Path.Combine(outputDir, "content"));
+        Directory.CreateDirectory(Path.Combine(outputDir, "posts", "hello"));
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-wechat-loader-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        try
+        {
+            WriteManifest(outputDir, "content/post-1.json", "/posts/hello/");
+            File.WriteAllText(Path.Combine(outputDir, "content", "post-1.json"), ContentJson(body: null, route: "/posts/hello/"));
+            var outsideHtml = Path.Combine(outsideDir, "secret.html");
+            File.WriteAllText(outsideHtml, "<main>secret</main>");
+            File.CreateSymbolicLink(Path.Combine(outputDir, "posts", "hello", "index.html"), outsideHtml);
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => LoadAsync(outputDir));
+
+            Assert.Contains("rendered html", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("build output", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(outsideDir, recursive: true);
+        }
+    }
+
     private Task<WechatSyncContext> LoadAsync(string outputDir, string baseUrl = "/")
         => WechatSyncInputLoader.LoadAsync(
             _rootDir,

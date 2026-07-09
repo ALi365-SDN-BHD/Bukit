@@ -79,6 +79,35 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         Assert.Equal(2, gateway.AddDraftCount);
     }
 
+    [Fact]
+    public async Task RunAsync_LocalInlineImageFileChangeBypassesExistingCacheRecord()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(
+            gateway,
+            downloadImageAsync: (_, _) => throw new InvalidOperationException("network should not be used for local image"));
+        var context = Context("""<p><img src="/assets/inline.png"></p>""");
+        var assetsDir = Path.Combine(context.OutputDir, "assets");
+        Directory.CreateDirectory(assetsDir);
+        var imagePath = Path.Combine(assetsDir, "inline.png");
+        File.WriteAllBytes(imagePath, TinyPng);
+        var options = Options(appId.Name, secret.Name) with { ProcessImages = true };
+
+        await workflow.RunAsync(context, options);
+        var originalWriteTime = File.GetLastWriteTimeUtc(imagePath);
+        File.WriteAllBytes(imagePath, TinyPngVariant());
+        File.SetLastWriteTimeUtc(imagePath, originalWriteTime);
+        var changed = await workflow.RunAsync(context, options);
+
+        Assert.True(changed.Success);
+        Assert.Equal(1, changed.Synced);
+        Assert.Equal(0, changed.Skipped);
+        Assert.Equal(2, gateway.AddDraftCount);
+        Assert.Equal(2, gateway.UploadContentImageCount);
+    }
+
     [Theory]
     [MemberData(nameof(DraftRequestOptionChanges))]
     public async Task RunAsync_DraftRequestOptionChangeBypassesExistingCacheRecord(
@@ -422,6 +451,31 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_PublishFailurePersistsThumbCacheWithoutSuccessfulRecord()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway { PublishStatus = 2 };
+        var workflow = new WechatSyncWorkflow(gateway, delayAsync: (_, _) => Task.CompletedTask);
+        var context = ContextWithCover("<p>Hello</p>", "/assets/cover.png");
+        var options = Options(appId.Name, secret.Name) with
+        {
+            DefaultThumbMediaId = null,
+            Target = "publish",
+            PublishPollMaxAttempts = 1,
+            PublishPollIntervalSeconds = 1
+        };
+
+        var result = await workflow.RunAsync(context, options);
+
+        var cache = SyncCacheManager.LoadCache(Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json"), new ConsoleLogger(LogLevel.Error));
+        Assert.False(result.Success);
+        Assert.Empty(cache.Records);
+        Assert.NotEmpty(cache.ThumbMediaIds);
+        Assert.Equal(1, gateway.UploadThumbCount);
+    }
+
+    [Fact]
     public async Task RunAsync_WhenLaterCandidateFails_PreservesEarlierSuccessfulCacheRecord()
     {
         using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
@@ -464,6 +518,30 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_ForceReuploadsChangedLocalCoverInsteadOfReusingThumbCache()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(gateway);
+        var context = ContextWithCover("<p>Hello</p>", "/assets/cover.png");
+        var coverPath = Path.Combine(context.OutputDir, "assets", "cover.png");
+        var options = Options(appId.Name, secret.Name) with { DefaultThumbMediaId = null };
+
+        await workflow.RunAsync(context, options);
+        var originalWriteTime = File.GetLastWriteTimeUtc(coverPath);
+        File.WriteAllBytes(coverPath, TinyPngVariant());
+        File.SetLastWriteTimeUtc(coverPath, originalWriteTime);
+        var forced = await workflow.RunAsync(context, options with { Force = true });
+
+        Assert.True(forced.Success);
+        Assert.Equal(1, forced.Synced);
+        Assert.Equal(0, forced.Skipped);
+        Assert.Equal(2, gateway.AddDraftCount);
+        Assert.Equal(2, gateway.UploadThumbCount);
+    }
+
+    [Fact]
     public void SyncCacheManager_RejectsAbsoluteCachePathOutsideProjectRoot()
     {
         var outside = Path.Combine(Path.GetTempPath(), "bukit-wechat-outside-" + Guid.NewGuid().ToString("N"), "cache.json");
@@ -498,6 +576,27 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     }
 
     [Fact]
+    public void SyncCacheManager_RejectsCachePathWhenCacheDirectoryIsSymlinkOutsideProject()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-wechat-cache-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        Directory.CreateDirectory(Path.Combine(_rootDir, ".cache"));
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(_rootDir, ".cache", "wechat-sync"), outsideDir);
+
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/sync-cache.json"));
+
+            Assert.Contains("project root", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(outsideDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ThumbResolver_RejectsRelativeImagePathEscapingOutputDirectory()
     {
         var secretPath = Path.Combine(_rootDir, "secret.png");
@@ -508,6 +607,31 @@ public sealed class WechatSyncWorkflowTests : IDisposable
 
         Assert.False(resolved);
         Assert.Equal(string.Empty, filePath);
+    }
+
+    [Fact]
+    public void ThumbResolver_RejectsLocalAssetSymlinkEscapingOutputDirectory()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-wechat-asset-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        try
+        {
+            var context = Context("<p>Hello</p>");
+            var assetsDir = Path.Combine(context.OutputDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            var outsideImage = Path.Combine(outsideDir, "secret.png");
+            File.WriteAllBytes(outsideImage, TinyPng);
+            File.CreateSymbolicLink(Path.Combine(assetsDir, "secret.png"), outsideImage);
+
+            var resolved = ThumbResolver.TryResolveLocalAssetPath(context, "/assets/secret.png", out var filePath);
+
+            Assert.False(resolved);
+            Assert.Equal(string.Empty, filePath);
+        }
+        finally
+        {
+            Directory.Delete(outsideDir, recursive: true);
+        }
     }
 
     [Fact]
@@ -525,6 +649,62 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         var resolved = ThumbResolver.TryResolveFromMediaIndex(downloadDir, "https://example.com/secret.png");
 
         Assert.Null(resolved);
+    }
+
+    [Fact]
+    public void ThumbResolver_RejectsMediaIndexSymlinkEscapingDownloadDirectory()
+    {
+        var downloadDir = Path.Combine(_rootDir, ".cache", "media");
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-wechat-media-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(downloadDir);
+        Directory.CreateDirectory(outsideDir);
+        try
+        {
+            var outsideImage = Path.Combine(outsideDir, "secret.png");
+            File.WriteAllBytes(outsideImage, TinyPng);
+            File.CreateSymbolicLink(Path.Combine(downloadDir, "linked.png"), outsideImage);
+            File.WriteAllText(Path.Combine(downloadDir, ".media-index.json"), """
+{
+  "https://example.com/secret.png": "linked.png"
+}
+""");
+
+            var resolved = ThumbResolver.TryResolveFromMediaIndex(downloadDir, "https://example.com/secret.png");
+
+            Assert.Null(resolved);
+        }
+        finally
+        {
+            Directory.Delete(outsideDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ThumbResolver_RejectsMediaCacheDirectorySymlinkEscapingProjectRoot()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-wechat-media-dir-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        Directory.CreateDirectory(Path.Combine(_rootDir, ".cache"));
+        try
+        {
+            File.WriteAllBytes(Path.Combine(outsideDir, "secret.png"), TinyPng);
+            File.WriteAllText(Path.Combine(outsideDir, ".media-index.json"), """
+{
+  "https://example.com/secret.png": "secret.png"
+}
+""");
+            Directory.CreateSymbolicLink(Path.Combine(_rootDir, ".cache", "media"), outsideDir);
+            var context = Context("<p>Hello</p>");
+
+            var downloadDir = ThumbResolver.ResolveEffectiveMediaDownloadDir(context);
+            var resolved = ThumbResolver.TryResolveFromMediaIndex(downloadDir, "https://example.com/secret.png");
+
+            Assert.Null(resolved);
+        }
+        finally
+        {
+            Directory.Delete(outsideDir, recursive: true);
+        }
     }
 
     private WechatSyncContext Context(string html)
@@ -739,6 +919,13 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         var bytes = new byte[length];
         TinyPng.CopyTo(bytes, 0);
         File.WriteAllBytes(path, bytes);
+    }
+
+    private static byte[] TinyPngVariant()
+    {
+        var bytes = (byte[])TinyPng.Clone();
+        bytes[^1] = (byte)(bytes[^1] ^ 0x01);
+        return bytes;
     }
 
     private static readonly byte[] TinyPng =

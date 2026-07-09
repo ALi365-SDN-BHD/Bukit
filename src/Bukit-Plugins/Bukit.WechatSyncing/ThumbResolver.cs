@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bukit.Shared;
 
 namespace Bukit.WechatSyncing;
 
@@ -72,6 +73,12 @@ internal sealed class ThumbResolver
             return (cfg.DefaultThumbMediaId.Trim(), false);
         }
 
+        var localFileWasFound = TryResolveLocalAssetPath(context, thumbSourceText, out var localPath);
+        if (localFileWasFound)
+        {
+            thumbKey = ComputeUrlKey($"{thumbKey}:local-file:{SyncCacheManager.ComputeFileSignature(localPath)}");
+        }
+
         // Check thumb media ID cache first
         if (cache.ThumbMediaIds.TryGetValue(thumbKey, out var cachedThumbId) && !string.IsNullOrWhiteSpace(cachedThumbId))
         {
@@ -79,11 +86,14 @@ internal sealed class ThumbResolver
         }
 
         // Try upload from local file
-        var (localMediaId, localFileWasFound) = await TryUploadThumbFromLocalSourceAsync(context, thumbSourceText, cancellationToken);
-        if (!string.IsNullOrWhiteSpace(localMediaId))
+        if (localFileWasFound)
         {
-            cache.ThumbMediaIds[thumbKey] = localMediaId!;
-            return (localMediaId!, true);
+            var localMediaId = await UploadLocalFileAsync(localPath, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(localMediaId))
+            {
+                cache.ThumbMediaIds[thumbKey] = localMediaId!;
+                return (localMediaId!, true);
+            }
         }
 
         // If local file was found but format conversion failed (e.g. WebP in AOT mode),
@@ -187,27 +197,6 @@ internal sealed class ThumbResolver
     }
 
     // ── Local file upload ───────────────────────────────────────────────
-
-    /// <summary>
-    /// Tries to resolve a local asset file and upload it as a thumb.
-    /// Returns a tuple: (mediaId, fileWasFound).
-    /// <c>fileWasFound</c> is true when the local file exists but upload/conversion failed
-    /// (e.g. unsupported format like WebP). The caller can use this to skip redundant
-    /// HTTP download attempts for the same URL.
-    /// </summary>
-    private async Task<(string? MediaId, bool FileWasFound)> TryUploadThumbFromLocalSourceAsync(
-        WechatSyncContext context,
-        string thumbSourceText,
-        CancellationToken cancellationToken)
-    {
-        if (!TryResolveLocalAssetPath(context, thumbSourceText, out var localPath))
-        {
-            return (null, false);
-        }
-
-        var mediaId = await UploadLocalFileAsync(localPath, cancellationToken);
-        return (mediaId, true);
-    }
 
     private async Task<string?> UploadLocalFileAsync(string localPath, CancellationToken cancellationToken)
     {
@@ -635,28 +624,26 @@ internal sealed class ThumbResolver
         => IsUnderRoot(path, rootDir) || IsUnderRoot(path, outputDir);
 
     private static bool IsUnderRoot(string path, string root)
-    {
-        var fullPath = Path.GetFullPath(path);
-        var fullRoot = Path.GetFullPath(root);
-        var relative = Path.GetRelativePath(fullRoot, fullPath).Replace('\\', '/');
-        return !Path.IsPathFullyQualified(relative) &&
-            !relative.Equals("..", StringComparison.Ordinal) &&
-            !relative.StartsWith("../", StringComparison.Ordinal);
-    }
+        => PathUtils.IsSameOrSubPathOf(path, root);
 
     // ── Media cache helpers ─────────────────────────────────────────────
 
     internal static string ResolveEffectiveMediaDownloadDir(WechatSyncContext context)
     {
         var downloadDir = (context.MediaDownloadDir ?? string.Empty).Trim();
-        if (downloadDir.Length == 0 || string.Equals(downloadDir, "assets/uploads", StringComparison.OrdinalIgnoreCase))
+        var resolved = downloadDir.Length == 0 || string.Equals(downloadDir, "assets/uploads", StringComparison.OrdinalIgnoreCase)
+            ? Path.Combine(context.RootDir, ".cache", "media")
+            : Path.IsPathRooted(downloadDir)
+                ? downloadDir
+                : Path.GetFullPath(Path.Combine(context.RootDir, downloadDir));
+
+        if (!PathUtils.IsSameOrSubPathOf(resolved, context.RootDir))
         {
-            return Path.Combine(context.RootDir, ".cache", "media");
+            context.Logger.Warn("plugin wechat-sync media download directory real path escapes project root, ignoring local media cache");
+            return string.Empty;
         }
 
-        return Path.IsPathRooted(downloadDir)
-            ? downloadDir
-            : Path.GetFullPath(Path.Combine(context.RootDir, downloadDir));
+        return resolved;
     }
 
     internal static string? TryResolveFromMediaIndex(string downloadDir, string normalizedKey)
