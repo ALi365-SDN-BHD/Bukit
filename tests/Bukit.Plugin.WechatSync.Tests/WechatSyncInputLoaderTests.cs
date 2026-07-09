@@ -68,6 +68,23 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
         Assert.Equal("blog/hello/index.html", route.OutputPath.Replace('\\', '/'));
     }
 
+    [Fact]
+    public async Task LoadAsync_IgnoresExternalHtmlRepresentationForRenderedHtmlFallback()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(Path.Combine(outputDir, "content"));
+        Directory.CreateDirectory(Path.Combine(outputDir, "blog", "hello"));
+        WriteManifest(outputDir, "content/post-1.json", "/docs/fallback/", "https://evil.example/docs/blog/hello/");
+        File.WriteAllText(Path.Combine(outputDir, "content", "post-1.json"), ContentJson(body: null, route: "/docs/fallback/"));
+        File.WriteAllText(Path.Combine(outputDir, "blog", "hello", "index.html"), "<main>external html</main>");
+
+        var context = await LoadAsync(outputDir, baseUrl: "/docs");
+
+        var (item, route) = Assert.Single(context.Routed);
+        Assert.Null(item.ContentHtml);
+        Assert.Equal("fallback/index.html", route.OutputPath.Replace('\\', '/'));
+    }
+
     private Task<WechatSyncContext> LoadAsync(string outputDir, string baseUrl = "/")
         => WechatSyncInputLoader.LoadAsync(
             _rootDir,

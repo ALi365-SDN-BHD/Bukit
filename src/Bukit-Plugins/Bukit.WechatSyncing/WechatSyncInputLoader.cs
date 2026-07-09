@@ -74,7 +74,7 @@ public static class WechatSyncInputLoader
             var htmlUrl = document.Representations
                 .FirstOrDefault(x => x.Kind.Equals("html", StringComparison.OrdinalIgnoreCase))
                 ?.Url;
-            var htmlLocatorUrl = string.IsNullOrWhiteSpace(htmlUrl) ? routeUrl : htmlUrl;
+            var htmlLocatorUrl = ResolveHtmlLocatorUrl(htmlUrl, routeUrl, siteUrl);
             var outputPath = InferHtmlOutputPath(htmlLocatorUrl, baseUrl);
             var renderedHtml = TryReadRenderedHtml(outputDir, outputPath);
             var bodyHtml = !string.IsNullOrWhiteSpace(content.Body) ? content.Body : renderedHtml;
@@ -145,6 +145,30 @@ public static class WechatSyncInputLoader
         }
 
         return full;
+    }
+
+    private static string ResolveHtmlLocatorUrl(string? htmlUrl, string routeUrl, string? siteUrl)
+    {
+        if (string.IsNullOrWhiteSpace(htmlUrl))
+        {
+            return routeUrl;
+        }
+
+        var candidate = htmlUrl.Trim();
+        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var uri) ||
+            (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+        {
+            return candidate;
+        }
+
+        if (!Uri.TryCreate(siteUrl, UriKind.Absolute, out var siteUri) ||
+            !string.Equals(uri.Authority, siteUri.Authority, StringComparison.OrdinalIgnoreCase))
+        {
+            return routeUrl;
+        }
+
+        return candidate;
     }
 
     internal static string InferHtmlOutputPath(string routeUrl, string? baseUrl = null)
