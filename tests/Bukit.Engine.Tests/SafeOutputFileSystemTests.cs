@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Bukit.Engine.Output;
 using Bukit.Shared;
 using Xunit;
@@ -57,6 +58,45 @@ public sealed class SafeOutputFileSystemTests : IDisposable
     }
 
     [Fact]
+    public async Task DeleteFileAsync_RejectsOutputSymlinkEscape()
+    {
+        if (!IsSymlinkPlatform()) return;
+
+        var outputRoot = Path.Combine(_root, "dist");
+        var outside = Path.Combine(_root, "outside");
+        Directory.CreateDirectory(outputRoot);
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "victim.txt"), "keep");
+        Directory.CreateSymbolicLink(Path.Combine(outputRoot, "assets"), outside);
+        var fs = new SafeOutputFileSystem(outputRoot);
+
+        var ex = await Assert.ThrowsAsync<OutputPathSecurityException>(
+            () => fs.DeleteFileAsync("assets/victim.txt", CancellationToken.None));
+
+        Assert.Contains("symlink", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(File.Exists(Path.Combine(outside, "victim.txt")));
+    }
+
+    [Fact]
+    public async Task WriteTextAsync_RejectsOutputSymlinkEscape()
+    {
+        if (!IsSymlinkPlatform()) return;
+
+        var outputRoot = Path.Combine(_root, "dist");
+        var outside = Path.Combine(_root, "outside");
+        Directory.CreateDirectory(outputRoot);
+        Directory.CreateDirectory(outside);
+        Directory.CreateSymbolicLink(Path.Combine(outputRoot, "assets"), outside);
+        var fs = new SafeOutputFileSystem(outputRoot);
+
+        var ex = await Assert.ThrowsAsync<OutputPathSecurityException>(
+            () => fs.WriteTextAsync("assets/pwn.txt", "escaped", CancellationToken.None));
+
+        Assert.Contains("symlink", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(Path.Combine(outside, "pwn.txt")));
+    }
+
+    [Fact]
     public async Task WriteTextAsync_WritesInsideOutputRoot()
     {
         var fs = new SafeOutputFileSystem(_root);
@@ -73,4 +113,7 @@ public sealed class SafeOutputFileSystemTests : IDisposable
             Directory.Delete(_root, recursive: true);
         }
     }
+
+    private static bool IsSymlinkPlatform()
+        => RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 }

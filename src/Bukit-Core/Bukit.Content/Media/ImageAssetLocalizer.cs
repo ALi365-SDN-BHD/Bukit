@@ -199,15 +199,20 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     return RecordFailure(source, $"Content-Type rejected: {contentType ?? "(null)"}");
                 }
 
-                var bytes = await ReadWithLimitAsync(response.Content, maxFileSize, cts.Token);
-                if (bytes is null)
+                var ext = ResolveExtension(uri, contentType);
+                var fileName = BuildStableFileName(normalizedKey, ext);
+                var localPath = Path.Combine(root, fileName);
+                var tempPath = BuildTempFilePath(root, fileName);
+                var bytesWritten = await WriteWithLimitAsync(response.Content, tempPath, maxFileSize, cts.Token);
+                if (bytesWritten is null)
                 {
                     _logger?.Warn($"event=media.download_too_large limit={maxFileSize} source={UrlRedactor.Redact(source)}");
                     return RecordFailure(source, $"File too large (limit: {maxFileSize} bytes)");
                 }
 
-                if (bytes.Length == 0)
+                if (bytesWritten.Value == 0)
                 {
+                    DeleteFileBestEffort(tempPath);
                     if (attempt >= maxRetries)
                     {
                         _logger?.Warn($"event=media.download_empty source={UrlRedactor.Redact(source)}");
@@ -218,13 +223,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     continue;
                 }
 
-                var ext = ResolveExtension(uri, contentType);
-                var fileName = BuildStableFileName(normalizedKey, ext);
-                var localPath = Path.Combine(root, fileName);
-                if (!File.Exists(localPath))
-                {
-                    await File.WriteAllBytesAsync(localPath, bytes, cts.Token);
-                }
+                MoveTempFileIntoPlace(tempPath, localPath);
 
                 var publicUrl = _indexManager.CombineUrl(fileName);
                 _indexManager.RememberIndex(normalizedKey, fileName);
@@ -240,7 +239,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 if (attempt >= maxRetries)
                 {
                     _logger?.Warn(
-                        $"event=media.download_error source={source} error={ex.GetType().Name}");
+                        $"event=media.download_error source={UrlRedactor.Redact(source)} error={ex.GetType().Name}");
                     return RecordFailure(source, $"{ex.GetType().Name}: {ex.Message}");
                 }
 
@@ -268,35 +267,89 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
     private string RecordFailure(string sourceUrl, string reason)
     {
-        _failures.Add(new MediaFailure(sourceUrl, reason));
+        _failures.Add(new MediaFailure(UrlRedactor.Redact(sourceUrl), reason));
         return _config.DefaultImageUrl;
     }
 
-    private static async Task<byte[]?> ReadWithLimitAsync(
-        HttpContent content, long maxBytes, CancellationToken cancellationToken)
+    private static async Task<long?> WriteWithLimitAsync(
+        HttpContent content, string tempPath, long maxBytes, CancellationToken cancellationToken)
     {
         if (content.Headers.ContentLength is > 0 && content.Headers.ContentLength.Value > maxBytes)
         {
             return null;
         }
 
+        var completed = false;
         await using var stream = await content.ReadAsStreamAsync(cancellationToken);
-        using var ms = new MemoryStream();
+        await using var output = new FileStream(
+            tempPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.Read,
+            bufferSize: 81920,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
         var buffer = new byte[8192];
         long totalRead = 0;
-        int read;
-        while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+        try
         {
-            totalRead += read;
-            if (totalRead > maxBytes)
+            int read;
+            while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
             {
-                return null;
+                totalRead += read;
+                if (totalRead > maxBytes)
+                {
+                    return null;
+                }
+
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             }
 
-            ms.Write(buffer, 0, read);
+            completed = true;
+            return totalRead;
         }
+        finally
+        {
+            if (!completed)
+            {
+                DeleteFileBestEffort(tempPath);
+            }
+        }
+    }
 
-        return ms.ToArray();
+    private static string BuildTempFilePath(string root, string fileName)
+    {
+        return Path.Combine(root, $".{fileName}.{Guid.NewGuid():N}.tmp");
+    }
+
+    private static void MoveTempFileIntoPlace(string tempPath, string localPath)
+    {
+        try
+        {
+            File.Move(tempPath, localPath);
+        }
+        catch (IOException) when (File.Exists(localPath))
+        {
+            DeleteFileBestEffort(tempPath);
+        }
+        catch
+        {
+            DeleteFileBestEffort(tempPath);
+            throw;
+        }
+    }
+
+    private static void DeleteFileBestEffort(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private static bool IsAllowedContentType(string? contentType)

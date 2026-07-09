@@ -1,6 +1,8 @@
 using Bukit.Cli.Shared;
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Config;
+using Bukit.Engine;
+using Bukit.Shared;
 
 namespace Bukit.Cli.Commands;
 
@@ -11,10 +13,11 @@ public static class CleanCommand
         var configPath = command.GetString("--config");
         var site = command.GetString("--site");
         var dirOption = command.GetString("--dir");
+        var usesConfiguredOutput = !string.IsNullOrWhiteSpace(configPath) || !string.IsNullOrWhiteSpace(site);
 
         string rootDir;
         string outputDir;
-        if (!string.IsNullOrWhiteSpace(configPath) || !string.IsNullOrWhiteSpace(site))
+        if (usesConfiguredOutput)
         {
             var resolved = ConfigPathResolver.Resolve(configPath, site);
             rootDir = resolved.RootDir;
@@ -34,7 +37,19 @@ public static class CleanCommand
             }
         }
 
-        if (Directory.Exists(outputDir))
+        if (usesConfiguredOutput)
+        {
+            try
+            {
+                OutputDirectoryCleaner.CleanIfExists(rootDir, outputDir);
+            }
+            catch (ConfigException ex)
+            {
+                Console.Error.WriteLine(DiagnosticExceptionFormatter.Format(ex));
+                return Task.FromResult(2);
+            }
+        }
+        else if (Directory.Exists(outputDir))
         {
             Directory.Delete(outputDir, recursive: true);
         }

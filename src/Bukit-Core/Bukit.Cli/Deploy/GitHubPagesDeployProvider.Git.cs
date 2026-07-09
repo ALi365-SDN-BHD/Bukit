@@ -202,6 +202,7 @@ public sealed partial class GitHubPagesDeployProvider
         var psi = CreateGitProcess(gitPath, workingDir, args);
         psi.Environment["GIT_ASKPASS"] = askpassScript;
         psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
+        psi.Environment[AskpassTokenEnvironmentVariable] = token;
 
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
         await WaitForGitProcessAsync(proc, gitCommandTimeout, ct, commandLine);
@@ -219,6 +220,7 @@ public sealed partial class GitHubPagesDeployProvider
         var psi = CreateGitProcess(gitPath, workingDir, args);
         psi.Environment["GIT_ASKPASS"] = askpassScript;
         psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
+        psi.Environment[AskpassTokenEnvironmentVariable] = token;
 
         using var proc = Process.Start(psi);
         if (proc is null)

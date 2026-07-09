@@ -65,6 +65,44 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
+    public async Task LocalizeAsync_WhenDownloadSuccess_StreamsToTempFileBeforeCompleting()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+
+            var stream = new DirectoryObservingReadStream(
+                dir,
+                Encoding.UTF8.GetBytes("fake-image-streaming-payload"),
+                chunkSize: 4);
+            var handler = new StreamingHandler("image/jpeg", stream);
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+
+            var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+
+            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
+            Assert.True(stream.SawDownloadFileBeforeSecondRead);
+            Assert.DoesNotContain(Directory.GetFiles(dir), path => path.EndsWith(".tmp", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task LocalizeAsync_WhenDownloadFails_ReturnsDefaultImage()
     {
         var cfg = new MediaConfig
@@ -511,6 +549,10 @@ public sealed class ImageAssetLocalizerTests
         Assert.False(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("172.32.0.1")));
         Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("::ffff:192.168.1.10")));
         Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("fe80::1")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("fc00::1")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("fd00::1")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("::")));
+        Assert.True(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("ff00::1")));
         Assert.False(SsrfGuard.IsPrivateAddress(System.Net.IPAddress.Parse("2001:4860:4860::8888")));
     }
 
@@ -752,15 +794,22 @@ public sealed class ImageAssetLocalizerTests
                 MaxRetries = 0
             };
 
+            var logger = new RecordingLogger();
             using var http = new HttpClient(new ThrowingHandler());
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = new ImageAssetLocalizer(cfg, http, logger);
+            var source = "https://img.example/a.jpg?token=secret#fragment";
 
-            var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+            var result = await localizer.LocalizeAsync(source, CancellationToken.None);
 
             Assert.Equal("/assets/images/noneimg-news.jpg", result);
             var failure = Assert.Single(localizer.Failures);
-            Assert.Equal("https://img.example/a.jpg", failure.SourceUrl);
+            Assert.Equal("https://img.example/a.jpg?[REDACTED]", failure.SourceUrl);
             Assert.Contains("HttpRequestException", failure.Reason, StringComparison.Ordinal);
+            var warnings = string.Join('\n', logger.Warnings);
+            Assert.Contains("event=media.download_error", warnings, StringComparison.Ordinal);
+            Assert.Contains("https://img.example/a.jpg?[REDACTED]", warnings, StringComparison.Ordinal);
+            Assert.DoesNotContain("token=secret", warnings, StringComparison.Ordinal);
+            Assert.DoesNotContain("fragment", warnings, StringComparison.Ordinal);
         }
         finally
         {
@@ -867,6 +916,91 @@ public sealed class ImageAssetLocalizerTests
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
             return Task.FromResult(response);
         }
+    }
+
+    private sealed class StreamingHandler : HttpMessageHandler
+    {
+        private readonly string _contentType;
+        private readonly Stream _stream;
+
+        public StreamingHandler(string contentType, Stream stream)
+        {
+            _contentType = contentType;
+            _stream = stream;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            _ = request;
+            _ = cancellationToken;
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(_stream)
+            };
+            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
+            return Task.FromResult(response);
+        }
+    }
+
+    private sealed class DirectoryObservingReadStream : Stream
+    {
+        private readonly string _directory;
+        private readonly byte[] _payload;
+        private readonly int _chunkSize;
+        private int _offset;
+        private int _readCount;
+
+        public DirectoryObservingReadStream(string directory, byte[] payload, int chunkSize)
+        {
+            _directory = directory;
+            _payload = payload;
+            _chunkSize = chunkSize;
+        }
+
+        public bool SawDownloadFileBeforeSecondRead { get; private set; }
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => _payload.Length;
+        public override long Position
+        {
+            get => _offset;
+            set => throw new NotSupportedException();
+        }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (_readCount == 1)
+            {
+                SawDownloadFileBeforeSecondRead = Directory
+                    .EnumerateFiles(_directory)
+                    .Where(static path => !string.Equals(Path.GetFileName(path), ".media-index.json", StringComparison.Ordinal))
+                    .Any();
+            }
+
+            if (_offset >= _payload.Length)
+            {
+                return ValueTask.FromResult(0);
+            }
+
+            var count = Math.Min(Math.Min(_chunkSize, buffer.Length), _payload.Length - _offset);
+            _payload.AsMemory(_offset, count).CopyTo(buffer);
+            _offset += count;
+            _readCount++;
+            return ValueTask.FromResult(count);
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var memory = new Memory<byte>(buffer, offset, count);
+            return ReadAsync(memory).AsTask().GetAwaiter().GetResult();
+        }
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private sealed class NullContentTypeHandler : HttpMessageHandler

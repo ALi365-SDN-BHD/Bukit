@@ -85,6 +85,7 @@ public static class SsrfGuard
         {
             var b = address.GetAddressBytes();
             return address.Equals(IPAddress.IPv6Any) ||
+                   address.Equals(IPAddress.IPv6None) ||
                    address.IsIPv6LinkLocal ||
                    address.IsIPv6SiteLocal ||
                    address.IsIPv6Multicast ||

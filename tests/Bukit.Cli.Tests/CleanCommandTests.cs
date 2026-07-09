@@ -14,14 +14,19 @@ public sealed class CleanCommandTests : IDisposable
         var dist = Path.Combine(_testDir, "dist");
         Directory.CreateDirectory(dist);
         File.WriteAllText(Path.Combine(dist, "test.txt"), "hello");
-        var config = Path.Combine(_testDir, "site.yaml");
-        File.WriteAllText(config, """
+        File.WriteAllText(Path.Combine(dist, ".bukit-output-marker"), "Bukit output directory");
+        WriteConfig(Path.Combine(_testDir, "site.yaml"), "dist");
+    }
+
+    private static void WriteConfig(string path, string output)
+    {
+        File.WriteAllText(path, $$"""
 site:
   name: test
   title: Test
   baseUrl: /
 build:
-  output: dist
+  output: {{output}}
 content:
   sources:
     - type: markdown
@@ -47,6 +52,38 @@ theme:
         var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", new[] { "--config", configPath }));
         Assert.Equal(0, exitCode);
         Assert.False(Directory.Exists(distDir));
+    }
+
+    [Fact]
+    public async Task RunAsync_WithConfig_RefusesUnsafeOutputDirectory()
+    {
+        var gitDir = Path.Combine(_testDir, ".git");
+        Directory.CreateDirectory(gitDir);
+        var sentinel = Path.Combine(gitDir, "sentinel.txt");
+        File.WriteAllText(sentinel, "keep");
+        var configPath = Path.Combine(_testDir, "unsafe.yaml");
+        WriteConfig(configPath, ".git");
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", new[] { "--config", configPath }));
+
+        Assert.Equal(2, exitCode);
+        Assert.True(File.Exists(sentinel));
+    }
+
+    [Fact]
+    public async Task RunAsync_WithConfig_RefusesUnmarkedOutputDirectory()
+    {
+        var outputDir = Path.Combine(_testDir, "unmarked");
+        Directory.CreateDirectory(outputDir);
+        var sentinel = Path.Combine(outputDir, "user-file.txt");
+        File.WriteAllText(sentinel, "keep");
+        var configPath = Path.Combine(_testDir, "unmarked.yaml");
+        WriteConfig(configPath, "unmarked");
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", new[] { "--config", configPath }));
+
+        Assert.Equal(2, exitCode);
+        Assert.True(File.Exists(sentinel));
     }
 
     [Fact]

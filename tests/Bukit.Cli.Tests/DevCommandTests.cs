@@ -578,6 +578,33 @@ public sealed class DevCommandTests
     }
 
     [Theory]
+    [InlineData("/.bukit/security-report.json", ".bukit", "security-report.json")]
+    [InlineData("/.bukit-build-state.json", null, ".bukit-build-state.json")]
+    [InlineData("/.bukit-output-marker", null, ".bukit-output-marker")]
+    public async Task DevRequestHandler_HandleAsync_DoesNotServeBukitInternalFiles(string requestPath, string? subdir, string fileName)
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-internal-" + Guid.NewGuid().ToString("N"));
+        var fileDir = subdir is null ? outputDir : Path.Combine(outputDir, subdir);
+        Directory.CreateDirectory(fileDir);
+        File.WriteAllText(Path.Combine(fileDir, fileName), """{"secret":"internal"}""");
+
+        try
+        {
+            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var response = await ProcessSingleRequestAsync(
+                requestPath,
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.DoesNotContain("internal", response.Body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Theory]
     [InlineData("/%252e%252e/")]
     [InlineData("/%5c..%5csecret")]
     [InlineData("/%00")]

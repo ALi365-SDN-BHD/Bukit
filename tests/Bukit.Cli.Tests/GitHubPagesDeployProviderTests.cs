@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using Bukit.Cli.Deploy;
 using Bukit.Shared;
@@ -642,21 +643,24 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
-    public void CreateAskpassScript_AndCleanupAskpassScript_CreateAndDeleteScript()
+    public void CreateAskpassScript_AndCleanupAskpassScript_CreateEnvBackedScriptWithoutTokenLiteral()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit-gh-pages-askpass-" + Guid.NewGuid().ToString("N"));
 
         try
         {
             Directory.CreateDirectory(tempDir);
+            var token = "secret-token\"'$()&|";
             var scriptPath = InvokePrivateStatic<string>(
                 nameof(GitHubPagesDeployProvider),
                 "CreateAskpassScript",
-                [tempDir, "secret-token"]);
+                [tempDir, token]);
 
             Assert.True(File.Exists(scriptPath));
             var contents = File.ReadAllText(scriptPath);
-            Assert.Contains("secret-token", contents, StringComparison.Ordinal);
+            Assert.DoesNotContain(token, contents, StringComparison.Ordinal);
+            Assert.Contains("BUKIT_GITHUB_TOKEN", contents, StringComparison.Ordinal);
+            Assert.Equal(token, RunAskpassScript(scriptPath, token));
 
             InvokePrivateStatic<object?>(
                 nameof(GitHubPagesDeployProvider),
@@ -672,6 +676,25 @@ public sealed class GitHubPagesDeployProviderTests
                 Directory.Delete(tempDir, recursive: true);
             }
         }
+    }
+
+    private static string RunAskpassScript(string scriptPath, string token)
+    {
+        var psi = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo("cmd.exe", $"/c \"{scriptPath}\"")
+            : new ProcessStartInfo(scriptPath);
+        psi.RedirectStandardOutput = true;
+        psi.RedirectStandardError = true;
+        psi.UseShellExecute = false;
+        psi.Environment["BUKIT_GITHUB_TOKEN"] = token;
+
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start askpass script.");
+        var output = proc.StandardOutput.ReadToEnd();
+        var error = proc.StandardError.ReadToEnd();
+        Assert.True(proc.WaitForExit(5000), "askpass script did not exit.");
+        Assert.Equal(0, proc.ExitCode);
+        Assert.True(string.IsNullOrWhiteSpace(error), error);
+        return output.TrimEnd('\r', '\n');
     }
 
     private static T InvokePrivateStatic<T>(string typeName, string methodName, object?[] args)
