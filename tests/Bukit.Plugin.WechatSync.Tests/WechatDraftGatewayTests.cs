@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Bukit.Shared;
 using Bukit.WechatSyncing;
 using Xunit;
 
@@ -32,6 +33,20 @@ public sealed class WechatDraftGatewayTests
             WechatDraftGateway.DefaultDownloadImageAsync(server.Url, CancellationToken.None));
 
         Assert.Contains("SSRF blocked", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("100.64.0.1")]
+    [InlineData("198.18.0.1")]
+    [InlineData("224.0.0.1")]
+    [InlineData("240.0.0.1")]
+    [InlineData("::")]
+    [InlineData("fc00::1")]
+    [InlineData("ff02::1")]
+    [InlineData("2001:db8::1")]
+    public void SsrfGuard_IsPrivateAddress_BlocksNonPublicRangesUsedByWechatDownloads(string address)
+    {
+        Assert.True(SsrfGuard.IsPrivateAddress(IPAddress.Parse(address)));
     }
 
     private sealed class LoopbackImageServer : IDisposable

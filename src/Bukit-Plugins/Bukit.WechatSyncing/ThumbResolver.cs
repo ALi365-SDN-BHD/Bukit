@@ -74,6 +74,11 @@ internal sealed class ThumbResolver
         }
 
         var localFileWasFound = TryResolveLocalAssetPath(context, thumbSourceText, out var localPath);
+        if (!localFileWasFound && hasAbsoluteThumbUrl)
+        {
+            localFileWasFound = TryResolveLocalAssetPath(context, absoluteThumbUrl, out localPath);
+        }
+
         if (localFileWasFound)
         {
             thumbKey = ComputeUrlKey($"{thumbKey}:local-file:{SyncCacheManager.ComputeFileSignature(localPath)}");
@@ -393,7 +398,7 @@ internal sealed class ThumbResolver
                 var fileInfo = new FileInfo(filePath);
                 if (fileInfo.Exists && fileInfo.Length > 0)
                 {
-                    var fileKey = ComputeUrlKey($"file:{filePath}:{File.GetLastWriteTimeUtc(filePath).Ticks}");
+                    var fileKey = ComputeUrlKey($"file:{SyncCacheManager.ComputeFileSignature(filePath)}");
                     if (cache.ThumbMediaIds.TryGetValue(fileKey, out var cachedFile) && !string.IsNullOrWhiteSpace(cachedFile))
                     {
                         return cachedFile;

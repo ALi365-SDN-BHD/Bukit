@@ -19,7 +19,7 @@ public static class WechatSyncInputLoader
         rootDir = Path.GetFullPath(rootDir);
         outputDir = ResolveUnderRoot(rootDir, rootDir, outputDir, "--output");
         manifestPath = string.IsNullOrWhiteSpace(manifestPath)
-            ? Path.Combine(outputDir, "agent-manifest.json")
+            ? ResolveOutputPath(outputDir, "agent-manifest.json", "agent manifest")
             : ResolveUnderRoot(rootDir, rootDir, manifestPath, "--manifest");
 
         if (!File.Exists(manifestPath))

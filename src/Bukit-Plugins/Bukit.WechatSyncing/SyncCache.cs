@@ -163,6 +163,7 @@ internal static class SyncCacheManager
 
         var parts = new List<string>();
         AddMediaFingerprint(parts, "thumb", context, ThumbResolver.ResolveThumbSource(item, options), options);
+        AddMediaFingerprint(parts, "default", context, options.DefaultImageUrl, options);
 
         if (options.ProcessImages && !string.IsNullOrWhiteSpace(html))
         {
@@ -203,6 +204,12 @@ internal static class SyncCacheManager
         if (!WechatSyncHelpers.TryNormalizeToAbsoluteUrl(source, options.SiteUrl, options.BaseUrl, out var absoluteUrl) ||
             !WechatSyncHelpers.IsHttpUrl(absoluteUrl))
         {
+            return;
+        }
+
+        if (ThumbResolver.TryResolveLocalAssetPath(context, absoluteUrl, out localPath))
+        {
+            parts.Add($"{kind}:local:{ComputeFileSignature(localPath)}");
             return;
         }
 

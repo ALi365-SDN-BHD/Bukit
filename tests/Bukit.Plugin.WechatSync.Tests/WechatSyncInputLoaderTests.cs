@@ -112,6 +112,37 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task LoadAsync_RejectsDefaultManifestSymlinkEscapingOutputDirectory()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(outputDir);
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-wechat-manifest-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        try
+        {
+            var outsideManifest = Path.Combine(outsideDir, "agent-manifest.json");
+            File.WriteAllText(outsideManifest, """
+{
+  "schema": "bukit.agent-manifest",
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-01-01T00:00:00Z",
+  "documents": []
+}
+""");
+            File.CreateSymbolicLink(Path.Combine(outputDir, "agent-manifest.json"), outsideManifest);
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => LoadAsync(outputDir));
+
+            Assert.Contains("agent manifest", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("build output", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(outsideDir, recursive: true);
+        }
+    }
+
     private Task<WechatSyncContext> LoadAsync(string outputDir, string baseUrl = "/")
         => WechatSyncInputLoader.LoadAsync(
             _rootDir,

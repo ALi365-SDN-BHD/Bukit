@@ -78,7 +78,7 @@ public sealed class WechatSyncWorkflow
                 }
 
                 var (draftId, cacheUpdated) = await SyncWithRetryAsync(
-                    context, gateway, thumbResolver, imageProcessor, candidate, options, cache, cancellationToken);
+                    context, gateway, thumbResolver, imageProcessor, candidate, options, cache, () => updated = true, cancellationToken);
                 updated |= cacheUpdated;
 
                 if (options.Target == "publish" && !string.IsNullOrWhiteSpace(draftId))
@@ -143,6 +143,7 @@ public sealed class WechatSyncWorkflow
         WechatSyncCandidate candidate,
         WechatSyncOptions options,
         SyncCache cache,
+        Action markCacheUpdated,
         CancellationToken cancellationToken)
     {
         Exception? last = null;
@@ -153,6 +154,10 @@ public sealed class WechatSyncWorkflow
             {
                 var (thumbMediaId, thumbCacheUpdated) = await thumbResolver.ResolveAndUploadThumbAsync(
                     context, candidate.Item, options, cache, cancellationToken);
+                if (thumbCacheUpdated)
+                {
+                    markCacheUpdated();
+                }
 
                 var processedHtml = ContentBodyResolver.GetHtml(candidate.Item);
                 if (!options.Passthrough)

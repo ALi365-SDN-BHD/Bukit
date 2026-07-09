@@ -108,6 +108,63 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         Assert.Equal(2, gateway.UploadContentImageCount);
     }
 
+    [Fact]
+    public async Task RunAsync_LocalDefaultImageFileChangeBypassesExistingCacheRecord()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(
+            gateway,
+            downloadImageAsync: (_, _) => Task.FromResult(Array.Empty<byte>()));
+        var context = ContextWithCover("<p>Hello</p>", "https://cdn.example.com/missing.png");
+        var defaultPath = Path.Combine(context.OutputDir, "assets", "default.png");
+        File.WriteAllBytes(defaultPath, TinyPng);
+        var options = Options(appId.Name, secret.Name) with
+        {
+            DefaultThumbMediaId = null,
+            DefaultImageUrl = "/assets/default.png"
+        };
+
+        await workflow.RunAsync(context, options);
+        var originalWriteTime = File.GetLastWriteTimeUtc(defaultPath);
+        File.WriteAllBytes(defaultPath, TinyPngVariant());
+        File.SetLastWriteTimeUtc(defaultPath, originalWriteTime);
+        var changed = await workflow.RunAsync(context, options);
+
+        Assert.True(changed.Success);
+        Assert.Equal(1, changed.Synced);
+        Assert.Equal(0, changed.Skipped);
+        Assert.Equal(2, gateway.AddDraftCount);
+        Assert.Equal(2, gateway.UploadThumbCount);
+    }
+
+    [Fact]
+    public async Task RunAsync_ProtocolRelativeLocalCoverFileChangeBypassesExistingCacheRecord()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(
+            gateway,
+            downloadImageAsync: (_, _) => Task.FromResult(Array.Empty<byte>()));
+        var context = ContextWithCover("<p>Hello</p>", "//example.com/assets/cover.png");
+        var coverPath = Path.Combine(context.OutputDir, "assets", "cover.png");
+        var options = Options(appId.Name, secret.Name) with { DefaultThumbMediaId = null };
+
+        await workflow.RunAsync(context, options);
+        var originalWriteTime = File.GetLastWriteTimeUtc(coverPath);
+        File.WriteAllBytes(coverPath, TinyPngVariant());
+        File.SetLastWriteTimeUtc(coverPath, originalWriteTime);
+        var changed = await workflow.RunAsync(context, options);
+
+        Assert.True(changed.Success);
+        Assert.Equal(1, changed.Synced);
+        Assert.Equal(0, changed.Skipped);
+        Assert.Equal(2, gateway.AddDraftCount);
+        Assert.Equal(2, gateway.UploadThumbCount);
+    }
+
     [Theory]
     [MemberData(nameof(DraftRequestOptionChanges))]
     public async Task RunAsync_DraftRequestOptionChangeBypassesExistingCacheRecord(
@@ -470,6 +527,28 @@ public sealed class WechatSyncWorkflowTests : IDisposable
 
         var cache = SyncCacheManager.LoadCache(Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json"), new ConsoleLogger(LogLevel.Error));
         Assert.False(result.Success);
+        Assert.Empty(cache.Records);
+        Assert.NotEmpty(cache.ThumbMediaIds);
+        Assert.Equal(1, gateway.UploadThumbCount);
+    }
+
+    [Fact]
+    public async Task RunAsync_DraftFailurePersistsThumbCacheWithoutSuccessfulRecord()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway { FailAddDraftOnAttempt = 1 };
+        var workflow = new WechatSyncWorkflow(gateway, delayAsync: (_, _) => Task.CompletedTask);
+        var context = ContextWithCover("<p>Hello</p>", "/assets/cover.png");
+        var options = Options(appId.Name, secret.Name) with
+        {
+            DefaultThumbMediaId = null,
+            MaxAttempts = 1
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => workflow.RunAsync(context, options));
+
+        var cache = SyncCacheManager.LoadCache(Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json"), new ConsoleLogger(LogLevel.Error));
         Assert.Empty(cache.Records);
         Assert.NotEmpty(cache.ThumbMediaIds);
         Assert.Equal(1, gateway.UploadThumbCount);
