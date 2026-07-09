@@ -89,6 +89,7 @@ public sealed class PluginSchemaContractTests
     [Theory]
     [InlineData("src/Bukit-Plugins/Bukit.Plugin.Import/plugin.yaml")]
     [InlineData("src/Bukit-Plugins/Bukit.Plugin.Clone/plugin.yaml")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.WechatSync/plugin.yaml")]
     public void OfficialPluginPackageManifestPolicy_WhenPresent_MustBeStatic(string relativePath)
     {
         string path = Path.Combine(RepoRoot, relativePath);
@@ -104,6 +105,7 @@ public sealed class PluginSchemaContractTests
     [Theory]
     [InlineData("src/Bukit-Plugins/Bukit.Plugin.Import", "import")]
     [InlineData("src/Bukit-Plugins/Bukit.Plugin.Clone", "clone")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.WechatSync", "wechat-sync")]
     public async Task OfficialPluginPackageExampleConfig_WhenPackageExists_MustLoad(string packagePath, string pluginId)
     {
         string fullPackagePath = Path.Combine(RepoRoot, packagePath);
@@ -130,6 +132,7 @@ public sealed class PluginSchemaContractTests
     [Theory]
     [InlineData("src/Bukit-Plugins/Bukit.Plugin.Import", "import")]
     [InlineData("src/Bukit-Plugins/Bukit.Plugin.Clone", "clone")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.WechatSync", "wechat-sync")]
     public async Task OfficialPluginPackageExampleManifest_WhenPackageExists_MustLoad(string packagePath, string pluginId)
     {
         string fullPackagePath = Path.Combine(RepoRoot, packagePath);
@@ -155,6 +158,7 @@ public sealed class PluginSchemaContractTests
     [Theory]
     [InlineData("src/Bukit-Plugins/Bukit.Plugin.Import")]
     [InlineData("src/Bukit-Plugins/Bukit.Plugin.Clone")]
+    [InlineData("src/Bukit-Plugins/Bukit.Plugin.WechatSync")]
     public void OfficialPluginPackageExampleConfig_WhenPackageExists_MustNotDeclareForbiddenRuntimeFields(string packagePath)
     {
         string fullPackagePath = Path.Combine(RepoRoot, packagePath);

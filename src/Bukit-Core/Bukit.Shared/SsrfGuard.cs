@@ -63,23 +63,41 @@ public static class SsrfGuard
         if (address.AddressFamily == AddressFamily.InterNetwork)
         {
             var b = address.GetAddressBytes();
-            return b[0] switch
-            {
-                0 => true,
-                10 => true,
-                127 => true,
-                169 => b[1] == 254,
-                172 => b[1] >= 16 && b[1] <= 31,
-                192 => b[1] == 168,
-                _ => false
-            };
+            var value = ((uint)b[0] << 24) | ((uint)b[1] << 16) | ((uint)b[2] << 8) | b[3];
+            return IsInCidr(value, 0x00000000u, 8) ||
+                   IsInCidr(value, 0x0A000000u, 8) ||
+                   IsInCidr(value, 0x64400000u, 10) ||
+                   IsInCidr(value, 0x7F000000u, 8) ||
+                   IsInCidr(value, 0xA9FE0000u, 16) ||
+                   IsInCidr(value, 0xAC100000u, 12) ||
+                   IsInCidr(value, 0xC0000000u, 24) ||
+                   IsInCidr(value, 0xC0000200u, 24) ||
+                   IsInCidr(value, 0xC0586300u, 24) ||
+                   IsInCidr(value, 0xC0A80000u, 16) ||
+                   IsInCidr(value, 0xC6120000u, 15) ||
+                   IsInCidr(value, 0xC6336400u, 24) ||
+                   IsInCidr(value, 0xCB007100u, 24) ||
+                   IsInCidr(value, 0xE0000000u, 4) ||
+                   IsInCidr(value, 0xF0000000u, 4);
         }
 
         if (address.AddressFamily == AddressFamily.InterNetworkV6)
         {
-            return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal;
+            var b = address.GetAddressBytes();
+            return address.Equals(IPAddress.IPv6Any) ||
+                   address.IsIPv6LinkLocal ||
+                   address.IsIPv6SiteLocal ||
+                   address.IsIPv6Multicast ||
+                   (b[0] & 0xFE) == 0xFC ||
+                   (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0x0D && b[3] == 0xB8);
         }
 
         return false;
+    }
+
+    private static bool IsInCidr(uint value, uint network, int prefixLength)
+    {
+        var mask = uint.MaxValue << (32 - prefixLength);
+        return (value & mask) == (network & mask);
     }
 }

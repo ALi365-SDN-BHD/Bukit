@@ -1,0 +1,28 @@
+version: 1
+plugins:
+  wechat-sync:
+    enabled: true
+    source: plugins/wechat-sync
+    exposeCommands:
+      - wechat-sync
+    allowInCi: false
+    permissions:
+      fileSystem:
+        read:
+          - .
+          - ./dist
+          - ./public
+          - ./output
+        write:
+          - .cache/wechat-sync
+          - .bukit/reports/plugin-output/wechat-sync
+      network: true
+      environment:
+        read:
+          - WECHAT_APP_ID
+          - WECHAT_APP_SECRET
+          - BUKIT_WECHAT_FORCE_RETRY
+    timeouts:
+      handshakeMs: 5000
+      manifestMs: 5000
+      invokeMs: 600000

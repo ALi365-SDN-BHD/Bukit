@@ -1,0 +1,121 @@
+id: wechat-sync
+name: Bukit WeChat Sync Plugin
+version: 0.2.0
+protocol: bukit-plugin-v1
+kind: process
+distribution: self-contained
+platforms:
+  osx-arm64:
+    entry: bin/osx-arm64/bukit-plugin-wechat-sync
+    sha256: 0000000000000000000000000000000000000000000000000000000000000000
+commands:
+  - name: wechat-sync
+    description: Sync Bukit build output to WeChat drafts or publish.
+    subcommands:
+      - name: sync
+        description: Sync built content to WeChat.
+        options:
+          - name: --output
+            type: string
+            description: Bukit build output directory.
+            required: true
+          - name: --manifest
+            type: string
+            description: agent-manifest.json path.
+          - name: --cache-file
+            type: string
+            description: Sync cache path.
+          - name: --source-names
+            type: string
+            description: Comma-separated source names.
+          - name: --content-types
+            type: string
+            description: Comma-separated content types.
+          - name: --default-types-when-missing
+            type: string
+            description: Comma-separated fallback content types.
+          - name: --target
+            type: string
+            description: Target mode.
+            allowedValues:
+              - draft
+              - publish
+          - name: --author
+            type: string
+            description: WeChat author.
+          - name: --default-thumb-media-id
+            type: string
+            description: Fallback WeChat thumb media id.
+          - name: --default-image-url
+            type: string
+            description: Fallback image URL or project-relative path.
+          - name: --site-name
+            type: string
+            description: Site name.
+          - name: --site-url
+            type: string
+            description: Site absolute URL.
+          - name: --base-url
+            type: string
+            description: Site base URL.
+          - name: --media-download-dir
+            type: string
+            description: Bukit media cache directory.
+          - name: --app-id-env
+            type: string
+            description: Environment variable containing WeChat app id.
+          - name: --app-secret-env
+            type: string
+            description: Environment variable containing WeChat app secret.
+          - name: --force-retry-ignore-cache-env
+            type: string
+            description: Environment variable that forces cache bypass.
+          - name: --max-attempts
+            type: string
+            description: Draft retry attempts.
+          - name: --base-delay-ms
+            type: string
+            description: Retry base delay in milliseconds.
+          - name: --backoff-factor
+            type: string
+            description: Retry backoff factor.
+          - name: --poll-max-attempts
+            type: string
+            description: Publish status poll attempts.
+          - name: --poll-interval-seconds
+            type: string
+            description: Publish status poll interval.
+          - name: --force
+            type: flag
+            description: Ignore sync cache.
+          - name: --dry-run
+            type: flag
+            description: Load candidates without calling WeChat.
+          - name: --process-images
+            type: flag
+            description: Upload inline images to WeChat.
+          - name: --passthrough
+            type: flag
+            description: Skip HTML processing.
+          - name: --need-open-comment
+            type: flag
+            description: Enable comments.
+          - name: --only-fans-can-comment
+            type: flag
+            description: Restrict comments to followers.
+requiredPermissions:
+  fileSystem:
+    read:
+      - .
+      - ./dist
+      - ./public
+      - ./output
+    write:
+      - .cache/wechat-sync
+      - .bukit/reports/plugin-output/wechat-sync
+  network: true
+  environment:
+    read:
+      - WECHAT_APP_ID
+      - WECHAT_APP_SECRET
+      - BUKIT_WECHAT_FORCE_RETRY
