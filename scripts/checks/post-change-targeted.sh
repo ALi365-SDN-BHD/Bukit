@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-changed_paths=(); syntax_paths=(); test_projects=(); unmapped_sources=(); blocked_paths=()
+changed_paths=(); untracked_paths=(); syntax_paths=(); test_projects=(); unmapped_sources=(); blocked_paths=()
 
 contains_item() {
   local needle="$1" item
@@ -46,9 +46,10 @@ add_changed_path() {
   [[ -n "$path" ]] || return
   if [[ ${#changed_paths[@]} -eq 0 ]] || ! contains_item "$path" "${changed_paths[@]}"; then
     changed_paths+=("$path")
+    [[ -e "$path" ]] && ! git ls-files --error-unmatch -- "$path" >/dev/null 2>&1 && untracked_paths+=("$path")
   fi
+  return 0
 }
-
 add_syntax_path() {
   local path="$1"
   [[ -f "$path" ]] || return
@@ -56,7 +57,6 @@ add_syntax_path() {
     syntax_paths+=("$path")
   fi
 }
-
 add_test_project() {
   local project="$1" origin="${2:-$1}"
   if [[ ! -f "$project" ]]; then
@@ -67,38 +67,13 @@ add_test_project() {
     test_projects+=("$project")
   fi
 }
-
-project_for_module() {
-  local module="$1"
-  case "$module" in
-    Bukit.Cli.Shared) module="Bukit.Cli" ;;
-    Bukit.Plugin.WechatSync|Bukit.WechatSyncing) module="Bukit.Plugin.WechatSync" ;;
-  esac
-  printf 'tests/%s.Tests/%s.Tests.csproj\n' "$module" "$module"
+add_projects_for_path() {
+  local path="$1" projects project
+  projects="$(bash scripts/checks/post-change-targeted-projects.sh "$path")" || return 1
+  while IFS= read -r project; do
+    [[ -n "$project" ]] && add_test_project "$project" "$path"
+  done <<< "$projects"
 }
-
-source_project_for_path() {
-  local path="$1" module
-  case "$path" in
-    src/Bukit-Core/*/*) module="${path#src/Bukit-Core/}" ;;
-    src/Bukit-Labs/*/*) module="${path#src/Bukit-Labs/}" ;;
-    src/Bukit-Plugins/*/*) module="${path#src/Bukit-Plugins/}" ;;
-    *) return 1 ;;
-  esac
-  module="${module%%/*}"
-  project_for_module "$module"
-}
-
-test_project_for_path() {
-  local path="$1" test_dir
-  case "$path" in
-    tests/*.Tests/*)
-      test_dir="${path#tests/}"; test_dir="${test_dir%%/*}"
-      printf 'tests/%s/%s.csproj\n' "$test_dir" "$test_dir" ;;
-    *) return 1 ;;
-  esac
-}
-
 is_blocked_path() {
   case "$1" in
 scripts/gates/ci-full.sh|scripts/gates/release.sh|scripts/release-gate.sh|\
@@ -110,8 +85,8 @@ scripts/test-all.sh|scripts/smoke-all.sh)
 }
 
 if [[ ${#paths[@]} -eq 0 ]]; then
-  while IFS= read -r path; do add_changed_path "$path"; done < <(git diff --name-only "$base_ref" --)
-  while IFS= read -r path; do add_changed_path "$path"; done < <(git ls-files --others --exclude-standard)
+  discovered_paths="$(bash scripts/checks/post-change-targeted-paths.sh "$base_ref")"
+  while IFS= read -r path; do add_changed_path "$path"; done <<< "$discovered_paths"
 else
   for path in "${paths[@]}"; do add_changed_path "$path"; done
 fi
@@ -128,13 +103,9 @@ for path in "${changed_paths[@]}"; do
   fi
   [[ "$path" == *.sh ]] && add_syntax_path "$path"
   if [[ "$path" == src/* ]]; then
-    if project="$(source_project_for_path "$path")"; then
-      add_test_project "$project" "$path"
-    else
-      unmapped_sources+=("$path")
-    fi
-  elif [[ "$path" == tests/* ]] && project="$(test_project_for_path "$path")"; then
-    add_test_project "$project" "$path"
+    add_projects_for_path "$path" || unmapped_sources+=("$path")
+  elif [[ "$path" == tests/* ]]; then
+    add_projects_for_path "$path" || true
   fi
 done
 
@@ -142,12 +113,6 @@ if [[ ${#blocked_paths[@]} -gt 0 ]]; then
   echo "Refusing targeted verification for blocked paths:" >&2
   printf '  %s\n' "${blocked_paths[@]}" >&2
   echo "Use an explicit user-requested full or release proof path instead." >&2; exit 1
-fi
-
-if [[ ${#unmapped_sources[@]} -gt 0 ]]; then
-  echo "Cannot map these runtime source paths to targeted test projects:" >&2
-  printf '  %s\n' "${unmapped_sources[@]}" >&2
-  echo "Add a mapping or run an explicit targeted test command; no full-gate fallback is allowed." >&2; exit 1
 fi
 
 print_command() {
@@ -188,10 +153,20 @@ run_or_print() {
 }
 
 run_or_print "diff whitespace" git diff --check "$base_ref" -- "${changed_paths[@]}"
+if [[ ${#untracked_paths[@]} -gt 0 ]]; then
+  for path in "${untracked_paths[@]}"; do
+    run_or_print "untracked whitespace: $path" bash scripts/checks/untracked-whitespace.sh "$path"
+  done
+fi
 if [[ ${#syntax_paths[@]} -gt 0 ]]; then
   for path in "${syntax_paths[@]}"; do run_or_print "shell syntax: $path" bash -n "$path"; done
 fi
 run_or_print "fast contract gate" bash scripts/gates/ci-fast.sh "$configuration"
+if [[ ${#unmapped_sources[@]} -gt 0 ]]; then
+  echo "Cannot map these runtime source paths to targeted test projects:" >&2
+  printf '  %s\n' "${unmapped_sources[@]}" >&2
+  echo "Add a mapping or run an explicit targeted test command; no full-gate fallback is allowed." >&2; exit 1
+fi
 if [[ ${#test_projects[@]} -gt 0 ]]; then
   for project in "${test_projects[@]}"; do run_or_print "$(basename "$(dirname "$project")")" dotnet test "$project" -c "$configuration"; done
 fi

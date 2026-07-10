@@ -6,6 +6,7 @@ cd "$(repo_root)"
 
 run_step "docs consistency" bash scripts/checks/docs-consistency.sh
 run_step "active workflow boundary" bash scripts/checks/active-workflow-boundary.sh
+run_step "post-change targeted self-test" bash scripts/checks/post-change-targeted-self-test.sh
 run_step "config docs contract" bash scripts/checks/config-docs-contract.sh
 run_step "CLI docs sync" bash scripts/checks/cli-docs-sync.sh
 run_step "skills schema" bash scripts/checks/skills-schema.sh
