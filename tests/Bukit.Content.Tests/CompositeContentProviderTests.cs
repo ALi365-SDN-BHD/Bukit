@@ -109,6 +109,42 @@ public sealed class CompositeContentProviderTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_SourceCollectionOverridesItemCollectionWithoutChangingType()
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = new("text", "article"),
+            ["collection"] = new("text", "drafts")
+        };
+        var provider = new RawTestProvider(new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    Id: "article-1",
+                    Title: "Article 1",
+                    Slug: "article-1",
+                    PublishAt: DateTimeOffset.UtcNow,
+                    Body: new RawBody(),
+                    Properties: RawContentValue.FromFields(fields),
+                    CustomFields: fields)
+            },
+            new NullBodyStore()));
+        (string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)[] providers =
+        {
+            ("news-source", "content", "news", null, provider)
+        };
+        var composite = new CompositeContentProvider(providers);
+
+        var result = await composite.LoadRawAsync();
+
+        var raw = Assert.Single(result.Documents);
+        Assert.Equal("article", ContentFieldReader.GetText(raw.CustomFields, "type"));
+        Assert.Equal("news", ContentFieldReader.GetText(raw.CustomFields, "collection"));
+        Assert.Equal("article", raw.Properties!["type"].Value);
+        Assert.Equal("news", raw.Properties["collection"].Value);
+    }
+
+    [Fact]
     public async Task LoadAsync_MultipleProvidersWithSameSource_MergeItems()
     {
         var p1 = new TestProvider(new RawContentLoadResult(

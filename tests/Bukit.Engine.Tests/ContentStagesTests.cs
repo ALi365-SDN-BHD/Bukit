@@ -29,6 +29,43 @@ public sealed class ContentStagesTests
     private static ConfigOverrides NoOverrides => new();
 
     [Fact]
+    public void ContentDocumentNormalizer_CollectionOnly_DefaultsTypeToPage()
+    {
+        var document = Document("news-item", "news-item", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["collection"] = "news"
+        });
+
+        Assert.Equal("page", document.Record.Identity.ContentType);
+        Assert.Equal("news", document.Record.Classification.Collection);
+    }
+
+    [Fact]
+    public void ContentDocumentNormalizer_DistinctTypeAndCollection_PreservesBoth()
+    {
+        var document = Document("news-article", "news-article", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "article",
+            ["collection"] = "news"
+        });
+
+        Assert.Equal("article", document.Record.Identity.ContentType);
+        Assert.Equal("news", document.Record.Classification.Collection);
+    }
+
+    [Fact]
+    public void ContentDocumentNormalizer_DataModeWithoutCollection_DefaultsTypeToModuleAndLeavesCollectionEmpty()
+    {
+        var document = Document("site-data", "site-data", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["sourceMode"] = "data"
+        });
+
+        Assert.Equal("module", document.Record.Identity.ContentType);
+        Assert.Equal(string.Empty, document.Record.Classification.Collection);
+    }
+
+    [Fact]
     public async Task ContentLoadStage_RoutesToProviderFactory()
     {
         var loadResult = new RawContentLoadResult(

@@ -9,6 +9,24 @@ namespace Bukit.Engine.Tests;
 public sealed class ContentPipelineTests
 {
     [Fact]
+    public async Task ExecuteAsync_ContentModeTypeOnly_ThrowsConfigException()
+    {
+        var item = Item("article-only", "article-only", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "article"
+        });
+        var factory = new RecordingContentProviderFactory(RawResult(item));
+        var pipeline = new ContentPipeline(factory, new RecordingLogger());
+
+        await Assert.ThrowsAsync<ConfigException>(() => pipeline.ExecuteAsync(
+            Config(draft: true, schemaFailMode: "warn"),
+            "/tmp/site",
+            new ConfigOverrides(),
+            "/tmp/site/.cache/media",
+            CancellationToken.None));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_LoadsLocalizesFiltersDraftsAndBuildsCanonicalContent()
     {
         var published = Item("published", "published", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

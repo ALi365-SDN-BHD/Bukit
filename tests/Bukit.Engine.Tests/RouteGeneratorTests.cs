@@ -80,6 +80,30 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
+    public void Generate_EmptyCollection_Throws()
+    {
+        var item = Item("empty-collection", new Dictionary<string, object>
+        {
+            ["type"] = "article"
+        });
+        item = item with
+        {
+            Record = item.Record with
+            {
+                Classification = item.Record.Classification with { Collection = string.Empty }
+            }
+        };
+        var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>
+        {
+            [string.Empty] = new("/invalid/{slug}/", "pages/article.html")
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: collections));
+
+        Assert.Contains("collection", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Generate_UnknownTypeWithoutRule_Throws()
     {
         var item = Item("custom", new Dictionary<string, object> { ["type"] = "custom" });

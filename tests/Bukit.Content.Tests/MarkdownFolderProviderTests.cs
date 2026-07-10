@@ -224,6 +224,38 @@ public sealed class MarkdownFolderProviderTests
     }
 
     [Fact]
+    public async Task LoadAsync_WithDistinctTypeAndCollection_PreservesBoth()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-type-collection-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "article.md"), """
+            ---
+            title: Article
+            type: article
+            collection: news
+            ---
+            Body
+            """);
+
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root, DefaultType: "page"));
+            var result = await provider.LoadRawAsync();
+
+            var item = Assert.Single(result.Documents);
+            Assert.Equal("article", ContentFieldReader.GetText(item.CustomFields, "type"));
+            Assert.Equal("news", ContentFieldReader.GetText(item.CustomFields, "collection"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void ExtractSummaryFromMarkdown_StripsHtmlDecodesEntitiesAndTruncates()
     {
         var summary = MarkdownTextHelper.ExtractSummaryFromMarkdown("""
