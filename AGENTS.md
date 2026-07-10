@@ -42,9 +42,30 @@ Required execution order for each task:
 5. Perform a code audit of the final diff and impacted surfaces.
 6. Move to the next task only after the audit finds no unresolved issues.
 
+Post-change verification for code changes:
+
+- After adding or modifying code logic, create one bounded read-only sub-agent
+  review for the current diff when a sub-agent facility is available.
+- The sub-agent may audit the diff, collect evidence, and recommend targeted
+  checks only. It must not modify files, create commits, start a new
+  user-visible session, or expand the task scope.
+- The main agent remains responsible for running verification and deciding
+  whether the task is complete.
+- Use `bash scripts/checks/post-change-targeted.sh -- <changed paths>` as the
+  default post-change gate. When the working tree has unrelated changes, pass
+  the current task paths explicitly instead of relying on automatic diff
+  detection.
+- The default post-change flow must not run full or release gates. Do not run
+  `scripts/gates/ci-full.sh`, `scripts/gates/release.sh`,
+  `scripts/test-all.sh`, `scripts/smoke-all.sh`,
+  `dotnet test bukit-test.slnx`, or whole-solution `.slnx` tests unless the
+  user explicitly requests that broader proof.
+- If no sub-agent facility is available, state that limitation and perform the
+  final diff audit in the main thread before finishing.
+
 Validation boundary:
 
-- Development tasks require a repository gate by default.
+- Development tasks require a task-appropriate repository gate by default.
 - Rule-definition and rule-modification tasks do not require a repository gate.
 - Use the task-appropriate gate for normal development work. If the task
   directly changes CI, release, verification scripts, or another gate-owned
