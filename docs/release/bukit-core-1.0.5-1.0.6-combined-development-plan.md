@@ -1,5 +1,9 @@
 # Bukit Core 1.0.5 / 1.0.6 合并开发修复计划书
 
+> Historical planning record. Do not execute these commands as the current
+> coverage or release contract. Use `release-prerelease-template.md` and
+> `.github/workflows/ci.yaml` for the active contract.
+
 文档版本：v1.0  
 目标版本：Bukit Core 1.0.5 / 1.0.6 合并维护周期  
 版本类型：维护补丁 / Regression Hardening / Docs & Schema Drift Hardening  

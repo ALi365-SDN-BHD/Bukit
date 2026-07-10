@@ -10,7 +10,9 @@ output_root="${3:?output root is required}"
 filter="${4:-}"
 settings="${BUKIT_COVERAGE_SETTINGS:-coverage.runsettings}"
 name="$(basename "$(dirname "$project")")"
-results_dir="${output_root}/${name}"
+
+output_root="$(bash scripts/checks/coverage/validate-output-root.py "$output_root" "$repo_root")"
+results_dir="$(bash scripts/checks/coverage/validate-output-root.py "${output_root}/${name}" "$repo_root")"
 
 echo "coverage project: ${name}"
 echo "coverage output: ${results_dir}"

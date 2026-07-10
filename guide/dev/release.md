@@ -31,3 +31,8 @@ progress. Run:
 bash scripts/checks/coverage-baseline-schema.sh
 bash scripts/checks/coverage.sh Release
 ```
+
+The active CI and release workflows split this into `coverage-plan`, parallel
+per-project coverage jobs, and `coverage-summary`. Packaging depends on the
+summary job, and the final `core-coverage` artifact contains both
+`TestResults/coverage/` and `docs/coverage-baselines.json`.

@@ -66,6 +66,13 @@ It runs each Core test project separately, writes project coverage under
 `TestResults/coverage/projects/`, and writes the final Core-only summary to
 `TestResults/coverage/coverage-summary.txt`.
 
+In CI and release workflows, `coverage-plan` validates policy and behavior
+contracts, then generates a per-project matrix from the same project list used
+by `core-tests.sh`. The `coverage-summary` job downloads those isolated results,
+enforces the Core thresholds, and uploads the summary together with
+`docs/coverage-baselines.json`. `Fast contracts` also runs Architecture tests so
+workflow and coverage contracts cannot drift without failing CI.
+
 Architecture/governance tests are not folded into `ci-full` because they also
 validate repository workflow files and coverage script contracts. The top-level
 `scripts/test-all.sh` runs

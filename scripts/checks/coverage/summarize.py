@@ -14,6 +14,11 @@ def pct(covered: int, total: int) -> float:
     return round((covered / total) * 100, 2) if total else 0.0
 
 
+def below_threshold(covered: int, total: int, floor: float) -> bool:
+    value = (covered / total) * 100 if total else 0.0
+    return value < floor
+
+
 def rel_source(repo: Path, sources: list[str], filename: str) -> str | None:
     raw = Path(filename)
     candidates = [raw] if raw.is_absolute() else []
@@ -87,12 +92,12 @@ def main(argv: list[str]) -> int:
     project_floor = float(minimums["projectFloor"])
     missing = sorted(expected_projects(repo, str(policy["sourceRoot"])) - {row["project"] for row in rows})
     failures = [f"missing coverage for {project}" for project in missing]
-    if overall < overall_floor:
+    if below_threshold(covered, total, overall_floor):
         failures.append(f"overall {overall:.2f}% is below {overall_floor:.2f}%")
     failures.extend(
         f"{row['project']} {row['line']:.2f}% is below {project_floor:.2f}%"
         for row in rows
-        if float(row["line"]) < project_floor
+        if below_threshold(int(row["covered"]), int(row["total"]), project_floor)
     )
 
     summary = {

@@ -144,4 +144,3 @@ checks, `git diff --check`, and the backup/reference path audit.
 Request a bounded reviewer to inspect only the rewritten commit sequence and
 Coverage closure diff for incomplete tracking, destructive path gaps, weak YAML
 contracts, over-limit scripts, or unrelated drift.
-

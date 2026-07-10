@@ -3,10 +3,10 @@
   "$id": "https://bukit.dev/schemas/coverage-baselines.v2.json",
   "title": "Bukit Core Coverage Baselines",
   "type": "object",
-  "required": ["version", "scope", "metric", "sourceRoot", "minimums"],
+  "required": ["$schema", "version", "scope", "metric", "sourceRoot", "minimums"],
   "properties": {
     "$schema": {
-      "type": "string"
+      "const": "schemas/coverage-baselines.v2.json"
     },
     "version": {
       "const": "2.0.0"

@@ -27,7 +27,8 @@ matches="$(
   printf '%s\n' "$matches" |
     sed '/^$/d' |
     sed '\#^\./tests/fixtures/dotfile-leak-site/static/\.env$#d' |
-    sed '\#^\./\.env\.example$#d'
+    sed '\#^\./\.env\.example$#d' |
+    sed '\#^\./TestResults/coverage/.*/coverage\.cobertura\.xml$#d'
 )"
 if [ -n "$matches" ]; then
   echo "local artifacts found outside the allowlist:" >&2

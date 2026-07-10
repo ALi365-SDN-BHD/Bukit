@@ -1,5 +1,9 @@
 # Bukit 1.0.2 Release Checklist（P0-2，硬门槛）
 
+> Historical release record. Do not execute these commands as the current
+> coverage or release contract. Use `release-prerelease-template.md` for the
+> active release checklist.
+
 ## 目标
 
 1.0.2 发布前必须基于真实 CI 绿灯证据（GitHub Actions workflow run completed success）。
@@ -7,10 +11,9 @@
 
 ## 本轮验收执行序列（快速）
 
-- `bash scripts/gates/ci-fast.sh Release`
-- `bash scripts/gates/ci-full.sh Release`
+- `bash scripts/checks/ci-workflow-evidence.sh "$GITHUB_REPOSITORY" "$GITHUB_SHA" "ci.yml" TestResults/release-gate/ci-workflow-evidence.json 1 TestResults/release-gate/rc-gate-evidence.md main,master`
 - `bash scripts/checks/coverage-baseline-schema.sh`
-- `bash scripts/checks/coverage.sh Release`
+- `dotnet test bukit.slnx`
 - `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter "FullyQualifiedName~DevFileWatcher_RebuildFailure_DoesNotDisposeWatcher|FullyQualifiedName~DevFileWatcher_RapidChanges_DebouncedToSingleRebuild|FullyQualifiedName~DevRequestHandler_LiveReloadScript_UsesSameOriginWebSocket"`
 - `bash scripts/smoke/release-artifacts.sh TestResults/release-gate/native-aot/linux-x64`
 - `bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMIT" <下载目录>`
@@ -51,8 +54,8 @@ bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMI
 ## Release order（v1.0.2）
 
 1. Merge to main
-2. Wait for `.github/workflows/ci.yaml` completed success
-3. Confirm Core coverage artifact
+2. Wait for ci.yml completed success
+3. Confirm workflow evidence
 4. Create tag `v$RELEASE_VERSION`
 5. Release workflow runs
 6. 下载 release 资产后执行一致性复核：
@@ -64,22 +67,22 @@ bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMI
 
 | # | 条目 | 证据文件 | 位置 | 通过标准 |
 |---|---|---|---|---|
-| P0 | CI workflow success | `.github/workflows/ci.yaml` | GitHub Actions | `Fast contracts`、`Core tests`、`Core coverage` 都必须成功。 |
-| P0 | Core coverage artifact | `coverage-summary.txt` / `coverage-summary.json` | `TestResults/coverage/` | 文件存在且包含 Core-only coverage 摘要。 |
+| P0 | ci.yml completed success evidence | `ci-workflow-evidence.json` | `TestResults/release-gate/ci-workflow-evidence.json` | `workflow_runs` 必须包含至少 1 条 status=`completed` 且 conclusion=`success` 的 `ci.yml` 记录（针对同一 commit SHA，且 `head_branch` 在 `main,master`）。 |
+| P0 | Evidence Markdown | `rc-gate-evidence.md` | `TestResults/release-gate/rc-gate-evidence.md` | 文件存在且非空。 |
 | P0 | release artifact smoke report | `release-artifact-smoke.md` | `TestResults/release-gate/native-aot/linux-x64/release-artifact-smoke.md`（release-gate 产物） | 文件存在且包含步骤记录（至少 1 个 `PASS` 条目）。 |
 | P1 | config schema artifact | `site.schema.json` | `TestResults/release-gate/site.schema.json` | 文件存在且为有效 JSON（可解析）。 |
-| P1 | Coverage baseline | `coverage-baselines.json` | `docs/coverage-baselines.json` | 必须通过 `bash scripts/checks/coverage-baseline-schema.sh`。文件使用 Core-only v2 policy。 |
+| P1 | Coverage summary | `coverage-summary.txt` | `TestResults/release-gate/coverage-summary.txt` | 文件存在且包含覆盖率摘要字段。 |
+| P1 | Coverage baseline | `coverage-baselines.json` | `docs/coverage-baselines.json` | 必须通过 `bash scripts/checks/coverage-baseline-schema.sh`。`core`/`cli` 要有 `blocking: true` + `minimum`；`importing`/`labs` 要有 `blocking: false` + `baseline`。 |
 | P1 | Native AOT 发布构建 | `linux-x64` native-aot 产物 | `TestResults/release-gate/native-aot/linux-x64/` | 目录存在并包含 release smoke 可追溯产物。 |
 
 ## 覆盖率基线维护说明（1.0.2）
 
 - 基线文件：`docs/coverage-baselines.json`。
 - 修改策略：
-  - policy 使用 `version=2.0.0`、`scope=core`、`metric=line`。
-  - `minimums.overall` 是 Core 整体 line coverage 下限。
-  - `minimums.projectFloor` 是每个 `src/Bukit-Core/*` 项目的最低 line coverage 下限。
-- 约束：本 gate 不包含 Plugins 或 Labs。若未来要加入，必须作为独立任务同步更新脚本、workflow、文档和 Architecture.Tests。
-- 更新后请确保 release checklist 的 P1 条目与 `TestResults/coverage/coverage-summary.txt` 同步可读。
+  - `core` 与 `cli` 使用 `blocking: true`，仅在覆盖率显著回退时下调 `minimum`。
+  - `importing` 与 `labs` 使用 `blocking: false` 与 `baseline`，用于观察趋势且不阻断 release。
+- 约束：不应将 `core/cli` 的 `blocking` 改为 `false`，不应将 `importing/labs` 的 `blocking` 改为 `true`，除非对应模块改为 release-blocking 约束并同步更新 CI 评估规则。
+- 更新后请确保 release checklist 的 P1 条目与 `TestResults/release-gate/coverage-summary.txt` 同步可读（`*_baseline` 与 `*_blocking` 字段应完整出现）。
 
 ## 阻断规则
 
@@ -88,12 +91,13 @@ bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMI
 
 ## 发版前最终验收（人工核对）
 
-- GitHub Actions `release` workflow 的 Core tests、Core coverage、Security check 和 release asset collection jobs 通过。
-- 该 commit 在 `main` 或 `master` 分支上的 `.github/workflows/ci.yaml` 通过。
+- GitHub Actions `release` 的 `release-gate` job 通过。
+- 该 commit 在 `main` 或 `master` 分支上存在至少一条 `ci.yml` 的 `completed + success` 运行记录（依据 `head_branch`）。
 - 在 release artifact 下载包中能看到以下文件/目录：
+  - `TestResults/release-gate/ci-workflow-evidence.json`
+  - `TestResults/release-gate/rc-gate-evidence.md`
   - `TestResults/release-gate/site.schema.json`
-  - `TestResults/coverage/coverage-summary.txt`
-  - `TestResults/coverage/coverage-summary.json`
+  - `TestResults/release-gate/coverage-summary.txt`
   - `docs/coverage-baselines.json`
   - `TestResults/release-gate/native-aot/linux-x64/`
   - `TestResults/release-gate/native-aot/linux-x64/release-artifact-smoke.md`

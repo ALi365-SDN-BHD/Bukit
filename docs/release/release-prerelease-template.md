@@ -4,13 +4,16 @@
 
 1. 先在 `main` 或 `master` 上提交待发布改动，并等待 `.github/workflows/ci.yaml` 全量通过。
 2. 在打 tag 前确认同一 commit 的主干 CI 绿灯：
-   - `Fast contracts`、`Core tests`、`Core coverage` 都必须成功。
+   - `Fast contracts`（含 `Architecture contracts`）、`Core tests`、`Core coverage plan`、全部 `Core coverage: <project>` 和最终 `Core coverage` 都必须成功。
 3. 确认无误后再创建并推送 tag：
    - `git tag vX.Y.Z`
    - `git push origin vX.Y.Z`
 4. 触发/等待 release，确认 release run 中包含并通过：
+   - `Architecture contracts`
    - `Core tests`
-   - `Core coverage`
+   - `Core coverage plan`
+   - 全部 `Core coverage: <project>`
+   - 最终 `Core coverage`
    - `Security check`
    - release asset collection / verification
 5. 下载 `core-coverage` artifact，确认包含：
