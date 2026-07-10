@@ -29,7 +29,7 @@ Bukit bukan platform SaaS, backend CMS penuh, pembina halaman visual, atau pengg
 - **Sumber kandungan**: provider langsung Core hanyalah Markdown dan Notion.
 - **Nota-sebagai-CMS**: Obsidian dan aplikasi nota lain disokong melalui eksport serasi Markdown. Integrasi langsung Feishu, Yuque, dan pangkalan pengetahuan lain ialah kerja masa depan.
 - **Templat Scriban**: layout, partial, snippet, halaman koleksi, penomboran, taksonomi, dan output berbilang bahasa.
-- **Tema filesystem**: direktori tempatan `themes/<name>/` dengan layouts, assets, static files, dan pilihan `theme.yaml`.
+- **Tema filesystem**: direktori tempatan `themes/<name>/` dengan layouts, assets, static files, dan manifest `theme.yaml` yang diwajibkan.
 - **Output SEO dan GEO**: sitemap, RSS/Atom/JSON Feed, JSON-LD, Open Graph, Twitter Cards, URL canonical, hreflang, `llms.txt`, `robots.txt`, audit SEO, audit GEO, dan laporan audit penerbitan.
 - **Pelayan pembangunan LiveReload**: memantau fail kandungan dan tema, membina semula secara incremental, menyiarkan melalui WebSocket, dan menyegar semula pelayar.
 - **Pelayan pratonton statik**: menyajikan direktori output yang telah dibina.

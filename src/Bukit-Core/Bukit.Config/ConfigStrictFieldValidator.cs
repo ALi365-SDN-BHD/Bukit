@@ -88,7 +88,10 @@ internal static class ConfigStrictFieldValidator
 
     private static void ValidateSeo(YamlMappingNode seo)
     {
-        RequireOnly(seo, Set("enabled", "renderMode", "diagnostics", "defaultImage", "twitterSite", "organization", "robotsTxt", "schema", "geo"), "site.seo");
+        RequireOnly(seo, Set(
+            "enabled", "renderMode", "diagnostics",
+            "homeTitleTemplate", "pageTitleTemplate", "titleSeparator",
+            "defaultImage", "twitterSite", "organization", "robotsTxt", "schema", "geo"), "site.seo");
         if (Map(seo, "organization") is { } organization) RequireOnly(organization, Set("name", "url", "logo"), "site.seo.organization");
         if (Map(seo, "robotsTxt") is { } robots) RequireOnly(robots, Set("enabled"), "site.seo.robotsTxt");
         if (Map(seo, "schema") is { } schema) RequireOnly(schema, Set("webPage", "collectionPage", "searchAction"), "site.seo.schema");

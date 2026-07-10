@@ -51,6 +51,12 @@ internal static class RenderDependencyHasher
         hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Seo.RenderMode);
         hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Seo.HomeTitleTemplate);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Seo.PageTitleTemplate);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Seo.TitleSeparator);
+        hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Seo.DefaultImage);
         hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Seo.TwitterSite);

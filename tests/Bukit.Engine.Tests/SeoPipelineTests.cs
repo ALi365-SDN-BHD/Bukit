@@ -83,6 +83,99 @@ public sealed class SeoPipelineTests
     }
 
     [Fact]
+    public void Execute_OffModeProvidesModelAndDiagnosticsWithoutInjection()
+    {
+        var item = ContentDocument.Create(
+            id: "hello",
+            title: "Hello World",
+            slug: "hello",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>Hello</p>");
+        var route = new RouteInfo("/hello/", "hello/index.html", "pages/page.html");
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Seo = new SeoConfig { Enabled = true, RenderMode = "off", Diagnostics = "warn" }
+            },
+            Content = TestContent.Markdown()
+        };
+        var logger = new RecordingLogger();
+
+        var result = new SeoPipeline().Execute(
+            config,
+            baseUrl: "/",
+            renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
+            listRoutes: Array.Empty<RouteInfo>(),
+            seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            analytics: new AnalyticsModel { Enabled = false },
+            logger);
+
+        Assert.True(result.ShouldProvideSeoModel);
+        Assert.False(result.ShouldInjectSeo);
+        Assert.NotNull(result.SeoBuilder);
+        Assert.NotNull(result.HtmlPostProcessor);
+
+        var seo = result.SeoBuilder!(item, route);
+        var page = new PageInfo { Title = item.Title, Url = route.Url, Content = string.Empty, Seo = seo };
+        const string html = "<html><head><title>Theme title</title></head><body></body></html>";
+        Assert.Equal(html, result.HtmlPostProcessor!(item, route, page, html));
+        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Execute_WhenPageDisablesSeoInjection_PreservesHtmlButStillRunsDiagnostics()
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["seo_inject"] = new("boolean", false)
+        };
+        var item = ContentDocument.Create(
+            id: "hello",
+            title: "Hello World",
+            slug: "hello",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>Hello</p>",
+            fields: fields);
+        var route = new RouteInfo("/hello/", "hello/index.html", "pages/page.html");
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Seo = new SeoConfig { Enabled = true, RenderMode = "inject", Diagnostics = "warn" }
+            },
+            Content = TestContent.Markdown()
+        };
+        var logger = new RecordingLogger();
+        var result = new SeoPipeline().Execute(
+            config,
+            baseUrl: "/",
+            renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
+            listRoutes: Array.Empty<RouteInfo>(),
+            seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            analytics: new AnalyticsModel { Enabled = false },
+            logger);
+        var seo = result.SeoBuilder!(item, route);
+        var page = new PageInfo
+        {
+            Title = item.Title,
+            Url = route.Url,
+            Content = item.Body.Html ?? string.Empty,
+            Seo = seo
+        };
+        const string html = "<html><head><title>Theme title</title></head><body></body></html>";
+
+        var processed = result.HtmlPostProcessor!(item, route, page, html);
+
+        Assert.Equal(html, processed);
+        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Execute_ListSeoBuilder_UsesGraphBackedIndexModel()
     {
         var config = new AppConfig
@@ -138,9 +231,11 @@ public sealed class SeoPipelineTests
 
     private sealed class RecordingLogger : ILogger
     {
+        public List<string> Warnings { get; } = new();
+
         public void Debug(string message) { }
         public void Info(string message) { }
-        public void Warn(string message) { }
+        public void Warn(string message) => Warnings.Add(message);
         public void Error(string message) { }
     }
 }

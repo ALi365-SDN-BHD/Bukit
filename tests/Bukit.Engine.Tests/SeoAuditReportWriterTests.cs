@@ -44,6 +44,46 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_DoesNotReportDuplicateDocumentTitleForMutualHreflangAlternates()
+    {
+        WriteOutput("en/index.html", "<html><head><title>Shared home</title></head><body></body></html>");
+        WriteOutput("ms/index.html", "<html><head><title>Shared home</title></head><body></body></html>");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["en/index.html"] = Entry("/en/", "en/index.html", "https://example.com/en/"),
+            ["ms/index.html"] = Entry("/ms/", "ms/index.html", "https://example.com/ms/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["en/index.html"] = Model("Shared home", "https://example.com/en/", "https://example.com/en/", "https://example.com/ms/"),
+            ["ms/index.html"] = Model("Shared home", "https://example.com/ms/", "https://example.com/en/", "https://example.com/ms/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, issue => issue.Code == "seo.document_title_duplicate");
+    }
+
+    [Fact]
+    public void Build_OutputFileMissingDoesNotCascadeDocumentTitleIssues()
+    {
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["missing/index.html"] = Entry("/missing/", "missing/index.html", "https://example.com/missing/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["missing/index.html"] = Model("Missing", "https://example.com/missing/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, issue => issue.Code == "seo.output_file_missing" && issue.Route == "/missing/");
+        Assert.DoesNotContain(report.Issues, issue =>
+            issue.Route == "/missing/" && issue.Code.StartsWith("seo.document_title_", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Build_ReportsDuplicateTitleForUnrelatedRoutes()
     {
         WriteOutput("a/index.html");
@@ -63,6 +103,86 @@ public sealed class SeoAuditReportWriterTests : IDisposable
 
         Assert.Contains(report.Issues, x => x.Code == "seo.title_duplicate" && x.Route == "/a/");
         Assert.Contains(report.Issues, x => x.Code == "seo.title_duplicate" && x.Route == "/b/");
+    }
+
+    [Theory]
+    [InlineData("inject", "error")]
+    [InlineData("theme", "warning")]
+    [InlineData("off", "warning")]
+    public void Build_ReportsDocumentTitleMismatchWithModeSpecificSeverity(string renderMode, string severity)
+    {
+        WriteOutput("a/index.html", """
+            <!doctype html><html><head>
+            <title>Actual &amp; title</title>
+            <link rel="canonical" href="https://example.com/a/" />
+            </head><body></body></html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Model("Semantic", "https://example.com/a/") with { DocumentTitle = "Expected title" }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(renderMode), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, issue =>
+            issue.Code == "seo.document_title_mismatch" &&
+            issue.Route == "/a/" &&
+            issue.Severity == severity);
+    }
+
+    [Fact]
+    public void Build_ReportsMissingMultipleEmptyAndLongDocumentTitles()
+    {
+        var longTitle = new string('x', 61);
+        WriteOutput("missing/index.html", "<html><head></head><body></body></html>");
+        WriteOutput("multiple/index.html", "<html><head><title> </title><title>Second</title></head><body></body></html>");
+        WriteOutput("long/index.html", $"<html><head><title>{longTitle}</title></head><body></body></html>");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["missing/index.html"] = Entry("/missing/", "missing/index.html", "https://example.com/missing/"),
+            ["multiple/index.html"] = Entry("/multiple/", "multiple/index.html", "https://example.com/multiple/"),
+            ["long/index.html"] = Entry("/long/", "long/index.html", "https://example.com/long/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["missing/index.html"] = Model("Missing", "https://example.com/missing/"),
+            ["multiple/index.html"] = Model("Multiple", "https://example.com/multiple/"),
+            ["long/index.html"] = Model(longTitle, "https://example.com/long/") with { DocumentTitle = longTitle }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, issue => issue.Code == "seo.document_title_missing" && issue.Route == "/missing/" && issue.Severity == "error");
+        Assert.Contains(report.Issues, issue => issue.Code == "seo.document_title_multiple" && issue.Route == "/multiple/" && issue.Severity == "error");
+        Assert.Contains(report.Issues, issue => issue.Code == "seo.document_title_empty" && issue.Route == "/multiple/" && issue.Severity == "error");
+        Assert.Contains(report.Issues, issue => issue.Code == "seo.document_title_too_long" && issue.Route == "/long/" && issue.Severity == "warning");
+    }
+
+    [Fact]
+    public void Build_ReportsDuplicateFinalDocumentTitlesWithoutConflatingSemanticTitles()
+    {
+        WriteOutput("a/index.html", "<html><head><title>Shared document</title></head><body></body></html>");
+        WriteOutput("b/index.html", "<html><head><title>Shared document</title></head><body></body></html>");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/"),
+            ["b/index.html"] = Entry("/b/", "b/index.html", "https://example.com/b/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Model("Semantic A", "https://example.com/a/") with { DocumentTitle = "Shared document" },
+            ["b/index.html"] = Model("Semantic B", "https://example.com/b/") with { DocumentTitle = "Shared document" }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, issue => issue.Code == "seo.document_title_duplicate" && issue.Route == "/a/");
+        Assert.Contains(report.Issues, issue => issue.Code == "seo.document_title_duplicate" && issue.Route == "/b/");
+        Assert.DoesNotContain(report.Issues, issue => issue.Code == "seo.title_duplicate");
     }
 
     [Fact]
@@ -211,6 +331,7 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
 
         Assert.Contains(report.Issues, x => x.Code == "seo.html_head_missing" && x.Route == "/image/");
+        Assert.Contains(report.Issues, x => x.Code == "seo.document_title_missing" && x.Route == "/image/");
         Assert.Contains(report.Issues, x => x.Code == "seo.og_image_too_small" && x.Route == "/image/");
     }
 
@@ -726,19 +847,21 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         => new()
         {
             Title = title,
+            DocumentTitle = title,
             Description = title + " description",
             Canonical = canonical,
             Alternates = alternates.Select(href => new SeoAlternateModel(href.EndsWith("/en/", StringComparison.Ordinal) ? "en" : "ms", href)).ToArray()
         };
 
-    private static AppConfig Config()
+    private static AppConfig Config(string renderMode = "inject")
         => new()
         {
             Site = new SiteConfig
             {
                 Name = "test",
                 Title = "Test",
-                Url = "https://example.com"
+                Url = "https://example.com",
+                Seo = new SeoConfig { RenderMode = renderMode }
             },
             Content = TestContent.Markdown()
         };

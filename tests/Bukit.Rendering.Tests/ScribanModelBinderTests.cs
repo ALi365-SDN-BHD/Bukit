@@ -94,6 +94,7 @@ public sealed class ScribanModelBinderTests
             Seo = new SeoModel
             {
                 Title = "SEO Page Title",
+                DocumentTitle = "SEO Page Title | My Site",
                 Description = "SEO description here",
                 Canonical = "https://example.com/test-page/",
                 Prev = "https://example.com/test-page/prev/",
@@ -461,6 +462,7 @@ public sealed class ScribanModelBinderTests
         var seo = Assert.IsType<ScriptObject>(page["seo"]);
 
         Assert.Equal("SEO Page Title", seo["title"]);
+        Assert.Equal("SEO Page Title | My Site", seo["document_title"]);
         Assert.Equal("SEO description here", seo["description"]);
         Assert.Equal("https://example.com/test-page/", seo["canonical"]);
         Assert.Equal("https://example.com/test-page/prev/", seo["prev"]);

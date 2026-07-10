@@ -45,6 +45,11 @@ internal static class SeoModelBuilder
         return new SeoModel
         {
             Title = title,
+            DocumentTitle = SeoDocumentTitleResolver.Resolve(
+                config.Site.Seo,
+                config.Site.Title,
+                title,
+                route.Url),
             Description = description,
             Canonical = canonical,
             Robots = robots,
@@ -120,6 +125,11 @@ internal static class SeoModelBuilder
         return new SeoModel
         {
             Title = title,
+            DocumentTitle = SeoDocumentTitleResolver.Resolve(
+                config.Site.Seo,
+                config.Site.Title,
+                title,
+                page.Url),
             Description = description,
             Canonical = canonical,
             Prev = prev,

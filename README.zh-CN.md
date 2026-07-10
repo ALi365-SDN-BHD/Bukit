@@ -29,7 +29,7 @@ Bukit 不是 SaaS 平台、全功能 CMS 后端、可视化页面构建器，也
 - **内容源**：Core 直接 provider 只有 Markdown 和 Notion。
 - **笔记即 CMS**：Obsidian 和其他笔记应用通过 Markdown 兼容导出接入。飞书、语雀和其他知识库的直接集成属于未来工作。
 - **Scriban 模板**：布局、局部模板、片段、集合页、分页、分类和多语言输出。
-- **文件系统主题**：本地 `themes/<name>/` 目录，包含 layouts、assets、static 文件和可选 `theme.yaml`。
+- **文件系统主题**：本地 `themes/<name>/` 目录，包含 layouts、assets、static 文件和必需的 `theme.yaml` 清单。
 - **SEO 与 GEO 输出**：sitemap、RSS/Atom/JSON Feed、JSON-LD、Open Graph、Twitter Cards、canonical URL、hreflang、`llms.txt`、`robots.txt`、SEO audit、GEO audit 和 publish audit report。
 - **LiveReload 开发服务器**：监听内容和主题文件，增量重建，通过 WebSocket 广播，并刷新浏览器。
 - **静态预览服务器**：服务已经构建好的输出目录。

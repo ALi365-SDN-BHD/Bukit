@@ -956,6 +956,9 @@ public sealed class ConfigLoaderTests : IDisposable
                 enabled: true
                 renderMode: inject
                 diagnostics: strict
+                homeTitleTemplate: "{siteTitle}"
+                pageTitleTemplate: "{pageTitle}{separator}{siteTitle}"
+                titleSeparator: " | "
                 defaultImage: /assets/og.png
                 twitterSite: "@myblog"
                 organization:
@@ -981,6 +984,9 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.True(config.Site.Seo.Enabled);
         Assert.Equal("inject", config.Site.Seo.RenderMode);
         Assert.Equal("strict", config.Site.Seo.Diagnostics);
+        Assert.Equal("{siteTitle}", config.Site.Seo.HomeTitleTemplate);
+        Assert.Equal("{pageTitle}{separator}{siteTitle}", config.Site.Seo.PageTitleTemplate);
+        Assert.Equal(" | ", config.Site.Seo.TitleSeparator);
         Assert.Equal("/assets/og.png", config.Site.Seo.DefaultImage);
         Assert.Equal("@myblog", config.Site.Seo.TwitterSite);
         Assert.NotNull(config.Site.Seo.Organization);
@@ -991,6 +997,30 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.True(config.Site.Seo.Schema.WebPage);
         Assert.False(config.Site.Seo.Schema.CollectionPage);
         Assert.True(config.Site.Seo.Schema.SearchAction);
+    }
+
+    [Fact]
+    public void Load_SeoConfig_PreservesExplicitlyEmptyTitleSeparator()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              seo:
+                homeTitleTemplate: "{siteTitle}"
+                pageTitleTemplate: "{pageTitle}{separator}{siteTitle}"
+                titleSeparator: ""
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal(string.Empty, config.Site.Seo.TitleSeparator);
     }
 
     [Fact]

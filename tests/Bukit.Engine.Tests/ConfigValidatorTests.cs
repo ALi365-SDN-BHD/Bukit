@@ -507,6 +507,9 @@ public sealed class ConfigValidatorTests
         Assert.True(config.Site.Seo.Enabled);
         Assert.Equal("inject", config.Site.Seo.RenderMode);
         Assert.Equal("warn", config.Site.Seo.Diagnostics);
+        Assert.Equal("{siteTitle}", config.Site.Seo.HomeTitleTemplate);
+        Assert.Equal("{pageTitle}", config.Site.Seo.PageTitleTemplate);
+        Assert.Equal(" | ", config.Site.Seo.TitleSeparator);
         Assert.False(config.Site.Seo.RobotsTxt.Enabled);
         Assert.True(config.Site.Seo.Schema.WebPage);
         Assert.True(config.Site.Seo.Schema.CollectionPage);
@@ -522,6 +525,51 @@ public sealed class ConfigValidatorTests
         var config = ConfigWithSite(s => s with { Seo = s.Seo with { RenderMode = "auto" } });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
         Assert.Equal("site.seo.renderMode must be theme|inject|off.", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("{pageTitle}{unknown}", "site.seo.pageTitleTemplate contains unsupported placeholder {unknown}.")]
+    [InlineData("pageTitle}", "site.seo.pageTitleTemplate contains an unopened placeholder.")]
+    [InlineData("{pageTitle", "site.seo.pageTitleTemplate contains an unclosed placeholder.")]
+    [InlineData("{siteTitle}", "site.seo.pageTitleTemplate must contain {pageTitle}.")]
+    public void Validate_SeoPageTitleTemplateInvalid_Throws(string template, string expectedMessage)
+    {
+        var config = ConfigWithSite(s => s with
+        {
+            Seo = s.Seo with { PageTitleTemplate = template }
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(expectedMessage, ex.Message);
+    }
+
+    [Fact]
+    public void Validate_SeoHomeTitleTemplateWithoutDynamicPlaceholder_Throws()
+    {
+        var config = ConfigWithSite(s => s with
+        {
+            Seo = s.Seo with { HomeTitleTemplate = "Fixed title" }
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal("site.seo.homeTitleTemplate must contain {pageTitle} or {siteTitle}.", ex.Message);
+    }
+
+    [Fact]
+    public void Validate_SeoTitleSeparatorMayBeEmpty()
+    {
+        var config = ConfigWithSite(site => site with
+        {
+            Seo = site.Seo with
+            {
+                PageTitleTemplate = "{pageTitle}{separator}{siteTitle}",
+                TitleSeparator = string.Empty
+            }
+        });
+
+        ConfigValidator.Validate(config);
     }
 
     [Fact]

@@ -52,6 +52,7 @@ public sealed record AnalyticsModel
 public sealed record SeoModel
 {
     public required string Title { get; init; }
+    public string DocumentTitle { get; init; } = string.Empty;
     public string? Description { get; init; }
     public required string Canonical { get; init; }
     public string? Prev { get; init; }

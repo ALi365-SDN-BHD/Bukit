@@ -113,13 +113,16 @@ internal static partial class MachineReadabilityTrustAuditBuilder
     private static void AnalyzeHtmlOutput(
         AppConfig config,
         SeoIndexEntry entry,
+        SeoModel? model,
         PublishDocument document,
         string html,
+        HtmlDocumentTitleInspection titleInspection,
         List<SeoAuditIssue> seoIssues,
         List<PublishAuditIssue> publishIssues)
     {
-        if (!html.Contains("<head", StringComparison.OrdinalIgnoreCase) ||
-            !html.Contains("</head>", StringComparison.OrdinalIgnoreCase))
+        AnalyzeDocumentTitle(config, entry, model, titleInspection, seoIssues);
+
+        if (!titleInspection.HasHead)
         {
             seoIssues.Add(Warning("seo.html_head_missing", entry.Route.Url, "HTML output has no standard <head>...</head>; inject mode cannot add SEO tags automatically."));
             return;
@@ -127,8 +130,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
 
         var renderMode = (config.Site.Seo.RenderMode ?? "inject").Trim();
         if (string.Equals(renderMode, "inject", StringComparison.OrdinalIgnoreCase) &&
-            !html.Contains("rel=\"canonical\"", StringComparison.OrdinalIgnoreCase) &&
-            !html.Contains("rel='canonical'", StringComparison.OrdinalIgnoreCase))
+            !titleInspection.HeadHtml!.Contains("rel=\"canonical\"", StringComparison.OrdinalIgnoreCase) &&
+            !titleInspection.HeadHtml.Contains("rel='canonical'", StringComparison.OrdinalIgnoreCase))
         {
             seoIssues.Add(Error("seo.inject_canonical_missing", entry.Route.Url, "Inject mode did not produce a canonical link in the HTML head."));
         }
@@ -137,6 +140,53 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         {
             SemanticHtmlAuditRules.Analyze(entry, document, html, publishIssues);
         }
+    }
+
+    private static void AnalyzeDocumentTitle(
+        AppConfig config,
+        SeoIndexEntry entry,
+        SeoModel? model,
+        HtmlDocumentTitleInspection inspection,
+        List<SeoAuditIssue> issues)
+    {
+        if (inspection.Count == 0)
+        {
+            issues.Add(Error("seo.document_title_missing", entry.Route.Url, "Final HTML document title is missing."));
+            return;
+        }
+
+        if (inspection.Count > 1)
+        {
+            issues.Add(Error("seo.document_title_multiple", entry.Route.Url, $"Final HTML contains {inspection.Count} document titles; exactly one is required."));
+        }
+
+        if (inspection.Titles.Any(string.IsNullOrWhiteSpace))
+        {
+            issues.Add(Error("seo.document_title_empty", entry.Route.Url, "Final HTML contains an empty document title."));
+        }
+
+        var actual = inspection.PrimaryTitle!;
+        if (actual.Length > TitleMaxLength)
+        {
+            issues.Add(Warning("seo.document_title_too_long", entry.Route.Url, $"Final HTML document title length is {actual.Length}, recommended maximum is {TitleMaxLength}."));
+        }
+
+        if (model is null || string.IsNullOrWhiteSpace(actual))
+        {
+            return;
+        }
+
+        var expected = SeoDocumentTitleResolver.ResolveEffective(model);
+        if (string.Equals(actual, expected, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var message = $"Final HTML document title does not match the resolved model: {actual} != {expected}.";
+        var renderMode = (config.Site.Seo.RenderMode ?? "inject").Trim();
+        issues.Add(string.Equals(renderMode, "inject", StringComparison.OrdinalIgnoreCase)
+            ? Error("seo.document_title_mismatch", entry.Route.Url, message)
+            : Warning("seo.document_title_mismatch", entry.Route.Url, message));
     }
 
 }

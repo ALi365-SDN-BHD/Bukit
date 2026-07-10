@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Importing;
 using Xunit;
 
@@ -39,10 +40,11 @@ public sealed class ThemeGeneratorTests : IDisposable
     [Fact]
     public void Generate_WritesThemeFilesAndFallsBackOnDuplicateRouteMapTemplates()
     {
+        const string themeName = "true";
         var options = new HtmlDemoImportOptions
         {
             InputPath = _tempDir,
-            ThemeName = "generated-theme",
+            ThemeName = themeName,
             RootDir = _tempDir
         };
 
@@ -85,7 +87,7 @@ public sealed class ThemeGeneratorTests : IDisposable
             },
             routeMap);
 
-        var themeRoot = Path.Combine(_tempDir, "themes", "generated-theme");
+        var themeRoot = Path.Combine(_tempDir, "themes", themeName);
         Assert.Equal(themeRoot, result.ThemePath);
         Assert.Equal(3, result.PartialsGenerated);
         Assert.Equal(5, result.TemplatesGenerated);
@@ -111,9 +113,13 @@ public sealed class ThemeGeneratorTests : IDisposable
         Assert.Contains("<li><a href=\"/about/\">About</a></li>", indexTemplate, StringComparison.Ordinal);
 
         var themeYaml = File.ReadAllText(Path.Combine(themeRoot, "theme.yaml"));
+        Assert.Contains("name: \"true\"", themeYaml, StringComparison.Ordinal);
+        Assert.Contains("version: 1.0.0", themeYaml, StringComparison.Ordinal);
+        Assert.Contains("engine: bukit", themeYaml, StringComparison.Ordinal);
         Assert.Contains("template: pages/index.html", themeYaml, StringComparison.Ordinal);
         Assert.Contains("template: pages/page.html", themeYaml, StringComparison.Ordinal);
         Assert.Contains("template: pages/insights.html", themeYaml, StringComparison.Ordinal);
+        Assert.Empty(ConfigValidator.ValidateThemeYaml(themeRoot));
     }
 
     private static DiscoveredPage CreatePage(

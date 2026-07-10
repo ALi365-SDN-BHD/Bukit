@@ -61,6 +61,7 @@ public sealed class SeoModelBuilderTests
         var model = SeoModelBuilder.BuildForContent(config, "/zh", item, route);
 
         Assert.Equal("Hello World", model.Title);
+        Assert.Equal("Hello World", model.DocumentTitle);
         Assert.Equal("A test post", model.Description);
         Assert.Equal("https://example.com/zh/blog/hello-world/", model.Canonical);
         Assert.NotNull(model.Og);
@@ -99,7 +100,83 @@ public sealed class SeoModelBuilderTests
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
 
         Assert.Equal("SEO Title", model.Title);
+        Assert.Equal("SEO Title", model.DocumentTitle);
         Assert.Equal("SEO Title", model.Og.Title);
+    }
+
+    [Fact]
+    public void BuildForContent_CustomPageTitleTemplate_SeparatesDocumentAndSemanticTitles()
+    {
+        var config = CreateConfig();
+        config = config with
+        {
+            Site = config.Site with
+            {
+                Seo = config.Site.Seo with
+                {
+                    PageTitleTemplate = " {PAGETITLE}{separator}{siteTitle} ",
+                    TitleSeparator = " | "
+                }
+            }
+        };
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Original",
+            slug: "original",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["seo_title"] = "SEO   Title"
+            }));
+        var route = new RouteInfo("/pages/original/", "pages/original/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("SEO   Title", model.Title);
+        Assert.Equal("SEO Title | My Site", model.DocumentTitle);
+        Assert.Equal("SEO   Title", model.Og.Title);
+        Assert.All(model.JsonLd, json => Assert.DoesNotContain("SEO Title | My Site", json, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ResolveDocumentTitle_DoesNotInterpretPlaceholderTextInsideReplacementValues()
+    {
+        var seo = new SeoConfig
+        {
+            PageTitleTemplate = "{pageTitle}{separator}{siteTitle}",
+            TitleSeparator = " | {pageTitle}"
+        };
+
+        var title = SeoDocumentTitleResolver.Resolve(
+            seo,
+            siteTitle: "Site {separator}",
+            pageTitle: "Guide to {siteTitle} and {separator}",
+            routeUrl: "/guide/");
+
+        Assert.Equal(
+            "Guide to {siteTitle} and {separator} | {pageTitle}Site {separator}",
+            title);
+    }
+
+    [Fact]
+    public void BuildForContent_HomeRoute_UsesHomeTitleTemplate()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "home",
+            title: "Welcome",
+            slug: "home",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        var route = new RouteInfo("/", "index.html", "pages/index.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("Welcome", model.Title);
+        Assert.Equal("My Site", model.DocumentTitle);
     }
 
     [Fact]
@@ -271,6 +348,7 @@ public sealed class SeoModelBuilderTests
         var model = SeoModelBuilder.BuildForList(config, "/", page);
 
         Assert.Equal("Blog", model.Title);
+        Assert.Equal("Blog", model.DocumentTitle);
         Assert.Equal("All posts", model.Description);
         Assert.Equal("https://example.com/blog/", model.Canonical);
         Assert.Equal("website", model.Og.Type);

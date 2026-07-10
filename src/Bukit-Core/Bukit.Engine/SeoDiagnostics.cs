@@ -66,12 +66,16 @@ internal static partial class SeoDiagnostics
             return html;
         }
 
-        var head = ExtractHead(html);
-        if (head is null)
+        var titleInspection = HtmlDocumentTitleInspector.Inspect(html);
+        if (!titleInspection.HasHead)
         {
             Report(config, logger, $"seo.head_missing route={route.Url}");
+            Report(config, logger, $"seo.document_title_missing route={route.Url}");
             return html;
         }
+
+        AnalyzeDocumentTitle(config, route, seo, titleInspection, logger);
+        var head = titleInspection.HeadHtml!;
 
         var canonicalCount = Count(CanonicalRegex(), head);
         if (canonicalCount == 0)
@@ -192,10 +196,41 @@ internal static partial class SeoDiagnostics
         logger.Warn(message);
     }
 
-    private static string? ExtractHead(string html)
+    private static void AnalyzeDocumentTitle(
+        AppConfig config,
+        RouteInfo route,
+        SeoModel seo,
+        HtmlDocumentTitleInspection inspection,
+        ILogger logger)
     {
-        var match = HeadRegex().Match(html);
-        return match.Success ? match.Value : null;
+        if (inspection.Count == 0)
+        {
+            Report(config, logger, $"seo.document_title_missing route={route.Url}");
+            return;
+        }
+
+        if (inspection.Count > 1)
+        {
+            Report(config, logger, $"seo.document_title_multiple route={route.Url} count={inspection.Count}");
+        }
+
+        if (inspection.Titles.Any(string.IsNullOrWhiteSpace))
+        {
+            Report(config, logger, $"seo.document_title_empty route={route.Url}");
+        }
+
+        var actual = inspection.PrimaryTitle!;
+        if (actual.Length > 60)
+        {
+            Report(config, logger, $"seo.document_title_too_long route={route.Url} length={actual.Length}");
+        }
+
+        var expected = SeoDocumentTitleResolver.ResolveEffective(seo);
+        if (!string.IsNullOrWhiteSpace(actual) &&
+            !string.Equals(actual, expected, StringComparison.Ordinal))
+        {
+            Report(config, logger, $"seo.document_title_mismatch route={route.Url} expected={expected} actual={actual}");
+        }
     }
 
     private static int Count(Regex regex, string value) => regex.Matches(value).Count;
@@ -209,9 +244,6 @@ internal static partial class SeoDiagnostics
 
         return uri.AbsolutePath.Contains("//", StringComparison.Ordinal);
     }
-
-    [GeneratedRegex(@"<head\b[^>]*>.*?</head>", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-    private static partial Regex HeadRegex();
 
     [GeneratedRegex(@"<link\b(?=[^>]*\brel\s*=\s*[""']?canonical[""']?)[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CanonicalRegex();

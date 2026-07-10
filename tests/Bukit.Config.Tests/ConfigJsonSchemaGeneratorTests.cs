@@ -63,6 +63,15 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.True(geo.TryGetProperty("llmsTxtOptionalLinks", out _));
         Assert.False(geo.TryGetProperty("faqSchema", out _));
 
+        var seo = properties
+            .GetProperty("site")
+            .GetProperty("properties")
+            .GetProperty("seo")
+            .GetProperty("properties");
+        Assert.Equal("string", seo.GetProperty("homeTitleTemplate").GetProperty("type").GetString());
+        Assert.Equal("string", seo.GetProperty("pageTitleTemplate").GetProperty("type").GetString());
+        Assert.Equal("string", seo.GetProperty("titleSeparator").GetProperty("type").GetString());
+
         var collectionPagination = properties
             .GetProperty("site")
             .GetProperty("properties")

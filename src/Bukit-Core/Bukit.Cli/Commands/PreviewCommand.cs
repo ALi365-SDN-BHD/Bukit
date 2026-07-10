@@ -267,24 +267,7 @@ public static partial class PreviewCommand
     }
 
     private static string GetContentType(string path)
-    {
-        var ext = Path.GetExtension(path).ToLowerInvariant();
-        return ext switch
-        {
-            ".html" => "text/html; charset=utf-8",
-            ".css" => "text/css; charset=utf-8",
-            ".js" => "application/javascript; charset=utf-8",
-            ".json" => "application/json; charset=utf-8",
-            ".xml" => "application/xml; charset=utf-8",
-            ".svg" => "image/svg+xml",
-            ".png" => "image/png",
-            ".jpg" => "image/jpeg",
-            ".jpeg" => "image/jpeg",
-            ".gif" => "image/gif",
-            ".txt" => "text/plain; charset=utf-8",
-            _ => "application/octet-stream"
-        };
-    }
+        => StaticAssetContentTypeResolver.ResolvePath(path);
 
     private static string GetRawPath(HttpListenerRequest request)
     {

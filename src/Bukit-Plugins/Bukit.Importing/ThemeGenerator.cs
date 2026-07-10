@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace Bukit.Importing;
@@ -86,7 +87,7 @@ internal static partial class ThemeGenerator
         foreach (var page in pages)
             pageTypes.Add(page.Type);
 
-        WriteThemeYaml(themeDir, pageTypes, pages.FirstOrDefault(p => p.Type == PageType.PostList)?.Slug);
+        WriteThemeYaml(themeDir, options.ThemeName, pageTypes, pages.FirstOrDefault(p => p.Type == PageType.PostList)?.Slug);
 
         return new ImportResult
         {
@@ -370,11 +371,12 @@ internal static partial class ThemeGenerator
     [GeneratedRegex(@"<style[^>]*>.*?</style>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex InlineStylePattern();
 
-    private static void WriteThemeYaml(string themeDir, HashSet<PageType> pageTypes, string? postListSlug)
+    private static void WriteThemeYaml(string themeDir, string themeName, HashSet<PageType> pageTypes, string? postListSlug)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("name: generated-import");
+        sb.AppendLine($"name: {JsonSerializer.Serialize(themeName)}");
         sb.AppendLine("version: 1.0.0");
+        sb.AppendLine("engine: bukit");
         sb.AppendLine("description: Theme generated from HTML import");
         sb.AppendLine("templates:");
         sb.AppendLine("  home:");

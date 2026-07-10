@@ -29,6 +29,7 @@ internal static class BuildPlanner
 
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
         var resolved = ThemePathResolver.Resolve(rootDir, effectiveConfig.Theme, logger);
+        ValidateNamedThemeManifest(effectiveConfig, resolved);
         var bootstrap = ThemeBootstrapper.Bootstrap(effectiveConfig, rootDir, logger, resolved);
         var (parentLayoutsDir, parentAssetsDir, parentStaticDir) = ResolveParentThemeDirs(bootstrap.ParentThemeRoot);
 
@@ -43,6 +44,22 @@ internal static class BuildPlanner
             resolved.LayoutsDir, resolved.AssetsDir, resolved.StaticDir,
             parentLayoutsDir, parentAssetsDir, parentStaticDir, resolved.UserLayoutsDir,
             mediaCacheDir, startedAt, stopwatch);
+    }
+
+    private static void ValidateNamedThemeManifest(AppConfig config, ResolvedThemePaths resolved)
+    {
+        if (string.IsNullOrWhiteSpace(config.Theme.Name))
+        {
+            return;
+        }
+
+        var issues = ConfigValidator.ValidateThemeYaml(resolved.ThemeRoot);
+        if (issues.Count > 0)
+        {
+            throw new ConfigException(
+                $"Theme manifest validation failed:{Environment.NewLine}{string.Join(Environment.NewLine, issues)}",
+                DiagnosticCode.ThemeManifestInvalid);
+        }
     }
 
     private static (string? LayoutsDir, string? AssetsDir, string? StaticDir) ResolveParentThemeDirs(string? parentThemeRoot)

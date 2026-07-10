@@ -27,6 +27,9 @@
 | `site.seo.enabled` | `true` |
 | `site.seo.renderMode` | `inject` |
 | `site.seo.diagnostics` | `warn` |
+| `site.seo.homeTitleTemplate` | `{siteTitle}` |
+| `site.seo.pageTitleTemplate` | `{pageTitle}` |
+| `site.seo.titleSeparator` | ` \| ` |
 | `site.seo.schema.webPage` | `true` |
 | `site.seo.schema.collectionPage` | `true` |
 | `site.seo.schema.searchAction` | `true` |
@@ -131,6 +134,8 @@
 | `site.deriveConflictPolicy` | `fail`, `warn`, `last-wins` |
 | `site.seo.renderMode` | `theme`, `inject`, `off` |
 | `site.seo.diagnostics` | `off`, `warn`, `strict` |
+| `site.seo.homeTitleTemplate` | `{pageTitle}`, `{siteTitle}`, and `{separator}` placeholders; must include page or site title |
+| `site.seo.pageTitleTemplate` | `{pageTitle}`, `{siteTitle}`, and `{separator}` placeholders; must include page title |
 | `site.seo.geo.aiBotMode` | `allow`, `block`, `selective` |
 | `site.collections.<name>.schemaFailMode` | `off`, `warn`, `strict` |
 | `site.collections.<name>.filteredLists[].operator` | `equals`, `contains`, `in` |

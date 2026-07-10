@@ -24,6 +24,11 @@ default application, typed model validation, and JSON Schema generation.
 - Unknown fields are fatal.
 - Provider secrets are read from environment variables, not config files.
 - `deploy.provider` supports only `github-pages`.
+- SEO document title templates accept only case-insensitive `{pageTitle}`,
+  `{siteTitle}`, and `{separator}` placeholders. The page template requires
+  `{pageTitle}`; the home template requires `{pageTitle}` or `{siteTitle}`.
+- `titleSeparator` may be empty. Template results are whitespace-normalized in
+  the Core model and HTML-encoded only at the rendering boundary.
 
 ## Field Families
 

@@ -52,6 +52,93 @@ public sealed class SeoHtmlRendererTests
         Assert.Contains("<body>ok</body>", injected, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void InjectIntoHead_ReplacesAllHeadTitlesAndPreservesBodySvgTitle()
+    {
+        var html = """
+            <!doctype html>
+            <html>
+            <head>
+              <title>Old title</title>
+              <TITLE data-source="theme">Second title</TITLE>
+            </head>
+            <body><svg><title>Icon title</title></svg></body>
+            </html>
+            """;
+        var seo = new SeoModel
+        {
+            Title = "Semantic title",
+            DocumentTitle = "New & <Title>",
+            Canonical = "https://example.com/new/"
+        };
+
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo, new AnalyticsModel());
+        var head = injected[..injected.IndexOf("</head>", StringComparison.OrdinalIgnoreCase)];
+
+        Assert.Contains("<title>New &amp; &lt;Title&gt;</title>", head, StringComparison.Ordinal);
+        Assert.Equal(1, CountOccurrences(head.ToLowerInvariant(), "<title>"));
+        Assert.DoesNotContain("Old title", injected, StringComparison.Ordinal);
+        Assert.DoesNotContain("Second title", injected, StringComparison.Ordinal);
+        Assert.Contains("<svg><title>Icon title</title></svg>", injected, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InjectIntoHead_WhenTitleMissing_InsertsLegacyTitleFallback()
+    {
+        var html = "<!doctype html><html><head><meta charset=\"utf-8\"></head><body>ok</body></html>";
+        var seo = new SeoModel
+        {
+            Title = "Legacy   title",
+            Canonical = "https://example.com/legacy/"
+        };
+
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo, new AnalyticsModel());
+
+        Assert.Contains("<title>Legacy title</title>", injected, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InjectIntoHead_WhenHeadMissing_DoesNotCreateDocumentStructure()
+    {
+        var html = "<!doctype html><html><body>ok</body></html>";
+        var seo = new SeoModel
+        {
+            Title = "Title",
+            DocumentTitle = "Document title",
+            Canonical = "https://example.com/"
+        };
+
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo, new AnalyticsModel());
+
+        Assert.Equal(html, injected);
+    }
+
+    [Fact]
+    public void InjectIntoHead_IgnoresHeadLikeMarkupInsideCommentsAndScripts()
+    {
+        var html = """
+            <html><head>
+              <!-- example </head><title>Comment title</title> -->
+              <script>const sample = "</head><title>Script title</title>";</script>
+              <title>Old title</title>
+            </head><body></body></html>
+            """;
+        var seo = new SeoModel
+        {
+            Title = "Semantic",
+            DocumentTitle = "New title",
+            Canonical = "https://example.com/"
+        };
+
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo, new AnalyticsModel { Enabled = false });
+        var inspection = HtmlDocumentTitleInspector.Inspect(injected);
+
+        Assert.Equal("New title", Assert.Single(inspection.Titles));
+        Assert.Contains("<!-- example </head><title>Comment title</title> -->", injected, StringComparison.Ordinal);
+        Assert.Contains("const sample = \"</head><title>Script title</title>\"", injected, StringComparison.Ordinal);
+        Assert.DoesNotContain("<title>Old title</title>", injected, StringComparison.Ordinal);
+    }
+
     private static int CountOccurrences(string value, string needle)
     {
         var count = 0;

@@ -64,5 +64,5 @@ tests/fixtures/*
 !tests/fixtures/workflow-evidence/
 !tests/fixtures/workflow-evidence/**
 .smoke-all-run/
-examples/silkroad_biz23/
 examples/silkroad_biz24/
+.playwright-mcp/

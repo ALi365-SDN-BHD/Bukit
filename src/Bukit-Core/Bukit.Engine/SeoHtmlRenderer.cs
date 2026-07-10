@@ -13,22 +13,23 @@ internal static class SeoHtmlRenderer
             return html;
         }
 
-        var headClose = html.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
-        if (headClose < 0)
+        if (!HtmlHeadScanner.TryFindHead(html, out var head))
         {
             return html;
         }
 
-        var beforeHeadClose = html[..headClose];
-        var afterHeadClose = html[headClose..];
-        beforeHeadClose = RemoveManagedSeoTags(beforeHeadClose);
+        var beforeHeadContent = html[..head.ContentStart];
+        var headContent = html[head.ContentStart..head.ContentEnd];
+        var afterHeadContent = html[head.ContentEnd..];
+        headContent = RemoveManagedSeoTags(headContent);
         var seoHtml = RenderHead(seo, analytics);
-        return beforeHeadClose.TrimEnd() + Environment.NewLine + seoHtml + afterHeadClose;
+        return beforeHeadContent + headContent.TrimEnd() + Environment.NewLine + seoHtml + afterHeadContent;
     }
 
     internal static string RenderHead(SeoModel seo, AnalyticsModel analytics)
     {
         var sb = new StringBuilder();
+        sb.AppendLine($"  <title>{Attr(SeoDocumentTitleResolver.ResolveEffective(seo))}</title>");
         sb.AppendLine($"  <link rel=\"canonical\" href=\"{Attr(seo.Canonical)}\" />");
         if (!string.IsNullOrWhiteSpace(seo.Prev))
         {
@@ -120,7 +121,21 @@ internal static class SeoHtmlRenderer
             }
 
             sb.Append(html, index, tagStart - index);
-            var tagEnd = FindTagEnd(html, tagStart);
+            if (HtmlHeadScanner.IsCommentStart(html, tagStart))
+            {
+                var commentEnd = HtmlHeadScanner.FindCommentEnd(html, tagStart, html.Length);
+                if (commentEnd < 0)
+                {
+                    sb.Append(html, tagStart, html.Length - tagStart);
+                    break;
+                }
+
+                sb.Append(html, tagStart, commentEnd - tagStart);
+                index = commentEnd;
+                continue;
+            }
+
+            var tagEnd = HtmlHeadScanner.FindTagEnd(html, tagStart);
             if (tagEnd < 0)
             {
                 sb.Append(html, tagStart, html.Length - tagStart);
@@ -130,12 +145,17 @@ internal static class SeoHtmlRenderer
             var tag = html.Substring(tagStart, tagEnd - tagStart + 1);
             var blockEnd = tagEnd;
             var block = tag;
-            if (IsStartTag(tag, "script"))
+            var rawTextElement = HtmlHeadScanner.GetRawTextElementName(tag);
+            if (rawTextElement is not null)
             {
-                var scriptClose = FindClosingScriptEnd(html, tagEnd + 1);
-                if (scriptClose >= 0)
+                var elementClose = HtmlHeadScanner.FindClosingElementEnd(
+                    html,
+                    tagEnd + 1,
+                    html.Length,
+                    rawTextElement);
+                if (elementClose >= 0)
                 {
-                    blockEnd = scriptClose;
+                    blockEnd = elementClose;
                     block = html.Substring(tagStart, blockEnd - tagStart + 1);
                 }
             }
@@ -169,46 +189,14 @@ internal static class SeoHtmlRenderer
 
     private static string Attr(string value) => WebUtility.HtmlEncode(value);
 
-    private static int FindTagEnd(string html, int tagStart)
-    {
-        var quote = '\0';
-        for (var i = tagStart + 1; i < html.Length; i++)
-        {
-            var c = html[i];
-            if (quote != '\0')
-            {
-                if (c == quote)
-                {
-                    quote = '\0';
-                }
-
-                continue;
-            }
-
-            if (c is '"' or '\'')
-            {
-                quote = c;
-                continue;
-            }
-
-            if (c == '>')
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private static int FindClosingScriptEnd(string html, int searchStart)
-    {
-        var closeStart = html.IndexOf("</script", searchStart, StringComparison.OrdinalIgnoreCase);
-        return closeStart < 0 ? -1 : FindTagEnd(html, closeStart);
-    }
-
     private static bool IsManagedTag(string tag, string block)
     {
-        if (IsStartTag(tag, "link"))
+        if (HtmlHeadScanner.IsStartTag(tag, "title"))
+        {
+            return true;
+        }
+
+        if (HtmlHeadScanner.IsStartTag(tag, "link"))
         {
             var rel = GetAttribute(tag, "rel");
             return string.Equals(rel, "canonical", StringComparison.OrdinalIgnoreCase) ||
@@ -218,7 +206,7 @@ internal static class SeoHtmlRenderer
                     !string.IsNullOrWhiteSpace(GetAttribute(tag, "hreflang")));
         }
 
-        if (IsStartTag(tag, "meta"))
+        if (HtmlHeadScanner.IsStartTag(tag, "meta"))
         {
             var name = GetAttribute(tag, "name");
             var property = GetAttribute(tag, "property");
@@ -229,7 +217,7 @@ internal static class SeoHtmlRenderer
                    StartsWithToken(property, "article:");
         }
 
-        if (IsStartTag(tag, "script"))
+        if (HtmlHeadScanner.IsStartTag(tag, "script"))
         {
             var type = GetAttribute(tag, "type");
             var src = GetAttribute(tag, "src");
@@ -240,25 +228,6 @@ internal static class SeoHtmlRenderer
         }
 
         return false;
-    }
-
-    private static bool IsStartTag(string tag, string name)
-    {
-        var index = 1;
-        while (index < tag.Length && char.IsWhiteSpace(tag[index]))
-        {
-            index++;
-        }
-
-        if (index >= tag.Length || tag[index] == '/')
-        {
-            return false;
-        }
-
-        return tag.AsSpan(index).StartsWith(name.AsSpan(), StringComparison.OrdinalIgnoreCase) &&
-               (index + name.Length >= tag.Length ||
-                char.IsWhiteSpace(tag[index + name.Length]) ||
-                tag[index + name.Length] is '>' or '/');
     }
 
     private static string? GetAttribute(string tag, string name)

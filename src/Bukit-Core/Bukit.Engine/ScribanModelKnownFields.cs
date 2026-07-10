@@ -41,6 +41,7 @@ internal static class ScribanModelKnownFields
     internal static class SeoFields
     {
         public const string Title = "title";
+        public const string DocumentTitle = "document_title";
         public const string Description = "description";
         public const string Canonical = "canonical";
         public const string Prev = "prev";
@@ -104,7 +105,7 @@ internal static class ScribanModelKnownFields
 
     private static readonly HashSet<string> _seoFields = new(StringComparer.OrdinalIgnoreCase)
     {
-        SeoFields.Title, SeoFields.Description, SeoFields.Canonical,
+        SeoFields.Title, SeoFields.DocumentTitle, SeoFields.Description, SeoFields.Canonical,
         SeoFields.Prev, SeoFields.Next, SeoFields.Robots, SeoFields.Og, SeoFields.Twitter,
         SeoFields.Article, SeoFields.Alternates, SeoFields.JsonLd,
         SeoFields.SchemaType

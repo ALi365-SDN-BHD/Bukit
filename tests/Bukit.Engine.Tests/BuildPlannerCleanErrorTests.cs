@@ -8,6 +8,42 @@ namespace Bukit.Engine.Tests;
 public sealed class BuildPlannerCleanErrorTests
 {
     [Fact]
+    public void PlanRejectsNamedThemeManifestMissingEngine()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-theme-contract-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var themeRoot = Path.Combine(root, "themes", "site");
+            Directory.CreateDirectory(themeRoot);
+            File.WriteAllText(Path.Combine(themeRoot, "theme.yaml"), "name: site\nversion: 1.0.0\n");
+            var outputDir = Path.Combine(root, "dist");
+            Directory.CreateDirectory(outputDir);
+            File.WriteAllText(Path.Combine(outputDir, ".bukit-output-marker"), "bukit-output\n");
+            var sentinel = Path.Combine(outputDir, "sentinel.txt");
+            File.WriteAllText(sentinel, "keep");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", Language = "en", BaseUrl = "/" },
+                Content = TestContent.Markdown() with { Media = new MediaConfig { DownloadToLocal = false } },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Name = "site" }
+            };
+
+            var ex = Assert.Throws<ConfigException>(() =>
+                BuildPlanner.Plan(config, root, new ConfigOverrides(), new NoOpLogger()));
+
+            Assert.Equal(DiagnosticCode.ThemeManifestInvalid, ex.Code);
+            Assert.Contains("'engine' is missing", ex.Message, StringComparison.Ordinal);
+            Assert.True(File.Exists(sentinel));
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task CleanRefusesDirectoryWithoutMarker_MessageIncludesHowToFix()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-clean-hint-test-" + Guid.NewGuid().ToString("N"));

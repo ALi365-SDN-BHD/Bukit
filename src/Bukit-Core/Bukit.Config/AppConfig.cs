@@ -47,6 +47,9 @@ public sealed record SeoConfig
     public bool Enabled { get; init; } = true;
     public string RenderMode { get; init; } = "inject";
     public string Diagnostics { get; init; } = "warn";
+    public string HomeTitleTemplate { get; init; } = "{siteTitle}";
+    public string PageTitleTemplate { get; init; } = "{pageTitle}";
+    public string TitleSeparator { get; init; } = " | ";
     public string? DefaultImage { get; init; }
     public string? TwitterSite { get; init; }
     public SeoOrganizationConfig? Organization { get; init; }

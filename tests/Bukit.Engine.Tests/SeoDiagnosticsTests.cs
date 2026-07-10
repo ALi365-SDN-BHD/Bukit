@@ -65,6 +65,51 @@ public sealed class SeoDiagnosticsTests
         Assert.Contains(logger.Errors, x => x.Contains("seo.hreflang_x_default_missing", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void AnalyzeHtml_WarnMode_ReportsFinalDocumentTitleProblems()
+    {
+        var config = ConfigWithDiagnostics("warn");
+        var logger = new TestLogger();
+        var route = new RouteInfo("/page/", "page/index.html", "pages/page.html");
+        var model = new SeoModel
+        {
+            Title = "Semantic title",
+            DocumentTitle = "Expected title",
+            Canonical = "https://example.com/page/"
+        };
+        var html = """
+            <html><head>
+              <title>Actual &amp; title</title>
+              <title> </title>
+            </head><body></body></html>
+            """;
+
+        SeoDiagnostics.AnalyzeHtml(config, route, model, html, logger);
+
+        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_multiple", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_empty", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnalyzeHtml_WarnMode_DecodedEquivalentDocumentTitleDoesNotMismatch()
+    {
+        var config = ConfigWithDiagnostics("warn");
+        var logger = new TestLogger();
+        var route = new RouteInfo("/page/", "page/index.html", "pages/page.html");
+        var model = new SeoModel
+        {
+            Title = "Semantic title",
+            DocumentTitle = "Page & Site",
+            Canonical = "https://example.com/page/"
+        };
+        var html = "<html><head><title> Page &amp;   Site </title></head><body></body></html>";
+
+        SeoDiagnostics.AnalyzeHtml(config, route, model, html, logger);
+
+        Assert.DoesNotContain(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
+    }
+
     private static SeoIndexEntry Entry(string url, string outputPath, string canonical)
         => new(new RouteInfo(url, outputPath, "pages/page.html"), canonical, Robots: null, Indexable: true, DateTimeOffset.UtcNow, SourceItemId: null, ContentType: "page");
 

@@ -308,6 +308,7 @@ public static class ScribanModelBinder
     {
         var obj = new ScriptObject();
         obj.SetValue("title", model.Title, readOnly: true);
+        obj.SetValue("document_title", model.DocumentTitle, readOnly: true);
         obj.SetValue("description", model.Description, readOnly: true);
         obj.SetValue("canonical", model.Canonical, readOnly: true);
         obj.SetValue("prev", model.Prev, readOnly: true);

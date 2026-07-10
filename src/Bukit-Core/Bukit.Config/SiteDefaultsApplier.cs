@@ -22,6 +22,9 @@ internal static partial class SiteDefaultsApplier
             Enabled = ConfigYamlHelpers.GetOptionalBool(seoNode, "enabled") ?? true,
             RenderMode = ConfigYamlHelpers.GetOptionalString(seoNode, "renderMode") ?? "inject",
             Diagnostics = ConfigYamlHelpers.GetOptionalString(seoNode, "diagnostics") ?? "warn",
+            HomeTitleTemplate = ConfigYamlHelpers.GetOptionalString(seoNode, "homeTitleTemplate") ?? "{siteTitle}",
+            PageTitleTemplate = ConfigYamlHelpers.GetOptionalString(seoNode, "pageTitleTemplate") ?? "{pageTitle}",
+            TitleSeparator = ConfigYamlHelpers.GetOptionalString(seoNode, "titleSeparator") ?? " | ",
             DefaultImage = ConfigYamlHelpers.GetOptionalString(seoNode, "defaultImage"),
             TwitterSite = ConfigYamlHelpers.GetOptionalString(seoNode, "twitterSite"),
             Organization = orgNode is null

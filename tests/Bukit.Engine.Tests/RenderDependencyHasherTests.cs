@@ -217,6 +217,31 @@ public sealed class RenderDependencyHasherTests
         Assert.NotEqual(hash1, hash2);
     }
 
+    [Theory]
+    [InlineData("homeTitleTemplate")]
+    [InlineData("pageTitleTemplate")]
+    [InlineData("titleSeparator")]
+    public void Compute_SeoDocumentTitleSettingsChange_ProducesDifferentHash(string setting)
+    {
+        var config1 = CreateBaseConfig();
+        var changedSeo = setting switch
+        {
+            "homeTitleTemplate" => config1.Site.Seo with { HomeTitleTemplate = "{siteTitle} Home" },
+            "pageTitleTemplate" => config1.Site.Seo with { PageTitleTemplate = "{pageTitle}{separator}{siteTitle}" },
+            "titleSeparator" => config1.Site.Seo with { TitleSeparator = " - " },
+            _ => throw new ArgumentOutOfRangeException(nameof(setting))
+        };
+        var config2 = config1 with
+        {
+            Site = config1.Site with { Seo = changedSeo }
+        };
+
+        var hash1 = RenderDependencyHasher.Compute(config1, s_emptySiteModel);
+        var hash2 = RenderDependencyHasher.Compute(config2, s_emptySiteModel);
+
+        Assert.NotEqual(hash1, hash2);
+    }
+
     [Fact]
     public void Compute_DifferentCollectionPaginationEnabled_ProducesDifferentHash()
     {

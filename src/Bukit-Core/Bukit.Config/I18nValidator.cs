@@ -96,6 +96,8 @@ internal static class I18nValidator
             throw new ConfigException("site.seo.diagnostics must be off|warn|strict.");
         }
 
+        SeoTitleTemplateValidator.Validate(site.Seo);
+
         var geoAiBotMode = (site.Seo.Geo.AiBotMode ?? "allow").Trim().ToLowerInvariant();
         if (geoAiBotMode is not ("allow" or "block" or "selective"))
         {

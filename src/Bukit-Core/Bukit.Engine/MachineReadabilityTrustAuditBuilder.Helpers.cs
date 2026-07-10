@@ -10,6 +10,8 @@ namespace Bukit.Engine;
 
 internal static partial class MachineReadabilityTrustAuditBuilder
 {
+    private sealed record DocumentTitleAuditEntry(SeoAuditRoute Route, string Title);
+
     private static ContentRecord? ResolveRecordForEntry(
         IReadOnlyDictionary<string, ContentRecord[]> recordsById,
         SeoIndexEntry entry,
@@ -73,6 +75,24 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             foreach (var route in group)
             {
                 issues.Add(Warning("seo.description_duplicate", route.Url, $"SEO description is duplicated by {group.Count()} routes."));
+            }
+        }
+    }
+
+    private static void AnalyzeDocumentTitleDuplicates(
+        IReadOnlyList<DocumentTitleAuditEntry> entries,
+        List<SeoAuditIssue> issues)
+    {
+        foreach (var group in entries
+                     .GroupBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
+                     .Where(x => HasNonAlternateDuplicate(x.Select(entry => entry.Route).ToArray())))
+        {
+            foreach (var entry in group)
+            {
+                issues.Add(Warning(
+                    "seo.document_title_duplicate",
+                    entry.Route.Url,
+                    $"Final HTML document title is duplicated by {group.Count()} routes."));
             }
         }
     }

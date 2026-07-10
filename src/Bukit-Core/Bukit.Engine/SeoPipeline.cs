@@ -34,7 +34,7 @@ internal sealed class SeoPipeline
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, logger);
 
         var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
-        var shouldProvideSeoModel = config.Site.Seo.Enabled && seoHtmlMode != "off";
+        var shouldProvideSeoModel = config.Site.Seo.Enabled;
         var shouldInjectSeo = shouldProvideSeoModel && seoHtmlMode == "inject";
 
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = shouldProvideSeoModel

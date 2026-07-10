@@ -38,6 +38,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         var publishIssues = new List<PublishAuditIssue>();
         AnalyzeSitemapXml(sitemapText, seoIssues);
         var routes = new List<SeoAuditRoute>();
+        var documentTitles = new List<DocumentTitleAuditEntry>();
         var publishDocuments = new List<PublishDocument>();
         var modelByCanonical = new Dictionary<string, (SeoIndexEntry Entry, SeoModel Model)>(StringComparer.OrdinalIgnoreCase);
         var recordsById = contentGraph.Records
@@ -52,6 +53,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes);
             var outputPath = Path.Combine(outputDir, entry.Route.OutputPath);
             var outputExists = File.Exists(outputPath);
+            HtmlDocumentTitleInspection? titleInspection = null;
             if (!outputExists)
             {
                 seoIssues.Add(Error("seo.output_file_missing", entry.Route.Url, $"Output file is missing for route {entry.Route.Url}."));
@@ -59,8 +61,9 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             else
             {
                 var html = File.ReadAllText(outputPath);
+                titleInspection = HtmlDocumentTitleInspector.Inspect(html);
                 document = document with { SemanticOutline = SemanticHtmlAuditRules.ExtractSemanticOutline(html) };
-                AnalyzeHtmlOutput(config, entry, document, html, seoIssues, publishIssues);
+                AnalyzeHtmlOutput(config, entry, model, document, html, titleInspection, seoIssues, publishIssues);
             }
 
             var rssExpected = IsRssContent(config, entry);
@@ -157,7 +160,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, rssIncluded, rssExpected, atomFeedIncluded, atomFeedExpected, jsonFeedIncluded, jsonFeedExpected, llmsIncluded, llmsExpected, llmsFullIncluded, llmsFullExpected, manifestIncluded, robotsText, publishIssues);
             publishDocuments.Add(document);
 
-            routes.Add(new SeoAuditRoute(
+            var auditRoute = new SeoAuditRoute(
                 Url: entry.Route.Url,
                 OutputPath: entry.Route.OutputPath,
                 Title: model?.Title,
@@ -180,11 +183,19 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 OriginalSource: document.OriginalSource,
                 ReviewStatus: document.ReviewStatus,
                 EntityNames: document.EntityNames,
-                RepresentationKinds: document.RepresentationKinds));
+                RepresentationKinds: document.RepresentationKinds);
+            routes.Add(auditRoute);
+
+            if (titleInspection is { Count: 1, PrimaryTitle: { } actualTitle } &&
+                !string.IsNullOrWhiteSpace(actualTitle))
+            {
+                documentTitles.Add(new DocumentTitleAuditEntry(auditRoute, actualTitle));
+            }
         }
 
         AnalyzePublishDocumentDuplicates(publishDocuments, publishIssues);
         AnalyzeDuplicates(routes, seoIssues);
+        AnalyzeDocumentTitleDuplicates(documentTitles, seoIssues);
         AnalyzeCanonicalTargets(routes, seoIssues);
         AnalyzeHreflang(routes, modelByCanonical, seoIssues, requireHreflangTargets);
         AnalyzeRobotsTxt(robotsText, routes, seoIssues);

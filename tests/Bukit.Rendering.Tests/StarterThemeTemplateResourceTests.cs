@@ -84,8 +84,62 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
 
         var html = renderer.RenderPage("pages/taxonomy-term.html", CreateTaxonomyPageModel());
 
+        Assert.Contains("<title>Market Watch | Starter Test</title>", html, StringComparison.Ordinal);
         Assert.Contains("href=\"/insights/category/market/\"", html, StringComparison.Ordinal);
         Assert.DoesNotContain("href=\"/category/market/\"", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StarterBaseLayout_FallsBackForLegacySeoModelsAndEscapesEveryTitleBranch()
+    {
+        var renderer = new ScribanTemplateRenderer(_layoutsDir);
+        var site = new SiteModel { Name = "starter-test", Title = "Starter Test", BaseUrl = "", Language = "en" };
+
+        var documentTitleHtml = renderer.RenderPage("layouts/base.html", new PageModel
+        {
+            Site = site,
+            Page = new PageInfo
+            {
+                Title = "Page",
+                Url = "/page/",
+                Content = "",
+                Seo = new SeoModel
+                {
+                    Title = "Semantic",
+                    DocumentTitle = "Document & </title>",
+                    Canonical = "https://example.com/page/"
+                }
+            }
+        });
+        var legacySeoHtml = renderer.RenderPage("layouts/base.html", new PageModel
+        {
+            Site = site,
+            Page = new PageInfo
+            {
+                Title = "Page",
+                Url = "/legacy/",
+                Content = "",
+                Seo = new SeoModel
+                {
+                    Title = "Legacy & </title>",
+                    Canonical = "https://example.com/legacy/"
+                }
+            }
+        });
+        var pageTitleHtml = renderer.RenderPage("layouts/base.html", new PageModel
+        {
+            Site = site,
+            Page = new PageInfo
+            {
+                Title = "Page & </title>",
+                Url = "/plain/",
+                Content = ""
+            }
+        });
+
+        Assert.Contains("<title>Document &amp; &lt;/title&gt;</title>", documentTitleHtml, StringComparison.Ordinal);
+        Assert.Contains("<title>Legacy &amp; &lt;/title&gt;</title>", legacySeoHtml, StringComparison.Ordinal);
+        Assert.Contains("<title>Page &amp; &lt;/title&gt;</title>", pageTitleHtml, StringComparison.Ordinal);
     }
 
     private static ListPageModel CreateListModel()
@@ -158,6 +212,12 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
                 Title = "Market Watch",
                 Url = "/insights/category/market-watch/",
                 Content = "",
+                Seo = new SeoModel
+                {
+                    Title = "Market Watch",
+                    DocumentTitle = "Market Watch | Starter Test",
+                    Canonical = "https://example.com/insights/category/market-watch/"
+                },
                 Fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["type"] = new("text", "derived"),

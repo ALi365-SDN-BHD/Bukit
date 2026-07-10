@@ -50,9 +50,8 @@ bash scripts/gates/ci-full.sh Release
 ```
 
 `ci-full` runs the fast contract gate and `scripts/checks/core-tests.sh`, which
-executes Core runtime test projects explicitly. When `examples/silkroad_biz23`
-is absent, the Core gate filters only the fixture-backed Silkroad example test;
-if that fixture exists, the test runs normally.
+executes every Core runtime test project explicitly without fixture-dependent
+test-name exclusions.
 
 Core coverage is an explicit gate with short, visible steps:
 

@@ -33,6 +33,8 @@ public sealed class CoverageGateTests
 
         Assert.Contains("tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj", listProjects, StringComparison.Ordinal);
         Assert.Contains("tests/Bukit.Theme.Tests/Bukit.Theme.Tests.csproj", listProjects, StringComparison.Ordinal);
+        Assert.DoesNotContain("SilkroadBiz23", listProjects, StringComparison.Ordinal);
+        Assert.DoesNotContain("silkroad_biz23", listProjects, StringComparison.Ordinal);
         Assert.DoesNotContain("tests/Bukit.Importing.Tests", listProjects, StringComparison.Ordinal);
         Assert.DoesNotContain("tests/Bukit.Labs.Cli.Tests", listProjects, StringComparison.Ordinal);
         Assert.Contains("--collect:XPlat Code Coverage", runOne, StringComparison.Ordinal);

@@ -89,6 +89,9 @@ content:
 | `site.seo.enabled` | `true` | Enables SEO model generation and injection. |
 | `site.seo.renderMode` | `inject` | `theme`, `inject`, or `off`. |
 | `site.seo.diagnostics` | `warn` | `off`, `warn`, or `strict`. |
+| `site.seo.homeTitleTemplate` | `{siteTitle}` | Final HTML title template for `/`; must contain `{pageTitle}` or `{siteTitle}`. |
+| `site.seo.pageTitleTemplate` | `{pageTitle}` | Final HTML title template for every non-home route; must contain `{pageTitle}`. |
+| `site.seo.titleSeparator` | ` \| ` | Text substituted for `{separator}`; may be explicitly empty. |
 | `site.seo.defaultImage` | none | Default social image. |
 | `site.seo.twitterSite` | none | Twitter/X site handle. |
 | `site.seo.organization.name` | none | Organization schema name. |
@@ -109,6 +112,11 @@ content:
 | `site.analytics.enabled` | `true` | Enables analytics model data. |
 | `site.analytics.googleAnalyticsId` | none | GA identifier. |
 | `site.analytics.disableInPreview` | `true` | Keeps analytics off in preview-style output. |
+
+Title templates accept only the case-insensitive placeholders `{pageTitle}`,
+`{siteTitle}`, and `{separator}`. Unknown, unopened, or unclosed placeholders
+are rejected. The resolved result is trimmed and repeated whitespace is
+collapsed before it is stored in `page.seo.document_title`.
 
 ## Collections
 

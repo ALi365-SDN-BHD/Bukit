@@ -29,7 +29,7 @@ Bukit is not a SaaS platform, a full CMS backend, a visual page builder, or a re
 - **Content sources**: direct Core providers are Markdown and Notion.
 - **Notes-as-CMS**: Obsidian and other notes apps are supported through Markdown-compatible exports. Feishu, Yuque, and other direct knowledge-base integrations are future work.
 - **Scriban templates**: layouts, partials, snippets, collection pages, pagination, taxonomy, and multilingual output.
-- **Filesystem themes**: local `themes/<name>/` directories with layouts, assets, static files, and optional `theme.yaml`.
+- **Filesystem themes**: local `themes/<name>/` directories with layouts, assets, static files, and a required `theme.yaml` manifest.
 - **SEO and GEO outputs**: sitemap, RSS/Atom/JSON Feed, JSON-LD, Open Graph, Twitter Cards, canonical URLs, hreflang, `llms.txt`, `robots.txt`, SEO audit, GEO audit, and publish audit reports.
 - **LiveReload development server**: watches content and theme files, rebuilds incrementally, broadcasts over WebSocket, and refreshes the browser.
 - **Static preview server**: serves an already-built output directory.

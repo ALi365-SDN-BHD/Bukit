@@ -214,16 +214,19 @@ public sealed class SiteEngineIntegrationTests
                 """);
 
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), """
+                {% layout "layouts/base.html" %}
                 <h2>{{ page.title }}</h2>
                 <p>{{ page.content }}</p>
                 """);
 
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), """
+                {% layout "layouts/base.html" %}
                 <h2>{{ page.title }}</h2>
                 <p>{{ page.content }}</p>
                 """);
 
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), """
+                {% layout "layouts/base.html" %}
                 <h2>Home</h2>
                 <ul>
                 {{ for page in pages }}
@@ -233,6 +236,7 @@ public sealed class SiteEngineIntegrationTests
                 """);
 
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), """
+                {% layout "layouts/base.html" %}
                 <h2>List: {{ pages.title }}</h2>
                 <ul>
                 {{ for page in pages.pages }}
@@ -240,6 +244,8 @@ public sealed class SiteEngineIntegrationTests
                 {{ end }}
                 </ul>
                 """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-index.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "taxonomy-term.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
 
             File.WriteAllText(Path.Combine(root, "layouts", "sitegen.templates.yaml"), """
                 templates:
@@ -485,6 +491,7 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(themeRoot, "theme.yaml"), """
                 name: local-theme
                 version: 1.0.0
+                engine: bukit
                 """);
             File.WriteAllText(Path.Combine(themeRoot, "layouts", "pages", "page.html"), "<main>remote-page:{{ page.title }}</main>");
             File.WriteAllText(Path.Combine(themeRoot, "layouts", "pages", "index.html"), "<main>remote-index</main>");
@@ -899,6 +906,90 @@ public sealed class SiteEngineIntegrationTests
             var robots = File.ReadAllText(Path.Combine(root, "dist", "robots.txt"));
             Assert.Contains("Sitemap: https://example.com/docs/sitemap.xml", robots, StringComparison.Ordinal);
             Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_SeoInjectMode_UsesResolvedDocumentTitlesAcrossHomeContentListAndPagination()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-document-title-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            for (var index = 1; index <= 3; index++)
+            {
+                var seoTitle = index == 1 ? "seo_title: Featured & Story" : string.Empty;
+                File.WriteAllText(Path.Combine(root, "content", $"post{index}.md"), $$"""
+                    ---
+                    collection: post
+                    title: Post {{index}}
+                    slug: post-{{index}}
+                    publishAt: 2024-06-0{{index}}T00:00:00Z
+                    {{seoTitle}}
+                    ---
+                    # Post {{index}}
+                    """);
+            }
+
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!doctype html>
+                <html><head><title>Legacy A</title><title>Legacy B</title></head>
+                <body>{{ content }}<svg><title>Icon title</title></svg></body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\nHome");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\n{{ for item in pages }}{{ item.title }}{{ end }}");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test-site",
+                    Title = "Test Site",
+                    Url = "https://example.com",
+                    Seo = new SeoConfig
+                    {
+                        RenderMode = "inject",
+                        HomeTitleTemplate = "{siteTitle} Home",
+                        PageTitleTemplate = "{pageTitle}{separator}{siteTitle}",
+                        TitleSeparator = " :: "
+                    },
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["post"] = new()
+                        {
+                            Permalink = "/blog/{slug}/",
+                            Template = "pages/post.html",
+                            ListRoute = "/blog/",
+                            ListTemplate = "pages/list.html",
+                            Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 2 }
+                        }
+                    }
+                },
+                Content = TestContent.Markdown(collection: "post") with
+                {
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            WriteTestThemeTemplates(root);
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            AssertDocumentTitle(Path.Combine(root, "dist", "index.html"), "Test Site Home");
+            AssertDocumentTitle(Path.Combine(root, "dist", "blog", "post-1", "index.html"), "Featured & Story :: Test Site");
+            AssertDocumentTitle(Path.Combine(root, "dist", "blog", "index.html"), "Blog :: Test Site");
+            AssertDocumentTitle(Path.Combine(root, "dist", "blog", "page", "2", "index.html"), "Blog - Page 2 :: Test Site");
         }
         finally
         {
@@ -1334,7 +1425,7 @@ public sealed class SiteEngineIntegrationTests
             WriteTestThemeTemplates(root2);
             await new SiteEngine(logger3).BuildAsync(config3, root2, new ConfigOverrides(), CancellationToken.None);
 
-            Assert.Empty(logger1.Errors);
+            Assert.True(logger1.Errors.Count == 0, string.Join(Environment.NewLine, logger1.Errors));
             Assert.Empty(logger3.Errors);
 
             var dist1 = Path.Combine(root1, "dist");
@@ -1811,10 +1902,10 @@ public sealed class SiteEngineIntegrationTests
                 # Home
                 """);
 
-            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), "<html><body>{{ content }}</body></html>");
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "<h1>{{ page.title }}</h1>{{ page.content }}");
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "<h2>Home</h2>");
-            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "<h2>List</h2><ul>{{ for p in pages.pages }}<li>{{ p.title }}</li>{{ end }}</ul>");
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), "<html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{% layout \"layouts/base.html\" %}\n<h1>{{ page.title }}</h1>{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "{% layout \"layouts/base.html\" %}\n<h2>Home</h2>");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "{% layout \"layouts/base.html\" %}\n<h2>List</h2><ul>{{ for p in pages.pages }}<li>{{ p.title }}</li>{{ end }}</ul>");
 
             File.WriteAllText(Path.Combine(root, "layouts", "sitegen.templates.yaml"), """
                 templates:
@@ -3739,9 +3830,13 @@ public sealed class SiteEngineIntegrationTests
         File.WriteAllText(Path.Combine(root, "themes", "parent", "layouts", "pages", "list.html"), "List");
         File.WriteAllText(Path.Combine(root, "themes", "parent", "theme.yaml"), """
             name: parent
+            version: 1.0.0
+            engine: bukit
             """);
         File.WriteAllText(Path.Combine(root, "themes", "child", "theme.yaml"), """
             name: child
+            version: 1.0.0
+            engine: bukit
             extends: parent
             """);
         return root;
@@ -3795,6 +3890,16 @@ public sealed class SiteEngineIntegrationTests
         }
 
         return count;
+    }
+
+    private static void AssertDocumentTitle(string path, string expected)
+    {
+        var html = File.ReadAllText(path);
+        var inspection = HtmlDocumentTitleInspector.Inspect(html);
+        Assert.True(inspection.HasHead, html);
+        Assert.Single(inspection.Titles);
+        Assert.Equal(expected, inspection.PrimaryTitle);
+        Assert.Contains("<svg><title>Icon title</title></svg>", html, StringComparison.Ordinal);
     }
 
     private static IReadOnlyDictionary<string, CollectionConfig> TestCollections()
@@ -3852,7 +3957,9 @@ public sealed class SiteEngineIntegrationTests
             }
 
             var path = Path.Combine(themeRoot, "theme.yaml");
-            var existing = File.Exists(path) ? File.ReadAllText(path) : $"name: {name}\nversion: 1.0\n";
+            var existing = File.Exists(path)
+                ? File.ReadAllText(path)
+                : $"name: {name}\nversion: 1.0\nengine: bukit\n";
             if (existing.Contains("templates:", StringComparison.Ordinal))
             {
                 return;

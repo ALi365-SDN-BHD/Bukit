@@ -119,6 +119,7 @@ public sealed class BuildPipelinePerformanceTests
             File.WriteAllText(Path.Combine(themeDir, "theme.yaml"), $"""
                 name: {themeName}
                 version: 1.0
+                engine: bukit
                 templates:
                   home:
                     template: pages/index.html
@@ -241,6 +242,7 @@ public sealed class BuildPipelinePerformanceTests
             File.WriteAllText(Path.Combine(themeDir, "theme.yaml"), """
                 name: starter
                 version: 1.0
+                engine: bukit
                 templates:
                   home:
                     template: pages/index.html

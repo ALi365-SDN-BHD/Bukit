@@ -58,6 +58,7 @@ public sealed class ScribanModelKnownFieldsTests
         Assert.True(ScribanModelKnownFields.IsKnownField("page", "title"));
         Assert.True(ScribanModelKnownFields.IsKnownField("site", "name"));
         Assert.True(ScribanModelKnownFields.IsKnownField("page", "seo.title"));
+        Assert.True(ScribanModelKnownFields.IsKnownField("page", "seo.document_title"));
     }
 
     [Fact]
