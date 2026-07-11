@@ -71,8 +71,11 @@ internal static class CloneYamlWriter
             {
                 child.Children[new YamlScalarNode("type")] = new YamlScalarNode("markdown");
                 child.Children[new YamlScalarNode("mode")] = new YamlScalarNode(mode);
-                if (!string.IsNullOrWhiteSpace(collection))
-                    child.Children[new YamlScalarNode("collection")] = new YamlScalarNode(collection);
+                var collectionKey = new YamlScalarNode("collection");
+                if (string.IsNullOrWhiteSpace(collection))
+                    child.Children.Remove(collectionKey);
+                else
+                    child.Children[collectionKey] = new YamlScalarNode(collection);
                 var markdown = GetOrCreateMapping(child, "markdown");
                 markdown.Children[new YamlScalarNode("dir")] = new YamlScalarNode(dir);
                 markdown.Children[new YamlScalarNode("defaultType")] = new YamlScalarNode(defaultType);

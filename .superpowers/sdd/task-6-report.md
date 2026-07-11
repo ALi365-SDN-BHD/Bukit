@@ -29,6 +29,7 @@ The full Engine result after Task 6 was 1259 passed, 4 failed, 0 skipped, 1263 t
 
 - `CloneYamlWriter` now writes `collection: page` for the generated content-mode markdown source.
 - The generated data-mode modules source remains collection-optional and continues to use `markdown.defaultType: module` only for type classification.
+- P2 follow-up: when clone updates an existing modules data source, it now removes any stale `collection` key instead of preserving a content-collection assignment on a data-mode source.
 - Existing theme-init YAML already emitted explicit collections for every content-mode source, so no generator behavior change was needed there.
 - Added a drift test that generates all six official non-`none` init templates (`minimal`, `blog`, `docs`, `landing`, `portfolio`, and `bare`) and verifies every content-mode source has a non-empty collection while generated data-mode sources have no collection.
 - Clone YAML tests parse the generated YAML and verify the same content/data distinction directly.
@@ -40,6 +41,9 @@ The full Engine result after Task 6 was 1259 passed, 4 failed, 0 skipped, 1263 t
 - Migrated Engine fixture/helper classes: 82 passed, 0 failed.
 - Clone YAML RED: the new assertion expected `collection: page` and observed `null` before the writer change.
 - Clone YAML GREEN: 3 passed, 0 failed.
+- P2 follow-up RED: an existing modules data source with `collection: legacy-modules` retained that key after clone; the parsed-YAML absence assertion failed.
+- P2 follow-up GREEN: the focused existing-source regression passed after null/empty target collections began removing the key.
+- P2 follow-up full `Bukit.Labs.Cli.Tests`: 152 passed, 0 failed.
 - Theme-init drift test: 1 passed, 0 failed across all six generated templates.
 - Full `Bukit.Labs.Cli.Tests`: 152 passed, 0 failed.
 - Full `Bukit.Engine.Tests`: 1259 passed, 4 expected Task 7 failures.
@@ -53,6 +57,8 @@ The full Engine result after Task 6 was 1259 passed, 4 failed, 0 skipped, 1263 t
 
 - Subject: `test(content): migrate fixtures to explicit collections`
 - Scope: only the nine Task 6 code/test paths and this report.
+- P2 follow-up subject: `fix(clone): clear collection from data sources`
+- P2 follow-up scope: only `CloneYamlWriter.cs`, `CloneYamlWriterTests.cs`, and this report.
 
 ## Self-review
 

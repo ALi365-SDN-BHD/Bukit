@@ -45,6 +45,10 @@ content:
   sources:
     - name: content
       type: notion
+    - type: markdown
+      name: modules
+      mode: data
+      collection: legacy-modules
 theme:
   name: old-theme
 """);
