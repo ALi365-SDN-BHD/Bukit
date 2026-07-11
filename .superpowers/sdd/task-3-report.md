@@ -24,6 +24,15 @@ Implemented the strict routed-content collection contract within the Task 3 scop
   collection, full override bypass prevention, and type-permalink bypass
   prevention.
 
+## Reviewer closure evidence
+
+- Focused raw-validator edge run: 3 passed, 0 failed. This covered missing
+  `sourceMode` plus missing collection, `Properties`-only input, and
+  `CustomFields` precedence when both raw maps contain conflicting values.
+- Focused RouteGenerator override defense run: 2 passed, 0 failed. This covered
+  both full and partial route overrides without collection and confirmed both
+  fail with `ContentCollectionMissing` before override resolution.
+
 ## Changed files
 
 - `src/Bukit-Core/Bukit.Shared/DiagnosticCode.cs`

@@ -30,6 +30,17 @@ public sealed class ContentCollectionContractValidatorTests
     }
 
     [Fact]
+    public void Validate_MissingSourceModeAndCollection_ThrowsContentCollectionMissing()
+    {
+        var document = Document("article-1", new Dictionary<string, object>());
+
+        var exception = Assert.Throws<ConfigException>(() =>
+            ContentCollectionContractValidator.Validate([document]));
+
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
+    }
+
+    [Fact]
     public void Validate_DataModeWithoutCollection_AcceptsDocument()
     {
         var document = Document("settings-1", new Dictionary<string, object>
@@ -57,6 +68,34 @@ public sealed class ContentCollectionContractValidatorTests
             Properties: properties);
 
         ContentCollectionContractValidator.Validate([document]);
+    }
+
+    [Fact]
+    public void Validate_PropertiesAndCustomFieldsConflict_CustomFieldsTakePrecedence()
+    {
+        var properties = new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["sourceMode"] = new("text", "data"),
+            ["collection"] = new("text", "articles")
+        };
+        var customFields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["sourceMode"] = "content",
+            ["collection"] = "   "
+        });
+        var document = new RawContentDocument(
+            Id: "article-1",
+            Title: "article-1",
+            Slug: "article-1",
+            PublishAt: DateTimeOffset.UnixEpoch,
+            Body: new RawBody(InlineHtml: string.Empty),
+            Properties: properties,
+            CustomFields: customFields);
+
+        var exception = Assert.Throws<ConfigException>(() =>
+            ContentCollectionContractValidator.Validate([document]));
+
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
     }
 
     [Fact]

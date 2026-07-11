@@ -122,6 +122,22 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
+    public void Generate_PartialRouteOverrideWithoutCollection_ThrowsBeforeOverrideResolution()
+    {
+        var item = Item("override", new Dictionary<string, object>
+        {
+            ["route"] = new Dictionary<string, object>
+            {
+                ["url"] = "/custom/override/"
+            }
+        });
+
+        var exception = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
+
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
+    }
+
+    [Fact]
     public void Generate_TypePermalinkWithoutCollection_ThrowsBeforePermalinkResolution()
     {
         var item = Item("article", new Dictionary<string, object>
