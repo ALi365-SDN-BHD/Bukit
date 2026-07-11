@@ -5,13 +5,15 @@ public static class ContentConfigFactory
     public static ContentConfig FromSources(
         IReadOnlyList<ContentSourceConfig> sources,
         MediaConfig? media = null,
-        ContentModelSchemaConfig? modelSchema = null)
+        ContentModelSchemaConfig? modelSchema = null,
+        RouteMetadataConfig? routeMetadata = null)
     {
         return new ContentConfig
         {
             Sources = sources,
             Media = media ?? new MediaConfig(),
-            ModelSchema = modelSchema
+            ModelSchema = modelSchema,
+            RouteMetadata = routeMetadata
         };
     }
 

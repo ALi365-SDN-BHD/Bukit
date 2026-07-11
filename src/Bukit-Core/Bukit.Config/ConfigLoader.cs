@@ -97,7 +97,8 @@ public static class ConfigLoader
         var content = ContentConfigFactory.FromSources(
             sources,
             SiteDefaultsApplier.ReadMediaConfigFrom(contentNode),
-            ConfigCollectionReader.ReadContentModelSchema(contentNode));
+            ConfigCollectionReader.ReadContentModelSchema(contentNode),
+            ConfigCollectionReader.ReadRouteMetadata(contentNode));
 
         var buildReportNode = buildNode is null ? null : ConfigYamlHelpers.GetOptionalMapping(buildNode, "report");
         var build = new BuildConfig

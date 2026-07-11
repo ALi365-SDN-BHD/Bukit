@@ -92,6 +92,8 @@ public static class ConfigValidator
             }
         }
 
+        ValidateRouteMetadata(config.Content);
+
         ProviderValidators.ValidateMedia(config.Content.Media);
 
         if (!string.IsNullOrWhiteSpace(config.Site.Timezone))
@@ -228,6 +230,60 @@ public static class ConfigValidator
             {
                 throw new ConfigException($"{sourcePath}.dataIndex.requiredKeys contains duplicate key '{key}'.", DiagnosticCode.ConfigInvalidValue);
             }
+        }
+    }
+
+    private static void ValidateRouteMetadata(ContentConfig content)
+    {
+        var routeMetadata = content.RouteMetadata;
+        if (routeMetadata is null)
+        {
+            return;
+        }
+
+        var fields = new Dictionary<string, string>
+        {
+            ["source"] = routeMetadata.Source,
+            ["routeField"] = routeMetadata.RouteField,
+            ["titleField"] = routeMetadata.TitleField,
+            ["summaryField"] = routeMetadata.SummaryField,
+            ["seoTitleField"] = routeMetadata.SeoTitleField,
+            ["seoDescriptionField"] = routeMetadata.SeoDescriptionField
+        };
+        foreach (var (fieldName, value) in fields)
+        {
+            if (!IsDataIndexIdentifier(value))
+            {
+                throw new ConfigException($"content.routeMetadata.{fieldName} must match ^[a-z][a-z0-9_]*$.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        var requiredRoutes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var route in routeMetadata.RequiredRoutes)
+        {
+            if (string.IsNullOrWhiteSpace(route) ||
+                !route.StartsWith("/", StringComparison.Ordinal) ||
+                !route.EndsWith("/", StringComparison.Ordinal))
+            {
+                throw new ConfigException("content.routeMetadata.requiredRoutes values must start and end with '/'.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            if (!requiredRoutes.Add(route))
+            {
+                throw new ConfigException($"content.routeMetadata.requiredRoutes contains duplicate route '{route}'.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        var source = content.Sources?.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name?.Trim(), routeMetadata.Source.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (source is null)
+        {
+            throw new ConfigException($"content.routeMetadata.source references unknown data source '{routeMetadata.Source}'.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (!string.Equals(source.Mode?.Trim(), "data", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ConfigException("content.routeMetadata.source must reference a source with mode: data.", DiagnosticCode.ConfigInvalidValue);
         }
     }
 

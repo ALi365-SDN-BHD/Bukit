@@ -69,8 +69,24 @@ public static class ConfigJsonSchemaGenerator
         schema["properties"] = Obj(
             ("media", MediaSchema()),
             ("modelSchema", ContentModelSchemaSchema()),
+            ("routeMetadata", RouteMetadataSchema()),
             ("sources", Obj(("type", "array"), ("items", ContentSourceItemSchema())))
             );
+        return schema;
+    }
+
+    private static JsonObject RouteMetadataSchema()
+    {
+        var schema = Obj(("type", "object"));
+        schema["required"] = Arr("source");
+        schema["properties"] = Obj(
+            ("source", StringSchema()),
+            ("routeField", StringSchema()),
+            ("titleField", StringSchema()),
+            ("summaryField", StringSchema()),
+            ("seoTitleField", StringSchema()),
+            ("seoDescriptionField", StringSchema()),
+            ("requiredRoutes", StringArraySchema()));
         return schema;
     }
 
