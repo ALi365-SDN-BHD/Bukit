@@ -44,7 +44,8 @@ validation is enabled.
 | `content.sources[].notion.fieldPolicy.mode` | `whitelist` or `all`. |
 | `propertyMap` | Uses Core field keys `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, and `Canonical`. |
 
-`propertyMap.Type` and `propertyMap.Collection` project different canonical
+`content.sources[].notion.propertyMap.Type` and
+`content.sources[].notion.propertyMap.Collection` project different canonical
 fields. With Notion values `Kind = article` and `Section = news`, the document
 has `type: article` and `collection: news`; neither value is inferred from the
 other. Missing content type defaults to `page`, but missing collection after

@@ -36,7 +36,7 @@ content:
 ```
 
 Collection can also come from Markdown front matter or Notion
-`propertyMap.Collection`.
+`content.sources[].notion.propertyMap.Collection`.
 
 ## Common Mistakes
 

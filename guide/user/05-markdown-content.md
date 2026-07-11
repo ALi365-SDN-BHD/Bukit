@@ -58,7 +58,8 @@ collection: news
 ---
 ```
 
-Even a complete `route.url` override does not make collection optional.
+Even a complete `url` override inside the front matter `route` object does not
+make collection optional.
 `addToCollections` on the source creates explicit cloned documents and routes
 for its target collections; it is not implicit multi-membership.
 

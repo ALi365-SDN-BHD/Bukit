@@ -208,7 +208,7 @@ defines ownership and grouping. They are independent and never derive from one
 another. Content type defaults to `page`; a `mode: content` document must still
 have a non-empty collection after provider projection or the build fails.
 Collection can come from the source, Markdown front matter, or Notion
-`propertyMap.Collection`.
+`content.sources[].notion.propertyMap.Collection`.
 
 ```yaml
 site:

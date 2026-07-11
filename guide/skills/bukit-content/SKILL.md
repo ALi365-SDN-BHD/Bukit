@@ -17,8 +17,9 @@ Content is loaded from `content.sources[]`. Source `type` selects the
 
 Type and collection never derive from each other. Collection can come from
 `content.sources[].collection`, Markdown front matter, or Notion
-`propertyMap.Collection`. A source collection overrides item collection but
-never changes item type. `markdown.defaultType` fills type only.
+`content.sources[].notion.propertyMap.Collection`. A source collection
+overrides item collection but never changes item type. `markdown.defaultType`
+fills type only.
 
 ## Markdown
 

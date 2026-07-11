@@ -18,7 +18,8 @@ empty, and the module does not enter page routing or collection indexes. There
 is no `type -> collection` or `collection -> type` derivation.
 
 Collection inputs are Markdown front matter, Notion
-`propertyMap.Collection`, or `content.sources[].collection`.
+`content.sources[].notion.propertyMap.Collection`, or
+`content.sources[].collection`.
 `markdown.defaultType` affects type only. The source configuration `type`
 selects the provider (`markdown`/`notion`) and is unrelated to document type.
 
