@@ -70,6 +70,21 @@ public sealed class ContentDocumentTests
             new DateTimeOffset(2026, 6, 9, 0, 0, 0, TimeSpan.Zero),
             null, fields);
         Assert.Equal("module", doc.Record.Identity.ContentType);
+        Assert.Equal(string.Empty, doc.Record.Classification.Collection);
+    }
+
+    [Fact]
+    public void Create_CollectionOnly_DefaultsTypeToPageWithoutChangingCollection()
+    {
+        var fields = new Dictionary<string, ContentField>
+        {
+            ["collection"] = new ContentField("text", "news")
+        };
+
+        var doc = CreateDoc(extraFields: fields);
+
+        Assert.Equal("page", doc.Record.Identity.ContentType);
+        Assert.Equal("news", doc.Record.Classification.Collection);
     }
 
     [Fact]

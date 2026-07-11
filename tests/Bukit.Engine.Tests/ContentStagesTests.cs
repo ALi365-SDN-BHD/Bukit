@@ -66,6 +66,66 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public void ContentDocumentNormalizer_TypeWithoutCollection_DoesNotApplyFieldScopeDefaultsOrRequiredChecks()
+    {
+        var schema = new ContentModelSchema(
+            FieldScopes: new Dictionary<string, IReadOnlyList<CustomFieldDefinition>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["article"] = new[]
+                {
+                    new CustomFieldDefinition("scopedDefault", "string", Default: "defaulted"),
+                    new CustomFieldDefinition("scopedRequired", "string", Required: true)
+                }
+            });
+        var raw = new RawContentDocument(
+            Id: "article-only",
+            Title: "Article",
+            Slug: "article-only",
+            PublishAt: DateTimeOffset.UnixEpoch,
+            Body: new RawBody(),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "article")
+            });
+
+        var document = ContentDocumentNormalizer.ToDocument(raw, schema);
+
+        Assert.False(ContentFieldReader.TryGetField(document.CustomFields, "scopedDefault", out _));
+        Assert.DoesNotContain(document.Diagnostics, diagnostic =>
+            diagnostic.Code == "content.required_collection_field_missing");
+        var issues = ContentModelSchemaValidator.Validate(
+            CanonicalContentGraphBuilder.BuildFromDocuments(new[] { document }),
+            schema);
+        Assert.DoesNotContain(issues, issue => issue.Code == "content.custom_field_required_missing");
+    }
+
+    [Fact]
+    public void ContentDocumentNormalizer_TypeWithoutCollection_DoesNotAllowFieldScopeKeys()
+    {
+        var schema = new ContentModelSchema(
+            FieldScopes: new Dictionary<string, IReadOnlyList<CustomFieldDefinition>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["article"] = new[] { new CustomFieldDefinition("articleOnly", "string") }
+            },
+            RejectUnknownRawKeys: true);
+        var raw = new RawContentDocument(
+            Id: "article-only",
+            Title: "Article",
+            Slug: "article-only",
+            PublishAt: DateTimeOffset.UnixEpoch,
+            Body: new RawBody(),
+            Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = new("text", "article"),
+                ["articleOnly"] = new("text", "not allowed without collection")
+            });
+
+        var exception = Assert.Throws<ConfigException>(() => ContentDocumentNormalizer.ToDocument(raw, schema));
+
+        Assert.Contains("articleOnly", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ContentLoadStage_RoutesToProviderFactory()
     {
         var loadResult = new RawContentLoadResult(

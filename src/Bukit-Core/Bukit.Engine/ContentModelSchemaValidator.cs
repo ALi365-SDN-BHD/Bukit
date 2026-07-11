@@ -150,8 +150,7 @@ internal static class ContentModelSchemaValidator
             yield return definition;
         }
 
-        var collection = ContentFieldReader.GetText(fields, "collection")
-            ?? ContentFieldReader.GetText(fields, "type");
+        var collection = ContentFieldReader.GetText(fields, "collection");
         if (!string.IsNullOrWhiteSpace(collection) &&
             schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
         {

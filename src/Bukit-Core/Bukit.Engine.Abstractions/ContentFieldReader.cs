@@ -20,23 +20,6 @@ public static class ContentFieldReader
     public static string GetCollection(ContentDocument document, string defaultCollection = "")
         => document.Record.Classification.Collection ?? GetText(document.CustomFields, "collection") ?? defaultCollection;
 
-    public static string? GetEffectiveCollection(ContentDocument document, string? defaultCollection = null)
-    {
-        var collection = GetCollection(document);
-        if (!string.IsNullOrWhiteSpace(collection))
-        {
-            return collection;
-        }
-
-        var type = GetContentType(document);
-        if (!string.IsNullOrWhiteSpace(type))
-        {
-            return type;
-        }
-
-        return defaultCollection;
-    }
-
     public static IReadOnlyList<string> GetTextValues(ContentDocument document, string key)
         => GetTextList(document.CustomFields, key) ?? Array.Empty<string>();
 

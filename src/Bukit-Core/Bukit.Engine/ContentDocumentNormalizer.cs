@@ -138,8 +138,7 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
             yield return definition;
         }
 
-        var collection = ContentFieldReader.GetText(fields, "collection")
-            ?? ContentFieldReader.GetText(fields, "type");
+        var collection = ContentFieldReader.GetText(fields, "collection");
         if (!string.IsNullOrWhiteSpace(collection) &&
             schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
         {
@@ -236,8 +235,7 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
             }
         }
 
-        var collection = ContentFieldReader.GetText(fields, "collection")
-            ?? ContentFieldReader.GetText(fields, "type");
+        var collection = ContentFieldReader.GetText(fields, "collection");
         if (!string.IsNullOrWhiteSpace(collection) &&
             schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
         {
@@ -292,8 +290,7 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
             allowed.Add(definition.Name);
         }
 
-        var collection = ContentFieldReader.GetText(fields, "collection")
-            ?? ContentFieldReader.GetText(fields, "type");
+        var collection = ContentFieldReader.GetText(fields, "collection");
         if (!string.IsNullOrWhiteSpace(collection) &&
             schema.FieldScopes?.TryGetValue(collection, out var scopedFields) is true)
         {

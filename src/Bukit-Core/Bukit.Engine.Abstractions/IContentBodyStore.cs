@@ -29,9 +29,11 @@ public interface IContentBodyStore
         string? contentHtml,
         IReadOnlyDictionary<string, ContentField>? fields)
     {
-        var type = ContentFieldReader.GetText(fields, "type")
-            ?? ContentFieldReader.GetText(fields, "collection")
-            ?? "page";
+        var defaultType = string.Equals(ContentFieldReader.GetText(fields, "sourceMode"), "data", StringComparison.OrdinalIgnoreCase)
+            ? "module"
+            : "page";
+        var type = ContentFieldReader.GetText(fields, "type") ?? defaultType;
+        var collection = ContentFieldReader.GetText(fields, "collection") ?? string.Empty;
         var status = ContentFieldReader.GetBool(fields, "draft") is true
             ? "draft"
             : ContentFieldReader.GetText(fields, "status") ?? "published";
@@ -39,7 +41,7 @@ public interface IContentBodyStore
         return new ContentRecord(
             new ContentIdentity(id, slug, ContentFieldReader.GetText(fields, "i18nKey") ?? slug, type, status),
             new ContentPresentation(title, GetSummary(fields), contentHtml, ContentFieldReader.GetText(fields, "language") ?? "und", Array.Empty<string>()),
-            new ContentClassification(type, ContentFieldReader.GetText(fields, "collection") ?? type, Array.Empty<string>(), ContentFieldReader.GetTextList(fields, "tags") ?? Array.Empty<string>()),
+            new ContentClassification(type, collection, Array.Empty<string>(), ContentFieldReader.GetTextList(fields, "tags") ?? Array.Empty<string>()),
             new ContentOwnership(ContentFieldReader.GetText(fields, "author"), ContentFieldReader.GetText(fields, "organization"), ContentFieldReader.GetText(fields, "owner"), ContentFieldReader.GetText(fields, "reviewer")),
             new ContentLifecycle(publishAt, ContentFieldReader.GetDate(fields, "updated"), ContentFieldReader.GetDate(fields, "expires_at"), ContentFieldReader.GetDate(fields, "reviewed_at")),
             new ProvenanceRecord(ContentFieldReader.GetText(fields, "source"), ContentFieldReader.GetText(fields, "original_url"), Array.Empty<string>(), Array.Empty<string>(), ContentFieldReader.GetText(fields, "sync_status")),

@@ -55,10 +55,8 @@ internal static partial class CanonicalContentGraphBuilder
         var defaultType = string.Equals(FirstText(source, "sourceMode"), "data", StringComparison.OrdinalIgnoreCase)
             ? "module"
             : "page";
-        var type = FirstText(source, "type")
-            ?? FirstText(source, "collection")
-            ?? defaultType;
-        var collection = FirstText(source, "collection") ?? type;
+        var type = FirstText(source, "type") ?? defaultType;
+        var collection = FirstText(source, "collection") ?? string.Empty;
         var status = ResolveStatus(source);
         var citations = ExtractCitationUrls(source);
         var references = FirstList(source, "references") ?? Array.Empty<string>();
