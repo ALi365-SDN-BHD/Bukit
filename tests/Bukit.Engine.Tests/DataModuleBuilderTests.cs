@@ -1,5 +1,7 @@
 using Bukit.Content;
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -150,6 +152,178 @@ public sealed class DataModuleBuilderTests
         Assert.NotNull(result);
         Assert.Equal("<p>stored content</p>", result!["widget"][0].Content);
     }
+
+    [Fact]
+    public void BuildDataIndex_WithScopedKeyValues_BuildsScalarIndex()
+    {
+        var items = new[]
+        {
+            CreateIndexedDocument("email", "contact", "email", "contact@example.com", "email"),
+            CreateIndexedDocument("copyright", "footer", "copyright_text", "Copyright", "multiline")
+        };
+
+        var result = DataModuleBuilder.BuildDataIndex(items, [CreateIndexedSource()]);
+
+        Assert.NotNull(result);
+        var settings = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(result!["settings"]);
+        var contact = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(settings["contact"]);
+        var footer = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(settings["footer"]);
+        Assert.Equal("contact@example.com", contact["email"]);
+        Assert.Equal("Copyright", footer["copyright_text"]);
+    }
+
+    [Fact]
+    public void BuildDataIndex_DuplicateScopeAndKey_Throws()
+    {
+        var items = new[]
+        {
+            CreateIndexedDocument("email-a", "contact", "email", "a@example.com", "email"),
+            CreateIndexedDocument("email-b", "contact", "email", "b@example.com", "email")
+        };
+
+        var ex = Assert.Throws<ContentException>(() =>
+            DataModuleBuilder.BuildDataIndex(items, [CreateIndexedSource()]));
+
+        Assert.Contains("duplicate key 'contact.email'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildDataIndex_MissingRequiredValue_Throws()
+    {
+        var source = CreateIndexedSource() with
+        {
+            DataIndex = CreateIndexedSource().DataIndex! with
+            {
+                RequiredKeys = ["contact.email"]
+            }
+        };
+        var items = new[]
+        {
+            CreateIndexedDocument("phone", "contact", "phone", "+60 00", "phone")
+        };
+
+        var ex = Assert.Throws<ContentException>(() =>
+            DataModuleBuilder.BuildDataIndex(items, [source]));
+
+        Assert.Contains("required key 'contact.email'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("unsupported", "value_type")]
+    [InlineData("not-an-email", "email")]
+    [InlineData("ftp://example.com", "url")]
+    public void BuildDataIndex_InvalidValue_Throws(string value, string valueType)
+    {
+        var items = new[]
+        {
+            CreateIndexedDocument("invalid", "contact", "email", value, valueType)
+        };
+
+        Assert.Throws<ContentException>(() =>
+            DataModuleBuilder.BuildDataIndex(items, [CreateIndexedSource()]));
+    }
+
+    [Fact]
+    public void BuildDataIndex_NotionCamelCaseProjection_ResolvesConfiguredSnakeCaseField()
+    {
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["sourceKey"] = "settings",
+            ["sourceMode"] = "data",
+            ["scope"] = "contact",
+            ["key"] = "email",
+            ["value"] = "contact@example.com",
+            ["valuetype"] = "email"
+        });
+        var item = CreateDocument("email", "email", "email", null, fields);
+
+        var result = DataModuleBuilder.BuildDataIndex([item], [CreateIndexedSource()]);
+
+        var source = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(result!["settings"]);
+        var scope = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(source["contact"]);
+        Assert.Equal("contact@example.com", scope["email"]);
+    }
+
+    [Fact]
+    public void BuildDataIndex_OptionalMissingValue_BuildsEmptyScalar()
+    {
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["sourceKey"] = "settings",
+            ["sourceMode"] = "data",
+            ["scope"] = "contact",
+            ["key"] = "phone",
+            ["value_type"] = "phone"
+        });
+        var item = CreateDocument("phone", "phone", "phone", null, fields);
+
+        var result = DataModuleBuilder.BuildDataIndex([item], [CreateIndexedSource()]);
+
+        var source = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(result!["settings"]);
+        var scope = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(source["contact"]);
+        Assert.Equal(string.Empty, scope["phone"]);
+    }
+
+    [Theory]
+    [InlineData("//evil.example/path")]
+    [InlineData("/bad path")]
+    [InlineData("/bad\\path")]
+    public void BuildDataIndex_UnsafeRootRelativeUrl_Throws(string value)
+    {
+        var items = new[]
+        {
+            CreateIndexedDocument("url", "footer", "powered_by_url", value, "url")
+        };
+
+        Assert.Throws<ContentException>(() =>
+            DataModuleBuilder.BuildDataIndex(items, [CreateIndexedSource()]));
+    }
+
+    [Theory]
+    [InlineData("/about/")]
+    [InlineData("/search/?q=bukit#results")]
+    public void BuildDataIndex_ValidRootRelativeUrl_BuildsScalar(string value)
+    {
+        var items = new[]
+        {
+            CreateIndexedDocument("url", "footer", "powered_by_url", value, "url")
+        };
+
+        var result = DataModuleBuilder.BuildDataIndex(items, [CreateIndexedSource()]);
+
+        Assert.NotNull(result);
+    }
+
+    private static ContentSourceConfig CreateIndexedSource() => new()
+    {
+        Type = "notion",
+        Name = "settings",
+        Mode = "data",
+        DataIndex = new DataIndexConfig
+        {
+            ScopeField = "scope",
+            KeyField = "key",
+            ValueField = "value",
+            ValueTypeField = "value_type"
+        }
+    };
+
+    private static ContentDocument CreateIndexedDocument(
+        string id,
+        string scope,
+        string key,
+        string value,
+        string valueType)
+        => CreateDocument(id, id, id, null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["sourceKey"] = "settings",
+                ["sourceMode"] = "data",
+                ["scope"] = scope,
+                ["key"] = key,
+                ["value"] = value,
+                ["value_type"] = valueType
+            }));
 
     private static ContentDocument CreateDocument(
         string id,

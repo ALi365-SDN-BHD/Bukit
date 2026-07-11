@@ -119,6 +119,11 @@ public static class ScribanModelBinder
             obj.SetValue("data", ToScriptObject(model.Data), readOnly: true);
         }
 
+        if (model.DataIndex is not null && model.DataIndex.Count > 0)
+        {
+            obj.SetValue("data_index", ToScriptObject(model.DataIndex), readOnly: true);
+        }
+
         return obj;
     }
 

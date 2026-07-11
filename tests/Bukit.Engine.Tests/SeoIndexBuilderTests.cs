@@ -115,6 +115,34 @@ public sealed class SeoIndexBuilderTests
     }
 
     [Fact]
+    public void Build_ContentEntrySeparatesCanonicalTypeAndCollection()
+    {
+        var document = ContentDocument.Create(
+            "news-1",
+            "News",
+            "news-1",
+            DateTimeOffset.UnixEpoch,
+            null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "article",
+                ["collection"] = "news"
+            }));
+        var route = new RouteInfo("/news/news-1/", "news/news-1/index.html", "news.html");
+
+        var result = SeoIndexBuilder.Build(
+            CreateConfig(),
+            "/",
+            [new RoutedContentDocument(document, route)],
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+
+        var entry = Assert.Single(result.Entries).Value;
+        Assert.Equal("article", entry.ContentType);
+        Assert.Equal("news", entry.Collection);
+    }
+
+    [Fact]
     public void Build_WithListRoutes_CreatesListEntries()
     {
         var config = CreateConfig();
@@ -212,6 +240,7 @@ public sealed class SeoIndexBuilderTests
         Assert.Single(result.Entries);
         var entry = result.Entries["insights/category/market/page/2/index.html"];
         Assert.Equal("taxonomy", entry.ContentType);
+        Assert.Null(entry.Collection);
         Assert.True(entry.IsDerived);
         Assert.Null(entry.SourceItemId);
         Assert.Equal("https://example.com/insights/category/market/page/2/", entry.Canonical);
@@ -269,6 +298,7 @@ public sealed class SeoIndexBuilderTests
         Assert.Single(result.Entries);
         var entry = result.Entries["companies/malaysia/page/2/index.html"];
         Assert.Equal("list", entry.ContentType);
+        Assert.Equal("companies", entry.Collection);
         Assert.True(entry.IsDerived);
         Assert.Null(entry.SourceItemId);
         Assert.Equal("https://example.com/companies/malaysia/page/2/", entry.Canonical);
@@ -446,7 +476,8 @@ public sealed class SeoIndexBuilderTests
 
         var entry = result.Entries["tags/index.html"];
         Assert.True(entry.IsDerived);
-        Assert.Equal("taxonomy", entry.ContentType);
+        Assert.Equal("derived", entry.ContentType);
+        Assert.Equal("taxonomy", entry.Collection);
     }
 
     [Fact]
@@ -472,7 +503,8 @@ public sealed class SeoIndexBuilderTests
         var result = SeoIndexBuilder.Build(config, "/", routed.ToRoutedDocuments(), Array.Empty<RouteInfo>(), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
 
         var entry = result.Entries["knowledge/post/index.html"];
-        Assert.Equal("knowledge", entry.ContentType);
+        Assert.Equal("post", entry.ContentType);
+        Assert.Equal("knowledge", entry.Collection);
     }
 
     [Fact]
@@ -592,5 +624,44 @@ public sealed class SeoIndexBuilderTests
 
         Assert.True(result.Entries.ContainsKey("blog/index.html"));
         Assert.Equal("list", result.Entries["blog/index.html"].ContentType);
+    }
+
+    [Fact]
+    public void Build_LegacyListRoutesResolveCollectionOnlyFromConfiguredListRoute()
+    {
+        var baseConfig = CreateConfig();
+        var config = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["news"] = new()
+                    {
+                        Permalink = "/news/{slug}/",
+                        ListRoute = "/news/",
+                        ListTemplate = "news-list.html"
+                    }
+                }
+            }
+        };
+        var listRoutes = new[]
+        {
+            new RouteInfo("/", "index.html", "home.html"),
+            new RouteInfo("/news/", "news/index.html", "news-list.html"),
+            new RouteInfo("/unmatched/", "unmatched/index.html", "list.html")
+        };
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            listRoutes,
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+
+        Assert.Null(result.Entries["index.html"].Collection);
+        Assert.Equal("news", result.Entries["news/index.html"].Collection);
+        Assert.Null(result.Entries["unmatched/index.html"].Collection);
+        Assert.All(result.Entries.Values, entry => Assert.Equal("list", entry.ContentType));
     }
 }

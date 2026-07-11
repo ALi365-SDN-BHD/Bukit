@@ -12,6 +12,7 @@ public sealed record SiteModel
     public IReadOnlyDictionary<string, object>? Params { get; init; }
     public IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? Modules { get; init; }
     public IReadOnlyDictionary<string, object>? Data { get; init; }
+    public IReadOnlyDictionary<string, object>? DataIndex { get; init; }
     public AnalyticsModel Analytics { get; init; } = new();
 }
 

@@ -551,7 +551,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
     }
 
     private static SeoIndexEntry Entry(string url, string outputPath, string canonical)
-        => new(new RouteInfo(url, outputPath, "pages/post.html"), canonical, Robots: null, Indexable: true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), SourceItemId: "post-1", ContentType: "post");
+        => new(new RouteInfo(url, outputPath, "pages/post.html"), canonical, Robots: null, Indexable: true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), SourceItemId: "post-1", ContentType: "post", Collection: "post");
 
     private static SeoIndexEntry GeneratedEntry(string url, string outputPath, string canonical, string sourceItemId, string contentType)
         => new(new RouteInfo(url, outputPath, "pages/tags.html"), canonical, Robots: null, Indexable: true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), IsDerived: true, SourceItemId: sourceItemId, ContentType: contentType);
@@ -660,7 +660,11 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                 Name = "test",
                 Title = "Test",
                 Url = "https://example.com",
-                Feed = new FeedConfig { Formats = ["json"] }
+                Feed = new FeedConfig { Formats = ["json"] },
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["post"] = new() { Permalink = "/post/{slug}/", Output = new CollectionOutputConfig { Rss = true } }
+                }
             },
             Content = TestContent.Markdown()
         };
@@ -673,7 +677,11 @@ public sealed class PublishAuditReportWriterTests : IDisposable
                 Name = "test",
                 Title = "Test",
                 Url = "https://example.com",
-                Feed = new FeedConfig { Formats = ["atom"] }
+                Feed = new FeedConfig { Formats = ["atom"] },
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["post"] = new() { Permalink = "/post/{slug}/", Output = new CollectionOutputConfig { Rss = true } }
+                }
             },
             Content = TestContent.Markdown()
         };

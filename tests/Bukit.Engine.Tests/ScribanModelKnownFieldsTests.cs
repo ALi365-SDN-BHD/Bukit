@@ -30,6 +30,14 @@ public sealed class ScribanModelKnownFieldsTests
         Assert.Contains("language", fields);
         Assert.Contains("params", fields);
         Assert.Contains("data", fields);
+        Assert.Contains("data_index", fields);
+    }
+
+    [Fact]
+    public void SiteModel_DataIndex_AllowsDynamicNestedFields()
+    {
+        Assert.True(ScribanModelKnownFields.IsKnownField(
+            "site", "data_index.settings.contact.email"));
     }
 
     [Fact]

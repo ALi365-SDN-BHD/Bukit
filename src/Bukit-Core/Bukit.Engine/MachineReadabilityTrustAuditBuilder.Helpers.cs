@@ -266,22 +266,24 @@ internal static partial class MachineReadabilityTrustAuditBuilder
     }
 
     private static bool IsRssContent(AppConfig config, SeoIndexEntry entry)
-        => !string.IsNullOrWhiteSpace(entry.ContentType) &&
-           config.Site.Collections is not null &&
-           config.Site.Collections.TryGetValue(entry.ContentType, out var collection) &&
-           collection.Output?.Rss == true;
+        => IsFeedContent(config, entry);
 
     private static bool IsJsonFeedContent(AppConfig config, SeoIndexEntry entry)
         => entry.Indexable &&
            config.Site.Feed.Formats.Any(format => string.Equals(format, "json", StringComparison.OrdinalIgnoreCase)) &&
-           !string.IsNullOrWhiteSpace(entry.ContentType) &&
-           !string.Equals(entry.ContentType, "list", StringComparison.OrdinalIgnoreCase);
+           IsFeedContent(config, entry);
 
     private static bool IsAtomFeedContent(AppConfig config, SeoIndexEntry entry)
         => entry.Indexable &&
            config.Site.Feed.Formats.Any(format => string.Equals(format, "atom", StringComparison.OrdinalIgnoreCase)) &&
-           !string.IsNullOrWhiteSpace(entry.ContentType) &&
-           !string.Equals(entry.ContentType, "list", StringComparison.OrdinalIgnoreCase);
+           IsFeedContent(config, entry);
+
+    private static bool IsFeedContent(AppConfig config, SeoIndexEntry entry)
+        => !entry.IsDerived &&
+           !string.IsNullOrWhiteSpace(entry.Collection) &&
+           config.Site.Collections is { Count: > 0 } collections &&
+           collections.TryGetValue(entry.Collection, out var collection) &&
+           collection.Output?.Rss == true;
 
     private static bool IsLlmsContent(AppConfig config, SeoIndexEntry entry)
         => entry.Indexable &&

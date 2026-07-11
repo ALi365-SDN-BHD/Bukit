@@ -251,7 +251,8 @@ public sealed class SearchIndexBuilderTests
     {
         var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "post",
+            ["type"] = "article",
+            ["collection"] = "news",
             ["summary"] = "Search summary",
             ["language"] = "en",
             ["source"] = "notion",
@@ -288,7 +289,9 @@ public sealed class SearchIndexBuilderTests
         using var doc = JsonDocument.Parse(stream.ToArray());
         Assert.Equal("approved", doc.RootElement.GetProperty("reviewStatus").GetString());
         Assert.Equal("notion", doc.RootElement.GetProperty("source").GetString());
-        Assert.Equal("post", doc.RootElement.GetProperty("contentType").GetString());
+        Assert.Equal("article", doc.RootElement.GetProperty("type").GetString());
+        Assert.Equal("article", doc.RootElement.GetProperty("contentType").GetString());
+        Assert.Equal("news", doc.RootElement.GetProperty("collection").GetString());
         Assert.Equal("Bukit", doc.RootElement.GetProperty("entities")[0].GetString());
     }
 
@@ -377,6 +380,8 @@ public sealed class SearchIndexBuilderTests
             Assert.Equal("Malaysia Companies", item.GetProperty("title").GetString());
             Assert.Equal("/companies/malaysia/", item.GetProperty("url").GetString());
             Assert.Equal("filter", item.GetProperty("type").GetString());
+            Assert.Equal("list", item.GetProperty("contentType").GetString());
+            Assert.Equal("companies", item.GetProperty("collection").GetString());
             Assert.Contains("Acme Malaysia", item.GetProperty("content").GetString(), StringComparison.Ordinal);
             Assert.Equal("Companies operating in Malaysia", item.GetProperty("snippet").GetString());
         }
@@ -433,6 +438,9 @@ public sealed class SearchIndexBuilderTests
             var item = Assert.Single(doc.RootElement.EnumerateArray());
             Assert.Equal("Malaysia Companies", item.GetProperty("title").GetString());
             Assert.Equal("/en/companies/malaysia/", item.GetProperty("url").GetString());
+            Assert.Equal("filter", item.GetProperty("type").GetString());
+            Assert.Equal("list", item.GetProperty("contentType").GetString());
+            Assert.Equal("companies", item.GetProperty("collection").GetString());
             Assert.Contains("Acme Malaysia", item.GetProperty("content").GetString(), StringComparison.Ordinal);
         }
         finally

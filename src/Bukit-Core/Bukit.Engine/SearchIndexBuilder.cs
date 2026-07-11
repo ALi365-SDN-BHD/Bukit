@@ -131,6 +131,7 @@ internal static class SearchIndexBuilder
         }
         writer.WriteString("type", record.Classification.Type);
         writer.WriteString("contentType", record.Identity.ContentType);
+        writer.WriteString("collection", record.Classification.Collection);
         writer.WriteString("source", record.Provenance.Source);
         writer.WriteString("reviewStatus", record.Trust.ReviewStatus);
 
@@ -239,6 +240,7 @@ internal static class SearchIndexBuilder
         var type = ResolveListRouteType(route);
         writer.WriteString("type", type);
         writer.WriteString("contentType", "list");
+        writer.WriteString("collection", route.Collection);
         writer.WriteString("source", "bukit");
         writer.WriteString("reviewStatus", "generated");
 

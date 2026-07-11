@@ -392,6 +392,7 @@ internal static class ConfigCollectionReader
         var mode = ConfigYamlHelpers.GetOptionalString(sourceNode, "mode") ?? "content";
         var collection = ConfigYamlHelpers.GetOptionalString(sourceNode, "collection");
         var addToCollections = ConfigYamlHelpers.ReadStringList(sourceNode, "addToCollections");
+        var dataIndex = ReadDataIndex(sourceNode);
         if (type.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             return new ContentSourceConfig
@@ -401,7 +402,8 @@ internal static class ConfigCollectionReader
                 Mode = mode,
                 Collection = collection,
                 AddToCollections = addToCollections,
-                Notion = SiteDefaultsApplier.ReadNotionConfigFrom(sourceNode)
+                Notion = SiteDefaultsApplier.ReadNotionConfigFrom(sourceNode),
+                DataIndex = dataIndex
             };
         }
 
@@ -414,7 +416,8 @@ internal static class ConfigCollectionReader
                 Mode = mode,
                 Collection = collection,
                 AddToCollections = addToCollections,
-                Markdown = SiteDefaultsApplier.ReadMarkdownConfigFrom(sourceNode)
+                Markdown = SiteDefaultsApplier.ReadMarkdownConfigFrom(sourceNode),
+                DataIndex = dataIndex
             };
         }
 
@@ -424,7 +427,26 @@ internal static class ConfigCollectionReader
             Name = name,
             Mode = mode,
             Collection = collection,
-            AddToCollections = addToCollections
+            AddToCollections = addToCollections,
+            DataIndex = dataIndex
+        };
+    }
+
+    private static DataIndexConfig? ReadDataIndex(YamlMappingNode sourceNode)
+    {
+        var node = ConfigYamlHelpers.GetOptionalMapping(sourceNode, "dataIndex");
+        if (node is null)
+        {
+            return null;
+        }
+
+        return new DataIndexConfig
+        {
+            ScopeField = ConfigYamlHelpers.GetOptionalString(node, "scopeField") ?? "scope",
+            KeyField = ConfigYamlHelpers.GetOptionalString(node, "keyField") ?? "key",
+            ValueField = ConfigYamlHelpers.GetOptionalString(node, "valueField") ?? "value",
+            ValueTypeField = ConfigYamlHelpers.GetOptionalString(node, "valueTypeField") ?? "value_type",
+            RequiredKeys = ConfigYamlHelpers.ReadStringList(node, "requiredKeys")
         };
     }
 }

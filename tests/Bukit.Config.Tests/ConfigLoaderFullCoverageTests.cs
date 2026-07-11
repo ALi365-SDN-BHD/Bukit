@@ -809,6 +809,148 @@ public sealed class ConfigLoaderFullCoverageTests : IDisposable
     }
 
     [Fact]
+    public void Load_ContentSourceDataIndex_ParsesScopedKeyValueConfiguration()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: notion
+                  name: settings
+                  mode: data
+                  notion:
+                    databaseId: db-settings
+                  dataIndex:
+                    scopeField: scope
+                    keyField: key
+                    valueField: value
+                    valueTypeField: value_type
+                    requiredKeys:
+                      - footer.site_name
+                      - contact.email
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+
+        var source = Assert.Single(config.Content.Sources!);
+        Assert.NotNull(source.DataIndex);
+        Assert.Equal("scope", source.DataIndex!.ScopeField);
+        Assert.Equal("key", source.DataIndex.KeyField);
+        Assert.Equal("value", source.DataIndex.ValueField);
+        Assert.Equal("value_type", source.DataIndex.ValueTypeField);
+        Assert.Equal(["footer.site_name", "contact.email"], source.DataIndex.RequiredKeys);
+    }
+
+    [Fact]
+    public void Load_ContentSourceDataIndexOnContentMode_Throws()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  name: settings
+                  mode: content
+                  markdown:
+                    dir: data
+                  dataIndex:
+                    scopeField: scope
+                    keyField: key
+                    valueField: value
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("dataIndex requires mode: data", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("site-settings", "scope", "footer.site_name", ".name must match")]
+    [InlineData("settings", "Scope-Name", "footer.site_name", ".dataIndex.scopeField must match")]
+    [InlineData("settings", "scope", "footer.site-name", "requiredKeys values must use scope.key")]
+    public void Load_ContentSourceDataIndexWithUnsafeIdentifiers_Throws(
+        string sourceName, string scopeField, string requiredKey, string expectedMessage)
+    {
+        var yaml = $$"""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  name: {{sourceName}}
+                  mode: data
+                  markdown:
+                    dir: data
+                  dataIndex:
+                    scopeField: {{scopeField}}
+                    requiredKeys:
+                      - {{requiredKey}}
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains(expectedMessage, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_ContentSourceDataIndexWithDuplicateRequiredKey_Throws()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  name: settings
+                  mode: data
+                  markdown:
+                    dir: data
+                  dataIndex:
+                    requiredKeys:
+                      - contact.email
+                      - contact.email
+            """;
+        var config = ConfigLoader.Load(WriteTempYaml(yaml));
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("contains duplicate key 'contact.email'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_ContentSourceDataIndexWithUnknownField_Throws()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  name: settings
+                  mode: data
+                  markdown:
+                    dir: data
+                  dataIndex:
+                    unknownField: value
+            """;
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(WriteTempYaml(yaml)));
+
+        Assert.Contains("unknownField", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Load_DeployOptions_RejectsUnsupportedProvider()
     {
         var config = new AppConfig

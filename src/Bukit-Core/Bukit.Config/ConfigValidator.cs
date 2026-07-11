@@ -64,6 +64,8 @@ public static class ConfigValidator
                     throw new ConfigException("content.sources[].addToCollections must contain non-empty collection names.", DiagnosticCode.ConfigInvalidValue);
                 }
 
+                ValidateDataIndex(source, sourcePath, mode);
+
                 if (source.Type.Equals("notion", StringComparison.OrdinalIgnoreCase))
                 {
                     if (source.Notion is null)
@@ -178,6 +180,71 @@ public static class ConfigValidator
                 ValidateTaxonomyKindConfig($"taxonomy.kinds[{i}]", kinds[i]);
             }
         }
+    }
+
+    private static void ValidateDataIndex(ContentSourceConfig source, string sourcePath, string mode)
+    {
+        if (source.DataIndex is null)
+        {
+            return;
+        }
+
+        if (mode != "data")
+        {
+            throw new ConfigException($"{sourcePath}.dataIndex requires mode: data.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        var sourceName = source.Name?.Trim() ?? string.Empty;
+        if (!IsDataIndexIdentifier(sourceName))
+        {
+            throw new ConfigException($"{sourcePath}.name must match ^[a-z][a-z0-9_]*$ when dataIndex is configured.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        var fields = new Dictionary<string, string>
+        {
+            ["scopeField"] = source.DataIndex.ScopeField,
+            ["keyField"] = source.DataIndex.KeyField,
+            ["valueField"] = source.DataIndex.ValueField,
+            ["valueTypeField"] = source.DataIndex.ValueTypeField
+        };
+        foreach (var (fieldName, value) in fields)
+        {
+            if (!IsDataIndexIdentifier(value))
+            {
+                throw new ConfigException($"{sourcePath}.dataIndex.{fieldName} must match ^[a-z][a-z0-9_]*$.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        var required = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in source.DataIndex.RequiredKeys ?? Array.Empty<string>())
+        {
+            var parts = key.Split('.', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 || !IsDataIndexIdentifier(parts[0]) || !IsDataIndexIdentifier(parts[1]))
+            {
+                throw new ConfigException($"{sourcePath}.dataIndex.requiredKeys values must use scope.key with safe identifiers.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            if (!required.Add($"{parts[0]}.{parts[1]}"))
+            {
+                throw new ConfigException($"{sourcePath}.dataIndex.requiredKeys contains duplicate key '{key}'.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+    }
+
+    private static bool IsDataIndexIdentifier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var text = value.Trim();
+        if (text[0] is < 'a' or > 'z')
+        {
+            return false;
+        }
+
+        return text.Skip(1).All(ch => ch is >= 'a' and <= 'z' or >= '0' and <= '9' or '_');
     }
 
     /// <summary>

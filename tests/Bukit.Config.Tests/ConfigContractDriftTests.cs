@@ -101,7 +101,7 @@ public sealed class ConfigContractDriftTests
         var strictFields = strictFieldName is null
             ? new HashSet<string>(StringComparer.Ordinal)
             {
-                "type", "name", "mode", "collection", "addToCollections", "markdown", "notion"
+                "type", "name", "mode", "collection", "addToCollections", "markdown", "notion", "dataIndex"
             }
             : GetStrictFieldSet(strictFieldName);
 

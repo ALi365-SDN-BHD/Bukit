@@ -122,9 +122,13 @@ internal static class ConfigStrictFieldValidator
                 }
 
                 var path = $"content.sources[{index}]";
-                RequireOnly(sourceMap, Set("type", "name", "mode", "collection", "addToCollections", "markdown", "notion"), path);
+                RequireOnly(sourceMap, Set("type", "name", "mode", "collection", "addToCollections", "markdown", "notion", "dataIndex"), path);
                 if (Map(sourceMap, "markdown") is { } markdown) RequireOnly(markdown, Set("dir", "defaultType", "maxItems", "includePaths", "includeGlobs"), $"{path}.markdown");
                 if (Map(sourceMap, "notion") is { } notion) ValidateNotion(notion, $"{path}.notion");
+                if (Map(sourceMap, "dataIndex") is { } dataIndex)
+                {
+                    RequireOnly(dataIndex, Set("scopeField", "keyField", "valueField", "valueTypeField", "requiredKeys"), $"{path}.dataIndex");
+                }
                 index++;
             }
         }

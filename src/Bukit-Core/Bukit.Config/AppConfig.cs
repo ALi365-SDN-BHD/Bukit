@@ -271,6 +271,16 @@ public sealed record ContentSourceConfig
     public IReadOnlyList<string>? AddToCollections { get; init; }
     public NotionConfig? Notion { get; init; }
     public MarkdownConfig? Markdown { get; init; }
+    public DataIndexConfig? DataIndex { get; init; }
+}
+
+public sealed record DataIndexConfig
+{
+    public string ScopeField { get; init; } = "scope";
+    public string KeyField { get; init; } = "key";
+    public string ValueField { get; init; } = "value";
+    public string ValueTypeField { get; init; } = "value_type";
+    public IReadOnlyList<string>? RequiredKeys { get; init; }
 }
 
 public sealed record NotionConfig

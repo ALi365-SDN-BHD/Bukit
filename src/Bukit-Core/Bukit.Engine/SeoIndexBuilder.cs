@@ -49,8 +49,9 @@ internal static class SeoIndexBuilder
                 IsIndexableContent(document, model.Robots),
                 SitemapPolicy.ResolveLastModified(document),
                 document.Id,
-                ResolveExplicitCollection(document),
-                IsDerived(document));
+                document.Record.Identity.ContentType,
+                IsDerived: IsDerived(document),
+                Collection: ResolveExplicitCollection(document));
         }
 
         if (listRouteGraph is not null && listRouteGraph.Routes.Count > 0)
@@ -82,7 +83,8 @@ internal static class SeoIndexBuilder
                 ResolveListLastModified(config, route, routed),
                 SourceItemId: null,
                 ContentType: "list",
-                IsDerived: true);
+                IsDerived: true,
+                Collection: ResolveLegacyListCollection(config, route));
         }
 
         return new SeoIndexBuildResult(entries, models);
@@ -116,7 +118,8 @@ internal static class SeoIndexBuilder
             ResolveListLastModified(config, route, routed),
             SourceItemId: null,
             ContentType: route.TaxonomyContext is null ? "list" : "taxonomy",
-            IsDerived: true);
+            IsDerived: true,
+            Collection: string.IsNullOrWhiteSpace(route.Collection) ? null : route.Collection);
     }
 
     internal static PageInfo BuildListPageInfo(
@@ -380,6 +383,25 @@ internal static class SeoIndexBuilder
         }
 
         return string.IsNullOrWhiteSpace(collection) ? null : collection;
+    }
+
+    private static string? ResolveLegacyListCollection(AppConfig config, RouteInfo route)
+    {
+        if (route.Url == "/" || config.Site.Collections is not { Count: > 0 } collections)
+        {
+            return null;
+        }
+
+        foreach (var (collectionKey, collection) in collections)
+        {
+            if (!string.IsNullOrWhiteSpace(collection.ListRoute) &&
+                string.Equals(NormalizeListUrl(collection.ListRoute), route.Url, StringComparison.OrdinalIgnoreCase))
+            {
+                return collectionKey;
+            }
+        }
+
+        return null;
     }
 
     private static bool IsDerived(ContentDocument document)

@@ -62,6 +62,16 @@ public sealed class ScribanModelBinderTests
                     ["twitter"] = "https://twitter.com/example"
                 },
                 ["version"] = 2
+            },
+            DataIndex = new Dictionary<string, object>
+            {
+                ["settings"] = new Dictionary<string, object>
+                {
+                    ["contact"] = new Dictionary<string, object>
+                    {
+                        ["email"] = "contact@example.com"
+                    }
+                }
             }
         };
     }
@@ -375,6 +385,25 @@ public sealed class ScribanModelBinderTests
         var site = Assert.IsType<ScriptObject>(obj["site"]);
 
         Assert.False(site.TryGetValue("data", out var _));
+        Assert.False(site.TryGetValue("data_index", out var _));
+    }
+
+    [Fact]
+    public void ToScriptObject_PageModel_BindsDataIndexCorrectly()
+    {
+        var model = new PageModel
+        {
+            Site = CreateFullSite(),
+            Page = CreateMinimalPage()
+        };
+
+        var obj = ScribanModelBinder.ToScriptObject(model);
+        var site = Assert.IsType<ScriptObject>(obj["site"]);
+        var dataIndex = Assert.IsType<ScriptObject>(site["data_index"]);
+        var settings = Assert.IsType<ScriptObject>(dataIndex["settings"]);
+        var contact = Assert.IsType<ScriptObject>(settings["contact"]);
+
+        Assert.Equal("contact@example.com", contact["email"]);
     }
 
     [Fact]

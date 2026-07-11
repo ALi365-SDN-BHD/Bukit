@@ -41,6 +41,38 @@ public sealed class RouteAndIndexTests
     }
 
     [Fact]
+    public void SeoIndexEntry_CollectionIsLastOptionalParameterAndDefaultsNull()
+    {
+        var property = typeof(SeoIndexEntry).GetProperty("Collection");
+        var constructor = Assert.Single(typeof(SeoIndexEntry).GetConstructors());
+        var parameter = constructor.GetParameters().Last();
+
+        Assert.NotNull(property);
+        Assert.Equal("Collection", parameter.Name, ignoreCase: true);
+        Assert.True(parameter.HasDefaultValue);
+        Assert.Null(parameter.DefaultValue);
+
+        var legacyEntry = new SeoIndexEntry(
+            new RouteInfo("/post/", "p.html", "t.html"),
+            "https://example.com/post/", null, true,
+            DateTimeOffset.UtcNow, "p1", "article");
+        Assert.Null(property!.GetValue(legacyEntry));
+    }
+
+    [Fact]
+    public void SeoIndexEntry_ExplicitCollectionIsPreserved()
+    {
+        var entry = new SeoIndexEntry(
+            new RouteInfo("/news/", "news.html", "news.html"),
+            "https://example.com/news/", null, true,
+            DateTimeOffset.UtcNow, "news-1", "article",
+            Collection: "news");
+
+        Assert.Equal("article", entry.ContentType);
+        Assert.Equal("news", entry.Collection);
+    }
+
+    [Fact]
     public void TableOfContentsEntry_HasLevelTextAndId()
     {
         var toc = new TableOfContentsEntry(2, "Introduction", "intro");

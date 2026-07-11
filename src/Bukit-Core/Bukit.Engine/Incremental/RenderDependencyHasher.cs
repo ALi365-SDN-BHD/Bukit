@@ -119,6 +119,7 @@ internal static class RenderDependencyHasher
 
         AppendModuleSummary(hasher, siteModel.Modules);
         AppendDataSummary(hasher, siteModel.Data);
+        AppendDictionary(hasher, siteModel.DataIndex);
 
         var digest = hasher.GetHashAndReset();
         return HashUtil.ToHexLower(digest);
@@ -165,6 +166,12 @@ internal static class RenderDependencyHasher
         if (value is int or long or float or double or decimal)
         {
             IncrementalBuildEngine.AppendUtf8(hasher, value.ToString());
+            return;
+        }
+
+        if (value is IReadOnlyDictionary<string, object> dictionary)
+        {
+            AppendDictionary(hasher, dictionary);
             return;
         }
 

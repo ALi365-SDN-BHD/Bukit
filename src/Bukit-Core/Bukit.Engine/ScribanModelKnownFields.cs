@@ -28,6 +28,7 @@ internal static class ScribanModelKnownFields
         public const string Params = "params";
         public const string Modules = "modules";
         public const string Data = "data";
+        public const string DataIndex = "data_index";
         public const string Analytics = "analytics";
     }
 
@@ -94,7 +95,7 @@ internal static class ScribanModelKnownFields
     {
         SiteFields.Name, SiteFields.Title, SiteFields.Url,
         SiteFields.Description, SiteFields.BaseUrl, SiteFields.Language,
-        SiteFields.Params, SiteFields.Modules, SiteFields.Data,
+        SiteFields.Params, SiteFields.Modules, SiteFields.Data, SiteFields.DataIndex,
         SiteFields.Analytics
     };
 
@@ -206,7 +207,7 @@ internal static class ScribanModelKnownFields
         return parts[offset].ToLowerInvariant() switch
         {
             "analytics" when offset + 1 < parts.Length => _analyticsFields.Contains(parts[offset + 1]),
-            "params" or "data" or "modules" => true,
+            "params" or "data" or "data_index" or "modules" => true,
             _ => false
         };
     }

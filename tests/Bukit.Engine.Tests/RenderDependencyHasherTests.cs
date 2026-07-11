@@ -48,6 +48,34 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
+    public void Compute_DifferentDataIndexValue_ProducesDifferentHash()
+    {
+        static SiteModel CreateSite(string email) => new()
+        {
+            Name = "test",
+            Title = "test",
+            BaseUrl = "/",
+            Language = "en",
+            DataIndex = new Dictionary<string, object>
+            {
+                ["settings"] = new Dictionary<string, object>
+                {
+                    ["contact"] = new Dictionary<string, object>
+                    {
+                        ["email"] = email
+                    }
+                }
+            }
+        };
+        var config = CreateBaseConfig();
+
+        var hash1 = RenderDependencyHasher.Compute(config, CreateSite("a@example.com"));
+        var hash2 = RenderDependencyHasher.Compute(config, CreateSite("b@example.com"));
+
+        Assert.NotEqual(hash1, hash2);
+    }
+
+    [Fact]
     public void Compute_DifferentUrl_ProducesDifferentHash()
     {
         var config1 = CreateBaseConfig();

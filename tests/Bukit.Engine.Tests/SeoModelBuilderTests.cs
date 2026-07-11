@@ -630,6 +630,28 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_PostTypeWithNewsCollectionEmitsBlogPostingJsonLd()
+    {
+        var item = ContentDocument.Create(
+            "news-post",
+            "News Post",
+            "news-post",
+            DateTimeOffset.UnixEpoch,
+            null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["collection"] = "news"
+            }));
+        var route = new RouteInfo("/news/news-post/", "news/news-post/index.html", "news.html");
+
+        var model = SeoModelBuilder.BuildForContent(CreateConfig(), "/", item, route);
+
+        Assert.Equal("BlogPosting", model.SchemaType);
+        Assert.Contains(model.JsonLd, json => json.Contains("BlogPosting", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void BuildForContent_PageTypeWithPostCollectionDoesNotEmitBlogPostingJsonLd()
     {
         var config = CreateConfig();

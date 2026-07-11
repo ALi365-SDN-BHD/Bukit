@@ -192,9 +192,19 @@ collapsed before it is stored in `page.seo.document_title`.
 | `content.sources[].notion.cacheMode` | `off` | `off`, `readwrite`, or `readonly`. |
 | `content.sources[].notion.cacheDir` | none | Non-empty cache directory when set. |
 | `content.sources[].notion.propertyMap` | none | Uses `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, and `Canonical`. |
+| `content.sources[].dataIndex.scopeField` | `scope` | Scope field for a `mode: data` scalar index. |
+| `content.sources[].dataIndex.keyField` | `key` | Key field for a `mode: data` scalar index. |
+| `content.sources[].dataIndex.valueField` | `value` | Scalar value field. |
+| `content.sources[].dataIndex.valueTypeField` | `value_type` | Validation type field: `text`, `multiline`, `email`, `phone`, or `url`. |
+| `content.sources[].dataIndex.requiredKeys` | none | Required non-empty scope and key pairs. |
 
 `NOTION_TOKEN` must come from the environment when Notion provider secret
 validation is enabled.
+
+`dataIndex` requires `mode: data` and a source `name`. Source names, field
+names, scopes, and keys use `^[a-z][a-z0-9_]*$`. Duplicate scope and key pairs,
+missing required values, unknown value types, invalid email values, and URLs
+other than HTTP(S) or root-relative paths fail the build.
 
 ## Content Media
 

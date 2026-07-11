@@ -17,7 +17,8 @@ namespace Bukit.Engine;
 internal sealed record DataModuleResult(
     IReadOnlyList<ContentDocument> DataDocuments,
     IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? Modules,
-    IReadOnlyDictionary<string, object>? SourceData);
+    IReadOnlyDictionary<string, object>? SourceData,
+    IReadOnlyDictionary<string, object>? DataIndex);
 
 internal sealed record ManifestSetupResult(
     BuildManifest Manifest,
@@ -40,12 +41,14 @@ internal sealed record SeoStageResult(
 internal sealed partial class VariantBuildPipeline
 {
     internal DataModuleResult PrepareDataModules(
-        IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore)
+        IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore,
+        IReadOnlyList<ContentSourceConfig>? sources = null)
     {
         var dataDocuments = documents.Where(ContentFieldReader.IsDataItem).ToList();
         var modules = DataModuleBuilder.BuildModules(dataDocuments, language, bodyStore);
         var sourceData = DataModuleBuilder.BuildDataBySource(dataDocuments, bodyStore);
-        return new DataModuleResult(dataDocuments, modules, sourceData);
+        var dataIndex = DataModuleBuilder.BuildDataIndex(dataDocuments, sources);
+        return new DataModuleResult(dataDocuments, modules, sourceData, dataIndex);
     }
 
     internal RoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver templateResolver)
@@ -77,7 +80,8 @@ internal sealed partial class VariantBuildPipeline
         AppConfig config, string baseUrl,
         IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? modules,
         IReadOnlyDictionary<string, object>? sourceData,
-        IReadOnlyDictionary<string, object>? pluginData = null)
+        IReadOnlyDictionary<string, object>? pluginData = null,
+        IReadOnlyDictionary<string, object>? dataIndex = null)
     {
         var data = MergeSiteData(sourceData, pluginData);
         return new SiteModel
@@ -95,7 +99,8 @@ internal sealed partial class VariantBuildPipeline
             },
             Params = config.Theme.Params,
             Modules = modules,
-            Data = data
+            Data = data,
+            DataIndex = dataIndex
         };
     }
 
@@ -189,7 +194,8 @@ internal sealed partial class VariantBuildPipeline
         var bootstrap = await BootstrapThemeAsync(config, rootDir, logger);
         var templateResolver = new ThemeTemplateResolver(bootstrap.Manifest);
         templateResolver.ValidateRequiredTemplates();
-        var dataModules = await BuildDataModulesAsync(documents, config.Site.Language, bodyStore, variantStageMetrics);
+        var dataModules = await BuildDataModulesAsync(
+            documents, config.Site.Language, bodyStore, config.Content.Sources, variantStageMetrics);
         var routePipelineResult = await BuildRoutePipelineAsync(
             config, documents, dataModules.DataDocuments, bodyStore, ctx, logger, variantStageMetrics, templateResolver, cancellationToken);
 
@@ -208,7 +214,9 @@ internal sealed partial class VariantBuildPipeline
             ? rendererFactory(ctx.LayoutsDir)
             : CreateRenderer(ctx, bootstrap.Registry, bootstrap.SchemaValidator, bootstrap.SectionPlugins, allPagesForSections);
 
-        var siteModel = BuildSiteModel(config, baseUrl, dataModules.Modules, dataModules.SourceData, routePipelineResult.PluginContext.Data);
+        var siteModel = BuildSiteModel(
+            config, baseUrl, dataModules.Modules, dataModules.SourceData,
+            routePipelineResult.PluginContext.Data, dataModules.DataIndex);
         var manifestSetup = SetupManifest(ctx, overrides, templateHashCache);
 
         var renderDocuments = routePipelineResult.RouteResult.RoutedDocuments
@@ -260,10 +268,11 @@ internal sealed partial class VariantBuildPipeline
 
     private Task<DataModuleResult> BuildDataModulesAsync(
         IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore,
+        IReadOnlyList<ContentSourceConfig>? sources,
         BuildStageMetricsCollector metrics)
     {
         var splitItemsStopwatch = Stopwatch.StartNew();
-        var dataModules = PrepareDataModules(documents, language, bodyStore);
+        var dataModules = PrepareDataModules(documents, language, bodyStore, sources);
         splitItemsStopwatch.Stop();
         metrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
         return Task.FromResult(dataModules);

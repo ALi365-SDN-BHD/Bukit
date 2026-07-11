@@ -2479,6 +2479,71 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_DataIndex_InjectsScopedScalarIndexAndKeepsSourceArray()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "data"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "data", "contact-email.md"), """
+                ---
+                type: settings
+                title: Contact email
+                slug: contact-email
+                scope: contact
+                key: email
+                value: contact@example.com
+                value_type: email
+                ---
+                ignored body
+                """);
+
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), """
+                indexed={{ site.data_index.settings.contact.email }}
+                raw={{ site.data.settings[0].fields.value.value }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "T", Collections = TestCollections() },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig
+                    {
+                        Type = "markdown",
+                        Name = "settings",
+                        Mode = "data",
+                        Markdown = new MarkdownConfig { Dir = "data" },
+                        DataIndex = new DataIndexConfig
+                        {
+                            RequiredKeys = ["contact.email"]
+                        }
+                    }
+                ],
+                media: new MediaConfig { DownloadToLocal = false }),
+                Build = new BuildConfig { Output = "dist", Clean = true },
+                Theme = new ThemeConfig { Layouts = "layouts" }
+            };
+
+            WriteTestThemeTemplates(root);
+
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var html = File.ReadAllText(Path.Combine(root, "dist", "index.html"));
+            Assert.Contains("indexed=contact@example.com", html, StringComparison.Ordinal);
+            Assert.Contains("raw=contact@example.com", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_DuplicateContentRouteUrl_FailsBeforeRendering()
     {
         var root = CreateRouteConflictSite();

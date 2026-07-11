@@ -10,4 +10,5 @@ public sealed record SeoIndexEntry(
     DateTimeOffset LastModified,
     string? SourceItemId,
     string? ContentType,
-    bool IsDerived = false);
+    bool IsDerived = false,
+    string? Collection = null);

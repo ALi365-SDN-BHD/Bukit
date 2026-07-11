@@ -40,7 +40,7 @@ When `disableInPreview` is `true`, `bukit preview` removes Bukit-managed GA4 gta
 
 - `inject`: default engine-owned mode. Bukit parses the rendered HTML `<head>`, removes managed SEO/GA tags, and injects canonical, description, robots, Open Graph, Twitter, hreflang, JSON-LD, and GA4 gtag.
 - `theme`: explicit compatibility mode. The engine exposes `page.seo` and `site.analytics`; the theme renders the SEO partial. Diagnostics report missing or duplicate core tags.
-- `off`: disables HTML SEO model output. The engine still computes indexing policy unless `site.seo.enabled: false`.
+- `off`: disables engine-managed HTML SEO tag output. The engine still computes indexing policy unless `site.seo.enabled: false`.
 
 Use `theme` only when you intentionally want the theme to own head output. Use `off` for unusual deployments that do not want Bukit to build HTML SEO tags, while still preserving index policy for sitemap/search unless SEO is fully disabled.
 

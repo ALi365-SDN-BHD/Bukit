@@ -299,7 +299,16 @@ public static class ConfigJsonSchemaGenerator
                 ("maxItems", IntSchema(1)),
                 ("includePaths", StringArraySchema()),
                 ("includeGlobs", StringArraySchema()))))),
-            ("notion", NotionSchema()))));
+            ("notion", NotionSchema()),
+            ("dataIndex", DataIndexSchema()))));
+
+    private static JsonObject DataIndexSchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("scopeField", StringSchema()),
+            ("keyField", StringSchema()),
+            ("valueField", StringSchema()),
+            ("valueTypeField", StringSchema()),
+            ("requiredKeys", StringArraySchema()))));
 
     private static JsonObject NotionSchema()
         => Obj(("type", "object"), ("properties", Obj(
