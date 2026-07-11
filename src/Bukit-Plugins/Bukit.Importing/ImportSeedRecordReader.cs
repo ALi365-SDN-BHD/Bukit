@@ -130,12 +130,25 @@ public static class ImportSeedRecordReader
                 JsonValueKind.Number when property.Value.TryGetDouble(out var d) => d,
                 JsonValueKind.True => true,
                 JsonValueKind.False => false,
+                JsonValueKind.Array => property.Value.EnumerateArray().Select(ReadJsonValue).ToArray(),
                 _ => null
             };
         }
 
         return fields.Count == 0 ? null : fields;
     }
+
+    private static object? ReadJsonValue(JsonElement value)
+        => value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number when value.TryGetInt64(out var l) => l,
+            JsonValueKind.Number when value.TryGetDouble(out var d) => d,
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => throw new FormatException($"Unsupported JSON array value kind: {value.ValueKind}.")
+        };
 
     private static IReadOnlyDictionary<string, object?>? ReadExtraFields(YamlMappingNode node)
     {
