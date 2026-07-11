@@ -85,3 +85,15 @@ No full, release, whole-solution, or post-change gate was run because the plan i
 - No collection-required validation, route behavior, backup/reference files, dataIndex work, or CollectionWarning work was modified by Task 2.
 - Focused tests compile and pass; the two explicitly deferred contract tests remain RED for the expected reasons.
 - The required read-only diff review flagged that removing public `GetEffectiveCollection` can break external source callers. The method remains removed because the Task 2 brief explicitly requires its removal and repository fallback search found no internal callers; this compatibility risk is called out in the handoff.
+
+## Reviewer follow-up: collection-only body adapter coverage
+
+- Added `GetAsync_RawCollectionWithoutTypeOrSourceMode_UsesPageTypeAndPreservesCollection` to cover the raw `IContentBodyStore` adapter when `collection=news` and both `type` and `sourceMode` are absent.
+- The assertions require `ContentType` to default to `page` while preserving `Collection` as `news`.
+- Focused verification command:
+
+  ```sh
+  dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj --no-restore --filter "FullyQualifiedName~ContentBodyStoreAdapterTests.GetAsync_RawCollectionWithoutTypeOrSourceMode_UsesPageTypeAndPreservesCollection" --logger "console;verbosity=normal"
+  ```
+
+- Result: exit 0; 1 test passed, 0 failed.

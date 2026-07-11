@@ -6,6 +6,30 @@ namespace Bukit.Engine.Abstractions.Tests;
 public sealed class ContentBodyStoreAdapterTests
 {
     [Fact]
+    public async Task GetAsync_RawCollectionWithoutTypeOrSourceMode_UsesPageTypeAndPreservesCollection()
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["collection"] = new("text", "news")
+        };
+        var raw = new RawContentDocument(
+            Id: "news-item",
+            Title: "News item",
+            Slug: "news-item",
+            PublishAt: DateTimeOffset.UnixEpoch,
+            Body: new RawBody(),
+            Properties: RawContentValue.FromFields(fields),
+            CustomFields: fields);
+        var store = new RecordingBodyStore();
+
+        await ((IContentBodyStore)store).GetAsync(raw);
+
+        Assert.NotNull(store.Document);
+        Assert.Equal("page", store.Document.Record.Identity.ContentType);
+        Assert.Equal("news", store.Document.Record.Classification.Collection);
+    }
+
+    [Fact]
     public async Task GetAsync_RawDataWithoutCollection_UsesModuleTypeAndEmptyCollection()
     {
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
