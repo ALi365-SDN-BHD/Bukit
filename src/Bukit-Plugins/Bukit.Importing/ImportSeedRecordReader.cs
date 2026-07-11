@@ -98,7 +98,7 @@ public static class ImportSeedRecordReader
                 Published: ReadBool(node, "published") ?? true,
                 SeoTitle: ReadString(node, "seo_title"),
                 SeoDescription: ReadString(node, "seo_description"),
-                ExtraFields: ReadExtraFields(node));
+                ExtraFields: ReadExtraFields(node, path));
         }
     }
 
@@ -150,18 +150,45 @@ public static class ImportSeedRecordReader
             _ => throw new FormatException($"Unsupported JSON array value kind: {value.ValueKind}.")
         };
 
-    private static IReadOnlyDictionary<string, object?>? ReadExtraFields(YamlMappingNode node)
+    private static IReadOnlyDictionary<string, object?>? ReadExtraFields(YamlMappingNode node, string path)
     {
         var fields = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         foreach (var kv in node.Children)
         {
             if (kv.Key is not YamlScalarNode key || string.IsNullOrWhiteSpace(key.Value) ||
-                IsCoreField(key.Value) || kv.Value is not YamlScalarNode value)
+                IsCoreField(key.Value))
                 continue;
-            fields[key.Value] = ParseYamlScalar(value.Value);
+            fields[key.Value] = kv.Value switch
+            {
+                YamlScalarNode value => ParseYamlScalar(value.Value),
+                YamlSequenceNode sequence => ReadYamlScalarSequence(sequence, path, key.Value),
+                YamlMappingNode => throw new FormatException(
+                    $"YAML seed '{path}' field '{key.Value}' contains a nested mapping; only scalar values and scalar sequences are supported."),
+                _ => throw new FormatException(
+                    $"YAML seed '{path}' field '{key.Value}' contains an unsupported YAML node.")
+            };
         }
 
         return fields.Count == 0 ? null : fields;
+    }
+
+    private static IReadOnlyList<object?> ReadYamlScalarSequence(
+        YamlSequenceNode sequence,
+        string path,
+        string field)
+    {
+        var values = new List<object?>(sequence.Children.Count);
+        foreach (var child in sequence.Children)
+        {
+            if (child is not YamlScalarNode scalar)
+            {
+                var kind = child is YamlMappingNode ? "mapping" : child is YamlSequenceNode ? "sequence" : "node";
+                throw new FormatException(
+                    $"YAML seed '{path}' field '{field}' contains a nested {kind}; only scalar sequence items are supported.");
+            }
+            values.Add(ParseYamlScalar(scalar.Value));
+        }
+        return values.AsReadOnly();
     }
 
     private static bool IsCoreField(string name)

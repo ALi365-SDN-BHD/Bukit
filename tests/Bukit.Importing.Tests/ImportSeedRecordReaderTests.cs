@@ -108,4 +108,43 @@ public sealed class ImportSeedRecordReaderTests : IDisposable
         Assert.Equal(3L, fields["priority"]);
         Assert.Equal(true, fields["featured"]);
     }
+
+    [Fact]
+    public void ReadSeedFile_PreservesYamlScalarSequenceAsReadOnlyArray()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "posts.yaml"), """
+- title: Typed YAML
+  slug: typed-yaml
+  tags:
+    - market
+    - china
+    - 7
+    - true
+""");
+
+        var record = Assert.Single(ImportSeedRecordReader.ReadSeedFile(_tempDir, "posts.yaml", "post"));
+        var tags = Assert.IsAssignableFrom<IReadOnlyList<object?>>(record.ExtraFields!["tags"]);
+
+        Assert.Equal(["market", "china", 7L, true], tags);
+        Assert.False(tags is object?[]);
+    }
+
+    [Theory]
+    [InlineData("tags:\n    - market\n    - nested:\n        value: invalid", "mapping")]
+    [InlineData("tags:\n    - market\n    - - nested", "sequence")]
+    public void ReadSeedFile_RejectsNestedYamlSequenceValues(string yamlField, string expectedKind)
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "posts.yaml"), $"""
+- title: Invalid YAML
+  slug: invalid-yaml
+  {yamlField}
+""");
+
+        var error = Assert.Throws<FormatException>(() =>
+            ImportSeedRecordReader.ReadSeedFile(_tempDir, "posts.yaml", "post"));
+
+        Assert.Contains("posts.yaml", error.Message, StringComparison.Ordinal);
+        Assert.Contains("tags", error.Message, StringComparison.Ordinal);
+        Assert.Contains(expectedKind, error.Message, StringComparison.OrdinalIgnoreCase);
+    }
 }

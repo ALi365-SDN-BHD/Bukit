@@ -204,10 +204,13 @@ public static class ImportNotionPushWorkflow
         catch (YamlDotNet.Core.YamlException ex)
         {
             var duplicatePrefix = "Duplicate key ";
-            var message = ex.Message.StartsWith(duplicatePrefix, StringComparison.Ordinal)
+            var detail = ex.Message.StartsWith(duplicatePrefix, StringComparison.Ordinal)
                 ? $"Duplicate schema field '{ex.Message[duplicatePrefix.Length..]}'."
                 : $"Invalid Notion database map YAML: {ex.Message}";
-            Console.Error.WriteLine(message);
+            var mapLocation = string.IsNullOrWhiteSpace(databaseMapPath)
+                ? inputDir
+                : Path.GetFullPath(databaseMapPath);
+            Console.Error.WriteLine($"{mapLocation}: {detail}");
             return 2;
         }
 
@@ -453,34 +456,53 @@ public static class ImportNotionPushWorkflow
                 Collection: collection,
                 DatabaseId: GetScalar(map, "databaseId"),
                 UniqueField: GetScalar(map, "uniqueField") ?? defaultUniqueField,
-                Schema: ReadSchema(map, key)));
+                Schema: ReadSchema(map, key, mapPath)));
         }
         return targets.Where(t => File.Exists(Path.Combine(inputDir, t.SeedFile))).ToList();
     }
 
-    private static IReadOnlyDictionary<string, string>? ReadSchema(YamlMappingNode map, string databaseKey)
+    private static IReadOnlyDictionary<string, string>? ReadSchema(
+        YamlMappingNode map,
+        string databaseKey,
+        string mapPath)
     {
+        var schemaPath = $"{mapPath}:databases.{databaseKey}.schema";
         var schemaNode = GetNode(map, "schema");
         if (schemaNode is null)
             return null;
         if (schemaNode is not YamlMappingNode schemaMap)
-            throw new FormatException($"Schema for database '{databaseKey}' must be a mapping.");
+            throw new FormatException($"{schemaPath}: schema must be a mapping.");
 
-        var schema = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var parsed = new List<(string Raw, string Canonical, string Type)>();
+        var canonicalKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var pair in schemaMap.Children)
         {
             if (pair.Key is not YamlScalarNode keyNode || string.IsNullOrWhiteSpace(keyNode.Value))
-                throw new FormatException($"Schema for database '{databaseKey}' contains an invalid field name.");
+                throw new FormatException($"{schemaPath}: schema contains an invalid field name.");
             var field = keyNode.Value;
             if (field != field.Trim())
-                throw new FormatException($"Schema field '{field}' in database '{databaseKey}' must not contain boundary whitespace.");
+                throw new FormatException($"{schemaPath}: schema key '{field}' must not contain boundary whitespace.");
+            var canonical = ToNotionPropertyName(field);
+            if (string.IsNullOrWhiteSpace(canonical))
+                throw new FormatException($"{schemaPath}: Schema key '{field}' has an empty canonical Notion property name.");
             if (pair.Value is not YamlScalarNode typeNode || string.IsNullOrWhiteSpace(typeNode.Value))
-                throw new FormatException($"Schema field '{field}' must declare a scalar type in database '{databaseKey}'.");
+                throw new FormatException($"{schemaPath}: Schema field '{field}' must declare a scalar type.");
             var type = typeNode.Value.Trim().ToLowerInvariant();
             if (type is not ("rich_text" or "select" or "multi_select" or "url" or "date" or "number" or "checkbox"))
-                throw new FormatException($"Unsupported Notion schema type '{type}' for database '{databaseKey}', field '{field}'.");
-            if (!schema.TryAdd(field, type))
-                throw new FormatException($"Duplicate schema field '{field}' in database '{databaseKey}'.");
+                throw new FormatException($"{schemaPath}: Unsupported Notion schema type '{type}' for database '{databaseKey}', field '{field}'.");
+            if (!canonicalKeys.Add(canonical))
+                throw new FormatException($"{schemaPath}: schema keys normalize to duplicate Notion property '{canonical}'.");
+            parsed.Add((field, canonical, type));
+        }
+
+        var schema = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (raw, canonical, type) in parsed)
+        {
+            if (!raw.Equals(canonical, StringComparison.Ordinal))
+                throw new FormatException($"{schemaPath}: Schema key '{raw}' must use canonical Notion property name '{canonical}'.");
+            if (IsCoreProperty(canonical))
+                throw new FormatException($"{schemaPath}: Schema key '{raw}' conflicts with fixed core property '{canonical}'.");
+            schema.Add(canonical, type);
         }
         return schema;
     }
