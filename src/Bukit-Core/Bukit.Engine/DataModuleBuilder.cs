@@ -3,6 +3,7 @@ using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Shared;
+using Bukit.Engine.Content;
 using System.Net.Mail;
 
 namespace Bukit.Engine;
@@ -160,7 +161,8 @@ internal static class DataModuleBuilder
                 throw new ContentException($"Data index source '{sourceName}' requires scope and key values to match ^[a-z][a-z0-9_]*$; content '{document.Id}' has '{scope}.{key}'.");
             }
 
-            var value = TryGetIndexField(document, config.ValueField, sourceName, out var valueField)
+            var context = $"Data index source '{sourceName}' content '{document.Id}'";
+            var value = ConfiguredContentFieldReader.TryGetField(document.CustomFields, config.ValueField, context, out var valueField)
                 ? valueField.Value?.ToString()?.Trim() ?? string.Empty
                 : string.Empty;
             ValidateIndexValue(sourceName, document.Id, valueType, value);
@@ -211,7 +213,8 @@ internal static class DataModuleBuilder
 
     private static string RequireIndexField(ContentDocument document, string fieldName, string sourceName)
     {
-        var value = TryGetIndexField(document, fieldName, sourceName, out var field)
+        var context = $"Data index source '{sourceName}' content '{document.Id}'";
+        var value = ConfiguredContentFieldReader.TryGetField(document.CustomFields, fieldName, context, out var field)
             ? field.Value?.ToString()?.Trim()
             : null;
         if (string.IsNullOrWhiteSpace(value))
@@ -220,40 +223,6 @@ internal static class DataModuleBuilder
         }
 
         return value;
-    }
-
-    private static bool TryGetIndexField(
-        ContentDocument document,
-        string fieldName,
-        string sourceName,
-        out ContentField field)
-    {
-        if (ContentFieldReader.TryGetField(document.CustomFields, fieldName, out field))
-        {
-            return true;
-        }
-
-        var alias = fieldName.Replace("_", string.Empty, StringComparison.Ordinal);
-        var matches = (document.CustomFields ?? new Dictionary<string, ContentField>())
-            .Where(pair => string.Equals(
-                pair.Key.Replace("_", string.Empty, StringComparison.Ordinal),
-                alias,
-                StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        if (matches.Count > 1)
-        {
-            throw new ContentException(
-                $"Data index source '{sourceName}' content '{document.Id}' has ambiguous aliases for field '{fieldName}'.");
-        }
-
-        if (matches.Count == 1)
-        {
-            field = matches[0].Value;
-            return true;
-        }
-
-        field = default!;
-        return false;
     }
 
     private static void ValidateIndexValue(string sourceName, string documentId, string valueType, string value)

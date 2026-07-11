@@ -11,6 +11,7 @@ using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Bukit.Theme;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
@@ -18,7 +19,8 @@ internal sealed record DataModuleResult(
     IReadOnlyList<ContentDocument> DataDocuments,
     IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? Modules,
     IReadOnlyDictionary<string, object>? SourceData,
-    IReadOnlyDictionary<string, object>? DataIndex);
+    IReadOnlyDictionary<string, object>? DataIndex,
+    IReadOnlyDictionary<string, RouteMetadataEntry>? RouteMetadata);
 
 internal sealed record ManifestSetupResult(
     BuildManifest Manifest,
@@ -42,13 +44,17 @@ internal sealed partial class VariantBuildPipeline
 {
     internal DataModuleResult PrepareDataModules(
         IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore,
-        IReadOnlyList<ContentSourceConfig>? sources = null)
+        IReadOnlyList<ContentSourceConfig>? sources = null,
+        RouteMetadataConfig? routeMetadata = null)
     {
         var dataDocuments = documents.Where(ContentFieldReader.IsDataItem).ToList();
         var modules = DataModuleBuilder.BuildModules(dataDocuments, language, bodyStore);
         var sourceData = DataModuleBuilder.BuildDataBySource(dataDocuments, bodyStore);
         var dataIndex = DataModuleBuilder.BuildDataIndex(dataDocuments, sources);
-        return new DataModuleResult(dataDocuments, modules, sourceData, dataIndex);
+        var routeMetadataIndex = routeMetadata is null
+            ? null
+            : RouteMetadataIndexBuilder.Build(routeMetadata, sourceData);
+        return new DataModuleResult(dataDocuments, modules, sourceData, dataIndex, routeMetadataIndex);
     }
 
     internal RoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver templateResolver)
@@ -195,7 +201,8 @@ internal sealed partial class VariantBuildPipeline
         var templateResolver = new ThemeTemplateResolver(bootstrap.Manifest);
         templateResolver.ValidateRequiredTemplates();
         var dataModules = await BuildDataModulesAsync(
-            documents, config.Site.Language, bodyStore, config.Content.Sources, variantStageMetrics);
+            documents, config.Site.Language, bodyStore, config.Content.Sources,
+            config.Content.RouteMetadata, variantStageMetrics);
         var routePipelineResult = await BuildRoutePipelineAsync(
             config, documents, dataModules.DataDocuments, bodyStore, ctx, logger, variantStageMetrics, templateResolver, cancellationToken);
 
@@ -269,10 +276,11 @@ internal sealed partial class VariantBuildPipeline
     private Task<DataModuleResult> BuildDataModulesAsync(
         IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore,
         IReadOnlyList<ContentSourceConfig>? sources,
+        RouteMetadataConfig? routeMetadata,
         BuildStageMetricsCollector metrics)
     {
         var splitItemsStopwatch = Stopwatch.StartNew();
-        var dataModules = PrepareDataModules(documents, language, bodyStore, sources);
+        var dataModules = PrepareDataModules(documents, language, bodyStore, sources, routeMetadata);
         splitItemsStopwatch.Stop();
         metrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
         return Task.FromResult(dataModules);

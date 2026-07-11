@@ -48,6 +48,33 @@ public sealed class VariantBuildPipelineTests : IDisposable
         var result = pipeline.PrepareDataModules(documents, "en", bodyStore);
 
         Assert.Empty(result.DataDocuments);
+        Assert.Null(result.RouteMetadata);
+    }
+
+    [Fact]
+    public void PrepareDataModules_AttachesRouteMetadataWithoutChangingExistingDataModels()
+    {
+        var pipeline = new VariantBuildPipeline();
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["sourceKey"] = "page_meta",
+            ["sourceMode"] = "data",
+            ["route"] = "/",
+            ["title"] = "Home",
+            ["summary"] = "Home summary"
+        });
+        var document = ContentDocument.Create("home", "Home", "home", DateTimeOffset.UtcNow, null, fields);
+        var source = new ContentSourceConfig { Type = "notion", Name = "page_meta", Mode = "data" };
+        var routeMetadata = new RouteMetadataConfig { Source = "page_meta", RequiredRoutes = ["/"] };
+
+        var result = pipeline.PrepareDataModules(
+            [document], "en", new NoOpBodyStore(), [source], routeMetadata);
+
+        Assert.Equal("Home", result.RouteMetadata!["/"].Title);
+        Assert.Null(result.DataIndex);
+        var rows = Assert.IsAssignableFrom<IReadOnlyList<ModuleInfo>>(result.SourceData!["page_meta"]);
+        Assert.Single(rows);
+        Assert.Equal("Home", rows[0].Title);
     }
 
     [Fact]
