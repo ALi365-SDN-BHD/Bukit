@@ -285,6 +285,11 @@ public static class ConfigValidator
         {
             throw new ConfigException("content.routeMetadata.source must reference a source with mode: data.", DiagnosticCode.ConfigInvalidValue);
         }
+
+        if (source.DataIndex is not null)
+        {
+            throw new ConfigException("content.routeMetadata.source must not declare dataIndex because route metadata is reserved for engine routing and is not exposed through template data bindings.", DiagnosticCode.ConfigInvalidValue);
+        }
     }
 
     private static bool IsRouteMetadataIdentifier(string? value)

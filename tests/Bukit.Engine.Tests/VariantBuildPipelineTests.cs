@@ -52,13 +52,14 @@ public sealed class VariantBuildPipelineTests : IDisposable
     }
 
     [Fact]
-    public void PrepareDataModules_AttachesRouteMetadataWithoutChangingExistingDataModels()
+    public void PrepareDataModules_AttachesRouteMetadataWithoutExposingReservedRowsAsModules()
     {
         var pipeline = new VariantBuildPipeline();
         var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
         {
             ["sourceKey"] = "page_meta",
             ["sourceMode"] = "data",
+            ["type"] = "route_metadata_record",
             ["route"] = "/",
             ["title"] = "Home",
             ["summary"] = "Home summary"
@@ -71,6 +72,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
             [document], "en", new NoOpBodyStore(), [source], routeMetadata);
 
         Assert.Equal("Home", result.RouteMetadata!["/"].Title);
+        Assert.Null(result.Modules);
         Assert.Null(result.DataIndex);
         var rows = Assert.IsAssignableFrom<IReadOnlyList<ModuleInfo>>(result.SourceData!["page_meta"]);
         Assert.Single(rows);
@@ -115,6 +117,45 @@ public sealed class VariantBuildPipelineTests : IDisposable
         Assert.Equal("A test site description", model.Description);
         Assert.NotNull(model.Params);
         Assert.True((bool)model.Params!["showSidebar"]);
+    }
+
+    [Fact]
+    public void BuildSiteModel_ReservesRouteMetadataSourceFromTemplateDataBindings()
+    {
+        var pipeline = new VariantBuildPipeline();
+        var config = CreateMinimalConfig() with
+        {
+            Content = CreateMinimalConfig().Content with
+            {
+                RouteMetadata = new RouteMetadataConfig { Source = "page_meta" }
+            }
+        };
+        var routeRows = new[] { new ModuleInfo { Id = "home", Title = "Home", Slug = "home", Content = string.Empty } };
+        var settingsRows = new[] { new ModuleInfo { Id = "email", Title = "Email", Slug = "email", Content = string.Empty } };
+        var modules = new Dictionary<string, IReadOnlyList<ModuleInfo>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["page_meta"] = routeRows,
+            ["settings"] = settingsRows
+        };
+        var sourceData = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["page_meta"] = routeRows,
+            ["settings"] = settingsRows
+        };
+        var dataIndex = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["page_meta"] = new Dictionary<string, object> { ["routes"] = "reserved" },
+            ["settings"] = new Dictionary<string, object> { ["contact"] = "public" }
+        };
+
+        var model = pipeline.BuildSiteModel(config, "/", modules, sourceData, dataIndex: dataIndex);
+
+        Assert.False(model.Modules!.ContainsKey("page_meta"));
+        Assert.False(model.Data!.ContainsKey("page_meta"));
+        Assert.False(model.DataIndex!.ContainsKey("page_meta"));
+        Assert.True(model.Modules.ContainsKey("settings"));
+        Assert.True(model.Data.ContainsKey("settings"));
+        Assert.True(model.DataIndex.ContainsKey("settings"));
     }
 
     [Fact]

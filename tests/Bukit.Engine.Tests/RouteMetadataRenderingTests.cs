@@ -140,6 +140,63 @@ public sealed class RouteMetadataRenderingTests
     }
 
     [Fact]
+    public void RouteDependencyHash_WithRealTemplateData_ChangesOnlyForAffectedRoute()
+    {
+        var config = CreateConfig();
+        var beforeMetadata = new Dictionary<string, RouteMetadataEntry>
+        {
+            ["/insights/"] = Entry("/insights/", "Insights", "Before"),
+            ["/companies/"] = Entry("/companies/", "Companies", "Companies summary")
+        };
+        var afterMetadata = new Dictionary<string, RouteMetadataEntry>(beforeMetadata)
+        {
+            ["/insights/"] = Entry("/insights/", "Insights", "After")
+        };
+        var beforeSite = CreateSiteModelWithRouteMetadataTemplateData("Before");
+        var afterSite = CreateSiteModelWithRouteMetadataTemplateData("After");
+
+        var beforeBaseHash = RenderDependencyHasher.Compute(config, beforeSite);
+        var afterBaseHash = RenderDependencyHasher.Compute(config, afterSite);
+
+        Assert.Equal(beforeBaseHash, afterBaseHash);
+        Assert.NotEqual(
+            RenderDependencyHasher.ComputeForRoute(beforeBaseHash, "/insights/", beforeMetadata),
+            RenderDependencyHasher.ComputeForRoute(afterBaseHash, "/insights/", afterMetadata));
+        Assert.Equal(
+            RenderDependencyHasher.ComputeForRoute(beforeBaseHash, "/companies/", beforeMetadata),
+            RenderDependencyHasher.ComputeForRoute(afterBaseHash, "/companies/", afterMetadata));
+    }
+
+    [Fact]
+    public void RouteDependencyHash_WithPipelineBuiltSiteModels_ChangesOnlyForAffectedRoute()
+    {
+        var config = CreateConfig();
+        var pipeline = new VariantBuildPipeline();
+        var beforeSite = BuildSiteModel(pipeline, config, "Before");
+        var afterSite = BuildSiteModel(pipeline, config, "After");
+        var beforeMetadata = new Dictionary<string, RouteMetadataEntry>
+        {
+            ["/insights/"] = Entry("/insights/", "Insights", "Before"),
+            ["/companies/"] = Entry("/companies/", "Companies", "Companies summary")
+        };
+        var afterMetadata = new Dictionary<string, RouteMetadataEntry>(beforeMetadata)
+        {
+            ["/insights/"] = Entry("/insights/", "Insights", "After")
+        };
+
+        var beforeBaseHash = RenderDependencyHasher.Compute(config, beforeSite);
+        var afterBaseHash = RenderDependencyHasher.Compute(config, afterSite);
+
+        Assert.Equal(beforeBaseHash, afterBaseHash);
+        Assert.NotEqual(
+            RenderDependencyHasher.ComputeForRoute(beforeBaseHash, "/insights/", beforeMetadata),
+            RenderDependencyHasher.ComputeForRoute(afterBaseHash, "/insights/", afterMetadata));
+        Assert.Equal(
+            RenderDependencyHasher.ComputeForRoute(beforeBaseHash, "/companies/", beforeMetadata),
+            RenderDependencyHasher.ComputeForRoute(afterBaseHash, "/companies/", afterMetadata));
+    }
+
+    [Fact]
     public void GlobalDependencyHash_IncludesRouteMetadataFieldAliases()
     {
         var config = CreateConfig();
@@ -179,6 +236,43 @@ public sealed class RouteMetadataRenderingTests
     private static SiteConfig CreateSite() => new() { Name = "test", Title = "Test Site" };
 
     private static SiteModel CreateSiteModel() => new() { Name = "test", Title = "Test Site", BaseUrl = "/", Language = "en" };
+
+    private static SiteModel CreateSiteModelWithRouteMetadataTemplateData(string summary) => new()
+    {
+        Name = "test",
+        Title = "Test Site",
+        BaseUrl = "/",
+        Language = "en",
+        Modules = new Dictionary<string, IReadOnlyList<ModuleInfo>>
+        {
+            ["page_meta"] = [new ModuleInfo { Id = "insights", Title = "Insights", Slug = "insights", Content = string.Empty }]
+        },
+        Data = new Dictionary<string, object>
+        {
+            ["page_meta"] = new[] { new Dictionary<string, object> { ["route"] = "/insights/", ["summary"] = summary } }
+        },
+        DataIndex = new Dictionary<string, object>
+        {
+            ["page_meta"] = new Dictionary<string, object> { ["routes"] = new Dictionary<string, object> { ["insights"] = summary } }
+        }
+    };
+
+    private static SiteModel BuildSiteModel(VariantBuildPipeline pipeline, AppConfig config, string summary)
+    {
+        var routeRows = new[]
+        {
+            new ModuleInfo { Id = "insights", Title = "Insights", Slug = "insights", Content = summary }
+        };
+        return pipeline.BuildSiteModel(
+            config,
+            "/",
+            new Dictionary<string, IReadOnlyList<ModuleInfo>> { ["page_meta"] = routeRows },
+            new Dictionary<string, object> { ["page_meta"] = routeRows },
+            dataIndex: new Dictionary<string, object>
+            {
+                ["page_meta"] = new Dictionary<string, object> { ["routes"] = summary }
+            });
+    }
 
     private static AppConfig CreateConfig() => new()
     {

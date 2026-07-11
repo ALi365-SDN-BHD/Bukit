@@ -202,6 +202,31 @@ public sealed class RouteMetadataConfigTests
     }
 
     [Fact]
+    public void Validate_RouteMetadataSourceWithDataIndex_Throws()
+    {
+        var config = Load("""
+            content:
+              sources:
+                - type: markdown
+                  name: page_meta
+                  mode: data
+                  markdown:
+                    dir: data/page-meta
+                  dataIndex:
+                    scopeField: scope
+                    keyField: key
+                    valueField: value
+                    valueTypeField: value_type
+              routeMetadata:
+                source: page_meta
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("must not declare dataIndex", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Load_RouteMetadataWithUnknownField_Throws()
     {
         var ex = Assert.Throws<ConfigException>(() => Load("""

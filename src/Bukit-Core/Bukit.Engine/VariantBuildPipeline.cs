@@ -48,13 +48,31 @@ internal sealed partial class VariantBuildPipeline
         RouteMetadataConfig? routeMetadata = null)
     {
         var dataDocuments = documents.Where(ContentFieldReader.IsDataItem).ToList();
-        var modules = DataModuleBuilder.BuildModules(dataDocuments, language, bodyStore);
+        var templateDataDocuments = ExcludeRouteMetadataDocuments(dataDocuments, routeMetadata?.Source);
+        var modules = DataModuleBuilder.BuildModules(templateDataDocuments, language, bodyStore);
         var sourceData = DataModuleBuilder.BuildDataBySource(dataDocuments, bodyStore);
-        var dataIndex = DataModuleBuilder.BuildDataIndex(dataDocuments, sources);
+        var dataIndex = DataModuleBuilder.BuildDataIndex(templateDataDocuments, sources);
         var routeMetadataIndex = routeMetadata is null
             ? null
             : RouteMetadataIndexBuilder.Build(routeMetadata, sourceData);
         return new DataModuleResult(dataDocuments, modules, sourceData, dataIndex, routeMetadataIndex);
+    }
+
+    private static IReadOnlyList<ContentDocument> ExcludeRouteMetadataDocuments(
+        IReadOnlyList<ContentDocument> dataDocuments,
+        string? reservedSource)
+    {
+        if (string.IsNullOrWhiteSpace(reservedSource))
+        {
+            return dataDocuments;
+        }
+
+        return dataDocuments
+            .Where(document => !string.Equals(
+                ContentFieldReader.GetText(document.CustomFields, "sourceKey")?.Trim(),
+                reservedSource,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
     }
 
     internal RoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver templateResolver)
@@ -89,7 +107,8 @@ internal sealed partial class VariantBuildPipeline
         IReadOnlyDictionary<string, object>? pluginData = null,
         IReadOnlyDictionary<string, object>? dataIndex = null)
     {
-        var data = MergeSiteData(sourceData, pluginData);
+        var reservedSource = config.Content.RouteMetadata?.Source;
+        var data = ExcludeReservedSource(MergeSiteData(sourceData, pluginData), reservedSource);
         return new SiteModel
         {
             Name = config.Site.Name,
@@ -104,10 +123,32 @@ internal sealed partial class VariantBuildPipeline
                 GoogleAnalyticsId = config.Site.Analytics.GoogleAnalyticsId
             },
             Params = config.Theme.Params,
-            Modules = modules,
+            Modules = ExcludeReservedSource(modules, reservedSource),
             Data = data,
-            DataIndex = dataIndex
+            DataIndex = ExcludeReservedSource(dataIndex, reservedSource)
         };
+    }
+
+    private static IReadOnlyDictionary<string, TValue>? ExcludeReservedSource<TValue>(
+        IReadOnlyDictionary<string, TValue>? values,
+        string? reservedSource)
+    {
+        if (values is null || string.IsNullOrWhiteSpace(reservedSource) ||
+            !values.Keys.Any(key => string.Equals(key, reservedSource, StringComparison.OrdinalIgnoreCase)))
+        {
+            return values;
+        }
+
+        var filtered = new Dictionary<string, TValue>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in values)
+        {
+            if (!string.Equals(key, reservedSource, StringComparison.OrdinalIgnoreCase))
+            {
+                filtered[key] = value;
+            }
+        }
+
+        return filtered.Count == 0 ? null : filtered;
     }
 
     internal ManifestSetupResult SetupManifest(
