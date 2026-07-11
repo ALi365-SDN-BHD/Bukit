@@ -59,6 +59,32 @@ fallback and fail with `ContentCollectionMissing` as expected:
 Per the task brief, the repository post-change gate was not run before the
 planned Task 7 distinct-type behavior is green.
 
+## P1 fixture follow-up
+
+Audited every `RouteGeneratorTests` fixture after the strict collection
+contract landed. Fixtures that are expected to route successfully or exercise
+another validation path now declare an explicit collection matching the rule
+under test (`post`, `page`, or the intentional custom collection). The four
+tests that intentionally exercise `ContentCollectionMissing` and the planned
+Task 7 type-only fallback test were left unchanged.
+
+The initial full `RouteGeneratorTests` filter had 16 failures because missing
+collection metadata intercepted unrelated assertions. After the fixture-only
+update, the same 45-test filter produced 44 passed and 1 failed. The only
+remaining failure in this class is the expected Task 7 RED:
+
+- `RouteGeneratorTests.Generate_CollectionsRule_TypeOnly_UsesCanonicalCollection`
+
+Together with the two expected Task 7 REDs in
+`RouteGeneratorCoverageTests`, the exact old fallback failures remain:
+
+- `RouteGeneratorCoverageTests.Generate_GetCollection_EmptyCollectionField_UsesCanonicalType`
+- `RouteGeneratorCoverageTests.Generate_GetCollection_WhitespaceCollectionField_UsesCanonicalType`
+- `RouteGeneratorTests.Generate_CollectionsRule_TypeOnly_UsesCanonicalCollection`
+
+No production routing behavior or type/collection route separation was
+implemented by this follow-up.
+
 ## Commit
 
 `feat(content): require collection for routed content` (this Task 3 commit)

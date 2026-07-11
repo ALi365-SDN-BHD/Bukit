@@ -73,7 +73,7 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_NoRouteRule_Throws()
     {
-        var item = Item("default");
+        var item = Item("default", new Dictionary<string, object> { ["collection"] = "page" });
 
         var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
         Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -171,7 +171,11 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_UnknownTypeWithoutRule_Throws()
     {
-        var item = Item("custom", new Dictionary<string, object> { ["type"] = "custom" });
+        var item = Item("custom", new Dictionary<string, object>
+        {
+            ["type"] = "custom",
+            ["collection"] = "custom"
+        });
 
         var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
         Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -182,6 +186,7 @@ public sealed class RouteGeneratorTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/custom/foo/",
@@ -201,6 +206,7 @@ public sealed class RouteGeneratorTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["url"] = "/standalone/bar/",
             ["template"] = "standalone/page.html"
         };
@@ -217,6 +223,7 @@ public sealed class RouteGeneratorTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "no-leading/",
@@ -234,6 +241,7 @@ public sealed class RouteGeneratorTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/no-trailing",
@@ -251,6 +259,7 @@ public sealed class RouteGeneratorTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "  /trimmed/path/  ",
@@ -332,12 +341,12 @@ public sealed class RouteGeneratorTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["outputPath"] = "custom/about/index.html"
             }
         };
-        fieldValues["collection"] = "page";
         var item = Item("about", fieldValues);
 
         var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: DefaultCollections));
@@ -351,6 +360,7 @@ public sealed class RouteGeneratorTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "https://evil.com",
@@ -367,6 +377,7 @@ public sealed class RouteGeneratorTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/safe/",
@@ -387,7 +398,11 @@ public sealed class RouteGeneratorTests
     [InlineData("AUX")]
     public void Generate_EncodedOutputPathIsValidatedAgain(string slug)
     {
-        var item = Item(slug, new Dictionary<string, object> { ["type"] = "post" });
+        var item = Item(slug, new Dictionary<string, object>
+        {
+            ["type"] = "post",
+            ["collection"] = "post"
+        });
 
         Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, "none"));
     }
@@ -397,6 +412,7 @@ public sealed class RouteGeneratorTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/u/",
@@ -523,7 +539,11 @@ public sealed class RouteGeneratorTests
             id: "id-1", title: "My Post", slug: "my-post",
             publishAt: new DateTimeOffset(2025, 3, 15, 0, 0, 0, TimeSpan.Zero),
             contentHtml: "",
-            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post" }));
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["collection"] = "post"
+            }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -541,7 +561,11 @@ public sealed class RouteGeneratorTests
             id: "id-1", title: "T", slug: "hello",
             publishAt: new DateTimeOffset(2024, 12, 5, 0, 0, 0, TimeSpan.Zero),
             contentHtml: "",
-            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post" }));
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["collection"] = "post"
+            }));
 
         var permalinks = new Dictionary<string, string> { ["post"] = "/{year}/{month}/{day}/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -556,7 +580,11 @@ public sealed class RouteGeneratorTests
             id: "id-1", title: "T", slug: "about",
             publishAt: DateTimeOffset.MinValue,
             contentHtml: "",
-            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["collection"] = "page"
+            }));
 
         var permalinks = new Dictionary<string, string> { ["page"] = "/docs/{slug}/" };
         var route = RouteGenerator.Generate(item, "none", permalinks);
@@ -568,7 +596,11 @@ public sealed class RouteGeneratorTests
     [Fact]
     public void Generate_PermalinkPattern_NoMatchThrows()
     {
-        var item = Item("test-slug", new Dictionary<string, object> { ["type"] = "post" });
+        var item = Item("test-slug", new Dictionary<string, object>
+        {
+            ["type"] = "post",
+            ["collection"] = "post"
+        });
         var permalinks = new Dictionary<string, string> { ["page"] = "/p/{slug}/" };
         var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, "none", permalinks));
         Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -580,6 +612,7 @@ public sealed class RouteGeneratorTests
         var fieldValues = new Dictionary<string, object>
         {
             ["type"] = "post",
+            ["collection"] = "post",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/custom/",
@@ -601,7 +634,11 @@ public sealed class RouteGeneratorTests
             id: "id-1", title: "T", slug: "my-slug",
             publishAt: new DateTimeOffset(2025, 1, 9, 0, 0, 0, TimeSpan.Zero),
             contentHtml: "",
-            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post" }));
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["collection"] = "post"
+            }));
 
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{year}/{month}/{day}/{slug}/", item);
 
