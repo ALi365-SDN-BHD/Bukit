@@ -54,183 +54,41 @@ public sealed class CollectionWarningStageTests
             logger);
     }
 
-    [Fact]
-    public async Task ExecuteAsync_TypePostWithoutCollection_EmitsWarning()
+    [Theory]
+    [InlineData("type-only", "post", null, null)]
+    [InlineData("collection-only", null, "blog", null)]
+    [InlineData("same-values", "post", "post", null)]
+    [InlineData("distinct-values", "post", "companies", null)]
+    [InlineData("data-metadata", "settings", null, "data")]
+    public async Task ExecuteAsync_ContentMetadata_DoesNotEmitWarnings(
+        string id,
+        string? type,
+        string? collection,
+        string? sourceMode)
     {
         var logger = new TestLogger();
-        var document = CreateDocument("my-post", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        var fields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        if (type is not null)
         {
-            ["type"] = "post"
-        });
+            fields["type"] = type;
+        }
+        if (collection is not null)
+        {
+            fields["collection"] = collection;
+        }
+        if (sourceMode is not null)
+        {
+            fields["sourceMode"] = sourceMode;
+        }
+        var document = CreateDocument(id, fields);
         var stage = new CollectionWarningStage();
         var input = CreateInput(new[] { document }, logger);
 
-        await stage.ExecuteAsync(input, CancellationToken.None);
-
-        Assert.Single(logger.Warnings);
-        Assert.Contains("[WARN]", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("my-post", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("post", logger.Warnings[0], StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_TypePageWithoutCollection_EmitsWarning()
-    {
-        var logger = new TestLogger();
-        var document = CreateDocument("my-page", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "page"
-        });
-        var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { document }, logger);
-
-        await stage.ExecuteAsync(input, CancellationToken.None);
-
-        Assert.Single(logger.Warnings);
-        Assert.Contains("[WARN]", logger.Warnings[0], StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_CollectionWithoutExplicitType_NoWarning()
-    {
-        var logger = new TestLogger();
-        var document = CreateDocument("with-col", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["collection"] = "blog"
-        });
-        var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { document }, logger);
-
-        await stage.ExecuteAsync(input, CancellationToken.None);
+        var output = await stage.ExecuteAsync(input, CancellationToken.None);
 
         Assert.Empty(logger.Warnings);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_CustomTypeWithoutCollection_NoWarning()
-    {
-        var logger = new TestLogger();
-        var document = CreateDocument("custom", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "custom"
-        });
-        var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { document }, logger);
-
-        await stage.ExecuteAsync(input, CancellationToken.None);
-
-        Assert.Single(logger.Warnings);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_MultipleItems_MultipleWarnings()
-    {
-        var logger = new TestLogger();
-        var items = new[]
-        {
-            CreateDocument("a", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post" }),
-            CreateDocument("b", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["collection"] = "news", ["type"] = "post" }),
-            CreateDocument("c", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" }),
-        };
-        var stage = new CollectionWarningStage();
-        var input = CreateInput(items, logger);
-
-        await stage.ExecuteAsync(input, CancellationToken.None);
-
-        Assert.Equal(3, logger.Warnings.Count);
-        Assert.Contains(logger.Warnings, w => w.Contains("\"a\"", StringComparison.Ordinal));
-        Assert.Contains(logger.Warnings, w => w.Contains("[WARN]", StringComparison.Ordinal));
-        Assert.Contains(logger.Warnings, w => w.Contains("\"b\"", StringComparison.Ordinal));
-        Assert.Contains(logger.Warnings, w => w.Contains("\"c\"", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_TypePostWithCollection_EmitsConflictWarning()
-    {
-        var logger = new TestLogger();
-        var document = CreateDocument("my-conflict", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "post",
-            ["collection"] = "companies"
-        });
-        var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { document }, logger);
-
-        await stage.ExecuteAsync(input, CancellationToken.None);
-
-        Assert.Single(logger.Warnings);
-        Assert.Contains("[WARN]", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("type=post", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("collection=companies", logger.Warnings[0], StringComparison.Ordinal);
-        Assert.Contains("Collection routing uses collection", logger.Warnings[0], StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_CustomTypeWithCollection_EmitsConflictWarning()
-    {
-        var logger = new TestLogger();
-        var document = CreateDocument("my-custom", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = "custom",
-            ["collection"] = "companies"
-        });
-        var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { document }, logger);
-
-        await stage.ExecuteAsync(input, CancellationToken.None);
-
-        Assert.NotEmpty(logger.Warnings);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_InternalRecordTypeWithSourceCollection_NoWarning()
-    {
-        var logger = new TestLogger();
-        var fieldMap = ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["collection"] = "post"
-        });
-        var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
-            Id: "source-post",
-            Title: "Source Post",
-            Slug: "source-post",
-            PublishAt: DateTimeOffset.UtcNow,
-            Body: new RawBody(InlineHtml: "<p>hi</p>"),
-            Properties: RawContentValue.FromFields(fieldMap),
-            CustomFields: fieldMap));
-        var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { document }, logger);
-
-        await stage.ExecuteAsync(input, CancellationToken.None);
-
-        Assert.Equal("post", ContentFieldReader.GetContentType(document));
-        Assert.Equal("post", ContentFieldReader.GetCollection(document));
-        Assert.Empty(logger.Warnings);
-    }
-
-    [Fact]
-    public async Task ExecuteAsync_FieldOnlyTypeWithoutCollection_EmitsWarning()
-    {
-        var logger = new TestLogger();
-        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["type"] = new("text", "post")
-        };
-        var document = ContentDocumentNormalizer.ToDocument(new RawContentDocument(
-            Id: "field-post",
-            Title: "Field Post",
-            Slug: "field-post",
-            PublishAt: DateTimeOffset.UtcNow,
-            Body: new RawBody(InlineHtml: "<p>hi</p>"),
-            Properties: RawContentValue.FromFields(fields),
-            CustomFields: fields));
-        var stage = new CollectionWarningStage();
-        var input = CreateInput(new[] { document }, logger);
-
-        await stage.ExecuteAsync(input, CancellationToken.None);
-
-        Assert.Single(logger.Warnings);
-        Assert.Contains("type=post", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Empty(logger.Infos);
+        Assert.Equal(0, output.DurationMs);
     }
 
     [Fact]
@@ -278,10 +136,11 @@ public sealed class CollectionWarningStageTests
         var input = CreateInput(Array.Empty<ContentDocument>(), logger, config);
         var stage = new CollectionWarningStage();
 
-        await stage.ExecuteAsync(input, CancellationToken.None);
+        var output = await stage.ExecuteAsync(input, CancellationToken.None);
 
         Assert.Empty(logger.Warnings);
         Assert.Single(logger.Infos);
+        Assert.Equal(0, output.DurationMs);
         Assert.Contains("site.collections.companies.filteredLists", logger.Infos[0], StringComparison.Ordinal);
         Assert.Contains("defines 2 manual static filtered list routes", logger.Infos[0], StringComparison.Ordinal);
         Assert.Contains("field=country", logger.Infos[0], StringComparison.Ordinal);
@@ -313,6 +172,12 @@ public sealed class CollectionWarningStageTests
                                 Field = "country",
                                 Value = "Malaysia",
                                 ListRoute = "/companies/malaysia/"
+                            },
+                            new FilteredListConfig
+                            {
+                                Field = "country",
+                                Value = "Singapore",
+                                ListRoute = "/companies/singapore/"
                             }
                         }
                     }
@@ -328,10 +193,13 @@ public sealed class CollectionWarningStageTests
         var input = CreateInput(Array.Empty<ContentDocument>(), logger, config);
         var stage = new CollectionWarningStage();
 
-        await stage.ExecuteAsync(input, CancellationToken.None);
+        var output = await stage.ExecuteAsync(input, CancellationToken.None);
 
-        Assert.Single(logger.Warnings);
+        Assert.Equal(2, logger.Warnings.Count);
+        Assert.Empty(logger.Infos);
+        Assert.Equal(0, output.DurationMs);
         Assert.Contains("site.collections.companies.filteredLists[0]", logger.Warnings[0], StringComparison.Ordinal);
+        Assert.Contains("site.collections.companies.filteredLists[1]", logger.Warnings[1], StringComparison.Ordinal);
         Assert.Contains("site.collections.companies.listRoute is missing", logger.Warnings[0], StringComparison.Ordinal);
         Assert.Contains("will not be generated", logger.Warnings[0], StringComparison.Ordinal);
         Assert.Contains("Add listRoute", logger.Warnings[0], StringComparison.Ordinal);
