@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Shared;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
@@ -42,6 +43,20 @@ internal sealed class ListRouteGraph
         }
 
         return Routes.FirstOrDefault(route => string.Equals(route.RouteId, routeId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public ListRoutePlan? FindByOutputPath(string outputPath)
+    {
+        if (string.IsNullOrWhiteSpace(outputPath))
+        {
+            return null;
+        }
+
+        var normalized = RoutePathBuilder.NormalizeOutputPath(outputPath);
+        return Routes.FirstOrDefault(route => string.Equals(
+            RoutePathBuilder.NormalizeOutputPath(route.OutputPath),
+            normalized,
+            StringComparison.OrdinalIgnoreCase));
     }
 
     private static void ValidateUnique(IReadOnlyList<ListRoutePlan> routes, Func<ListRoutePlan, string> selector, string fieldName)
@@ -92,6 +107,10 @@ internal sealed class ListRouteGraph
         var description = Describe(route);
         RouteSecurityValidator.ValidateInternalUrl(route.Url, description);
         RouteSecurityValidator.ValidateInternalUrl(route.CanonicalUrl, description);
+        if (!string.IsNullOrWhiteSpace(route.MetadataRouteUrl))
+        {
+            RouteSecurityValidator.ValidateInternalUrl(route.MetadataRouteUrl, description);
+        }
         RouteSecurityValidator.ValidateOutputPath(route.OutputPath, description);
     }
 
@@ -114,6 +133,9 @@ internal sealed record ListRoutePlan
     public required string Template { get; init; }
     public string? Title { get; init; }
     public string? Summary { get; init; }
+    public string? SeoTitle { get; init; }
+    public string? SeoDescription { get; init; }
+    public string? MetadataRouteUrl { get; init; }
     public string? Collection { get; init; }
     public int? PageNumber { get; init; }
     public int? PageSize { get; init; }

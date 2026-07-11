@@ -209,7 +209,10 @@ internal sealed partial class VariantBuildPipeline
         await RunPluginDeriveStageAsync(routePipelineResult.PluginContext, variantStageMetrics, cancellationToken);
         routePipelineResult = routePipelineResult with
         {
-            RouteResult = AddDerivedListRoutesToGraph(routePipelineResult.RouteResult, routePipelineResult.PluginContext)
+            RouteResult = AddDerivedListRoutesToGraph(
+                routePipelineResult.RouteResult,
+                routePipelineResult.PluginContext,
+                dataModules.RouteMetadata)
         };
         ValidatePostDeriveRoutes(routePipelineResult);
 
@@ -234,12 +237,12 @@ internal sealed partial class VariantBuildPipeline
         var seoStage = await BuildSeoStageAsync(
             config, baseUrl, renderDocuments, listRoutes, routePipelineResult.RouteResult.ListRouteGraph, siteModel.Analytics, logger,
             ctx.SeoAlternates, ctx.RootBaseUrl, ctx.DefaultLanguage, overrides,
-            routePipelineResult.PluginContext);
+            routePipelineResult.PluginContext, dataModules.RouteMetadata);
 
         var renderPipelineResult = await RenderPagesStageAsync(
             renderDocuments, routePipelineResult.RouteResult.RoutedDocuments, routePipelineResult.RouteResult.ListRouteGraph, bodyStore, renderer, siteModel,
             config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
-            variantStageMetrics, logger, templateResolver, cancellationToken);
+            variantStageMetrics, logger, templateResolver, dataModules.RouteMetadata, cancellationToken);
 
         var hasStaticDir = Directory.Exists(ctx.StaticDir);
         var (themeRootForTokens, parentThemeRootForTokens) = GetThemeRootForTokens(
@@ -375,7 +378,8 @@ internal sealed partial class VariantBuildPipeline
         string? rootBaseUrl,
         string? defaultLanguage,
         ConfigOverrides overrides,
-        BuildContext pluginContext)
+        BuildContext pluginContext,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata)
     {
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
             config, seoAlternateInputs, listRouteGraph, rootBaseUrl, defaultLanguage);
@@ -385,7 +389,7 @@ internal sealed partial class VariantBuildPipeline
             Math.Max(1, Environment.ProcessorCount * 2));
 
         var seoResult = new SeoPipeline().Execute(
-            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph);
+            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph, routeMetadata);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
         pluginContext.Data[BuildContextDataKeys.SeoModels] = seoResult.SeoIndex.Models;
 
@@ -408,6 +412,7 @@ internal sealed partial class VariantBuildPipeline
         BuildStageMetricsCollector metrics,
         ILogger logger,
         ThemeTemplateResolver templateResolver,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata,
         CancellationToken cancellationToken)
     {
         var renderDependencyHashStopwatch = Stopwatch.StartNew();
@@ -416,6 +421,14 @@ internal sealed partial class VariantBuildPipeline
             : string.Empty;
         renderDependencyHashStopwatch.Stop();
         metrics.AddDuration("renderDependencyHash", renderDependencyHashStopwatch.ElapsedMilliseconds);
+        Func<RouteInfo, string>? renderDependencyHashResolver = routeMetadata is null
+            ? null
+            : route =>
+            {
+                var graphRoute = listRouteGraph.FindByOutputPath(route.OutputPath);
+                var metadataRouteUrl = graphRoute?.MetadataRouteUrl ?? route.Url;
+                return RenderDependencyHasher.ComputeForRoute(renderDependencyHash, metadataRouteUrl, routeMetadata);
+            };
 
         var renderPipelineResult = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
             BodyStore: bodyStore,
@@ -438,7 +451,9 @@ internal sealed partial class VariantBuildPipeline
             ListHtmlPostProcessor: seoStage.SeoResult.ListHtmlPostProcessor,
             TemplateResolver: templateResolver,
             RenderDocuments: renderDocuments,
-            RoutedDocuments: routedDocuments),
+            RoutedDocuments: routedDocuments,
+            RenderDependencyHashResolver: renderDependencyHashResolver,
+            RouteMetadata: routeMetadata),
             cancellationToken);
 
         metrics.Merge(renderPipelineResult.StageMetrics);

@@ -70,12 +70,14 @@ internal static class ListRouteRenderPlanBuilder
 
         if (!string.IsNullOrWhiteSpace(route.Title))
         {
-            fields["title"] = new("text", route.Title);
+            var pagination = ListPageMetadataBuilder.BuildPagination(route);
+            fields["title"] = new("text", ListPageMetadataBuilder.BuildTitle(route, pagination));
         }
 
         if (!string.IsNullOrWhiteSpace(route.Summary))
         {
-            fields["summary"] = new("text", route.Summary);
+            var pagination = ListPageMetadataBuilder.BuildPagination(route);
+            fields["summary"] = new("text", ListPageMetadataBuilder.BuildSummary(route, pagination));
         }
 
         if (route.PageSize is not null)

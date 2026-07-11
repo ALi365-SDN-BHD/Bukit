@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine.Incremental;
 
@@ -106,6 +107,8 @@ internal static class RenderDependencyHasher
 
         AppendStableTaxonomyConfig(hasher, config.Taxonomy);
 
+        AppendRouteMetadataConfig(hasher, config.Content.RouteMetadata);
+
         if (config.Site.Plugins is { Count: > 0 })
         {
             foreach (var kv in config.Site.Plugins.OrderBy(x => x.Key, StringComparer.Ordinal))
@@ -123,6 +126,56 @@ internal static class RenderDependencyHasher
 
         var digest = hasher.GetHashAndReset();
         return HashUtil.ToHexLower(digest);
+    }
+
+    internal static string ComputeForRoute(
+        string baseHash,
+        string metadataRouteUrl,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata)
+    {
+        if (routeMetadata is null || !routeMetadata.TryGetValue(metadataRouteUrl, out var metadata))
+        {
+            return baseHash;
+        }
+
+        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        IncrementalBuildEngine.AppendUtf8(hasher, baseHash);
+        AppendRouteMetadataValue(hasher, metadata);
+        return HashUtil.ToHexLower(hasher.GetHashAndReset());
+    }
+
+    private static void AppendRouteMetadataConfig(IncrementalHash hasher, RouteMetadataConfig? config)
+    {
+        if (config is null)
+        {
+            return;
+        }
+
+        AppendHashValue(hasher, config.Source);
+        AppendHashValue(hasher, config.RouteField);
+        AppendHashValue(hasher, config.TitleField);
+        AppendHashValue(hasher, config.SummaryField);
+        AppendHashValue(hasher, config.SeoTitleField);
+        AppendHashValue(hasher, config.SeoDescriptionField);
+        foreach (var route in config.RequiredRoutes.OrderBy(x => x, StringComparer.Ordinal))
+        {
+            AppendHashValue(hasher, route);
+        }
+    }
+
+    private static void AppendRouteMetadataValue(IncrementalHash hasher, RouteMetadataEntry metadata)
+    {
+        AppendHashValue(hasher, metadata.Route);
+        AppendHashValue(hasher, metadata.Title);
+        AppendHashValue(hasher, metadata.Summary);
+        AppendHashValue(hasher, metadata.SeoTitle);
+        AppendHashValue(hasher, metadata.SeoDescription);
+    }
+
+    private static void AppendHashValue(IncrementalHash hasher, string? value)
+    {
+        hasher.AppendData([(byte)'\n']);
+        IncrementalBuildEngine.AppendUtf8(hasher, value);
     }
 
     private static void AppendDictionary(IncrementalHash hasher, IReadOnlyDictionary<string, object>? dict)

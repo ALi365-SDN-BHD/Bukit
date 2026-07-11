@@ -244,7 +244,8 @@ public sealed class ListRouteGraphTests
         Assert.Contains(result.Routes, route =>
             route.Kind == ListRouteKind.TaxonomyTermPage &&
             route.Url == "/insights/category/market/page/2/" &&
-            route.PrevUrl == "/insights/category/market/");
+            route.PrevUrl == "/insights/category/market/" &&
+            route.MetadataRouteUrl == "/insights/category/market/");
     }
 
     [Fact]

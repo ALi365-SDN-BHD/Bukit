@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
 using Bukit.Shared;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
@@ -81,7 +82,8 @@ internal static partial class ListRouteGraphBuilder
             PageNumber = 1,
             TotalItems = index.AllOrdered.Count,
             Items = index.AllOrdered.Select(ListRouteItem.FromRoutedContentDocument).ToArray(),
-            CanonicalUrl = "/"
+            CanonicalUrl = "/",
+            MetadataRouteUrl = "/"
         };
     }
 
@@ -147,6 +149,7 @@ internal static partial class ListRouteGraphBuilder
                 TotalItems = totalItems,
                 Items = collectionItems.Skip((page - 1) * pageSize).Take(pageSize).Select(ListRouteItem.FromRoutedContentDocument).ToArray(),
                 CanonicalUrl = pageUrl,
+                MetadataRouteUrl = url,
                 PrevUrl = page == 2 ? firstUrl : BuildCollectionPageUrl(url, collectionKey, collection.Pagination, page - 1),
                 NextUrl = page < totalPages ? BuildCollectionPageUrl(url, collectionKey, collection.Pagination, page + 1) : null
             };
@@ -180,6 +183,7 @@ internal static partial class ListRouteGraphBuilder
             TotalItems = totalItems,
             Items = visibleItems.Select(ListRouteItem.FromRoutedContentDocument).ToArray(),
             CanonicalUrl = url,
+            MetadataRouteUrl = url,
             NextUrl = nextUrl
         };
     }
@@ -240,6 +244,7 @@ internal static partial class ListRouteGraphBuilder
                 TotalItems = filtered.Length,
                 Items = filtered.Skip((page - 1) * pageSize).Take(pageSize).Select(ListRouteItem.FromRoutedContentDocument).ToArray(),
                 CanonicalUrl = pageUrl,
+                MetadataRouteUrl = url,
                 PrevUrl = prevUrl,
                 NextUrl = nextUrl,
                 FilterContext = new ListRouteFilterContext
@@ -474,5 +479,38 @@ internal static partial class ListRouteGraphBuilder
         {
             throw new ConfigException($"Invalid list route configuration: {ex.Message}", ex, DiagnosticCode.ConfigInvalidValue);
         }
+    }
+
+    internal static ListRouteGraph ApplyRouteMetadata(
+        ListRouteGraph graph,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+        if (routeMetadata is null)
+        {
+            return graph;
+        }
+
+        var changed = false;
+        var routes = graph.Routes.Select(route =>
+        {
+            var key = route.MetadataRouteUrl ?? route.Url;
+            if (!routeMetadata.TryGetValue(key, out var metadata))
+            {
+                return route;
+            }
+
+            changed = true;
+            return route with
+            {
+                Title = metadata.Title,
+                Summary = metadata.Summary,
+                SeoTitle = metadata.SeoTitle,
+                SeoDescription = metadata.SeoDescription,
+                MetadataRouteUrl = key
+            };
+        }).ToArray();
+
+        return changed ? CreateGraph(routes) : graph;
     }
 }

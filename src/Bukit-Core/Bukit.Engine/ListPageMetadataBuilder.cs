@@ -15,6 +15,9 @@ internal static class ListPageMetadataBuilder
     internal static string BuildTitle(SiteConfig site, ListRoutePlan route, ListPaginationModel? pagination = null)
         => BuildTitle(route.Url, ResolveSiteTitle(site.Title, site.Name), pagination, route.Title);
 
+    internal static string BuildTitle(ListRoutePlan route, ListPaginationModel? pagination = null)
+        => BuildTitle(route.Url, "Site", pagination, route.Title);
+
     internal static string BuildSummary(SiteModel siteModel, RouteInfo route, int? itemCount = null, ListPaginationModel? pagination = null)
         => BuildSummary(
             siteModel.Title,
@@ -42,6 +45,9 @@ internal static class ListPageMetadataBuilder
             route.TotalItems,
             pagination,
             route.Summary);
+
+    internal static string BuildSummary(ListRoutePlan route, ListPaginationModel? pagination = null)
+        => BuildSummary(null, null, null, route.Url, route.TotalItems, pagination, route.Summary);
 
     internal static ListPaginationModel? BuildPagination(ListRoutePlan route)
     {
@@ -87,9 +93,17 @@ internal static class ListPageMetadataBuilder
         ListPaginationModel? pagination,
         string? summaryOverride = null)
     {
-        if (!string.IsNullOrWhiteSpace(summaryOverride))
+        if (!string.IsNullOrWhiteSpace(summaryOverride) && pagination?.Page is not > 1)
         {
             return summaryOverride.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(summaryOverride) && pagination?.Page > 1)
+        {
+            var range = BuildVisibleRange(pagination);
+            return range is null
+                ? $"{summaryOverride.Trim()} Browse page {pagination.Page}."
+                : $"{summaryOverride.Trim()} Browse page {pagination.Page}, showing {range}.";
         }
 
         if (!string.IsNullOrWhiteSpace(siteDescription) && url == "/")

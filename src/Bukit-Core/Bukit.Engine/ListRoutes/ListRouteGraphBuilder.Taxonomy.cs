@@ -84,6 +84,7 @@ internal static partial class ListRouteGraphBuilder
             TotalItems = terms.Length,
             Items = terms,
             CanonicalUrl = derived.Route.Url,
+            MetadataRouteUrl = derived.Route.Url,
             TaxonomyContext = new ListRouteTaxonomyContext
             {
                 Kind = kind,
@@ -109,6 +110,7 @@ internal static partial class ListRouteGraphBuilder
         var page = Math.Max(1, GetInt(pagination, "page") ?? 1);
         var totalItems = Math.Max(items.Length, GetInt(pagination, "total") ?? items.Length);
         var pageSize = GetInt(pagination, "page_size");
+        var metadataRouteUrl = ResolveTaxonomyMetadataRouteUrl(derived.Route.Url, page);
 
         return new ListRoutePlan
         {
@@ -122,6 +124,7 @@ internal static partial class ListRouteGraphBuilder
             TotalItems = totalItems,
             Items = items,
             CanonicalUrl = derived.Route.Url,
+            MetadataRouteUrl = metadataRouteUrl,
             PrevUrl = NormalizeOptionalUrl(GetString(pagination, "prev_url")),
             NextUrl = NormalizeOptionalUrl(GetString(pagination, "next_url")),
             TaxonomyContext = new ListRouteTaxonomyContext
@@ -301,6 +304,26 @@ internal static partial class ListRouteGraphBuilder
         }
 
         return RoutePathBuilder.NormalizeUrl(url);
+    }
+
+    private static string ResolveTaxonomyMetadataRouteUrl(string routeUrl, int page)
+    {
+        var normalized = RoutePathBuilder.NormalizeUrl(routeUrl);
+        if (page <= 1)
+        {
+            return normalized;
+        }
+
+        var segments = normalized.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length >= 2 &&
+            string.Equals(segments[^2], "page", StringComparison.OrdinalIgnoreCase) &&
+            int.TryParse(segments[^1], NumberStyles.None, CultureInfo.InvariantCulture, out var routePage) &&
+            routePage == page)
+        {
+            return "/" + string.Join('/', segments[..^2]) + "/";
+        }
+
+        return normalized;
     }
 
     private static IReadOnlyDictionary<string, ContentField>? BuildFieldsFromFieldMap(IReadOnlyDictionary<string, object?> map)

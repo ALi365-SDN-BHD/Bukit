@@ -14,6 +14,43 @@ namespace Bukit.Engine.Tests;
 public sealed class PageRenderDispatcherLazyBodyTests
 {
     [Fact]
+    public async Task RenderPages_AppliesRouteMetadataToSingletonPageModel()
+    {
+        var item = ContentDocument.Create(
+            id: "about",
+            title: "Markdown About",
+            slug: "about",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>About</p>");
+        var route = new RouteInfo("/about/", "about/index.html", "pages/page.html");
+        var renderer = new CaptureRenderer();
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+
+        await PageRenderDispatcher.DispatchAsync(
+            new[] { RenderEntry.ForPage(item.ToDocument(), route) },
+            EmptyContentBodyStore.Instance,
+            renderer,
+            new SiteModel { Name = "site", Title = "site", BaseUrl = "/", Language = "zh-CN" },
+            outputDir,
+            templateHash: "template-hash",
+            renderDependencyHash: string.Empty,
+            incrementalEnabled: false,
+            manifest: new BuildManifest(),
+            manifestEntries: null,
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
+            logger: new ConsoleLogger(LogLevel.Error),
+            cancellationToken: CancellationToken.None,
+            routeMetadata: new Dictionary<string, Bukit.Engine.RouteMetadata.RouteMetadataEntry>
+            {
+                ["/about/"] = new("/about/", "关于我们", "Notion summary", null, null)
+            });
+
+        Assert.Equal("关于我们", renderer.LastPageTitle);
+        Assert.Equal("Notion summary", renderer.LastPageSummary);
+    }
+
+    [Fact]
     public async Task RenderPages_HydratesBodyFromStore_WhenContentHtmlIsNull()
     {
         var item = ContentDocument.Create(
@@ -562,6 +599,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
     private sealed class CaptureRenderer : ITemplateRenderer
     {
         public string? LastPageContent { get; private set; }
+        public string? LastPageTitle { get; private set; }
         public string? LastPageSummary { get; private set; }
         public string? LastPageSource { get; private set; }
         public string? LastPageReviewStatus { get; private set; }
@@ -571,6 +609,7 @@ public sealed class PageRenderDispatcherLazyBodyTests
 
         public string RenderPage(string templateRelativePath, PageModel model)
         {
+            LastPageTitle = model.Page.Title;
             LastPageContent = model.Page.Content;
             LastPageSummary = model.Page.Summary;
             LastPageSource = model.Page.Provenance?.Source;

@@ -5,6 +5,7 @@ using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
@@ -28,9 +29,10 @@ internal sealed class SeoPipeline
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> seoAlternates,
         AnalyticsModel analytics,
         ILogger logger,
-        ListRouteGraph? listRouteGraph = null)
+        ListRouteGraph? listRouteGraph = null,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null)
     {
-        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph);
+        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata);
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, logger);
 
         var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();

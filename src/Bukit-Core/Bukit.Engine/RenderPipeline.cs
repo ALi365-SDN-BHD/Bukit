@@ -7,6 +7,7 @@ using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
@@ -35,7 +36,9 @@ internal sealed record RenderPipelineContext(
     Func<ContentDocument, RouteInfo, SeoModel>? ListItemSeoBuilder = null,
     Func<RouteInfo, PageInfo, SeoModel>? ListSeoBuilder = null,
     Func<RouteInfo, PageInfo, string, string>? ListHtmlPostProcessor = null,
-    ThemeTemplateResolver? TemplateResolver = null)
+    ThemeTemplateResolver? TemplateResolver = null,
+    Func<RouteInfo, string>? RenderDependencyHashResolver = null,
+    IReadOnlyDictionary<string, RouteMetadataEntry>? RouteMetadata = null)
 {
 }
 
@@ -91,7 +94,9 @@ internal sealed class RenderPipeline
             context.SeoBuilder,
             context.HtmlPostProcessor,
             context.ListSeoBuilder,
-            context.ListHtmlPostProcessor);
+            context.ListHtmlPostProcessor,
+            context.RenderDependencyHashResolver,
+            context.RouteMetadata);
 
         if (context.IncrementalEnabled && context.ManifestEntries is not null)
         {
