@@ -18,6 +18,7 @@ public sealed class MarkdownRawContentLoadResultTests
                                         title: Hello
                                         slug: hello
                                         type: post
+                                        collection: post
                                         ---
                                         # Hi
 
@@ -29,6 +30,7 @@ public sealed class MarkdownRawContentLoadResultTests
         var result = await provider.LoadRawAsync();
 
         var item = Assert.Single(result.Documents);
+        Assert.Equal("post", ContentFieldReader.GetCollection(item));
         Assert.Null(item.Body.InlineHtml);
         Assert.False(string.IsNullOrWhiteSpace(item.Body.BodyKey));
 

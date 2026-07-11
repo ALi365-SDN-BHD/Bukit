@@ -34,6 +34,12 @@ The full Engine result after Task 6 was 1259 passed, 4 failed, 0 skipped, 1263 t
 - Added a drift test that generates all six official non-`none` init templates (`minimal`, `blog`, `docs`, `landing`, `portfolio`, and `bare`) and verifies every content-mode source has a non-empty collection while generated data-mode sources have no collection.
 - Clone YAML tests parse the generated YAML and verify the same content/data distinction directly.
 
+## Final review follow-up
+
+- Replaced the five remaining `ContentFieldReader.GetCollection` assertions that expected `type`, `page`, or a caller-supplied default fallback. Missing, empty, and whitespace collections now explicitly assert `string.Empty`; only an explicit collection returns a value.
+- Renamed those tests so their names state the strict collection contract rather than the removed fallback behavior.
+- Added `collection: post` to the metadata-first/body-hydration Markdown fixture and asserted that the loaded item retains the explicit collection.
+
 ## TDD and verification
 
 - Baseline affected Engine classes reproduced all 23 Task 4 failures: 137 passed, 23 failed.
@@ -44,6 +50,10 @@ The full Engine result after Task 6 was 1259 passed, 4 failed, 0 skipped, 1263 t
 - P2 follow-up RED: an existing modules data source with `collection: legacy-modules` retained that key after clone; the parsed-YAML absence assertion failed.
 - P2 follow-up GREEN: the focused existing-source regression passed after null/empty target collections began removing the key.
 - P2 follow-up full `Bukit.Labs.Cli.Tests`: 152 passed, 0 failed.
+- Final review RED: `ContentFieldReaderItemTests` recorded 5 expected assertion failures and 2 passes because the strict implementation returned `string.Empty` while stale tests still expected fallback values.
+- Final review baseline: `MarkdownRawContentLoadResultTests` passed 1 test; its non-error fixture was then made contract-explicit.
+- Final review GREEN: `ContentFieldReaderItemTests` passed 7 tests and `MarkdownRawContentLoadResultTests` passed 1 test with their respective class filters.
+- Final review targeted gate passed all contract checks plus 54 `Bukit.Engine.Abstractions.Tests` and 662 `Bukit.Content.Tests`; no full or release gate was run.
 - Theme-init drift test: 1 passed, 0 failed across all six generated templates.
 - Full `Bukit.Labs.Cli.Tests`: 152 passed, 0 failed.
 - Full `Bukit.Engine.Tests`: 1259 passed, 4 expected Task 7 failures.
@@ -59,6 +69,8 @@ The full Engine result after Task 6 was 1259 passed, 4 failed, 0 skipped, 1263 t
 - Scope: only the nine Task 6 code/test paths and this report.
 - P2 follow-up subject: `fix(clone): clear collection from data sources`
 - P2 follow-up scope: only `CloneYamlWriter.cs`, `CloneYamlWriterTests.cs`, and this report.
+- Final review follow-up subject: `test(content): remove remaining collection fallback fixtures`
+- Final review follow-up scope: only `ContentFieldReaderItemTests.cs`, `MarkdownRawContentLoadResultTests.cs`, and this report.
 
 ## Self-review
 

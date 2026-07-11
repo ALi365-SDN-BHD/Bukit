@@ -31,7 +31,7 @@ public sealed class ContentFieldReaderItemTests
     }
 
     [Fact]
-    public void GetCollection_NoCollection_UsesCanonicalType()
+    public void GetCollection_NoCollectionWithType_ReturnsEmpty()
     {
         var document = CreateDocument(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -40,31 +40,31 @@ public sealed class ContentFieldReaderItemTests
 
         var result = ContentFieldReader.GetCollection(document);
 
-        Assert.Equal("post", result);
+        Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void GetCollection_NoCollectionNoType_ReturnsDefault()
+    public void GetCollection_NoCollectionNoType_ReturnsEmpty()
     {
         var document = CreateDocument();
 
         var result = ContentFieldReader.GetCollection(document);
 
-        Assert.Equal("page", result);
+        Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void GetCollection_CustomDefault_ReturnsCustomDefault()
+    public void GetCollection_NoCollectionWithCustomDefault_ReturnsEmpty()
     {
         var document = CreateDocument();
 
         var result = ContentFieldReader.GetCollection(document, "fallback");
 
-        Assert.Equal("page", result);
+        Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void GetCollection_CollectionEmpty_ReturnsDefault()
+    public void GetCollection_CollectionEmptyWithType_ReturnsEmpty()
     {
         var document = CreateDocument(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -74,11 +74,11 @@ public sealed class ContentFieldReaderItemTests
 
         var result = ContentFieldReader.GetCollection(document);
 
-        Assert.Equal("post", result);
+        Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void GetCollection_CollectionWhitespace_ReturnsDefault()
+    public void GetCollection_CollectionWhitespaceWithType_ReturnsEmpty()
     {
         var document = CreateDocument(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -88,7 +88,7 @@ public sealed class ContentFieldReaderItemTests
 
         var result = ContentFieldReader.GetCollection(document);
 
-        Assert.Equal("page", result);
+        Assert.Equal(string.Empty, result);
     }
 
     [Fact]
