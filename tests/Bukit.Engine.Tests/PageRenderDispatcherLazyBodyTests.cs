@@ -16,7 +16,8 @@ public sealed class PageRenderDispatcherLazyBodyTests
     [Theory]
     [InlineData("post")]
     [InlineData("company")]
-    public async Task RenderPages_DoesNotApplyRouteMetadataToDetailContent(string contentKind)
+    [InlineData("derived")]
+    public async Task RenderPages_DoesNotApplyRouteMetadataToNonSingletonContent(string contentKind)
     {
         var item = ContentDocument.Create(
             id: contentKind,

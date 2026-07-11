@@ -150,7 +150,22 @@ internal static class PageRenderDispatcher
                             Representations = PublishRepresentationRegistry.DocumentKinds(),
                             Seo = seoBuilder?.Invoke(document, route)
                         };
-                        pageInfo = RouteMetadataApplicator.ApplyToPage(pageInfo, route.Url, routeMetadata, document);
+                        if (entry.MetadataListRoute is { } metadataListRoute)
+                        {
+                            var pagination = ListPageMetadataBuilder.BuildPagination(metadataListRoute);
+                            pageInfo = pageInfo with
+                            {
+                                Title = ListPageMetadataBuilder.BuildTitle(
+                                    metadataListRoute, pagination, siteModel.Language),
+                                Summary = ListPageMetadataBuilder.BuildSummary(
+                                    metadataListRoute, pagination, siteModel.Language)
+                            };
+                        }
+                        else
+                        {
+                            pageInfo = RouteMetadataApplicator.ApplyToPage(
+                                pageInfo, route.Url, routeMetadata, document);
+                        }
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var html = renderer.RenderPage(route.Template, pageModel);
                         if (htmlPostProcessor is not null) html = htmlPostProcessor(document, route, pageInfo, html);

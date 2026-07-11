@@ -136,6 +136,7 @@ internal sealed record ListRoutePlan
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
     public string? MetadataRouteUrl { get; init; }
+    public bool RouteMetadataApplied { get; init; }
     public string? Collection { get; init; }
     public int? PageNumber { get; init; }
     public int? PageSize { get; init; }

@@ -119,7 +119,8 @@ public sealed class RouteMetadataRenderingTests
     [Theory]
     [InlineData("post")]
     [InlineData("company")]
-    public void SeoIndex_DoesNotApplyRouteMetadataToDetailContent(string contentKind)
+    [InlineData("derived")]
+    public void SeoIndex_DoesNotApplyRouteMetadataToNonSingletonContent(string contentKind)
     {
         var config = CreateConfig();
         var document = ContentDocument.Create(

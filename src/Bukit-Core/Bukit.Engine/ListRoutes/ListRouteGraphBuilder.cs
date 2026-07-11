@@ -507,7 +507,8 @@ internal static partial class ListRouteGraphBuilder
                 Summary = metadata.Summary,
                 SeoTitle = metadata.SeoTitle,
                 SeoDescription = metadata.SeoDescription,
-                MetadataRouteUrl = key
+                MetadataRouteUrl = key,
+                RouteMetadataApplied = true
             };
         }).ToArray();
 

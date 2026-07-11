@@ -58,7 +58,15 @@ internal sealed class RenderPipeline
 
         foreach (var document in context.RenderDocuments)
         {
-            entries.Add(RenderEntry.ForPage(document.Document, document.Route));
+            var graphRoute = context.ListRouteGraph.FindByOutputPath(document.Route.OutputPath);
+            var taxonomyMetadataRoute = graphRoute is
+                {
+                    Kind: ListRouteKind.TaxonomyIndex or ListRouteKind.TaxonomyTermPage,
+                    RouteMetadataApplied: true
+                }
+                ? graphRoute
+                : null;
+            entries.Add(RenderEntry.ForPage(document.Document, document.Route, taxonomyMetadataRoute));
         }
 
         var specialLists = ListRouteRenderPlanBuilder.Build(
