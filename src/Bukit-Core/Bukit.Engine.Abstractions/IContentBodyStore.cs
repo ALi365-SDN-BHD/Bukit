@@ -5,7 +5,10 @@ public interface IContentBodyStore
     Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default);
 
     Task<ContentBody> GetAsync(RawContentDocument document, CancellationToken cancellationToken = default)
-        => GetAsync(
+    {
+        var fields = MergeFields(document.Properties, document.CustomFields);
+
+        return GetAsync(
             new ContentDocument(
                 ToRecord(
                     document.Id,
@@ -13,13 +16,39 @@ public interface IContentBodyStore
                     document.Slug,
                     document.PublishAt,
                     document.Body.InlineHtml,
-                    document.CustomFields),
+                    fields),
                 new ContentBodyRef(document.Body.InlineHtml, document.Body.BodyKey, document.Body.Markdown, document.Body.PlainText),
-                ContentRoutePolicy.FromFields(document.CustomFields),
-                ContentPublishPolicy.FromFields(document.CustomFields),
-                document.CustomFields,
+                ContentRoutePolicy.FromFields(fields),
+                ContentPublishPolicy.FromFields(fields),
+                fields,
                 document.Source),
             cancellationToken);
+    }
+
+    private static IReadOnlyDictionary<string, ContentField> MergeFields(
+        IReadOnlyDictionary<string, RawContentValue>? properties,
+        IReadOnlyDictionary<string, ContentField>? customFields)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
+
+        if (properties is not null)
+        {
+            foreach (var (key, value) in properties)
+            {
+                fields[key] = new ContentField(value.Kind, value.Value);
+            }
+        }
+
+        if (customFields is not null)
+        {
+            foreach (var (key, value) in customFields)
+            {
+                fields[key] = value;
+            }
+        }
+
+        return fields;
+    }
 
     private static ContentRecord ToRecord(
         string id,

@@ -6,10 +6,11 @@ namespace Bukit.Engine.Abstractions.Tests;
 public sealed class ContentBodyStoreAdapterTests
 {
     [Fact]
-    public async Task GetAsync_RawCollectionWithoutTypeOrSourceMode_UsesPageTypeAndPreservesCollection()
+    public async Task GetAsync_RawPropertiesOnlyContent_PreservesTypeAndCollection()
     {
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
+            ["type"] = new("text", "article"),
             ["collection"] = new("text", "news")
         };
         var raw = new RawContentDocument(
@@ -18,19 +19,18 @@ public sealed class ContentBodyStoreAdapterTests
             Slug: "news-item",
             PublishAt: DateTimeOffset.UnixEpoch,
             Body: new RawBody(),
-            Properties: RawContentValue.FromFields(fields),
-            CustomFields: fields);
+            Properties: RawContentValue.FromFields(fields));
         var store = new RecordingBodyStore();
 
         await ((IContentBodyStore)store).GetAsync(raw);
 
         Assert.NotNull(store.Document);
-        Assert.Equal("page", store.Document.Record.Identity.ContentType);
+        Assert.Equal("article", store.Document.Record.Identity.ContentType);
         Assert.Equal("news", store.Document.Record.Classification.Collection);
     }
 
     [Fact]
-    public async Task GetAsync_RawDataWithoutCollection_UsesModuleTypeAndEmptyCollection()
+    public async Task GetAsync_RawPropertiesOnlyDataWithoutCollection_UsesModuleTypeAndEmptyCollection()
     {
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
@@ -42,8 +42,7 @@ public sealed class ContentBodyStoreAdapterTests
             Slug: "site-data",
             PublishAt: DateTimeOffset.UnixEpoch,
             Body: new RawBody(),
-            Properties: RawContentValue.FromFields(fields),
-            CustomFields: fields);
+            Properties: RawContentValue.FromFields(fields));
         var store = new RecordingBodyStore();
 
         await ((IContentBodyStore)store).GetAsync(raw);
@@ -51,6 +50,46 @@ public sealed class ContentBodyStoreAdapterTests
         Assert.NotNull(store.Document);
         Assert.Equal("module", store.Document.Record.Identity.ContentType);
         Assert.Equal(string.Empty, store.Document.Record.Classification.Collection);
+    }
+
+    [Fact]
+    public async Task GetAsync_RawCustomFieldsOverridePropertiesAcrossCanonicalProjections()
+    {
+        var properties = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = new("text", "page"),
+            ["collection"] = new("text", "pages"),
+            ["url"] = new("text", "/from-properties/"),
+            ["draft"] = new("bool", false),
+            ["summary"] = new("text", "Property summary")
+        };
+        var customFields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = new("text", "article"),
+            ["collection"] = new("text", "news"),
+            ["url"] = new("text", "/from-custom-fields/"),
+            ["draft"] = new("bool", true)
+        };
+        var raw = new RawContentDocument(
+            Id: "news-item",
+            Title: "News item",
+            Slug: "news-item",
+            PublishAt: DateTimeOffset.UnixEpoch,
+            Body: new RawBody(),
+            Properties: RawContentValue.FromFields(properties),
+            CustomFields: customFields);
+        var store = new RecordingBodyStore();
+
+        await ((IContentBodyStore)store).GetAsync(raw);
+
+        Assert.NotNull(store.Document);
+        Assert.Equal("article", store.Document.Record.Identity.ContentType);
+        Assert.Equal("news", store.Document.Record.Classification.Collection);
+        Assert.Equal("Property summary", store.Document.Record.Presentation.Summary);
+        Assert.Equal("/from-custom-fields/", store.Document.Route.Url);
+        Assert.True(store.Document.Publish.Draft);
+        Assert.Equal("article", ContentFieldReader.GetText(store.Document.CustomFields, "type"));
+        Assert.Equal("Property summary", ContentFieldReader.GetText(store.Document.CustomFields, "summary"));
     }
 
     private sealed class RecordingBodyStore : IContentBodyStore
