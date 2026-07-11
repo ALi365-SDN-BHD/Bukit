@@ -32,8 +32,8 @@ internal static class SeoModelBuilder
         var schemaType = ResolveSchemaType(fields, geo);
         var isArticle = IsArticleSchemaType(schemaType)
                         || IsTruthyField(fields, "seo_article")
-                        || string.Equals(record.Identity.ContentType, "post", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(record.Classification.Type, "post", StringComparison.OrdinalIgnoreCase);
+                        || IsArticleContentType(record.Identity.ContentType)
+                        || IsArticleContentType(record.Classification.Type);
         schemaType = isArticle && string.IsNullOrWhiteSpace(schemaType) ? "BlogPosting" : schemaType;
         var isStructuredContent = isArticle || IsStructuredContentSchemaType(schemaType);
         var isCollectionPage = !isStructuredContent && IsCollectionLikePage(fields);
@@ -211,6 +211,10 @@ internal static class SeoModelBuilder
         => schemaType is not null &&
            (schemaType.EndsWith("Article", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(schemaType, "BlogPosting", StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsArticleContentType(string? contentType)
+        => string.Equals(contentType, "article", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(contentType, "post", StringComparison.OrdinalIgnoreCase);
 
     internal static bool IsStructuredContentSchemaType(string? schemaType)
         => schemaType is not null &&
