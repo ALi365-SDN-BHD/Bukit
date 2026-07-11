@@ -252,7 +252,7 @@ public static class ConfigValidator
         };
         foreach (var (fieldName, value) in fields)
         {
-            if (!IsDataIndexIdentifier(value))
+            if (!IsRouteMetadataIdentifier(value))
             {
                 throw new ConfigException($"content.routeMetadata.{fieldName} must match ^[a-z][a-z0-9_]*$.", DiagnosticCode.ConfigInvalidValue);
             }
@@ -286,6 +286,11 @@ public static class ConfigValidator
             throw new ConfigException("content.routeMetadata.source must reference a source with mode: data.", DiagnosticCode.ConfigInvalidValue);
         }
     }
+
+    private static bool IsRouteMetadataIdentifier(string? value)
+        => value is not null &&
+           string.Equals(value, value.Trim(), StringComparison.Ordinal) &&
+           IsDataIndexIdentifier(value);
 
     private static bool IsDataIndexIdentifier(string? value)
     {

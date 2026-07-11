@@ -111,6 +111,34 @@ public sealed class RouteMetadataConfigTests
         Assert.Contains("^[a-z][a-z0-9_]*$", ex.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("source", " page_meta")]
+    [InlineData("source", "page_meta ")]
+    [InlineData("routeField", " route")]
+    [InlineData("routeField", "route ")]
+    public void Validate_RouteMetadataWithIdentifierBoundaryWhitespace_Throws(string field, string value)
+    {
+        var source = field == "source" ? value : "page_meta";
+        var fieldOverride = field == "source" ? string.Empty : $"{field}: \"{value}\"";
+        var config = Load($$"""
+            content:
+              sources:
+                - type: markdown
+                  name: page_meta
+                  mode: data
+                  markdown:
+                    dir: data/page-meta
+              routeMetadata:
+                source: "{{source}}"
+                {{fieldOverride}}
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains($"content.routeMetadata.{field}", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("^[a-z][a-z0-9_]*$", ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Validate_RouteMetadataWithDuplicateRequiredRoute_Throws()
     {
