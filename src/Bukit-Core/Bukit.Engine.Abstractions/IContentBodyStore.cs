@@ -25,10 +25,30 @@ public interface IContentBodyStore
             cancellationToken);
     }
 
-    private static IReadOnlyDictionary<string, ContentField> MergeFields(
+    private static IReadOnlyDictionary<string, ContentField>? MergeFields(
         IReadOnlyDictionary<string, RawContentValue>? properties,
         IReadOnlyDictionary<string, ContentField>? customFields)
     {
+        if (properties is null || properties.Count == 0)
+        {
+            return customFields;
+        }
+
+        if (customFields is IDictionary<string, ContentField> mutableCustomFields &&
+            !mutableCustomFields.IsReadOnly)
+        {
+            foreach (var (key, value) in properties)
+            {
+                if (!customFields.Keys.Any(existing =>
+                        string.Equals(existing, key, StringComparison.OrdinalIgnoreCase)))
+                {
+                    mutableCustomFields[key] = new ContentField(value.Kind, value.Value);
+                }
+            }
+
+            return customFields;
+        }
+
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
 
         if (properties is not null)
