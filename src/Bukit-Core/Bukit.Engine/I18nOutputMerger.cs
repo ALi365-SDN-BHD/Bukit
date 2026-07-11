@@ -194,11 +194,19 @@ internal static class I18nOutputMerger
         var entries = new List<SitemapGenerator.UrlEntry>();
         foreach (var r in results)
         {
+            var documentExclusions = SitemapPlugin.BuildDocumentSitemapExclusions(
+                config,
+                r.RoutedDocuments.Concat(r.DerivedDocuments));
             foreach (var (key, seo) in r.SeoIndex
                          .Where(x => x.Value.Indexable)
                          .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
             {
                 if (ListRouteSitemapPolicy.IsExcluded(config, r.ListRouteGraph, seo))
+                {
+                    continue;
+                }
+
+                if (documentExclusions.Contains(BuildPathUtils.NormalizeRelPath(seo.Route.OutputPath)))
                 {
                     continue;
                 }

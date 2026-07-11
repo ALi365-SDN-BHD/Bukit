@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Engine;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Plugins;
@@ -24,7 +25,9 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>(context.SeoIndex.Count);
-        var typedExclusions = BuildTypedSitemapExclusions(context);
+        var documentExclusions = BuildDocumentSitemapExclusions(
+            context.Config,
+            context.RoutedDocuments.Concat(context.DerivedDocuments));
         var listRouteExclusions = BuildListRouteSitemapExclusions(context);
         foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
@@ -33,7 +36,7 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
                 continue;
             }
 
-            if (typedExclusions.Contains(BuildPathUtils.NormalizeRelPath(seo.Route.OutputPath)))
+            if (documentExclusions.Contains(BuildPathUtils.NormalizeRelPath(seo.Route.OutputPath)))
             {
                 continue;
             }
@@ -55,17 +58,23 @@ public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
         SitemapGenerator.GenerateAbsolute(context.OutputDir, filtered);
     }
 
-    private static HashSet<string> BuildTypedSitemapExclusions(BuildContext context)
+    internal static HashSet<string> BuildDocumentSitemapExclusions(
+        AppConfig config,
+        IEnumerable<RoutedContentDocument> documents)
     {
-        if (context.RoutedDocuments.Count == 0)
-        {
-            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        return context.RoutedDocuments
-            .Where(x => x.Document.Publish.ExcludeFromSitemap)
+        return documents
+            .Where(x => x.Document.Publish.ExcludeFromSitemap || IsCollectionSitemapExcluded(config, x.Document))
             .Select(x => BuildPathUtils.NormalizeRelPath(x.Route.OutputPath))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool IsCollectionSitemapExcluded(AppConfig config, ContentDocument document)
+    {
+        var collection = ContentFieldReader.GetCollection(document);
+        return !string.IsNullOrWhiteSpace(collection) &&
+               config.Site.Collections is { Count: > 0 } collections &&
+               collections.TryGetValue(collection, out var collectionConfig) &&
+               !collectionConfig.Output.Sitemap;
     }
 
     private static HashSet<string> BuildListRouteSitemapExclusions(BuildContext context)

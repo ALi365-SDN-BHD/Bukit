@@ -37,6 +37,7 @@ internal sealed class CollectionRouteIndex
     internal static CollectionRouteIndex Create(IReadOnlyList<RoutedContentDocument> routed)
     {
         var ordered = routed
+            .Where(x => !string.IsNullOrWhiteSpace(GetCollection(x.Document)))
             .OrderByDescending(x => x.Document.PublishAt)
             .ToList();
 
@@ -76,6 +77,6 @@ internal sealed class CollectionRouteIndex
 
     internal static string GetCollection(ContentDocument document)
     {
-        return ContentFieldReader.GetCollection(document, document.Record.Identity.ContentType);
+        return ContentFieldReader.GetCollection(document);
     }
 }

@@ -47,7 +47,31 @@ public sealed class CollectionRouteIndexTests
         Assert.Same(first.GetByCollection("post"), second.GetByCollection("post"));
     }
 
+    [Fact]
+    public void Create_GroupsOnlyByExplicitCollectionAndExcludesCollectionlessDocuments()
+    {
+        var news = CreateItem("news-1", "article", "news", 2);
+        var module = CreateItem("module-1", "module", string.Empty, 3);
+        var articleCollection = CreateItem("article-1", "article", "article", 1);
+        var routed = new[]
+        {
+            new RoutedContentDocument(news, new RouteInfo("/news/news-1/", "news/news-1/index.html", "news.html")),
+            new RoutedContentDocument(module, new RouteInfo("/modules/module-1/", "modules/module-1/index.html", "module.html")),
+            new RoutedContentDocument(articleCollection, new RouteInfo("/articles/article-1/", "articles/article-1/index.html", "article.html"))
+        };
+
+        var index = CollectionRouteIndex.Create(routed);
+
+        Assert.Equal(new[] { "news-1", "article-1" }, index.AllOrdered.Select(item => item.Document.Id));
+        Assert.Equal(new[] { "news-1" }, index.GetByCollection("news").Select(item => item.Document.Id));
+        Assert.Equal(new[] { "article-1" }, index.GetByCollection("article").Select(item => item.Document.Id));
+        Assert.Empty(index.GetByCollection("module"));
+    }
+
     private static ContentDocument CreateItem(string id, string collection, int day)
+        => CreateItem(id, collection, collection, day);
+
+    private static ContentDocument CreateItem(string id, string type, string collection, int day)
     {
         return ContentDocument.Create(
             id: id,
@@ -57,7 +81,7 @@ public sealed class CollectionRouteIndexTests
             contentHtml: $"<p>{id}</p>",
             fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
-                ["type"] = collection,
+                ["type"] = type,
                 ["collection"] = collection
             }));
     }

@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Rendering;
 using Bukit.Shared;
 
@@ -295,6 +296,9 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
 
         var logger = context.Logger ?? new ConsoleLogger(LogLevel.Error);
         var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>();
+        var documentExclusions = SitemapPlugin.BuildDocumentSitemapExclusions(
+            context.Config,
+            context.RoutedDocuments.Concat(context.DerivedDocuments));
         foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             if (!seo.Indexable)
@@ -303,6 +307,11 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
             }
 
             if (ListRouteSitemapPolicy.IsExcluded(context.Config, context.ListRouteGraph, seo))
+            {
+                continue;
+            }
+
+            if (documentExclusions.Contains(BuildPathUtils.NormalizeRelPath(seo.Route.OutputPath)))
             {
                 continue;
             }

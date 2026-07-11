@@ -28,8 +28,9 @@ public sealed class ArchivePluginTests
             fields: ContentFieldReader.ToFieldMap(meta));
     }
 
-    private static BuildContext CreateContext(List<(ContentDocument Item, RouteInfo Route)> routed)
+    private static BuildContext CreateContext(List<(ContentDocument Item, RouteInfo Route)> routed, string collectionKey = "post")
     {
+        var routePrefix = string.Equals(collectionKey, "post", StringComparison.OrdinalIgnoreCase) ? "blog" : collectionKey;
         return new BuildContext
         {
             Config = new AppConfig
@@ -40,10 +41,10 @@ public sealed class ArchivePluginTests
                     Title = "test",
                     Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["post"] = new()
+                        [collectionKey] = new()
                         {
-                            Permalink = "/blog/{slug}/",
-                            ListRoute = "/blog/",
+                            Permalink = $"/{routePrefix}/{{slug}}/",
+                            ListRoute = $"/{routePrefix}/",
                             Output = new CollectionOutputConfig { Archive = true }
                         }
                     }
@@ -81,6 +82,31 @@ public sealed class ArchivePluginTests
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2024/");
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2024/03/");
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2024/06/");
+    }
+
+    [Fact]
+    public void DerivePages_DistinctTypeAndCollectionUsesCollectionKey()
+    {
+        var news = ContentDocument.Create(
+            "news-1",
+            "News",
+            "news-1",
+            new DateTimeOffset(2024, 3, 15, 0, 0, 0, TimeSpan.Zero),
+            string.Empty,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "article",
+                ["collection"] = "news"
+            }));
+        var context = CreateContext(
+        [
+            (news, new RouteInfo("/news/news-1/", "news/news-1/index.html", "news.html"))
+        ], "news");
+
+        var derived = new ArchivePlugin().DerivePages(context);
+
+        Assert.Contains(derived, item => item.Route.Url == "/news/archive/");
+        Assert.All(derived, item => Assert.Equal("news", ContentFieldReader.GetCollection(item.Document)));
     }
 
     [Fact]

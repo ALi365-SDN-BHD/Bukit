@@ -156,6 +156,49 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
+    public void Generate_DistinctTypeAndCollectionUsesCollectionAndExcludesCollectionlessDocument()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(outDir);
+        var news = DocumentWithClassification("news-1", "article", "news");
+        var articleCollection = DocumentWithClassification("article-1", "page", "article");
+        var module = DocumentWithClassification("module-1", "module", string.Empty);
+        var routed = new[]
+        {
+            new RoutedContentDocument(news, new RouteInfo("/news/news-1/", "news/news-1/index.html", "news.html")),
+            new RoutedContentDocument(articleCollection, new RouteInfo("/articles/article-1/", "articles/article-1/index.html", "article.html")),
+            new RoutedContentDocument(module, new RouteInfo("/modules/module-1/", "modules/module-1/index.html", "module.html"))
+        };
+        var collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["news"] = new() { Permalink = "/news/{slug}/", Output = new() { Rss = false } },
+            ["article"] = new() { Permalink = "/articles/{slug}/", Output = new() { Rss = true } },
+            ["module"] = new() { Permalink = "/modules/{slug}/", Output = new() { Rss = true } }
+        };
+
+        RssGenerator.Generate(outDir, "https://example.com", "/", "Site", collections, routed, new InMemoryBodyStore());
+
+        var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
+        Assert.DoesNotContain("Title news-1", rss, StringComparison.Ordinal);
+        Assert.Contains("Title article-1", rss, StringComparison.Ordinal);
+        Assert.DoesNotContain("Title module-1", rss, StringComparison.Ordinal);
+    }
+
+    private static ContentDocument DocumentWithClassification(string slug, string type, string collection)
+        => ContentDocument.Create(
+            slug,
+            "Title " + slug,
+            slug,
+            new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = type,
+                ["collection"] = collection
+            }));
+
+    [Fact]
     public void GenerateMerged_DeduplicatesByUrl()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));

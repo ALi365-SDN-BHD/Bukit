@@ -470,6 +470,64 @@ public sealed class RoutePipelineTests
         Assert.Contains(result.ListRoutes, route => route.Url == "/companies/p/2/");
     }
 
+    [Fact]
+    public void Execute_DistinctTypeAndCollectionGroupsListsPaginationAndFiltersByCollection()
+    {
+        var newsFeatured = Item("news-featured", "news-featured", new Dictionary<string, object>
+        {
+            ["type"] = "article", ["collection"] = "news", ["featured"] = "true"
+        }, new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero));
+        var newsPlain = Item("news-plain", "news-plain", new Dictionary<string, object>
+        {
+            ["type"] = "article", ["collection"] = "news", ["featured"] = "false"
+        }, new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var articleCollection = Item("article-collection", "article-collection", new Dictionary<string, object>
+        {
+            ["type"] = "page", ["collection"] = "article", ["featured"] = "true"
+        });
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["news"] = new()
+                    {
+                        Permalink = "/news/{slug}/", Template = "pages/article.html",
+                        ListRoute = "/news/", ListTemplate = "pages/article-list.html",
+                        Pagination = new() { Enabled = true, PageSize = 1, UrlPattern = "page/{page}/" },
+                        FilteredLists =
+                        [
+                            new FilteredListConfig
+                            {
+                                Field = "featured", Value = "true", ListRoute = "/news/featured/",
+                                ListTemplate = "pages/featured.html"
+                            }
+                        ]
+                    },
+                    ["article"] = new()
+                    {
+                        Permalink = "/articles/{slug}/", Template = "pages/article.html",
+                        ListRoute = "/articles/", ListTemplate = "pages/article-list.html"
+                    }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
+
+        var result = new RoutePipeline().Execute(config, [newsFeatured, newsPlain, articleCollection], TemplateResolver());
+
+        var newsPage1 = Assert.Single(result.ListRouteGraph.Routes, route => route.RouteId == "collection:news:1");
+        var newsPage2 = Assert.Single(result.ListRouteGraph.Routes, route => route.RouteId == "collection:news:2");
+        var filtered = Assert.Single(result.ListRouteGraph.Routes, route => route.RouteId == "filter:news:featured:true:1");
+        Assert.Equal(["news-featured"], newsPage1.Items.Select(item => item.Id));
+        Assert.Equal(["news-plain"], newsPage2.Items.Select(item => item.Id));
+        Assert.Equal(["news-featured"], filtered.Items.Select(item => item.Id));
+        Assert.DoesNotContain(articleCollection.Id, newsPage1.Items.Concat(newsPage2.Items).Select(item => item.Id));
+    }
+
     private static ThemeTemplateResolver TemplateResolver()
     {
         var manifest = new ThemeManifestV2
