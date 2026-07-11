@@ -373,8 +373,8 @@ internal static partial class NotionSeedPusher
 
         foreach (var (name, value) in record.ExtraFields)
         {
-            var propertyName = ToNotionPropertyName(name);
-            if (string.IsNullOrWhiteSpace(propertyName) || IsCoreProperty(propertyName) || value is null)
+            var propertyName = NotionPropertyNaming.Canonicalize(name);
+            if (string.IsNullOrWhiteSpace(propertyName) || NotionPropertyNaming.IsCore(propertyName) || value is null)
                 continue;
 
             if (schema is not null && schema.TryGetValue(propertyName, out var declaredType))
@@ -425,22 +425,6 @@ internal static partial class NotionSeedPusher
             case "checkbox": WriteCheckboxProperty(writer, name, (bool)value); break;
         }
     }
-
-    private static string ToNotionPropertyName(string name)
-        => name.Trim().ToLowerInvariant() switch
-        {
-            "link" => "Link",
-            "url" => "Url",
-            "href" => "Href",
-            "order" or "sort_order" => "Order",
-            "enabled" => "Enabled",
-            _ => string.Concat(name.Trim().Split(['_', '-', ' '], StringSplitOptions.RemoveEmptyEntries)
-                .Select(p => char.ToUpperInvariant(p[0]) + p[1..]))
-        };
-
-    private static bool IsCoreProperty(string name)
-        => name is "Title" or "Slug" or "Type" or "Summary" or "Content" or "Language" or
-           "Published" or "SeoTitle" or "SeoDescription";
 
     private static void WriteTitleProperty(Utf8JsonWriter writer, string name, string value)
     {

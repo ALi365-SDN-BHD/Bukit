@@ -743,6 +743,182 @@ databases:
     }
 
     [Fact]
+    public async Task PushSeedDirectoryAsync_InferredSchemaConflictAcrossRecordsFailsBeforeApiCall()
+    {
+        var inputDir = Path.Combine(_rootDir, "inferred-conflict");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """
+[
+  { "title": "First", "slug": "first", "featured": true },
+  { "title": "Second", "slug": "second", "featured": "yes" }
+]
+""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "inferred-conflict-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("database 'posts'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("field 'Featured'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("record 'second'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("expected checkbox", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_SingleDatabaseInferenceConflictFailsBeforeApiCall()
+    {
+        var inputDir = Path.Combine(_rootDir, "single-inferred-conflict");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """
+[
+  { "title": "First", "slug": "first", "priority": 1 },
+  { "title": "Second", "slug": "second", "priority": "high" }
+]
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseId = "db-single",
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "single-inferred-conflict-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("database 'db-single'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("field 'Priority'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("record 'second'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("expected number", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Theory]
+    [InlineData(".nan")]
+    [InlineData(".inf")]
+    [InlineData("-.inf")]
+    public async Task PushSeedDirectoryAsync_NonFiniteNumberFailsBeforeApiCall(string value)
+    {
+        var inputDir = Path.Combine(_rootDir, "non-finite-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.yaml"), $"""
+- title: Non-finite
+  slug: non-finite
+  priority: {value}
+""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.yaml
+    collection: post
+    databaseId: db-posts
+    schema:
+      Priority: number
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "non-finite-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("field 'Priority'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("finite number", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Theory]
+    [InlineData("[\"market\", \"   \"]", "blank option")]
+    [InlineData("[\"market\", \"Market\"]", "duplicate option 'Market'")]
+    public async Task PushSeedDirectoryAsync_InvalidMultiSelectOptionsFailBeforeApiCall(
+        string optionsJson,
+        string expectedError)
+    {
+        var inputDir = Path.Combine(_rootDir, "invalid-multi-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"),
+            $$"""[{ "title": "Post", "slug": "post", "tags": {{optionsJson}} }]""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+    schema:
+      Tags: multi_select
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "invalid-multi-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("database 'posts'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("field 'Tags'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("record 'post'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains(expectedError, result.StdErr, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Fact]
     public async Task ValidateSchemaAsync_MissingDatabaseIdReturnsTwo()
     {
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");

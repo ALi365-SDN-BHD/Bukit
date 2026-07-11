@@ -359,6 +359,17 @@ public static class ImportNotionPushWorkflow
     {
         var records = ImportSeedRecordReader.ReadDirectory(inputDir);
         var additionalSchemaFields = BuildAdditionalSchemaFields(collection: "", records);
+        var effectiveSchema = additionalSchemaFields
+            .ToDictionary(field => field.Name, field => field.ExpectedType, StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            ValidateTypedValues(databaseId, records, effectiveSchema);
+        }
+        catch (FormatException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 2;
+        }
         using var http = CreateHttpClient();
         var token = Environment.GetEnvironmentVariable(tokenEnv) ?? "";
         if (!dryRun && validateSchema)
@@ -385,7 +396,8 @@ public static class ImportNotionPushWorkflow
             DryRun: dryRun,
             Mode: mode,
             UniqueField: uniqueField,
-            UpdateContent: updateContent));
+            UpdateContent: updateContent,
+            Schema: effectiveSchema));
         Console.WriteLine($"notion push {(dryRun ? "dry-run" : "api")} 完成: records={result.Total} created={result.Created} updated={result.Updated} failed={result.Failed} report={reportPath}");
         if (result.Failed > 0)
         {
@@ -482,7 +494,7 @@ public static class ImportNotionPushWorkflow
             var field = keyNode.Value;
             if (field != field.Trim())
                 throw new FormatException($"{schemaPath}: schema key '{field}' must not contain boundary whitespace.");
-            var canonical = ToNotionPropertyName(field);
+            var canonical = NotionPropertyNaming.Canonicalize(field);
             if (string.IsNullOrWhiteSpace(canonical))
                 throw new FormatException($"{schemaPath}: Schema key '{field}' has an empty canonical Notion property name.");
             if (pair.Value is not YamlScalarNode typeNode || string.IsNullOrWhiteSpace(typeNode.Value))
@@ -500,7 +512,7 @@ public static class ImportNotionPushWorkflow
         {
             if (!raw.Equals(canonical, StringComparison.Ordinal))
                 throw new FormatException($"{schemaPath}: Schema key '{raw}' must use canonical Notion property name '{canonical}'.");
-            if (IsCoreProperty(canonical))
+            if (NotionPropertyNaming.IsCore(canonical))
                 throw new FormatException($"{schemaPath}: Schema key '{raw}' conflicts with fixed core property '{canonical}'.");
             schema.Add(canonical, type);
         }
@@ -520,7 +532,7 @@ public static class ImportNotionPushWorkflow
                 foreach (var field in target.Schema)
                     schema[field.Key] = field.Value;
             }
-            ValidateTypedValues(target.Key, records, target.Schema);
+            ValidateTypedValues(target.Key, records, schema);
             prepared.Add(target with { Schema = schema });
         }
         return prepared;
@@ -529,36 +541,63 @@ public static class ImportNotionPushWorkflow
     private static void ValidateTypedValues(
         string databaseKey,
         IReadOnlyList<ImportSeedRecord> records,
-        IReadOnlyDictionary<string, string>? declaredSchema)
+        IReadOnlyDictionary<string, string> effectiveSchema)
     {
-        if (declaredSchema is null)
-            return;
         foreach (var record in records)
         {
             if (record.ExtraFields is null)
                 continue;
             foreach (var (rawName, value) in record.ExtraFields)
             {
-                var field = ToNotionPropertyName(rawName);
-                if (value is null || !declaredSchema.TryGetValue(field, out var type))
+                var field = NotionPropertyNaming.Canonicalize(rawName);
+                if (value is null || !effectiveSchema.TryGetValue(field, out var type))
                     continue;
-                if (!IsCompatibleValue(type, value))
-                    throw new FormatException($"Invalid typed Notion value in database '{databaseKey}', field '{field}', record '{record.Slug}': expected {type}.");
+                var error = GetCompatibilityError(type, value);
+                if (error is not null)
+                    throw new FormatException($"Invalid typed Notion value in database '{databaseKey}', field '{field}', record '{record.Slug}': {error}");
             }
         }
     }
 
-    private static bool IsCompatibleValue(string type, object value)
-        => type switch
+    private static string? GetCompatibilityError(string type, object value)
+    {
+        if (type == "multi_select" && value is IReadOnlyList<object?> items)
+        {
+            if (items.Any(item => item is not string))
+                return "expected multi_select with string options.";
+            var options = items.Cast<string>().ToArray();
+            if (options.Any(string.IsNullOrWhiteSpace))
+                return "multi_select contains a blank option.";
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var option in options)
+            {
+                if (!seen.Add(option))
+                    return $"multi_select contains duplicate option '{option}'.";
+            }
+            return null;
+        }
+
+        if (type == "number" && IsNumeric(value))
+        {
+            var number = Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
+            return double.IsFinite(number) ? null : "expected a finite number.";
+        }
+
+        var compatible = type switch
         {
             "rich_text" or "select" => value is string,
-            "multi_select" => value is IReadOnlyList<object?> items && items.All(item => item is string),
+            "multi_select" => false,
             "url" => value is string text && Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https",
             "date" => value is string text && IsIsoDate(text),
-            "number" => value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal,
+            "number" => false,
             "checkbox" => value is bool,
             _ => false
         };
+        return compatible ? null : $"expected {type}.";
+    }
+
+    private static bool IsNumeric(object value)
+        => value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
 
     private static bool IsIsoDate(string value)
     {
@@ -668,8 +707,8 @@ public static class ImportNotionPushWorkflow
 
             foreach (var (name, value) in record.ExtraFields)
             {
-                var propertyName = ToNotionPropertyName(name);
-                if (string.IsNullOrWhiteSpace(propertyName) || IsCoreProperty(propertyName) || value is null)
+                var propertyName = NotionPropertyNaming.Canonicalize(name);
+                if (string.IsNullOrWhiteSpace(propertyName) || NotionPropertyNaming.IsCore(propertyName) || value is null)
                     continue;
 
                 fields.TryAdd(propertyName, ToNotionPropertyType(propertyName, value));
@@ -694,22 +733,6 @@ public static class ImportNotionPushWorkflow
             return "url";
         return "rich_text";
     }
-
-    private static string ToNotionPropertyName(string name)
-        => name.Trim().ToLowerInvariant() switch
-        {
-            "link" => "Link",
-            "url" => "Url",
-            "href" => "Href",
-            "order" or "sort_order" => "Order",
-            "enabled" => "Enabled",
-            _ => string.Concat(name.Trim().Split(['_', '-', ' '], StringSplitOptions.RemoveEmptyEntries)
-                .Select(p => char.ToUpperInvariant(p[0]) + p[1..]))
-        };
-
-    private static bool IsCoreProperty(string name)
-        => name is "Title" or "Slug" or "Type" or "Summary" or "Content" or "Language" or
-           "Published" or "SeoTitle" or "SeoDescription";
 
     private static NotionPushResult BuildDryRunResult(string inputDir, NotionDatabaseTarget target)
     {

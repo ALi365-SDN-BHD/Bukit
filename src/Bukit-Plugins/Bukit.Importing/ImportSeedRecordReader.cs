@@ -160,7 +160,7 @@ public static class ImportSeedRecordReader
                 continue;
             fields[key.Value] = kv.Value switch
             {
-                YamlScalarNode value => ParseYamlScalar(value.Value),
+                YamlScalarNode value => ParseYamlScalar(value),
                 YamlSequenceNode sequence => ReadYamlScalarSequence(sequence, path, key.Value),
                 YamlMappingNode => throw new FormatException(
                     $"YAML seed '{path}' field '{key.Value}' contains a nested mapping; only scalar values and scalar sequences are supported."),
@@ -186,7 +186,7 @@ public static class ImportSeedRecordReader
                 throw new FormatException(
                     $"YAML seed '{path}' field '{field}' contains a nested {kind}; only scalar sequence items are supported.");
             }
-            values.Add(ParseYamlScalar(scalar.Value));
+            values.Add(ParseYamlScalar(scalar));
         }
         return values.AsReadOnly();
     }
@@ -195,15 +195,30 @@ public static class ImportSeedRecordReader
         => name is "title" or "name" or "slug" or "type" or "summary" or "content" or
            "language" or "published" or "seo_title" or "seo_description";
 
-    private static object? ParseYamlScalar(string? value)
+    private static object? ParseYamlScalar(YamlScalarNode scalar)
     {
+        var value = scalar.Value;
+        var tag = scalar.Tag.ToString();
+        if (scalar.Style is not YamlDotNet.Core.ScalarStyle.Plain ||
+            tag is "tag:yaml.org,2002:str" or "!!str")
+            return value;
+        if (value is null || value is "~" || value.Equals("null", StringComparison.OrdinalIgnoreCase))
+            return null;
         if (string.IsNullOrWhiteSpace(value))
             return value;
         if (bool.TryParse(value, out var b))
             return b;
-        if (long.TryParse(value, out var l))
+        if (long.TryParse(value, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var l))
             return l;
-        if (double.TryParse(value, out var d))
+        if (value.Equals(".nan", StringComparison.OrdinalIgnoreCase))
+            return double.NaN;
+        if (value.Equals(".inf", StringComparison.OrdinalIgnoreCase))
+            return double.PositiveInfinity;
+        if (value.Equals("-.inf", StringComparison.OrdinalIgnoreCase))
+            return double.NegativeInfinity;
+        if (double.TryParse(value, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var d))
             return d;
         return value;
     }
