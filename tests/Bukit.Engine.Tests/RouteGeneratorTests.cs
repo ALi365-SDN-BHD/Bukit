@@ -100,7 +100,56 @@ public sealed class RouteGeneratorTests
 
         var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item, collections: collections));
 
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, ex.Code);
         Assert.Contains("collection", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Generate_FullRouteOverrideWithoutCollection_ThrowsBeforeOverrideResolution()
+    {
+        var item = Item("override", new Dictionary<string, object>
+        {
+            ["route"] = new Dictionary<string, object>
+            {
+                ["url"] = "/custom/override/",
+                ["template"] = "custom/page.html"
+            }
+        });
+
+        var exception = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
+
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
+    }
+
+    [Fact]
+    public void Generate_TypePermalinkWithoutCollection_ThrowsBeforePermalinkResolution()
+    {
+        var item = Item("article", new Dictionary<string, object>
+        {
+            ["type"] = "article"
+        });
+        var permalinks = new Dictionary<string, string>
+        {
+            ["article"] = "/articles/{slug}/"
+        };
+
+        var exception = Assert.Throws<ConfigException>(() =>
+            RouteGenerator.Generate(item, permalinks: permalinks));
+
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
+    }
+
+    [Fact]
+    public void Generate_MissingCollectionUsesDocumentSourceKey()
+    {
+        var item = Item("article", new Dictionary<string, object> { ["type"] = "article" }) with
+        {
+            Source = new ContentSourceInfo("notion", SourceKey: "editorial")
+        };
+
+        var exception = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
+
+        Assert.Contains("source \"editorial\"", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -35,6 +35,7 @@ public static class RouteInventoryValidator
     {
         var provider = ContentProviderFactory.Create(config, rootDir, isCi, logger);
         var loadResult = await provider.LoadRawAsync(cancellationToken);
+        ContentCollectionContractValidator.Validate(loadResult.Documents);
         var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents);
         if (!config.Build.Draft)
         {

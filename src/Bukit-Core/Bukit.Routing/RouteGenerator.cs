@@ -40,6 +40,7 @@ public static class RouteGenerator
         IReadOnlyDictionary<string, string>? permalinks = null,
         IReadOnlyDictionary<string, CollectionRouteRule>? collections = null)
     {
+        RequireCollection(source);
         RejectRemovedOutputPathFields(source);
 
         if (TryReadFullRouteOverride(source, outputPathEncoding, out var overridden))
@@ -54,6 +55,31 @@ public static class RouteGenerator
         }
 
         return new RouteGenerationResult(ValidateRoute(baseRoute, source), baseSource);
+    }
+
+    private static void RequireCollection(RouteContentSource source)
+    {
+        var collection = ContentFieldReader.GetText(source.Fields, "collection");
+        if (!string.IsNullOrWhiteSpace(collection))
+        {
+            return;
+        }
+
+        var sourceKey = ContentFieldReader.GetText(source.Fields, "sourceKey");
+        if (string.IsNullOrWhiteSpace(sourceKey))
+        {
+            sourceKey = source.SourceKey;
+        }
+
+        if (string.IsNullOrWhiteSpace(sourceKey))
+        {
+            sourceKey = "unknown";
+        }
+
+        throw new ConfigException(
+            $"Content \"{source.Id}\" from source \"{sourceKey}\" is missing required collection. " +
+            "Set content.sources[].collection or item collection metadata.",
+            DiagnosticCode.ContentCollectionMissing);
     }
 
     private static RouteInfo BuildFromPattern(RouteContentSource source, string pattern, string template, string outputPathEncoding)
@@ -269,7 +295,8 @@ public static class RouteGenerator
             document.PublishAt,
             document.CustomFields,
             document.Record.Identity.ContentType,
-            document.Record.Classification.Collection);
+            document.Record.Classification.Collection,
+            document.Source.SourceKey);
 
     private sealed record RouteContentSource(
         string Id,
@@ -278,5 +305,6 @@ public static class RouteGenerator
         DateTimeOffset PublishAt,
         IReadOnlyDictionary<string, ContentField>? Fields,
         string ContentType,
-        string Collection);
+        string Collection,
+        string? SourceKey);
 }

@@ -23,6 +23,7 @@ internal sealed class ContentLoadStage : IContentStage
 
         var provider = _factory.Create(input.Config, input.RootDir, input.Overrides.IsCI, input.Logger);
         var rawResult = await provider.LoadRawAsync(cancellationToken);
+        ContentCollectionContractValidator.Validate(rawResult.Documents);
         var schema = ContentModelSchemaFactory.FromConfig(input.Config);
         var documents = ContentDocumentNormalizer.ToDocuments(rawResult.Documents, schema);
 

@@ -37,6 +37,7 @@ public enum DiagnosticCode
     ContentLoadFailed = 0x0501,
     ContentProviderUnavailable = 0x0502,
     ContentDraftFiltered = 0x0503,
+    ContentCollectionMissing = 0x0504,
 
     BuildOutputUnsafe = 0x0601,
     BuildOutputNoMarker = 0x0602,

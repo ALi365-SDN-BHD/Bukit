@@ -154,6 +154,34 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public async Task ContentLoadStage_MissingCollection_ThrowsBeforeNormalization()
+    {
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["sourceMode"] = "content",
+            ["sourceKey"] = "markdown"
+        });
+        var loadResult = new RawContentLoadResult(
+        [
+            new RawContentDocument(
+                Id: "article-1",
+                Title: "Article",
+                Slug: "article-1",
+                PublishAt: DateTimeOffset.UnixEpoch,
+                Body: new RawBody(InlineHtml: "<p>article</p>"),
+                Properties: RawContentValue.FromFields(fields),
+                CustomFields: fields)
+        ], EmptyContentBodyStore.Instance);
+        var stage = new ContentLoadStage(new StubContentProviderFactory(loadResult));
+        var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, Config(), NoOverrides, "/root", "/cache", new NoOpLogger());
+
+        var exception = await Assert.ThrowsAsync<ConfigException>(() =>
+            stage.ExecuteAsync(input, CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
+    }
+
+    [Fact]
     public async Task ContentLoadStage_PassesContentModelSchemaToNormalizer()
     {
         var loadResult = new RawContentLoadResult(

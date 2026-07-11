@@ -13,11 +13,62 @@ namespace Bukit.Engine.Tests;
 public sealed class SiteEngineHelperTests
 {
     [Fact]
+    public async Task BuildContentRoutesAsync_MissingCollection_ThrowsContentCollectionDiagnostic()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-route-inventory", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "content"));
+        File.WriteAllText(Path.Combine(root, "content", "article.md"), """
+            ---
+            title: Article
+            type: article
+            ---
+            Body
+            """);
+
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "Test" },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig
+                    {
+                        Type = "markdown",
+                        Name = "editorial",
+                        Mode = "content",
+                        Markdown = new MarkdownConfig { Dir = "content" }
+                    }
+                ])
+            };
+
+            var exception = await Assert.ThrowsAsync<ConfigException>(() =>
+                RouteInventoryValidator.BuildContentRoutesAsync(
+                    config, root, false, new NoOpLogger()));
+
+            Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
+            Assert.Contains("source \"editorial\"", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void SlugifySeoSegment_SimpleText_KeepsLetters()
     {
         var result = SlugHelper.Slugify("Hello World");
 
         Assert.Equal("hello-world", result);
+    }
+
+    private sealed class NoOpLogger : ILogger
+    {
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) { }
+        public void Error(string message) { }
     }
 
     [Fact]

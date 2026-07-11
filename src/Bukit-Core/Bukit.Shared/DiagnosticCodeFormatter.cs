@@ -39,6 +39,7 @@ public static class DiagnosticCodeFormatter
             DiagnosticCode.ContentLoadFailed => "Content: load failed",
             DiagnosticCode.ContentProviderUnavailable => "Content: provider unavailable",
             DiagnosticCode.ContentDraftFiltered => "Content: draft items filtered",
+            DiagnosticCode.ContentCollectionMissing => "Content: required collection is missing",
 
             DiagnosticCode.BuildOutputUnsafe => "Build: output directory is unsafe",
             DiagnosticCode.BuildOutputNoMarker => "Build: output directory missing marker",
