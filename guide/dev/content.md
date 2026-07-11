@@ -32,10 +32,11 @@ selects the provider (`markdown`/`notion`) and is unrelated to document type.
 | Composite | `CompositeContentProvider` | Combines multiple sources and preserves body stores per source. |
 
 Notion canonical Collection projection precedes ordinary whitelist filtering.
-It accepts one string from `title`, `rich_text`, `url`, `email`,
-`phone_number`, `formula`, `select`, or `status`; multi-value Collection
-properties fail explicitly. Composite `addToCollections` handling creates a
-clone with an explicit target collection for every extra route.
+It accepts one string from `rich_text`, `select`, or `status`. `title`, `url`,
+`email`, `phone_number`, `formula`, and multi-value Collection properties throw
+a `ContentException` that identifies the property type and allowed types.
+Composite `addToCollections` handling creates a clone with an explicit target
+collection for every extra route.
 
 ## Body Stores
 

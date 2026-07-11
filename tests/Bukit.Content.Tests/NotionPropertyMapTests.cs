@@ -138,6 +138,85 @@ public sealed class NotionPropertyMapTests
         Assert.Equal("news", collection);
     }
 
+    [Theory]
+    [InlineData("""{ "type": "rich_text", "rich_text": [{ "plain_text": "news" }] }""")]
+    [InlineData("""{ "type": "select", "select": { "name": "news" } }""")]
+    [InlineData("""{ "type": "status", "status": { "name": "news" } }""")]
+    public void ExtractCollection_WithAllowedScalarType_ParsesValue(string propertyJson)
+    {
+        var properties = ParseJson($$"""
+            {
+                "Content Collection": {{propertyJson}}
+            }
+            """);
+        var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
+
+        var collection = NotionPropertyParser.ExtractCollection(properties, map);
+
+        Assert.Equal("news", collection);
+    }
+
+    [Theory]
+    [InlineData("title", """{ "type": "title", "title": [{ "plain_text": "news" }] }""")]
+    [InlineData("url", """{ "type": "url", "url": "https://example.test/news" }""")]
+    [InlineData("email", """{ "type": "email", "email": "news@example.test" }""")]
+    [InlineData("phone_number", """{ "type": "phone_number", "phone_number": "+12025550123" }""")]
+    [InlineData("formula", """{ "type": "formula", "formula": { "type": "string", "string": "news" } }""")]
+    [InlineData("multi_select", """{ "type": "multi_select", "multi_select": [{ "name": "news" }] }""")]
+    [InlineData("people", """{ "type": "people", "people": [] }""")]
+    [InlineData("relation", """{ "type": "relation", "relation": [] }""")]
+    [InlineData("rollup", """{ "type": "rollup", "rollup": { "type": "array", "array": [] } }""")]
+    [InlineData("files", """{ "type": "files", "files": [] }""")]
+    public void ExtractCollection_WithDisallowedPropertyType_ThrowsAllowedTypesError(
+        string notionType,
+        string propertyJson)
+    {
+        var properties = ParseJson($$"""
+            {
+                "Content Collection": {{propertyJson}}
+            }
+            """);
+        var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
+
+        var ex = Assert.Throws<ContentException>(() =>
+            NotionPropertyParser.ExtractCollection(properties, map));
+
+        Assert.Contains("Content Collection", ex.Message);
+        Assert.Contains(notionType, ex.Message);
+        Assert.Contains("rich_text", ex.Message);
+        Assert.Contains("select", ex.Message);
+        Assert.Contains("status", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("""{ "type": "rich_text", "rich_text": [] }""")]
+    [InlineData("""{ "type": "select", "select": { "name": "   " } }""")]
+    [InlineData("""{ "type": "status", "status": { "name": "" } }""")]
+    public void ExtractCollection_WithEmptyAllowedScalar_ReturnsNull(string propertyJson)
+    {
+        var properties = ParseJson($$"""
+            {
+                "Content Collection": {{propertyJson}}
+            }
+            """);
+        var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
+
+        var collection = NotionPropertyParser.ExtractCollection(properties, map);
+
+        Assert.Null(collection);
+    }
+
+    [Fact]
+    public void ExtractCollection_WithMissingMappedProperty_ReturnsNull()
+    {
+        var properties = ParseJson("""{ "Other": { "type": "rich_text", "rich_text": [] } }""");
+        var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
+
+        var collection = NotionPropertyParser.ExtractCollection(properties, map);
+
+        Assert.Null(collection);
+    }
+
     [Fact]
     public void ExtractCollection_WithMultiSelect_ThrowsClearContentException()
     {

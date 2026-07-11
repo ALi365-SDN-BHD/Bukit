@@ -61,9 +61,10 @@ Notion, and composite content-provider flows within the Task 5 scope.
 - Explicit Markdown type and collection remain independent.
 - Notion Type and Collection are extracted independently from their mapped raw
   properties before ordinary whitelist filtering.
-- Collection accepts only explicit text-like/select/status scalar Notion types.
-  Multi-valued property types throw a clear `ContentException`, including empty
-  multi-select and single-file shapes; non-string formula results are ignored.
+- Collection accepts only single-value `rich_text`, `select`, or `status`
+  Notion properties. `title`, `url`, `email`, `phone_number`, `formula`, and
+  multi-valued property types throw a clear `ContentException` identifying the
+  property type and allowed types.
 - Composite `source.collection` remains the final collection override and never
   changes type. `addToCollections` clone logic was not modified; tests prove
   clones preserve type and carry their explicit target collection.

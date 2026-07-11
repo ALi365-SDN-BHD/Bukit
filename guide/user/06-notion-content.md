@@ -54,9 +54,10 @@ projection causes the build to fail.
 Canonical `Collection` projection happens before the ordinary
 `fieldPolicy.mode: whitelist` filtering, so the mapped Collection property does
 not need to be repeated in the normal field allowlist. It must resolve to one
-scalar string: a `title`, `rich_text`, `url`, `email`, `phone_number`, or
-`formula` text-like value, or a `select`/`status` name. Multi-value properties
-are rejected with a content error instead of being converted with `ToString()`.
+scalar string from `rich_text`, `select`, or `status`. `title`, `url`, `email`,
+`phone_number`, `formula`, and multi-value properties are rejected with a
+`ContentException` that identifies the property type and lists the allowed
+types; values are never converted with `ToString()`.
 
 A source-level `collection` can provide ownership instead and overrides the
 mapped item collection without changing its mapped type.

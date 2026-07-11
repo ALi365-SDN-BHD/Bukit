@@ -240,14 +240,14 @@ public static class NotionPropertyParser
         }
 
         var notionType = NotionContentProvider.GetString(collectionProp, "type");
-        if (notionType is "multi_select" or "people" or "relation" or "rollup" or "files")
+        if (notionType is not ("rich_text" or "select" or "status"))
         {
             throw new ContentException(
-                $"Notion Collection property '{fieldName}' must contain a single scalar value; multi-value properties are not supported.");
+                $"Notion Collection property '{fieldName}' must contain a single scalar value of type rich_text, select, or status; " +
+                $"property type '{notionType ?? "<missing>"}' is not supported.");
         }
 
-        if (notionType is not ("title" or "rich_text" or "url" or "email" or "phone_number" or "select" or "status" or "formula") ||
-            !NotionPropertyTypeParser.TryParseNotionPropertyToField(collectionProp, out var field, out _) ||
+        if (!NotionPropertyTypeParser.TryParseNotionPropertyToField(collectionProp, out var field, out _) ||
             field.Value is not string text)
         {
             return null;

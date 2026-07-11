@@ -41,14 +41,16 @@ propertyMap:
 `Kind = article` and `Section = news` project `type: article` and
 `collection: news`. Canonical Collection projection occurs before ordinary
 field whitelist filtering, so it is not accidentally removed by the normal
-allowlist. Collection accepts one string from `title`, `rich_text`, `url`,
-`email`, `phone_number`, `formula`, `select`, or `status`; multi-value
-properties fail with an explicit content error.
+allowlist. Collection accepts one string from `rich_text`, `select`, or
+`status`. `title`, `url`, `email`, `phone_number`, `formula`, and multi-value
+properties throw a `ContentException` that identifies the property type and
+lists the allowed types.
 
 ## Common Mistakes
 
 - Omitting collection because content type is present.
-- Mapping Collection to a multi-value Notion property.
+- Mapping Collection to any property other than `rich_text`, `select`, or
+  `status`.
 
 Markdown uses `MarkdownFolderProvider`. Notion uses `NotionContentProvider` and
 requires `NOTION_TOKEN` when provider secret validation is enabled. Media
