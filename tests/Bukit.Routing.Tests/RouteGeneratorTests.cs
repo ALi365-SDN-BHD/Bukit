@@ -19,7 +19,13 @@ public sealed class RouteGeneratorTests
             new ProvenanceRecord(null, null, Array.Empty<string>(), Array.Empty<string>(), null),
             new TrustMetadata(null, "unchecked", Array.Empty<string>()),
             Array.Empty<EntityRecord>(), Array.Empty<ContentRelation>(), Array.Empty<MediaAsset>());
-        var doc = new ContentDocument(record, new ContentBodyRef(""));
+        var doc = new ContentDocument(
+            record,
+            new ContentBodyRef(""),
+            customFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["collection"] = "posts"
+            }));
         var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>
         {
             ["posts"] = new("/blog/{slug}/", "pages/post.html")

@@ -273,7 +273,7 @@ public static class RouteGenerator
 
     private static string GetType(RouteContentSource source)
     {
-        return GetCollection(source);
+        return source.ContentType;
     }
 
     private static string GetCollection(RouteContentSource source)

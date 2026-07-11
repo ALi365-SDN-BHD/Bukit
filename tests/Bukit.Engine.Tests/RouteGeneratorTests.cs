@@ -656,18 +656,18 @@ public sealed class RouteGeneratorTests
 
         var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
         {
-            ["article"] = new("/{year}/{slug}/", "pages/article.html")
+            ["article"] = new("/{type}/{collection}/{slug}/", "pages/article.html")
         };
 
         var route = RouteGenerator.Generate(item, collections: collections);
 
-        Assert.Equal("/0001/hello/", route.Url);
-        Assert.Equal("0001/hello/index.html", route.OutputPath);
+        Assert.Equal("/post/article/hello/", route.Url);
+        Assert.Equal("post/article/hello/index.html", route.OutputPath);
         Assert.Equal("pages/article.html", route.Template);
     }
 
     [Fact]
-    public void Generate_CollectionsRule_TypeOnly_UsesCanonicalCollection()
+    public void Generate_CollectionsRule_TypeOnly_ThrowsContentCollectionMissing()
     {
         var item = Item("hello", new Dictionary<string, object>
         {
@@ -679,9 +679,32 @@ public sealed class RouteGeneratorTests
             ["article"] = new("/articles/{slug}/", "pages/article.html")
         };
 
-        var route = RouteGenerator.Generate(item, collections: collections);
+        var exception = Assert.Throws<ConfigException>(() =>
+            RouteGenerator.Generate(item, collections: collections));
 
-        Assert.Equal("/articles/hello/", route.Url);
-        Assert.Equal("pages/article.html", route.Template);
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
+    }
+
+    [Fact]
+    public void Generate_NoCollectionRule_UsesTypePermalink()
+    {
+        var item = Item("hello", new Dictionary<string, object>
+        {
+            ["type"] = "article",
+            ["collection"] = "news"
+        });
+        var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["blog"] = new("/blog/{slug}/", "pages/blog.html")
+        };
+        var permalinks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["article"] = "/{type}/{collection}/{slug}/"
+        };
+
+        var result = RouteGenerator.GenerateWithSource(item, permalinks: permalinks, collections: collections);
+
+        Assert.Equal(RouteGenerator.RouteSource.Permalink, result.Source);
+        Assert.Equal("/article/news/hello/", result.Route.Url);
     }
 }

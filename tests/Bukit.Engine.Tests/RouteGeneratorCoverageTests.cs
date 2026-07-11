@@ -263,10 +263,10 @@ public sealed class RouteGeneratorCoverageTests
     public void ExpandPermalinkPattern_AllPlaceholders_ReplacesCorrectly()
     {
         var item = ItemWithDate("hello-world", "My Great Post", 2024, 3, 7,
-            fieldValues: new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" });
-        var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{year}/{month}/{day}/{slug}/{title}/", item);
+            fieldValues: new Dictionary<string, object> { ["type"] = "article", ["collection"] = "news" });
+        var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{collection}/{year}/{month}/{day}/{slug}/{title}/", item);
 
-        Assert.Equal("/post/2024/03/07/hello-world/my-great-post/", result);
+        Assert.Equal("/article/news/2024/03/07/hello-world/my-great-post/", result);
     }
 
     // ── UrlEncodeSegment with unicode (via Generate with "urlencode") ─────
@@ -290,17 +290,17 @@ public sealed class RouteGeneratorCoverageTests
     // ── Explicit collection tests ────────────────────────────────────────
 
     [Fact]
-    public void Generate_GetCollection_NoCollectionField_UsesCanonicalType()
+    public void Generate_GetCollection_NoCollectionField_ThrowsContentCollectionMissing()
     {
         var item = Item("hello", fieldValues: new Dictionary<string, object> { ["type"] = "article" });
         var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
         {
             ["article"] = new("/articles/{slug}/", "pages/article.html")
         };
-        var route = RouteGenerator.Generate(item, collections: collections);
+        var exception = Assert.Throws<ConfigException>(() =>
+            RouteGenerator.Generate(item, collections: collections));
 
-        Assert.Equal("/articles/hello/", route.Url);
-        Assert.Equal("pages/article.html", route.Template);
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
     }
 
     [Fact]
@@ -323,7 +323,7 @@ public sealed class RouteGeneratorCoverageTests
     }
 
     [Fact]
-    public void Generate_GetCollection_EmptyCollectionField_UsesCanonicalType()
+    public void Generate_GetCollection_EmptyCollectionField_ThrowsContentCollectionMissing()
     {
         var item = Item("hello", fieldValues: new Dictionary<string, object>
         {
@@ -334,14 +334,14 @@ public sealed class RouteGeneratorCoverageTests
         {
             ["guide"] = new("/guides/{slug}/", "pages/guide.html")
         };
-        var route = RouteGenerator.Generate(item, collections: collections);
+        var exception = Assert.Throws<ConfigException>(() =>
+            RouteGenerator.Generate(item, collections: collections));
 
-        Assert.Equal("/guides/hello/", route.Url);
-        Assert.Equal("pages/guide.html", route.Template);
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
     }
 
     [Fact]
-    public void Generate_GetCollection_WhitespaceCollectionField_UsesCanonicalType()
+    public void Generate_GetCollection_WhitespaceCollectionField_ThrowsContentCollectionMissing()
     {
         var item = Item("hello", fieldValues: new Dictionary<string, object>
         {
@@ -352,10 +352,10 @@ public sealed class RouteGeneratorCoverageTests
         {
             ["doc"] = new("/docs/{slug}/", "pages/doc.html")
         };
-        var route = RouteGenerator.Generate(item, collections: collections);
+        var exception = Assert.Throws<ConfigException>(() =>
+            RouteGenerator.Generate(item, collections: collections));
 
-        Assert.Equal("/docs/hello/", route.Url);
-        Assert.Equal("pages/doc.html", route.Template);
+        Assert.Equal(DiagnosticCode.ContentCollectionMissing, exception.Code);
     }
 
     // ── GetType with non-string fieldValues value tests ──────────────────────────

@@ -20,7 +20,7 @@ public sealed class RouteGeneratorGoldenTests
 
         var permalinks = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["special"] = "/special/{slug}/"
+            ["page"] = "/special/{slug}/"
         };
 
         var documents = new[]
