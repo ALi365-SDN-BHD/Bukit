@@ -46,6 +46,63 @@ public sealed class RouteMetadataIndexBuilderTests
         Assert.Equal("Insights SEO", result["/insights/"].SeoTitle);
     }
 
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("//insights/")]
+    [InlineData("/insights//archive/")]
+    [InlineData("/insights/?page=2")]
+    [InlineData("/insights/#latest")]
+    [InlineData("/insights\\archive/")]
+    public void Build_InvalidRouteSyntax_ThrowsWithSourceRowAndRouteValue(string route)
+    {
+        var ex = Assert.Throws<ContentException>(() => RouteMetadataIndexBuilder.Build(
+            CreateConfig(),
+            CreateSourceData(Row("invalid-route", Fields(route, "Invalid", "Invalid summary")))));
+
+        Assert.Contains("page_meta", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("invalid-route", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(route, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("route", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Build_RootRoute_RemainsValid()
+    {
+        var result = RouteMetadataIndexBuilder.Build(
+            CreateConfig(requiredRoutes: ["/"]),
+            CreateSourceData(Row("home", Fields("/", "Home", "Home summary"))));
+
+        Assert.Equal("/", result["/"].Route);
+    }
+
+    [Fact]
+    public void Build_MissingCustomTitleField_ThrowsWithoutCanonicalFallback()
+    {
+        var fields = Fields("/about/", "Ignored", "About summary");
+        fields.Remove("title");
+        var config = CreateConfig() with { TitleField = "display_title" };
+
+        var ex = Assert.Throws<ContentException>(() => RouteMetadataIndexBuilder.Build(
+            config,
+            CreateSourceData(Row("about", fields, canonicalTitle: "Canonical About"))));
+
+        AssertDiagnostic(ex, "page_meta", "about", "/about/");
+        Assert.Contains("display_title", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_MissingDefaultTitleField_UsesCanonicalTitle()
+    {
+        var fields = Fields("/about/", "Ignored", "About summary");
+        fields.Remove("title");
+
+        var result = RouteMetadataIndexBuilder.Build(
+            CreateConfig(),
+            CreateSourceData(Row("about", fields, canonicalTitle: "Canonical About")));
+
+        Assert.Equal("Canonical About", result["/about/"].Title);
+    }
+
     [Fact]
     public void Build_DuplicateNormalizedRoute_ThrowsWithSourceRowAndRoute()
     {
@@ -86,6 +143,20 @@ public sealed class RouteMetadataIndexBuilderTests
         Assert.Contains("page_meta", ex.Message, StringComparison.Ordinal);
         Assert.Contains("/companies/", ex.Message, StringComparison.Ordinal);
         Assert.Contains("required", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Build_InvalidRequiredRoute_UsesSameRouteSyntaxRule()
+    {
+        var config = CreateConfig(requiredRoutes: ["/insights/?page=2"]);
+
+        var ex = Assert.Throws<ContentException>(() => RouteMetadataIndexBuilder.Build(
+            config,
+            CreateSourceData(Row("home", Fields("/", "Home", "Home summary")))));
+
+        Assert.Contains("page_meta", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("/insights/?page=2", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("invalid", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -152,11 +223,14 @@ public sealed class RouteMetadataIndexBuilderTests
     private static IReadOnlyDictionary<string, object> CreateSourceData(params object[] rows) =>
         new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["page_meta"] = rows };
 
-    private static ModuleInfo Row(string id, Dictionary<string, object> fields) => new()
+    private static ModuleInfo Row(
+        string id,
+        Dictionary<string, object> fields,
+        string? canonicalTitle = null) => new()
     {
         Id = id,
         Slug = id,
-        Title = id,
+        Title = canonicalTitle ?? id,
         Content = string.Empty,
         Fields = ContentFieldReader.ToFieldMap(fields)
     };

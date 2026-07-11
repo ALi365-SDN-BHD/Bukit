@@ -33,9 +33,13 @@ internal static class RouteMetadataIndexBuilder
 
             var rowContext = $"Route metadata source '{config.Source}' row '{module.Id}' (index {rowIndex})";
             var routeValue = RequireText(module.Fields, config.RouteField, rowContext, null);
+            ValidateRoute(routeValue, rowContext);
             var route = RoutePathBuilder.NormalizeUrl(routeValue);
             var routeContext = $"{rowContext} route '{route}'";
-            var title = RequireText(module.Fields, config.TitleField, routeContext, module.Title);
+            var canonicalTitle = string.Equals(config.TitleField, "title", StringComparison.Ordinal)
+                ? module.Title
+                : null;
+            var title = RequireText(module.Fields, config.TitleField, routeContext, canonicalTitle);
             var summary = RequireText(module.Fields, config.SummaryField, routeContext, null);
             var seoTitle = OptionalText(module.Fields, config.SeoTitleField, routeContext);
             var seoDescription = OptionalText(module.Fields, config.SeoDescriptionField, routeContext);
@@ -50,6 +54,7 @@ internal static class RouteMetadataIndexBuilder
 
         foreach (var requiredRoute in config.RequiredRoutes ?? Array.Empty<string>())
         {
+            ValidateRoute(requiredRoute, $"Route metadata source '{config.Source}' required");
             var normalized = RoutePathBuilder.NormalizeUrl(requiredRoute);
             if (!entries.ContainsKey(normalized))
             {
@@ -59,6 +64,18 @@ internal static class RouteMetadataIndexBuilder
         }
 
         return new ReadOnlyDictionary<string, RouteMetadataEntry>(entries);
+    }
+
+    private static void ValidateRoute(string route, string context)
+    {
+        if (route.Contains('?', StringComparison.Ordinal) ||
+            route.Contains('#', StringComparison.Ordinal) ||
+            route.Contains('\\', StringComparison.Ordinal) ||
+            route.Contains("//", StringComparison.Ordinal))
+        {
+            throw new ContentException(
+                $"{context} route '{route}' is invalid; route paths cannot contain query, fragment, backslash, or empty non-root segments.");
+        }
     }
 
     private static string RequireText(
