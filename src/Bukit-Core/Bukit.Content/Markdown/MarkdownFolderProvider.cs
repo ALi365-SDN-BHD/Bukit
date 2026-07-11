@@ -110,8 +110,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 }
             }
 
-            if (!frontMatterValues.ContainsKey("collection") &&
-                !frontMatterValues.ContainsKey("type") &&
+            if (!frontMatterValues.ContainsKey("type") &&
                 !string.IsNullOrWhiteSpace(_options.DefaultType))
             {
                 frontMatterValues["type"] = _options.DefaultType;

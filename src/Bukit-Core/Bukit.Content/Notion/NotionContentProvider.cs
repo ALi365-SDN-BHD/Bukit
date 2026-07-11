@@ -88,6 +88,7 @@ public sealed class NotionContentProvider : IContentProvider
                     var title = NotionPropertyParser.ExtractTitle(props, pm) ?? pageId;
                     var slug = NotionPropertyParser.ExtractSlug(props, pm) ?? Slugify(title) ?? pageId.Replace("-", string.Empty, StringComparison.Ordinal);
                     var type = NotionPropertyParser.ExtractType(props, pm);
+                    var collection = NotionPropertyParser.ExtractCollection(props, pm);
                     var publishAt = NotionPropertyParser.ExtractPublishAt(props, pm) ?? DateTimeOffset.UtcNow;
 
                     var lastEditedTime = GetString(page, "last_edited_time");
@@ -102,6 +103,10 @@ public sealed class NotionContentProvider : IContentProvider
                     {
                         projectedValues["type"] = type;
                     }
+                    if (!string.IsNullOrWhiteSpace(collection))
+                    {
+                        projectedValues["collection"] = collection;
+                    }
 
                     var fields = NotionPropertyParser.ExtractFields(props, policyMode, allowed, out var relationKeys);
                     fields = NotionFieldProjectionHelper.InjectPageCoverAndIcon(fields, page);
@@ -112,7 +117,6 @@ public sealed class NotionContentProvider : IContentProvider
                     NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, "outputpath", "outputPath");
                     NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, "template", "template");
                     NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, NotionPropertyParser.NormalizeFieldKey(pm?.Summary ?? "summary"), "summary");
-                    NotionFieldProjectionHelper.ProjectTextField(fields, projectedValues, NotionPropertyParser.NormalizeFieldKey(pm?.Collection ?? "collection"), "collection");
                     NotionFieldProjectionHelper.ProjectTaxonomyField(fields, projectedValues, "tags");
                     NotionFieldProjectionHelper.ProjectTaxonomyField(fields, projectedValues, "categories");
                     NotionPropertyParser.ProjectSeoFields(projectedValues, props, pm);

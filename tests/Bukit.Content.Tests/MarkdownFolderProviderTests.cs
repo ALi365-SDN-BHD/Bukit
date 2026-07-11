@@ -193,7 +193,7 @@ public sealed class MarkdownFolderProviderTests
     }
 
     [Fact]
-    public async Task LoadAsync_WithCollectionFrontMatter_DoesNotInjectDefaultType()
+    public async Task LoadAsync_WithCollectionFrontMatter_InjectsDefaultTypeWithoutChangingCollection()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-md-collection-" + Guid.NewGuid().ToString("N"));
         try
@@ -212,7 +212,7 @@ public sealed class MarkdownFolderProviderTests
 
             var item = Assert.Single(result.Documents);
             Assert.Equal("post", ContentFieldReader.GetText(item.CustomFields, "collection"));
-            Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "type", out _));
+            Assert.Equal("page", ContentFieldReader.GetText(item.CustomFields, "type"));
         }
         finally
         {

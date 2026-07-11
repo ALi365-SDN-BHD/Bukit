@@ -126,7 +126,12 @@ public sealed class NotionContentProviderEndToEndTests
             FilterType = "none",
             RenderContent = false,
             FieldPolicyMode = "whitelist",
-            AllowedFields = new[] { "language", "tags" }
+            AllowedFields = new[] { "language", "tags" },
+            PropertyMap = new Bukit.Config.NotionPropertyMapConfig
+            {
+                Type = "Content Type",
+                Collection = "Content Collection"
+            }
         };
 
         NotionApiClient CreateClient() =>
@@ -143,6 +148,8 @@ public sealed class NotionContentProviderEndToEndTests
         Assert.False(item.CustomFields.ContainsKey("summary"));
         Assert.False(item.CustomFields.ContainsKey("secret"));
         Assert.Equal("en", ContentFieldReader.GetText(item.CustomFields, "language"));
+        Assert.Equal("article", ContentFieldReader.GetText(item.CustomFields, "type"));
+        Assert.Equal("news", ContentFieldReader.GetText(item.CustomFields, "collection"));
         Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "summary", out _));
     }
 
@@ -759,6 +766,14 @@ public sealed class NotionContentProviderEndToEndTests
                         "Title": {
                           "type": "title",
                           "title": [{ "plain_text": "Policy Page" }]
+                        },
+                        "Content Type": {
+                          "type": "select",
+                          "select": { "name": "article" }
+                        },
+                        "Content Collection": {
+                          "type": "rich_text",
+                          "rich_text": [{ "plain_text": "news" }]
                         },
                         "Language": {
                           "type": "rich_text",

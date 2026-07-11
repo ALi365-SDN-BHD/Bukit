@@ -109,6 +109,44 @@ public sealed class CompositeContentProviderTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_AddToCollectionsClonesPreserveTypeAndCarryExplicitCollection()
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = new("text", "article"),
+            ["collection"] = new("text", "drafts")
+        };
+        var provider = new RawTestProvider(new RawContentLoadResult(
+            new[]
+            {
+                new RawContentDocument(
+                    Id: "article-1",
+                    Title: "Article 1",
+                    Slug: "article-1",
+                    PublishAt: DateTimeOffset.UtcNow,
+                    Body: new RawBody(),
+                    Properties: RawContentValue.FromFields(fields),
+                    CustomFields: fields)
+            },
+            new NullBodyStore()));
+        (string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)[] providers =
+        {
+            ("news-source", "content", "news", new[] { "featured" }, provider)
+        };
+        var composite = new CompositeContentProvider(providers);
+
+        var result = await composite.LoadRawAsync();
+
+        Assert.Equal(2, result.Documents.Count);
+        Assert.Equal("article", ContentFieldReader.GetText(result.Documents[0].CustomFields, "type"));
+        Assert.Equal("news", ContentFieldReader.GetText(result.Documents[0].CustomFields, "collection"));
+        Assert.Equal("article", ContentFieldReader.GetText(result.Documents[1].CustomFields, "type"));
+        Assert.Equal("featured", ContentFieldReader.GetText(result.Documents[1].CustomFields, "collection"));
+        Assert.Equal("article", result.Documents[1].Properties!["type"].Value);
+        Assert.Equal("featured", result.Documents[1].Properties!["collection"].Value);
+    }
+
+    [Fact]
     public async Task LoadRawAsync_SourceCollectionOverridesItemCollectionWithoutChangingType()
     {
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)

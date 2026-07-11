@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Content.Notion;
+using Bukit.Shared;
 using System.Text.Json;
 using Xunit;
 
@@ -113,6 +114,95 @@ public sealed class NotionPropertyMapTests
         var result = NotionPropertyParser.ExtractType(properties, null);
 
         Assert.Equal("post", result);
+    }
+
+    [Fact]
+    public void ExtractTypeAndCollection_WithPropertyMap_ProjectDistinctCanonicalValues()
+    {
+        var properties = ParseJson("""
+            {
+                "Content Type": { "type": "select", "select": { "name": "article" } },
+                "Content Collection": { "type": "status", "status": { "name": "news" } }
+            }
+            """);
+        var map = new NotionPropertyMapConfig
+        {
+            Type = "Content Type",
+            Collection = "Content Collection"
+        };
+
+        var type = NotionPropertyParser.ExtractType(properties, map);
+        var collection = NotionPropertyParser.ExtractCollection(properties, map);
+
+        Assert.Equal("article", type);
+        Assert.Equal("news", collection);
+    }
+
+    [Fact]
+    public void ExtractCollection_WithMultiSelect_ThrowsClearContentException()
+    {
+        var properties = ParseJson("""
+            {
+                "Content Collection": {
+                    "type": "multi_select",
+                    "multi_select": [
+                        { "name": "news" },
+                        { "name": "featured" }
+                    ]
+                }
+            }
+            """);
+        var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
+
+        var ex = Assert.Throws<ContentException>(() =>
+            NotionPropertyParser.ExtractCollection(properties, map));
+
+        Assert.Contains("Collection", ex.Message);
+        Assert.Contains("single scalar", ex.Message);
+        Assert.Contains("Content Collection", ex.Message);
+    }
+
+    [Fact]
+    public void ExtractCollection_WithEmptyMultiSelect_ThrowsClearContentException()
+    {
+        var properties = ParseJson("""
+            {
+                "Content Collection": {
+                    "type": "multi_select",
+                    "multi_select": []
+                }
+            }
+            """);
+        var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
+
+        var ex = Assert.Throws<ContentException>(() =>
+            NotionPropertyParser.ExtractCollection(properties, map));
+
+        Assert.Contains("single scalar", ex.Message);
+    }
+
+    [Fact]
+    public void ExtractCollection_WithSingleFile_ThrowsClearContentException()
+    {
+        var properties = ParseJson("""
+            {
+                "Content Collection": {
+                    "type": "files",
+                    "files": [
+                        {
+                            "type": "external",
+                            "external": { "url": "https://example.test/news" }
+                        }
+                    ]
+                }
+            }
+            """);
+        var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
+
+        var ex = Assert.Throws<ContentException>(() =>
+            NotionPropertyParser.ExtractCollection(properties, map));
+
+        Assert.Contains("single scalar", ex.Message);
     }
 
     [Fact]
