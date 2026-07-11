@@ -52,3 +52,12 @@
 - The final two-path diff contains no data-specific branch or legacy type/collection warning text.
 - The targeted gate failures are outside Task 4 and were not hidden or modified.
 - The required bounded read-only diff review found no remaining Critical or Important issues after the `DurationMs` correction.
+
+## P2 follow-up: remove dead warning counter
+
+- Changed `WarnFilteredLists` from `int` to `void`; the empty-collections branch now returns without a value.
+- Removed the unused `warned` local, its increments, and the final return. The INFO and WARN branches and message text are unchanged.
+- Before and after the refactor, `dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --no-restore --filter "FullyQualifiedName~CollectionWarningStageTests"` passed: 7 passed, 0 failed, 0 skipped.
+- `git diff HEAD --check -- src/Bukit-Core/Bukit.Engine/Stages/CollectionWarningStage.cs .superpowers/sdd/task-4-report.md` passed.
+- `bash scripts/checks/post-change-targeted.sh -- src/Bukit-Core/Bukit.Engine/Stages/CollectionWarningStage.cs` passed its diff, contract, documentation, self-test, and script checks, then reached the full `Bukit.Engine.Tests` project and reproduced the same 23 unrelated planned RED tests listed above (1240 passed, 23 failed).
+- Follow-up commit subject: `refactor(diagnostics): remove dead warning counter`.

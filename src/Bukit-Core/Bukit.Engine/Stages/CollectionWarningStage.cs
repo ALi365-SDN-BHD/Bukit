@@ -14,14 +14,13 @@ internal sealed class CollectionWarningStage : IContentStage
         return Task.FromResult(new ContentStageOutput(input.Documents, input.BodyStore, Name, 0, null));
     }
 
-    private static int WarnFilteredLists(AppConfig config, ILogger logger)
+    private static void WarnFilteredLists(AppConfig config, ILogger logger)
     {
         if (config.Site.Collections is not { Count: > 0 } collections)
         {
-            return 0;
+            return;
         }
 
-        var warned = 0;
         foreach (var (collectionName, collection) in collections)
         {
             if (collection.FilteredLists is not { Count: > 0 } filteredLists)
@@ -48,11 +47,8 @@ internal sealed class CollectionWarningStage : IContentStage
                     $"[WARN] {prefix} configures a {routeDescription}, but site.collections.{collectionName}.listRoute is missing; " +
                     "the filtered list route will not be generated. Add listRoute to enable filteredLists, or use taxonomy.kinds " +
                     "for automatically generated tag/category/term routes.");
-                warned++;
             }
         }
-
-        return warned;
     }
 
     private static string DescribeFilteredList(FilteredListConfig filter)
