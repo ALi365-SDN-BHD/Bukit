@@ -29,8 +29,8 @@ internal static class CloneYamlWriter
             var content = GetOrCreateMapping(root, "content");
             content.Children[new YamlScalarNode("provider")] = new YamlScalarNode("sources");
             var sources = GetOrCreateSequence(content, "sources");
-            EnsureMarkdownSource(sources, "content", "content", "content", "page");
-            EnsureMarkdownSource(sources, "modules", "data", "data", "module");
+            EnsureMarkdownSource(sources, "content", "content", "content", "page", "page");
+            EnsureMarkdownSource(sources, "modules", "data", "data", "module", collection: null);
 
             var theme = GetOrCreateMapping(root, "theme");
             theme.Children[new YamlScalarNode("name")] = new YamlScalarNode(themeName);
@@ -57,7 +57,13 @@ internal static class CloneYamlWriter
         }
     }
 
-    private static void EnsureMarkdownSource(YamlSequenceNode sources, string name, string mode, string dir, string defaultType)
+    private static void EnsureMarkdownSource(
+        YamlSequenceNode sources,
+        string name,
+        string mode,
+        string dir,
+        string defaultType,
+        string? collection)
     {
         foreach (var child in sources.Children.OfType<YamlMappingNode>())
         {
@@ -65,6 +71,8 @@ internal static class CloneYamlWriter
             {
                 child.Children[new YamlScalarNode("type")] = new YamlScalarNode("markdown");
                 child.Children[new YamlScalarNode("mode")] = new YamlScalarNode(mode);
+                if (!string.IsNullOrWhiteSpace(collection))
+                    child.Children[new YamlScalarNode("collection")] = new YamlScalarNode(collection);
                 var markdown = GetOrCreateMapping(child, "markdown");
                 markdown.Children[new YamlScalarNode("dir")] = new YamlScalarNode(dir);
                 markdown.Children[new YamlScalarNode("defaultType")] = new YamlScalarNode(defaultType);
@@ -78,6 +86,8 @@ internal static class CloneYamlWriter
             { "name", name },
             { "mode", mode },
         };
+        if (!string.IsNullOrWhiteSpace(collection))
+            newNode.Children[new YamlScalarNode("collection")] = new YamlScalarNode(collection);
         newNode.Children[new YamlScalarNode("markdown")] = new YamlMappingNode { { "dir", dir }, { "defaultType", defaultType } };
         sources.Add(newNode);
     }

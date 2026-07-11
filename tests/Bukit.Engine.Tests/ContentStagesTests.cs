@@ -137,8 +137,8 @@ public sealed class ContentStagesTests
                     Slug: "a",
                     PublishAt: DateTimeOffset.UnixEpoch,
                     Body: new RawBody(InlineHtml: "<p>a</p>"),
-                    Properties: RawContentValue.FromFields(ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" })),
-                    CustomFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page" }))
+                    Properties: RawContentValue.FromFields(ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page", ["collection"] = "page" })),
+                    CustomFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page", ["collection"] = "page" }))
             },
             EmptyContentBodyStore.Instance);
         var factory = new StubContentProviderFactory(loadResult);
@@ -238,6 +238,7 @@ public sealed class ContentStagesTests
                     Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["kind"] = new("text", "article"),
+                        ["collection"] = new("text", "article"),
                         ["abstract"] = new("text", "Configured summary")
                     })
             },
@@ -723,6 +724,7 @@ public sealed class ContentStagesTests
                     Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["type"] = new("text", "post"),
+                        ["collection"] = new("text", "post"),
                         ["company_refs"] = new("list", new object[]
                         {
                             new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)

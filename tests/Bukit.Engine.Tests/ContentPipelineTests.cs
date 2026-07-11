@@ -31,11 +31,13 @@ public sealed class ContentPipelineTests
     {
         var published = Item("published", "published", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
-            ["type"] = "post"
+            ["type"] = "post",
+            ["collection"] = "post"
         });
         var draft = Item("draft", "draft", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "post",
+            ["collection"] = "post",
             ["draft"] = true
         });
         var loadResult = RawResult(published, draft);
@@ -70,6 +72,7 @@ public sealed class ContentPipelineTests
         var item = Item("invalid-status", "invalid-status", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "post",
+            ["collection"] = "post",
             ["status"] = "invalid"
         });
         var factory = new RecordingContentProviderFactory(RawResult(item));

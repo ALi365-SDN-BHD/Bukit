@@ -145,6 +145,7 @@ public sealed class RouteGeneratorCoverageTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "/already/normalized/",
@@ -162,6 +163,7 @@ public sealed class RouteGeneratorCoverageTests
     {
         var fieldValues = new Dictionary<string, object>
         {
+            ["collection"] = "page",
             ["route"] = new Dictionary<string, object>
             {
                 ["url"] = "no-slash/path/",
@@ -228,7 +230,8 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void ExpandPermalinkPattern_TypePlaceholder_MissingTypeUsesCanonicalPage()
     {
-        var item = ItemWithDate("my-slug", "T", 2025, 6, 15, fieldValues: new Dictionary<string, object>());
+        var item = ItemWithDate("my-slug", "T", 2025, 6, 15,
+            fieldValues: new Dictionary<string, object> { ["collection"] = "page" });
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
         Assert.Equal("/page/my-slug/", result);
@@ -238,7 +241,7 @@ public sealed class RouteGeneratorCoverageTests
     public void ExpandPermalinkPattern_TypePlaceholder_ExplicitType()
     {
         var item = ItemWithDate("my-slug", "T", 2025, 6, 15,
-            fieldValues: new Dictionary<string, object> { ["type"] = "article" });
+            fieldValues: new Dictionary<string, object> { ["type"] = "article", ["collection"] = "article" });
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
         Assert.Equal("/article/my-slug/", result);
@@ -248,7 +251,7 @@ public sealed class RouteGeneratorCoverageTests
     public void ExpandPermalinkPattern_TypePlaceholder_NonStringType_UsesToString()
     {
         var item = ItemWithDate("my-slug", "T", 2025, 6, 15,
-            fieldValues: new Dictionary<string, object> { ["type"] = 42 });
+            fieldValues: new Dictionary<string, object> { ["type"] = 42, ["collection"] = "42" });
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
         Assert.Equal("/42/my-slug/", result);
@@ -260,7 +263,7 @@ public sealed class RouteGeneratorCoverageTests
     public void ExpandPermalinkPattern_AllPlaceholders_ReplacesCorrectly()
     {
         var item = ItemWithDate("hello-world", "My Great Post", 2024, 3, 7,
-            fieldValues: new Dictionary<string, object> { ["type"] = "post" });
+            fieldValues: new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post" });
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{year}/{month}/{day}/{slug}/{title}/", item);
 
         Assert.Equal("/post/2024/03/07/hello-world/my-great-post/", result);
@@ -360,7 +363,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_GetType_IntMetaValueWithoutRule_Throws()
     {
-        var item = Item("hello", fieldValues: new Dictionary<string, object> { ["type"] = 99 });
+        var item = Item("hello", fieldValues: new Dictionary<string, object> { ["type"] = 99, ["collection"] = "unknown" });
 
         var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
         Assert.Contains("No route rule matches", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -369,7 +372,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void Generate_GetType_NullMetaTypeWithoutRule_Throws()
     {
-        var fieldValues = new Dictionary<string, object> { ["type"] = (object?)null! };
+        var fieldValues = new Dictionary<string, object> { ["type"] = (object?)null!, ["collection"] = "unknown" };
         var item = Item("hello", fieldValues: fieldValues);
 
         var ex = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
@@ -381,7 +384,8 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void ExpandPermalinkPattern_NoTypeField_UsesCanonicalPage()
     {
-        var item = ItemWithDate("slug", "T", 2025, 1, 1);
+        var item = ItemWithDate("slug", "T", 2025, 1, 1,
+            fieldValues: new Dictionary<string, object> { ["collection"] = "page" });
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 
         Assert.Equal("/page/slug/", result);
@@ -390,7 +394,7 @@ public sealed class RouteGeneratorCoverageTests
     [Fact]
     public void ExpandPermalinkPattern_NullTypeValue_UsesCanonicalPage()
     {
-        var fieldValues = new Dictionary<string, object> { ["type"] = (object?)null! };
+        var fieldValues = new Dictionary<string, object> { ["type"] = (object?)null!, ["collection"] = "page" };
         var item = ItemWithDate("slug", "T", 2025, 1, 1, fieldValues: fieldValues);
         var result = RouteGenerator.ExpandPermalinkPattern("/{type}/{slug}/", item);
 

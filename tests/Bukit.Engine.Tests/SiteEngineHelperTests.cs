@@ -279,7 +279,7 @@ public sealed class SiteEngineHelperTests
     }
 
     [Fact]
-    public void GetCollection_WithTypeMeta_ReturnsTypeValue()
+    public void GetCollection_WithTypeMeta_ReturnsEmpty()
     {
         var item = ContentDocument.Create(
             "p1",
@@ -294,11 +294,11 @@ public sealed class SiteEngineHelperTests
 
         var result = SeoAlternatesService.GetCollection(item);
 
-        Assert.Equal("article", result);
+        Assert.Equal(string.Empty, result);
     }
 
     [Fact]
-    public void GetCollection_WithNeither_ReturnsPage()
+    public void GetCollection_WithNeither_ReturnsEmpty()
     {
         var item = ContentDocument.Create(
             "p1",
@@ -309,7 +309,7 @@ public sealed class SiteEngineHelperTests
 
         var result = SeoAlternatesService.GetCollection(item);
 
-        Assert.Equal("page", result);
+        Assert.Equal(string.Empty, result);
     }
 
     [Fact]

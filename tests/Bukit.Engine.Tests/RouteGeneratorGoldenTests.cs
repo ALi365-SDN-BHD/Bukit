@@ -30,6 +30,7 @@ public sealed class RouteGeneratorGoldenTests
                 "full override",
                 new Dictionary<string, object>
                 {
+                    ["collection"] = "page",
                     ["route"] = new Dictionary<string, object>
                     {
                         ["url"] = "/full/",

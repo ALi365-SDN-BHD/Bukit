@@ -1,5 +1,6 @@
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Labs.Cli.Commands;
+using YamlDotNet.RepresentationModel;
 using Xunit;
 
 namespace Bukit.Labs.Cli.Tests;
@@ -41,6 +42,42 @@ public sealed class ThemeWorkflowTests : IDisposable
         var siteYaml = File.ReadAllText(Path.Combine(targetDir, "site.yaml"));
         Assert.Contains("latest_heading: Latest posts", siteYaml, StringComparison.Ordinal);
         Assert.Contains("collection: post", File.ReadAllText(Path.Combine(targetDir, "content", "posts", "welcome.md")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task InitCommand_GeneratedContentSources_DeclareCollections()
+    {
+        foreach (var template in new[] { "minimal", "blog", "docs", "landing", "portfolio", "bare" })
+        {
+            var targetDir = Path.Combine(_rootDir, template + "-site");
+            var result = await CommandTestSupport.CaptureAsync(() =>
+                InitCommand.RunAsync(new CliBoundCommand(
+                    new Dictionary<string, string?> { ["--template"] = template },
+                    [targetDir])));
+
+            Assert.Equal(0, result.ExitCode);
+
+            var stream = new YamlStream();
+            stream.Load(new StringReader(File.ReadAllText(Path.Combine(targetDir, "site.yaml"))));
+            var root = Assert.IsType<YamlMappingNode>(stream.Documents[0].RootNode);
+            var content = Assert.IsType<YamlMappingNode>(root.Children[new YamlScalarNode("content")]);
+            var sources = Assert.IsType<YamlSequenceNode>(content.Children[new YamlScalarNode("sources")]);
+
+            foreach (var source in sources.Children.OfType<YamlMappingNode>())
+            {
+                var mode = CloneYamlWriter.GetScalar(source, "mode");
+                if (string.IsNullOrWhiteSpace(mode) || string.Equals(mode, "content", StringComparison.OrdinalIgnoreCase))
+                {
+                    Assert.False(string.IsNullOrWhiteSpace(CloneYamlWriter.GetScalar(source, "collection")),
+                        $"Template '{template}' generated a content source without collection.");
+                }
+                else if (string.Equals(mode, "data", StringComparison.OrdinalIgnoreCase))
+                {
+                    Assert.False(source.Children.ContainsKey(new YamlScalarNode("collection")),
+                        $"Template '{template}' generated a data source with collection.");
+                }
+            }
+        }
     }
 
     [Fact]

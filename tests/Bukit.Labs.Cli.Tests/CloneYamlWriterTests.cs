@@ -1,5 +1,6 @@
 using System.Text;
 using Bukit.Labs.Cli.Commands;
+using YamlDotNet.RepresentationModel;
 using Xunit;
 
 namespace Bukit.Labs.Cli.Tests;
@@ -74,6 +75,19 @@ theme:
         Assert.Contains("footer_text: Acme", yaml, StringComparison.Ordinal);
         Assert.Contains("primary_color: '#123456'", yaml, StringComparison.Ordinal);
         Assert.Contains("accent_color: '#abcdef'", yaml, StringComparison.Ordinal);
+
+        var stream = new YamlStream();
+        stream.Load(new StringReader(yaml));
+        var root = Assert.IsType<YamlMappingNode>(stream.Documents[0].RootNode);
+        var content = Assert.IsType<YamlMappingNode>(root.Children[new YamlScalarNode("content")]);
+        var sources = Assert.IsType<YamlSequenceNode>(content.Children[new YamlScalarNode("sources")]);
+        var contentSource = Assert.Single(sources.Children.OfType<YamlMappingNode>(), source =>
+            CloneYamlWriter.GetScalar(source, "name") == "content");
+        var dataSource = Assert.Single(sources.Children.OfType<YamlMappingNode>(), source =>
+            CloneYamlWriter.GetScalar(source, "name") == "modules");
+
+        Assert.Equal("page", CloneYamlWriter.GetScalar(contentSource, "collection"));
+        Assert.False(dataSource.Children.ContainsKey(new YamlScalarNode("collection")));
     }
 
     [Fact]

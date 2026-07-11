@@ -86,6 +86,7 @@ public sealed class SeoIndexBuilderTests
                 fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
                 {
                     ["type"] = "page",
+                    ["collection"] = "page",
                     ["summary"] = "About us"
                 })),
              new RouteInfo("/pages/about/", "pages/about/index.html", "pages/page.html"))
