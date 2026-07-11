@@ -11,13 +11,21 @@ content:
   sources:
     - type: markdown
       mode: content
-      collection: post
+      collection: news
       markdown:
-        dir: content/posts
-        defaultType: post
+        dir: content/news
+        defaultType: article
         includeGlobs:
           - "**/*.md"
 ```
+
+`markdown.defaultType` fills only a missing document `type`. In this example it
+produces `type: article`, while the source independently provides
+`collection: news`. Omitting collection from both the source and front matter
+causes a content build error; `defaultType: article` cannot satisfy collection
+ownership. A source collection overrides an item's front matter collection but
+does not change its type. If content type is otherwise absent, it defaults to
+`page`.
 
 ## Front Matter
 
@@ -27,6 +35,7 @@ Common fields:
 |---|---|
 | `title` | Page title. |
 | `slug` | URL segment used by route patterns. |
+| `type` | Document kind; independent from collection and defaults to `page`. |
 | `collection` | Selects `site.collections.<key>`. |
 | `publishAt` | Publish timestamp used by routes and feeds. |
 | `language` | Variant selection for i18n. |
@@ -37,6 +46,21 @@ Common fields:
 
 Top-level `outputPath` and the `outputPath` field inside the `route` object are
 rejected in Bukit 1.0. Use the `route` object's `url` field instead.
+
+Front matter can provide collection ownership instead of the source:
+
+```markdown
+---
+title: Product launch
+slug: product-launch
+type: article
+collection: news
+---
+```
+
+Even a complete `route.url` override does not make collection optional.
+`addToCollections` on the source creates explicit cloned documents and routes
+for its target collections; it is not implicit multi-membership.
 
 ## Markdown Behavior
 

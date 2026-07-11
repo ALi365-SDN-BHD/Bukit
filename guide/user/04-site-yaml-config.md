@@ -54,7 +54,7 @@ content:
 | `site.searchIncludeDerived` | `false` | Includes derived pages in search output when enabled. |
 | `site.pluginFailMode` | `strict` | `strict` or `warn`. |
 | `site.deriveConflictPolicy` | `fail` | `fail`, `warn`, or `last-wins`. |
-| `site.permalinks` | none | Type-to-route fallback map. Collection routing wins over this fallback. |
+| `site.permalinks` | none | Document-type route map, checked after collection routing. It does not assign collection membership. |
 | `site.collections` | none | Collection route and list route definitions. |
 | `site.plugins` | none | Per-plugin enable flags and options. |
 | `site.menus` | none | Named menu arrays with nested children. |
@@ -163,13 +163,13 @@ collapsed before it is stored in `page.seo.document_title`.
 
 | Field | Default | Notes |
 |---|---|---|
-| `content.sources[].type` | required | `markdown` or `notion`. |
+| `content.sources[].type` | required | Provider identifier: `markdown` or `notion`. It is unrelated to document metadata `type`. |
 | `content.sources[].name` | none | Unique source key when set; used by data modules. |
 | `content.sources[].mode` | `content` | `content` or `data`. |
-| `content.sources[].collection` | none | Primary collection. |
-| `content.sources[].addToCollections` | none | Extra collection memberships. |
+| `content.sources[].collection` | none | Required ownership for `mode: content` unless each item supplies a collection. A source value overrides item collection without changing item type. |
+| `content.sources[].addToCollections` | none | Creates an explicit cloned document and route for every target collection. |
 | `content.sources[].markdown.dir` | `content` | Relative content directory. |
-| `content.sources[].markdown.defaultType` | empty | Default content type. |
+| `content.sources[].markdown.defaultType` | empty | Sets only a missing document type; it never supplies collection membership. |
 | `content.sources[].markdown.maxItems` | none | Positive item cap. |
 | `content.sources[].markdown.includePaths` | none | Relative include path list. |
 | `content.sources[].markdown.includeGlobs` | none | Relative glob list; traversal is rejected. |
@@ -200,6 +200,47 @@ collapsed before it is stored in `page.seo.document_title`.
 
 `NOTION_TOKEN` must come from the environment when Notion provider secret
 validation is enabled.
+
+### Strict Type And Collection Contract
+
+For content pages, `type` describes the document kind while `collection`
+defines ownership and grouping. They are independent and never derive from one
+another. Content type defaults to `page`; a `mode: content` document must still
+have a non-empty collection after provider projection or the build fails.
+Collection can come from the source, Markdown front matter, or Notion
+`propertyMap.Collection`.
+
+```yaml
+site:
+  collections:
+    news:
+      permalink: /{collection}/{type}/{slug}/
+  permalinks:
+    article: /articles/{slug}/
+
+content:
+  sources:
+    - type: markdown       # provider type
+      mode: content
+      collection: news    # collection ownership
+      markdown:
+        dir: content/news
+        defaultType: article  # document type only
+```
+
+Here `{type}` expands to `article` and `{collection}` to `news`. Route
+resolution uses a complete route override, then
+`site.collections.<collection>`, then `site.permalinks.<type>`; a partial
+override overlays the resolved base route. Neither a full override nor an
+`article` permalink removes the content collection requirement.
+
+Lists, pagination, filtered lists, archives, feeds, sitemap output policy,
+field scopes, and collection schema mode use `collection`. SEO
+Article/BlogPosting classification uses `type`. Search records retain `type`
+and `contentType` and also emit `collection`.
+
+A `mode: data` source does not require collection, defaults missing document
+type to `module`, and is not routed or indexed as a collection page.
 
 `dataIndex` requires `mode: data` and a source `name`. Source names, field
 names, scopes, and keys use `^[a-z][a-z0-9_]*$`. Duplicate scope and key pairs,

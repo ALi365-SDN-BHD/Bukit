@@ -11,7 +11,6 @@ content:
   sources:
     - type: notion
       mode: content
-      collection: post
       notion:
         databaseId: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
         filterProperty: Published
@@ -21,6 +20,8 @@ content:
         propertyMap:
           Title: Name
           Slug: Slug
+          Type: Kind
+          Collection: Section
           PublishAt: PublishAt
           Language: Language
 ```
@@ -42,6 +43,22 @@ validation is enabled.
 | `cacheMode` | `off`, `readwrite`, or `readonly`. |
 | `content.sources[].notion.fieldPolicy.mode` | `whitelist` or `all`. |
 | `propertyMap` | Uses Core field keys `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, and `Canonical`. |
+
+`propertyMap.Type` and `propertyMap.Collection` project different canonical
+fields. With Notion values `Kind = article` and `Section = news`, the document
+has `type: article` and `collection: news`; neither value is inferred from the
+other. Missing content type defaults to `page`, but missing collection after
+projection causes the build to fail.
+
+Canonical `Collection` projection happens before the ordinary
+`fieldPolicy.mode: whitelist` filtering, so the mapped Collection property does
+not need to be repeated in the normal field allowlist. It must resolve to one
+scalar string: a `title`, `rich_text`, `url`, `email`, `phone_number`, or
+`formula` text-like value, or a `select`/`status` name. Multi-value properties
+are rejected with a content error instead of being converted with `ToString()`.
+
+A source-level `collection` can provide ownership instead and overrides the
+mapped item collection without changing its mapped type.
 
 ## Rendering
 

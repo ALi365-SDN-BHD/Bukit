@@ -10,13 +10,15 @@ content:
   sources:
     - type: markdown
       mode: content
-      collection: post
+      collection: news
       markdown:
-        dir: content/posts
+        dir: content/news
+        defaultType: article
 ```
 
-Content sources are routed and rendered as pages unless a document is marked as
-data by the source.
+This source produces documents with `type: article` and `collection: news`.
+Content requires a non-empty collection after source/item projection. Type
+defaults to `page` when absent and never supplies collection ownership.
 
 ## Data Source
 
@@ -31,7 +33,9 @@ content:
 ```
 
 Data documents are excluded from `RoutePipeline` page routing. They are exposed
-through `site.modules` and `site.data`, then can be rendered in templates.
+through `site.modules` and `site.data`, then can be rendered in templates. Data
+does not require collection, defaults a missing type to `module`, and is not
+indexed as a collection page.
 
 ## Scalar Data Index
 
@@ -77,9 +81,13 @@ a template renders them.
 
 | Field | Behavior |
 |---|---|
-| `collection` | Primary collection for route matching. |
-| `addToCollections` | Additional collection memberships for indexing and grouping. |
+| `collection` | Required content ownership for route matching, grouping, feeds, sitemap policy, and schema scope. Not required for data. |
+| `addToCollections` | Creates explicit cloned documents and routes for each target collection. |
 | `name` | Data source key; must be unique when set. |
 
 `CollectionsValidator` ensures configured source collections exist in
 `site.collections`.
+
+The source `type` above selects the `markdown` or `notion` provider; it is not
+document metadata `type`. A source collection overrides an item collection but
+never changes document type. Type and collection never derive from each other.
