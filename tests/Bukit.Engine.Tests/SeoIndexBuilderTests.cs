@@ -389,8 +389,8 @@ public sealed class SeoIndexBuilderTests
             graph);
 
         var model = result.Models["insights/page/2/index.html"];
-        Assert.Equal("Insights - Page 2", model.Title);
-        Assert.Equal("Browse page 2 of Insights from Test Site, showing item 3 of 3.", model.Description);
+        Assert.Equal("Insights - 第 2 页", model.Title);
+        Assert.Equal("浏览 Test Site 的 Insights，第 2 页，显示第 3 项，共 3 项。", model.Description);
     }
 
     [Fact]

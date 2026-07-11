@@ -65,7 +65,8 @@ internal sealed class RenderPipeline
             context.ListRouteGraph,
             context.RoutedDocuments,
             context.LayoutsDir,
-            context.ListPageContentMode);
+            context.ListPageContentMode,
+            context.SiteModel.Language);
         foreach (var x in specialLists)
         {
             entries.Add(RenderEntry.ForList(x.Route, x.Items, x.IncludeContent, x.PageFields, x.PageContext));

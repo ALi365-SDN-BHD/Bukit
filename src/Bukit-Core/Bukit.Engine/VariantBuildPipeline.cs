@@ -462,12 +462,28 @@ internal sealed partial class VariantBuildPipeline
             : string.Empty;
         renderDependencyHashStopwatch.Stop();
         metrics.AddDuration("renderDependencyHash", renderDependencyHashStopwatch.ElapsedMilliseconds);
+        var contentByOutputPath = renderDocuments.ToDictionary(
+            document => BuildPathUtils.NormalizeRelPath(document.Route.OutputPath),
+            document => document.Document,
+            StringComparer.OrdinalIgnoreCase);
         Func<RouteInfo, string>? renderDependencyHashResolver = routeMetadata is null
             ? null
             : route =>
             {
                 var graphRoute = listRouteGraph.FindByOutputPath(route.OutputPath);
-                var metadataRouteUrl = graphRoute?.MetadataRouteUrl ?? route.Url;
+                string? metadataRouteUrl = graphRoute?.MetadataRouteUrl;
+                if (metadataRouteUrl is null)
+                {
+                    contentByOutputPath.TryGetValue(
+                        BuildPathUtils.NormalizeRelPath(route.OutputPath), out var document);
+                    metadataRouteUrl = RouteMetadataApplicator.ResolveDependencyRouteUrl(document, route.Url);
+                }
+
+                if (metadataRouteUrl is null)
+                {
+                    return renderDependencyHash;
+                }
+
                 return RenderDependencyHasher.ComputeForRoute(renderDependencyHash, metadataRouteUrl, routeMetadata);
             };
 

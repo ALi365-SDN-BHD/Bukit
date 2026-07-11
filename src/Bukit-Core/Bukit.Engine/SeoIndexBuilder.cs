@@ -36,7 +36,7 @@ internal static class SeoIndexBuilder
             var document = routedDocument.Document;
             var route = routedDocument.Route;
             var alternateKey = SeoModelBuilder.BuildAlternateKey(document, route);
-            var metadata = RouteMetadataApplicator.Find(route.Url, routeMetadata);
+            var metadata = RouteMetadataApplicator.FindForContent(document, route.Url, routeMetadata);
             var model = SeoModelBuilder.BuildForContent(
                 config,
                 baseUrl,
@@ -111,10 +111,13 @@ internal static class SeoIndexBuilder
         {
             page = page with
             {
-                Title = string.IsNullOrWhiteSpace(route.SeoTitle) ? page.Title : BuildPagedSeoTitle(route.SeoTitle!, route.PageNumber),
+                Title = string.IsNullOrWhiteSpace(route.SeoTitle)
+                    ? page.Title
+                    : PaginationMetadataFormatter.FormatTitle(route.SeoTitle!, ListPageMetadataBuilder.BuildPagination(route), config.Site.Language),
                 Summary = string.IsNullOrWhiteSpace(route.SeoDescription)
                     ? page.Summary
-                    : BuildPagedSeoDescription(route.SeoDescription!, route)
+                    : PaginationMetadataFormatter.FormatExplicitDescription(
+                        route.SeoDescription!, ListPageMetadataBuilder.BuildPagination(route), config.Site.Language)
             };
         }
         var alternateKey = SeoModelBuilder.BuildListAlternateKey(routeInfo);
@@ -135,29 +138,6 @@ internal static class SeoIndexBuilder
             ContentType: route.TaxonomyContext is null ? "list" : "taxonomy",
             IsDerived: true,
             Collection: string.IsNullOrWhiteSpace(route.Collection) ? null : route.Collection);
-    }
-
-    private static string BuildPagedSeoTitle(string title, int? page)
-        => page > 1 ? $"{title.Trim()} - Page {page}" : title.Trim();
-
-    private static string BuildPagedSeoDescription(string description, ListRoutePlan route)
-    {
-        var text = description.Trim();
-        if (route.PageNumber is not > 1)
-        {
-            return text;
-        }
-
-        var pagination = ListPageMetadataBuilder.BuildPagination(route);
-        if (pagination is null)
-        {
-            return $"{text} Browse page {route.PageNumber}.";
-        }
-
-        var pageSize = pagination.PageSize.GetValueOrDefault();
-        var start = ((pagination.Page - 1) * pageSize) + 1;
-        var end = Math.Min(pagination.TotalItems, pagination.Page * pageSize);
-        return $"{text} Browse page {pagination.Page}, showing items {start}-{end} of {pagination.TotalItems}.";
     }
 
     internal static PageInfo BuildListPageInfo(
@@ -183,7 +163,7 @@ internal static class SeoIndexBuilder
         var matched = FindByOutputPath(route.OutputPath, routed);
         var pagination = ListPageMetadataBuilder.BuildPagination(route);
         var summary = !string.IsNullOrWhiteSpace(route.Summary)
-            ? route.Summary.Trim()
+            ? ListPageMetadataBuilder.BuildSummary(config.Site, route, pagination)
             : matched is null
                 ? ListPageMetadataBuilder.BuildSummary(config.Site, route, pagination)
                 : ContentFieldReader.GetSummary(matched.Document) ?? BuildListSummary(config, route);
@@ -196,7 +176,7 @@ internal static class SeoIndexBuilder
             Url = route.Url,
             Content = string.Empty,
             Summary = summary,
-            Fields = ListRouteRenderPlanBuilder.BuildPageFields(route)
+            Fields = ListRouteRenderPlanBuilder.BuildPageFields(route, config.Site.Language)
         };
     }
 

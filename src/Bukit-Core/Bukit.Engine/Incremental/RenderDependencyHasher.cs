@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Globalization;
+using System.Text;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
@@ -152,31 +154,38 @@ internal static class RenderDependencyHasher
             return;
         }
 
-        AppendHashValue(hasher, config.Source);
-        AppendHashValue(hasher, config.RouteField);
-        AppendHashValue(hasher, config.TitleField);
-        AppendHashValue(hasher, config.SummaryField);
-        AppendHashValue(hasher, config.SeoTitleField);
-        AppendHashValue(hasher, config.SeoDescriptionField);
+        AppendFramedValue(hasher, "source", config.Source);
+        AppendFramedValue(hasher, "routeField", config.RouteField);
+        AppendFramedValue(hasher, "titleField", config.TitleField);
+        AppendFramedValue(hasher, "summaryField", config.SummaryField);
+        AppendFramedValue(hasher, "seoTitleField", config.SeoTitleField);
+        AppendFramedValue(hasher, "seoDescriptionField", config.SeoDescriptionField);
         foreach (var route in config.RequiredRoutes.OrderBy(x => x, StringComparer.Ordinal))
         {
-            AppendHashValue(hasher, route);
+            AppendFramedValue(hasher, "requiredRoute", route);
         }
     }
 
     private static void AppendRouteMetadataValue(IncrementalHash hasher, RouteMetadataEntry metadata)
     {
-        AppendHashValue(hasher, metadata.Route);
-        AppendHashValue(hasher, metadata.Title);
-        AppendHashValue(hasher, metadata.Summary);
-        AppendHashValue(hasher, metadata.SeoTitle);
-        AppendHashValue(hasher, metadata.SeoDescription);
+        AppendFramedValue(hasher, "route", metadata.Route);
+        AppendFramedValue(hasher, "title", metadata.Title);
+        AppendFramedValue(hasher, "summary", metadata.Summary);
+        AppendFramedValue(hasher, "seoTitle", metadata.SeoTitle);
+        AppendFramedValue(hasher, "seoDescription", metadata.SeoDescription);
     }
 
-    private static void AppendHashValue(IncrementalHash hasher, string? value)
+    private static void AppendFramedValue(IncrementalHash hasher, string label, string? value)
     {
-        hasher.AppendData([(byte)'\n']);
-        IncrementalBuildEngine.AppendUtf8(hasher, value);
+        IncrementalBuildEngine.AppendUtf8(hasher, label);
+        IncrementalBuildEngine.AppendUtf8(hasher, ":");
+        var byteLength = value is null ? -1 : Encoding.UTF8.GetByteCount(value);
+        IncrementalBuildEngine.AppendUtf8(hasher, byteLength.ToString(CultureInfo.InvariantCulture));
+        IncrementalBuildEngine.AppendUtf8(hasher, ":");
+        if (value is not null)
+        {
+            IncrementalBuildEngine.AppendUtf8(hasher, value);
+        }
     }
 
     private static void AppendDictionary(IncrementalHash hasher, IReadOnlyDictionary<string, object>? dict)

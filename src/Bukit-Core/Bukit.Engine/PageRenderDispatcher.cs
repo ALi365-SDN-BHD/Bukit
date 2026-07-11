@@ -150,7 +150,7 @@ internal static class PageRenderDispatcher
                             Representations = PublishRepresentationRegistry.DocumentKinds(),
                             Seo = seoBuilder?.Invoke(document, route)
                         };
-                        pageInfo = RouteMetadataApplicator.ApplyToPage(pageInfo, route.Url, routeMetadata);
+                        pageInfo = RouteMetadataApplicator.ApplyToPage(pageInfo, route.Url, routeMetadata, document);
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var html = renderer.RenderPage(route.Template, pageModel);
                         if (htmlPostProcessor is not null) html = htmlPostProcessor(document, route, pageInfo, html);

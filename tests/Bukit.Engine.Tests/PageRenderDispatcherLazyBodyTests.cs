@@ -13,6 +13,49 @@ namespace Bukit.Engine.Tests;
 
 public sealed class PageRenderDispatcherLazyBodyTests
 {
+    [Theory]
+    [InlineData("post")]
+    [InlineData("company")]
+    public async Task RenderPages_DoesNotApplyRouteMetadataToDetailContent(string contentKind)
+    {
+        var item = ContentDocument.Create(
+            id: contentKind,
+            title: $"Original {contentKind}",
+            slug: contentKind,
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: $"<p>{contentKind}</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = contentKind,
+                ["collection"] = contentKind
+            }));
+        var route = new RouteInfo($"/{contentKind}/", $"{contentKind}/index.html", $"pages/{contentKind}.html");
+        var renderer = new CaptureRenderer();
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+
+        await PageRenderDispatcher.DispatchAsync(
+            new[] { RenderEntry.ForPage(item.ToDocument(), route) },
+            EmptyContentBodyStore.Instance,
+            renderer,
+            new SiteModel { Name = "site", Title = "site", BaseUrl = "/", Language = "en" },
+            outputDir,
+            templateHash: "template-hash",
+            renderDependencyHash: string.Empty,
+            incrementalEnabled: false,
+            manifest: new BuildManifest(),
+            manifestEntries: null,
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
+            logger: new ConsoleLogger(LogLevel.Error),
+            cancellationToken: CancellationToken.None,
+            routeMetadata: new Dictionary<string, Bukit.Engine.RouteMetadata.RouteMetadataEntry>
+            {
+                [route.Url] = new(route.Url, "Route metadata title", "Route metadata summary", "Route SEO", "Route SEO summary")
+            });
+
+        Assert.Equal($"Original {contentKind}", renderer.LastPageTitle);
+    }
+
     [Fact]
     public async Task RenderPages_AppliesRouteMetadataToSingletonPageModel()
     {
