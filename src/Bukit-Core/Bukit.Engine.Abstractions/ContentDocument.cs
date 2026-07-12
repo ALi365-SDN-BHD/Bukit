@@ -72,7 +72,10 @@ public sealed record ContentDocument
             new ContentPresentation(title, summary, contentHtml, ContentFieldReader.GetText(fields, "language") ?? "und", translations),
             new ContentClassification(type, collection, sections, tags),
             new ContentOwnership(ContentFieldReader.GetText(fields, "author"), ContentFieldReader.GetText(fields, "organization"), ContentFieldReader.GetText(fields, "owner"), ContentFieldReader.GetText(fields, "reviewer")),
-            new ContentLifecycle(publishAt, ContentFieldReader.GetDate(fields, "updated"), ContentFieldReader.GetDate(fields, "expires_at"), ContentFieldReader.GetDate(fields, "reviewed_at")),
+            new ContentLifecycle(publishAt, ContentFieldReader.GetDate(fields, "updated"), ContentFieldReader.GetDate(fields, "expires_at"), ContentFieldReader.GetDate(fields, "reviewed_at"))
+            {
+                Evergreen = ContentFieldReader.GetBool(fields, "evergreen") is true
+            },
             new ProvenanceRecord(
                 ContentFieldReader.GetText(fields, "source"),
                 ContentFieldReader.GetText(fields, "original_url") ?? ContentFieldReader.GetText(fields, "source_url") ?? ContentFieldReader.GetText(fields, "url"),

@@ -9,6 +9,7 @@ public sealed record SiteModel
     public string? Description { get; init; }
     public required string BaseUrl { get; init; }
     public required string Language { get; init; }
+    public int BuildYear { get; init; }
     public IReadOnlyDictionary<string, object>? Params { get; init; }
     public IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? Modules { get; init; }
     public IReadOnlyDictionary<string, object>? Data { get; init; }
@@ -33,6 +34,7 @@ public sealed record PageInfo
     public string? Summary { get; init; }
     public IReadOnlyList<TableOfContentsEntry>? TableOfContents { get; init; }
     public DateTimeOffset? PublishDate { get; init; }
+    public DateTimeOffset? UpdatedAt { get; init; }
     public IReadOnlyDictionary<string, ContentField>? Fields { get; init; }
     public SeoModel? Seo { get; init; }
     public ContentRecord? ContentRecord { get; init; }

@@ -48,4 +48,5 @@ internal sealed record NotionDatabaseTarget(
     string SeedFile,
     string Collection,
     string? DatabaseId,
-    string UniqueField);
+    string UniqueField,
+    IReadOnlyDictionary<string, string>? Schema = null);

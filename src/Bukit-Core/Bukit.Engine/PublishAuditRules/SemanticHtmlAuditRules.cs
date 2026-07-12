@@ -291,7 +291,9 @@ internal static class SemanticHtmlAuditRules
         }
 
         var lifecycle = document.ContentRecord?.Lifecycle;
-        return lifecycle is not null && (lifecycle.PublishedAt != default || lifecycle.UpdatedAt is not null);
+        return lifecycle is not null &&
+               !lifecycle.Evergreen &&
+               (lifecycle.PublishedAt != default || lifecycle.UpdatedAt is not null);
     }
 
     private static bool ContainsScriptShellWithoutReadableContent(string html)

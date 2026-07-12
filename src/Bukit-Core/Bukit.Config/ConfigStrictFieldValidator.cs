@@ -12,7 +12,7 @@ internal static class ConfigStrictFieldValidator
         "searchIncludeDerived", "pluginFailMode", "deriveConflictPolicy",
         "timezone", "permalinks", "collections", "plugins", "feed",
         "sitemapDetail", "pagination", "search", "related", "menus");
-    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema");
+    private static readonly HashSet<string> ContentKeys = Set("sources", "media", "modelSchema", "routeMetadata");
     private static readonly HashSet<string> BuildKeys = Set(
         "output", "clean", "draft", "listPageContentMode", "schemaFailMode", "fingerprintMode",
         "publishDotFiles", "followSymlinks", "languageJobs", "report");
@@ -141,6 +141,12 @@ internal static class ConfigStrictFieldValidator
         }
 
         if (Map(content, "modelSchema") is { } modelSchema) ValidateModelSchema(modelSchema);
+        if (Map(content, "routeMetadata") is { } routeMetadata)
+        {
+            RequireOnly(routeMetadata, Set(
+                "source", "routeField", "titleField", "summaryField", "seoTitleField",
+                "seoDescriptionField", "requiredRoutes"), "content.routeMetadata");
+        }
     }
 
     private static void ValidateNotion(YamlMappingNode notion, string path)
@@ -158,7 +164,8 @@ internal static class ConfigStrictFieldValidator
         {
             RequireOnly(propertyMap, Set(
                 "Title", "Slug", "Type", "PublishAt", "Language", "I18nKey", "Summary", "Collection",
-                "SeoTitle", "SeoDescription", "SeoImage", "Canonical"), $"{path}.propertyMap");
+                "SeoTitle", "SeoDescription", "SeoImage", "Canonical", "OriginalUrl", "References",
+                "EntitiesJson", "Cover", "CoverAlt", "CoverCaption"), $"{path}.propertyMap");
         }
     }
 

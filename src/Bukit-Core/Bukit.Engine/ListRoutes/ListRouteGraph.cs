@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Shared;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
@@ -42,6 +43,20 @@ internal sealed class ListRouteGraph
         }
 
         return Routes.FirstOrDefault(route => string.Equals(route.RouteId, routeId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public ListRoutePlan? FindByOutputPath(string outputPath)
+    {
+        if (string.IsNullOrWhiteSpace(outputPath))
+        {
+            return null;
+        }
+
+        var normalized = RoutePathBuilder.NormalizeOutputPath(outputPath);
+        return Routes.FirstOrDefault(route => string.Equals(
+            RoutePathBuilder.NormalizeOutputPath(route.OutputPath),
+            normalized,
+            StringComparison.OrdinalIgnoreCase));
     }
 
     private static void ValidateUnique(IReadOnlyList<ListRoutePlan> routes, Func<ListRoutePlan, string> selector, string fieldName)
@@ -92,6 +107,10 @@ internal sealed class ListRouteGraph
         var description = Describe(route);
         RouteSecurityValidator.ValidateInternalUrl(route.Url, description);
         RouteSecurityValidator.ValidateInternalUrl(route.CanonicalUrl, description);
+        if (!string.IsNullOrWhiteSpace(route.MetadataRouteUrl))
+        {
+            RouteSecurityValidator.ValidateInternalUrl(route.MetadataRouteUrl, description);
+        }
         RouteSecurityValidator.ValidateOutputPath(route.OutputPath, description);
     }
 
@@ -114,6 +133,10 @@ internal sealed record ListRoutePlan
     public required string Template { get; init; }
     public string? Title { get; init; }
     public string? Summary { get; init; }
+    public string? SeoTitle { get; init; }
+    public string? SeoDescription { get; init; }
+    public string? MetadataRouteUrl { get; init; }
+    public bool RouteMetadataApplied { get; init; }
     public string? Collection { get; init; }
     public int? PageNumber { get; init; }
     public int? PageSize { get; init; }
@@ -162,6 +185,7 @@ internal sealed record ListRouteItem
     public string? Template { get; init; }
     public string? Summary { get; init; }
     public DateTimeOffset? PublishDate { get; init; }
+    public DateTimeOffset? UpdatedAt { get; init; }
     public IReadOnlyDictionary<string, ContentField>? Fields { get; init; }
     public ContentRecord? ContentRecord { get; init; }
     public ContentRoutePolicy? RoutePolicy { get; init; }
@@ -186,6 +210,7 @@ internal sealed record ListRouteItem
             Template = routed.Route.Template,
             Summary = record.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
             PublishDate = document.PublishAt,
+            UpdatedAt = record.Lifecycle.UpdatedAt,
             Fields = document.CustomFields,
             ContentRecord = record,
             RoutePolicy = document.Route,
@@ -210,6 +235,7 @@ internal sealed record ListRouteItem
             Summary = Summary,
             TableOfContents = tableOfContents,
             PublishDate = PublishDate,
+            UpdatedAt = UpdatedAt,
             Fields = Fields,
             Seo = seo,
             ContentRecord = ContentRecord,

@@ -11,7 +11,8 @@ internal static class ListRouteRenderPlanBuilder
         ListRouteGraph graph,
         IReadOnlyList<RoutedContentDocument> routed,
         string layoutsDir,
-        string listPageContentMode)
+        string listPageContentMode,
+        string? language = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(routed);
@@ -34,7 +35,7 @@ internal static class ListRouteRenderPlanBuilder
                 route.ToRouteInfo(),
                 ResolveItems(route, byId),
                 TemplateCapabilitiesResolver.ShouldIncludeListPageContent(route.Template, layoutsDir, listPageContentMode),
-                BuildPageFields(route),
+                BuildPageFields(route, language),
                 BuildPageContext(route)));
         }
 
@@ -61,7 +62,7 @@ internal static class ListRouteRenderPlanBuilder
         return items;
     }
 
-    internal static IReadOnlyDictionary<string, ContentField> BuildPageFields(ListRoutePlan route)
+    internal static IReadOnlyDictionary<string, ContentField> BuildPageFields(ListRoutePlan route, string? language = null)
     {
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
@@ -70,12 +71,14 @@ internal static class ListRouteRenderPlanBuilder
 
         if (!string.IsNullOrWhiteSpace(route.Title))
         {
-            fields["title"] = new("text", route.Title);
+            var pagination = ListPageMetadataBuilder.BuildPagination(route);
+            fields["title"] = new("text", ListPageMetadataBuilder.BuildTitle(route, pagination, language));
         }
 
         if (!string.IsNullOrWhiteSpace(route.Summary))
         {
-            fields["summary"] = new("text", route.Summary);
+            var pagination = ListPageMetadataBuilder.BuildPagination(route);
+            fields["summary"] = new("text", ListPageMetadataBuilder.BuildSummary(route, pagination, language));
         }
 
         if (route.PageSize is not null)
@@ -182,7 +185,8 @@ internal static class ListRouteRenderPlanBuilder
             {
                 ["title"] = item.Title,
                 ["url"] = item.Url,
-                ["publish_date"] = item.PublishDate?.DateTime
+                ["publish_date"] = item.PublishDate?.DateTime,
+                ["updated_at"] = item.UpdatedAt?.DateTime
             };
 
             if (!string.IsNullOrWhiteSpace(item.Summary))

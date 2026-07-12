@@ -97,7 +97,10 @@ internal static partial class CanonicalContentGraphBuilder
                 source.PublishAt,
                 FirstDate(source, "updatedAt") ?? FirstDate(source, "updated") ?? FirstDate(source, "modified") ?? FirstDate(source, "update_time") ?? FirstDate(source, "last_edited_time"),
                 FirstDate(source, "expires_at") ?? FirstDate(source, "expires"),
-                ParseGeoMeta(source).DateReviewed),
+                ParseGeoMeta(source).DateReviewed)
+            {
+                Evergreen = ContentFieldReader.GetBool(source.Fields, "evergreen") is true
+            },
             new ProvenanceRecord(
                 FirstText(source, "source"),
                 FirstText(source, "original_url") ?? FirstText(source, "source_url") ?? FirstText(source, "url"),

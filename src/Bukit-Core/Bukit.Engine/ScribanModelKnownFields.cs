@@ -10,6 +10,7 @@ internal static class ScribanModelKnownFields
         public const string Summary = "summary";
         public const string TableOfContents = "table_of_contents";
         public const string PublishDate = "publish_date";
+        public const string UpdatedAt = "updated_at";
         public const string Fields = "fields";
         public const string Seo = "seo";
         public const string Alternates = "alternates";
@@ -87,7 +88,7 @@ internal static class ScribanModelKnownFields
     {
         PageFields.Title, PageFields.Url, PageFields.Content,
         PageFields.Summary, PageFields.TableOfContents,
-        PageFields.PublishDate, PageFields.Fields, PageFields.Seo,
+        PageFields.PublishDate, PageFields.UpdatedAt, PageFields.Fields, PageFields.Seo,
         PageFields.Alternates, PageFields.Term, PageFields.Terms
     };
 
@@ -133,7 +134,7 @@ internal static class ScribanModelKnownFields
     private static readonly HashSet<string> _loopVarPageFields = new(StringComparer.OrdinalIgnoreCase)
     {
         PageFields.Title, PageFields.Url, PageFields.Content,
-        PageFields.Summary, PageFields.PublishDate, PageFields.Fields
+        PageFields.Summary, PageFields.PublishDate, PageFields.UpdatedAt, PageFields.Fields
     };
 
     internal static readonly HashSet<string> KnownRootContexts = new(StringComparer.OrdinalIgnoreCase)

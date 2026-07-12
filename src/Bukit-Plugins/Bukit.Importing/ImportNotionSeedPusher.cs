@@ -12,7 +12,8 @@ internal sealed record NotionPushOptions(
     string Mode = "create",
     string UniqueField = "Slug",
     string UpdateContent = "",
-    bool WriteReport = true);
+    bool WriteReport = true,
+    IReadOnlyDictionary<string, string>? Schema = null);
 
 internal sealed record NotionPushItemResult(
     ImportSeedRecord Record,
@@ -191,7 +192,7 @@ internal static partial class NotionSeedPusher
         using var request = new HttpRequestMessage(HttpMethod.Post,
             $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/pages");
         BuildCommonRequestHeaders(request, options.Token);
-        request.Content = new StringContent(BuildCreatePagePayload(options.DatabaseId, record));
+        request.Content = new StringContent(BuildCreatePagePayload(options.DatabaseId, record, options.Schema));
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
         using var response = await http.SendAsync(request, ct);
@@ -208,7 +209,7 @@ internal static partial class NotionSeedPusher
         using var request = new HttpRequestMessage(HttpMethod.Patch,
             $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/pages/{pageId}");
         BuildCommonRequestHeaders(request, options.Token);
-        request.Content = new StringContent(BuildUpdatePagePayload(record));
+        request.Content = new StringContent(BuildUpdatePagePayload(record, options.Schema));
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
         using var response = await http.SendAsync(request, ct);
@@ -299,7 +300,10 @@ internal static partial class NotionSeedPusher
             Failed: items.Count(i => !i.Success),
             Items: items);
 
-    private static string BuildCreatePagePayload(string databaseId, ImportSeedRecord record)
+    private static string BuildCreatePagePayload(
+        string databaseId,
+        ImportSeedRecord record,
+        IReadOnlyDictionary<string, string>? schema)
     {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
@@ -309,7 +313,7 @@ internal static partial class NotionSeedPusher
         writer.WriteString("database_id", databaseId);
         writer.WriteEndObject();
 
-        WriteProperties(writer, record);
+        WriteProperties(writer, record, schema);
 
         if (!string.IsNullOrWhiteSpace(record.Content))
         {
@@ -326,19 +330,24 @@ internal static partial class NotionSeedPusher
         return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private static string BuildUpdatePagePayload(ImportSeedRecord record)
+    private static string BuildUpdatePagePayload(
+        ImportSeedRecord record,
+        IReadOnlyDictionary<string, string>? schema)
     {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
 
         writer.WriteStartObject();
-        WriteProperties(writer, record);
+        WriteProperties(writer, record, schema);
         writer.WriteEndObject();
         writer.Flush();
         return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private static void WriteProperties(Utf8JsonWriter writer, ImportSeedRecord record)
+    private static void WriteProperties(
+        Utf8JsonWriter writer,
+        ImportSeedRecord record,
+        IReadOnlyDictionary<string, string>? schema)
     {
         writer.WriteStartObject("properties");
         WriteTitleProperty(writer, "Title", record.Title);
@@ -350,20 +359,29 @@ internal static partial class NotionSeedPusher
         WriteCheckboxProperty(writer, "Published", record.Published);
         WriteRichTextProperty(writer, "SeoTitle", record.SeoTitle);
         WriteRichTextProperty(writer, "SeoDescription", record.SeoDescription);
-        WriteExtraProperties(writer, record);
+        WriteExtraProperties(writer, record, schema);
         writer.WriteEndObject();
     }
 
-    private static void WriteExtraProperties(Utf8JsonWriter writer, ImportSeedRecord record)
+    private static void WriteExtraProperties(
+        Utf8JsonWriter writer,
+        ImportSeedRecord record,
+        IReadOnlyDictionary<string, string>? schema)
     {
         if (record.ExtraFields is null)
             return;
 
         foreach (var (name, value) in record.ExtraFields)
         {
-            var propertyName = ToNotionPropertyName(name);
-            if (string.IsNullOrWhiteSpace(propertyName) || IsCoreProperty(propertyName) || value is null)
+            var propertyName = NotionPropertyNaming.Canonicalize(name);
+            if (string.IsNullOrWhiteSpace(propertyName) || NotionPropertyNaming.IsCore(propertyName) || value is null)
                 continue;
+
+            if (schema is not null && schema.TryGetValue(propertyName, out var declaredType))
+            {
+                WriteTypedProperty(writer, propertyName, declaredType, value);
+                continue;
+            }
 
             if (value is bool b)
             {
@@ -374,6 +392,12 @@ internal static partial class NotionSeedPusher
             if (value is int or long or float or double or decimal)
             {
                 WriteNumberProperty(writer, propertyName, Convert.ToDouble(value));
+                continue;
+            }
+
+            if (value is IReadOnlyList<object?> values)
+            {
+                WriteMultiSelectProperty(writer, propertyName, values.Select(v => v?.ToString() ?? ""));
                 continue;
             }
 
@@ -388,21 +412,19 @@ internal static partial class NotionSeedPusher
         }
     }
 
-    private static string ToNotionPropertyName(string name)
-        => name.Trim().ToLowerInvariant() switch
+    private static void WriteTypedProperty(Utf8JsonWriter writer, string name, string type, object value)
+    {
+        switch (type)
         {
-            "link" => "Link",
-            "url" => "Url",
-            "href" => "Href",
-            "order" or "sort_order" => "Order",
-            "enabled" => "Enabled",
-            _ => string.Concat(name.Trim().Split(['_', '-', ' '], StringSplitOptions.RemoveEmptyEntries)
-                .Select(p => char.ToUpperInvariant(p[0]) + p[1..]))
-        };
-
-    private static bool IsCoreProperty(string name)
-        => name is "Title" or "Slug" or "Type" or "Summary" or "Content" or "Language" or
-           "Published" or "SeoTitle" or "SeoDescription";
+            case "rich_text": WriteRichTextProperty(writer, name, (string)value); break;
+            case "select": WriteSelectProperty(writer, name, (string)value); break;
+            case "multi_select": WriteMultiSelectProperty(writer, name, ((IReadOnlyList<object?>)value).Select(v => (string)v!)); break;
+            case "url": WriteUrlProperty(writer, name, (string)value); break;
+            case "date": WriteDateProperty(writer, name, (string)value); break;
+            case "number": WriteNumberProperty(writer, name, Convert.ToDouble(value)); break;
+            case "checkbox": WriteCheckboxProperty(writer, name, (bool)value); break;
+        }
+    }
 
     private static void WriteTitleProperty(Utf8JsonWriter writer, string name, string value)
     {
@@ -451,6 +473,29 @@ internal static partial class NotionSeedPusher
     {
         writer.WriteStartObject(name);
         writer.WriteString("url", value);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteDateProperty(Utf8JsonWriter writer, string name, string value)
+    {
+        writer.WriteStartObject(name);
+        writer.WriteStartObject("date");
+        writer.WriteString("start", value);
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteMultiSelectProperty(Utf8JsonWriter writer, string name, IEnumerable<string> values)
+    {
+        writer.WriteStartObject(name);
+        writer.WriteStartArray("multi_select");
+        foreach (var value in values.Where(v => !string.IsNullOrWhiteSpace(v)))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("name", value);
+            writer.WriteEndObject();
+        }
+        writer.WriteEndArray();
         writer.WriteEndObject();
     }
 

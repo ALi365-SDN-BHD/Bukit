@@ -22,6 +22,7 @@ internal sealed record BuildVariantContext(
     string? RootBaseUrl,
     string? ManifestSuffix,
     string? DefaultLanguage,
+    DateTimeOffset BuildStartedAt,
     string? ParentLayoutsDir = null,
     string? ParentAssetsDir = null,
     string? ParentStaticDir = null,

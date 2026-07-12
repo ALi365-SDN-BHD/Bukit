@@ -169,6 +169,18 @@ public sealed record ContentConfig
     public IReadOnlyList<ContentSourceConfig>? Sources { get; init; }
     public MediaConfig Media { get; init; } = new();
     public ContentModelSchemaConfig? ModelSchema { get; init; }
+    public RouteMetadataConfig? RouteMetadata { get; init; }
+}
+
+public sealed record RouteMetadataConfig
+{
+    public required string Source { get; init; }
+    public string RouteField { get; init; } = "route";
+    public string TitleField { get; init; } = "title";
+    public string SummaryField { get; init; } = "summary";
+    public string SeoTitleField { get; init; } = "seo_title";
+    public string SeoDescriptionField { get; init; } = "seo_description";
+    public IReadOnlyList<string> RequiredRoutes { get; init; } = Array.Empty<string>();
 }
 
 public sealed record ContentModelSchemaConfig
@@ -319,6 +331,12 @@ public sealed record NotionPropertyMapConfig
     public string? SeoDescription { get; init; }
     public string? SeoImage { get; init; }
     public string? Canonical { get; init; }
+    public string? OriginalUrl { get; init; }
+    public string? References { get; init; }
+    public string? EntitiesJson { get; init; }
+    public string? Cover { get; init; }
+    public string? CoverAlt { get; init; }
+    public string? CoverCaption { get; init; }
 }
 
 public sealed record MediaConfig

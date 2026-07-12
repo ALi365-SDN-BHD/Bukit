@@ -76,6 +76,25 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
+    public void Compute_DifferentBuildYear_ProducesDifferentHash()
+    {
+        static SiteModel CreateSite(int buildYear) => new()
+        {
+            Name = "test",
+            Title = "test",
+            BaseUrl = "/",
+            Language = "en",
+            BuildYear = buildYear
+        };
+        var config = CreateBaseConfig();
+
+        var hash1 = RenderDependencyHasher.Compute(config, CreateSite(2025));
+        var hash2 = RenderDependencyHasher.Compute(config, CreateSite(2026));
+
+        Assert.NotEqual(hash1, hash2);
+    }
+
+    [Fact]
     public void Compute_DifferentUrl_ProducesDifferentHash()
     {
         var config1 = CreateBaseConfig();

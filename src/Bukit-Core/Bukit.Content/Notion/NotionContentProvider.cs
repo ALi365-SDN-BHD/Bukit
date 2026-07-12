@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Bukit.Shared;
@@ -99,6 +100,14 @@ public sealed class NotionContentProvider : IContentProvider
                         ["notionPageId"] = pageId,
                         ["bodyFingerprint"] = string.IsNullOrWhiteSpace(lastEditedTime) ? pageId : lastEditedTime
                     };
+                    if (DateTimeOffset.TryParse(
+                            lastEditedTime,
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.RoundtripKind,
+                            out var lastEditedAt))
+                    {
+                        projectedValues["last_edited_time"] = lastEditedAt;
+                    }
                     if (!string.IsNullOrWhiteSpace(type))
                     {
                         projectedValues["type"] = type;
@@ -120,6 +129,7 @@ public sealed class NotionContentProvider : IContentProvider
                     NotionFieldProjectionHelper.ProjectTaxonomyField(fields, projectedValues, "tags");
                     NotionFieldProjectionHelper.ProjectTaxonomyField(fields, projectedValues, "categories");
                     NotionPropertyParser.ProjectSeoFields(projectedValues, props, pm);
+                    NotionPropertyParser.ProjectCanonicalFields(projectedValues, props, pm, pageId);
 
                     fields = ContentFieldReader.WithValues(fields, projectedValues);
                     drafts.Add(new PageDraft(pageId, title, slug, type ?? string.Empty, publishAt, lastEditedTime, fields, relationKeys));

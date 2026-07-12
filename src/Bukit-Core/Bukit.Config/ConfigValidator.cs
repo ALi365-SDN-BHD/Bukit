@@ -92,11 +92,13 @@ public static class ConfigValidator
             }
         }
 
+        ValidateRouteMetadata(config.Content);
+
         ProviderValidators.ValidateMedia(config.Content.Media);
 
         if (!string.IsNullOrWhiteSpace(config.Site.Timezone))
         {
-            if (!IsValidTimeZone(config.Site.Timezone))
+            if (!TimeZoneResolver.TryResolve(config.Site.Timezone, out _))
             {
                 throw new ConfigException($"site.timezone '{config.Site.Timezone}' is not a valid time zone identifier.", DiagnosticCode.ConfigInvalidValue);
             }
@@ -230,6 +232,70 @@ public static class ConfigValidator
             }
         }
     }
+
+    private static void ValidateRouteMetadata(ContentConfig content)
+    {
+        var routeMetadata = content.RouteMetadata;
+        if (routeMetadata is null)
+        {
+            return;
+        }
+
+        var fields = new Dictionary<string, string>
+        {
+            ["source"] = routeMetadata.Source,
+            ["routeField"] = routeMetadata.RouteField,
+            ["titleField"] = routeMetadata.TitleField,
+            ["summaryField"] = routeMetadata.SummaryField,
+            ["seoTitleField"] = routeMetadata.SeoTitleField,
+            ["seoDescriptionField"] = routeMetadata.SeoDescriptionField
+        };
+        foreach (var (fieldName, value) in fields)
+        {
+            if (!IsRouteMetadataIdentifier(value))
+            {
+                throw new ConfigException($"content.routeMetadata.{fieldName} must match ^[a-z][a-z0-9_]*$.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        var requiredRoutes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var route in routeMetadata.RequiredRoutes)
+        {
+            if (string.IsNullOrWhiteSpace(route) ||
+                !route.StartsWith("/", StringComparison.Ordinal) ||
+                !route.EndsWith("/", StringComparison.Ordinal))
+            {
+                throw new ConfigException("content.routeMetadata.requiredRoutes values must start and end with '/'.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            if (!requiredRoutes.Add(route))
+            {
+                throw new ConfigException($"content.routeMetadata.requiredRoutes contains duplicate route '{route}'.", DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        var source = content.Sources?.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name?.Trim(), routeMetadata.Source.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (source is null)
+        {
+            throw new ConfigException($"content.routeMetadata.source references unknown data source '{routeMetadata.Source}'.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (!string.Equals(source.Mode?.Trim(), "data", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ConfigException("content.routeMetadata.source must reference a source with mode: data.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (source.DataIndex is not null)
+        {
+            throw new ConfigException("content.routeMetadata.source must not declare dataIndex because route metadata is reserved for engine routing and is not exposed through template data bindings.", DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private static bool IsRouteMetadataIdentifier(string? value)
+        => value is not null &&
+           string.Equals(value, value.Trim(), StringComparison.Ordinal) &&
+           IsDataIndexIdentifier(value);
 
     private static bool IsDataIndexIdentifier(string? value)
     {
@@ -411,48 +477,6 @@ public static class ConfigValidator
         }
     }
 
-    private static bool IsValidTimeZone(string timeZoneId)
-    {
-        if (TryResolveTimeZone(timeZoneId, out _))
-        {
-            return true;
-        }
-
-        if (OperatingSystem.IsWindows()
-            && TimeZoneInfo.TryConvertIanaIdToWindowsId(timeZoneId, out var windowsTimeZoneId)
-            && TryResolveTimeZone(windowsTimeZoneId, out _))
-        {
-            return true;
-        }
-
-        if (OperatingSystem.IsWindows()
-            && TimeZoneCompatibility.TryGetWindowsTimeZoneFallback(timeZoneId, out var fallbackWindowsTimeZoneId)
-            && TryResolveTimeZone(fallbackWindowsTimeZoneId, out _))
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryResolveTimeZone(string timeZoneId, out TimeZoneInfo? timeZone)
-    {
-        try
-        {
-            timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            return true;
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            timeZone = null;
-            return false;
-        }
-        catch (InvalidTimeZoneException)
-        {
-            timeZone = null;
-            return false;
-        }
-    }
 
     private static void GetStringValue(YamlMappingNode node, string key, out string? value)
     {

@@ -15,10 +15,14 @@ internal sealed record RenderEntry(
     IReadOnlyDictionary<string, ContentField>? ListPageFields,
     ListPageContext? ListPageContext,
     string? RawContent,
-    string Title)
+    string Title,
+    ListRoutePlan? MetadataListRoute = null)
 {
-    internal static RenderEntry ForPage(ContentDocument document, RouteInfo route) =>
-        new(RenderEntryKind.Page, document, route, null, false, null, null, null, document.Title);
+    internal static RenderEntry ForPage(
+        ContentDocument document,
+        RouteInfo route,
+        ListRoutePlan? metadataListRoute = null) =>
+        new(RenderEntryKind.Page, document, route, null, false, null, null, null, document.Title, metadataListRoute);
 
     internal static RenderEntry ForList(
         RouteInfo listRoute,

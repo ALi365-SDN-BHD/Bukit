@@ -146,6 +146,32 @@ internal static class ConfigCollectionReader
         return sources;
     }
 
+    internal static RouteMetadataConfig? ReadRouteMetadata(YamlMappingNode contentNode)
+    {
+        var node = ConfigYamlHelpers.GetOptionalMapping(contentNode, "routeMetadata");
+        if (node is null)
+        {
+            return null;
+        }
+
+        var source = ConfigYamlHelpers.GetOptionalString(node, "source");
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            throw new ConfigException("content.routeMetadata.source is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        return new RouteMetadataConfig
+        {
+            Source = source,
+            RouteField = ConfigYamlHelpers.GetOptionalString(node, "routeField") ?? "route",
+            TitleField = ConfigYamlHelpers.GetOptionalString(node, "titleField") ?? "title",
+            SummaryField = ConfigYamlHelpers.GetOptionalString(node, "summaryField") ?? "summary",
+            SeoTitleField = ConfigYamlHelpers.GetOptionalString(node, "seoTitleField") ?? "seo_title",
+            SeoDescriptionField = ConfigYamlHelpers.GetOptionalString(node, "seoDescriptionField") ?? "seo_description",
+            RequiredRoutes = ConfigYamlHelpers.ReadStringList(node, "requiredRoutes") ?? Array.Empty<string>()
+        };
+    }
+
     internal static ContentModelSchemaConfig? ReadContentModelSchema(YamlMappingNode contentNode)
     {
         var node = ConfigYamlHelpers.GetOptionalMapping(contentNode, "modelSchema");

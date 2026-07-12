@@ -8,6 +8,7 @@ using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
@@ -48,7 +49,9 @@ internal static class PageRenderDispatcher
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = null,
         Func<ContentDocument, RouteInfo, PageInfo, string, string>? htmlPostProcessor = null,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
-        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null)
+        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null,
+        Func<RouteInfo, string>? renderDependencyHashResolver = null,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null)
     {
         var renderedCount = 0;
         var skippedCount = 0;
@@ -69,6 +72,7 @@ internal static class PageRenderDispatcher
 
         await Parallel.ForEachAsync(entries, parallelOptions, async (entry, ct) =>
         {
+            var entryRenderDependencyHash = renderDependencyHashResolver?.Invoke(entry.Route) ?? renderDependencyHash;
             switch (entry.Kind)
             {
                 case RenderEntryKind.Page:
@@ -90,7 +94,7 @@ internal static class PageRenderDispatcher
 
                         var canEvaluateSkip = incrementalEnabled && hasExisting && outputExists &&
                             existing!.TemplateHash == templateHash && existing.MetadataHash == mh &&
-                            existing.RouteHash == rh && existing.RenderDependencyHash == renderDependencyHash;
+                            existing.RouteHash == rh && existing.RenderDependencyHash == entryRenderDependencyHash;
 
                         string? contentHash = null;
                         if (canEvaluateSkip)
@@ -116,7 +120,7 @@ internal static class PageRenderDispatcher
                                 : existing.MetadataHash != mh ? "content_changed"
                                 : existing.ContentHash != contentHash ? "content_changed"
                                 : existing.RouteHash != rh ? "route_changed"
-                                : existing.RenderDependencyHash != renderDependencyHash ? "render_dependency_changed" : "render";
+                                : existing.RenderDependencyHash != entryRenderDependencyHash ? "render_dependency_changed" : "render";
                             renderReasons.AddOrUpdate(reason, 1, (_, v) => v + 1);
                         }
                         else
@@ -138,6 +142,7 @@ internal static class PageRenderDispatcher
                             Summary = contentRecord.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
                             TableOfContents = SpecialListRenderer.GetTableOfContents(document),
                             PublishDate = document.PublishAt,
+                            UpdatedAt = contentRecord.Lifecycle.UpdatedAt,
                             Fields = document.CustomFields,
                             ContentRecord = contentRecord,
                             Entities = contentRecord.Entities,
@@ -146,6 +151,22 @@ internal static class PageRenderDispatcher
                             Representations = PublishRepresentationRegistry.DocumentKinds(),
                             Seo = seoBuilder?.Invoke(document, route)
                         };
+                        if (entry.MetadataListRoute is { } metadataListRoute)
+                        {
+                            var pagination = ListPageMetadataBuilder.BuildPagination(metadataListRoute);
+                            pageInfo = pageInfo with
+                            {
+                                Title = ListPageMetadataBuilder.BuildTitle(
+                                    metadataListRoute, pagination, siteModel.Language),
+                                Summary = ListPageMetadataBuilder.BuildSummary(
+                                    metadataListRoute, pagination, siteModel.Language)
+                            };
+                        }
+                        else
+                        {
+                            pageInfo = RouteMetadataApplicator.ApplyToPage(
+                                pageInfo, route.Url, routeMetadata, document);
+                        }
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var html = renderer.RenderPage(route.Template, pageModel);
                         if (htmlPostProcessor is not null) html = htmlPostProcessor(document, route, pageInfo, html);
@@ -153,7 +174,7 @@ internal static class PageRenderDispatcher
                         Interlocked.Increment(ref renderedCount);
                         stageMetrics.Increment("pageRender");
                         stageMetrics.AddDuration("pageRender", 0);
-                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(document, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = renderDependencyHash };
+                        if (needsIncrementalMode) manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = route.Url, Template = route.Template, MetadataHash = mh, ContentHash = contentHash ?? IncrementalBuildEngine.ComputeContentHash(document, mh, content), RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = entryRenderDependencyHash };
                         break;
                     }
 
@@ -172,7 +193,7 @@ internal static class PageRenderDispatcher
 
                         var canSkip = incrementalEnabled && hasExisting && outputExists &&
                             le!.TemplateHash == templateHash && le.ContentHash == ch &&
-                            le.RouteHash == rh && le.RenderDependencyHash == renderDependencyHash;
+                            le.RouteHash == rh && le.RenderDependencyHash == entryRenderDependencyHash;
 
                         if (canSkip)
                         {
@@ -201,7 +222,7 @@ internal static class PageRenderDispatcher
 
                         if (needsIncrementalMode)
                         {
-                            manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = renderDependencyHash };
+                            manifestEntries![key] = new BuildManifestEntry { OutputPath = key, Url = listRoute.Url, Template = listRoute.Template, ContentHash = ch, RouteHash = rh, TemplateHash = templateHash, RenderDependencyHash = entryRenderDependencyHash };
                         }
                         break;
                     }
@@ -217,6 +238,7 @@ internal static class PageRenderDispatcher
                             Summary = siteModel.Description,
                             Representations = [PublishRepresentationRegistry.Html.Kind]
                         };
+                        pageInfo = RouteMetadataApplicator.ApplyToPage(pageInfo, route.Url, routeMetadata);
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var staticHtml = renderer.RenderPage(route.Template, pageModel);
                         await WriteUtf8LockedAsync(outputDir, route.OutputPath, staticHtml, writeLocks, ct);

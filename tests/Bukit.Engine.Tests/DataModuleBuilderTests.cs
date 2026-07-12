@@ -245,6 +245,32 @@ public sealed class DataModuleBuilderTests
     }
 
     [Fact]
+    public void BuildDataIndex_AmbiguousConfiguredAliases_PreservesDiagnosticContext()
+    {
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["sourceKey"] = "settings",
+            ["sourceMode"] = "data",
+            ["scope"] = "contact",
+            ["key"] = "email",
+            ["value"] = "contact@example.com",
+            ["valueType"] = "email",
+            ["value_type"] = "email"
+        });
+        var item = CreateDocument("email", "email", "email", null, fields);
+        var source = CreateIndexedSource() with
+        {
+            DataIndex = CreateIndexedSource().DataIndex! with { ValueTypeField = "value__type" }
+        };
+
+        var ex = Assert.Throws<ContentException>(() =>
+            DataModuleBuilder.BuildDataIndex([item], [source]));
+
+        Assert.Contains("Data index source 'settings' content 'email'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("ambiguous aliases", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void BuildDataIndex_OptionalMissingValue_BuildsEmptyScalar()
     {
         var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>

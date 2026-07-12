@@ -11,6 +11,7 @@ using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Bukit.Theme;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
@@ -18,7 +19,8 @@ internal sealed record DataModuleResult(
     IReadOnlyList<ContentDocument> DataDocuments,
     IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? Modules,
     IReadOnlyDictionary<string, object>? SourceData,
-    IReadOnlyDictionary<string, object>? DataIndex);
+    IReadOnlyDictionary<string, object>? DataIndex,
+    IReadOnlyDictionary<string, RouteMetadataEntry>? RouteMetadata);
 
 internal sealed record ManifestSetupResult(
     BuildManifest Manifest,
@@ -42,13 +44,35 @@ internal sealed partial class VariantBuildPipeline
 {
     internal DataModuleResult PrepareDataModules(
         IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore,
-        IReadOnlyList<ContentSourceConfig>? sources = null)
+        IReadOnlyList<ContentSourceConfig>? sources = null,
+        RouteMetadataConfig? routeMetadata = null)
     {
         var dataDocuments = documents.Where(ContentFieldReader.IsDataItem).ToList();
-        var modules = DataModuleBuilder.BuildModules(dataDocuments, language, bodyStore);
+        var templateDataDocuments = ExcludeRouteMetadataDocuments(dataDocuments, routeMetadata?.Source);
+        var modules = DataModuleBuilder.BuildModules(templateDataDocuments, language, bodyStore);
         var sourceData = DataModuleBuilder.BuildDataBySource(dataDocuments, bodyStore);
-        var dataIndex = DataModuleBuilder.BuildDataIndex(dataDocuments, sources);
-        return new DataModuleResult(dataDocuments, modules, sourceData, dataIndex);
+        var dataIndex = DataModuleBuilder.BuildDataIndex(templateDataDocuments, sources);
+        var routeMetadataIndex = routeMetadata is null
+            ? null
+            : RouteMetadataIndexBuilder.Build(routeMetadata, sourceData);
+        return new DataModuleResult(dataDocuments, modules, sourceData, dataIndex, routeMetadataIndex);
+    }
+
+    private static IReadOnlyList<ContentDocument> ExcludeRouteMetadataDocuments(
+        IReadOnlyList<ContentDocument> dataDocuments,
+        string? reservedSource)
+    {
+        if (string.IsNullOrWhiteSpace(reservedSource))
+        {
+            return dataDocuments;
+        }
+
+        return dataDocuments
+            .Where(document => !string.Equals(
+                ContentFieldReader.GetText(document.CustomFields, "sourceKey")?.Trim(),
+                reservedSource,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
     }
 
     internal RoutePipelineResult GenerateRoutes(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver templateResolver)
@@ -81,9 +105,13 @@ internal sealed partial class VariantBuildPipeline
         IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? modules,
         IReadOnlyDictionary<string, object>? sourceData,
         IReadOnlyDictionary<string, object>? pluginData = null,
-        IReadOnlyDictionary<string, object>? dataIndex = null)
+        IReadOnlyDictionary<string, object>? dataIndex = null,
+        DateTimeOffset? buildStartedAt = null)
     {
-        var data = MergeSiteData(sourceData, pluginData);
+        var reservedSource = config.Content.RouteMetadata?.Source;
+        var data = ExcludeReservedSource(MergeSiteData(sourceData, pluginData), reservedSource);
+        var buildInstant = buildStartedAt ?? DateTimeOffset.UtcNow;
+        var buildTimezone = TimeZoneResolver.ResolveOrUtc(config.Site.Timezone);
         return new SiteModel
         {
             Name = config.Site.Name,
@@ -92,16 +120,39 @@ internal sealed partial class VariantBuildPipeline
             Description = config.Site.Description,
             BaseUrl = baseUrl,
             Language = config.Site.Language,
+            BuildYear = TimeZoneInfo.ConvertTime(buildInstant, buildTimezone).Year,
             Analytics = new AnalyticsModel
             {
                 Enabled = config.Site.Analytics.Enabled,
                 GoogleAnalyticsId = config.Site.Analytics.GoogleAnalyticsId
             },
             Params = config.Theme.Params,
-            Modules = modules,
+            Modules = ExcludeReservedSource(modules, reservedSource),
             Data = data,
-            DataIndex = dataIndex
+            DataIndex = ExcludeReservedSource(dataIndex, reservedSource)
         };
+    }
+
+    private static IReadOnlyDictionary<string, TValue>? ExcludeReservedSource<TValue>(
+        IReadOnlyDictionary<string, TValue>? values,
+        string? reservedSource)
+    {
+        if (values is null || string.IsNullOrWhiteSpace(reservedSource) ||
+            !values.Keys.Any(key => string.Equals(key, reservedSource, StringComparison.OrdinalIgnoreCase)))
+        {
+            return values;
+        }
+
+        var filtered = new Dictionary<string, TValue>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in values)
+        {
+            if (!string.Equals(key, reservedSource, StringComparison.OrdinalIgnoreCase))
+            {
+                filtered[key] = value;
+            }
+        }
+
+        return filtered.Count == 0 ? null : filtered;
     }
 
     internal ManifestSetupResult SetupManifest(
@@ -195,14 +246,18 @@ internal sealed partial class VariantBuildPipeline
         var templateResolver = new ThemeTemplateResolver(bootstrap.Manifest);
         templateResolver.ValidateRequiredTemplates();
         var dataModules = await BuildDataModulesAsync(
-            documents, config.Site.Language, bodyStore, config.Content.Sources, variantStageMetrics);
+            documents, config.Site.Language, bodyStore, config.Content.Sources,
+            config.Content.RouteMetadata, variantStageMetrics);
         var routePipelineResult = await BuildRoutePipelineAsync(
             config, documents, dataModules.DataDocuments, bodyStore, ctx, logger, variantStageMetrics, templateResolver, cancellationToken);
 
         await RunPluginDeriveStageAsync(routePipelineResult.PluginContext, variantStageMetrics, cancellationToken);
         routePipelineResult = routePipelineResult with
         {
-            RouteResult = AddDerivedListRoutesToGraph(routePipelineResult.RouteResult, routePipelineResult.PluginContext)
+            RouteResult = AddDerivedListRoutesToGraph(
+                routePipelineResult.RouteResult,
+                routePipelineResult.PluginContext,
+                dataModules.RouteMetadata)
         };
         ValidatePostDeriveRoutes(routePipelineResult);
 
@@ -216,7 +271,7 @@ internal sealed partial class VariantBuildPipeline
 
         var siteModel = BuildSiteModel(
             config, baseUrl, dataModules.Modules, dataModules.SourceData,
-            routePipelineResult.PluginContext.Data, dataModules.DataIndex);
+            routePipelineResult.PluginContext.Data, dataModules.DataIndex, ctx.BuildStartedAt);
         var manifestSetup = SetupManifest(ctx, overrides, templateHashCache);
 
         var renderDocuments = routePipelineResult.RouteResult.RoutedDocuments
@@ -227,12 +282,12 @@ internal sealed partial class VariantBuildPipeline
         var seoStage = await BuildSeoStageAsync(
             config, baseUrl, renderDocuments, listRoutes, routePipelineResult.RouteResult.ListRouteGraph, siteModel.Analytics, logger,
             ctx.SeoAlternates, ctx.RootBaseUrl, ctx.DefaultLanguage, overrides,
-            routePipelineResult.PluginContext);
+            routePipelineResult.PluginContext, dataModules.RouteMetadata);
 
         var renderPipelineResult = await RenderPagesStageAsync(
             renderDocuments, routePipelineResult.RouteResult.RoutedDocuments, routePipelineResult.RouteResult.ListRouteGraph, bodyStore, renderer, siteModel,
             config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
-            variantStageMetrics, logger, templateResolver, cancellationToken);
+            variantStageMetrics, logger, templateResolver, dataModules.RouteMetadata, cancellationToken);
 
         var hasStaticDir = Directory.Exists(ctx.StaticDir);
         var (themeRootForTokens, parentThemeRootForTokens) = GetThemeRootForTokens(
@@ -269,10 +324,11 @@ internal sealed partial class VariantBuildPipeline
     private Task<DataModuleResult> BuildDataModulesAsync(
         IReadOnlyList<ContentDocument> documents, string language, IContentBodyStore bodyStore,
         IReadOnlyList<ContentSourceConfig>? sources,
+        RouteMetadataConfig? routeMetadata,
         BuildStageMetricsCollector metrics)
     {
         var splitItemsStopwatch = Stopwatch.StartNew();
-        var dataModules = PrepareDataModules(documents, language, bodyStore, sources);
+        var dataModules = PrepareDataModules(documents, language, bodyStore, sources, routeMetadata);
         splitItemsStopwatch.Stop();
         metrics.AddDuration("prepareContent", splitItemsStopwatch.ElapsedMilliseconds);
         return Task.FromResult(dataModules);
@@ -367,7 +423,8 @@ internal sealed partial class VariantBuildPipeline
         string? rootBaseUrl,
         string? defaultLanguage,
         ConfigOverrides overrides,
-        BuildContext pluginContext)
+        BuildContext pluginContext,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata)
     {
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
             config, seoAlternateInputs, listRouteGraph, rootBaseUrl, defaultLanguage);
@@ -377,7 +434,7 @@ internal sealed partial class VariantBuildPipeline
             Math.Max(1, Environment.ProcessorCount * 2));
 
         var seoResult = new SeoPipeline().Execute(
-            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph);
+            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph, routeMetadata);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
         pluginContext.Data[BuildContextDataKeys.SeoModels] = seoResult.SeoIndex.Models;
 
@@ -400,6 +457,7 @@ internal sealed partial class VariantBuildPipeline
         BuildStageMetricsCollector metrics,
         ILogger logger,
         ThemeTemplateResolver templateResolver,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata,
         CancellationToken cancellationToken)
     {
         var renderDependencyHashStopwatch = Stopwatch.StartNew();
@@ -408,6 +466,30 @@ internal sealed partial class VariantBuildPipeline
             : string.Empty;
         renderDependencyHashStopwatch.Stop();
         metrics.AddDuration("renderDependencyHash", renderDependencyHashStopwatch.ElapsedMilliseconds);
+        var contentByOutputPath = renderDocuments.ToDictionary(
+            document => BuildPathUtils.NormalizeRelPath(document.Route.OutputPath),
+            document => document.Document,
+            StringComparer.OrdinalIgnoreCase);
+        Func<RouteInfo, string>? renderDependencyHashResolver = routeMetadata is null
+            ? null
+            : route =>
+            {
+                var graphRoute = listRouteGraph.FindByOutputPath(route.OutputPath);
+                string? metadataRouteUrl = graphRoute?.MetadataRouteUrl;
+                if (metadataRouteUrl is null)
+                {
+                    contentByOutputPath.TryGetValue(
+                        BuildPathUtils.NormalizeRelPath(route.OutputPath), out var document);
+                    metadataRouteUrl = RouteMetadataApplicator.ResolveDependencyRouteUrl(document, route.Url);
+                }
+
+                if (metadataRouteUrl is null)
+                {
+                    return renderDependencyHash;
+                }
+
+                return RenderDependencyHasher.ComputeForRoute(renderDependencyHash, metadataRouteUrl, routeMetadata);
+            };
 
         var renderPipelineResult = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
             BodyStore: bodyStore,
@@ -430,7 +512,9 @@ internal sealed partial class VariantBuildPipeline
             ListHtmlPostProcessor: seoStage.SeoResult.ListHtmlPostProcessor,
             TemplateResolver: templateResolver,
             RenderDocuments: renderDocuments,
-            RoutedDocuments: routedDocuments),
+            RoutedDocuments: routedDocuments,
+            RenderDependencyHashResolver: renderDependencyHashResolver,
+            RouteMetadata: routeMetadata),
             cancellationToken);
 
         metrics.Merge(renderPipelineResult.StageMetrics);

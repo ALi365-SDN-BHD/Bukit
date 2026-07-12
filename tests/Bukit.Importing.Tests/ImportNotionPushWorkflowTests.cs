@@ -301,6 +301,624 @@ databases:
     }
 
     [Fact]
+    public async Task PushSeedDirectoryAsync_TypedSchemaCreatesAndWritesMatchingNotionTypes()
+    {
+        var inputDir = Path.Combine(_rootDir, "typed-seed");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """
+[
+  {
+    "title": "Typed",
+    "slug": "typed",
+    "category": "Market",
+    "tags": ["china", "market"],
+    "website": "https://example.com",
+    "publish_at": "2026-07-11",
+    "priority": 3,
+    "featured": true
+  }
+]
+""");
+        var mapPath = Path.Combine(inputDir, "notion-database-map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    title: Posts
+    seed: posts.json
+    collection: post
+    databaseId:
+    uniqueField: Slug
+    schema:
+      Category: select
+      Tags: multi_select
+      Website: url
+      PublishAt: date
+      Priority: number
+      Featured: checkbox
+""");
+
+        string? databasePayload = null;
+        string? pagePayload = null;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases", StringComparison.Ordinal))
+            {
+                databasePayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("""{ "id": "db-created" }""");
+            }
+            if (request.Method == HttpMethod.Post && path.EndsWith("/pages", StringComparison.Ordinal))
+            {
+                pagePayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("""{ "id": "page-created" }""");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                CreateMissingDatabases = true,
+                ParentPageId = "parent-page",
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "typed-report.json")
+            }));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.NotNull(databasePayload);
+        Assert.NotNull(pagePayload);
+        foreach (var (field, type) in new[]
+        {
+            ("Category", "select"), ("Tags", "multi_select"), ("Website", "url"),
+            ("PublishAt", "date"), ("Priority", "number"), ("Featured", "checkbox")
+        })
+        {
+            AssertPropertyType(databasePayload!, field, type);
+            AssertPropertyType(pagePayload!, field, type);
+        }
+    }
+
+    [Theory]
+    [InlineData("Unknown: relation", "Unsupported Notion schema type 'relation'")]
+    [InlineData("Category: [select]", "Schema field 'Category' must declare a scalar type")]
+    public async Task PushSeedDirectoryAsync_InvalidTypedSchemaFailsBeforeApiCall(string schemaLine, string expectedError)
+    {
+        var inputDir = Path.Combine(_rootDir, "invalid-schema-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """[{ "title": "Post", "slug": "post" }]""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, $"""
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+    schema:
+      {schemaLine}
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "invalid-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains(expectedError, result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_DuplicateTypedSchemaFieldFailsBeforeApiCall()
+    {
+        var inputDir = Path.Combine(_rootDir, "duplicate-schema");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """[{ "title": "Post", "slug": "post" }]""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+    schema:
+      Category: select
+      Category: rich_text
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "duplicate-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains(mapPath, result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("Duplicate schema field 'Category'", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Theory]
+    [InlineData("publish_at: date", "Schema key 'publish_at' must use canonical Notion property name 'PublishAt'")]
+    [InlineData("Title: rich_text", "Schema key 'Title' conflicts with fixed core property 'Title'")]
+    [InlineData("'---': rich_text", "Schema key '---' has an empty canonical Notion property name")]
+    public async Task PushSeedDirectoryAsync_InvalidSchemaKeyFailsWithMapPathBeforeApiCall(
+        string schemaLine,
+        string expectedError)
+    {
+        var inputDir = Path.Combine(_rootDir, "invalid-key-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """[{ "title": "Post", "slug": "post" }]""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, $"""
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+    schema:
+      {schemaLine}
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "invalid-key-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains(mapPath, result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("databases.posts.schema", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains(expectedError, result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_NormalizedDuplicateSchemaKeysFailBeforeApiCall()
+    {
+        var inputDir = Path.Combine(_rootDir, "normalized-duplicate");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """[{ "title": "Post", "slug": "post" }]""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+    schema:
+      publish_at: date
+      PublishAt: date
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "normalized-duplicate-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("normalize to duplicate Notion property 'PublishAt'", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Theory]
+    [InlineData("date", "07/11/2026")]
+    [InlineData("url", "ftp://example.com/file")]
+    [InlineData("number", "3")]
+    [InlineData("checkbox", "true")]
+    [InlineData("multi_select", "market")]
+    public async Task PushSeedDirectoryAsync_TypedValueKindMismatchFailsBeforeApiCall(string type, string jsonValue)
+    {
+        var inputDir = Path.Combine(_rootDir, "mismatch-" + type);
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), $$"""[{ "title": "Post", "slug": "post", "value": "{{jsonValue}}" }]""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, $$"""
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+    schema:
+      Value: {{type}}
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "mismatch-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains($"field 'Value', record 'post': expected {type}", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_IncompatibleTypedValueReportsDatabaseFieldAndRecordBeforeApiCall()
+    {
+        var inputDir = Path.Combine(_rootDir, "invalid-value");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """[{ "title": "Post", "slug": "post", "category": ["Market"] }]""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+    schema:
+      Category: select
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "invalid-value-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("database 'posts'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("field 'Category'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("record 'post'", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_WithoutSchemaPreservesLegacyPagePropertyInference()
+    {
+        var inputDir = Path.Combine(_rootDir, "legacy-inference");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """
+[
+  {
+    "title": "Legacy",
+    "slug": "legacy",
+    "featured": true,
+    "priority": 7,
+    "url": "https://example.com",
+    "category": "Market"
+  }
+]
+""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+""");
+        string? pagePayload = null;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            if (request.Method == HttpMethod.Post && request.RequestUri?.AbsolutePath.EndsWith("/pages", StringComparison.Ordinal) == true)
+            {
+                pagePayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("""{ "id": "page-created" }""");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "legacy-report.json")
+            }));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.NotNull(pagePayload);
+        AssertPropertyType(pagePayload!, "Featured", "checkbox");
+        AssertPropertyType(pagePayload!, "Priority", "number");
+        AssertPropertyType(pagePayload!, "Url", "url");
+        AssertPropertyType(pagePayload!, "Category", "rich_text");
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_TypedYamlScalarSequenceWritesMultiSelect()
+    {
+        var inputDir = Path.Combine(_rootDir, "yaml-multi-select");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.yaml"), """
+- title: YAML Tags
+  slug: yaml-tags
+  tags:
+    - china
+    - market
+""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.yaml
+    collection: post
+    databaseId: db-posts
+    schema:
+      Tags: multi_select
+""");
+        string? pagePayload = null;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            if (request.Method == HttpMethod.Post && request.RequestUri?.AbsolutePath.EndsWith("/pages", StringComparison.Ordinal) == true)
+            {
+                pagePayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("""{ "id": "page-created" }""");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "yaml-tags-report.json")
+            }));
+
+        Assert.Equal(0, result.ExitCode);
+        using var payload = JsonDocument.Parse(pagePayload!);
+        var names = payload.RootElement.GetProperty("properties").GetProperty("Tags")
+            .GetProperty("multi_select").EnumerateArray()
+            .Select(item => item.GetProperty("name").GetString()!).ToArray();
+        Assert.Equal(["china", "market"], names);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_InferredSchemaConflictAcrossRecordsFailsBeforeApiCall()
+    {
+        var inputDir = Path.Combine(_rootDir, "inferred-conflict");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """
+[
+  { "title": "First", "slug": "first", "featured": true },
+  { "title": "Second", "slug": "second", "featured": "yes" }
+]
+""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "inferred-conflict-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("database 'posts'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("field 'Featured'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("record 'second'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("expected checkbox", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_SingleDatabaseInferenceConflictFailsBeforeApiCall()
+    {
+        var inputDir = Path.Combine(_rootDir, "single-inferred-conflict");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """
+[
+  { "title": "First", "slug": "first", "priority": 1 },
+  { "title": "Second", "slug": "second", "priority": "high" }
+]
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseId = "db-single",
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "single-inferred-conflict-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("database 'db-single'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("field 'Priority'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("record 'second'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("expected number", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Theory]
+    [InlineData(".nan")]
+    [InlineData(".inf")]
+    [InlineData("-.inf")]
+    public async Task PushSeedDirectoryAsync_NonFiniteNumberFailsBeforeApiCall(string value)
+    {
+        var inputDir = Path.Combine(_rootDir, "non-finite-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.yaml"), $"""
+- title: Non-finite
+  slug: non-finite
+  priority: {value}
+""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.yaml
+    collection: post
+    databaseId: db-posts
+    schema:
+      Priority: number
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "non-finite-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("field 'Priority'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("finite number", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Theory]
+    [InlineData("[\"market\", \"   \"]", "blank option")]
+    [InlineData("[\"market\", \"Market\"]", "duplicate option 'Market'")]
+    public async Task PushSeedDirectoryAsync_InvalidMultiSelectOptionsFailBeforeApiCall(
+        string optionsJson,
+        string expectedError)
+    {
+        var inputDir = Path.Combine(_rootDir, "invalid-multi-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"),
+            $$"""[{ "title": "Post", "slug": "post", "tags": {{optionsJson}} }]""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+    schema:
+      Tags: multi_select
+""");
+        var requestCount = 0;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return Json("{}");
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "invalid-multi-report.json")
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("database 'posts'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("field 'Tags'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("record 'post'", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains(expectedError, result.StdErr, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, requestCount);
+    }
+
+    [Fact]
     public async Task ValidateSchemaAsync_MissingDatabaseIdReturnsTwo()
     {
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");

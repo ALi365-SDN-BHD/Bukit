@@ -54,6 +54,18 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public void ContentDocumentNormalizer_EvergreenFieldSetsLifecyclePolicy()
+    {
+        var document = Document("about", "about", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = "page",
+            ["evergreen"] = true
+        });
+
+        Assert.True(document.Record.Lifecycle.Evergreen);
+    }
+
+    [Fact]
     public void ContentDocumentNormalizer_DataModeWithoutCollection_DefaultsTypeToModuleAndLeavesCollectionEmpty()
     {
         var document = Document("site-data", "site-data", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)

@@ -7,12 +7,66 @@ using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using Bukit.Engine.RouteMetadata;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class RenderPipelineTests
 {
+    [Fact]
+    public async Task ExecuteAsync_RendersTaxonomyRouteMetadataFromMatchingGraphPlans()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-render-pipeline-tests", Guid.NewGuid().ToString("N"));
+        var layoutsDir = Path.Combine(outputDir, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+        var derived = new[]
+        {
+            Derived("category-index", "Derived categories", "Derived category summary", "/insights/category/", "insights/category/index.html"),
+            Derived("category-market", "Derived market", "Derived market summary", "/insights/category/market/", "insights/category/market/index.html"),
+            Derived("category-market-page-2", "Derived market page 2", "Derived market page 2 summary", "/insights/category/market/page/2/", "insights/category/market/page/2/index.html")
+        };
+        var graph = ListRouteGraph.Create(new[]
+        {
+            TaxonomyPlan("taxonomy:category:index", ListRouteKind.TaxonomyIndex, derived[0].Route, "/insights/category/", page: 1),
+            TaxonomyPlan("taxonomy:category:market:1", ListRouteKind.TaxonomyTermPage, derived[1].Route, "/insights/category/market/", page: 1),
+            TaxonomyPlan("taxonomy:category:market:2", ListRouteKind.TaxonomyTermPage, derived[2].Route, "/insights/category/market/", page: 2)
+        });
+        var metadata = new Dictionary<string, RouteMetadataEntry>
+        {
+            ["/insights/category/"] = new("/insights/category/", "资讯分类", "浏览全部资讯分类", null, null),
+            ["/insights/category/market/"] = new("/insights/category/market/", "市场观察", "市场观察资讯", null, null)
+        };
+        graph = ListRouteGraphBuilder.ApplyRouteMetadata(graph, metadata);
+        Assert.All(graph.Routes, route => Assert.True(route.RouteMetadataApplied));
+        var renderer = new CaptureRenderer();
+
+        await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
+            BodyStore: EmptyContentBodyStore.Instance,
+            Renderer: renderer,
+            SiteModel: new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "zh-CN" },
+            Collections: null,
+            LayoutsDir: layoutsDir,
+            ListPageContentMode: "auto",
+            OutputPathEncoding: "pretty",
+            OutputDir: outputDir,
+            TemplateHash: string.Empty,
+            RenderDependencyHash: string.Empty,
+            IncrementalEnabled: false,
+            Manifest: new BuildManifest(),
+            ManifestEntries: null,
+            MaxDegreeOfParallelism: 1,
+            Logger: new ConsoleLogger(LogLevel.Error),
+            ListRouteGraph: graph,
+            RenderDocuments: derived,
+            RoutedDocuments: Array.Empty<RoutedContentDocument>(),
+            RouteMetadata: metadata), CancellationToken.None);
+
+        Assert.Equal(("资讯分类", "浏览全部资讯分类"), renderer.PageMetadata["/insights/category/"]);
+        Assert.Equal(("市场观察", "市场观察资讯"), renderer.PageMetadata["/insights/category/market/"]);
+        Assert.Equal(("市场观察 - 第 2 页", "市场观察资讯 第 2 页，显示第 3-4 项，共 5 项。"), renderer.PageMetadata["/insights/category/market/page/2/"]);
+    }
+
     [Fact]
     public async Task ExecuteAsync_RendersPagesAndSpecialListsAndAggregatesResult()
     {
@@ -124,14 +178,52 @@ public sealed class RenderPipelineTests
             }
         };
 
+    private static RoutedContentDocument Derived(string id, string title, string summary, string url, string outputPath)
+    {
+        var document = ContentDocument.Create(
+            id,
+            title,
+            id,
+            DateTimeOffset.UtcNow,
+            $"<p>{title}</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "derived",
+                ["collection"] = "page",
+                ["summary"] = summary
+            }));
+        return new RoutedContentDocument(document, new RouteInfo(url, outputPath, "pages/taxonomy.html"));
+    }
+
+    private static ListRoutePlan TaxonomyPlan(
+        string id,
+        ListRouteKind kind,
+        RouteInfo route,
+        string metadataRouteUrl,
+        int page) => new()
+    {
+        RouteId = id,
+        Kind = kind,
+        Url = route.Url,
+        OutputPath = route.OutputPath,
+        Template = route.Template,
+        MetadataRouteUrl = metadataRouteUrl,
+        PageNumber = page,
+        PageSize = kind == ListRouteKind.TaxonomyTermPage ? 2 : null,
+        TotalItems = kind == ListRouteKind.TaxonomyTermPage ? 5 : 0,
+        CanonicalUrl = route.Url
+    };
+
     private sealed class CaptureRenderer : ITemplateRenderer
     {
         public int PageRenderCount { get; private set; }
         public int ListRenderCount { get; private set; }
+        public Dictionary<string, (string Title, string? Summary)> PageMetadata { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         public string RenderPage(string templateRelativePath, PageModel model)
         {
             PageRenderCount++;
+            PageMetadata[model.Page.Url] = (model.Page.Title, model.Page.Summary);
             return model.Page.Content;
         }
 

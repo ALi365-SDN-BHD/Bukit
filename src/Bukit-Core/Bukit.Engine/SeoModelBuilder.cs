@@ -13,12 +13,14 @@ internal static class SeoModelBuilder
         string baseUrl,
         ContentDocument document,
         RouteInfo route,
-        IReadOnlyList<SeoAlternateModel>? alternates = null)
+        IReadOnlyList<SeoAlternateModel>? alternates = null,
+        string? titleOverride = null,
+        string? descriptionOverride = null)
     {
         var record = document.Record;
         var fields = document.CustomFields;
-        var title = FirstTextField(fields, "seo_title") ?? FirstTextField(fields, "seotitle") ?? document.Title;
-        var description = FirstTextField(fields, "seo_desc") ?? FirstTextField(fields, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
+        var title = titleOverride ?? FirstTextField(fields, "seo_title") ?? FirstTextField(fields, "seotitle") ?? document.Title;
+        var description = descriptionOverride ?? FirstTextField(fields, "seo_desc") ?? FirstTextField(fields, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
         var canonical = FirstTextField(fields, "canonical") ?? BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url);
         var robots = FirstTextField(fields, "robots");
         var image = FirstTextField(fields, "og_image")

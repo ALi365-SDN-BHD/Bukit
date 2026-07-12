@@ -989,7 +989,7 @@ public sealed class SiteEngineIntegrationTests
             AssertDocumentTitle(Path.Combine(root, "dist", "index.html"), "Test Site Home");
             AssertDocumentTitle(Path.Combine(root, "dist", "blog", "post-1", "index.html"), "Featured & Story :: Test Site");
             AssertDocumentTitle(Path.Combine(root, "dist", "blog", "index.html"), "Blog :: Test Site");
-            AssertDocumentTitle(Path.Combine(root, "dist", "blog", "page", "2", "index.html"), "Blog - Page 2 :: Test Site");
+            AssertDocumentTitle(Path.Combine(root, "dist", "blog", "page", "2", "index.html"), "Blog - 第 2 页 :: Test Site");
         }
         finally
         {

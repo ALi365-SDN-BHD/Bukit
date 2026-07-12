@@ -98,7 +98,7 @@ public static class ImportSeedRecordReader
                 Published: ReadBool(node, "published") ?? true,
                 SeoTitle: ReadString(node, "seo_title"),
                 SeoDescription: ReadString(node, "seo_description"),
-                ExtraFields: ReadExtraFields(node));
+                ExtraFields: ReadExtraFields(node, path));
         }
     }
 
@@ -130,6 +130,7 @@ public static class ImportSeedRecordReader
                 JsonValueKind.Number when property.Value.TryGetDouble(out var d) => d,
                 JsonValueKind.True => true,
                 JsonValueKind.False => false,
+                JsonValueKind.Array => property.Value.EnumerateArray().Select(ReadJsonValue).ToArray(),
                 _ => null
             };
         }
@@ -137,33 +138,87 @@ public static class ImportSeedRecordReader
         return fields.Count == 0 ? null : fields;
     }
 
-    private static IReadOnlyDictionary<string, object?>? ReadExtraFields(YamlMappingNode node)
+    private static object? ReadJsonValue(JsonElement value)
+        => value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number when value.TryGetInt64(out var l) => l,
+            JsonValueKind.Number when value.TryGetDouble(out var d) => d,
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => throw new FormatException($"Unsupported JSON array value kind: {value.ValueKind}.")
+        };
+
+    private static IReadOnlyDictionary<string, object?>? ReadExtraFields(YamlMappingNode node, string path)
     {
         var fields = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         foreach (var kv in node.Children)
         {
             if (kv.Key is not YamlScalarNode key || string.IsNullOrWhiteSpace(key.Value) ||
-                IsCoreField(key.Value) || kv.Value is not YamlScalarNode value)
+                IsCoreField(key.Value))
                 continue;
-            fields[key.Value] = ParseYamlScalar(value.Value);
+            fields[key.Value] = kv.Value switch
+            {
+                YamlScalarNode value => ParseYamlScalar(value),
+                YamlSequenceNode sequence => ReadYamlScalarSequence(sequence, path, key.Value),
+                YamlMappingNode => throw new FormatException(
+                    $"YAML seed '{path}' field '{key.Value}' contains a nested mapping; only scalar values and scalar sequences are supported."),
+                _ => throw new FormatException(
+                    $"YAML seed '{path}' field '{key.Value}' contains an unsupported YAML node.")
+            };
         }
 
         return fields.Count == 0 ? null : fields;
+    }
+
+    private static IReadOnlyList<object?> ReadYamlScalarSequence(
+        YamlSequenceNode sequence,
+        string path,
+        string field)
+    {
+        var values = new List<object?>(sequence.Children.Count);
+        foreach (var child in sequence.Children)
+        {
+            if (child is not YamlScalarNode scalar)
+            {
+                var kind = child is YamlMappingNode ? "mapping" : child is YamlSequenceNode ? "sequence" : "node";
+                throw new FormatException(
+                    $"YAML seed '{path}' field '{field}' contains a nested {kind}; only scalar sequence items are supported.");
+            }
+            values.Add(ParseYamlScalar(scalar));
+        }
+        return values.AsReadOnly();
     }
 
     private static bool IsCoreField(string name)
         => name is "title" or "name" or "slug" or "type" or "summary" or "content" or
            "language" or "published" or "seo_title" or "seo_description";
 
-    private static object? ParseYamlScalar(string? value)
+    private static object? ParseYamlScalar(YamlScalarNode scalar)
     {
+        var value = scalar.Value;
+        var tag = scalar.Tag.ToString();
+        if (scalar.Style is not YamlDotNet.Core.ScalarStyle.Plain ||
+            tag is "tag:yaml.org,2002:str" or "!!str")
+            return value;
+        if (value is null || value is "~" || value.Equals("null", StringComparison.OrdinalIgnoreCase))
+            return null;
         if (string.IsNullOrWhiteSpace(value))
             return value;
         if (bool.TryParse(value, out var b))
             return b;
-        if (long.TryParse(value, out var l))
+        if (long.TryParse(value, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var l))
             return l;
-        if (double.TryParse(value, out var d))
+        if (value.Equals(".nan", StringComparison.OrdinalIgnoreCase))
+            return double.NaN;
+        if (value.Equals(".inf", StringComparison.OrdinalIgnoreCase))
+            return double.PositiveInfinity;
+        if (value.Equals("-.inf", StringComparison.OrdinalIgnoreCase))
+            return double.NegativeInfinity;
+        if (double.TryParse(value, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var d))
             return d;
         return value;
     }

@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Rendering;
 using Bukit.Routing;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
@@ -19,7 +20,8 @@ internal static class SeoIndexBuilder
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyList<RouteInfo> listRoutes,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates,
-        ListRouteGraph? listRouteGraph = null)
+        ListRouteGraph? listRouteGraph = null,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null)
     {
         var entries = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -34,12 +36,15 @@ internal static class SeoIndexBuilder
             var document = routedDocument.Document;
             var route = routedDocument.Route;
             var alternateKey = SeoModelBuilder.BuildAlternateKey(document, route);
+            var metadata = RouteMetadataApplicator.FindForContent(document, route.Url, routeMetadata);
             var model = SeoModelBuilder.BuildForContent(
                 config,
                 baseUrl,
                 document,
                 route,
-                alternates.TryGetValue(alternateKey, out var alts) ? alts : null);
+                alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
+                metadata?.SeoTitle ?? metadata?.Title,
+                metadata?.SeoDescription ?? metadata?.Summary);
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             models[key] = model;
             entries[key] = new SeoIndexEntry(
@@ -102,6 +107,19 @@ internal static class SeoIndexBuilder
         var routeInfo = route.ToRouteInfo();
         var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
         var page = BuildListPageInfo(config, route, routed);
+        if (!string.IsNullOrWhiteSpace(route.SeoTitle) || !string.IsNullOrWhiteSpace(route.SeoDescription))
+        {
+            page = page with
+            {
+                Title = string.IsNullOrWhiteSpace(route.SeoTitle)
+                    ? page.Title
+                    : PaginationMetadataFormatter.FormatTitle(route.SeoTitle!, ListPageMetadataBuilder.BuildPagination(route), config.Site.Language),
+                Summary = string.IsNullOrWhiteSpace(route.SeoDescription)
+                    ? page.Summary
+                    : PaginationMetadataFormatter.FormatExplicitDescription(
+                        route.SeoDescription!, ListPageMetadataBuilder.BuildPagination(route), config.Site.Language)
+            };
+        }
         var alternateKey = SeoModelBuilder.BuildListAlternateKey(routeInfo);
         var model = SeoModelBuilder.BuildForList(
             config,
@@ -145,7 +163,7 @@ internal static class SeoIndexBuilder
         var matched = FindByOutputPath(route.OutputPath, routed);
         var pagination = ListPageMetadataBuilder.BuildPagination(route);
         var summary = !string.IsNullOrWhiteSpace(route.Summary)
-            ? route.Summary.Trim()
+            ? ListPageMetadataBuilder.BuildSummary(config.Site, route, pagination)
             : matched is null
                 ? ListPageMetadataBuilder.BuildSummary(config.Site, route, pagination)
                 : ContentFieldReader.GetSummary(matched.Document) ?? BuildListSummary(config, route);
@@ -158,7 +176,7 @@ internal static class SeoIndexBuilder
             Url = route.Url,
             Content = string.Empty,
             Summary = summary,
-            Fields = ListRouteRenderPlanBuilder.BuildPageFields(route)
+            Fields = ListRouteRenderPlanBuilder.BuildPageFields(route, config.Site.Language)
         };
     }
 

@@ -1,14 +1,19 @@
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine;
 
 internal sealed partial class VariantBuildPipeline
 {
-    private static RoutePipelineResult AddDerivedListRoutesToGraph(RoutePipelineResult routeResult, BuildContext pluginContext)
+    private static RoutePipelineResult AddDerivedListRoutesToGraph(
+        RoutePipelineResult routeResult,
+        BuildContext pluginContext,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata)
     {
         var graph = ListRouteGraphBuilder.AddDerivedTaxonomyRoutes(
             routeResult.ListRouteGraph,
             pluginContext.DerivedDocuments);
+        graph = ListRouteGraphBuilder.ApplyRouteMetadata(graph, routeMetadata);
         pluginContext.Data[ListRouteGraphBuilder.BuildContextDataKey] = graph;
 
         return routeResult with

@@ -86,6 +86,7 @@ public static class ScribanModelBinder
         obj.SetValue("base_url", model.BaseUrl, readOnly: true);
         obj.SetValue("base_path", model.BaseUrl, readOnly: true);
         obj.SetValue("language", model.Language, readOnly: true);
+        obj.SetValue("build_year", model.BuildYear, readOnly: true);
         obj.SetValue("analytics", ToScriptObject(model.Analytics), readOnly: true);
         if (model.Params is not null)
         {
@@ -148,6 +149,7 @@ public static class ScribanModelBinder
         obj.SetValue("table_of_contents", ToTableOfContentsScriptArray(model.TableOfContents), readOnly: true);
         obj.SetValue("tableOfContents", ToTableOfContentsScriptArray(model.TableOfContents), readOnly: true);
         obj.SetValue("publish_date", model.PublishDate?.DateTime, readOnly: true);
+        obj.SetValue("updated_at", model.UpdatedAt?.DateTime, readOnly: true);
         obj.SetValue("fields", ToFieldsScriptObject(model.Fields), readOnly: true);
         if (model.ContentRecord is not null)
         {

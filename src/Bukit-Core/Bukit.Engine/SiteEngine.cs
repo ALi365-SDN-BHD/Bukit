@@ -116,7 +116,7 @@ public sealed class SiteEngine
                 effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
                 plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
                 plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
-                templateHashCache, cancellationToken);
+                templateHashCache, plan.StartedAt, cancellationToken);
 
             _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
             MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, contentResult.BodyCacheMetrics);
@@ -147,6 +147,7 @@ public sealed class SiteEngine
         string? parentLayoutsDir, string? parentAssetsDir, string? parentStaticDir,
         string? userLayoutsDir,
         DirectoryHashCache templateHashCache,
+        DateTimeOffset buildStartedAt,
         CancellationToken cancellationToken)
     {
         var baseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
@@ -156,6 +157,7 @@ public sealed class SiteEngine
             layoutsDir, assetsDir, staticDir, mediaCacheDir,
             SeoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(StringComparer.Ordinal),
             RootBaseUrl: null, ManifestSuffix: null, DefaultLanguage: null,
+            BuildStartedAt: buildStartedAt,
             ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
             UserLayoutsDir: userLayoutsDir);
         return await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
@@ -214,6 +216,7 @@ public sealed class SiteEngine
                     layoutsDir, assetsDir, staticDir, mediaCacheDir,
                     SeoAlternates: seoAlternates,
                     RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
+                    BuildStartedAt: buildStartedAt,
                     ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
                     UserLayoutsDir: userLayoutsDir);
                 results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);

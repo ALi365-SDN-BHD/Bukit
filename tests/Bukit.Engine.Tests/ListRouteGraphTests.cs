@@ -208,6 +208,10 @@ public sealed class ListRouteGraphTests
         Assert.Equal("country", filter["field"]);
         Assert.Equal("equals", filter["operator"]);
         Assert.Equal("Malaysia", filter["value"]);
+
+        var items = Assert.IsAssignableFrom<IReadOnlyList<object>>(fields["items"].Value);
+        var firstItem = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object?>>(items[0]);
+        Assert.True(firstItem.ContainsKey("updated_at"));
     }
 
     [Fact]
@@ -244,7 +248,8 @@ public sealed class ListRouteGraphTests
         Assert.Contains(result.Routes, route =>
             route.Kind == ListRouteKind.TaxonomyTermPage &&
             route.Url == "/insights/category/market/page/2/" &&
-            route.PrevUrl == "/insights/category/market/");
+            route.PrevUrl == "/insights/category/market/" &&
+            route.MetadataRouteUrl == "/insights/category/market/");
     }
 
     [Fact]

@@ -1,7 +1,10 @@
 using System.Security.Cryptography;
+using System.Globalization;
+using System.Text;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
+using Bukit.Engine.RouteMetadata;
 
 namespace Bukit.Engine.Incremental;
 
@@ -22,6 +25,8 @@ internal static class RenderDependencyHasher
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Language);
         hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Url);
+        hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, siteModel.BuildYear.ToString(CultureInfo.InvariantCulture));
         hasher.AppendData(newline);
 
         if (config.Site.Languages is { Count: > 0 })
@@ -106,6 +111,8 @@ internal static class RenderDependencyHasher
 
         AppendStableTaxonomyConfig(hasher, config.Taxonomy);
 
+        AppendRouteMetadataConfig(hasher, config.Content.RouteMetadata);
+
         if (config.Site.Plugins is { Count: > 0 })
         {
             foreach (var kv in config.Site.Plugins.OrderBy(x => x.Key, StringComparer.Ordinal))
@@ -117,12 +124,70 @@ internal static class RenderDependencyHasher
             }
         }
 
-        AppendModuleSummary(hasher, siteModel.Modules);
-        AppendDataSummary(hasher, siteModel.Data);
-        AppendDictionary(hasher, siteModel.DataIndex);
+        var reservedRouteMetadataSource = config.Content.RouteMetadata?.Source;
+        AppendModuleSummary(hasher, siteModel.Modules, reservedRouteMetadataSource);
+        AppendDataSummary(hasher, siteModel.Data, reservedRouteMetadataSource);
+        AppendTopLevelDictionary(hasher, siteModel.DataIndex, reservedRouteMetadataSource);
 
         var digest = hasher.GetHashAndReset();
         return HashUtil.ToHexLower(digest);
+    }
+
+    internal static string ComputeForRoute(
+        string baseHash,
+        string metadataRouteUrl,
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata)
+    {
+        if (routeMetadata is null || !routeMetadata.TryGetValue(metadataRouteUrl, out var metadata))
+        {
+            return baseHash;
+        }
+
+        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        IncrementalBuildEngine.AppendUtf8(hasher, baseHash);
+        AppendRouteMetadataValue(hasher, metadata);
+        return HashUtil.ToHexLower(hasher.GetHashAndReset());
+    }
+
+    private static void AppendRouteMetadataConfig(IncrementalHash hasher, RouteMetadataConfig? config)
+    {
+        if (config is null)
+        {
+            return;
+        }
+
+        AppendFramedValue(hasher, "source", config.Source);
+        AppendFramedValue(hasher, "routeField", config.RouteField);
+        AppendFramedValue(hasher, "titleField", config.TitleField);
+        AppendFramedValue(hasher, "summaryField", config.SummaryField);
+        AppendFramedValue(hasher, "seoTitleField", config.SeoTitleField);
+        AppendFramedValue(hasher, "seoDescriptionField", config.SeoDescriptionField);
+        foreach (var route in config.RequiredRoutes.OrderBy(x => x, StringComparer.Ordinal))
+        {
+            AppendFramedValue(hasher, "requiredRoute", route);
+        }
+    }
+
+    private static void AppendRouteMetadataValue(IncrementalHash hasher, RouteMetadataEntry metadata)
+    {
+        AppendFramedValue(hasher, "route", metadata.Route);
+        AppendFramedValue(hasher, "title", metadata.Title);
+        AppendFramedValue(hasher, "summary", metadata.Summary);
+        AppendFramedValue(hasher, "seoTitle", metadata.SeoTitle);
+        AppendFramedValue(hasher, "seoDescription", metadata.SeoDescription);
+    }
+
+    private static void AppendFramedValue(IncrementalHash hasher, string label, string? value)
+    {
+        IncrementalBuildEngine.AppendUtf8(hasher, label);
+        IncrementalBuildEngine.AppendUtf8(hasher, ":");
+        var byteLength = value is null ? -1 : Encoding.UTF8.GetByteCount(value);
+        IncrementalBuildEngine.AppendUtf8(hasher, byteLength.ToString(CultureInfo.InvariantCulture));
+        IncrementalBuildEngine.AppendUtf8(hasher, ":");
+        if (value is not null)
+        {
+            IncrementalBuildEngine.AppendUtf8(hasher, value);
+        }
     }
 
     private static void AppendDictionary(IncrementalHash hasher, IReadOnlyDictionary<string, object>? dict)
@@ -137,6 +202,32 @@ internal static class RenderDependencyHasher
 
         foreach (var kv in dict.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
+            hasher.AppendData(newline);
+            IncrementalBuildEngine.AppendUtf8(hasher, kv.Key);
+            hasher.AppendData(newline);
+            AppendObjectValue(hasher, kv.Value);
+        }
+    }
+
+    private static void AppendTopLevelDictionary(
+        IncrementalHash hasher,
+        IReadOnlyDictionary<string, object>? dict,
+        string? excludedKey)
+    {
+        if (dict is null || dict.Count == 0)
+        {
+            return;
+        }
+
+        Span<byte> newline = stackalloc byte[1];
+        newline[0] = (byte)'\n';
+        foreach (var kv in dict.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            if (string.Equals(kv.Key, excludedKey, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             hasher.AppendData(newline);
             IncrementalBuildEngine.AppendUtf8(hasher, kv.Key);
             hasher.AppendData(newline);
@@ -178,7 +269,10 @@ internal static class RenderDependencyHasher
         IncrementalBuildEngine.AppendUtf8(hasher, value.ToString() ?? string.Empty);
     }
 
-    private static void AppendModuleSummary(IncrementalHash hasher, IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? modules)
+    private static void AppendModuleSummary(
+        IncrementalHash hasher,
+        IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? modules,
+        string? excludedSource = null)
     {
         if (modules is null || modules.Count == 0)
         {
@@ -190,6 +284,11 @@ internal static class RenderDependencyHasher
 
         foreach (var kv in modules.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
+            if (string.Equals(kv.Key, excludedSource, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             hasher.AppendData(newline);
             IncrementalBuildEngine.AppendUtf8(hasher, kv.Key);
             hasher.AppendData(newline);
@@ -202,7 +301,10 @@ internal static class RenderDependencyHasher
         }
     }
 
-    private static void AppendDataSummary(IncrementalHash hasher, IReadOnlyDictionary<string, object>? data)
+    private static void AppendDataSummary(
+        IncrementalHash hasher,
+        IReadOnlyDictionary<string, object>? data,
+        string? excludedSource = null)
     {
         if (data is null || data.Count == 0)
         {
@@ -214,6 +316,11 @@ internal static class RenderDependencyHasher
 
         foreach (var kv in data.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
+            if (string.Equals(kv.Key, excludedSource, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             hasher.AppendData(newline);
             IncrementalBuildEngine.AppendUtf8(hasher, kv.Key);
         }
