@@ -12,7 +12,6 @@ internal static class NotionSchemaValidator
         ("Slug", "rich_text"),
         ("Type", "select"),
         ("Summary", "rich_text"),
-        ("Content", "rich_text"),
         ("Language", "select"),
         ("Published", "checkbox"),
         ("SeoTitle", "rich_text"),

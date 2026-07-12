@@ -298,6 +298,8 @@ databases:
         AssertPropertyType(payload, "Featured", "checkbox");
         AssertPropertyType(payload, "Priority", "number");
         AssertPropertyType(payload, "Url", "url");
+        using var document = JsonDocument.Parse(payload);
+        Assert.False(document.RootElement.GetProperty("properties").TryGetProperty("Content", out _));
     }
 
     [Fact]
@@ -380,6 +382,106 @@ databases:
             AssertPropertyType(databasePayload!, field, type);
             AssertPropertyType(pagePayload!, field, type);
         }
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_CreatePageWritesBodyBlocksWithoutContentProperty()
+    {
+        var inputDir = Path.Combine(_rootDir, "body-block-only");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """
+[
+  { "title": "Body only", "slug": "body-only", "content": "<p>正文内容</p>" }
+]
+""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  posts:
+    seed: posts.json
+    collection: post
+    databaseId: db-posts
+""");
+
+        string? pagePayload = null;
+        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            if (request.Method == HttpMethod.Post && request.RequestUri?.AbsolutePath.EndsWith("/pages", StringComparison.Ordinal) == true)
+            {
+                pagePayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("""{ "id": "page-created" }""");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(_rootDir, "body-only-report.json")
+            }));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.NotNull(pagePayload);
+        using var payload = JsonDocument.Parse(pagePayload!);
+        var properties = payload.RootElement.GetProperty("properties");
+        Assert.False(properties.TryGetProperty("Content", out _));
+        var children = payload.RootElement.GetProperty("children");
+        Assert.NotEmpty(children.EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("append")]
+    [InlineData("replace")]
+    public async Task NotionSeedPusher_UpsertWritesBodyBlocksWithoutContentProperty(string updateContent)
+    {
+        string? pagePayload = null;
+        string? childrenPayload = null;
+        var deletedBlockIds = new List<string>();
+        using var http = new HttpClient(new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db-posts/query", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "page-existing" }] }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/pages/page-existing", StringComparison.Ordinal))
+            {
+                pagePayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("{}");
+            }
+            if (request.Method == HttpMethod.Get && path.EndsWith("/blocks/page-existing/children", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "old-block" }], "has_more": false }""");
+            if (request.Method == HttpMethod.Delete && path.EndsWith("/blocks/old-block", StringComparison.Ordinal))
+            {
+                deletedBlockIds.Add("old-block");
+                return Json("{}");
+            }
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/blocks/page-existing/children", StringComparison.Ordinal))
+            {
+                childrenPayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("{}");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }));
+
+        var record = new ImportSeedRecord(
+            "post", "Body update", "body-update", null, "<p>更新正文</p>",
+            null, true, null, null);
+        var result = await NotionSeedPusher.PushAsync(http, [record],
+            new NotionPushOptions("db-posts", "secret", Path.Combine(_rootDir, "update-report.json"),
+                DryRun: false, Mode: "upsert", UpdateContent: updateContent, WriteReport: false));
+
+        Assert.Equal(1, result.Updated);
+        Assert.NotNull(pagePayload);
+        using var page = JsonDocument.Parse(pagePayload!);
+        Assert.False(page.RootElement.GetProperty("properties").TryGetProperty("Content", out _));
+        Assert.NotNull(childrenPayload);
+        using var children = JsonDocument.Parse(childrenPayload!);
+        Assert.NotEmpty(children.RootElement.GetProperty("children").EnumerateArray());
+        Assert.Equal(updateContent == "replace" ? ["old-block"] : [], deletedBlockIds);
     }
 
     [Theory]
@@ -960,7 +1062,6 @@ databases:
     "Slug": { "type": "rich_text" },
     "Type": { "type": "select" },
     "Summary": { "type": "rich_text" },
-    "Content": { "type": "rich_text" },
     "Language": { "type": "select" },
     "Published": { "type": "checkbox" },
     "SeoTitle": { "type": "rich_text" },

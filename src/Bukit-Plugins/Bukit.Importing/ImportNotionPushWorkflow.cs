@@ -667,7 +667,6 @@ public static class ImportNotionPushWorkflow
         WriteDatabaseProperty(writer, "Slug", "rich_text");
         WriteDatabaseProperty(writer, "Type", "select");
         WriteDatabaseProperty(writer, "Summary", "rich_text");
-        WriteDatabaseProperty(writer, "Content", "rich_text");
         WriteDatabaseProperty(writer, "Language", "select");
         WriteDatabaseProperty(writer, "Published", "checkbox");
         WriteDatabaseProperty(writer, "SeoTitle", "rich_text");

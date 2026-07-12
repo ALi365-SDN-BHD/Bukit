@@ -260,7 +260,6 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
     "Slug": { "type": "rich_text" },
     "Type": { "type": "select" },
     "Summary": { "type": "rich_text" },
-    "Content": { "type": "rich_text" },
     "Language": { "type": "select" },
     "Published": { "type": "checkbox" },
     "SeoTitle": { "type": "rich_text" },

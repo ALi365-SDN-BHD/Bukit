@@ -354,7 +354,6 @@ internal static partial class NotionSeedPusher
         WriteRichTextProperty(writer, "Slug", record.Slug);
         WriteSelectProperty(writer, "Type", record.Collection);
         WriteRichTextProperty(writer, "Summary", record.Summary);
-        WriteRichTextProperty(writer, "Content", record.Content);
         WriteSelectProperty(writer, "Language", record.Language);
         WriteCheckboxProperty(writer, "Published", record.Published);
         WriteRichTextProperty(writer, "SeoTitle", record.SeoTitle);
