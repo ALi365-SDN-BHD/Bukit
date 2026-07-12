@@ -147,7 +147,7 @@ public static class ContentSchemaValidator
         "image", "icon",
         "seo_keywords", "ai_summary", "source_url", "original_url",
         "cover_prompt", "generation_notes", "language", "url",
-        "outputPath", "i18nKey", "notionPageId", "bodyFingerprint",
+        "outputPath", "i18nKey", "notionPageId", "bodyFingerprint", "last_edited_time",
         "route"
     };
 

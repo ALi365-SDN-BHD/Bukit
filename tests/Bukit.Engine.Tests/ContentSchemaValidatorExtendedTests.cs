@@ -7,6 +7,45 @@ namespace Bukit.Engine.Tests;
 public sealed class ContentSchemaValidatorExtendedTests
 {
     [Fact]
+    public void Validate_AllowsNotionLastEditedTimeAsSystemField()
+    {
+        var schema = new[]
+        {
+            new CustomFieldDefinitionConfig { Name = "headline", FieldType = "string" }
+        };
+        var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["headline"] = "Hello",
+            ["last_edited_time"] = DateTimeOffset.Parse("2026-07-12T08:30:00+08:00")
+        };
+
+        var errors = ContentSchemaValidator.Validate(meta, schema, "notion-page", failMode: "error");
+
+        Assert.DoesNotContain(errors, e => e.Field == "last_edited_time" && e.Code == "unknown_field");
+    }
+
+    [Fact]
+    public void CanonicalContentGraphBuilder_UsesNotionLastEditedTimeForLifecycle()
+    {
+        var updatedAt = DateTimeOffset.Parse("2026-07-12T08:30:00+08:00");
+        var raw = new RawContentDocument(
+            Id: "notion-page",
+            Title: "Notion page",
+            Slug: "notion-page",
+            PublishAt: DateTimeOffset.Parse("2026-07-01T00:00:00Z"),
+            Body: new RawBody(),
+            CustomFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["last_edited_time"] = updatedAt
+            }));
+
+        var document = ContentDocumentNormalizer.ToDocument(raw);
+        var graph = CanonicalContentGraphBuilder.BuildFromDocuments(new[] { document });
+
+        Assert.Equal(updatedAt, Assert.Single(graph.Records).Lifecycle.UpdatedAt);
+    }
+
+    [Fact]
     public void Validate_ReportsEnumFormatAndRangeErrors()
     {
         var schema = new[]

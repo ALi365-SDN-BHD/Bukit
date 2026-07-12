@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Bukit.Shared;
@@ -99,6 +100,14 @@ public sealed class NotionContentProvider : IContentProvider
                         ["notionPageId"] = pageId,
                         ["bodyFingerprint"] = string.IsNullOrWhiteSpace(lastEditedTime) ? pageId : lastEditedTime
                     };
+                    if (DateTimeOffset.TryParse(
+                            lastEditedTime,
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.RoundtripKind,
+                            out var lastEditedAt))
+                    {
+                        projectedValues["last_edited_time"] = lastEditedAt;
+                    }
                     if (!string.IsNullOrWhiteSpace(type))
                     {
                         projectedValues["type"] = type;

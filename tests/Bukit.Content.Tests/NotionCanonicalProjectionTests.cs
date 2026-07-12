@@ -28,6 +28,9 @@ public sealed class NotionCanonicalProjectionTests
         Assert.Equal("https://img.example/hero.jpg", ContentFieldReader.GetText(item.CustomFields, "cover"));
         Assert.Equal("Detailed hero", ContentFieldReader.GetText(item.CustomFields, "cover_alt"));
         Assert.Equal("Hero caption", ContentFieldReader.GetText(item.CustomFields, "cover_caption"));
+        Assert.Equal(
+            DateTimeOffset.Parse("2026-07-12T08:30:00+08:00"),
+            ContentFieldReader.GetDate(item.CustomFields, "last_edited_time"));
 
         Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "entities", out var entitiesField));
         var entities = Assert.IsAssignableFrom<IEnumerable<Dictionary<string, object?>>>(entitiesField.Value);
@@ -150,7 +153,7 @@ public sealed class NotionCanonicalProjectionTests
                     "has_more": false,
                     "results": [{
                       "id": "page-canonical",
-                      "last_edited_time": "2026-07-12T00:00:00Z",
+                      "last_edited_time": "2026-07-12T08:30:00+08:00",
                       "properties": {
                         "Title": { "type": "title", "title": [{ "plain_text": "Canonical page" }] },
                         "Slug": { "type": "rich_text", "rich_text": [{ "plain_text": "canonical-page" }] },
