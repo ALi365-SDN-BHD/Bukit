@@ -105,10 +105,13 @@ internal sealed partial class VariantBuildPipeline
         IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? modules,
         IReadOnlyDictionary<string, object>? sourceData,
         IReadOnlyDictionary<string, object>? pluginData = null,
-        IReadOnlyDictionary<string, object>? dataIndex = null)
+        IReadOnlyDictionary<string, object>? dataIndex = null,
+        DateTimeOffset? buildStartedAt = null)
     {
         var reservedSource = config.Content.RouteMetadata?.Source;
         var data = ExcludeReservedSource(MergeSiteData(sourceData, pluginData), reservedSource);
+        var buildInstant = buildStartedAt ?? DateTimeOffset.UtcNow;
+        var buildTimezone = TimeZoneResolver.ResolveOrUtc(config.Site.Timezone);
         return new SiteModel
         {
             Name = config.Site.Name,
@@ -117,6 +120,7 @@ internal sealed partial class VariantBuildPipeline
             Description = config.Site.Description,
             BaseUrl = baseUrl,
             Language = config.Site.Language,
+            BuildYear = TimeZoneInfo.ConvertTime(buildInstant, buildTimezone).Year,
             Analytics = new AnalyticsModel
             {
                 Enabled = config.Site.Analytics.Enabled,
@@ -267,7 +271,7 @@ internal sealed partial class VariantBuildPipeline
 
         var siteModel = BuildSiteModel(
             config, baseUrl, dataModules.Modules, dataModules.SourceData,
-            routePipelineResult.PluginContext.Data, dataModules.DataIndex);
+            routePipelineResult.PluginContext.Data, dataModules.DataIndex, ctx.BuildStartedAt);
         var manifestSetup = SetupManifest(ctx, overrides, templateHashCache);
 
         var renderDocuments = routePipelineResult.RouteResult.RoutedDocuments

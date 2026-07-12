@@ -26,6 +26,8 @@ internal static class RenderDependencyHasher
         hasher.AppendData(newline);
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Url);
         hasher.AppendData(newline);
+        IncrementalBuildEngine.AppendUtf8(hasher, siteModel.BuildYear.ToString(CultureInfo.InvariantCulture));
+        hasher.AppendData(newline);
 
         if (config.Site.Languages is { Count: > 0 })
         {

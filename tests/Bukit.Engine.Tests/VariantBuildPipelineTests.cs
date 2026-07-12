@@ -120,6 +120,36 @@ public sealed class VariantBuildPipelineTests : IDisposable
     }
 
     [Fact]
+    public void BuildSiteModel_DerivesBuildYearFromConfiguredTimezone()
+    {
+        var pipeline = new VariantBuildPipeline();
+        var config = CreateMinimalConfig() with
+        {
+            Site = CreateMinimalConfig().Site with { Timezone = "Asia/Kuala_Lumpur" }
+        };
+        var instant = new DateTimeOffset(2025, 12, 31, 16, 30, 0, TimeSpan.Zero);
+
+        var model = pipeline.BuildSiteModel(config, "/", null, null, buildStartedAt: instant);
+
+        Assert.Equal(2026, model.BuildYear);
+    }
+
+    [Fact]
+    public void BuildSiteModel_WhitespaceTimezoneUsesUtc()
+    {
+        var pipeline = new VariantBuildPipeline();
+        var config = CreateMinimalConfig() with
+        {
+            Site = CreateMinimalConfig().Site with { Timezone = " " }
+        };
+        var instant = new DateTimeOffset(2025, 12, 31, 23, 30, 0, TimeSpan.Zero);
+
+        var model = pipeline.BuildSiteModel(config, "/", null, null, buildStartedAt: instant);
+
+        Assert.Equal(2025, model.BuildYear);
+    }
+
+    [Fact]
     public void BuildSiteModel_ReservesRouteMetadataSourceFromTemplateDataBindings()
     {
         var pipeline = new VariantBuildPipeline();

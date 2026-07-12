@@ -98,7 +98,7 @@ public static class ConfigValidator
 
         if (!string.IsNullOrWhiteSpace(config.Site.Timezone))
         {
-            if (!IsValidTimeZone(config.Site.Timezone))
+            if (!TimeZoneResolver.TryResolve(config.Site.Timezone, out _))
             {
                 throw new ConfigException($"site.timezone '{config.Site.Timezone}' is not a valid time zone identifier.", DiagnosticCode.ConfigInvalidValue);
             }
@@ -477,48 +477,6 @@ public static class ConfigValidator
         }
     }
 
-    private static bool IsValidTimeZone(string timeZoneId)
-    {
-        if (TryResolveTimeZone(timeZoneId, out _))
-        {
-            return true;
-        }
-
-        if (OperatingSystem.IsWindows()
-            && TimeZoneInfo.TryConvertIanaIdToWindowsId(timeZoneId, out var windowsTimeZoneId)
-            && TryResolveTimeZone(windowsTimeZoneId, out _))
-        {
-            return true;
-        }
-
-        if (OperatingSystem.IsWindows()
-            && TimeZoneCompatibility.TryGetWindowsTimeZoneFallback(timeZoneId, out var fallbackWindowsTimeZoneId)
-            && TryResolveTimeZone(fallbackWindowsTimeZoneId, out _))
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool TryResolveTimeZone(string timeZoneId, out TimeZoneInfo? timeZone)
-    {
-        try
-        {
-            timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            return true;
-        }
-        catch (TimeZoneNotFoundException)
-        {
-            timeZone = null;
-            return false;
-        }
-        catch (InvalidTimeZoneException)
-        {
-            timeZone = null;
-            return false;
-        }
-    }
 
     private static void GetStringValue(YamlMappingNode node, string key, out string? value)
     {

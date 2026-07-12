@@ -9,6 +9,7 @@ public sealed record SiteModel
     public string? Description { get; init; }
     public required string BaseUrl { get; init; }
     public required string Language { get; init; }
+    public int BuildYear { get; init; }
     public IReadOnlyDictionary<string, object>? Params { get; init; }
     public IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? Modules { get; init; }
     public IReadOnlyDictionary<string, object>? Data { get; init; }
