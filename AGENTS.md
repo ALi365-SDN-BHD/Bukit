@@ -30,38 +30,54 @@ Default behavior:
 ### 3) Agent task execution discipline
 
 - Sub agents are allowed, but only as support for the current single task.
-- Do not advance to a second task until the current task is fully implemented, verified, and audited.
-- If a task is split into subtasks, treat them as one active task until the full verification chain is complete.
+- Do not advance to a second parent task until the current parent task is fully
+  implemented, verified, and, when required below, audited.
+- If a parent task is split into small subtasks, treat them as one active task.
+  Complete each subtask's targeted gate before starting the next subtask.
 
 Required execution order for each task:
 
 1. Define the current task scope and keep execution limited to that scope.
 2. Use sub agents only for bounded support work such as read-only exploration, evidence collection, or isolated implementation assistance for the same task.
-3. Complete the implementation for the current task.
-4. Run task-appropriate tests.
-5. Perform a code audit of the final diff and impacted surfaces.
-6. Move to the next task only after the audit finds no unresolved issues.
+3. Complete one small subtask at a time.
+4. After each subtask, run task-appropriate targeted tests. Do not create a
+   sub-agent review for an ordinary small subtask.
+5. After all subtasks in a parent task are complete, perform the consolidated
+   audit required below when the parent task qualifies for one.
+6. Move to the next parent task only after required gates pass and any required
+   audit has no unresolved issues.
 
-Post-change verification for code changes:
+Post-change verification and audit for code changes:
 
-- After adding or modifying code logic, create one bounded read-only sub-agent
-  review for the current diff when a sub-agent facility is available.
-- The sub-agent may audit the diff, collect evidence, and recommend targeted
+- After adding or modifying code logic in an ordinary small subtask, run the
+  targeted gate but do not create a sub-agent review by default.
+- When a parent task contains multiple code subtasks or is otherwise treated as
+  a large task, create one bounded read-only sub-agent review after all
+  subtasks have passed their targeted gates. The review must audit each
+  subtask against its scope and evidence, then audit the aggregate parent-task
+  diff for cross-subtask regressions, omissions, and unrelated changes.
+- A standalone ordinary small task does not require a sub-agent audit unless
+  the user explicitly requests one.
+- Perform an immediate bounded read-only review for a high-risk subtask when it
+  changes security or authorization behavior, concurrency or consistency,
+  persistence formats or migrations, public APIs or plugin/config contracts,
+  CI/release/gate logic, or when targeted verification cannot cover the key
+  behavior.
+- A sub-agent may audit the diff, collect evidence, and recommend targeted
   checks only. It must not modify files, create commits, start a new
-  user-visible session, or expand the task scope.
-- The main agent remains responsible for running verification and deciding
-  whether the task is complete.
+  user-visible session, or expand the task scope. The main agent remains
+  responsible for verification and completion decisions.
 - Use `bash scripts/checks/post-change-targeted.sh -- <changed paths>` as the
-  default post-change gate. When the working tree has unrelated changes, pass
-  the current task paths explicitly instead of relying on automatic diff
-  detection.
+  default gate after each code subtask. When the working tree has unrelated
+  changes, pass that subtask's paths explicitly instead of relying on automatic
+  diff detection.
 - The default post-change flow must not run full or release gates. Do not run
   `scripts/gates/ci-full.sh`, `scripts/gates/release.sh`,
   `scripts/test-all.sh`, `scripts/smoke-all.sh`,
   `dotnet test bukit-test.slnx`, or whole-solution `.slnx` tests unless the
   user explicitly requests that broader proof.
-- If no sub-agent facility is available, state that limitation and perform the
-  final diff audit in the main thread before finishing.
+- If a required consolidated or high-risk audit cannot use a sub-agent, state
+  that limitation and perform the same scoped audit in the main thread.
 
 Validation boundary:
 
@@ -73,6 +89,7 @@ Validation boundary:
 
 Failure rule:
 
-- If tests, a required gate, or code audit fail, stop task progression, fix
-  the current task, and rerun the same verification chain before starting any
-  new task.
+- If a test or required gate fails, stop before the next subtask, fix the
+  current subtask, and rerun its targeted verification. If a required audit
+  fails, fix the affected scope and rerun its targeted gate before repeating
+  only the necessary audit.

@@ -20,7 +20,8 @@ bash scripts/gates/ci-fast.sh Release
 
 ## Post-change Targeted Verification
 
-After code logic changes, the default local post-change gate is:
+After each ordinary small code subtask, run the local targeted gate without
+creating a sub-agent audit by default:
 
 ```bash
 bash scripts/checks/post-change-targeted.sh -- <changed paths>
@@ -37,13 +38,33 @@ changed source or test paths. If a runtime source path cannot be mapped to a
 targeted test project, the script fails and asks for an explicit test target
 instead of falling back to a full gate.
 
+## Consolidated Post-change Audit
+
+When a large parent task contains multiple code subtasks, each subtask must pass
+its targeted gate before the next one begins. After all subtasks pass, run one
+bounded read-only audit that:
+
+- checks each subtask against its declared scope and targeted-gate evidence;
+- checks the aggregate parent-task diff for cross-subtask regressions,
+  omissions, and unrelated changes.
+
+A standalone ordinary small task does not require a sub-agent audit unless the
+user explicitly requests one. Audit a high-risk subtask immediately when it
+changes security or authorization, concurrency or consistency, persistence
+formats or migrations, public APIs or plugin/config contracts,
+CI/release/gate logic, or when targeted checks cannot cover its key behavior.
+
+If an audit finds an issue, fix the affected scope, rerun its targeted gate,
+and repeat only the necessary audit. An audit must not widen verification into
+a full or release gate.
+
 The post-change flow must not run `scripts/gates/ci-full.sh`,
 `scripts/gates/release.sh`, `scripts/test-all.sh`, `scripts/smoke-all.sh`,
 `dotnet test bukit-test.slnx`, or whole-solution `.slnx` tests unless that
 broader proof is explicitly requested.
 
-Runtime changes need targeted `dotnet test` runs for the affected project. For
-Core-wide verification, run:
+Runtime changes need targeted `dotnet test` runs for the affected project. Only
+when the user explicitly requests Core-wide verification, run:
 
 ```bash
 bash scripts/gates/ci-full.sh Release
