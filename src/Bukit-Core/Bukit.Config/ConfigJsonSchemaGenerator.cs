@@ -360,7 +360,13 @@ public static class ConfigJsonSchemaGenerator
             ("SeoTitle", StringSchema()),
             ("SeoDescription", StringSchema()),
             ("SeoImage", StringSchema()),
-            ("Canonical", StringSchema()))));
+            ("Canonical", StringSchema()),
+            ("OriginalUrl", StringSchema()),
+            ("References", StringSchema()),
+            ("EntitiesJson", StringSchema()),
+            ("Cover", StringSchema()),
+            ("CoverAlt", StringSchema()),
+            ("CoverCaption", StringSchema()))));
 
     private static JsonObject NotionFieldPolicySchema()
         => Obj(("type", "object"), ("properties", Obj(

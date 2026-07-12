@@ -120,6 +120,7 @@ public sealed class NotionContentProvider : IContentProvider
                     NotionFieldProjectionHelper.ProjectTaxonomyField(fields, projectedValues, "tags");
                     NotionFieldProjectionHelper.ProjectTaxonomyField(fields, projectedValues, "categories");
                     NotionPropertyParser.ProjectSeoFields(projectedValues, props, pm);
+                    NotionPropertyParser.ProjectCanonicalFields(projectedValues, props, pm, pageId);
 
                     fields = ContentFieldReader.WithValues(fields, projectedValues);
                     drafts.Add(new PageDraft(pageId, title, slug, type ?? string.Empty, publishAt, lastEditedTime, fields, relationKeys));

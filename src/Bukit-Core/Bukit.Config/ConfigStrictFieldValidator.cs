@@ -164,7 +164,8 @@ internal static class ConfigStrictFieldValidator
         {
             RequireOnly(propertyMap, Set(
                 "Title", "Slug", "Type", "PublishAt", "Language", "I18nKey", "Summary", "Collection",
-                "SeoTitle", "SeoDescription", "SeoImage", "Canonical"), $"{path}.propertyMap");
+                "SeoTitle", "SeoDescription", "SeoImage", "Canonical", "OriginalUrl", "References",
+                "EntitiesJson", "Cover", "CoverAlt", "CoverCaption"), $"{path}.propertyMap");
         }
     }
 

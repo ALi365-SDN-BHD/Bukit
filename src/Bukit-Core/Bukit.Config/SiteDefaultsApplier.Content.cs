@@ -90,7 +90,13 @@ internal static partial class SiteDefaultsApplier
             SeoTitle = ConfigYamlHelpers.GetOptionalString(node, "SeoTitle"),
             SeoDescription = ConfigYamlHelpers.GetOptionalString(node, "SeoDescription"),
             SeoImage = ConfigYamlHelpers.GetOptionalString(node, "SeoImage"),
-            Canonical = ConfigYamlHelpers.GetOptionalString(node, "Canonical")
+            Canonical = ConfigYamlHelpers.GetOptionalString(node, "Canonical"),
+            OriginalUrl = ConfigYamlHelpers.GetOptionalString(node, "OriginalUrl"),
+            References = ConfigYamlHelpers.GetOptionalString(node, "References"),
+            EntitiesJson = ConfigYamlHelpers.GetOptionalString(node, "EntitiesJson"),
+            Cover = ConfigYamlHelpers.GetOptionalString(node, "Cover"),
+            CoverAlt = ConfigYamlHelpers.GetOptionalString(node, "CoverAlt"),
+            CoverCaption = ConfigYamlHelpers.GetOptionalString(node, "CoverCaption")
         };
     }
 

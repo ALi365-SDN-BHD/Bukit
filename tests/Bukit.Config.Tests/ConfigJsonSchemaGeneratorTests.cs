@@ -133,6 +133,12 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.True(propertyMap.TryGetProperty("PublishAt", out _));
         Assert.True(propertyMap.TryGetProperty("SeoDescription", out _));
         Assert.True(propertyMap.TryGetProperty("Canonical", out _));
+        Assert.True(propertyMap.TryGetProperty("OriginalUrl", out _));
+        Assert.True(propertyMap.TryGetProperty("References", out _));
+        Assert.True(propertyMap.TryGetProperty("EntitiesJson", out _));
+        Assert.True(propertyMap.TryGetProperty("Cover", out _));
+        Assert.True(propertyMap.TryGetProperty("CoverAlt", out _));
+        Assert.True(propertyMap.TryGetProperty("CoverCaption", out _));
         Assert.False(propertyMap.TryGetProperty("lang", out _));
 
         var taxonomy = properties

@@ -298,6 +298,12 @@ public sealed class ConfigLoaderTests : IDisposable
                       SeoDescription: SEO Description
                       SeoImage: SEO Image
                       Canonical: Canonical URL
+                      OriginalUrl: Original URL
+                      References: References
+                      EntitiesJson: Structured Entities
+                      Cover: Hero Image
+                      CoverAlt: Hero Alt
+                      CoverCaption: Hero Caption
             theme:
               scss:
                 enabled: true
@@ -370,6 +376,12 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("SEO Description", propertyMap.SeoDescription);
         Assert.Equal("SEO Image", propertyMap.SeoImage);
         Assert.Equal("Canonical URL", propertyMap.Canonical);
+        Assert.Equal("Original URL", propertyMap.OriginalUrl);
+        Assert.Equal("References", propertyMap.References);
+        Assert.Equal("Structured Entities", propertyMap.EntitiesJson);
+        Assert.Equal("Hero Image", propertyMap.Cover);
+        Assert.Equal("Hero Alt", propertyMap.CoverAlt);
+        Assert.Equal("Hero Caption", propertyMap.CoverCaption);
 
         Assert.NotNull(config.Theme.Scss);
         Assert.True(config.Theme.Scss.Enabled);

@@ -404,4 +404,138 @@ public static class NotionPropertyParser
                 projectedValues["canonical"] = value;
         }
     }
+
+    internal static void ProjectCanonicalFields(
+        Dictionary<string, object> projectedValues,
+        JsonElement properties,
+        NotionPropertyMapConfig? propertyMap,
+        string pageId)
+    {
+        if (propertyMap is null)
+        {
+            return;
+        }
+
+        ProjectMappedValue(projectedValues, properties, propertyMap.OriginalUrl, "original_url");
+        ProjectMappedValue(projectedValues, properties, propertyMap.References, "references", wrapTextInList: true);
+        ProjectMappedValue(projectedValues, properties, propertyMap.Cover, "cover", firstListItem: true);
+        ProjectMappedValue(projectedValues, properties, propertyMap.CoverAlt, "cover_alt");
+        ProjectMappedValue(projectedValues, properties, propertyMap.CoverCaption, "cover_caption");
+
+        if (!string.IsNullOrWhiteSpace(propertyMap.EntitiesJson) &&
+            NotionContentProvider.TryGetPropertyIgnoreCase(properties, propertyMap.EntitiesJson, out var entitiesProperty))
+        {
+            var json = GetRichTextPlain(entitiesProperty);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                projectedValues["entities"] = ParseEntitiesJson(json, pageId, propertyMap.EntitiesJson);
+            }
+        }
+    }
+
+    private static void ProjectMappedValue(
+        Dictionary<string, object> projectedValues,
+        JsonElement properties,
+        string? propertyName,
+        string canonicalKey,
+        bool firstListItem = false,
+        bool wrapTextInList = false)
+    {
+        if (string.IsNullOrWhiteSpace(propertyName) ||
+            !NotionContentProvider.TryGetPropertyIgnoreCase(properties, propertyName, out var property) ||
+            !NotionPropertyTypeParser.TryParseNotionPropertyToField(property, out var field, out _))
+        {
+            return;
+        }
+
+        var value = field.Value;
+        if (firstListItem && value is IEnumerable<string> values)
+        {
+            value = values.FirstOrDefault(static item => !string.IsNullOrWhiteSpace(item));
+        }
+        else if (wrapTextInList && value is string listItem && !string.IsNullOrWhiteSpace(listItem))
+        {
+            value = new[] { listItem.Trim() };
+        }
+
+        if (value is string text && string.IsNullOrWhiteSpace(text) || value is null)
+        {
+            return;
+        }
+
+        projectedValues[canonicalKey] = value;
+    }
+
+    private static List<Dictionary<string, object?>> ParseEntitiesJson(
+        string json,
+        string pageId,
+        string propertyName)
+    {
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(json);
+        }
+        catch (JsonException ex)
+        {
+            throw EntitiesJsonError(pageId, propertyName, "must contain valid JSON", ex);
+        }
+
+        using (document)
+        {
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                throw EntitiesJsonError(pageId, propertyName, "must be a JSON array");
+            }
+
+            var entities = new List<Dictionary<string, object?>>();
+            var index = 0;
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.Object)
+                {
+                    throw EntitiesJsonError(pageId, propertyName, $"item {index} must be an object");
+                }
+
+                var type = ReadRequiredEntityString(element, "type", index, pageId, propertyName);
+                var name = ReadRequiredEntityString(element, "name", index, pageId, propertyName);
+                var description = ReadRequiredEntityString(element, "description", index, pageId, propertyName);
+                entities.Add(new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["type"] = type,
+                    ["name"] = name,
+                    ["description"] = description
+                });
+                index++;
+            }
+
+            return entities;
+        }
+    }
+
+    private static string ReadRequiredEntityString(
+        JsonElement entity,
+        string fieldName,
+        int index,
+        string pageId,
+        string propertyName)
+    {
+        if (!entity.TryGetProperty(fieldName, out var value) || value.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(value.GetString()))
+        {
+            throw EntitiesJsonError(pageId, propertyName, $"item {index} field '{fieldName}' must be a non-empty string");
+        }
+
+        return value.GetString()!.Trim();
+    }
+
+    private static ContentException EntitiesJsonError(
+        string pageId,
+        string propertyName,
+        string detail,
+        Exception? innerException = null)
+    {
+        var message = $"Notion page '{pageId}' property '{propertyName}' {detail}.";
+        return innerException is null ? new ContentException(message) : new ContentException(message, innerException);
+    }
 }

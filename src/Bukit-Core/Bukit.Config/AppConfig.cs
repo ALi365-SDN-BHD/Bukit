@@ -331,6 +331,12 @@ public sealed record NotionPropertyMapConfig
     public string? SeoDescription { get; init; }
     public string? SeoImage { get; init; }
     public string? Canonical { get; init; }
+    public string? OriginalUrl { get; init; }
+    public string? References { get; init; }
+    public string? EntitiesJson { get; init; }
+    public string? Cover { get; init; }
+    public string? CoverAlt { get; init; }
+    public string? CoverCaption { get; init; }
 }
 
 public sealed record MediaConfig
