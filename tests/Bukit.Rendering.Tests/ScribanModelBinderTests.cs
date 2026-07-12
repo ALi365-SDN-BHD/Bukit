@@ -17,6 +17,7 @@ public sealed class ScribanModelBinderTests
             Description = "A test site",
             BaseUrl = "/en/",
             Language = "en",
+            BuildYear = 2026,
             Analytics = new AnalyticsModel
             {
                 Enabled = true,
@@ -178,6 +179,7 @@ public sealed class ScribanModelBinderTests
         Assert.Equal("A test site", site["description"]);
         Assert.Equal("/en/", site["base_url"]);
         Assert.Equal("en", site["language"]);
+        Assert.Equal(2026, site["build_year"]);
     }
 
     [Fact]
@@ -998,6 +1000,7 @@ public sealed class ScribanModelBinderTests
         Assert.Equal("My Site", site["title"]);
         Assert.Equal("https://example.com", site["url"]);
         Assert.Equal("en", site["language"]);
+        Assert.Equal(2026, site["build_year"]);
     }
 
     [Fact]
