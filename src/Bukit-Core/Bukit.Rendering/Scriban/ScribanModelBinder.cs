@@ -149,6 +149,7 @@ public static class ScribanModelBinder
         obj.SetValue("table_of_contents", ToTableOfContentsScriptArray(model.TableOfContents), readOnly: true);
         obj.SetValue("tableOfContents", ToTableOfContentsScriptArray(model.TableOfContents), readOnly: true);
         obj.SetValue("publish_date", model.PublishDate?.DateTime, readOnly: true);
+        obj.SetValue("updated_at", model.UpdatedAt?.DateTime, readOnly: true);
         obj.SetValue("fields", ToFieldsScriptObject(model.Fields), readOnly: true);
         if (model.ContentRecord is not null)
         {

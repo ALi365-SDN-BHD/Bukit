@@ -185,7 +185,8 @@ internal static class ListRouteRenderPlanBuilder
             {
                 ["title"] = item.Title,
                 ["url"] = item.Url,
-                ["publish_date"] = item.PublishDate?.DateTime
+                ["publish_date"] = item.PublishDate?.DateTime,
+                ["updated_at"] = item.UpdatedAt?.DateTime
             };
 
             if (!string.IsNullOrWhiteSpace(item.Summary))

@@ -62,7 +62,10 @@ public sealed record ContentLifecycle(
     DateTimeOffset PublishedAt,
     DateTimeOffset? UpdatedAt,
     DateTimeOffset? ExpiresAt,
-    DateTimeOffset? ReviewedAt);
+    DateTimeOffset? ReviewedAt)
+{
+    public bool Evergreen { get; init; }
+}
 
 public sealed record ProvenanceRecord(
     string? Source,

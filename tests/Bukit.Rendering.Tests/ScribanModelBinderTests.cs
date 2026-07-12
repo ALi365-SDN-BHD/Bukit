@@ -97,6 +97,7 @@ public sealed class ScribanModelBinderTests
             Content = "<h1>Hello World</h1>",
             Summary = "A test summary",
             PublishDate = new DateTimeOffset(2025, 5, 15, 12, 0, 0, TimeSpan.Zero),
+            UpdatedAt = new DateTimeOffset(2025, 5, 16, 13, 30, 0, TimeSpan.Zero),
             Fields = new Dictionary<string, ContentField>
             {
                 ["category"] = new("text", "technology"),
@@ -425,6 +426,7 @@ public sealed class ScribanModelBinderTests
         Assert.Equal("<h1>Hello World</h1>", page["content"]);
         Assert.Equal("A test summary", page["summary"]);
         Assert.Equal(new DateTime(2025, 5, 15, 12, 0, 0, DateTimeKind.Utc), page["publish_date"]);
+        Assert.Equal(new DateTime(2025, 5, 16, 13, 30, 0, DateTimeKind.Utc), page["updated_at"]);
     }
 
     [Fact]

@@ -529,6 +529,47 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_DoesNotRequireVisibleTimeForEvergreenContent()
+    {
+        WriteOutput("about/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>About</title><link rel="canonical" href="https://example.com/about/" /></head>
+            <body><main><article><h1>About</h1><p>Body</p></article></main></body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["about/index.html"] = new(new RouteInfo("/about/", "about/index.html", "pages/about.html"), "https://example.com/about/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "about-1", "page")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["about/index.html"] = Model("About", "https://example.com/about/")
+        };
+        var lifecycle = new ContentLifecycle(
+            DateTimeOffset.Parse("2026-06-05T00:00:00Z"),
+            DateTimeOffset.Parse("2026-06-06T00:00:00Z"), null, null)
+        {
+            Evergreen = true
+        };
+        var record = new ContentRecord(
+            new ContentIdentity("about-1", "about", "about", "page", "published"),
+            new ContentPresentation("About", "About description", "<p>Body</p>", "en", []),
+            new ContentClassification("page", "about", [], []),
+            new ContentOwnership("Ali", null, null, null),
+            lifecycle,
+            new ProvenanceRecord("notion", "https://example.com/about/", [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [new EntityRecord("company", "Bukit", "Bukit company")], [], []);
+        var graph = new CanonicalContentGraph([record], record.Entities);
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "publish.time_missing" && x.Route == "/about/");
+        Assert.DoesNotContain(report.Issues, x => x.Code == "publish.updated_at_missing" && x.Route == "/about/");
+    }
+
+    [Fact]
     public void Build_ReportsInitialHtmlUnreadableWhenMainContentIsScriptShell()
     {
         WriteOutput("post/index.html", """

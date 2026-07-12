@@ -81,11 +81,21 @@ public sealed class ScribanTemplateLinterTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_tempDir, "list.html"), """
             {{ for p in pages }}
-            {{ p.title }} {{ p.url }} {{ p.summary }}
+            {{ p.title }} {{ p.url }} {{ p.summary }} {{ p.updated_at }}
             {{ end }}
             """);
 
         var warnings = ScribanTemplateLinter.LintDirectory(_tempDir, "list.html");
+
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public void Lint_Directory_PageUpdatedAt_IsKnown()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "page.html"), "{{ page.updated_at }}");
+
+        var warnings = ScribanTemplateLinter.LintDirectory(_tempDir, "page.html");
 
         Assert.Empty(warnings);
     }

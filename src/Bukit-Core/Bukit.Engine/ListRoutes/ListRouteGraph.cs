@@ -185,6 +185,7 @@ internal sealed record ListRouteItem
     public string? Template { get; init; }
     public string? Summary { get; init; }
     public DateTimeOffset? PublishDate { get; init; }
+    public DateTimeOffset? UpdatedAt { get; init; }
     public IReadOnlyDictionary<string, ContentField>? Fields { get; init; }
     public ContentRecord? ContentRecord { get; init; }
     public ContentRoutePolicy? RoutePolicy { get; init; }
@@ -209,6 +210,7 @@ internal sealed record ListRouteItem
             Template = routed.Route.Template,
             Summary = record.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
             PublishDate = document.PublishAt,
+            UpdatedAt = record.Lifecycle.UpdatedAt,
             Fields = document.CustomFields,
             ContentRecord = record,
             RoutePolicy = document.Route,
@@ -233,6 +235,7 @@ internal sealed record ListRouteItem
             Summary = Summary,
             TableOfContents = tableOfContents,
             PublishDate = PublishDate,
+            UpdatedAt = UpdatedAt,
             Fields = Fields,
             Seo = seo,
             ContentRecord = ContentRecord,
