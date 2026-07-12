@@ -93,3 +93,14 @@ Failure rule:
   current subtask, and rerun its targeted verification. If a required audit
   fails, fix the affected scope and rerun its targeted gate before repeating
   only the necessary audit.
+
+### 4) Website business boundary (strict prohibition)
+
+- When handling business requirements for a specific website, do not modify
+  any code under `src/Bukit-Core/` in that task.
+- If the website task reveals a Bukit Core defect or missing capability, do not
+  fix it as part of the website task. Report the evidence, affected behavior,
+  likely Core ownership, proposed fix, and targeted verification approach.
+- A Bukit Core fix may proceed only after the user explicitly confirms it, and
+  it must be implemented in a separate user-visible task/session dedicated to
+  the Core change. Do not continue the Core fix in the current website task.
