@@ -416,15 +416,16 @@ public static class NotionPropertyParser
             return;
         }
 
-        ProjectMappedValue(projectedValues, properties, propertyMap.OriginalUrl, "original_url");
-        ProjectMappedValue(projectedValues, properties, propertyMap.References, "references", wrapTextInList: true);
-        ProjectMappedValue(projectedValues, properties, propertyMap.Cover, "cover", firstListItem: true);
-        ProjectMappedValue(projectedValues, properties, propertyMap.CoverAlt, "cover_alt");
-        ProjectMappedValue(projectedValues, properties, propertyMap.CoverCaption, "cover_caption");
+        ProjectMappedValue(projectedValues, properties, propertyMap.OriginalUrl, "original_url", pageId, ["url"]);
+        ProjectMappedValue(projectedValues, properties, propertyMap.References, "references", pageId, ["multi_select", "rich_text"], wrapTextInList: true);
+        ProjectMappedValue(projectedValues, properties, propertyMap.Cover, "cover", pageId, ["rich_text", "url", "files"], firstListItem: true);
+        ProjectMappedValue(projectedValues, properties, propertyMap.CoverAlt, "cover_alt", pageId, ["rich_text"]);
+        ProjectMappedValue(projectedValues, properties, propertyMap.CoverCaption, "cover_caption", pageId, ["rich_text"]);
 
         if (!string.IsNullOrWhiteSpace(propertyMap.EntitiesJson) &&
             NotionContentProvider.TryGetPropertyIgnoreCase(properties, propertyMap.EntitiesJson, out var entitiesProperty))
         {
+            ValidateMappedPropertyType(entitiesProperty, pageId, propertyMap.EntitiesJson, ["rich_text"]);
             var json = GetRichTextPlain(entitiesProperty);
             if (!string.IsNullOrWhiteSpace(json))
             {
@@ -438,12 +439,19 @@ public static class NotionPropertyParser
         JsonElement properties,
         string? propertyName,
         string canonicalKey,
+        string pageId,
+        IReadOnlyList<string> allowedTypes,
         bool firstListItem = false,
         bool wrapTextInList = false)
     {
         if (string.IsNullOrWhiteSpace(propertyName) ||
-            !NotionContentProvider.TryGetPropertyIgnoreCase(properties, propertyName, out var property) ||
-            !NotionPropertyTypeParser.TryParseNotionPropertyToField(property, out var field, out _))
+            !NotionContentProvider.TryGetPropertyIgnoreCase(properties, propertyName, out var property))
+        {
+            return;
+        }
+
+        ValidateMappedPropertyType(property, pageId, propertyName, allowedTypes);
+        if (!NotionPropertyTypeParser.TryParseNotionPropertyToField(property, out var field, out _))
         {
             return;
         }
@@ -464,6 +472,23 @@ public static class NotionPropertyParser
         }
 
         projectedValues[canonicalKey] = value;
+    }
+
+    private static void ValidateMappedPropertyType(
+        JsonElement property,
+        string pageId,
+        string propertyName,
+        IReadOnlyList<string> allowedTypes)
+    {
+        var actualType = NotionContentProvider.GetString(property, "type") ?? "<missing>";
+        if (allowedTypes.Contains(actualType, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        throw new ContentException(
+            $"Notion page '{pageId}' property '{propertyName}' has type '{actualType}'; " +
+            $"allowed types: {string.Join(", ", allowedTypes)}.");
     }
 
     private static List<Dictionary<string, object?>> ParseEntitiesJson(

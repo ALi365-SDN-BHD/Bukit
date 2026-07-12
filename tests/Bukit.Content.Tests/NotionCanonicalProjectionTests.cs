@@ -66,6 +66,41 @@ public sealed class NotionCanonicalProjectionTests
         Assert.Equal("Canonical description", entity["description"]);
     }
 
+    [Theory]
+    [InlineData("Original URL", "rich_text", "url")]
+    [InlineData("References", "url", "multi_select, rich_text")]
+    [InlineData("Structured Entities", "multi_select", "rich_text")]
+    [InlineData("Hero Image", "select", "rich_text, url, files")]
+    [InlineData("Hero Alt", "url", "rich_text")]
+    [InlineData("Hero Caption", "select", "rich_text")]
+    public async Task LoadRawAsync_WithIncompatibleMappedPropertyType_ThrowsContractError(
+        string propertyName,
+        string actualType,
+        string allowedTypes)
+    {
+        var ex = await Assert.ThrowsAsync<ContentException>(() => LoadSingleAsync(
+            $"\"{propertyName}\": {BuildProperty(actualType)}"));
+
+        Assert.Contains("page-canonical", ex.Message);
+        Assert.Contains(propertyName, ex.Message);
+        Assert.Contains(actualType, ex.Message);
+        Assert.Contains(allowedTypes, ex.Message);
+    }
+
+    [Theory]
+    [InlineData("rich_text", "/assets/images/hero.jpg")]
+    [InlineData("url", "https://img.example/hero.jpg")]
+    public async Task LoadRawAsync_WithSupportedCoverType_ProjectsCover(string notionType, string expected)
+    {
+        var property = notionType == "rich_text"
+            ? "{ \"type\": \"rich_text\", \"rich_text\": [{ \"plain_text\": \"/assets/images/hero.jpg\" }] }"
+            : "{ \"type\": \"url\", \"url\": \"https://img.example/hero.jpg\" }";
+
+        var item = await LoadSingleAsync($"\"Hero Image\": {property}");
+
+        Assert.Equal(expected, ContentFieldReader.GetText(item.CustomFields, "cover"));
+    }
+
     private static async Task<RawContentDocument> LoadSingleAsync(string extraProperties)
     {
         var options = new NotionProviderOptions
@@ -94,6 +129,15 @@ public sealed class NotionCanonicalProjectionTests
 
         return Assert.Single(result.Documents);
     }
+
+    private static string BuildProperty(string notionType) => notionType switch
+    {
+        "rich_text" => "{ \"type\": \"rich_text\", \"rich_text\": [{ \"plain_text\": \"value\" }] }",
+        "multi_select" => "{ \"type\": \"multi_select\", \"multi_select\": [{ \"name\": \"value\" }] }",
+        "url" => "{ \"type\": \"url\", \"url\": \"https://example.test/value\" }",
+        "select" => "{ \"type\": \"select\", \"select\": { \"name\": \"value\" } }",
+        _ => throw new ArgumentOutOfRangeException(nameof(notionType), notionType, null)
+    };
 
     private sealed class CanonicalPageHandler(string extraProperties) : HttpMessageHandler
     {
