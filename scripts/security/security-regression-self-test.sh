@@ -93,6 +93,24 @@ fi
 FAKE_DOTNET
 chmod +x "$scratch/bin/dotnet"
 
+FAKE_TRX_MODE=valid "$scratch/bin/dotnet" test fake.csproj \
+  --filter "FullyQualifiedName~Suite.Case" \
+  --logger "trx;LogFileName=malformed-selector.trx" \
+  --results-directory "$scratch"
+if python3 "$root/scripts/security/verify-trx.py" \
+  "$scratch/malformed-selector.trx" Case >"$output" 2>&1; then
+  fail "malformed selector unexpectedly passed"
+else
+  status=$?
+fi
+[[ "$status" == 2 ]] || fail "malformed selector returned $status instead of 2"
+if ! grep -Fq "malformed security selector: Case" "$output"; then
+  fail "malformed selector diagnostic is missing"
+fi
+if ! grep -Fq "usage: verify-trx.py" "$output"; then
+  fail "malformed selector usage is missing"
+fi
+
 FAKE_TRX_MODE=valid PATH="$scratch/bin:$PATH" \
   BUKIT_SECURITY_SKIP_RESTORE=1 bash "$script" Release
 for mode in zero missing-selector missing failed; do

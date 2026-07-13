@@ -39,14 +39,23 @@ def verify_trx(path: Path, selectors: list[str]) -> None:
 
 
 def main(argv: list[str]) -> int:
+    usage = "usage: verify-trx.py <trx-path> <FullyQualifiedName~selector>..."
     if len(argv) < 3:
-        print(
-            "usage: verify-trx.py <trx-path> <FullyQualifiedName~selector>...",
-            file=sys.stderr,
-        )
+        print(usage, file=sys.stderr)
+        return 2
+    selectors = argv[2:]
+    malformed = [
+        selector for selector in selectors
+        if not selector.startswith("FullyQualifiedName~")
+        or selector == "FullyQualifiedName~"
+    ]
+    if malformed:
+        for selector in malformed:
+            print(f"malformed security selector: {selector}", file=sys.stderr)
+        print(usage, file=sys.stderr)
         return 2
     try:
-        verify_trx(Path(argv[1]), argv[2:])
+        verify_trx(Path(argv[1]), selectors)
     except (ET.ParseError, OSError, ValueError) as error:
         print(f"security TRX validation failed: {error}", file=sys.stderr)
         return 1
