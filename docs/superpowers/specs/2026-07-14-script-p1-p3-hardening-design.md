@@ -1,5 +1,7 @@
 # Script P1-P3 Hardening Design
 
+Languages: English | [简体中文](2026-07-14-script-p1-p3-hardening-design.zh-CN.md)
+
 ## Status
 
 Approved design baseline: Route A, complete capability repair.
