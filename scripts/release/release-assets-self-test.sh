@@ -40,20 +40,17 @@ python3 - "$script_dir/release-assets.py" "$tmp" "$linux" <<'PY'
 import importlib.util
 import sys
 from pathlib import Path
-
 module_path, root, archive = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
 spec = importlib.util.spec_from_file_location("release_assets", module_path)
 assert spec is not None and spec.loader is not None
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
-
 def exercise_install_failure(name, fail_restore):
     output = root / name
     output.mkdir()
     marker = output / "old-output.marker"
     marker.write_text("keep-old-output\n", encoding="utf-8")
     real_replace = module.os.replace
-
     def fail_replace(source, destination):
         source_path, destination_path = Path(source), Path(destination)
         if destination_path == output:
@@ -62,7 +59,6 @@ def exercise_install_failure(name, fail_restore):
             if fail_restore:
                 raise OSError("injected previous output restore failure")
         return real_replace(source, destination)
-
     module.os.replace = fail_replace
     try:
         module.prepare("1.2.3", "abc", str(output), [str(archive)])
@@ -71,14 +67,12 @@ def exercise_install_failure(name, fail_restore):
     finally:
         module.os.replace = real_replace
     raise AssertionError("injected install failure unexpectedly passed")
-
 output, marker, error = exercise_install_failure("recover-output", False)
 assert isinstance(error, OSError) and "injected staging install failure" in str(error)
 assert output.is_dir(), "old output directory lost after install failure"
 assert marker.read_text(encoding="utf-8") == "keep-old-output\n", \
     "old output marker lost after install failure"
 assert not list(root.glob(".recover-output.backup.*")), "backup leaked after recovery"
-
 output, _, error = exercise_install_failure("double-failure-output", True)
 assert isinstance(error, module.ContractError), error
 assert "injected staging install failure" in str(error), error
@@ -87,19 +81,31 @@ backups = list(root.glob(".double-failure-output.backup.*"))
 assert not output.exists() and len(backups) == 1, "failed recovery lost unique backup"
 assert (backups[0] / "old-output.marker").read_text(encoding="utf-8") == \
     "keep-old-output\n", "failed recovery lost old output marker"
-
-checkout_root = module_path.resolve().parents[2]
-for unsafe in (checkout_root, *checkout_root.parents):
+def rejects_output(path):
     try:
-        module.resolve_output(str(unsafe))
+        module.resolve_output(str(path))
     except module.ContractError:
-        pass
-    else:
-        raise AssertionError(f"unsafe output ancestor unexpectedly allowed: {unsafe}")
-
+        return True
+    return False
+checkout_root = module_path.resolve().parents[2]
+assert all(rejects_output(path) for path in (checkout_root, *checkout_root.parents)), \
+    "unsafe output ancestor unexpectedly allowed"
+lexical_unsafe = (
+    checkout_root / "scripts" / "..",
+    Path(checkout_root.anchor) / checkout_root.parts[1] / "..",
+)
+accepted = [str(path) for path in lexical_unsafe if not rejects_output(path)]
+assert not accepted, f"lexically noncanonical output unexpectedly allowed: {accepted}"
 safe = root / "safe-output"
 assert module.resolve_output(str(safe)) == safe
-
+assert module.resolve_output("release-assets") == Path.cwd() / "release-assets"
+real_parent = root / "real-parent"
+real_parent.mkdir()
+link_parent = root / "link-parent"
+link_parent.symlink_to(real_parent, target_is_directory=True)
+assert all(rejects_output(path) for path in
+           (link_parent / "output", root / "missing-parent" / "output")), \
+    "unsafe output parent unexpectedly allowed"
 output = root / "duplicate-json-keys"
 module.prepare("1.2.3", "abc", str(output), [str(archive)])
 manifest_path = output / "release-manifest.json"
@@ -108,12 +114,10 @@ originals = {
     manifest_path: manifest_path.read_text(encoding="utf-8"),
     checksums_path: checksums_path.read_text(encoding="utf-8"),
 }
-
 def duplicate_line(text, token, final=False):
     line = next(line for line in text.splitlines() if token in line)
     first = f"{line}," if final else line
     return text.replace(line, f"{first}\n{line}", 1)
-
 manifest = originals[manifest_path]
 checksums = originals[checksums_path]
 cases = [
@@ -130,7 +134,6 @@ for label, path, text in (("manifest", manifest_path, manifest),
         (f"{label} asset sha256", path, duplicate_line(text, '"sha256"')),
         (f"{label} asset bytes", path, duplicate_line(text, '"bytes"', final=True)),
     ])
-
 accepted = []
 for label, path, mutated in cases:
     for original_path, original in originals.items():

@@ -33,6 +33,8 @@ public sealed class ReleaseWorkflowContractTests
             TryScalar(step, "uses")?.StartsWith("actions/upload-artifact@", StringComparison.Ordinal) == true);
 
         Assert.True(Array.IndexOf(steps, verify) < Array.IndexOf(steps, upload));
+        Assert.False(string.Equals(
+            "true", TryScalar(verify, "continue-on-error"), StringComparison.OrdinalIgnoreCase));
         Assert.Equal("release-assets/*", Scalar(Mapping(upload, "with"), "path"));
         Assert.Null(TryScalar(upload, "if"));
     }

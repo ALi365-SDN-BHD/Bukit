@@ -47,6 +47,10 @@ def resolve_output(value: str) -> Path:
     if value.strip() in {"", ".", ".."}:
         raise ContractError("unsafe release output directory")
     output = raw.absolute()
+    resolved_output = output.resolve()
+    if resolved_output != output:
+        raise ContractError("release output path must already be canonical")
+    output = resolved_output
     repo_root = Path(__file__).resolve().parents[2]
     if output == Path(output.anchor) or repo_root.is_relative_to(output):
         raise ContractError("unsafe release output directory")
