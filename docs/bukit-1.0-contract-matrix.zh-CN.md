@@ -92,7 +92,7 @@
 | `.bukit/assets.json` | `GA-locked` | 覆盖完整 public output | N/A | Schema validation |
 | `.bukit/incremental-manifest.json` | `GA-locked` | schema 冻结 | N/A | Schema validation |
 | `.bukit/security-report.json` | `GA-locked` | 真实检查结果 | N/A | Schema validation |
-| 确定性构建（clean twice） | `GA-locked` | 冻结 | N/A | build-repro.sh |
+| 确定性构建（clean twice） | `GA-locked` | 冻结 | N/A | `bash scripts/build/build-repro.sh <version> <rid> Release` |
 | Clean vs incremental 一致性 | `GA-locked` | 冻结 | N/A | CI 验证 |
 
 ### 其他能力

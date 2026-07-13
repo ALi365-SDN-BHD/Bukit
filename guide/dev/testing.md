@@ -18,6 +18,47 @@ Then run the thin repository gate:
 bash scripts/gates/ci-fast.sh Release
 ```
 
+## Strict Script Proof Paths
+
+Run the injected security regression before the real security gate:
+
+```bash
+bash scripts/security/security-regression-self-test.sh
+bash scripts/security/security-regression.sh Release
+```
+
+The self-test proves that zero tests, a missing selector result, a missing TRX,
+a failed result, and a malformed selector are rejected. The real gate writes a
+separate TRX for each security test project and exits successfully only when
+every configured selector has an executed, passing result and all counters are
+nonzero and clean. The optional configuration argument defaults to `Release`.
+
+Smoke either a final release archive or an existing publish directory with
+exactly one supported RID:
+
+```bash
+bash scripts/smoke/release-artifacts.sh <archive-or-publish-dir> <rid>
+bash scripts/smoke/release-artifacts-self-test.sh
+```
+
+Supported RIDs are `linux-x64`, `osx-arm64`, and `win-x64`. The smoke entrypoint
+requires exactly two arguments, safely extracts an archive when necessary,
+requires exactly one packaged CLI, and runs `config check`, `build --clean`,
+and `publish audit` with that CLI. Wrong arity exits 2; an unsupported RID,
+missing or unsafe artifact, invalid CLI set, or failed smoke exits nonzero.
+
+The two auxiliary behavior self-tests are also direct proof paths and are part
+of `ci-fast`:
+
+```bash
+bash scripts/checks/brainstorm-server-self-test.sh
+bash scripts/checks/find-polluter-self-test.sh
+```
+
+The brainstorm test requires access to process identity inspection. The
+polluter test proves clean `0`, confirmed polluter `1`, and inconclusive/error
+`2` classification while preserving paths containing spaces or newlines.
+
 ## Post-change Targeted Verification
 
 After each ordinary small code subtask, run the local targeted gate without
