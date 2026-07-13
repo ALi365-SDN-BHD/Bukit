@@ -195,6 +195,14 @@ public sealed partial class GitHubPagesDeployProvider
         Directory.CreateDirectory(destDir);
         foreach (var file in Directory.GetFiles(sourceDir))
         {
+            var fileName = Path.GetFileName(file);
+            if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint) ||
+                fileName.Equals(".bukit-build-state.json", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals(".bukit-output-marker", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var dest = Path.Combine(destDir, Path.GetFileName(file));
             File.Copy(file, dest, overwrite: true);
         }
@@ -202,12 +210,45 @@ public sealed partial class GitHubPagesDeployProvider
         foreach (var dir in Directory.GetDirectories(sourceDir))
         {
             var dirName = Path.GetFileName(dir);
-            if (dirName is ".git")
+            if (File.GetAttributes(dir).HasFlag(FileAttributes.ReparsePoint) ||
+                dirName.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
+                dirName.Equals(".bukit", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
             CopyDirectory(dir, Path.Combine(destDir, dirName));
         }
+    }
+
+    private static bool HasDeployableOutputFiles(string outputDir)
+    {
+        var options = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = false,
+            AttributesToSkip = FileAttributes.ReparsePoint
+        };
+
+        foreach (var path in Directory.EnumerateFiles(outputDir, "*", options))
+        {
+            var relativePath = Path.GetRelativePath(outputDir, path)
+                .Replace(Path.DirectorySeparatorChar, '/')
+                .Replace(Path.AltDirectorySeparatorChar, '/');
+            var segments = relativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var fileName = segments.LastOrDefault() ?? string.Empty;
+            if (segments.Any(segment =>
+                    segment.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
+                    segment.Equals(".bukit", StringComparison.OrdinalIgnoreCase)) ||
+                fileName.Equals(".bukit-build-state.json", StringComparison.OrdinalIgnoreCase) ||
+                fileName.Equals(".bukit-output-marker", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }

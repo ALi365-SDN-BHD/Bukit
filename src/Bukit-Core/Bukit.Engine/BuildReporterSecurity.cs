@@ -46,6 +46,7 @@ internal static class BuildReporterSecurity
             UnsafeSlug: "not_checked",
             PluginOutputPath: "not_checked",
             RemoteThemeLock: "not_checked",
+            PublicOutputPrivacy: "not_checked",
             Warnings: new[] { "Security checks were not executed for this report." },
             Errors: Array.Empty<string>());
 
@@ -74,6 +75,7 @@ internal static class BuildReporterSecurity
         WriteSecurityCheck(writer, "unsafeSlug", data.UnsafeSlug, "error");
         WriteSecurityCheck(writer, "pluginOutputPath", data.PluginOutputPath, "error");
         WriteSecurityCheck(writer, "remoteThemeLock", data.RemoteThemeLock, "warning");
+        WriteSecurityCheck(writer, "publicOutputPrivacy", data.PublicOutputPrivacy, "error");
         writer.WriteEndObject();
         writer.WriteEndObject();
     }
@@ -100,12 +102,15 @@ internal static class BuildReporterSecurity
         var unsafeSlug = CheckSlugs(variants, errors);
         var pluginOutputPath = CheckPluginOutputs(outputDir, variants, errors);
         var remoteThemeLock = CheckRemoteThemeLock(config, rootDir, warnings, errors);
+        var publicOutputPrivacy = PublicOutputPrivacyCheck.Evaluate(config, outputDir, variants);
+        errors.AddRange(publicOutputPrivacy.Errors);
 
         return new SecurityReportData(
             routeTraversal,
             unsafeSlug,
             pluginOutputPath,
             remoteThemeLock,
+            publicOutputPrivacy.Status,
             warnings,
             errors);
     }
@@ -116,7 +121,8 @@ internal static class BuildReporterSecurity
             IsFailed(data.RouteTraversal) ||
             IsFailed(data.UnsafeSlug) ||
             IsFailed(data.PluginOutputPath) ||
-            IsFailed(data.RemoteThemeLock))
+            IsFailed(data.RemoteThemeLock) ||
+            IsFailed(data.PublicOutputPrivacy))
         {
             return "failed";
         }
@@ -125,7 +131,8 @@ internal static class BuildReporterSecurity
             IsWarning(data.RouteTraversal) ||
             IsWarning(data.UnsafeSlug) ||
             IsWarning(data.PluginOutputPath) ||
-            IsWarning(data.RemoteThemeLock))
+            IsWarning(data.RemoteThemeLock) ||
+            IsWarning(data.PublicOutputPrivacy))
         {
             return "warning";
         }

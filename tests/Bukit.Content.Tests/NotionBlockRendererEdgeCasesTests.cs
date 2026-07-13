@@ -13,7 +13,7 @@ public sealed class NotionBlockRendererEdgeCasesTests
     // ── LinkToPageBlockRenderer database_id and empty target ─────────────
 
     [Fact]
-    public async Task LinkToPageBlockRenderer_DatabaseId_RendersDataAttribute()
+    public async Task LinkToPageBlockRenderer_DatabaseId_DoesNotExposeIdentifier()
     {
         using var doc = JsonDocument.Parse("""
         {
@@ -27,7 +27,9 @@ public sealed class NotionBlockRendererEdgeCasesTests
         var html = await new LinkToPageBlockRenderer().RenderAsync(doc.RootElement, null!, CancellationToken.None);
 
         Assert.NotNull(html);
-        Assert.Contains("data-notion-id=\"db-789\"", html);
+        Assert.Contains("Linked page", html);
+        Assert.DoesNotContain("db-789", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-notion-id", html, StringComparison.Ordinal);
     }
 
     [Fact]

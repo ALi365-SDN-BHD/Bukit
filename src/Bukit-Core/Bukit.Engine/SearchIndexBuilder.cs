@@ -105,9 +105,10 @@ internal static class SearchIndexBuilder
         bool emitSnippet)
     {
         var record = document.Record;
+        var publicId = PublicContentProjectionPolicy.ResolvePublicId(record, NormalizeSearchUrl(baseUrl, route.Url));
 
         writer.WriteStartObject();
-        writer.WriteString("id", document.Id);
+        writer.WriteString("id", publicId);
         writer.WriteString("title", record.Presentation.Title);
         writer.WriteString("url", NormalizeSearchUrl(baseUrl, route.Url));
 
@@ -132,7 +133,6 @@ internal static class SearchIndexBuilder
         writer.WriteString("type", record.Classification.Type);
         writer.WriteString("contentType", record.Identity.ContentType);
         writer.WriteString("collection", record.Classification.Collection);
-        writer.WriteString("source", record.Provenance.Source);
         writer.WriteString("reviewStatus", record.Trust.ReviewStatus);
 
         if (record.Classification.Tags.Count > 0)
@@ -158,14 +158,14 @@ internal static class SearchIndexBuilder
         }
 
         writer.WriteString("language", record.Presentation.Language);
-        writer.WriteString("sourceKey", record.Provenance.Source ?? ContentFieldReader.GetText(document.CustomFields, "sourceKey") ?? ContentFieldReader.GetText(document.CustomFields, "source"));
         writer.WriteString("publishAt", record.Lifecycle.PublishedAt.ToString("O"));
 
-        if (record.Entities.Count > 0)
+        var publicEntities = PublicContentProjectionPolicy.SanitizeEntities(record);
+        if (publicEntities.Count > 0)
         {
             writer.WritePropertyName("entities");
             writer.WriteStartArray();
-            foreach (var entity in record.Entities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var entity in publicEntities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 writer.WriteStringValue(entity);
             }
@@ -241,7 +241,6 @@ internal static class SearchIndexBuilder
         writer.WriteString("type", type);
         writer.WriteString("contentType", "list");
         writer.WriteString("collection", route.Collection);
-        writer.WriteString("source", "bukit");
         writer.WriteString("reviewStatus", "generated");
 
         var language = route.Items

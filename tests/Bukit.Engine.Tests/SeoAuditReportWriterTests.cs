@@ -862,6 +862,66 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         Assert.True(report.Summary.RepresentationGapCount >= 3);
     }
 
+    [Fact]
+    public void Build_AcceptsPublishSafeEntitiesInNotionJsonProjection()
+    {
+        const string relatedNotionId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
+        WriteOutput("post/index.html");
+        WriteOutput("content/post.md", """
+            # Post
+
+            - Route: /post/
+            - Language: en
+            - Review Status: approved
+            """);
+        WriteOutput("content/post.json", """
+            {
+              "id": "post",
+              "route": "/post/",
+              "canonicalUrlKey": "post",
+              "language": "en",
+              "reviewStatus": "approved",
+              "entities": [{"type":"company","name":"Bukit"}]
+            }
+            """);
+        WriteOutput("agent-manifest.json", """
+            {
+              "documents": [{
+                "id": "post",
+                "canonicalId": "post",
+                "route": "/post/",
+                "language": "en",
+                "reviewStatus": "approved",
+                "entities": ["Bukit"],
+                "representations": []
+              }]
+            }
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new() { Title = "Post", Canonical = "https://example.com/post/" }
+        };
+        var record = new ContentRecord(
+            new ContentIdentity("post-1", "post", "post", "post", "published"),
+            new ContentPresentation("Post", null, null, "en", []),
+            new ContentClassification("post", "post", [], []),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, null, null),
+            new ProvenanceRecord("notion", null, [], [], null),
+            new TrustMetadata(null, "approved", []),
+            [new EntityRecord("company", "Bukit"), new EntityRecord("page", relatedNotionId)],
+            [],
+            []);
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, new CanonicalContentGraph([record], [], [], []));
+
+        Assert.DoesNotContain(report.Issues, issue => issue.Code == "publish.representation_json_mismatch");
+    }
+
     public void Dispose()
     {
         TestCleanup.DeleteDirectory(_outputDir, recursive: true);

@@ -153,6 +153,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
     [Fact]
     public void AfterBuild_WithCanonicalTrustMetadataInFullTxt_IncludesCanonicalFields()
     {
+        const string relatedNotionId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
         var outputDir = Path.Combine(_root, "dist-canonical");
         Directory.CreateDirectory(outputDir);
         var context = CreateContext(outputDir, geoEnabled: true, llmsFullTxt: true,
@@ -163,9 +164,10 @@ public sealed class LlmsTxtPluginTests : IDisposable
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
         Assert.Contains("Author: Ali", content, StringComparison.Ordinal);
-        Assert.Contains("Source: notion", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Source: notion", content, StringComparison.Ordinal);
         Assert.Contains("Review Status: approved", content, StringComparison.Ordinal);
         Assert.Contains("Entities: Bukit", content, StringComparison.Ordinal);
+        Assert.DoesNotContain(relatedNotionId, content, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -266,7 +268,10 @@ public sealed class LlmsTxtPluginTests : IDisposable
                     new ContentLifecycle(item.PublishAt, null, null, null),
                     new ProvenanceRecord("notion", null, [], [], null),
                     new TrustMetadata(null, "approved", []),
-                    [new EntityRecord("company", "Bukit")],
+                    [
+                        new EntityRecord("company", "Bukit"),
+                        new EntityRecord("page", "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb")
+                    ],
                     [],
                     [])
             ], [new EntityRecord("company", "Bukit")]),

@@ -490,5 +490,6 @@ internal sealed record SecurityReportData(
     string UnsafeSlug,
     string PluginOutputPath,
     string RemoteThemeLock,
+    string PublicOutputPrivacy,
     IReadOnlyList<string> Warnings,
     IReadOnlyList<string> Errors);

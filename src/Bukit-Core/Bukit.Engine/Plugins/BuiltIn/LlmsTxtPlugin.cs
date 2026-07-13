@@ -280,25 +280,20 @@ public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
                 sb.AppendLine($"Author: {record.Ownership.Author}");
             }
 
-            if (!string.IsNullOrWhiteSpace(record.Provenance.Source))
-            {
-                sb.AppendLine($"Source: {record.Provenance.Source}");
-            }
-
             if (!string.IsNullOrWhiteSpace(record.Trust.ReviewStatus))
             {
                 sb.AppendLine($"Review Status: {record.Trust.ReviewStatus}");
             }
 
-            if (record.Entities.Count > 0)
+            var publicEntities = PublicContentProjectionPolicy.SanitizeEntities(record);
+            if (publicEntities.Count > 0)
             {
-                sb.AppendLine($"Entities: {string.Join(", ", record.Entities.Select(x => x.Name))}");
+                sb.AppendLine($"Entities: {string.Join(", ", publicEntities.Select(x => x.Name))}");
             }
 
             if (!string.IsNullOrWhiteSpace(record.Ownership.Author) ||
-                !string.IsNullOrWhiteSpace(record.Provenance.Source) ||
                 !string.IsNullOrWhiteSpace(record.Trust.ReviewStatus) ||
-                record.Entities.Count > 0)
+                publicEntities.Count > 0)
             {
                 sb.AppendLine();
             }

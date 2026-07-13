@@ -250,8 +250,110 @@ public sealed class BuildReporterTests
         Assert.Equal("passed", checks.GetProperty("unsafeSlug").GetProperty("status").GetString());
         Assert.Equal("not_applicable", checks.GetProperty("pluginOutputPath").GetProperty("status").GetString());
         Assert.Equal("not_applicable", checks.GetProperty("remoteThemeLock").GetProperty("status").GetString());
+        Assert.Equal("not_applicable", checks.GetProperty("publicOutputPrivacy").GetProperty("status").GetString());
         Assert.Equal(0, root.GetProperty("warnings").GetArrayLength());
         Assert.Equal(0, root.GetProperty("errors").GetArrayLength());
+    }
+
+    [Fact]
+    public void CreateSecurityReportData_FailsWhenPublicOutputContainsKnownNotionIdentifiersOrProviderMarkers()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var tempDir = CreateTempDir();
+        var publicDir = Path.Combine(tempDir, "content");
+        var internalDir = Path.Combine(tempDir, ".bukit");
+        Directory.CreateDirectory(publicDir);
+        Directory.CreateDirectory(internalDir);
+        File.WriteAllText(
+            Path.Combine(publicDir, "leak.json"),
+            $$"""{"id":"posts:{{notionId}}","source":"notion"}""");
+        File.WriteAllText(
+            Path.Combine(internalDir, "publish-audit-report.json"),
+            $$"""{"sourceItemId":"posts:{{notionId}}","source":"notion"}""");
+
+        var config = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+        var variant = CreateVariant(tempDir) with { ContentGraph = CreateNotionGraph(notionId) };
+
+        var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+        Assert.Equal("failed", data.PublicOutputPrivacy);
+        var error = Assert.Single(data.Errors, value => value.Contains("content/leak.json", StringComparison.Ordinal));
+        Assert.DoesNotContain(notionId, error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CreateSecurityReportData_IgnoresInternalReportsAndUnrelatedBusinessUuid()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        const string businessId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+        var tempDir = CreateTempDir();
+        Directory.CreateDirectory(Path.Combine(tempDir, ".bukit"));
+        File.WriteAllText(Path.Combine(tempDir, "public.json"), $$"""{"businessId":"{{businessId}}"}""");
+        File.WriteAllText(
+            Path.Combine(tempDir, ".bukit", "seo-report.json"),
+            $$"""{"sourceItemId":"posts:{{notionId}}","source":"notion"}""");
+
+        var config = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+        var variant = CreateVariant(tempDir) with { ContentGraph = CreateNotionGraph(notionId) };
+
+        var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+        Assert.Equal("passed", data.PublicOutputPrivacy);
+        Assert.Empty(data.Errors);
+    }
+
+    [Fact]
+    public void CreateSecurityReportData_DetectsCompactKnownIdentifierWithoutProviderMarker()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var tempDir = CreateTempDir();
+        File.WriteAllText(Path.Combine(tempDir, "public.txt"), notionId.Replace("-", string.Empty, StringComparison.Ordinal));
+        var config = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+        var variant = CreateVariant(tempDir) with { ContentGraph = CreateNotionGraph(notionId) };
+
+        var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+        Assert.Equal("failed", data.PublicOutputPrivacy);
+        Assert.Contains(data.Errors, error => error.Contains("public.txt", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CreateSecurityReportData_DetectsStructuredProviderMarkersAndRedactsUuidPath()
+    {
+        const string unknownUuid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+        var tempDir = CreateTempDir();
+        File.WriteAllText(Path.Combine(tempDir, unknownUuid + ".json"), """{"source":"not\u0069on"}""");
+        File.WriteAllText(Path.Combine(tempDir, "metadata.yaml"), "sourceKey: notion\n");
+        var config = CreateConfig(enabled: true) with { Content = TestContent.Notion("db") };
+
+        var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [CreateVariant(tempDir)]);
+
+        Assert.Equal("failed", data.PublicOutputPrivacy);
+        Assert.Contains(data.Errors, error => error.Contains("[redacted-notion-id].json", StringComparison.Ordinal));
+        Assert.Contains(data.Errors, error => error.Contains("metadata.yaml", StringComparison.Ordinal));
+        Assert.DoesNotContain(data.Errors, error => error.Contains(unknownUuid, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void CreateSecurityReportData_DetectsRelatedEntityAndRelationIdentifiers()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        const string entityId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
+        const string relationId = "cccccccc-4444-4555-8666-dddddddddddd";
+        var tempDir = CreateTempDir();
+        File.WriteAllText(Path.Combine(tempDir, "entity.txt"), entityId);
+        File.WriteAllText(Path.Combine(tempDir, "relation.txt"), relationId);
+        var config = CreateConfig(enabled: true) with { Content = TestContent.Notion("db") };
+        var variant = CreateVariant(tempDir) with
+        {
+            ContentGraph = CreateNotionGraph(notionId, entityId, relationId)
+        };
+
+        var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+        Assert.Equal("failed", data.PublicOutputPrivacy);
+        Assert.Contains(data.Errors, error => error.Contains("entity.txt", StringComparison.Ordinal));
+        Assert.Contains(data.Errors, error => error.Contains("relation.txt", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -280,6 +382,7 @@ public sealed class BuildReporterTests
             UnsafeSlug: "passed",
             PluginOutputPath: "not_applicable",
             RemoteThemeLock: "not_applicable",
+            PublicOutputPrivacy: "not_applicable",
             Warnings: Array.Empty<string>(),
             Errors: new[] { "route traversal detected" });
 
@@ -302,6 +405,7 @@ public sealed class BuildReporterTests
             UnsafeSlug: "passed",
             PluginOutputPath: "not_applicable",
             RemoteThemeLock: "not_applicable",
+            PublicOutputPrivacy: "not_applicable",
             Warnings: Array.Empty<string>(),
             Errors: new[] { "route traversal detected" });
 
@@ -323,6 +427,7 @@ public sealed class BuildReporterTests
             UnsafeSlug: "passed",
             PluginOutputPath: "not_applicable",
             RemoteThemeLock: "not_applicable",
+            PublicOutputPrivacy: "not_applicable",
             Warnings: Array.Empty<string>(),
             Errors: new[] { "route traversal detected" });
 
@@ -451,5 +556,22 @@ public sealed class BuildReporterTests
                     new RouteInfo("/archive/2024/", "archive/2024/index.html", "pages/archive.html"),
                     DateTimeOffset.Parse("2024-01-01T00:00:00Z", CultureInfo.InvariantCulture))
             });
+    }
+
+    private static CanonicalContentGraph CreateNotionGraph(string notionId, string? entityId = null, string? relationId = null)
+    {
+        var record = new ContentRecord(
+            new ContentIdentity($"posts:{notionId}", "safe-route", notionId, "post", "published"),
+            new ContentPresentation("Safe title", null, null, "en", []),
+            new ContentClassification("post", "posts", [], []),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(DateTimeOffset.Parse("2026-07-13T00:00:00Z", CultureInfo.InvariantCulture), null, null, null),
+            new ProvenanceRecord("notion", null, [], [], null),
+            new TrustMetadata(null, "published", []),
+            entityId is null ? [] : [new EntityRecord("page", entityId)],
+            relationId is null ? [] : [new ContentRelation("related", relationId)],
+            []);
+
+        return new CanonicalContentGraph([record], [], [], []);
     }
 }

@@ -347,14 +347,14 @@ internal static class I18nOutputMerger
 
                 result.SeoModels.TryGetValue(key, out var model);
                 var mergedRoute = CombineBaseUrl(result.BaseUrl, route.Url);
+                var publicId = PublicContentProjectionPolicy.ResolvePublicId(record, mergedRoute);
                 entries.Add(new DefaultContentProjectionWriter.AgentManifestEntry(
-                    record.Identity.Id,
-                    record.Identity.CanonicalUrlKey,
+                    publicId,
+                    publicId,
                     mergedRoute,
                     record.Presentation.Language,
                     record.Trust.ReviewStatus,
-                    record.Provenance.Source,
-                    record.Entities.Select(x => x.Name).ToArray(),
+                    PublicContentProjectionPolicy.SanitizeEntities(record).Select(x => x.Name).ToArray(),
                     PrefixRepresentationUrls(
                         result.BaseUrl,
                         DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(record, mergedRoute, seoEntry, model)),

@@ -80,11 +80,19 @@ internal static class RepresentationAuditRules
         {
             using var json = JsonDocument.Parse(File.ReadAllText(path));
             var root = json.RootElement;
+            var publicId = document.ContentRecord is null
+                ? null
+                : PublicContentProjectionPolicy.ResolvePublicId(document.ContentRecord, document.RouteUrl);
+            var publicEntities = document.ContentRecord is null
+                ? document.EntityNames
+                : PublicContentProjectionPolicy.SanitizeEntities(document.ContentRecord).Select(entity => entity.Name).ToArray();
             var mismatch = !RouteEquals(ReadString(root, "route"), document) ||
+                           (publicId is not null && !StringEquals(ReadString(root, "id"), publicId)) ||
+                           (publicId is not null && !StringEquals(ReadString(root, "canonicalUrlKey"), publicId)) ||
                            !StringEquals(ReadString(root, "language"), document.Language) ||
                            !StringEquals(ReadString(root, "reviewStatus"), document.ReviewStatus) ||
-                           !StringEquals(ReadString(root, "source"), document.Source) ||
-                           !ContainsEntities(root, document.EntityNames);
+                           root.TryGetProperty("source", out _) ||
+                           !ContainsEntities(root, publicEntities);
             if (mismatch)
             {
                 issues.Add(new PublishAuditIssue("error", "publish.representation_json_mismatch", document.RouteUrl, "JSON content representation does not match the publish document identity, language, trust, provenance, or entities."));
@@ -109,7 +117,7 @@ internal static class RepresentationAuditRules
         var mismatch = !RouteEquals(route, document) ||
                        (document.Language is not null && !markdown.Contains($"- Language: {document.Language}", StringComparison.Ordinal)) ||
                        (document.ReviewStatus is not null && !markdown.Contains($"- Review Status: {document.ReviewStatus}", StringComparison.Ordinal)) ||
-                       (document.Source is not null && !markdown.Contains($"- Source: {document.Source}", StringComparison.Ordinal));
+                       markdown.Contains("- Source:", StringComparison.Ordinal);
         if (mismatch)
         {
             issues.Add(new PublishAuditIssue("error", "publish.representation_markdown_mismatch", document.RouteUrl, "Markdown content representation does not match the publish document route, language, review status, or provenance."));
@@ -171,11 +179,19 @@ internal static class RepresentationAuditRules
             }
 
             var value = manifestDocument.Value;
+            var publicId = document.ContentRecord is null
+                ? null
+                : PublicContentProjectionPolicy.ResolvePublicId(document.ContentRecord, document.RouteUrl);
+            var publicEntities = document.ContentRecord is null
+                ? document.EntityNames
+                : PublicContentProjectionPolicy.SanitizeEntities(document.ContentRecord).Select(entity => entity.Name).ToArray();
             var mismatch = !RouteEquals(ReadString(value, "route"), document) ||
+                           (publicId is not null && !StringEquals(ReadString(value, "id"), publicId)) ||
+                           (publicId is not null && !StringEquals(ReadString(value, "canonicalId"), publicId)) ||
                            !StringEquals(ReadString(value, "language"), document.Language) ||
                            !StringEquals(ReadString(value, "reviewStatus"), document.ReviewStatus) ||
-                           !StringEquals(ReadString(value, "source"), document.Source) ||
-                           !ContainsManifestEntities(value, document.EntityNames);
+                           value.TryGetProperty("source", out _) ||
+                           !ContainsManifestEntities(value, publicEntities);
             if (mismatch)
             {
                 issues.Add(new PublishAuditIssue("error", "publish.manifest_mismatch", document.RouteUrl, BuildManifestMismatchMessage(value, document)));
@@ -217,9 +233,9 @@ internal static class RepresentationAuditRules
     }
 
     private static string BuildManifestMismatchMessage(JsonElement value, PublishDocument document)
-        => "Agent manifest document does not match the publish document identity, language, trust, provenance, or entities. " +
-           $"Expected route={document.RouteUrl}, language={document.Language ?? "-"}, reviewStatus={document.ReviewStatus ?? "-"}, source={document.Source ?? "-"}; " +
-           $"actual route={ReadString(value, "route") ?? "-"}, language={ReadString(value, "language") ?? "-"}, reviewStatus={ReadString(value, "reviewStatus") ?? "-"}, source={ReadString(value, "source") ?? "-"}.";
+        => "Agent manifest document does not match the publish-safe identity, language, trust, or entities. " +
+           $"Expected route={document.RouteUrl}, language={document.Language ?? "-"}, reviewStatus={document.ReviewStatus ?? "-"}; " +
+           $"actual route={ReadString(value, "route") ?? "-"}, language={ReadString(value, "language") ?? "-"}, reviewStatus={ReadString(value, "reviewStatus") ?? "-"}.";
 
     private static bool RouteEquals(string? actual, PublishDocument document)
     {

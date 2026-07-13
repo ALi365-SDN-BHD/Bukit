@@ -268,7 +268,9 @@ public sealed class NotionBlockRenderersTests
 
         Assert.NotNull(html);
         Assert.Contains("class=\"notion-link-to-page\"", html);
-        Assert.Contains("data-notion-id=\"abc-123\"", html);
+        Assert.Contains("Linked page", html);
+        Assert.DoesNotContain("abc-123", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-notion-id", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -287,7 +289,9 @@ public sealed class NotionBlockRenderersTests
         var html = await renderer.RenderAsync(doc.RootElement, null!, CancellationToken.None);
 
         Assert.NotNull(html);
-        Assert.Contains("data-notion-id=\"db-456\"", html);
+        Assert.Contains("Linked page", html);
+        Assert.DoesNotContain("db-456", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-notion-id", html, StringComparison.Ordinal);
     }
 
     // ── NoOpBlockRenderer tests ─────────────────────────────────────────────

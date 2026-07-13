@@ -295,8 +295,9 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
-    public void GenerateJsonFeed_ShouldIncludeCanonicalSummaryAndSource_WhenSourceHasNoEntities()
+    public void GenerateJsonFeed_ShouldIncludeCanonicalSummaryWithoutProviderSource()
     {
+        const string relatedNotionId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         var outDir = Path.Combine(root, "dist");
         Directory.CreateDirectory(outDir);
@@ -309,7 +310,8 @@ public sealed class RssGeneratorTests
                 "Canonical feed summary",
                 new[] { "tag" },
                 "<p>Body</p>",
-                Source: "notion")
+                Source: "notion",
+                Entities: ["Bukit", relatedNotionId])
         };
 
         JsonFeedGenerator.Generate(outDir, "https://example.com", "/", "Site", posts, "feed.json");
@@ -317,7 +319,9 @@ public sealed class RssGeneratorTests
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(outDir, "feed.json")));
         var item = doc.RootElement.GetProperty("items")[0];
         Assert.Equal("Canonical feed summary", item.GetProperty("summary").GetString());
-        Assert.Equal("notion", item.GetProperty("_bukit").GetProperty("source").GetString());
+        var extension = item.GetProperty("_bukit");
+        Assert.Equal("Bukit", Assert.Single(extension.GetProperty("entities").EnumerateArray()).GetString());
+        Assert.DoesNotContain(relatedNotionId, File.ReadAllText(Path.Combine(outDir, "feed.json")), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -21,7 +21,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
             return new DeployResult { Success = false, Error = $"Output directory not found: {context.OutputDir}" };
         }
 
-        if (Directory.GetFiles(context.OutputDir, "*", SearchOption.AllDirectories).Length == 0)
+        if (!HasDeployableOutputFiles(context.OutputDir))
         {
             return new DeployResult { Success = false, Error = $"Output directory is empty: {context.OutputDir}" };
         }
@@ -128,6 +128,16 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
             {
                 var cnamePath = Path.Combine(tempDir, "CNAME");
                 await File.WriteAllTextAsync(cnamePath, cname, ct);
+            }
+
+            var privacyErrors = DeploymentPrivacyValidator.Validate(context.OutputDir, tempDir);
+            if (privacyErrors.Count > 0)
+            {
+                return new DeployResult
+                {
+                    Success = false,
+                    Error = string.Join(" ", privacyErrors)
+                };
             }
 
             await EnsureGitIdentityAsync(gitPath, tempDir, gitCommandTimeout, ct);

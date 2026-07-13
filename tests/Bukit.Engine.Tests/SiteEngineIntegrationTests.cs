@@ -339,6 +339,7 @@ public sealed class SiteEngineIntegrationTests
     [Fact]
     public async Task BuildAsync_WritesPublishRepresentationsAndAuditArtifacts()
     {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
         var root = Path.Combine(Path.GetTempPath(), "bukit-publish-projection-test", Guid.NewGuid().ToString("N"));
 
         try
@@ -348,27 +349,34 @@ public sealed class SiteEngineIntegrationTests
             Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
             Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
 
-            File.WriteAllText(Path.Combine(root, "content", "hello.md"), """
-                ---
-                type: post
-                collection: post
-                markdown:
-                  dir: content
-                title: Hello World
-                slug: hello-world
-                publishAt: 2024-06-01T00:00:00Z
-                updatedAt: 2024-06-02T00:00:00Z
-                summary: A hello world post
-                author: Ali
-                source: notion
-                review_status: approved
-                entities:
-                  - Bukit
-                ---
-                # Hello World
-
-                This is a test post.
-                """);
+            var contentFields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "post",
+                ["collection"] = "post",
+                ["title"] = "Hello World",
+                ["slug"] = "hello-world",
+                ["updatedAt"] = "2024-06-02T00:00:00Z",
+                ["summary"] = "A hello world post",
+                ["author"] = "Ali",
+                ["source"] = "notion",
+                ["review_status"] = "approved",
+                ["entities"] = new[] { "Bukit" }
+            });
+            var rawDocument = new RawContentDocument(
+                Id: notionId,
+                Title: "Hello World",
+                Slug: "hello-world",
+                PublishAt: DateTimeOffset.Parse("2024-06-01T00:00:00Z"),
+                Body: new RawBody(BodyKey: notionId),
+                Properties: RawContentValue.FromFields(contentFields),
+                Source: new ContentSourceInfo("notion", ExternalId: notionId),
+                CustomFields: contentFields);
+            var loadResult = new RawContentLoadResult(
+                [rawDocument],
+                new DictionaryContentBodyStore(new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [notionId] = "<h1>Hello World</h1><p>This is a test post.</p>"
+                }));
 
             File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
                 <!DOCTYPE html>
@@ -417,7 +425,7 @@ public sealed class SiteEngineIntegrationTests
             };
 
             var logger = new TestLogger();
-            var engine = new SiteEngine(logger);
+            var engine = new SiteEngine(logger, new StaticContentProviderFactory(loadResult), new DefaultSearchIndexBuilder());
 
             WriteTestThemeTemplates(root);
 
@@ -435,14 +443,17 @@ public sealed class SiteEngineIntegrationTests
             Assert.True(File.Exists(publishAuditPath), $"Expected {publishAuditPath}");
 
             using var projectionDoc = JsonDocument.Parse(File.ReadAllText(jsonProjectionPath));
+            Assert.Equal("hello-world", projectionDoc.RootElement.GetProperty("id").GetString());
+            Assert.Equal("hello-world", projectionDoc.RootElement.GetProperty("canonicalUrlKey").GetString());
             Assert.Equal("Hello World", projectionDoc.RootElement.GetProperty("title").GetString());
             Assert.Equal("Ali", projectionDoc.RootElement.GetProperty("author").GetString());
             Assert.Equal("approved", projectionDoc.RootElement.GetProperty("reviewStatus").GetString());
-            Assert.Equal("notion", projectionDoc.RootElement.GetProperty("source").GetString());
+            Assert.False(projectionDoc.RootElement.TryGetProperty("source", out _));
 
             var markdownProjection = File.ReadAllText(markdownProjectionPath);
             Assert.Contains("# Hello World", markdownProjection, StringComparison.Ordinal);
             Assert.Contains("Review Status: approved", markdownProjection, StringComparison.Ordinal);
+            Assert.DoesNotContain("Source: notion", markdownProjection, StringComparison.Ordinal);
 
             using var manifestDoc = JsonDocument.Parse(File.ReadAllText(agentManifestPath));
             var manifestDocuments = manifestDoc.RootElement.GetProperty("documents").EnumerateArray().ToArray();
@@ -450,6 +461,9 @@ public sealed class SiteEngineIntegrationTests
                 (x.TryGetProperty("route", out var route) && route.GetString() == "/blog/hello-world/") ||
                 (x.TryGetProperty("Route", out var routeUpper) && routeUpper.GetString() == "/blog/hello-world/"));
             var manifestDocument = manifestDocuments.Single(x => x.GetProperty("route").GetString() == "/blog/hello-world/");
+            Assert.Equal("hello-world", manifestDocument.GetProperty("id").GetString());
+            Assert.Equal("hello-world", manifestDocument.GetProperty("canonicalId").GetString());
+            Assert.False(manifestDocument.TryGetProperty("source", out _));
             var manifestRepresentations = manifestDocument.GetProperty("representations").EnumerateArray().ToArray();
             foreach (var kind in PublishRepresentationRegistry.DocumentKinds(includeJsonLd: false))
             {
@@ -464,6 +478,44 @@ public sealed class SiteEngineIntegrationTests
 
             using var publishAuditDoc = JsonDocument.Parse(File.ReadAllText(publishAuditPath));
             Assert.Equal("https://bukit.dev/schemas/publish-audit-report.v1.json", publishAuditDoc.RootElement.GetProperty("schema").GetString());
+            var auditedDocument = publishAuditDoc.RootElement.GetProperty("documents").EnumerateArray()
+                .Single(x => x.GetProperty("routeUrl").GetString() == "/blog/hello-world/");
+            Assert.Equal("notion", auditedDocument.GetProperty("source").GetString());
+            Assert.Equal(notionId, auditedDocument.GetProperty("sourceItemId").GetString());
+            using var securityDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(distDir, ".bukit", "security-report.json")));
+            Assert.Equal(
+                "passed",
+                securityDoc.RootElement.GetProperty("checks").GetProperty("publicOutputPrivacy").GetProperty("status").GetString());
+
+            var publicTextExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ".css", ".csv", ".htm", ".html", ".js", ".json", ".jsonld", ".md", ".mjs",
+                ".rss", ".svg", ".txt", ".xml", ".yaml", ".yml"
+            };
+            var publicFiles = Directory.EnumerateFiles(distDir, "*", SearchOption.AllDirectories)
+                .Where(path =>
+                {
+                    var relativePath = Path.GetRelativePath(distDir, path).Replace('\\', '/');
+                    return !relativePath.StartsWith(".bukit/", StringComparison.OrdinalIgnoreCase)
+                           && !relativePath.Equals(".bukit-build-state.json", StringComparison.OrdinalIgnoreCase)
+                           && !relativePath.Equals(".bukit-output-marker", StringComparison.OrdinalIgnoreCase);
+                })
+                .ToArray();
+            foreach (var publicFile in publicFiles)
+            {
+                var publicRelativePath = Path.GetRelativePath(distDir, publicFile).Replace('\\', '/');
+                Assert.DoesNotContain(notionId, publicRelativePath, StringComparison.OrdinalIgnoreCase);
+            }
+
+            foreach (var publicFile in publicFiles.Where(path => publicTextExtensions.Contains(Path.GetExtension(path))))
+            {
+                var publicText = File.ReadAllText(publicFile);
+                Assert.DoesNotContain(notionId, publicText, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("\"source\":\"notion\"", publicText.Replace(" ", string.Empty), StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("\"sourceKey\":\"notion\"", publicText.Replace(" ", string.Empty), StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("Source: notion", publicText, StringComparison.OrdinalIgnoreCase);
+            }
+
             var summary = publishAuditDoc.RootElement.GetProperty("summary");
             Assert.True(summary.GetProperty("publishIssueCount").GetInt32() >= 0);
             Assert.True(summary.GetProperty("machineReadabilityIssueCount").GetInt32() >= 0);

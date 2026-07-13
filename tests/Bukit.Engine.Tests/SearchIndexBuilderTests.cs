@@ -249,6 +249,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void WriteSearchItem_EmitsCanonicalContentMetadata()
     {
+        const string relatedNotionId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
         var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "article",
@@ -264,6 +265,11 @@ public sealed class SearchIndexBuilderTests
                 {
                     ["type"] = "company",
                     ["name"] = "Bukit"
+                },
+                new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["type"] = "page",
+                    ["name"] = relatedNotionId
                 }
             }
         });
@@ -287,12 +293,15 @@ public sealed class SearchIndexBuilderTests
         }
 
         using var doc = JsonDocument.Parse(stream.ToArray());
+        Assert.Equal("search-post", doc.RootElement.GetProperty("id").GetString());
         Assert.Equal("approved", doc.RootElement.GetProperty("reviewStatus").GetString());
-        Assert.Equal("notion", doc.RootElement.GetProperty("source").GetString());
+        Assert.False(doc.RootElement.TryGetProperty("source", out _));
+        Assert.False(doc.RootElement.TryGetProperty("sourceKey", out _));
         Assert.Equal("article", doc.RootElement.GetProperty("type").GetString());
         Assert.Equal("article", doc.RootElement.GetProperty("contentType").GetString());
         Assert.Equal("news", doc.RootElement.GetProperty("collection").GetString());
-        Assert.Equal("Bukit", doc.RootElement.GetProperty("entities")[0].GetString());
+        var entities = doc.RootElement.GetProperty("entities").EnumerateArray().Select(item => item.GetString()).ToArray();
+        Assert.Equal("Bukit", Assert.Single(entities));
     }
 
     [Fact]
@@ -334,7 +343,9 @@ public sealed class SearchIndexBuilderTests
         Assert.Equal("Canonical summary", doc.RootElement.GetProperty("snippet").GetString());
         Assert.Equal("guide", doc.RootElement.GetProperty("type").GetString());
         Assert.Equal("ms-MY", doc.RootElement.GetProperty("language").GetString());
-        Assert.Equal("notion", doc.RootElement.GetProperty("sourceKey").GetString());
+        Assert.Equal("structured-post", doc.RootElement.GetProperty("id").GetString());
+        Assert.False(doc.RootElement.TryGetProperty("source", out _));
+        Assert.False(doc.RootElement.TryGetProperty("sourceKey", out _));
         Assert.Equal("bukit", doc.RootElement.GetProperty("tags")[0].GetString());
         Assert.Equal("docs", doc.RootElement.GetProperty("categories")[0].GetString());
     }

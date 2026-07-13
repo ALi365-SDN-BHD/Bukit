@@ -10,6 +10,75 @@ namespace Bukit.Engine.Tests;
 public sealed class PublishRepresentationRegistryTests
 {
     [Fact]
+    public void PublicContentProjectionPolicy_ReplacesNotionIdentityAndSanitizesGraphIdentifiers()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var record = new ContentRecord(
+            new ContentIdentity($"posts:{notionId}", "safe-route", notionId, "post", "published"),
+            new ContentPresentation("Safe title", null, null, "en", []),
+            new ContentClassification("post", "posts", [], []),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(DateTimeOffset.Parse("2026-07-13T00:00:00Z"), null, null, null),
+            new ProvenanceRecord("notion", null, [], [], null),
+            new TrustMetadata(null, "published", []),
+            [
+                new EntityRecord("page", "Safe entity", Id: notionId),
+                new EntityRecord("page", notionId, Id: notionId)
+            ],
+            [
+                new ContentRelation("related", "Safe target", TargetId: notionId),
+                new ContentRelation("related", notionId, TargetId: notionId)
+            ],
+            []);
+
+        Assert.Equal("/safe-route/", PublicContentProjectionPolicy.ResolvePublicId(record, "/safe-route/"));
+        var entities = PublicContentProjectionPolicy.SanitizeEntities(record);
+        var relations = PublicContentProjectionPolicy.SanitizeRelations(record);
+
+        var entity = Assert.Single(entities);
+        Assert.Equal("Safe entity", entity.Name);
+        Assert.Null(entity.Id);
+        var relation = Assert.Single(relations);
+        Assert.Equal("Safe target", relation.Target);
+        Assert.Null(relation.TargetId);
+    }
+
+    [Fact]
+    public void BuildAgentManifestEntries_RemovesRelatedNotionUuidEntityNames()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        const string relatedNotionId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
+        var record = new ContentRecord(
+            new ContentIdentity($"posts:{notionId}", "safe-route", notionId, "post", "published"),
+            new ContentPresentation("Safe title", null, null, "en", []),
+            new ContentClassification("post", "posts", [], []),
+            new ContentOwnership(null, null, null, null),
+            new ContentLifecycle(DateTimeOffset.Parse("2026-07-13T00:00:00Z"), null, null, null),
+            new ProvenanceRecord("notion", null, [], [], null),
+            new TrustMetadata(null, "published", []),
+            [new EntityRecord("company", "Bukit"), new EntityRecord("page", relatedNotionId)],
+            [],
+            []);
+        var document = new ContentDocument(record, new ContentBodyRef(null, null));
+        var route = new RouteInfo("/safe-route/", "safe-route/index.html", "post.html");
+        var context = new PublishProjectionContext(
+            new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "Test" },
+                Content = TestContent.Notion()
+            },
+            Path.GetTempPath(),
+            new CanonicalContentGraph([record], [], [], []),
+            new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+            [new RoutedContentDocument(document, route)]);
+
+        var entry = Assert.Single(DefaultContentProjectionWriter.BuildAgentManifestEntries(context));
+
+        Assert.Equal(["Bukit"], entry.Entities);
+    }
+
+    [Fact]
     public void DocumentKinds_ReturnsCanonicalDocumentRepresentations()
     {
         var kinds = PublishRepresentationRegistry.DocumentKinds(includeJsonLd: true);
@@ -76,6 +145,7 @@ public sealed class PublishRepresentationRegistryTests
     [Fact]
     public void DocumentProjectionContracts_WriteFilesAndReturnOutputs()
     {
+        const string relatedNotionId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit_projection_contract_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outputDir);
         try
@@ -91,7 +161,12 @@ public sealed class PublishRepresentationRegistryTests
                     ["language"] = "en",
                     ["status"] = "published",
                     ["review_status"] = "reviewed",
-                    ["source"] = "editorial"
+                    ["source"] = "notion",
+                    ["entities"] = new object[]
+                    {
+                        new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "company", ["name"] = "Bukit" },
+                        new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "page", ["name"] = relatedNotionId }
+                    }
                 }));
             var route = new RouteInfo("/projection-post/", "projection-post/index.html", "post.html");
             var graph = CanonicalContentGraphBuilder.BuildFromDocuments(new[] { document });
@@ -131,6 +206,8 @@ public sealed class PublishRepresentationRegistryTests
             Assert.Contains(markdownResult.Outputs, x => x.Kind == "markdown" && x.Url == "/content/projection-post.md" && x.Exists && x.Indexable);
             Assert.True(File.Exists(Path.Combine(outputDir, "content", "projection-post.json")));
             Assert.True(File.Exists(Path.Combine(outputDir, "content", "projection-post.md")));
+            Assert.DoesNotContain(relatedNotionId, File.ReadAllText(Path.Combine(outputDir, "content", "projection-post.json")), StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(relatedNotionId, File.ReadAllText(Path.Combine(outputDir, "content", "projection-post.md")), StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

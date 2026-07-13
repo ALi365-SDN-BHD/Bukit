@@ -99,7 +99,6 @@ public sealed class WechatSyncPluginInvokeCompatibilityTests : IDisposable
       "route": "/posts/hello/",
       "language": "zh",
       "reviewStatus": "approved",
-      "source": "notion",
       "entities": [],
       "representations": [
         { "kind": "json", "url": "content/post-1.json" },
@@ -130,7 +129,6 @@ public sealed class WechatSyncPluginInvokeCompatibilityTests : IDisposable
   "updatedAt": null,
   "expiresAt": null,
   "reviewedAt": null,
-  "source": "notion",
   "originalSource": null,
   "citations": [],
   "references": [],

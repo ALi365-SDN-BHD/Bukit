@@ -46,6 +46,9 @@ public static class JsonFeedGenerator
         writer.WriteStartArray("items");
         foreach (var post in sorted)
         {
+            var publicEntities = string.Equals(post.Source, "notion", StringComparison.OrdinalIgnoreCase)
+                ? post.Entities?.Where(entity => !PublicContentProjectionPolicy.ContainsNotionIdentifier(entity)).ToArray()
+                : post.Entities;
             writer.WriteStartObject();
             writer.WriteString("id", post.AbsoluteUrl);
             writer.WriteString("url", post.AbsoluteUrl);
@@ -86,22 +89,17 @@ public static class JsonFeedGenerator
                 writer.WriteString("content_html", post.ContentHtml);
             }
 
-            if (HasBukitExtension(post))
+            if (HasBukitExtension(post, publicEntities))
             {
                 writer.WriteStartObject("_bukit");
-                if (post.Entities is { Count: > 0 })
+                if (publicEntities is { Count: > 0 })
                 {
                     writer.WriteStartArray("entities");
-                    foreach (var entity in post.Entities)
+                    foreach (var entity in publicEntities)
                     {
                         writer.WriteStringValue(entity);
                     }
                     writer.WriteEndArray();
-                }
-
-                if (!string.IsNullOrWhiteSpace(post.Source))
-                {
-                    writer.WriteString("source", post.Source);
                 }
 
                 if (!string.IsNullOrWhiteSpace(post.ReviewStatus))
@@ -119,8 +117,7 @@ public static class JsonFeedGenerator
         writer.Flush();
     }
 
-    private static bool HasBukitExtension(RssGenerator.Post post)
-        => post.Entities is { Count: > 0 } ||
-           !string.IsNullOrWhiteSpace(post.Source) ||
+    private static bool HasBukitExtension(RssGenerator.Post post, IReadOnlyList<string>? publicEntities)
+        => publicEntities is { Count: > 0 } ||
            !string.IsNullOrWhiteSpace(post.ReviewStatus);
 }

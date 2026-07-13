@@ -116,13 +116,12 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
             }
 
             manifestEntries.Add(new AgentManifestEntry(
-                record.Identity.Id,
-                record.Identity.CanonicalUrlKey,
+                PublicContentProjectionPolicy.ResolvePublicId(record, route.Url),
+                PublicContentProjectionPolicy.ResolvePublicId(record, route.Url),
                 route.Url,
                 record.Presentation.Language,
                 record.Trust.ReviewStatus,
-                record.Provenance.Source,
-                record.Entities.Select(x => x.Name).ToArray(),
+                PublicContentProjectionPolicy.SanitizeEntities(record).Select(x => x.Name).ToArray(),
                 BuildAgentManifestRepresentationEntries(record, route.Url, entry, model),
                 record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
         }
@@ -178,7 +177,6 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
         string Route,
         string Language,
         string ReviewStatus,
-        string? Source,
         IReadOnlyList<string> Entities,
         IReadOnlyList<RepresentationEntry> Representations,
         DateTimeOffset PublishedAt);
@@ -211,12 +209,13 @@ internal sealed class JsonContentDocumentProjection : IPublishProjection
         var route = context.Route;
         var entry = context.SeoIndexEntry;
         var model = context.SeoModel;
+        var publicId = PublicContentProjectionPolicy.ResolvePublicId(record, route.Url);
         var path = DefaultContentProjectionWriter.GetContentProjectionBasePath(context.OutputDir, record) + ".json";
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var projection = new ContentProjectionDocument(
-            Id: record.Identity.Id,
+            Id: publicId,
             Slug: record.Identity.Slug,
-            CanonicalUrlKey: record.Identity.CanonicalUrlKey,
+            CanonicalUrlKey: publicId,
             Route: route.Url,
             Title: record.Presentation.Title,
             Summary: record.Presentation.Summary,
@@ -232,7 +231,6 @@ internal sealed class JsonContentDocumentProjection : IPublishProjection
             UpdatedAt: record.Lifecycle.UpdatedAt,
             ExpiresAt: record.Lifecycle.ExpiresAt,
             ReviewedAt: record.Lifecycle.ReviewedAt,
-            Source: record.Provenance.Source,
             OriginalSource: record.Provenance.OriginalSource,
             Citations: record.Provenance.Citations,
             References: record.Provenance.References,
@@ -240,8 +238,8 @@ internal sealed class JsonContentDocumentProjection : IPublishProjection
             ReviewStatus: record.Trust.ReviewStatus,
             CredibilityScore: record.Trust.CredibilityScore,
             QualityFlags: record.Trust.QualityFlags,
-            Entities: record.Entities,
-            Relations: record.Relations,
+            Entities: PublicContentProjectionPolicy.SanitizeEntities(record),
+            Relations: PublicContentProjectionPolicy.SanitizeRelations(record),
             Media: record.Media,
             Canonical: model?.Canonical ?? entry?.Canonical);
 
@@ -283,11 +281,6 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
         sb.AppendLine($"- Language: {record.Presentation.Language}");
         sb.AppendLine($"- Type: {record.Identity.ContentType}");
         sb.AppendLine($"- Review Status: {record.Trust.ReviewStatus}");
-        if (!string.IsNullOrWhiteSpace(record.Provenance.Source))
-        {
-            sb.AppendLine($"- Source: {record.Provenance.Source}");
-        }
-
         if (!string.IsNullOrWhiteSpace(entry?.Canonical))
         {
             sb.AppendLine($"- Canonical: {entry.Canonical}");
@@ -299,12 +292,13 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
             sb.AppendLine(record.Presentation.Summary);
         }
 
-        if (record.Entities.Count > 0)
+        var publicEntities = PublicContentProjectionPolicy.SanitizeEntities(record);
+        if (publicEntities.Count > 0)
         {
             sb.AppendLine();
             sb.AppendLine("## Entities");
             sb.AppendLine();
-            foreach (var entity in record.Entities)
+            foreach (var entity in publicEntities)
             {
                 sb.AppendLine($"- {entity.Type}: {entity.Name}");
             }
@@ -385,7 +379,6 @@ internal sealed record ContentProjectionDocument(
     DateTimeOffset? UpdatedAt,
     DateTimeOffset? ExpiresAt,
     DateTimeOffset? ReviewedAt,
-    string? Source,
     string? OriginalSource,
     IReadOnlyList<string> Citations,
     IReadOnlyList<string> References,

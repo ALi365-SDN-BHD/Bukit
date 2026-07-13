@@ -610,19 +610,33 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
-    public void CopyDirectory_SkipsNestedGitDirectories()
+    public void CopyDirectory_SkipsInternalBuildArtifactsAndPreservesPublicDotfiles()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-gh-pages-copy-" + Guid.NewGuid().ToString("N"));
         var source = Path.Combine(root, "source");
         var dest = Path.Combine(root, "dest");
+        var outside = Path.Combine(root, "outside");
 
         try
         {
             Directory.CreateDirectory(Path.Combine(source, ".git"));
+            Directory.CreateDirectory(Path.Combine(source, ".bukit"));
+            Directory.CreateDirectory(Path.Combine(source, ".GIT"));
+            Directory.CreateDirectory(Path.Combine(source, ".BUKIT"));
+            Directory.CreateDirectory(Path.Combine(source, ".well-known"));
             Directory.CreateDirectory(Path.Combine(source, "assets"));
+            Directory.CreateDirectory(outside);
             File.WriteAllText(Path.Combine(source, "index.html"), "<h1>Hello</h1>");
             File.WriteAllText(Path.Combine(source, "assets", "app.css"), "body{}");
             File.WriteAllText(Path.Combine(source, ".git", "config"), "[core]");
+            File.WriteAllText(Path.Combine(source, ".bukit", "publish-audit-report.json"), "{}");
+            File.WriteAllText(Path.Combine(source, ".bukit-build-state.json"), "{}");
+            File.WriteAllText(Path.Combine(source, ".bukit-output-marker"), "bukit");
+            File.WriteAllText(Path.Combine(source, ".BUKIT-BUILD-STATE.JSON"), "{}");
+            File.WriteAllText(Path.Combine(source, ".well-known", "security.txt"), "Contact: mailto:security@example.com");
+            File.WriteAllText(Path.Combine(outside, "secret.txt"), "secret");
+            Directory.CreateSymbolicLink(Path.Combine(source, "linked-outside"), outside);
+            File.CreateSymbolicLink(Path.Combine(source, "linked-secret.txt"), Path.Combine(outside, "secret.txt"));
 
             InvokePrivateStatic<object?>(
                 nameof(GitHubPagesDeployProvider),
@@ -631,7 +645,202 @@ public sealed class GitHubPagesDeployProviderTests
 
             Assert.True(File.Exists(Path.Combine(dest, "index.html")));
             Assert.True(File.Exists(Path.Combine(dest, "assets", "app.css")));
+            Assert.True(File.Exists(Path.Combine(dest, ".well-known", "security.txt")));
             Assert.False(Directory.Exists(Path.Combine(dest, ".git")));
+            Assert.False(Directory.Exists(Path.Combine(dest, ".bukit")));
+            Assert.False(Directory.Exists(Path.Combine(dest, ".GIT")));
+            Assert.False(Directory.Exists(Path.Combine(dest, ".BUKIT")));
+            Assert.False(File.Exists(Path.Combine(dest, ".bukit-build-state.json")));
+            Assert.False(File.Exists(Path.Combine(dest, ".bukit-output-marker")));
+            Assert.False(File.Exists(Path.Combine(dest, ".BUKIT-BUILD-STATE.JSON")));
+            Assert.False(Directory.Exists(Path.Combine(dest, "linked-outside")));
+            Assert.False(File.Exists(Path.Combine(dest, "linked-secret.txt")));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void HasDeployableOutputFiles_IgnoresInternalArtifactsAndSymlinks()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-gh-pages-output-scan-" + Guid.NewGuid().ToString("N"));
+        var output = Path.Combine(root, "output");
+        var outside = Path.Combine(root, "outside.txt");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(output, ".bukit"));
+            File.WriteAllText(Path.Combine(output, ".bukit", "publish-audit-report.json"), "{\"documents\":[]}");
+            File.WriteAllText(Path.Combine(output, ".bukit-output-marker"), "bukit");
+            File.WriteAllText(outside, "outside");
+            File.CreateSymbolicLink(Path.Combine(output, "linked.txt"), outside);
+
+            Assert.False(InvokePrivateStatic<bool>(
+                nameof(GitHubPagesDeployProvider),
+                "HasDeployableOutputFiles",
+                [output]));
+
+            Directory.CreateDirectory(Path.Combine(output, ".well-known"));
+            File.WriteAllText(Path.Combine(output, ".well-known", "security.txt"), "Contact: mailto:security@example.com");
+
+            Assert.True(InvokePrivateStatic<bool>(
+                nameof(GitHubPagesDeployProvider),
+                "HasDeployableOutputFiles",
+                [output]));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task DeployAsync_PublicOutputContainsKnownNotionIdentifier_StopsBeforeStagingOrPush()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", $"<p>posts:{notionId}</p>");
+        scope.WriteOutputFile(
+            ".bukit/publish-audit-report.json",
+            $$"""{"schema":"https://bukit.dev/schemas/publish-audit-report.v1.json","documents":[{"source":"notion","sourceItemId":"posts:{{notionId}}"}]}""");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("BKT-DEPLOY-PRIVACY-0001", result.Error, StringComparison.Ordinal);
+        Assert.Contains("index.html", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(notionId, result.Error, StringComparison.OrdinalIgnoreCase);
+        var log = scope.FakeGit.ReadLog();
+        Assert.DoesNotContain("add -A", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("push origin", log, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeploymentPrivacyValidator_IgnoresInternalReportsAndUnrelatedBusinessUuid()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        const string businessId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-privacy-" + Guid.NewGuid().ToString("N"));
+        var output = Path.Combine(root, "output");
+        var staged = Path.Combine(root, "staged");
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(output, ".bukit"));
+            Directory.CreateDirectory(staged);
+            File.WriteAllText(
+                Path.Combine(output, ".bukit", "publish-audit-report.json"),
+                $$"""{"schema":"https://bukit.dev/schemas/publish-audit-report.v1.json","documents":[{"source":"notion","sourceItemId":"posts:{{notionId}}"}]}""");
+            File.WriteAllText(Path.Combine(staged, "public.json"), $$"""{"businessId":"{{businessId}}"}""");
+
+            var errors = DeploymentPrivacyValidator.Validate(output, staged);
+
+            Assert.Empty(errors);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DeploymentPrivacyValidator_FailsClosedWhenIdentityReportIsMissingOrMalformed(bool malformed)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-privacy-report-" + Guid.NewGuid().ToString("N"));
+        var output = Path.Combine(root, "output");
+        var staged = Path.Combine(root, "staged");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(output, ".bukit"));
+            Directory.CreateDirectory(staged);
+            File.WriteAllText(Path.Combine(staged, "index.html"), "<h1>Safe</h1>");
+            if (malformed)
+            {
+                File.WriteAllText(Path.Combine(output, ".bukit", "publish-audit-report.json"), "{");
+            }
+
+            var errors = DeploymentPrivacyValidator.Validate(output, staged);
+
+            Assert.Contains(errors, error => error.Contains("BKT-DEPLOY-PRIVACY-0002", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void DeploymentPrivacyValidator_DetectsCompactIdentifierAndStructuredMarkersWithoutEchoingUuidPath()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        const string unknownUuid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-privacy-markers-" + Guid.NewGuid().ToString("N"));
+        var output = Path.Combine(root, "output");
+        var staged = Path.Combine(root, "staged");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(output, ".bukit"));
+            Directory.CreateDirectory(staged);
+            File.WriteAllText(
+                Path.Combine(output, ".bukit", "publish-audit-report.json"),
+                $$"""{"schema":"https://bukit.dev/schemas/publish-audit-report.v1.json","documents":[{"source":"notion","sourceItemId":"posts:{{notionId}}"}]}""");
+            File.WriteAllText(Path.Combine(staged, "compact.txt"), notionId.Replace("-", string.Empty, StringComparison.Ordinal));
+            File.WriteAllText(Path.Combine(staged, unknownUuid + ".json"), """{"source":"not\u0069on"}""");
+            File.WriteAllText(Path.Combine(staged, "metadata.yaml"), "sourceKey: notion\n");
+
+            var errors = DeploymentPrivacyValidator.Validate(output, staged);
+
+            Assert.Contains(errors, error => error.Contains("compact.txt", StringComparison.Ordinal));
+            Assert.Contains(errors, error => error.Contains("[redacted-notion-id].json", StringComparison.Ordinal));
+            Assert.Contains(errors, error => error.Contains("metadata.yaml", StringComparison.Ordinal));
+            Assert.DoesNotContain(errors, error => error.Contains(unknownUuid, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"schema\":\"https://bukit.dev/schemas/wrong.v1.json\",\"documents\":[]}")]
+    [InlineData("{\"schema\":\"https://bukit.dev/schemas/publish-audit-report.v1.json\",\"documents\":{}}")]
+    public void DeploymentPrivacyValidator_FailsClosedWhenIdentityReportContractIsInvalid(string reportJson)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-privacy-contract-" + Guid.NewGuid().ToString("N"));
+        var output = Path.Combine(root, "output");
+        var staged = Path.Combine(root, "staged");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(output, ".bukit"));
+            Directory.CreateDirectory(staged);
+            File.WriteAllText(Path.Combine(output, ".bukit", "publish-audit-report.json"), reportJson);
+            File.WriteAllText(Path.Combine(staged, "index.html"), "<h1>Safe</h1>");
+
+            var errors = DeploymentPrivacyValidator.Validate(output, staged);
+
+            Assert.Contains(errors, error => error.Contains("BKT-DEPLOY-PRIVACY-0002", StringComparison.Ordinal));
         }
         finally
         {
@@ -777,6 +986,15 @@ public sealed class GitHubPagesDeployProviderTests
             var fullPath = Path.Combine(OutputDir, relativePath);
             Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
             File.WriteAllText(fullPath, content);
+            if (!relativePath.Replace('\\', '/').StartsWith(".bukit/", StringComparison.OrdinalIgnoreCase))
+            {
+                var reportPath = Path.Combine(OutputDir, ".bukit", "publish-audit-report.json");
+                if (!File.Exists(reportPath))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(reportPath)!);
+                    File.WriteAllText(reportPath, "{\"schema\":\"https://bukit.dev/schemas/publish-audit-report.v1.json\",\"documents\":[]}");
+                }
+            }
         }
 
         public void SetGithubToken(string? token) => SetEnv("GITHUB_TOKEN", token);

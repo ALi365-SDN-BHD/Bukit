@@ -69,6 +69,22 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_PublicProjectionWithoutProviderSource_UsesCollectionAsSyncSource()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(Path.Combine(outputDir, "content"));
+        WriteManifest(outputDir, "content/post-1.json", "/posts/hello/");
+        File.WriteAllText(Path.Combine(outputDir, "content", "post-1.json"), ContentJson(body: "<p>Hello</p>", route: "/posts/hello/"));
+
+        var context = await LoadAsync(outputDir);
+
+        var (item, _) = Assert.Single(context.Routed);
+        Assert.Equal("posts", item.Metadata["sourceKey"]);
+        Assert.Equal("posts", item.Metadata["source"]);
+        Assert.Equal("post-1", item.Metadata["sourceId"]);
+    }
+
+    [Fact]
     public async Task LoadAsync_IgnoresExternalHtmlRepresentationForRenderedHtmlFallback()
     {
         var outputDir = Path.Combine(_rootDir, "dist");
@@ -171,7 +187,6 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
       "route": "{{route}}",
       "language": "zh",
       "reviewStatus": "approved",
-      "source": "notion",
       "entities": [],
       "representations": [
         { "kind": "json", "url": "{{jsonUrl}}" }{{htmlRepresentation}}
@@ -204,7 +219,6 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
   "updatedAt": null,
   "expiresAt": null,
   "reviewedAt": null,
-  "source": "notion",
   "originalSource": null,
   "citations": [],
   "references": [],

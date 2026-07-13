@@ -272,7 +272,7 @@ public static class RssGenerator
             Language: document.Record.Presentation.Language,
             Source: document.Record.Provenance.Source,
             ReviewStatus: string.IsNullOrWhiteSpace(document.Record.Trust.ReviewStatus) ? null : document.Record.Trust.ReviewStatus,
-            Entities: document.Record.Entities.Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+            Entities: PublicContentProjectionPolicy.SanitizeEntities(document.Record).Select(x => x.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
     private static IReadOnlyList<string>? MergeCategories(IReadOnlyList<string>? tags, IReadOnlyList<string>? categories, IReadOnlyList<string>? fallbackTags = null, IReadOnlyList<string>? fallbackCategories = null)
