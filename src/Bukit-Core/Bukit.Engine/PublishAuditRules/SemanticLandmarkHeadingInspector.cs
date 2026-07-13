@@ -35,7 +35,7 @@ internal static class SemanticLandmarkHeadingInspector
         var nextMainId = 0;
         var nextArticleId = 0;
         int? firstMainId = null;
-        int? firstArticleInFirstMainId = null;
+        var articleIdsInFirstMain = new List<int>();
         int? firstStandaloneArticleId = null;
         var hasMain = false;
         var hasArticle = false;
@@ -120,9 +120,9 @@ internal static class SemanticLandmarkHeadingInspector
                 articleId = ++nextArticleId;
                 articleAncestors.Add(articleId.Value);
                 var containingMain = mainAncestors.LastOrDefault();
-                if (containingMain != 0 && containingMain == firstMainId && firstArticleInFirstMainId is null)
+                if (containingMain != 0 && containingMain == firstMainId)
                 {
-                    firstArticleInFirstMainId = articleId;
+                    articleIdsInFirstMain.Add(articleId.Value);
                 }
                 else if (containingMain == 0)
                 {
@@ -160,7 +160,12 @@ internal static class SemanticLandmarkHeadingInspector
         }
 
         IEnumerable<CapturedHeading> primary = Array.Empty<CapturedHeading>();
-        if (firstArticleInFirstMainId is { } articleInMain)
+        var articleInMain = articleIdsInFirstMain.FirstOrDefault(articleId =>
+            headings.Any(heading =>
+                heading.Level == 1 &&
+                heading.ArticleAncestors.Contains(articleId) &&
+                !string.IsNullOrWhiteSpace(SemanticHtmlAuditRules.NormalizeText(heading.Text))));
+        if (articleInMain != 0)
         {
             primary = headings.Where(heading => heading.ArticleAncestors.Contains(articleInMain));
         }

@@ -218,6 +218,133 @@ public sealed class PublishAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_HeadingAuditFallsBackToMainForHeroTitleAndArticleSections()
+    {
+        WriteHeadingAuditOutput("""
+            <main>
+              <section><h1>Hero title</h1></section>
+              <article><h2>Article section</h2></article>
+            </main>
+            """);
+
+        var result = MachineReadabilityTrustAuditBuilder.Build(
+            Config(),
+            _outputDir,
+            TrustAuditIndex(),
+            HeadingAuditModels("Hero title"),
+            ContentGraph());
+
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.heading_h1_missing" && issue.Route == "/post/");
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.jsonld_title_mismatch" && issue.Route == "/post/");
+        var outline = Assert.Single(result.PublishReport.Documents).SemanticOutline;
+        Assert.Equal(new[] { "Hero title", "Article section" }, outline.Select(item => item.Text));
+        Assert.Equal(new[] { 1, 2 }, outline.Select(item => item.Level));
+    }
+
+    [Theory]
+    [InlineData("<article></article>")]
+    [InlineData("<article><h1>   </h1></article>")]
+    public void Build_HeadingAuditFallsBackToMainWhenArticlesHaveNoVisibleH1(string articleHtml)
+    {
+        WriteHeadingAuditOutput($$"""
+            <main>
+              <section><h1>Hero title</h1></section>
+              {{articleHtml}}
+            </main>
+            """);
+
+        var result = MachineReadabilityTrustAuditBuilder.Build(
+            Config(),
+            _outputDir,
+            TrustAuditIndex(),
+            HeadingAuditModels("Hero title"),
+            ContentGraph());
+
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.heading_h1_missing" && issue.Route == "/post/");
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.jsonld_title_mismatch" && issue.Route == "/post/");
+        var outline = Assert.Single(result.PublishReport.Documents).SemanticOutline;
+        var heading = Assert.Single(outline);
+        Assert.Equal(1, heading.Level);
+        Assert.Equal("Hero title", heading.Text);
+    }
+
+    [Fact]
+    public void Build_HeadingAuditUsesWholeMainForCardArticlesWithoutH1()
+    {
+        WriteHeadingAuditOutput("""
+            <main>
+              <section><h1>Join us</h1></section>
+              <section>
+                <h2>Services</h2>
+                <article><h3>China</h3></article>
+                <article><h3>Malaysia</h3></article>
+              </section>
+            </main>
+            """);
+
+        var result = MachineReadabilityTrustAuditBuilder.Build(
+            Config(),
+            _outputDir,
+            TrustAuditIndex(),
+            HeadingAuditModels("Join us"),
+            ContentGraph());
+
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.heading_h1_missing" && issue.Route == "/post/");
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.heading_level_skip" && issue.Route == "/post/");
+        var outline = Assert.Single(result.PublishReport.Documents).SemanticOutline;
+        Assert.Equal(new[] { "Join us", "Services", "China", "Malaysia" }, outline.Select(item => item.Text));
+        Assert.Equal(new[] { 1, 2, 3, 3 }, outline.Select(item => item.Level));
+    }
+
+    [Fact]
+    public void Build_HeadingAuditSelectsFirstArticleWithVisibleH1()
+    {
+        WriteHeadingAuditOutput("""
+            <main>
+              <h1>Shell title</h1>
+              <article><h2>Card section</h2></article>
+              <article><h1>Primary article</h1><h2>Details</h2></article>
+              <article><h1>Later article</h1></article>
+            </main>
+            """);
+
+        var result = MachineReadabilityTrustAuditBuilder.Build(
+            Config(),
+            _outputDir,
+            TrustAuditIndex(),
+            HeadingAuditModels("Primary article"),
+            ContentGraph());
+
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.heading_h1_missing" && issue.Route == "/post/");
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.jsonld_title_mismatch" && issue.Route == "/post/");
+        var outline = Assert.Single(result.PublishReport.Documents).SemanticOutline;
+        Assert.Equal(new[] { "Primary article", "Details" }, outline.Select(item => item.Text));
+    }
+
+    [Fact]
+    public void Build_HeadingAuditStillReportsRealLevelSkipAfterMainFallback()
+    {
+        WriteHeadingAuditOutput("""
+            <main>
+              <h1>Hero title</h1>
+              <article><h3>Skipped section</h3></article>
+            </main>
+            """);
+
+        var result = MachineReadabilityTrustAuditBuilder.Build(
+            Config(),
+            _outputDir,
+            TrustAuditIndex(),
+            HeadingAuditModels("Hero title"),
+            ContentGraph());
+
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.heading_h1_missing" && issue.Route == "/post/");
+        Assert.Contains(result.SeoReport.Issues, issue => issue.Code == "publish.heading_level_skip" && issue.Route == "/post/");
+        var outline = Assert.Single(result.PublishReport.Documents).SemanticOutline;
+        Assert.Equal(new[] { 1, 3 }, outline.Select(item => item.Level));
+    }
+
+    [Fact]
     public void PublishAuditBuilder_BuildsDocumentsAndSummary()
     {
         var seoReport = new SeoAuditReport(
@@ -724,6 +851,15 @@ public sealed class PublishAuditReportWriterTests : IDisposable
             </html>
             """);
 
+    private void WriteHeadingAuditOutput(string primaryHtml)
+        => WriteOutput("post/index.html", $$"""
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body><header></header><nav></nav>{{primaryHtml}}<time datetime="2026-06-05">June 5</time><footer></footer></body>
+            </html>
+            """);
+
     private static Dictionary<string, SeoIndexEntry> TrustAuditIndex()
         => new(StringComparer.OrdinalIgnoreCase)
         {
@@ -734,6 +870,14 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         => new(StringComparer.OrdinalIgnoreCase)
         {
             ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+    private static Dictionary<string, SeoModel> HeadingAuditModels(string title)
+        => new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model(title, "https://example.com/post/", $$"""
+                { "@context": "https://schema.org", "@type": "Article", "headline": {{JsonSerializer.Serialize(title)}} }
+                """)
         };
 
     private static SeoIndexEntry Entry(string url, string outputPath, string canonical)
