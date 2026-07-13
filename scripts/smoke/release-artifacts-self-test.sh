@@ -87,14 +87,14 @@ def tar(name, entries):
         for entry in entries: z.addfile(*entry)
 def zi(name, mode, body=b''):
     x=zipfile.ZipInfo(name); x.create_system=3; x.external_attr=mode<<16; return x,body
-tar('bukit-linux-x64.tar.gz',[ti('bin',mode=0o755,kind=tarfile.DIRTYPE),ti('bin/bukit',fake,0o755)])
-with zipfile.ZipFile(root/'bukit-win-x64.zip','w') as z:
+tar('bukit-1.2.3-linux-x64.tar.gz',[ti('bin',mode=0o755,kind=tarfile.DIRTYPE),ti('bin/bukit',fake,0o755)])
+with zipfile.ZipFile(root/'bukit-1.2.3-win-x64.zip','w') as z:
     for x,b in [zi('nested/',stat.S_IFDIR|0o755),zi('nested/bukit.exe',stat.S_IFREG|0o755,fake)]: z.writestr(x,b)
-tar('empty-linux-x64.tar.gz',[]); tar('no-linux-x64.tar.gz',[ti('readme')])
-tar('two-linux-x64.tar.gz',[ti('a/bukit',fake,0o755),ti('b/bukit',fake,0o755)])
-tar('nonexec-linux-x64.tar.gz',[ti('bukit',fake,0o644)])
-tar('late-dir-linux-x64.tar.gz',[ti('bin/bukit',fake,0o755),ti('bin',mode=0o755,kind=tarfile.DIRTYPE)])
-tar('restricted-linux-x64.tar.gz',[ti('locked',mode=0o000,kind=tarfile.DIRTYPE),ti('locked/bukit',fake,0o755)])
+tar('bukit-empty-linux-x64.tar.gz',[]); tar('bukit-no-linux-x64.tar.gz',[ti('readme')])
+tar('bukit-two-linux-x64.tar.gz',[ti('a/bukit',fake,0o755),ti('b/bukit',fake,0o755)])
+tar('bukit-nonexec-linux-x64.tar.gz',[ti('bukit',fake,0o644)])
+tar('bukit-late-dir-linux-x64.tar.gz',[ti('bin/bukit',fake,0o755),ti('bin',mode=0o755,kind=tarfile.DIRTYPE)])
+tar('bukit-restricted-linux-x64.tar.gz',[ti('locked',mode=0o000,kind=tarfile.DIRTYPE),ti('locked/bukit',fake,0o755)])
 special={
  'absolute':[ti('/absolute')], 'empty-name':[ti('')], 'dot':[ti('.')],
  'parent':[ti('../escape')], 'backslash':[ti('..\\escape')], 'drive':[ti('C:/escape')],
@@ -106,7 +106,7 @@ special={
  'duplicate':[ti('same'),ti('same')], 'normalized-duplicate':[ti('dir/item'),ti('dir/./item')],
  'file-parent':[ti('parent'),ti('parent/child')], 'existing':[ti('existing')],
  'existing-parent':[ti('parent/child')]}
-for name,entries in special.items(): tar(name+'-linux-x64.tar.gz',entries)
+for name,entries in special.items(): tar('bukit-'+name+'-linux-x64.tar.gz',entries)
 warnings.simplefilter('ignore',UserWarning)
 for name,entries in {
  'symlink':[zi('link',stat.S_IFLNK|0o777,b'../escape')],
@@ -116,7 +116,7 @@ for name,entries in {
  'duplicate':[zi('same',stat.S_IFREG|0o644,data),zi('same',stat.S_IFREG|0o644,data)],
  'file-parent':[zi('parent',stat.S_IFREG|0o644,data),zi('parent/child',stat.S_IFREG|0o644,data)],
  'directory':[zi('nested/',stat.S_IFDIR|0o755),zi('nested/bukit',stat.S_IFREG|0o755,fake)]}.items():
-    with zipfile.ZipFile(root/(name+'-win-x64.zip'),'w') as z:
+    with zipfile.ZipFile(root/('bukit-'+name+'-win-x64.zip'),'w') as z:
         for x,b in entries: z.writestr(x,b)
 PY
 
@@ -129,13 +129,15 @@ cp "$scratch/fake" "$scratch/two/b/bukit"; cp "$scratch/fake" "$scratch/nonexec/
 chmod 644 "$scratch/nonexec/bukit"
 mkdir -p "$scratch/package-publish"
 cp "$scratch/fake" "$scratch/package-publish/bukit"
-tar -C "$scratch/package-publish" -czf "$scratch/package-shaped-linux-x64.tar.gz" .
+tar -C "$scratch/package-publish" -czf "$scratch/bukit-package-shaped-linux-x64.tar.gz" .
+cp "$scratch/bukit-1.2.3-linux-x64.tar.gz" "$scratch/bukit-1.2.3-osx-arm64.tar.gz"
 
-check "tar.gz archive runs real smoke" smoke_ok "$scratch/bukit-linux-x64.tar.gz" linux-x64 "$scratch/tar.log"
+check "tar.gz archive runs real smoke" smoke_ok "$scratch/bukit-1.2.3-linux-x64.tar.gz" linux-x64 "$scratch/tar.log"
+check "osx archive name runs real smoke" smoke_ok "$scratch/bukit-1.2.3-osx-arm64.tar.gz" osx-arm64 "$scratch/osx.log"
 check "package-native-aot tar shape runs real smoke" smoke_ok \
-  "$scratch/package-shaped-linux-x64.tar.gz" linux-x64 "$scratch/package-tar.log"
-check "tar permits directory entries after children" smoke_ok "$scratch/late-dir-linux-x64.tar.gz" linux-x64 "$scratch/late.log"
-check "zip archive runs real smoke" smoke_ok "$scratch/bukit-win-x64.zip" win-x64 "$scratch/zip.log"
+  "$scratch/bukit-package-shaped-linux-x64.tar.gz" linux-x64 "$scratch/package-tar.log"
+check "tar permits directory entries after children" smoke_ok "$scratch/bukit-late-dir-linux-x64.tar.gz" linux-x64 "$scratch/late.log"
+check "zip archive runs real smoke" smoke_ok "$scratch/bukit-1.2.3-win-x64.zip" win-x64 "$scratch/zip.log"
 check "directory has linux smoke semantics" smoke_ok "$scratch/dir-linux" linux-x64 "$scratch/dir.log"
 check "windows directory finds bukit.exe" smoke_ok "$scratch/dir-win" win-x64 "$scratch/win.log"
 for spec in "empty:empty" "without CLI:no" "with duplicate CLI:two" "with non-executable CLI:nonexec"; do
@@ -144,50 +146,53 @@ for spec in "empty:empty" "without CLI:no" "with duplicate CLI:two" "with non-ex
 done
 for spec in "empty:empty" "without CLI:no" "with duplicate CLI:two" "with non-executable CLI:nonexec"; do
   label_part=${spec%%:*}; path_part=${spec#*:}
-  check "archive $label_part is rejected" smoke_bad "$scratch/$path_part-linux-x64.tar.gz" linux-x64
+  check "archive $label_part is rejected" smoke_bad "$scratch/bukit-$path_part-linux-x64.tar.gz" linux-x64
 done
-check "zip rejects POSIX RID" smoke_bad "$scratch/bukit-win-x64.zip" linux-x64
-check "tar rejects Windows RID" smoke_bad "$scratch/bukit-linux-x64.tar.gz" win-x64
+check "zip rejects POSIX RID" smoke_bad "$scratch/bukit-1.2.3-win-x64.zip" linux-x64
+check "tar rejects Windows RID" smoke_bad "$scratch/bukit-1.2.3-linux-x64.tar.gz" win-x64
+check "linux archive is rejected for osx RID" smoke_bad "$scratch/bukit-1.2.3-linux-x64.tar.gz" osx-arm64
+check "osx archive is rejected for linux RID" smoke_bad "$scratch/bukit-1.2.3-osx-arm64.tar.gz" linux-x64
+for bad_name in bukit--linux-x64.tar.gz other-1.2.3-linux-x64.tar.gz "bukit-bad version-linux-x64.tar.gz"; do cp "$scratch/bukit-1.2.3-linux-x64.tar.gz" "$scratch/$bad_name"; check "invalid archive basename $bad_name is rejected" smoke_bad "$scratch/$bad_name" linux-x64; done
 check "missing args return usage" usage_bad
 check "extra args return usage" usage_bad "$scratch/dir-linux" linux-x64 extra
 check "unsupported RID is rejected" smoke_bad "$scratch/dir-linux" linux-arm64
-check "failed smoke cleans restricted archive scratch" smoke_bad_clean "$scratch/restricted-linux-x64.tar.gz" linux-x64
+check "failed smoke cleans restricted archive scratch" smoke_bad_clean "$scratch/bukit-restricted-linux-x64.tar.gz" linux-x64
 check "safe_relative rejects dot directly" safe_relative_bad .
 
 for scenario in absolute empty-name dot parent backslash drive symlink hardlink device fifo duplicate normalized-duplicate file-parent; do
-  check "tar rejects $scenario" extract_bad "$scratch/$scenario-linux-x64.tar.gz" linux-x64 \
+  check "tar rejects $scenario" extract_bad "$scratch/bukit-$scenario-linux-x64.tar.gz" linux-x64 \
     "$scratch/x-$scenario/root" "$scratch/x-$scenario/escape"
 done
 for scenario in symlink device fifo duplicate file-parent; do
-  check "zip rejects $scenario" extract_bad "$scratch/$scenario-win-x64.zip" win-x64 \
+  check "zip rejects $scenario" extract_bad "$scratch/bukit-$scenario-win-x64.zip" win-x64 \
     "$scratch/z-$scenario/root" "$scratch/z-$scenario/escape"
 done
 for scenario in newline escape delete c1; do
   check "tar rejects $scenario control with safe diagnostic" extract_bad_sanitized \
-    "$scratch/$scenario-linux-x64.tar.gz" linux-x64 "$scratch/tar-control-$scenario"
+    "$scratch/bukit-$scenario-linux-x64.tar.gz" linux-x64 "$scratch/tar-control-$scenario"
   check "zip rejects $scenario control with safe diagnostic" extract_bad_sanitized \
-    "$scratch/$scenario-win-x64.zip" win-x64 "$scratch/zip-control-$scenario"
+    "$scratch/bukit-$scenario-win-x64.zip" win-x64 "$scratch/zip-control-$scenario"
 done
 check "zip permits safe directory" python3 "$repo_root/scripts/smoke/extract-release-artifact.py" \
-  "$scratch/directory-win-x64.zip" win-x64 "$scratch/zip-directory"
+  "$scratch/bukit-directory-win-x64.zip" win-x64 "$scratch/zip-directory"
 mkdir -p "$scratch/existing-dest" "$scratch/parent-dest"
 printf 'sentinel-file\n' > "$scratch/existing-dest/existing"
 printf 'sentinel-parent\n' > "$scratch/parent-dest/parent"
-check "extractor preserves existing file" preserves_existing "$scratch/existing-linux-x64.tar.gz" \
+check "extractor preserves existing file" preserves_existing "$scratch/bukit-existing-linux-x64.tar.gz" \
   "$scratch/existing-dest" "$scratch/existing-dest/existing" sentinel-file
-check "extractor preserves existing parent" preserves_existing "$scratch/existing-parent-linux-x64.tar.gz" \
+check "extractor preserves existing parent" preserves_existing "$scratch/bukit-existing-parent-linux-x64.tar.gz" \
   "$scratch/parent-dest" "$scratch/parent-dest/parent" sentinel-parent
 mkdir -p "$scratch/symlink-target-dest"; printf 'outside-sentinel\n' > "$scratch/outside-sentinel"
 ln -s "$scratch/outside-sentinel" "$scratch/symlink-target-dest/existing"
 check "extractor preserves existing target symlink" preserves_symlink_target \
-  "$scratch/existing-linux-x64.tar.gz" "$scratch/symlink-target-dest" \
+  "$scratch/bukit-existing-linux-x64.tar.gz" "$scratch/symlink-target-dest" \
   "$scratch/symlink-target-dest/existing" "$scratch/outside-sentinel" outside-sentinel
 mkdir -p "$scratch/outside-parent"; ln -s "$scratch/outside-parent" "$scratch/destination-parent-link"
-check "extractor rejects symlinked destination parent" extract_bad "$scratch/existing-linux-x64.tar.gz" \
+check "extractor rejects symlinked destination parent" extract_bad "$scratch/bukit-existing-linux-x64.tar.gz" \
   linux-x64 "$scratch/destination-parent-link/new-root" "$scratch/outside-parent/new-root/existing"
 mkdir -p "$scratch/outside-parent/existing"
 check "extractor rejects symlink above an existing destination parent" extract_bad \
-  "$scratch/existing-linux-x64.tar.gz" linux-x64 "$scratch/destination-parent-link/existing/new-root" \
+  "$scratch/bukit-existing-linux-x64.tar.gz" linux-x64 "$scratch/destination-parent-link/existing/new-root" \
   "$scratch/outside-parent/existing/new-root/existing"
 
 if [ "$passed" -ne "$total" ]; then echo "release artifact self-test failed: $passed/$total" >&2; exit 1; fi

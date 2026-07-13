@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import stat
 import sys
@@ -156,23 +157,27 @@ def require_source(source: BinaryIO | None, name: str) -> BinaryIO:
         raise ValueError(f"archive file cannot be opened: {name!r}")
     return source
 
+def validate_archive_name(archive_path: Path, rid: str) -> None:
+    extensions = {"linux-x64": ".tar.gz", "osx-arm64": ".tar.gz", "win-x64": ".zip"}
+    extension = extensions.get(rid)
+    if extension is None:
+        raise ValueError(f"unsupported RID: {rid}")
+    pattern = rf"bukit-[A-Za-z0-9][A-Za-z0-9._-]*-{re.escape(rid)}{re.escape(extension)}"
+    if re.fullmatch(pattern, archive_path.name) is None:
+        raise ValueError(f"release archive name does not match RID {rid}: {archive_path.name!r}")
+
 def extract_archive(archive_path: Path, rid: str, destination: Path) -> None:
     if not archive_path.is_file():
         raise ValueError(f"missing release archive: {archive_path}")
+    validate_archive_name(archive_path, rid)
     if rid == "win-x64":
-        if not archive_path.name.endswith(".zip"):
-            raise ValueError(f"RID {rid} requires a .zip archive")
         with zipfile.ZipFile(archive_path, "r") as archive:
             members = validate_members(zip_members(archive), destination)
             extract_members(members, destination)
     elif rid in ("linux-x64", "osx-arm64"):
-        if not archive_path.name.endswith(".tar.gz"):
-            raise ValueError(f"RID {rid} requires a .tar.gz archive")
         with tarfile.open(archive_path, "r:gz") as archive:
             members = validate_members(tar_members(archive), destination)
             extract_members(members, destination)
-    else:
-        raise ValueError(f"unsupported RID: {rid}")
 
 def main(argv: list[str]) -> int:
     if len(argv) != 4:
