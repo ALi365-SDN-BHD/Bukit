@@ -14,12 +14,14 @@ internal static class SeoModelBuilder
         ContentDocument document,
         RouteInfo route,
         IReadOnlyList<SeoAlternateModel>? alternates = null,
-        string? titleOverride = null,
-        string? descriptionOverride = null)
+        string? seoTitleOverride = null,
+        string? descriptionOverride = null,
+        string? visibleTitleOverride = null)
     {
         var record = document.Record;
         var fields = document.CustomFields;
-        var title = titleOverride ?? FirstTextField(fields, "seo_title") ?? FirstTextField(fields, "seotitle") ?? document.Title;
+        var seoTitle = seoTitleOverride ?? FirstTextField(fields, "seo_title") ?? FirstTextField(fields, "seotitle") ?? document.Title;
+        var visibleTitle = visibleTitleOverride ?? record.Presentation.Title;
         var description = descriptionOverride ?? FirstTextField(fields, "seo_desc") ?? FirstTextField(fields, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
         var canonical = FirstTextField(fields, "canonical") ?? BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url);
         var robots = FirstTextField(fields, "robots");
@@ -42,22 +44,22 @@ internal static class SeoModelBuilder
         var updated = record.Lifecycle.UpdatedAt;
         var resolvedAuthor = SeoAuthorResolver.Resolve(record, fields, geo.GeoAuthor);
         var tags = record.Classification.Tags.Count > 0 ? record.Classification.Tags : ContentFieldReader.GetTextList(fields, "tags") ?? Array.Empty<string>();
-        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, route.Url, document, fields, isStructuredContent, isCollectionPage, geo, schemaType, record);
+        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, visibleTitle, description, canonical, image, route.Url, document, fields, isStructuredContent, isCollectionPage, geo, schemaType, record);
 
         return new SeoModel
         {
-            Title = title,
+            Title = seoTitle,
             DocumentTitle = SeoDocumentTitleResolver.Resolve(
                 config.Site.Seo,
                 config.Site.Title,
-                title,
+                seoTitle,
                 route.Url),
             Description = description,
             Canonical = canonical,
             Robots = robots,
             Og = new SeoOpenGraphModel
             {
-                Title = title,
+                Title = seoTitle,
                 Description = description,
                 Url = canonical,
                 Image = image,
@@ -68,7 +70,7 @@ internal static class SeoModelBuilder
             Twitter = new SeoTwitterModel
             {
                 Card = string.IsNullOrWhiteSpace(image) ? "summary" : "summary_large_image",
-                Title = title,
+                Title = seoTitle,
                 Description = description,
                 Image = image,
                 Site = config.Site.Seo.TwitterSite,

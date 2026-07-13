@@ -221,6 +221,43 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
+    public void FeedGenerators_UseSameStableWindowAndPositiveDefaultLimit()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(outDir);
+        var boundary = new DateTimeOffset(2024, 6, 3, 0, 0, 0, TimeSpan.Zero);
+        var posts = new List<RssGenerator.Post>
+        {
+            new("B", "https://example.com/b/", boundary, null, null, null),
+            new("A older duplicate", "https://example.com/a/", boundary.AddDays(-1), null, null, null),
+            new("C", "https://example.com/c/", boundary.AddDays(-2), null, null, null),
+            new("A", "https://example.com/a/", boundary, null, null, null)
+        };
+
+        RssGenerator.GenerateMerged(outDir, "https://example.com", "/", "Site", posts, maxItems: 2);
+        AtomFeedGenerator.Generate(outDir, "https://example.com", "/", "Site", posts, "atom.xml", maxItems: 2);
+        JsonFeedGenerator.Generate(outDir, "https://example.com", "/", "Site", posts, "feed.json", maxItems: 2);
+
+        var rss = File.ReadAllText(Path.Combine(outDir, "rss.xml"));
+        var atom = File.ReadAllText(Path.Combine(outDir, "atom.xml"));
+        var json = File.ReadAllText(Path.Combine(outDir, "feed.json"));
+        foreach (var output in new[] { rss, atom, json })
+        {
+            Assert.Contains("https://example.com/a/", output, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/b/", output, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/c/", output, StringComparison.Ordinal);
+            Assert.DoesNotContain("A older duplicate", output, StringComparison.Ordinal);
+            Assert.True(
+                output.IndexOf("https://example.com/a/", StringComparison.Ordinal) <
+                output.IndexOf("https://example.com/b/", StringComparison.Ordinal));
+        }
+
+        RssGenerator.GenerateMerged(outDir, "https://example.com", "/", "Site", posts, maxItems: 0);
+        Assert.Contains("https://example.com/c/", File.ReadAllText(Path.Combine(outDir, "rss.xml")), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GenerateMerged_UsesSiteDescriptionForChannelDescription()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));

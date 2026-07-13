@@ -65,7 +65,7 @@ content:
 |---|---|---|
 | `site.feed.mode` | `split` | `split` or `merged`. |
 | `site.feed.formats` | `rss` | Feed formats list. |
-| `site.feed.limit` | `20` | Positive item limit. |
+| `site.feed.limit` | `20` | Positive item limit; non-positive values use `20`. All enabled feed formats and publish-audit expectations use the same newest-item window, ordered by canonical publish time and then canonical URL. |
 | `site.feed.path` | `feed` | Feed output path prefix. |
 | `site.sitemapDetail.defaultPriority` | `0.5` | Number from 0 to 1. |
 | `site.sitemapDetail.defaultChangefreq` | `weekly` | Change frequency string written into sitemap metadata. |
@@ -289,6 +289,12 @@ other than HTTP(S) or root-relative paths fail the build.
 | `content.modelSchema.requireMediaLicense` | Require media licenses. |
 | `content.modelSchema.requireEntityIds` | Require entity IDs. |
 | `content.modelSchema.requireRelationTargets` | Defaults to `true`. |
+
+Publish audit trust-presence warnings follow this schema. `requireAuthor`
+enables `publish.author_missing`, `requireProvenance` enables
+`publish.source_missing` when both canonical source fields are empty, and any
+required `entityMappings[]` entry enables `publish.entity_missing`. These
+presence fields are not required by an omitted/default model schema.
 
 Canonical `authorType` accepts `Person` or `Organization`, case-insensitively.
 When `author` is present and `authorType` is absent, Bukit defaults the author

@@ -90,7 +90,7 @@ public sealed class NotionContentProvider : IContentProvider
                     var slug = NotionPropertyParser.ExtractSlug(props, pm) ?? Slugify(title) ?? pageId.Replace("-", string.Empty, StringComparison.Ordinal);
                     var type = NotionPropertyParser.ExtractType(props, pm);
                     var collection = NotionPropertyParser.ExtractCollection(props, pm);
-                    var publishAt = NotionPropertyParser.ExtractPublishAt(props, pm) ?? DateTimeOffset.UtcNow;
+                    var publishAt = ResolvePublishAt(page, props, pm, pageId);
 
                     var lastEditedTime = GetString(page, "last_edited_time");
 
@@ -225,6 +225,36 @@ public sealed class NotionContentProvider : IContentProvider
 
             return html;
         }));
+    }
+
+    private static DateTimeOffset ResolvePublishAt(
+        JsonElement page,
+        JsonElement properties,
+        NotionPropertyMapConfig? propertyMap,
+        string pageId)
+    {
+        var mappedPublishAt = NotionPropertyParser.ExtractPublishAt(properties, propertyMap);
+        if (mappedPublishAt is not null)
+        {
+            return mappedPublishAt.Value;
+        }
+
+        var createdTime = GetString(page, "created_time");
+        if (DateTimeOffset.TryParse(
+                createdTime,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out var createdAt))
+        {
+            return createdAt;
+        }
+
+        var publishAtName = propertyMap?.PublishAt ?? "PublishAt";
+        var publishAtValue = TryGetPropertyIgnoreCase(properties, publishAtName, out var property)
+            ? property.GetRawText()
+            : "<missing>";
+        throw new ContentException(
+            $"Notion page '{pageId}' has no valid publish date: PublishAt '{publishAtName}'={publishAtValue}; created_time={createdTime ?? "<missing>"}.");
     }
 
     internal sealed record PageDraft(

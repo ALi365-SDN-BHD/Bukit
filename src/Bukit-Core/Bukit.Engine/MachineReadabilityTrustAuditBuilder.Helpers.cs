@@ -265,18 +265,28 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         return secondLooksLikeScript && third.Length == 2 && third.All(char.IsLetter);
     }
 
-    private static bool IsRssContent(AppConfig config, SeoIndexEntry entry)
-        => IsFeedContent(config, entry);
+    private static HashSet<string> BuildFeedWindowRoutes(
+        AppConfig config,
+        IEnumerable<SeoIndexEntry> entries,
+        IReadOnlyDictionary<string, ContentRecord[]> recordsById)
+    {
+        var candidates = entries
+            .Where(entry => entry.Indexable && IsFeedContent(config, entry))
+            .OrderBy(entry => entry.Route.Url, StringComparer.OrdinalIgnoreCase)
+            .Select(entry => new FeedAuditCandidate(
+                entry,
+                ResolveRecordForEntry(recordsById, entry, config.Site.Language)?.Lifecycle.PublishedAt ?? entry.LastModified));
+        return FeedWindowSelector.Select(
+                candidates,
+                candidate => candidate.PublishedAt,
+                candidate => candidate.Entry.Canonical,
+                config.Site.Feed.Limit)
+            .Select(candidate => candidate.Entry.Route.Url)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
 
-    private static bool IsJsonFeedContent(AppConfig config, SeoIndexEntry entry)
-        => entry.Indexable &&
-           config.Site.Feed.Formats.Any(format => string.Equals(format, "json", StringComparison.OrdinalIgnoreCase)) &&
-           IsFeedContent(config, entry);
-
-    private static bool IsAtomFeedContent(AppConfig config, SeoIndexEntry entry)
-        => entry.Indexable &&
-           config.Site.Feed.Formats.Any(format => string.Equals(format, "atom", StringComparison.OrdinalIgnoreCase)) &&
-           IsFeedContent(config, entry);
+    private static bool IsFeedFormatEnabled(AppConfig config, string format)
+        => config.Site.Feed.Formats.Any(value => string.Equals(value, format, StringComparison.OrdinalIgnoreCase));
 
     private static bool IsFeedContent(AppConfig config, SeoIndexEntry entry)
         => !entry.IsDerived &&
@@ -284,6 +294,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
            config.Site.Collections is { Count: > 0 } collections &&
            collections.TryGetValue(entry.Collection, out var collection) &&
            collection.Output?.Rss == true;
+
+    private sealed record FeedAuditCandidate(SeoIndexEntry Entry, DateTimeOffset PublishedAt);
 
     private static bool IsLlmsContent(AppConfig config, SeoIndexEntry entry)
         => entry.Indexable &&
@@ -362,9 +374,13 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         }
     }
 
-    private static void AnalyzePublishDocument(PublishDocument document, string outputDir, List<PublishAuditIssue> issues)
+    private static void AnalyzePublishDocument(
+        PublishDocument document,
+        TrustAuditRequirements trustRequirements,
+        string outputDir,
+        List<PublishAuditIssue> issues)
     {
-        TrustAuditRules.Analyze(document, issues);
+        TrustAuditRules.Analyze(document, trustRequirements, issues);
         RepresentationAuditRules.Analyze(document, outputDir, issues);
     }
 
@@ -433,7 +449,6 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             or "publish.jsonld_author_mismatch"
             or "publish.jsonld_date_mismatch"
             or "publish.summary_missing"
-            or "publish.entity_summary_missing"
             or "publish.sitemap_missing_route"
             or "publish.search_missing_route"
             or "publish.rss_missing_route"
@@ -456,7 +471,6 @@ internal static partial class MachineReadabilityTrustAuditBuilder
     private static bool IsTrustIssue(string code)
         => code is "publish.author_missing"
             or "publish.source_missing"
-            or "publish.source_references_missing"
             or "publish.review_status_missing"
             or "publish.updated_at_missing"
             or "publish.entity_missing";

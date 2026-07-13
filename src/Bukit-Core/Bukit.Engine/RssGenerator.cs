@@ -45,10 +45,7 @@ public static class RssGenerator
                 .Select(x => ToPost(x.Document, BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, x.Route.Url), bodyStore))
                 .ToList();
 
-        posts = posts
-            .OrderByDescending(x => x.PublishAt)
-            .Take(maxItems)
-            .ToList();
+        posts = FeedWindowSelector.Select(posts, x => x.PublishAt, x => x.AbsoluteUrl, maxItems).ToList();
 
         var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/rss.xml");
         var homeUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
@@ -108,12 +105,7 @@ public static class RssGenerator
         var normalizedSiteUrl = InternalNormalizeSiteUrl(siteUrl);
         var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
 
-        var sorted = posts
-            .OrderByDescending(x => x.PublishAt)
-            .GroupBy(x => x.AbsoluteUrl, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First())
-            .Take(maxItems)
-            .ToList();
+        var sorted = FeedWindowSelector.Select(posts, x => x.PublishAt, x => x.AbsoluteUrl, maxItems);
 
         var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/rss.xml");
         var homeUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
@@ -139,12 +131,7 @@ public static class RssGenerator
         var normalizedBaseUrl = InternalNormalizeBaseUrl(baseUrl);
         var normalizedFeedPath = NormalizeRelativeFeedPath(feedPath);
 
-        var sorted = posts
-            .OrderByDescending(x => x.PublishAt)
-            .GroupBy(x => x.AbsoluteUrl, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First())
-            .Take(maxItems)
-            .ToList();
+        var sorted = FeedWindowSelector.Select(posts, x => x.PublishAt, x => x.AbsoluteUrl, maxItems);
 
         var feedUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/" + normalizedFeedPath);
         var homeUrl = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");

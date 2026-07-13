@@ -43,13 +43,15 @@ site:
 
 `SeoPipeline` builds page-level metadata, alternate links, Open Graph, Twitter,
 article metadata, JSON-LD, and report issues. The `Title` property on `SeoModel`
-remains the semantic title. Its `DocumentTitle` property, exposed as
+remains the SEO and social title. Its `DocumentTitle` property, exposed as
 `page.seo.document_title`, is resolved independently for the final HTML
-`<title>` and does not change social metadata, JSON-LD, or search titles.
+`<title>`. Page-level JSON-LD names, headlines, and the final breadcrumb item
+instead use the visible route/content title, so an `seo_title` override does
+not replace the content heading in structured data.
 
 The `/` route uses `homeTitleTemplate`; content, list, taxonomy, and pagination
 routes use `pageTitleTemplate`. `{pageTitle}` is the already resolved semantic
-title, so it includes `seo_title` overrides and pagination suffixes. Supported
+SEO title, so it includes `seo_title` overrides and pagination suffixes. Supported
 placeholders are case-insensitive `{pageTitle}`, `{siteTitle}`, and
 `{separator}` only. A page template must contain `{pageTitle}`; a home template
 must contain `{pageTitle}` or `{siteTitle}`.

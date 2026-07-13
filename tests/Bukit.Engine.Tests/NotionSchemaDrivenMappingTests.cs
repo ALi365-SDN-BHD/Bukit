@@ -112,6 +112,7 @@ public sealed class NotionSchemaDrivenMappingTests
                   "results": [
                     {
                       "id": "page-1",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "last_edited_time": "2026-06-01T12:00:00.000Z",
                       "properties": {
                         "Title": {

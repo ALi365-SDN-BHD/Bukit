@@ -629,6 +629,112 @@ public sealed class NotionContentProviderEndToEndTests
         Assert.DoesNotContain("bad_files", fields.Keys);
     }
 
+    [Fact]
+    public async Task LoadRawAsync_PublishAtWinsOverCreatedTime()
+    {
+        var handler = new PublishDateHandler(
+            publishAt: "2026-05-15T10:30:00Z",
+            createdTime: "2026-01-02T03:04:05Z",
+            lastEditedTime: "2026-06-01T12:00:00Z");
+        var provider = CreatePublishDateProvider(handler);
+
+        var item = Assert.Single((await provider.LoadRawAsync()).Documents);
+
+        Assert.Equal(DateTimeOffset.Parse("2026-05-15T10:30:00Z"), item.PublishAt);
+        Assert.Equal(
+            DateTimeOffset.Parse("2026-06-01T12:00:00Z"),
+            ContentFieldReader.GetDate(item.CustomFields, "last_edited_time"));
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_MissingPublishAtUsesStableCreatedTime()
+    {
+        var handler = new PublishDateHandler(
+            publishAt: null,
+            createdTime: "2026-01-02T03:04:05.6789012+00:00",
+            lastEditedTime: "2026-06-01T12:00:00Z",
+            legacyDate: "2025-01-01T00:00:00Z");
+        var provider = CreatePublishDateProvider(handler);
+
+        var first = Assert.Single((await provider.LoadRawAsync()).Documents);
+        var second = Assert.Single((await provider.LoadRawAsync()).Documents);
+
+        Assert.Equal(DateTimeOffset.Parse("2026-01-02T03:04:05.6789012+00:00"), first.PublishAt);
+        Assert.Equal(first.PublishAt, second.PublishAt);
+        Assert.NotEqual(ContentFieldReader.GetDate(first.CustomFields, "last_edited_time"), first.PublishAt);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_InvalidPublishAtAndCreatedTimeThrowsContextualError()
+    {
+        var handler = new PublishDateHandler(
+            publishAt: "not-a-date",
+            createdTime: "also-not-a-date",
+            lastEditedTime: "2026-06-01T12:00:00Z");
+        var provider = CreatePublishDateProvider(handler);
+
+        var error = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
+
+        Assert.Contains("page-date", error.Message, StringComparison.Ordinal);
+        Assert.Contains("PublishAt", error.Message, StringComparison.Ordinal);
+        Assert.Contains("created_time", error.Message, StringComparison.Ordinal);
+    }
+
+    private static NotionContentProvider CreatePublishDateProvider(HttpMessageHandler handler)
+    {
+        var options = new NotionProviderOptions
+        {
+            DatabaseId = "db-date",
+            Token = "secret-token",
+            RequestDelayMs = 0,
+            FilterType = "none",
+            RenderContent = false
+        };
+        NotionApiClient CreateClient() =>
+            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+        return new NotionContentProvider(options, logger: null, CreateClient);
+    }
+
+    private sealed class PublishDateHandler(
+        string? publishAt,
+        string? createdTime,
+        string? lastEditedTime,
+        string? legacyDate = null) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return Task.FromResult(Json("""{ "properties": { "Title": {}, "PublishAt": {} } }"""));
+            }
+
+            var publishAtProperty = publishAt is null
+                ? string.Empty
+                : $$""", "PublishAt": { "type": "date", "date": { "start": {{JsonSerializer.Serialize(publishAt)}} } }""";
+            var createdTimeField = createdTime is null
+                ? string.Empty
+                : $$""", "created_time": {{JsonSerializer.Serialize(createdTime)}}""";
+            var lastEditedTimeField = lastEditedTime is null
+                ? string.Empty
+                : $$""", "last_edited_time": {{JsonSerializer.Serialize(lastEditedTime)}}""";
+            var legacyDateProperty = legacyDate is null
+                ? string.Empty
+                : $$""", "Date": { "type": "date", "date": { "start": {{JsonSerializer.Serialize(legacyDate)}} } }""";
+            return Task.FromResult(Json($$"""
+                {
+                  "has_more": false,
+                  "results": [{
+                    "id": "page-date"{{createdTimeField}}{{lastEditedTimeField}},
+                    "properties": {
+                      "Title": { "type": "title", "title": [{ "plain_text": "Date page" }] }
+                      {{publishAtProperty}}{{legacyDateProperty}}
+                    }
+                  }]
+                }
+                """));
+        }
+    }
+
     private sealed class FakeNotionHandler : HttpMessageHandler
     {
         private readonly Dictionary<HttpRequestMessage, string> _requestBodies = new();
@@ -672,6 +778,7 @@ public sealed class NotionContentProviderEndToEndTests
                   "results": [
                     {
                       "id": "page-1",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "last_edited_time": "2026-05-15T12:00:00.000Z",
                       "properties": {
                         "Title": {
@@ -762,6 +869,7 @@ public sealed class NotionContentProviderEndToEndTests
                   "results": [
                     {
                       "id": "page-1",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "properties": {
                         "Title": {
                           "type": "title",
@@ -821,6 +929,7 @@ public sealed class NotionContentProviderEndToEndTests
                   "results": [
                     {
                       "id": "page-1",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "last_edited_time": "2026-05-15T12:00:00.000Z",
                       "properties": {
                         "Title": {
@@ -876,6 +985,7 @@ public sealed class NotionContentProviderEndToEndTests
                   "results": [
                     {
                       "id": "page-1",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "properties": {
                         "Title": {
                           "type": "title",
@@ -955,6 +1065,7 @@ public sealed class NotionContentProviderEndToEndTests
                     { "properties": {} },
                     {
                       "id": "page-1",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "properties": {
                         "Title": {
                           "type": "title",
@@ -974,6 +1085,7 @@ public sealed class NotionContentProviderEndToEndTests
               "results": [
                 {
                   "id": "page-2",
+                  "created_time": "2026-01-02T03:04:05.000Z",
                   "properties": {
                     "Title": {
                       "type": "title",
@@ -983,6 +1095,7 @@ public sealed class NotionContentProviderEndToEndTests
                 },
                 {
                   "id": "page-3",
+                  "created_time": "2026-01-02T03:04:05.000Z",
                   "properties": {
                     "Title": {
                       "type": "title",
@@ -1021,6 +1134,7 @@ public sealed class NotionContentProviderEndToEndTests
               "results": [
                 {
                   "id": "page-1",
+                  "created_time": "2026-01-02T03:04:05.000Z",
                   "properties": {
                     "Title": {
                       "type": "title",
@@ -1052,6 +1166,7 @@ public sealed class NotionContentProviderEndToEndTests
               "results": [
                 {
                   "id": "page-1",
+                  "created_time": "2026-01-02T03:04:05.000Z",
                   "properties": {
                     "Title": {
                       "type": "title",
@@ -1078,6 +1193,7 @@ public sealed class NotionContentProviderEndToEndTests
                   "results": [
                     {
                       "id": "page-1",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "properties": {
                         "Title": {
                           "type": "title",
@@ -1128,6 +1244,7 @@ public sealed class NotionContentProviderEndToEndTests
                   "results": [
                     {
                       "id": "page-1",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "cover": {
                         "type": "external",
                         "external": { "url": "https://cdn.test/cover.jpg" }
@@ -1261,6 +1378,7 @@ public sealed class NotionContentProviderEndToEndTests
                   "results": [
                     {
                       "id": "page-1",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "properties": {
                         "Title": {
                           "type": "title",

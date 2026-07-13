@@ -47,10 +47,12 @@ Default `layouts`, `assets`, and `static` paths resolve under
 | `pagination` | paginated lists | `ListPaginationModel` |
 | `collection`, `taxonomy`, `filter` | list routes | list route metadata |
 
-`page.seo.title` is the semantic title used by Open Graph, Twitter, JSON-LD,
-search, and the existing SEO title rules. `page.seo.document_title` is the
-separately resolved final HTML document title. Themes should render it with
-compatibility fallbacks:
+`page.seo.title` is the SEO title used by Open Graph, Twitter, search, and the
+existing SEO title rules. It is not the content title used by page-level
+JSON-LD: JSON-LD `name` and `headline` values use the final visible content
+title (`routeMetadata.title` when present, otherwise the canonical content
+title). `page.seo.document_title` is the separately resolved final HTML
+document title. Themes should render it with compatibility fallbacks:
 
 ```scriban
 <title>{{ if page.seo }}{{ if page.seo.document_title && page.seo.document_title != "" }}{{ page.seo.document_title | html.escape }}{{ else }}{{ page.seo.title | html.escape }}{{ end }}{{ else }}{{ page.title | html.escape }}{{ end }}</title>

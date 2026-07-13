@@ -241,7 +241,7 @@ internal static class I18nOutputMerger
 
     private static void GenerateMergedFeeds(AppConfig config, string outputDir, string siteUrl, string rootBaseUrl, IReadOnlyList<BuildVariantResult> results)
     {
-        var posts = new List<RssGenerator.Post>();
+        var postCandidates = new List<(string RouteUrl, RssGenerator.Post Post)>();
         var rssCollections = ResolveRssCollections(config.Site.Collections);
         foreach (var r in results)
         {
@@ -256,9 +256,15 @@ internal static class I18nOutputMerger
                     continue;
                 }
 
-                posts.Add(RssGenerator.ToPost(document, seo.Canonical, r.BodyStore));
+                postCandidates.Add((
+                    CombineBaseUrl(r.BaseUrl, seo.Route.Url),
+                    RssGenerator.ToPost(document, seo.Canonical, r.BodyStore)));
             }
         }
+        var posts = postCandidates
+            .OrderBy(candidate => candidate.RouteUrl, StringComparer.OrdinalIgnoreCase)
+            .Select(candidate => candidate.Post)
+            .ToArray();
 
         var formats = ParseFeedFormats(config.Site.Feed.Formats);
         var limit = config.Site.Feed.Limit > 0 ? config.Site.Feed.Limit : 20;

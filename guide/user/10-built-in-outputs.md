@@ -22,6 +22,18 @@ machine-readable projections.
 | `llms.txt`, `llms-full.txt` | GEO outputs when enabled. |
 | `robots.txt` | Generated when SEO robots config requires it. |
 
+RSS, Atom, and JSON Feed contain the same `site.feed.limit` window for their
+shared candidate set. Publish audit only expects feed representation coverage
+for routes in that window and only for formats listed in `site.feed.formats`.
+This rule also applies to merged multilingual feeds.
+
+The publish audit semantic outline and heading checks use the primary content
+scope: the first `article` in the first `main`, otherwise the first `main`,
+otherwise the first standalone `article`. Headings inside `header`, `nav`, and
+`footer` do not satisfy the primary H1 check, affect level-skip checks, enter
+`semanticOutline`, or supply the visible title for JSON-LD comparison. A
+standalone article fallback does not suppress `publish.semantic_main_missing`.
+
 ## Public And Internal Output Boundary
 
 Rendered pages and the machine-readable files outside `.bukit/` are public

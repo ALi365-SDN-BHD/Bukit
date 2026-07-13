@@ -44,6 +44,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         var recordsById = contentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
+        var trustRequirements = TrustAuditRequirements.From(ContentModelSchemaFactory.FromConfig(config));
+        var feedWindowRoutes = BuildFeedWindowRoutes(config, seoIndex.Values, recordsById);
 
         foreach (var (key, entry) in seoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
@@ -62,11 +64,12 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             {
                 var html = File.ReadAllText(outputPath);
                 titleInspection = HtmlDocumentTitleInspector.Inspect(html);
-                document = document with { SemanticOutline = SemanticHtmlAuditRules.ExtractSemanticOutline(html) };
-                AnalyzeHtmlOutput(config, entry, model, document, html, titleInspection, seoIssues, publishIssues);
+                var semanticInspection = SemanticLandmarkHeadingInspector.Inspect(html);
+                document = document with { SemanticOutline = semanticInspection.PrimaryHeadings };
+                AnalyzeHtmlOutput(config, entry, model, document, html, semanticInspection, titleInspection, seoIssues, publishIssues);
             }
 
-            var rssExpected = IsRssContent(config, entry);
+            var rssExpected = IsFeedFormatEnabled(config, "rss") && feedWindowRoutes.Contains(entry.Route.Url);
             var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
                 ? projectedSitemap
                 : entry.Indexable && ContainsInvariant(sitemapText, entry.Canonical);
@@ -76,11 +79,11 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var rssIncluded = TryGetProjectionIncluded(projectionLookup, "feed", entry, out var projectedRss)
                 ? projectedRss
                 : entry.Indexable && rssExpected && ContainsInvariant(rssText, entry.Canonical);
-            var atomFeedExpected = IsAtomFeedContent(config, entry);
+            var atomFeedExpected = IsFeedFormatEnabled(config, "atom") && feedWindowRoutes.Contains(entry.Route.Url);
             var atomFeedIncluded = TryGetProjectionIncluded(projectionLookup, "atom", entry, out var projectedAtom)
                 ? projectedAtom
                 : entry.Indexable && atomFeedExpected && ContainsInvariant(atomFeedText, entry.Canonical);
-            var jsonFeedExpected = IsJsonFeedContent(config, entry);
+            var jsonFeedExpected = IsFeedFormatEnabled(config, "json") && feedWindowRoutes.Contains(entry.Route.Url);
             var jsonFeedIncluded = TryGetProjectionIncluded(projectionLookup, "jsonfeed", entry, out var projectedJsonFeed)
                 ? projectedJsonFeed
                 : entry.Indexable && jsonFeedExpected && ContainsInvariant(jsonFeedText, entry.Canonical);
@@ -156,7 +159,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 modelByCanonical[model.Canonical] = (entry, model);
             }
 
-            AnalyzePublishDocument(document, outputDir, publishIssues);
+            AnalyzePublishDocument(document, trustRequirements, outputDir, publishIssues);
             SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, rssIncluded, rssExpected, atomFeedIncluded, atomFeedExpected, jsonFeedIncluded, jsonFeedExpected, llmsIncluded, llmsExpected, llmsFullIncluded, llmsFullExpected, manifestIncluded, robotsText, publishIssues);
             publishDocuments.Add(document);
 

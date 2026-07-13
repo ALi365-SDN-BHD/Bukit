@@ -17,12 +17,7 @@ public static class JsonFeedGenerator
         var normalizedSiteUrl = RssGenerator.InternalNormalizeSiteUrl(siteUrl);
         var normalizedBaseUrl = RssGenerator.InternalNormalizeBaseUrl(baseUrl);
 
-        var sorted = posts
-            .OrderByDescending(x => x.PublishAt)
-            .GroupBy(x => x.AbsoluteUrl, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First())
-            .Take(maxItems)
-            .ToList();
+        var sorted = FeedWindowSelector.Select(posts, x => x.PublishAt, x => x.AbsoluteUrl, maxItems);
 
         var feedUrl = RssGenerator.BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/" + feedFileName);
         var homeUrl = RssGenerator.BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");

@@ -40,17 +40,17 @@ public sealed class MachineReadabilityCollectionProjectionTests : IDisposable
             CanonicalContentGraph.Empty);
 
         var documents = result.PublishReport.Documents.ToDictionary(document => document.RouteUrl, StringComparer.OrdinalIgnoreCase);
-        AssertFeedKinds(documents["/eligible/"], expected: true);
-        AssertFeedKinds(documents["/disabled/"], expected: false);
-        AssertFeedKinds(documents["/missing/"], expected: false);
-        AssertFeedKinds(documents["/derived/"], expected: false);
+        AssertFeedKinds(documents["/eligible/"], rssExpected: false, otherFormatsExpected: true);
+        AssertFeedKinds(documents["/disabled/"], rssExpected: false, otherFormatsExpected: false);
+        AssertFeedKinds(documents["/missing/"], rssExpected: false, otherFormatsExpected: false);
+        AssertFeedKinds(documents["/derived/"], rssExpected: false, otherFormatsExpected: false);
     }
 
-    private static void AssertFeedKinds(PublishAuditDocument document, bool expected)
+    private static void AssertFeedKinds(PublishAuditDocument document, bool rssExpected, bool otherFormatsExpected)
     {
-        Assert.Equal(expected, document.RepresentationKinds.Contains("feed", StringComparer.OrdinalIgnoreCase));
-        Assert.Equal(expected, document.RepresentationKinds.Contains("atom", StringComparer.OrdinalIgnoreCase));
-        Assert.Equal(expected, document.RepresentationKinds.Contains("jsonfeed", StringComparer.OrdinalIgnoreCase));
+        Assert.Equal(rssExpected, document.RepresentationKinds.Contains("feed", StringComparer.OrdinalIgnoreCase));
+        Assert.Equal(otherFormatsExpected, document.RepresentationKinds.Contains("atom", StringComparer.OrdinalIgnoreCase));
+        Assert.Equal(otherFormatsExpected, document.RepresentationKinds.Contains("jsonfeed", StringComparer.OrdinalIgnoreCase));
     }
 
     private static SeoIndexEntry Entry(string id, string contentType, string? collection, bool isDerived = false)

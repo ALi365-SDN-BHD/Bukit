@@ -121,6 +121,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         SeoModel? model,
         PublishDocument document,
         string html,
+        SemanticLandmarkHeadingInspection semanticInspection,
         HtmlDocumentTitleInspection titleInspection,
         List<SeoAuditIssue> seoIssues,
         List<PublishAuditIssue> publishIssues)
@@ -143,7 +144,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
 
         if (entry.Indexable)
         {
-            SemanticHtmlAuditRules.Analyze(entry, document, html, publishIssues);
+            SemanticHtmlAuditRules.Analyze(entry, document, html, semanticInspection, publishIssues);
         }
     }
 

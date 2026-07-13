@@ -37,7 +37,14 @@ public sealed class SeoAuditReportWriterLoggingTests : IDisposable
         };
         var logger = new CapturingLogger();
 
-        SeoAuditReportWriter.Write(Config(), _outputDir, index, models, ContentGraph(), logger);
+        var config = Config() with
+        {
+            Content = Config().Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig { RequireAuthor = true }
+            }
+        };
+        SeoAuditReportWriter.Write(config, _outputDir, index, models, ContentGraph(), logger);
 
         Assert.Contains(logger.Warnings, x => x.StartsWith("publish.audit ", StringComparison.Ordinal) && x.Contains("code=publish.author_missing", StringComparison.Ordinal));
         Assert.Contains(logger.Warnings, x => x.StartsWith("geo.audit ", StringComparison.Ordinal) && x.Contains("code=geo.llms_txt_missing", StringComparison.Ordinal));

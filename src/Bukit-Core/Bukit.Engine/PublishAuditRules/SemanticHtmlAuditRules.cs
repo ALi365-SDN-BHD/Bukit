@@ -8,7 +8,6 @@ internal static class SemanticHtmlAuditRules
 {
     private static readonly Regex ImgTagRegex = new("<img\\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex AltAttributeRegex = new("\\balt\\s*=\\s*(?:\"[^\"]*\"|'[^']*')", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex HeadingTagRegex = new("<h(?<level>[1-6])\\b[^>]*>(?<text>[\\s\\S]*?)</h\\k<level>>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex TimeDatetimeRegex = new("<time\\b[^>]*\\bdatetime\\s*=\\s*(?:\"[^\"]+\"|'[^']+')", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex MainOrArticleRegex = new("<(main|article)\\b[^>]*>(?<content>[\\s\\S]*?)</\\1>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex FigureRegex = new("<figure\\b[^>]*>(?<content>[\\s\\S]*?)</figure>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -16,30 +15,35 @@ internal static class SemanticHtmlAuditRules
     private static readonly Regex StripTagRegex = new("<[^>]+>", RegexOptions.Compiled);
     private static readonly Regex CollapseWhitespaceRegex = new("\\s+", RegexOptions.Compiled);
 
-    internal static void Analyze(SeoIndexEntry entry, PublishDocument document, string html, List<PublishAuditIssue> issues)
+    internal static void Analyze(
+        SeoIndexEntry entry,
+        PublishDocument document,
+        string html,
+        SemanticLandmarkHeadingInspection inspection,
+        List<PublishAuditIssue> issues)
     {
-        if (!html.Contains("<main", StringComparison.OrdinalIgnoreCase))
+        if (!inspection.HasMain)
         {
             issues.Add(Warning("publish.semantic_main_missing", entry.Route.Url, "HTML output is missing a <main> landmark for primary page content."));
         }
 
-        if (!html.Contains("<header", StringComparison.OrdinalIgnoreCase))
+        if (!inspection.HasHeader)
         {
             issues.Add(Warning("publish.semantic_header_missing", entry.Route.Url, "HTML output is missing a <header> landmark."));
         }
 
-        if (!html.Contains("<nav", StringComparison.OrdinalIgnoreCase))
+        if (!inspection.HasNav)
         {
             issues.Add(Warning("publish.semantic_nav_missing", entry.Route.Url, "HTML output is missing a <nav> landmark."));
         }
 
-        if (!html.Contains("<footer", StringComparison.OrdinalIgnoreCase))
+        if (!inspection.HasFooter)
         {
             issues.Add(Warning("publish.semantic_footer_missing", entry.Route.Url, "HTML output is missing a <footer> landmark."));
         }
 
         if (PublishDocumentAuditScope.IsContentBacked(document) &&
-            !html.Contains("<article", StringComparison.OrdinalIgnoreCase))
+            !inspection.HasArticle)
         {
             issues.Add(Warning("publish.semantic_article_missing", entry.Route.Url, "HTML output is missing an <article> wrapper for page content."));
         }
@@ -62,20 +66,14 @@ internal static class SemanticHtmlAuditRules
             issues.Add(Warning("publish.figure_caption_missing", entry.Route.Url, $"HTML output contains {figureWithoutCaptionCount} image figure(s) without a figcaption."));
         }
 
-        var headings = HeadingTagRegex.Matches(html)
-            .Select(match => new
-            {
-                Level = int.Parse(match.Groups["level"].Value),
-                Text = NormalizeText(match.Groups["text"].Value)
-            })
-            .ToArray();
+        var headings = inspection.PrimaryHeadings;
         var isContentBacked = PublishDocumentAuditScope.IsContentBacked(document);
         if (isContentBacked && !headings.Any(x => x.Level == 1))
         {
             issues.Add(Warning("publish.heading_h1_missing", entry.Route.Url, "HTML output is missing an <h1> for the primary page heading."));
         }
 
-        for (var i = 1; isContentBacked && i < headings.Length; i++)
+        for (var i = 1; isContentBacked && i < headings.Count; i++)
         {
             if (headings[i].Level - headings[i - 1].Level > 1)
             {
@@ -103,12 +101,7 @@ internal static class SemanticHtmlAuditRules
     }
 
     internal static IReadOnlyList<PublishSemanticOutlineItem> ExtractSemanticOutline(string html)
-        => HeadingTagRegex.Matches(html)
-            .Select(match => new PublishSemanticOutlineItem(
-                int.Parse(match.Groups["level"].Value),
-                NormalizeText(match.Groups["text"].Value)))
-            .Where(item => !string.IsNullOrWhiteSpace(item.Text))
-            .ToArray();
+        => SemanticLandmarkHeadingInspector.Inspect(html).PrimaryHeadings;
 
     private static void AnalyzeJsonLdConsistency(PublishDocument document, string? visibleHeading, string visibleText, List<PublishAuditIssue> issues)
     {
@@ -316,7 +309,7 @@ internal static class SemanticHtmlAuditRules
         return text.Length < 24;
     }
 
-    private static string NormalizeText(string value)
+    internal static string NormalizeText(string value)
         => CollapseWhitespaceRegex.Replace(StripTagRegex.Replace(value, " "), " ").Trim();
 
     private static PublishAuditIssue Warning(string code, string? route, string message) => new("warning", code, route, message);

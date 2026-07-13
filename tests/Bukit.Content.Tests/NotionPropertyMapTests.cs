@@ -317,19 +317,17 @@ public sealed class NotionPropertyMapTests
     }
 
     [Fact]
-    public void ExtractPublishAt_FallsBackToDateField_WithPropertyMap()
+    public void ExtractPublishAt_DoesNotUseUnmappedDateField()
     {
         var properties = ParseJson("""
             {
                 "Date": { "type": "date", "date": { "start": "2024-03-15" } }
             }
             """);
-        // propertyMap set but field doesn't exist — should fall back to "Date"
         var map = new NotionPropertyMapConfig { PublishAt = "NonExistent" };
 
         var result = NotionPropertyParser.ExtractPublishAt(properties, map);
 
-        Assert.NotNull(result);
-        Assert.Equal(2024, result!.Value.Year);
+        Assert.Null(result);
     }
 }

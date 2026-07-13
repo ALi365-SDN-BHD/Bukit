@@ -10,7 +10,7 @@ internal static class SeoJsonLdBuilder
     internal static IReadOnlyList<string> BuildJsonLd(
         AppConfig config,
         string baseUrl,
-        string title,
+        string contentTitle,
         string? description,
         string canonical,
         string? image,
@@ -69,7 +69,7 @@ internal static class SeoJsonLdBuilder
             {
                 ["@context"] = "https://schema.org",
                 ["@type"] = isCollectionPage && config.Site.Seo.Schema.CollectionPage ? "CollectionPage" : "WebPage",
-                ["name"] = title,
+                ["name"] = contentTitle,
                 ["description"] = description,
                 ["url"] = canonical,
                 ["isPartOf"] = new Dictionary<string, object?>
@@ -93,7 +93,7 @@ internal static class SeoJsonLdBuilder
                 {
                     ["@type"] = "ListItem",
                     ["position"] = i + 1,
-                    ["name"] = i == segments.Length - 1 ? title : SeoModelBuilder.ToTitle(segments[i]),
+                    ["name"] = i == segments.Length - 1 ? contentTitle : SeoModelBuilder.ToTitle(segments[i]),
                     ["item"] = SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, current + "/")
                 });
             }
@@ -112,18 +112,18 @@ internal static class SeoJsonLdBuilder
             var effectiveType = schemaType ?? "BlogPosting";
             if (string.Equals(effectiveType, "FAQPage", StringComparison.OrdinalIgnoreCase) && geo.FaqItems is { Count: > 0 })
             {
-                BuildFaqPageJsonLd(result, title, description, canonical, image, document, geo.FaqItems);
+                BuildFaqPageJsonLd(result, contentTitle, description, canonical, image, document, geo.FaqItems);
             }
             else if (string.Equals(effectiveType, "HowTo", StringComparison.OrdinalIgnoreCase) && geo.HowToSteps is { Count: > 0 })
             {
-                BuildHowToJsonLd(result, title, description, canonical, image, document, geo.HowToSteps);
+                BuildHowToJsonLd(result, contentTitle, description, canonical, image, document, geo.HowToSteps);
             }
             else
             {
                 geoAuthorMergedIntoArticle = BuildArticleJsonLd(
                     result,
                     effectiveType,
-                    title,
+                    contentTitle,
                     description,
                     canonical,
                     image,

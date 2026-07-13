@@ -19,7 +19,7 @@ public sealed class I18nMergedFeedProjectionTests
     }
 
     [Fact]
-    public async Task BuildAsync_MergedI18nFeeds_GeneratesRootRssAtomAndJsonFeed()
+    public async Task BuildAsync_MergedI18nFeeds_UseSharedStableLimitWindowInOutputsAndAudit()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-i18n-merged-feeds-" + Guid.NewGuid().ToString("N"));
 
@@ -40,6 +40,7 @@ public sealed class I18nMergedFeedProjectionTests
                   defaultLanguage: en
                   feed:
                     formats: [rss, atom, json]
+                    limit: 1
                   collections:
                     post:
                       permalink: /blog/{slug}/
@@ -93,14 +94,17 @@ public sealed class I18nMergedFeedProjectionTests
             var manifest = File.ReadAllText(Path.Combine(root, "dist", "agent-manifest.json"));
             var publishAudit = File.ReadAllText(Path.Combine(root, "dist", ".bukit", "publish-audit-report.json"));
             Assert.Contains("https://example.com/en/blog/hello/", rss, StringComparison.Ordinal);
-            Assert.Contains("https://example.com/zh/blog/hello/", rss, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/zh/blog/hello/", rss, StringComparison.Ordinal);
             Assert.Contains("https://example.com/en/blog/hello/", atom, StringComparison.Ordinal);
-            Assert.Contains("https://example.com/zh/blog/hello/", atom, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/zh/blog/hello/", atom, StringComparison.Ordinal);
             Assert.Contains("https://example.com/en/blog/hello/", json, StringComparison.Ordinal);
-            Assert.Contains("https://example.com/zh/blog/hello/", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://example.com/zh/blog/hello/", json, StringComparison.Ordinal);
             Assert.Contains("/en/blog/hello/", manifest, StringComparison.Ordinal);
             Assert.Contains("/zh/blog/hello/", manifest, StringComparison.Ordinal);
             Assert.DoesNotContain("publish.manifest_missing_route", publishAudit, StringComparison.Ordinal);
+            Assert.DoesNotContain("publish.rss_missing_route", publishAudit, StringComparison.Ordinal);
+            Assert.DoesNotContain("publish.atom_feed_missing_route", publishAudit, StringComparison.Ordinal);
+            Assert.DoesNotContain("publish.json_feed_missing_route", publishAudit, StringComparison.Ordinal);
 
             using var auditDoc = JsonDocument.Parse(publishAudit);
             var documents = auditDoc.RootElement.GetProperty("documents").EnumerateArray().ToArray();
@@ -110,6 +114,11 @@ public sealed class I18nMergedFeedProjectionTests
             Assert.Contains(documents, x =>
                 x.GetProperty("routeUrl").GetString() == "/zh/blog/hello/" &&
                 x.GetProperty("manifestIncluded").GetBoolean());
+            var zhDocument = Assert.Single(documents, x => x.GetProperty("routeUrl").GetString() == "/zh/blog/hello/");
+            var zhKinds = zhDocument.GetProperty("representationKinds").EnumerateArray().Select(x => x.GetString()).ToArray();
+            Assert.DoesNotContain("feed", zhKinds);
+            Assert.DoesNotContain("atom", zhKinds);
+            Assert.DoesNotContain("jsonfeed", zhKinds);
             Assert.Empty(logger.Errors);
         }
         finally

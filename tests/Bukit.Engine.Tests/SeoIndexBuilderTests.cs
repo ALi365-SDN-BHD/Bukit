@@ -4,6 +4,8 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.RouteMetadata;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -140,6 +142,43 @@ public sealed class SeoIndexBuilderTests
         var entry = Assert.Single(result.Entries).Value;
         Assert.Equal("article", entry.ContentType);
         Assert.Equal("news", entry.Collection);
+    }
+
+    [Fact]
+    public void Build_RouteMetadataSeparatesVisibleAndSeoTitlesInJsonLd()
+    {
+        var document = ContentDocument.Create(
+            "about",
+            "Canonical About",
+            "about",
+            DateTimeOffset.Parse("2026-07-14T00:00:00Z"),
+            null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["collection"] = "page",
+                ["seo_title"] = "Content SEO Title"
+            }));
+        var route = new RouteInfo("/about/", "about/index.html", "pages/page.html");
+        var metadata = new Dictionary<string, RouteMetadataEntry>(StringComparer.Ordinal)
+        {
+            ["/about/"] = new("/about/", "Visible About", "Visible summary", "Search About", "Search summary")
+        };
+
+        var result = SeoIndexBuilder.Build(
+            CreateConfig(),
+            "/",
+            [new RoutedContentDocument(document, route)],
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            routeMetadata: metadata);
+
+        var model = result.Models["about/index.html"];
+        Assert.Equal("Search About", model.Title);
+        using var webPage = model.JsonLd
+            .Select(static json => JsonDocument.Parse(json))
+            .Single(doc => doc.RootElement.GetProperty("@type").GetString() == "WebPage");
+        Assert.Equal("Visible About", webPage.RootElement.GetProperty("name").GetString());
     }
 
     [Fact]

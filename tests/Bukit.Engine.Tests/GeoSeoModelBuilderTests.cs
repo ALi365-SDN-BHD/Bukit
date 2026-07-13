@@ -50,6 +50,7 @@ public sealed class GeoSeoModelBuilderTests
             {
                 ["type"] = "post",
                 ["collection"] = "post",
+                ["seo_title"] = "FAQ Search Title",
                 ["geo"] = new Dictionary<string, object>
                 {
                     ["schema_type"] = "FAQPage",
@@ -76,6 +77,10 @@ public sealed class GeoSeoModelBuilderTests
         Assert.Contains(model.JsonLd, j => j.Contains("FAQPage", StringComparison.Ordinal));
         Assert.Contains(model.JsonLd, j => j.Contains("What is Bukit?", StringComparison.Ordinal));
         Assert.Contains(model.JsonLd, j => j.Contains("acceptedAnswer", StringComparison.Ordinal));
+        using var faqPage = model.JsonLd
+            .Select(static json => JsonDocument.Parse(json))
+            .Single(doc => doc.RootElement.GetProperty("@type").GetString() == "FAQPage");
+        Assert.Equal("FAQ Guide", faqPage.RootElement.GetProperty("headline").GetString());
         Assert.NotNull(model.FaqItems);
         Assert.Equal(2, model.FaqItems.Count);
     }
@@ -94,6 +99,7 @@ public sealed class GeoSeoModelBuilderTests
             {
                 ["type"] = "post",
                 ["collection"] = "post",
+                ["seo_title"] = "HowTo Search Title",
                 ["geo"] = new Dictionary<string, object>
                 {
                     ["schema_type"] = "HowTo",
@@ -122,6 +128,10 @@ public sealed class GeoSeoModelBuilderTests
         Assert.Contains(model.JsonLd, j => j.Contains("HowToStep", StringComparison.Ordinal));
         Assert.Contains(model.JsonLd, j => j.Contains("position", StringComparison.Ordinal));
         Assert.Contains(model.JsonLd, j => j.Contains("https://example.com/img1.png", StringComparison.Ordinal));
+        using var howTo = model.JsonLd
+            .Select(static json => JsonDocument.Parse(json))
+            .Single(doc => doc.RootElement.GetProperty("@type").GetString() == "HowTo");
+        Assert.Equal("How to Setup", howTo.RootElement.GetProperty("name").GetString());
         Assert.NotNull(model.HowToSteps);
         Assert.Equal(2, model.HowToSteps.Count);
     }

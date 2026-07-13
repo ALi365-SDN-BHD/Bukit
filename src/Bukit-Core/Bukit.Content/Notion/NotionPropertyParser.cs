@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 namespace Bukit.Content.Notion;
@@ -273,15 +274,6 @@ public static class NotionPropertyParser
             }
         }
 
-        if (NotionContentProvider.TryGetPropertyIgnoreCase(properties, "Date", out var dateProp2))
-        {
-            var value = ReadDateProperty(dateProp2);
-            if (value is not null)
-            {
-                return value;
-            }
-        }
-
         return null;
     }
 
@@ -304,7 +296,11 @@ public static class NotionPropertyParser
             return null;
         }
 
-        if (DateTimeOffset.TryParse(start, out var dto))
+        if (DateTimeOffset.TryParse(
+                start,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out var dto))
         {
             return dto;
         }

@@ -153,6 +153,7 @@ public sealed class NotionCanonicalProjectionTests
                     "has_more": false,
                     "results": [{
                       "id": "page-canonical",
+                      "created_time": "2026-01-02T03:04:05.000Z",
                       "last_edited_time": "2026-07-12T08:30:00+08:00",
                       "properties": {
                         "Title": { "type": "title", "title": [{ "plain_text": "Canonical page" }] },

@@ -44,6 +44,12 @@ validation is enabled.
 | `content.sources[].notion.fieldPolicy.mode` | `whitelist` or `all`. |
 | `propertyMap` | Uses Core field keys `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, and `Canonical`. |
 
+The canonical publish date is resolved deterministically: the mapped
+`PublishAt` value wins, otherwise Bukit uses the Notion Page object's top-level
+`created_time`. If neither value is a valid ISO 8601 timestamp, loading fails
+with the page id and both field names. Top-level `last_edited_time` remains an
+updated-at/cache value and is never used as the publish date.
+
 `content.sources[].notion.propertyMap.Type` and
 `content.sources[].notion.propertyMap.Collection` project different canonical
 fields. With Notion values `Kind = article` and `Section = news`, the document

@@ -139,6 +139,17 @@ public sealed class SeoModelBuilderTests
         Assert.Equal("SEO Title | My Site", model.DocumentTitle);
         Assert.Equal("SEO   Title", model.Og.Title);
         Assert.All(model.JsonLd, json => Assert.DoesNotContain("SEO Title | My Site", json, StringComparison.Ordinal));
+
+        using var webPage = model.JsonLd
+            .Select(static json => JsonDocument.Parse(json))
+            .Single(doc => doc.RootElement.GetProperty("@type").GetString() == "WebPage");
+        Assert.Equal("Original", webPage.RootElement.GetProperty("name").GetString());
+
+        using var breadcrumb = model.JsonLd
+            .Select(static json => JsonDocument.Parse(json))
+            .Single(doc => doc.RootElement.GetProperty("@type").GetString() == "BreadcrumbList");
+        var items = breadcrumb.RootElement.GetProperty("itemListElement");
+        Assert.Equal("Original", items[items.GetArrayLength() - 1].GetProperty("name").GetString());
     }
 
     [Fact]
@@ -679,6 +690,7 @@ public sealed class SeoModelBuilderTests
                 ["type"] = "post",
                 ["collection"] = "post",
                 ["schema_type"] = "BlogPosting",
+                ["seo_title"] = "Search Result Title",
                 ["author"] = "Bob",
                 ["tags"] = "tech,code"
             }));
@@ -686,12 +698,13 @@ public sealed class SeoModelBuilderTests
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
 
-        var blogPostingJson = model.JsonLd[model.JsonLd.Count - 1];
-        Assert.Contains("BlogPosting", blogPostingJson);
-        Assert.Contains("My Post", blogPostingJson);
-        Assert.Contains("Bob", blogPostingJson);
-        Assert.Contains("tech", blogPostingJson);
-        Assert.Contains("code", blogPostingJson);
+        using var blogPosting = model.JsonLd
+            .Select(static json => JsonDocument.Parse(json))
+            .Single(doc => doc.RootElement.GetProperty("@type").GetString() == "BlogPosting");
+        Assert.Equal("My Post", blogPosting.RootElement.GetProperty("headline").GetString());
+        Assert.Equal("Bob", blogPosting.RootElement.GetProperty("author").GetProperty("name").GetString());
+        Assert.Equal("tech", blogPosting.RootElement.GetProperty("keywords")[0].GetString());
+        Assert.Equal("code", blogPosting.RootElement.GetProperty("keywords")[1].GetString());
     }
 
     [Fact]

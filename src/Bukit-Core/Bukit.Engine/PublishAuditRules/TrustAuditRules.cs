@@ -1,30 +1,41 @@
+using Bukit.Engine.Abstractions.Content;
+
 namespace Bukit.Engine.PublishAuditRules;
+
+internal sealed record TrustAuditRequirements(
+    bool RequireAuthor,
+    bool RequireProvenance,
+    bool RequireEntities)
+{
+    internal static TrustAuditRequirements From(ContentModelSchema schema)
+        => new(
+            schema.RequireAuthor,
+            schema.RequireProvenance,
+            schema.EntityMappings?.Values.Any(mapping => mapping.Required) == true);
+}
 
 internal static class TrustAuditRules
 {
-    internal static void Analyze(PublishDocument document, List<PublishAuditIssue> issues)
+    internal static void Analyze(
+        PublishDocument document,
+        TrustAuditRequirements requirements,
+        List<PublishAuditIssue> issues)
     {
         if (!document.Indexable || !PublishDocumentAuditScope.IsContentBacked(document))
         {
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(document.Author))
+        if (requirements.RequireAuthor && string.IsNullOrWhiteSpace(document.Author))
         {
             issues.Add(Warning("publish.author_missing", document.RouteUrl, "Published content is missing author metadata."));
         }
 
-        if (string.IsNullOrWhiteSpace(document.Source))
+        if (requirements.RequireProvenance &&
+            string.IsNullOrWhiteSpace(document.Source) &&
+            string.IsNullOrWhiteSpace(document.OriginalSource))
         {
             issues.Add(Warning("publish.source_missing", document.RouteUrl, "Published content is missing source/provenance metadata."));
-        }
-
-        if (document.ContentRecord is not null &&
-            string.IsNullOrWhiteSpace(document.ContentRecord.Provenance.OriginalSource) &&
-            document.ContentRecord.Provenance.Citations.Count == 0 &&
-            document.ContentRecord.Provenance.References.Count == 0)
-        {
-            issues.Add(Warning("publish.source_references_missing", document.RouteUrl, "Published content is missing source references, citations, or original source metadata."));
         }
 
         if (string.IsNullOrWhiteSpace(document.ReviewStatus))
@@ -43,14 +54,9 @@ internal static class TrustAuditRules
             issues.Add(Warning("publish.summary_missing", document.RouteUrl, "Published content is missing a canonical summary for machine-readable previews."));
         }
 
-        if (document.EntityNames.Count == 0)
+        if (requirements.RequireEntities && document.EntityNames.Count == 0)
         {
             issues.Add(Warning("publish.entity_missing", document.RouteUrl, "Published content does not declare any entities."));
-        }
-        else if (document.ContentRecord is not null &&
-                 document.ContentRecord.Entities.Any(entity => string.IsNullOrWhiteSpace(entity.Description)))
-        {
-            issues.Add(Warning("publish.entity_summary_missing", document.RouteUrl, "Published content declares entities without machine-readable summaries."));
         }
     }
 

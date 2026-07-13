@@ -44,7 +44,8 @@ internal static class SeoIndexBuilder
                 route,
                 alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
                 metadata?.SeoTitle ?? metadata?.Title,
-                metadata?.SeoDescription ?? metadata?.Summary);
+                metadata?.SeoDescription ?? metadata?.Summary,
+                metadata?.Title);
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             models[key] = model;
             entries[key] = new SeoIndexEntry(

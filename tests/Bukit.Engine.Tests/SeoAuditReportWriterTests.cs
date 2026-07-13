@@ -824,7 +824,22 @@ public sealed class SeoAuditReportWriterTests : IDisposable
                 [])
         ], []);
 
-        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
+        var config = Config() with
+        {
+            Content = Config().Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    RequireAuthor = true,
+                    RequireProvenance = true,
+                    EntityMappings =
+                    [
+                        new EntityMappingConfig { RawKey = "companies", EntityType = "company", Required = true }
+                    ]
+                }
+            }
+        };
+        var report = SeoAuditReportWriter.Build(config, _outputDir, index, models, graph);
 
         Assert.Contains(report.Issues, x => x.Code == "publish.author_missing" && x.Route == "/post/");
         Assert.Contains(report.Issues, x => x.Code == "publish.source_missing" && x.Route == "/post/");
