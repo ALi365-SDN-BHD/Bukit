@@ -8,6 +8,7 @@ run_step "docs consistency" bash scripts/checks/docs-consistency.sh
 run_step "active workflow boundary" bash scripts/checks/active-workflow-boundary.sh
 run_step "post-change targeted self-test" bash scripts/checks/post-change-targeted-self-test.sh
 run_step "ci-fast portability self-test" bash scripts/checks/ci-fast-portability-self-test.sh
+run_step "find polluter self-test" bash scripts/checks/find-polluter-self-test.sh
 run_step "brainstorm server self-test" bash scripts/checks/brainstorm-server-self-test.sh
 run_step "config docs contract" bash scripts/checks/config-docs-contract.sh
 run_step "CLI docs sync" bash scripts/checks/cli-docs-sync.sh
