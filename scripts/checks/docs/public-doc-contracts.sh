@@ -41,9 +41,15 @@ docs=(
   .github/PULL_REQUEST_TEMPLATE.md
 )
 
-forbidden_matches="$(rg -n \
+grep_status=0
+forbidden_matches="$(grep -nE -- \
   '(\.github/workflows/ci\.yml|scripts/smoke\.ps1|scripts/check-aot-warnings\.sh|scripts/check-doc-asset-consistency\.ps1|guide/dev/new-developer-30min\.md|guide/dev/code-wiki\.md|guide/dev/governance-checklist\.md|guide/dev/testing-smoke\.md|guide/dev/webhook\.md|src/Bukit\.Core|bukit webhook|BUKIT_NOTION_TOKEN|coverage-report/Summary\.txt|build \+ test \+ coverage \+ format \+ smoke|quality-gate 自动检查|quality-gate 自動檢查|WASM)' \
-  "${docs[@]}" || true)"
+  "${docs[@]}")" || grep_status=$?
+
+if ((grep_status > 1)); then
+  echo "public documentation text search failed" >&2
+  exit "$grep_status"
+fi
 
 if [[ -n "$forbidden_matches" ]]; then
   echo "stale public documentation references found:" >&2

@@ -28,7 +28,13 @@ if [ -d docs/governance ]; then
   done < <(find docs/governance -type f -name '*.md' | sort)
 fi
 
-matches="$(rg -n '(/Users/|file:///Users/)' "${paths[@]}" || true)"
+grep_status=0
+matches="$(grep -nE -- '(/Users/|file:///Users/)' "${paths[@]}")" || grep_status=$?
+if ((grep_status > 1)); then
+  echo "public absolute path text search failed" >&2
+  exit "$grep_status"
+fi
+
 if [ -n "$matches" ]; then
   echo "local absolute paths found in public documentation surfaces:" >&2
   echo "$matches" >&2
