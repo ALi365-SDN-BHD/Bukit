@@ -279,10 +279,15 @@ jobs:
       - name: Verify assets
         env:
           VERSION: ${{ inputs.version }}
-          PUBLISH: ${{ inputs.publish }}
+          RIDS: ${{ inputs.rids }}
         run: |
-          expected_rids=()
-          if [[ "$PUBLISH" == "true" ]]; then expected_rids=(linux-x64 osx-arm64 win-x64); fi
+          case "$RIDS" in
+            linux-x64) expected_rids=(linux-x64) ;;
+            osx-arm64) expected_rids=(osx-arm64) ;;
+            win-x64) expected_rids=(win-x64) ;;
+            all) expected_rids=(linux-x64 osx-arm64 win-x64) ;;
+            *) echo "unsupported RID selection: $RIDS" >&2; exit 2 ;;
+          esac
           bash scripts/release/verify-release-assets.sh "$VERSION" "$GITHUB_SHA" release-assets "${expected_rids[@]}"
       - uses: actions/upload-artifact@v7
         with:
