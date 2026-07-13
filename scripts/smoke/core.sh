@@ -6,7 +6,7 @@ cd "$(repo_root)"
 
 if [ -z "${BUKIT_BIN:-}" ] || [ -z "${BUKIT_SMOKE_ROOT:-}" ]; then
   echo "Set BUKIT_BIN and BUKIT_SMOKE_ROOT for Core smoke validation." >&2
-  echo "Example: BUKIT_BIN=./artifacts/bukit BUKIT_SMOKE_ROOT=examples/minimal bash scripts/smoke/core.sh" >&2
+  echo "Example: BUKIT_BIN=./artifacts/bukit BUKIT_SMOKE_ROOT=tests/fixtures/basic-markdown-site bash scripts/smoke/core.sh" >&2
   exit 2
 fi
 

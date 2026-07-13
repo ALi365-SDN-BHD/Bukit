@@ -58,6 +58,28 @@ public sealed class ReleaseWorkflowContractTests
             Scalar(Job(jobName), "if"));
     }
 
+    [Theory]
+    [InlineData("package-linux", "linux-x64")]
+    [InlineData("package-macos", "osx-arm64")]
+    [InlineData("package-windows", "win-x64")]
+    public void PackageJob_SmokesTheFinalArchiveBeforeUpload(string jobName, string rid)
+    {
+        var steps = Steps(Job(jobName)).ToArray();
+        var package = Assert.Single(steps, step => TryScalar(step, "id") == "package");
+        var smoke = Assert.Single(steps, step => TryScalar(step, "name") == "Smoke packaged archive");
+        var upload = Assert.Single(steps, step =>
+            TryScalar(step, "uses")?.StartsWith("actions/upload-artifact@", StringComparison.Ordinal) == true);
+
+        Assert.True(Array.IndexOf(steps, package) < Array.IndexOf(steps, smoke));
+        Assert.True(Array.IndexOf(steps, smoke) < Array.IndexOf(steps, upload));
+        var smokeRun = Scalar(smoke, "run");
+        var expected = "bash scripts/smoke/release-artifacts.sh \"${{ steps.package.outputs.archive }}\" " + rid;
+        Assert.Equal(expected, smokeRun);
+        Assert.DoesNotContain("publish_dir", smokeRun, StringComparison.Ordinal);
+        Assert.Null(TryScalar(smoke, "if"));
+        Assert.Null(TryScalar(smoke, "continue-on-error"));
+    }
+
     private YamlMappingNode Job(string name)
     {
         return Mapping(Mapping(_root, "jobs"), name);

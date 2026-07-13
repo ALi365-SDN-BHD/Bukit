@@ -194,6 +194,8 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: bash scripts/build/package-native-aot.sh "$VERSION" linux-x64 artifacts
+      - name: Smoke packaged archive
+        run: bash scripts/smoke/release-artifacts.sh "${{ steps.package.outputs.archive }}" linux-x64
       - uses: actions/upload-artifact@v7
         with:
           name: bukit-linux-x64
@@ -216,6 +218,8 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: bash scripts/build/package-native-aot.sh "$VERSION" osx-arm64 artifacts
+      - name: Smoke packaged archive
+        run: bash scripts/smoke/release-artifacts.sh "${{ steps.package.outputs.archive }}" osx-arm64
       - uses: actions/upload-artifact@v7
         with:
           name: bukit-osx-arm64
@@ -241,6 +245,8 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: bash scripts/build/package-native-aot.sh "$VERSION" win-x64 artifacts
+      - name: Smoke packaged archive
+        run: bash scripts/smoke/release-artifacts.sh "${{ steps.package.outputs.archive }}" win-x64
       - uses: actions/upload-artifact@v7
         with:
           name: bukit-win-x64
