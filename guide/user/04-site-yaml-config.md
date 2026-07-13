@@ -290,6 +290,30 @@ other than HTTP(S) or root-relative paths fail the build.
 | `content.modelSchema.requireEntityIds` | Require entity IDs. |
 | `content.modelSchema.requireRelationTargets` | Defaults to `true`. |
 
+Canonical `authorType` accepts `Person` or `Organization`, case-insensitively.
+When `author` is present and `authorType` is absent, Bukit defaults the author
+type to `Person`. For a Notion property or another provider-specific raw key,
+map both values explicitly:
+
+```yaml
+content:
+  modelSchema:
+    canonicalMappings:
+      - canonicalField: author
+        rawKey: Author
+      - canonicalField: authorType
+        rawKey: Author Type
+```
+
+For an editorial desk or other collective byline, set `Author Type` to
+`Organization`. Do not use canonical `organization` or
+`site.seo.organization` as an author-type discriminator: those fields describe
+content/site ownership rather than the article author. Invalid values produce
+`canonical_author_type_invalid`; declaring `authorType` without `author`
+produces `canonical_author_type_without_author`. `build.schemaFailMode: strict`
+blocks either issue, while `warn` reports it and omits the untrusted structured
+author.
+
 ## Build Fields
 
 | Field | Default | Notes |

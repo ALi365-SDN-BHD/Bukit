@@ -351,6 +351,7 @@ public sealed class ContentStagesTests
                 ["kind"] = new("text", "article"),
                 ["abstract"] = new("text", "Mapped summary"),
                 ["writer"] = new("text", "Mapped Author"),
+                ["writerKind"] = new("text", "organization"),
                 ["publishedState"] = new("text", "reviewed"),
                 ["sourceUrl"] = new("url", "https://example.com/original")
             });
@@ -360,6 +361,7 @@ public sealed class ContentStagesTests
                 ["kind"] = new("type", "kind", Required: true),
                 ["abstract"] = new("summary", "abstract", Required: true),
                 ["writer"] = new("author", "writer"),
+                ["writerKind"] = new("authorType", "writerKind"),
                 ["publishedState"] = new("review_status", "publishedState"),
                 ["sourceUrl"] = new("original_url", "sourceUrl")
             },
@@ -370,6 +372,7 @@ public sealed class ContentStagesTests
         Assert.Equal("article", document.Record.Identity.ContentType);
         Assert.Equal("Mapped summary", document.Record.Presentation.Summary);
         Assert.Equal("Mapped Author", document.Record.Ownership.Author);
+        Assert.Equal("organization", document.Record.Ownership.AuthorType);
         Assert.Equal("reviewed", document.Record.Trust.ReviewStatus);
         Assert.Equal("https://example.com/original", document.Record.Provenance.OriginalSource);
         Assert.Equal("article", ContentFieldReader.GetText(document.CustomFields, "type"));

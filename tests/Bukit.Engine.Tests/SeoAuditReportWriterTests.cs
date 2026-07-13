@@ -304,6 +304,135 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_ValidatesOrganizationAuthorAcrossArticleSchemaTypes()
+    {
+        WriteOutput("author-types/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["author-types/index.html"] = Entry("/author-types/", "author-types/index.html", "https://example.com/author-types/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["author-types/index.html"] = new()
+            {
+                Title = "Author types",
+                Description = "Author type validation",
+                Canonical = "https://example.com/author-types/",
+                JsonLd =
+                [
+                    """{"@context":"https://schema.org","@type":"BlogPosting","headline":"Org","datePublished":"2026-07-13T00:00:00Z","image":"https://example.com/org.png","author":{"@type":"Organization","name":"Editorial Desk"}}""",
+                    """{"@context":"https://schema.org","@type":"Article","headline":"Missing name","datePublished":"2026-07-13T00:00:00Z","image":"https://example.com/article.png","author":{"@type":"Person","name":""}}""",
+                    """{"@context":"https://schema.org","@type":"NewsArticle","headline":"Invalid type","datePublished":"2026-07-13T00:00:00Z","image":"https://example.com/news.png","author":{"@type":"Company","name":"Desk"}}"""
+                ]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, x =>
+            x.Code.StartsWith("seo.schema_blogposting_author_", StringComparison.Ordinal));
+        Assert.Contains(report.Issues, x =>
+            x.Code == "seo.schema_article_author_name_missing" && x.Severity == "warning");
+        Assert.Contains(report.Issues, x =>
+            x.Code == "seo.schema_newsarticle_author_type_invalid" && x.Severity == "error");
+    }
+
+    [Fact]
+    public void Build_GeoScore_CreditsOrganizationArticleAuthor()
+    {
+        WriteOutput("organization-author/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["organization-author/index.html"] = Entry("/organization-author/", "organization-author/index.html", "https://example.com/organization-author/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["organization-author/index.html"] = new()
+            {
+                Title = "Organization author",
+                Description = "Organization author",
+                Canonical = "https://example.com/organization-author/",
+                Article = new SeoArticleModel
+                {
+                    Author = "Editorial Desk",
+                    AuthorType = "Organization"
+                },
+                JsonLd =
+                [
+                    """{"@context":"https://schema.org","@type":"BlogPosting","headline":"Organization author","datePublished":"2026-07-13T00:00:00Z","image":"https://example.com/org.png","author":{"@type":"Organization","name":"Editorial Desk"}}"""
+                ]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Equal(1, report.Summary!.GeoEnhancedCount);
+        Assert.Equal(35, report.Summary.GeoScore);
+    }
+
+    [Fact]
+    public void Build_GeoScore_DoesNotDefaultMissingNormalizedAuthorTypeToPerson()
+    {
+        WriteOutput("invalid-author-type/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["invalid-author-type/index.html"] = Entry("/invalid-author-type/", "invalid-author-type/index.html", "https://example.com/invalid-author-type/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["invalid-author-type/index.html"] = new()
+            {
+                Title = "Invalid author type",
+                Description = "Invalid author type",
+                Canonical = "https://example.com/invalid-author-type/",
+                Article = new SeoArticleModel
+                {
+                    Author = "Editorial Desk",
+                    AuthorType = null
+                },
+                JsonLd =
+                [
+                    """{"@context":"https://schema.org","@type":"BlogPosting","headline":"Invalid author type","datePublished":"2026-07-13T00:00:00Z","image":"https://example.com/invalid.png"}"""
+                ]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Equal(1, report.Summary!.GeoEnhancedCount);
+        Assert.Equal(25, report.Summary.GeoScore);
+    }
+
+    [Fact]
+    public void Build_GeoScore_DoesNotTreatSiteOrganizationAsArticleAuthor()
+    {
+        WriteOutput("site-organization/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["site-organization/index.html"] = Entry("/site-organization/", "site-organization/index.html", "https://example.com/site-organization/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["site-organization/index.html"] = new()
+            {
+                Title = "Site organization",
+                Description = "No article author",
+                Canonical = "https://example.com/site-organization/",
+                JsonLd =
+                [
+                    """{"@context":"https://schema.org","@type":"Organization","name":"Site Publisher"}""",
+                    """{"@context":"https://schema.org","@type":"BlogPosting","headline":"Site organization","datePublished":"2026-07-13T00:00:00Z","image":"https://example.com/site.png"}"""
+                ]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Equal(1, report.Summary!.GeoEnhancedCount);
+        Assert.Equal(25, report.Summary.GeoScore);
+    }
+
+    [Fact]
     public void Build_ReportsMissingHeadAndSmallSameSiteImage()
     {
         var outputPath = Path.Combine(_outputDir, "image", "index.html");

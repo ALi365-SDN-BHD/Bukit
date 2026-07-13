@@ -154,11 +154,147 @@ public sealed class GeoSeoModelBuilderTests
 
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
 
-        Assert.Contains(model.JsonLd, j => j.Contains("Person", StringComparison.Ordinal));
-        Assert.Contains(model.JsonLd, j => j.Contains("Alice", StringComparison.Ordinal));
+        var documents = model.JsonLd.Select(static json => JsonDocument.Parse(json)).ToArray();
+        var article = documents.Single(doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "BlogPosting");
+        Assert.Equal("Person", article.RootElement.GetProperty("author").GetProperty("@type").GetString());
+        Assert.Contains(documents, doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "Person" &&
+            doc.RootElement.GetProperty("name").GetString() == "Alice");
         Assert.Contains(model.JsonLd, j => j.Contains("https://github.com/alice", StringComparison.Ordinal));
         Assert.NotNull(model.GeoAuthor);
         Assert.Equal("Alice", model.GeoAuthor.Name);
+        Assert.Equal("Alice", model.Article.Author);
+        Assert.Equal("Person", model.Article.AuthorType);
+    }
+
+    [Fact]
+    public void BuildForContent_CanonicalOrganizationAuthor_MergesMatchingGeoEnrichment()
+    {
+        var config = CreateGeoConfig();
+        var item = ContentDocument.Create(
+            id: "organization-author",
+            title: "Organization author",
+            slug: "organization-author",
+            publishAt: new DateTimeOffset(2026, 7, 13, 10, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>post</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["author"] = "丝路商讯编辑部",
+                ["authorType"] = "Organization",
+                ["geo"] = new Dictionary<string, object>
+                {
+                    ["author"] = new Dictionary<string, object>
+                    {
+                        ["name"] = "丝路商讯编辑部",
+                        ["url"] = "https://example.com/editorial/",
+                        ["same_as"] = new List<object> { "https://example.com/about/" }
+                    }
+                }
+            }));
+        var route = new RouteInfo("/organization-author/", "organization-author/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        var documents = model.JsonLd.Select(static json => JsonDocument.Parse(json)).ToArray();
+        var article = documents.Single(doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "BlogPosting");
+        var author = article.RootElement.GetProperty("author");
+        Assert.Equal("Organization", author.GetProperty("@type").GetString());
+        Assert.Equal("https://example.com/editorial/", author.GetProperty("url").GetString());
+        Assert.Equal("https://example.com/about/", author.GetProperty("sameAs")[0].GetString());
+        Assert.DoesNotContain(documents, doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "Person" &&
+            doc.RootElement.GetProperty("name").GetString() == "丝路商讯编辑部");
+    }
+
+    [Fact]
+    public void BuildForContent_InvalidCanonicalAuthorType_DoesNotLeakMatchingGeoPerson()
+    {
+        var config = CreateGeoConfig();
+        var item = ContentDocument.Create(
+            id: "invalid-organization-author",
+            title: "Invalid organization author",
+            slug: "invalid-organization-author",
+            publishAt: new DateTimeOffset(2026, 7, 13, 10, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>post</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["author"] = "Editorial Desk",
+                ["authorType"] = "Company",
+                ["geo"] = new Dictionary<string, object>
+                {
+                    ["author"] = new Dictionary<string, object>
+                    {
+                        ["name"] = "Editorial Desk",
+                        ["url"] = "https://example.com/editorial/"
+                    }
+                }
+            }));
+        var route = new RouteInfo(
+            "/invalid-organization-author/",
+            "invalid-organization-author/index.html",
+            "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        var documents = model.JsonLd.Select(static json => JsonDocument.Parse(json)).ToArray();
+        var article = documents.Single(doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "BlogPosting");
+        Assert.False(article.RootElement.TryGetProperty("author", out _));
+        Assert.DoesNotContain(documents, doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "Person" &&
+            doc.RootElement.GetProperty("name").GetString() == "Editorial Desk");
+    }
+
+    [Fact]
+    public void BuildForContent_CanonicalAuthor_DoesNotAdoptConflictingGeoIdentity()
+    {
+        var config = CreateGeoConfig();
+        var item = ContentDocument.Create(
+            id: "conflicting-author",
+            title: "Conflicting author",
+            slug: "conflicting-author",
+            publishAt: new DateTimeOffset(2026, 7, 13, 10, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>post</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["author"] = "丝路商讯编辑部",
+                ["authorType"] = "Organization",
+                ["geo"] = new Dictionary<string, object>
+                {
+                    ["author"] = new Dictionary<string, object>
+                    {
+                        ["name"] = "Alice",
+                        ["url"] = "https://alice.dev"
+                    }
+                }
+            }));
+        var route = new RouteInfo("/conflicting-author/", "conflicting-author/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        var documents = model.JsonLd.Select(static json => JsonDocument.Parse(json)).ToArray();
+        var article = documents.Single(doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "BlogPosting");
+        var author = article.RootElement.GetProperty("author");
+        Assert.Equal("Organization", author.GetProperty("@type").GetString());
+        Assert.Equal("丝路商讯编辑部", author.GetProperty("name").GetString());
+        Assert.False(author.TryGetProperty("url", out _));
+        Assert.Contains(documents, doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "Person" &&
+            doc.RootElement.GetProperty("name").GetString() == "Alice");
     }
 
     [Fact]

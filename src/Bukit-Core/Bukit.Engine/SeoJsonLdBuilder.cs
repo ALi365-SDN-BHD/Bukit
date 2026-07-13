@@ -106,6 +106,7 @@ internal static class SeoJsonLdBuilder
             }));
         }
 
+        var geoAuthorMergedIntoArticle = false;
         if (isPost && document is not null)
         {
             var effectiveType = schemaType ?? "BlogPosting";
@@ -119,11 +120,21 @@ internal static class SeoJsonLdBuilder
             }
             else
             {
-                BuildArticleJsonLd(result, effectiveType, title, description, canonical, image, document, geo, record, config.Site.Language);
+                geoAuthorMergedIntoArticle = BuildArticleJsonLd(
+                    result,
+                    effectiveType,
+                    title,
+                    description,
+                    canonical,
+                    image,
+                    document,
+                    geo,
+                    record,
+                    config.Site.Language);
             }
         }
 
-        if (geo.GeoAuthor is not null)
+        if (geo.GeoAuthor is not null && !geoAuthorMergedIntoArticle)
         {
             BuildPersonJsonLd(result, geo.GeoAuthor);
         }
@@ -147,7 +158,7 @@ internal static class SeoJsonLdBuilder
         return result;
     }
 
-    private static void BuildArticleJsonLd(
+    private static bool BuildArticleJsonLd(
         List<string> result,
         string schemaType,
         string title,
@@ -198,25 +209,25 @@ internal static class SeoJsonLdBuilder
             article["inLanguage"] = contentLanguage;
         }
 
-        var author = geo.GeoAuthor?.Name ?? record?.Ownership.Author ?? SeoModelBuilder.FirstTextField(document.CustomFields, "author");
-        if (!string.IsNullOrWhiteSpace(author))
+        var author = SeoAuthorResolver.Resolve(record, document.CustomFields, geo.GeoAuthor);
+        if (!string.IsNullOrWhiteSpace(author.Name) && !string.IsNullOrWhiteSpace(author.SchemaType))
         {
-            var person = new Dictionary<string, object?>
+            var authorNode = new Dictionary<string, object?>
             {
-                ["@type"] = "Person",
-                ["name"] = author
+                ["@type"] = author.SchemaType,
+                ["name"] = author.Name
             };
-            if (geo.GeoAuthor?.Url is { } authorUrl)
+            if (!string.IsNullOrWhiteSpace(author.Url))
             {
-                person["url"] = authorUrl;
+                authorNode["url"] = author.Url;
             }
 
-            if (geo.GeoAuthor?.SameAs is { Count: > 0 })
+            if (author.SameAs.Count > 0)
             {
-                person["sameAs"] = geo.GeoAuthor.SameAs;
+                authorNode["sameAs"] = author.SameAs;
             }
 
-            article["author"] = person;
+            article["author"] = authorNode;
         }
 
         if (geo.SameAs is { Count: > 0 })
@@ -233,6 +244,7 @@ internal static class SeoJsonLdBuilder
         }
 
         result.Add(ToJson(article));
+        return author.HasMatchingCanonicalGeoAuthor;
     }
 
     private static void BuildFaqPageJsonLd(

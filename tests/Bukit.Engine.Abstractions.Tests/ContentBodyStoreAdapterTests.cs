@@ -12,7 +12,9 @@ public sealed class ContentBodyStoreAdapterTests
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = new("text", "article"),
-            ["collection"] = new("text", "news")
+            ["collection"] = new("text", "news"),
+            ["author"] = new("text", "Editorial Desk"),
+            ["authorType"] = new("text", "Organization")
         };
         var raw = new RawContentDocument(
             Id: "news-item",
@@ -28,6 +30,8 @@ public sealed class ContentBodyStoreAdapterTests
         Assert.NotNull(store.Document);
         Assert.Equal("article", store.Document.Record.Identity.ContentType);
         Assert.Equal("news", store.Document.Record.Classification.Collection);
+        Assert.Equal("Editorial Desk", store.Document.Record.Ownership.Author);
+        Assert.Equal("Organization", store.Document.Record.Ownership.AuthorType);
     }
 
     [Fact]

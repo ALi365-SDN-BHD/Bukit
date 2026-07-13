@@ -92,7 +92,10 @@ internal static partial class CanonicalContentGraphBuilder
                 FirstText(source, "author") ?? authors?.FirstOrDefault(),
                 FirstText(source, "organization") ?? FirstText(source, "org") ?? FirstText(source, "company"),
                 FirstText(source, "owner") ?? owners?.FirstOrDefault(),
-                FirstText(source, "reviewer") ?? reviewers?.FirstOrDefault()),
+                FirstText(source, "reviewer") ?? reviewers?.FirstOrDefault())
+            {
+                AuthorType = FirstText(source, "authorType")
+            },
             new ContentLifecycle(
                 source.PublishAt,
                 FirstDate(source, "updatedAt") ?? FirstDate(source, "updated") ?? FirstDate(source, "modified") ?? FirstDate(source, "update_time") ?? FirstDate(source, "last_edited_time"),

@@ -126,7 +126,7 @@ internal static partial class SeoAuditReportWriter
             GeoEnhancedCount: report.Summary.GeoEnhancedCount,
             GeoEnhancedRoutes: report.Routes
                 .Where(r => r.SchemaTypes.Any(t =>
-                    t is "FAQPage" or "HowTo" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
+                    t is "FAQPage" or "HowTo" or "BlogPosting" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
                 .Select(r => new GeoRouteEntry(r.Url, r.SchemaTypes))
                 .ToList());
 

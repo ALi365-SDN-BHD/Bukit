@@ -8,7 +8,12 @@ namespace Bukit.Engine;
 
 internal static partial class MachineReadabilityTrustAuditBuilder
 {
-    private static int ComputeGeoScore(bool llmsTxtGenerated, bool llmsFullTxtGenerated, SeoAuditRoute[] geoRoutes, List<SeoAuditRoute> allRoutes)
+    private static int ComputeGeoScore(
+        bool llmsTxtGenerated,
+        bool llmsFullTxtGenerated,
+        SeoAuditRoute[] geoRoutes,
+        List<SeoAuditRoute> allRoutes,
+        bool hasValidArticleAuthor)
     {
         var score = 0;
 
@@ -42,7 +47,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             score += 15;
         }
 
-        if (geoRoutes.Any(r => r.SchemaTypes.Contains("Person")))
+        if (hasValidArticleAuthor)
         {
             score += 10;
         }

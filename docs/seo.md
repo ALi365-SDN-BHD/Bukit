@@ -122,6 +122,31 @@ Bukit emits JSON-LD through JSON serialization rather than template string conca
 - `BreadcrumbList` for nested paths
 - `BlogPosting` for post content
 
+Canonical ownership is authoritative for article authors. When no canonical
+author is present, the existing `geo.author` value remains a compatibility
+fallback and is treated as a `Person`. `authorType` accepts `Person` or
+`Organization` (case-insensitive) and defaults to `Person` when a canonical
+author is present but no type is declared. Bukit emits the normalized canonical
+type only inside the article's `author` property:
+
+```json
+{
+  "@type": "BlogPosting",
+  "author": {
+    "@type": "Organization",
+    "name": "Silk Road Editorial Desk"
+  }
+}
+```
+
+`authorType` does not derive from the author's name, canonical `organization`,
+or `site.seo.organization`. Those organization fields describe content/site
+ownership and publisher identity, not the article byline. A matching
+`geo.author` may enrich the canonical author with `url` and `sameAs`; it does
+not override the canonical name or type. An invalid explicit author type is
+reported by canonical validation and is omitted from article JSON-LD instead
+of being guessed as `Person`.
+
 ## Theme Partial
 
 Official themes can render the engine model directly:

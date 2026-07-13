@@ -48,6 +48,18 @@ internal static class ContentModelSchemaValidator
         Require(schema.RequireUpdatedAt, record.Lifecycle.UpdatedAt, "lifecycle.updated_at", "canonical_updated_at_missing", "Canonical content updated time is required.", record, errors);
         Require(schema.RequireReviewedAt, record.Lifecycle.ReviewedAt, "lifecycle.reviewed_at", "canonical_reviewed_at_missing", "Canonical content reviewed time is required.", record, errors);
 
+        if (!string.IsNullOrWhiteSpace(record.Ownership.AuthorType))
+        {
+            if (string.IsNullOrWhiteSpace(record.Ownership.Author))
+            {
+                Add(errors, "ownership.author_type", "canonical_author_type_without_author", "Canonical author type requires an author name.", record);
+            }
+            else if (!AuthorSchemaType.IsValid(record.Ownership.AuthorType))
+            {
+                Add(errors, "ownership.author_type", "canonical_author_type_invalid", "Canonical author type must be Person or Organization.", record);
+            }
+        }
+
         if (schema.RequireProvenance &&
             string.IsNullOrWhiteSpace(record.Provenance.Source) &&
             string.IsNullOrWhiteSpace(record.Provenance.OriginalSource))

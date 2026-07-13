@@ -128,6 +128,7 @@ public sealed record SeoArticleModel
     public DateTimeOffset? PublishedTime { get; init; }
     public DateTimeOffset? ModifiedTime { get; init; }
     public string? Author { get; init; }
+    public string? AuthorType { get; init; }
     public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
 }
 

@@ -161,6 +161,8 @@ public sealed class PublishRepresentationRegistryTests
                     ["language"] = "en",
                     ["status"] = "published",
                     ["review_status"] = "reviewed",
+                    ["author"] = "Silk Road Editorial Desk",
+                    ["authorType"] = "organization",
                     ["source"] = "notion",
                     ["entities"] = new object[]
                     {
@@ -206,7 +208,11 @@ public sealed class PublishRepresentationRegistryTests
             Assert.Contains(markdownResult.Outputs, x => x.Kind == "markdown" && x.Url == "/content/projection-post.md" && x.Exists && x.Indexable);
             Assert.True(File.Exists(Path.Combine(outputDir, "content", "projection-post.json")));
             Assert.True(File.Exists(Path.Combine(outputDir, "content", "projection-post.md")));
-            Assert.DoesNotContain(relatedNotionId, File.ReadAllText(Path.Combine(outputDir, "content", "projection-post.json")), StringComparison.OrdinalIgnoreCase);
+            var jsonText = File.ReadAllText(Path.Combine(outputDir, "content", "projection-post.json"));
+            Assert.DoesNotContain(relatedNotionId, jsonText, StringComparison.OrdinalIgnoreCase);
+            using var json = System.Text.Json.JsonDocument.Parse(jsonText);
+            Assert.Equal("Silk Road Editorial Desk", json.RootElement.GetProperty("author").GetString());
+            Assert.Equal("Organization", json.RootElement.GetProperty("authorType").GetString());
             Assert.DoesNotContain(relatedNotionId, File.ReadAllText(Path.Combine(outputDir, "content", "projection-post.md")), StringComparison.OrdinalIgnoreCase);
         }
         finally

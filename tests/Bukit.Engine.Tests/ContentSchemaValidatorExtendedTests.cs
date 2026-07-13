@@ -89,4 +89,42 @@ public sealed class ContentSchemaValidatorExtendedTests
         Assert.Contains(errors, e => e.Code == "canonical_status_invalid" && e.SourcePath == "hello");
         Assert.Contains(errors, e => e.Code == "canonical_review_status_invalid" && e.SourcePath == "hello");
     }
+
+    [Fact]
+    public void ContentModelSchemaValidator_ReportsInvalidAndOrphanedAuthorTypes()
+    {
+        var invalid = ContentDocument.Create(
+            "invalid-author-type",
+            "Invalid author type",
+            "invalid-author-type",
+            DateTimeOffset.UtcNow,
+            null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["author"] = "Editorial Desk",
+                ["authorType"] = "Company"
+            }));
+        var orphaned = ContentDocument.Create(
+            "orphaned-author-type",
+            "Orphaned author type",
+            "orphaned-author-type",
+            DateTimeOffset.UtcNow,
+            null,
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["authorType"] = "Organization"
+            }));
+
+        var errors = ContentModelSchemaValidator.Validate(
+            CanonicalContentGraphBuilder.BuildFromDocuments(new[] { invalid, orphaned }));
+
+        Assert.Contains(errors, e =>
+            e.Code == "canonical_author_type_invalid" &&
+            e.Field == "ownership.author_type" &&
+            e.SourcePath == "invalid-author-type");
+        Assert.Contains(errors, e =>
+            e.Code == "canonical_author_type_without_author" &&
+            e.Field == "ownership.author_type" &&
+            e.SourcePath == "orphaned-author-type");
+    }
 }

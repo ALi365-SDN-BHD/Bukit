@@ -75,6 +75,7 @@ public sealed class SeoModelBuilderTests
         Assert.NotNull(model.Article);
         Assert.NotNull(model.Article.PublishedTime);
         Assert.Equal("Alice", model.Article.Author);
+        Assert.Equal("Person", model.Article.AuthorType);
         Assert.Equal(new[] { "dotnet", "aspire" }, model.Article.Tags);
         Assert.NotNull(model.JsonLd);
         Assert.NotEmpty(model.JsonLd);
@@ -226,6 +227,7 @@ public sealed class SeoModelBuilderTests
 
         Assert.Equal("Canonical summary", model.Description);
         Assert.Equal("Canonical Author", model.Article.Author);
+        Assert.Equal("Person", model.Article.AuthorType);
         Assert.Equal(new[] { "canonical-tag", "canonical-second" }, model.Article.Tags);
 
         var articleJson = model.JsonLd
@@ -234,6 +236,69 @@ public sealed class SeoModelBuilderTests
                           type.GetString() == "BlogPosting");
         Assert.Equal("ms-MY", articleJson.RootElement.GetProperty("inLanguage").GetString());
         Assert.Equal("canonical-tag", articleJson.RootElement.GetProperty("keywords")[0].GetString());
+    }
+
+    [Fact]
+    public void BuildForContent_OrganizationAuthor_UsesCanonicalTypeWithoutStandaloneOrganization()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "organization-author",
+            title: "Collective byline",
+            slug: "collective-byline",
+            publishAt: DateTimeOffset.Parse("2026-07-13T10:00:00Z"),
+            contentHtml: "<p>Collective byline</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["author"] = "丝路商讯编辑部",
+                ["authorType"] = "organization"
+            }));
+        var route = new RouteInfo("/collective-byline/", "collective-byline/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("丝路商讯编辑部", model.Article.Author);
+        Assert.Equal("Organization", model.Article.AuthorType);
+        var documents = model.JsonLd.Select(static json => JsonDocument.Parse(json)).ToArray();
+        var article = documents.Single(doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "BlogPosting");
+        var author = article.RootElement.GetProperty("author");
+        Assert.Equal("Organization", author.GetProperty("@type").GetString());
+        Assert.Equal("丝路商讯编辑部", author.GetProperty("name").GetString());
+        Assert.DoesNotContain(documents, doc =>
+            doc.RootElement.TryGetProperty("@type", out var type) &&
+            type.GetString() == "Organization");
+    }
+
+    [Fact]
+    public void BuildForContent_InvalidExplicitAuthorType_OmitsStructuredAuthor()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "invalid-author-type",
+            title: "Invalid author type",
+            slug: "invalid-author-type",
+            publishAt: DateTimeOffset.Parse("2026-07-13T10:00:00Z"),
+            contentHtml: "<p>Invalid author type</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["author"] = "Editorial Desk",
+                ["authorType"] = "Company"
+            }));
+        var route = new RouteInfo("/invalid-author-type/", "invalid-author-type/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("Editorial Desk", model.Article.Author);
+        Assert.Null(model.Article.AuthorType);
+        var article = model.JsonLd
+            .Select(static json => JsonDocument.Parse(json))
+            .Single(doc => doc.RootElement.TryGetProperty("@type", out var type) &&
+                           type.GetString() == "BlogPosting");
+        Assert.False(article.RootElement.TryGetProperty("author", out _));
     }
 
     [Fact]

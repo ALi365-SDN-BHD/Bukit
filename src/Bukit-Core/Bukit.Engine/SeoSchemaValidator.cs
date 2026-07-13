@@ -98,6 +98,7 @@ internal static class SeoSchemaValidator
                     break;
                 case "BlogPosting":
                 case "Article":
+                case "NewsArticle":
                     ValidateArticle(node, type, routeUrl, issues);
                     break;
                 case "ItemList":
@@ -203,9 +204,12 @@ internal static class SeoSchemaValidator
 
     private static void ValidateArticle(JsonElement node, string type, string routeUrl, List<SeoAuditIssue> issues)
     {
-        var prefix = type.Equals("BlogPosting", StringComparison.OrdinalIgnoreCase)
-            ? "seo.schema_blogposting"
-            : "seo.schema_article";
+        var prefix = type switch
+        {
+            "BlogPosting" => "seo.schema_blogposting",
+            "NewsArticle" => "seo.schema_newsarticle",
+            _ => "seo.schema_article"
+        };
 
         if (!HasNonEmptyString(node, "headline"))
         {
@@ -221,10 +225,63 @@ internal static class SeoSchemaValidator
         {
             issues.Add(Warning($"{prefix}_author_missing", routeUrl, $"{type} JSON-LD should include author."));
         }
+        else
+        {
+            ValidateArticleAuthor(author, prefix, routeUrl, issues);
+        }
 
         if (!node.TryGetProperty("image", out var image) || IsEmptySchemaValue(image))
         {
             issues.Add(Warning($"{prefix}_image_missing", routeUrl, $"{type} JSON-LD should include image."));
+        }
+    }
+
+    private static void ValidateArticleAuthor(
+        JsonElement author,
+        string prefix,
+        string routeUrl,
+        List<SeoAuditIssue> issues)
+    {
+        if (author.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in author.EnumerateArray())
+            {
+                ValidateArticleAuthor(item, prefix, routeUrl, issues);
+            }
+
+            return;
+        }
+
+        if (author.ValueKind == JsonValueKind.String)
+        {
+            if (string.IsNullOrWhiteSpace(author.GetString()))
+            {
+                issues.Add(Warning($"{prefix}_author_name_missing", routeUrl, "Article author should include a non-empty name."));
+            }
+
+            issues.Add(Warning($"{prefix}_author_type_missing", routeUrl, "Article author should declare @type Person or Organization."));
+            return;
+        }
+
+        if (author.ValueKind != JsonValueKind.Object)
+        {
+            issues.Add(Error($"{prefix}_author_type_invalid", routeUrl, "Article author must be a Person or Organization object."));
+            return;
+        }
+
+        var types = ReadTypes(author);
+        if (types.Count == 0)
+        {
+            issues.Add(Warning($"{prefix}_author_type_missing", routeUrl, "Article author should declare @type Person or Organization."));
+        }
+        else if (types.Any(authorType => authorType is not "Person" and not "Organization"))
+        {
+            issues.Add(Error($"{prefix}_author_type_invalid", routeUrl, "Article author @type must be Person or Organization."));
+        }
+
+        if (!HasNonEmptyString(author, "name"))
+        {
+            issues.Add(Warning($"{prefix}_author_name_missing", routeUrl, "Article author should include a non-empty name."));
         }
     }
 

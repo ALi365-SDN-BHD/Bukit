@@ -99,6 +99,28 @@ public sealed class ContentDocumentTests
     }
 
     [Fact]
+    public void Create_ProjectsCanonicalAuthorTypeWithoutChangingConstructorShape()
+    {
+        var fields = new Dictionary<string, ContentField>
+        {
+            ["author"] = new("text", "Silk Road Editorial Desk"),
+            ["authorType"] = new("text", "Organization")
+        };
+
+        var doc = CreateDoc(extraFields: fields);
+
+        Assert.Equal("Silk Road Editorial Desk", doc.Record.Ownership.Author);
+        Assert.Equal("Organization", doc.Record.Ownership.AuthorType);
+        var ownership = new ContentOwnership("Alice", "Editorial", "Owner", "Reviewer");
+        Assert.Null(ownership.AuthorType);
+        var (author, organization, owner, reviewer) = ownership;
+        Assert.Equal("Alice", author);
+        Assert.Equal("Editorial", organization);
+        Assert.Equal("Owner", owner);
+        Assert.Equal("Reviewer", reviewer);
+    }
+
+    [Fact]
     public void Create_SetsClassificationFromSectionsAndTags()
     {
         var fields = new Dictionary<string, ContentField>

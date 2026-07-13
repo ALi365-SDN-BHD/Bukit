@@ -206,7 +206,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .ToList();
         var geoEnhancedRoutes = sortedRoutes
             .Where(x => x.SchemaTypes.Any(t =>
-                t is "FAQPage" or "HowTo" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
+                t is "FAQPage" or "HowTo" or "BlogPosting" or "Person" or "Article" or "NewsArticle" or "SpeakableSpecification"))
             .ToArray();
         var llmsTxtGenerated = File.Exists(Path.Combine(outputDir, "llms.txt"));
         var llmsFullTxtGenerated = File.Exists(Path.Combine(outputDir, "llms-full.txt"));
@@ -238,7 +238,15 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .ThenBy(x => x.Message, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var geoScore = ComputeGeoScore(llmsTxtGenerated, llmsFullTxtGenerated, geoEnhancedRoutes, sortedRoutes);
+        var hasValidArticleAuthor = seoModels.Values.Any(model =>
+            !string.IsNullOrWhiteSpace(model.Article.Author) &&
+            AuthorSchemaType.IsValid(model.Article.AuthorType));
+        var geoScore = ComputeGeoScore(
+            llmsTxtGenerated,
+            llmsFullTxtGenerated,
+            geoEnhancedRoutes,
+            sortedRoutes,
+            hasValidArticleAuthor);
         var publishIssueCount = sortedIssues.Count(x => x.Code.StartsWith("publish.", StringComparison.OrdinalIgnoreCase));
         var machineReadabilityIssueCount = sortedIssues.Count(x => IsMachineReadabilityIssue(x.Code));
         var trustIssueCount = sortedIssues.Count(x => IsTrustIssue(x.Code));

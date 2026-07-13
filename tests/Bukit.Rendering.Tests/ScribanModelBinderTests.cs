@@ -136,6 +136,7 @@ public sealed class ScribanModelBinderTests
                     PublishedTime = new DateTimeOffset(2025, 5, 15, 10, 0, 0, TimeSpan.Zero),
                     ModifiedTime = new DateTimeOffset(2025, 5, 15, 11, 30, 0, TimeSpan.Zero),
                     Author = "John Doe",
+                    AuthorType = "Organization",
                     Tags = new[] { "tech", "dotnet", "bukit" }
                 },
                 Alternates = new[]
@@ -565,6 +566,7 @@ public sealed class ScribanModelBinderTests
         Assert.Equal("2025-05-15T10:00:00.0000000+00:00", article["published_time"]);
         Assert.Equal("2025-05-15T11:30:00.0000000+00:00", article["modified_time"]);
         Assert.Equal("John Doe", article["author"]);
+        Assert.Equal("Organization", article["author_type"]);
 
         var tags = Assert.IsType<ScriptArray>(article["tags"]);
         Assert.Equal(3, tags.Count);
@@ -703,6 +705,7 @@ public sealed class ScribanModelBinderTests
         Assert.Null(article["published_time"]);
         Assert.Null(article["modified_time"]);
         Assert.Null(article["author"]);
+        Assert.Null(article["author_type"]);
 
         var tags = Assert.IsType<ScriptArray>(article["tags"]);
         Assert.Empty(tags);

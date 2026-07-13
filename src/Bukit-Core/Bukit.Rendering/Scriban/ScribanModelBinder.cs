@@ -374,6 +374,7 @@ public static class ScribanModelBinder
         obj.SetValue("published_time", model.PublishedTime?.ToString("O"), readOnly: true);
         obj.SetValue("modified_time", model.ModifiedTime?.ToString("O"), readOnly: true);
         obj.SetValue("author", model.Author, readOnly: true);
+        obj.SetValue("author_type", model.AuthorType, readOnly: true);
 
         var tags = new ScriptArray();
         foreach (var tag in model.Tags)

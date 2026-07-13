@@ -56,7 +56,10 @@ public sealed record ContentOwnership(
     string? Author,
     string? Organization,
     string? Owner,
-    string? Reviewer);
+    string? Reviewer)
+{
+    public string? AuthorType { get; init; }
+}
 
 public sealed record ContentLifecycle(
     DateTimeOffset PublishedAt,
