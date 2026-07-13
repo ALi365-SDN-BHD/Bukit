@@ -30,6 +30,15 @@ checks=(
   scripts/checks/core-cli-contract.sh
   guide/skills/scripts/validate-skills-strict.sh
 )
+search_failure_messages=(
+  "Active workflow boundary text search failed"
+  "public documentation text search failed"
+  "public absolute path text search failed"
+  "Core docs command text search failed"
+  "README link text search failed for README.md"
+  "Core CLI contract text search failed"
+  "skills strict text search failed"
+)
 
 for check in "${checks[@]}"; do
   BUKIT_RG_MARKER="$marker" PATH="$scratch/bin:$PATH" bash "$check" ||
@@ -48,13 +57,19 @@ printf '%s\n' \
   > "$scratch/failing-grep/grep"
 chmod +x "$scratch/failing-grep/grep"
 
-for check in "${checks[@]}"; do
-  if output="$(PATH="$scratch/failing-grep:$PATH" bash "$check" 2>&1)"; then
-    fail "$check passed after its text search failed"
+for index in "${!checks[@]}"; do
+  check="${checks[$index]}"
+  expected_message="${search_failure_messages[$index]}"
+  set +e
+  output="$(PATH="$scratch/failing-grep:$PATH" bash "$check" 2>&1)"
+  actual_status=$?
+  set -e
+  if [[ "$actual_status" -ne 2 ]]; then
+    fail "$check returned $actual_status after grep exited 2"
   fi
   case "$output" in
-    *"text search failed"*) ;;
-    *) fail "$check did not classify a text search failure" ;;
+    *"$expected_message"*) ;;
+    *) fail "$check did not report its scanner-specific search failure" ;;
   esac
 done
 

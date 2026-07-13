@@ -44,7 +44,12 @@ module_path, root, archive = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv
 spec = importlib.util.spec_from_file_location("release_assets", module_path)
 assert spec is not None and spec.loader is not None
 module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
+sys.path.insert(0, str(module_path.parent))
+try:
+    spec.loader.exec_module(module)
+finally:
+    sys.path.pop(0)
+assert module.ContractError.__module__ == "release_asset_contract", "contract helper not loaded"
 def exercise_install_failure(name, fail_restore):
     output = root / name
     output.mkdir()
@@ -149,18 +154,15 @@ for label, path, mutated in cases:
 
 assert not accepted, f"duplicate JSON keys unexpectedly passed: {accepted}"
 PY
-
 out="$tmp/duplicate-path"
 if bash "$prepare" "$version" "$commit" "$out" "$linux" "$linux"; then
   fail "duplicate archive unexpectedly passed"
 fi
-
 duplicate_basename="$tmp/other/$(basename "$linux")"
 make_asset "$duplicate_basename"
 expect_fail "duplicate basename unexpectedly passed" \
   bash "$prepare" "$version" "$commit" "$tmp/duplicate-basename" \
   "$linux" "$duplicate_basename"
-
 reserved="$tmp/input/checksums.txt"
 make_asset "$reserved"
 expect_fail "reserved metadata name unexpectedly passed" \
