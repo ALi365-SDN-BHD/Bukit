@@ -33,10 +33,18 @@ public sealed class ReleaseWorkflowContractTests
             TryScalar(step, "uses")?.StartsWith("actions/upload-artifact@", StringComparison.Ordinal) == true);
 
         Assert.True(Array.IndexOf(steps, verify) < Array.IndexOf(steps, upload));
-        Assert.False(string.Equals(
-            "true", TryScalar(verify, "continue-on-error"), StringComparison.OrdinalIgnoreCase));
+        Assert.False(IsExplicitlyTrue(TryScalar(verify, "continue-on-error")));
         Assert.Equal("release-assets/*", Scalar(Mapping(upload, "with"), "path"));
         Assert.Null(TryScalar(upload, "if"));
+    }
+
+    [Theory]
+    [InlineData("true")]
+    [InlineData("TRUE")]
+    [InlineData("${{ true }}")]
+    public void ExplicitTrueContinueOnErrorValues_AreRecognized(string value)
+    {
+        Assert.True(IsExplicitlyTrue(value));
     }
 
     [Theory]
@@ -88,6 +96,13 @@ public sealed class ReleaseWorkflowContractTests
         return parent.Children.TryGetValue(new YamlScalarNode(key), out var value)
             ? Assert.IsType<YamlScalarNode>(value).Value ?? string.Empty
             : null;
+    }
+
+    private static bool IsExplicitlyTrue(string? value)
+    {
+        var normalized = value?.Trim();
+        return string.Equals(normalized, "true", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "${{ true }}", StringComparison.OrdinalIgnoreCase);
     }
 
     private static YamlMappingNode LoadWorkflow()
