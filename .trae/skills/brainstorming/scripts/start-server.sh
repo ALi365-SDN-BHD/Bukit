@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# Start the brainstorm server and output connection info
-# Usage: start-server.sh [--project-dir <path>] [--host <bind-host>] [--url-host <display-host>] [--foreground] [--background]
-#
-# Starts server on a random high port, outputs JSON with URL.
-# Each session gets its own directory to avoid conflicts.
-#
-# Options:
-#   --project-dir <path>  Store session files under <path>/.superpowers/brainstorm/
-#                         instead of /tmp. Files persist after server stops.
-#   --host <bind-host>    Host/interface to bind (default: 127.0.0.1).
-#                         Use 0.0.0.0 in remote/containerized environments.
-#   --url-host <host>     Hostname shown in returned URL JSON.
-#   --foreground          Run server in the current terminal (no backgrounding).
-#   --background          Force background mode (overrides Codex auto-foreground).
+# Start the brainstorm server and output connection info.
+set -euo pipefail
+umask 077
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+SERVER_PATH="$SCRIPT_DIR/server.cjs"
+source "$SCRIPT_DIR/session-state.sh"
 
-# Parse arguments
+usage_error() {
+  printf '{"error":"%s"}\n' "$1" >&2
+  exit 2
+}
+
+require_value() {
+  local option=$1 count=$2 value=${3-}
+  [[ "$count" -ge 2 && -n "$value" && "$value" != --* ]] || usage_error "$option requires a value"
+}
+
 PROJECT_DIR=""
 FOREGROUND="false"
 FORCE_BACKGROUND="false"
@@ -25,15 +25,18 @@ URL_HOST=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --project-dir)
-      PROJECT_DIR="$2"
+      require_value "$1" "$#" "${2-}"
+      PROJECT_DIR=$2
       shift 2
       ;;
     --host)
-      BIND_HOST="$2"
+      require_value "$1" "$#" "${2-}"
+      BIND_HOST=$2
       shift 2
       ;;
     --url-host)
-      URL_HOST="$2"
+      require_value "$1" "$#" "${2-}"
+      URL_HOST=$2
       shift 2
       ;;
     --foreground|--no-daemon)
@@ -44,12 +47,11 @@ while [[ $# -gt 0 ]]; do
       FORCE_BACKGROUND="true"
       shift
       ;;
-    *)
-      echo "{\"error\": \"Unknown argument: $1\"}"
-      exit 1
-      ;;
+    *) usage_error "Unknown argument: $1" ;;
   esac
 done
+
+[[ "$FOREGROUND" != "true" || "$FORCE_BACKGROUND" != "true" ]] || usage_error "foreground and background modes conflict"
 
 if [[ -z "$URL_HOST" ]]; then
   if [[ "$BIND_HOST" == "127.0.0.1" || "$BIND_HOST" == "localhost" ]]; then
@@ -59,90 +61,102 @@ if [[ -z "$URL_HOST" ]]; then
   fi
 fi
 
-# Some environments reap detached/background processes. Auto-foreground when detected.
 if [[ -n "${CODEX_CI:-}" && "$FOREGROUND" != "true" && "$FORCE_BACKGROUND" != "true" ]]; then
   FOREGROUND="true"
 fi
-
-# Windows/Git Bash reaps nohup background processes. Auto-foreground when detected.
 if [[ "$FOREGROUND" != "true" && "$FORCE_BACKGROUND" != "true" ]]; then
   case "${OSTYPE:-}" in
     msys*|cygwin*|mingw*) FOREGROUND="true" ;;
   esac
-  if [[ -n "${MSYSTEM:-}" ]]; then
-    FOREGROUND="true"
-  fi
+  [[ -z "${MSYSTEM:-}" ]] || FOREGROUND="true"
 fi
 
-# Generate unique session directory
-SESSION_ID="$$-$(date +%s)"
+NODE_BIN="$(command -v node 2>/dev/null || true)"
+[[ -n "$NODE_BIN" && -x "$NODE_BIN" ]] || { echo '{"error":"node executable not found"}' >&2; exit 1; }
+[[ -f "$SERVER_PATH" && ! -L "$SERVER_PATH" ]] || { echo '{"error":"server.cjs is unavailable"}' >&2; exit 1; }
+
+SESSION_ID="$$-$(date +%s)-$RANDOM"
+TOKEN="$(LC_ALL=C od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
+[[ "$TOKEN" =~ ^[A-Za-z0-9._-]+$ && ${#TOKEN} -ge 32 ]] || { echo '{"error":"failed to generate session token"}' >&2; exit 1; }
 
 if [[ -n "$PROJECT_DIR" ]]; then
-  SESSION_DIR="${PROJECT_DIR}/.superpowers/brainstorm/${SESSION_ID}"
+  [[ -d "$PROJECT_DIR" ]] || { echo '{"error":"project directory does not exist"}' >&2; exit 1; }
+  PROJECT_DIR="$(cd -- "$PROJECT_DIR" && pwd -P)"
+  SESSION_DIR="$PROJECT_DIR/.superpowers/brainstorm/$SESSION_ID"
 else
-  SESSION_DIR="/tmp/brainstorm-${SESSION_ID}"
+  SESSION_DIR="/tmp/brainstorm-$SESSION_ID"
 fi
+STATE_DIR="$SESSION_DIR/state"
+LOG_FILE="$STATE_DIR/server.log"
+mkdir -p "$SESSION_DIR/content" "$STATE_DIR"
+classification="$(classify_session_dir "$SESSION_DIR")" || { echo '{"error":"unsafe session directory"}' >&2; exit 1; }
 
-STATE_DIR="${SESSION_DIR}/state"
-PID_FILE="${STATE_DIR}/server.pid"
-LOG_FILE="${STATE_DIR}/server.log"
-
-# Create fresh session directory with content and state peers
-mkdir -p "${SESSION_DIR}/content" "$STATE_DIR"
-
-# Kill any existing server
-if [[ -f "$PID_FILE" ]]; then
-  old_pid=$(cat "$PID_FILE")
-  kill "$old_pid" 2>/dev/null
-  rm -f "$PID_FILE"
-fi
-
-cd "$SCRIPT_DIR"
-
-# Resolve the harness PID (grandparent of this script).
-# $PPID is the ephemeral shell the harness spawned to run us — it dies
-# when this script exits. The harness itself is $PPID's parent.
-OWNER_PID="$(ps -o ppid= -p "$PPID" 2>/dev/null | tr -d ' ')"
-if [[ -z "$OWNER_PID" || "$OWNER_PID" == "1" ]]; then
+OWNER_PID="$(ps -o ppid= -p "$PPID" 2>/dev/null | tr -d ' ' || true)"
+if [[ -z "$OWNER_PID" || "$OWNER_PID" == "1" || ! "$OWNER_PID" =~ ^[0-9]+$ ]]; then
   OWNER_PID="$PPID"
 fi
 
-# Foreground mode for environments that reap detached/background processes.
+remove_identity_state() {
+  rm -f "$STATE_DIR/server.pid" "$STATE_DIR/owner.uid" "$STATE_DIR/server.path" "$STATE_DIR/server.token"
+}
+
 if [[ "$FOREGROUND" == "true" ]]; then
-  echo "$$" > "$PID_FILE"
-  env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" node server.cjs
-  exit $?
+  write_session_state "$STATE_DIR" "$$" "$TOKEN" "$SERVER_PATH"
+  exec env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" \
+    BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" \
+    "$NODE_BIN" "$SERVER_PATH" "--session-token=$TOKEN"
+  status=$?
+  remove_identity_state
+  exit "$status"
 fi
 
-# Start server, capturing output to log file
-# Use nohup to survive shell exit; disown to remove from job table
-nohup env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" node server.cjs > "$LOG_FILE" 2>&1 &
+nohup env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" \
+  BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" \
+  "$NODE_BIN" "$SERVER_PATH" "--session-token=$TOKEN" > "$LOG_FILE" 2>&1 &
 SERVER_PID=$!
-disown "$SERVER_PID" 2>/dev/null
-echo "$SERVER_PID" > "$PID_FILE"
+disown "$SERVER_PID" 2>/dev/null || true
+write_session_state "$STATE_DIR" "$SERVER_PID" "$TOKEN" "$SERVER_PATH"
 
-# Wait for server-started message (check log file)
-for i in {1..50}; do
-  if grep -q "server-started" "$LOG_FILE" 2>/dev/null; then
-    # Verify server is still alive after a short window (catches process reapers)
-    alive="true"
-    for _ in {1..20}; do
-      if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-        alive="false"
-        break
-      fi
-      sleep 0.1
-    done
-    if [[ "$alive" != "true" ]]; then
-      echo "{\"error\": \"Server started but was killed. Retry in a persistent terminal with: $SCRIPT_DIR/start-server.sh${PROJECT_DIR:+ --project-dir $PROJECT_DIR} --host $BIND_HOST --url-host $URL_HOST --foreground\"}"
-      exit 1
+cleanup_failed_background_start() {
+  local status=$?
+  trap - EXIT
+  if ! bash "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR" >/dev/null 2>&1; then
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+      remove_identity_state
     fi
-    grep "server-started" "$LOG_FILE" | head -1
+  fi
+  exit "$status"
+}
+trap cleanup_failed_background_start EXIT
+
+started_line=""
+for _ in {1..50}; do
+  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    wait "$SERVER_PID" 2>/dev/null || true
+    echo '{"error":"server process exited before startup"}' >&2
+    exit 1
+  fi
+  started_line="$(grep -E -m 1 '"type"[[:space:]]*:[[:space:]]*"server-started"' "$LOG_FILE" 2>/dev/null || true)"
+  if [[ -n "$started_line" ]]; then
+    case "$started_line" in
+      *"\"state_dir\":\"$STATE_DIR\""*) ;;
+      *) echo '{"error":"server-started state_dir mismatch"}' >&2; exit 1 ;;
+    esac
+    [[ "$(validate_session_process "$STATE_DIR" 2>/dev/null || true)" == "$SERVER_PID" ]] || {
+      echo '{"error":"server identity validation failed"}' >&2
+      exit 1
+    }
+    sleep 0.05
+    [[ "$(validate_session_process "$STATE_DIR" 2>/dev/null || true)" == "$SERVER_PID" ]] || {
+      echo '{"error":"server exited during startup"}' >&2
+      exit 1
+    }
+    trap - EXIT
+    printf '%s\n' "$started_line"
     exit 0
   fi
   sleep 0.1
 done
 
-# Timeout - server didn't start
-echo '{"error": "Server failed to start within 5 seconds"}'
+echo '{"error":"server failed to start within 5 seconds"}' >&2
 exit 1
