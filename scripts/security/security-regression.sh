@@ -5,6 +5,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 cd "$(repo_root)"
 
 configuration="${1:-Release}"
+results="$(mktemp -d "${TMPDIR:-/tmp}/bukit-security-results.XXXXXX")"
+trap 'rm -rf "$results"' EXIT
 projects=(
   "tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj|FullyQualifiedName~SsrfGuardIntegrationTests|FullyQualifiedName~DevRequestHandler_HandleAsync_DoesNotServeBukitInternalFiles"
   "tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj|FullyQualifiedName~BlockRendererUrlSafetyTests|FullyQualifiedName~ImageAssetLocalizerTests"
@@ -14,12 +16,16 @@ projects=(
 )
 
 for entry in "${projects[@]}"; do
-  project="${entry%%|*}"
-  filter="${entry#*|}"
-  args=(test "$project" -c "$configuration" --filter "$filter")
-  if [[ "${BUKIT_SECURITY_SKIP_RESTORE:-0}" == "1" ]]; then
-    args+=(--no-restore)
-  fi
-
-  run_step "$(basename "$(dirname "$project")") security" dotnet "${args[@]}"
+  IFS='|' read -r -a fields <<< "$entry"
+  project="${fields[0]}"
+  selectors=("${fields[@]:1}")
+  filter="$(IFS='|'; printf '%s' "${selectors[*]}")"
+  name="$(basename "$(dirname "$project")")"
+  trx="$results/$name.trx"
+  args=(test "$project" -c "$configuration" --filter "$filter"
+    --logger "trx;LogFileName=$name.trx" --results-directory "$results")
+  [[ "${BUKIT_SECURITY_SKIP_RESTORE:-0}" != 1 ]] || args+=(--no-restore)
+  run_step "$name security" dotnet "${args[@]}"
+  [[ -f "$trx" ]] || { echo "missing security TRX: $trx" >&2; exit 1; }
+  python3 scripts/security/verify-trx.py "$trx" "${selectors[@]}"
 done
