@@ -22,11 +22,13 @@ printf '%s\n' \
 chmod +x "$scratch/bin/rg"
 
 checks=(
+  scripts/checks/active-workflow-boundary.sh
   scripts/checks/docs/public-doc-contracts.sh
   scripts/checks/docs/no-absolute-paths.sh
   scripts/checks/docs/no-core-drift.sh
   scripts/checks/readme-sync.sh
   scripts/checks/core-cli-contract.sh
+  guide/skills/scripts/validate-skills-strict.sh
 )
 
 for check in "${checks[@]}"; do
@@ -55,5 +57,22 @@ for check in "${checks[@]}"; do
     *) fail "$check did not classify a text search failure" ;;
   esac
 done
+
+mkdir -p "$scratch/recording-grep"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'printf "%s\n" "$@" > "$BUKIT_GREP_ARGS"' \
+  'exit 1' \
+  > "$scratch/recording-grep/grep"
+chmod +x "$scratch/recording-grep/grep"
+
+BUKIT_GREP_ARGS="$scratch/grep.args" PATH="$scratch/recording-grep:$PATH" \
+  bash scripts/checks/core-cli-contract.sh ||
+  fail "Core CLI contract rejected grep no-match status"
+grep -Fxq '.github/workflows' "$scratch/grep.args" ||
+  fail "Core CLI contract did not scan active workflows"
+if grep -Fxq '.github' "$scratch/grep.args"; then
+  fail "Core CLI contract scanned all of .github"
+fi
 
 echo "ci-fast portability self-test OK"

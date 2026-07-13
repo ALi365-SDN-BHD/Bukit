@@ -29,7 +29,10 @@ done < <(
 
 while IFS= read -r path; do
   check_limit "$path" "$script_limit"
-done < <(find scripts guide/skills/scripts -type f -name '*.sh' | sort)
+done < <(
+  find scripts guide/skills/scripts .trae/skills -type f \
+    \( -name '*.sh' -o -name '*.py' \) | sort
+)
 
 if [ "${#failures[@]}" -gt 0 ]; then
   echo "active documentation/script size policy violations:" >&2

@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 forbidden='bukit[[:space:]]+(docs|intent|theme|import|clone|visual|webhook|data|route)([[:space:]]|$)|--allow-external-plugins'
-targets=(scripts .github)
+targets=(scripts .github/workflows)
 grep_status=0
 matches="$(grep -RIniE --exclude='core-cli-contract.sh' -- "$forbidden" "${targets[@]}")" || grep_status=$?
 if ((grep_status > 1)); then
