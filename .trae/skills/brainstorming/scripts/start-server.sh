@@ -71,10 +71,13 @@ if [[ "$FOREGROUND" != "true" && "$FORCE_BACKGROUND" != "true" ]]; then
   [[ -z "${MSYSTEM:-}" ]] || FOREGROUND="true"
 fi
 
-NODE_BIN="$(command -v node 2>/dev/null || true)"
-[[ -n "$NODE_BIN" && -x "$NODE_BIN" ]] || { echo '{"error":"node executable not found"}' >&2; exit 1; }
+NODE_COMMAND="$(command -v node 2>/dev/null || true)"
+NODE_BIN="$(physical_executable_path "$NODE_COMMAND" 2>/dev/null || true)"
+[[ -n "$NODE_BIN" ]] || { echo '{"error":"node executable not found"}' >&2; exit 1; }
+[[ "$NODE_BIN" != *' '* && "$NODE_BIN" != *$'\t'* && "$NODE_BIN" != *$'\r'* && "$NODE_BIN" != *$'\n'* ]] || { echo '{"error":"node executable path contains unsupported whitespace"}' >&2; exit 1; }
+NODE_VERSION="$("$NODE_BIN" --version 2>/dev/null || true)"
+[[ "$NODE_VERSION" =~ ^v[0-9]+([.][0-9]+){1,2}$ ]] || { echo '{"error":"node executable validation failed"}' >&2; exit 1; }
 [[ -f "$SERVER_PATH" && ! -L "$SERVER_PATH" ]] || { echo '{"error":"server.cjs is unavailable"}' >&2; exit 1; }
-
 SESSION_ID="$$-$(date +%s)-$RANDOM"
 TOKEN="$(LC_ALL=C od -An -N32 -tx1 /dev/urandom | tr -d ' \n')"
 [[ "$TOKEN" =~ ^[A-Za-z0-9._-]+$ && ${#TOKEN} -ge 32 ]] || { echo '{"error":"failed to generate session token"}' >&2; exit 1; }
@@ -99,35 +102,68 @@ fi
 remove_identity_state() {
   rm -f "$STATE_DIR/server.pid" "$STATE_DIR/owner.uid" "$STATE_DIR/server.path" "$STATE_DIR/server.token"
 }
+SERVER_PID=""
+
+direct_child_job_is_current() {
+  local parent jobs_output
+  [[ "$SERVER_PID" =~ ^[0-9]+$ ]] || return 1
+  parent="$(ps -o ppid= -p "$SERVER_PID" 2>/dev/null | tr -d ' ' || true)"
+  jobs_output="$(jobs -pr 2>/dev/null || true)"
+  [[ "$parent" == "$$" ]] || return 1
+  case $'\n'"$jobs_output"$'\n' in *$'\n'"$SERVER_PID"$'\n'*) return 0 ;; esac
+  return 1
+}
+
+stop_owned_child_job() {
+  local i
+  direct_child_job_is_current || return 1
+  kill "$SERVER_PID" 2>/dev/null || true
+  for i in {1..20}; do kill -0 "$SERVER_PID" 2>/dev/null || break; sleep 0.05; done
+  if kill -0 "$SERVER_PID" 2>/dev/null; then
+    direct_child_job_is_current || return 1
+    kill -9 "$SERVER_PID" 2>/dev/null || true
+  fi
+  wait "$SERVER_PID" 2>/dev/null || true
+}
+
+cleanup_failed_start() {
+  local status=$?
+  trap - EXIT INT TERM
+  if session_state_matches "$STATE_DIR" "$SERVER_PID" "$TOKEN" "$SERVER_PATH"; then
+    if [[ "$FOREGROUND" == true && "$SERVER_PID" == "$$" ]]; then
+      remove_identity_state
+    elif ! bash "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR" >/dev/null 2>&1; then
+      if ! kill -0 "$SERVER_PID" 2>/dev/null; then remove_identity_state; fi
+    fi
+  elif [[ "$FOREGROUND" == true && "$SERVER_PID" == "$$" ]]; then
+    remove_identity_state
+  elif [[ -n "$SERVER_PID" ]]; then
+    if stop_owned_child_job; then remove_identity_state; fi
+  else
+    remove_identity_state
+  fi
+  exit "$status"
+}
+
+trap cleanup_failed_start EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if [[ "$FOREGROUND" == "true" ]]; then
-  write_session_state "$STATE_DIR" "$$" "$TOKEN" "$SERVER_PATH"
-  exec env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" \
-    BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" \
-    "$NODE_BIN" "$SERVER_PATH" "--session-token=$TOKEN"
-  status=$?
-  remove_identity_state
-  exit "$status"
+  SERVER_PID="$$"
+  write_session_state "$STATE_DIR" "$SERVER_PID" "$TOKEN" "$SERVER_PATH"
+  export BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST"
+  export BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID"
+  shopt -s execfail
+  set +e; exec "$NODE_BIN" "$SERVER_PATH" "--session-token=$TOKEN"
+  status=$?; remove_identity_state || true; trap - EXIT INT TERM; exit "$status"
 fi
 
 nohup env BRAINSTORM_DIR="$SESSION_DIR" BRAINSTORM_HOST="$BIND_HOST" \
   BRAINSTORM_URL_HOST="$URL_HOST" BRAINSTORM_OWNER_PID="$OWNER_PID" \
   "$NODE_BIN" "$SERVER_PATH" "--session-token=$TOKEN" > "$LOG_FILE" 2>&1 &
 SERVER_PID=$!
-disown "$SERVER_PID" 2>/dev/null || true
 write_session_state "$STATE_DIR" "$SERVER_PID" "$TOKEN" "$SERVER_PATH"
-
-cleanup_failed_background_start() {
-  local status=$?
-  trap - EXIT
-  if ! bash "$SCRIPT_DIR/stop-server.sh" "$SESSION_DIR" >/dev/null 2>&1; then
-    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-      remove_identity_state
-    fi
-  fi
-  exit "$status"
-}
-trap cleanup_failed_background_start EXIT
 
 started_line=""
 for _ in {1..50}; do
@@ -151,7 +187,8 @@ for _ in {1..50}; do
       echo '{"error":"server exited during startup"}' >&2
       exit 1
     }
-    trap - EXIT
+    disown "$SERVER_PID" 2>/dev/null || true
+    trap - EXIT INT TERM
     printf '%s\n' "$started_line"
     exit 0
   fi
