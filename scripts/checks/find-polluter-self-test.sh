@@ -109,12 +109,14 @@ prepare_case polluter 'tests/polluter.test.ts'
 run_case pollute "$polluter_path" './tests/*.test.ts'
 assert_status 1 "polluter case"
 assert_contains "$case_stdout" "FOUND POLLUTER: $polluter_path" "polluter case"
+assert_contains "$case_stdout" "Command status: 0" "polluter case"
 [[ -e "$case_dir/.pollution" ]] || record_failure "polluter case removed its evidence"
 
 prepare_case failed-polluter 'tests/polluter.test.ts'
 run_case fail-pollute "$polluter_path" './tests/*.test.ts'
 assert_status 1 "failed polluter case"
 assert_contains "$case_stdout" "FOUND POLLUTER: $polluter_path" "failed polluter case"
+assert_contains "$case_stdout" "Command status: 9" "failed polluter case"
 [[ -e "$case_dir/.pollution" ]] || record_failure "failed polluter case removed its evidence"
 
 failed_path='./tests/failed only.test.ts'

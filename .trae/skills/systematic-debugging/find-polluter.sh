@@ -62,6 +62,7 @@ for TEST_FILE in "${TEST_FILES[@]}"; do
   if pollution_exists; then
     echo ""
     echo "FOUND POLLUTER: $TEST_FILE"
+    echo "   Command status: $status"
     echo "   Created: $POLLUTION_CHECK"
     exit 1
   fi
