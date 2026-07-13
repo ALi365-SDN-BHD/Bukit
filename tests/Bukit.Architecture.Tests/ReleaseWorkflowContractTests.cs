@@ -10,14 +10,42 @@ public sealed class ReleaseWorkflowContractTests
     [Fact]
     public void CollectAssets_VerifiesTheSelectedRidSet()
     {
-        var run = RunOfStep(Job("collect-assets"), "Verify assets");
+        var verify = Step(Job("collect-assets"), "Verify assets");
+        var run = Scalar(verify, "run");
 
+        Assert.Equal("${{ inputs.rids }}", Scalar(Mapping(verify, "env"), "RIDS"));
         Assert.Contains("case \"$RIDS\" in", run, StringComparison.Ordinal);
         Assert.Contains("linux-x64) expected_rids=(linux-x64)", run, StringComparison.Ordinal);
         Assert.Contains("osx-arm64) expected_rids=(osx-arm64)", run, StringComparison.Ordinal);
         Assert.Contains("win-x64) expected_rids=(win-x64)", run, StringComparison.Ordinal);
         Assert.Contains("all) expected_rids=(linux-x64 osx-arm64 win-x64)", run, StringComparison.Ordinal);
+        Assert.Contains("*) echo \"unsupported RID selection: $RIDS\" >&2; exit 2 ;;",
+            run, StringComparison.Ordinal);
         Assert.Contains("verify-release-assets.sh", run, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CollectAssets_VerifiesBeforeUploadingTheExactDirectory()
+    {
+        var steps = Steps(Job("collect-assets")).ToArray();
+        var verify = Assert.Single(steps, step => TryScalar(step, "name") == "Verify assets");
+        var upload = Assert.Single(steps, step =>
+            TryScalar(step, "uses")?.StartsWith("actions/upload-artifact@", StringComparison.Ordinal) == true);
+
+        Assert.True(Array.IndexOf(steps, verify) < Array.IndexOf(steps, upload));
+        Assert.Equal("release-assets/*", Scalar(Mapping(upload, "with"), "path"));
+        Assert.Null(TryScalar(upload, "if"));
+    }
+
+    [Theory]
+    [InlineData("package-linux", "linux-x64")]
+    [InlineData("package-macos", "osx-arm64")]
+    [InlineData("package-windows", "win-x64")]
+    public void PackageJob_OnlyRunsForItsRidOrAll(string jobName, string rid)
+    {
+        Assert.Equal(
+            $"${{{{ inputs.rids == '{rid}' || inputs.rids == 'all' }}}}",
+            Scalar(Job(jobName), "if"));
     }
 
     private YamlMappingNode Job(string name)
@@ -31,10 +59,9 @@ public sealed class ReleaseWorkflowContractTests
             .Select(node => Assert.IsType<YamlMappingNode>(node));
     }
 
-    private static string RunOfStep(YamlMappingNode job, string name)
+    private static YamlMappingNode Step(YamlMappingNode job, string name)
     {
-        var step = Assert.Single(Steps(job), candidate => TryScalar(candidate, "name") == name);
-        return Scalar(step, "run");
+        return Assert.Single(Steps(job), candidate => TryScalar(candidate, "name") == name);
     }
 
     private static YamlMappingNode Mapping(YamlMappingNode parent, string key)

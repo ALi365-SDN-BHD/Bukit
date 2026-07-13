@@ -48,7 +48,7 @@ def resolve_output(value: str) -> Path:
         raise ContractError("unsafe release output directory")
     output = raw.absolute()
     repo_root = Path(__file__).resolve().parents[2]
-    if output == Path(output.anchor) or output == repo_root:
+    if output == Path(output.anchor) or repo_root.is_relative_to(output):
         raise ContractError("unsafe release output directory")
     if output.is_symlink():
         raise ContractError("release output directory must not be a symlink")
@@ -119,9 +119,19 @@ def compare_set(label: str, expected: set[str], actual: set[str]) -> None:
         raise ContractError(f"{label} asset set mismatch; missing={missing} extra={extra}")
 
 
+def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ContractError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
 def load_json(path: Path, label: str) -> dict[str, object]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8"),
+                           object_pairs_hook=reject_duplicate_keys)
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise ContractError(f"invalid {label}: {error}") from error
     return exact_keys(value, {"assets"} if label == "checksums.json" else
@@ -175,6 +185,28 @@ def verify(version: str, commit: str, directory: str | Path, expected_rids: list
             raise ContractError(f"checksum mismatch: {name}")
 
 
+def install_staging(staging: Path, output: Path) -> None:
+    backup: Path | None = None
+    if output.exists():
+        backup = Path(tempfile.mkdtemp(prefix=f".{output.name}.backup.", dir=output.parent))
+        backup.rmdir()
+        os.replace(output, backup)
+    try:
+        os.replace(staging, output)
+    except OSError as install_error:
+        if backup is not None:
+            try:
+                os.replace(backup, output)
+            except OSError as restore_error:
+                raise ContractError(
+                    f"release asset install failed: {install_error}; "
+                    f"previous output restore failed: {restore_error}"
+                ) from restore_error
+        raise
+    if backup is not None:
+        shutil.rmtree(backup)
+
+
 def prepare(version: str, commit: str, output_value: str, values: list[str]) -> None:
     validate_identity(version, commit)
     output = resolve_output(output_value)
@@ -190,9 +222,7 @@ def prepare(version: str, commit: str, output_value: str, values: list[str]) -> 
         lines = "".join(f'{item["sha256"]}  {item["name"]}\n' for item in generated)
         (staging / "checksums.txt").write_text(lines, encoding="utf-8")
         verify(version, commit, staging, rids)
-        if output.exists():
-            shutil.rmtree(output)
-        os.replace(staging, output)
+        install_staging(staging, output)
     finally:
         if staging.exists():
             shutil.rmtree(staging)
