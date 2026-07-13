@@ -7,6 +7,7 @@ import shutil
 import stat
 import sys
 import tarfile
+import unicodedata
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -22,12 +23,13 @@ class ArchiveMember:
 
 
 def safe_relative(name: str) -> PurePosixPath:
-    if not name or "\x00" in name or "\\" in name or PureWindowsPath(name).drive:
-        raise ValueError(f"unsafe archive member: {name}")
+    has_control = any(unicodedata.category(character) == "Cc" for character in name)
+    if not name or has_control or "\\" in name or PureWindowsPath(name).drive:
+        raise ValueError(f"unsafe archive member: {name!r}")
 
     relative = PurePosixPath(name)
     if relative.is_absolute() or not relative.parts or ".." in relative.parts:
-        raise ValueError(f"unsafe archive member: {name}")
+        raise ValueError(f"unsafe archive member: {name!r}")
     return relative
 
 
@@ -140,8 +142,12 @@ def extract_members(members: Iterable[ArchiveMember], destination: Path) -> None
 
 def tar_members(archive: tarfile.TarFile) -> Iterable[ArchiveMember]:
     for member in archive.getmembers():
+        if member.name in (".", "./"):
+            if member.isdir():
+                continue
+            raise ValueError(f"unsafe tar root member: {member.name!r}")
         if not member.isdir() and not member.isreg():
-            raise ValueError(f"unsupported tar member type: {member.name}")
+            raise ValueError(f"unsupported tar member type: {member.name!r}")
         relative = safe_relative(member.name)
         if member.isdir():
             yield ArchiveMember(relative, True, member.mode, None)
@@ -160,17 +166,17 @@ def zip_members(archive: zipfile.ZipFile) -> Iterable[ArchiveMember]:
         mode = member.external_attr >> 16
         file_type = stat.S_IFMT(mode)
         if stat.S_ISLNK(mode):
-            raise ValueError(f"unsupported zip symbolic link: {member.filename}")
+            raise ValueError(f"unsupported zip symbolic link: {member.filename!r}")
         if member.flag_bits & 0x1:
-            raise ValueError(f"encrypted zip member is unsupported: {member.filename}")
+            raise ValueError(f"encrypted zip member is unsupported: {member.filename!r}")
 
         if member.is_dir():
             if file_type not in (0, stat.S_IFDIR):
-                raise ValueError(f"unsupported zip directory type: {member.filename}")
+                raise ValueError(f"unsupported zip directory type: {member.filename!r}")
             yield ArchiveMember(relative, True, mode or 0o755, None)
         else:
             if file_type not in (0, stat.S_IFREG):
-                raise ValueError(f"unsupported zip member type: {member.filename}")
+                raise ValueError(f"unsupported zip member type: {member.filename!r}")
             yield ArchiveMember(
                 relative,
                 False,
@@ -181,7 +187,7 @@ def zip_members(archive: zipfile.ZipFile) -> Iterable[ArchiveMember]:
 
 def require_source(source: BinaryIO | None, name: str) -> BinaryIO:
     if source is None:
-        raise ValueError(f"archive file cannot be opened: {name}")
+        raise ValueError(f"archive file cannot be opened: {name!r}")
     return source
 
 

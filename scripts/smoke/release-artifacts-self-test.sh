@@ -42,6 +42,16 @@ extract_bad() {
   ! python3 "$repo_root/scripts/smoke/extract-release-artifact.py" "$1" "$2" "$3" \
     > "$output" 2>&1 && [ ! -e "$4" ]
 }
+extract_bad_sanitized() {
+  rm -rf "$3"
+  ! python3 "$repo_root/scripts/smoke/extract-release-artifact.py" "$1" "$2" "$3" \
+    > "$output" 2>&1 || return 1
+  python3 -c 'import pathlib,sys,unicodedata; s=pathlib.Path(sys.argv[1]).read_text(); raise SystemExit(any(unicodedata.category(c)=="Cc" for c in s.rstrip("\n")))' "$output"
+}
+safe_relative_bad() {
+  ! python3 -c 'import runpy,sys; runpy.run_path(sys.argv[1])["safe_relative"](sys.argv[2])' \
+    "$repo_root/scripts/smoke/extract-release-artifact.py" "$1" > "$output" 2>&1
+}
 usage_bad() {
   if bash "$repo_root/scripts/smoke/release-artifacts.sh" "$@" > "$output" 2>&1; then
     return 1
@@ -52,6 +62,10 @@ usage_bad() {
 preserves_existing() {
   ! python3 "$repo_root/scripts/smoke/extract-release-artifact.py" "$1" linux-x64 "$2" \
     > "$output" 2>&1 && [ "$(cat "$3")" = "$4" ]
+}
+preserves_symlink_target() {
+  ! python3 "$repo_root/scripts/smoke/extract-release-artifact.py" "$1" linux-x64 "$2" \
+    > "$output" 2>&1 && [ -L "$3" ] && [ "$(cat "$4")" = "$5" ]
 }
 
 cat > "$scratch/fake" <<'SH'
@@ -82,11 +96,13 @@ tar('nonexec-linux-x64.tar.gz',[ti('bukit',fake,0o644)])
 tar('late-dir-linux-x64.tar.gz',[ti('bin/bukit',fake,0o755),ti('bin',mode=0o755,kind=tarfile.DIRTYPE)])
 tar('restricted-linux-x64.tar.gz',[ti('locked',mode=0o000,kind=tarfile.DIRTYPE),ti('locked/bukit',fake,0o755)])
 special={
- 'absolute':[ti('/absolute')], 'empty-name':[ti('')], 'dot':[ti('.',kind=tarfile.DIRTYPE)],
+ 'absolute':[ti('/absolute')], 'empty-name':[ti('')], 'dot':[ti('.')],
  'parent':[ti('../escape')], 'backslash':[ti('..\\escape')], 'drive':[ti('C:/escape')],
  'symlink':[ti('link',kind=tarfile.SYMTYPE,link='../escape')],
  'hardlink':[ti('target'),ti('hardlink',kind=tarfile.LNKTYPE,link='target')],
  'device':[ti('device',kind=tarfile.CHRTYPE)], 'fifo':[ti('fifo',kind=tarfile.FIFOTYPE)],
+ 'newline':[ti('bad\nname')], 'escape':[ti('bad\x1bname')], 'delete':[ti('bad\x7fname')],
+ 'c1':[ti('bad\x85name')],
  'duplicate':[ti('same'),ti('same')], 'normalized-duplicate':[ti('dir/item'),ti('dir/./item')],
  'file-parent':[ti('parent'),ti('parent/child')], 'existing':[ti('existing')],
  'existing-parent':[ti('parent/child')]}
@@ -94,6 +110,9 @@ for name,entries in special.items(): tar(name+'-linux-x64.tar.gz',entries)
 warnings.simplefilter('ignore',UserWarning)
 for name,entries in {
  'symlink':[zi('link',stat.S_IFLNK|0o777,b'../escape')],
+ 'device':[zi('device',stat.S_IFCHR|0o600,data)], 'fifo':[zi('fifo',stat.S_IFIFO|0o600,data)],
+ 'newline':[zi('bad\nname',stat.S_IFREG|0o644,data)], 'escape':[zi('bad\x1bname',stat.S_IFREG|0o644,data)],
+ 'delete':[zi('bad\x7fname',stat.S_IFREG|0o644,data)], 'c1':[zi('bad\x85name',stat.S_IFREG|0o644,data)],
  'duplicate':[zi('same',stat.S_IFREG|0o644,data),zi('same',stat.S_IFREG|0o644,data)],
  'file-parent':[zi('parent',stat.S_IFREG|0o644,data),zi('parent/child',stat.S_IFREG|0o644,data)],
  'directory':[zi('nested/',stat.S_IFDIR|0o755),zi('nested/bukit',stat.S_IFREG|0o755,fake)]}.items():
@@ -108,8 +127,13 @@ cp "$scratch/fake" "$scratch/dir-win/nested/bukit.exe"
 printf 'readme\n' > "$scratch/no/readme"; cp "$scratch/fake" "$scratch/two/a/bukit"
 cp "$scratch/fake" "$scratch/two/b/bukit"; cp "$scratch/fake" "$scratch/nonexec/bukit"
 chmod 644 "$scratch/nonexec/bukit"
+mkdir -p "$scratch/package-publish"
+cp "$scratch/fake" "$scratch/package-publish/bukit"
+tar -C "$scratch/package-publish" -czf "$scratch/package-shaped-linux-x64.tar.gz" .
 
 check "tar.gz archive runs real smoke" smoke_ok "$scratch/bukit-linux-x64.tar.gz" linux-x64 "$scratch/tar.log"
+check "package-native-aot tar shape runs real smoke" smoke_ok \
+  "$scratch/package-shaped-linux-x64.tar.gz" linux-x64 "$scratch/package-tar.log"
 check "tar permits directory entries after children" smoke_ok "$scratch/late-dir-linux-x64.tar.gz" linux-x64 "$scratch/late.log"
 check "zip archive runs real smoke" smoke_ok "$scratch/bukit-win-x64.zip" win-x64 "$scratch/zip.log"
 check "directory has linux smoke semantics" smoke_ok "$scratch/dir-linux" linux-x64 "$scratch/dir.log"
@@ -128,14 +152,21 @@ check "missing args return usage" usage_bad
 check "extra args return usage" usage_bad "$scratch/dir-linux" linux-x64 extra
 check "unsupported RID is rejected" smoke_bad "$scratch/dir-linux" linux-arm64
 check "failed smoke cleans restricted archive scratch" smoke_bad_clean "$scratch/restricted-linux-x64.tar.gz" linux-x64
+check "safe_relative rejects dot directly" safe_relative_bad .
 
 for scenario in absolute empty-name dot parent backslash drive symlink hardlink device fifo duplicate normalized-duplicate file-parent; do
   check "tar rejects $scenario" extract_bad "$scratch/$scenario-linux-x64.tar.gz" linux-x64 \
     "$scratch/x-$scenario/root" "$scratch/x-$scenario/escape"
 done
-for scenario in symlink duplicate file-parent; do
+for scenario in symlink device fifo duplicate file-parent; do
   check "zip rejects $scenario" extract_bad "$scratch/$scenario-win-x64.zip" win-x64 \
     "$scratch/z-$scenario/root" "$scratch/z-$scenario/escape"
+done
+for scenario in newline escape delete c1; do
+  check "tar rejects $scenario control with safe diagnostic" extract_bad_sanitized \
+    "$scratch/$scenario-linux-x64.tar.gz" linux-x64 "$scratch/tar-control-$scenario"
+  check "zip rejects $scenario control with safe diagnostic" extract_bad_sanitized \
+    "$scratch/$scenario-win-x64.zip" win-x64 "$scratch/zip-control-$scenario"
 done
 check "zip permits safe directory" python3 "$repo_root/scripts/smoke/extract-release-artifact.py" \
   "$scratch/directory-win-x64.zip" win-x64 "$scratch/zip-directory"
@@ -146,6 +177,11 @@ check "extractor preserves existing file" preserves_existing "$scratch/existing-
   "$scratch/existing-dest" "$scratch/existing-dest/existing" sentinel-file
 check "extractor preserves existing parent" preserves_existing "$scratch/existing-parent-linux-x64.tar.gz" \
   "$scratch/parent-dest" "$scratch/parent-dest/parent" sentinel-parent
+mkdir -p "$scratch/symlink-target-dest"; printf 'outside-sentinel\n' > "$scratch/outside-sentinel"
+ln -s "$scratch/outside-sentinel" "$scratch/symlink-target-dest/existing"
+check "extractor preserves existing target symlink" preserves_symlink_target \
+  "$scratch/existing-linux-x64.tar.gz" "$scratch/symlink-target-dest" \
+  "$scratch/symlink-target-dest/existing" "$scratch/outside-sentinel" outside-sentinel
 mkdir -p "$scratch/outside-parent"; ln -s "$scratch/outside-parent" "$scratch/destination-parent-link"
 check "extractor rejects symlinked destination parent" extract_bad "$scratch/existing-linux-x64.tar.gz" \
   linux-x64 "$scratch/destination-parent-link/new-root" "$scratch/outside-parent/new-root/existing"
