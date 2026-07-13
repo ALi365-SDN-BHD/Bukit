@@ -16,6 +16,28 @@ setup_test_runtime
 assert_exit_2_before_deadline "missing --host value" bash "$start_script" --host
 assert_exit_2_before_deadline "foreground/background conflict" bash "$start_script" --foreground --background
 
+argument_bin="$scratch/argument-bin"; mkdir -p "$argument_bin"
+printf '%s\n' '#!/usr/bin/env bash' ': > "${ARG_SPAWN_MARKER:?}"' 'if [[ ${1-} == --version ]]; then echo v1.2.3; exit 0; fi' 'exit 23' > "$argument_bin/node"; chmod +x "$argument_bin/node"
+argument_failures=0
+assert_newline_value_rejected() {
+  local option=$1 kind=$2 newline=$3 root value marker status spawned=false session=false args
+  root="$scratch/argument-${option#--}-$kind"; value="bad${newline}value"; marker="$root/spawned"
+  mkdir -p "$root"; cleanup_dirs+=("$root")
+  args=(--project-dir "$root" "$option" "$value" --background)
+  if [[ "$option" == --project-dir ]]; then value="$root/bad${newline}value"; mkdir -p "$value"; args=(--project-dir "$value" --background); fi
+  if run_with_deadline env PATH="$argument_bin:$PATH" ARG_SPAWN_MARKER="$marker" bash "$start_script" "${args[@]}"; then status=0; else status=$?; fi
+  [[ ! -e "$marker" ]] || spawned=true
+  if find "$root" -type d -name .superpowers -print | grep -q .; then session=true; fi
+  if [[ "$status" -ne 2 || "$spawned" == true || "$session" == true ]]; then
+    echo "brainstorm server self-test: $option $kind RED status=$status spawned=$spawned session=$session" >&2; argument_failures=$((argument_failures + 1))
+  else echo "brainstorm server self-test: $option $kind rejected without side effects"; fi
+}
+for option in --project-dir --host --url-host; do
+  assert_newline_value_rejected "$option" CR $'\r'
+  assert_newline_value_rejected "$option" LF $'\n'
+done
+[[ "$argument_failures" -eq 0 ]] || fail "$argument_failures CR/LF argument regressions failed"
+
 assert_publish_failure_safe() {
   local label=$1 mode=$2 value=$3 project pid_file token_file count_file status pid token record
   project="$scratch/publish-$label"; pid_file="$scratch/publish-$label.pid"; token_file="$scratch/publish-$label.token"; count_file="$scratch/publish-$label.count"

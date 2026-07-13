@@ -15,6 +15,7 @@ usage_error() {
 require_value() {
   local option=$1 count=$2 value=${3-}
   [[ "$count" -ge 2 && -n "$value" && "$value" != --* ]] || usage_error "$option requires a value"
+  [[ "$value" != *$'\r'* && "$value" != *$'\n'* ]] || usage_error "$option value must not contain CR or LF"
 }
 
 PROJECT_DIR=""
