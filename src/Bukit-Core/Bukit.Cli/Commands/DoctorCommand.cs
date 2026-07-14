@@ -551,9 +551,9 @@ public static class DoctorCommand
         else
         {
             Console.WriteLine("  - result: refuse (no Bukit marker, clean would be blocked)");
-            Console.WriteLine("  - fix: run 'bukit clean --init-marker' to mark this as a Bukit output directory,");
-            Console.WriteLine("         or choose a dedicated dist directory,");
-            Console.WriteLine("         or set build.clean: false in site.yaml.");
+            Console.WriteLine("  - fix: review and move or remove the existing files,");
+            Console.WriteLine("         or set build.output to a dedicated empty output directory,");
+            Console.WriteLine("         then rerun the build; a successful build creates .bukit-output-marker automatically.");
             return false;
         }
     }

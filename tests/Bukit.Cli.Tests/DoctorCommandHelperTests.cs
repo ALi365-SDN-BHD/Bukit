@@ -102,7 +102,10 @@ public sealed class DoctorCommandHelperTests : IDisposable
 
         Assert.False(result);
         Assert.Contains("clean would be blocked", output, StringComparison.Ordinal);
-        Assert.Contains("bukit clean --init-marker", output, StringComparison.Ordinal);
+        Assert.Contains("dedicated empty output directory", output, StringComparison.Ordinal);
+        Assert.Contains("successful build creates .bukit-output-marker", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("--init-marker", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("build.clean: false", output, StringComparison.Ordinal);
     }
 
     [Fact]

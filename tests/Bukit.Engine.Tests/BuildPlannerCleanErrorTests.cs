@@ -52,7 +52,8 @@ public sealed class BuildPlannerCleanErrorTests
             Directory.CreateDirectory(Path.Combine(root, "content"));
             Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
             Directory.CreateDirectory(Path.Combine(root, "dist"));
-            File.WriteAllText(Path.Combine(root, "dist", "user-file.txt"), "keep");
+            var sentinel = Path.Combine(root, "dist", "user-file.txt");
+            File.WriteAllText(sentinel, "keep");
             File.WriteAllText(Path.Combine(root, "content", "a.md"), """
                 ---
                 type: page
@@ -74,8 +75,14 @@ public sealed class BuildPlannerCleanErrorTests
             var ex = await Assert.ThrowsAsync<ConfigException>(() =>
                 new SiteEngine(new NoOpLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
 
+            Assert.Equal(DiagnosticCode.BuildOutputNoMarker, ex.Code);
             Assert.Contains("marker", ex.Message, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("How to fix", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("dedicated empty output directory", ex.Message, StringComparison.Ordinal);
+            Assert.Contains("successful build creates .bukit-output-marker", ex.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("--init-marker", ex.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("build.clean: false", ex.Message, StringComparison.Ordinal);
+            Assert.True(File.Exists(sentinel));
         }
         finally
         {

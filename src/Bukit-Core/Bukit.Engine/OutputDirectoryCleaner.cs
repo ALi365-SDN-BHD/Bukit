@@ -39,8 +39,8 @@ public static class OutputDirectoryCleaner
             throw new ConfigException(
                 $"Bukit refuses to clean this directory because it does not contain .bukit-output-marker: {outputDir}. " +
                 $"This prevents accidental deletion of non-Bukit files. " +
-                $"How to fix: run 'bukit clean --init-marker' to mark this as a Bukit output directory, " +
-                $"or set build.clean: false in site.yaml.",
+                $"How to fix: review and move or remove the existing files, or set build.output to a dedicated empty output directory. " +
+                $"Then rerun the build; a successful build creates .bukit-output-marker automatically.",
                 DiagnosticCode.BuildOutputNoMarker);
         }
     }
