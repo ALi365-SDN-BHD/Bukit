@@ -18,14 +18,21 @@ public sealed class TaxonomyPluginDerivePagesTests
         TaxonomyConfig? taxonomyConfig = null,
         string outputMode = "pages",
         string outputPathEncoding = "none",
-        CanonicalContentGraph? contentGraph = null)
+        CanonicalContentGraph? contentGraph = null,
+        string language = "en")
     {
         var layoutsDir = CreateTaxonomyLayoutsDir();
         return new BuildContext
         {
             Config = new AppConfig
             {
-                Site = new SiteConfig { Name = "test", Title = "test", OutputPathEncoding = outputPathEncoding },
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "test",
+                    Language = language,
+                    OutputPathEncoding = outputPathEncoding
+                },
                 Content = TestContent.Markdown(),
                 Taxonomy = taxonomyConfig ?? new TaxonomyConfig
                 {
@@ -507,6 +514,188 @@ public sealed class TaxonomyPluginDerivePagesTests
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alphatag/");
         Assert.Equal("Tag: AlphaTag", termPage.Document.Title);
+    }
+
+    [Fact]
+    public void DerivePages_ZhCn_LocalizesConfiguredTermTitleAndPaginationSummary()
+    {
+        var taxonomy = new TaxonomyConfig
+        {
+            OutputMode = "pages",
+            IndexEnabled = false,
+            PageSize = 2,
+            Kinds =
+            [
+                new TaxonomyKindConfig
+                {
+                    Key = "categories",
+                    Kind = "category",
+                    Title = "资讯分类",
+                    SingularTitlePrefix = "商务资讯",
+                    RoutePrefix = "/insights/category"
+                }
+            ]
+        };
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
+        {
+            CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: ["市场观察"]),
+            CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: ["市场观察"]),
+            CreateItem("p3", "Post 3", new DateTimeOffset(2024, 1, 3, 0, 0, 0, TimeSpan.Zero), categories: ["市场观察"])
+        };
+        var context = CreateContext(routed, taxonomyConfig: taxonomy, language: "zh-CN");
+
+        var derived = new TaxonomyPlugin().DerivePages(context);
+
+        var first = Assert.Single(derived, page => page.Route.Url == "/insights/category/市场观察/");
+        Assert.Equal("商务资讯：市场观察", first.Document.Title);
+        Assert.Equal("浏览“市场观察”下的内容，共 3 项。", ContentFieldReader.GetText(first.Document.CustomFields, "summary"));
+
+        var second = Assert.Single(derived, page => page.Route.Url == "/insights/category/市场观察/page/2/");
+        Assert.Equal("商务资讯：市场观察 - 第 2 页", second.Document.Title);
+        Assert.Equal(
+            "浏览“市场观察”下的内容，第 2 页，显示第 3 项，共 3 项。",
+            ContentFieldReader.GetText(second.Document.CustomFields, "summary"));
+    }
+
+    [Fact]
+    public void DerivePages_English_PaginationUsesLocalizedListSuffixAndRange()
+    {
+        var taxonomy = new TaxonomyConfig
+        {
+            OutputMode = "pages",
+            IndexEnabled = false,
+            PageSize = 1,
+            Kinds =
+            [
+                new TaxonomyKindConfig
+                {
+                    Key = "categories",
+                    Kind = "category",
+                    Title = "Categories",
+                    SingularTitlePrefix = "Category"
+                }
+            ]
+        };
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
+        {
+            CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: ["Market"]),
+            CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: ["Market"])
+        };
+        var context = CreateContext(routed, taxonomyConfig: taxonomy, language: "en");
+
+        var derived = new TaxonomyPlugin().DerivePages(context);
+
+        var second = Assert.Single(derived, page => page.Route.Url == "/category/market/page/2/");
+        Assert.Equal("Category: Market - Page 2", second.Document.Title);
+        Assert.Equal(
+            "Browse content in Market, page 2, showing item 2 of 2.",
+            ContentFieldReader.GetText(second.Document.CustomFields, "summary"));
+    }
+
+    [Fact]
+    public void DerivePages_ZhCn_LocalizesBuiltInTaxonomyDefaults()
+    {
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
+        {
+            CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: ["AlphaTag"])
+        };
+        var context = CreateContext(routed, language: "zh-CN");
+
+        var derived = new TaxonomyPlugin().DerivePages(context);
+
+        var index = Assert.Single(derived, page => page.Route.Url == "/tags/");
+        Assert.Equal("标签", index.Document.Title);
+        Assert.Equal("浏览全部标签。", ContentFieldReader.GetText(index.Document.CustomFields, "summary"));
+
+        var term = Assert.Single(derived, page => page.Route.Url == "/tags/alphatag/");
+        Assert.Equal("标签：AlphaTag", term.Document.Title);
+    }
+
+    [Fact]
+    public void DerivePages_ZhCn_ExplicitTermDescriptionGetsLocalizedPaginationSuffix()
+    {
+        var taxonomy = new TaxonomyConfig
+        {
+            OutputMode = "pages",
+            IndexEnabled = false,
+            PageSize = 1,
+            Kinds =
+            [
+                new TaxonomyKindConfig
+                {
+                    Key = "categories",
+                    Kind = "category",
+                    Title = "资讯分类",
+                    SingularTitlePrefix = "商务资讯"
+                }
+            ]
+        };
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>
+        {
+            CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: ["Market"]),
+            CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: ["Market"])
+        };
+        var context = CreateContext(routed, taxonomyConfig: taxonomy, language: "zh-CN");
+        context.Data["taxonomy_ensure_terms"] = new Dictionary<string, List<Dictionary<string, object>>>
+        {
+            ["category"] =
+            [
+                new Dictionary<string, object>
+                {
+                    ["slug"] = "market",
+                    ["description"] = "市场观察资讯"
+                }
+            ]
+        };
+
+        var derived = new TaxonomyPlugin().DerivePages(context);
+
+        var first = Assert.Single(derived, page => page.Route.Url == "/category/market/");
+        Assert.Equal("市场观察资讯", ContentFieldReader.GetText(first.Document.CustomFields, "summary"));
+
+        var second = Assert.Single(derived, page => page.Route.Url == "/category/market/page/2/");
+        Assert.Equal(
+            "市场观察资讯 第 2 页，显示第 2 项，共 2 项。",
+            ContentFieldReader.GetText(second.Document.CustomFields, "summary"));
+    }
+
+    [Fact]
+    public void DerivePages_ZhCn_EmptyTermUsesCustomKindKeyAndLocalizedSummary()
+    {
+        var taxonomy = new TaxonomyConfig
+        {
+            OutputMode = "pages",
+            Kinds =
+            [
+                new TaxonomyKindConfig
+                {
+                    Key = "topics",
+                    Kind = "topic"
+                }
+            ]
+        };
+        var context = CreateContext([], taxonomyConfig: taxonomy, language: "zh-CN");
+        context.Data["taxonomy_ensure_terms"] = new Dictionary<string, List<Dictionary<string, object>>>
+        {
+            ["topic"] =
+            [
+                new Dictionary<string, object>
+                {
+                    ["title"] = "空主题",
+                    ["slug"] = "empty"
+                }
+            ]
+        };
+
+        var derived = new TaxonomyPlugin().DerivePages(context);
+
+        var index = Assert.Single(derived, page => page.Route.Url == "/topic/");
+        Assert.Equal("topic", index.Document.Title);
+        Assert.Equal("浏览全部topic。", ContentFieldReader.GetText(index.Document.CustomFields, "summary"));
+
+        var term = Assert.Single(derived, page => page.Route.Url == "/topic/empty/");
+        Assert.Equal("topic：空主题", term.Document.Title);
+        Assert.Equal("浏览“空主题”下的内容。", ContentFieldReader.GetText(term.Document.CustomFields, "summary"));
     }
 
     [Fact]

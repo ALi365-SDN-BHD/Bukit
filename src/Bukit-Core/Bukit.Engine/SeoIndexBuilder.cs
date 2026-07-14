@@ -22,7 +22,8 @@ internal static class SeoIndexBuilder
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates,
         ListRouteGraph? listRouteGraph = null,
         IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
-        SearchActionDescriptor? searchAction = null)
+        SearchActionDescriptor? searchAction = null,
+        BreadcrumbDescriptorCatalog? breadcrumbs = null)
     {
         var entries = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -47,7 +48,8 @@ internal static class SeoIndexBuilder
                 metadata?.SeoTitle ?? metadata?.Title,
                 metadata?.SeoDescription ?? metadata?.Summary,
                 metadata?.Title,
-                searchAction);
+                searchAction,
+                breadcrumbs?.Find(route.Url));
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             models[key] = model;
             entries[key] = new SeoIndexEntry(
@@ -66,7 +68,7 @@ internal static class SeoIndexBuilder
         {
             foreach (var route in listRouteGraph.Routes)
             {
-                AddGraphRoute(config, baseUrl, routed, alternates, entries, models, route, searchAction);
+                AddGraphRoute(config, baseUrl, routed, alternates, entries, models, route, searchAction, breadcrumbs);
             }
 
             return new SeoIndexBuildResult(entries, models);
@@ -82,7 +84,8 @@ internal static class SeoIndexBuilder
                 baseUrl,
                 page,
                 alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
-                searchAction);
+                searchAction,
+                breadcrumbs?.Find(route.Url));
             models[key] = model;
             entries[key] = new SeoIndexEntry(
                 route,
@@ -107,7 +110,8 @@ internal static class SeoIndexBuilder
         Dictionary<string, SeoIndexEntry> entries,
         Dictionary<string, SeoModel> models,
         ListRoutePlan route,
-        SearchActionDescriptor? searchAction)
+        SearchActionDescriptor? searchAction,
+        BreadcrumbDescriptorCatalog? breadcrumbs)
     {
         var routeInfo = route.ToRouteInfo();
         var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
@@ -132,7 +136,8 @@ internal static class SeoIndexBuilder
             page,
             route,
             alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
-            searchAction);
+            searchAction,
+            breadcrumbs?.Find(route.Url));
         models[key] = model;
         entries[key] = new SeoIndexEntry(
             routeInfo,

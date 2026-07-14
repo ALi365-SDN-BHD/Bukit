@@ -47,3 +47,10 @@ contentType, and collection separately.
 `RouteInventoryValidator` validates content routes, list routes, derived routes,
 and static HTML routes. Conflicts must be fixed by adjusting slugs, route URLs,
 collection rules, list routes, or taxonomy prefixes.
+
+SEO breadcrumb resolution consumes that final inventory. It selects only real
+strict URL ancestors, ignores case and trailing-slash differences, excludes the
+root, and always appends the current non-home route. It never title-cases a
+missing URL segment into a synthetic parent. Visible route metadata titles take
+precedence, followed by resolved list titles, content/derived titles, and
+managed static page titles.

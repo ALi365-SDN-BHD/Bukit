@@ -116,6 +116,9 @@ internal static class SeoSchemaValidator
                 case "ItemList":
                     ValidateItemList(node, routeUrl, issues);
                     break;
+                case "BreadcrumbList":
+                    ValidateBreadcrumbList(node, routeUrl, issues);
+                    break;
             }
         }
     }
@@ -341,6 +344,106 @@ internal static class SeoSchemaValidator
             }
         }
     }
+
+    private static void ValidateBreadcrumbList(JsonElement node, string routeUrl, List<SeoAuditIssue> issues)
+    {
+        if (!node.TryGetProperty("itemListElement", out var elements) ||
+            elements.ValueKind != JsonValueKind.Array ||
+            elements.GetArrayLength() == 0)
+        {
+            issues.Add(Error(
+                "seo.schema_breadcrumb_elements_missing",
+                routeUrl,
+                "BreadcrumbList JSON-LD must include a non-empty itemListElement array."));
+            return;
+        }
+
+        var expectedPosition = 0;
+        foreach (var item in elements.EnumerateArray())
+        {
+            expectedPosition++;
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                issues.Add(Error(
+                    "seo.schema_breadcrumb_item_invalid",
+                    routeUrl,
+                    $"BreadcrumbList item #{expectedPosition} must be an object."));
+                continue;
+            }
+
+            if (!IsSchemaType(item, "ListItem"))
+            {
+                issues.Add(Error(
+                    "seo.schema_breadcrumb_item_type_invalid",
+                    routeUrl,
+                    $"BreadcrumbList item #{expectedPosition} must declare @type ListItem."));
+            }
+
+            if (!item.TryGetProperty("position", out var position) ||
+                position.ValueKind != JsonValueKind.Number ||
+                !position.TryGetInt32(out var positionValue) ||
+                positionValue != expectedPosition)
+            {
+                issues.Add(Error(
+                    "seo.schema_breadcrumb_position_invalid",
+                    routeUrl,
+                    $"BreadcrumbList item #{expectedPosition} must use consecutive position {expectedPosition}."));
+            }
+
+            if (!HasNonEmptyString(item, "name"))
+            {
+                issues.Add(Error(
+                    "seo.schema_breadcrumb_name_missing",
+                    routeUrl,
+                    $"BreadcrumbList item #{expectedPosition} must include a non-empty name."));
+            }
+
+            ValidateBreadcrumbItemUrl(item, expectedPosition, routeUrl, issues);
+        }
+    }
+
+    private static void ValidateBreadcrumbItemUrl(
+        JsonElement item,
+        int position,
+        string routeUrl,
+        List<SeoAuditIssue> issues)
+    {
+        if (!HasNonEmptyString(item, "item"))
+        {
+            issues.Add(Error(
+                "seo.schema_breadcrumb_item_url_missing",
+                routeUrl,
+                $"BreadcrumbList item #{position} must include a non-empty item URL."));
+            return;
+        }
+
+        var value = item.GetProperty("item").GetString()!;
+        if (SeoAuditReportWriter.IsAbsoluteHttpUrl(value))
+        {
+            return;
+        }
+
+        if (IsValidInternalRelativeUrl(value))
+        {
+            issues.Add(Warning(
+                "seo.schema_breadcrumb_item_url_not_absolute",
+                routeUrl,
+                $"BreadcrumbList item #{position} uses a relative item URL because site.url is unavailable."));
+            return;
+        }
+
+        issues.Add(Error(
+            "seo.schema_breadcrumb_item_url_invalid",
+            routeUrl,
+            $"BreadcrumbList item #{position} must include an absolute HTTP(S) URL or an internal relative path."));
+    }
+
+    private static bool IsValidInternalRelativeUrl(string value)
+        => value.StartsWith("/", StringComparison.Ordinal) &&
+           !value.StartsWith("//", StringComparison.Ordinal) &&
+           !value.Any(char.IsControl) &&
+           !value.Contains('\\') &&
+           Uri.TryCreate(value, UriKind.Relative, out _);
 
     private static bool HasNonEmptyString(JsonElement node, string property)
         => node.TryGetProperty(property, out var value) &&

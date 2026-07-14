@@ -22,6 +22,7 @@ internal static class TaxonomyPageCreator
         int pageSize,
         bool indexEnabled,
         bool hierarchical,
+        string? language,
         string outputPathEncoding)
     {
         var hierarchy = hierarchical
@@ -42,7 +43,7 @@ internal static class TaxonomyPageCreator
         if (indexEnabled)
         {
             var visibleTerms = items.Where(t => t.IsVisible).ToList();
-            derived.Add(CreateIndexPage(baseUrlPrefix, kind, normalizedRoutePrefix, title, description, visibleTerms, hierarchy, indexTemplate, publishAt, emitContentHtml, outputPathEncoding));
+            derived.Add(CreateIndexPage(baseUrlPrefix, kind, normalizedRoutePrefix, title, description, visibleTerms, hierarchy, indexTemplate, publishAt, emitContentHtml, language, outputPathEncoding));
         }
 
         foreach (var term in items)
@@ -64,6 +65,7 @@ internal static class TaxonomyPageCreator
                     page: 1,
                     totalPages: 1,
                     items: Array.Empty<TaxonomyPage>(),
+                    language,
                     outputPathEncoding));
                 continue;
             }
@@ -88,6 +90,7 @@ internal static class TaxonomyPageCreator
                     page,
                     totalPages,
                     chunk,
+                    language,
                     outputPathEncoding));
             }
         }
@@ -106,6 +109,7 @@ internal static class TaxonomyPageCreator
         string template,
         DateTimeOffset publishAt,
         bool emitContentHtml,
+        string? language,
         string outputPathEncoding)
     {
         var html = string.Empty;
@@ -129,7 +133,7 @@ internal static class TaxonomyPageCreator
         {
             ["type"] = "derived",
             ["collection"] = "page",
-            ["summary"] = string.IsNullOrWhiteSpace(description) ? $"Browse all {kind}." : description.Trim()
+            ["summary"] = TaxonomyMetadataFormatter.FormatIndexSummary(title, description, language)
         };
 
         var termsValue = new List<object>(terms.Count);
@@ -217,6 +221,7 @@ internal static class TaxonomyPageCreator
         int page,
         int totalPages,
         IReadOnlyList<TaxonomyPage> items,
+        string? language,
         string outputPathEncoding)
     {
         var html = string.Empty;
@@ -245,7 +250,7 @@ internal static class TaxonomyPageCreator
         {
             ["type"] = "derived",
             ["collection"] = "page",
-            ["summary"] = BuildTermSummary(kind, term, page, totalPages, items.Count)
+            ["summary"] = TaxonomyMetadataFormatter.FormatTermSummary(kind, term, page, pageSize, totalPages, language)
         };
 
         var itemsValue = new List<object>(items.Count);
@@ -362,7 +367,14 @@ internal static class TaxonomyPageCreator
 
         var document = DerivedContentDocumentFactory.Create(
             id: page <= 1 ? $"{kind}-{term.Slug}" : $"{kind}-{term.Slug}-page-{page}",
-            title: page <= 1 ? $"{singularTitlePrefix}: {term.DisplayName}" : $"{singularTitlePrefix}: {term.DisplayName} (Page {page})",
+            title: TaxonomyMetadataFormatter.FormatTermTitle(
+                singularTitlePrefix,
+                term.DisplayName,
+                page,
+                pageSize,
+                totalPages,
+                term.Pages.Count,
+                language),
             slug: term.Slug,
             publishAt: publishAt,
             body: new ContentBodyRef(Html: html),
@@ -379,20 +391,6 @@ internal static class TaxonomyPageCreator
             .Replace(">", "&gt;", StringComparison.Ordinal)
             .Replace("\"", "&quot;", StringComparison.Ordinal)
             .Replace("'", "&#39;", StringComparison.Ordinal);
-    }
-
-    private static string BuildTermSummary(string kind, TaxonomyTerm term, int page, int totalPages, int visibleCount)
-    {
-        if (!string.IsNullOrWhiteSpace(term.Description) && page <= 1)
-        {
-            return term.Description!;
-        }
-
-        var relation = string.Equals(kind, "tags", StringComparison.OrdinalIgnoreCase) ? "tagged" : "in";
-        var suffix = totalPages > 1 ? $" Page {page} of {totalPages}." : string.Empty;
-        return visibleCount > 0
-            ? $"Browse {visibleCount} content items {relation} {term.DisplayName}.{suffix}"
-            : $"Browse content {relation} {term.DisplayName}.{suffix}";
     }
 
     internal static string EscapeAttr(string value)

@@ -133,7 +133,13 @@ public sealed class SeoModelBuilderTests
             }));
         var route = new RouteInfo("/pages/original/", "pages/original/index.html", "pages/page.html");
 
-        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+        var model = SeoModelBuilder.BuildForContent(
+            config,
+            "/",
+            item,
+            route,
+            breadcrumb: new BreadcrumbDescriptor(
+                [new BreadcrumbItemDescriptor("Original", "https://example.com/pages/original/")]));
 
         Assert.Equal("SEO   Title", model.Title);
         Assert.Equal("SEO Title | My Site", model.DocumentTitle);

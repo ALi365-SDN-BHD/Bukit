@@ -282,7 +282,7 @@ internal sealed partial class VariantBuildPipeline
         var seoStage = await BuildSeoStageAsync(
             config, baseUrl, renderDocuments, listRoutes, routePipelineResult.RouteResult.ListRouteGraph, siteModel.Analytics, logger,
             ctx.SeoAlternates, ctx.RootBaseUrl, ctx.DefaultLanguage, overrides,
-            routePipelineResult.PluginContext, dataModules.RouteMetadata);
+            routePipelineResult.PluginContext, routePipelineResult.StaticEntries, dataModules.RouteMetadata);
 
         var renderPipelineResult = await RenderPagesStageAsync(
             renderDocuments, routePipelineResult.RouteResult.RoutedDocuments, routePipelineResult.RouteResult.ListRouteGraph, bodyStore, renderer, siteModel,
@@ -424,6 +424,7 @@ internal sealed partial class VariantBuildPipeline
         string? defaultLanguage,
         ConfigOverrides overrides,
         BuildContext pluginContext,
+        IReadOnlyList<RenderEntry>? staticEntries,
         IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata)
     {
         var seoAlternates = SeoAlternatesService.AddVariantRouteAlternates(
@@ -440,8 +441,16 @@ internal sealed partial class VariantBuildPipeline
                 .Concat(listRoutes)
                 .Concat(pluginContext.StaticHtmlRoutes));
 
+        var breadcrumbs = BreadcrumbDescriptorResolver.Resolve(
+            config,
+            baseUrl,
+            renderQueue,
+            listRouteGraph,
+            staticEntries,
+            routeMetadata);
+
         var seoResult = new SeoPipeline().Execute(
-            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph, routeMetadata, searchAction);
+            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph, routeMetadata, searchAction, breadcrumbs);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
         pluginContext.Data[BuildContextDataKeys.SeoModels] = seoResult.SeoIndex.Models;
 

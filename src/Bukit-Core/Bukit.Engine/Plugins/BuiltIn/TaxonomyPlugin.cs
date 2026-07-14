@@ -111,7 +111,7 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
                     : kindConfig.SingularTitlePrefix.Trim();
                 var indexEnabled = kindConfig.IndexEnabled ?? context.Config.Taxonomy.IndexEnabled;
 
-                derived.AddRange(TaxonomyPageCreator.CreateKind(baseUrlPrefix, kind, kindConfig.RoutePrefix, title, description, singularTitlePrefix, terms, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, indexEnabled, kindConfig.Hierarchical, context.Config.Site.OutputPathEncoding));
+                derived.AddRange(TaxonomyPageCreator.CreateKind(baseUrlPrefix, kind, kindConfig.RoutePrefix, title, description, singularTitlePrefix, terms, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, indexEnabled, kindConfig.Hierarchical, context.Config.Site.Language, context.Config.Site.OutputPathEncoding));
             }
 
             return derived;
@@ -134,13 +134,15 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
         if (tags.Count > 0)
         {
             var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "tags", context.ResolveTemplateKind);
-            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "tags", routePrefix: null, title: "Tags", description: null, singularTitlePrefix: "Tag", tags, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
+            var (title, singularTitlePrefix) = TaxonomyMetadataFormatter.ResolveBuiltInTitles("tags", context.Config.Site.Language);
+            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "tags", routePrefix: null, title, description: null, singularTitlePrefix, tags, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.Language, context.Config.Site.OutputPathEncoding));
         }
 
         if (categories.Count > 0)
         {
             var templates = TaxonomyTemplateResolver.ResolveTemplates(context.Config.Taxonomy, context.LayoutsDir, kind: "categories", context.ResolveTemplateKind);
-            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "categories", routePrefix: null, title: "Categories", description: null, singularTitlePrefix: "Category", categories, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.OutputPathEncoding));
+            var (title, singularTitlePrefix) = TaxonomyMetadataFormatter.ResolveBuiltInTitles("categories", context.Config.Site.Language);
+            derived.AddRange(TaxonomyPageCreator.CreateKind(prefix, kind: "categories", routePrefix: null, title, description: null, singularTitlePrefix, categories, templates.IndexTemplate, templates.TermTemplate, emitContentHtml, pageSize, context.Config.Taxonomy.IndexEnabled, false, context.Config.Site.Language, context.Config.Site.OutputPathEncoding));
         }
 
         return derived;
@@ -188,7 +190,8 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
             TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", tags);
             if (tags.Count > 0)
             {
-                kindTerms.Add(("tags", "tags", "Tags", tags, null));
+                var (title, _) = TaxonomyMetadataFormatter.ResolveBuiltInTitles("tags", context.Config.Site.Language);
+                kindTerms.Add(("tags", "tags", title, tags, null));
             }
 
             var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields);
@@ -196,7 +199,8 @@ public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBui
             TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", categories);
             if (categories.Count > 0)
             {
-                kindTerms.Add(("categories", "categories", "Categories", categories, null));
+                var (title, _) = TaxonomyMetadataFormatter.ResolveBuiltInTitles("categories", context.Config.Site.Language);
+                kindTerms.Add(("categories", "categories", title, categories, null));
             }
         }
 

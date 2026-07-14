@@ -65,6 +65,37 @@ placeholders are case-insensitive `{pageTitle}`, `{siteTitle}`, and
 `{separator}` only. A page template must contain `{pageTitle}`; a home template
 must contain `{pageTitle}` or `{siteTitle}`.
 
+## Taxonomy Metadata Language
+
+Derived taxonomy titles and summaries use the language of the current build
+variant. Languages beginning with `zh` use Chinese punctuation and pagination
+wording; unsupported languages fall back to English. The built-in Chinese kind
+names are `标签` and `分类`. Custom kinds keep their key when no title is
+configured.
+
+Term descriptions remain unchanged on page 1. On page 2 and later, Bukit adds
+the current-language page number and visible item range. The effective metadata
+priority is route metadata SEO fields, route metadata visible fields, term
+metadata, taxonomy kind config, then Core localized defaults. The same effective
+SEO description feeds meta, Open Graph, Twitter, and CollectionPage JSON-LD.
+Use an SEO-specific route metadata field only when that value should differ from
+the visible summary.
+
+## Breadcrumb Route Contract
+
+Breadcrumb JSON-LD uses only strict URL ancestors present in the current
+language variant's final HTML route inventory. Content, taxonomy, list and
+pagination, filtered list, and managed static HTML routes participate. Matching
+ignores case and trailing slashes, but does not invent a route from a URL
+segment. Thus `/companies/page/2/` can include `/companies/` but not
+`/companies/page/`, and a disabled taxonomy index is omitted.
+
+The current route is always last. A non-home page with no real parent keeps a
+single current-page item; the home route has no BreadcrumbList. `site.url` and
+the active base/language prefix are applied to each target. Without `site.url`,
+relative targets retain the existing compatibility behavior and the schema
+audit reports a warning.
+
 In `inject` mode, Core removes existing head titles and writes exactly one
 HTML-encoded document title. `theme` and `off` still expose the SEO model and
 run diagnostics, but leave title rendering to the theme. Per-page
@@ -96,6 +127,10 @@ quality through issue codes:
 | `seo.document_title_mismatch` | inject: error; theme/off: warning | Actual HTML differs from the resolved model title. |
 | `seo.document_title_duplicate` | warning | Unrelated routes share the same actual HTML title; mutual hreflang alternates are excluded. |
 | `seo.html_head_missing` | warning | The output has no standard complete head. |
+
+BreadcrumbList audit codes use the `seo.schema_breadcrumb_*` prefix and check a
+non-empty item array, ListItem type, consecutive positions, non-empty names, and
+valid item URLs.
 
 If an HTML output file exists without a head, both
 `seo.html_head_missing` and `seo.document_title_missing` are emitted. If the

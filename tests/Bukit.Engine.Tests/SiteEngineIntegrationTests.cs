@@ -1917,6 +1917,7 @@ public sealed class SiteEngineIntegrationTests
                       title: Categories
                       singularTitlePrefix: Category
                       routePrefix: /insights/category
+                      indexEnabled: false
                 """);
 
             for (var i = 1; i <= 2; i++)
@@ -1965,7 +1966,21 @@ public sealed class SiteEngineIntegrationTests
             Assert.Contains("items=Market 1", page2, StringComparison.Ordinal);
             Assert.Contains("[Market 1|/covers/market-1.jpg|Summary 1|2024-06-01]", page2, StringComparison.Ordinal);
             Assert.Contains("rel=\"canonical\" href=\"https://example.com/insights/category/市场观察/page/2/\"", page2, StringComparison.Ordinal);
-            Assert.Contains("Browse 1 content items in 市场观察. Page 2 of 2.", page2, StringComparison.Ordinal);
+            const string expectedDescription = "浏览“市场观察”下的内容，第 2 页，显示第 2 项，共 2 项。";
+            Assert.Contains("<title>Category：市场观察 - 第 2 页</title>", page2, StringComparison.Ordinal);
+            Assert.Contains($"<meta name=\"description\" content=\"{expectedDescription}\"", page2, StringComparison.Ordinal);
+            Assert.DoesNotContain("Browse", page2, StringComparison.Ordinal);
+            var collectionPage = ExtractJsonLdByType(page2, "CollectionPage");
+            Assert.Equal(expectedDescription, collectionPage.GetProperty("description").GetString());
+            var breadcrumb = ExtractJsonLdByType(page2, "BreadcrumbList");
+            var breadcrumbItems = breadcrumb.GetProperty("itemListElement");
+            Assert.DoesNotContain(
+                breadcrumbItems.EnumerateArray(),
+                item => item.GetProperty("item").GetString() == "https://example.com/insights/category/");
+            Assert.DoesNotContain(
+                breadcrumbItems.EnumerateArray(),
+                item => item.GetProperty("item").GetString() == "https://example.com/insights/category/市场观察/page/");
+            AssertBreadcrumbItemsResolveToHtmlFiles(Path.Combine(root, "dist"), breadcrumb);
 
             var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
             Assert.Contains("<loc>https://example.com/insights/category/市场观察/</loc>", sitemap, StringComparison.Ordinal);
@@ -3515,6 +3530,17 @@ public sealed class SiteEngineIntegrationTests
             Assert.Contains("rel=\"canonical\" href=\"https://example.com/companies/malaysia/page/2/\"", filteredPage2, StringComparison.Ordinal);
             Assert.Contains("rel=\"prev\" href=\"https://example.com/companies/malaysia/\"", filteredPage2, StringComparison.Ordinal);
             Assert.DoesNotContain("rel=\"next\"", filteredPage2, StringComparison.Ordinal);
+            var filteredBreadcrumb = ExtractJsonLdByType(filteredPage2, "BreadcrumbList");
+            Assert.Equal(
+                [
+                    "https://example.com/companies/",
+                    "https://example.com/companies/malaysia/",
+                    "https://example.com/companies/malaysia/page/2/"
+                ],
+                filteredBreadcrumb.GetProperty("itemListElement")
+                    .EnumerateArray()
+                    .Select(item => item.GetProperty("item").GetString()));
+            AssertBreadcrumbItemsResolveToHtmlFiles(Path.Combine(root, "dist"), filteredBreadcrumb);
 
             var collectionPage = File.ReadAllText(Path.Combine(root, "dist", "companies", "index.html"));
             Assert.Contains("url=/companies/ collection=company", collectionPage, StringComparison.Ordinal);
@@ -3624,12 +3650,22 @@ public sealed class SiteEngineIntegrationTests
             Assert.Contains("hreflang=\"x-default\" href=\"https://example.com/en/companies/malaysia/page/2/\"", enPage2, StringComparison.Ordinal);
             Assert.Contains("hreflang=\"en\" href=\"https://example.com/en/companies/malaysia/page/2/\"", enPage2, StringComparison.Ordinal);
             Assert.Contains("hreflang=\"zh\" href=\"https://example.com/zh/companies/malaysia/page/2/\"", enPage2, StringComparison.Ordinal);
+            var enBreadcrumb = ExtractJsonLdByType(enPage2, "BreadcrumbList");
+            Assert.All(
+                enBreadcrumb.GetProperty("itemListElement").EnumerateArray(),
+                item => Assert.StartsWith("https://example.com/en/", item.GetProperty("item").GetString(), StringComparison.Ordinal));
+            AssertBreadcrumbItemsResolveToHtmlFiles(Path.Combine(root, "dist"), enBreadcrumb);
 
             var zhPage2 = File.ReadAllText(Path.Combine(root, "dist", "zh", "companies", "malaysia", "page", "2", "index.html"));
             Assert.Contains("/companies/malaysia/page/2/ page=2 [ZH Company 1]", zhPage2, StringComparison.Ordinal);
             Assert.DoesNotContain("EN Company", zhPage2, StringComparison.Ordinal);
             Assert.Contains("hreflang=\"en\" href=\"https://example.com/en/companies/malaysia/page/2/\"", zhPage2, StringComparison.Ordinal);
             Assert.Contains("hreflang=\"zh\" href=\"https://example.com/zh/companies/malaysia/page/2/\"", zhPage2, StringComparison.Ordinal);
+            var zhBreadcrumb = ExtractJsonLdByType(zhPage2, "BreadcrumbList");
+            Assert.All(
+                zhBreadcrumb.GetProperty("itemListElement").EnumerateArray(),
+                item => Assert.StartsWith("https://example.com/zh/", item.GetProperty("item").GetString(), StringComparison.Ordinal));
+            AssertBreadcrumbItemsResolveToHtmlFiles(Path.Combine(root, "dist"), zhBreadcrumb);
 
             var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
             Assert.Contains("<loc>https://example.com/en/companies/malaysia/page/2/</loc>", sitemap, StringComparison.Ordinal);
@@ -4168,6 +4204,53 @@ public sealed class SiteEngineIntegrationTests
         }
 
         return count;
+    }
+
+    private static JsonElement ExtractJsonLdByType(string html, string type)
+    {
+        const string openingTag = "<script type=\"application/ld+json\">";
+        const string closingTag = "</script>";
+        var offset = 0;
+        while (true)
+        {
+            var start = html.IndexOf(openingTag, offset, StringComparison.Ordinal);
+            if (start < 0)
+            {
+                break;
+            }
+
+            start += openingTag.Length;
+            var end = html.IndexOf(closingTag, start, StringComparison.Ordinal);
+            if (end < 0)
+            {
+                break;
+            }
+
+            using var document = JsonDocument.Parse(html[start..end]);
+            var root = document.RootElement;
+            if (root.TryGetProperty("@type", out var typeElement) &&
+                string.Equals(typeElement.GetString(), type, StringComparison.Ordinal))
+            {
+                return root.Clone();
+            }
+
+            offset = end + closingTag.Length;
+        }
+
+        throw new Xunit.Sdk.XunitException($"JSON-LD type '{type}' was not found.");
+    }
+
+    private static void AssertBreadcrumbItemsResolveToHtmlFiles(string outputDir, JsonElement breadcrumb)
+    {
+        foreach (var item in breadcrumb.GetProperty("itemListElement").EnumerateArray())
+        {
+            var itemUrl = Assert.IsType<string>(item.GetProperty("item").GetString());
+            var routePath = Uri.UnescapeDataString(new Uri(itemUrl, UriKind.Absolute).AbsolutePath).Trim('/');
+            var outputPath = string.IsNullOrWhiteSpace(routePath)
+                ? Path.Combine(outputDir, "index.html")
+                : Path.Combine(outputDir, routePath, "index.html");
+            Assert.True(File.Exists(outputPath), $"Breadcrumb target does not resolve to HTML output: {itemUrl}");
+        }
     }
 
     private static void AssertDocumentTitle(string path, string expected)

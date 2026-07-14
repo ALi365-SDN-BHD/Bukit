@@ -22,7 +22,8 @@ internal static class SeoJsonLdBuilder
         SeoGeoMetaParser.ParsedGeoMeta geo,
         string? schemaType,
         ContentRecord? record,
-        SearchActionDescriptor? searchAction = null)
+        SearchActionDescriptor? searchAction = null,
+        BreadcrumbDescriptor? breadcrumb = null)
     {
         var result = new List<string>();
         var siteHome = SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/");
@@ -82,22 +83,17 @@ internal static class SeoJsonLdBuilder
             }));
         }
 
-        if (routeUrl.Trim('/') is { Length: > 0 } trimmed)
+        if (breadcrumb is not null)
         {
-            var segments = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            var items = new List<Dictionary<string, object?>>();
-            var current = string.Empty;
-            for (var i = 0; i < segments.Length; i++)
-            {
-                current += "/" + segments[i];
-                items.Add(new Dictionary<string, object?>
+            var items = breadcrumb.Items
+                .Select((item, index) => new Dictionary<string, object?>
                 {
                     ["@type"] = "ListItem",
-                    ["position"] = i + 1,
-                    ["name"] = i == segments.Length - 1 ? contentTitle : SeoModelBuilder.ToTitle(segments[i]),
-                    ["item"] = SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, current + "/")
-                });
-            }
+                    ["position"] = index + 1,
+                    ["name"] = item.Name,
+                    ["item"] = item.Item
+                })
+                .ToList();
 
             result.Add(ToJson(new Dictionary<string, object?>
             {

@@ -392,6 +392,13 @@ author.
 | `taxonomy.kinds[].hierarchical` | `false` | Builds hierarchy from slash-like terms. |
 | `taxonomy.kinds[].routePrefix` | none | Absolute route prefix. |
 
+Taxonomy metadata defaults follow `site.language`: languages beginning with
+`zh` use Chinese titles, punctuation, counts, and pagination ranges; other
+languages fall back to English. Override priority is
+`content.routeMetadata` SEO fields, route metadata visible fields, term
+metadata, `taxonomy.kinds[]`, then the localized Core default. No additional
+taxonomy localization field is required.
+
 ## Logging And Deploy
 
 | Field | Default | Notes |

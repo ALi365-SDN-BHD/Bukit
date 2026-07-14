@@ -31,9 +31,10 @@ internal sealed class SeoPipeline
         ILogger logger,
         ListRouteGraph? listRouteGraph = null,
         IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
-        SearchActionDescriptor? searchAction = null)
+        SearchActionDescriptor? searchAction = null,
+        BreadcrumbDescriptorCatalog? breadcrumbs = null)
     {
-        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata, searchAction);
+        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata, searchAction, breadcrumbs);
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, logger);
 
         var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
@@ -64,7 +65,8 @@ internal sealed class SeoPipeline
                 document,
                 route,
                 SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildAlternateKey(document, route)),
-                searchAction: searchAction)
+                searchAction: searchAction,
+                breadcrumb: breadcrumbs?.Find(route.Url))
             : null;
 
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = shouldProvideSeoModel
@@ -84,7 +86,8 @@ internal sealed class SeoPipeline
                         page,
                         graphRoute,
                         SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(graphRoute.ToRouteInfo())),
-                        searchAction);
+                        searchAction,
+                        breadcrumbs?.Find(route.Url));
                 }
 
                 return SeoModelBuilder.BuildForList(
@@ -92,7 +95,8 @@ internal sealed class SeoPipeline
                     baseUrl,
                     page,
                     SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(route)),
-                    searchAction);
+                    searchAction,
+                    breadcrumbs?.Find(route.Url));
             }
         : null;
 

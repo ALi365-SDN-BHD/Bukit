@@ -78,6 +78,20 @@ Content pages use this SEO description priority:
 
 Home, collection list, taxonomy, and pagination pages use `page.summary` when available and otherwise fall back to `site.description`. If `site.description` is missing, these generated routes will produce `seo.description_missing` warnings in `seo-report.json`.
 
+Taxonomy titles and summaries are derived in the active `site.language`.
+Languages beginning with `zh` use Chinese punctuation, count/range wording, and
+`第 N 页`; other languages currently fall back to English and use `- Page N`.
+For example, a Chinese category term can produce `商务资讯：市场观察` and
+`浏览“市场观察”下的内容，共 3 项。`. A term `description` is preserved on page
+1 and receives the localized page/range suffix on later pages.
+
+Taxonomy metadata resolves in this order: route metadata SEO fields, route
+metadata visible fields, term metadata, `taxonomy.kinds[]` metadata, then the
+Core localized default. Meta description, Open Graph, Twitter, and
+WebPage/CollectionPage JSON-LD all consume the same effective SEO description;
+an explicit SEO-only route metadata field may intentionally differ from the
+visible summary.
+
 ## Engine Guarantees
 
 Bukit builds a `SeoIndex` per final route, including content pages, derived pages, homepage, taxonomy pages, pagination pages, and collection/list pages. It uses that index as the policy source for sitemap, RSS, search index outputs, HTML SEO models, and diagnostics. A page with `robots: noindex` or `robots: none` is excluded from those outputs even if the theme forgets to render a robots meta tag.
@@ -90,6 +104,14 @@ The schema audit requires a WebSite SearchAction only when the effective
 configuration above enables it. A SearchAction that is present is always
 validated for type, absolute target, and `query-input`, even when it was not
 expected from configuration.
+
+BreadcrumbList is resolved from the final HTML route inventory rather than by
+splitting URL segments. Content, derived taxonomy, list/pagination/filtered
+list, and managed static HTML routes can be real parents. Matching ignores case
+and trailing-slash differences; `/` is omitted; the current page is always the
+last item. If no real parent exists, Bukit emits a one-item BreadcrumbList. The
+home route emits none. A disabled taxonomy index and a pagination marker such
+as `/page/` therefore cannot appear unless that exact HTML route exists.
 
 ## SEO Audit Report
 
@@ -106,7 +128,7 @@ The report is designed as a CI artifact and stable URL inventory. It includes:
 - machine-readable `issues` with `severity`, `code`, `route`, and `message`
 - summary counts for routes, indexable routes, warnings, and errors
 
-Current audit rules cover title/description missing, length, and duplication; canonical absolute URL, fragment, HTTPS preference, and index consistency; noindex leakage into sitemap; hreflang fully-qualified URL, locale, self-reference, and return-link checks; JSON-LD parse/type checks plus type-specific checks for WebSite/SearchAction, BlogPosting/Article, and ItemList fields; sitemap XML/output-file consistency; robots.txt sitemap/blocking conflicts; missing standard HTML `<head>` for inject mode; and OG/Twitter image URL/file/MIME/dimension checks. External network validation is intentionally opt-in so normal builds stay deterministic.
+Current audit rules cover title/description missing, length, and duplication; canonical absolute URL, fragment, HTTPS preference, and index consistency; noindex leakage into sitemap; hreflang fully-qualified URL, locale, self-reference, and return-link checks; JSON-LD parse/type checks plus type-specific checks for WebSite/SearchAction, BlogPosting/Article, ItemList, and BreadcrumbList fields; sitemap XML/output-file consistency; robots.txt sitemap/blocking conflicts; missing standard HTML `<head>` for inject mode; and OG/Twitter image URL/file/MIME/dimension checks. BreadcrumbList validation requires a non-empty item array, ListItem type, consecutive positions, non-empty names, and valid item URLs. A relative internal item remains compatible when `site.url` is missing but produces a warning. External network validation is intentionally opt-in so normal builds stay deterministic.
 
 Run the CI audit command after build:
 
@@ -142,13 +164,19 @@ Bukit emits JSON-LD through JSON serialization rather than template string conca
 - `WebPage`
 - `CollectionPage` for list pages when enabled
 - `ItemList` for list, taxonomy, and pagination pages that expose list item fields
-- `BreadcrumbList` for nested paths
+- `BreadcrumbList` for every non-home route, using only real strict ancestors
 - `BlogPosting` for post content
 
 Migration note: existing sites that relied only on the historical default
 `searchAction: true` now emit no SearchAction. Add `site.search.route` only after
 the site has a complete, final HTML search page at that route. Bukit does not
 promote `bukit-search.html` into a formal page or add it to navigation.
+
+Taxonomy migration note: derived metadata no longer hard-codes English. Sites
+that require the previous exact wording should set term metadata,
+`taxonomy.kinds[]` title/description fields, or `content.routeMetadata`.
+Breadcrumb consumers should also stop relying on lexical placeholder parents;
+only routes that produce final HTML are emitted.
 
 Canonical ownership is authoritative for article authors. When no canonical
 author is present, the existing `geo.author` value remains a compatibility

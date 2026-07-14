@@ -304,6 +304,99 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_ReportsBreadcrumbListShapeViolations()
+    {
+        WriteOutput("breadcrumbs-invalid/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["breadcrumbs-invalid/index.html"] = Entry(
+                "/breadcrumbs-invalid/",
+                "breadcrumbs-invalid/index.html",
+                "https://example.com/breadcrumbs-invalid/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["breadcrumbs-invalid/index.html"] = Model(
+                "Breadcrumbs invalid",
+                "https://example.com/breadcrumbs-invalid/") with
+            {
+                JsonLd =
+                [
+                    """{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"Thing","position":2,"name":" ","item":"not-a-url"}]}"""
+                ]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_breadcrumb_item_type_invalid" && x.Severity == "error");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_breadcrumb_position_invalid" && x.Severity == "error");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_breadcrumb_name_missing" && x.Severity == "error");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_breadcrumb_item_url_invalid" && x.Severity == "error");
+    }
+
+    [Fact]
+    public void Build_ReportsEmptyBreadcrumbListAndWarnsForValidRelativeItemUrl()
+    {
+        WriteOutput("breadcrumbs-relative/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["breadcrumbs-relative/index.html"] = Entry(
+                "/breadcrumbs-relative/",
+                "breadcrumbs-relative/index.html",
+                "https://example.com/breadcrumbs-relative/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["breadcrumbs-relative/index.html"] = Model(
+                "Breadcrumbs relative",
+                "https://example.com/breadcrumbs-relative/") with
+            {
+                JsonLd =
+                [
+                    """{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[]}""",
+                    """{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Relative","item":"/breadcrumbs-relative/"}]}"""
+                ]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_breadcrumb_elements_missing" && x.Severity == "error");
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_breadcrumb_item_url_not_absolute" && x.Severity == "warning");
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.schema_breadcrumb_item_url_invalid");
+    }
+
+    [Fact]
+    public void Build_AcceptsWellShapedBreadcrumbList()
+    {
+        WriteOutput("breadcrumbs-valid/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["breadcrumbs-valid/index.html"] = Entry(
+                "/breadcrumbs-valid/",
+                "breadcrumbs-valid/index.html",
+                "https://example.com/breadcrumbs-valid/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["breadcrumbs-valid/index.html"] = Model(
+                "Breadcrumbs valid",
+                "https://example.com/breadcrumbs-valid/") with
+            {
+                JsonLd =
+                [
+                    """{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Parent","item":"https://example.com/parent/"},{"@type":"ListItem","position":2,"name":"Current","item":"https://example.com/breadcrumbs-valid/"}]}"""
+                ]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, x => x.Code.StartsWith("seo.schema_breadcrumb_", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Build_DoesNotRequireSearchAction_WhenSearchRouteIsNotDeclared()
     {
         WriteOutput("search-contract/index.html");

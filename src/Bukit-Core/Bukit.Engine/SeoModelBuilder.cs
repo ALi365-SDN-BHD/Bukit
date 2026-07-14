@@ -17,7 +17,8 @@ internal static class SeoModelBuilder
         string? seoTitleOverride = null,
         string? descriptionOverride = null,
         string? visibleTitleOverride = null,
-        SearchActionDescriptor? searchAction = null)
+        SearchActionDescriptor? searchAction = null,
+        BreadcrumbDescriptor? breadcrumb = null)
     {
         var record = document.Record;
         var fields = document.CustomFields;
@@ -45,7 +46,7 @@ internal static class SeoModelBuilder
         var updated = record.Lifecycle.UpdatedAt;
         var resolvedAuthor = SeoAuthorResolver.Resolve(record, fields, geo.GeoAuthor);
         var tags = record.Classification.Tags.Count > 0 ? record.Classification.Tags : ContentFieldReader.GetTextList(fields, "tags") ?? Array.Empty<string>();
-        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, visibleTitle, description, canonical, image, route.Url, document, fields, isStructuredContent, isCollectionPage, geo, schemaType, record, searchAction);
+        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, visibleTitle, description, canonical, image, route.Url, document, fields, isStructuredContent, isCollectionPage, geo, schemaType, record, searchAction, breadcrumb);
 
         return new SeoModel
         {
@@ -102,8 +103,9 @@ internal static class SeoModelBuilder
         string baseUrl,
         PageInfo page,
         IReadOnlyList<SeoAlternateModel>? alternates = null,
-        SearchActionDescriptor? searchAction = null)
-        => BuildForListCore(config, baseUrl, page, page.Url, prevUrl: null, nextUrl: null, alternates, searchAction);
+        SearchActionDescriptor? searchAction = null,
+        BreadcrumbDescriptor? breadcrumb = null)
+        => BuildForListCore(config, baseUrl, page, page.Url, prevUrl: null, nextUrl: null, alternates, searchAction, breadcrumb);
 
     internal static SeoModel BuildForList(
         AppConfig config,
@@ -111,8 +113,9 @@ internal static class SeoModelBuilder
         PageInfo page,
         ListRoutePlan route,
         IReadOnlyList<SeoAlternateModel>? alternates = null,
-        SearchActionDescriptor? searchAction = null)
-        => BuildForListCore(config, baseUrl, page, route.CanonicalUrl, route.PrevUrl, route.NextUrl, alternates, searchAction);
+        SearchActionDescriptor? searchAction = null,
+        BreadcrumbDescriptor? breadcrumb = null)
+        => BuildForListCore(config, baseUrl, page, route.CanonicalUrl, route.PrevUrl, route.NextUrl, alternates, searchAction, breadcrumb);
 
     private static SeoModel BuildForListCore(
         AppConfig config,
@@ -122,7 +125,8 @@ internal static class SeoModelBuilder
         string? prevUrl,
         string? nextUrl,
         IReadOnlyList<SeoAlternateModel>? alternates,
-        SearchActionDescriptor? searchAction)
+        SearchActionDescriptor? searchAction,
+        BreadcrumbDescriptor? breadcrumb)
     {
         var title = page.Title;
         var description = page.Summary ?? config.Site.Description;
@@ -162,7 +166,7 @@ internal static class SeoModelBuilder
                 Site = config.Site.Seo.TwitterSite
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
-            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, canonicalUrl, document: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null, searchAction)
+            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, canonicalUrl, document: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null, searchAction, breadcrumb)
         };
     }
 
