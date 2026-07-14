@@ -21,7 +21,8 @@ internal static class SeoIndexBuilder
         IReadOnlyList<RouteInfo> listRoutes,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates,
         ListRouteGraph? listRouteGraph = null,
-        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null)
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
+        SearchActionDescriptor? searchAction = null)
     {
         var entries = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -45,7 +46,8 @@ internal static class SeoIndexBuilder
                 alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
                 metadata?.SeoTitle ?? metadata?.Title,
                 metadata?.SeoDescription ?? metadata?.Summary,
-                metadata?.Title);
+                metadata?.Title,
+                searchAction);
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             models[key] = model;
             entries[key] = new SeoIndexEntry(
@@ -64,7 +66,7 @@ internal static class SeoIndexBuilder
         {
             foreach (var route in listRouteGraph.Routes)
             {
-                AddGraphRoute(config, baseUrl, routed, alternates, entries, models, route);
+                AddGraphRoute(config, baseUrl, routed, alternates, entries, models, route, searchAction);
             }
 
             return new SeoIndexBuildResult(entries, models);
@@ -79,7 +81,8 @@ internal static class SeoIndexBuilder
                 config,
                 baseUrl,
                 page,
-                alternates.TryGetValue(alternateKey, out var alts) ? alts : null);
+                alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
+                searchAction);
             models[key] = model;
             entries[key] = new SeoIndexEntry(
                 route,
@@ -103,7 +106,8 @@ internal static class SeoIndexBuilder
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> alternates,
         Dictionary<string, SeoIndexEntry> entries,
         Dictionary<string, SeoModel> models,
-        ListRoutePlan route)
+        ListRoutePlan route,
+        SearchActionDescriptor? searchAction)
     {
         var routeInfo = route.ToRouteInfo();
         var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
@@ -127,7 +131,8 @@ internal static class SeoIndexBuilder
             baseUrl,
             page,
             route,
-            alternates.TryGetValue(alternateKey, out var alts) ? alts : null);
+            alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
+            searchAction);
         models[key] = model;
         entries[key] = new SeoIndexEntry(
             routeInfo,

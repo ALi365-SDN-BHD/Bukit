@@ -27,6 +27,11 @@ shared candidate set. Publish audit only expects feed representation coverage
 for routes in that window and only for formats listed in `site.feed.formats`.
 This rule also applies to merged multilingual feeds.
 
+`search.json` and `bukit-search.html` remain search data and an embeddable UI
+fragment. They do not create a formal HTML route and do not enable WebSite
+SearchAction structured data. A site that wants SearchAction must provide a
+complete final HTML search route and declare it with `site.search.route`.
+
 The publish audit semantic outline and heading checks use the primary content
 scope: the first `article` with a visible, non-empty H1 in the first `main`,
 otherwise the first `main`, otherwise the first standalone `article`. Headings

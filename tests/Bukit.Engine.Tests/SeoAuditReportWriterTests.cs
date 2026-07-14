@@ -304,6 +304,67 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_DoesNotRequireSearchAction_WhenSearchRouteIsNotDeclared()
+    {
+        WriteOutput("search-contract/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["search-contract/index.html"] = Entry("/search-contract/", "search-contract/index.html", "https://example.com/search-contract/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["search-contract/index.html"] = new()
+            {
+                Title = "Search contract",
+                Description = "Search contract description",
+                Canonical = "https://example.com/search-contract/",
+                JsonLd =
+                [
+                    """{"@context":"https://schema.org","@type":"WebSite","name":"Site","url":"https://example.com"}"""
+                ]
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.schema_website_searchaction_missing");
+    }
+
+    [Fact]
+    public void Build_RequiresSearchAction_WhenSearchRouteIsDeclaredAndEnabled()
+    {
+        WriteOutput("search-contract-enabled/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["search-contract-enabled/index.html"] = Entry("/search-contract-enabled/", "search-contract-enabled/index.html", "https://example.com/search-contract-enabled/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["search-contract-enabled/index.html"] = new()
+            {
+                Title = "Search contract enabled",
+                Description = "Search contract enabled description",
+                Canonical = "https://example.com/search-contract-enabled/",
+                JsonLd =
+                [
+                    """{"@context":"https://schema.org","@type":"WebSite","name":"Site","url":"https://example.com"}"""
+                ]
+            }
+        };
+        var config = Config() with
+        {
+            Site = Config().Site with
+            {
+                Search = new SearchDetailConfig { Route = "/search/" }
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(config, _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "seo.schema_website_searchaction_missing");
+    }
+
+    [Fact]
     public void Build_ValidatesOrganizationAuthorAcrossArticleSchemaTypes()
     {
         WriteOutput("author-types/index.html");

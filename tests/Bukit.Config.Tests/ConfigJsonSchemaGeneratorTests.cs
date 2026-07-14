@@ -72,6 +72,13 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.Equal("string", seo.GetProperty("pageTitleTemplate").GetProperty("type").GetString());
         Assert.Equal("string", seo.GetProperty("titleSeparator").GetProperty("type").GetString());
 
+        var search = properties
+            .GetProperty("site")
+            .GetProperty("properties")
+            .GetProperty("search")
+            .GetProperty("properties");
+        Assert.Equal("string", search.GetProperty("route").GetProperty("type").GetString());
+
         var collectionPagination = properties
             .GetProperty("site")
             .GetProperty("properties")

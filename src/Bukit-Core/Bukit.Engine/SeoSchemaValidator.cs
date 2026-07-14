@@ -4,7 +4,11 @@ namespace Bukit.Engine;
 
 internal static class SeoSchemaValidator
 {
-    internal static IReadOnlyList<string> ExtractSchemaTypes(IReadOnlyList<string> jsonLd, string routeUrl, List<SeoAuditIssue> issues)
+    internal static IReadOnlyList<string> ExtractSchemaTypes(
+        IReadOnlyList<string> jsonLd,
+        string routeUrl,
+        List<SeoAuditIssue> issues,
+        bool searchActionExpected = false)
     {
         var types = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var json in jsonLd)
@@ -13,7 +17,7 @@ internal static class SeoSchemaValidator
             {
                 using var doc = JsonDocument.Parse(json);
                 ExtractSchemaTypes(doc.RootElement, types);
-                ValidateSchemaObject(doc.RootElement, routeUrl, issues);
+                ValidateSchemaObject(doc.RootElement, routeUrl, issues, searchActionExpected);
                 if (types.Count == 0)
                 {
                     issues.Add(Warning("seo.json_ld_type_missing", routeUrl, "JSON-LD does not declare @type."));
@@ -61,14 +65,18 @@ internal static class SeoSchemaValidator
         }
     }
 
-    internal static void ValidateSchemaObject(JsonElement element, string routeUrl, List<SeoAuditIssue> issues)
+    internal static void ValidateSchemaObject(
+        JsonElement element,
+        string routeUrl,
+        List<SeoAuditIssue> issues,
+        bool searchActionExpected = false)
     {
         if (element.ValueKind == JsonValueKind.Object)
         {
-            ValidateSchemaNode(element, routeUrl, issues);
+            ValidateSchemaNode(element, routeUrl, issues, searchActionExpected);
             foreach (var property in element.EnumerateObject())
             {
-                ValidateSchemaObject(property.Value, routeUrl, issues);
+                ValidateSchemaObject(property.Value, routeUrl, issues, searchActionExpected);
             }
 
             return;
@@ -78,12 +86,16 @@ internal static class SeoSchemaValidator
         {
             foreach (var item in element.EnumerateArray())
             {
-                ValidateSchemaObject(item, routeUrl, issues);
+                ValidateSchemaObject(item, routeUrl, issues, searchActionExpected);
             }
         }
     }
 
-    private static void ValidateSchemaNode(JsonElement node, string routeUrl, List<SeoAuditIssue> issues)
+    private static void ValidateSchemaNode(
+        JsonElement node,
+        string routeUrl,
+        List<SeoAuditIssue> issues,
+        bool searchActionExpected)
     {
         foreach (var type in ReadTypes(node))
         {
@@ -93,7 +105,7 @@ internal static class SeoSchemaValidator
                     if (node.TryGetProperty("@context", out _) ||
                         node.TryGetProperty("potentialAction", out _))
                     {
-                        ValidateWebSite(node, routeUrl, issues);
+                        ValidateWebSite(node, routeUrl, issues, searchActionExpected);
                     }
                     break;
                 case "BlogPosting":
@@ -132,7 +144,11 @@ internal static class SeoSchemaValidator
         return Array.Empty<string>();
     }
 
-    private static void ValidateWebSite(JsonElement node, string routeUrl, List<SeoAuditIssue> issues)
+    private static void ValidateWebSite(
+        JsonElement node,
+        string routeUrl,
+        List<SeoAuditIssue> issues,
+        bool searchActionExpected)
     {
         if (!HasNonEmptyString(node, "name"))
         {
@@ -152,7 +168,11 @@ internal static class SeoSchemaValidator
 
         if (!node.TryGetProperty("potentialAction", out var action))
         {
-            issues.Add(Warning("seo.schema_website_searchaction_missing", routeUrl, "WebSite JSON-LD should include potentialAction SearchAction when site search is enabled."));
+            if (searchActionExpected)
+            {
+                issues.Add(Warning("seo.schema_website_searchaction_missing", routeUrl, "WebSite JSON-LD should include potentialAction SearchAction when site search is enabled."));
+            }
+
             return;
         }
 

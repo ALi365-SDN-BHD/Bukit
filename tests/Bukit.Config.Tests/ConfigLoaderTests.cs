@@ -53,7 +53,83 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.NotNull(config);
         Assert.Equal("myblog", config.Site.Name);
         Assert.Equal("My Blog", config.Site.Title);
+        Assert.Null(config.Site.Search.Route);
         Assert.NotNull(config.Content.Sources![0].Markdown);
+    }
+
+    [Fact]
+    public void Load_SearchRoute_ReadsExplicitInternalRoute()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              search:
+                route: /search/
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal("/search/", config.Site.Search.Route);
+    }
+
+    [Theory]
+    [InlineData("search")]
+    [InlineData("//example.com/search/")]
+    [InlineData("/search//results/")]
+    [InlineData("https://example.com/search/")]
+    [InlineData("/search\\page/")]
+    [InlineData("/search/?q=test")]
+    [InlineData("/search/#results")]
+    [InlineData("/search/../private/")]
+    public void Load_SearchRoute_InvalidInternalRoute_Throws(string route)
+    {
+        var yaml = $$"""
+            site:
+              name: myblog
+              title: My Blog
+              search:
+                route: '{{route}}'
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("site.search.route", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_SearchRoute_ControlCharacterAtBoundary_Throws()
+    {
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "myblog",
+                Title = "My Blog",
+                Search = new SearchDetailConfig { Route = "/search/\t" }
+            },
+            Content = ContentConfigFactory.FromSources(
+                [new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig() }])
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("control characters", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1050,6 +1050,158 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_SearchActionDeclaredRoute_EmitsValidatedTarget()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-search-action-route-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: search-action
+                  title: Search Action
+                  url: https://example.com
+                  baseUrl: /docs/
+                  search:
+                    route: /search/
+                  collections:
+                    page:
+                      permalink: /{slug}/
+                      template: pages/page.html
+                  seo:
+                    schema:
+                      searchAction: true
+                content:
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
+                  media:
+                    downloadToLocal: false
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "search.md"), """
+                ---
+                title: Search
+                slug: search
+                publishAt: 2026-07-14T00:00:00Z
+                ---
+                # Search
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "about.md"), """
+                ---
+                title: About
+                slug: about
+                publishAt: 2026-07-14T00:00:00Z
+                ---
+                # About
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"),
+                "<!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"),
+                "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"),
+                "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"),
+                "{% layout \"layouts/base.html\" %}\nList");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            ConfigValidator.Validate(config);
+            WriteTestThemeTemplates(root);
+            await new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var searchOutput = Path.Combine(root, "dist", "search", "index.html");
+            Assert.True(File.Exists(searchOutput));
+            var aboutHtml = File.ReadAllText(Path.Combine(root, "dist", "about", "index.html"));
+            Assert.Contains(
+                "https://example.com/docs/search/?q={search_term_string}",
+                aboutHtml,
+                StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_SearchActionRouteMissingFromFinalInventory_Throws()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-search-action-missing-route-test", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: search-action
+                  title: Search Action
+                  url: https://example.com
+                  search:
+                    route: /search/
+                  collections:
+                    page:
+                      permalink: /{slug}/
+                      template: pages/page.html
+                content:
+                  sources:
+                    - type: markdown
+                      name: page
+                      collection: page
+                      markdown:
+                        dir: content
+                  media:
+                    downloadToLocal: false
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            File.WriteAllText(Path.Combine(root, "content", "about.md"), """
+                ---
+                title: About
+                slug: about
+                publishAt: 2026-07-14T00:00:00Z
+                ---
+                # About
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"),
+                "<!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"),
+                "{% layout \"layouts/base.html\" %}\n{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"),
+                "{% layout \"layouts/base.html\" %}\nIndex");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"),
+                "{% layout \"layouts/base.html\" %}\nList");
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            ConfigValidator.Validate(config);
+            WriteTestThemeTemplates(root);
+
+            var ex = await Assert.ThrowsAsync<ConfigException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
+
+            Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+            Assert.Contains("does not match any final HTML route", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_StrongSeoSuite_CoversFinalRoutesAndCollectionSchemas()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-strong-seo-test", Guid.NewGuid().ToString("N"));
@@ -1168,7 +1320,16 @@ public sealed class SiteEngineIntegrationTests
             var indexHtml = File.ReadAllText(Path.Combine(root, "dist", "index.html"));
             Assert.Contains("<link rel=\"canonical\" href=\"https://example.com/docs/\"", indexHtml, StringComparison.Ordinal);
             Assert.Contains("\"@type\":\"WebPage\"", indexHtml, StringComparison.Ordinal);
-            Assert.Contains("\"@type\":\"SearchAction\"", indexHtml, StringComparison.Ordinal);
+            var generatedHtmlFiles = Directory.GetFiles(
+                Path.Combine(root, "dist"),
+                "*.html",
+                SearchOption.AllDirectories);
+            Assert.NotEmpty(generatedHtmlFiles);
+            Assert.All(generatedHtmlFiles, path =>
+                Assert.DoesNotContain(
+                    "\"@type\":\"SearchAction\"",
+                    File.ReadAllText(path),
+                    StringComparison.Ordinal));
             Assert.Equal(1, CountOccurrences(indexHtml, "rel=\"canonical\""));
             Assert.DoesNotContain("duplicate.example", indexHtml, StringComparison.Ordinal);
 

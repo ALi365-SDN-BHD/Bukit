@@ -30,9 +30,10 @@ internal sealed class SeoPipeline
         AnalyticsModel analytics,
         ILogger logger,
         ListRouteGraph? listRouteGraph = null,
-        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null)
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
+        SearchActionDescriptor? searchAction = null)
     {
-        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata);
+        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata, searchAction);
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, logger);
 
         var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
@@ -62,7 +63,8 @@ internal sealed class SeoPipeline
                 baseUrl,
                 document,
                 route,
-                SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildAlternateKey(document, route)))
+                SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildAlternateKey(document, route)),
+                searchAction: searchAction)
             : null;
 
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = shouldProvideSeoModel
@@ -81,14 +83,16 @@ internal sealed class SeoPipeline
                         baseUrl,
                         page,
                         graphRoute,
-                        SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(graphRoute.ToRouteInfo())));
+                        SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(graphRoute.ToRouteInfo())),
+                        searchAction);
                 }
 
                 return SeoModelBuilder.BuildForList(
                     config,
                     baseUrl,
                     page,
-                    SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(route)));
+                    SeoPipeline.GetSeoAlternates(seoAlternates, SeoModelBuilder.BuildListAlternateKey(route)),
+                    searchAction);
             }
         : null;
 

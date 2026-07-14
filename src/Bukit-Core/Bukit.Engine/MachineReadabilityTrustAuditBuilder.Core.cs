@@ -46,12 +46,17 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
         var trustRequirements = TrustAuditRequirements.From(ContentModelSchemaFactory.FromConfig(config));
         var feedWindowRoutes = BuildFeedWindowRoutes(config, seoIndex.Values, recordsById);
+        var searchActionExpected = config.Site.Seo.Enabled &&
+                                   config.Site.Seo.Schema.SearchAction &&
+                                   !string.IsNullOrWhiteSpace(config.Site.Search.Route);
 
         foreach (var (key, entry) in seoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             seoModels.TryGetValue(key, out var model);
             var record = ResolveRecordForEntry(recordsById, entry, config.Site.Language);
-            var schemaTypes = model is null ? Array.Empty<string>() : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, seoIssues);
+            var schemaTypes = model is null
+                ? Array.Empty<string>()
+                : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, seoIssues, searchActionExpected);
             var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes);
             var outputPath = Path.Combine(outputDir, entry.Route.OutputPath);
             var outputExists = File.Exists(outputPath);

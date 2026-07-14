@@ -14,6 +14,7 @@ site:
     mode: split
   search:
     mode: index
+    route: /search/
 build:
   languageJobs: 2
 ```
@@ -40,6 +41,14 @@ site:
       collectionPage: true
       searchAction: true
 ```
+
+`site.seo.schema.searchAction` permits output; `site.search.route` explicitly
+declares that a complete search page exists. When both switches and SEO are
+enabled, the route must be present in each variant's final HTML route inventory
+and `site.url` must be set, or the build fails with `ConfigInvalidValue`. The
+target is `<site.url><baseUrl><language-prefix><route>?q={search_term_string}`.
+When `route` is omitted, Bukit emits no SearchAction. Search index or UI fragment
+generation alone does not enable it.
 
 `SeoPipeline` builds page-level metadata, alternate links, Open Graph, Twitter,
 article metadata, JSON-LD, and report issues. The `Title` property on `SeoModel`

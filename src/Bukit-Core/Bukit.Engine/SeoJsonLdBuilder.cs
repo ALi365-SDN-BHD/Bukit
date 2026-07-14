@@ -21,7 +21,8 @@ internal static class SeoJsonLdBuilder
         bool isCollectionPage,
         SeoGeoMetaParser.ParsedGeoMeta geo,
         string? schemaType,
-        ContentRecord? record)
+        ContentRecord? record,
+        SearchActionDescriptor? searchAction = null)
     {
         var result = new List<string>();
         var siteHome = SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/");
@@ -33,13 +34,13 @@ internal static class SeoJsonLdBuilder
             ["url"] = siteHome
         };
 
-        if (config.Site.Seo.Schema.SearchAction)
+        if (searchAction is not null)
         {
             website["potentialAction"] = new Dictionary<string, object?>
             {
                 ["@type"] = "SearchAction",
-                ["target"] = SeoModelBuilder.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/search/?q={search_term_string}"),
-                ["query-input"] = "required name=search_term_string"
+                ["target"] = searchAction.Target,
+                ["query-input"] = searchAction.QueryInput
             };
         }
 

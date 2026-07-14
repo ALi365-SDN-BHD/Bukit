@@ -637,7 +637,7 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
-    public void BuildForContent_JsonLdContainsWebSite()
+    public void BuildForContent_JsonLdContainsWebSiteWithoutUndeclaredSearchAction()
     {
         var config = CreateConfig();
         var item = ContentDocument.Create(
@@ -652,7 +652,34 @@ public sealed class SeoModelBuilderTests
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
 
         Assert.Contains("WebSite", model.JsonLd[0]);
-        Assert.Contains("SearchAction", model.JsonLd[0]);
+        Assert.DoesNotContain("SearchAction", model.JsonLd[0]);
+    }
+
+    [Fact]
+    public void BuildForContent_DeclaredSearchAction_UsesResolvedDescriptor()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "p1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "page" }));
+        var route = new RouteInfo("/pages/test/", "pages/test/index.html", "pages/page.html");
+        var searchAction = new SearchActionDescriptor(
+            "https://example.com/search/?q={search_term_string}",
+            "required name=search_term_string");
+
+        var model = SeoModelBuilder.BuildForContent(
+            config,
+            "/",
+            item,
+            route,
+            searchAction: searchAction);
+
+        Assert.Contains("\"@type\":\"SearchAction\"", model.JsonLd[0], StringComparison.Ordinal);
+        Assert.Contains("https://example.com/search/?q={search_term_string}", model.JsonLd[0], StringComparison.Ordinal);
     }
 
     [Fact]

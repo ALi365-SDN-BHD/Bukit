@@ -137,6 +137,7 @@ internal static partial class SiteDefaultsApplier
         return new SearchDetailConfig
         {
             Mode = ConfigYamlHelpers.GetOptionalString(searchNode, "mode") ?? "split",
+            Route = ConfigYamlHelpers.GetOptionalString(searchNode, "route"),
             Ui = ConfigYamlHelpers.GetOptionalString(searchNode, "ui") ?? "default",
             UiTheme = ConfigYamlHelpers.GetOptionalString(searchNode, "uiTheme") ?? "light",
             PlaceholderText = ConfigYamlHelpers.GetOptionalString(searchNode, "placeholderText"),

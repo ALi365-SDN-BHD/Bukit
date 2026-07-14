@@ -10,6 +10,8 @@ For the Google Search Central rules behind these choices, see [Google Search Cen
 site:
   url: https://example.com
   baseUrl: /
+  search:
+    route: /search/
   seo:
     enabled: true
     renderMode: inject # inject | theme | off
@@ -35,6 +37,22 @@ site:
 `site.analytics.google_analytics_id` must be a GA4 ID starting with `G-`. Analytics is emitted when `google_analytics_id` exists and `enabled` is not `false`.
 
 When `disableInPreview` is `true`, `bukit preview` removes Bukit-managed GA4 gtag scripts from served HTML when it can discover the nearest `site.yaml` for the preview directory. The generated files on disk are unchanged.
+
+`site.seo.schema.searchAction` is an allow switch, while `site.search.route` is
+the explicit search capability declaration. Bukit emits WebSite SearchAction
+only when SEO and the allow switch are enabled, the route is configured, the
+route exists in the final HTML route inventory, and `site.url` is available.
+The target is generated as
+`<site.url><baseUrl><language-prefix><route>?q={search_term_string}`. Route
+matching ignores case and trailing-slash differences.
+
+The route must be an internal path beginning with `/` and cannot contain a
+scheme, `//`, backslash, query, fragment, control character, or `.`/`..` path
+segment. An enabled declaration with a missing final route or missing
+`site.url` fails the build with `ConfigInvalidValue`. If the route is omitted,
+or SEO or SearchAction is disabled, Bukit emits no SearchAction and skips the
+route-existence check. `search.json`, `bukit-search.html`, a search template, or
+theme `capabilities.search` does not enable this contract by itself.
 
 ## Render Modes
 
@@ -67,6 +85,11 @@ Bukit builds a `SeoIndex` per final route, including content pages, derived page
 Canonical URLs are generated from `site.url + site.baseUrl + route.url` with normalized slashes. i18n alternate relationships become HTML `hreflang` links when related pages exist.
 
 Diagnostics run at both index and HTML levels. Bukit reports missing `site.url`, double-slash or external canonical URLs, duplicate canonical URLs across final routes, missing `x-default` on hreflang groups, missing core head tags, and duplicate canonical tags. Use `diagnostics: strict` in CI to fail the build instead of logging warnings.
+
+The schema audit requires a WebSite SearchAction only when the effective
+configuration above enables it. A SearchAction that is present is always
+validated for type, absolute target, and `query-input`, even when it was not
+expected from configuration.
 
 ## SEO Audit Report
 
@@ -121,6 +144,11 @@ Bukit emits JSON-LD through JSON serialization rather than template string conca
 - `ItemList` for list, taxonomy, and pagination pages that expose list item fields
 - `BreadcrumbList` for nested paths
 - `BlogPosting` for post content
+
+Migration note: existing sites that relied only on the historical default
+`searchAction: true` now emit no SearchAction. Add `site.search.route` only after
+the site has a complete, final HTML search page at that route. Bukit does not
+promote `bukit-search.html` into a formal page or add it to navigation.
 
 Canonical ownership is authoritative for article authors. When no canonical
 author is present, the existing `geo.author` value remains a compatibility

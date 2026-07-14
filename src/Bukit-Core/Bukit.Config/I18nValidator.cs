@@ -84,6 +84,8 @@ internal static class I18nValidator
             throw new ConfigException("site.search.mode must be split|merged|index.");
         }
 
+        ValidateSearchRoute(site.Search.Route);
+
         var seoRenderMode = (site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
         if (seoRenderMode is not ("theme" or "inject" or "off"))
         {
@@ -131,6 +133,50 @@ internal static class I18nValidator
                     throw new ConfigException("site.plugins keys must be non-empty strings.");
                 }
             }
+        }
+    }
+
+    private static void ValidateSearchRoute(string? route)
+    {
+        if (route is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(route))
+        {
+            throw new ConfigException("site.search.route must be a non-empty internal URL path when set.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (route.Any(char.IsControl))
+        {
+            throw new ConfigException("site.search.route must not contain control characters.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        var value = route.Trim();
+        if (!value.StartsWith("/", StringComparison.Ordinal))
+        {
+            throw new ConfigException("site.search.route must start with '/'.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (value.Contains("//", StringComparison.Ordinal) || value.Contains("://", StringComparison.Ordinal))
+        {
+            throw new ConfigException("site.search.route must be an internal URL path.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (value.Contains('\\'))
+        {
+            throw new ConfigException("site.search.route must not contain backslashes.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (value.Contains('?') || value.Contains('#'))
+        {
+            throw new ConfigException("site.search.route must not contain query strings or fragments.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (value.Split('/', StringSplitOptions.RemoveEmptyEntries).Any(segment => segment is "." or ".."))
+        {
+            throw new ConfigException("site.search.route must not contain path traversal segments.", DiagnosticCode.ConfigInvalidValue);
         }
     }
 }

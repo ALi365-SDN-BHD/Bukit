@@ -224,6 +224,19 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     }
 
     [Fact]
+    public async Task HandleRequest_SearchActionTarget_MapsToGeneratedSearchRoute()
+    {
+        var searchDir = Path.Combine(_tempDir, "search");
+        Directory.CreateDirectory(searchDir);
+        File.WriteAllText(Path.Combine(searchDir, "index.html"), "<html><body>search experience</body></html>");
+
+        var response = await SendRequestAsync("/search/?q=test", disableAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("search experience", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task HandleRequest_StaticAsset_ReturnsFileBytes()
     {
         var assetsDir = Path.Combine(_tempDir, "assets");

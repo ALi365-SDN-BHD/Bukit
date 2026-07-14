@@ -76,6 +76,7 @@ content:
 | `site.search.uiTheme` | `light` | `light`, `dark`, or `auto`. |
 | `site.search.placeholderText` | none | Search input placeholder. |
 | `site.search.maxContentLength` | `8000` | Positive content length cap for search records. |
+| `site.search.route` | none | Optional final HTML route that explicitly declares the site's search experience, for example `/search/`. |
 | `site.related.enabled` | `false` | Enables related-content data. |
 | `site.related.threshold` | `80` | Match threshold. |
 | `site.related.limit` | `5` | Positive result limit. |
@@ -100,7 +101,7 @@ content:
 | `site.seo.robotsTxt.enabled` | `false` | Controls generated `robots.txt`. |
 | `site.seo.schema.webPage` | `true` | Emits WebPage JSON-LD. |
 | `site.seo.schema.collectionPage` | `true` | Emits CollectionPage JSON-LD. |
-| `site.seo.schema.searchAction` | `true` | Emits SearchAction JSON-LD. |
+| `site.seo.schema.searchAction` | `true` | Allows SearchAction JSON-LD only when `site.search.route` is also declared and exists in the final HTML route inventory. |
 | `site.seo.geo.enabled` | `true` | Enables GEO report data. |
 | `site.seo.geo.llmsTxt` | `true` | Writes `llms.txt` when build output is indexable. |
 | `site.seo.geo.llmsFullTxt` | `false` | Writes `llms-full.txt`. |
@@ -117,6 +118,15 @@ Title templates accept only the case-insensitive placeholders `{pageTitle}`,
 `{siteTitle}`, and `{separator}`. Unknown, unopened, or unclosed placeholders
 are rejected. The resolved result is trimmed and repeated whitespace is
 collapsed before it is stored in `page.seo.document_title`.
+
+`site.search.route` is a capability declaration, not a route generator. It must
+start with `/` and cannot contain a scheme, `//`, a backslash, query, fragment,
+control character, or `.`/`..` path segment. When SEO and SearchAction are both
+enabled, Bukit requires the declared route to match a final content, derived,
+list, or managed static HTML route and requires `site.url`; otherwise the build
+fails with `ConfigInvalidValue`. Matching ignores case and trailing-slash
+differences. With no route, or when SEO or SearchAction is disabled, Bukit omits
+SearchAction and does not perform the final-route check.
 
 ## Collections
 

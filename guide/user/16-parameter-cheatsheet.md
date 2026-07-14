@@ -54,6 +54,7 @@
 | `site.search.ui` | `default` |
 | `site.search.uiTheme` | `light` |
 | `site.search.maxContentLength` | `8000` |
+| `site.search.route` | none |
 | `site.related.enabled` | `false` |
 | `site.related.threshold` | `80` |
 | `site.related.limit` | `5` |
@@ -130,6 +131,7 @@
 | `site.feed.mode` | `split`, `merged` |
 | `site.search.mode` | `split`, `merged`, `index` |
 | `site.search.uiTheme` | `light`, `dark`, `auto` |
+| `site.search.route` | Internal path beginning with `/`; no scheme, `//`, backslash, query, fragment, control character, or `.`/`..` segment |
 | `site.pluginFailMode` | `strict`, `warn` |
 | `site.deriveConflictPolicy` | `fail`, `warn`, `last-wins` |
 | `site.seo.renderMode` | `theme`, `inject`, `off` |

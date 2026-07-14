@@ -229,6 +229,7 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject SearchDetailSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("mode", EnumSchema("split", "merged", "index")),
+            ("route", StringSchema()),
             ("ui", StringSchema()),
             ("uiTheme", EnumSchema("light", "dark", "auto")),
             ("placeholderText", StringSchema()),

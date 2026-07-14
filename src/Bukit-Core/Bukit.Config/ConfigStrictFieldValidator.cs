@@ -71,7 +71,7 @@ internal static class ConfigStrictFieldValidator
         if (Map(site, "seo") is { } seo) ValidateSeo(seo);
         if (Map(site, "analytics") is { } analytics) RequireOnly(analytics, Set("enabled", "googleAnalyticsId", "disableInPreview"), "site.analytics");
         if (Map(site, "feed") is { } feed) RequireOnly(feed, Set("mode", "formats", "limit", "path"), "site.feed");
-        if (Map(site, "search") is { } search) RequireOnly(search, Set("mode", "ui", "uiTheme", "placeholderText", "maxContentLength"), "site.search");
+        if (Map(site, "search") is { } search) RequireOnly(search, Set("mode", "route", "ui", "uiTheme", "placeholderText", "maxContentLength"), "site.search");
         if (Map(site, "related") is { } related)
         {
             RequireOnly(related, Set("enabled", "threshold", "limit", "indices"), "site.related");

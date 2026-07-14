@@ -483,6 +483,7 @@ public sealed record SitemapDetailConfig
 public sealed record SearchDetailConfig
 {
     public string Mode { get; init; } = "split";
+    public string? Route { get; init; }
     public string Ui { get; init; } = "default";
     public string UiTheme { get; init; } = "light";
     public string? PlaceholderText { get; init; }

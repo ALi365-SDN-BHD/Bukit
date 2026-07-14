@@ -433,8 +433,15 @@ internal sealed partial class VariantBuildPipeline
             1,
             Math.Max(1, Environment.ProcessorCount * 2));
 
+        var searchAction = SearchActionDescriptorResolver.Resolve(
+            config,
+            baseUrl,
+            renderQueue.Select(document => document.Route)
+                .Concat(listRoutes)
+                .Concat(pluginContext.StaticHtmlRoutes));
+
         var seoResult = new SeoPipeline().Execute(
-            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph, routeMetadata);
+            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph, routeMetadata, searchAction);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
         pluginContext.Data[BuildContextDataKeys.SeoModels] = seoResult.SeoIndex.Models;
 
