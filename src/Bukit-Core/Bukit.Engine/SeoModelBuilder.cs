@@ -27,7 +27,8 @@ internal static class SeoModelBuilder
         var description = descriptionOverride ?? FirstTextField(fields, "seo_desc") ?? FirstTextField(fields, "seodesc") ?? record.Presentation.Summary ?? config.Site.Description;
         var canonical = FirstTextField(fields, "canonical") ?? BuildAbsoluteUrl(config.Site.Url, baseUrl, route.Url);
         var robots = FirstTextField(fields, "robots");
-        var image = FirstTextField(fields, "og_image")
+        var image = FirstTextField(fields, "seo_image")
+            ?? FirstTextField(fields, "og_image")
             ?? FirstTextField(fields, "cover")
             ?? FirstTextField(fields, "image")
             ?? record.Media.FirstOrDefault(media => string.Equals(media.Kind, "image", StringComparison.OrdinalIgnoreCase))?.Url

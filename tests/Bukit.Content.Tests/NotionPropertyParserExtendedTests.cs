@@ -603,20 +603,23 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = @"{
             ""SEO Title"": { ""type"": ""rich_text"", ""rich_text"": [{ ""plain_text"": ""Custom SEO Title"" }] },
-            ""SEO Desc"": { ""type"": ""rich_text"", ""rich_text"": [{ ""plain_text"": ""Custom Description"" }] }
+            ""SEO Desc"": { ""type"": ""rich_text"", ""rich_text"": [{ ""plain_text"": ""Custom Description"" }] },
+            ""SEO Image"": { ""type"": ""rich_text"", ""rich_text"": [{ ""plain_text"": ""/assets/images/social-default.png"" }] }
         }";
         var properties = JsonDocument.Parse(json).RootElement;
         var projectedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         var propertyMap = new NotionPropertyMapConfig
         {
             SeoTitle = "SEO Title",
-            SeoDescription = "SEO Desc"
+            SeoDescription = "SEO Desc",
+            SeoImage = "SEO Image"
         };
 
         NotionPropertyParser.ProjectSeoFields(projectedValues, properties, propertyMap);
 
         Assert.Equal("Custom SEO Title", projectedValues["seo_title"]);
         Assert.Equal("Custom Description", projectedValues["seo_desc"]);
+        Assert.Equal("/assets/images/social-default.png", projectedValues["seo_image"]);
     }
 
     [Fact]

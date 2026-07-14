@@ -621,6 +621,59 @@ public sealed class SeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_SeoImageOverridesSvgCover()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["seo_image"] = "/assets/images/social-default.png",
+                ["cover"] = "/assets/images/fallback-article.svg"
+            }));
+        var route = new RouteInfo("/insights/test/", "insights/test/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        const string expected = "https://example.com/assets/images/social-default.png";
+        Assert.Equal(expected, model.Og.Image);
+        Assert.Equal(expected, model.Twitter.Image);
+        Assert.Contains(model.JsonLd, json => json.Contains($"\"image\":\"{expected}\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void BuildForContent_SeoImageOverridesLegacyOgImage()
+    {
+        var config = CreateConfig();
+        var item = ContentDocument.Create(
+            id: "post-1",
+            title: "Test",
+            slug: "test",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["seo_image"] = "/assets/images/social-default.png",
+                ["og_image"] = "/assets/images/legacy-og.png",
+                ["cover"] = "/assets/images/fallback-article.svg"
+            }));
+        var route = new RouteInfo("/insights/test/", "insights/test/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        const string expected = "https://example.com/assets/images/social-default.png";
+        Assert.Equal(expected, model.Og.Image);
+        Assert.Equal(expected, model.Twitter.Image);
+        Assert.Contains(model.JsonLd, json => json.Contains($"\"image\":\"{expected}\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void BuildForContent_ImageFromCoverField()
     {
         var config = CreateConfig();
