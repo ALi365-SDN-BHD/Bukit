@@ -2854,7 +2854,7 @@ public sealed class SiteEngineIntegrationTests
                       dir: content
                     title: Post {{i}}
                     slug: post-{{i}}
-                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    publishAt: 2024-06-0{{i}}T00:00:00Z
                     ---
                     # Post {{i}}
                     """);
@@ -2947,7 +2947,7 @@ public sealed class SiteEngineIntegrationTests
                       dir: content
                     title: Post {{i}}
                     slug: post-{{i}}
-                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    publishAt: 2024-06-0{{i}}T00:00:00Z
                     ---
                     # Post {{i}}
                     """);
@@ -3035,7 +3035,7 @@ public sealed class SiteEngineIntegrationTests
                     collection: post
                     title: Post {{i}}
                     slug: post-{{i}}
-                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    publishAt: 2024-06-0{{i}}T00:00:00Z
                     ---
                     # Post {{i}}
                     """);
@@ -3122,7 +3122,7 @@ public sealed class SiteEngineIntegrationTests
                     collection: post
                     title: Post {{i}}
                     slug: post-{{i}}
-                    publishAt: 2024-06-0{{i}}:00:00:00Z
+                    publishAt: 2024-06-0{{i}}T00:00:00Z
                     ---
                     # Post {{i}}
                     """);
@@ -3132,7 +3132,7 @@ public sealed class SiteEngineIntegrationTests
                     collection: company
                     title: Company {{i}}
                     slug: company-{{i}}
-                    publishAt: 2024-07-0{{i}}:00:00:00Z
+                    publishAt: 2024-07-0{{i}}T00:00:00Z
                     ---
                     # Company {{i}}
                     """);
