@@ -105,6 +105,26 @@ public sealed class ScribanTemplateRendererTests : IDisposable
     }
 
     [Fact]
+    public void RenderList_PageTitleRendersWhileTopLevelThisTitleIsEmpty()
+    {
+        var templatePath = Path.Combine(_layoutsDir, "list-context.html");
+        File.WriteAllText(templatePath, "<h1>{{ page.title }}</h1><span>{{ this.title }}</span>");
+
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var model = new ListPageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo { Title = "Insights", Url = "/insights/", Content = "" },
+            Pages = []
+        };
+
+        var result = renderer.RenderList("list-context.html", model);
+
+        Assert.Contains("<h1>Insights</h1>", result, StringComparison.Ordinal);
+        Assert.Contains("<span></span>", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RenderList_ExposesStableListPageModelFields()
     {
         var templatePath = Path.Combine(_layoutsDir, "list.html");

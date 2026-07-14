@@ -48,32 +48,38 @@ public static class ScribanTemplateLinter
     public static List<TemplateVariableWarning> LintTemplate(Template template, string templateRelativePath)
     {
         var warnings = new List<TemplateVariableWarning>();
-        var variables = ScribanVariableCollector.Collect(template);
+        var analysis = ScribanSymbolAnalyzer.Analyze(template);
 
-        foreach (var variable in variables)
+        foreach (var reference in analysis.References)
         {
-            var root = GetRootContext(variable);
-            var fieldPath = GetFieldPath(variable, root);
-
-            if (root is null)
+            var validation = ScribanTemplateContextContract.Validate(reference);
+            if (validation.Status != ScribanPathStatus.Invalid)
             {
-                if (!IsKnownBuiltin(variable))
-                {
-                    warnings.Add(new TemplateVariableWarning(
-                        variable, templateRelativePath,
-                        $"Unknown variable: '{{{{ {variable} }}}}' - variable has no known root context (page/site/list)"));
-                }
                 continue;
             }
 
-            if (fieldPath is null) continue;
-
-            if (!ScribanModelKnownFields.IsKnownField(root, fieldPath))
+            if (validation.IsCurrentContext)
             {
                 warnings.Add(new TemplateVariableWarning(
-                    variable, templateRelativePath,
-                    $"Unknown field: '{{{{ {variable} }}}}' - '{fieldPath}' is not a known field on the '{root}' model"));
+                    reference.Path,
+                    templateRelativePath,
+                    $"Unknown field: '{{{{ {reference.Path} }}}}' - '{validation.FieldPath}' is not available on the current template context"));
+                continue;
             }
+
+            if (validation.IsPageItem)
+            {
+                warnings.Add(new TemplateVariableWarning(
+                    reference.Path,
+                    templateRelativePath,
+                    $"Unknown field: '{{{{ {reference.Path} }}}}' - '{validation.FieldPath}' is not a known page item field"));
+                continue;
+            }
+
+            warnings.Add(new TemplateVariableWarning(
+                reference.Path,
+                templateRelativePath,
+                $"Unknown field: '{{{{ {reference.Path} }}}}' - '{validation.FieldPath}' is not a known field on the '{validation.Root}' model"));
         }
 
         return warnings;
@@ -114,10 +120,4 @@ public static class ScribanTemplateLinter
         return variableName[(firstDot + 1)..];
     }
 
-    private static bool IsKnownBuiltin(string variableName)
-    {
-        return variableName is "now" or "today" or "include" or "content"
-            or "index" or "odd" or "even" or "for" or "if"
-            or "len" or "count" or "size" or "base_url";
-    }
 }

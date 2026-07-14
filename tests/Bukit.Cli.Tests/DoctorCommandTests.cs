@@ -111,6 +111,19 @@ public sealed class DoctorCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_ListPageTitle_UsesKnownContextCheckWithoutReplacementAdvice()
+    {
+        File.WriteAllText(Path.Combine(_rootDir, "layouts", "pages", "list.html"), "{{ page.title }}");
+
+        var (exitCode, output) = await RunDoctorAsync();
+
+        Assert.Equal(0, exitCode);
+        Assert.Contains("Known-context template variable check", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("use 'this.title'", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("use 'term.title'", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunAsync_ReturnsError_WhenThemeManifestHasUnknownField()
     {
         File.WriteAllText(Path.Combine(_rootDir, "layouts", "theme.yaml"), """

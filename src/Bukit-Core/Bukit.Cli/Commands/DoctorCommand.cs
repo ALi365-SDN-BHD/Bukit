@@ -190,14 +190,11 @@ public static class DoctorCommand
         DoctorTemplateAnalyzer.AnalyzeTemplateChains(layoutsDir, allHtmlFiles);
 
         Console.WriteLine();
-        Console.WriteLine("--- Template variable spell check ---");
+        Console.WriteLine("--- Known-context template variable check ---");
         DoctorTemplateAnalyzer.CheckTemplateVariables(layoutsDir);
 
         Console.WriteLine();
         DoctorTemplateChecker.CheckIncludeExistence(new DoctorContext(rootDir, config, layoutsDir, allHtmlFiles));
-
-        Console.WriteLine();
-        DoctorTemplateChecker.CheckTemplateContextCorrectness(new DoctorContext(rootDir, config, layoutsDir, allHtmlFiles));
 
         var ctx = new DoctorContext(rootDir, config, layoutsDir, allHtmlFiles);
 

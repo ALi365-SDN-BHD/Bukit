@@ -34,32 +34,6 @@ public sealed class DoctorTemplateCheckerTests : IDisposable
     }
 
     [Fact]
-    public void CheckTemplateContextCorrectness_ReportsListAndTaxonomyMisuse()
-    {
-        WriteTemplate("pages/list.html", "{{ page.title }}");
-        WriteTemplate("taxonomy/term.html", "{{ page.title }}");
-        var config = CreateConfig(
-            listTemplate: "pages/list.html",
-            taxonomyTemplates: new TaxonomyConfig
-            {
-                Kinds =
-                [
-                    new TaxonomyKindConfig
-                    {
-                        Key = "tag",
-                        TermTemplate = "taxonomy/term.html"
-                    }
-                ]
-            });
-        var context = CreateContext(config);
-
-        var output = CaptureStdOut(() => DoctorTemplateChecker.CheckTemplateContextCorrectness(context));
-
-        Assert.Contains("list template uses 'page.title'", output, StringComparison.Ordinal);
-        Assert.Contains("taxonomy template uses 'page.title'", output, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void CheckThemeParamsConsistency_ReportsUnusedAndUndeclaredParams()
     {
         WriteTemplate("pages/home.html", """

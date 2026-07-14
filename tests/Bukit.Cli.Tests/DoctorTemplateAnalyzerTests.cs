@@ -149,6 +149,31 @@ public sealed class DoctorTemplateAnalyzerTests : IDisposable
         Assert.Equal(3, DoctorTemplateAnalyzer.CountOpenings("{{ a }} {{ b }} {{ c }}", "{{"));
     }
 
+    [Fact]
+    public void CheckTemplateVariables_ListAndTaxonomyPageTitle_ReturnsKnownContextSuccess()
+    {
+        Directory.CreateDirectory(Path.Combine(_layoutsDir, "taxonomy"));
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "list.html"), "{{ page.title }}");
+        File.WriteAllText(Path.Combine(_layoutsDir, "taxonomy", "term.html"), "{{ page.title }}");
+
+        var output = CaptureStdOut(() => DoctorTemplateAnalyzer.CheckTemplateVariables(_layoutsDir));
+
+        Assert.Contains("No invalid known-context template variables detected", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("this.title", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("term.title", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CheckTemplateVariables_ThisTitle_ReportsKnownContextWarning()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "list.html"), "{{ this.title }}");
+
+        var output = CaptureStdOut(() => DoctorTemplateAnalyzer.CheckTemplateVariables(_layoutsDir));
+
+        Assert.Contains("this.title", output, StringComparison.Ordinal);
+        Assert.Contains("current template context", output, StringComparison.Ordinal);
+    }
+
     private static string CaptureStdOut(Action action)
     {
         using var writer = new StringWriter(new StringBuilder());
