@@ -168,54 +168,6 @@ internal static class DoctorTemplateChecker
         if (issues == 0) Console.WriteLine("  ✔ All includes exist");
     }
 
-    internal static void CheckTemplateContextCorrectness(DoctorCommand.DoctorContext ctx)
-    {
-        Console.WriteLine("--- Template context correctness check ---");
-        var issues = 0;
-
-        var listRouteTemplates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (ctx.Config.Site.Collections is { Count: > 0 })
-        {
-            foreach (var kv in ctx.Config.Site.Collections)
-            {
-                if (!string.IsNullOrWhiteSpace(kv.Value.ListTemplate))
-                    listRouteTemplates.Add(kv.Value.ListTemplate);
-            }
-        }
-
-        var taxonomyTemplates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (ctx.Config.Taxonomy.Kinds is { Count: > 0 })
-        {
-            foreach (var kind in ctx.Config.Taxonomy.Kinds)
-            {
-                if (!string.IsNullOrWhiteSpace(kind.Template))
-                    taxonomyTemplates.Add(kind.Template);
-                if (!string.IsNullOrWhiteSpace(kind.TermTemplate))
-                    taxonomyTemplates.Add(kind.TermTemplate);
-                if (!string.IsNullOrWhiteSpace(kind.IndexTemplate))
-                    taxonomyTemplates.Add(kind.IndexTemplate);
-            }
-        }
-
-        foreach (var file in ctx.AllHtmlFiles)
-        {
-            var relative = DoctorPathHelpers.ToRelativeTemplatePath(ctx.LayoutsDir, file);
-            var text = File.ReadAllText(file);
-            if (listRouteTemplates.Contains(relative) && text.Contains("page.title"))
-            {
-                Console.WriteLine($"  ⚠ {relative}: list template uses 'page.title' — use 'this.title' instead");
-                issues++;
-            }
-            if (taxonomyTemplates.Contains(relative) && text.Contains("page.title"))
-            {
-                Console.WriteLine($"  ⚠ {relative}: taxonomy template uses 'page.title' — use 'term.title' or 'this.title' instead");
-                issues++;
-            }
-        }
-
-        if (issues == 0) Console.WriteLine("  ✔ Template context usage appears correct");
-    }
-
     internal static void CheckThemeParamsConsistency(DoctorCommand.DoctorContext ctx)
     {
         var themeParams = ctx.Config.Theme.Params;

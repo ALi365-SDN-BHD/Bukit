@@ -9,13 +9,17 @@ internal static class ScribanModelKnownFields
         public const string Content = "content";
         public const string Summary = "summary";
         public const string TableOfContents = "table_of_contents";
+        public const string TableOfContentsCamel = "tableOfContents";
         public const string PublishDate = "publish_date";
         public const string UpdatedAt = "updated_at";
         public const string Fields = "fields";
+        public const string ContentModel = "content_model";
+        public const string ContentRecord = "content_record";
+        public const string Entities = "entities";
+        public const string Provenance = "provenance";
+        public const string Trust = "trust";
+        public const string Representations = "representations";
         public const string Seo = "seo";
-        public const string Alternates = "alternates";
-        public const string Term = "term";
-        public const string Terms = "terms";
     }
 
     internal static class SiteFields
@@ -25,7 +29,9 @@ internal static class ScribanModelKnownFields
         public const string Url = "url";
         public const string Description = "description";
         public const string BaseUrl = "base_url";
+        public const string BasePath = "base_path";
         public const string Language = "language";
+        public const string BuildYear = "build_year";
         public const string Params = "params";
         public const string Modules = "modules";
         public const string Data = "data";
@@ -54,7 +60,6 @@ internal static class ScribanModelKnownFields
         public const string Article = "article";
         public const string Alternates = "alternates";
         public const string JsonLd = "json_ld";
-        public const string SchemaType = "schema_type";
     }
 
     internal static class SeoOgFields
@@ -87,15 +92,17 @@ internal static class ScribanModelKnownFields
     private static readonly HashSet<string> _pageFields = new(StringComparer.OrdinalIgnoreCase)
     {
         PageFields.Title, PageFields.Url, PageFields.Content,
-        PageFields.Summary, PageFields.TableOfContents,
-        PageFields.PublishDate, PageFields.UpdatedAt, PageFields.Fields, PageFields.Seo,
-        PageFields.Alternates, PageFields.Term, PageFields.Terms
+        PageFields.Summary, PageFields.TableOfContents, PageFields.TableOfContentsCamel,
+        PageFields.PublishDate, PageFields.UpdatedAt, PageFields.Fields,
+        PageFields.ContentModel, PageFields.ContentRecord, PageFields.Entities,
+        PageFields.Provenance, PageFields.Trust, PageFields.Representations, PageFields.Seo
     };
 
     private static readonly HashSet<string> _siteFields = new(StringComparer.OrdinalIgnoreCase)
     {
         SiteFields.Name, SiteFields.Title, SiteFields.Url,
-        SiteFields.Description, SiteFields.BaseUrl, SiteFields.Language,
+        SiteFields.Description, SiteFields.BaseUrl, SiteFields.BasePath,
+        SiteFields.Language, SiteFields.BuildYear,
         SiteFields.Params, SiteFields.Modules, SiteFields.Data, SiteFields.DataIndex,
         SiteFields.Analytics
     };
@@ -109,8 +116,7 @@ internal static class ScribanModelKnownFields
     {
         SeoFields.Title, SeoFields.DocumentTitle, SeoFields.Description, SeoFields.Canonical,
         SeoFields.Prev, SeoFields.Next, SeoFields.Robots, SeoFields.Og, SeoFields.Twitter,
-        SeoFields.Article, SeoFields.Alternates, SeoFields.JsonLd,
-        SeoFields.SchemaType
+        SeoFields.Article, SeoFields.Alternates, SeoFields.JsonLd
     };
 
     private static readonly HashSet<string> _seoOgFields = new(StringComparer.OrdinalIgnoreCase)
@@ -134,7 +140,10 @@ internal static class ScribanModelKnownFields
     private static readonly HashSet<string> _loopVarPageFields = new(StringComparer.OrdinalIgnoreCase)
     {
         PageFields.Title, PageFields.Url, PageFields.Content,
-        PageFields.Summary, PageFields.PublishDate, PageFields.UpdatedAt, PageFields.Fields
+        PageFields.Summary, PageFields.TableOfContents, PageFields.TableOfContentsCamel,
+        PageFields.PublishDate, PageFields.UpdatedAt, PageFields.Fields,
+        PageFields.ContentModel, PageFields.ContentRecord, PageFields.Entities,
+        PageFields.Provenance, PageFields.Trust, PageFields.Representations, PageFields.Seo
     };
 
     internal static readonly HashSet<string> KnownRootContexts = new(StringComparer.OrdinalIgnoreCase)
@@ -163,6 +172,7 @@ internal static class ScribanModelKnownFields
         {
             "page" => IsKnownPageField(parts, 0),
             "site" => IsKnownSiteField(parts, 0),
+            "seo" => IsKnownSeoField(parts, 0),
             "list" => true,
             "p" or "item" => IsKnownLoopVarField(parts, 0),
             "section" => true,
@@ -180,7 +190,8 @@ internal static class ScribanModelKnownFields
         return parts[offset].ToLowerInvariant() switch
         {
             "seo" => IsKnownSeoField(parts, offset + 1),
-            "fields" or "alternates" or "term" or "terms" => true,
+            "fields" or "content_model" or "content_record" or "entities" or
+                "provenance" or "trust" or "representations" => true,
             _ => false
         };
     }

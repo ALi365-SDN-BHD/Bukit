@@ -27,6 +27,8 @@ public sealed class ScribanModelKnownFieldsTests
         Assert.Contains("title", fields);
         Assert.Contains("url", fields);
         Assert.Contains("base_url", fields);
+        Assert.Contains("base_path", fields);
+        Assert.Contains("build_year", fields);
         Assert.Contains("language", fields);
         Assert.Contains("params", fields);
         Assert.Contains("data", fields);
@@ -67,6 +69,9 @@ public sealed class ScribanModelKnownFieldsTests
         Assert.True(ScribanModelKnownFields.IsKnownField("site", "name"));
         Assert.True(ScribanModelKnownFields.IsKnownField("page", "seo.title"));
         Assert.True(ScribanModelKnownFields.IsKnownField("page", "seo.document_title"));
+        Assert.True(ScribanModelKnownFields.IsKnownField("page", "content_model.presentation.custom_heading"));
+        Assert.True(ScribanModelKnownFields.IsKnownField("site", "base_path"));
+        Assert.True(ScribanModelKnownFields.IsKnownField("site", "build_year"));
     }
 
     [Fact]

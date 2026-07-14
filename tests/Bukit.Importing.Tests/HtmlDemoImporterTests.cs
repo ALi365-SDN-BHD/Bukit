@@ -908,10 +908,10 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var insightsTemplate = File.ReadAllText(Path.Combine(pagesDir, "insights.html"));
         var companiesTemplate = File.ReadAllText(Path.Combine(pagesDir, "companies.html"));
 
-        Assert.Contains("<h1>{{ this.title }}</h1>", insightsTemplate);
-        Assert.Contains("<h1>{{ this.title }}</h1>", companiesTemplate);
-        Assert.DoesNotContain("<h1>{{ page.title }}</h1>", insightsTemplate);
-        Assert.DoesNotContain("<h1>{{ page.title }}</h1>", companiesTemplate);
+        Assert.Contains("<h1>{{ page.title }}</h1>", insightsTemplate);
+        Assert.Contains("<h1>{{ page.title }}</h1>", companiesTemplate);
+        Assert.DoesNotContain("<h1>{{ this.title }}</h1>", insightsTemplate);
+        Assert.DoesNotContain("<h1>{{ this.title }}</h1>", companiesTemplate);
     }
 
     [Fact]

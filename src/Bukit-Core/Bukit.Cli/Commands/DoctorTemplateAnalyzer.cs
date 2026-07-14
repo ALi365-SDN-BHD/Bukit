@@ -140,7 +140,7 @@ internal static class DoctorTemplateAnalyzer
 
         if (warnings.Count == 0)
         {
-            Console.WriteLine("✔ No unknown template variables detected");
+            Console.WriteLine("✔ No invalid known-context template variables detected");
             return;
         }
 

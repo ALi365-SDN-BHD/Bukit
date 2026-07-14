@@ -59,7 +59,7 @@ internal static partial class TemplateBodyTransformer
 
     private static string TransformList(string body)
     {
-        var result = ReplaceFirstHeading(body, "this.title");
+        var result = ReplaceFirstHeading(body, "page.title");
         result = ReplaceListCards(result);
         if (!result.Contains("{{ for item in pages }}", StringComparison.Ordinal) &&
             !result.Contains("{{ for p in pages }}", StringComparison.Ordinal))

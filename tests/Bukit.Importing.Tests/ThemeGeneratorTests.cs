@@ -34,7 +34,8 @@ public sealed class ThemeGeneratorTests : IDisposable
         var template = ThemeGenerator.GetDefaultTemplateBody(PageType.PostList);
 
         Assert.Contains("{{ for p in pages }}", template, StringComparison.Ordinal);
-        Assert.Contains("{{ this.title }}", template, StringComparison.Ordinal);
+        Assert.Contains("{{ page.title }}", template, StringComparison.Ordinal);
+        Assert.DoesNotContain("{{ this.title }}", template, StringComparison.Ordinal);
     }
 
     [Fact]
