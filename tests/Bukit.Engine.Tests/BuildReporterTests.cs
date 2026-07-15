@@ -157,6 +157,77 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
+    public void WriteIfEnabled_IncludesSingleVariantAnalyticsReportInArtifactManifest()
+    {
+        var tempDir = CreateTempDir();
+        var reportDir = Path.Combine(tempDir, ".bukit");
+        Directory.CreateDirectory(reportDir);
+        File.WriteAllText(Path.Combine(reportDir, "analytics-report.json"), "{}");
+        var config = CreateConfig(enabled: true);
+        var variant = CreateVariant(tempDir);
+        var result = CreateResult(config, tempDir, variant);
+
+        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, [variant], new ConsoleLogger(LogLevel.Error));
+
+        using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(reportDir, "artifact-manifest.json")));
+        Assert.Contains(
+            document.RootElement.GetProperty("artifacts").EnumerateArray(),
+            artifact => artifact.GetProperty("path").GetString() == "analytics-report.json");
+    }
+
+    [Fact]
+    public void WriteIfEnabled_IncludesMultiVariantAnalyticsReportsWithoutChangingTopLevelPaths()
+    {
+        var tempDir = CreateTempDir();
+        var enDir = Path.Combine(tempDir, "en");
+        var zhDir = Path.Combine(tempDir, "zh");
+        Directory.CreateDirectory(Path.Combine(enDir, ".bukit"));
+        Directory.CreateDirectory(Path.Combine(zhDir, ".bukit"));
+        File.WriteAllText(Path.Combine(enDir, ".bukit", "analytics-report.json"), "{}");
+        File.WriteAllText(Path.Combine(zhDir, ".bukit", "analytics-report.json"), "{}");
+        var config = CreateConfig(enabled: true);
+        var en = CreateVariant(enDir) with { Language = "en" };
+        var zh = CreateVariant(zhDir) with { Language = "zh" };
+        var result = CreateResult(config, tempDir, en);
+
+        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, [en, zh], new ConsoleLogger(LogLevel.Error));
+
+        using var document = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(tempDir, ".bukit", "artifact-manifest.json")));
+        var paths = document.RootElement.GetProperty("artifacts").EnumerateArray()
+            .Select(artifact => artifact.GetProperty("path").GetString()).ToArray();
+        Assert.Contains("build-report.json", paths);
+        Assert.Contains("en/.bukit/analytics-report.json", paths);
+        Assert.Contains("zh/.bukit/analytics-report.json", paths);
+        Assert.DoesNotContain("../en/.bukit/analytics-report.json", paths);
+    }
+
+    [Fact]
+    public void WriteIfEnabled_DoesNotFollowVariantAnalyticsReportSymlinkOutsideOutputRoot()
+    {
+        var tempDir = CreateTempDir();
+        var outsideDir = CreateTempDir();
+        var variantDir = Path.Combine(tempDir, "en");
+        var variantReportDir = Path.Combine(variantDir, ".bukit");
+        Directory.CreateDirectory(variantReportDir);
+        var outsideReport = Path.Combine(outsideDir, "analytics-report.json");
+        File.WriteAllText(outsideReport, "{\"outside\":true}");
+        var linkedReport = Path.Combine(variantReportDir, "analytics-report.json");
+        File.CreateSymbolicLink(linkedReport, outsideReport);
+        var config = CreateConfig(enabled: true);
+        var variant = CreateVariant(variantDir) with { Language = "en" };
+        var result = CreateResult(config, tempDir, variant);
+
+        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, [variant], new ConsoleLogger(LogLevel.Error));
+
+        using var document = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(tempDir, ".bukit", "artifact-manifest.json")));
+        Assert.DoesNotContain(
+            document.RootElement.GetProperty("artifacts").EnumerateArray(),
+            artifact => artifact.GetProperty("path").GetString() == "en/.bukit/analytics-report.json");
+    }
+
+    [Fact]
     public void WriteIfEnabled_WritesBuildManifestDigest()
     {
         var tempDir = CreateTempDir();

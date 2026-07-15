@@ -5,12 +5,16 @@ using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Engine.RouteMetadata;
+using Bukit.Engine.Analytics;
 
 namespace Bukit.Engine.Incremental;
 
 internal static class RenderDependencyHasher
 {
-    internal static string Compute(AppConfig config, SiteModel siteModel)
+    internal static string Compute(
+        AppConfig config,
+        SiteModel siteModel,
+        BuildExecutionMode executionMode = BuildExecutionMode.Production)
     {
         using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         Span<byte> newline = stackalloc byte[1];
@@ -47,10 +51,27 @@ internal static class RenderDependencyHasher
         IncrementalBuildEngine.AppendUtf8(hasher, SiteModeResolver.ResolveSearchMode(config.Site));
         hasher.AppendData(newline);
 
-        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Analytics.Enabled.ToString());
-        hasher.AppendData(newline);
-        IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Analytics.GoogleAnalyticsId);
-        hasher.AppendData(newline);
+        var resolvedAnalytics = AnalyticsConfigNormalizer.Normalize(config.Site.Analytics);
+        AppendFramedValue(
+            hasher,
+            "analytics.pluginEnabled",
+            AnalyticsBuildState.ResolvePluginEnabled(config.Site.Plugins).ToString(CultureInfo.InvariantCulture));
+        AppendFramedValue(hasher, "analytics.enabled", resolvedAnalytics.Enabled.ToString(CultureInfo.InvariantCulture));
+        AppendFramedValue(hasher, "analytics.productionOnly", resolvedAnalytics.ProductionOnly.ToString(CultureInfo.InvariantCulture));
+        AppendFramedValue(hasher, "analytics.executionMode", executionMode.ToString());
+        AppendFramedValue(
+            hasher,
+            "analytics.providerCount",
+            resolvedAnalytics.Providers.Count.ToString(CultureInfo.InvariantCulture));
+        foreach (var provider in resolvedAnalytics.Providers)
+        {
+            AppendFramedValue(hasher, "analytics.provider.type", provider.Type);
+            AppendFramedValue(hasher, "analytics.provider.key", provider.Key);
+            foreach (var option in provider.Options.OrderBy(option => option.Key, StringComparer.Ordinal))
+            {
+                AppendFramedValue(hasher, $"analytics.provider.option.{option.Key}", option.Value);
+            }
+        }
 
         IncrementalBuildEngine.AppendUtf8(hasher, config.Site.Seo.Enabled.ToString());
         hasher.AppendData(newline);
@@ -117,6 +138,11 @@ internal static class RenderDependencyHasher
         {
             foreach (var kv in config.Site.Plugins.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
+                if (string.Equals(kv.Key, "analytics", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 hasher.AppendData(newline);
                 IncrementalBuildEngine.AppendUtf8(hasher, kv.Key);
                 hasher.AppendData(newline);

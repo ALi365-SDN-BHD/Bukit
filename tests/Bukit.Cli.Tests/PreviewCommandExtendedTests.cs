@@ -18,8 +18,8 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     private static readonly MethodInfo s_parsePort = typeof(PreviewCommand)
         .GetMethod("ParsePort", BindingFlags.NonPublic | BindingFlags.Static)!;
 
-    private static readonly MethodInfo s_resolveDisableAnalytics = typeof(PreviewCommand)
-        .GetMethod("ResolveDisableAnalyticsInPreview", BindingFlags.NonPublic | BindingFlags.Static)!;
+    private static readonly MethodInfo s_resolveRemoveManagedAnalytics = typeof(PreviewCommand)
+        .GetMethod("ResolveRemoveManagedAnalyticsInPreview", BindingFlags.NonPublic | BindingFlags.Static)!;
 
     private static readonly MethodInfo s_createAndStartListener = typeof(PreviewCommand)
         .GetMethod("CreateAndStartListener", BindingFlags.NonPublic | BindingFlags.Static)!;
@@ -73,39 +73,36 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     }
 
     [Fact]
-    public void ApplyPreviewAnalyticsPolicy_DisableTrue_StripsGtagScripts()
+    public void ApplyPreviewAnalyticsPolicy_RemoveTrue_StripsManagedBlockOnly()
     {
         var html = """
             <html><head>
-              <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABC123"></script>
-              <script>
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', 'G-ABC123');
-              </script>
+              <!-- bukit:analytics:google-analytics:G-ABC123:head:start -->
+              <script>managed</script>
+              <!-- bukit:analytics:google-analytics:G-ABC123:head:end -->
+              <script>gtag('config', 'G-UNMARKED');</script>
             </head><body>content</body></html>
             """;
 
-        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, disableAnalytics: true);
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: true);
 
-        Assert.DoesNotContain("googletagmanager.com/gtag/js", filtered, StringComparison.Ordinal);
-        Assert.DoesNotContain("gtag('config'", filtered, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script>managed</script>", filtered, StringComparison.Ordinal);
+        Assert.Contains("gtag('config', 'G-UNMARKED')", filtered, StringComparison.Ordinal);
         Assert.Contains("<body>content</body>", filtered, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ApplyPreviewAnalyticsPolicy_DisableFalse_ReturnsUnchanged()
+    public void ApplyPreviewAnalyticsPolicy_RemoveFalse_ReturnsUnchanged()
     {
         var html = "<html><script>gtag('config', 'G-ABC123');</script></html>";
-        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, disableAnalytics: false);
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: false);
         Assert.Equal(html, filtered);
     }
 
     [Fact]
     public void ApplyPreviewAnalyticsPolicy_NullHtml_ReturnsNull()
     {
-        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(null!, disableAnalytics: true);
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(null!, removeManagedAnalytics: true);
         Assert.Null(filtered);
     }
 
@@ -121,34 +118,58 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     }
 
     [Fact]
-    public void ResolveDisableAnalyticsInPreview_NoSiteYaml_ReturnsFalse()
+    public void ResolveRemoveManagedAnalyticsInPreview_NoSiteYaml_ReturnsFalse()
     {
         var previewDir = Path.Combine(_tempDir, "no-config");
         Directory.CreateDirectory(previewDir);
 
-        var result = (bool)s_resolveDisableAnalytics.Invoke(null, new object[] { previewDir })!;
+        var result = (bool)s_resolveRemoveManagedAnalytics.Invoke(null, new object[] { previewDir })!;
         Assert.False(result);
     }
 
     [Fact]
-    public void ResolveDisableAnalyticsInPreview_DisableFalse_ReturnsFalse()
+    public void ResolveRemoveManagedAnalyticsInPreview_EnabledProductionOnlyProvider_ReturnsTrue()
     {
         var previewDir = Path.Combine(_tempDir, "with-config");
         Directory.CreateDirectory(previewDir);
         File.WriteAllText(Path.Combine(previewDir, "site.yaml"), """
-                                                                  site:
-                                                                    name: test
-                                                                    title: Test
-                                                                  content:
-                                                                    sources:
-                                                                      - type: markdown
-                                                                        name: page
-                                                                        collection: page
-                                                                        markdown:
-                                                                          dir: content
-                                                                  """);
+            site:
+              name: test
+              title: Test
+              analytics:
+                enabled: true
+                productionOnly: true
+                providers:
+                  - type: google-analytics
+                    measurementId: G-ABCDE123
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
+            """);
 
-        var result = (bool)s_resolveDisableAnalytics.Invoke(null, new object[] { previewDir })!;
+        var result = (bool)s_resolveRemoveManagedAnalytics.Invoke(null, new object[] { previewDir })!;
+        Assert.True(result);
+    }
+
+    [Theory]
+    [InlineData("enabled: false\n    productionOnly: true\n    providers:\n      - type: google-analytics\n        measurementId: G-ABCDE123", "")]
+    [InlineData("enabled: true\n    productionOnly: false\n    providers:\n      - type: google-analytics\n        measurementId: G-ABCDE123", "")]
+    [InlineData("enabled: true\n    productionOnly: true\n    providers: []", "")]
+    [InlineData("enabled: true\n    productionOnly: true\n    providers:\n      - type: google-analytics\n        measurementId: G-ABCDE123", "  plugins:\n    analytics: false\n")]
+    public void ResolveRemoveManagedAnalyticsInPreview_WhenPolicyInactive_ReturnsFalse(string analyticsYaml, string pluginYaml)
+    {
+        var previewDir = Path.Combine(_tempDir, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(previewDir);
+        var indentedAnalytics = string.Join('\n', analyticsYaml.Split('\n').Select(line => "    " + line));
+        File.WriteAllText(Path.Combine(previewDir, "site.yaml"),
+            $"site:\n  name: test\n  title: Test\n  analytics:\n{indentedAnalytics}\n{pluginYaml}content:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n");
+
+        var result = (bool)s_resolveRemoveManagedAnalytics.Invoke(null, new object[] { previewDir })!;
+
         Assert.False(result);
     }
 
@@ -192,22 +213,27 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     }
 
     [Fact]
-    public async Task HandleRequest_RootIndexHtml_StripsAnalyticsWhenDisabled()
+    public async Task HandleRequest_RootIndexHtml_StripsManagedAnalyticsFromResponseWithoutWritingDisk()
     {
-        File.WriteAllText(Path.Combine(_tempDir, "index.html"), """
+        var path = Path.Combine(_tempDir, "index.html");
+        var original = """
             <html><head>
-              <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABC123"></script>
-              <script>gtag('config', 'G-ABC123');</script>
+              <!-- bukit:analytics:google-analytics:G-ABC123:head:start -->
+              <script>managed</script>
+              <!-- bukit:analytics:google-analytics:G-ABC123:head:end -->
+              <script>gtag('config', 'G-UNMARKED');</script>
             </head><body>root</body></html>
-            """);
+            """;
+        File.WriteAllText(path, original);
 
-        var response = await SendRequestAsync("/", disableAnalytics: true);
+        var response = await SendRequestAsync("/", removeManagedAnalytics: true);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html; charset=utf-8", response.ContentType);
         Assert.Contains("root", response.Body, StringComparison.Ordinal);
-        Assert.DoesNotContain("googletagmanager.com/gtag/js", response.Body, StringComparison.Ordinal);
-        Assert.DoesNotContain("gtag('config'", response.Body, StringComparison.Ordinal);
+        Assert.DoesNotContain("<script>managed</script>", response.Body, StringComparison.Ordinal);
+        Assert.Contains("gtag('config', 'G-UNMARKED')", response.Body, StringComparison.Ordinal);
+        Assert.Equal(original, File.ReadAllText(path));
     }
 
     [Fact]
@@ -217,7 +243,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         Directory.CreateDirectory(postsDir);
         File.WriteAllText(Path.Combine(postsDir, "index.html"), "<html><body>nested</body></html>");
 
-        var response = await SendRequestAsync("/posts", disableAnalytics: false);
+        var response = await SendRequestAsync("/posts", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("nested", response.Body, StringComparison.Ordinal);
@@ -230,7 +256,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         Directory.CreateDirectory(searchDir);
         File.WriteAllText(Path.Combine(searchDir, "index.html"), "<html><body>search experience</body></html>");
 
-        var response = await SendRequestAsync("/search/?q=test", disableAnalytics: false);
+        var response = await SendRequestAsync("/search/?q=test", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("search experience", response.Body, StringComparison.Ordinal);
@@ -243,7 +269,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         Directory.CreateDirectory(assetsDir);
         File.WriteAllText(Path.Combine(assetsDir, "site.css"), "body{color:red;}");
 
-        var response = await SendRequestAsync("/assets/site.css", disableAnalytics: false);
+        var response = await SendRequestAsync("/assets/site.css", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/css; charset=utf-8", response.ContentType);
@@ -255,7 +281,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"), "<html></html>");
 
-        var response = await SendRequestAsync("/missing", disableAnalytics: false);
+        var response = await SendRequestAsync("/missing", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -269,7 +295,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     [Fact]
     public async Task Preview_RejectsDoubleEncodedDotDotPath()
     {
-        var response = await SendRequestAsync("/%252e%252e/", disableAnalytics: false);
+        var response = await SendRequestAsync("/%252e%252e/", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
@@ -278,7 +304,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     [Fact]
     public async Task Preview_RejectsBackslashTraversal()
     {
-        var response = await SendRequestAsync("/%5c..%5csecret", disableAnalytics: false);
+        var response = await SendRequestAsync("/%5c..%5csecret", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
@@ -293,7 +319,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     [Fact]
     public async Task Preview_RejectsUnicodeNormalizationTraversal()
     {
-        var response = await SendRequestAsync("/%EF%BC%8E%EF%BC%8E/secret", disableAnalytics: false);
+        var response = await SendRequestAsync("/%EF%BC%8E%EF%BC%8E/secret", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
@@ -302,13 +328,13 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     [Fact]
     public async Task Preview_RejectsVeryLongPathWithoutCrash()
     {
-        var response = await SendRequestAsync("/" + new string('a', 1024), disableAnalytics: false);
+        var response = await SendRequestAsync("/" + new string('a', 1024), removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
     }
 
-    private async Task<(HttpStatusCode StatusCode, string Body, string? ContentType)> SendRequestAsync(string path, bool disableAnalytics)
+    private async Task<(HttpStatusCode StatusCode, string Body, string? ContentType)> SendRequestAsync(string path, bool removeManagedAnalytics)
     {
         var result = s_createAndStartListener.Invoke(null, new object[] { "localhost", 0, false })!;
         var tupleType = result.GetType();
@@ -331,7 +357,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
             if (first == contextTask)
             {
                 var context = await contextTask;
-                s_handleRequest.Invoke(null, new object[] { _tempDir, context, disableAnalytics });
+                s_handleRequest.Invoke(null, new object[] { _tempDir, context, removeManagedAnalytics });
 
                 using var responseAfterContext = await responseTask;
                 var bodyAfterContext = await responseAfterContext.Content.ReadAsStringAsync();
@@ -340,7 +366,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
 
             using var responseAfterTimeout = await responseTask;
             var contextAfterTimeout = await contextTask.WaitAsync(s_requestTimeout);
-            s_handleRequest.Invoke(null, new object[] { _tempDir, contextAfterTimeout, disableAnalytics });
+            s_handleRequest.Invoke(null, new object[] { _tempDir, contextAfterTimeout, removeManagedAnalytics });
 
             var bodyAfterTimeout = await responseAfterTimeout.Content.ReadAsStringAsync();
             return (responseAfterTimeout.StatusCode, bodyAfterTimeout, responseAfterTimeout.Content.Headers.ContentType?.ToString());

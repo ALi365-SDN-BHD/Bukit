@@ -6,7 +6,7 @@ namespace Bukit.Engine;
 
 internal static class SeoHtmlRenderer
 {
-    internal static string InjectIntoHead(string html, SeoModel? seo, AnalyticsModel analytics)
+    internal static string InjectIntoHead(string html, SeoModel? seo)
     {
         if (seo is null || string.IsNullOrWhiteSpace(html))
         {
@@ -22,11 +22,11 @@ internal static class SeoHtmlRenderer
         var headContent = html[head.ContentStart..head.ContentEnd];
         var afterHeadContent = html[head.ContentEnd..];
         headContent = RemoveManagedSeoTags(headContent);
-        var seoHtml = RenderHead(seo, analytics);
+        var seoHtml = RenderHead(seo);
         return beforeHeadContent + headContent.TrimEnd() + Environment.NewLine + seoHtml + afterHeadContent;
     }
 
-    internal static string RenderHead(SeoModel seo, AnalyticsModel analytics)
+    internal static string RenderHead(SeoModel seo)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"  <title>{Attr(SeoDocumentTitleResolver.ResolveEffective(seo))}</title>");
@@ -90,18 +90,6 @@ internal static class SeoHtmlRenderer
         foreach (var json in seo.JsonLd)
         {
             sb.AppendLine($"  <script type=\"application/ld+json\">{json}</script>");
-        }
-
-        if (analytics.Enabled && !string.IsNullOrWhiteSpace(analytics.GoogleAnalyticsId))
-        {
-            var id = Attr(analytics.GoogleAnalyticsId!);
-            sb.AppendLine($"  <script async src=\"https://www.googletagmanager.com/gtag/js?id={id}\"></script>");
-            sb.AppendLine("  <script>");
-            sb.AppendLine("    window.dataLayer = window.dataLayer || [];");
-            sb.AppendLine("    function gtag(){dataLayer.push(arguments);}");
-            sb.AppendLine("    gtag('js', new Date());");
-            sb.AppendLine($"    gtag('config', '{id}');");
-            sb.AppendLine("  </script>");
         }
 
         return sb.ToString();
@@ -220,11 +208,7 @@ internal static class SeoHtmlRenderer
         if (HtmlHeadScanner.IsStartTag(tag, "script"))
         {
             var type = GetAttribute(tag, "type");
-            var src = GetAttribute(tag, "src");
-            return string.Equals(type, "application/ld+json", StringComparison.OrdinalIgnoreCase) ||
-                   (!string.IsNullOrWhiteSpace(src) && src.Contains("googletagmanager.com/gtag/js", StringComparison.OrdinalIgnoreCase)) ||
-                   block.Contains("gtag('config'", StringComparison.OrdinalIgnoreCase) ||
-                   block.Contains("gtag(\"config\"", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(type, "application/ld+json", StringComparison.OrdinalIgnoreCase);
         }
 
         return false;

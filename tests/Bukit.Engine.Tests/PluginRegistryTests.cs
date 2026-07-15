@@ -6,12 +6,43 @@ using Bukit.Engine.Plugins;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using Bukit.Engine.Plugins.BuiltIn;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class PluginRegistryTests
 {
+    [Fact]
+    public void BuiltInPluginSource_RegistersExactlyOneAnalyticsPluginWithLockedMetadata()
+    {
+        var plugins = new BuiltInPluginSource().GetPlugins().ToList();
+        var analytics = Assert.Single(plugins, x => x.Name == "analytics");
+
+        var typed = Assert.IsType<AnalyticsPlugin>(analytics);
+        Assert.Equal("1.0.0", typed.Version);
+        Assert.Equal(1000, typed.Order);
+        Assert.True(typed.SupportsHook(HtmlTransformHooks.HtmlTransform));
+        Assert.False(typed.SupportsHook("after-build"));
+        Assert.IsAssignableFrom<IHtmlTransformPlugin>(typed);
+    }
+
+    [Fact]
+    public void GetAllPlugins_CachesTheSingleAnalyticsPluginAsBuiltIn()
+    {
+        PluginRegistry.ResetCacheForTests();
+        var context = CreateContext();
+
+        var first = PluginRegistry.GetAllPlugins(context).Where(x => x.Plugin.Name == "analytics").ToList();
+        var second = PluginRegistry.GetAllPlugins(context).Where(x => x.Plugin.Name == "analytics").ToList();
+
+        Assert.Single(first);
+        Assert.Single(second);
+        Assert.Equal("built-in", first[0].Source);
+        Assert.Same(first[0].Plugin, second[0].Plugin);
+        Assert.Equal(1, PluginRegistry.CacheBuildCountForTests);
+    }
+
     [Fact]
     public void GetAllPlugins_ReturnsNonEmptyList()
     {
@@ -256,4 +287,20 @@ public sealed class PluginRegistryTests
         PluginRegistry.ResetCacheForTests();
         Assert.Equal(0, PluginRegistry.CacheBuildCountForTests);
     }
+
+    private static BuildContext CreateContext()
+        => new()
+        {
+            Config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "test" },
+                Content = TestContent.Markdown()
+            },
+            RootDir = "/test/no-plugins-dir",
+            OutputDir = "/test/out",
+            BaseUrl = "/",
+            LayoutsDir = "/test/layouts",
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
 }

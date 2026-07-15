@@ -99,7 +99,7 @@ internal sealed class DevServerHost : IDevServerHost
 ```csharp
 internal sealed class DevRequestHandler
 {
-    public DevRequestHandler(string outputDir, int livereloadPort, bool disableAnalytics, ILogger logger);
+    public DevRequestHandler(string outputDir, int livereloadPort, bool removeManagedAnalytics, ILogger logger);
     public Task HandleAsync(HttpListenerContext context, CancellationToken ct);
 }
 ```
@@ -109,7 +109,7 @@ internal sealed class DevRequestHandler
 - `fs.CopyTo` → `await fs.CopyToAsync(stream, ct)`
 - 手写 `StartsWith` 越界 → `BuildPathUtils.MakeAbsolute(outputDir, relative, enforceWithinRoot: true)` 配 `try/catch (ConfigException)` → 403
 - 裸 `catch {}` → `catch (Exception ex) { _logger.Warn(...) }`
-- `disableAnalytics` 通过构造函数注入（不在请求处理内做配置遍历）
+- `removeManagedAnalytics` 通过构造函数注入，仅从响应中过滤当前 Bukit Analytics 管理块（不在请求处理内做配置遍历）
 
 > **决策**：`BuildPathUtils` 位于 `Bukit.Engine` 命名空间且为 `internal static`，跨程序集不可见。本 PR **不依赖** `BuildPathUtils`，而是在 `src/Bukit.Cli/Commands/Dev/DevPathGuard.cs` 新增等价小工具（约 15 行：规范化路径 + boundary check + trailing separator 检查）。这样避免破坏 `DependencyMatrixTests` 的层间约束，且 `DevPathGuard` 可单独测试。
 
@@ -152,7 +152,7 @@ public static class DevCommand
         // 2. 初次构建
         // 3. var hub = new DevWebSocketHub(logger);
         // 4. using var host = DevServerHost.Start(host, port, logger);
-        // 5. var handler = new DevRequestHandler(outputDir, host.Port, ResolveDisableAnalytics(rootDir), logger);
+        // 5. var handler = new DevRequestHandler(outputDir, host.Port, removeManagedAnalytics, logger);
         // 6. using var watcher = new DevFileWatcher(dirs, logger, async (path, ct) => { await engine.BuildAsync(...); await hub.BroadcastReloadAsync(); });
         //    if (!noWatch) watcher.Start(ct);
         // 7. _ = host.RunAcceptLoopAsync(ctx => ctx.Request.Url?.AbsolutePath == "/__ws__"
@@ -161,7 +161,7 @@ public static class DevCommand
         // 8. await Task.Delay(Timeout.Infinite, ct);
     }
 
-    private static bool ResolveDisableAnalytics(string dir) { ... }  // 保留（小工具）
+    // Analytics preview policy is resolved from the current managed-block configuration.
     private static List<string> ResolveWatchDirs(string rootDir, AppConfig config) { ... }  // 保留
 }
 ```
@@ -240,7 +240,7 @@ public static class DevCommand
 **不纳入本 PR（保留为独立工作）：**
 - ❌ CLI 双解析路径合并（属 P3-7）
 - ❌ PreviewCommand MIME 映射共享（属 P2 优化但非 P2-2 范围）
-- ❌ ResolveDisableAnalytics 重构（功能正确，仅风格优化）
+- ❌ Analytics preview policy 重构（功能正确，仅风格优化）
 - ❌ CloneCommand 拆分（属 P2-1，不在本次 P2-2）
 
 ---
@@ -268,10 +268,10 @@ public static class DevCommand
 2. 改写 `src/Bukit.Cli/Commands/DevCommand.cs` orchestrator，把原 5 个职责委托给新组件：
    - `new DevWebSocketHub(logger)` 替代 `_wsClients` / `HandleWebSocketUpgradeAsync` / `BroadcastReloadAsync`
    - `DevServerHost.Start(host, port, logger)` 替代 `CreateListener` / `PickFreePort` / `AcceptLoop`
-   - `new DevRequestHandler(outputDir, host.Port, disableAnalytics, logger)` 替代 `HandleFileRequest`
+   - `new DevRequestHandler(outputDir, host.Port, removeManagedAnalytics, logger)` 替代 `HandleFileRequest`
    - `new DevFileWatcher(dirs, logger, onRebuildAsync)` 替代 `StartFileWatchers`
    - `_wsClients` / `_devPort` static 字段被删除
-3. 保持 `ExtractOptions` / `CreateBuildOverrides` / `RunAsync` / `ResolveWatchDirs` / `ResolveDisableAnalytics` 签名不变
+3. 保持 `ExtractOptions` / `CreateBuildOverrides` / `RunAsync` / `ResolveWatchDirs` 签名不变
 4. 运行 `dotnet build bukit.slnx -c Release` 验证 0 warning 0 error
 5. 运行 `dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release` 验证全通过
 6. 运行 `dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release` 验证架构约束

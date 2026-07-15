@@ -6,6 +6,18 @@ namespace Bukit.Engine.Tests;
 public sealed class SeoHtmlRendererTests
 {
     [Fact]
+    public void InjectIntoHead_DoesNotAcceptAnalyticsModel()
+    {
+        var method = typeof(SeoHtmlRenderer).GetMethod(
+            "InjectIntoHead",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.NotNull(method);
+        Assert.DoesNotContain(method.GetParameters(), parameter =>
+            string.Equals(parameter.ParameterType.FullName, "Bukit.Rendering.AnalyticsModel", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void InjectIntoHead_RemovesManagedTagsWithQuotedGreaterThanCharacters()
     {
         var html = """
@@ -34,7 +46,7 @@ public sealed class SeoHtmlRendererTests
             JsonLd = new[] { "{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"New\"}" }
         };
 
-        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo, new AnalyticsModel());
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo);
 
         Assert.DoesNotContain("old.example", injected, StringComparison.Ordinal);
         Assert.DoesNotContain("q=a", injected, StringComparison.Ordinal);
@@ -72,7 +84,7 @@ public sealed class SeoHtmlRendererTests
             Canonical = "https://example.com/new/"
         };
 
-        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo, new AnalyticsModel());
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo);
         var head = injected[..injected.IndexOf("</head>", StringComparison.OrdinalIgnoreCase)];
 
         Assert.Contains("<title>New &amp; &lt;Title&gt;</title>", head, StringComparison.Ordinal);
@@ -92,7 +104,7 @@ public sealed class SeoHtmlRendererTests
             Canonical = "https://example.com/legacy/"
         };
 
-        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo, new AnalyticsModel());
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo);
 
         Assert.Contains("<title>Legacy title</title>", injected, StringComparison.Ordinal);
     }
@@ -108,9 +120,31 @@ public sealed class SeoHtmlRendererTests
             Canonical = "https://example.com/"
         };
 
-        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo, new AnalyticsModel());
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo);
 
         Assert.Equal(html, injected);
+    }
+
+    [Fact]
+    public void InjectIntoHead_PreservesUnmanagedAnalyticsScripts()
+    {
+        var html = """
+            <html><head>
+              <title>Old title</title>
+              <script async src="https://www.googletagmanager.com/gtag/js?id=G-USER123"></script>
+              <script>gtag('config', 'G-USER123');</script>
+            </head><body></body></html>
+            """;
+        var seo = new SeoModel
+        {
+            Title = "New title",
+            Canonical = "https://example.com/"
+        };
+
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo);
+
+        Assert.Contains("googletagmanager.com/gtag/js?id=G-USER123", injected, StringComparison.Ordinal);
+        Assert.Contains("gtag('config', 'G-USER123')", injected, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -130,7 +164,7 @@ public sealed class SeoHtmlRendererTests
             Canonical = "https://example.com/"
         };
 
-        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo, new AnalyticsModel { Enabled = false });
+        var injected = SeoHtmlRenderer.InjectIntoHead(html, seo);
         var inspection = HtmlDocumentTitleInspector.Inspect(injected);
 
         Assert.Equal("New title", Assert.Single(inspection.Titles));

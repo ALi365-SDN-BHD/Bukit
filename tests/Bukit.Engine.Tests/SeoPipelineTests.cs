@@ -12,6 +12,18 @@ namespace Bukit.Engine.Tests;
 public sealed class SeoPipelineTests
 {
     [Fact]
+    public void Execute_DoesNotAcceptAnalyticsModel()
+    {
+        var method = typeof(SeoPipeline).GetMethod(
+            "Execute",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.NotNull(method);
+        Assert.DoesNotContain(method.GetParameters(), parameter =>
+            string.Equals(parameter.ParameterType.FullName, "Bukit.Rendering.AnalyticsModel", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Execute_BuildsSeoIndexAndDetectsSeoMode()
     {
         var item = ContentDocument.Create(
@@ -42,7 +54,6 @@ public sealed class SeoPipelineTests
             renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
             listRoutes: new[] { new RouteInfo("/blog/", "blog/index.html", "pages/blog-list.html") },
             seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
-            analytics: new AnalyticsModel { Enabled = false },
             logger);
 
         Assert.True(result.ShouldProvideSeoModel);
@@ -50,7 +61,7 @@ public sealed class SeoPipelineTests
         Assert.True(result.SeoIndex.Entries.Count > 0);
         Assert.True(result.SeoIndex.Models.Count > 0);
         Assert.NotNull(result.SeoBuilder);
-        Assert.NotNull(result.HtmlPostProcessor);
+        Assert.NotNull(result.HtmlTransform);
     }
 
     [Fact]
@@ -75,7 +86,6 @@ public sealed class SeoPipelineTests
             renderQueue: Array.Empty<RoutedContentDocument>(),
             listRoutes: Array.Empty<RouteInfo>(),
             seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
-            analytics: new AnalyticsModel { Enabled = false },
             logger);
 
         Assert.False(result.ShouldProvideSeoModel);
@@ -110,18 +120,19 @@ public sealed class SeoPipelineTests
             renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
             listRoutes: Array.Empty<RouteInfo>(),
             seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
-            analytics: new AnalyticsModel { Enabled = false },
             logger);
 
         Assert.True(result.ShouldProvideSeoModel);
         Assert.False(result.ShouldInjectSeo);
         Assert.NotNull(result.SeoBuilder);
-        Assert.NotNull(result.HtmlPostProcessor);
+        Assert.NotNull(result.HtmlTransform);
 
         var seo = result.SeoBuilder!(item, route);
         var page = new PageInfo { Title = item.Title, Url = route.Url, Content = string.Empty, Seo = seo };
         const string html = "<html><head><title>Theme title</title></head><body></body></html>";
-        Assert.Equal(html, result.HtmlPostProcessor!(item, route, page, html));
+        Assert.Equal(html, result.HtmlTransform!.Transform(
+            new HtmlTransformContext(route.Url, route.OutputPath, HtmlDocumentKind.Content,
+                BuildExecutionMode.Production, logger, page, item), html));
         Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
     }
 
@@ -157,7 +168,6 @@ public sealed class SeoPipelineTests
             renderQueue: new[] { (item, route) }.ToRoutedDocuments(),
             listRoutes: Array.Empty<RouteInfo>(),
             seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
-            analytics: new AnalyticsModel { Enabled = false },
             logger);
         var seo = result.SeoBuilder!(item, route);
         var page = new PageInfo
@@ -169,7 +179,9 @@ public sealed class SeoPipelineTests
         };
         const string html = "<html><head><title>Theme title</title></head><body></body></html>";
 
-        var processed = result.HtmlPostProcessor!(item, route, page, html);
+        var processed = result.HtmlTransform!.Transform(
+            new HtmlTransformContext(route.Url, route.OutputPath, HtmlDocumentKind.Content,
+                BuildExecutionMode.Production, logger, page, item), html);
 
         Assert.Equal(html, processed);
         Assert.Contains(logger.Warnings, warning => warning.Contains("seo.document_title_mismatch", StringComparison.Ordinal));
@@ -213,7 +225,6 @@ public sealed class SeoPipelineTests
             renderQueue: Array.Empty<RoutedContentDocument>(),
             listRoutes: graph.Routes.Select(route => route.ToRouteInfo()).ToArray(),
             seoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
-            analytics: new AnalyticsModel { Enabled = false },
             logger,
             graph);
 

@@ -47,11 +47,10 @@ internal static class PageRenderDispatcher
         ILogger logger,
         CancellationToken cancellationToken,
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = null,
-        Func<ContentDocument, RouteInfo, PageInfo, string, string>? htmlPostProcessor = null,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
-        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null,
         Func<RouteInfo, string>? renderDependencyHashResolver = null,
-        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null)
+        IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
+        HtmlTransformPipeline? htmlTransformPipeline = null)
     {
         var renderedCount = 0;
         var skippedCount = 0;
@@ -169,7 +168,11 @@ internal static class PageRenderDispatcher
                         }
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var html = renderer.RenderPage(route.Template, pageModel);
-                        if (htmlPostProcessor is not null) html = htmlPostProcessor(document, route, pageInfo, html);
+                        if (htmlTransformPipeline is not null)
+                        {
+                            html = htmlTransformPipeline.Transform(
+                                route, HtmlDocumentKind.Content, pageInfo, document, logger, html);
+                        }
                         await WriteUtf8LockedAsync(outputDir, route.OutputPath, html, writeLocks, ct);
                         Interlocked.Increment(ref renderedCount);
                         stageMetrics.Increment("pageRender");
@@ -213,7 +216,11 @@ internal static class PageRenderDispatcher
                         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
                         var listModel = SpecialListRenderer.CreateListPageModel(siteModel, listPage, pageInfos, entry.ListPageContext);
                         var listHtml = renderer.RenderList(listRoute.Template, listModel);
-                        if (listHtmlPostProcessor is not null) listHtml = listHtmlPostProcessor(listRoute, listPage, listHtml);
+                        if (htmlTransformPipeline is not null)
+                        {
+                            listHtml = htmlTransformPipeline.Transform(
+                                listRoute, HtmlDocumentKind.List, listPage, null, logger, listHtml);
+                        }
                         await WriteUtf8LockedAsync(outputDir, listRoute.OutputPath, listHtml, writeLocks, ct);
                         Interlocked.Increment(ref renderedCount);
                         renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
@@ -241,6 +248,11 @@ internal static class PageRenderDispatcher
                         pageInfo = RouteMetadataApplicator.ApplyToPage(pageInfo, route.Url, routeMetadata);
                         var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
                         var staticHtml = renderer.RenderPage(route.Template, pageModel);
+                        if (htmlTransformPipeline is not null)
+                        {
+                            staticHtml = htmlTransformPipeline.Transform(
+                                route, HtmlDocumentKind.Static, pageInfo, null, logger, staticHtml);
+                        }
                         await WriteUtf8LockedAsync(outputDir, route.OutputPath, staticHtml, writeLocks, ct);
                         Interlocked.Increment(ref renderedCount);
                         stageMetrics.Increment("staticRender");
@@ -275,11 +287,13 @@ internal static class PageRenderDispatcher
         CancellationToken cancellationToken,
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder = null,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder = null,
-        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor = null,
-        ThemeTemplateResolver? templateResolver = null)
+        HtmlTransformPipeline? htmlTransformPipeline = null,
+        ThemeTemplateResolver? templateResolver = null,
+        ILogger? logger = null)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var specialLists = SpecialListRouteBuilder.Build(routed, collections, layoutsDir, listPageContentMode, outputPathEncoding, templateResolver);
+        var transformLogger = logger ?? new ConsoleLogger(LogLevel.Error);
         foreach (var x in specialLists)
         {
             currentKeys.TryAdd(BuildPathUtils.NormalizeRelPath(x.Route.OutputPath), 0);
@@ -293,7 +307,7 @@ internal static class PageRenderDispatcher
             var skipped = 0;
             await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
             {
-                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, manifest, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
+                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, manifest, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, transformLogger, seoBuilder, listSeoBuilder, htmlTransformPipeline);
                 Interlocked.Add(ref rendered, result.RenderedCount);
                 Interlocked.Add(ref skipped, result.SkippedCount);
                 stageMetrics.Merge(result.StageMetrics);
@@ -305,7 +319,7 @@ internal static class PageRenderDispatcher
         var writeLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
         await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
         {
-            var metrics = await SpecialListRenderer.RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, seoBuilder, listSeoBuilder, listHtmlPostProcessor);
+            var metrics = await SpecialListRenderer.RenderSpecialListAlwaysAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, writeLocks, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, transformLogger, seoBuilder, listSeoBuilder, htmlTransformPipeline);
             stageMetrics.Merge(metrics);
         });
 

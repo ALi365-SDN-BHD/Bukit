@@ -29,6 +29,7 @@ public sealed class StarterThemeScaffoldTests : IDisposable
         Assert.True(File.Exists(Path.Combine(themeRoot, "assets", "style.css")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "layouts", "base.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "seo.html")));
+        Assert.False(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "analytics.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "header.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "footer.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "index.html")));
@@ -134,7 +135,7 @@ public sealed class StarterThemeScaffoldTests : IDisposable
 
         Assert.True(File.Exists(Path.Combine(layoutsRoot, "layouts", "base.html")));
         Assert.True(File.Exists(Path.Combine(layoutsRoot, "partials", "seo.html")));
-        Assert.True(File.Exists(Path.Combine(layoutsRoot, "partials", "analytics.html")));
+        Assert.False(File.Exists(Path.Combine(layoutsRoot, "partials", "analytics.html")));
         Assert.True(File.Exists(Path.Combine(layoutsRoot, "partials", "header.html")));
         Assert.True(File.Exists(Path.Combine(layoutsRoot, "partials", "footer.html")));
         Assert.True(File.Exists(Path.Combine(layoutsRoot, "partials", "list-card.html")));

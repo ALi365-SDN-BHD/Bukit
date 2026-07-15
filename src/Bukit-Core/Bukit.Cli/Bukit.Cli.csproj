@@ -28,6 +28,8 @@
 
   <ItemGroup>
     <Compile Include="$(IntermediateOutputPath)CliBuildInfo.g.cs" />
+    <Compile Include="..\Bukit.Engine\HtmlHeadScanner.cs" Link="Internal\HtmlHeadScanner.cs" />
+    <Compile Include="..\Bukit.Engine\Analytics\AnalyticsManagedBlockFilter.cs" Link="Internal\AnalyticsManagedBlockFilter.cs" />
   </ItemGroup>
 
   <ItemGroup>

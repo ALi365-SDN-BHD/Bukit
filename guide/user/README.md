@@ -26,6 +26,7 @@ quality audits, and GitHub Pages deployment.
 | Scan parameters quickly | [16 Parameter Cheatsheet](16-parameter-cheatsheet.md) |
 | Prepare AI-readable outputs | [17 GEO](17-geo.md) |
 | Migrate list routes | [18 Static List Routes Migration](18-static-list-routes-migration.md) |
+| Configure privacy-safe analytics providers | [19 Analytics](19-analytics.md) |
 
 ## Stable Core Commands
 

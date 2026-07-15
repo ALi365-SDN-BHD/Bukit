@@ -38,8 +38,11 @@
 | `site.seo.geo.llmsFullTxt` | `false` |
 | `site.seo.geo.llmsTxtMaxArticles` | `20` |
 | `site.seo.geo.aiBotMode` | `allow` |
+| `site.plugins.analytics.enabled` | `true` |
 | `site.analytics.enabled` | `true` |
-| `site.analytics.disableInPreview` | `true` |
+| `site.analytics.productionOnly` | `true` |
+| `site.analytics.providers` | empty array |
+| Plausible provider `scriptUrl` | `https://plausible.io/js/script.js` |
 | `site.feed.mode` | `split` |
 | `site.feed.formats` | `rss` |
 | `site.feed.limit` | `20` |
@@ -139,6 +142,12 @@
 | `site.seo.homeTitleTemplate` | `{pageTitle}`, `{siteTitle}`, and `{separator}` placeholders; must include page or site title |
 | `site.seo.pageTitleTemplate` | `{pageTitle}`, `{siteTitle}`, and `{separator}` placeholders; must include page title |
 | `site.seo.geo.aiBotMode` | `allow`, `block`, `selective` |
+| Provider `type` | `google-analytics`, `google-tag-manager`, `plausible`, `umami` |
+| Provider `measurementId` | `^G-[A-Z0-9]+$`; Google Analytics only |
+| Provider `containerId` | `^GTM-[A-Z0-9]+$`; Google Tag Manager only |
+| Provider `domain` | DNS host name without scheme, port, path, credentials, or IP address; Plausible only |
+| Provider `websiteId` | UUID; Umami only |
+| Provider `scriptUrl` | Absolute HTTPS `.js` URL without credentials or fragment; Plausible or Umami only |
 | `site.collections.<name>.schemaFailMode` | `off`, `warn`, `strict` |
 | `site.collections.<name>.filteredLists[].operator` | `equals`, `contains`, `in` |
 | `site.collections.<name>.filteredLists[].emptyBehavior` | `render`, `skip` |

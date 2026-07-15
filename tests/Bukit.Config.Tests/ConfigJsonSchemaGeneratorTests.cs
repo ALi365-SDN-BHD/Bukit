@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace Bukit.Config.Tests;
@@ -78,6 +79,41 @@ public sealed class ConfigJsonSchemaGeneratorTests
             .GetProperty("search")
             .GetProperty("properties");
         Assert.Equal("string", search.GetProperty("route").GetProperty("type").GetString());
+
+        var analytics = properties
+            .GetProperty("site")
+            .GetProperty("properties")
+            .GetProperty("analytics")
+            .GetProperty("properties");
+        Assert.Equal("boolean", analytics.GetProperty("enabled").GetProperty("type").GetString());
+        Assert.Equal("boolean", analytics.GetProperty("productionOnly").GetProperty("type").GetString());
+        Assert.False(analytics.TryGetProperty("googleAnalyticsId", out _));
+        Assert.False(analytics.TryGetProperty("disableInPreview", out _));
+        var providerVariants = analytics.GetProperty("providers").GetProperty("items").GetProperty("oneOf");
+        Assert.Equal(4, providerVariants.GetArrayLength());
+        Assert.Equal(
+            new[] { "google-analytics", "google-tag-manager", "plausible", "umami" },
+            providerVariants.EnumerateArray()
+                .Select(item => item.GetProperty("properties").GetProperty("type").GetProperty("const").GetString()));
+        Assert.Equal(
+            new[] { "type", "measurementId" },
+            providerVariants[0].GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            new[] { "type", "containerId" },
+            providerVariants[1].GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            new[] { "type", "domain" },
+            providerVariants[2].GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            new[] { "type", "websiteId", "scriptUrl" },
+            providerVariants[3].GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        var plausibleProperties = providerVariants[2].GetProperty("properties");
+        Assert.Equal("idn-hostname", plausibleProperties.GetProperty("domain").GetProperty("format").GetString());
+        var plausibleScriptUrl = plausibleProperties.GetProperty("scriptUrl");
+        Assert.Equal("https://plausible.io/js/script.js", plausibleScriptUrl.GetProperty("default").GetString());
+        AssertScriptUrlSchemaPattern(plausibleScriptUrl.GetProperty("pattern").GetString());
+        AssertScriptUrlSchemaPattern(
+            providerVariants[3].GetProperty("properties").GetProperty("scriptUrl").GetProperty("pattern").GetString());
 
         var collectionPagination = properties
             .GetProperty("site")
@@ -253,5 +289,19 @@ public sealed class ConfigJsonSchemaGeneratorTests
                 index++;
             }
         }
+    }
+
+    private static void AssertScriptUrlSchemaPattern(string? pattern)
+    {
+        Assert.False(string.IsNullOrWhiteSpace(pattern));
+        var regex = new Regex(pattern, RegexOptions.CultureInvariant);
+
+        Assert.Matches(regex, "https://analytics.example.com/script.js");
+        Assert.Matches(regex, "https://analytics.example.com:443/js/script.js?v=1");
+        Assert.DoesNotMatch(regex, "http://analytics.example.com/script.js");
+        Assert.DoesNotMatch(regex, "https://user:pass@analytics.example.com/script.js");
+        Assert.DoesNotMatch(regex, "https://analytics.example.com:8443/script.js");
+        Assert.DoesNotMatch(regex, "https://analytics.example.com/script.js#fragment");
+        Assert.DoesNotMatch(regex, "https://analytics.example.com/script.css");
     }
 }

@@ -14,13 +14,13 @@ internal sealed class DevRequestHandler
         """;
 
     private readonly string _outputDir;
-    private readonly bool _disableAnalytics;
+    private readonly bool _removeManagedAnalytics;
     private readonly ILogger _logger;
 
-    public DevRequestHandler(string outputDir, bool disableAnalytics, ILogger logger)
+    public DevRequestHandler(string outputDir, bool removeManagedAnalytics, ILogger logger)
     {
         _outputDir = outputDir ?? throw new ArgumentNullException(nameof(outputDir));
-        _disableAnalytics = disableAnalytics;
+        _removeManagedAnalytics = removeManagedAnalytics;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -65,7 +65,7 @@ internal sealed class DevRequestHandler
             if (ext == ".html")
             {
                 var html = await File.ReadAllTextAsync(candidate, ct).ConfigureAwait(false);
-                html = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, _disableAnalytics);
+                html = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, _removeManagedAnalytics);
                 html = InjectLivereload(html);
 
                 var bytes = Encoding.UTF8.GetBytes(html);

@@ -1,8 +1,14 @@
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine;
+using Bukit.Engine.Plugins;
+using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Rendering;
+using Bukit.Routing;
+using Bukit.Engine.Abstractions.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -117,6 +123,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
         Assert.Equal("A test site description", model.Description);
         Assert.NotNull(model.Params);
         Assert.True((bool)model.Params!["showSidebar"]);
+        Assert.Null(model.GetType().GetProperty("Analytics"));
     }
 
     [Fact]
@@ -284,6 +291,117 @@ public sealed class VariantBuildPipelineTests : IDisposable
 
         Assert.Null(themeRoot);
         Assert.Null(parentRoot);
+    }
+
+    [Theory]
+    [InlineData(false, "inject")]
+    [InlineData(true, "theme")]
+    [InlineData(true, "off")]
+    public void CreateHtmlTransformPipeline_AnalyticsDoesNotDependOnSeoMode(
+        bool seoEnabled,
+        string renderMode)
+    {
+        var config = CreateMinimalConfig() with
+        {
+            Site = CreateMinimalConfig().Site with
+            {
+                Seo = new SeoConfig { Enabled = seoEnabled, RenderMode = renderMode, Diagnostics = "off" },
+                Analytics = new AnalyticsConfig
+                {
+                    Providers =
+                    [
+                        new AnalyticsProviderConfig
+                        {
+                            Type = "google-analytics",
+                            MeasurementId = "G-TEST"
+                        }
+                    ]
+                }
+            }
+        };
+        var buildContext = CreateBuildContext(config);
+        var pluginTransforms = PluginRunner.CollectHtmlTransforms(
+            buildContext,
+            BuildExecutionMode.Production,
+            [new AnalyticsPlugin()]);
+        var seoResult = new SeoPipeline().Execute(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            buildContext.Logger);
+        var pipeline = VariantBuildPipeline.CreateHtmlTransformPipeline(
+            seoResult,
+            pluginTransforms,
+            BuildExecutionMode.Production);
+
+        var html = pipeline.Transform(
+            new HtmlTransformContext(
+                "/", "index.html", HtmlDocumentKind.Content,
+                BuildExecutionMode.Production, buildContext.Logger,
+                new PageInfo { Title = "Home", Url = "/", Content = string.Empty }),
+            "<html><head></head><body></body></html>");
+
+        Assert.Contains("bukit:analytics:google-analytics:G-TEST:head:start", html);
+    }
+
+    [Fact]
+    public async Task ExecuteRenderWithHtmlTransformRecordingAsync_StrictFailureStillRecordsExecution()
+    {
+        var config = CreateMinimalConfig() with
+        {
+            Site = CreateMinimalConfig().Site with { PluginFailMode = "strict" }
+        };
+        var context = CreateBuildContext(config);
+        var transforms = PluginRunner.CollectHtmlTransforms(
+            context,
+            BuildExecutionMode.Production,
+            [new ThrowingHtmlTransformPlugin()]);
+        var htmlContext = new HtmlTransformContext(
+            "/", "index.html", HtmlDocumentKind.Content,
+            BuildExecutionMode.Production, context.Logger);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            VariantBuildPipeline.ExecuteRenderWithHtmlTransformRecordingAsync(
+                transforms,
+                () => Task.FromResult(transforms[0].Transform(htmlContext, "html"))));
+
+        var execution = Assert.Single(context.PluginExecutions);
+        Assert.Equal("html-transform", execution.Hook);
+        Assert.False(execution.Success);
+        Assert.Equal("strict transform failure", execution.Error);
+    }
+
+    private BuildContext CreateBuildContext(AppConfig config)
+        => new()
+        {
+            Config = config,
+            RootDir = _rootDir,
+            OutputDir = Path.Combine(_rootDir, "dist"),
+            BaseUrl = "/",
+            LayoutsDir = Path.Combine(_rootDir, "layouts"),
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+    private sealed class ThrowingHtmlTransformPlugin :
+        IBukitPlugin,
+        IHookFilterPlugin,
+        IHtmlTransformPlugin
+    {
+        public string Name => "throwing";
+        public string Version => "1.0.0";
+        public bool SupportsHook(string hook) => hook == HtmlTransformHooks.HtmlTransform;
+        public IHtmlTransform CreateHtmlTransform(HtmlTransformPluginContext context)
+            => new ThrowingHtmlTransform();
+    }
+
+    private sealed class ThrowingHtmlTransform : IHtmlTransform
+    {
+        public string Name => "throwing";
+        public string Transform(HtmlTransformContext context, string html)
+            => throw new InvalidOperationException("strict transform failure");
     }
 
     private sealed class NoOpBodyStore : IContentBodyStore

@@ -87,7 +87,6 @@ public static class ScribanModelBinder
         obj.SetValue("base_path", model.BaseUrl, readOnly: true);
         obj.SetValue("language", model.Language, readOnly: true);
         obj.SetValue("build_year", model.BuildYear, readOnly: true);
-        obj.SetValue("analytics", ToScriptObject(model.Analytics), readOnly: true);
         if (model.Params is not null)
         {
             obj.SetValue("params", ToScriptObject(model.Params), readOnly: true);
@@ -301,14 +300,6 @@ public static class ScribanModelBinder
         }
 
         return arr;
-    }
-
-    private static ScriptObject ToScriptObject(AnalyticsModel model)
-    {
-        var obj = new ScriptObject();
-        obj.SetValue("enabled", model.Enabled, readOnly: true);
-        obj.SetValue("googleAnalyticsId", model.GoogleAnalyticsId, readOnly: true);
-        return obj;
     }
 
     private static ScriptObject ToScriptObject(SeoModel model)

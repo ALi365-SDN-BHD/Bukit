@@ -12,6 +12,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Bukit.Theme;
 using Bukit.Engine.RouteMetadata;
+using Bukit.Engine.Analytics;
 
 namespace Bukit.Engine;
 
@@ -121,11 +122,6 @@ internal sealed partial class VariantBuildPipeline
             BaseUrl = baseUrl,
             Language = config.Site.Language,
             BuildYear = TimeZoneInfo.ConvertTime(buildInstant, buildTimezone).Year,
-            Analytics = new AnalyticsModel
-            {
-                Enabled = config.Site.Analytics.Enabled,
-                GoogleAnalyticsId = config.Site.Analytics.GoogleAnalyticsId
-            },
             Params = config.Theme.Params,
             Modules = ExcludeReservedSource(modules, reservedSource),
             Data = data,
@@ -280,40 +276,88 @@ internal sealed partial class VariantBuildPipeline
         var listRoutes = routePipelineResult.RouteResult.ListRoutes;
 
         var seoStage = await BuildSeoStageAsync(
-            config, baseUrl, renderDocuments, listRoutes, routePipelineResult.RouteResult.ListRouteGraph, siteModel.Analytics, logger,
+            config, baseUrl, renderDocuments, listRoutes, routePipelineResult.RouteResult.ListRouteGraph, logger,
             ctx.SeoAlternates, ctx.RootBaseUrl, ctx.DefaultLanguage, overrides,
             routePipelineResult.PluginContext, routePipelineResult.StaticEntries, dataModules.RouteMetadata);
-
-        var renderPipelineResult = await RenderPagesStageAsync(
-            renderDocuments, routePipelineResult.RouteResult.RoutedDocuments, routePipelineResult.RouteResult.ListRouteGraph, bodyStore, renderer, siteModel,
-            config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
-            variantStageMetrics, logger, templateResolver, dataModules.RouteMetadata, cancellationToken);
-
-        var hasStaticDir = Directory.Exists(ctx.StaticDir);
-        var (themeRootForTokens, parentThemeRootForTokens) = GetThemeRootForTokens(
-            bootstrap.ThemeRoot, bootstrap.Registry is not null, bootstrap.ParentThemeRoot,
-            !string.IsNullOrWhiteSpace(bootstrap.Manifest?.Extends));
-
-        var assetPipelineResult = await SyncAssetsStageAsync(
-            ctx, hasStaticDir, themeRootForTokens, parentThemeRootForTokens,
-            outputDir, manifestSetup, config, variantStageMetrics, logger, cancellationToken);
-
-        await RunPluginAfterBuildStageAsync(
-            routePipelineResult.PluginContext, outputDir, baseUrl, manifestSetup,
-            renderPipelineResult, config, variantStageMetrics, logger, cancellationToken);
-
-        variantTotalStopwatch.Stop();
-        variantStageMetrics.AddDuration("variantTotal", variantTotalStopwatch.ElapsedMilliseconds);
-
-        var searchSnippetsEnabled = templateResolver.TryResolveKindTemplate("search", out var searchTemplate) &&
-            TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, ctx.LayoutsDir);
-
-        return await GenerateReportStageAsync(
-            config, baseUrl, outputDir, searchSnippetsEnabled, bodyStore,
-            ctx.ContentGraph,
+        var analyticsBuildState = AnalyticsBuildState.Create(config, overrides.ExecutionMode);
+        AnalyticsBuildState.Attach(routePipelineResult.PluginContext, analyticsBuildState);
+        var pluginHtmlTransforms = PluginRunner.CollectHtmlTransforms(
             routePipelineResult.PluginContext,
-            routePipelineResult.RouteResult.ListRouteGraph,
-            seoStage.SeoResult, renderPipelineResult, variantStageMetrics, logger, ctx.DefaultLanguage);
+            overrides.ExecutionMode);
+        var htmlTransformPipeline = CreateHtmlTransformPipeline(
+            seoStage.SeoResult,
+            pluginHtmlTransforms,
+            overrides.ExecutionMode);
+
+        try
+        {
+            var renderPipelineResult = await ExecuteRenderWithHtmlTransformRecordingAsync(
+                pluginHtmlTransforms,
+                () => RenderPagesStageAsync(
+                    renderDocuments, routePipelineResult.RouteResult.RoutedDocuments, routePipelineResult.RouteResult.ListRouteGraph, bodyStore, renderer, siteModel,
+                    config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
+                    htmlTransformPipeline, variantStageMetrics, logger, templateResolver, dataModules.RouteMetadata, cancellationToken));
+
+            var hasStaticDir = Directory.Exists(ctx.StaticDir);
+            var (themeRootForTokens, parentThemeRootForTokens) = GetThemeRootForTokens(
+                bootstrap.ThemeRoot, bootstrap.Registry is not null, bootstrap.ParentThemeRoot,
+                !string.IsNullOrWhiteSpace(bootstrap.Manifest?.Extends));
+
+            var assetPipelineResult = await SyncAssetsStageAsync(
+                ctx, hasStaticDir, themeRootForTokens, parentThemeRootForTokens,
+                outputDir, manifestSetup, config, variantStageMetrics, logger, cancellationToken);
+
+            await RunPluginAfterBuildStageAsync(
+                routePipelineResult.PluginContext, outputDir, baseUrl, manifestSetup,
+                renderPipelineResult, config, variantStageMetrics, logger, cancellationToken);
+
+            variantTotalStopwatch.Stop();
+            variantStageMetrics.AddDuration("variantTotal", variantTotalStopwatch.ElapsedMilliseconds);
+
+            var searchSnippetsEnabled = templateResolver.TryResolveKindTemplate("search", out var searchTemplate) &&
+                TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, ctx.LayoutsDir);
+
+            pluginHtmlTransforms.RecordExecutions();
+            return await GenerateReportStageAsync(
+                config, baseUrl, outputDir, searchSnippetsEnabled, bodyStore,
+                ctx.ContentGraph,
+                routePipelineResult.PluginContext,
+                routePipelineResult.RouteResult.ListRouteGraph,
+                seoStage.SeoResult, renderPipelineResult, variantStageMetrics, logger, ctx.DefaultLanguage,
+                analyticsBuildState);
+        }
+        finally
+        {
+            pluginHtmlTransforms.RecordExecutions();
+        }
+    }
+
+    internal static HtmlTransformPipeline CreateHtmlTransformPipeline(
+        SeoPipelineResult seoResult,
+        CollectedHtmlTransforms pluginHtmlTransforms,
+        BuildExecutionMode executionMode)
+    {
+        var transforms = new List<IHtmlTransform>();
+        if (seoResult.HtmlTransform is not null)
+        {
+            transforms.Add(seoResult.HtmlTransform);
+        }
+        transforms.AddRange(pluginHtmlTransforms);
+        return new HtmlTransformPipeline(transforms, executionMode);
+    }
+
+    internal static async Task<T> ExecuteRenderWithHtmlTransformRecordingAsync<T>(
+        CollectedHtmlTransforms pluginHtmlTransforms,
+        Func<Task<T>> render)
+    {
+        try
+        {
+            return await render();
+        }
+        finally
+        {
+            pluginHtmlTransforms.RecordExecutions();
+        }
     }
 
     private static Task<ThemeBootstrapResult> BootstrapThemeAsync(AppConfig config, string rootDir, ILogger logger)
@@ -417,7 +461,6 @@ internal sealed partial class VariantBuildPipeline
         IReadOnlyList<RoutedContentDocument> renderQueue,
         IReadOnlyList<RouteInfo> listRoutes,
         ListRouteGraph listRouteGraph,
-        AnalyticsModel analytics,
         ILogger logger,
         IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> seoAlternateInputs,
         string? rootBaseUrl,
@@ -450,7 +493,7 @@ internal sealed partial class VariantBuildPipeline
             routeMetadata);
 
         var seoResult = new SeoPipeline().Execute(
-            config, baseUrl, renderQueue, listRoutes, seoAlternates, analytics, logger, listRouteGraph, routeMetadata, searchAction, breadcrumbs);
+            config, baseUrl, renderQueue, listRoutes, seoAlternates, logger, listRouteGraph, routeMetadata, searchAction, breadcrumbs);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
         pluginContext.Data[BuildContextDataKeys.SeoModels] = seoResult.SeoIndex.Models;
 
@@ -470,6 +513,7 @@ internal sealed partial class VariantBuildPipeline
         ManifestSetupResult manifestSetup,
         SeoStageResult seoStage,
         IReadOnlyList<RenderEntry>? staticEntries,
+        HtmlTransformPipeline htmlTransformPipeline,
         BuildStageMetricsCollector metrics,
         ILogger logger,
         ThemeTemplateResolver templateResolver,
@@ -478,7 +522,7 @@ internal sealed partial class VariantBuildPipeline
     {
         var renderDependencyHashStopwatch = Stopwatch.StartNew();
         var renderDependencyHash = manifestSetup.IncrementalEnabled
-            ? RenderDependencyHasher.Compute(config, siteModel)
+            ? RenderDependencyHasher.Compute(config, siteModel, ctx.Overrides.ExecutionMode)
             : string.Empty;
         renderDependencyHashStopwatch.Stop();
         metrics.AddDuration("renderDependencyHash", renderDependencyHashStopwatch.ElapsedMilliseconds);
@@ -522,10 +566,9 @@ internal sealed partial class VariantBuildPipeline
             ListRouteGraph: listRouteGraph,
             StaticEntries: staticEntries,
             SeoBuilder: seoStage.SeoResult.SeoBuilder,
-            HtmlPostProcessor: seoStage.SeoResult.HtmlPostProcessor,
             ListItemSeoBuilder: seoStage.SeoResult.ListItemSeoBuilder,
             ListSeoBuilder: seoStage.SeoResult.ListSeoBuilder,
-            ListHtmlPostProcessor: seoStage.SeoResult.ListHtmlPostProcessor,
+            HtmlTransformPipeline: htmlTransformPipeline,
             TemplateResolver: templateResolver,
             RenderDocuments: renderDocuments,
             RoutedDocuments: routedDocuments,
@@ -607,14 +650,15 @@ internal sealed partial class VariantBuildPipeline
         RenderPipelineResult renderPipelineResult,
         BuildStageMetricsCollector variantStageMetrics,
         ILogger logger,
-        string? defaultLanguage)
+        string? defaultLanguage,
+        AnalyticsBuildState analyticsBuildState)
     {
         var renderedCount = renderPipelineResult.RenderedCount;
         var skippedCount = renderPipelineResult.SkippedCount;
         var renderReasons = new Dictionary<string, int>(
             renderPipelineResult.RenderReasons, StringComparer.OrdinalIgnoreCase);
 
-        return Task.FromResult(new BuildReportPipeline().Execute(new BuildReportPipelineContext(
+        var result = new BuildReportPipeline().Execute(new BuildReportPipelineContext(
             Config: config, Language: config.Site.Language, OutputDir: outputDir,
             BaseUrl: baseUrl, SearchSnippetsEnabled: searchSnippetsEnabled,
             BodyStore: bodyStore,
@@ -632,7 +676,10 @@ internal sealed partial class VariantBuildPipeline
             StageMetrics: variantStageMetrics.Snapshot(),
             Logger: logger,
             DefaultLanguage: defaultLanguage,
-            ContentGraph: contentGraph)));
+            ContentGraph: contentGraph));
+        analyticsBuildState.RecordRenderOutcome(renderedCount, skippedCount);
+        AnalyticsReportWriter.WriteIfEnabled(config, outputDir, analyticsBuildState.Snapshot());
+        return Task.FromResult(result);
     }
 
     private static IReadOnlyList<PluginOutputTrackingInfo> GetPluginOutputs(BuildContext pluginContext)

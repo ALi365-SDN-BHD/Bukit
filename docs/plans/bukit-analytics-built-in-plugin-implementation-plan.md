@@ -1,219 +1,105 @@
-# Bukit Analytics 内置插件实施计划
+# Bukit Analytics 内置插件详细开发计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans` 按任务逐项实施。本计划全部执行步骤使用复选框跟踪。
+> 本文档是 Analytics 内置插件的唯一实施基线。实现必须严格遵守本文档定义的插件边界、配置硬切换、安全约束和验证顺序。
 
-**文档版本：** v1.0  
-**制定日期：** 2026-07-12  
-**适用项目：** Bukit 静态网站生成引擎  
-**基线提交：** `02d0232bcfeac55dcb13931f753354c4c15db628`  
-**目标版本建议：** 先在后续次版本完成功能迁移与兼容，再在下一主版本评估删除旧字段  
+**文档版本：** v2.0
 
-**目标：** 将 Bukit 现有、与 SEO 管线耦合的单一 Google Analytics 注入能力，重构为 Core 内部拥有、Provider 化、Native AOT 友好、可验证且不扩大外部插件协议的 Analytics 内置插件体系。
+**修订日期：** 2026-07-15
 
-**架构：** Analytics 由 `Bukit.Engine` 内部的 `AnalyticsPlugin` 负责，通过内部 HTML Transform Pipeline 在页面写盘前注入。Provider 只产生结构化的 `HeadEnd` 与 `BodyStart` 片段；外部进程插件、`Bukit.PluginHost`、`Bukit.Plugin.Abstractions` 均不获得页面渲染、`BuildContext` 或任意 HTML 注入能力。
+**适用项目：** Bukit 静态网站生成引擎
 
-**技术栈：** .NET / C#、Native AOT、YamlDotNet 配置模型、Scriban 渲染、xUnit、Bukit 定向门禁脚本。
+**基线提交：** `b4498a27604a9e08972661d08360868322268f05`
+
+**交付性质：** 原子 breaking change，不提供旧配置或旧渲染模型兼容
 
 ---
 
-## 1. 背景与现状判断
+## 一、结论与架构决策
 
-Bukit 当前已经具备最小 Analytics 能力，并非全新功能：
+### 1.1 现状问题
 
-- `site.analytics.enabled`
-- `site.analytics.googleAnalyticsId`
-- `site.analytics.disableInPreview`
-- `SiteModel.Analytics`
-- `SeoHtmlRenderer` 中的 GA4 `gtag.js` 注入
+当前 Analytics 方案不能直接实施，原因如下：
 
-当前实现存在以下结构性问题：
+- 旧方案中的 `AnalyticsPlugin : IHtmlTransform` 只是一个 HTML Transform，没有注册到 `BuiltInPluginSource`，不属于现有 Bukit 内置插件生命周期。
+- 旧方案保留了 `googleAnalyticsId`、`disableInPreview`、旧字段规范化和弃用警告，与本次彻底移除、禁止兼容的要求冲突。
+- 旧 Analytics 通过 `AnalyticsModel → site.analytics → Theme/SEO` 传递，没有实现 Core 内置插件所有权。
+- Analytics 部分依赖 `SeoPipeline`，SEO 关闭或使用 Theme 模式时可能阻断 Analytics。
+- 当前 Render Pipeline 没有对 Static Render Entry 执行统一 HTML 后处理；仅修改 content/list delegate 无法覆盖全部 HTML。
+- 向冻结的 `build-report.v1` 增加顶层字段会破坏现有严格 Schema。
+- `guide/user/14-analytics.md` 与现有 `14-troubleshooting.md` 编号冲突，新用户文档必须使用 `guide/user/19-analytics.md`。
 
-1. **Analytics 与 SEO 注入耦合。**
-   - Analytics 由 `SeoPipeline` 把 `AnalyticsModel` 传给 `SeoHtmlRenderer`。
-   - 当 SEO 被禁用，或 SEO 不执行 HTML 注入时，Analytics 也无法可靠注入。
+### 1.2 最终架构
 
-2. **仅支持单一 Google Analytics ID。**
-   - 无 Provider 列表。
-   - 无 Google Tag Manager 的 `<body>` 起始位置注入能力。
-   - 无 Plausible、Umami 等可扩展模型。
-
-3. **现有 `disableInPreview` 缺少明确执行模式。**
-   - `ConfigOverrides` 目前没有 Production/Development 构建意图。
-   - `bukit dev` 当前先生成带 GA 的 HTML，再由 `DevRequestHandler` 在响应时调用 Preview 过滤器剥离 GA。
-   - `bukit preview` 当前使用两条 GA 专用正则过滤响应，只覆盖 GA4，不覆盖未来 Provider。
-   - 目标状态是：dev 构建本身按 Development 模式关闭 production-only Analytics；dev/preview 响应过滤作为兼容与残留清理层，且不得改写磁盘产物。
-
-4. **当前插件钩子不适合 Analytics。**
-   - Core 插件主要使用 `derive-pages` 与 `after-build`。
-   - Analytics 不应在 `after-build` 阶段扫描并重写所有 HTML 文件。
-   - 不应为了 Analytics 向外部插件增加逐页 HTML Transform Hook。
-
-5. **配置契约尚未完成严格校验。**
-   - 现有 `googleAnalyticsId` 需要格式校验。
-   - 新 Provider 需要类型、必填字段、URL、安全和重复配置校验。
-
-因此，本计划采用：
-
-> **Core 内部 AnalyticsPlugin + 内部 HTML Transform Pipeline + Typed Providers + 旧配置兼容层。**
-
----
-
-## 2. 核心决策
-
-### 2.1 采用的方案
+Analytics 必须是正式注册的 Core 内置插件：
 
 ```text
-site.yaml
-   ↓
-Bukit.Config 严格解析与验证
-   ↓
-AnalyticsConfigNormalizer
-   ↓
-ResolvedAnalyticsConfig
-   ↓
-AnalyticsProviderRegistry
-   ↓
-AnalyticsPlugin（Core internal）
-   ↓
+BuiltInPluginSource
+  └── AnalyticsPlugin
+        ├── IBukitPlugin
+        ├── IOrderedPlugin
+        ├── IHookFilterPlugin
+        └── IHtmlTransformPlugin（Bukit.Engine internal）
+                  │
+                  ▼
+PluginRegistry → PluginRunner.CollectHtmlTransforms()
+                  │
+                  ▼
 HtmlTransformPipeline
-   ├── SeoHtmlTransform
-   └── AnalyticsPlugin
-   ↓
-PageRenderDispatcher 写入最终 HTML
+  1. SeoHtmlTransform（Core Transform）
+  2. AnalyticsHtmlTransform（内置插件贡献）
+                  │
+                  ▼
+Content / List / Static HTML → 写入磁盘
 ```
 
-### 2.2 “内置插件”的准确含义
+架构边界锁定如下：
 
-本计划中的 `AnalyticsPlugin`：
+- `AnalyticsPlugin` 位于 `src/Bukit-Core/Bukit.Engine/Plugins/BuiltIn/`，注册名为 `analytics`，版本为 `1.0.0`，顺序为 `1000`。
+- `IHtmlTransformPlugin`、`IHtmlTransform`、Transform Context 和 Analytics Provider 接口全部保持 `Bukit.Engine` 内部类型。
+- 不修改 `Bukit.Engine.Abstractions` 的公开插件生命周期。
+- 不向 `Bukit.PluginHost`、`Bukit.Plugin.Abstractions` 或 `bukit-plugin-v1` 暴露页面 HTML、Provider 或 Transform 能力。
+- 不使用程序集扫描、反射发现、运行时 DLL 加载或外部进程逐页处理 HTML。
+- `AnalyticsPlugin` 只负责注册元数据和创建每个 Build Variant 独立的 Transform，不保存跨构建可变状态。
 
-- 位于 `src/Bukit-Core/Bukit.Engine/`；
-- 类型使用 `internal`；
-- 与 Bukit Core 同版本编译和发布；
-- 只由 Core 内部注册；
-- 不属于外部插件 SDK；
-- 不通过 `Bukit.PluginHost` 执行；
-- 不向第三方公开页面渲染或 HTML 修改接口。
+### 1.3 启用规则
 
-### 2.3 明确拒绝的方案
+采用现有内置插件语义下的双层开关：
 
-#### 方案 A：外部进程插件逐页修改 HTML
+```text
+插件生命周期开关：site.plugins.analytics.enabled
+功能输出开关：    site.analytics.enabled
+```
 
-拒绝原因：
+有效注入条件固定为：
 
-- 需要暴露输出目录或全部 HTML 内容；
-- 容易破坏确定性构建和增量构建；
-- 增加目录遍历、竞态写入和供应链风险；
-- 与“外部插件严禁调用 Core、只能遵循协议”原则冲突。
+```text
+pluginEnabled
+&& analytics.enabled
+&& providers.Count > 0
+&& (executionMode == Production || productionOnly == false)
+```
 
-#### 方案 B：在 `after-build` 中扫描并重写所有 HTML
+默认值：
 
-拒绝原因：
-
-- 构建后再改文件，Manifest 与真实产物可能不一致；
-- 每次构建需要额外全目录扫描；
-- 增量构建难以正确判断 Analytics 配置变化；
-- 失败时可能留下部分写入产物。
-
-#### 方案 C：只通过 Theme partial 实现
-
-拒绝原因：
-
-- 每个主题重复实现；
-- 无法统一配置验证、环境控制和注入去重；
-- GTM 需要同时处理 `<head>` 与 `<body>`；
-- 无法作为 Bukit 标准能力跨主题使用。
+- `site.plugins.analytics.enabled` 未配置时为 `true`。
+- `site.analytics.enabled` 为 `true`。
+- `site.analytics.productionOnly` 为 `true`。
+- `site.analytics.providers` 为空数组，因此默认不输出脚本。
+- 任一开关为 `false` 都不注入。
+- 通用插件开关为 `false` 时，不创建 Analytics Transform，也不产生 `html-transform` 插件执行记录。
 
 ---
 
-## 3. 范围
+## 二、配置、接口与输出契约
 
-### 3.1 本期必须交付
-
-1. 将 Analytics 注入从 SEO 渲染器中解耦。
-2. 建立 Core internal Analytics Plugin。
-3. 建立 Provider 化配置和运行模型。
-4. 支持：
-   - Google Analytics 4；
-   - Google Tag Manager；
-   - Plausible；
-   - Umami。
-5. 支持注入位置：
-   - `HeadEnd`；
-   - `BodyStart`。
-6. `bukit dev` 默认不注入 production-only Analytics。
-7. 普通 `bukit build` 和 CI production build 正常注入。
-8. 保留旧 `googleAnalyticsId` 配置兼容。
-9. 配置变化能够使增量构建重新渲染相关 HTML。
-10. 输出可审计的 Analytics 构建摘要。
-11. 增加配置、单元、集成、架构和 Native AOT 相关验证。
-
-### 3.2 本期明确不做
-
-- Google Analytics Data API 查询；
-- OAuth 登录与授权；
-- Analytics Dashboard；
-- 统计数据同步到 Notion；
-- Cookie Consent Management Platform；
-- 任意 JavaScript 文本注入；
-- 外部插件渲染 Hook；
-- 外部 Provider 动态加载；
-- 插件市场；
-- 运行时 DLL 插件；
-- 自动修改第三方主题文件；
-- 对既有 `bukit preview` 产物动态移除脚本。
-
----
-
-## 4. 全局约束
-
-1. **不得扩展外部插件协议。**
-   - 不修改外部进程插件 JSON 协议以传递页面 HTML。
-   - 不增加 external `render-page`、`transform-html` 或等价 Hook。
-
-2. **不得向外部插件暴露 Core 渲染对象。**
-   - 不将 `BuildContext`、`PageModel`、`SiteModel`、Renderer 或输出目录写权限加入未来 SDK。
-
-3. **不得把 Analytics Provider 放入 `Bukit.Plugin.Abstractions`。**
-   - Provider 接口必须为 `internal`，并位于 `Bukit.Engine`。
-
-4. **不得允许 arbitrary JavaScript。**
-   - 不增加 `customScript`、`headHtml`、`bodyHtml` 等字段。
-   - 用户只配置受控 ID、域名与 HTTPS script URL。
-
-5. **必须保持 Native AOT 兼容。**
-   - 不使用运行时程序集扫描。
-   - 不使用反射发现 Provider。
-   - Provider 使用显式静态注册。
-
-6. **必须保持确定性输出。**
-   - 同一配置和输入产生同一 HTML。
-   - Provider 顺序由配置顺序确定。
-   - 生成片段不得包含当前时间或随机值。
-
-7. **必须支持幂等注入。**
-   - 重复处理同一 HTML 不得产生重复脚本。
-   - Core 管理的 Analytics 标记必须可识别和替换。
-
-8. **必须保持 SEO 与 Analytics 独立。**
-   - `site.seo.enabled: false` 时 Analytics 仍可按配置工作。
-   - `site.seo.renderMode: off|theme` 不得阻断 Analytics。
-
-9. **必须遵守仓库门禁规则。**
-   - 每个代码子任务使用该任务中列出的精确路径执行 `scripts/checks/post-change-targeted.sh`。
-   - 未经用户明确要求，不运行 full/release gate。
-   - 插件、配置契约和安全边界改动完成后必须执行一次只读综合审计。
-
-10. **不得修改备份目录。**
-    - 不修改 `guide-0.1/`、`guide-0.2/`、`scripts-0.1/`、`scripts-0.2/`。
-
----
-
-## 5. 目标配置契约
-
-### 5.1 推荐新配置
+### 2.1 唯一支持的配置契约
 
 ```yaml
 site:
+  plugins:
+    analytics:
+      enabled: true
+
   analytics:
     enabled: true
     productionOnly: true
@@ -233,170 +119,15 @@ site:
         scriptUrl: https://analytics.example.com/script.js
 ```
 
-### 5.2 旧配置兼容
-
-继续接受：
-
-```yaml
-site:
-  analytics:
-    enabled: true
-    googleAnalyticsId: G-XXXXXXXXXX
-    disableInPreview: true
-```
-
-兼容规则：
-
-1. `googleAnalyticsId` 转换为一个 `google-analytics` Provider。
-2. 只配置旧字段时，不改变原有 GA4 HTML 语义。
-3. 同时配置 `googleAnalyticsId` 和等价 GA Provider 时，配置检查失败，禁止重复注入。
-4. `productionOnly` 使用 nullable 配置：未设置时沿用 `disableInPreview`；设置后作为新行为开关。
-5. `disableInPreview` 保持默认值 `true`，确保旧站点的 dev/preview 行为不倒退。
-6. 使用 `googleAnalyticsId` 时输出一次明确、非阻塞的弃用警告。
-7. 本期不删除旧字段；删除时间必须另行制定 breaking-change 计划。
-
-### 5.3 Provider 字段矩阵
-
-| Provider | 必填字段 | 可选字段 | 注入位置 |
-|---|---|---|---|
-| `google-analytics` | `measurementId` | 无 | `HeadEnd` |
-| `google-tag-manager` | `containerId` | 无 | `HeadEnd` + `BodyStart` |
-| `plausible` | `domain` | `scriptUrl` | `HeadEnd` |
-| `umami` | `websiteId`, `scriptUrl` | 无 | `HeadEnd` |
-
-### 5.4 安全校验
-
-- `measurementId`：必须匹配 `^G-[A-Z0-9]+$`。
-- `containerId`：必须匹配 `^GTM-[A-Z0-9]+$`。
-- `domain`：
-  - 不得包含 scheme；
-  - 不得包含路径、查询、片段或用户信息；
-  - 允许合法域名和 IDN 转换后的 ASCII 形式。
-- `websiteId`：必须为合法 UUID。
-- `scriptUrl`：
-  - 必须为绝对 HTTPS URL；
-  - 禁止用户名和密码；
-  - 禁止片段；
-  - 禁止 `javascript:`、`data:`、`file:`、`http:`；
-  - 路径必须指向脚本资源；
-  - 不进行服务器端抓取，因此不把它当作构建期 HTTP 请求入口。
-- Provider `type` 为固定枚举，不接受未知类型。
-- 相同 Provider 唯一标识不得重复。
-- 所有 ID 在写入 HTML 前必须执行 HTML attribute 编码和 JavaScript string 编码。
-
----
-
-## 6. 目标文件结构
-
-### 6.1 新增文件
-
-```text
-src/Bukit-Core/Bukit.Config/
-  AnalyticsConfigNormalizer.cs
-  AnalyticsConfigValidator.cs
-
-src/Bukit-Core/Bukit.Engine/Analytics/
-  AnalyticsPlugin.cs
-  AnalyticsProviderRegistry.cs
-  AnalyticsInjectionPolicy.cs
-  AnalyticsHtmlRenderer.cs
-  AnalyticsBuildSummary.cs
-  AnalyticsBuildSummaryCollector.cs
-  IAnalyticsProvider.cs
-  AnalyticsHtmlFragments.cs
-  AnalyticsRenderContext.cs
-  AnalyticsValueEncoder.cs
-  GoogleAnalyticsProvider.cs
-  GoogleTagManagerProvider.cs
-  PlausibleProvider.cs
-  UmamiProvider.cs
-
-src/Bukit-Core/Bukit.Engine/Html/
-  IHtmlTransform.cs
-  HtmlTransformContext.cs
-  HtmlTransformPipeline.cs
-
-src/Bukit-Core/Bukit.Config/
-  BuildExecutionMode.cs
-
-src/Bukit-Core/Bukit.Cli/Commands/
-  PreviewAnalyticsFilter.cs
-
-tests/Bukit.Config.Tests/Analytics/
-  AnalyticsConfigValidatorTests.cs
-  AnalyticsConfigNormalizerTests.cs
-
-tests/Bukit.Engine.Tests/Analytics/
-  AnalyticsHtmlRendererTests.cs
-  AnalyticsPipelineTests.cs
-  GoogleAnalyticsProviderTests.cs
-  GoogleTagManagerProviderTests.cs
-  PlausibleProviderTests.cs
-  UmamiProviderTests.cs
-  AnalyticsIntegrationTests.cs
-  AnalyticsIncrementalBuildTests.cs
-  AnalyticsBuildSummaryTests.cs
-  AnalyticsProviderRegistryTests.cs
-  TestAnalytics.cs
-  AnalyticsBuildFixture.cs
-
-guide/user/
-  14-analytics.md
-
-examples/analytics/
-  site.yaml
-```
-
-### 6.2 修改文件
-
-```text
-src/Bukit-Core/Bukit.Config/AppConfig.cs
-src/Bukit-Core/Bukit.Config/ConfigOverrides.cs
-src/Bukit-Core/Bukit.Config/ConfigValidator.cs
-src/Bukit-Core/Bukit.Rendering/Models.cs
-src/Bukit-Core/Bukit.Engine/VariantBuildPipeline.cs
-src/Bukit-Core/Bukit.Engine/SeoPipeline.cs
-src/Bukit-Core/Bukit.Engine/SeoHtmlRenderer.cs
-src/Bukit-Core/Bukit.Engine/HtmlHeadScanner.cs
-src/Bukit-Core/Bukit.Engine/PageRenderDispatcher.cs
-src/Bukit-Core/Bukit.Engine/Incremental/RenderDependencyHasher.cs
-src/Bukit-Core/Bukit.Engine/BuildReporter.cs
-src/Bukit-Core/Bukit.Engine/BuildVariantResult.cs
-src/Bukit-Core/Bukit.Cli/Commands/DevCommand.cs
-src/Bukit-Core/Bukit.Cli/Commands/PreviewCommand.cs
-src/Bukit-Core/Bukit.Cli/Commands/Dev/DevRequestHandler.cs
-tests/Bukit.Engine.Tests/SeoHtmlRendererTests.cs
-tests/Bukit.Engine.Tests/SeoPipelineTests.cs
-tests/Bukit.Architecture.Tests/AnalyticsBoundaryTests.cs
-guide/user/04-site-yaml-config.md
-guide/user/README.md
-README.md
-README.zh-CN.md
-README.ms.md
-```
-
-> 以上现有路径已按基线提交核对。若实施分支已移动，Task 0 必须重新检索并在首个代码提交前更新本计划中的路径映射。
-
----
-
-## 7. 关键内部接口设计
-
-### 7.1 配置模型
-
-修改 `src/Bukit-Core/Bukit.Config/AppConfig.cs`：
+公开配置类型调整为：
 
 ```csharp
 public sealed record AnalyticsConfig
 {
     public bool Enabled { get; init; } = true;
-    // null 表示沿用旧 disableInPreview 行为。
-    public bool? ProductionOnly { get; init; }
-
-    // 兼容字段：本期保留，不作为新文档首选配置。
-    public string? GoogleAnalyticsId { get; init; }
-    public bool DisableInPreview { get; init; } = true;
-
-    public IReadOnlyList<AnalyticsProviderConfig>? Providers { get; init; }
+    public bool ProductionOnly { get; init; } = true;
+    public IReadOnlyList<AnalyticsProviderConfig> Providers { get; init; }
+        = Array.Empty<AnalyticsProviderConfig>();
 }
 
 public sealed record AnalyticsProviderConfig
@@ -410,1014 +141,174 @@ public sealed record AnalyticsProviderConfig
 }
 ```
 
-### 7.2 规范化结果
+### 2.2 旧配置必须彻底移除
 
-新增 `AnalyticsConfigNormalizer.cs`：
+必须删除：
 
-```csharp
-public sealed record ResolvedAnalyticsConfig
-{
-    public bool Enabled { get; init; }
-    public bool ProductionOnly { get; init; }
-    public bool UsesLegacyFields { get; init; }
-    public IReadOnlyList<ResolvedAnalyticsProvider> Providers { get; init; }
-        = Array.Empty<ResolvedAnalyticsProvider>();
-}
+- `AnalyticsConfig.GoogleAnalyticsId`
+- `AnalyticsConfig.DisableInPreview`
+- YAML Loader 对 `googleAnalyticsId`、`disableInPreview` 的读取
+- JSON Schema 中的两个旧字段
+- 旧字段规范化、映射、弃用警告和冲突判断
+- `DevCommand.ResolveDisableAnalytics`
+- Preview 中旧 GA4 脚本识别逻辑
+- 旧字段对应的文档、示例和正向测试
 
-public sealed record ResolvedAnalyticsProvider
-{
-    public required string Type { get; init; }
-    public required string Key { get; init; }
-    public IReadOnlyDictionary<string, string> Options { get; init; }
-        = new Dictionary<string, string>(StringComparer.Ordinal);
-}
+严格字段验证只允许：
+
+```text
+site.analytics:
+  enabled
+  productionOnly
+  providers
 ```
 
-### 7.3 内部 Provider 接口
+旧字段出现在 YAML 时，必须由现有严格字段验证器直接报告未知字段：
 
-新增 `src/Bukit-Core/Bukit.Engine/Analytics/IAnalyticsProvider.cs`：
+- 不得静默忽略。
+- 不得映射到 Provider。
+- 不得降级为弃用警告。
+- 不得根据旧字段推断新字段。
+- 不得通过环境变量或内部 fallback 恢复旧行为。
+
+生产代码中不得再出现旧属性或旧字段读取逻辑。旧字段字符串只允许存在于：
+
+- 验证其必须失败的负向契约测试；
+- 明确说明已删除的 breaking-change 文档。
+
+### 2.3 Provider 验证矩阵
+
+| Provider | 必填字段 | 允许的可选字段 | 注入点 |
+|---|---|---|---|
+| `google-analytics` | `measurementId` | 无 | HeadEnd |
+| `google-tag-manager` | `containerId` | 无 | HeadEnd、BodyStart |
+| `plausible` | `domain` | `scriptUrl` | HeadEnd |
+| `umami` | `websiteId`、`scriptUrl` | 无 | HeadEnd |
+
+验证规则：
+
+- `type` 只接受表中的小写 kebab-case 精确值。
+- `measurementId` 匹配 `^G-[A-Z0-9]+$`。
+- `containerId` 匹配 `^GTM-[A-Z0-9]+$`。
+- `domain` 经 IDN ASCII 规范化后必须为合法 DNS 主机名；禁止 scheme、端口、路径、查询、片段、用户信息和 IP 地址。
+- `websiteId` 必须为 UUID。
+- `scriptUrl` 必须为绝对 HTTPS URL；禁止凭据、片段、非默认脚本路径和非 `.js` 路径。
+- Plausible 未提供 `scriptUrl` 时使用 `https://plausible.io/js/script.js`。
+- Provider 对象不得携带不属于该类型的字段。
+- Provider 唯一键分别由 type 加 measurementId/containerId/domain/websiteId 构成；相同唯一键重复时配置失败。
+- 多 Provider 按 YAML 顺序输出。
+- 所有属性值使用 HTML attribute 编码；GA 固定 JavaScript 模板中的值使用专用 JavaScript string 编码。
+- Provider 不读取文件、不访问网络、不接受任意 JavaScript 字符串。
+
+### 2.4 删除 Theme/Scriban Analytics API
+
+完全移除：
+
+- `Bukit.Rendering.AnalyticsModel`
+- `SiteModel.Analytics`
+- Scriban Binder 中的 `site.analytics`
+- `ScribanModelKnownFields.AnalyticsFields`
+- Starter Theme 的 `AnalyticsPartial.html`
+- SEO Theme 模式中由主题自行输出 Analytics 的说明和测试
+
+这是明确的公开渲染模型破坏性变更：
+
+- 不提供旧属性别名。
+- 不保留空 Analytics Model。
+- 不提供 Theme fallback。
+- Theme 和 Scriban 模板不能读取 Analytics 配置。
+- Analytics 只能由 Core 内置插件输出。
+
+### 2.5 内部插件和 Transform 接口
+
+增加 Engine 内部生命周期：
 
 ```csharp
-namespace Bukit.Engine.Analytics;
-
-internal interface IAnalyticsProvider
+internal interface IHtmlTransformPlugin
 {
-    string Type { get; }
-
-    AnalyticsHtmlFragments Render(
-        ResolvedAnalyticsProvider provider,
-        AnalyticsRenderContext context);
+    IHtmlTransform CreateHtmlTransform(HtmlTransformPluginContext context);
 }
-```
 
-### 7.4 HTML 片段模型
-
-```csharp
-namespace Bukit.Engine.Analytics;
-
-internal sealed record AnalyticsHtmlFragments
-{
-    internal static readonly AnalyticsHtmlFragments Empty = new()
-    {
-        ProviderKey = "empty"
-    };
-
-    public required string ProviderKey { get; init; }
-    public string? HeadEnd { get; init; }
-    public string? BodyStart { get; init; }
-}
-```
-
-### 7.5 HTML Transform Pipeline
-
-```csharp
-namespace Bukit.Engine.Html;
+internal sealed record HtmlTransformPluginContext(
+    BuildContext BuildContext,
+    BuildExecutionMode ExecutionMode);
 
 internal interface IHtmlTransform
 {
     string Name { get; }
     string Transform(HtmlTransformContext context, string html);
 }
-
-internal sealed record HtmlTransformContext(
-    string RouteUrl,
-    string OutputPath,
-    bool IsListPage,
-    BuildExecutionMode ExecutionMode,
-    PageInfo? Page,
-    ILogger Logger);
-
-internal sealed class HtmlTransformPipeline
-{
-    private readonly IReadOnlyList<IHtmlTransform> _transforms;
-
-    internal HtmlTransformPipeline(IEnumerable<IHtmlTransform> transforms)
-    {
-        _transforms = transforms.ToArray();
-    }
-
-    internal string Transform(HtmlTransformContext context, string html)
-    {
-        foreach (var transform in _transforms)
-        {
-            html = transform.Transform(context, html);
-        }
-
-        return html;
-    }
-}
 ```
 
-该接口必须保持 `internal`，不得移动到任何 Abstractions 或 PluginHost 项目。
-
-### 7.6 显式 Provider 注册
+`AnalyticsPlugin` 的契约为：
 
 ```csharp
-namespace Bukit.Engine.Analytics;
-
-internal sealed class AnalyticsProviderRegistry
+internal sealed class AnalyticsPlugin :
+    IBukitPlugin,
+    IOrderedPlugin,
+    IHookFilterPlugin,
+    IHtmlTransformPlugin
 {
-    private readonly IReadOnlyDictionary<string, IAnalyticsProvider> _providers;
-
-    internal AnalyticsProviderRegistry(IEnumerable<IAnalyticsProvider> providers)
-    {
-        _providers = providers.ToDictionary(
-            provider => provider.Type,
-            StringComparer.OrdinalIgnoreCase);
-    }
-
-    internal static AnalyticsProviderRegistry CreateDefault()
-        => new(
-        [
-            new GoogleAnalyticsProvider(),
-            new GoogleTagManagerProvider(),
-            new PlausibleProvider(),
-            new UmamiProvider()
-        ]);
-
-    internal IAnalyticsProvider GetRequired(string type)
-        => _providers.TryGetValue(type, out var provider)
-            ? provider
-            : throw new ConfigException(
-                $"Unsupported analytics provider type: {type}",
-                DiagnosticCode.ConfigInvalidValue);
-}
-```
-
-该设计允许测试注入 Fake Provider，但生产注册仍为显式静态列表。禁止使用程序集扫描、`Activator.CreateInstance`、反射发现 Provider或运行时 DLL 加载。
-
----
-
-# 8. 实施任务
-
-## Task 0：锁定代码基线与实际文件映射
-
-**目标：** 在修改前确认当前分支仍与计划基线一致，并定位 dev 构建入口、架构边界测试和 Analytics 全部引用。
-
-**修改文件：** 无。
-
-- [ ] **Step 1：确认 Git 状态和提交**
-
-```bash
-git status --short
-git rev-parse HEAD
-```
-
-预期：
-
-- 工作区无与本任务无关的未提交改动；
-- 输出提交 SHA，并记录到实施日志或 PR 描述。
-
-- [ ] **Step 2：检索现有 Analytics 实现**
-
-```bash
-rg -n \
-  "GoogleAnalyticsId|DisableInPreview|AnalyticsModel|InjectIntoHead|googletagmanager" \
-  src/Bukit-Core tests guide README*.md
-```
-
-预期至少命中：
-
-```text
-src/Bukit-Core/Bukit.Config/AppConfig.cs
-src/Bukit-Core/Bukit.Rendering/Models.cs
-src/Bukit-Core/Bukit.Engine/VariantBuildPipeline.cs
-src/Bukit-Core/Bukit.Engine/SeoPipeline.cs
-src/Bukit-Core/Bukit.Engine/SeoHtmlRenderer.cs
-guide/user/04-site-yaml-config.md
-```
-
-- [ ] **Step 3：定位 dev 构建入口**
-
-```bash
-rg -n \
-  "ConfigOverrides|BuildAsync\(|dev|LiveReload" \
-  src/Bukit-Core/Bukit.Cli src/Bukit-Core/Bukit.Cli.Shared
-```
-
-预期：找到 `bukit dev` 调用 Core Build 的唯一或主要入口。将实际文件路径记录为后续 Task 5 的修改目标。
-
-- [ ] **Step 4：定位插件架构边界测试**
-
-```bash
-rg -n \
-  "PluginHost|Plugin.Abstractions|Engine.Abstractions|Architecture|dependency" \
-  tests/Bukit.Architecture.Tests
-```
-
-预期：找到现有项目引用边界测试文件。将实际路径记录为 Task 8 修改目标。
-
-- [ ] **Step 5：建立基线测试证据**
-
-```bash
-dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~SeoHtmlRendererTests|FullyQualifiedName~SeoPipelineTests"
-```
-
-预期：PASS。若失败，停止本计划实施，先记录基线失败，不得把既有失败混入 Analytics 变更。
-
----
-
-## Task 1：扩展并严格验证 Analytics 配置契约
-
-**目标：** 增加 typed Provider 配置、productionOnly、旧字段兼容和严格校验。
-
-**文件：**
-
-- Modify: `src/Bukit-Core/Bukit.Config/AppConfig.cs`
-- Modify: `src/Bukit-Core/Bukit.Config/ConfigValidator.cs`
-- Create: `src/Bukit-Core/Bukit.Config/AnalyticsConfigValidator.cs`
-- Create: `src/Bukit-Core/Bukit.Config/AnalyticsConfigNormalizer.cs`
-- Test: `tests/Bukit.Config.Tests/Analytics/AnalyticsConfigValidatorTests.cs`
-- Test: `tests/Bukit.Config.Tests/Analytics/AnalyticsConfigNormalizerTests.cs`
-
-**产出接口：**
-
-```csharp
-AnalyticsConfigValidator.Validate(AnalyticsConfig config)
-ResolvedAnalyticsConfig AnalyticsConfigNormalizer.Normalize(AnalyticsConfig config)
-```
-
-- [ ] **Step 1：先编写配置失败测试**
-
-至少覆盖：
-
-```csharp
-[Theory]
-[InlineData("google-analytics", "BAD", null)]
-[InlineData("google-tag-manager", null, "G-ABC")]
-public void Validate_RejectsMalformedGoogleIdentifiers(
-    string type,
-    string? measurementId,
-    string? containerId)
-{
-    var config = new AnalyticsConfig
-    {
-        Providers =
-        [
-            new AnalyticsProviderConfig
-            {
-                Type = type,
-                MeasurementId = measurementId,
-                ContainerId = containerId
-            }
-        ]
-    };
-
-    Assert.Throws<ConfigException>(() =>
-        AnalyticsConfigValidator.Validate(config));
-}
-
-[Fact]
-public void Validate_RejectsDuplicateLegacyAndProviderGa()
-{
-    var config = new AnalyticsConfig
-    {
-        GoogleAnalyticsId = "G-ABC123",
-        Providers =
-        [
-            new AnalyticsProviderConfig
-            {
-                Type = "google-analytics",
-                MeasurementId = "G-ABC123"
-            }
-        ]
-    };
-
-    Assert.Throws<ConfigException>(() =>
-        AnalyticsConfigValidator.Validate(config));
-}
-
-[Fact]
-public void Validate_RejectsHttpScriptUrl()
-{
-    var config = new AnalyticsConfig
-    {
-        Providers =
-        [
-            new AnalyticsProviderConfig
-            {
-                Type = "umami",
-                WebsiteId = "00000000-0000-0000-0000-000000000000",
-                ScriptUrl = "http://analytics.example.com/script.js"
-            }
-        ]
-    };
-
-    Assert.Throws<ConfigException>(() =>
-        AnalyticsConfigValidator.Validate(config));
-}
-```
-
-- [ ] **Step 2：运行测试并确认失败**
-
-```bash
-dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~AnalyticsConfig"
-```
-
-预期：FAIL，原因是新类型或验证器尚不存在。
-
-- [ ] **Step 3：实现配置 records 与验证器**
-
-验证器必须：
-
-- 先处理全局字段冲突；
-- 再逐 Provider 验证；
-- 使用固定 `switch`；
-- 拒绝未知 Provider；
-- 拒绝 Provider 不适用字段；
-- 拒绝重复唯一 Key；
-- 错误信息包含完整配置路径，例如：
-
-```text
-site.analytics.providers[1].containerId must match ^GTM-[A-Z0-9]+$.
-```
-
-- [ ] **Step 4：把验证器接入 ConfigValidator**
-
-在 `ConfigValidator.Validate` 中加入：
-
-```csharp
-AnalyticsConfigValidator.Validate(config.Site.Analytics);
-```
-
-位置应在站点基础配置验证后、构建执行前。
-
-- [ ] **Step 5：实现旧字段规范化测试**
-
-```csharp
-[Fact]
-public void Normalize_MapsLegacyGoogleAnalyticsIdToProvider()
-{
-    var resolved = AnalyticsConfigNormalizer.Normalize(new AnalyticsConfig
-    {
-        Enabled = true,
-        GoogleAnalyticsId = "G-ABC123",
-        DisableInPreview = true
-    });
-
-    Assert.True(resolved.Enabled);
-    Assert.True(resolved.ProductionOnly);
-    Assert.True(resolved.UsesLegacyFields);
-
-    var provider = Assert.Single(resolved.Providers);
-    Assert.Equal("google-analytics", provider.Type);
-    Assert.Equal("G-ABC123", provider.Options["measurementId"]);
-}
-```
-
-- [ ] **Step 6：实现规范化器**
-
-规范化器要求：
-
-- 不修改原始 `AnalyticsConfig`；
-- 输出不可变 Provider 列表；
-- 保留配置顺序；
-- 旧 GA Provider 放在列表首位；
-- Provider Key 必须稳定，例如：
-
-```text
-google-analytics:G-ABC123
-google-tag-manager:GTM-ABC123
-plausible:example.com
-umami:00000000-0000-0000-0000-000000000000
-```
-
-- [ ] **Step 7：运行定向测试**
-
-```bash
-dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~AnalyticsConfig"
-```
-
-预期：PASS。
-
-- [ ] **Step 8：运行仓库定向门禁**
-
-```bash
-bash scripts/checks/post-change-targeted.sh -- \
-  src/Bukit-Core/Bukit.Config/AppConfig.cs \
-  src/Bukit-Core/Bukit.Config/ConfigValidator.cs \
-  src/Bukit-Core/Bukit.Config/AnalyticsConfigValidator.cs \
-  src/Bukit-Core/Bukit.Config/AnalyticsConfigNormalizer.cs \
-  tests/Bukit.Config.Tests/Analytics
-```
-
-预期：PASS。
-
-- [ ] **Step 9：提交**
-
-```bash
-git add \
-  src/Bukit-Core/Bukit.Config \
-  tests/Bukit.Config.Tests/Analytics
-git commit -m "feat(config): add typed analytics providers"
-```
-
----
-
-## Task 2：建立 Core internal Analytics Provider 基础设施
-
-**目标：** 创建不依赖反射、不进入外部插件协议的 Provider 契约与注册表。
-
-**文件：**
-
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/IAnalyticsProvider.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsHtmlFragments.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsRenderContext.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsProviderRegistry.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/AnalyticsProviderRegistryTests.cs`
-
-- [ ] **Step 1：编写注册表测试**
-
-```csharp
-[Fact]
-public void GetRequired_ReturnsExplicitlyRegisteredProvider()
-{
-    var registry = new AnalyticsProviderRegistry(
-    [
-        new FakeAnalyticsProvider("fake")
-    ]);
-
-    var provider = registry.GetRequired("FAKE");
-
-    Assert.Equal("fake", provider.Type);
-}
-
-[Fact]
-public void GetRequired_RejectsUnknownProvider()
-{
-    var registry = new AnalyticsProviderRegistry(Array.Empty<IAnalyticsProvider>());
-
-    Assert.Throws<ConfigException>(() =>
-        registry.GetRequired("custom-script"));
-}
-```
-
-- [ ] **Step 2：运行测试确认失败**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~AnalyticsProviderRegistryTests"
-```
-
-预期：FAIL。
-
-- [ ] **Step 3：实现内部 Provider 基础类型**
-
-`AnalyticsRenderContext` 至少包含：
-
-```csharp
-internal sealed record AnalyticsRenderContext(
-    string RouteUrl,
-    string OutputPath,
-    bool IsListPage,
-    BuildExecutionMode ExecutionMode);
-```
-
-所有类型必须为 `internal`。
-
-- [ ] **Step 4：实现显式注册表**
-
-要求：
-
-- 构造函数接收显式 Provider 实例；
-- `CreateDefault()` 使用固定 Provider 列表；
-- 类型 Key 大小写不敏感；
-- 重复 type 在构造时失败；
-- 无运行时扫描；
-- 无 DI 容器动态发现；
-- 未知类型抛 `ConfigException`。
-
-- [ ] **Step 5：运行定向测试与门禁**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~AnalyticsProviderRegistryTests"
-
-bash scripts/checks/post-change-targeted.sh -- \
-  src/Bukit-Core/Bukit.Engine/Analytics \
-  tests/Bukit.Engine.Tests/Analytics/AnalyticsProviderRegistryTests.cs
-```
-
-预期：PASS。
-
-- [ ] **Step 6：提交**
-
-```bash
-git add \
-  src/Bukit-Core/Bukit.Engine/Analytics \
-  tests/Bukit.Engine.Tests/Analytics/AnalyticsProviderRegistryTests.cs
-git commit -m "feat(engine): add internal analytics provider registry"
-```
-
----
-
-## Task 3：实现 GA4 与 GTM Provider
-
-**目标：** 首先迁移现有 GA4 行为，并增加 GTM 的 head/body 双位置注入片段。
-
-**文件：**
-
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/GoogleAnalyticsProvider.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/GoogleTagManagerProvider.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/GoogleAnalyticsProviderTests.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/GoogleTagManagerProviderTests.cs`
-
-- [ ] **Step 1：编写 GA4 输出测试**
-
-```csharp
-[Fact]
-public void Render_ProducesManagedGa4HeadFragment()
-{
-    var provider = new GoogleAnalyticsProvider();
-    var config = TestAnalytics.Provider(
-        "google-analytics",
-        ("measurementId", "G-ABC123"));
-
-    var fragments = provider.Render(
-        config,
-        TestAnalytics.RenderContext());
-
-    Assert.Contains(
-        "https://www.googletagmanager.com/gtag/js?id=G-ABC123",
-        fragments.HeadEnd,
-        StringComparison.Ordinal);
-    Assert.Contains("gtag('config', 'G-ABC123')", fragments.HeadEnd);
-    Assert.Null(fragments.BodyStart);
-}
-```
-
-- [ ] **Step 2：编写 GTM 输出测试**
-
-```csharp
-[Fact]
-public void Render_ProducesHeadScriptAndBodyNoscript()
-{
-    var provider = new GoogleTagManagerProvider();
-    var config = TestAnalytics.Provider(
-        "google-tag-manager",
-        ("containerId", "GTM-ABC123"));
-
-    var fragments = provider.Render(
-        config,
-        TestAnalytics.RenderContext());
-
-    Assert.Contains("GTM-ABC123", fragments.HeadEnd);
-    Assert.Contains("googletagmanager.com/ns.html?id=GTM-ABC123", fragments.BodyStart);
-    Assert.Contains("<noscript>", fragments.BodyStart);
-}
-```
-
-- [ ] **Step 3：运行测试确认失败**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~GoogleAnalyticsProviderTests|FullyQualifiedName~GoogleTagManagerProviderTests"
-```
-
-预期：FAIL。
-
-- [ ] **Step 4：实现 GA4 Provider**
-
-要求：
-
-- 保持当前 `gtag.js` 和 `gtag('config', ...)` 语义；
-- 返回稳定 `ProviderKey`，例如 `google-analytics:G-ABC123`；
-- 管理标记由 `AnalyticsHtmlRenderer` 统一生成；
-- ID 必须分别经过 attribute 与 JavaScript string 编码；
-- 不在 Provider 内读取文件、环境变量或网络。
-
-- [ ] **Step 5：实现 GTM Provider**
-
-要求：
-
-- Head fragment 包含标准 GTM loader；
-- BodyStart fragment 包含 `<noscript><iframe ...></iframe></noscript>`；
-- iframe 必须含 `height="0" width="0" style="display:none;visibility:hidden"`；
-- 两个位置均返回同一 `ProviderKey`，由 Renderer 包裹对应管理标记；
-- 不使用任意用户脚本文本。
-
-- [ ] **Step 6：把 GA4 与 GTM 加入 `AnalyticsProviderRegistry.CreateDefault()`**
-
-使用显式 `new GoogleAnalyticsProvider()` 与 `new GoogleTagManagerProvider()`，不得使用扫描。
-
-- [ ] **Step 7：运行定向测试与门禁**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~GoogleAnalyticsProviderTests|FullyQualifiedName~GoogleTagManagerProviderTests|FullyQualifiedName~AnalyticsProviderRegistryTests"
-
-bash scripts/checks/post-change-targeted.sh -- \
-  src/Bukit-Core/Bukit.Engine/Analytics/GoogleAnalyticsProvider.cs \
-  src/Bukit-Core/Bukit.Engine/Analytics/GoogleTagManagerProvider.cs \
-  tests/Bukit.Engine.Tests/Analytics/GoogleAnalyticsProviderTests.cs \
-  tests/Bukit.Engine.Tests/Analytics/GoogleTagManagerProviderTests.cs
-```
-
-预期：PASS。
-
-- [ ] **Step 8：提交**
-
-```bash
-git add \
-  src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsProviderRegistry.cs \
-  src/Bukit-Core/Bukit.Engine/Analytics/GoogleAnalyticsProvider.cs \
-  src/Bukit-Core/Bukit.Engine/Analytics/GoogleTagManagerProvider.cs \
-  tests/Bukit.Engine.Tests/Analytics/GoogleAnalyticsProviderTests.cs \
-  tests/Bukit.Engine.Tests/Analytics/GoogleTagManagerProviderTests.cs
-git commit -m "feat(engine): add ga4 and gtm analytics providers"
-```
-
----
-
-## Task 4：实现 Plausible 与 Umami Provider
-
-**目标：** 在相同 Provider 契约上增加两个无 Core 特例的扩展实现。
-
-**文件：**
-
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/PlausibleProvider.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/UmamiProvider.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/PlausibleProviderTests.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/UmamiProviderTests.cs`
-
-- [ ] **Step 1：编写 Plausible 测试**
-
-```csharp
-[Fact]
-public void Render_UsesDomainAndConfiguredHttpsScriptUrl()
-{
-    var provider = new PlausibleProvider();
-    var config = TestAnalytics.Provider(
-        "plausible",
-        ("domain", "example.com"),
-        ("scriptUrl", "https://plausible.io/js/script.js"));
-
-    var fragments = provider.Render(config, TestAnalytics.RenderContext());
-
-    Assert.Contains("data-domain=\"example.com\"", fragments.HeadEnd);
-    Assert.Contains("src=\"https://plausible.io/js/script.js\"", fragments.HeadEnd);
-    Assert.Null(fragments.BodyStart);
-}
-```
-
-- [ ] **Step 2：编写 Umami 测试**
-
-```csharp
-[Fact]
-public void Render_UsesWebsiteIdAndScriptUrl()
-{
-    var provider = new UmamiProvider();
-    var config = TestAnalytics.Provider(
-        "umami",
-        ("websiteId", "00000000-0000-0000-0000-000000000000"),
-        ("scriptUrl", "https://analytics.example.com/script.js"));
-
-    var fragments = provider.Render(config, TestAnalytics.RenderContext());
-
-    Assert.Contains(
-        "data-website-id=\"00000000-0000-0000-0000-000000000000\"",
-        fragments.HeadEnd);
-    Assert.Contains(
-        "src=\"https://analytics.example.com/script.js\"",
-        fragments.HeadEnd);
-}
-```
-
-- [ ] **Step 3：运行测试确认失败**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~PlausibleProviderTests|FullyQualifiedName~UmamiProviderTests"
-```
-
-预期：FAIL。
-
-- [ ] **Step 4：实现两个 Provider**
-
-要求：
-
-- 只产生 `HeadEnd`；
-- 返回稳定 `ProviderKey`，管理标记由 Renderer 生成；
-- 不访问网络；
-- 不允许内联用户脚本；
-- 所有属性值 HTML 编码；
-- Provider 不重复执行配置校验，只依赖已规范化的有效输入。
-
-- [ ] **Step 5：把 Plausible 与 Umami 加入 `AnalyticsProviderRegistry.CreateDefault()`**
-
-保持 Provider 顺序为：GA4、GTM、Plausible、Umami。实际输出顺序仍由用户配置顺序决定。
-
-- [ ] **Step 6：运行测试与门禁**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~PlausibleProviderTests|FullyQualifiedName~UmamiProviderTests|FullyQualifiedName~AnalyticsProviderRegistryTests"
-
-bash scripts/checks/post-change-targeted.sh -- \
-  src/Bukit-Core/Bukit.Engine/Analytics/PlausibleProvider.cs \
-  src/Bukit-Core/Bukit.Engine/Analytics/UmamiProvider.cs \
-  tests/Bukit.Engine.Tests/Analytics/PlausibleProviderTests.cs \
-  tests/Bukit.Engine.Tests/Analytics/UmamiProviderTests.cs
-```
-
-预期：PASS。
-
-- [ ] **Step 7：提交**
-
-```bash
-git add \
-  src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsProviderRegistry.cs \
-  src/Bukit-Core/Bukit.Engine/Analytics/PlausibleProvider.cs \
-  src/Bukit-Core/Bukit.Engine/Analytics/UmamiProvider.cs \
-  tests/Bukit.Engine.Tests/Analytics/PlausibleProviderTests.cs \
-  tests/Bukit.Engine.Tests/Analytics/UmamiProviderTests.cs
-git commit -m "feat(engine): add plausible and umami providers"
-```
-
----
-
-## Task 5：建立 HTML Transform Pipeline 并从 SEO 解耦 Analytics
-
-**目标：** 在页面写盘前组合 SEO 和 Analytics Transform，使 Analytics 不再依赖 SEO 开关。
-
-**文件：**
-
-- Create: `src/Bukit-Core/Bukit.Engine/Html/IHtmlTransform.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Html/HtmlTransformContext.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Html/HtmlTransformPipeline.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsHtmlRenderer.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsInjectionPolicy.cs`
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsPlugin.cs`
-- Modify: `src/Bukit-Core/Bukit.Engine/VariantBuildPipeline.cs`
-- Modify: `src/Bukit-Core/Bukit.Engine/PageRenderDispatcher.cs`
-- Modify: `src/Bukit-Core/Bukit.Engine/SeoPipeline.cs`
-- Modify: `src/Bukit-Core/Bukit.Engine/SeoHtmlRenderer.cs`
-- Modify: `src/Bukit-Core/Bukit.Engine/HtmlHeadScanner.cs`
-- Modify: `src/Bukit-Core/Bukit.Rendering/Models.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/AnalyticsHtmlRendererTests.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/AnalyticsPipelineTests.cs`
-- Modify test: `tests/Bukit.Engine.Tests/SeoHtmlRendererTests.cs`
-- Modify test: `tests/Bukit.Engine.Tests/SeoPipelineTests.cs`
-
-### 5.1 注入算法
-
-`AnalyticsHtmlRenderer` 必须：
-
-1. 扫描并移除所有 `bukit:analytics:<provider>` 管理块；
-2. 在一个兼容周期内移除旧版 Core 生成、但没有管理标记的 GA4 external/inline 脚本；
-3. 由 Renderer 根据 `ProviderKey` 生成 start/end 管理标记，Provider 不直接生成标记；
-4. 将 `HeadEnd` 插入 `</head>` 前；
-5. 将 `BodyStart` 插入 `<body ...>` 开始标签后；
-6. 不重建缺失的 HTML 结构；
-7. 若需要的 slot 不存在，记录 skip reason；
-8. 保留非 Bukit 管理的其他脚本；
-9. 第二次执行结果与第一次一致。
-
-- [ ] **Step 1：编写 HTML 注入与幂等测试**
-
-```csharp
-[Fact]
-public void Inject_AddsHeadAndBodyFragmentsExactlyOnce()
-{
-    const string html = "<html><head></head><body class=\"page\"><main>ok</main></body></html>";
-    var fragments = new AnalyticsHtmlFragments
-    {
-        HeadEnd = "<!-- bukit:analytics:test:start --><script src=\"/a.js\"></script><!-- bukit:analytics:test:end -->",
-        BodyStart = "<!-- bukit:analytics:test-body:start --><noscript>x</noscript><!-- bukit:analytics:test-body:end -->"
-    };
-
-    var once = AnalyticsHtmlRenderer.Inject(html, [fragments]);
-    var twice = AnalyticsHtmlRenderer.Inject(once.Html, [fragments]);
-
-    Assert.Equal(once.Html, twice.Html);
-    Assert.Equal(1, CountOccurrences(twice.Html, "src=\"/a.js\""));
-    Assert.Equal(1, CountOccurrences(twice.Html, "<noscript>x</noscript>"));
-}
-```
-
-- [ ] **Step 2：编写缺失 slot 测试**
-
-```csharp
-[Fact]
-public void Inject_WhenBodyIsMissing_InjectsHeadAndReportsBodySkip()
-{
-    const string html = "<html><head></head><main>ok</main></html>";
-    var fragments = new AnalyticsHtmlFragments
-    {
-        HeadEnd = "<script src=\"/a.js\"></script>",
-        BodyStart = "<noscript>x</noscript>"
-    };
-
-    var result = AnalyticsHtmlRenderer.Inject(html, [fragments]);
-
-    Assert.Contains("src=\"/a.js\"", result.Html);
-    Assert.DoesNotContain("<noscript>x</noscript>", result.Html);
-    Assert.Contains("body_missing", result.SkipReasons);
-}
-```
-
-- [ ] **Step 3：编写 SEO 关闭时 Analytics 仍注入的集成测试**
-
-```csharp
-[Fact]
-public async Task Build_WhenSeoDisabled_StillInjectsAnalytics()
-{
-    var fixture = await AnalyticsBuildFixture.CreateAsync(new SiteConfig
-    {
-        Name = "test",
-        Title = "Test",
-        Seo = new SeoConfig { Enabled = false },
-        Analytics = TestAnalytics.GoogleAnalytics("G-ABC123")
-    });
-
-    var result = await fixture.BuildAsync(BuildExecutionMode.Production);
-    var html = await File.ReadAllTextAsync(result.HomeHtmlPath);
-
-    Assert.Contains("gtag/js?id=G-ABC123", html);
-    Assert.DoesNotContain("property=\"og:title\"", html);
-}
-```
-
-- [ ] **Step 4：运行测试确认失败**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~AnalyticsHtmlRendererTests|FullyQualifiedName~AnalyticsPipelineTests"
-```
-
-预期：FAIL。
-
-- [ ] **Step 5：实现内部 HTML Transform Pipeline**
-
-约束：
-
-- `IHtmlTransform`、Context、Pipeline 全部 `internal`；
-- Pipeline 顺序固定：SEO 后处理完成后执行 Analytics；
-- Analytics 不依赖 `SeoModel`；
-- Transform 只处理当前页面字符串，不访问输出目录。
-
-- [ ] **Step 6：扩展 `HtmlHeadScanner` 的安全扫描能力**
-
-增加 `TryFindBodyStart` 或等价内部方法，必须跳过 comments、script/style/title/textarea raw text，并正确处理带引号的 `>`。不得用单条正则查找 `<body>`。
-
-- [ ] **Step 7：实现 AnalyticsPlugin**
-
-核心逻辑应等价于：
-
-```csharp
-internal sealed class AnalyticsPlugin : IHtmlTransform
-{
-    private readonly ResolvedAnalyticsConfig _config;
-    private readonly AnalyticsBuildSummaryCollector _summary;
-
     public string Name => "analytics";
-
-    internal AnalyticsPlugin(
-        ResolvedAnalyticsConfig config,
-        AnalyticsBuildSummaryCollector summary)
-    {
-        _config = config;
-        _summary = summary;
-    }
-
-    public string Transform(HtmlTransformContext context, string html)
-    {
-        var decision = AnalyticsInjectionPolicy.Evaluate(_config, context);
-        if (!decision.ShouldInject)
-        {
-            _summary.RecordSkip(decision.Reason);
-            return AnalyticsHtmlRenderer.RemoveManagedBlocks(html);
-        }
-
-        var registry = AnalyticsProviderRegistry.CreateDefault();
-        var fragments = _config.Providers
-            .Select(provider => registry
-                .GetRequired(provider.Type)
-                .Render(provider, context.ToAnalyticsContext()))
-            .ToArray();
-
-        var result = AnalyticsHtmlRenderer.Inject(html, fragments);
-        _summary.RecordResult(result);
-        return result.Html;
-    }
+    public string Version => "1.0.0";
+    public int Order => 1000;
 }
 ```
 
-- [ ] **Step 8：从 SeoHtmlRenderer 移除 Analytics 责任**
+实现要求：
 
-必须完成：
+- `BuiltInPluginSource.GetPlugins()` 只注册一个 `AnalyticsPlugin`。
+- Hook 名固定为 `html-transform`，由 Engine 内部常量维护，不扩展公开 `PluginCapability`。
+- `PluginRunner` 使用现有插件排序、注册缓存和 `site.plugins.<name>.enabled` 规则收集 Transform。
+- 每个 Build Variant 创建独立 `AnalyticsHtmlTransform` 和线程安全统计状态；缓存的插件对象不得保存跨构建可变状态。
+- Transform 异常遵循 `site.pluginFailMode`：
+  - `strict`：记录失败并重新抛出；
+  - `warn`：该次调用返回进入插件前的 HTML，聚合一次警告，后续 Transform 继续。
+- 每个 Variant 最终只生成一条 `PluginExecutionInfo("analytics", "html-transform", ...)`。
+- 执行时间为各页面调用耗时总和；任一页面失败则执行结果为失败。
 
-- `SeoHtmlRenderer.InjectIntoHead` 不再接收 `AnalyticsModel`；
-- `SeoHtmlRenderer.RenderHead` 不再渲染 GA；
-- `IsManagedTag` 不再负责识别 GA；
-- `SeoPipeline.Execute` 不再接收 Analytics 参数；
-- SEO 测试只验证 SEO。
+### 2.6 HTML 管线与幂等协议
 
-- [ ] **Step 9：在 VariantBuildPipeline 组合 transforms**
+现有 SEO 后处理 delegate 收敛为统一 `HtmlTransformPipeline`：
 
-预期结构：
+- SEO Model 构建仍由 `SeoPipeline` 负责。
+- SEO HTML 注入改为 `SeoHtmlTransform`。
+- Core Transform 始终先于插件 Transform。
+- Analytics 是否运行不依赖 `site.seo.enabled` 或 `site.seo.renderMode`。
+- `PageRenderDispatcher` 必须在写文件前，对 Content、List、Static 三类 Render Entry 统一调用管线。
+
+Analytics 管理块格式固定为：
+
+```html
+<!-- bukit:analytics:{provider-key}:head:start -->
+...
+<!-- bukit:analytics:{provider-key}:head:end -->
+```
+
+GTM Body 块对应使用 `body` 标识：
+
+```html
+<!-- bukit:analytics:{provider-key}:body:start -->
+...
+<!-- bukit:analytics:{provider-key}:body:end -->
+```
+
+每次 Transform：
+
+1. 只移除所有格式正确的当前 Bukit Analytics 管理块。
+2. 不识别、不移除任何无标记 GA/GTM/Plausible/Umami 脚本。
+3. 根据当前配置重新生成管理块。
+4. Head 片段写入 `</head>` 前。
+5. BodyStart 片段写入带任意属性的 `<body ...>` 起始标签后。
+6. 无 `<head>` 时只跳过 Head 片段；无 `<body>` 时只跳过 BodyStart 片段。
+7. 格式损坏或不配对的注释视为普通用户 HTML，不猜测、不修复。
+8. 重复执行结果必须完全一致。
+
+### 2.7 构建模式和 Preview
+
+增加公开枚举及覆盖值：
 
 ```csharp
-var analyticsConfig = AnalyticsConfigNormalizer.Normalize(config.Site.Analytics);
-var analyticsSummary = new AnalyticsBuildSummaryCollector();
-var analyticsPlugin = new AnalyticsPlugin(analyticsConfig, analyticsSummary);
-
-var htmlTransforms = new HtmlTransformPipeline(
-[
-    analyticsPlugin
-]);
-```
-
-SEO 仍可继续使用现有 postprocessor，但最终传给 `RenderPipelineContext` 的 page/list processor 必须组合为：
-
-```csharp
-html =>
-{
-    var seoProcessed = seoProcessor is null
-        ? html
-        : seoProcessor(..., html);
-
-    return htmlTransforms.Transform(context, seoProcessed);
-}
-```
-
-- [ ] **Step 10：覆盖 Page、List 和 Static HTML 路径**
-
-当前 `PageRenderDispatcher` 的三种 RenderEntry：
-
-- `Page`
-- `List`
-- `Static`
-
-都必须通过同一 Analytics Transform。不得只覆盖内容详情页和列表页。
-
-- [ ] **Step 11：运行 SEO 回归与 Analytics 测试**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~SeoHtmlRendererTests|FullyQualifiedName~SeoPipelineTests|FullyQualifiedName~Analytics"
-```
-
-预期：PASS。
-
-- [ ] **Step 12：运行定向门禁**
-
-```bash
-bash scripts/checks/post-change-targeted.sh -- \
-  src/Bukit-Core/Bukit.Engine/Html \
-  src/Bukit-Core/Bukit.Engine/Analytics \
-  src/Bukit-Core/Bukit.Engine/VariantBuildPipeline.cs \
-  src/Bukit-Core/Bukit.Engine/PageRenderDispatcher.cs \
-  src/Bukit-Core/Bukit.Engine/SeoPipeline.cs \
-  src/Bukit-Core/Bukit.Engine/SeoHtmlRenderer.cs \
-  src/Bukit-Core/Bukit.Engine/HtmlHeadScanner.cs \
-  src/Bukit-Core/Bukit.Rendering/Models.cs \
-  tests/Bukit.Engine.Tests/Analytics \
-  tests/Bukit.Engine.Tests/SeoHtmlRendererTests.cs \
-  tests/Bukit.Engine.Tests/SeoPipelineTests.cs
-```
-
-预期：PASS。
-
-- [ ] **Step 13：提交**
-
-```bash
-git add \
-  src/Bukit-Core/Bukit.Engine \
-  src/Bukit-Core/Bukit.Rendering/Models.cs \
-  tests/Bukit.Engine.Tests/Analytics \
-  tests/Bukit.Engine.Tests/SeoHtmlRendererTests.cs \
-  tests/Bukit.Engine.Tests/SeoPipelineTests.cs
-git commit -m "refactor(engine): decouple analytics from seo injection"
-```
-
----
-
-## Task 6：增加 Production/Development 构建语义
-
-**目标：** 让 `productionOnly` 有明确执行依据，并保证 `bukit dev` 不污染正式统计数据。
-
-**文件：**
-
-- Create: `src/Bukit-Core/Bukit.Config/BuildExecutionMode.cs`
-- Modify: `src/Bukit-Core/Bukit.Config/ConfigOverrides.cs`
-- Modify: `src/Bukit-Core/Bukit.Cli/Commands/DevCommand.cs`
-- Modify: `src/Bukit-Core/Bukit.Cli/Commands/PreviewCommand.cs`
-- Modify: `src/Bukit-Core/Bukit.Cli/Commands/Dev/DevRequestHandler.cs`
-- Create: `src/Bukit-Core/Bukit.Cli/Commands/PreviewAnalyticsFilter.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/AnalyticsPipelineTests.cs`
-- Modify test: `tests/Bukit.Cli.Tests/DevCommandTests.cs`
-- Modify test: `tests/Bukit.Cli.Tests/PreviewCommandTests.cs`
-
-### 6.1 模式定义
-
-```csharp
-namespace Bukit.Config;
-
 public enum BuildExecutionMode
 {
     Production = 0,
@@ -1425,809 +316,339 @@ public enum BuildExecutionMode
 }
 ```
 
-在 `ConfigOverrides` 中增加：
+`ConfigOverrides.ExecutionMode` 默认 `Production`；`bukit dev` 显式设置 `Development`。
 
-```csharp
-public BuildExecutionMode ExecutionMode { get; init; }
-    = BuildExecutionMode.Production;
-```
+行为矩阵：
 
-### 6.2 行为矩阵
+| 场景 | `productionOnly: true` | `productionOnly: false` |
+|---|---|---|
+| `bukit build` | 注入 | 注入 |
+| CI build | 注入 | 注入 |
+| `bukit dev` | 不注入 | 注入 |
+| `bukit preview` | 仅从 HTTP 响应移除当前 Bukit 管理块 | 原样响应 |
 
-| 场景 | ExecutionMode | `productionOnly: true` | `productionOnly: false` |
-|---|---|---:|---:|
-| `bukit build` | Production | 注入 | 注入 |
-| CI build | Production | 注入 | 注入 |
-| `bukit dev` | Development | 不注入 | 注入 |
-| `bukit preview` | 不构建 | 响应中移除 Bukit 管理块，磁盘不变 | 原样服务既有产物 |
+Preview/Dev 响应过滤器：
 
-- [ ] **Step 1：编写 InjectionPolicy 测试**
+- 只处理本方案定义的管理注释块。
+- 不处理旧版无标记 GA 脚本。
+- 不写回磁盘。
+- 对无管理块响应保持字节级不变。
+- 不重新引入 `disableInPreview` 概念。
 
-```csharp
-[Theory]
-[InlineData(BuildExecutionMode.Production, true, true)]
-[InlineData(BuildExecutionMode.Development, true, false)]
-[InlineData(BuildExecutionMode.Development, false, true)]
-public void Evaluate_RespectsProductionOnly(
-    BuildExecutionMode mode,
-    bool productionOnly,
-    bool expected)
-{
-    var config = TestAnalytics.Resolved(productionOnly: productionOnly);
-    var context = TestAnalytics.TransformContext(mode);
+### 2.8 增量构建依赖
 
-    var decision = AnalyticsInjectionPolicy.Evaluate(config, context);
+Render Dependency Hash 必须加入以下稳定规范化值：
 
-    Assert.Equal(expected, decision.ShouldInject);
-}
-```
-
-- [ ] **Step 2：运行测试确认失败**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~AnalyticsPipelineTests"
-```
-
-预期：FAIL。
-
-- [ ] **Step 3：实现 BuildExecutionMode 和 Policy**
-
-禁用时必须移除由 Bukit 管理的 Analytics 块，防止增量处理沿用旧片段。
-
-- [ ] **Step 4：让 `bukit dev` 显式设置 Development**
-
-在 `src/Bukit-Core/Bukit.Cli/Commands/DevCommand.cs` 的 `CreateBuildOverrides` 中设置：
-
-```csharp
-return new ConfigOverrides
-{
-    Clean = clean,
-    Output = outputOverride,
-    Incremental = true,
-    CacheDir = cacheDir,
-    ExecutionMode = BuildExecutionMode.Development
-};
-```
-
-不得通过环境变量、命令名字符串或调用栈猜测当前模式。
-
-- [ ] **Step 5：确认普通 build 默认 Production**
-
-不增加额外 CLI 参数。普通 `bukit build` 依赖 `ConfigOverrides` 默认值。
-
-- [ ] **Step 6：通用化 dev/preview 响应过滤**
-
-创建 `PreviewAnalyticsFilter`：
-
-- 优先移除 `<!-- bukit:analytics:*:start --> ... <!-- bukit:analytics:*:end -->` 管理块；
-- 在一个兼容周期内继续移除旧版无标记 GA4 脚本；
-- 只修改响应字符串，不修改磁盘文件；
-- 对已无 Analytics 的 HTML 保持幂等。
-
-修改 `PreviewCommand.ApplyPreviewAnalyticsPolicy` 与 `DevRequestHandler` 调用该过滤器。
-
-- [ ] **Step 7：编写 CLI/集成测试**
-
-至少验证：
-
-- `DevCommand.CreateBuildOverrides` 返回 Development；
-- 普通 build 默认 Production；
-- preview 在 productionOnly=true 时移除 GA/GTM/Plausible/Umami 管理块；
-- preview 不修改磁盘文件；
-- productionOnly=false 时响应不变。
-
-- [ ] **Step 8：运行测试与门禁**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~Analytics"
-
-dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~DevCommandTests|FullyQualifiedName~PreviewCommandTests|FullyQualifiedName~Analytics"
-
-bash scripts/checks/post-change-targeted.sh -- \
-  src/Bukit-Core/Bukit.Config/BuildExecutionMode.cs \
-  src/Bukit-Core/Bukit.Config/ConfigOverrides.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/DevCommand.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/PreviewCommand.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/Dev/DevRequestHandler.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/PreviewAnalyticsFilter.cs \
-  tests/Bukit.Engine.Tests/Analytics \
-  tests/Bukit.Cli.Tests/DevCommandTests.cs \
-  tests/Bukit.Cli.Tests/PreviewCommandTests.cs
-```
-
-预期：PASS。
-
-- [ ] **Step 9：提交**
-
-```bash
-git add \
-  src/Bukit-Core/Bukit.Config/BuildExecutionMode.cs \
-  src/Bukit-Core/Bukit.Config/ConfigOverrides.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/DevCommand.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/PreviewCommand.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/Dev/DevRequestHandler.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/PreviewAnalyticsFilter.cs \
-  tests/Bukit.Engine.Tests/Analytics \
-  tests/Bukit.Cli.Tests/DevCommandTests.cs \
-  tests/Bukit.Cli.Tests/PreviewCommandTests.cs
-git commit -m "feat(cli): apply analytics policy to dev and preview"
-```
-
----
-
-## Task 7：接入增量构建依赖与 Analytics 构建摘要
-
-**目标：** Analytics 配置变化触发页面重渲染，并在构建报告中提供不泄漏敏感信息的摘要。
-
-**文件：**
-
-- Create: `src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsBuildSummary.cs`
-- Modify: `src/Bukit-Core/Bukit.Engine/Incremental/RenderDependencyHasher.cs`
-- Modify: `src/Bukit-Core/Bukit.Engine/BuildVariantResult.cs`
-- Modify: `src/Bukit-Core/Bukit.Engine/BuildReporter.cs`
-- Modify: `src/Bukit-Core/Bukit.Engine/VariantBuildPipeline.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/AnalyticsIncrementalBuildTests.cs`
-- Test: `tests/Bukit.Engine.Tests/Analytics/AnalyticsBuildSummaryTests.cs`
-
-### 7.1 摘要字段
-
-```csharp
-internal sealed record AnalyticsBuildSummary
-{
-    public bool Enabled { get; init; }
-    public IReadOnlyList<string> ProviderTypes { get; init; }
-        = Array.Empty<string>();
-    public int InjectedPages { get; init; }
-    public IReadOnlyDictionary<string, int> SkippedByReason { get; init; }
-        = new Dictionary<string, int>(StringComparer.Ordinal);
-}
-```
-
-报告中只允许输出 Provider type，不输出完整 ID、域名中的敏感路径或完整 script URL。
-
-### 7.2 Skip reasons 固定值
-
-```text
-analytics_disabled
-no_providers
-development_mode
-head_missing
-body_missing
-```
-
-- [ ] **Step 1：编写增量构建测试**
-
-```csharp
-[Fact]
-public async Task ChangingAnalyticsId_ForcesHtmlRerender()
-{
-    await using var fixture = await AnalyticsBuildFixture.CreateAsync();
-
-    var first = await fixture.BuildAsync(
-        measurementId: "G-FIRST1",
-        incremental: true);
-
-    var second = await fixture.BuildAsync(
-        measurementId: "G-SECOND2",
-        incremental: true);
-
-    Assert.Contains("G-SECOND2", second.HomeHtml);
-    Assert.DoesNotContain("G-FIRST1", second.HomeHtml);
-    Assert.Contains(
-        "render_dependency_changed",
-        second.BuildResult.RenderReasons.Keys);
-}
-```
-
-- [ ] **Step 2：运行测试确认失败**
-
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~AnalyticsIncrementalBuildTests|FullyQualifiedName~AnalyticsBuildSummaryTests"
-```
-
-预期：FAIL。
-
-- [ ] **Step 3：把 resolved Analytics 加入 render dependency hash**
-
-将 `RenderDependencyHasher.Compute` 扩展为接收规范化 Analytics 与 `BuildExecutionMode`，或把等价稳定值写入专用 helper。Hash 输入必须包括：
-
+- Analytics 插件通用开关；
 - `enabled`；
 - `productionOnly`；
-- 当前 `BuildExecutionMode`；
-- 当前模式下的有效注入决策；
-- Provider 顺序；
-- Provider type；
-- Provider 的规范化 options。
+- `BuildExecutionMode`；
+- Provider 顺序、类型、唯一键和规范化 options。
 
-不得包含：
+禁止加入：
 
-- 构建时间；
+- 时间；
 - 随机值；
+- 对象 HashCode；
 - Logger 状态；
-- 运行时对象 hash code。
+- 任何与渲染结果无关的进程状态。
 
-- [ ] **Step 4：实现线程安全摘要 collector**
+### 2.9 独立 Analytics 报告
 
-由于页面并行渲染，collector 必须使用：
+不得修改冻结的 `build-report.v1` 顶层结构。新增独立报告：
 
-- `Interlocked`；
-- `ConcurrentDictionary<string, int>`；
-- 只读 Snapshot。
+```text
+.bukit/analytics-report.json
+docs/schemas/analytics-report.v1.schema.json
+```
 
-- [ ] **Step 5：接入 BuildVariantResult 与 BuildReporter**
-
-`BuildReporter` 当前手写 `Utf8JsonWriter`，因此直接增加稳定字段，不引入反射序列化或新的 source-generation 依赖。建议 JSON 报告结构：
+报告字段固定为：
 
 ```json
 {
-  "analytics": {
-    "enabled": true,
-    "providers": ["google-analytics", "google-tag-manager"],
-    "injectedPages": 128,
-    "skippedByReason": {
-      "body_missing": 1
-    }
+  "schema": "https://bukit.dev/schemas/analytics-report.v1.json",
+  "schemaVersion": "1.0",
+  "pluginEnabled": true,
+  "analyticsEnabled": true,
+  "productionOnly": true,
+  "executionMode": "production",
+  "providerTypes": ["google-analytics"],
+  "processedHtml": 10,
+  "injectedHtml": 10,
+  "skippedByReason": {
+    "incremental_unchanged": 2
   }
 }
 ```
 
-- [ ] **Step 6：运行测试与门禁**
+报告约束：
 
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~Analytics"
-
-bash scripts/checks/post-change-targeted.sh -- \
-  src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsBuildSummary.cs \
-  src/Bukit-Core/Bukit.Engine/Incremental/RenderDependencyHasher.cs \
-  src/Bukit-Core/Bukit.Engine/BuildVariantResult.cs \
-  src/Bukit-Core/Bukit.Engine/BuildReporter.cs \
-  src/Bukit-Core/Bukit.Engine/VariantBuildPipeline.cs \
-  tests/Bukit.Engine.Tests/Analytics
-```
-
-预期：PASS。
-
-- [ ] **Step 7：提交**
-
-```bash
-git add \
-  src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsBuildSummary.cs \
-  src/Bukit-Core/Bukit.Engine/Incremental/RenderDependencyHasher.cs \
-  src/Bukit-Core/Bukit.Engine/BuildVariantResult.cs \
-  src/Bukit-Core/Bukit.Engine/BuildReporter.cs \
-  src/Bukit-Core/Bukit.Engine/VariantBuildPipeline.cs \
-  tests/Bukit.Engine.Tests/Analytics
-git commit -m "feat(engine): report analytics injection results"
-```
+- 统计表示本次 Variant 构建执行情况，不冒充磁盘全量扫描结果。
+- Provider 只输出 type，不输出 ID、domain 或 script URL。
+- Skip reason 固定为：
+  - `plugin_disabled`
+  - `analytics_disabled`
+  - `no_providers`
+  - `development_mode`
+  - `head_missing`
+  - `body_missing`
+  - `incremental_unchanged`
+  - `transform_failed`
+- 计数器使用 `Interlocked` 和 `ConcurrentDictionary`。
+- 多语言构建在各 Variant 输出目录写各自报告。
+- `build.report.enabled: false` 时不写 Analytics 报告。
+- Analytics 报告由现有 Artifact Manifest 自动收录。
 
 ---
 
-## Task 8：增加外部插件边界架构测试
+## 三、分阶段实施任务
 
-**目标：** 用自动化测试锁定 Analytics 只能存在于 Core internal，禁止未来误暴露给外部插件。
+### Task 0：修订计划基线
 
-**文件：**
+- 重写目标实施计划中的“内置插件”定义。
+- 删除全部兼容期、弃用期、双字段映射和分波发布设计。
+- 把 `AnalyticsPlugin` 改成真实注册插件，Transform 改成插件贡献能力。
+- 修正报告 Schema、Static HTML、用户指南编号和当前真实文件路径。
+- 记录执行基线：配置契约、Engine SEO/Hash、CLI Dev/Preview 定向测试共 106 项通过。
+- 此任务只修改计划文档，不修改代码。
 
-- Create: `tests/Bukit.Architecture.Tests/AnalyticsBoundaryTests.cs`
+完成证据：
 
-- [ ] **Step 1：编写边界测试**
+- 目标计划不再描述旧字段迁移或兼容。
+- `AnalyticsPlugin` 的注册链明确为 `BuiltInPluginSource → PluginRegistry → PluginRunner`。
+- `build-report.v1` 明确保持不变。
+- Git diff 只包含本计划文档。
 
-至少验证：
+### Task 1：完成配置契约硬切换
 
-1. `Bukit.Plugin.Abstractions` 不引用 `Bukit.Engine`。
-2. `Bukit.PluginHost` 不引用 `Bukit.Engine.Analytics`。
-3. `IAnalyticsProvider` 不是 public。
-4. `IHtmlTransform` 不是 public。
-5. External plugin protocol 中没有 HTML body、rendered HTML、output directory write capability。
-6. Analytics Provider 只位于 `Bukit.Engine` 程序集。
+- 修改 `AnalyticsConfig` 并增加 `AnalyticsProviderConfig`。
+- 更新 YAML Loader、严格字段验证、语义验证和动态 JSON Schema。
+- 删除旧 GA ID 验证和两个旧属性。
+- 增加四种 Provider 的有效、无效、缺字段、多余字段、重复键测试。
+- 增加旧字段必须抛出未知字段错误的负向测试。
+- 运行 Config 定向测试和显式路径的 `post-change-targeted.sh`。
+- 因为这是公开配置契约破坏性变更，门禁通过后立即执行一次只读高风险审计。
 
-示例：
+### Task 2：实现 Provider 和安全渲染基础设施
 
-```csharp
-[Fact]
-public void AnalyticsContracts_AreNotPublicPluginApi()
-{
-    var engineAssembly = typeof(SiteEngine).Assembly;
+- 在 `Bukit.Engine/Analytics` 建立内部 resolved config、Normalizer、Provider Registry、Provider Context 和 Fragment 模型。
+- 按静态列表注册 GA4、GTM、Plausible、Umami。
+- 实现固定 HTML 模板、编码器和 Provider 唯一键。
+- Provider 单元测试使用 Golden HTML，并验证无任意 JavaScript、无网络和文件访问。
+- 运行 Analytics Provider 定向测试及路径门禁。
 
-    var analyticsTypes = engineAssembly.GetTypes()
-        .Where(type => type.Namespace?.StartsWith(
-            "Bukit.Engine.Analytics",
-            StringComparison.Ordinal) is true)
-        .ToArray();
+### Task 3：接入真实内置插件生命周期
 
-    Assert.NotEmpty(analyticsTypes);
-    Assert.All(analyticsTypes, type => Assert.False(type.IsPublic));
-}
-```
+- 增加 Engine-internal `IHtmlTransformPlugin` 和 Hook 常量。
+- 实现 `AnalyticsPlugin`，注册到 `BuiltInPluginSource`。
+- 扩展 `PluginRunner` 收集、排序、启停、包装和汇总 HTML Transform。
+- 实现双层启用规则和 `pluginFailMode` 行为。
+- 增加 Registry 缓存、只注册一次、顺序、通用插件禁用和执行记录测试。
+- 运行 PluginRegistry/PluginRunner/Analytics 定向测试及路径门禁。
+- 因为修改插件生命周期边界，门禁通过后执行一次只读高风险审计。
 
-若 Native AOT 架构测试规则禁止 `Assembly.GetTypes()`，则使用已有的项目引用/源码边界测试模式实现同等约束，不把反射引入生产代码。
+### Task 4：统一 HTML Transform Pipeline
 
-- [ ] **Step 2：运行测试确认失败或缺少覆盖**
+- 建立 `HtmlTransformPipeline` 和文档类型 Context。
+- 把 SEO 注入从 `SeoHtmlRenderer` 的 Analytics 参数中剥离，并包装成 Core `SeoHtmlTransform`。
+- 修改 Render Pipeline，使 Content、List、Static 在写盘前统一经过 Transform。
+- Analytics Transform 排在 SEO 后，但不受 SEO 启用状态控制。
+- 覆盖无 head/body、复杂 body 属性、注释/script 内容、重复执行和多 Provider 顺序。
+- 运行 SEO、Render Pipeline、Static、Analytics 定向测试及路径门禁。
 
-```bash
-dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~Analytics|FullyQualifiedName~Plugin"
-```
+### Task 5：移除 Rendering/Theme 旧表面
 
-- [ ] **Step 3：修正任何错误可见性或项目引用**
+- 删除 `AnalyticsModel`、`SiteModel.Analytics`、Scriban Binder 字段和 Known Fields。
+- 删除 Starter Theme Analytics Partial。
+- 删除 SEO/Theme 模式对 Analytics Model 的参数传递。
+- 将原有主题输出测试改为“Analytics 只能由内置插件输出”。
+- 增加 Binder 测试，确认 `site.analytics` 不再进入 Scriban Model。
+- 运行 Rendering、SEO、Starter Theme 定向测试及路径门禁。
+- 该任务属于公开渲染 API 删除，完成后执行只读高风险审计。
 
-禁止通过放宽测试来通过。若类型意外为 public，应改为 internal。
+### Task 6：实现 Development/Preview 语义
 
-- [ ] **Step 4：运行门禁**
+- 增加 `BuildExecutionMode` 和 `ConfigOverrides.ExecutionMode`。
+- `bukit dev` 显式使用 Development。
+- Build 默认使用 Production。
+- Dev/Preview 共享只识别当前管理块的响应过滤器。
+- 删除 `ResolveDisableAnalytics` 及所有旧 GA 脚本识别。
+- 覆盖响应过滤、磁盘不变、productionOnly 开关和无管理块幂等。
+- 运行 CLI Dev/Preview 和 Engine Injection Policy 定向测试及路径门禁。
 
-```bash
-bash scripts/checks/post-change-targeted.sh -- \
-  src/Bukit-Core/Bukit.Engine/Analytics \
-  src/Bukit-Core/Bukit.Engine/Html \
-  src/Bukit-Core/Bukit.Plugin.Abstractions \
-  src/Bukit-Core/Bukit.PluginHost \
-  tests/Bukit.Architecture.Tests
-```
+### Task 7：接入增量依赖和 Analytics 报告
 
-预期：PASS。
+- 使用 resolved Analytics 配置扩展 Render Dependency Hash。
+- 实现线程安全 Analytics Build State 和 Summary Snapshot。
+- 写入 `analytics-report.json`，增加严格 Schema 和 Schema 契约测试。
+- 不增加 `build-report.v1` 字段。
+- 验证 Provider、模式、插件开关变化强制重渲染；配置不变可继续增量跳过。
+- 验证报告不泄漏 ID、domain 和 URL。
+- 运行 Incremental、Reporter、Schema 定向测试及路径门禁。
 
-- [ ] **Step 5：提交**
+### Task 8：锁定外部插件边界
 
-```bash
-git add tests/Bukit.Architecture.Tests
-git commit -m "test(architecture): lock analytics plugin boundary"
-```
+新增架构测试，明确验证：
 
----
+- `AnalyticsPlugin` 来自 `BuiltInPluginSource`，Source 为 `built-in`。
+- Analytics 实现 `IBukitPlugin` 和 Engine-internal HTML Hook。
+- HTML Transform 和 Analytics Provider 类型没有进入任何公开 Abstractions。
+- `PluginRegistry` 仍只加载 `BuiltInPluginSource`。
+- `PluginHost` 和 `bukit-plugin-v1` 没有 HTML、页面或输出文件写入能力。
+- 没有反射 Provider 发现或运行时程序集加载。
+- Native AOT 静态分析不依赖动态类型发现。
 
-## Task 9：更新配置 Schema、用户文档与示例
+运行 Architecture 定向测试及路径门禁。
 
-**目标：** 让 `bukit config schema`、配置参考和用户指南与代码一致。
+### Task 9：更新主线文档和示例
 
-**文件：**
+更新主线文档：
 
-- Modify: `guide/user/04-site-yaml-config.md`
-- Create: `guide/user/14-analytics.md`
-- Modify: `guide/user/README.md`
-- Create: `examples/analytics/site.yaml`
-- Modify: `README.md`
-- Modify: `README.zh-CN.md`
-- Modify: `README.ms.md`
-- Test: 使用现有 config schema 和 docs gate。
+- `guide/user/04-site-yaml-config.md`
+- `guide/user/16-parameter-cheatsheet.md`
+- 新增 `guide/user/19-analytics.md` 并更新用户指南索引
+- `guide/dev/built-in-plugins.md`
+- `guide/dev/rendering-scriban.md`
+- `guide/dev/config-site-yaml.md`
+- 当前 `docs/seo.md`、Analytics 学习材料及本实施计划
 
-- [ ] **Step 1：更新字段参考**
+文档必须明确：
 
-新增字段：
+- Analytics 是 Core 内置插件，不是外部协议插件。
+- Theme 无法读取 `site.analytics`。
+- 两级开关的区别和优先级。
+- 四种 Provider、Development/Preview 行为和安全限制。
+- 两个旧字段已经删除，而非 deprecated。
+- 示例不包含真实站点 ID、域名或密钥。
 
-```text
-site.analytics.productionOnly
-site.analytics.providers[]
-site.analytics.providers[].type
-site.analytics.providers[].measurementId
-site.analytics.providers[].containerId
-site.analytics.providers[].domain
-site.analytics.providers[].websiteId
-site.analytics.providers[].scriptUrl
-```
+不得修改或引用 `guide-0.1/`、`guide-0.2/`、`scripts-0.1/`、`scripts-0.2/` 作为官方来源。
 
-旧字段标注：
+### Task 10：完整定向验收与综合审计
 
-```text
-site.analytics.googleAnalyticsId   deprecated, compatibility only
-site.analytics.disableInPreview    deprecated, compatibility only
-```
+按顺序执行：
 
-- [ ] **Step 2：编写 Analytics 用户指南**
+1. Config Analytics 契约测试。
+2. Provider 和 HTML Pipeline 测试。
+3. Plugin Registry/Runner 测试。
+4. Rendering/Scriban/SEO 回归。
+5. CLI Dev/Preview 测试。
+6. Incremental/Report/Schema 测试。
+7. Architecture 边界测试。
+8. `bash scripts/checks/post-change-targeted.sh -- <本任务全部实际变更路径>`。
+9. 使用当前平台 RID 对 `Bukit.Cli` 做一次定向 Native AOT publish，输出到临时目录。
+10. 用真实最小站点分别构建四种 Provider，检查最终 HTML 和 Analytics 报告。
+11. 创建一个只读子代理审计全部子任务、聚合 diff、跨任务遗漏和无关改动。
+12. 主线程处理审计问题，并只重跑受影响门禁及必要的复审。
 
-`guide/user/14-analytics.md` 必须包括：
+未经用户另行要求，不运行：
 
-1. 适用场景；
-2. Provider 配置；
-3. dev/build/preview 行为；
-4. GTM head/body 行为；
-5. 严格校验错误示例；
-6. 旧配置迁移；
-7. 安全限制；
-8. 不支持 arbitrary JavaScript；
-9. 与主题 partial 的边界；
-10. 与外部插件的边界；
-11. 验证命令。
-
-验证命令：
-
-```bash
-bukit config check
-bukit doctor
-bukit build --clean
-```
-
-- [ ] **Step 3：增加完整示例**
-
-`examples/analytics/site.yaml` 必须包含：
-
-- 最小有效站点配置；
-- GA4；
-- GTM；
-- 注释形式的 Plausible 与 Umami 示例；
-- 不包含真实生产 ID 或密钥。
-
-- [ ] **Step 4：生成并检查 Schema**
-
-```bash
-dotnet run --project src/Bukit-Core/Bukit.Cli -c Release -- \
-  config schema > /tmp/bukit-site.schema.json
-
-rg -n \
-  'productionOnly|providers|measurementId|containerId|websiteId|scriptUrl' \
-  /tmp/bukit-site.schema.json
-```
-
-预期：所有新字段存在，未知字段仍被拒绝。
-
-- [ ] **Step 5：运行文档定向门禁**
-
-```bash
-bash scripts/checks/post-change-targeted.sh -- \
-  guide/user/04-site-yaml-config.md \
-  guide/user/14-analytics.md \
-  guide/user/README.md \
-  examples/analytics/site.yaml \
-  README.md \
-  README.zh-CN.md \
-  README.ms.md
-```
-
-预期：PASS。
-
-- [ ] **Step 6：提交**
-
-```bash
-git add \
-  guide/user/04-site-yaml-config.md \
-  guide/user/14-analytics.md \
-  guide/user/README.md \
-  examples/analytics/site.yaml \
-  README.md \
-  README.zh-CN.md \
-  README.ms.md
-git commit -m "docs: add analytics provider configuration guide"
-```
+- `scripts/gates/ci-full.sh`
+- `scripts/gates/release.sh`
+- `scripts/test-all.sh`
+- `scripts/smoke-all.sh`
+- `dotnet test bukit-test.slnx`
+- 任何 whole-solution `.slnx` 测试
 
 ---
 
-## Task 10：完整集成验证、Native AOT 验证与只读综合审计
+## 四、测试与验收矩阵
 
-**目标：** 在不运行用户未授权的 full/release gate 前提下，完成 Analytics 父任务的最终定向验收。
+### 4.1 配置验收
 
-**文件：** 不新增功能代码；只允许修复本计划范围内发现的问题。
+- 四种 Provider 有效配置可加载。
+- 两个旧字段均严格失败。
+- 未知 Provider、未知字段、缺少必填字段、携带其他 Provider 字段均失败。
+- ID、UUID、domain、scriptUrl 边界全部覆盖。
+- 重复唯一键失败，不同唯一键保持配置顺序。
+- 动态配置 Schema 与 Loader、Validator 一致。
 
-### 10.1 集成测试矩阵
+### 4.2 插件验收
 
-| 编号 | 场景 | 预期 |
-|---|---|---|
-| A-01 | Analytics disabled | 无任何 Bukit Analytics 管理块 |
-| A-02 | 无 Provider | 不注入，报告 `no_providers` |
-| A-03 | 旧 GA 配置 | 生成与旧语义等价的 GA4 脚本 |
-| A-04 | 新 GA Provider | Head 中恰好一份 GA4 |
-| A-05 | GTM | Head loader + BodyStart noscript 各一份 |
-| A-06 | Plausible | Head 中正确 domain/script |
-| A-07 | Umami | Head 中正确 websiteId/script |
-| A-08 | SEO disabled | Analytics 正常注入 |
-| A-09 | SEO renderMode off | Analytics 正常注入 |
-| A-10 | dev + productionOnly | 无注入 |
-| A-11 | dev + productionOnly=false | 正常注入 |
-| A-12 | production build | 正常注入 |
-| A-13 | HTML 无 head | Head Provider 跳过并报告 |
-| A-14 | HTML 无 body | GTM noscript 跳过并报告 |
-| A-15 | 重复处理 HTML | 无重复脚本 |
-| A-16 | Provider 配置变化 | 增量构建重新渲染 |
-| A-17 | 多语言构建 | 每个语言变体正确注入 |
-| A-18 | Static HTML route | 正确注入 |
-| A-19 | 非法 ID | `config check` 失败 |
-| A-20 | HTTP scriptUrl | `config check` 失败 |
-| A-21 | 外部插件项目 | 无新增 Engine Analytics 依赖 |
-| A-22 | Native AOT publish | 成功，无反射发现警告 |
+- Analytics 在 BuiltIn Plugin Source 中恰好出现一次。
+- 通用插件开关关闭时不创建 Transform。
+- 功能开关关闭时插件存在但不注入。
+- Analytics 执行记录 Hook 为 `html-transform`。
+- `strict` 与 `warn` 失败模式符合定义。
+- 并行渲染下执行时间和失败状态无竞态。
 
-- [ ] **Step 1：运行 Config 定向测试**
+### 4.3 HTML 验收
 
-```bash
-dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~Analytics"
-```
+- GA4、GTM、Plausible、Umami 输出正确。
+- GTM 同时输出 Head 和 BodyStart。
+- 多 Provider 按配置顺序输出。
+- Content、List、Static 全部覆盖。
+- SEO disabled、SEO theme/off 模式下 Analytics 仍工作。
+- 管理块重复处理幂等。
+- 配置删除 Provider 后，旧的当前管理块不残留。
+- 无标记第三方脚本保持不变。
+- 缺失 head/body 不损坏 HTML。
+- HTML 属性和 JavaScript 字符串编码正确。
 
-预期：PASS。
+### 4.4 模式与增量验收
 
-- [ ] **Step 2：运行 Engine 定向测试**
+- Production 始终按有效配置注入。
+- Development 默认跳过 production-only Provider。
+- Preview 只过滤当前管理块且不写磁盘。
+- `productionOnly: false` 在 Dev/Preview 保留 Analytics。
+- Analytics 配置、模式或插件开关变化触发重渲染。
+- 配置不变时增量构建继续命中缓存。
 
-```bash
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~Analytics|FullyQualifiedName~SeoHtmlRendererTests|FullyQualifiedName~SeoPipelineTests"
-```
+### 4.5 报告与边界验收
 
-预期：PASS。
-
-- [ ] **Step 3：运行 CLI 定向测试**
-
-```bash
-dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~Dev|FullyQualifiedName~Config|FullyQualifiedName~Analytics"
-```
-
-预期：PASS。
-
-- [ ] **Step 4：运行架构边界测试**
-
-```bash
-dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release \
-  --filter "FullyQualifiedName~Analytics|FullyQualifiedName~Plugin"
-```
-
-预期：PASS。
-
-- [ ] **Step 5：运行最终定向门禁**
-
-```bash
-bash scripts/checks/post-change-targeted.sh -- \
-  src/Bukit-Core/Bukit.Config \
-  src/Bukit-Core/Bukit.Engine/Analytics \
-  src/Bukit-Core/Bukit.Engine/Html \
-  src/Bukit-Core/Bukit.Engine/VariantBuildPipeline.cs \
-  src/Bukit-Core/Bukit.Engine/PageRenderDispatcher.cs \
-  src/Bukit-Core/Bukit.Engine/SeoPipeline.cs \
-  src/Bukit-Core/Bukit.Engine/SeoHtmlRenderer.cs \
-  src/Bukit-Core/Bukit.Engine/HtmlHeadScanner.cs \
-  src/Bukit-Core/Bukit.Rendering/Models.cs \
-  tests/Bukit.Config.Tests/Analytics \
-  tests/Bukit.Engine.Tests/Analytics \
-  tests/Bukit.Architecture.Tests \
-  guide/user/04-site-yaml-config.md \
-  guide/user/14-analytics.md \
-  examples/analytics/site.yaml
-```
-
-预期：PASS。
-
-- [ ] **Step 6：执行 Native AOT 定向发布验证**
-
-先根据当前平台选择仓库已支持的 RID。Linux x64 验证命令：
-
-```bash
-dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
-  -c Release \
-  -r linux-x64 \
-  -p:PublishAot=true \
-  --self-contained true \
-  -o /tmp/bukit-analytics-aot
-```
-
-预期：
-
-- 发布成功；
-- 无 Analytics 相关 trimming/reflection 警告；
-- 产物可执行 `version` 和 `config check`。
-
-- [ ] **Step 7：执行只读综合审计**
-
-审计范围：
-
-1. 所有 Task 的 diff 是否严格在范围内；
-2. 是否存在 external Plugin API 扩大；
-3. 是否存在任意脚本注入；
-4. Provider 校验是否完整；
-5. GA/GTM 编码是否存在 XSS 风险；
-6. 并行构建 summary 是否线程安全；
-7. 增量 hash 是否覆盖所有有效配置；
-8. SEO disabled/off/theme 模式是否仍支持 Analytics；
-9. Static/List/Page 是否全部覆盖；
-10. 文档与 schema 是否一致；
-11. 是否修改了 backup/reference 目录；
-12. 是否有与 Analytics 无关的重构。
-
-审计只能：
-
-- 阅读 diff；
-- 收集证据；
-- 推荐定向检查；
-
-不得：
-
-- 修改文件；
-- 创建新提交；
-- 扩大任务范围。
-
-- [ ] **Step 8：处理审计问题并复跑受影响门禁**
-
-只复跑受影响的定向测试和定向门禁，不直接运行整个 release gate。
-
-- [ ] **Step 9：最终提交**
-
-若审计修复产生改动：
-
-```bash
-git add \
-  src/Bukit-Core/Bukit.Config \
-  src/Bukit-Core/Bukit.Engine/Analytics \
-  src/Bukit-Core/Bukit.Engine/Html \
-  src/Bukit-Core/Bukit.Engine/Incremental/RenderDependencyHasher.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/DevCommand.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/PreviewCommand.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/Dev/DevRequestHandler.cs \
-  src/Bukit-Core/Bukit.Cli/Commands/PreviewAnalyticsFilter.cs \
-  tests/Bukit.Config.Tests/Analytics \
-  tests/Bukit.Engine.Tests/Analytics \
-  tests/Bukit.Architecture.Tests/AnalyticsBoundaryTests.cs
-git commit -m "fix(engine): close analytics audit findings"
-```
-
-若无改动，不创建空提交。
+- Analytics 报告通过 `analytics-report.v1` Schema。
+- 报告不包含任何 Provider 标识值或 URL。
+- `build-report.v1` Schema 和结构保持不变。
+- 外部插件协议无新增 Hook、DTO、权限或页面 HTML 能力。
+- Native AOT 发布成功。
+- 主线源码中不存在旧属性或兼容读取逻辑。
+- 备份目录无改动。
+- 最终只读综合审计无未解决问题。
 
 ---
 
-# 9. 验收标准
+## 五、子任务门禁与审计纪律
 
-## 9.1 功能验收
+- 每个代码子任务完成后，先运行该子任务的定向测试，再运行：
 
-- [ ] 支持 GA4。
-- [ ] 支持 GTM。
-- [ ] 支持 Plausible。
-- [ ] 支持 Umami。
-- [ ] GTM 能正确注入 Head 和 BodyStart。
-- [ ] 同一 Provider 不重复注入。
-- [ ] 多 Provider 按配置顺序输出。
-- [ ] SEO disabled 时 Analytics 仍工作。
-- [ ] SEO renderMode 非 inject 时 Analytics 仍工作。
-- [ ] dev 默认不注入 production-only Analytics。
-- [ ] production build 正常注入。
-- [ ] 多语言、列表页、内容页和 static route 全部覆盖。
+  ```bash
+  bash scripts/checks/post-change-targeted.sh -- <该子任务实际变更路径>
+  ```
 
-## 9.2 配置验收
-
-- [ ] 未知 Provider 被拒绝。
-- [ ] Provider 缺少必填字段被拒绝。
-- [ ] 非法 GA/GTM ID 被拒绝。
-- [ ] 非 HTTPS script URL 被拒绝。
-- [ ] 重复 Provider 被拒绝。
-- [ ] 旧配置仍可使用。
-- [ ] 旧字段与新字段冲突时明确失败。
-- [ ] `bukit config schema` 包含所有新字段。
-- [ ] 未知配置字段仍被拒绝。
-
-## 9.3 安全验收
-
-- [ ] 无 arbitrary JavaScript 字段。
-- [ ] ID 同时进行 HTML attribute 与 JS string 编码。
-- [ ] scriptUrl 仅允许绝对 HTTPS。
-- [ ] Provider 不访问网络或文件系统。
-- [ ] 外部插件无法获取页面 HTML。
-- [ ] 外部插件无法调用 Analytics Core 类型。
-- [ ] `IAnalyticsProvider` 和 HTML Transform 均为 internal。
-- [ ] 不增加运行时 DLL 加载或程序集扫描。
-
-## 9.4 稳定性验收
-
-- [ ] 重复注入幂等。
-- [ ] 缺失 head/body 不产生损坏 HTML。
-- [ ] 并行构建没有计数竞态。
-- [ ] Analytics 配置变化触发增量重渲染。
-- [ ] 配置不变时增量构建可正常跳过。
-- [ ] 失败不留下部分 after-build 重写产物。
-- [ ] Native AOT 发布成功。
-
-## 9.5 文档验收
-
-- [ ] 用户指南与实际 schema 一致。
-- [ ] README 不宣称外部插件可注入 HTML。
-- [ ] dev/build/preview 语义写清楚。
-- [ ] 旧字段弃用策略写清楚。
-- [ ] 示例不含真实 ID 或密钥。
+- 工作树存在无关改动时，必须显式传入本子任务路径，不依赖自动 diff 检测。
+- 门禁失败时停止进入下一子任务，修复当前子任务并重新运行其定向验证。
+- 配置契约、插件生命周期、公开 Rendering API、并发统计等高风险子任务，在定向门禁通过后立即执行一次边界明确的只读审计。
+- 全部子任务通过后，执行一次只读子代理综合审计，覆盖每个子任务证据和聚合 diff。
+- 子代理只能审计、收集证据和建议定向检查；不得修改文件、提交、启动新用户任务或扩展范围。
+- 综合审计发现问题时，由主线程修复，并重新运行受影响门禁和必要复审。
 
 ---
 
-# 10. 风险与控制措施
+## 六、发布、回滚与完成定义
 
-| 风险 | 影响 | 控制措施 |
-|---|---|---|
-| Analytics 仍被 SEO 开关阻断 | 功能错误 | 独立 Transform + SEO disabled 集成测试 |
-| GTM body 注入破坏 HTML | 页面异常 | 使用现有 scanner 思路，覆盖 attributes/comments/scripts |
-| Provider 重复注入 | 重复统计 | 管理标记 + 规范化唯一 Key + 幂等测试 |
-| 旧配置行为改变 | 兼容性回归 | 旧字段规范化 + golden HTML 测试 |
-| dev 污染统计数据 | 数据质量下降 | 显式 BuildExecutionMode |
-| 任意 script URL 带来供应链风险 | 前端安全风险 | 仅 HTTPS、无任意代码、文档警告、自托管由用户负责 |
-| 外部插件协议被扩大 | Core 边界破坏 | 架构测试锁定，无 render hook |
-| Incremental hash 未覆盖 Provider | 旧脚本残留 | resolved config 纳入依赖 hash |
-| 并行 summary 竞态 | 报告不准确 | Interlocked + ConcurrentDictionary |
-| Provider 反射发现破坏 AOT | 发布失败 | 静态注册表 + AOT publish 验证 |
+### 6.1 发布方式
 
----
+- 本变更作为一次原子 breaking release 交付，不拆分兼容波次。
+- 不设置旧字段兼容期、弃用期、隐藏 feature flag 或双写路径。
+- 文档、Schema、配置模型、运行时和测试必须在同一交付中同步切换。
 
-# 11. 回滚策略
+### 6.2 回滚方式
 
-1. 每个任务独立提交，避免一次性大提交。
-2. Task 1 先增加兼容配置，不立即删除旧行为。
-3. Task 5 完成并通过回归后，才移除 `SeoHtmlRenderer` 中旧 GA 注入。
-4. 若新管线出现阻塞问题：
-   - 回滚 Task 5 及之后提交；
-   - 保留 Task 1 的配置类型时必须确保旧运行路径不会读取新 Provider；
-   - 不通过把 HTML Transform 暴露给外部插件来临时绕过问题。
-5. 不采用双写两套 Analytics 脚本的临时方案。
-6. 不保留长期隐藏 feature flag；功能稳定后应删除临时迁移开关。
+- 需要回滚时，只能整体回滚本次发布或相关提交。
+- 不得通过恢复旧字段读取、旧 Theme Model、旧 Scriban API 或无标记脚本识别实现临时兼容。
 
----
+### 6.3 完成标准
 
-# 12. 发布建议
+同时满足以下条件才可声明完成：
 
-建议拆为两个可独立验收的版本波次：
-
-## 波次 A：基础设施与 Google Provider
-
-包含：
-
-- 配置 Provider 化；
-- 旧字段兼容；
-- HTML Transform Pipeline；
-- SEO 解耦；
-- GA4；
-- GTM；
-- dev/production 模式；
-- 增量与报告；
-- 架构边界测试。
-
-该波次可先进入稳定版本。
-
-## 波次 B：Plausible 与 Umami
-
-包含：
-
-- Plausible；
-- Umami；
-- 自托管 HTTPS script URL 文档；
-- Provider 扩展回归。
-
-若希望一次发布，也必须保留 Task 4 的独立提交和独立验收门禁。
-
----
-
-# 13. 最终完成定义（Definition of Done）
-
-只有同时满足以下条件，才可宣布任务完成：
-
-1. 所有任务范围内代码已提交；
-2. 所有定向测试通过；
-3. 所有定向门禁通过；
-4. Native AOT 定向发布验证通过；
-5. 只读综合审计无未解决问题；
-6. 外部插件协议未变化；
-7. `Bukit.PluginHost` 与 `Bukit.Plugin.Abstractions` 未获得 Analytics/HTML Transform 能力；
-8. SEO disabled/off/theme 模式下 Analytics 行为符合矩阵；
-9. 旧 GA 配置兼容；
-10. 新 Provider 配置严格验证；
-11. 文档、Schema、示例和实现保持一致；
-12. 未修改备份目录；
-13. 未混入与 Analytics 无关的重构；
-14. 最终报告列出：
-    - 变更文件；
-    - 支持 Provider；
-    - 兼容策略；
-    - 测试命令与结果；
-    - AOT 结果；
-    - 审计结论；
-    - 未进入本期的后续事项。
-
----
-
-# 14. 后续可选增强
-
-以下事项不阻塞本计划完成，可在后续独立立项：
-
-1. 基于 route pattern 的 Analytics 排除规则；
-2. 单页面 `analytics_inject: false`；
-3. Consent Mode v2；
-4. CSP nonce/hash 集成；
-5. Microsoft Clarity Provider；
-6. Matomo Provider；
-7. Analytics 验证命令；
-8. 部署后脚本可达性检查；
-9. Analytics API 报表外部进程插件；
-10. Notion/数据库统计同步外部插件。
-
-其中第 7–10 项若实现，应作为独立命令或外部进程插件，不得反向扩大 Core 页面渲染接口。
+- 所有四种 Provider 已实现并通过安全验证。
+- Analytics 已由真实内置插件生命周期驱动。
+- `AnalyticsPlugin` 已注册到 `BuiltInPluginSource` 并由 `PluginRegistry`/`PluginRunner` 调度。
+- Content、List、Static HTML 全部经过统一 Transform Pipeline。
+- 旧配置与旧 Scriban/Theme API 已彻底删除。
+- 所有定向测试和路径门禁通过。
+- Analytics 独立报告通过严格 Schema，`build-report.v1` 保持不变。
+- 当前平台 Native AOT 定向验证通过。
+- 配置、插件和公开 API 的高风险审计通过。
+- 最终聚合只读审计无未解决问题。
+- 主线文档、Schema、示例和实现完全一致。
+- `guide-0.1/`、`guide-0.2/`、`scripts-0.1/`、`scripts-0.2/` 无改动。

@@ -1,0 +1,88 @@
+using Bukit.Config;
+using Bukit.Engine.Analytics;
+using Xunit;
+
+namespace Bukit.Engine.Tests.Analytics;
+
+public sealed class AnalyticsConfigNormalizerTests
+{
+    [Fact]
+    public void Normalize_DefaultConfig_PreservesDefaultsAndHasNoProviders()
+    {
+        var resolved = AnalyticsConfigNormalizer.Normalize(new AnalyticsConfig());
+
+        Assert.True(resolved.Enabled);
+        Assert.True(resolved.ProductionOnly);
+        Assert.Empty(resolved.Providers);
+    }
+
+    [Fact]
+    public void Normalize_PreservesProviderOrderAndGoogleIdentifiersExactly()
+    {
+        var config = new AnalyticsConfig
+        {
+            Enabled = false,
+            ProductionOnly = false,
+            Providers =
+            [
+                new AnalyticsProviderConfig
+                {
+                    Type = "google-tag-manager",
+                    ContainerId = "GTM-AbC123"
+                },
+                new AnalyticsProviderConfig
+                {
+                    Type = "google-analytics",
+                    MeasurementId = "G-MiXeD456"
+                }
+            ]
+        };
+
+        var resolved = AnalyticsConfigNormalizer.Normalize(config);
+
+        Assert.False(resolved.Enabled);
+        Assert.False(resolved.ProductionOnly);
+        Assert.Equal(
+            ["google-tag-manager", "google-analytics"],
+            resolved.Providers.Select(provider => provider.Type));
+        Assert.Equal("GTM-AbC123", resolved.Providers[0].Options["containerId"]);
+        Assert.Equal("G-MiXeD456", resolved.Providers[1].Options["measurementId"]);
+        Assert.Equal("google-tag-manager:GTM-AbC123", resolved.Providers[0].Key);
+        Assert.Equal("google-analytics:G-MiXeD456", resolved.Providers[1].Key);
+    }
+
+    [Fact]
+    public void Normalize_CanonicalizesIdnAndUuidWhileKeepingValidatedScriptUrls()
+    {
+        var config = new AnalyticsConfig
+        {
+            Providers =
+            [
+                new AnalyticsProviderConfig
+                {
+                    Type = "plausible",
+                    Domain = "BÜCHER.Example",
+                    ScriptUrl = "https://stats.example/Custom/Script.js?site=One"
+                },
+                new AnalyticsProviderConfig
+                {
+                    Type = "umami",
+                    WebsiteId = "89F9C547-2017-4B05-8A56-8F40B488F927",
+                    ScriptUrl = "https://analytics.example.com/script.js"
+                }
+            ]
+        };
+
+        var resolved = AnalyticsConfigNormalizer.Normalize(config);
+
+        var plausible = resolved.Providers[0];
+        Assert.Equal("xn--bcher-kva.example", plausible.Options["domain"]);
+        Assert.Equal("https://stats.example/Custom/Script.js?site=One", plausible.Options["scriptUrl"]);
+        Assert.Equal("plausible:xn--bcher-kva.example", plausible.Key);
+
+        var umami = resolved.Providers[1];
+        Assert.Equal("89f9c547-2017-4b05-8a56-8f40b488f927", umami.Options["websiteId"]);
+        Assert.Equal("https://analytics.example.com/script.js", umami.Options["scriptUrl"]);
+        Assert.Equal("umami:89f9c547-2017-4b05-8a56-8f40b488f927", umami.Key);
+    }
+}

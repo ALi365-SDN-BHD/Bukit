@@ -1,16 +1,16 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Bukit.Cli.Commands.Dev;
 using Bukit.Cli.Shared;
 using Bukit.Config;
 using Bukit.Cli.Shared.Cli.Binding;
+using Bukit.Engine.Analytics;
 
 namespace Bukit.Cli.Commands;
 
-public static partial class PreviewCommand
+public static class PreviewCommand
 {
     public static async Task<int> RunAsync(CliBoundCommand command)
         => await RunAsync(command, CancellationToken.None);
@@ -53,7 +53,7 @@ public static partial class PreviewCommand
             return 2;
         }
 
-        var disableAnalytics = ResolveDisableAnalyticsInPreview(dir);
+        var removeManagedAnalytics = ResolveRemoveManagedAnalyticsInPreview(dir);
         var (listener, prefix) = CreateAndStartListener(host, port, strictPort);
         using var startedListener = listener;
         using var cancellationRegistration = cancellationToken.Register(listener.Stop);
@@ -67,7 +67,7 @@ public static partial class PreviewCommand
             try
             {
                 var context = await listener.GetContextAsync();
-                _ = Task.Run(() => HandleRequest(dir, context, disableAnalytics));
+                _ = Task.Run(() => HandleRequest(dir, context, removeManagedAnalytics));
             }
             catch (HttpListenerException) when (cancellationToken.IsCancellationRequested || !listener.IsListening)
             {
@@ -80,16 +80,27 @@ public static partial class PreviewCommand
         }
     }
 
-    public static string ApplyPreviewAnalyticsPolicy(string html, bool disableAnalytics)
+    public static string ApplyPreviewAnalyticsPolicy(string html, bool removeManagedAnalytics)
     {
-        if (!disableAnalytics || string.IsNullOrWhiteSpace(html))
+        if (!removeManagedAnalytics || string.IsNullOrWhiteSpace(html))
         {
             return html;
         }
 
-        html = GtagExternalRegex().Replace(html, string.Empty);
-        html = GtagInlineRegex().Replace(html, string.Empty);
-        return html;
+        return AnalyticsManagedBlockFilter.Remove(html);
+    }
+
+    internal static bool ShouldRemoveManagedAnalytics(SiteConfig site)
+    {
+        var analytics = site.Analytics;
+        if (!analytics.Enabled || !analytics.ProductionOnly || analytics.Providers.Count == 0)
+        {
+            return false;
+        }
+
+        return site.Plugins is null ||
+               !site.Plugins.TryGetValue("analytics", out var plugin) ||
+               plugin.Enabled;
     }
 
     private static int ParsePort(string portText)
@@ -211,7 +222,7 @@ public static partial class PreviewCommand
         return port;
     }
 
-    private static void HandleRequest(string rootDir, HttpListenerContext context, bool disableAnalytics)
+    private static void HandleRequest(string rootDir, HttpListenerContext context, bool removeManagedAnalytics)
     {
         try
         {
@@ -243,7 +254,7 @@ public static partial class PreviewCommand
             if (Path.GetExtension(candidate).Equals(".html", StringComparison.OrdinalIgnoreCase))
             {
                 var html = File.ReadAllText(candidate);
-                var filtered = ApplyPreviewAnalyticsPolicy(html, disableAnalytics);
+                var filtered = ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics);
                 var bytes = Encoding.UTF8.GetBytes(filtered);
                 context.Response.ContentLength64 = bytes.Length;
                 context.Response.OutputStream.Write(bytes, 0, bytes.Length);
@@ -276,7 +287,7 @@ public static partial class PreviewCommand
         return queryIndex >= 0 ? raw[..queryIndex] : raw;
     }
 
-    private static bool ResolveDisableAnalyticsInPreview(string previewDir)
+    private static bool ResolveRemoveManagedAnalyticsInPreview(string previewDir)
     {
         var current = new DirectoryInfo(Path.GetFullPath(previewDir));
         while (current is not null)
@@ -287,8 +298,7 @@ public static partial class PreviewCommand
                 try
                 {
                     var config = ConfigLoader.Load(configPath);
-                    return config.Site.Analytics.DisableInPreview &&
-                           !string.IsNullOrWhiteSpace(config.Site.Analytics.GoogleAnalyticsId);
+                    return ShouldRemoveManagedAnalytics(config.Site);
                 }
                 catch
                 {
@@ -301,10 +311,4 @@ public static partial class PreviewCommand
 
         return false;
     }
-
-    [GeneratedRegex(@"[ \t]*<script\b(?=[^>]*googletagmanager\.com/gtag/js)[^>]*>\s*</script>\s*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex GtagExternalRegex();
-
-    [GeneratedRegex(@"[ \t]*<script\b[^>]*>.*?gtag\('config'.*?</script>\s*", RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
-    private static partial Regex GtagInlineRegex();
 }

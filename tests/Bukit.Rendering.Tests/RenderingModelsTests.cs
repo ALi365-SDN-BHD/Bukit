@@ -6,6 +6,13 @@ namespace Bukit.Rendering.Tests;
 public sealed class RenderingModelsTests
 {
     [Fact]
+    public void RenderingSurface_DoesNotExposeAnalyticsModelOrSiteProperty()
+    {
+        Assert.Null(typeof(SiteModel).Assembly.GetType("Bukit.Rendering.AnalyticsModel"));
+        Assert.Null(typeof(SiteModel).GetProperty("Analytics"));
+    }
+
+    [Fact]
     public void GeoModels_PreserveConfiguredValues()
     {
         var faq = new GeoFaqModel
@@ -120,8 +127,7 @@ public sealed class RenderingModelsTests
                     }
                 ]
             },
-            Data = new Dictionary<string, object> { ["featureFlag"] = true },
-            Analytics = new AnalyticsModel { Enabled = false, GoogleAnalyticsId = "G-123456" }
+            Data = new Dictionary<string, object> { ["featureFlag"] = true }
         };
 
         var page = new PageInfo
@@ -174,8 +180,6 @@ public sealed class RenderingModelsTests
         Assert.Equal("Bukit", site.Params!["brand"]);
         Assert.Single(site.Modules!["guides"]);
         Assert.True((bool)site.Data!["featureFlag"]);
-        Assert.False(site.Analytics.Enabled);
-        Assert.Equal("G-123456", site.Analytics.GoogleAnalyticsId);
 
         var module = Assert.Single(site.Modules["guides"]);
         Assert.Equal("getting-started", module.Id);

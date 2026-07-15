@@ -5,6 +5,8 @@ namespace Bukit.Config;
 
 public static class ConfigJsonSchemaGenerator
 {
+    private const string AnalyticsScriptUrlPattern = "^https://(?![^/?#]*@)(?:\\[[0-9A-Fa-f:.]+\\]|[^/?#:@]+)(?::443)?/[^?#]*\\.js(?:\\?[^#]*)?$";
+
     public static string Generate()
     {
         var root = Obj(
@@ -204,8 +206,59 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject AnalyticsSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("enabled", BoolSchema()),
-            ("googleAnalyticsId", StringSchema()),
-            ("disableInPreview", BoolSchema()))));
+            ("productionOnly", BoolSchema()),
+            ("providers", Obj(("type", "array"), ("items", AnalyticsProviderSchema()))))));
+
+    private static JsonObject AnalyticsProviderSchema()
+    {
+        var schema = new JsonObject();
+        schema["oneOf"] = new JsonArray(
+        [
+            AnalyticsProviderVariant(
+                "google-analytics",
+                ["type", "measurementId"],
+                ("measurementId", Obj(("type", "string"), ("pattern", "^G-[A-Z0-9]+$")))),
+            AnalyticsProviderVariant(
+                "google-tag-manager",
+                ["type", "containerId"],
+                ("containerId", Obj(("type", "string"), ("pattern", "^GTM-[A-Z0-9]+$")))),
+            AnalyticsProviderVariant(
+                "plausible",
+                ["type", "domain"],
+                ("domain", Obj(("type", "string"), ("format", "idn-hostname"))),
+                ("scriptUrl", Obj(
+                    ("type", "string"),
+                    ("format", "uri"),
+                    ("pattern", AnalyticsScriptUrlPattern),
+                    ("default", "https://plausible.io/js/script.js")))),
+            AnalyticsProviderVariant(
+                "umami",
+                ["type", "websiteId", "scriptUrl"],
+                ("websiteId", Obj(("type", "string"), ("format", "uuid"))),
+                ("scriptUrl", Obj(
+                    ("type", "string"),
+                    ("format", "uri"),
+                    ("pattern", AnalyticsScriptUrlPattern))))
+        ]);
+        return schema;
+    }
+
+    private static JsonObject AnalyticsProviderVariant(
+        string type,
+        string[] required,
+        params (string Key, JsonObject Schema)[] fields)
+    {
+        var properties = Obj(("type", Obj(("type", "string"), ("const", type))));
+        foreach (var (key, fieldSchema) in fields)
+        {
+            properties[key] = fieldSchema;
+        }
+
+        var schema = Obj(("type", "object"));
+        schema["required"] = Arr(required);
+        schema["properties"] = properties;
+        return schema;
+    }
 
     private static JsonObject FeedSchema()
         => Obj(("type", "object"), ("properties", Obj(

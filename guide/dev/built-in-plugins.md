@@ -13,6 +13,7 @@ Built-in plugins are registered by `BuiltInPluginSource`.
 | `alias` | derive pages | Adds redirect pages from alias metadata. |
 | `menu` | after build | Writes menu data from `site.menus`. |
 | `image-processing` | after build | Writes image processing output metadata. |
+| `analytics` | html transform | Injects validated provider fragments into content, list, and static HTML. |
 
 Additional aggregate writers such as sitemap, feed, search, and llms output are
 implemented as built-in plugin classes and projection writers, but the current
@@ -23,3 +24,25 @@ registry determines which plugins run through `PluginRunner`.
 `site.plugins.<name>.enabled: false` disables a built-in plugin by name.
 `site.pluginFailMode` chooses strict failure or warning behavior.
 `site.deriveConflictPolicy` handles conflicts among derived pages.
+
+Analytics has a second, feature-level switch at `site.analytics.enabled`.
+`site.plugins.analytics.enabled` controls plugin lifecycle participation;
+`site.analytics.enabled` controls output after the plugin is active. Both must
+be true, providers must be non-empty, and the production/development policy
+must permit injection.
+
+## Analytics Internal Boundary
+
+`AnalyticsPlugin` is registered exactly once by `BuiltInPluginSource`, resolved
+through `PluginRegistry`, and collected by `PluginRunner` as an Engine-internal
+HTML transform. Its registration name is `analytics`, version is `1.0.0`, and
+order is `1000`. Core transforms run before contributed plugin transforms, so
+the Analytics transform follows the SEO transform without depending on SEO
+being enabled.
+
+The `html-transform` hook, transform contexts, provider interfaces, and HTML
+fragments remain internal to `Bukit.Engine`. They do not extend
+`Bukit.Engine.Abstractions`, `Bukit.Plugin.Abstractions`, `Bukit.PluginHost`, or
+the `bukit-plugin-v1` protocol. Providers are statically registered for Native
+AOT; there is no assembly scan, reflection discovery, runtime DLL loading, or
+external process access to page HTML.

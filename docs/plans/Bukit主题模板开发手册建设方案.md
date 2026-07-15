@@ -459,7 +459,7 @@ Scriban 模板与组件
 - `site.modules`
 - `site.data`
 - `site.data_index`
-- `site.analytics`
+- 明确记录 Analytics 不进入模板上下文，模板中不存在 site.analytics
 
 **验收**：模板上下文目录由测试与 binder 对比，新增/删除字段时 CI 必须失败并提示更新契约。
 

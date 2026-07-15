@@ -128,7 +128,7 @@ Google 能处理 JavaScript，但抓取、渲染和索引链路更复杂。Bukit
 Bukit 映射：
 
 - SEO 关键元素必须存在于构建后的 HTML，而不是依赖客户端脚本写入。
-- GA4 gtag 是可控 Analytics 输出，不应扩展为任意脚本注入。
+- Analytics 必须由 Core 内置插件使用固定 Provider 模板输出，不应扩展为任意脚本注入。
 - 搜索、列表、taxonomy、pagination 的可索引内容应在 HTML 中存在，不能只靠运行时 JS 渲染。
 
 ## 10. Search Console 与 Google Analytics
@@ -140,8 +140,14 @@ Google 明确区分两类事实源：
 
 Bukit 映射：
 
-- `site.analytics.google_analytics_id` 只负责 GA4 gtag 输出。
-- `disableInPreview` 应避免本地 preview 污染 Analytics。
+- Analytics 通过 `BuiltInPluginSource → PluginRegistry → PluginRunner` 注册为
+  Core 内置插件，不属于外部协议插件，也不向主题或 Scriban 暴露配置模型。
+- 通用插件开关与功能开关必须同时启用；GA4、GTM、Plausible、Umami 使用
+  受验证的 Provider 字段和固定模板，禁止任意 JavaScript。
+- `productionOnly: true` 让开发构建跳过注入，并让 dev/preview 响应只移除
+  当前 Bukit 管理块；磁盘产物和无标记第三方脚本保持不变。
+- Breaking removal：旧 googleAnalyticsId 与 disableInPreview 配置已删除，
+  不是 deprecated，也没有兼容映射或 fallback。
 - SEO audit 产物应能作为 CI artifact 上传，与 Search Console 的线上问题做 diff。
 - 后续外部 audit 命令可接 Search Console API、Rich Results Test、Lighthouse、HTTP status、broken link 检查。
 

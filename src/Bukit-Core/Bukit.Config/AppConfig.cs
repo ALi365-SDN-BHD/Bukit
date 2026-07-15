@@ -68,8 +68,18 @@ public sealed record SeoOrganizationConfig
 public sealed record AnalyticsConfig
 {
     public bool Enabled { get; init; } = true;
-    public string? GoogleAnalyticsId { get; init; }
-    public bool DisableInPreview { get; init; } = true;
+    public bool ProductionOnly { get; init; } = true;
+    public IReadOnlyList<AnalyticsProviderConfig> Providers { get; init; } = Array.Empty<AnalyticsProviderConfig>();
+}
+
+public sealed record AnalyticsProviderConfig
+{
+    public required string Type { get; init; }
+    public string? MeasurementId { get; init; }
+    public string? ContainerId { get; init; }
+    public string? Domain { get; init; }
+    public string? WebsiteId { get; init; }
+    public string? ScriptUrl { get; init; }
 }
 
 public sealed record SeoRobotsTxtConfig

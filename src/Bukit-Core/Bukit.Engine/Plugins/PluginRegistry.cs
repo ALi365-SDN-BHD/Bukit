@@ -13,6 +13,7 @@ public sealed class BuiltInPluginSource : IPluginSource
 {
     public IEnumerable<IBukitPlugin> GetPlugins()
     {
+        yield return new BuiltIn.AnalyticsPlugin();
         yield return new BuiltIn.DataFilesPlugin();
         yield return new BuiltIn.PagesIndexPlugin();
         yield return new BuiltIn.TaxonomyPlugin();

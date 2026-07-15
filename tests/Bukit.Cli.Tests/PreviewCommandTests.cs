@@ -9,33 +9,89 @@ namespace Bukit.Cli.Tests;
 public sealed class PreviewCommandTests
 {
     [Fact]
-    public void ApplyPreviewAnalyticsPolicy_WhenDisabled_RemovesGa4Scripts()
+    public void ApplyPreviewAnalyticsPolicy_WhenRemovalEnabled_RemovesManagedHeadAndBodyBlocks()
     {
         var html = """
             <html><head>
+              <meta charset="utf-8">
+              <!-- bukit:analytics:google-analytics:G-ABC123:head:start -->
               <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABC123"></script>
-              <script>
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', 'G-ABC123');
-              </script>
-            </head><body>ok</body></html>
+              <!-- bukit:analytics:google-analytics:G-ABC123:head:end -->
+            </head><body>
+              <!-- bukit:analytics:google-tag-manager:GTM-ABC123:body:start -->
+              <noscript>managed body</noscript>
+              <!-- bukit:analytics:google-tag-manager:GTM-ABC123:body:end -->
+              ok
+            </body></html>
             """;
 
-        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, disableAnalytics: true);
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: true);
 
         Assert.DoesNotContain("googletagmanager.com/gtag/js", filtered, StringComparison.Ordinal);
-        Assert.DoesNotContain("gtag('config'", filtered, StringComparison.Ordinal);
-        Assert.Contains("<body>ok</body>", filtered, StringComparison.Ordinal);
+        Assert.DoesNotContain("managed body", filtered, StringComparison.Ordinal);
+        Assert.DoesNotContain("bukit:analytics", filtered, StringComparison.Ordinal);
+        Assert.Contains("<meta charset=\"utf-8\">", filtered, StringComparison.Ordinal);
+        Assert.Contains("ok", filtered, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ApplyPreviewAnalyticsPolicy_WhenEnabled_LeavesHtmlUnchanged()
+    public void ApplyPreviewAnalyticsPolicy_PreservesUnmarkedProviderScripts()
     {
-        var html = "<script>gtag('config', 'G-ABC123');</script>";
+        var html = """
+            <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABC123"></script>
+            <script>gtag('config', 'G-ABC123');</script>
+            <script src="https://www.googletagmanager.com/gtm.js?id=GTM-ABC123"></script>
+            <script defer data-domain="example.com" src="https://plausible.io/js/script.js"></script>
+            <script async data-website-id="site-id" src="https://cloud.umami.is/script.js"></script>
+            """;
 
-        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, disableAnalytics: false);
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: true);
+
+        Assert.Equal(html, filtered);
+    }
+
+    [Theory]
+    [InlineData("<script>const marker = \"<!-- bukit:analytics:google-analytics:G-ABC123:head:start -->user<!-- bukit:analytics:google-analytics:G-ABC123:head:end -->\";</script>")]
+    [InlineData("<style>/* <!-- bukit:analytics:google-analytics:G-ABC123:head:start -->user<!-- bukit:analytics:google-analytics:G-ABC123:head:end --> */</style>")]
+    [InlineData("<div data-marker=\"<!-- bukit:analytics:google-analytics:G-ABC123:head:start -->user<!-- bukit:analytics:google-analytics:G-ABC123:head:end -->\"></div>")]
+    public void ApplyPreviewAnalyticsPolicy_PreservesMarkerTextOutsideHtmlComments(string html)
+    {
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: true);
+
+        Assert.Equal(html, filtered);
+    }
+
+    [Theory]
+    [InlineData("google-analytics:G-ABC123:extra")]
+    [InlineData("google-analytics:G@ABC123")]
+    [InlineData("google-analytics:G-ABC123/path")]
+    public void ApplyPreviewAnalyticsPolicy_PreservesMarkersWithInvalidProviderKeys(string providerKey)
+    {
+        var html = $"<!-- bukit:analytics:{providerKey}:head:start -->user<!-- bukit:analytics:{providerKey}:head:end -->";
+
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: true);
+
+        Assert.Equal(html, filtered);
+    }
+
+    [Theory]
+    [InlineData("<!-- bukit:analytics:google-analytics:G-ABC123:head:start --><script>managed</script>")]
+    [InlineData("<script>managed</script><!-- bukit:analytics:google-analytics:G-ABC123:head:end -->")]
+    [InlineData("<!-- bukit:analytics:google-analytics:G-ABC123:head:start --><script>managed</script><!-- bukit:analytics:google-analytics:G-ABC123:body:end -->")]
+    [InlineData("<!--bukit:analytics:google-analytics:G-ABC123:head:start--><script>managed</script><!--bukit:analytics:google-analytics:G-ABC123:head:end-->")]
+    public void ApplyPreviewAnalyticsPolicy_PreservesMalformedOrUnpairedManagedBlocks(string html)
+    {
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: true);
+
+        Assert.Equal(html, filtered);
+    }
+
+    [Fact]
+    public void ApplyPreviewAnalyticsPolicy_WhenRemovalDisabled_LeavesManagedBlockUnchanged()
+    {
+        var html = "<!-- bukit:analytics:plausible:example.com:head:start --><script>managed</script><!-- bukit:analytics:plausible:example.com:head:end -->";
+
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: false);
 
         Assert.Equal(html, filtered);
     }

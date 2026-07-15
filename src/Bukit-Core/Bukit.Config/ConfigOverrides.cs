@@ -1,7 +1,14 @@
 namespace Bukit.Config;
 
+public enum BuildExecutionMode
+{
+    Production = 0,
+    Development = 1
+}
+
 public sealed record ConfigOverrides
 {
+    public BuildExecutionMode ExecutionMode { get; init; } = BuildExecutionMode.Production;
     public string? Output { get; init; }
     public string? BaseUrl { get; init; }
     public bool? Clean { get; init; }

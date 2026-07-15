@@ -78,6 +78,16 @@ public sealed class StarterThemeTemplateResourceTests : IDisposable
     }
 
     [Fact]
+    public void StarterTheme_DoesNotContainAnalyticsPartial()
+    {
+        var path = Path.Combine(
+            FindRepositoryRoot(),
+            "src", "Bukit-Core", "Bukit.Cli", "Resources", "StarterTheme", "AnalyticsPartial.html");
+
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
     public void StarterTaxonomyTermTemplate_UsesRoutePrefixForAncestorBreadcrumb()
     {
         var renderer = new ScribanTemplateRenderer(_layoutsDir);

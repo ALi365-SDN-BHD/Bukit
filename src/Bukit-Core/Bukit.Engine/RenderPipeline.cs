@@ -32,10 +32,9 @@ internal sealed record RenderPipelineContext(
     IReadOnlyList<RoutedContentDocument> RoutedDocuments,
     IReadOnlyList<RenderEntry>? StaticEntries = null,
     Func<ContentDocument, RouteInfo, SeoModel>? SeoBuilder = null,
-    Func<ContentDocument, RouteInfo, PageInfo, string, string>? HtmlPostProcessor = null,
     Func<ContentDocument, RouteInfo, SeoModel>? ListItemSeoBuilder = null,
     Func<RouteInfo, PageInfo, SeoModel>? ListSeoBuilder = null,
-    Func<RouteInfo, PageInfo, string, string>? ListHtmlPostProcessor = null,
+    HtmlTransformPipeline? HtmlTransformPipeline = null,
     ThemeTemplateResolver? TemplateResolver = null,
     Func<RouteInfo, string>? RenderDependencyHashResolver = null,
     IReadOnlyDictionary<string, RouteMetadataEntry>? RouteMetadata = null)
@@ -101,11 +100,10 @@ internal sealed class RenderPipeline
             context.Logger,
             cancellationToken,
             context.SeoBuilder,
-            context.HtmlPostProcessor,
             context.ListSeoBuilder,
-            context.ListHtmlPostProcessor,
             context.RenderDependencyHashResolver,
-            context.RouteMetadata);
+            context.RouteMetadata,
+            context.HtmlTransformPipeline);
 
         if (context.IncrementalEnabled && context.ManifestEntries is not null)
         {

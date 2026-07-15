@@ -18,11 +18,6 @@ public sealed class ScribanModelBinderTests
             BaseUrl = "/en/",
             Language = "en",
             BuildYear = 2026,
-            Analytics = new AnalyticsModel
-            {
-                Enabled = true,
-                GoogleAnalyticsId = "G-XXXXXXXXXX"
-            },
             Params = new Dictionary<string, object>
             {
                 ["theme_color"] = "#ff0000",
@@ -201,7 +196,7 @@ public sealed class ScribanModelBinderTests
     }
 
     [Fact]
-    public void ToScriptObject_PageModel_BindsAnalyticsCorrectly()
+    public void ToScriptObject_PageModel_DoesNotExposeAnalytics()
     {
         var model = new PageModel
         {
@@ -211,10 +206,7 @@ public sealed class ScribanModelBinderTests
 
         var obj = ScribanModelBinder.ToScriptObject(model);
         var site = Assert.IsType<ScriptObject>(obj["site"]);
-        var analytics = Assert.IsType<ScriptObject>(site["analytics"]);
-
-        Assert.True((bool)analytics["enabled"]!);
-        Assert.Equal("G-XXXXXXXXXX", analytics["googleAnalyticsId"]);
+        Assert.False(site.TryGetValue("analytics", out _));
     }
 
     [Fact]
@@ -255,23 +247,6 @@ public sealed class ScribanModelBinderTests
         Assert.Equal("markdown", provenance["source"]);
         Assert.Equal("approved", trust["review_status"]);
         Assert.Equal("Bukit", Assert.IsType<ScriptObject>(entities[0])["name"]);
-    }
-
-    [Fact]
-    public void ToScriptObject_PageModel_AnalyticsDefaultValues()
-    {
-        var model = new PageModel
-        {
-            Site = CreateMinimalSite(),
-            Page = CreateMinimalPage()
-        };
-
-        var obj = ScribanModelBinder.ToScriptObject(model);
-        var site = Assert.IsType<ScriptObject>(obj["site"]);
-        var analytics = Assert.IsType<ScriptObject>(site["analytics"]);
-
-        Assert.True((bool)analytics["enabled"]!);
-        Assert.Null(analytics["googleAnalyticsId"]);
     }
 
     [Fact]

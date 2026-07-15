@@ -428,6 +428,14 @@ public sealed class DevCommandTests
     }
 
     [Fact]
+    public void CreateBuildOverrides_UsesDevelopmentExecutionMode()
+    {
+        var overrides = DevCommand.CreateBuildOverrides(clean: true, outputOverride: null, cacheDir: ".cache");
+
+        Assert.Equal(BuildExecutionMode.Development, overrides.ExecutionMode);
+    }
+
+    [Fact]
     public async Task DevCommand_NoWatch_ServesStaticOutput()
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-nowatch-static-" + Guid.NewGuid().ToString("N"));
@@ -438,7 +446,7 @@ public sealed class DevCommandTests
         {
             Assert.False(DevCommand.ShouldStartWatcher(noWatch: true, watchedDirsCount: 1));
 
-            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 "/",
                 (context, ct) => handler.HandleAsync(context, ct));
@@ -470,21 +478,6 @@ public sealed class DevCommandTests
 
         Assert.Contains("--allow-lan", optionNames);
         Assert.Contains("--public", optionNames);
-    }
-
-    [Fact]
-    public void ResolveDisableAnalytics_UsesLoadedConfigAnalytics()
-    {
-        Assert.True(DevCommand.ResolveDisableAnalytics(new AnalyticsConfig
-        {
-            DisableInPreview = true,
-            GoogleAnalyticsId = "G-ABCDE123"
-        }));
-
-        Assert.False(DevCommand.ResolveDisableAnalytics(new AnalyticsConfig
-        {
-            DisableInPreview = true
-        }));
     }
 
     [Fact]
@@ -540,7 +533,15 @@ public sealed class DevCommandTests
 
         try
         {
-            var handler = new DevRequestHandler(outputDir, disableAnalytics: true, new TestLogger());
+            var original = """
+                <html><head>
+                  <!-- bukit:analytics:google-analytics:G-12345:head:start -->
+                  <script>managed analytics</script>
+                  <!-- bukit:analytics:google-analytics:G-12345:head:end -->
+                </head><body>ok</body></html>
+                """;
+            File.WriteAllText(Path.Combine(outputDir, "index.html"), original);
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: true, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 "/",
                 (context, ct) => handler.HandleAsync(context, ct));
@@ -548,7 +549,8 @@ public sealed class DevCommandTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Contains("ok", response.Body, StringComparison.Ordinal);
             Assert.Contains("new WebSocket", response.Body, StringComparison.Ordinal);
-            Assert.DoesNotContain("googletagmanager.com/gtag/js", response.Body, StringComparison.Ordinal);
+            Assert.DoesNotContain("managed analytics", response.Body, StringComparison.Ordinal);
+            Assert.Equal(original, File.ReadAllText(Path.Combine(outputDir, "index.html")));
         }
         finally
         {
@@ -564,7 +566,7 @@ public sealed class DevCommandTests
 
         try
         {
-            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 "/missing",
                 (context, ct) => handler.HandleAsync(context, ct));
@@ -590,7 +592,7 @@ public sealed class DevCommandTests
 
         try
         {
-            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 requestPath,
                 (context, ct) => handler.HandleAsync(context, ct));
@@ -616,7 +618,7 @@ public sealed class DevCommandTests
 
         try
         {
-            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 path,
                 (context, ct) => handler.HandleAsync(context, ct));
@@ -651,7 +653,7 @@ public sealed class DevCommandTests
         try
         {
             var longPath = "/" + new string('a', 1024);
-            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 longPath,
                 (context, ct) => handler.HandleAsync(context, ct));
@@ -674,7 +676,7 @@ public sealed class DevCommandTests
 
         try
         {
-            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 "/site.css",
                 (context, ct) => handler.HandleAsync(context, ct));
@@ -837,7 +839,7 @@ public sealed class DevCommandTests
 
         try
         {
-            var handler = new DevRequestHandler(outputDir, disableAnalytics: false, new TestLogger());
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 path,
                 (context, ct) => handler.HandleAsync(context, ct));

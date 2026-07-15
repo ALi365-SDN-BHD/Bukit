@@ -1,6 +1,9 @@
 # SEO and Analytics
 
-Bukit builds SEO in the engine first. Themes can render the model explicitly, or the engine can inject the generated head tags after rendering.
+Bukit builds SEO in the engine first. Themes can render the SEO model
+explicitly, or the engine can inject generated SEO head tags after rendering.
+Analytics is a separate Core built-in plugin and is never rendered from a
+theme model.
 
 For the Google Search Central rules behind these choices, see [Google Search Central SEO 学习笔记](google-search-central-learning.md).
 
@@ -10,6 +13,9 @@ For the Google Search Central rules behind these choices, see [Google Search Cen
 site:
   url: https://example.com
   baseUrl: /
+  plugins:
+    analytics:
+      enabled: true
   search:
     route: /search/
   seo:
@@ -30,13 +36,34 @@ site:
       searchAction: true
   analytics:
     enabled: true
-    google_analytics_id: G-XXXXXXXXXX
-    disableInPreview: true
+    productionOnly: true
+    providers:
+      - type: google-analytics
+        measurementId: G-XXXXXXXXXX
 ```
 
-`site.analytics.google_analytics_id` must be a GA4 ID starting with `G-`. Analytics is emitted when `google_analytics_id` exists and `enabled` is not `false`.
+The Core `analytics` plugin is registered through `BuiltInPluginSource`,
+`PluginRegistry`, and `PluginRunner`. It is not an external protocol plugin.
+`site.plugins.analytics.enabled` controls its lifecycle, while
+`site.analytics.enabled` controls feature output. Both must be enabled, at
+least one provider must be configured, and the execution-mode policy must
+permit injection.
 
-When `disableInPreview` is `true`, `bukit preview` removes Bukit-managed GA4 gtag scripts from served HTML when it can discover the nearest `site.yaml` for the preview directory. The generated files on disk are unchanged.
+Supported provider types are Google Analytics, Google Tag Manager, Plausible,
+and Umami. Provider values are validated and encoded into fixed templates;
+arbitrary JavaScript is not accepted. Full configuration and safety rules are
+in [Analytics](../guide/user/19-analytics.md).
+
+With `productionOnly: true`, `bukit dev` does not inject Analytics and
+development/preview responses remove only current, well-formed Bukit-managed
+Analytics blocks. Generated files are never rewritten by response filtering,
+and unmarked third-party scripts remain unchanged. With the setting
+`productionOnly: false`, enabled Analytics is retained in development and
+preview.
+
+Breaking removal: the former googleAnalyticsId and disableInPreview keys are
+deleted rather than deprecated. Strict validation rejects them as unknown and
+there is no mapping or fallback.
 
 `site.seo.schema.searchAction` is an allow switch, while `site.search.route` is
 the explicit search capability declaration. Bukit emits WebSite SearchAction
@@ -56,17 +83,28 @@ theme `capabilities.search` does not enable this contract by itself.
 
 ## Render Modes
 
-- `inject`: default engine-owned mode. Bukit parses the rendered HTML `<head>`, removes managed SEO/GA tags, and injects canonical, description, robots, Open Graph, Twitter, hreflang, JSON-LD, and GA4 gtag.
-- `theme`: explicit compatibility mode. The engine exposes `page.seo` and `site.analytics`; the theme renders the SEO partial. Diagnostics report missing or duplicate core tags.
+- `inject`: default engine-owned SEO mode. Bukit parses the rendered HTML `<head>`, removes managed SEO tags, and injects canonical, description, robots, Open Graph, Twitter, hreflang, and JSON-LD.
+- `theme`: explicit SEO compatibility mode. The engine exposes `page.seo`; the theme renders the SEO partial. Diagnostics report missing or duplicate core tags.
 - `off`: disables engine-managed HTML SEO tag output. The engine still computes indexing policy unless `site.seo.enabled: false`.
 
 Use `theme` only when you intentionally want the theme to own head output. Use `off` for unusual deployments that do not want Bukit to build HTML SEO tags, while still preserving index policy for sitemap/search unless SEO is fully disabled.
 
+Analytics does not follow these SEO render modes. Its built-in transform runs
+after the Core SEO transform and remains eligible when SEO is disabled or uses
+`theme`/`off`. Themes and Scriban cannot read `site.analytics` as a template
+object.
+
 ## Starter Theme Defaults
 
-The starter theme is inject-first. Its base layout only provides a standard HTML `<head>` with charset, viewport, title, RSS/sitemap links, and stylesheet links. It does not include SEO or Analytics partials by default. Bukit injects the managed SEO head and GA4 tags when `site.seo.renderMode: inject`.
+The starter theme is inject-first. Its base layout only provides a standard
+HTML `<head>` with charset, viewport, title, RSS/sitemap links, and stylesheet
+links. It does not include an Analytics partial. Bukit injects the managed SEO
+head when `site.seo.renderMode: inject`; the independent Analytics plugin adds
+enabled provider fragments afterward.
 
-Starter still ships `partials/seo.html` and `partials/analytics.html` as reference partials for users who intentionally switch to `renderMode: theme`. Those partials must use `html.escape` for HTML attributes.
+Starter still ships `partials/seo.html` as a reference partial for users who
+intentionally switch to `renderMode: theme`. It must use `html.escape` for HTML
+attributes. There is no Analytics reference partial or theme fallback.
 
 ## Description Fallbacks
 
@@ -203,9 +241,9 @@ not override the canonical name or type. An invalid explicit author type is
 reported by canonical validation and is omitted from article JSON-LD instead
 of being guessed as `Person`.
 
-## Theme Partial
+## Theme SEO Partial
 
-Official themes can render the engine model directly:
+Official themes can render the SEO model directly:
 
 ```html
 {{ if page.seo }}
@@ -217,19 +255,12 @@ Official themes can render the engine model directly:
 <script type="application/ld+json">{{ json }}</script>
 {{ end }}
 {{ end }}
-
-{{ if site.analytics.enabled && site.analytics.google_analytics_id }}
-<script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.google_analytics_id | html.escape }}"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', '{{ site.analytics.google_analytics_id | html.escape }}');
-</script>
-{{ end }}
 ```
 
-For new themes, the default `renderMode: inject` already provides the strongest engine guarantee. Shared SEO/Analytics partials remain useful for explicit `theme` mode and for local customization, but they are no longer required for a complete head.
+For new themes, the default `renderMode: inject` provides the strongest SEO
+guarantee. An explicit `theme` mode may use a shared SEO partial for local
+customization. Analytics must not be added to that partial: the Core built-in
+plugin is the only supported Analytics output owner.
 
 ## robots.txt
 

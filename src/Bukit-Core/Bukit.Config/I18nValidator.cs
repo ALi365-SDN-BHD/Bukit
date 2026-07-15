@@ -1,4 +1,6 @@
 using Bukit.Shared;
+using System.Globalization;
+using System.Net;
 using System.Text.RegularExpressions;
 
 namespace Bukit.Config;
@@ -106,11 +108,7 @@ internal static class I18nValidator
             throw new ConfigException("site.seo.geo.aiBotMode must be allow|block|selective.");
         }
 
-        if (!string.IsNullOrWhiteSpace(site.Analytics.GoogleAnalyticsId) &&
-            !Regex.IsMatch(site.Analytics.GoogleAnalyticsId.Trim(), "^G-[A-Z0-9]+$", RegexOptions.CultureInvariant))
-        {
-            throw new ConfigException("site.analytics.googleAnalyticsId must be a GA4 id starting with G-.");
-        }
+        ValidateAnalytics(site.Analytics);
 
         var pluginFailMode = (site.PluginFailMode ?? "strict").Trim().ToLowerInvariant();
         if (pluginFailMode is not ("strict" or "warn"))
@@ -133,6 +131,177 @@ internal static class I18nValidator
                     throw new ConfigException("site.plugins keys must be non-empty strings.");
                 }
             }
+        }
+    }
+
+    private static void ValidateAnalytics(AnalyticsConfig analytics)
+    {
+        var providerKeys = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < analytics.Providers.Count; index++)
+        {
+            var provider = analytics.Providers[index];
+            var path = $"site.analytics.providers[{index}]";
+            var key = provider.Type switch
+            {
+                "google-analytics" => ValidateGoogleAnalytics(provider, path),
+                "google-tag-manager" => ValidateGoogleTagManager(provider, path),
+                "plausible" => ValidatePlausible(provider, path),
+                "umami" => ValidateUmami(provider, path),
+                _ => throw new ConfigException(
+                    $"{path}.type must be google-analytics|google-tag-manager|plausible|umami.",
+                    DiagnosticCode.ConfigInvalidValue)
+            };
+
+            if (!providerKeys.Add(key))
+            {
+                throw new ConfigException(
+                    $"{path} has a duplicate provider key.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+    }
+
+    private static string ValidateGoogleAnalytics(AnalyticsProviderConfig provider, string path)
+    {
+        RequireOnlyProviderFields(provider, path, measurementId: true);
+        if (string.IsNullOrEmpty(provider.MeasurementId))
+        {
+            throw new ConfigException($"{path}.measurementId is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        if (!Regex.IsMatch(provider.MeasurementId, "^G-[A-Z0-9]+$", RegexOptions.CultureInvariant))
+        {
+            throw new ConfigException($"{path}.measurementId must match ^G-[A-Z0-9]+$.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return $"google-analytics:{provider.MeasurementId}";
+    }
+
+    private static string ValidateGoogleTagManager(AnalyticsProviderConfig provider, string path)
+    {
+        RequireOnlyProviderFields(provider, path, containerId: true);
+        if (string.IsNullOrEmpty(provider.ContainerId))
+        {
+            throw new ConfigException($"{path}.containerId is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        if (!Regex.IsMatch(provider.ContainerId, "^GTM-[A-Z0-9]+$", RegexOptions.CultureInvariant))
+        {
+            throw new ConfigException($"{path}.containerId must match ^GTM-[A-Z0-9]+$.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return $"google-tag-manager:{provider.ContainerId}";
+    }
+
+    private static string ValidatePlausible(AnalyticsProviderConfig provider, string path)
+    {
+        RequireOnlyProviderFields(provider, path, domain: true, scriptUrl: true);
+        if (string.IsNullOrEmpty(provider.Domain))
+        {
+            throw new ConfigException($"{path}.domain is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        var asciiDomain = NormalizeDnsDomain(provider.Domain, $"{path}.domain");
+        if (provider.ScriptUrl is not null)
+        {
+            ValidateScriptUrl(provider.ScriptUrl, $"{path}.scriptUrl");
+        }
+
+        return $"plausible:{asciiDomain}";
+    }
+
+    private static string ValidateUmami(AnalyticsProviderConfig provider, string path)
+    {
+        RequireOnlyProviderFields(provider, path, websiteId: true, scriptUrl: true);
+        if (string.IsNullOrEmpty(provider.WebsiteId))
+        {
+            throw new ConfigException($"{path}.websiteId is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        if (!Guid.TryParseExact(provider.WebsiteId, "D", out var websiteId))
+        {
+            throw new ConfigException($"{path}.websiteId must be a UUID.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (provider.ScriptUrl is null)
+        {
+            throw new ConfigException($"{path}.scriptUrl is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        ValidateScriptUrl(provider.ScriptUrl, $"{path}.scriptUrl");
+        return $"umami:{websiteId:D}";
+    }
+
+    private static void RequireOnlyProviderFields(
+        AnalyticsProviderConfig provider,
+        string path,
+        bool measurementId = false,
+        bool containerId = false,
+        bool domain = false,
+        bool websiteId = false,
+        bool scriptUrl = false)
+    {
+        RejectProviderField(provider.MeasurementId, measurementId, $"{path}.measurementId");
+        RejectProviderField(provider.ContainerId, containerId, $"{path}.containerId");
+        RejectProviderField(provider.Domain, domain, $"{path}.domain");
+        RejectProviderField(provider.WebsiteId, websiteId, $"{path}.websiteId");
+        RejectProviderField(provider.ScriptUrl, scriptUrl, $"{path}.scriptUrl");
+    }
+
+    private static void RejectProviderField(string? value, bool allowed, string path)
+    {
+        if (!allowed && value is not null)
+        {
+            throw new ConfigException($"{path} is not allowed for this provider type.", DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private static string NormalizeDnsDomain(string? domain, string path)
+    {
+        if (string.IsNullOrWhiteSpace(domain) || domain != domain.Trim() ||
+            domain.IndexOfAny([':', '/', '\\', '?', '#', '@']) >= 0 ||
+            IPAddress.TryParse(domain, out _))
+        {
+            throw new ConfigException($"{path} must be a DNS host name.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        string asciiDomain;
+        try
+        {
+            asciiDomain = new IdnMapping().GetAscii(domain).ToLowerInvariant();
+        }
+        catch (ArgumentException)
+        {
+            throw new ConfigException($"{path} must be a DNS host name.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (asciiDomain.Length > 253 ||
+            Uri.CheckHostName(asciiDomain) != UriHostNameType.Dns ||
+            asciiDomain.StartsWith(".", StringComparison.Ordinal) ||
+            asciiDomain.EndsWith(".", StringComparison.Ordinal) ||
+            asciiDomain.Split('.').Any(label =>
+                label.Length is < 1 or > 63 ||
+                label.StartsWith("-", StringComparison.Ordinal) ||
+                label.EndsWith("-", StringComparison.Ordinal)))
+        {
+            throw new ConfigException($"{path} must be a DNS host name.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return asciiDomain;
+    }
+
+    private static void ValidateScriptUrl(string scriptUrl, string path)
+    {
+        if (scriptUrl != scriptUrl.Trim() ||
+            !Uri.TryCreate(scriptUrl, UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrEmpty(uri.Host) ||
+            !string.IsNullOrEmpty(uri.UserInfo) ||
+            !string.IsNullOrEmpty(uri.Fragment) ||
+            !uri.IsDefaultPort ||
+            !uri.AbsolutePath.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ConfigException($"{path} must be an absolute HTTPS .js URL without credentials or a fragment.", DiagnosticCode.ConfigInvalidValue);
         }
     }
 

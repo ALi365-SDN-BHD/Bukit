@@ -25,7 +25,6 @@ internal static class StarterThemeScaffold
         WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "layouts", "base.html"),
             ThemeTemplateResource.ProcessPlaceholders(ThemeTemplateResource.Get("BaseLayout"), placeholders));
         WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "seo.html"), ThemeTemplateResource.Get("SeoPartial"));
-        WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "analytics.html"), ThemeTemplateResource.Get("AnalyticsPartial"));
         WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "header.html"),
             ThemeTemplateResource.ProcessPlaceholders(ThemeTemplateResource.Get("HeaderPartial"), placeholders));
         WriteFile(rootDir, Path.Combine("themes", themeName, "layouts", "partials", "footer.html"),

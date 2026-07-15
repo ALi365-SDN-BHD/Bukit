@@ -14,7 +14,6 @@ public sealed record SiteModel
     public IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? Modules { get; init; }
     public IReadOnlyDictionary<string, object>? Data { get; init; }
     public IReadOnlyDictionary<string, object>? DataIndex { get; init; }
-    public AnalyticsModel Analytics { get; init; } = new();
 }
 
 public sealed record ModuleInfo
@@ -44,12 +43,6 @@ public sealed record PageInfo
     public ProvenanceRecord? Provenance { get; init; }
     public TrustMetadata? Trust { get; init; }
     public IReadOnlyList<string>? Representations { get; init; }
-}
-
-public sealed record AnalyticsModel
-{
-    public bool Enabled { get; init; } = true;
-    public string? GoogleAnalyticsId { get; init; }
 }
 
 public sealed record SeoModel

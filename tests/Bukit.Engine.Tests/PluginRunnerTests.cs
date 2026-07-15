@@ -7,12 +7,201 @@ using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using System.Security.Cryptography;
+using System.Collections.Concurrent;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class PluginRunnerTests
 {
+    [Fact]
+    public void CollectHtmlTransforms_UsesRegistryOrderHookAndCreatesFreshTransformPerVariant()
+    {
+        var context = CreateContext(analytics: Analytics(Provider("google-analytics", measurementId: "G-ORDER")));
+
+        var first = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+        var second = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+
+        var firstAnalytics = Assert.Single(first, x => x.Name == "analytics");
+        var secondAnalytics = Assert.Single(second, x => x.Name == "analytics");
+        Assert.NotSame(firstAnalytics, secondAnalytics);
+        Assert.Equal(first.Select(x => x.Name).OrderBy(x => x, StringComparer.OrdinalIgnoreCase), first.Select(x => x.Name));
+    }
+
+    [Fact]
+    public void CollectHtmlTransforms_WhenGenericPluginIsDisabled_CreatesNoTransformOrExecutionRecord()
+    {
+        var plugin = new TestHtmlTransformPlugin("generic", order: 1, () => new AppendingTransform("generic"));
+        var context = CreateContext(plugins: new Dictionary<string, PluginToggleConfig>
+        {
+            ["generic"] = new() { Enabled = false }
+        });
+
+        var transforms = PluginRunner.CollectHtmlTransforms(
+            context,
+            BuildExecutionMode.Production,
+            [plugin]);
+        transforms.RecordExecutions();
+
+        Assert.Empty(transforms);
+        Assert.Equal(0, plugin.CreateCount);
+        Assert.DoesNotContain(context.PluginExecutions, x => x.Name == "generic");
+    }
+
+    [Fact]
+    public void CollectHtmlTransforms_WhenAnalyticsPluginIsDisabled_CreatesNoTransformOrExecutionRecord()
+    {
+        var context = CreateContext(
+            plugins: new Dictionary<string, PluginToggleConfig>
+            {
+                ["analytics"] = new() { Enabled = false }
+            },
+            analytics: Analytics(Provider("google-analytics", measurementId: "G-DISABLED")));
+
+        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+        transforms.RecordExecutions();
+
+        Assert.DoesNotContain(transforms, x => x.Name == "analytics");
+        Assert.DoesNotContain(context.PluginExecutions, x => x.Name == "analytics");
+    }
+
+    [Fact]
+    public void CollectHtmlTransforms_ExcludesPluginWhoseHookFilterRejectsHtmlTransform()
+    {
+        var plugin = new RejectingHtmlTransformPlugin();
+        var context = CreateContext();
+
+        var transforms = PluginRunner.CollectHtmlTransforms(
+            context,
+            BuildExecutionMode.Production,
+            [plugin]);
+        transforms.RecordExecutions();
+
+        Assert.Empty(transforms);
+        Assert.False(plugin.Created);
+        Assert.Empty(context.PluginExecutions);
+    }
+
+    [Fact]
+    public void CollectHtmlTransforms_WhenAnalyticsFeatureIsDisabled_StillCreatesTransformWithoutInjection()
+    {
+        var context = CreateContext(analytics: Analytics(
+            [Provider("google-analytics", measurementId: "G-OFF")],
+            enabled: false));
+
+        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+        var analytics = Assert.Single(transforms, x => x.Name == "analytics");
+        const string html = "<html><head></head><body></body></html>";
+
+        Assert.Equal(html, analytics.Transform(HtmlContext(), html));
+    }
+
+    [Fact]
+    public void CollectedHtmlTransforms_RecordZeroPageExecutionExactlyOnce()
+    {
+        var context = CreateContext(analytics: Analytics());
+        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+
+        Parallel.Invoke(transforms.RecordExecutions, transforms.RecordExecutions, transforms.RecordExecutions);
+
+        var execution = Assert.Single(context.PluginExecutions, x => x.Name == "analytics" && x.Hook == "html-transform");
+        Assert.Equal(0, execution.DurationMs);
+        Assert.True(execution.Success);
+        Assert.Null(execution.Error);
+    }
+
+    [Fact]
+    public void CollectedHtmlTransforms_EveryConcurrentCallerReturnsAfterRecordIsVisible()
+    {
+        var context = CreateContext(analytics: Analytics());
+        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+
+        Parallel.For(0, 100, _ =>
+        {
+            transforms.RecordExecutions();
+            Assert.Single(context.PluginExecutions, x => x.Name == "analytics" && x.Hook == "html-transform");
+        });
+
+        Assert.Single(context.PluginExecutions);
+    }
+
+    [Fact]
+    public void TrackedHtmlTransform_StrictRecordsFirstErrorAndRethrows()
+    {
+        var plugin = new TestHtmlTransformPlugin("throwing", 1, () => new ThrowingTransform("strict boom"));
+        var context = CreateContext(pluginFailMode: "strict");
+        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production, [plugin]);
+        var transform = Assert.IsType<TrackedHtmlTransform>(Assert.Single(transforms));
+
+        var exception = Assert.Throws<InvalidOperationException>(() => transform.Transform(HtmlContext(), "before"));
+        transforms.RecordExecutions();
+
+        Assert.Equal("strict boom", exception.Message);
+        Assert.Equal(1, transform.InvocationCount);
+        var execution = Assert.Single(context.PluginExecutions);
+        Assert.False(execution.Success);
+        Assert.Equal("strict boom", execution.Error);
+    }
+
+    [Fact]
+    public void TrackedHtmlTransform_WarnReturnsInputContinuesAndAggregatesWarning()
+    {
+        var logger = new RecordingLogger();
+        var throwing = new TestHtmlTransformPlugin("a-throwing", 1, () => new ThrowingTransform("warn boom"));
+        var appending = new TestHtmlTransformPlugin("b-appending", 2, () => new AppendingTransform("after"));
+        var context = CreateContext(pluginFailMode: "warn", logger: logger);
+        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production, [appending, throwing]);
+
+        var html = "before";
+        foreach (var transform in transforms)
+        {
+            html = transform.Transform(HtmlContext(logger: logger), html);
+        }
+        _ = transforms[0].Transform(HtmlContext(logger: logger), "second");
+        transforms.RecordExecutions();
+
+        Assert.Equal("before|after", html);
+        Assert.Single(logger.Warnings, x => x.Contains("a-throwing", StringComparison.Ordinal));
+        Assert.Collection(
+            context.PluginExecutions,
+            first =>
+            {
+                Assert.Equal("a-throwing", first.Name);
+                Assert.False(first.Success);
+                Assert.Equal("warn boom", first.Error);
+            },
+            second =>
+            {
+                Assert.Equal("b-appending", second.Name);
+                Assert.True(second.Success);
+            });
+    }
+
+    [Fact]
+    public void TrackedHtmlTransform_ParallelCallsHaveRaceFreeCountErrorAndSingleRecord()
+    {
+        var logger = new RecordingLogger();
+        var plugin = new TestHtmlTransformPlugin("parallel", 1, () => new SometimesThrowingTransform());
+        var context = CreateContext(pluginFailMode: "warn", logger: logger);
+        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production, [plugin]);
+        var transform = Assert.IsType<TrackedHtmlTransform>(Assert.Single(transforms));
+
+        Parallel.For(0, 500, i =>
+        {
+            var input = i.ToString();
+            var output = transform.Transform(HtmlContext(logger: logger), input);
+            Assert.True(output == input || output == input + "|ok");
+        });
+        Parallel.Invoke(transforms.RecordExecutions, transforms.RecordExecutions);
+
+        Assert.Equal(500, transform.InvocationCount);
+        Assert.True(transform.ElapsedTimestampTicks >= 0);
+        var execution = Assert.Single(context.PluginExecutions);
+        Assert.False(execution.Success);
+        Assert.NotNull(execution.Error);
+        Assert.Single(logger.Warnings);
+    }
+
     [Fact]
     public void RunDerivePages_RecordsPluginExecutionInfo()
     {
@@ -101,7 +290,9 @@ public sealed class PluginRunnerTests
         string? root = null,
         string? siteUrl = null,
         string pluginFailMode = "strict",
-        IReadOnlyDictionary<string, PluginToggleConfig>? plugins = null)
+        IReadOnlyDictionary<string, PluginToggleConfig>? plugins = null,
+        AnalyticsConfig? analytics = null,
+        ILogger? logger = null)
     {
         root ??= CreateTempRoot();
         var outputDir = Path.Combine(root, "dist");
@@ -113,7 +304,8 @@ public sealed class PluginRunnerTests
             Title = "t",
             Url = siteUrl ?? "",
             PluginFailMode = pluginFailMode,
-            Plugins = plugins
+            Plugins = plugins,
+            Analytics = analytics ?? new AnalyticsConfig()
         };
 
         return new BuildContext
@@ -128,7 +320,7 @@ public sealed class PluginRunnerTests
             BaseUrl = "/",
             LayoutsDir = Path.Combine(root, "layouts"),
             RoutedDocuments = Array.Empty<RoutedContentDocument>(),
-            Logger = new ConsoleLogger(LogLevel.Error)
+            Logger = logger ?? new ConsoleLogger(LogLevel.Error)
         };
     }
 
@@ -159,5 +351,94 @@ public sealed class PluginRunnerTests
             ["pagination"] = new PluginToggleConfig { Enabled = false },
             ["archive"] = new PluginToggleConfig { Enabled = false }
         };
+    }
+
+    private static AnalyticsConfig Analytics(params AnalyticsProviderConfig[] providers)
+        => Analytics(providers, enabled: true);
+
+    private static AnalyticsConfig Analytics(IReadOnlyList<AnalyticsProviderConfig> providers, bool enabled)
+        => new() { Enabled = enabled, Providers = providers };
+
+    private static AnalyticsProviderConfig Provider(
+        string type,
+        string? measurementId = null)
+        => new() { Type = type, MeasurementId = measurementId };
+
+    private static HtmlTransformContext HtmlContext(ILogger? logger = null)
+        => new(
+            "/test/",
+            "test/index.html",
+            HtmlDocumentKind.Content,
+            BuildExecutionMode.Production,
+            logger ?? new ConsoleLogger(LogLevel.Error));
+
+    private sealed class TestHtmlTransformPlugin(
+        string name,
+        int order,
+        Func<IHtmlTransform> factory) : IBukitPlugin, IOrderedPlugin, IHookFilterPlugin, IHtmlTransformPlugin
+    {
+        private int _createCount;
+
+        public string Name => name;
+        public string Version => "1.0.0";
+        public int Order => order;
+        public int CreateCount => Volatile.Read(ref _createCount);
+        public bool SupportsHook(string hook) => hook == HtmlTransformHooks.HtmlTransform;
+
+        public IHtmlTransform CreateHtmlTransform(HtmlTransformPluginContext context)
+        {
+            Interlocked.Increment(ref _createCount);
+            return factory();
+        }
+    }
+
+    private sealed class AppendingTransform(string name) : IHtmlTransform
+    {
+        public string Name => name;
+        public string Transform(HtmlTransformContext context, string html) => html + "|" + name;
+    }
+
+    private sealed class RejectingHtmlTransformPlugin :
+        IBukitPlugin,
+        IHookFilterPlugin,
+        IHtmlTransformPlugin
+    {
+        public string Name => "rejecting";
+        public string Version => "1.0.0";
+        public bool Created { get; private set; }
+        public bool SupportsHook(string hook) => false;
+
+        public IHtmlTransform CreateHtmlTransform(HtmlTransformPluginContext context)
+        {
+            Created = true;
+            return new AppendingTransform(Name);
+        }
+    }
+
+    private sealed class ThrowingTransform(string message) : IHtmlTransform
+    {
+        public string Name => "throwing";
+        public string Transform(HtmlTransformContext context, string html) => throw new InvalidOperationException(message);
+    }
+
+    private sealed class SometimesThrowingTransform : IHtmlTransform
+    {
+        private int _calls;
+        public string Name => "parallel";
+
+        public string Transform(HtmlTransformContext context, string html)
+        {
+            var call = Interlocked.Increment(ref _calls);
+            return call % 7 == 0 ? throw new InvalidOperationException($"boom {call}") : html + "|ok";
+        }
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public ConcurrentQueue<string> Warnings { get; } = new();
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Enqueue(message);
+        public void Error(string message) { }
     }
 }

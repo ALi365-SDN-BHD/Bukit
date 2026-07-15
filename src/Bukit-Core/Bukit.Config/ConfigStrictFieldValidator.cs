@@ -69,7 +69,18 @@ internal static class ConfigStrictFieldValidator
         }
 
         if (Map(site, "seo") is { } seo) ValidateSeo(seo);
-        if (Map(site, "analytics") is { } analytics) RequireOnly(analytics, Set("enabled", "googleAnalyticsId", "disableInPreview"), "site.analytics");
+        if (Map(site, "analytics") is { } analytics)
+        {
+            RequireOnly(analytics, Set("enabled", "productionOnly", "providers"), "site.analytics");
+            if (Seq(analytics, "providers") is { } providers)
+            {
+                ValidateSequenceMappings(
+                    providers,
+                    Set("type", "measurementId", "containerId", "domain", "websiteId", "scriptUrl"),
+                    "site.analytics.providers",
+                    ValidateAnalyticsProviderFields);
+            }
+        }
         if (Map(site, "feed") is { } feed) RequireOnly(feed, Set("mode", "formats", "limit", "path"), "site.feed");
         if (Map(site, "search") is { } search) RequireOnly(search, Set("mode", "route", "ui", "uiTheme", "placeholderText", "maxContentLength"), "site.search");
         if (Map(site, "related") is { } related)
@@ -84,6 +95,27 @@ internal static class ConfigStrictFieldValidator
         if (Map(site, "sitemapDetail") is { } sitemap) RequireOnly(sitemap, Set("defaultPriority", "defaultChangefreq", "imageEnabled", "videoEnabled"), "site.sitemapDetail");
         if (Map(site, "pagination") is { } pagination) RequireOnly(pagination, Set("enabled", "pageSize"), "site.pagination");
         if (Map(site, "menus") is { } menus) ValidateMenus(menus);
+    }
+
+    private static void ValidateAnalyticsProviderFields(YamlMappingNode provider, string path)
+    {
+        var type = provider.Children.TryGetValue(new YamlScalarNode("type"), out var typeNode) &&
+                   typeNode is YamlScalarNode typeScalar
+            ? typeScalar.Value
+            : null;
+        var allowedFields = type switch
+        {
+            "google-analytics" => Set("type", "measurementId"),
+            "google-tag-manager" => Set("type", "containerId"),
+            "plausible" => Set("type", "domain", "scriptUrl"),
+            "umami" => Set("type", "websiteId", "scriptUrl"),
+            _ => null
+        };
+
+        if (allowedFields is not null)
+        {
+            RequireOnly(provider, allowedFields, path);
+        }
     }
 
     private static void ValidateSeo(YamlMappingNode seo)

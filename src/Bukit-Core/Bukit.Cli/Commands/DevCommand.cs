@@ -74,7 +74,10 @@ public static class DevCommand
 
         using var serverHost = DevServerHost.Start(host, port, logger);
         var hub = new DevWebSocketHub(logger, new DevWebSocketAccessPolicy(host, serverHost.Port, allowLan));
-        var handler = new DevRequestHandler(outputDir, ResolveDisableAnalytics(config.Site.Analytics), logger);
+        var handler = new DevRequestHandler(
+            outputDir,
+            PreviewCommand.ShouldRemoveManagedAnalytics(config.Site),
+            logger);
 
         var watchedDirs = ResolveWatchDirs(rootDir, config);
         var excludedDirs = ResolveExcludedWatchDirs(rootDir, outputDir, cacheDir);
@@ -126,6 +129,7 @@ public static class DevCommand
     {
         return new ConfigOverrides
         {
+            ExecutionMode = BuildExecutionMode.Development,
             Clean = clean,
             Output = outputOverride,
             Incremental = true,
@@ -174,9 +178,6 @@ public static class DevCommand
         .Select(Path.GetFullPath)
         .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
         .ToArray();
-
-    internal static bool ResolveDisableAnalytics(AnalyticsConfig analytics)
-        => analytics.DisableInPreview && !string.IsNullOrWhiteSpace(analytics.GoogleAnalyticsId);
 
     internal static bool IsLanExposureHost(string host)
         => !DevWebSocketAccessPolicy.IsLoopbackHost(host);

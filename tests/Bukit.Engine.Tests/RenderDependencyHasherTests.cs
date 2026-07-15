@@ -35,6 +35,12 @@ public sealed class RenderDependencyHasherTests
         };
     }
 
+    private static AnalyticsProviderConfig CreateAnalyticsProvider() => new()
+    {
+        Type = "google-analytics",
+        MeasurementId = "G-ABC123"
+    };
+
     [Fact]
     public void Compute_SameConfig_ProducesSameHash()
     {
@@ -45,6 +51,274 @@ public sealed class RenderDependencyHasherTests
         var hash2 = RenderDependencyHasher.Compute(config2, s_emptySiteModel);
 
         Assert.Equal(hash1, hash2);
+    }
+
+    [Theory]
+    [InlineData("enabled")]
+    [InlineData("productionOnly")]
+    public void Compute_AnalyticsSwitchChange_ProducesDifferentHash(string setting)
+    {
+        var baseConfig = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Analytics = new AnalyticsConfig
+                {
+                    Enabled = true,
+                    ProductionOnly = true,
+                    Providers = [CreateAnalyticsProvider()]
+                }
+            }
+        };
+        var changedAnalytics = setting switch
+        {
+            "enabled" => baseConfig.Site.Analytics with { Enabled = false },
+            "productionOnly" => baseConfig.Site.Analytics with { ProductionOnly = false },
+            _ => throw new ArgumentOutOfRangeException(nameof(setting))
+        };
+        var changed = baseConfig with
+        {
+            Site = baseConfig.Site with { Analytics = changedAnalytics }
+        };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel),
+            RenderDependencyHasher.Compute(changed, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_AnalyticsResolvedProviderOptionsChange_ProducesDifferentHash()
+    {
+        var providerPairs = new (AnalyticsProviderConfig Before, AnalyticsProviderConfig After)[]
+        {
+            (
+                new AnalyticsProviderConfig { Type = "google-analytics", MeasurementId = "G-ABC123" },
+                new AnalyticsProviderConfig { Type = "google-analytics", MeasurementId = "G-XYZ789" }),
+            (
+                new AnalyticsProviderConfig { Type = "google-tag-manager", ContainerId = "GTM-ABC123" },
+                new AnalyticsProviderConfig { Type = "google-tag-manager", ContainerId = "GTM-XYZ789" }),
+            (
+                new AnalyticsProviderConfig
+                {
+                    Type = "plausible", Domain = "example.com",
+                    ScriptUrl = "https://plausible.io/js/script.js"
+                },
+                new AnalyticsProviderConfig
+                {
+                    Type = "plausible", Domain = "changed.example.com",
+                    ScriptUrl = "https://stats.example.com/js/script.js"
+                }),
+            (
+                new AnalyticsProviderConfig
+                {
+                    Type = "umami", WebsiteId = "00000000-0000-0000-0000-000000000001",
+                    ScriptUrl = "https://analytics.example.com/script.js"
+                },
+                new AnalyticsProviderConfig
+                {
+                    Type = "umami", WebsiteId = "00000000-0000-0000-0000-000000000002",
+                    ScriptUrl = "https://changed.example.com/script.js"
+                })
+        };
+
+        foreach (var (before, after) in providerPairs)
+        {
+            var baseConfig = CreateBaseConfig() with
+            {
+                Site = CreateBaseConfig().Site with
+                {
+                    Analytics = new AnalyticsConfig { Providers = [before] }
+                }
+            };
+            var changed = baseConfig with
+            {
+                Site = baseConfig.Site with
+                {
+                    Analytics = baseConfig.Site.Analytics with { Providers = [after] }
+                }
+            };
+
+            Assert.NotEqual(
+                RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel),
+                RenderDependencyHasher.Compute(changed, s_emptySiteModel));
+        }
+    }
+
+    [Fact]
+    public void Compute_AnalyticsProviderOrderChange_ProducesDifferentHash()
+    {
+        var first = CreateAnalyticsProvider();
+        var second = new AnalyticsProviderConfig
+        {
+            Type = "plausible",
+            Domain = "plausible.example.com",
+            ScriptUrl = "https://plausible.io/js/script.js"
+        };
+        var baseConfig = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Analytics = new AnalyticsConfig { Providers = [first, second] }
+            }
+        };
+        var reordered = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Analytics = baseConfig.Site.Analytics with { Providers = [second, first] }
+            }
+        };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel),
+            RenderDependencyHasher.Compute(reordered, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_AnalyticsPluginEffectiveToggleChange_ProducesDifferentHash()
+    {
+        var baseConfig = CreateBaseConfig();
+        var explicitlyDisabled = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = false }
+                }
+            }
+        };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel),
+            RenderDependencyHasher.Compute(explicitlyDisabled, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_AnalyticsPluginMissingAndExplicitlyEnabled_AreStableEquivalent()
+    {
+        var baseConfig = CreateBaseConfig();
+        var explicitlyEnabled = baseConfig with
+        {
+            Site = baseConfig.Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = true }
+                }
+            }
+        };
+
+        Assert.Equal(
+            RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel),
+            RenderDependencyHasher.Compute(explicitlyEnabled, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_ExecutionModeChange_ProducesDifferentHash()
+    {
+        var config = CreateBaseConfig();
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(config, s_emptySiteModel, BuildExecutionMode.Production),
+            RenderDependencyHasher.Compute(config, s_emptySiteModel, BuildExecutionMode.Development));
+    }
+
+    [Fact]
+    public void Compute_EquivalentNormalizedAnalyticsConfig_ProducesSameHash()
+    {
+        var unicode = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Analytics = new AnalyticsConfig
+                {
+                    Providers =
+                    [
+                        new AnalyticsProviderConfig
+                        {
+                            Type = "plausible",
+                            Domain = "B\u00dcCHER.Example",
+                            ScriptUrl = "https://plausible.io/js/script.js"
+                        },
+                        new AnalyticsProviderConfig
+                        {
+                            Type = "umami",
+                            WebsiteId = "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+                            ScriptUrl = "https://analytics.example.com/script.js"
+                        }
+                    ]
+                }
+            }
+        };
+        var normalized = unicode with
+        {
+            Site = unicode.Site with
+            {
+                Analytics = unicode.Site.Analytics with
+                {
+                    Providers =
+                    [
+                        new AnalyticsProviderConfig
+                        {
+                            Type = "plausible",
+                            Domain = "xn--bcher-kva.example",
+                            ScriptUrl = "https://plausible.io/js/script.js"
+                        },
+                        new AnalyticsProviderConfig
+                        {
+                            Type = "umami",
+                            WebsiteId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                            ScriptUrl = "https://analytics.example.com/script.js"
+                        }
+                    ]
+                }
+            }
+        };
+
+        Assert.Equal(
+            RenderDependencyHasher.Compute(unicode, s_emptySiteModel),
+            RenderDependencyHasher.Compute(normalized, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_PlausibleOmittedAndExplicitDefaultScriptUrl_ProduceSameHash()
+    {
+        var omitted = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Analytics = new AnalyticsConfig
+                {
+                    Providers =
+                    [
+                        new AnalyticsProviderConfig { Type = "plausible", Domain = "example.com" }
+                    ]
+                }
+            }
+        };
+        var explicitDefault = omitted with
+        {
+            Site = omitted.Site with
+            {
+                Analytics = omitted.Site.Analytics with
+                {
+                    Providers =
+                    [
+                        new AnalyticsProviderConfig
+                        {
+                            Type = "plausible",
+                            Domain = "example.com",
+                            ScriptUrl = "https://plausible.io/js/script.js"
+                        }
+                    ]
+                }
+            }
+        };
+
+        Assert.Equal(
+            RenderDependencyHasher.Compute(omitted, s_emptySiteModel),
+            RenderDependencyHasher.Compute(explicitDefault, s_emptySiteModel));
     }
 
     [Fact]

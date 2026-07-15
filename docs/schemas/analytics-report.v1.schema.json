@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/analytics-report.v1.json",
+  "title": "Bukit Analytics Report",
+  "type": "object",
+  "required": [
+    "schema",
+    "schemaVersion",
+    "pluginEnabled",
+    "analyticsEnabled",
+    "productionOnly",
+    "executionMode",
+    "providerTypes",
+    "processedHtml",
+    "injectedHtml",
+    "skippedByReason"
+  ],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/analytics-report.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "pluginEnabled": { "type": "boolean" },
+    "analyticsEnabled": { "type": "boolean" },
+    "productionOnly": { "type": "boolean" },
+    "executionMode": { "enum": ["production", "development"] },
+    "providerTypes": {
+      "type": "array",
+      "items": {
+        "enum": ["google-analytics", "google-tag-manager", "plausible", "umami"]
+      }
+    },
+    "processedHtml": { "type": "integer", "minimum": 0 },
+    "injectedHtml": { "type": "integer", "minimum": 0 },
+    "skippedByReason": {
+      "type": "object",
+      "properties": {
+        "plugin_disabled": { "type": "integer", "minimum": 0 },
+        "analytics_disabled": { "type": "integer", "minimum": 0 },
+        "no_providers": { "type": "integer", "minimum": 0 },
+        "development_mode": { "type": "integer", "minimum": 0 },
+        "head_missing": { "type": "integer", "minimum": 0 },
+        "body_missing": { "type": "integer", "minimum": 0 },
+        "incremental_unchanged": { "type": "integer", "minimum": 0 },
+        "transform_failed": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

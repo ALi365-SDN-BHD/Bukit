@@ -8,6 +8,7 @@ using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Routing;
 using Bukit.Shared;
+using Bukit.Engine.Analytics;
 
 namespace Bukit.Engine;
 
@@ -51,7 +52,7 @@ internal static class BuildReporter
         WriteAssets(Path.Combine(reportDir, "assets.json"), outputDir);
         WriteIncrementalManifest(Path.Combine(reportDir, "incremental-manifest.json"), result, variants);
         WriteReleaseBundleChecksums(reportDir, outputDir);
-        WriteArtifactManifest(reportDir);
+        WriteArtifactManifest(reportDir, outputDir, variants);
         WriteBuildManifestDigest(reportDir);
         logger.Debug($"event=build.report.write dir={reportDir} root={rootDir}");
     }
@@ -198,7 +199,10 @@ internal static class BuildReporter
         writer.WriteEndObject();
     }
 
-    private static void WriteArtifactManifest(string reportDir)
+    private static void WriteArtifactManifest(
+        string reportDir,
+        string? outputDir = null,
+        IReadOnlyList<BuildVariantResult>? variants = null)
     {
         var manifestPath = Path.Combine(reportDir, "artifact-manifest.json");
         var artifactFiles = Directory.EnumerateFiles(reportDir, "*.json", SearchOption.TopDirectoryOnly)
@@ -206,17 +210,47 @@ internal static class BuildReporter
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        using var stream = File.Create(manifestPath);
-        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
-        writer.WriteStartObject();
-        WriteArtifactContract(writer, ArtifactManifestSchema);
-        writer.WriteString("generatedAt", DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
         var artifactEntries = artifactFiles
             .Select(path => new ReleaseBundleFileEntry(
                 NormalizePath(Path.GetRelativePath(reportDir, path)),
                 ComputeSha256(path),
                 new FileInfo(path).Length))
             .ToList();
+        if (outputDir is not null && variants is not null)
+        {
+            var existingFiles = new HashSet<string>(
+                artifactFiles.Select(Path.GetFullPath),
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var variant in variants.OrderBy(item => item.Language, StringComparer.OrdinalIgnoreCase))
+            {
+                var analyticsReport = Path.GetFullPath(Path.Combine(
+                    variant.OutputDir,
+                    ReportDirectoryName,
+                    AnalyticsReportWriter.FileName));
+                if (!File.Exists(analyticsReport) ||
+                    !PathUtils.IsSameOrSubPathOf(variant.OutputDir, outputDir) ||
+                    !PathUtils.IsSameOrSubPathOf(analyticsReport, outputDir) ||
+                    !existingFiles.Add(analyticsReport))
+                {
+                    continue;
+                }
+
+                artifactEntries.Add(new ReleaseBundleFileEntry(
+                    NormalizePath(Path.GetRelativePath(outputDir, analyticsReport)),
+                    ComputeSha256(analyticsReport),
+                    new FileInfo(analyticsReport).Length));
+            }
+        }
+
+        artifactEntries = artifactEntries
+            .OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        using var stream = File.Create(manifestPath);
+        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+        writer.WriteStartObject();
+        WriteArtifactContract(writer, ArtifactManifestSchema);
+        writer.WriteString("generatedAt", DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
         writer.WriteNumber("artifactCount", artifactEntries.Count);
         writer.WriteString("artifactSetHash", ComputeBundleHash(artifactEntries));
         writer.WritePropertyName("artifacts");

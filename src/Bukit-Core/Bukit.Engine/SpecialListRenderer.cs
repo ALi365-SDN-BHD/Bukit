@@ -32,9 +32,10 @@ internal static class SpecialListRenderer
         IReadOnlyDictionary<string, ContentField>? pageFields,
         ListPageContext? pageContext,
         CancellationToken cancellationToken,
+        ILogger logger,
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder,
-        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor)
+        HtmlTransformPipeline? htmlTransformPipeline)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var listBuildStopwatch = Stopwatch.StartNew();
@@ -49,9 +50,15 @@ internal static class SpecialListRenderer
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
         var html = renderer.RenderList(listRoute.Template, CreateListPageModel(siteModel, listPage, pageInfos, pageContext));
-        if (listHtmlPostProcessor is not null)
+        if (htmlTransformPipeline is not null)
         {
-            html = listHtmlPostProcessor(listRoute, listPage, html);
+            html = htmlTransformPipeline.Transform(
+                listRoute,
+                HtmlDocumentKind.List,
+                listPage,
+                null,
+                logger,
+                html);
         }
 
         listBuildStopwatch.Stop();
@@ -78,9 +85,10 @@ internal static class SpecialListRenderer
         IReadOnlyDictionary<string, ContentField>? pageFields,
         ListPageContext? pageContext,
         CancellationToken cancellationToken,
+        ILogger logger,
         Func<ContentDocument, RouteInfo, SeoModel>? seoBuilder,
         Func<RouteInfo, PageInfo, SeoModel>? listSeoBuilder,
-        Func<RouteInfo, PageInfo, string, string>? listHtmlPostProcessor)
+        HtmlTransformPipeline? htmlTransformPipeline)
     {
         var stageMetrics = new BuildStageMetricsCollector();
         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
@@ -119,9 +127,15 @@ internal static class SpecialListRenderer
         listPage = listPage with { Seo = listSeoBuilder?.Invoke(listRoute, listPage) };
 
         var html = renderer.RenderList(listRoute.Template, CreateListPageModel(siteModel, listPage, pageInfos, pageContext));
-        if (listHtmlPostProcessor is not null)
+        if (htmlTransformPipeline is not null)
         {
-            html = listHtmlPostProcessor(listRoute, listPage, html);
+            html = htmlTransformPipeline.Transform(
+                listRoute,
+                HtmlDocumentKind.List,
+                listPage,
+                null,
+                logger,
+                html);
         }
 
         listBuildStopwatch.Stop();

@@ -110,9 +110,26 @@ content:
 | `site.seo.geo.aiBotAllowList` | none | Bot names allowed in selective mode. |
 | `site.seo.geo.aiBotBlockList` | none | Bot names blocked in selective mode. |
 | `site.seo.geo.llmsTxtOptionalLinks[]` | none | Items with `title`, `url`, and optional `description`. |
-| `site.analytics.enabled` | `true` | Enables analytics model data. |
-| `site.analytics.googleAnalyticsId` | none | GA identifier. |
-| `site.analytics.disableInPreview` | `true` | Keeps analytics off in preview-style output. |
+| `site.plugins.analytics.enabled` | `true` | Enables the Core built-in Analytics plugin lifecycle. When false, Bukit does not create or run its HTML transform. |
+| `site.analytics.enabled` | `true` | Enables Analytics output after the plugin lifecycle switch has allowed the plugin to run. |
+| `site.analytics.productionOnly` | `true` | Injects during production builds and removes Bukit-managed blocks from development/preview responses. Set false to retain Analytics in development and preview. |
+| `site.analytics.providers` | empty | Ordered provider array. An empty array produces no Analytics output. |
+| Provider `type` | required | `google-analytics`, `google-tag-manager`, `plausible`, or `umami`. |
+| Provider `measurementId` | none | Required only for Google Analytics; must match `^G-[A-Z0-9]+$`. |
+| Provider `containerId` | none | Required only for Google Tag Manager; must match `^GTM-[A-Z0-9]+$`. |
+| Provider `domain` | none | Required only for Plausible; must be a DNS host name without scheme, port, path, credentials, or an IP address. |
+| Provider `websiteId` | none | Required only for Umami; must be a UUID. |
+| Provider `scriptUrl` | provider-specific | Optional for Plausible, whose default is `https://plausible.io/js/script.js`; required for Umami. It must be an absolute HTTPS `.js` URL without credentials or a fragment. |
+
+Both Analytics switches must be enabled, at least one provider must be valid,
+and the execution-mode policy must allow output. Analytics is a Core built-in
+plugin, independent of SEO render mode; it is not an external protocol plugin
+and is not exposed to themes or Scriban as a template model. See
+[19 Analytics](19-analytics.md) for provider examples and command behavior.
+
+Breaking removal: the former googleAnalyticsId and disableInPreview keys have
+been deleted. They are unknown fields, not deprecated aliases, and Bukit does
+not map or fall back from them.
 
 Title templates accept only the case-insensitive placeholders `{pageTitle}`,
 `{siteTitle}`, and `{separator}`. Unknown, unopened, or unclosed placeholders

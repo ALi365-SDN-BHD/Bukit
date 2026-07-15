@@ -33,6 +33,9 @@ public sealed class ScribanModelKnownFieldsTests
         Assert.Contains("params", fields);
         Assert.Contains("data", fields);
         Assert.Contains("data_index", fields);
+        Assert.DoesNotContain("analytics", fields);
+        Assert.False(ScribanModelKnownFields.IsKnownField("site", "analytics"));
+        Assert.False(ScribanModelKnownFields.IsKnownField("site", "analytics.enabled"));
     }
 
     [Fact]

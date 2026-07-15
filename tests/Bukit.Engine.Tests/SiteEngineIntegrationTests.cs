@@ -323,6 +323,10 @@ public sealed class SiteEngineIntegrationTests
             Assert.True(File.Exists(Path.Combine(reportDir, "build-report.json")));
             Assert.True(File.Exists(Path.Combine(reportDir, "routes.json")));
             Assert.True(File.Exists(Path.Combine(reportDir, "security-report.json")));
+            Assert.True(File.Exists(Path.Combine(reportDir, "analytics-report.json")));
+            using var analyticsDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(reportDir, "analytics-report.json")));
+            Assert.True(analyticsDoc.RootElement.GetProperty("processedHtml").GetInt32() > 0);
+            Assert.True(analyticsDoc.RootElement.GetProperty("skippedByReason").GetProperty("no_providers").GetInt32() > 0);
             using var routesDoc = JsonDocument.Parse(File.ReadAllText(Path.Combine(reportDir, "routes.json")));
             Assert.Contains(routesDoc.RootElement.GetProperty("routes").EnumerateArray(), route => route.GetProperty("url").GetString() == "/blog/hello-world/");
 
@@ -641,6 +645,9 @@ public sealed class SiteEngineIntegrationTests
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), """
                 <h2>List</h2>
                 """);
+            var staleReportDir = Path.Combine(root, "dist", ".bukit");
+            Directory.CreateDirectory(staleReportDir);
+            File.WriteAllText(Path.Combine(staleReportDir, "analytics-report.json"), "{\"stale\":true}");
 
             var config = new AppConfig
             {
@@ -653,7 +660,7 @@ public sealed class SiteEngineIntegrationTests
                     Collections = TestCollections()
                 },
                 Content = TestContent.Markdown(collection: "post"),
-                Build = new BuildConfig { Output = "dist", Clean = true, Report = new BuildReportConfig { Enabled = false } },
+                Build = new BuildConfig { Output = "dist", Clean = false, Report = new BuildReportConfig { Enabled = false } },
             };
 
             var engine = new SiteEngine(new TestLogger());
@@ -661,7 +668,13 @@ public sealed class SiteEngineIntegrationTests
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             Assert.False(File.Exists(Path.Combine(root, "dist", ".bukit", "build-report.json")));
+            Assert.False(File.Exists(Path.Combine(root, "dist", ".bukit", "analytics-report.json")));
             Assert.True(File.Exists(Path.Combine(root, "dist", ".bukit", "security-report.json")));
+            using var artifactManifest = JsonDocument.Parse(File.ReadAllText(
+                Path.Combine(root, "dist", ".bukit", "artifact-manifest.json")));
+            Assert.DoesNotContain(
+                artifactManifest.RootElement.GetProperty("artifacts").EnumerateArray(),
+                artifact => artifact.GetProperty("path").GetString() == "analytics-report.json");
 
             CleanupDir(root);
         }
@@ -672,7 +685,7 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
-    public async Task BuildAsync_SeoAndAnalyticsModel_RendersAdvancedHead()
+    public async Task BuildAsync_SeoModel_RendersAdvancedHead()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-test", Guid.NewGuid().ToString("N"));
 
@@ -702,8 +715,6 @@ public sealed class SiteEngineIntegrationTests
                       name: Example Inc
                       url: https://example.com/about
                       logo: https://example.com/logo.png
-                  analytics:
-                    googleAnalyticsId: G-ABC123
                 content:
                   sources:
                     - type: markdown
@@ -753,10 +764,6 @@ public sealed class SiteEngineIntegrationTests
                   <meta property="og:image" content="{{ page.seo.og.image }}" />
                   <meta name="twitter:site" content="{{ page.seo.twitter.site }}" />
                   {{ for json in page.seo.json_ld }}<script type="application/ld+json">{{ json }}</script>{{ end }}
-                  {{ if site.analytics.enabled && site.analytics.googleAnalyticsId }}
-                  <script async src="https://www.googletagmanager.com/gtag/js?id={{ site.analytics.googleAnalyticsId }}"></script>
-                  <script>gtag('config', '{{ site.analytics.googleAnalyticsId }}');</script>
-                  {{ end }}
                 </head>
                 <body>{{ content }}</body>
                 </html>
@@ -788,7 +795,7 @@ public sealed class SiteEngineIntegrationTests
             Assert.Contains("@bukit", html, StringComparison.Ordinal);
             Assert.Contains("\"@type\":\"BlogPosting\"", html, StringComparison.Ordinal);
             Assert.Contains("\"@type\":\"BreadcrumbList\"", html, StringComparison.Ordinal);
-            Assert.Contains("googletagmanager.com/gtag/js?id=G-ABC123", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("googletagmanager.com", html, StringComparison.Ordinal);
         }
         finally
         {
@@ -831,8 +838,6 @@ public sealed class SiteEngineIntegrationTests
                     defaultImage: /assets/default-og.png
                     robotsTxt:
                       enabled: true
-                  analytics:
-                    googleAnalyticsId: G-ABC123
                 content:
                   sources:
                     - type: markdown
@@ -927,7 +932,7 @@ public sealed class SiteEngineIntegrationTests
             Assert.Contains("<link rel=\"canonical\" href=\"https://example.com/docs/blog/visible/\"", visibleHtml, StringComparison.Ordinal);
             Assert.Contains("<meta name=\"description\" content=\"Visible &lt;summary&gt; &amp; text\"", visibleHtml, StringComparison.Ordinal);
             Assert.Contains("<meta property=\"og:title\" content=\"Visible &quot;Post&quot; &amp; News\"", visibleHtml, StringComparison.Ordinal);
-            Assert.Contains("googletagmanager.com/gtag/js?id=G-ABC123", visibleHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain("googletagmanager.com", visibleHtml, StringComparison.Ordinal);
             Assert.Equal(1, CountOccurrences(visibleHtml, "rel=\"canonical\""));
 
             var sitemap = File.ReadAllText(Path.Combine(root, "dist", "sitemap.xml"));
@@ -1236,8 +1241,6 @@ public sealed class SiteEngineIntegrationTests
                       webPage: true
                       collectionPage: true
                       searchAction: true
-                  analytics:
-                    googleAnalyticsId: G-ABC123
                 content:
                   sources:
                     - type: markdown

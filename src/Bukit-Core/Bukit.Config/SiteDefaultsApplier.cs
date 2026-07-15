@@ -72,9 +72,48 @@ internal static partial class SiteDefaultsApplier
         return new AnalyticsConfig
         {
             Enabled = ConfigYamlHelpers.GetOptionalBool(analyticsNode, "enabled") ?? true,
-            GoogleAnalyticsId = ConfigYamlHelpers.GetOptionalString(analyticsNode, "googleAnalyticsId"),
-            DisableInPreview = ConfigYamlHelpers.GetOptionalBool(analyticsNode, "disableInPreview") ?? true
+            ProductionOnly = ConfigYamlHelpers.GetOptionalBool(analyticsNode, "productionOnly") ?? true,
+            Providers = ReadAnalyticsProviders(analyticsNode)
         };
+    }
+
+    private static IReadOnlyList<AnalyticsProviderConfig> ReadAnalyticsProviders(YamlMappingNode analyticsNode)
+    {
+        var providersNode = ConfigYamlHelpers.GetOptionalSequence(analyticsNode, "providers");
+        if (providersNode is null)
+        {
+            return Array.Empty<AnalyticsProviderConfig>();
+        }
+
+        var providers = new List<AnalyticsProviderConfig>(providersNode.Children.Count);
+        for (var index = 0; index < providersNode.Children.Count; index++)
+        {
+            if (providersNode.Children[index] is not YamlMappingNode providerNode)
+            {
+                throw new ConfigException(
+                    $"site.analytics.providers[{index}] must be a mapping.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            var type = ConfigYamlHelpers.GetRequiredString(providerNode, "type");
+            var hasScriptUrl = providerNode.Children.ContainsKey(new YamlScalarNode("scriptUrl"));
+            var scriptUrl = ConfigYamlHelpers.GetOptionalString(providerNode, "scriptUrl");
+            providers.Add(new AnalyticsProviderConfig
+            {
+                Type = type,
+                MeasurementId = ConfigYamlHelpers.GetOptionalString(providerNode, "measurementId"),
+                ContainerId = ConfigYamlHelpers.GetOptionalString(providerNode, "containerId"),
+                Domain = ConfigYamlHelpers.GetOptionalString(providerNode, "domain"),
+                WebsiteId = ConfigYamlHelpers.GetOptionalString(providerNode, "websiteId"),
+                ScriptUrl = type == "plausible" && !hasScriptUrl
+                    ? "https://plausible.io/js/script.js"
+                    : hasScriptUrl && scriptUrl is null
+                        ? string.Empty
+                        : scriptUrl
+            });
+        }
+
+        return providers;
     }
 
     internal static FeedConfig ReadFeedConfig(YamlMappingNode siteNode)

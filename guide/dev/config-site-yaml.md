@@ -24,6 +24,9 @@ default application, typed model validation, and JSON Schema generation.
 - Unknown fields are fatal.
 - Provider secrets are read from environment variables, not config files.
 - `deploy.provider` supports only `github-pages`.
+- `site.analytics` allows only `enabled`, `productionOnly`, and `providers`.
+  Provider objects are type-specific and reject fields owned by another
+  provider even when those fields are empty.
 - SEO document title templates accept only case-insensitive `{pageTitle}`,
   `{siteTitle}`, and `{separator}` placeholders. The page template requires
   `{pageTitle}`; the home template requires `{pageTitle}` or `{siteTitle}`.
@@ -38,7 +41,8 @@ validator, schema generator, user docs, and tests:
 | Family | Primary model | Notes |
 |---|---|---|
 | Site identity and i18n | `SiteConfig`, `I18nValidator` | Includes `baseUrl`, language variants, timezone, output path encoding, sitemap mode, and plugin failure policies. |
-| SEO/GEO/analytics | `SeoConfig`, `AnalyticsConfig` | Includes schema switches, robots, organization metadata, llms outputs, and AI bot mode. |
+| SEO/GEO | `SeoConfig` | Includes schema switches, robots, organization metadata, llms outputs, and AI bot mode. |
+| Analytics | `AnalyticsConfig`, `AnalyticsProviderConfig` | Core built-in plugin output policy plus an ordered list of GA4, GTM, Plausible, or Umami providers. |
 | Collections and list routes | `CollectionConfig`, `CollectionsValidator` | Includes collection permalink, list route, pagination, output, archive detail, and filtered lists. |
 | Content sources | `ContentSourceConfig`, `ProviderValidators` | Includes Markdown paths, Notion filters, Notion cache, field policy, and `propertyMap` keys. |
 | Content schema | `ContentModelSchemaConfig` | Includes canonical mappings, custom fields, field scopes, entity mappings, relation mappings, and media policy. |
@@ -67,3 +71,30 @@ When a config field changes, update all of these together:
    the documented public config surface.
 
 This prevents docs, schema, loader, and runtime behavior from drifting.
+
+## Analytics Contract
+
+Analytics uses `site.plugins.analytics.enabled` for built-in plugin lifecycle
+and `site.analytics.enabled` for feature output. The runtime requires both
+switches, at least one provider, and an execution mode allowed by
+`site.analytics.productionOnly`. Analytics is not an external plugin option
+bag and is not bound into the Scriban site model.
+
+Strict provider ownership is:
+
+| Type | Allowed fields |
+|---|---|
+| `google-analytics` | `type`, `measurementId` |
+| `google-tag-manager` | `type`, `containerId` |
+| `plausible` | `type`, `domain`, `scriptUrl` |
+| `umami` | `type`, `websiteId`, `scriptUrl` |
+
+Validation normalizes Plausible IDN domains for duplicate detection and
+requires script URLs to be absolute HTTPS `.js` URLs without credentials,
+fragments, or non-default ports. Provider values are never arbitrary script
+text. The loader supplies Plausible's default script URL only when its key is
+omitted; an explicitly empty value remains invalid.
+
+Breaking removal: the former googleAnalyticsId and disableInPreview keys are
+unknown fields. They are not aliases or deprecated inputs, and no loader,
+normalizer, environment variable, or runtime fallback may restore them.

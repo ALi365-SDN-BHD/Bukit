@@ -1,4 +1,5 @@
 using Bukit.Content;
+using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
@@ -10,6 +11,58 @@ namespace Bukit.Engine.Plugins;
 
 public static class PluginRunner
 {
+    internal static CollectedHtmlTransforms CollectHtmlTransforms(
+        BuildContext context,
+        BuildExecutionMode executionMode)
+        => CollectHtmlTransforms(
+            context,
+            executionMode,
+            PluginRegistry.GetAllPlugins(context).Select(item => item.Plugin));
+
+    internal static CollectedHtmlTransforms CollectHtmlTransforms(
+        BuildContext context,
+        BuildExecutionMode executionMode,
+        IEnumerable<IBukitPlugin> plugins)
+    {
+        var warnOnPluginFailure = string.Equals(
+            context.Config.Site.PluginFailMode,
+            "warn",
+            StringComparison.OrdinalIgnoreCase);
+        var transforms = new List<TrackedHtmlTransform>();
+
+        foreach (var plugin in plugins
+                     .OrderBy(GetOrder)
+                     .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+                     .ThenBy(item => item.Version, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!IsPluginEnabled(context, plugin.Name))
+            {
+                continue;
+            }
+
+            if (plugin is IHookFilterPlugin hookFilter &&
+                !hookFilter.SupportsHook(HtmlTransformHooks.HtmlTransform))
+            {
+                continue;
+            }
+
+            if (plugin is not IHtmlTransformPlugin htmlTransformPlugin)
+            {
+                continue;
+            }
+
+            var transform = htmlTransformPlugin.CreateHtmlTransform(
+                new HtmlTransformPluginContext(context, executionMode));
+            transforms.Add(new TrackedHtmlTransform(
+                plugin.Name,
+                transform,
+                warnOnPluginFailure,
+                context));
+        }
+
+        return new CollectedHtmlTransforms(context, transforms);
+    }
+
     public static IReadOnlyList<string> CollectTemplateRequirementKinds(BuildContext context)
     {
         var kinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

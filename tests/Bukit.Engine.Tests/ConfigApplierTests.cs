@@ -5,6 +5,14 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ConfigApplierTests
 {
+    [Fact]
+    public void ConfigOverrides_DefaultExecutionMode_IsProduction()
+    {
+        var overrides = new ConfigOverrides();
+
+        Assert.Equal(BuildExecutionMode.Production, overrides.ExecutionMode);
+    }
+
     private static AppConfig DefaultConfig() => new()
     {
         Site = new SiteConfig

@@ -458,8 +458,10 @@ public sealed class ConfigValidatorTests
                   logo: https://example.com/logo.png
               analytics:
                 enabled: false
-                googleAnalyticsId: G-ABC123
-                disableInPreview: false
+                productionOnly: false
+                providers:
+                  - type: google-analytics
+                    measurementId: G-ABC123
             content:
               sources:
                 - type: markdown
@@ -490,8 +492,10 @@ public sealed class ConfigValidatorTests
             Assert.Equal("https://example.com/about", config.Site.Seo.Organization?.Url);
             Assert.Equal("https://example.com/logo.png", config.Site.Seo.Organization?.Logo);
             Assert.False(config.Site.Analytics.Enabled);
-            Assert.Equal("G-ABC123", config.Site.Analytics.GoogleAnalyticsId);
-            Assert.False(config.Site.Analytics.DisableInPreview);
+            Assert.False(config.Site.Analytics.ProductionOnly);
+            var provider = Assert.Single(config.Site.Analytics.Providers);
+            Assert.Equal("google-analytics", provider.Type);
+            Assert.Equal("G-ABC123", provider.MeasurementId);
         }
         finally
         {
@@ -515,8 +519,8 @@ public sealed class ConfigValidatorTests
         Assert.True(config.Site.Seo.Schema.CollectionPage);
         Assert.True(config.Site.Seo.Schema.SearchAction);
         Assert.True(config.Site.Analytics.Enabled);
-        Assert.True(config.Site.Analytics.DisableInPreview);
-        Assert.Null(config.Site.Analytics.GoogleAnalyticsId);
+        Assert.True(config.Site.Analytics.ProductionOnly);
+        Assert.Empty(config.Site.Analytics.Providers);
     }
 
     [Fact]
@@ -573,11 +577,24 @@ public sealed class ConfigValidatorTests
     }
 
     [Fact]
-    public void Validate_AnalyticsGoogleAnalyticsIdInvalid_Throws()
+    public void Validate_AnalyticsMeasurementIdInvalid_Throws()
     {
-        var config = ConfigWithSite(s => s with { Analytics = s.Analytics with { GoogleAnalyticsId = "UA-123" } });
+        var config = ConfigWithSite(s => s with
+        {
+            Analytics = s.Analytics with
+            {
+                Providers =
+                [
+                    new AnalyticsProviderConfig
+                    {
+                        Type = "google-analytics",
+                        MeasurementId = "UA-123"
+                    }
+                ]
+            }
+        });
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
-        Assert.Equal("site.analytics.googleAnalyticsId must be a GA4 id starting with G-.", ex.Message);
+        Assert.Equal("site.analytics.providers[0].measurementId must match ^G-[A-Z0-9]+$.", ex.Message);
     }
 
     [Fact]

@@ -36,7 +36,6 @@ internal static class ScribanModelKnownFields
         public const string Modules = "modules";
         public const string Data = "data";
         public const string DataIndex = "data_index";
-        public const string Analytics = "analytics";
     }
 
     internal static class ListPageFields
@@ -83,12 +82,6 @@ internal static class ScribanModelKnownFields
         public const string Creator = "creator";
     }
 
-    internal static class AnalyticsFields
-    {
-        public const string Enabled = "enabled";
-        public const string GoogleAnalyticsId = "googleAnalyticsId";
-    }
-
     private static readonly HashSet<string> _pageFields = new(StringComparer.OrdinalIgnoreCase)
     {
         PageFields.Title, PageFields.Url, PageFields.Content,
@@ -103,8 +96,7 @@ internal static class ScribanModelKnownFields
         SiteFields.Name, SiteFields.Title, SiteFields.Url,
         SiteFields.Description, SiteFields.BaseUrl, SiteFields.BasePath,
         SiteFields.Language, SiteFields.BuildYear,
-        SiteFields.Params, SiteFields.Modules, SiteFields.Data, SiteFields.DataIndex,
-        SiteFields.Analytics
+        SiteFields.Params, SiteFields.Modules, SiteFields.Data, SiteFields.DataIndex
     };
 
     private static readonly HashSet<string> _listPageFields = new(StringComparer.OrdinalIgnoreCase)
@@ -130,11 +122,6 @@ internal static class ScribanModelKnownFields
     {
         SeoTwitterFields.Card, SeoTwitterFields.Title, SeoTwitterFields.Description,
         SeoTwitterFields.Image, SeoTwitterFields.Site, SeoTwitterFields.Creator
-    };
-
-    private static readonly HashSet<string> _analyticsFields = new(StringComparer.OrdinalIgnoreCase)
-    {
-        AnalyticsFields.Enabled, AnalyticsFields.GoogleAnalyticsId
     };
 
     private static readonly HashSet<string> _loopVarPageFields = new(StringComparer.OrdinalIgnoreCase)
@@ -218,7 +205,6 @@ internal static class ScribanModelKnownFields
 
         return parts[offset].ToLowerInvariant() switch
         {
-            "analytics" when offset + 1 < parts.Length => _analyticsFields.Contains(parts[offset + 1]),
             "params" or "data" or "data_index" or "modules" => true,
             _ => false
         };
