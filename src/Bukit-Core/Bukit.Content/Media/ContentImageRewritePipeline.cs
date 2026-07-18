@@ -30,7 +30,8 @@ public sealed class ContentImageRewritePipeline
 
         var results = new ContentDocument[documents.Count];
         var concurrency = _config.MaxConcurrency is > 0 ? _config.MaxConcurrency.Value : 4;
-        using var sem = new SemaphoreSlim(concurrency, concurrency);
+        using var documentGate = new SemaphoreSlim(concurrency, concurrency);
+        using var downloadGate = new SemaphoreSlim(concurrency, concurrency);
         var tasks = new Task[documents.Count];
         for (var i = 0; i < documents.Count; i++)
         {
@@ -43,12 +44,12 @@ public sealed class ContentImageRewritePipeline
 
         async Task RewriteOneAsync(ContentDocument document, int idx)
         {
-            await sem.WaitAsync(cancellationToken);
+            await documentGate.WaitAsync(cancellationToken);
             try
             {
                 var localizeMemo = new Dictionary<string, string>(StringComparer.Ordinal);
-                var html = await RewriteHtmlAsync(document.Body.Html, localizeMemo, cancellationToken);
-                var fields = await RewriteFieldsAsync(document.CustomFields, localizeMemo, cancellationToken);
+                var html = await RewriteHtmlAsync(document.Body.Html, localizeMemo, downloadGate, cancellationToken);
+                var fields = await RewriteFieldsAsync(document.CustomFields, localizeMemo, downloadGate, cancellationToken);
                 results[idx] = document with
                 {
                     Body = document.Body with { Html = html },
@@ -59,17 +60,26 @@ public sealed class ContentImageRewritePipeline
             }
             finally
             {
-                sem.Release();
+                documentGate.Release();
             }
         }
     }
 
-    public Task<string?> RewriteBodyHtmlAsync(string? html, CancellationToken cancellationToken)
-        => RewriteHtmlAsync(html, new Dictionary<string, string>(StringComparer.Ordinal), cancellationToken);
+    public async Task<string?> RewriteBodyHtmlAsync(string? html, CancellationToken cancellationToken)
+    {
+        var concurrency = _config.MaxConcurrency is > 0 ? _config.MaxConcurrency.Value : 4;
+        using var downloadGate = new SemaphoreSlim(concurrency, concurrency);
+        return await RewriteHtmlAsync(
+            html,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            downloadGate,
+            cancellationToken);
+    }
 
     private async Task<string?> RewriteHtmlAsync(
         string? html,
         Dictionary<string, string> localizeMemo,
+        SemaphoreSlim downloadGate,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(html))
@@ -96,7 +106,7 @@ public sealed class ContentImageRewritePipeline
             }
         }
 
-        var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
+        var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, downloadGate, cancellationToken);
         var sb = new System.Text.StringBuilder();
         var last = 0;
         foreach (var reference in references)
@@ -104,8 +114,8 @@ public sealed class ContentImageRewritePipeline
             cancellationToken.ThrowIfCancellationRequested();
 
             var rewritten = reference.Kind == HtmlMediaReferenceKind.Srcset
-                ? await RewriteSrcsetValueAsync(reference.Value, localizedMap, localizeMemo, cancellationToken)
-                : await RewriteUrlValueAsync(reference.Value, localizedMap, localizeMemo, cancellationToken);
+                ? await RewriteSrcsetValueAsync(reference.Value, localizedMap, localizeMemo, downloadGate, cancellationToken)
+                : await RewriteUrlValueAsync(reference.Value, localizedMap, localizeMemo, downloadGate, cancellationToken);
 
             sb.Append(html, last, reference.ValueStart - last);
             sb.Append(rewritten);
@@ -127,12 +137,13 @@ public sealed class ContentImageRewritePipeline
         string value,
         IReadOnlyDictionary<string, string> localizedMap,
         Dictionary<string, string> localizeMemo,
+        SemaphoreSlim downloadGate,
         CancellationToken cancellationToken)
     {
         var url = MaybeHtmlDecode(value);
         var localized = localizedMap.TryGetValue(url, out var mapped)
             ? mapped
-            : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
+            : await LocalizeMemoizedAsync(url, localizeMemo, downloadGate, cancellationToken);
         return System.Net.WebUtility.HtmlEncode(localized);
     }
 
@@ -140,6 +151,7 @@ public sealed class ContentImageRewritePipeline
         string srcsetValue,
         IReadOnlyDictionary<string, string> localizedMap,
         Dictionary<string, string> localizeMemo,
+        SemaphoreSlim downloadGate,
         CancellationToken cancellationToken)
     {
         var matches = SrcsetEntryRegex.Matches(srcsetValue);
@@ -155,7 +167,7 @@ public sealed class ContentImageRewritePipeline
             var url = MaybeHtmlDecode(m.Groups["url"].Value);
             var localized = localizedMap.TryGetValue(url, out var mapped)
                 ? mapped
-                : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
+                : await LocalizeMemoizedAsync(url, localizeMemo, downloadGate, cancellationToken);
             var safe = System.Net.WebUtility.HtmlEncode(localized);
 
             sb.Append(srcsetValue, last, m.Index - last);
@@ -179,6 +191,7 @@ public sealed class ContentImageRewritePipeline
     private async Task<IReadOnlyDictionary<string, ContentField>?> RewriteFieldsAsync(
         IReadOnlyDictionary<string, ContentField>? fields,
         Dictionary<string, string> localizeMemo,
+        SemaphoreSlim downloadGate,
         CancellationToken cancellationToken)
     {
         if (fields is null || fields.Count == 0)
@@ -206,7 +219,7 @@ public sealed class ContentImageRewritePipeline
             // Single string URL
             if (field.Value is string s)
             {
-                var localized = await LocalizeMemoizedAsync(s, localizeMemo, cancellationToken);
+                var localized = await LocalizeMemoizedAsync(s, localizeMemo, downloadGate, cancellationToken);
                 if (!string.Equals(localized, s, StringComparison.Ordinal))
                 {
                     copy[key] = field with { Value = localized };
@@ -219,14 +232,14 @@ public sealed class ContentImageRewritePipeline
             // List of string URLs (e.g. Notion "files" property with multiple entries)
             if (field.Value is IReadOnlyList<string> urls && urls.Count > 0)
             {
-                var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, cancellationToken);
+                var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, downloadGate, cancellationToken);
                 var rewritten = new List<string>(urls.Count);
                 var listChanged = false;
                 foreach (var url in urls)
                 {
                     var localized = localizedMap.TryGetValue(url ?? string.Empty, out var mapped)
                         ? mapped
-                        : await LocalizeMemoizedAsync(url, localizeMemo, cancellationToken);
+                        : await LocalizeMemoizedAsync(url, localizeMemo, downloadGate, cancellationToken);
                     rewritten.Add(localized);
                     if (!string.Equals(localized, url, StringComparison.Ordinal))
                     {
@@ -248,6 +261,7 @@ public sealed class ContentImageRewritePipeline
     private async Task<string> LocalizeMemoizedAsync(
         string? sourceUrl,
         Dictionary<string, string> localizeMemo,
+        SemaphoreSlim downloadGate,
         CancellationToken cancellationToken)
     {
         var key = sourceUrl ?? string.Empty;
@@ -256,7 +270,7 @@ public sealed class ContentImageRewritePipeline
             return cached;
         }
 
-        var localized = await _localizer.LocalizeAsync(sourceUrl, cancellationToken);
+        var localized = await LocalizeWithGateAsync(sourceUrl, downloadGate, cancellationToken);
         localizeMemo[key] = localized;
         return localized;
     }
@@ -264,6 +278,7 @@ public sealed class ContentImageRewritePipeline
     private async Task<IReadOnlyDictionary<string, string>> LocalizeDistinctUrlsAsync(
         IReadOnlyList<string> urls,
         Dictionary<string, string> localizeMemo,
+        SemaphoreSlim downloadGate,
         CancellationToken cancellationToken)
     {
         var distinctKeys = new HashSet<string>(StringComparer.Ordinal);
@@ -277,7 +292,7 @@ public sealed class ContentImageRewritePipeline
                 continue;
             }
 
-            pending.Add((key, _localizer.LocalizeAsync(url, cancellationToken)));
+            pending.Add((key, LocalizeWithGateAsync(url, downloadGate, cancellationToken)));
         }
 
         if (pending.Count == 0)
@@ -292,6 +307,22 @@ public sealed class ContentImageRewritePipeline
         }
 
         return localizeMemo;
+    }
+
+    private async Task<string> LocalizeWithGateAsync(
+        string? sourceUrl,
+        SemaphoreSlim downloadGate,
+        CancellationToken cancellationToken)
+    {
+        await downloadGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await _localizer.LocalizeAsync(sourceUrl, cancellationToken);
+        }
+        finally
+        {
+            downloadGate.Release();
+        }
     }
 
     private static HashSet<string> BuildFieldKeySet(IReadOnlyList<string>? keys)

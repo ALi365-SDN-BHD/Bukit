@@ -184,6 +184,188 @@ public sealed class ContentImageRewritePipelineTests
     }
 
     [Fact]
+    public async Task RewriteAsync_EnforcesMaxConcurrencyForSingleDocumentDownloads()
+    {
+        var html = string.Concat(
+            Enumerable.Range(1, 6).Select(index =>
+                $"<img src=\"https://img.example/{index}.jpg\" />"));
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: html,
+            fields: null);
+        var cfg = new MediaConfig
+        {
+            MaxConcurrency = 2,
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var localizer = new ConcurrencyProbeLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+        Assert.Equal(2, localizer.MaxConcurrency);
+        Assert.Contains("/localized/1.jpg", rewritten.Body.Html, StringComparison.Ordinal);
+        Assert.Contains("/localized/6.jpg", rewritten.Body.Html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RewriteAsync_SharesDownloadLimitAcrossDocumentsHtmlAndFields()
+    {
+        var documents = Enumerable.Range(1, 3)
+            .Select(index => ContentDocument.Create(
+                id: index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                title: $"t-{index}",
+                slug: $"s-{index}",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: $"<img src=\"https://img.example/{index}-html-a.jpg\" />"
+                             + $"<img src=\"https://img.example/{index}-html-b.jpg\" />",
+                fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["gallery"] = new ContentField("files", new[]
+                    {
+                        $"https://img.example/{index}-field-a.jpg",
+                        $"https://img.example/{index}-field-b.jpg"
+                    })
+                }))
+            .ToArray();
+        var cfg = new MediaConfig
+        {
+            MaxConcurrency = 2,
+            FieldKeys = new[] { "gallery" },
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var localizer = new ConcurrencyProbeLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        var rewritten = await pipeline.RewriteAsync(documents, CancellationToken.None);
+
+        Assert.Equal(2, localizer.MaxConcurrency);
+        Assert.Equal(documents.Select(document => document.Id), rewritten.Select(document => document.Id));
+        Assert.All(rewritten, document =>
+        {
+            Assert.Contains("/localized/", document.Body.Html, StringComparison.Ordinal);
+            Assert.All(
+                Assert.IsAssignableFrom<IReadOnlyList<string>>(document.CustomFields!["gallery"].Value),
+                value => Assert.StartsWith("/localized/", value, StringComparison.Ordinal));
+        });
+    }
+
+    [Fact]
+    public async Task RewriteBodyHtmlAsync_EnforcesMaxConcurrency()
+    {
+        var html = string.Concat(
+            Enumerable.Range(1, 6).Select(index =>
+                $"<img src=\"https://img.example/body-{index}.jpg\" />"));
+        var cfg = new MediaConfig
+        {
+            MaxConcurrency = 2,
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var localizer = new ConcurrencyProbeLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        var rewritten = await pipeline.RewriteBodyHtmlAsync(html, CancellationToken.None);
+
+        Assert.Equal(2, localizer.MaxConcurrency);
+        Assert.Contains("/localized/body-1.jpg", rewritten, StringComparison.Ordinal);
+        Assert.Contains("/localized/body-6.jpg", rewritten, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RewriteBodyHtmlAsync_ReleasesPermitWhenLocalizerThrows()
+    {
+        const string html = """
+                            <img src="https://img.example/fail.jpg" />
+                            <img src="https://img.example/succeed.jpg" />
+                            """;
+        var cfg = new MediaConfig
+        {
+            MaxConcurrency = 1,
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var localizer = new ThrowFirstLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => pipeline.RewriteBodyHtmlAsync(html, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(2)));
+
+        Assert.Equal(2, localizer.CallCount);
+    }
+
+    [Fact]
+    public async Task RewriteBodyHtmlAsync_CancellationStopsQueuedDownloadsWithoutHanging()
+    {
+        const string html = """
+                            <img src="https://img.example/first.jpg" />
+                            <img src="https://img.example/queued.jpg" />
+                            """;
+        var cfg = new MediaConfig
+        {
+            MaxConcurrency = 1,
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var localizer = new CancellationProbeLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+        using var cancellation = new CancellationTokenSource();
+
+        var rewrite = pipeline.RewriteBodyHtmlAsync(html, cancellation.Token);
+        await localizer.Started.WaitAsync(TimeSpan.FromSeconds(2));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => rewrite.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.Equal(1, localizer.CallCount);
+        Assert.Equal(0, localizer.ActiveCount);
+    }
+
+    [Fact]
+    public async Task RewriteAsync_MaxConcurrencyOnePreservesUrlOrderAndMappings()
+    {
+        const string html = """
+                            <img src="https://img.example/second.jpg" />
+                            <img src="https://img.example/first.jpg" />
+                            """;
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: html,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["gallery"] = new ContentField("files", new[]
+                {
+                    "https://img.example/third.jpg",
+                    "https://img.example/first.jpg",
+                    "https://img.example/second.jpg"
+                })
+            });
+        var cfg = new MediaConfig
+        {
+            MaxConcurrency = 1,
+            FieldKeys = new[] { "gallery" },
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var localizer = new ConcurrencyProbeLocalizer();
+        var pipeline = new ContentImageRewritePipeline(cfg, localizer);
+
+        var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+        Assert.Equal(1, localizer.MaxConcurrency);
+        var rewrittenHtml = Assert.IsType<string>(rewritten.Body.Html);
+        Assert.True(
+            rewrittenHtml.IndexOf("/localized/second.jpg", StringComparison.Ordinal)
+            < rewrittenHtml.IndexOf("/localized/first.jpg", StringComparison.Ordinal));
+        Assert.Equal(
+            new[] { "/localized/third.jpg", "/localized/first.jpg", "/localized/second.jpg" },
+            Assert.IsAssignableFrom<IReadOnlyList<string>>(rewritten.CustomFields!["gallery"].Value));
+    }
+
+    [Fact]
     public async Task RewriteAsync_LocalizesDistinctHtmlUrlsConcurrentlyAcrossDifferentPasses()
     {
         var item = ContentDocument.Create(
@@ -474,6 +656,96 @@ public sealed class ContentImageRewritePipelineTests
             finally
             {
                 Interlocked.Decrement(ref _active);
+            }
+        }
+    }
+
+    private sealed class ConcurrencyProbeLocalizer : IImageAssetLocalizer
+    {
+        private int _active;
+        private int _maxConcurrency;
+
+        public int MaxConcurrency => Volatile.Read(ref _maxConcurrency);
+
+        public async Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
+        {
+            var active = Interlocked.Increment(ref _active);
+            UpdateMaxConcurrency(active);
+
+            try
+            {
+                await Task.Delay(40, cancellationToken);
+                return (sourceUrl ?? string.Empty).Replace(
+                    "https://img.example/",
+                    "/localized/",
+                    StringComparison.Ordinal);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _active);
+            }
+        }
+
+        private void UpdateMaxConcurrency(int candidate)
+        {
+            var observed = Volatile.Read(ref _maxConcurrency);
+            while (candidate > observed)
+            {
+                var prior = Interlocked.CompareExchange(ref _maxConcurrency, candidate, observed);
+                if (prior == observed)
+                {
+                    return;
+                }
+
+                observed = prior;
+            }
+        }
+    }
+
+    private sealed class ThrowFirstLocalizer : IImageAssetLocalizer
+    {
+        private int _callCount;
+
+        public int CallCount => Volatile.Read(ref _callCount);
+
+        public async Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
+        {
+            var call = Interlocked.Increment(ref _callCount);
+            await Task.Delay(20, cancellationToken);
+            if (call == 1)
+            {
+                throw new InvalidOperationException("injected localizer failure");
+            }
+
+            return sourceUrl ?? string.Empty;
+        }
+    }
+
+    private sealed class CancellationProbeLocalizer : IImageAssetLocalizer
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _activeCount;
+        private int _callCount;
+
+        public Task Started => _started.Task;
+
+        public int ActiveCount => Volatile.Read(ref _activeCount);
+
+        public int CallCount => Volatile.Read(ref _callCount);
+
+        public async Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _callCount);
+            Interlocked.Increment(ref _activeCount);
+            _started.TrySetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return sourceUrl ?? string.Empty;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _activeCount);
             }
         }
     }
