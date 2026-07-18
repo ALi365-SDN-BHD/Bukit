@@ -127,6 +127,7 @@ public sealed class SearchIndexPluginExtendedTests
                 "/",
                 includeDerived: false,
                 emitSnippet: true,
+                maxContentLength: new SearchDetailConfig().MaxContentLength,
                 new[] { new RoutedContentDocument(document.ToDocument(), route) },
                 Array.Empty<RoutedContentDocument>(),
                 new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
@@ -207,6 +208,55 @@ public sealed class SearchIndexPluginExtendedTests
             {
                 Directory.Delete(tempDir, true);
             }
+        }
+    }
+
+    [Fact]
+    public void AfterBuild_UsesConfiguredMaxContentLength()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_search_content_cap_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var route = CreateRoute("/post/", "post/index.html");
+            var document = CreateItem("post", "Post", "post", "abcdef");
+            var context = new BuildContext
+            {
+                Config = new AppConfig
+                {
+                    Site = new SiteConfig
+                    {
+                        Name = "test",
+                        Title = "Test Site",
+                        Search = new SearchDetailConfig { MaxContentLength = 3 }
+                    },
+                    Content = TestContent.Markdown()
+                },
+                RootDir = tempDir,
+                OutputDir = tempDir,
+                BaseUrl = "/",
+                LayoutsDir = tempDir,
+                RoutedDocuments = new[] { new RoutedContentDocument(document, route) },
+                BodyStore = new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
+                {
+                    [document.Id] = new("abcdef")
+                }),
+                SeoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [route.OutputPath] = CreateSeoEntry(route)
+                },
+                Logger = new ConsoleLogger(LogLevel.Error)
+            };
+
+            new SearchIndexPlugin().AfterBuild(context);
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
+            Assert.Equal("abc", Assert.Single(doc.RootElement.EnumerateArray()).GetProperty("content").GetString());
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
         }
     }
 

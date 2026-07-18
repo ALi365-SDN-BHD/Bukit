@@ -102,6 +102,7 @@ public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             context.BaseUrl,
             context.Config.Site.SearchIncludeDerived,
             emitSnippet,
+            context.Config.Site.Search.MaxContentLength,
             context.RoutedDocuments,
             context.DerivedDocuments,
             context.SeoIndex,

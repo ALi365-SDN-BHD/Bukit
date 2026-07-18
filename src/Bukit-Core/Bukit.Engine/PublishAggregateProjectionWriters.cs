@@ -140,6 +140,7 @@ internal static class SearchProjectionWriter
             context.BaseUrl,
             context.Config.Site.SearchIncludeDerived,
             context.SearchSnippetsEnabled,
+            context.Config.Site.Search.MaxContentLength,
             context.RoutedDocuments,
             context.DerivedDocuments,
             context.SeoIndex,

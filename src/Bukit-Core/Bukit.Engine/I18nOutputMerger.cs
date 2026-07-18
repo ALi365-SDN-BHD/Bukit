@@ -153,7 +153,11 @@ internal static class I18nOutputMerger
                 var searchMode = SiteModeResolver.ResolveSearchMode(config.Site);
                 if (searchMode == "merged")
                 {
-                    SearchIndexBuilder.GenerateMergedSearchIndex(outputDir, results, config.Site.SearchIncludeDerived);
+                    SearchIndexBuilder.GenerateMergedSearchIndex(
+                        outputDir,
+                        results,
+                        config.Site.SearchIncludeDerived,
+                        config.Site.Search.MaxContentLength);
                 }
                 else if (searchMode == "index")
                 {

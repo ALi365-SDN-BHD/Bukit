@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
@@ -289,7 +290,7 @@ public sealed class SearchIndexBuilderTests
             SearchIndexBuilder.WriteSearchItem(writer, document, route, "/", new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
             {
                 ["search-1"] = new("<p>Body</p>")
-            }), emitSnippet: true);
+            }), emitSnippet: true, maxContentLength: new SearchDetailConfig().MaxContentLength);
         }
 
         using var doc = JsonDocument.Parse(stream.ToArray());
@@ -335,7 +336,7 @@ public sealed class SearchIndexBuilderTests
             SearchIndexBuilder.WriteSearchItem(writer, document, route, "/", new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
             {
                 ["search-2"] = new("<p>Structured body</p>")
-            }), emitSnippet: true);
+            }), emitSnippet: true, maxContentLength: new SearchDetailConfig().MaxContentLength);
         }
 
         using var doc = JsonDocument.Parse(stream.ToArray());
@@ -378,6 +379,7 @@ public sealed class SearchIndexBuilderTests
                 "/",
                 includeDerived: false,
                 emitSnippet: true,
+                maxContentLength: new SearchDetailConfig().MaxContentLength,
                 routed: Array.Empty<RoutedContentDocument>(),
                 derivedRouted: Array.Empty<RoutedContentDocument>(),
                 seoIndex,
@@ -394,6 +396,102 @@ public sealed class SearchIndexBuilderTests
             Assert.Equal("list", item.GetProperty("contentType").GetString());
             Assert.Equal("companies", item.GetProperty("collection").GetString());
             Assert.Contains("Acme Malaysia", item.GetProperty("content").GetString(), StringComparison.Ordinal);
+            Assert.Equal("Companies operating in Malaysia", item.GetProperty("snippet").GetString());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void SearchProjection_UsesConfiguredMaxContentLength_ForDocumentContentOnly()
+    {
+        var item = GenerateDocumentSearchItem(maxContentLength: 5, "abcdefghij");
+
+        Assert.Equal("abcde", item.GetProperty("content").GetString());
+        Assert.Equal("Document title longer than cap", item.GetProperty("title").GetString());
+        Assert.Equal("Summary longer than cap", item.GetProperty("summary").GetString());
+        Assert.Equal("Summary longer than cap", item.GetProperty("snippet").GetString());
+    }
+
+    [Fact]
+    public void SearchProjection_DoesNotSplitSurrogatePairAtContentLimit()
+    {
+        var item = GenerateDocumentSearchItem(maxContentLength: 5, "1234😀rest");
+        var content = item.GetProperty("content").GetString();
+
+        Assert.Equal("1234", content);
+        Assert.DoesNotContain(content!, char.IsSurrogate);
+    }
+
+    [Fact]
+    public void SearchProjection_MaxContentLengthDoesNotLimitGeneratedSnippet()
+    {
+        var item = GenerateDocumentSearchItem(maxContentLength: 5, new string('a', 300), summary: null);
+
+        Assert.Equal(5, item.GetProperty("content").GetString()!.Length);
+        Assert.Equal(280, item.GetProperty("snippet").GetString()!.Length);
+        Assert.False(item.TryGetProperty("summary", out _));
+    }
+
+    [Fact]
+    public void SearchProjection_DefaultMaxContentLength_RemainsEightThousand()
+    {
+        var item = GenerateDocumentSearchItem(maxContentLength: null, new string('a', 8001));
+
+        Assert.Equal(8000, item.GetProperty("content").GetString()!.Length);
+    }
+
+    [Fact]
+    public void SearchProjection_UsesConfiguredMaxContentLength_ForListRouteContentOnly()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-search-list-cap-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var route = CreateGraphOnlyListRoute();
+            var routeInfo = route.ToRouteInfo();
+            var context = new PublishProjectionContext(
+                Config: new AppConfig
+                {
+                    Site = new SiteConfig
+                    {
+                        Name = "test",
+                        Title = "Test",
+                        Search = new SearchDetailConfig { MaxContentLength = 7 }
+                    },
+                    Content = TestContent.Markdown()
+                },
+                OutputDir: tempDir,
+                ContentGraph: CanonicalContentGraph.Empty,
+                SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [route.OutputPath] = new(routeInfo, route.Url, null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, "list", IsDerived: true)
+                },
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [route.OutputPath] = new()
+                    {
+                        Title = "Malaysia Companies",
+                        Description = "Companies operating in Malaysia",
+                        Canonical = "https://example.com/companies/malaysia/"
+                    }
+                },
+                RoutedDocuments: Array.Empty<RoutedContentDocument>(),
+                BaseUrl: "/",
+                SearchSnippetsEnabled: true,
+                ListRouteGraph: ListRouteGraph.Create(new[] { route }));
+
+            SearchProjectionWriter.WriteSearchIndex(context);
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
+            var item = Assert.Single(doc.RootElement.EnumerateArray());
+            Assert.Equal("Malaysi", item.GetProperty("content").GetString());
+            Assert.Equal("Malaysia Companies", item.GetProperty("title").GetString());
+            Assert.Equal("Companies operating in Malaysia", item.GetProperty("summary").GetString());
             Assert.Equal("Companies operating in Malaysia", item.GetProperty("snippet").GetString());
         }
         finally
@@ -443,7 +541,11 @@ public sealed class SearchIndexBuilderTests
                 RoutedDocuments: Array.Empty<RoutedContentDocument>(),
                 ListRouteGraph: ListRouteGraph.Create(new[] { route }));
 
-            SearchIndexBuilder.GenerateMergedSearchIndex(tempDir, new[] { result }, includeDerived: false);
+            SearchIndexBuilder.GenerateMergedSearchIndex(
+                tempDir,
+                new[] { result },
+                includeDerived: false,
+                new SearchDetailConfig().MaxContentLength);
 
             using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
             var item = Assert.Single(doc.RootElement.EnumerateArray());
@@ -492,4 +594,69 @@ public sealed class SearchIndexBuilderTests
                 Value = "Malaysia"
             }
         };
+
+    private static JsonElement GenerateDocumentSearchItem(
+        int? maxContentLength,
+        string body,
+        string? summary = "Summary longer than cap")
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-search-document-cap-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var rawFields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "post",
+                ["collection"] = "post"
+            };
+            if (summary is not null)
+            {
+                rawFields["summary"] = summary;
+            }
+
+            var fields = ContentFieldReader.ToFieldMap(rawFields);
+            var document = ContentDocument.Create(
+                "post-1",
+                "Document title longer than cap",
+                "post",
+                DateTimeOffset.Parse("2026-06-05T00:00:00Z"),
+                body,
+                fields);
+            var route = new RouteInfo("/post/", "post/index.html", "pages/post.html");
+            var search = maxContentLength.HasValue
+                ? new SearchDetailConfig { MaxContentLength = maxContentLength.Value }
+                : new SearchDetailConfig();
+            var context = new PublishProjectionContext(
+                Config: new AppConfig
+                {
+                    Site = new SiteConfig { Name = "test", Title = "Test", Search = search },
+                    Content = TestContent.Markdown()
+                },
+                OutputDir: tempDir,
+                ContentGraph: CanonicalContentGraph.Empty,
+                SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [route.OutputPath] = new(route, route.Url, null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), document.Id, "post")
+                },
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+                RoutedDocuments: new[] { new RoutedContentDocument(document, route) },
+                BodyStore: new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
+                {
+                    [document.Id] = new(body)
+                }),
+                BaseUrl: "/",
+                SearchSnippetsEnabled: true);
+
+            SearchProjectionWriter.WriteSearchIndex(context);
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
+            return Assert.Single(doc.RootElement.EnumerateArray()).Clone();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
 }

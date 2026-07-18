@@ -14,7 +14,8 @@ internal static class SearchIndexBuilder
     internal static void GenerateMergedSearchIndex(
         string outputDir,
         IReadOnlyList<BuildVariantResult> results,
-        bool includeDerived)
+        bool includeDerived,
+        int maxContentLength)
     {
         var outPath = Path.Combine(outputDir, "search.json");
         Directory.CreateDirectory(outputDir);
@@ -34,11 +35,11 @@ internal static class SearchIndexBuilder
             {
                 if (documentsByPath.TryGetValue(key, out var document))
                 {
-                    WriteSearchItem(writer, document, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled);
+                    WriteSearchItem(writer, document, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled, maxContentLength);
                 }
                 else if (listRoutesByPath.TryGetValue(BuildPathUtils.NormalizeRelPath(key), out var listRoute))
                 {
-                    WriteListRouteSearchItem(writer, listRoute, r.BaseUrl, r.SeoModels, r.SearchSnippetsEnabled);
+                    WriteListRouteSearchItem(writer, listRoute, r.BaseUrl, r.SeoModels, r.SearchSnippetsEnabled, maxContentLength);
                 }
             }
         }
@@ -52,6 +53,7 @@ internal static class SearchIndexBuilder
         string baseUrl,
         bool includeDerived,
         bool emitSnippet,
+        int maxContentLength,
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyList<RoutedContentDocument> derivedRouted,
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
@@ -76,14 +78,14 @@ internal static class SearchIndexBuilder
             {
                 if (!IsSearchExcluded(document))
                 {
-                    WriteSearchItem(writer, document, seo.Route, baseUrl, bodyStore, emitSnippet);
+                    WriteSearchItem(writer, document, seo.Route, baseUrl, bodyStore, emitSnippet, maxContentLength);
                 }
                 continue;
             }
 
             if (listRoutesByPath.TryGetValue(BuildPathUtils.NormalizeRelPath(key), out var listRoute))
             {
-                WriteListRouteSearchItem(writer, listRoute, baseUrl, seoModels, emitSnippet);
+                WriteListRouteSearchItem(writer, listRoute, baseUrl, seoModels, emitSnippet, maxContentLength);
             }
         }
 
@@ -102,7 +104,8 @@ internal static class SearchIndexBuilder
         RouteInfo route,
         string baseUrl,
         IContentBodyStore bodyStore,
-        bool emitSnippet)
+        bool emitSnippet,
+        int maxContentLength)
     {
         var record = document.Record;
         var publicId = PublicContentProjectionPolicy.ResolvePublicId(record, NormalizeSearchUrl(baseUrl, route.Url));
@@ -120,12 +123,7 @@ internal static class SearchIndexBuilder
 #pragma warning disable CS0618
         var text = StripHtmlToText(ContentBodyResolver.GetHtml(document, bodyStore));
 #pragma warning restore CS0618
-        if (text.Length > 8000)
-        {
-            text = text[..8000];
-        }
-
-        writer.WriteString("content", text);
+        writer.WriteString("content", TruncateContent(text, maxContentLength));
         if (emitSnippet)
         {
             writer.WriteString("snippet", BuildSnippet(document, record, text));
@@ -207,7 +205,8 @@ internal static class SearchIndexBuilder
         ListRoutePlan route,
         string baseUrl,
         IReadOnlyDictionary<string, SeoModel>? seoModels,
-        bool emitSnippet)
+        bool emitSnippet,
+        int maxContentLength)
     {
         SeoModel? seo = null;
         if (seoModels is not null)
@@ -229,7 +228,7 @@ internal static class SearchIndexBuilder
             writer.WriteString("summary", summary);
         }
 
-        writer.WriteString("content", content.Length > 8000 ? content[..8000] : content);
+        writer.WriteString("content", TruncateContent(content, maxContentLength));
         if (emitSnippet)
         {
             writer.WriteString("snippet", !string.IsNullOrWhiteSpace(summary)
@@ -384,6 +383,22 @@ internal static class SearchIndexBuilder
         }
 
         return text.Length > 280 ? text[..280] : text;
+    }
+
+    private static string TruncateContent(string value, int maxContentLength)
+    {
+        if (value.Length <= maxContentLength)
+        {
+            return value;
+        }
+
+        var length = maxContentLength;
+        if (char.IsHighSurrogate(value[length - 1]) && char.IsLowSurrogate(value[length]))
+        {
+            length--;
+        }
+
+        return value[..length];
     }
 
     internal static string StripHtmlToText(string html)

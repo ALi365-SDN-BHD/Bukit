@@ -61,7 +61,7 @@ public sealed class DefaultSearchIndexBuilderTests
                 (CreateItem("2", "World", "world"), CreateRoute("/world", "world/index.html")),
             });
 
-            builder.GenerateMergedSearchIndex(tempDir, new[] { result }, false);
+            builder.GenerateMergedSearchIndex(tempDir, new[] { result }, false, new SearchDetailConfig().MaxContentLength);
 
             var indexPath = Path.Combine(tempDir, "search.json");
             Assert.True(File.Exists(indexPath));
@@ -85,7 +85,7 @@ public sealed class DefaultSearchIndexBuilderTests
         {
             var result = CreateVariantResult("en", "https://example.com", new List<(ContentDocument, RouteInfo)>());
 
-            builder.GenerateMergedSearchIndex(tempDir, new[] { result }, false);
+            builder.GenerateMergedSearchIndex(tempDir, new[] { result }, false, new SearchDetailConfig().MaxContentLength);
         }
         finally
         {
