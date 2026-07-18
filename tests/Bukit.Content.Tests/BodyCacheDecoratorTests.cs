@@ -20,6 +20,22 @@ public sealed class BodyCacheDecoratorTests
         }
     }
 
+    private sealed class AsyncDisposableBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        private int _disposeCount;
+
+        public int DisposeCount => Volatile.Read(ref _disposeCount);
+
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody("<p>body</p>"));
+
+        public ValueTask DisposeAsync()
+        {
+            Interlocked.Increment(ref _disposeCount);
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private static ContentDocument CreateItem(string id, string? bodyKey = null, string? contentHtml = null)
     {
         return ContentDocument.Create(
@@ -306,5 +322,18 @@ public sealed class BodyCacheDecoratorTests
 
         Assert.Equal(1, inner.CallCount);
         Assert.Equal(mainBody.Html, copyBody.Html);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_ForwardsToInnerStoreExactlyOnce()
+    {
+        var inner = new AsyncDisposableBodyStore();
+        var decorator = new BodyCacheDecorator(inner);
+
+        var disposable = Assert.IsAssignableFrom<IAsyncDisposable>(decorator);
+        await disposable.DisposeAsync();
+        await disposable.DisposeAsync();
+
+        Assert.Equal(1, inner.DisposeCount);
     }
 }

@@ -116,6 +116,54 @@ public sealed class LocalizedContentBodyStoreTests
         Assert.NotNull(body);
     }
 
+    [Fact]
+    public async Task DisposeAsync_DisposesOwnedLocalizerExactlyOnce()
+    {
+        var inner = new TestBodyStore(_ => new ContentBody("<p>content</p>"));
+        var localizer = new DisposableTestLocalizer();
+        var pipeline = new ContentImageRewritePipeline(
+            new Config.MediaConfig { DownloadToLocal = false },
+            localizer);
+        var store = new LocalizedContentBodyStore(inner, pipeline, localizer);
+
+        await store.DisposeAsync();
+        await store.DisposeAsync();
+
+        Assert.Equal(1, localizer.DisposeCount);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_DisposesOwnedLocalizerAndInnerStoreExactlyOnce()
+    {
+        var inner = new AsyncDisposableBodyStore();
+        var localizer = new DisposableTestLocalizer();
+        var pipeline = new ContentImageRewritePipeline(
+            new Config.MediaConfig { DownloadToLocal = false },
+            localizer);
+        var store = new LocalizedContentBodyStore(inner, pipeline, localizer);
+
+        await store.DisposeAsync();
+        await store.DisposeAsync();
+
+        Assert.Equal(1, localizer.DisposeCount);
+        Assert.Equal(1, inner.DisposeCount);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhenOwnedLocalizerAndInnerStoreAreSameInstance_DisposesOnce()
+    {
+        var shared = new SharedDisposableStore();
+        var pipeline = new ContentImageRewritePipeline(
+            new Config.MediaConfig { DownloadToLocal = false },
+            shared);
+        var store = new LocalizedContentBodyStore(shared, pipeline, shared);
+
+        await store.DisposeAsync();
+        await store.DisposeAsync();
+
+        Assert.Equal(1, shared.TotalDisposeCount);
+    }
+
     private static ContentDocument CreateItem()
     {
         return ContentDocument.Create(
@@ -156,6 +204,55 @@ public sealed class LocalizedContentBodyStoreTests
         public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
         {
             return Task.FromResult(_transform(sourceUrl));
+        }
+    }
+
+    private sealed class DisposableTestLocalizer : IImageAssetLocalizer, IDisposable
+    {
+        private int _disposeCount;
+
+        public int DisposeCount => Volatile.Read(ref _disposeCount);
+
+        public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
+            => Task.FromResult(sourceUrl ?? string.Empty);
+
+        public void Dispose() => Interlocked.Increment(ref _disposeCount);
+    }
+
+    private sealed class AsyncDisposableBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        private int _disposeCount;
+
+        public int DisposeCount => Volatile.Read(ref _disposeCount);
+
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody("<p>content</p>"));
+
+        public ValueTask DisposeAsync()
+        {
+            Interlocked.Increment(ref _disposeCount);
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class SharedDisposableStore : IContentBodyStore, IImageAssetLocalizer, IDisposable, IAsyncDisposable
+    {
+        private int _totalDisposeCount;
+
+        public int TotalDisposeCount => Volatile.Read(ref _totalDisposeCount);
+
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody("<p>content</p>"));
+
+        public Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
+            => Task.FromResult(sourceUrl ?? string.Empty);
+
+        public void Dispose() => Interlocked.Increment(ref _totalDisposeCount);
+
+        public ValueTask DisposeAsync()
+        {
+            Interlocked.Increment(ref _totalDisposeCount);
+            return ValueTask.CompletedTask;
         }
     }
 }

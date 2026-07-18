@@ -9,7 +9,7 @@ public sealed record BodyCacheMetrics(long TotalRequests, long CacheHits, long C
     public double Amplification => UniqueBodies == 0 ? 0 : (double)TotalRequests / UniqueBodies;
 }
 
-public sealed class BodyCacheDecorator : IContentBodyStore
+public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
 {
     private readonly IContentBodyStore _inner;
     private readonly ConcurrentDictionary<string, Lazy<Task<ContentBody>>> _cache = new(StringComparer.Ordinal);
@@ -23,6 +23,7 @@ public sealed class BodyCacheDecorator : IContentBodyStore
     private long _cacheMisses;
     private long _inlineBypasses;
     private long _cacheSkips;
+    private int _disposeState;
 
     public BodyCacheDecorator(IContentBodyStore inner, int maxEntries = 10000)
     {
@@ -109,6 +110,23 @@ public sealed class BodyCacheDecorator : IContentBodyStore
 
             _cache.TryRemove(keyToRemove, out _);
             Interlocked.Increment(ref _cacheSkips);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
+        {
+            return;
+        }
+
+        if (_inner is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+        }
+        else if (_inner is IDisposable disposable)
+        {
+            disposable.Dispose();
         }
     }
 }

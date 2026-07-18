@@ -86,37 +86,54 @@ internal static class ContentProviderFactory
         string rootDir,
         string cacheDir,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<MediaConfig, ILogger, IImageAssetLocalizer>? localizerFactory = null)
     {
         var effective = BuildEffectiveMediaConfig(media, rootDir, cacheDir);
-        using var localizer = new ImageAssetLocalizer(effective, logger);
+        var localizer = localizerFactory?.Invoke(effective, logger) ?? new ImageAssetLocalizer(effective, logger);
+        var ownedLocalizer = localizer as IDisposable;
+        var ownershipTransferred = false;
         var pipeline = new ContentImageRewritePipeline(effective, localizer);
-        var documents = ContentDocumentNormalizer.ToDocuments(result.Documents);
-        var localizedDocuments = await pipeline.RewriteAsync(documents, cancellationToken);
-
-        var failures = localizer.Failures;
-        if (failures.Count > 0)
+        try
         {
-            logger.Warn($"event=media.localize_summary failed={failures.Count}");
-            foreach (var f in failures)
+            var documents = ContentDocumentNormalizer.ToDocuments(result.Documents);
+            var localizedDocuments = await pipeline.RewriteAsync(documents, cancellationToken);
+
+            var failures = localizer is ImageAssetLocalizer imageAssetLocalizer
+                ? imageAssetLocalizer.Failures
+                : Array.Empty<MediaFailure>();
+            if (failures.Count > 0)
             {
-                logger.Warn($"  - {f.SourceUrl} => {f.Reason}");
+                logger.Warn($"event=media.localize_summary failed={failures.Count}");
+                foreach (var f in failures)
+                {
+                    logger.Warn($"  - {f.SourceUrl} => {f.Reason}");
+                }
+            }
+
+            var localizedRaw = localizedDocuments
+                .Select(document => new RawContentDocument(
+                    Id: document.Id,
+                    Title: document.Title,
+                    Slug: document.Slug,
+                    PublishAt: document.PublishAt,
+                    Body: new RawBody(document.Body.Html, document.Body.BodyKey, document.Body.Markdown, document.Body.PlainText),
+                    Properties: RawContentValue.FromFields(document.CustomFields),
+                    Source: document.Source,
+                    CustomFields: document.CustomFields))
+                .ToArray();
+
+            var bodyStore = new LocalizedContentBodyStore(result.BodyStore, pipeline, ownedLocalizer);
+            ownershipTransferred = true;
+            return new RawContentLoadResult(localizedRaw, bodyStore);
+        }
+        finally
+        {
+            if (!ownershipTransferred)
+            {
+                ownedLocalizer?.Dispose();
             }
         }
-
-        var localizedRaw = localizedDocuments
-            .Select(document => new RawContentDocument(
-                Id: document.Id,
-                Title: document.Title,
-                Slug: document.Slug,
-                PublishAt: document.PublishAt,
-                Body: new RawBody(document.Body.Html, document.Body.BodyKey, document.Body.Markdown, document.Body.PlainText),
-                Properties: RawContentValue.FromFields(document.CustomFields),
-                Source: document.Source,
-                CustomFields: document.CustomFields))
-            .ToArray();
-
-        return new RawContentLoadResult(localizedRaw, new LocalizedContentBodyStore(result.BodyStore, pipeline));
     }
 
     private static NotionContentProvider CreateNotionProvider(string rootDir, NotionConfig notion, bool isCi, bool renderContent, ILogger logger, bool autoSummary = false, int autoSummaryMaxLength = 200)

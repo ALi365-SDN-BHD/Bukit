@@ -106,37 +106,55 @@ public sealed class SiteEngine
         var bodyStore = contentResult.BodyStore;
         var bodyCacheMetrics = contentResult.BodyCacheMetrics;
 
-        var templateHashCache = new DirectoryHashCache();
-
-        var languages = I18nOutputMerger.GetLanguages(effectiveConfig.Site);
-        if (languages.Count == 0)
+        try
         {
-            var siteLanguage = effectiveConfig.Site.Language;
-            var result = await BuildSingleLanguageVariantAsync(
+            var templateHashCache = new DirectoryHashCache();
+
+            var languages = I18nOutputMerger.GetLanguages(effectiveConfig.Site);
+            if (languages.Count == 0)
+            {
+                var result = await BuildSingleLanguageVariantAsync(
+                    effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
+                    plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
+                    plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
+                    templateHashCache, plan.StartedAt, cancellationToken);
+
+                _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
+                MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, contentResult.BodyCacheMetrics);
+                plan.Stopwatch.Stop();
+                var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result }, contentResult.SchemaErrors);
+                var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
+                BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData);
+                BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI);
+                WriteOutputMarker(plan.OutputDir);
+                BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
+                return singleLanguageBuildResult;
+            }
+
+            return await BuildMultiLanguageAsync(
                 effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
                 plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
                 plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
-                templateHashCache, plan.StartedAt, cancellationToken);
-
-            _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
-            MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, contentResult.BodyCacheMetrics);
-            plan.Stopwatch.Stop();
-            var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result }, contentResult.SchemaErrors);
-            var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
-            BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData);
-            BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI);
-            WriteOutputMarker(plan.OutputDir);
-            BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
-            return singleLanguageBuildResult;
+                templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
+                bodyCacheMetrics,
+                contentResult.SchemaErrors, cancellationToken);
         }
+        finally
+        {
+            await DisposeBodyStoreAsync(bodyStore);
+        }
+    }
 
-        return await BuildMultiLanguageAsync(
-            effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
-            plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
-            plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
-            templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
-            bodyCacheMetrics,
-            contentResult.SchemaErrors, cancellationToken);
+    private static async ValueTask DisposeBodyStoreAsync(IContentBodyStore bodyStore)
+    {
+        if (bodyStore is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+        }
+        else if (bodyStore is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
     }
 
     private async Task<BuildVariantResult> BuildSingleLanguageVariantAsync(
