@@ -5,6 +5,8 @@ namespace Bukit.Engine;
 public static class OutputDirectoryCleaner
 {
     private const string OutputMarkerFileName = ".bukit-output-marker";
+    private static readonly char[] PathSeparators =
+        [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
 
     public static void CleanIfExists(string rootDir, string outputDir)
     {
@@ -22,9 +24,11 @@ public static class OutputDirectoryCleaner
         var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var fullOutput = Path.GetFullPath(outputDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         if (string.Equals(fullOutput, fullRoot, PlatformPathHelper.PathComparison)
+            || !PathUtils.IsSubPathOf(fullOutput, fullRoot)
             || string.Equals(fullOutput, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), PlatformPathHelper.PathComparison)
             || string.Equals(fullOutput, Path.GetPathRoot(fullOutput)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), PlatformPathHelper.PathComparison)
-            || string.Equals(Path.GetFileName(fullOutput), ".git", StringComparison.OrdinalIgnoreCase))
+            || ContainsGitSegment(Path.GetRelativePath(fullRoot, fullOutput))
+            || ContainsReparsePointBelowRoot(fullRoot, fullOutput))
         {
             throw new ConfigException($"Refusing to clean unsafe output directory: {outputDir}. How to fix: set build.output to a dedicated subdirectory like 'dist' or 'public'.", DiagnosticCode.BuildOutputUnsafe);
         }
@@ -43,5 +47,32 @@ public static class OutputDirectoryCleaner
                 $"Then rerun the build; a successful build creates .bukit-output-marker automatically.",
                 DiagnosticCode.BuildOutputNoMarker);
         }
+    }
+
+    private static bool ContainsGitSegment(string path)
+        => path.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries)
+            .Any(segment => string.Equals(segment, ".git", StringComparison.OrdinalIgnoreCase));
+
+    private static bool ContainsReparsePointBelowRoot(string fullRoot, string fullOutput)
+    {
+        var relativePath = Path.GetRelativePath(fullRoot, fullOutput);
+        var current = fullRoot;
+        foreach (var segment in relativePath.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, segment);
+            try
+            {
+                if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

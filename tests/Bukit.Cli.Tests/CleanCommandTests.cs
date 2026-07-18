@@ -1,5 +1,6 @@
 using Bukit.Cli.Tests;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Cli.Tests;
 
@@ -126,6 +127,131 @@ theme:
     }
 
     [Fact]
+    public async Task RunAsync_WithDir_RefusesGitDescendantAndPreservesDirectory()
+    {
+        var gitDescendant = Path.Combine(_testDir, ".git", "refs", "tags");
+        Directory.CreateDirectory(gitDescendant);
+        using var cwd = new CurrentDirectoryScope(_testDir);
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+            CliTestHelper.CreateCommand("clean", new[] { "--dir", ".git/refs/tags" }));
+
+        Assert.Equal(2, exitCode);
+        Assert.True(Directory.Exists(gitDescendant));
+    }
+
+    [Fact]
+    public async Task RunAsync_WithDir_RefusesSymlinkAncestorEscapingCurrentDirectory()
+    {
+        var externalRoot = Path.Combine(Path.GetTempPath(), "bukit-clean-external-" + Guid.NewGuid().ToString("N"));
+        var victim = Path.Combine(externalRoot, "victim");
+        var sentinel = Path.Combine(victim, "sentinel.txt");
+        var alias = Path.Combine(_testDir, "alias");
+        Directory.CreateDirectory(victim);
+        File.WriteAllText(Path.Combine(victim, ".bukit-output-marker"), "Bukit output directory");
+        File.WriteAllText(sentinel, "keep");
+
+        try
+        {
+            CreateDirectorySymlinkOrSkip(alias, externalRoot);
+
+            using var cwd = new CurrentDirectoryScope(_testDir);
+            var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+                CliTestHelper.CreateCommand("clean", new[] { "--dir", "alias/victim" }));
+
+            Assert.Equal(2, exitCode);
+            Assert.True(Directory.Exists(victim));
+            Assert.True(File.Exists(sentinel));
+        }
+        finally
+        {
+            DeleteDirectoryLinkIfExists(alias);
+            TestCleanup.DeleteDirectory(externalRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_WithDir_RefusesTargetSymlinkEscapingCurrentDirectory()
+    {
+        var externalRoot = Path.Combine(Path.GetTempPath(), "bukit-clean-external-" + Guid.NewGuid().ToString("N"));
+        var sentinel = Path.Combine(externalRoot, "sentinel.txt");
+        var alias = Path.Combine(_testDir, "linked-output");
+        Directory.CreateDirectory(externalRoot);
+        File.WriteAllText(Path.Combine(externalRoot, ".bukit-output-marker"), "Bukit output directory");
+        File.WriteAllText(sentinel, "keep");
+
+        try
+        {
+            CreateDirectorySymlinkOrSkip(alias, externalRoot);
+
+            using var cwd = new CurrentDirectoryScope(_testDir);
+            var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+                CliTestHelper.CreateCommand("clean", new[] { "--dir", "linked-output" }));
+
+            Assert.Equal(2, exitCode);
+            Assert.True(Directory.Exists(externalRoot));
+            Assert.True(File.Exists(sentinel));
+        }
+        finally
+        {
+            DeleteDirectoryLinkIfExists(alias);
+            TestCleanup.DeleteDirectory(externalRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_WithDir_AllowsGitNamedAncestorOutsideProjectRoot()
+    {
+        var projectRoot = Path.Combine(_testDir, ".git", "project");
+        var outputDir = Path.Combine(projectRoot, "dist");
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, ".bukit-output-marker"), "Bukit output directory");
+        using var cwd = new CurrentDirectoryScope(projectRoot);
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+            CliTestHelper.CreateCommand("clean", new[] { "--dir", "dist" }));
+
+        Assert.Equal(0, exitCode);
+        Assert.False(Directory.Exists(outputDir));
+    }
+
+    [Fact]
+    public async Task RunAsync_DoesNotTraverseFixedCacheSymlinks()
+    {
+        var externalRoot = Path.Combine(Path.GetTempPath(), "bukit-clean-cache-external-" + Guid.NewGuid().ToString("N"));
+        var cacheTarget = Path.Combine(externalRoot, "cache-target");
+        var bukitTarget = Path.Combine(externalRoot, "bukit-target");
+        var cacheSentinel = Path.Combine(cacheTarget, "sentinel.txt");
+        var bukitSentinel = Path.Combine(bukitTarget, "sentinel.txt");
+        var cacheLink = Path.Combine(_testDir, ".cache");
+        var bukitLink = Path.Combine(_testDir, ".bukit");
+        Directory.CreateDirectory(cacheTarget);
+        Directory.CreateDirectory(bukitTarget);
+        File.WriteAllText(cacheSentinel, "keep");
+        File.WriteAllText(bukitSentinel, "keep");
+
+        try
+        {
+            CreateDirectorySymlinkOrSkip(cacheLink, cacheTarget);
+            CreateDirectorySymlinkOrSkip(bukitLink, bukitTarget);
+
+            using var cwd = new CurrentDirectoryScope(_testDir);
+            var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+                CliTestHelper.CreateCommand("clean", new[] { "--dir", "dist" }));
+
+            Assert.Equal(0, exitCode);
+            Assert.True(File.Exists(cacheSentinel));
+            Assert.True(File.Exists(bukitSentinel));
+        }
+        finally
+        {
+            DeleteDirectoryLinkIfExists(cacheLink);
+            DeleteDirectoryLinkIfExists(bukitLink);
+            TestCleanup.DeleteDirectory(externalRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_WithDir_RefusesProjectRoot()
     {
         using var cwd = new CurrentDirectoryScope(_testDir);
@@ -179,5 +305,28 @@ theme:
 
         Assert.Equal(0, exitCode);
         Assert.False(Directory.Exists(outputDir));
+    }
+
+    private static void CreateDirectorySymlinkOrSkip(string linkPath, string targetPath)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(linkPath, targetPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
+        }
+    }
+
+    private static void DeleteDirectoryLinkIfExists(string linkPath)
+    {
+        try
+        {
+            Directory.Delete(linkPath);
+        }
+        catch (DirectoryNotFoundException)
+        {
+        }
     }
 }
