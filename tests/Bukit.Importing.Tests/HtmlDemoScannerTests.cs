@@ -1,3 +1,4 @@
+using AngleSharp.Html.Parser;
 using Bukit.Importing;
 using Xunit;
 
@@ -107,5 +108,21 @@ public sealed class HtmlDemoScannerTests : IDisposable
         Assert.Single(pages);
         Assert.DoesNotContain(pages[0].AssetPaths, p => p.StartsWith("https://"));
         Assert.Contains(pages[0].AssetPaths, p => p == "/local.jpg");
+    }
+
+    [Fact]
+    public void Scan_AnnotationXmlHtmlIntegrationPoint_SurfacesBrowserVisibleImage()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "page.html"), """
+<html><head><title>Page</title></head><body><main><math>
+<annotation-xml encoding="text/html">
+<title><a encoding="</title><img src=x onerror=alert()>">
+</annotation-xml></math></main></body></html>
+""");
+
+        var page = Assert.Single(HtmlDemoScanner.Scan(_tempDir));
+        var reparsed = new HtmlParser().ParseDocument(page.UniqueBody);
+
+        Assert.NotNull(reparsed.QuerySelector("img"));
     }
 }
