@@ -4108,6 +4108,92 @@ public sealed class SiteEngineIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task BuildAsync_SameEngineReloadsSearchSnippetCapabilityManifest()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-integration-template-capabilities", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ page.content }}");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), "Index");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), "List");
+            WriteTestThemeTemplates(root);
+
+            var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "post",
+                ["collection"] = "post",
+                ["summary"] = "Updated capability summary"
+            });
+            var item = new RawContentDocument(
+                Id: "post-1",
+                Title: "Post",
+                Slug: "post",
+                PublishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
+                Body: new RawBody(BodyKey: "post-1"),
+                Properties: RawContentValue.FromFields(fields),
+                Source: new ContentSourceInfo("test", ExternalId: "post-1"),
+                CustomFields: fields);
+            var loadResult = new RawContentLoadResult(
+                [item],
+                new DictionaryContentBodyStore(new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["post-1"] = "<p>Body text</p>"
+                }));
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test-site",
+                    Title = "Test Site",
+                    BaseUrl = "/",
+                    Language = "en",
+                    Collections = TestCollections()
+                },
+                Content = TestContent.Markdown(collection: "post"),
+                Build = new BuildConfig { Output = "dist", Clean = true }
+            };
+            var manifestPath = Path.Combine(root, "layouts", "bukit.templates.yaml");
+            var engine = new SiteEngine(
+                new TestLogger(),
+                new StaticContentProviderFactory(loadResult),
+                new DefaultSearchIndexBuilder());
+
+            WriteSearchSnippetManifest(manifestPath, false);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            using (var initial = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "dist", "search.json"))))
+            {
+                var initialPost = initial.RootElement.EnumerateArray()
+                    .Single(entry => entry.GetProperty("title").GetString() == "Post");
+                Assert.False(initialPost.TryGetProperty("snippet", out _));
+            }
+
+            WriteSearchSnippetManifest(manifestPath, true);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+            using var updated = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "dist", "search.json")));
+            var updatedPost = updated.RootElement.EnumerateArray()
+                .Single(entry => entry.GetProperty("title").GetString() == "Post");
+            Assert.Equal("Updated capability summary", updatedPost.GetProperty("snippet").GetString());
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+
+        static void WriteSearchSnippetManifest(string path, bool enabled)
+        {
+            File.WriteAllText(path, $"""
+                templates:
+                  pages/search.html:
+                    capabilities:
+                      supports_search_snippets: {enabled.ToString().ToLowerInvariant()}
+                """);
+        }
+    }
+
     private static void CleanupDir(string dir)
     {
         TestCleanup.DeleteDirectory(dir);

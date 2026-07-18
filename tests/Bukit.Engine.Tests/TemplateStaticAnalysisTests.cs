@@ -146,4 +146,46 @@ public sealed class TemplateStaticAnalysisTests : IDisposable
         Assert.False(result.NeedsPageContent);
         Assert.Equal("analysis", result.Source);
     }
+
+    [Fact]
+    public void AnalyzeNeedsPageContent_ReloadsChangedRootTemplate()
+    {
+        WriteTemplate("pages/list.html", "{{ for p in pages }}{{ p.title }}{{ end }}");
+        var initial = TemplateStaticAnalysisService.AnalyzeNeedsPageContent(_layoutsDir, "pages/list.html");
+
+        WriteTemplate("pages/list.html", "{{ for p in pages }}{{ p.content }}{{ end }}");
+        var updated = TemplateStaticAnalysisService.AnalyzeNeedsPageContent(_layoutsDir, "pages/list.html");
+
+        Assert.False(initial.NeedsPageContent);
+        Assert.True(updated.NeedsPageContent);
+    }
+
+    [Fact]
+    public void AnalyzeNeedsPageContent_ReloadsChangedIncludeDependency()
+    {
+        WriteTemplate("partials/card.html", "{{ p.title }}");
+        WriteTemplate("pages/list.html", "{{ include \"partials/card.html\" }}");
+        var initial = TemplateStaticAnalysisService.AnalyzeNeedsPageContent(_layoutsDir, "pages/list.html");
+
+        WriteTemplate("partials/card.html", "{{ p.content }}");
+        var updated = TemplateStaticAnalysisService.AnalyzeNeedsPageContent(_layoutsDir, "pages/list.html");
+
+        Assert.False(initial.NeedsPageContent);
+        Assert.True(updated.NeedsPageContent);
+    }
+
+    [Fact]
+    public void AnalyzeNeedsPageContent_ReloadsChangedLayoutDirectiveTarget()
+    {
+        WriteTemplate("layouts/summary.html", "{{ page.summary }}");
+        WriteTemplate("layouts/content.html", "{{ page.content }}");
+        WriteTemplate("pages/post.html", "{% layout \"layouts/summary.html\" %}\n{{ page.title }}");
+        var initial = TemplateStaticAnalysisService.AnalyzeNeedsPageContent(_layoutsDir, "pages/post.html");
+
+        WriteTemplate("pages/post.html", "{% layout \"layouts/content.html\" %}\n{{ page.title }}");
+        var updated = TemplateStaticAnalysisService.AnalyzeNeedsPageContent(_layoutsDir, "pages/post.html");
+
+        Assert.False(initial.NeedsPageContent);
+        Assert.True(updated.NeedsPageContent);
+    }
 }

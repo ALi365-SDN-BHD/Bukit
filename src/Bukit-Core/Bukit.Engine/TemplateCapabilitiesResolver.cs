@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 using Bukit.Shared;
 using YamlDotNet.RepresentationModel;
 
@@ -7,12 +9,12 @@ namespace Bukit.Engine;
 public static class TemplateCapabilitiesResolver
 {
     private const string ManifestFileName = "bukit.templates.yaml";
-    private static readonly ConcurrentDictionary<string, Task<TemplateCapabilitiesManifest?>> Cache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentDictionary<string, bool> FallbackCache = new(StringComparer.OrdinalIgnoreCase);
+    private const string MissingManifestFingerprint = "missing";
+    private static readonly ConcurrentDictionary<string, ManifestCacheEntry> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, object> CacheGates = new(StringComparer.OrdinalIgnoreCase);
     public static void ValidateManifest(string layoutsDir)
     {
-        var task = Cache.GetOrAdd(layoutsDir, static dir => LoadManifestAsync(dir));
-        task.GetAwaiter().GetResult();
+        _ = GetManifest(layoutsDir);
     }
 
     public static bool ShouldIncludeListPageContent(string templateRelativePath, string layoutsDir, string mode)
@@ -53,8 +55,7 @@ public static class TemplateCapabilitiesResolver
 
     public static TemplateCapabilityFlags? GetCapabilities(string templateRelativePath, string layoutsDir)
     {
-        var task = Cache.GetOrAdd(layoutsDir, static dir => LoadManifestAsync(dir));
-        var manifest = task.GetAwaiter().GetResult();
+        var manifest = GetManifest(layoutsDir);
         if (manifest?.Templates is null)
         {
             return null;
@@ -78,17 +79,61 @@ public static class TemplateCapabilitiesResolver
     public static bool SupportsSearchSnippets(string templateRelativePath, string layoutsDir)
         => GetCapabilities(templateRelativePath, layoutsDir)?.SupportsSearchSnippets == true;
 
-    private static async Task<TemplateCapabilitiesManifest?> LoadManifestAsync(string layoutsDir)
+    private static TemplateCapabilitiesManifest? GetManifest(string layoutsDir)
     {
-        var manifestPath = Path.Combine(layoutsDir, ManifestFileName);
+        var cacheGate = CacheGates.GetOrAdd(layoutsDir, static _ => new object());
+        lock (cacheGate)
+        {
+            var manifestPath = Path.Combine(layoutsDir, ManifestFileName);
+            var snapshot = ReadManifestSnapshot(manifestPath);
+            if (Cache.TryGetValue(layoutsDir, out var cached) &&
+                string.Equals(cached.Fingerprint, snapshot.Fingerprint, StringComparison.Ordinal))
+            {
+                return cached.Manifest;
+            }
+
+            TemplateCapabilitiesManifest? manifest = null;
+            if (snapshot.Text is not null)
+            {
+                manifest = ParseAndValidateManifest(snapshot.Text, layoutsDir);
+            }
+
+            var candidate = new ManifestCacheEntry(snapshot.Fingerprint, manifest);
+            Cache[layoutsDir] = candidate;
+            return candidate.Manifest;
+        }
+    }
+
+    private static ManifestSnapshot ReadManifestSnapshot(string manifestPath)
+    {
         if (!File.Exists(manifestPath))
         {
-            return null;
+            return new ManifestSnapshot(MissingManifestFingerprint, null);
         }
 
         try
         {
-            var text = await File.ReadAllTextAsync(manifestPath);
+            var text = File.ReadAllText(manifestPath);
+            return new ManifestSnapshot(ComputeContentFingerprint(text), text);
+        }
+        catch (FileNotFoundException)
+        {
+            return new ManifestSnapshot(MissingManifestFingerprint, null);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return new ManifestSnapshot(MissingManifestFingerprint, null);
+        }
+        catch (Exception ex)
+        {
+            throw new ConfigException($"Failed to parse {ManifestFileName}: {ex.Message}", ex, DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private static TemplateCapabilitiesManifest ParseAndValidateManifest(string text, string layoutsDir)
+    {
+        try
+        {
             var manifest = ReadManifest(text);
             ValidateManifestContents(manifest, layoutsDir);
             return manifest;
@@ -102,6 +147,9 @@ public static class TemplateCapabilitiesResolver
             throw new ConfigException($"Failed to parse {ManifestFileName}: {ex.Message}", ex, DiagnosticCode.ConfigInvalidValue);
         }
     }
+
+    private static string ComputeContentFingerprint(string text)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
     private static TemplateCapabilitiesManifest ReadManifest(string text)
     {
@@ -127,23 +175,16 @@ public static class TemplateCapabilitiesResolver
 
     private static bool FallbackHeuristic(string templateRelativePath, string layoutsDir)
     {
-        var key = CacheKey(layoutsDir, templateRelativePath);
-        return FallbackCache.GetOrAdd(key, _ =>
+        var fullPath = Path.Combine(layoutsDir, templateRelativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (!File.Exists(fullPath))
         {
-            var fullPath = Path.Combine(layoutsDir, templateRelativePath.Replace('/', Path.DirectorySeparatorChar));
-            if (!File.Exists(fullPath))
-            {
-                return true;
-            }
+            return true;
+        }
 
-            var template = File.ReadAllText(fullPath);
-            return template.Contains(".content", StringComparison.OrdinalIgnoreCase) ||
-                   template.Contains("include", StringComparison.OrdinalIgnoreCase);
-        });
+        var template = File.ReadAllText(fullPath);
+        return template.Contains(".content", StringComparison.OrdinalIgnoreCase) ||
+               template.Contains("include", StringComparison.OrdinalIgnoreCase);
     }
-
-    private static string CacheKey(string layoutsDir, string templateRelativePath)
-        => $"{layoutsDir}\u0000{templateRelativePath.Replace('\\', '/')}";
 
     private static void ValidateManifestContents(TemplateCapabilitiesManifest? manifest, string layoutsDir)
     {
@@ -324,6 +365,10 @@ public static class TemplateCapabilitiesResolver
     {
         public Dictionary<string, TemplateCapabilityDefinition>? Templates { get; init; }
     }
+
+    private sealed record ManifestSnapshot(string Fingerprint, string? Text);
+
+    private sealed record ManifestCacheEntry(string Fingerprint, TemplateCapabilitiesManifest? Manifest);
 
     private sealed class TemplateCapabilityDefinition
     {

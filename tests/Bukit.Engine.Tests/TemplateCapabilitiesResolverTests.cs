@@ -74,6 +74,85 @@ public sealed class TemplateCapabilitiesResolverTests : IDisposable
     }
 
     [Fact]
+    public void GetCapabilities_ReloadsManifestWhenSameLengthContentChangesWithoutTimestampChange()
+    {
+        var manifestPath = Path.Combine(_layoutsDir, "bukit.templates.yaml");
+        var fixedTimestamp = DateTime.UtcNow.AddMinutes(-5);
+        WriteNeedsPageContentManifest(false);
+        File.SetLastWriteTimeUtc(manifestPath, fixedTimestamp);
+        var originalLength = new FileInfo(manifestPath).Length;
+
+        var initial = TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir);
+
+        WriteNeedsPageContentManifest(true);
+        File.SetLastWriteTimeUtc(manifestPath, fixedTimestamp);
+        Assert.Equal(originalLength, new FileInfo(manifestPath).Length);
+        var updated = TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir);
+
+        Assert.False(initial!.NeedsPageContent);
+        Assert.True(updated!.NeedsPageContent);
+    }
+
+    [Fact]
+    public void ValidateManifest_InvalidFileCanRecoverAfterCorrection()
+    {
+        var manifestPath = Path.Combine(_layoutsDir, "bukit.templates.yaml");
+        File.WriteAllText(manifestPath, "templates: [");
+        Assert.Throws<ConfigException>(() => TemplateCapabilitiesResolver.ValidateManifest(_layoutsDir));
+
+        WriteNeedsPageContentManifest(true);
+
+        TemplateCapabilitiesResolver.ValidateManifest(_layoutsDir);
+        Assert.True(TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir)!.NeedsPageContent);
+    }
+
+    [Fact]
+    public void GetCapabilities_ObservesManifestAppearanceAndDeletion()
+    {
+        Assert.Null(TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir));
+
+        WriteNeedsPageContentManifest(true);
+        Assert.True(TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir)!.NeedsPageContent);
+
+        File.Delete(Path.Combine(_layoutsDir, "bukit.templates.yaml"));
+        Assert.Null(TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir));
+    }
+
+    [Fact]
+    public async Task GetCapabilities_ConcurrentReadersObserveCompleteUpdatedManifest()
+    {
+        WriteNeedsPageContentManifest(false);
+        Assert.False(TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir)!.NeedsPageContent);
+        File.WriteAllText(Path.Combine(_layoutsDir, "bukit.templates.yaml"), """
+                                                                        templates:
+                                                                          pages/list.html:
+                                                                            capabilities:
+                                                                              needs_page_content: true
+                                                                              supports_pagination: true
+                                                                              supports_taxonomy: true
+                                                                              supports_search_snippets: true
+                                                                        """);
+
+        var readers = Enumerable.Range(0, 32)
+            .Select(_ => Task.Run(() => TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir)))
+            .ToArray();
+        var results = await Task.WhenAll(readers);
+
+        Assert.All(results, capabilities =>
+        {
+            Assert.NotNull(capabilities);
+            Assert.True(capabilities!.NeedsPageContent);
+            Assert.True(capabilities.SupportsPagination);
+            Assert.True(capabilities.SupportsTaxonomy);
+            Assert.True(capabilities.SupportsSearchSnippets);
+        });
+
+        Assert.True(TemplateCapabilitiesResolver.SupportsPagination("pages/list.html", _layoutsDir));
+        Assert.True(TemplateCapabilitiesResolver.SupportsTaxonomy("pages/list.html", _layoutsDir));
+        Assert.True(TemplateCapabilitiesResolver.SupportsSearchSnippets("pages/list.html", _layoutsDir));
+    }
+
+    [Fact]
     public void ResolveListPageContent_UsesRecursiveAnalysis_ForIncludedPartial()
     {
         Directory.CreateDirectory(Path.Combine(_layoutsDir, "partials"));
@@ -115,5 +194,31 @@ public sealed class TemplateCapabilitiesResolverTests : IDisposable
         Assert.False(resolution.IncludeContent);
         Assert.False(resolution.UsedHeuristic);
         Assert.Equal("analysis", resolution.Source);
+    }
+
+    [Fact]
+    public void ResolveListPageContent_ReanalyzesTemplateCreatedAfterMissingFallback()
+    {
+        var initial = TemplateCapabilitiesResolver.ResolveListPageContent("pages/later.html", _layoutsDir, "auto");
+
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "later.html"), "{{ for p in pages }}{{ p.title }}{{ end }}");
+        var updated = TemplateCapabilitiesResolver.ResolveListPageContent("pages/later.html", _layoutsDir, "auto");
+
+        Assert.True(initial.IncludeContent);
+        Assert.True(initial.UsedHeuristic);
+        Assert.False(updated.IncludeContent);
+        Assert.False(updated.UsedHeuristic);
+        Assert.Equal("analysis", updated.Source);
+    }
+
+    private void WriteNeedsPageContentManifest(bool needsPageContent)
+    {
+        var value = needsPageContent ? "true " : "false";
+        File.WriteAllText(Path.Combine(_layoutsDir, "bukit.templates.yaml"), $"""
+                                                                        templates:
+                                                                          pages/list.html:
+                                                                            capabilities:
+                                                                              needs_page_content: {value}
+                                                                        """);
     }
 }
