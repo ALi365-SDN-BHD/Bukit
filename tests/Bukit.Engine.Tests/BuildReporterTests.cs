@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Bukit.Config;
 using Bukit.Content;
@@ -15,6 +16,61 @@ namespace Bukit.Engine.Tests;
 
 public sealed class BuildReporterTests
 {
+    private sealed class DiagnosticProbeLogger : ILogger
+    {
+        private int _debugCount;
+        private int _infoCount;
+        private int _warningCount;
+        private int _errorCount;
+
+        internal int DebugCount => Volatile.Read(ref _debugCount);
+        internal int InfoCount => Volatile.Read(ref _infoCount);
+        internal int WarningCount => Volatile.Read(ref _warningCount);
+        internal int ErrorCount => Volatile.Read(ref _errorCount);
+
+        public void Debug(string message) => Interlocked.Increment(ref _debugCount);
+        public void Info(string message) => Interlocked.Increment(ref _infoCount);
+        public void Warn(string message) => Interlocked.Increment(ref _warningCount);
+        public void Error(string message) => Interlocked.Increment(ref _errorCount);
+    }
+
+    [Fact]
+    public void BuildDiagnosticLogger_ForwardsEveryLevelAndCountsDiagnostics()
+    {
+        var inner = new DiagnosticProbeLogger();
+        var logger = new BuildDiagnosticLogger(inner);
+
+        logger.Debug("debug");
+        logger.Info("info");
+        logger.Warn("warning");
+        logger.Error("error");
+
+        Assert.Equal(1, inner.DebugCount);
+        Assert.Equal(1, inner.InfoCount);
+        Assert.Equal(1, inner.WarningCount);
+        Assert.Equal(1, inner.ErrorCount);
+        Assert.Equal(1, logger.WarningCount);
+        Assert.Equal(1, logger.ErrorCount);
+    }
+
+    [Fact]
+    public void BuildDiagnosticLogger_ConcurrentForwardersShareAtomicCounts()
+    {
+        var root = new BuildDiagnosticLogger(new DiagnosticProbeLogger());
+        var first = root.ForwardTo(new DiagnosticProbeLogger());
+        var second = root.ForwardTo(new DiagnosticProbeLogger());
+
+        Parallel.For(0, 1000, index =>
+        {
+            var logger = index % 2 == 0 ? first : second;
+            logger.Warn($"warning-{index}");
+            logger.Error($"error-{index}");
+        });
+
+        Assert.Equal(1000, root.WarningCount);
+        Assert.Equal(1000, root.ErrorCount);
+    }
+
     [Fact]
     public void OutputInventories_DoNotIncludeFilesThroughDirectorySymlink()
     {
@@ -66,6 +122,18 @@ public sealed class BuildReporterTests
         using var doc = JsonDocument.Parse(File.ReadAllText(reportPath));
         var root = doc.RootElement;
         AssertArtifactContract(root, "https://bukit.dev/schemas/build-report.v1.json");
+        AssertExactProperties(
+            root,
+            "schema", "schemaVersion", "version", "startedAt", "endedAt", "durationMs",
+            "environment", "project", "summary", "incremental", "generatedFiles");
+        AssertExactProperties(root.GetProperty("environment"), "os", "runtime", "aot");
+        AssertExactProperties(root.GetProperty("project"), "root", "output", "contentSource", "themeName");
+        AssertExactProperties(
+            root.GetProperty("summary"),
+            "pageCount", "routeCount", "assetCount", "mediaCount", "pluginCount",
+            "warningCount", "errorCount", "schemaErrorCount");
+        AssertExactProperties(root.GetProperty("incremental"), "enabled", "cacheHitCount", "cacheMissCount");
+        Assert.Equal(JsonValueKind.Array, root.GetProperty("generatedFiles").ValueKind);
         Assert.True(root.TryGetProperty("version", out _));
         Assert.True(root.TryGetProperty("startedAt", out _));
         Assert.True(root.TryGetProperty("endedAt", out _));
@@ -191,6 +259,14 @@ public sealed class BuildReporterTests
         Assert.Contains(artifacts, x => x.GetProperty("path").GetString() == "release-bundle-checksums.json");
         Assert.Contains(artifacts, x => x.GetProperty("path").GetString() == "security-report.json");
         Assert.All(artifacts, x => Assert.StartsWith("sha256:", x.GetProperty("hash").GetString()));
+
+        var buildReportArtifact = Assert.Single(
+            artifacts,
+            artifact => artifact.GetProperty("path").GetString() == "build-report.json");
+        var buildReportPath = Path.Combine(tempDir, ".bukit", "build-report.json");
+        var expectedBuildReportHash = "sha256:" + Convert.ToHexString(
+            SHA256.HashData(File.ReadAllBytes(buildReportPath))).ToLowerInvariant();
+        Assert.Equal(expectedBuildReportHash, buildReportArtifact.GetProperty("hash").GetString());
     }
 
     [Fact]
@@ -590,6 +666,16 @@ public sealed class BuildReporterTests
             DateTimeOffset.UtcNow,
             1000,
             new[] { variant });
+    }
+
+    private static void AssertExactProperties(JsonElement element, params string[] expectedNames)
+    {
+        var actual = element.EnumerateObject()
+            .Select(property => property.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+        var expected = expectedNames.OrderBy(name => name, StringComparer.Ordinal).ToArray();
+        Assert.Equal(expected, actual);
     }
 
     private static BuildVariantResult CreateVariant(string tempDir)

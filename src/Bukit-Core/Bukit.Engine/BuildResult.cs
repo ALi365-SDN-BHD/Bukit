@@ -62,7 +62,9 @@ internal static class BuildResultFactory
         long durationMs,
         IReadOnlyList<BuildVariantResult> variants,
         IReadOnlyList<ContentValidationIssue>? schemaErrors = null,
-        IReadOnlyList<string>? generatedFiles = null)
+        IReadOnlyList<string>? generatedFiles = null,
+        int warningCount = 0,
+        int errorCount = 0)
     {
         var pageCount = variants.Sum(v => v.RenderedCount + v.SkippedCount);
         var routeCount = variants.Sum(v => v.RoutedDocuments.Count + v.DerivedDocuments.Count);
@@ -90,8 +92,8 @@ internal static class BuildResultFactory
                 AssetCount: CountFiles(Path.Combine(outputDir, "assets")),
                 MediaCount: CountFiles(Path.Combine(outputDir, "assets", "uploads")),
                 PluginCount: pluginCount,
-                WarningCount: 0,
-                ErrorCount: 0,
+                WarningCount: warningCount,
+                ErrorCount: errorCount,
                 SchemaErrorCount: schemaErrors?.Count ?? 0),
             Incremental: new BuildIncrementalSummary(
                 Enabled: overrides.Incremental ?? true,

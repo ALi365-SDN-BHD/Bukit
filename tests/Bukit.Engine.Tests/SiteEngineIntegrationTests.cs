@@ -8,6 +8,7 @@ using Bukit.Rendering;
 using Bukit.Shared;
 using System.Text.Json;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
@@ -51,6 +52,36 @@ public sealed class SiteEngineIntegrationTests
         }
 
         public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default) => Task.FromResult(ToRawResult(_result));
+    }
+
+    private sealed class BlockingContentProviderFactory : IContentProviderFactory
+    {
+        internal BlockingContentProvider Provider { get; } = new();
+
+        public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger) => Provider;
+
+        public Task<RawContentLoadResult> LocalizeContentImagesAsync(
+            RawContentLoadResult result,
+            MediaConfig media,
+            string rootDir,
+            string cacheDir,
+            ILogger logger,
+            CancellationToken cancellationToken)
+            => Task.FromResult(result);
+    }
+
+    private sealed class BlockingContentProvider : IContentProvider
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal Task Started => _started.Task;
+
+        public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+        {
+            _started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("Unreachable after cancellation.");
+        }
     }
 
     private static RawContentLoadResult ToRawResult(RawContentLoadResult result) => result;
@@ -1428,6 +1459,7 @@ public sealed class SiteEngineIntegrationTests
             var ex = await Assert.ThrowsAsync<ConfigException>(() => engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
             Assert.Contains("seo.canonical_missing", ex.Message, StringComparison.Ordinal);
             Assert.NotEmpty(logger.Errors);
+            Assert.False(File.Exists(Path.Combine(root, "dist", ".bukit", "build-report.json")));
         }
         finally
         {
@@ -4192,6 +4224,279 @@ public sealed class SiteEngineIntegrationTests
                       supports_search_snippets: {enabled.ToString().ToLowerInvariant()}
                 """);
         }
+    }
+
+    [Fact]
+    public async Task BuildAsync_BuildReportCountsRealWarningAndResetsBetweenBuilds()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+
+        try
+        {
+            var outputDir = Path.Combine(root, "dist");
+            Directory.CreateDirectory(outputDir);
+            File.WriteAllText(Path.Combine(outputDir, ".bukit-output-marker"), "bukit-output\n");
+            File.WriteAllText(
+                Path.Combine(outputDir, ".bukit-build-state.json"),
+                "{\"status\":\"started\"}");
+
+            var logger = new TestLogger();
+            var engine = CreateEmptySiteEngine(logger);
+
+            var first = await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.Contains(logger.Warnings, message => message.Contains("previousIncomplete=true", StringComparison.Ordinal));
+            Assert.Equal(logger.Warnings.Count, first.Summary.WarningCount);
+            Assert.Equal(logger.Errors.Count, first.Summary.ErrorCount);
+            Assert.True(first.Summary.WarningCount > 0);
+            AssertBuildReportCounts(outputDir, first.Summary.WarningCount, first.Summary.ErrorCount);
+
+            var warningsBeforeSecondBuild = logger.Warnings.Count;
+            var errorsBeforeSecondBuild = logger.Errors.Count;
+            var second = await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            Assert.Equal(warningsBeforeSecondBuild, logger.Warnings.Count);
+            Assert.Equal(errorsBeforeSecondBuild, logger.Errors.Count);
+            Assert.Equal(0, second.Summary.WarningCount);
+            Assert.Equal(0, second.Summary.ErrorCount);
+            Assert.Equal(first.GeneratedFiles, second.GeneratedFiles);
+            AssertBuildReportCounts(outputDir, 0, 0);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_BuildReportKeepsZeroCountsWhenNoDiagnosticsAreEmitted()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+
+        try
+        {
+            var logger = new TestLogger();
+            var result = await CreateEmptySiteEngine(logger).BuildAsync(
+                config,
+                root,
+                new ConfigOverrides(),
+                CancellationToken.None);
+
+            Assert.Empty(logger.Warnings);
+            Assert.Empty(logger.Errors);
+            Assert.Equal(0, result.Summary.WarningCount);
+            Assert.Equal(0, result.Summary.ErrorCount);
+            AssertBuildReportCounts(Path.Combine(root, "dist"), 0, 0);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_MultiLanguageBuildAggregatesConcurrentVariantWarnings()
+    {
+        var (root, config) = CreateBuildReportHealthSite(multiLanguage: true, addStaticHtml: true);
+
+        try
+        {
+            var result = await CreateEmptySiteEngine(new TestLogger()).BuildAsync(
+                config,
+                root,
+                new ConfigOverrides(),
+                CancellationToken.None);
+
+            Assert.Equal(2, result.Summary.WarningCount);
+            Assert.Equal(0, result.Summary.ErrorCount);
+            AssertBuildReportCounts(Path.Combine(root, "dist"), 2, 0);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_GeneratedFilesMatchStablePublicOutputInventory()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+        var outside = Path.Combine(Path.GetTempPath(), "bukit-build-report-health-outside", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var outputDir = Path.Combine(root, "dist");
+            Directory.CreateDirectory(outputDir);
+            Directory.CreateDirectory(outside);
+            File.WriteAllText(Path.Combine(outputDir, "existing-public.txt"), "public");
+            File.WriteAllText(Path.Combine(outside, "secret.txt"), "secret");
+
+            try
+            {
+                File.CreateSymbolicLink(
+                    Path.Combine(outputDir, "linked-secret.txt"),
+                    Path.Combine(outside, "secret.txt"));
+                Directory.CreateSymbolicLink(
+                    Path.Combine(outputDir, "linked-outside"),
+                    outside);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                throw SkipException.ForSkip($"Symbolic links are unavailable: {ex.GetType().Name}");
+            }
+
+            var result = await CreateEmptySiteEngine(new TestLogger()).BuildAsync(
+                config,
+                root,
+                new ConfigOverrides(),
+                CancellationToken.None);
+
+            var expected = EnumeratePublicOutputFiles(outputDir);
+            Assert.NotEmpty(expected);
+            Assert.Contains("existing-public.txt", expected);
+            Assert.DoesNotContain(expected, path => path.Contains("linked-", StringComparison.Ordinal));
+            Assert.Equal(expected, result.GeneratedFiles);
+            Assert.Equal(
+                result.GeneratedFiles.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ThenBy(path => path, StringComparer.Ordinal),
+                result.GeneratedFiles);
+
+            using var report = JsonDocument.Parse(File.ReadAllText(
+                Path.Combine(outputDir, ".bukit", "build-report.json")));
+            var reported = report.RootElement.GetProperty("generatedFiles").EnumerateArray()
+                .Select(item => Assert.IsType<string>(item.GetString()))
+                .ToArray();
+            Assert.Equal(expected, reported);
+        }
+        finally
+        {
+            CleanupDir(root);
+            CleanupDir(outside);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_CancellationDoesNotWritePartialBuildReport()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+
+        try
+        {
+            var providerFactory = new BlockingContentProviderFactory();
+            var engine = new SiteEngine(
+                new TestLogger(),
+                providerFactory,
+                new DefaultSearchIndexBuilder());
+            using var cancellation = new CancellationTokenSource();
+
+            var build = engine.BuildAsync(config, root, new ConfigOverrides(), cancellation.Token);
+            await providerFactory.Provider.Started.WaitAsync(TimeSpan.FromSeconds(5));
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await build);
+            Assert.False(File.Exists(Path.Combine(root, "dist", ".bukit", "build-report.json")));
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    private static SiteEngine CreateEmptySiteEngine(ILogger logger)
+        => new(
+            logger,
+            new StaticContentProviderFactory(new RawContentLoadResult([], EmptyContentBodyStore.Instance)),
+            new DefaultSearchIndexBuilder());
+
+    private static (string Root, AppConfig Config) CreateBuildReportHealthSite(
+        bool multiLanguage = false,
+        bool addStaticHtml = false)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-build-report-health", Guid.NewGuid().ToString("N"));
+        var layoutsDir = Path.Combine(root, "layouts", "pages");
+        Directory.CreateDirectory(layoutsDir);
+        File.WriteAllText(Path.Combine(layoutsDir, "post.html"), "<html><head><title>{{ page.title }}</title></head><body><main><h1>{{ page.title }}</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(layoutsDir, "page.html"), "<html><head><title>{{ page.title }}</title></head><body><main><h1>{{ page.title }}</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(layoutsDir, "index.html"), "<html><head><title>{{ site.title }}</title></head><body><main><h1>{{ site.title }}</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(layoutsDir, "list.html"), "<html><head><title>{{ page.title }}</title></head><body><main><h1>{{ page.title }}</h1></main></body></html>");
+        WriteTestThemeTemplates(root);
+
+        if (addStaticHtml)
+        {
+            var staticDir = Path.Combine(root, "static");
+            Directory.CreateDirectory(staticDir);
+            File.WriteAllText(Path.Combine(staticDir, "legacy.html"), "<html><body>legacy</body></html>");
+        }
+
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "build-report-health",
+                Title = "Build Report Health",
+                Url = "https://example.com",
+                BaseUrl = "/",
+                Language = "en",
+                DefaultLanguage = multiLanguage ? "en" : null,
+                Languages = multiLanguage ? ["en", "zh"] : null,
+                Collections = TestCollections(),
+                Seo = new SeoConfig { Enabled = false },
+                Analytics = new AnalyticsConfig { Enabled = false }
+            },
+            Content = TestContent.Markdown() with
+            {
+                Media = new MediaConfig { DownloadToLocal = false }
+            },
+            Build = new BuildConfig
+            {
+                Output = "dist",
+                Clean = false,
+                LanguageJobs = multiLanguage ? 2 : 1,
+                Report = new BuildReportConfig { Enabled = true }
+            },
+            Theme = new ThemeConfig { Layouts = "layouts", Static = "static" }
+        };
+
+        return (root, config);
+    }
+
+    private static void AssertBuildReportCounts(string outputDir, int warningCount, int errorCount)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(
+            Path.Combine(outputDir, ".bukit", "build-report.json")));
+        var summary = document.RootElement.GetProperty("summary");
+        Assert.Equal(warningCount, summary.GetProperty("warningCount").GetInt32());
+        Assert.Equal(errorCount, summary.GetProperty("errorCount").GetInt32());
+    }
+
+    private static string[] EnumeratePublicOutputFiles(string outputDir)
+    {
+        return Directory.EnumerateFiles(outputDir, "*", SearchOption.AllDirectories)
+            .Where(path => !ContainsReparsePoint(outputDir, path))
+            .Select(path => Path.GetRelativePath(outputDir, path).Replace('\\', '/'))
+            .Where(path => !path.Split('/').Any(segment =>
+                string.Equals(segment, ".bukit", StringComparison.OrdinalIgnoreCase)))
+            .Where(path => !string.Equals(path, ".bukit-build-state.json", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !string.Equals(path, ".bukit-output-marker", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static bool ContainsReparsePoint(string root, string path)
+    {
+        var relative = Path.GetRelativePath(root, path);
+        var current = root;
+        foreach (var segment in relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        {
+            current = Path.Combine(current, segment);
+            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void CleanupDir(string dir)

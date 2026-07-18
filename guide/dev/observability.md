@@ -19,3 +19,16 @@ sync, plugin stages, and total variant time.
 Use `.bukit/build-report.json` for build health, `.bukit/seo-report.json` for
 SEO, `.bukit/publish-audit-report.json` for release readiness, and
 `.bukit/security-report.json` for output safety.
+
+In the build report, `summary.warningCount` and `summary.errorCount` count the
+`Warn` and `Error` diagnostic events emitted during that build. Counts are
+isolated per build and aggregate concurrent language variants. They do not copy
+the warning or error totals from the SEO, publish, or security reports, whose
+issue definitions remain independent.
+
+`generatedFiles` is the stable, root-relative public output inventory captured
+before the build report is written. Paths use `/` separators. The inventory
+does not follow symbolic links and excludes `.bukit/` report directories at any
+level, `.bukit-build-state.json`, and `.bukit-output-marker`. Internal report
+integrity remains owned by `.bukit/artifact-manifest.json`; internal reports
+and marker files are not duplicated into `generatedFiles`.

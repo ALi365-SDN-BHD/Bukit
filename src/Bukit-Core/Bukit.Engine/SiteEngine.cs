@@ -94,12 +94,13 @@ public sealed class SiteEngine
 
     private async Task<BuildResult> BuildCoreAsync(BuildPipelineContext context, CancellationToken cancellationToken)
     {
-        var plan = BuildPlanner.Plan(context.Config, context.RootDir, context.Overrides, _logger);
+        var buildLogger = new BuildDiagnosticLogger(_logger);
+        var plan = BuildPlanner.Plan(context.Config, context.RootDir, context.Overrides, buildLogger);
         var effectiveConfig = plan.EffectiveConfig;
         var rootDir = context.RootDir;
         var overrides = context.Overrides;
 
-        var contentPipeline = new ContentPipeline(_contentProviderFactory, _logger);
+        var contentPipeline = new ContentPipeline(_contentProviderFactory, buildLogger);
         var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, plan.MediaCacheDir, cancellationToken);
         var documents = contentResult.Documents;
         var contentGraph = contentResult.ContentGraph ?? CanonicalContentGraph.Empty;
@@ -117,12 +118,25 @@ public sealed class SiteEngine
                     effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
                     plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
                     plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
-                    templateHashCache, plan.StartedAt, cancellationToken);
+                    templateHashCache, plan.StartedAt, buildLogger, cancellationToken);
 
-                _logger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
+                buildLogger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
                 MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, contentResult.BodyCacheMetrics);
+                var generatedFiles = BuildOutputInventory.Create(plan.OutputDir);
                 plan.Stopwatch.Stop();
-                var singleLanguageBuildResult = BuildResultFactory.Create(effectiveConfig, rootDir, plan.OutputDir, overrides, plan.StartedAt, DateTimeOffset.UtcNow, plan.Stopwatch.ElapsedMilliseconds, new[] { result }, contentResult.SchemaErrors);
+                var singleLanguageBuildResult = BuildResultFactory.Create(
+                    effectiveConfig,
+                    rootDir,
+                    plan.OutputDir,
+                    overrides,
+                    plan.StartedAt,
+                    DateTimeOffset.UtcNow,
+                    plan.Stopwatch.ElapsedMilliseconds,
+                    new[] { result },
+                    contentResult.SchemaErrors,
+                    generatedFiles,
+                    warningCount: buildLogger.WarningCount,
+                    errorCount: buildLogger.ErrorCount);
                 var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
                 BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData);
                 BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI);
@@ -137,7 +151,7 @@ public sealed class SiteEngine
                 plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
                 templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
                 bodyCacheMetrics,
-                contentResult.SchemaErrors, cancellationToken);
+                contentResult.SchemaErrors, buildLogger, cancellationToken);
         }
         finally
         {
@@ -166,10 +180,11 @@ public sealed class SiteEngine
         string? userLayoutsDir,
         DirectoryHashCache templateHashCache,
         DateTimeOffset buildStartedAt,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         var baseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
-        _logger.Info($"event=build.variant.start language={config.Site.Language} baseUrl={baseUrl}");
+        logger.Info($"event=build.variant.start language={config.Site.Language} baseUrl={baseUrl}");
         var variantCtx = new BuildVariantContext(
             config, rootDir, overrides, documents, contentGraph, bodyStore, outputDir, baseUrl,
             layoutsDir, assetsDir, staticDir, mediaCacheDir,
@@ -178,7 +193,7 @@ public sealed class SiteEngine
             BuildStartedAt: buildStartedAt,
             ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
             UserLayoutsDir: userLayoutsDir);
-        return await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken);
+        return await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken, logger);
     }
 
     private async Task<BuildResult> BuildMultiLanguageAsync(
@@ -193,11 +208,12 @@ public sealed class SiteEngine
         DateTimeOffset buildStartedAt, Stopwatch buildStopwatch,
         BodyCacheMetrics? bodyCacheMetrics,
         IReadOnlyList<ContentValidationIssue> schemaErrors,
+        BuildDiagnosticLogger buildLogger,
         CancellationToken cancellationToken)
     {
         var defaultLanguage = I18nOutputMerger.GetDefaultLanguage(config.Site, languages);
         var rootBaseUrl = BuildPathUtils.NormalizeBaseUrl(config.Site.BaseUrl);
-        var templateResolver = new ThemeTemplateResolver(ThemeBootstrapper.BootstrapRequired(config, rootDir, _logger).Manifest);
+        var templateResolver = new ThemeTemplateResolver(ThemeBootstrapper.BootstrapRequired(config, rootDir, buildLogger).Manifest);
         var seoAlternates = SeoAlternatesService.BuildSeoAlternates(config, documents, languages, defaultLanguage, rootBaseUrl, templateResolver, rootDir, layoutsDir);
         var results = new BuildVariantResult[languages.Count];
 
@@ -208,14 +224,14 @@ public sealed class SiteEngine
             languageJobs = processorCount;
         }
 
-        _logger.Info($"event=build.i18n.start languages={languages.Count} concurrent_jobs={languageJobs}");
+        buildLogger.Info($"event=build.i18n.start languages={languages.Count} concurrent_jobs={languageJobs}");
         await Parallel.ForEachAsync(
             languages.Select((lang, i) => (lang, i)),
             new ParallelOptions { MaxDegreeOfParallelism = languageJobs, CancellationToken = cancellationToken },
             async (entry, ct) =>
             {
                 var (lang, i) = entry;
-                var variantLogger = new ConsoleLogger(ResolveVariantLogLevel(config, overrides.IsCI));
+                var variantLogger = buildLogger.ForwardTo(new ConsoleLogger(ResolveVariantLogLevel(config, overrides.IsCI)));
                 var baseUrl = I18nOutputMerger.CombineBaseUrlWithLanguage(rootBaseUrl, lang);
                 var variantConfig = config with
                 {
@@ -243,12 +259,25 @@ public sealed class SiteEngine
 
         var variantResults = results.Where(r => r is not null).ToList();
 
-        var projectionResults = I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, _logger, _searchIndexBuilder);
-        SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, _logger, projectionResults);
-        _logger.Info("event=build.done");
+        var projectionResults = I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder);
+        SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, buildLogger, projectionResults);
+        buildLogger.Info("event=build.done");
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, documents.Count, variantResults, bodyCacheMetrics);
+        var generatedFiles = BuildOutputInventory.Create(outputDir);
         buildStopwatch.Stop();
-        var buildResult = BuildResultFactory.Create(config, rootDir, outputDir, overrides, buildStartedAt, DateTimeOffset.UtcNow, buildStopwatch.ElapsedMilliseconds, variantResults, schemaErrors);
+        var buildResult = BuildResultFactory.Create(
+            config,
+            rootDir,
+            outputDir,
+            overrides,
+            buildStartedAt,
+            DateTimeOffset.UtcNow,
+            buildStopwatch.ElapsedMilliseconds,
+            variantResults,
+            schemaErrors,
+            generatedFiles,
+            warningCount: buildLogger.WarningCount,
+            errorCount: buildLogger.ErrorCount);
         var securityData = BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults);
         BuildReporter.WriteIfEnabled(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData);
         BuildReporter.EnforceSecurityGate(config, securityData, overrides.IsCI);
