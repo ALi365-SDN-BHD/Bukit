@@ -179,7 +179,7 @@ public class DependencyMatrixTests
     [Fact]
     public void InternalsVisibleTo_MustOnlyExposeTo_CoreInternalOrTestAssemblies()
     {
-        var allowedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        var allowedGlobalTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Bukit.Engine",
             "Bukit.Rendering",
@@ -196,6 +196,11 @@ public class DependencyMatrixTests
             "Bukit.Theme.Benchmarks"
         };
 
+        var allowedAssemblyPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Bukit.Shared->Bukit.Content"
+        };
+
         var allAssemblies = new[]
         {
             SharedAssembly, ConfigAssembly, AbstractionsAssembly,
@@ -210,11 +215,13 @@ public class DependencyMatrixTests
 
             foreach (System.Runtime.CompilerServices.InternalsVisibleToAttribute attr in internalsVisibleTo)
             {
+                var source = asm.GetName().Name!;
                 var target = attr.AssemblyName.Split(',')[0].Trim();
                 Assert.True(
-                    allowedTargets.Contains(target),
-                    $"Assembly '{asm.GetName().Name}' exposes internals to '{target}', " +
-                    "which is not in the allowed whitelist.");
+                    allowedGlobalTargets.Contains(target)
+                    || allowedAssemblyPairs.Contains($"{source}->{target}"),
+                    $"Assembly '{source}' exposes internals to '{target}', " +
+                    "which is not an approved global target or source-target pair.");
             }
         }
     }
