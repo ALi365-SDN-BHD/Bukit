@@ -388,7 +388,7 @@ public sealed class AssetPipelineTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_CaseVariantCrossCategoryCollision_FailsBeforeWriting()
+    public void Create_CaseVariantCrossCategoryTargets_FollowPlatformPathSemantics()
     {
         var root = CreateRoot();
         var staticDir = Path.Combine(root, "static");
@@ -398,11 +398,92 @@ public sealed class AssetPipelineTests
         File.WriteAllText(Path.Combine(staticDir, "assets", "css", "Main.css"), "static");
         File.WriteAllText(Path.Combine(assetsDir, "css", "main.css"), "asset");
 
-        var exception = await Assert.ThrowsAsync<BukitException>(() => new AssetPipeline().ExecuteAsync(
-            CreateContext(root, new BuildManifest(), staticDir: staticDir, assetsDir: assetsDir)));
+        var context = CreateContext(root, new BuildManifest(), staticDir: staticDir, assetsDir: assetsDir);
+        var copyOptions = new DirectoryCopyOptions();
 
-        Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, exception.Code);
-        Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(root, "dist")));
+        if (OperatingSystem.IsWindows())
+        {
+            var exception = Assert.Throws<BukitException>(() => AssetOutputPlan.Create(context, copyOptions, tokens: null));
+
+            Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, exception.Code);
+            return;
+        }
+
+        var plan = AssetOutputPlan.Create(context, copyOptions, tokens: null);
+
+        Assert.Contains(plan.Items, item => item.Destination == "assets/css/Main.css");
+        Assert.Contains(plan.Items, item => item.Destination == "assets/css/main.css");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_CaseVariantCrossCategoryTargets_FollowFileSystemSemantics()
+    {
+        var root = CreateRoot();
+        var staticDir = Path.Combine(root, "static");
+        var assetsDir = Path.Combine(root, "assets");
+        Directory.CreateDirectory(Path.Combine(staticDir, "assets", "css"));
+        Directory.CreateDirectory(Path.Combine(assetsDir, "css"));
+        File.WriteAllText(Path.Combine(staticDir, "assets", "css", "Main.css"), "static");
+        File.WriteAllText(Path.Combine(assetsDir, "css", "main.css"), "asset");
+        var manifest = new BuildManifest();
+
+        if (OperatingSystem.IsWindows())
+        {
+            var exception = await Assert.ThrowsAsync<BukitException>(() => new AssetPipeline().ExecuteAsync(
+                CreateContext(root, manifest, staticDir: staticDir, assetsDir: assetsDir)));
+
+            Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, exception.Code);
+            Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(root, "dist")));
+            return;
+        }
+
+        var probe = Path.Combine(root, "dist", "case-probe");
+        File.WriteAllText(probe, string.Empty);
+        var isCaseSensitive = !File.Exists(Path.Combine(root, "dist", "CASE-PROBE"));
+        File.Delete(probe);
+        if (!isCaseSensitive)
+        {
+            return;
+        }
+
+        await new AssetPipeline().ExecuteAsync(
+            CreateContext(root, manifest, staticDir: staticDir, assetsDir: assetsDir));
+
+        Assert.Equal("static", File.ReadAllText(Path.Combine(root, "dist", "assets", "css", "Main.css")));
+        Assert.Equal("asset", File.ReadAllText(Path.Combine(root, "dist", "assets", "css", "main.css")));
+        Assert.Contains("assets/css/Main.css", manifest.Static.Keys);
+        Assert.Contains("assets/css/main.css", manifest.Assets.Keys);
+    }
+
+    [Fact]
+    public void Create_ChildRenderedStaticHtml_SuppressesParentAndChildRawCopies()
+    {
+        var root = CreateRoot();
+        var parentStaticDir = Path.Combine(root, "parent-static");
+        var staticDir = Path.Combine(root, "static");
+        Directory.CreateDirectory(parentStaticDir);
+        Directory.CreateDirectory(staticDir);
+        File.WriteAllText(Path.Combine(parentStaticDir, "about.html"), "parent");
+        File.WriteAllText(Path.Combine(staticDir, "about.html"), "child");
+        var renderedEntries = RenderEntry.ForStaticDir(
+            staticDir,
+            "pages/static.html",
+            _ => { },
+            publishDotFiles: false);
+
+        var plan = AssetOutputPlan.Create(
+            CreateContext(
+                root,
+                new BuildManifest(),
+                staticDir: staticDir,
+                parentStaticDir: parentStaticDir,
+                renderedEntries: renderedEntries),
+            new DirectoryCopyOptions(),
+            tokens: null);
+
+        Assert.DoesNotContain(plan.Items, item => item.Destination == "about.html");
+        Assert.Contains(plan.Items, item =>
+            item.Destination == "about/index.html" && item.Operation == AssetOutputOperation.Render);
     }
 
     [Fact]
@@ -768,7 +849,8 @@ public sealed class AssetPipelineTests
         string? themeRoot = null,
         bool followSymlinks = false,
         bool publishDotFiles = false,
-        bool incrementalEnabled = false)
+        bool incrementalEnabled = false,
+        IReadOnlyList<RenderEntry>? renderedEntries = null)
         => new(
             StaticDir: staticDir,
             ParentStaticDir: parentStaticDir,
@@ -784,5 +866,6 @@ public sealed class AssetPipelineTests
             ImageConfig: null,
             Logger: new RecordingLogger(),
             PublishDotFiles: publishDotFiles,
-            FollowSymlinks: followSymlinks);
+            FollowSymlinks: followSymlinks,
+            RenderEntries: renderedEntries);
 }

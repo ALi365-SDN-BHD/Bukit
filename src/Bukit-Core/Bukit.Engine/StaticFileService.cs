@@ -8,14 +8,6 @@ namespace Bukit.Engine;
 
 internal static class StaticFileService
 {
-    private static readonly HashSet<string> SensitiveDotfileNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".env", ".git", ".github", ".svn", ".hg", ".DS_Store", "Thumbs.db",
-        ".npmrc", ".yarnrc"
-    };
-
-    private static readonly string[] SensitiveDotfileExtensions = { ".pem", ".key", ".pfx", ".p12" };
-
     internal static void RenderStaticFiles(string staticDir, string outputDir, ITemplateRenderer renderer, SiteModel siteModel, string templateName, string baseUrl, ConcurrentDictionary<string, byte> currentKeys, CancellationToken cancellationToken, Action<string>? warn = null, bool publishDotFiles = false)
     {
         var htmlFiles = SafeFileEnumerator.EnumerateFiles(staticDir, "*.html");
@@ -24,13 +16,13 @@ internal static class StaticFileService
             cancellationToken.ThrowIfCancellationRequested();
             var relativeOutputPath = Path.GetRelativePath(staticDir, file);
 
-            if (HasSensitiveDotfileSegment(relativeOutputPath))
+            if (StaticFilePathPolicy.HasSensitiveSegment(relativeOutputPath))
             {
                 warn?.Invoke($"Skipping sensitive dotfile in static dir: {relativeOutputPath}");
                 continue;
             }
 
-            if (!publishDotFiles && HasDotPrefixedSegment(relativeOutputPath))
+            if (!publishDotFiles && StaticFilePathPolicy.HasDisallowedDotPrefixedSegment(relativeOutputPath))
             {
                 warn?.Invoke($"Skipping dotfile in static dir: {relativeOutputPath}");
                 continue;
@@ -79,13 +71,13 @@ internal static class StaticFileService
         {
             var relativePath = Path.GetRelativePath(staticDir, file);
 
-            if (HasSensitiveDotfileSegment(relativePath))
+            if (StaticFilePathPolicy.HasSensitiveSegment(relativePath))
             {
                 warn?.Invoke($"Skipping sensitive dotfile in static dir: {relativePath}");
                 continue;
             }
 
-            if (!publishDotFiles && HasDotPrefixedSegment(relativePath))
+            if (!publishDotFiles && StaticFilePathPolicy.HasDisallowedDotPrefixedSegment(relativePath))
             {
                 warn?.Invoke($"Skipping dotfile in static dir: {relativePath}");
                 continue;
@@ -101,52 +93,6 @@ internal static class StaticFileService
         }
     }
 
-    private static bool HasDotPrefixedSegment(string relativePath)
-    {
-        var normalized = relativePath.Replace('\\', '/');
-        if (normalized.StartsWith(".well-known/", StringComparison.OrdinalIgnoreCase) || normalized.Equals(".well-known", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        foreach (var segment in normalized.Split('/'))
-        {
-            if (segment.StartsWith('.') && !segment.Equals(".well-known", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool HasSensitiveDotfileSegment(string relativePath)
-    {
-        var normalized = relativePath.Replace('\\', '/');
-        foreach (var segment in normalized.Split('/'))
-        {
-            if (SensitiveDotfileNames.Contains(segment))
-            {
-                return true;
-            }
-
-            if (segment.StartsWith(".env.", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            foreach (var ext in SensitiveDotfileExtensions)
-            {
-                if (segment.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
     internal static IReadOnlyList<RouteInfo> BuildStaticHtmlRoutes(string staticDir, string templateName, Action<string>? warn = null, bool publishDotFiles = false)
     {
         if (!Directory.Exists(staticDir))
@@ -159,13 +105,13 @@ internal static class StaticFileService
         {
             var relativeOutputPath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(staticDir, file));
 
-            if (HasSensitiveDotfileSegment(relativeOutputPath))
+            if (StaticFilePathPolicy.HasSensitiveSegment(relativeOutputPath))
             {
                 warn?.Invoke($"Skipping sensitive dotfile in static dir: {relativeOutputPath}");
                 continue;
             }
 
-            if (!publishDotFiles && HasDotPrefixedSegment(relativeOutputPath))
+            if (!publishDotFiles && StaticFilePathPolicy.HasDisallowedDotPrefixedSegment(relativeOutputPath))
             {
                 warn?.Invoke($"Skipping dotfile in static dir: {relativeOutputPath}");
                 continue;

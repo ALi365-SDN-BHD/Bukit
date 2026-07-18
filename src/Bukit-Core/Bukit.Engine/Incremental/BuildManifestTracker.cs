@@ -14,6 +14,7 @@ internal static class BuildManifestTracker
         BuildManifest manifest,
         bool incrementalEnabled,
         CancellationToken cancellationToken,
+        ConcurrentDictionary<string, BuildManifestEntry>? manifestEntries = null,
         IOutputPathPolicy? pathPolicy = null)
     {
         if (!incrementalEnabled)
@@ -27,6 +28,14 @@ internal static class BuildManifestTracker
         var currentIdentityDestinations = items
             .Select(item => item.Destination)
             .ToHashSet(PathComparer);
+        var currentRenderDestinations = items
+            .Where(item => item.Category == AssetOutputCategory.Render)
+            .Select(item => item.Destination)
+            .ToHashSet(PathComparer);
+        var currentNonRenderDestinations = items
+            .Where(item => item.Category != AssetOutputCategory.Render)
+            .Select(item => item.Destination)
+            .ToHashSet(PathComparer);
         var blockingStalePaths = manifest.Static.Keys
             .Concat(manifest.Assets.Keys)
             .Concat(manifest.Media.Keys)
@@ -37,9 +46,26 @@ internal static class BuildManifestTracker
             .OrderByDescending(path => path.Length)
             .ThenBy(path => path, PathComparer)
             .ToArray();
+        var blockingStaleRenderEntries = manifest.Entries
+            .Select(entry => new
+            {
+                entry.Key,
+                OutputPath = BuildPathUtils.NormalizeRelPath(
+                    string.IsNullOrWhiteSpace(entry.Value.OutputPath) ? entry.Key : entry.Value.OutputPath)
+            })
+            .Where(entry => !currentRenderDestinations.Contains(entry.OutputPath))
+            .Where(entry => currentNonRenderDestinations.Contains(entry.OutputPath) ||
+                            currentNonRenderDestinations.Any(current => StructurallyConflicts(entry.OutputPath, current)))
+            .ToArray();
+        var pathsToDelete = blockingStalePaths
+            .Concat(blockingStaleRenderEntries.Select(entry => entry.OutputPath))
+            .Distinct(PathComparer)
+            .OrderByDescending(path => path.Length)
+            .ThenBy(path => path, PathComparer)
+            .ToArray();
 
         var outputFileSystem = new SafeOutputFileSystem(outputDir, pathPolicy);
-        foreach (var stale in blockingStalePaths)
+        foreach (var stale in pathsToDelete)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var fullPath = outputFileSystem.GetSafeFullPath(stale);
@@ -48,6 +74,12 @@ internal static class BuildManifestTracker
                 outputFileSystem.DeleteFileAsync(stale, cancellationToken).GetAwaiter().GetResult();
                 DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
             }
+        }
+
+        foreach (var staleEntry in blockingStaleRenderEntries)
+        {
+            manifest.Entries.Remove(staleEntry.Key);
+            manifestEntries?.TryRemove(staleEntry.Key, out _);
         }
     }
 
@@ -303,11 +335,11 @@ internal static class BuildManifestTracker
     }
 
     private static StringComparer PathComparer
-        => StringComparer.OrdinalIgnoreCase;
+        => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private static bool StructurallyConflicts(string left, string right)
-        => left.StartsWith(right + "/", StringComparison.OrdinalIgnoreCase) ||
-           right.StartsWith(left + "/", StringComparison.OrdinalIgnoreCase);
+        => left.StartsWith(right + "/", PlatformPathHelper.PathComparison) ||
+           right.StartsWith(left + "/", PlatformPathHelper.PathComparison);
 
     private static void DeleteEmptyDirectoriesUpToRoot(string? directory, string outputDir)
     {
@@ -315,7 +347,7 @@ internal static class BuildManifestTracker
         while (!string.IsNullOrWhiteSpace(directory))
         {
             var fullDirectory = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (string.Equals(fullDirectory, root, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(fullDirectory, root, PlatformPathHelper.PathComparison))
             {
                 break;
             }

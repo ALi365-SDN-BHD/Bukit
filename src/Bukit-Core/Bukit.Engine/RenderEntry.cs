@@ -17,7 +17,8 @@ internal sealed record RenderEntry(
     ListPageContext? ListPageContext,
     string? RawContent,
     string Title,
-    ListRoutePlan? MetadataListRoute = null)
+    ListRoutePlan? MetadataListRoute = null,
+    string? SourcePath = null)
 {
     internal static RenderEntry ForPage(
         ContentDocument document,
@@ -42,7 +43,13 @@ internal sealed record RenderEntry(
         foreach (var file in htmlFiles)
         {
             var relativeOutputPath = Path.GetRelativePath(staticDir, file);
-            if (!publishDotFiles && HasDotPrefixedSegment(relativeOutputPath))
+            if (StaticFilePathPolicy.HasSensitiveSegment(relativeOutputPath))
+            {
+                warn($"Skipping sensitive dotfile in static dir: {relativeOutputPath}");
+                continue;
+            }
+
+            if (!publishDotFiles && StaticFilePathPolicy.HasDisallowedDotPrefixedSegment(relativeOutputPath))
             {
                 warn($"Skipping dotfile in static dir: {relativeOutputPath}");
                 continue;
@@ -63,7 +70,17 @@ internal sealed record RenderEntry(
 
             var route = new RouteInfo(url, outputPath, template);
             var rawContent = File.ReadAllText(file);
-            entries.Add(new RenderEntry(RenderEntryKind.Static, null, route, null, false, null, null, rawContent, title));
+            entries.Add(new RenderEntry(
+                RenderEntryKind.Static,
+                null,
+                route,
+                null,
+                false,
+                null,
+                null,
+                rawContent,
+                title,
+                SourcePath: file));
         }
 
         return entries;
@@ -97,19 +114,6 @@ internal sealed record RenderEntry(
             .LastOrDefault();
         if (string.IsNullOrWhiteSpace(lastSegment)) return "Index";
         return char.ToUpperInvariant(lastSegment[0]) + lastSegment[1..].Replace('-', ' ');
-    }
-
-    private static bool HasDotPrefixedSegment(string relativePath)
-    {
-        var normalized = relativePath.Replace('\\', '/');
-        if (normalized.StartsWith(".well-known/", StringComparison.OrdinalIgnoreCase) || normalized.Equals(".well-known", StringComparison.OrdinalIgnoreCase))
-            return false;
-        foreach (var segment in normalized.Split('/'))
-        {
-            if (segment.StartsWith('.') && !segment.Equals(".well-known", StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-        return false;
     }
 
 }

@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine;
+using Bukit.Engine.Incremental;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Rendering;
@@ -2972,6 +2973,202 @@ public sealed class SiteEngineIntegrationTests
                 new SiteEngine(new TestLogger()).BuildAsync(CreateRouteConflictConfig(), root, new ConfigOverrides(), CancellationToken.None));
 
             Assert.Contains("route.outputPath is removed in Bukit 1.0", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_StaticHtmlTemplateOutput_IsNotOverwrittenByRawCopy()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            var staticDir = Path.Combine(root, "static", "about");
+            Directory.CreateDirectory(staticDir);
+            File.WriteAllText(Path.Combine(staticDir, "index.html"), "<main>Static About</main>");
+            File.WriteAllText(
+                Path.Combine(root, "layouts", "pages", "static.html"),
+                "<article data-rendered=\"true\">{{ page.content }}</article>");
+
+            await new SiteEngine(new TestLogger()).BuildAsync(
+                CreateRouteConflictConfig(),
+                root,
+                new ConfigOverrides { Incremental = true },
+                CancellationToken.None);
+
+            var output = File.ReadAllText(Path.Combine(root, "dist", "about", "index.html"));
+            Assert.Contains("data-rendered=\"true\"", output, StringComparison.Ordinal);
+            Assert.Contains("<main>Static About</main>", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_RenderedStaticAndAssetCollision_FailsBeforeAnyOutputWrite()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            var staticDir = Path.Combine(root, "static", "assets", "about");
+            var assetsDir = Path.Combine(root, "assets", "about");
+            Directory.CreateDirectory(staticDir);
+            Directory.CreateDirectory(assetsDir);
+            File.WriteAllText(Path.Combine(staticDir, "index.html"), "<main>Static About</main>");
+            File.WriteAllText(Path.Combine(assetsDir, "index.html"), "asset-owner");
+
+            var exception = await Assert.ThrowsAsync<BukitException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(
+                    CreateRouteConflictConfig(),
+                    root,
+                    new ConfigOverrides { Incremental = true },
+                    CancellationToken.None));
+
+            Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, exception.Code);
+            Assert.Contains("assets/about/index.html", exception.Message, StringComparison.Ordinal);
+            Assert.False(File.Exists(Path.Combine(root, "dist", "assets", "about", "index.html")));
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_ContentRenderAndAssetStructuralCollision_FailsBeforeAnyOutputWrite()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "assets"));
+            File.WriteAllText(Path.Combine(root, "assets", "foo.css"), "asset-owner");
+            File.WriteAllText(Path.Combine(root, "content", "asset-route.md"), """
+                ---
+                type: page
+                collection: page
+                markdown:
+                  dir: content
+                title: Asset Route
+                slug: asset-route
+                route:
+                  url: /assets/foo.css/
+                  template: pages/page.html
+                ---
+                # Asset Route
+                """);
+
+            var exception = await Assert.ThrowsAsync<BukitException>(() =>
+                new SiteEngine(new TestLogger()).BuildAsync(
+                    CreateRouteConflictConfig(),
+                    root,
+                    new ConfigOverrides { Incremental = true },
+                    CancellationToken.None));
+
+            Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, exception.Code);
+            Assert.Contains("assets/foo.css", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("assets/foo.css/index.html", exception.Message, StringComparison.Ordinal);
+            Assert.False(Directory.Exists(Path.Combine(root, "dist", "assets", "foo.css")));
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Theory]
+    [InlineData("/assets/foo.css/", "foo.css", "assets/foo.css", "assets/foo.css/index.html")]
+    [InlineData("/assets/foo/", "foo/index.html", "assets/foo/index.html", "assets/foo/index.html")]
+    [InlineData("/assets/foo/", "foo/index.html/bar.css", "assets/foo/index.html/bar.css", "assets/foo/index.html")]
+    public async Task BuildAsync_StaleRenderOwnerTransitionsToAsset_PreflightsOwnerMigration(
+        string routeUrl,
+        string assetRelativePath,
+        string assetOutputPath,
+        string staleRenderOutputPath)
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            var contentPath = Path.Combine(root, "content", "asset-route.md");
+            File.WriteAllText(contentPath, $$"""
+                ---
+                type: page
+                collection: page
+                markdown:
+                  dir: content
+                title: Asset Route
+                slug: asset-route
+                route:
+                  url: {{routeUrl}}
+                  template: pages/page.html
+                ---
+                # Asset Route
+                """);
+            var config = CreateRouteConflictConfig();
+            config = config with { Build = config.Build with { Clean = false } };
+            var engine = new SiteEngine(new TestLogger());
+
+            await engine.BuildAsync(
+                config,
+                root,
+                new ConfigOverrides { Incremental = true },
+                CancellationToken.None);
+            Assert.True(File.Exists(Path.Combine(root, "dist", staleRenderOutputPath)));
+
+            File.Delete(contentPath);
+            var assetSourcePath = Path.Combine(root, "assets", assetRelativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(assetSourcePath)!);
+            File.WriteAllText(assetSourcePath, "asset-owner");
+
+            await engine.BuildAsync(
+                config,
+                root,
+                new ConfigOverrides { Incremental = true },
+                CancellationToken.None);
+
+            var outputPath = Path.Combine(root, "dist", assetOutputPath);
+            Assert.True(File.Exists(outputPath));
+            Assert.Equal("asset-owner", File.ReadAllText(outputPath));
+            var manifest = BuildManifest.Load(Path.Combine(root, ".cache", "build-manifest.json"));
+            Assert.Contains(assetOutputPath, manifest.Assets.Keys);
+            Assert.DoesNotContain(
+                manifest.Entries.Values,
+                entry => string.Equals(entry.OutputPath, staleRenderOutputPath, StringComparison.Ordinal));
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_PublishDotFilesTrue_DoesNotRenderSensitiveStaticHtml()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "static"));
+            File.WriteAllText(
+                Path.Combine(root, "static", ".env.local.html"),
+                "<main>SECRET_VALUE</main>");
+            var config = CreateRouteConflictConfig();
+            config = config with
+            {
+                Build = config.Build with { PublishDotFiles = true }
+            };
+
+            await new SiteEngine(new TestLogger()).BuildAsync(
+                config,
+                root,
+                new ConfigOverrides { Incremental = true },
+                CancellationToken.None);
+
+            Assert.False(File.Exists(Path.Combine(root, "dist", ".env.local", "index.html")));
+            Assert.False(File.Exists(Path.Combine(root, "dist", ".env.local.html")));
         }
         finally
         {

@@ -24,28 +24,35 @@ internal sealed record AssetPipelineContext(
     ILogger Logger,
     bool PublishDotFiles,
     bool FollowSymlinks,
-    string? FingerprintMode = null);
+    string? FingerprintMode = null,
+    IReadOnlyList<RenderEntry>? RenderEntries = null,
+    ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries = null);
 
 internal sealed record AssetPipelineResult(
     BuildStageMetrics StageMetrics);
 
+internal sealed record AssetPipelinePreparation(
+    AssetOutputPlan OutputPlan,
+    DirectoryCopyOptions CopyOptions,
+    ThemeTokens? Tokens);
+
 internal sealed class AssetPipeline
 {
-    public Task<AssetPipelineResult> ExecuteAsync(AssetPipelineContext ctx, CancellationToken cancellationToken = default)
-        => ExecuteCoreAsync(ctx, cancellationToken);
-
-    private static async Task<AssetPipelineResult> ExecuteCoreAsync(AssetPipelineContext ctx, CancellationToken cancellationToken)
+    public async Task<AssetPipelineResult> ExecuteAsync(
+        AssetPipelineContext ctx,
+        CancellationToken cancellationToken = default)
     {
-        var metricsCollector = new BuildStageMetricsCollector();
+        var preparation = await PrepareAsync(ctx, cancellationToken);
+        return await ExecutePreparedAsync(ctx, preparation, cancellationToken);
+    }
+
+    internal static async Task<AssetPipelinePreparation> PrepareAsync(
+        AssetPipelineContext ctx,
+        CancellationToken cancellationToken = default)
+    {
         cancellationToken.ThrowIfCancellationRequested();
-
-        var hasStaticDir = ctx.StaticDir is not null && Directory.Exists(ctx.StaticDir);
-        var hasParentStaticDir = ctx.ParentStaticDir is not null && Directory.Exists(ctx.ParentStaticDir);
-        var hasAssetsDir = ctx.AssetsDir is not null && Directory.Exists(ctx.AssetsDir);
-        var hasParentAssetsDir = ctx.ParentAssetsDir is not null && Directory.Exists(ctx.ParentAssetsDir);
-        var hasMediaDir = ctx.MediaDownloadDir is not null && Directory.Exists(ctx.MediaDownloadDir);
-
         var copyOptions = BuildCopyOptions(ctx);
+        var hasAssetsDir = ctx.AssetsDir is not null && Directory.Exists(ctx.AssetsDir);
         await PrepareAssetSourcesAsync(ctx, hasAssetsDir, cancellationToken);
         var tokens = ctx.ThemeRoot is null
             ? null
@@ -56,39 +63,58 @@ internal sealed class AssetPipeline
             ctx.OutputDir,
             ctx.Manifest,
             ctx.IncrementalEnabled,
-            cancellationToken);
+            cancellationToken,
+            manifestEntries: ctx.ManifestEntries);
+
+        return new AssetPipelinePreparation(outputPlan, copyOptions, tokens);
+    }
+
+    internal static async Task<AssetPipelineResult> ExecutePreparedAsync(
+        AssetPipelineContext ctx,
+        AssetPipelinePreparation preparation,
+        CancellationToken cancellationToken = default)
+    {
+        var metricsCollector = new BuildStageMetricsCollector();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var outputPlan = preparation.OutputPlan;
+        var copyOptions = preparation.CopyOptions;
+        var tokens = preparation.Tokens;
         var parallelTasks = new List<Task<BuildStageMetrics>>();
 
-        if (hasStaticDir || hasParentStaticDir)
+        var staticCopyItems = outputPlan.ForCopyCategory(AssetOutputCategory.Static);
+        if (staticCopyItems.Count > 0)
         {
             parallelTasks.Add(CopyPlannedFilesAsync(
                 ctx,
-                outputPlan.ForCategory(AssetOutputCategory.Static),
+                staticCopyItems,
                 "staticSync",
                 copyOptions.HashMode,
                 cancellationToken));
         }
 
-        if (hasAssetsDir || hasParentAssetsDir)
+        var assetCopyItems = outputPlan.ForCopyCategory(AssetOutputCategory.Assets);
+        if (assetCopyItems.Count > 0)
         {
             parallelTasks.Add(CopyPlannedFilesAsync(
                 ctx,
-                outputPlan.ForCategory(AssetOutputCategory.Assets),
+                assetCopyItems,
                 "assetsSync",
                 copyOptions.HashMode,
                 cancellationToken));
         }
 
-        if (ctx.ThemeRoot is not null)
+        if (tokens is not null)
         {
             parallelTasks.Add(GenerateTokensAsync(ctx, tokens, cancellationToken));
         }
 
-        if (hasMediaDir)
+        var mediaCopyItems = outputPlan.ForCopyCategory(AssetOutputCategory.Media);
+        if (mediaCopyItems.Count > 0)
         {
             parallelTasks.Add(CopyPlannedFilesAsync(
                 ctx,
-                outputPlan.ForCategory(AssetOutputCategory.Media),
+                mediaCopyItems,
                 "mediaCopy",
                 "size-time",
                 cancellationToken));

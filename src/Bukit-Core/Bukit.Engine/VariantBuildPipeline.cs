@@ -269,11 +269,46 @@ internal sealed partial class VariantBuildPipeline
             config, baseUrl, dataModules.Modules, dataModules.SourceData,
             routePipelineResult.PluginContext.Data, dataModules.DataIndex, ctx.BuildStartedAt);
         var manifestSetup = SetupManifest(ctx, overrides, templateHashCache);
-
         var renderDocuments = routePipelineResult.RouteResult.RoutedDocuments
             .Concat(routePipelineResult.PluginContext.DerivedDocuments)
             .ToList();
         var listRoutes = routePipelineResult.RouteResult.ListRoutes;
+        var renderEntries = RenderPipeline.BuildEntries(
+            renderDocuments,
+            routePipelineResult.RouteResult.RoutedDocuments,
+            routePipelineResult.RouteResult.ListRouteGraph,
+            ctx.LayoutsDir,
+            config.Build.ListPageContentMode,
+            siteModel.Language,
+            routePipelineResult.StaticEntries);
+        var hasStaticDir = Directory.Exists(ctx.StaticDir);
+        var (themeRootForTokens, parentThemeRootForTokens) = GetThemeRootForTokens(
+            bootstrap.ThemeRoot,
+            bootstrap.Registry is not null,
+            bootstrap.ParentThemeRoot,
+            !string.IsNullOrWhiteSpace(bootstrap.Manifest?.Extends));
+        var assetPipelineContext = new AssetPipelineContext(
+            StaticDir: hasStaticDir ? ctx.StaticDir : null,
+            ParentStaticDir: ctx.ParentStaticDir,
+            AssetsDir: ctx.AssetsDir,
+            ParentAssetsDir: ctx.ParentAssetsDir,
+            MediaDownloadDir: ctx.MediaDownloadDir,
+            ThemeRoot: themeRootForTokens,
+            ParentThemeRoot: parentThemeRootForTokens,
+            OutputDir: outputDir,
+            Manifest: manifestSetup.Manifest,
+            IncrementalEnabled: manifestSetup.IncrementalEnabled,
+            FingerprintMode: config.Build.FingerprintMode,
+            ScssConfig: config.Theme.Scss,
+            ImageConfig: config.Theme.Images,
+            Logger: logger,
+            PublishDotFiles: config.Build.PublishDotFiles,
+            FollowSymlinks: config.Build.FollowSymlinks,
+            RenderEntries: renderEntries,
+            ManifestEntries: manifestSetup.ManifestEntries);
+        var assetPipelinePreparation = await AssetPipeline.PrepareAsync(
+            assetPipelineContext,
+            cancellationToken);
 
         var seoStage = await BuildSeoStageAsync(
             config, baseUrl, renderDocuments, listRoutes, routePipelineResult.RouteResult.ListRouteGraph, logger,
@@ -296,16 +331,13 @@ internal sealed partial class VariantBuildPipeline
                 () => RenderPagesStageAsync(
                     renderDocuments, routePipelineResult.RouteResult.RoutedDocuments, routePipelineResult.RouteResult.ListRouteGraph, bodyStore, renderer, siteModel,
                     config, ctx, outputDir, manifestSetup, seoStage, routePipelineResult.StaticEntries,
-                    htmlTransformPipeline, variantStageMetrics, logger, templateResolver, dataModules.RouteMetadata, cancellationToken));
-
-            var hasStaticDir = Directory.Exists(ctx.StaticDir);
-            var (themeRootForTokens, parentThemeRootForTokens) = GetThemeRootForTokens(
-                bootstrap.ThemeRoot, bootstrap.Registry is not null, bootstrap.ParentThemeRoot,
-                !string.IsNullOrWhiteSpace(bootstrap.Manifest?.Extends));
+                    renderEntries, htmlTransformPipeline, variantStageMetrics, logger, templateResolver, dataModules.RouteMetadata, cancellationToken));
 
             var assetPipelineResult = await SyncAssetsStageAsync(
-                ctx, hasStaticDir, themeRootForTokens, parentThemeRootForTokens,
-                outputDir, manifestSetup, config, variantStageMetrics, logger, cancellationToken);
+                assetPipelineContext,
+                assetPipelinePreparation,
+                variantStageMetrics,
+                cancellationToken);
 
             await RunPluginAfterBuildStageAsync(
                 routePipelineResult.PluginContext, outputDir, baseUrl, manifestSetup,
@@ -513,6 +545,7 @@ internal sealed partial class VariantBuildPipeline
         ManifestSetupResult manifestSetup,
         SeoStageResult seoStage,
         IReadOnlyList<RenderEntry>? staticEntries,
+        IReadOnlyList<RenderEntry> renderEntries,
         HtmlTransformPipeline htmlTransformPipeline,
         BuildStageMetricsCollector metrics,
         ILogger logger,
@@ -573,7 +606,8 @@ internal sealed partial class VariantBuildPipeline
             RenderDocuments: renderDocuments,
             RoutedDocuments: routedDocuments,
             RenderDependencyHashResolver: renderDependencyHashResolver,
-            RouteMetadata: routeMetadata),
+            RouteMetadata: routeMetadata,
+            PrecomputedEntries: renderEntries),
             cancellationToken);
 
         metrics.Merge(renderPipelineResult.StageMetrics);
@@ -581,29 +615,14 @@ internal sealed partial class VariantBuildPipeline
     }
 
     private static async Task<AssetPipelineResult> SyncAssetsStageAsync(
-        BuildVariantContext ctx,
-        bool hasStaticDir,
-        string? themeRootForTokens,
-        string? parentThemeRootForTokens,
-        string outputDir,
-        ManifestSetupResult manifestSetup,
-        AppConfig config,
+        AssetPipelineContext assetPipelineContext,
+        AssetPipelinePreparation assetPipelinePreparation,
         BuildStageMetricsCollector metrics,
-        ILogger logger,
         CancellationToken cancellationToken)
     {
-        var assetPipelineResult = await new AssetPipeline().ExecuteAsync(new AssetPipelineContext(
-            StaticDir: hasStaticDir ? ctx.StaticDir : null,
-            ParentStaticDir: ctx.ParentStaticDir, AssetsDir: ctx.AssetsDir,
-            ParentAssetsDir: ctx.ParentAssetsDir, MediaDownloadDir: ctx.MediaDownloadDir,
-            ThemeRoot: themeRootForTokens, ParentThemeRoot: parentThemeRootForTokens,
-            OutputDir: outputDir,
-            Manifest: manifestSetup.Manifest, IncrementalEnabled: manifestSetup.IncrementalEnabled,
-            FingerprintMode: config.Build.FingerprintMode,
-            ScssConfig: config.Theme.Scss, ImageConfig: config.Theme.Images,
-            Logger: logger,
-            PublishDotFiles: config.Build.PublishDotFiles,
-            FollowSymlinks: config.Build.FollowSymlinks),
+        var assetPipelineResult = await AssetPipeline.ExecutePreparedAsync(
+            assetPipelineContext,
+            assetPipelinePreparation,
             cancellationToken);
 
         metrics.Merge(assetPipelineResult.StageMetrics);

@@ -22,19 +22,6 @@ internal sealed record DirectoryCopyItem(
 
 public static class DirectoryCopy
 {
-    private static readonly HashSet<string> DefaultDotfileDenyList = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".env", ".git", ".github", ".svn", ".hg", ".DS_Store", "Thumbs.db",
-        ".npmrc", ".yarnrc"
-    };
-
-    private static readonly string[] DefaultDotfileDenyExtensions = { ".pem", ".key", ".pfx", ".p12" };
-
-    private static readonly HashSet<string> DefaultDotfileAllowList = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".well-known"
-    };
-
     public static void Copy(string sourceDir, string destinationDir, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))
@@ -280,7 +267,7 @@ public static class DirectoryCopy
             return false;
         }
 
-        if (DefaultDotfileAllowList.Contains(name))
+        if (StaticFilePathPolicy.IsDefaultAllowedDotfileSegment(name))
         {
             return false;
         }
@@ -292,22 +279,9 @@ public static class DirectoryCopy
                 return true;
             }
 
-            if (DefaultDotfileDenyList.Contains(name))
+            if (StaticFilePathPolicy.IsSensitiveSegment(name))
             {
                 return true;
-            }
-
-            if (name.StartsWith(".env.", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            foreach (var ext in DefaultDotfileDenyExtensions)
-            {
-                if (name.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
             }
         }
 

@@ -8,7 +8,15 @@ internal enum AssetOutputCategory
     Static,
     Assets,
     Media,
-    Tokens
+    Tokens,
+    Render
+}
+
+internal enum AssetOutputOperation
+{
+    Copy,
+    Render,
+    Generate
 }
 
 internal sealed record AssetOutputItem(
@@ -16,7 +24,8 @@ internal sealed record AssetOutputItem(
     string Destination,
     AssetOutputCategory Category,
     string? PhysicalSourceRoot = null,
-    DirectoryCopyOptions? CopyOptions = null);
+    DirectoryCopyOptions? CopyOptions = null,
+    AssetOutputOperation Operation = AssetOutputOperation.Copy);
 
 internal sealed class AssetOutputPlan
 {
@@ -36,9 +45,24 @@ internal sealed class AssetOutputPlan
         var comparer = PathComparer;
         var effectiveItems = new Dictionary<(AssetOutputCategory Category, string Destination), AssetOutputItem>(
             new ItemKeyComparer(comparer));
+        var renderedStaticCopyDestinations = BuildRenderedStaticCopyDestinations(context, comparer);
 
-        AddDirectoryItems(effectiveItems, context.ParentStaticDir, string.Empty, AssetOutputCategory.Static, copyOptions, cancellationToken);
-        AddDirectoryItems(effectiveItems, context.StaticDir, string.Empty, AssetOutputCategory.Static, copyOptions, cancellationToken);
+        AddDirectoryItems(
+            effectiveItems,
+            context.ParentStaticDir,
+            string.Empty,
+            AssetOutputCategory.Static,
+            copyOptions,
+            cancellationToken,
+            renderedStaticCopyDestinations);
+        AddDirectoryItems(
+            effectiveItems,
+            context.StaticDir,
+            string.Empty,
+            AssetOutputCategory.Static,
+            copyOptions,
+            cancellationToken,
+            renderedStaticCopyDestinations);
         AddDirectoryItems(effectiveItems, context.ParentAssetsDir, "assets", AssetOutputCategory.Assets, copyOptions, cancellationToken);
         AddDirectoryItems(effectiveItems, context.AssetsDir, "assets", AssetOutputCategory.Assets, copyOptions, cancellationToken);
 
@@ -55,7 +79,24 @@ internal sealed class AssetOutputPlan
             effectiveItems[(AssetOutputCategory.Tokens, destination)] = new AssetOutputItem(
                 context.ThemeRoot ?? "generated theme tokens",
                 destination,
-                AssetOutputCategory.Tokens);
+                AssetOutputCategory.Tokens,
+                Operation: AssetOutputOperation.Generate);
+        }
+
+        if (context.RenderEntries is not null)
+        {
+            foreach (var entry in context.RenderEntries)
+            {
+                var destination = BuildPathUtils.NormalizeRelPath(entry.Route.OutputPath);
+                var category = entry.Kind == RenderEntryKind.Static
+                    ? AssetOutputCategory.Static
+                    : AssetOutputCategory.Render;
+                effectiveItems[(category, destination)] = new AssetOutputItem(
+                    entry.SourcePath ?? $"{entry.Kind.ToString().ToLowerInvariant()} route {entry.Route.Url}",
+                    destination,
+                    category,
+                    Operation: AssetOutputOperation.Render);
+            }
         }
 
         var items = effectiveItems.Values
@@ -70,13 +111,17 @@ internal sealed class AssetOutputPlan
     internal IReadOnlyList<AssetOutputItem> ForCategory(AssetOutputCategory category)
         => Items.Where(item => item.Category == category).ToArray();
 
+    internal IReadOnlyList<AssetOutputItem> ForCopyCategory(AssetOutputCategory category)
+        => Items.Where(item => item.Category == category && item.Operation == AssetOutputOperation.Copy).ToArray();
+
     private static void AddDirectoryItems(
         Dictionary<(AssetOutputCategory Category, string Destination), AssetOutputItem> items,
         string? sourceDir,
         string destinationPrefix,
         AssetOutputCategory category,
         DirectoryCopyOptions options,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlySet<string>? excludedDestinations = null)
     {
         if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
         {
@@ -86,6 +131,11 @@ internal sealed class AssetOutputPlan
         foreach (var candidate in DirectoryCopy.EnumerateFilesForSync(sourceDir, options, cancellationToken))
         {
             var destination = BuildPathUtils.NormalizeRelPath(Path.Combine(destinationPrefix, candidate.RelativePath));
+            if (excludedDestinations?.Contains(destination) == true)
+            {
+                continue;
+            }
+
             items[(category, destination)] = new AssetOutputItem(
                 candidate.SourcePath,
                 destination,
@@ -93,6 +143,32 @@ internal sealed class AssetOutputPlan
                 candidate.PhysicalSourceRoot,
                 options);
         }
+    }
+
+    private static IReadOnlySet<string>? BuildRenderedStaticCopyDestinations(
+        AssetPipelineContext context,
+        StringComparer comparer)
+    {
+        if (context.RenderEntries is null || string.IsNullOrWhiteSpace(context.StaticDir))
+        {
+            return null;
+        }
+
+        var destinations = new HashSet<string>(comparer);
+        foreach (var entry in context.RenderEntries.Where(entry =>
+                     entry.Kind == RenderEntryKind.Static && !string.IsNullOrWhiteSpace(entry.SourcePath)))
+        {
+            var relativePath = BuildPathUtils.NormalizeRelPath(
+                Path.GetRelativePath(context.StaticDir, entry.SourcePath!));
+            if (Path.IsPathRooted(relativePath) || relativePath == ".." || relativePath.StartsWith("../", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            destinations.Add(relativePath);
+        }
+
+        return destinations;
     }
 
     private static void Validate(IReadOnlyList<AssetOutputItem> items, StringComparer comparer)
@@ -143,7 +219,8 @@ internal sealed class AssetOutputPlan
     private static string Describe(AssetOutputItem item)
         => $"category={item.Category.ToString().ToLowerInvariant()} source={item.Source}";
 
-    private static StringComparer PathComparer => StringComparer.OrdinalIgnoreCase;
+    private static StringComparer PathComparer
+        => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private sealed class ItemKeyComparer(StringComparer pathComparer)
         : IEqualityComparer<(AssetOutputCategory Category, string Destination)>
