@@ -37,7 +37,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
             throw new ContentException($"ContentDir not found: {_options.ContentDir}");
         }
 
-        var files = Directory.GetFiles(_options.ContentDir, "*.md", SearchOption.AllDirectories)
+        var files = SafeFileEnumerator.EnumerateFiles(_options.ContentDir, "*.md")
             .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 

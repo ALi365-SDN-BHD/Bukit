@@ -1,11 +1,48 @@
 using System.Text;
 using Bukit.Engine.Incremental;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class HashUtilTests
 {
+    [Fact]
+    public void Sha256HexForDirectory_IgnoresFilesThroughDirectorySymlink()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-hash-symlink-" + Guid.NewGuid().ToString("N"));
+        var inputDir = Path.Combine(root, "input");
+        var externalDir = Path.Combine(root, "external");
+        try
+        {
+            Directory.CreateDirectory(inputDir);
+            Directory.CreateDirectory(externalDir);
+            File.WriteAllText(Path.Combine(inputDir, "local.txt"), "local");
+            File.WriteAllText(Path.Combine(externalDir, "secret.txt"), "secret");
+            var expected = HashUtil.Sha256HexForDirectory(inputDir);
+
+            try
+            {
+                Directory.CreateSymbolicLink(Path.Combine(inputDir, "linked-external"), externalDir);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
+            }
+
+            var actual = HashUtil.Sha256HexForDirectory(inputDir);
+
+            Assert.Equal(expected, actual);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     [Fact]
     public void Sha256Hex_SameInput_ReturnsSameOutput()
     {

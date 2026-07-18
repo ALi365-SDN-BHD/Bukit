@@ -1,5 +1,6 @@
 using Scriban;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
@@ -26,6 +27,37 @@ public sealed class ScribanTemplateLinterTests : IDisposable
         var warnings = ScribanTemplateLinter.LintDirectory(_tempDir, "page.html");
 
         Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public void LintDirectory_DoesNotLintTemplatesThroughDirectorySymlink()
+    {
+        var externalDir = Path.Combine(Path.GetTempPath(), "bukit-linter-external-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(externalDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(_tempDir, "page.html"), "{{ page.title }}");
+            File.WriteAllText(Path.Combine(externalDir, "external.html"), "{{ page.unknown_external_field }}");
+            try
+            {
+                Directory.CreateSymbolicLink(Path.Combine(_tempDir, "linked-external"), externalDir);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
+            }
+
+            var warnings = ScribanTemplateLinter.LintDirectory(_tempDir, "page.html");
+
+            Assert.Empty(warnings);
+        }
+        finally
+        {
+            if (Directory.Exists(externalDir))
+            {
+                Directory.Delete(externalDir, recursive: true);
+            }
+        }
     }
 
     [Fact]

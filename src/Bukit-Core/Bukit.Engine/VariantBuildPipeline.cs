@@ -191,7 +191,7 @@ internal sealed partial class VariantBuildPipeline
         var template = !string.IsNullOrWhiteSpace(staticTemplate) ? staticTemplate : null;
         var hasStaticDir = staticDir is not null && Directory.Exists(staticDir);
         var hasStaticHtmlFiles = hasStaticDir &&
-                                 Directory.GetFiles(staticDir!, "*.html", SearchOption.AllDirectories).Length > 0;
+                                 SafeFileEnumerator.EnumerateFiles(staticDir!, "*.html").Any();
         if (template is null)
         {
             if (hasStaticHtmlFiles)
@@ -427,7 +427,7 @@ internal sealed partial class VariantBuildPipeline
             staticHtmlRoutes = staticEntries.Select(e => e.Route).ToList();
         }
         else if (hasStaticDir &&
-                 Directory.GetFiles(ctx.StaticDir!, "*.html", SearchOption.AllDirectories).Length > 0)
+                 SafeFileEnumerator.EnumerateFiles(ctx.StaticDir!, "*.html").Any())
         {
             logger.Warn("Static HTML files in static dir are skipped because no static template is configured (theme.staticTemplate).");
         }

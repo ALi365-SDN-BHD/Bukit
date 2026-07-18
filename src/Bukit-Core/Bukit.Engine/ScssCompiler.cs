@@ -13,7 +13,7 @@ internal static class ScssCompiler
             return;
         }
 
-        var scssFiles = Directory.GetFiles(assetsDir, "*.scss", SearchOption.AllDirectories);
+        var scssFiles = SafeFileEnumerator.EnumerateFiles(assetsDir, "*.scss").ToArray();
         if (scssFiles.Length == 0)
         {
             return;

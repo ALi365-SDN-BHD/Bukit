@@ -1,4 +1,5 @@
 using Scriban;
+using Bukit.Shared;
 
 namespace Bukit.Engine;
 
@@ -12,7 +13,7 @@ public static class ScribanTemplateLinter
     public static List<TemplateVariableWarning> LintDirectory(string layoutsDir, string templateName)
     {
         var warnings = new List<TemplateVariableWarning>();
-        var allHtmlFiles = Directory.GetFiles(layoutsDir, "*.html", SearchOption.AllDirectories);
+        var allHtmlFiles = SafeFileEnumerator.EnumerateFiles(layoutsDir, "*.html");
 
         foreach (var filePath in allHtmlFiles)
         {

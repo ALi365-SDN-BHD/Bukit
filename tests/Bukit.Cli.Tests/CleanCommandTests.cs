@@ -3,6 +3,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
+[Collection("CWD")]
 public sealed class CleanCommandTests : IDisposable
 {
     private readonly string _testDir;
@@ -106,5 +107,77 @@ theme:
     {
         var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", new[] { "--dir", "/etc" }));
         Assert.Equal(2, exitCode);
+    }
+
+    [Fact]
+    public async Task RunAsync_WithDir_RefusesGitDirectoryAndPreservesSentinel()
+    {
+        var gitDir = Path.Combine(_testDir, ".git");
+        Directory.CreateDirectory(gitDir);
+        var sentinel = Path.Combine(gitDir, "sentinel.txt");
+        File.WriteAllText(sentinel, "keep");
+        using var cwd = new CurrentDirectoryScope(_testDir);
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+            CliTestHelper.CreateCommand("clean", new[] { "--dir", ".git" }));
+
+        Assert.Equal(2, exitCode);
+        Assert.True(File.Exists(sentinel));
+    }
+
+    [Fact]
+    public async Task RunAsync_WithDir_RefusesProjectRoot()
+    {
+        using var cwd = new CurrentDirectoryScope(_testDir);
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+            CliTestHelper.CreateCommand("clean", new[] { "--dir", "." }));
+
+        Assert.Equal(2, exitCode);
+        Assert.True(Directory.Exists(_testDir));
+        Assert.True(File.Exists(Path.Combine(_testDir, "site.yaml")));
+    }
+
+    [Fact]
+    public async Task RunAsync_WithDir_RefusesUnmarkedNonEmptyDirectory()
+    {
+        var outputDir = Path.Combine(_testDir, "unmarked");
+        Directory.CreateDirectory(outputDir);
+        var sentinel = Path.Combine(outputDir, "user-file.txt");
+        File.WriteAllText(sentinel, "keep");
+        using var cwd = new CurrentDirectoryScope(_testDir);
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+            CliTestHelper.CreateCommand("clean", new[] { "--dir", "unmarked" }));
+
+        Assert.Equal(2, exitCode);
+        Assert.True(File.Exists(sentinel));
+    }
+
+    [Fact]
+    public async Task RunAsync_WithDir_CleansMarkedOutputDirectory()
+    {
+        var outputDir = Path.Combine(_testDir, "dist");
+        using var cwd = new CurrentDirectoryScope(_testDir);
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+            CliTestHelper.CreateCommand("clean", new[] { "--dir", "dist" }));
+
+        Assert.Equal(0, exitCode);
+        Assert.False(Directory.Exists(outputDir));
+    }
+
+    [Fact]
+    public async Task RunAsync_WithDir_CleansEmptyDirectory()
+    {
+        var outputDir = Path.Combine(_testDir, "empty");
+        Directory.CreateDirectory(outputDir);
+        using var cwd = new CurrentDirectoryScope(_testDir);
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
+            CliTestHelper.CreateCommand("clean", new[] { "--dir", "empty" }));
+
+        Assert.Equal(0, exitCode);
+        Assert.False(Directory.Exists(outputDir));
     }
 }

@@ -36,6 +36,121 @@ public sealed class SearchIndexPluginExtendedTests
         return new SeoIndexEntry(route, route.Url, null, indexable, DateTimeOffset.UtcNow, null, null);
     }
 
+    private static string RenderSearchUi(SearchDetailConfig searchConfig)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_search_ui_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            SearchIndexPlugin.WriteSearchUi(
+                new AppConfig
+                {
+                    Site = new SiteConfig
+                    {
+                        Name = "test",
+                        Title = "Test Site",
+                        Search = searchConfig
+                    },
+                    Content = TestContent.Markdown()
+                },
+                tempDir);
+
+            return File.ReadAllText(Path.Combine(tempDir, "bukit-search.html"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WriteSearchUi_DoesNotUseInnerHtmlForDynamicResults()
+    {
+        var searchUi = RenderSearchUi(new SearchDetailConfig());
+
+        Assert.DoesNotContain(".innerHTML", searchUi, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteSearchUi_UsesTextNodesForTitleSnippetAndMark()
+    {
+        var searchUi = RenderSearchUi(new SearchDetailConfig());
+
+        Assert.Contains("results.replaceChildren();", searchUi, StringComparison.Ordinal);
+        Assert.Contains("document.createTextNode(value)", searchUi, StringComparison.Ordinal);
+        Assert.Contains("document.createElement('mark')", searchUi, StringComparison.Ordinal);
+        Assert.Contains("mark.textContent=match[0]", searchUi, StringComparison.Ordinal);
+        Assert.Contains("appendHighlighted(strong,it.title||'Untitled',q);", searchUi, StringComparison.Ordinal);
+        Assert.Contains("appendHighlighted(small,it.snippet,q);", searchUi, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteSearchUi_EncodesMaliciousPlaceholder()
+    {
+        var searchUi = RenderSearchUi(new SearchDetailConfig
+        {
+            PlaceholderText = "\" autofocus onfocus=\"alert(1)\""
+        });
+
+        Assert.Contains(
+            "placeholder=\"&quot; autofocus onfocus=&quot;alert(1)&quot;\"",
+            searchUi,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("placeholder=\"\" autofocus", searchUi, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SearchUi_MaliciousTitleAndSnippetRemainDataWithoutInterpretingSink()
+    {
+        const string titlePayload = "<img src=x onerror=alert('title')>";
+        const string snippetPayload = "<svg onload=alert('snippet')>";
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_search_payload_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var document = ContentDocument.Create(
+                "malicious",
+                titlePayload,
+                "malicious",
+                DateTimeOffset.UtcNow,
+                "<p>Body</p>",
+                ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["summary"] = snippetPayload
+                }));
+            var route = CreateRoute("/malicious/", "malicious/index.html");
+
+            SearchIndexBuilder.GenerateSingleSearchIndex(
+                tempDir,
+                "/",
+                includeDerived: false,
+                emitSnippet: true,
+                new[] { new RoutedContentDocument(document.ToDocument(), route) },
+                Array.Empty<RoutedContentDocument>(),
+                new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [route.OutputPath] = CreateSeoEntry(route)
+                },
+                NullContentBodyStore.Instance);
+            var searchUi = RenderSearchUi(new SearchDetailConfig());
+
+            using var searchIndex = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
+            var item = Assert.Single(searchIndex.RootElement.EnumerateArray());
+            Assert.Equal(titlePayload, item.GetProperty("title").GetString());
+            Assert.Equal(snippetPayload, item.GetProperty("snippet").GetString());
+            Assert.DoesNotContain(".innerHTML", searchUi, StringComparison.Ordinal);
+            Assert.DoesNotContain("insertAdjacentHTML", searchUi, StringComparison.Ordinal);
+            Assert.DoesNotContain(".outerHTML", searchUi, StringComparison.Ordinal);
+            Assert.DoesNotContain("document.write", searchUi, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     [Fact]
     public void AfterBuild_StandardIndex_GeneratesFile()
     {

@@ -42,6 +42,7 @@ public enum DiagnosticCode
     BuildOutputUnsafe = 0x0601,
     BuildOutputNoMarker = 0x0602,
     BuildCleanRefused = 0x0603,
+    BuildAssetOutputCollision = 0x0604,
 
     PluginExecutionFailed = 0x0701,
     PluginTimeoutExceeded = 0x0702,

@@ -25,7 +25,7 @@ public sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         var exts = new[] { ".jpg", ".jpeg", ".png" };
-        var imageFiles = Directory.GetFiles(assetsDir, "*.*", SearchOption.AllDirectories)
+        var imageFiles = SafeFileEnumerator.EnumerateFiles(assetsDir, "*.*")
             .Where(f => exts.Contains(Path.GetExtension(f).ToLowerInvariant()))
             .ToList();
 

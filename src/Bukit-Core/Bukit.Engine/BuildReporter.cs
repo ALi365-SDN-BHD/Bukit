@@ -272,7 +272,7 @@ internal static class BuildReporter
     {
         var bundlePath = Path.Combine(reportDir, "release-bundle-checksums.json");
         var files = Directory.Exists(outputDir)
-            ? Directory.EnumerateFiles(outputDir, "*", SearchOption.AllDirectories)
+            ? SafeFileEnumerator.EnumerateFiles(outputDir)
                 .Where(path => !IsUnderReportDirectory(path, reportDir))
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
                 .Select(path => new ReleaseBundleFileEntry(
@@ -454,7 +454,7 @@ internal static class BuildReporter
             ReportDirectoryName
         };
 
-        foreach (var file in Directory.EnumerateFiles(outputDir, "*", SearchOption.AllDirectories).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+        foreach (var file in SafeFileEnumerator.EnumerateFiles(outputDir).OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
         {
             var relative = NormalizePath(Path.GetRelativePath(outputDir, file));
             if (relative is ".bukit-build-state.json" or ".bukit-output-marker")

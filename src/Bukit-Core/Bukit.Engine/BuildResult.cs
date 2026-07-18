@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Bukit.Config;
+using Bukit.Shared;
 
 namespace Bukit.Engine;
 
@@ -109,7 +110,7 @@ internal static class BuildResultFactory
     private static int CountFiles(string directory)
     {
         return Directory.Exists(directory)
-            ? Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Count()
+            ? SafeFileEnumerator.EnumerateFiles(directory).Count()
             : 0;
     }
 }

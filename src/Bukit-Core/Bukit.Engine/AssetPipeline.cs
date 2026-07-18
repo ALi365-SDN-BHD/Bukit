@@ -46,26 +46,52 @@ internal sealed class AssetPipeline
         var hasMediaDir = ctx.MediaDownloadDir is not null && Directory.Exists(ctx.MediaDownloadDir);
 
         var copyOptions = BuildCopyOptions(ctx);
+        await PrepareAssetSourcesAsync(ctx, hasAssetsDir, cancellationToken);
+        var tokens = ctx.ThemeRoot is null
+            ? null
+            : new ThemeTokensLoader().LoadWithInheritance(ctx.ThemeRoot, ctx.ParentThemeRoot);
+        var outputPlan = AssetOutputPlan.Create(ctx, copyOptions, tokens, cancellationToken);
+        BuildManifestTracker.PrepareAssetPlanOutputs(
+            outputPlan.Items,
+            ctx.OutputDir,
+            ctx.Manifest,
+            ctx.IncrementalEnabled,
+            cancellationToken);
         var parallelTasks = new List<Task<BuildStageMetrics>>();
 
         if (hasStaticDir || hasParentStaticDir)
         {
-            parallelTasks.Add(CopyStaticFilesAsync(ctx, copyOptions, hasStaticDir, hasParentStaticDir, cancellationToken));
+            parallelTasks.Add(CopyPlannedFilesAsync(
+                ctx,
+                outputPlan.ForCategory(AssetOutputCategory.Static),
+                "staticSync",
+                copyOptions.HashMode,
+                cancellationToken));
         }
 
         if (hasAssetsDir || hasParentAssetsDir)
         {
-            parallelTasks.Add(ProcessAssetsAsync(ctx, copyOptions, hasAssetsDir, hasParentAssetsDir, cancellationToken));
+            parallelTasks.Add(CopyPlannedFilesAsync(
+                ctx,
+                outputPlan.ForCategory(AssetOutputCategory.Assets),
+                "assetsSync",
+                copyOptions.HashMode,
+                cancellationToken));
         }
 
         if (ctx.ThemeRoot is not null)
         {
-            parallelTasks.Add(GenerateTokensAsync(ctx, cancellationToken));
+            parallelTasks.Add(GenerateTokensAsync(ctx, tokens, cancellationToken));
         }
 
         if (hasMediaDir)
         {
-            parallelTasks.Add(SyncMediaAsync(ctx, cancellationToken));
+            parallelTasks.Add(CopyPlannedFilesAsync(
+                ctx,
+                outputPlan.ForCategory(AssetOutputCategory.Media),
+                "mediaCopy",
+                "size-time",
+                cancellationToken));
         }
 
         var results = await Task.WhenAll(parallelTasks);
@@ -74,94 +100,54 @@ internal sealed class AssetPipeline
             metricsCollector.Merge(result);
         }
 
-        if (hasStaticDir || hasParentStaticDir)
-        {
-            BuildManifestTracker.TrackStaticOutputs(
-                ctx.ParentStaticDir, hasStaticDir ? ctx.StaticDir : null,
-                ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger,
-                renderHtmlStaticFiles: false, fingerprintMode: ctx.FingerprintMode);
-        }
-
-        if (hasAssetsDir || hasParentAssetsDir)
-        {
-            BuildManifestTracker.TrackAssetOutputs(
-                ctx.ParentAssetsDir, ctx.AssetsDir,
-                ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger,
-                fingerprintMode: ctx.FingerprintMode);
-        }
+        BuildManifestTracker.TrackAssetPlanOutputs(
+            outputPlan.Items,
+            ctx.OutputDir,
+            ctx.Manifest,
+            ctx.IncrementalEnabled,
+            ctx.Logger,
+            ctx.FingerprintMode);
 
         return new AssetPipelineResult(metricsCollector.Snapshot());
     }
 
-    private static Task<BuildStageMetrics> CopyStaticFilesAsync(
-        AssetPipelineContext ctx, DirectoryCopyOptions copyOptions,
-        bool hasStaticDir, bool hasParentStaticDir, CancellationToken cancellationToken)
+    private static Task<BuildStageMetrics> CopyPlannedFilesAsync(
+        AssetPipelineContext ctx,
+        IReadOnlyList<AssetOutputItem> items,
+        string metricName,
+        string hashMode,
+        CancellationToken cancellationToken)
     {
         return Task.Run(() =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
             var mc = new BuildStageMetricsCollector();
             var sw = Stopwatch.StartNew();
 
-            if (hasParentStaticDir)
+            foreach (var item in items)
             {
-                DirectoryCopy.Sync(ctx.ParentStaticDir!, ctx.OutputDir,
-                    copyOptions,
-                    outputRoot: ctx.OutputDir);
-            }
-
-            if (hasStaticDir)
-            {
-                DirectoryCopy.Sync(ctx.StaticDir!, ctx.OutputDir, copyOptions, outputRoot: ctx.OutputDir);
+                cancellationToken.ThrowIfCancellationRequested();
+                var destination = Path.Combine(
+                    ctx.OutputDir,
+                    item.Destination.Replace('/', Path.DirectorySeparatorChar));
+                DirectoryCopy.SyncPlannedFile(
+                    item.Source,
+                    destination,
+                    hashMode,
+                    ctx.OutputDir,
+                    item.PhysicalSourceRoot ?? throw new InvalidOperationException("Planned asset source root is missing."),
+                    item.CopyOptions ?? throw new InvalidOperationException("Planned asset copy options are missing."));
             }
 
             sw.Stop();
-            mc.AddDuration("staticSync", sw.ElapsedMilliseconds);
+            mc.AddDuration(metricName, sw.ElapsedMilliseconds);
             return mc.Snapshot();
         }, cancellationToken);
     }
 
-    private static async Task<BuildStageMetrics> ProcessAssetsAsync(
-        AssetPipelineContext ctx, DirectoryCopyOptions copyOptions,
-        bool hasAssetsDir, bool hasParentAssetsDir, CancellationToken cancellationToken)
-    {
-        var mc = new BuildStageMetricsCollector();
-        var sw = Stopwatch.StartNew();
-        var assetsOutputDir = Path.Combine(ctx.OutputDir, "assets");
-
-        if (hasParentAssetsDir)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await Task.Run(() =>
-                DirectoryCopy.Sync(ctx.ParentAssetsDir!, assetsOutputDir, copyOptions, outputRoot: ctx.OutputDir),
-                cancellationToken);
-        }
-
-        if (hasAssetsDir)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (ctx.ScssConfig is not null)
-            {
-                await ScssCompiler.CompileIfEnabled(ctx.AssetsDir!, ctx.ScssConfig, ctx.Logger, cancellationToken);
-            }
-
-            if (ctx.ImageConfig is not null)
-            {
-                await ImageOptimizer.OptimizeIfEnabled(ctx.AssetsDir!, ctx.ImageConfig, ctx.Logger, cancellationToken);
-            }
-
-            await Task.Run(() =>
-                DirectoryCopy.Sync(ctx.AssetsDir!, assetsOutputDir, copyOptions, outputRoot: ctx.OutputDir),
-                cancellationToken);
-        }
-
-        sw.Stop();
-        mc.AddDuration("assetsSync", sw.ElapsedMilliseconds);
-        return mc.Snapshot();
-    }
-
-    private static Task<BuildStageMetrics> GenerateTokensAsync(AssetPipelineContext ctx, CancellationToken cancellationToken)
+    private static Task<BuildStageMetrics> GenerateTokensAsync(
+        AssetPipelineContext ctx,
+        ThemeTokens? tokens,
+        CancellationToken cancellationToken)
     {
         return Task.Run(() =>
         {
@@ -169,8 +155,6 @@ internal sealed class AssetPipeline
             var mc = new BuildStageMetricsCollector();
             var sw = Stopwatch.StartNew();
 
-            var tokensLoader = new ThemeTokensLoader();
-            var tokens = tokensLoader.LoadWithInheritance(ctx.ThemeRoot!, ctx.ParentThemeRoot);
             if (tokens is not null)
             {
                 var tokensOutputPath = Path.Combine(ctx.OutputDir, "assets", "css", "theme-tokens.css");
@@ -185,24 +169,6 @@ internal sealed class AssetPipeline
         }, cancellationToken);
     }
 
-    private static Task<BuildStageMetrics> SyncMediaAsync(AssetPipelineContext ctx, CancellationToken cancellationToken)
-    {
-        return Task.Run(() =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var mc = new BuildStageMetricsCollector();
-            var sw = Stopwatch.StartNew();
-
-            BuildManifestTracker.SyncMediaOutputs(
-                ctx.MediaDownloadDir!, ctx.OutputDir, ctx.Manifest,
-                ctx.IncrementalEnabled, ctx.Logger, ctx.FingerprintMode);
-
-            sw.Stop();
-            mc.AddDuration("mediaCopy", sw.ElapsedMilliseconds);
-            return mc.Snapshot();
-        }, cancellationToken);
-    }
-
     private static DirectoryCopyOptions BuildCopyOptions(AssetPipelineContext ctx)
     {
         return new DirectoryCopyOptions
@@ -210,5 +176,26 @@ internal sealed class AssetPipeline
             IgnoreDotPrefixedFiles = !ctx.PublishDotFiles,
             FollowSymlinks = ctx.FollowSymlinks
         };
+    }
+
+    private static async Task PrepareAssetSourcesAsync(
+        AssetPipelineContext ctx,
+        bool hasAssetsDir,
+        CancellationToken cancellationToken)
+    {
+        if (!hasAssetsDir)
+        {
+            return;
+        }
+
+        if (ctx.ScssConfig is not null)
+        {
+            await ScssCompiler.CompileIfEnabled(ctx.AssetsDir!, ctx.ScssConfig, ctx.Logger, cancellationToken);
+        }
+
+        if (ctx.ImageConfig is not null)
+        {
+            await ImageOptimizer.OptimizeIfEnabled(ctx.AssetsDir!, ctx.ImageConfig, ctx.Logger, cancellationToken);
+        }
     }
 }

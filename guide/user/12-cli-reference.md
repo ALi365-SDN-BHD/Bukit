@@ -26,6 +26,10 @@ This table is derived from `BukitCliSpecs.cs`.
 | `publish diff` | Compare publish audit reports. | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
 | `deploy` | Build if needed and deploy to GitHub Pages. | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--message`, `--ci`, `--force` |
 
+`bukit clean --dir <path>` only removes an empty directory or a Bukit output
+directory containing `.bukit-output-marker`. It refuses the project root,
+`.git`, paths outside the current directory, and non-empty unmarked directories.
+
 ## Common Examples
 
 ```bash

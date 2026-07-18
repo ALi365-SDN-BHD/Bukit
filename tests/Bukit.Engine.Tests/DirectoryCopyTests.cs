@@ -1,4 +1,5 @@
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
@@ -183,6 +184,108 @@ public sealed class DirectoryCopyTests : IDisposable
         Assert.Equal("cover", File.ReadAllText(Path.Combine(destinationDir, "cover.png")));
         Assert.True(File.Exists(Path.Combine(destinationDir, "posts", "2026", "article-cover.png")));
         Assert.Equal("article", File.ReadAllText(Path.Combine(destinationDir, "posts", "2026", "article-cover.png")));
+    }
+
+    [Fact]
+    public void SyncFilesRecursive_SkipsDirectorySymlinkToExternalRoot()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var nestedDir = Path.Combine(sourceDir, "nested");
+        var externalDir = Path.Combine(root, "external");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(nestedDir);
+        Directory.CreateDirectory(externalDir);
+        File.WriteAllText(Path.Combine(nestedDir, "local.txt"), "local");
+        File.WriteAllText(Path.Combine(externalDir, "secret.txt"), "secret");
+
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(sourceDir, "linked-external"), externalDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
+
+        Assert.Equal("local", File.ReadAllText(Path.Combine(destinationDir, "nested", "local.txt")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "linked-external", "secret.txt")));
+    }
+
+    [Fact]
+    public void SyncPlannedFile_WhenValidatedSourceIsRetargetedOutsideRoot_ThrowsBeforeWriting()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var externalDir = Path.Combine(root, "external");
+        var outputDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(externalDir);
+        var sourceFile = Path.Combine(sourceDir, "public.txt");
+        var externalFile = Path.Combine(externalDir, "secret.txt");
+        File.WriteAllText(sourceFile, "safe");
+        File.WriteAllText(externalFile, "secret");
+        var planned = Assert.Single(DirectoryCopy.EnumerateFilesForSync(
+            sourceDir,
+            new DirectoryCopyOptions { FollowSymlinks = true }));
+        File.Delete(sourceFile);
+        try
+        {
+            File.CreateSymbolicLink(sourceFile, externalFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        var exception = Assert.Throws<IOException>(() => DirectoryCopy.SyncPlannedFile(
+            planned.SourcePath,
+            Path.Combine(outputDir, "public.txt"),
+            "size-time",
+            outputDir,
+            planned.PhysicalSourceRoot,
+            new DirectoryCopyOptions { FollowSymlinks = true }));
+
+        Assert.Contains("changed after validation", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(outputDir));
+    }
+
+    [Fact]
+    public void SyncPlannedFile_WhenValidatedSourceRootIsRetargeted_ThrowsBeforeWriting()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var externalDir = Path.Combine(root, "external");
+        var outputDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(externalDir);
+        File.WriteAllText(Path.Combine(sourceDir, "public.txt"), "safe");
+        File.WriteAllText(Path.Combine(externalDir, "public.txt"), "secret");
+        var options = new DirectoryCopyOptions { FollowSymlinks = true };
+        var planned = Assert.Single(DirectoryCopy.EnumerateFilesForSync(sourceDir, options));
+
+        Directory.Delete(sourceDir, recursive: true);
+        try
+        {
+            Directory.CreateSymbolicLink(sourceDir, externalDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        var exception = Assert.Throws<IOException>(() => DirectoryCopy.SyncPlannedFile(
+            planned.SourcePath,
+            Path.Combine(outputDir, "public.txt"),
+            "size-time",
+            outputDir,
+            planned.PhysicalSourceRoot,
+            options));
+
+        Assert.Contains("root changed after validation", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(Directory.Exists(outputDir));
     }
 
     [Fact]

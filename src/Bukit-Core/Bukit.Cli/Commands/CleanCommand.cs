@@ -37,21 +37,14 @@ public static class CleanCommand
             }
         }
 
-        if (usesConfiguredOutput)
+        try
         {
-            try
-            {
-                OutputDirectoryCleaner.CleanIfExists(rootDir, outputDir);
-            }
-            catch (ConfigException ex)
-            {
-                Console.Error.WriteLine(DiagnosticExceptionFormatter.Format(ex));
-                return Task.FromResult(2);
-            }
+            OutputDirectoryCleaner.CleanIfExists(rootDir, outputDir);
         }
-        else if (Directory.Exists(outputDir))
+        catch (ConfigException ex)
         {
-            Directory.Delete(outputDir, recursive: true);
+            Console.Error.WriteLine(DiagnosticExceptionFormatter.Format(ex));
+            return Task.FromResult(2);
         }
 
         DeleteIfExists(Path.GetFullPath(Path.Combine(rootDir, ".cache")));

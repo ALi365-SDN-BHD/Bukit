@@ -5,6 +5,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Markdown;
 using Bukit.Shared;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Content.Tests;
 
@@ -112,6 +113,43 @@ public sealed class MarkdownFolderProviderTests
 
         Assert.Contains("ContentDir not found", ex.Message);
         Assert.Contains(dir, ex.Message);
+    }
+
+    [Fact]
+    public async Task MarkdownFolderProvider_DoesNotLoadMarkdownThroughDirectorySymlink()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-symlink-" + Guid.NewGuid().ToString("N"));
+        var contentDir = Path.Combine(root, "content");
+        var externalDir = Path.Combine(root, "external");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(contentDir, "local"));
+            Directory.CreateDirectory(externalDir);
+            await File.WriteAllTextAsync(Path.Combine(contentDir, "local", "inside.md"), "# Inside");
+            await File.WriteAllTextAsync(Path.Combine(externalDir, "secret.md"), "# External Secret");
+
+            try
+            {
+                Directory.CreateSymbolicLink(Path.Combine(contentDir, "linked-external"), externalDir);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
+            }
+
+            var result = await new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir)).LoadRawAsync();
+
+            var document = Assert.Single(result.Documents);
+            Assert.Equal("inside", document.Slug);
+            Assert.DoesNotContain(result.Documents, item => item.Title.Contains("External Secret", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
     }
 
     [Fact]

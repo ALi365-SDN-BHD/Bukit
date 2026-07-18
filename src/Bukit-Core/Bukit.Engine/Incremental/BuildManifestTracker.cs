@@ -8,12 +8,88 @@ namespace Bukit.Engine.Incremental;
 
 internal static class BuildManifestTracker
 {
+    internal static void PrepareAssetPlanOutputs(
+        IReadOnlyList<AssetOutputItem> items,
+        string outputDir,
+        BuildManifest manifest,
+        bool incrementalEnabled,
+        CancellationToken cancellationToken,
+        IOutputPathPolicy? pathPolicy = null)
+    {
+        if (!incrementalEnabled)
+        {
+            return;
+        }
+
+        var currentExactDestinations = items
+            .Select(item => item.Destination)
+            .ToHashSet(StringComparer.Ordinal);
+        var currentIdentityDestinations = items
+            .Select(item => item.Destination)
+            .ToHashSet(PathComparer);
+        var blockingStalePaths = manifest.Static.Keys
+            .Concat(manifest.Assets.Keys)
+            .Concat(manifest.Media.Keys)
+            .Distinct(StringComparer.Ordinal)
+            .Where(stale => !currentExactDestinations.Contains(stale))
+            .Where(stale => currentIdentityDestinations.Contains(stale) ||
+                            currentExactDestinations.Any(current => StructurallyConflicts(stale, current)))
+            .OrderByDescending(path => path.Length)
+            .ThenBy(path => path, PathComparer)
+            .ToArray();
+
+        var outputFileSystem = new SafeOutputFileSystem(outputDir, pathPolicy);
+        foreach (var stale in blockingStalePaths)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var fullPath = outputFileSystem.GetSafeFullPath(stale);
+            if (File.Exists(fullPath))
+            {
+                outputFileSystem.DeleteFileAsync(stale, cancellationToken).GetAwaiter().GetResult();
+                DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
+            }
+        }
+    }
+
+    internal static void TrackAssetPlanOutputs(
+        IReadOnlyList<AssetOutputItem> items,
+        string outputDir,
+        BuildManifest manifest,
+        bool incrementalEnabled,
+        ILogger logger,
+        string? fingerprintMode = null,
+        IOutputPathPolicy? pathPolicy = null)
+    {
+        var currentStatic = CreateTrackedOutputs(items, outputDir, AssetOutputCategory.Static, fingerprintMode);
+        var currentAssets = CreateTrackedOutputs(
+            items,
+            outputDir,
+            AssetOutputCategory.Assets,
+            fingerprintMode,
+            includeTokens: true);
+        var currentMedia = CreateTrackedOutputs(items, outputDir, AssetOutputCategory.Media, fingerprintMode);
+        var currentDestinations = items
+            .Select(item => item.Destination)
+            .ToHashSet(PathComparer);
+
+        DeleteStaleTrackedFiles(
+            outputDir, manifest.Static, currentStatic, incrementalEnabled, logger, "static", pathPolicy, currentDestinations);
+        DeleteStaleTrackedFiles(
+            outputDir, manifest.Assets, currentAssets, incrementalEnabled, logger, "asset", pathPolicy, currentDestinations);
+        DeleteStaleTrackedFiles(
+            outputDir, manifest.Media, currentMedia, incrementalEnabled, logger, "media", pathPolicy, currentDestinations);
+
+        manifest.Static = currentStatic;
+        manifest.Assets = currentAssets;
+        manifest.Media = currentMedia;
+    }
+
     internal static void SyncMediaOutputs(string mediaDownloadDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null)
     {
         var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
         DirectoryCopy.SyncFilesRecursive(mediaDownloadDir, mediaOutputDir, ignoreDotPrefixedFiles: true, outputRoot: outputDir, pathPolicy: pathPolicy);
 
-        var currentMedia = Directory.EnumerateFiles(mediaDownloadDir, "*", SearchOption.AllDirectories)
+        var currentMedia = SafeFileEnumerator.EnumerateFiles(mediaDownloadDir)
             .Where(file => !Path.GetFileName(file).StartsWith('.') && !IsSymlink(file))
             .Select(file =>
             {
@@ -106,7 +182,7 @@ internal static class BuildManifestTracker
             return;
         }
 
-        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        foreach (var file in SafeFileEnumerator.EnumerateFiles(sourceDir))
         {
             if (renderHtmlStaticFiles && string.Equals(Path.GetExtension(file), ".html", StringComparison.OrdinalIgnoreCase))
             {
@@ -130,7 +206,7 @@ internal static class BuildManifestTracker
             return;
         }
 
-        foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
+        foreach (var file in SafeFileEnumerator.EnumerateFiles(sourceDir))
         {
             if (IsSymlink(file))
             {
@@ -143,6 +219,26 @@ internal static class BuildManifestTracker
         }
     }
 
+    private static Dictionary<string, string> CreateTrackedOutputs(
+        IReadOnlyList<AssetOutputItem> items,
+        string outputDir,
+        AssetOutputCategory category,
+        string? fingerprintMode,
+        bool includeTokens = false)
+    {
+        var outputs = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var item in items.Where(item =>
+                     item.Category == category || includeTokens && item.Category == AssetOutputCategory.Tokens))
+        {
+            var outputPath = Path.Combine(
+                outputDir,
+                item.Destination.Replace('/', Path.DirectorySeparatorChar));
+            outputs[item.Destination] = ComputeFileFingerprint(outputPath, fingerprintMode);
+        }
+
+        return outputs;
+    }
+
     private static void DeleteStaleTrackedFiles(
         string outputDir,
         IReadOnlyDictionary<string, string> previous,
@@ -150,7 +246,8 @@ internal static class BuildManifestTracker
         bool incrementalEnabled,
         ILogger logger,
         string kind,
-        IOutputPathPolicy? pathPolicy = null)
+        IOutputPathPolicy? pathPolicy = null,
+        IReadOnlySet<string>? currentDestinations = null)
     {
         if (!incrementalEnabled)
         {
@@ -158,7 +255,9 @@ internal static class BuildManifestTracker
         }
 
         var outputFileSystem = new SafeOutputFileSystem(outputDir, pathPolicy);
-        foreach (var stale in previous.Keys.Where(key => !current.ContainsKey(key)).ToList())
+        foreach (var stale in previous.Keys
+                     .Where(key => !current.ContainsKey(key) && currentDestinations?.Contains(key) != true)
+                     .ToList())
         {
             try
             {
@@ -202,6 +301,13 @@ internal static class BuildManifestTracker
             return false;
         }
     }
+
+    private static StringComparer PathComparer
+        => StringComparer.OrdinalIgnoreCase;
+
+    private static bool StructurallyConflicts(string left, string right)
+        => left.StartsWith(right + "/", StringComparison.OrdinalIgnoreCase) ||
+           right.StartsWith(left + "/", StringComparison.OrdinalIgnoreCase);
 
     private static void DeleteEmptyDirectoriesUpToRoot(string? directory, string outputDir)
     {

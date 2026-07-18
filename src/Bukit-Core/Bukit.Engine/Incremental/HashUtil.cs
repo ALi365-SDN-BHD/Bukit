@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Incremental;
 
@@ -31,7 +32,7 @@ public static class HashUtil
         separator[0] = 0;
         var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
 
-        var files = Directory.EnumerateFiles(rootDir, "*", SearchOption.AllDirectories)
+        var files = SafeFileEnumerator.EnumerateFiles(rootDir)
             .Select(p => new
             {
                 FullPath = p,

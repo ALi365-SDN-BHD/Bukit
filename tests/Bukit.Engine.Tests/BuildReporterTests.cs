@@ -9,11 +9,48 @@ using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class BuildReporterTests
 {
+    [Fact]
+    public void OutputInventories_DoNotIncludeFilesThroughDirectorySymlink()
+    {
+        var tempDir = CreateTempDir();
+        var assetsDir = Path.Combine(tempDir, "assets");
+        var externalDir = CreateTempDir();
+        Directory.CreateDirectory(assetsDir);
+        File.WriteAllText(Path.Combine(assetsDir, "local.css"), "local");
+        File.WriteAllText(Path.Combine(externalDir, "secret.css"), "secret");
+
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(assetsDir, "linked-external"), externalDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        var config = CreateConfig(enabled: true);
+        var variant = CreateVariant(tempDir);
+        var result = CreateResult(config, tempDir, variant);
+
+        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+
+        Assert.Equal(1, result.Summary.AssetCount);
+        using var assets = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, ".bukit", "assets.json")));
+        Assert.DoesNotContain(
+            assets.RootElement.GetProperty("assets").EnumerateArray(),
+            item => item.GetProperty("path").GetString()!.Contains("linked-external", StringComparison.Ordinal));
+        using var checksums = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, ".bukit", "release-bundle-checksums.json")));
+        Assert.DoesNotContain(
+            checksums.RootElement.GetProperty("files").EnumerateArray(),
+            item => item.GetProperty("path").GetString()!.Contains("linked-external", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void WriteIfEnabled_WritesBuildReportWithCoreFields()
     {

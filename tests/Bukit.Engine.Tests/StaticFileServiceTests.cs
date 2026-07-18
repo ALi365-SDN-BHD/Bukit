@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Bukit.Rendering;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
@@ -145,6 +146,44 @@ public sealed class StaticFileServiceTests : IDisposable
 
         Assert.True(File.Exists(Path.Combine(outputDir, ".well-known", "security.txt")));
         Assert.Equal("security-content", File.ReadAllText(Path.Combine(outputDir, ".well-known", "security.txt")));
+    }
+
+    [Fact]
+    public void StaticFileService_DoesNotRenderOrCopyFilesThroughDirectorySymlink()
+    {
+        var root = CreateTempRoot();
+        var staticDir = Path.Combine(root, "static");
+        var externalDir = Path.Combine(root, "external");
+        var outputDir = Path.Combine(root, "dist");
+        Directory.CreateDirectory(staticDir);
+        Directory.CreateDirectory(externalDir);
+        File.WriteAllText(Path.Combine(staticDir, "local.html"), "<main>Local</main>");
+        File.WriteAllText(Path.Combine(externalDir, "secret.html"), "<main>Secret</main>");
+        File.WriteAllText(Path.Combine(externalDir, "secret.txt"), "secret");
+
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(staticDir, "linked-external"), externalDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        var renderer = new CaptureRenderer();
+        StaticFileService.RenderStaticFiles(
+            staticDir,
+            outputDir,
+            renderer,
+            CreateSiteModel(),
+            "pages/static.html",
+            "/",
+            new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+            CancellationToken.None);
+
+        Assert.Equal("/local/", Assert.Single(renderer.PageUrls));
+        Assert.False(File.Exists(Path.Combine(outputDir, "linked-external", "secret.html")));
+        Assert.False(File.Exists(Path.Combine(outputDir, "linked-external", "secret.txt")));
     }
 
     public void Dispose()

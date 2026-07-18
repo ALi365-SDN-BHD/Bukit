@@ -18,7 +18,7 @@ internal static class StaticFileService
 
     internal static void RenderStaticFiles(string staticDir, string outputDir, ITemplateRenderer renderer, SiteModel siteModel, string templateName, string baseUrl, ConcurrentDictionary<string, byte> currentKeys, CancellationToken cancellationToken, Action<string>? warn = null, bool publishDotFiles = false)
     {
-        var htmlFiles = Directory.GetFiles(staticDir, "*.html", SearchOption.AllDirectories);
+        var htmlFiles = SafeFileEnumerator.EnumerateFiles(staticDir, "*.html");
         foreach (var file in htmlFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -73,7 +73,7 @@ internal static class StaticFileService
             FileWriter.WriteUtf8(outputDir, outputPath, rendered);
         }
 
-        var nonHtmlFiles = Directory.GetFiles(staticDir, "*.*", SearchOption.AllDirectories)
+        var nonHtmlFiles = SafeFileEnumerator.EnumerateFiles(staticDir, "*.*")
             .Where(f => !f.EndsWith(".html", StringComparison.OrdinalIgnoreCase));
         foreach (var file in nonHtmlFiles)
         {
@@ -155,7 +155,7 @@ internal static class StaticFileService
         }
 
         var routes = new List<RouteInfo>();
-        foreach (var file in Directory.GetFiles(staticDir, "*.html", SearchOption.AllDirectories))
+        foreach (var file in SafeFileEnumerator.EnumerateFiles(staticDir, "*.html"))
         {
             var relativeOutputPath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(staticDir, file));
 

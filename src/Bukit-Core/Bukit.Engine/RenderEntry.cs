@@ -2,6 +2,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Shared;
 namespace Bukit.Engine;
 
 internal enum RenderEntryKind { Page, List, Static }
@@ -37,7 +38,7 @@ internal sealed record RenderEntry(
         var entries = new List<RenderEntry>();
         if (!Directory.Exists(staticDir)) return entries;
 
-        var htmlFiles = Directory.GetFiles(staticDir, "*.html", SearchOption.AllDirectories);
+        var htmlFiles = SafeFileEnumerator.EnumerateFiles(staticDir, "*.html");
         foreach (var file in htmlFiles)
         {
             var relativeOutputPath = Path.GetRelativePath(staticDir, file);
