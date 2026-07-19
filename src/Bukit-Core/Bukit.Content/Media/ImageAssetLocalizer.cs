@@ -37,7 +37,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly ILogger? _logger;
     private readonly bool _ownsHttpClient;
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, Task<string>> _inflight = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Lazy<Task<string>>> _inflight = new(StringComparer.Ordinal);
     private readonly ConcurrentBag<MediaFailure> _failures = new();
     private readonly MediaIndexManager _indexManager;
 
@@ -139,15 +139,19 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             return existingUrl;
         }
 
-        var downloadTask = _inflight.GetOrAdd(normalizedKey,
-            _ => DownloadCoreAsync(normalizedKey, uri, source, root, cancellationToken));
+        var download = _inflight.GetOrAdd(
+            normalizedKey,
+            _ => new Lazy<Task<string>>(
+                () => DownloadCoreAsync(normalizedKey, uri, source, root, cancellationToken),
+                LazyThreadSafetyMode.ExecutionAndPublication));
+        var downloadTask = download.Value;
         try
         {
             return await downloadTask;
         }
         finally
         {
-            _inflight.TryRemove(KeyValuePair.Create(normalizedKey, downloadTask));
+            _inflight.TryRemove(KeyValuePair.Create(normalizedKey, download));
         }
     }
 

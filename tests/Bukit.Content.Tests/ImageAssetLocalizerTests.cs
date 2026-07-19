@@ -294,6 +294,56 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
+    public async Task LocalizeAsync_ConcurrentSameUrl_StartsExactlyOneDownload()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+
+            using var startGate = new ManualResetEventSlim();
+            using var handler = new ConcurrentStartHandler("image/jpeg", "fake-image");
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+            var tasks = Enumerable.Range(0, 16)
+                .Select(_ => Task.Factory.StartNew(
+                    async () =>
+                    {
+                        startGate.Wait();
+                        return await localizer.LocalizeAsync(
+                            "https://img.example/path/a.jpg",
+                            CancellationToken.None);
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default).Unwrap())
+                .ToArray();
+
+            startGate.Set();
+            var results = await Task.WhenAll(tasks);
+
+            Assert.Single(results.Distinct(StringComparer.Ordinal));
+            Assert.All(results, result =>
+                Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal));
+            Assert.Equal(1, handler.RequestCount);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task LocalizeAsync_SecondBuild_HitsDiskIndexAndSkipsDownload()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
@@ -1052,6 +1102,56 @@ public sealed class ImageAssetLocalizerTests
             };
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
             return Task.FromResult(response);
+        }
+    }
+
+    private sealed class ConcurrentStartHandler : HttpMessageHandler
+    {
+        private readonly string _contentType;
+        private readonly string _payload;
+        private readonly ManualResetEventSlim _secondRequestEntered = new();
+        private int _requestCount;
+
+        public ConcurrentStartHandler(string contentType, string payload)
+        {
+            _contentType = contentType;
+            _payload = payload;
+        }
+
+        public int RequestCount => Volatile.Read(ref _requestCount);
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            _ = request;
+            var requestCount = Interlocked.Increment(ref _requestCount);
+            if (requestCount == 1)
+            {
+                _secondRequestEntered.Wait(TimeSpan.FromMilliseconds(500), cancellationToken);
+            }
+            else
+            {
+                _secondRequestEntered.Set();
+            }
+
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(_payload, Encoding.UTF8)
+            };
+            response.Content.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
+            return Task.FromResult(response);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _secondRequestEntered.Dispose();
+            }
+
+            base.Dispose(disposing);
         }
     }
 
