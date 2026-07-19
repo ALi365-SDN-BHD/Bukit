@@ -46,7 +46,7 @@ internal static partial class SiteDefaultsApplier
             DownloadDir = ConfigYamlHelpers.GetOptionalString(mediaNode, "downloadDir") ?? "assets/uploads",
             UrlBase = ConfigYamlHelpers.GetOptionalString(mediaNode, "urlBase") ?? "/assets/uploads",
             DefaultImageUrl = ConfigYamlHelpers.GetOptionalString(mediaNode, "defaultImageUrl") ?? "/assets/images/noneimg-news.jpg",
-            FieldKeys = ConfigYamlHelpers.ReadStringList(mediaNode, "fieldKeys") ?? new[] { "cover", "image", "thumbnail", "og_image", "icon" },
+            FieldKeys = ConfigYamlHelpers.ReadStringList(mediaNode, "fieldKeys") ?? new[] { "cover", "image", "thumbnail", "og_image", "seo_image", "icon" },
             MaxConcurrency = ConfigYamlHelpers.GetOptionalInt(mediaNode, "maxConcurrency") ?? 4,
             MaxRetries = ConfigYamlHelpers.GetOptionalInt(mediaNode, "maxRetries") ?? 3,
             TimeoutMs = ConfigYamlHelpers.GetOptionalIntStrict(mediaNode, "timeoutMs") ?? 10000,

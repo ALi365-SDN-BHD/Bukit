@@ -8,6 +8,90 @@ namespace Bukit.Content.Tests;
 public sealed class ContentImageRewritePipelineTests
 {
     [Fact]
+    public async Task RewriteAsync_DefaultFieldKeysLocalizeSeoImage()
+    {
+        const string source = "https://img.example/seo.jpg";
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["seo_image"] = new ContentField("text", source),
+                ["unrelated"] = new ContentField("text", "https://img.example/keep.jpg")
+            });
+        var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [source] = "/assets/uploads/seo.jpg"
+        });
+        var pipeline = new ContentImageRewritePipeline(new MediaConfig(), localizer);
+
+        var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+        Assert.Equal("/assets/uploads/seo.jpg", rewritten.CustomFields!["seo_image"].Value);
+        Assert.Equal("https://img.example/keep.jpg", rewritten.CustomFields["unrelated"].Value);
+        Assert.Equal(new[] { source }, localizer.ReceivedUrls);
+    }
+
+    [Fact]
+    public async Task RewriteAsync_ExplicitFieldKeysExcludingSeoImagePreserveExternalUrl()
+    {
+        const string source = "https://img.example/seo.jpg";
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["seo_image"] = new ContentField("text", source)
+            });
+        var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [source] = "/assets/uploads/seo.jpg"
+        });
+        var pipeline = new ContentImageRewritePipeline(
+            new MediaConfig { FieldKeys = new[] { "cover", "image" } },
+            localizer);
+
+        var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+        Assert.Equal(source, rewritten.CustomFields!["seo_image"].Value);
+        Assert.Empty(localizer.ReceivedUrls);
+    }
+
+    [Fact]
+    public async Task RewriteAsync_SeoImageUsesFallbackReturnedByLocalizer()
+    {
+        const string source = "https://img.example/seo.jpg";
+        const string fallback = "/assets/images/noneimg-news.jpg";
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["seo_image"] = new ContentField("text", source)
+            });
+        var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [source] = fallback
+        });
+        var pipeline = new ContentImageRewritePipeline(
+            new MediaConfig { DefaultImageUrl = fallback },
+            localizer);
+
+        var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+        Assert.Equal(fallback, rewritten.CustomFields!["seo_image"].Value);
+    }
+
+    [Fact]
     public async Task RewriteAsync_RewritesHtmlAndFieldUrls()
     {
         var item = ContentDocument.Create(

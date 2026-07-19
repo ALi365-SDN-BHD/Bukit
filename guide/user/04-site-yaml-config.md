@@ -282,7 +282,7 @@ other than HTTP(S) or root-relative paths fail the build.
 | `content.media.downloadDir` | `assets/uploads` | Relative directory; traversal is rejected. |
 | `content.media.urlBase` | `/assets/uploads` | Public URL base for localized media. |
 | `content.media.defaultImageUrl` | `/assets/images/noneimg-news.jpg` | Fallback image URL. |
-| `content.media.fieldKeys` | `cover`, `image`, `thumbnail`, `og_image`, `icon` | Fields scanned for media URLs. |
+| `content.media.fieldKeys` | `cover`, `image`, `thumbnail`, `og_image`, `seo_image`, `icon` | Fields scanned for media URLs. |
 | `content.media.maxConcurrency` | `4` | Positive concurrency when set. |
 | `content.media.maxRetries` | `3` | Non-negative retry count. |
 | `content.media.timeoutMs` | `10000` | Positive timeout. |

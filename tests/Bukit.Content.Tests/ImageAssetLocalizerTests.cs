@@ -1,5 +1,6 @@
 using Bukit.Engine.Abstractions.Content;
 using System.Net;
+using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Text;
 using Bukit.Content.Media;
@@ -821,6 +822,60 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
+    public async Task LocalizeAsync_NestedTlsFailureLogsDeepestExceptionWithoutChangingFailureReason()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                MaxRetries = 0
+            };
+            var logger = new RecordingLogger();
+            using var http = new HttpClient(new NestedTlsFailureHandler());
+            using var localizer = new ImageAssetLocalizer(cfg, http, logger);
+            var source = "https://img.example/a.jpg?token=secret#fragment";
+
+            var result = await localizer.LocalizeAsync(source, CancellationToken.None);
+
+            Assert.Equal("/assets/images/noneimg-news.jpg", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Equal("https://img.example/a.jpg?[REDACTED]", failure.SourceUrl);
+            Assert.Equal(
+                "HttpRequestException: SSL connection could not be established.",
+                failure.Reason);
+
+            var warning = Assert.Single(logger.Warnings);
+            Assert.Contains("event=media.download_error", warning, StringComparison.Ordinal);
+            Assert.Contains("error=HttpRequestException", warning, StringComparison.Ordinal);
+            Assert.Contains(
+                "root_error=Bukit.Content.Tests.ImageAssetLocalizerTests+TestSslException",
+                warning,
+                StringComparison.Ordinal);
+            Assert.Contains(
+                "root_message=\"bad protocol version\\r\\nforged=entry\"",
+                warning,
+                StringComparison.Ordinal);
+            Assert.DoesNotContain('\r', warning);
+            Assert.DoesNotContain('\n', warning);
+            Assert.DoesNotContain("token=secret", warning, StringComparison.Ordinal);
+            Assert.DoesNotContain("fragment", warning, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task LocalizeAsync_LegacyIndexRootObject_HitsExistingFile()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
@@ -1053,6 +1108,28 @@ public sealed class ImageAssetLocalizerTests
             _ = request;
             _ = cancellationToken;
             throw new HttpRequestException("network failed");
+        }
+    }
+
+    private sealed class NestedTlsFailureHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            _ = request;
+            _ = cancellationToken;
+            throw new HttpRequestException(
+                "SSL connection could not be established.",
+                new AuthenticationException(
+                    "Authentication failed.",
+                    new TestSslException("bad protocol version\r\nforged=entry")));
+        }
+    }
+
+    private sealed class TestSslException : Exception
+    {
+        public TestSslException(string message)
+            : base(message)
+        {
         }
     }
 

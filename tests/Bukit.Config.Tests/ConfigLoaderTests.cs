@@ -1244,12 +1244,37 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Contains("image", media.FieldKeys);
         Assert.Contains("thumbnail", media.FieldKeys);
         Assert.Contains("banner", media.FieldKeys);
+        Assert.DoesNotContain("seo_image", media.FieldKeys);
         Assert.Equal(8, media.MaxConcurrency);
         Assert.Equal(5, media.MaxRetries);
         Assert.Equal(15000, media.TimeoutMs);
         Assert.Equal(10485760, media.MaxFileSizeBytes);
         Assert.False(media.BlockPrivateNetworks);
         Assert.Equal(1000, media.RetryBaseDelayMs);
+    }
+
+    [Fact]
+    public void Load_MediaConfigWithoutFieldKeys_UsesSeoImageDefault()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              media:
+                downloadToLocal: true
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+
+        Assert.Equal(
+            new[] { "cover", "image", "thumbnail", "og_image", "seo_image", "icon" },
+            config.Content.Media.FieldKeys);
     }
 
     [Theory]

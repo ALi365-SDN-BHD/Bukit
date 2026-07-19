@@ -85,7 +85,7 @@
 | `content.media.downloadDir` | `assets/uploads` |
 | `content.media.urlBase` | `/assets/uploads` |
 | `content.media.defaultImageUrl` | `/assets/images/noneimg-news.jpg` |
-| `content.media.fieldKeys` | `cover`, `image`, `thumbnail`, `og_image`, `icon` |
+| `content.media.fieldKeys` | `cover`, `image`, `thumbnail`, `og_image`, `seo_image`, `icon` |
 | `content.media.maxConcurrency` | `4` |
 | `content.media.maxRetries` | `3` |
 | `content.media.timeoutMs` | `10000` |

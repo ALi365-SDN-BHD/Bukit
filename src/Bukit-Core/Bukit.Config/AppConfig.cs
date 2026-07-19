@@ -355,7 +355,7 @@ public sealed record MediaConfig
     public string DownloadDir { get; init; } = "assets/uploads";
     public string UrlBase { get; init; } = "/assets/uploads";
     public string DefaultImageUrl { get; init; } = "/assets/images/noneimg-news.jpg";
-    public IReadOnlyList<string> FieldKeys { get; init; } = new[] { "cover", "image", "thumbnail", "og_image", "icon" };
+    public IReadOnlyList<string> FieldKeys { get; init; } = new[] { "cover", "image", "thumbnail", "og_image", "seo_image", "icon" };
     public int? MaxConcurrency { get; init; } = 4;
     public int? MaxRetries { get; init; } = 3;
     public int? TimeoutMs { get; init; } = 10000;

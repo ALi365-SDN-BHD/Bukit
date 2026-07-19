@@ -619,6 +619,47 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_ReportsExternalOpenGraphAndTwitterImagesAsUnverifiedWithoutFetching()
+    {
+        WriteOutput("external-image/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["external-image/index.html"] = Entry(
+                "/external-image/",
+                "external-image/index.html",
+                "https://example.com/external-image/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["external-image/index.html"] = new()
+            {
+                Title = "External image",
+                Description = "External image description",
+                Canonical = "https://example.com/external-image/",
+                Og = new SeoOpenGraphModel { Image = "https://images.invalid/og.png" },
+                Twitter = new SeoTwitterModel { Image = "https://images.invalid/twitter.png" }
+            }
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        var externalIssues = report.Issues
+            .Where(issue => issue.Route == "/external-image/"
+                            && issue.Code.EndsWith("_external_unverified", StringComparison.Ordinal))
+            .OrderBy(issue => issue.Code, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(
+            new[]
+            {
+                "seo.og_image_external_unverified",
+                "seo.twitter_image_external_unverified"
+            },
+            externalIssues.Select(issue => issue.Code));
+        Assert.All(externalIssues, issue => Assert.Equal("warning", issue.Severity));
+        Assert.All(externalIssues, issue => Assert.Contains("was not fetched", issue.Message, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Build_RecognizesSameSiteSvgOpenGraphImageFromViewBox()
     {
         WriteOutput("svg/index.html");

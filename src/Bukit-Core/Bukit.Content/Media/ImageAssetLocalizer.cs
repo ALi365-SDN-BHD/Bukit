@@ -1,6 +1,7 @@
 using Bukit.Engine.Abstractions.Content;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using System.Text.Json;
 using Bukit.Config;
 using Bukit.Shared;
 
@@ -239,13 +240,26 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 if (attempt >= maxRetries)
                 {
                     _logger?.Warn(
-                        $"event=media.download_error source={UrlRedactor.Redact(source)} error={ex.GetType().Name}");
+                        $"event=media.download_error source={UrlRedactor.Redact(source)} {BuildDownloadErrorDiagnostic(ex)}");
                     return RecordFailure(source, $"{ex.GetType().Name}: {ex.Message}");
                 }
 
                 await DelayBeforeRetryAsync(attempt, retryBaseDelay, cancellationToken);
             }
         }
+    }
+
+    private static string BuildDownloadErrorDiagnostic(Exception exception)
+    {
+        var diagnostic = $"error={exception.GetType().Name}";
+        var root = exception.GetBaseException();
+        if (ReferenceEquals(root, exception))
+        {
+            return diagnostic;
+        }
+
+        var rootType = root.GetType().FullName ?? root.GetType().Name;
+        return $"{diagnostic} root_error={rootType} root_message=\"{JsonEncodedText.Encode(root.Message)}\"";
     }
 
     private static bool IsLocalAssetReference(string source)
