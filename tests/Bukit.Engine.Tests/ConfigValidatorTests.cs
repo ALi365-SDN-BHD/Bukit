@@ -325,6 +325,22 @@ public sealed class ConfigValidatorTests
         Assert.Null(ex);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Validate_SearchMaxContentLengthNonPositive_Throws(int maxContentLength)
+    {
+        var config = ConfigWithSite(s => s with
+        {
+            Search = s.Search with { MaxContentLength = maxContentLength }
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Equal("site.search.maxContentLength must be positive.", ex.Message);
+    }
+
     [Fact]
     public void Validate_PluginFailModeInvalid_Throws()
     {

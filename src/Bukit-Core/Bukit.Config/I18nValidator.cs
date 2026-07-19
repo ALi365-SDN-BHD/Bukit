@@ -86,6 +86,13 @@ internal static class I18nValidator
             throw new ConfigException("site.search.mode must be split|merged|index.");
         }
 
+        if (site.Search.MaxContentLength <= 0)
+        {
+            throw new ConfigException(
+                "site.search.maxContentLength must be positive.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
         ValidateSearchRoute(site.Search.Route);
 
         var seoRenderMode = (site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();
