@@ -36,10 +36,13 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     private readonly HttpClient _httpClient;
     private readonly ILogger? _logger;
     private readonly bool _ownsHttpClient;
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
+    private readonly CancellationToken _lifetimeToken;
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Lazy<Task<string>>> _inflight = new(StringComparer.Ordinal);
     private readonly ConcurrentBag<MediaFailure> _failures = new();
     private readonly MediaIndexManager _indexManager;
+    private int _disposeState;
 
     public IReadOnlyList<MediaFailure> Failures => _failures.ToArray();
 
@@ -47,6 +50,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     {
         _config = config;
         _logger = logger;
+        _lifetimeToken = _lifetimeCancellation.Token;
         _indexManager = new MediaIndexManager(
             config.DownloadDir ?? string.Empty, config.UrlBase ?? string.Empty, logger);
 
@@ -66,6 +70,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         _config = config;
         _httpClient = httpClient;
         _logger = logger;
+        _lifetimeToken = _lifetimeCancellation.Token;
         _indexManager = new MediaIndexManager(
             config.DownloadDir ?? string.Empty, config.UrlBase ?? string.Empty, logger);
         _ownsHttpClient = false;
@@ -139,15 +144,41 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             return existingUrl;
         }
 
-        var download = _inflight.GetOrAdd(
-            normalizedKey,
-            _ => new Lazy<Task<string>>(
-                () => DownloadCoreAsync(normalizedKey, uri, source, root, cancellationToken),
-                LazyThreadSafetyMode.ExecutionAndPublication));
+        var newDownload = new Lazy<Task<string>>(
+            () => DownloadCoreAsync(normalizedKey, uri, source, root, _lifetimeToken),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+        var download = _inflight.GetOrAdd(normalizedKey, newDownload);
         var downloadTask = download.Value;
+        if (ReferenceEquals(download, newDownload))
+        {
+            _ = RemoveInflightWhenCompletedAsync(normalizedKey, download, downloadTask);
+        }
+
         try
         {
-            return await downloadTask;
+            return await downloadTask.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            if (downloadTask.IsCompleted)
+            {
+                _inflight.TryRemove(KeyValuePair.Create(normalizedKey, download));
+            }
+        }
+    }
+
+    private async Task RemoveInflightWhenCompletedAsync(
+        string normalizedKey,
+        Lazy<Task<string>> download,
+        Task<string> downloadTask)
+    {
+        try
+        {
+            await downloadTask.ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // The original task retains its terminal state for all callers.
         }
         finally
         {
@@ -447,10 +478,18 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposeState, 1) != 0)
+        {
+            return;
+        }
+
+        _lifetimeCancellation.Cancel();
         _indexManager.PersistIndex();
         if (_ownsHttpClient)
         {
             _httpClient.Dispose();
         }
+
+        _lifetimeCancellation.Dispose();
     }
 }

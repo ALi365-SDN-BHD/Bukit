@@ -344,6 +344,152 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
+    public async Task LocalizeAsync_WhenSharedOwnerCancels_OnlyOwnerWaitIsCanceled()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+
+            var handler = new ControlledResponseHandler("image/jpeg", "fake-image");
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var ownerCancellation = new CancellationTokenSource();
+            var owner = localizer.LocalizeAsync(
+                "https://img.example/path/a.jpg",
+                ownerCancellation.Token);
+            await handler.RequestStarted;
+            var joiner = localizer.LocalizeAsync(
+                "https://img.example/path/a.jpg",
+                CancellationToken.None);
+
+            ownerCancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => owner);
+            handler.ReleaseResponse();
+            var joinedResult = await joiner;
+
+            Assert.StartsWith("/assets/uploads/", joinedResult, StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_WhenSharedJoinerCancels_OwnerStillCompletes()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+
+            var handler = new ControlledResponseHandler("image/jpeg", "fake-image");
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+            var owner = localizer.LocalizeAsync(
+                "https://img.example/path/a.jpg",
+                CancellationToken.None);
+            await handler.RequestStarted;
+            using var joinerCancellation = new CancellationTokenSource();
+            var joiner = localizer.LocalizeAsync(
+                "https://img.example/path/a.jpg",
+                joinerCancellation.Token);
+
+            joinerCancellation.Cancel();
+            handler.ReleaseResponse();
+            var ownerResult = await owner;
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => joiner);
+
+            Assert.StartsWith("/assets/uploads/", ownerResult, StringComparison.Ordinal);
+            Assert.Equal(1, handler.RequestCount);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Dispose_CancelsOwnedInflightDownload()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        var cfg = new MediaConfig
+        {
+            DownloadToLocal = true,
+            DownloadDir = dir,
+            UrlBase = "/assets/uploads",
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var stream = new CancellableBlockingReadStream(Encoding.UTF8.GetBytes("fake-image"));
+        var handler = new StreamingHandler("image/jpeg", stream);
+        using var http = new HttpClient(handler);
+        var localizer = new ImageAssetLocalizer(cfg, http);
+        Task<string>? localization = null;
+        try
+        {
+            localization = localizer.LocalizeAsync(
+                "https://img.example/path/a.jpg",
+                CancellationToken.None);
+            await stream.ReadStarted;
+            Assert.Contains(
+                Directory.GetFiles(dir),
+                path => path.EndsWith(".tmp", StringComparison.Ordinal));
+
+            localizer.Dispose();
+            var exception = await Record.ExceptionAsync(
+                async () => await localization.WaitAsync(TimeSpan.FromSeconds(1)));
+
+            Assert.IsAssignableFrom<OperationCanceledException>(exception);
+            Assert.DoesNotContain(
+                Directory.GetFiles(dir),
+                path => path.EndsWith(".tmp", StringComparison.Ordinal));
+        }
+        finally
+        {
+            stream.ReleaseRead();
+            if (localization is not null)
+            {
+                try
+                {
+                    await localization;
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+
+            localizer.Dispose();
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task LocalizeAsync_SecondBuild_HitsDiskIndexAndSkipsDownload()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
@@ -1153,6 +1299,103 @@ public sealed class ImageAssetLocalizerTests
 
             base.Dispose(disposing);
         }
+    }
+
+    private sealed class ControlledResponseHandler : HttpMessageHandler
+    {
+        private readonly string _contentType;
+        private readonly string _payload;
+        private readonly TaskCompletionSource _requestStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseResponse =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _requestCount;
+
+        public ControlledResponseHandler(string contentType, string payload)
+        {
+            _contentType = contentType;
+            _payload = payload;
+        }
+
+        public int RequestCount => Volatile.Read(ref _requestCount);
+        public Task RequestStarted => _requestStarted.Task;
+
+        public void ReleaseResponse() => _releaseResponse.TrySetResult();
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            _ = request;
+            Interlocked.Increment(ref _requestCount);
+            _requestStarted.TrySetResult();
+            await _releaseResponse.Task.WaitAsync(cancellationToken);
+
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(_payload, Encoding.UTF8)
+            };
+            response.Content.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
+            return response;
+        }
+    }
+
+    private sealed class CancellableBlockingReadStream : Stream
+    {
+        private readonly byte[] _payload;
+        private readonly TaskCompletionSource _readStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseRead =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _readState;
+
+        public CancellableBlockingReadStream(byte[] payload)
+        {
+            _payload = payload;
+        }
+
+        public Task ReadStarted => _readStarted.Task;
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => _payload.Length;
+        public override long Position
+        {
+            get => Volatile.Read(ref _readState) == 0 ? 0 : _payload.Length;
+            set => throw new NotSupportedException();
+        }
+
+        public void ReleaseRead() => _releaseRead.TrySetResult();
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Exchange(ref _readState, 1) != 0)
+            {
+                return 0;
+            }
+
+            _readStarted.TrySetResult();
+            await _releaseRead.Task.WaitAsync(cancellationToken);
+            var count = Math.Min(buffer.Length, _payload.Length);
+            _payload.AsMemory(0, count).CopyTo(buffer);
+            return count;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            return ReadAsync(new Memory<byte>(buffer, offset, count))
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private sealed class DirectoryObservingReadStream : Stream
