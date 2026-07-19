@@ -330,6 +330,7 @@ public sealed class ContentImageRewritePipeline
         await downloadGate.WaitAsync(cancellationToken);
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             return await _localizer.LocalizeAsync(sourceUrl, cancellationToken);
         }
         finally
