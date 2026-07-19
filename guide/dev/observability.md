@@ -20,7 +20,7 @@ Use `.bukit/build-report.json` for build health, `.bukit/seo-report.json` for
 SEO, `.bukit/publish-audit-report.json` for release readiness, and
 `.bukit/security-report.json` for output safety.
 
-In the build report, `summary.warningCount` and `summary.errorCount` count the
+In the build report, the `warningCount` and `errorCount` fields in the `summary` object count the
 `Warn` and `Error` diagnostic events emitted during that build. Counts are
 isolated per build and aggregate concurrent language variants. They do not copy
 the warning or error totals from the SEO, publish, or security reports, whose
