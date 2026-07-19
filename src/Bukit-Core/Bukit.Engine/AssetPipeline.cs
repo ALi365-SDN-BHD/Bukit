@@ -61,6 +61,7 @@ internal sealed class AssetPipeline
         BuildManifestTracker.PrepareAssetPlanOutputs(
             outputPlan.Items,
             ctx.OutputDir,
+            outputPlan.DestinationComparer,
             ctx.Manifest,
             ctx.IncrementalEnabled,
             cancellationToken,
@@ -129,6 +130,7 @@ internal sealed class AssetPipeline
         BuildManifestTracker.TrackAssetPlanOutputs(
             outputPlan.Items,
             ctx.OutputDir,
+            outputPlan.DestinationComparer,
             ctx.Manifest,
             ctx.IncrementalEnabled,
             ctx.Logger,

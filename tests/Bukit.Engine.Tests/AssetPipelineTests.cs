@@ -388,7 +388,7 @@ public sealed class AssetPipelineTests
     }
 
     [Fact]
-    public void Create_CaseVariantCrossCategoryTargets_FollowPlatformPathSemantics()
+    public void Create_CaseVariantCrossCategoryTargets_FollowFileSystemPathSemantics()
     {
         var root = CreateRoot();
         var staticDir = Path.Combine(root, "static");
@@ -401,18 +401,19 @@ public sealed class AssetPipelineTests
         var context = CreateContext(root, new BuildManifest(), staticDir: staticDir, assetsDir: assetsDir);
         var copyOptions = new DirectoryCopyOptions();
 
-        if (OperatingSystem.IsWindows())
+        if (!IsCaseSensitiveFileSystem(context.OutputDir))
         {
             var exception = Assert.Throws<BukitException>(() => AssetOutputPlan.Create(context, copyOptions, tokens: null));
 
             Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, exception.Code);
-            return;
         }
+        else
+        {
+            var plan = AssetOutputPlan.Create(context, copyOptions, tokens: null);
 
-        var plan = AssetOutputPlan.Create(context, copyOptions, tokens: null);
-
-        Assert.Contains(plan.Items, item => item.Destination == "assets/css/Main.css");
-        Assert.Contains(plan.Items, item => item.Destination == "assets/css/main.css");
+            Assert.Contains(plan.Items, item => item.Destination == "assets/css/Main.css");
+            Assert.Contains(plan.Items, item => item.Destination == "assets/css/main.css");
+        }
     }
 
     [Fact]
@@ -427,32 +428,24 @@ public sealed class AssetPipelineTests
         File.WriteAllText(Path.Combine(assetsDir, "css", "main.css"), "asset");
         var manifest = new BuildManifest();
 
-        if (OperatingSystem.IsWindows())
+        if (!IsCaseSensitiveFileSystem(Path.Combine(root, "dist")))
         {
             var exception = await Assert.ThrowsAsync<BukitException>(() => new AssetPipeline().ExecuteAsync(
                 CreateContext(root, manifest, staticDir: staticDir, assetsDir: assetsDir)));
 
             Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, exception.Code);
             Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(root, "dist")));
-            return;
         }
-
-        var probe = Path.Combine(root, "dist", "case-probe");
-        File.WriteAllText(probe, string.Empty);
-        var isCaseSensitive = !File.Exists(Path.Combine(root, "dist", "CASE-PROBE"));
-        File.Delete(probe);
-        if (!isCaseSensitive)
+        else
         {
-            return;
+            await new AssetPipeline().ExecuteAsync(
+                CreateContext(root, manifest, staticDir: staticDir, assetsDir: assetsDir));
+
+            Assert.Equal("static", File.ReadAllText(Path.Combine(root, "dist", "assets", "css", "Main.css")));
+            Assert.Equal("asset", File.ReadAllText(Path.Combine(root, "dist", "assets", "css", "main.css")));
+            Assert.Contains("assets/css/Main.css", manifest.Static.Keys);
+            Assert.Contains("assets/css/main.css", manifest.Assets.Keys);
         }
-
-        await new AssetPipeline().ExecuteAsync(
-            CreateContext(root, manifest, staticDir: staticDir, assetsDir: assetsDir));
-
-        Assert.Equal("static", File.ReadAllText(Path.Combine(root, "dist", "assets", "css", "Main.css")));
-        Assert.Equal("asset", File.ReadAllText(Path.Combine(root, "dist", "assets", "css", "main.css")));
-        Assert.Contains("assets/css/Main.css", manifest.Static.Keys);
-        Assert.Contains("assets/css/main.css", manifest.Assets.Keys);
     }
 
     [Fact]
@@ -560,19 +553,49 @@ public sealed class AssetPipelineTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_IncrementalStaleFileBecomesCurrentDirectory_RemovesStructuralBlocker()
+    public async Task ExecuteAsync_IncrementalCaseVariantOwnerMove_DoesNotDeleteCurrentOutput()
     {
         var root = CreateRoot();
         var assetsDir = Path.Combine(root, "assets");
         Directory.CreateDirectory(Path.Combine(assetsDir, "css"));
         File.WriteAllText(Path.Combine(assetsDir, "css", "main.css"), "asset");
-        var stalePath = Path.Combine(root, "dist", "assets");
+        var staleDestination = Path.Combine(root, "dist", "assets", "css", "Main.css");
+        Directory.CreateDirectory(Path.GetDirectoryName(staleDestination)!);
+        File.WriteAllText(staleDestination, "stale-static");
+        var manifest = new BuildManifest
+        {
+            Static = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["assets/css/Main.css"] = "old"
+            }
+        };
+
+        await new AssetPipeline().ExecuteAsync(CreateContext(
+            root,
+            manifest,
+            assetsDir: assetsDir,
+            incrementalEnabled: true));
+
+        var currentDestination = Path.Combine(root, "dist", "assets", "css", "main.css");
+        Assert.Equal("asset", File.ReadAllText(currentDestination));
+        Assert.Empty(manifest.Static);
+        Assert.Contains("assets/css/main.css", manifest.Assets.Keys);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_IncrementalCaseVariantStaleFileBecomesCurrentDirectory_RemovesStructuralBlocker()
+    {
+        var root = CreateRoot();
+        var assetsDir = Path.Combine(root, "assets");
+        Directory.CreateDirectory(Path.Combine(assetsDir, "css"));
+        File.WriteAllText(Path.Combine(assetsDir, "css", "main.css"), "asset");
+        var stalePath = Path.Combine(root, "dist", "Assets");
         File.WriteAllText(stalePath, "stale-file");
         var manifest = new BuildManifest
         {
             Static = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["assets"] = "old"
+                ["Assets"] = "old"
             }
         };
 
@@ -588,20 +611,20 @@ public sealed class AssetPipelineTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_IncrementalStaleDescendantBecomesCurrentFile_RemovesStructuralBlocker()
+    public async Task ExecuteAsync_IncrementalCaseVariantStaleDescendantBecomesCurrentFile_RemovesStructuralBlocker()
     {
         var root = CreateRoot();
         var staticDir = Path.Combine(root, "static");
         Directory.CreateDirectory(staticDir);
         File.WriteAllText(Path.Combine(staticDir, "assets"), "current-file");
-        var stalePath = Path.Combine(root, "dist", "assets", "css", "main.css");
+        var stalePath = Path.Combine(root, "dist", "Assets", "css", "main.css");
         Directory.CreateDirectory(Path.GetDirectoryName(stalePath)!);
         File.WriteAllText(stalePath, "stale-asset");
         var manifest = new BuildManifest
         {
             Assets = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["assets/css/main.css"] = "old"
+                ["Assets/css/main.css"] = "old"
             }
         };
 
@@ -836,6 +859,22 @@ public sealed class AssetPipelineTests
         var root = Path.Combine(Path.GetTempPath(), "bukit-asset-collision-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "dist"));
         return root;
+    }
+
+    private static bool IsCaseSensitiveFileSystem(string directory)
+    {
+        var token = Guid.NewGuid().ToString("N");
+        var lowerCasePath = Path.Combine(directory, $"case-probe-{token}-a");
+        var upperCasePath = Path.Combine(directory, $"case-probe-{token}-A");
+        File.WriteAllText(lowerCasePath, string.Empty);
+        try
+        {
+            return !File.Exists(upperCasePath);
+        }
+        finally
+        {
+            File.Delete(lowerCasePath);
+        }
     }
 
     private static AssetPipelineContext CreateContext(

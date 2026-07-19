@@ -11,6 +11,7 @@ internal static class BuildManifestTracker
     internal static void PrepareAssetPlanOutputs(
         IReadOnlyList<AssetOutputItem> items,
         string outputDir,
+        StringComparer pathComparer,
         BuildManifest manifest,
         bool incrementalEnabled,
         CancellationToken cancellationToken,
@@ -27,24 +28,24 @@ internal static class BuildManifestTracker
             .ToHashSet(StringComparer.Ordinal);
         var currentIdentityDestinations = items
             .Select(item => item.Destination)
-            .ToHashSet(PathComparer);
+            .ToHashSet(pathComparer);
         var currentRenderDestinations = items
             .Where(item => item.Category == AssetOutputCategory.Render)
             .Select(item => item.Destination)
-            .ToHashSet(PathComparer);
+            .ToHashSet(pathComparer);
         var currentNonRenderDestinations = items
             .Where(item => item.Category != AssetOutputCategory.Render)
             .Select(item => item.Destination)
-            .ToHashSet(PathComparer);
+            .ToHashSet(pathComparer);
         var blockingStalePaths = manifest.Static.Keys
             .Concat(manifest.Assets.Keys)
             .Concat(manifest.Media.Keys)
             .Distinct(StringComparer.Ordinal)
             .Where(stale => !currentExactDestinations.Contains(stale))
             .Where(stale => currentIdentityDestinations.Contains(stale) ||
-                            currentExactDestinations.Any(current => StructurallyConflicts(stale, current)))
+                            currentExactDestinations.Any(current => StructurallyConflicts(stale, current, pathComparer)))
             .OrderByDescending(path => path.Length)
-            .ThenBy(path => path, PathComparer)
+            .ThenBy(path => path, pathComparer)
             .ToArray();
         var blockingStaleRenderEntries = manifest.Entries
             .Select(entry => new
@@ -55,13 +56,13 @@ internal static class BuildManifestTracker
             })
             .Where(entry => !currentRenderDestinations.Contains(entry.OutputPath))
             .Where(entry => currentNonRenderDestinations.Contains(entry.OutputPath) ||
-                            currentNonRenderDestinations.Any(current => StructurallyConflicts(entry.OutputPath, current)))
+                            currentNonRenderDestinations.Any(current => StructurallyConflicts(entry.OutputPath, current, pathComparer)))
             .ToArray();
         var pathsToDelete = blockingStalePaths
             .Concat(blockingStaleRenderEntries.Select(entry => entry.OutputPath))
-            .Distinct(PathComparer)
+            .Distinct(pathComparer)
             .OrderByDescending(path => path.Length)
-            .ThenBy(path => path, PathComparer)
+            .ThenBy(path => path, pathComparer)
             .ToArray();
 
         var outputFileSystem = new SafeOutputFileSystem(outputDir, pathPolicy);
@@ -86,6 +87,7 @@ internal static class BuildManifestTracker
     internal static void TrackAssetPlanOutputs(
         IReadOnlyList<AssetOutputItem> items,
         string outputDir,
+        StringComparer pathComparer,
         BuildManifest manifest,
         bool incrementalEnabled,
         ILogger logger,
@@ -102,7 +104,7 @@ internal static class BuildManifestTracker
         var currentMedia = CreateTrackedOutputs(items, outputDir, AssetOutputCategory.Media, fingerprintMode);
         var currentDestinations = items
             .Select(item => item.Destination)
-            .ToHashSet(PathComparer);
+            .ToHashSet(pathComparer);
 
         DeleteStaleTrackedFiles(
             outputDir, manifest.Static, currentStatic, incrementalEnabled, logger, "static", pathPolicy, currentDestinations);
@@ -334,12 +336,13 @@ internal static class BuildManifestTracker
         }
     }
 
-    private static StringComparer PathComparer
-        => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    private static bool StructurallyConflicts(string left, string right, StringComparer comparer)
+        => IsDescendant(left, right, comparer) || IsDescendant(right, left, comparer);
 
-    private static bool StructurallyConflicts(string left, string right)
-        => left.StartsWith(right + "/", PlatformPathHelper.PathComparison) ||
-           right.StartsWith(left + "/", PlatformPathHelper.PathComparison);
+    private static bool IsDescendant(string candidate, string ancestor, StringComparer comparer)
+        => candidate.Length > ancestor.Length &&
+           candidate[ancestor.Length] == '/' &&
+           comparer.Equals(candidate[..ancestor.Length], ancestor);
 
     private static void DeleteEmptyDirectoriesUpToRoot(string? directory, string outputDir)
     {

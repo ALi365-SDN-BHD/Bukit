@@ -29,12 +29,14 @@ internal sealed record AssetOutputItem(
 
 internal sealed class AssetOutputPlan
 {
-    private AssetOutputPlan(IReadOnlyList<AssetOutputItem> items)
+    private AssetOutputPlan(IReadOnlyList<AssetOutputItem> items, StringComparer destinationComparer)
     {
         Items = items;
+        DestinationComparer = destinationComparer;
     }
 
     internal IReadOnlyList<AssetOutputItem> Items { get; }
+    internal StringComparer DestinationComparer { get; }
 
     internal static AssetOutputPlan Create(
         AssetPipelineContext context,
@@ -42,7 +44,7 @@ internal sealed class AssetOutputPlan
         ThemeTokens? tokens,
         CancellationToken cancellationToken = default)
     {
-        var comparer = PathComparer;
+        var comparer = OutputDestinationIdentityComparer.ForOutputRoot(context.OutputDir);
         var effectiveItems = new Dictionary<(AssetOutputCategory Category, string Destination), AssetOutputItem>(
             new ItemKeyComparer(comparer));
         var renderedStaticCopyDestinations = BuildRenderedStaticCopyDestinations(context, comparer);
@@ -105,7 +107,7 @@ internal sealed class AssetOutputPlan
             .ThenBy(item => item.Source, StringComparer.Ordinal)
             .ToArray();
         Validate(items, comparer);
-        return new AssetOutputPlan(items);
+        return new AssetOutputPlan(items, comparer);
     }
 
     internal IReadOnlyList<AssetOutputItem> ForCategory(AssetOutputCategory category)
@@ -218,9 +220,6 @@ internal sealed class AssetOutputPlan
 
     private static string Describe(AssetOutputItem item)
         => $"category={item.Category.ToString().ToLowerInvariant()} source={item.Source}";
-
-    private static StringComparer PathComparer
-        => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private sealed class ItemKeyComparer(StringComparer pathComparer)
         : IEqualityComparer<(AssetOutputCategory Category, string Destination)>
