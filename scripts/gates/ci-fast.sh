@@ -16,3 +16,6 @@ run_step "skills schema" bash scripts/checks/skills-schema.sh
 run_step "skills strict validation" bash guide/skills/scripts/validate-skills-strict.sh
 run_step "README sync" bash scripts/checks/readme-sync.sh
 run_step "Core CLI script contract" bash scripts/checks/core-cli-contract.sh
+run_step "YAML static context gate self-test" bash scripts/checks/yaml-static-context-gate-self-test.sh
+run_step "YAML static context normalizer self-test" bash scripts/build/normalize-yaml-static-context-self-test.sh
+run_step "YAML static context drift" bash scripts/build/yaml-static-context.sh check

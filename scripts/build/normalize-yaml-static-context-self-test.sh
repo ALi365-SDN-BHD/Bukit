@@ -15,11 +15,14 @@ write_fixture() {
 ﻿namespace Bukit.Theme;
 internal sealed class Fixture
 {
-    private readonly object accessor_${first_guid} = new();
-    private readonly object other_${second_guid} = new();
-    public object Get() => accessor_${first_guid};
+    private readonly accessor_${first_guid} accessor = new();
+    private readonly other_${second_guid} other = new();
+    public object Get() => accessor;
 }
+class accessor_${first_guid} : YamlDotNet.Serialization.IObjectAccessor { }
+class other_${second_guid} : YamlDotNet.Serialization.IObjectAccessor { }
 EOF
+  printf '// upstream trailing whitespace  \n' >>"$output"
 }
 
 write_fixture "$tmp_dir/first.g.cs" \
@@ -42,6 +45,56 @@ if grep -Eq '[A-Za-z_][A-Za-z0-9_]*_(11111111111111111111111111111111|2222222222
   echo "normalize-yaml-static-context self-test: random suffix remained" >&2
   exit 1
 fi
+if grep -Eq '[[:blank:]]$' "$tmp_dir/first.normalized.cs"; then
+  echo "normalize-yaml-static-context self-test: trailing whitespace remained" >&2
+  exit 1
+fi
+
+python3 "$normalizer" "$tmp_dir/first.normalized.cs" "$tmp_dir/idempotent.normalized.cs"
+cmp "$tmp_dir/first.normalized.cs" "$tmp_dir/idempotent.normalized.cs"
+
+python3 - "$normalizer" "$tmp_dir" <<'PY'
+import importlib.util
+from pathlib import Path
+import sys
+
+normalizer_path = Path(sys.argv[1])
+tmp_dir = Path(sys.argv[2])
+spec = importlib.util.spec_from_file_location("bukit_yaml_normalizer", normalizer_path)
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+
+valid = tmp_dir / "valid.props"
+valid.write_text(
+    '<Project><ItemGroup><PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" '
+    'Version="99.1.2" /></ItemGroup></Project>',
+    encoding="utf-8",
+)
+assert module.read_generator_version(valid) == "99.1.2"
+
+for name, contents in {
+    "missing.props": "<Project><ItemGroup /></Project>",
+    "duplicate.props": (
+        '<Project><ItemGroup>'
+        '<PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="1.0.0" />'
+        '<PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="2.0.0" />'
+        '</ItemGroup></Project>'
+    ),
+    "empty.props": (
+        '<Project><ItemGroup>'
+        '<PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="" />'
+        '</ItemGroup></Project>'
+    ),
+}.items():
+    path = tmp_dir / name
+    path.write_text(contents, encoding="utf-8")
+    try:
+        module.read_generator_version(path)
+    except module.NormalizationError:
+        continue
+    raise AssertionError(f"invalid central version input succeeded: {name}")
+PY
 
 cat >"$tmp_dir/no-match.g.cs" <<'EOF'
 namespace Bukit.Theme;
@@ -60,12 +113,29 @@ cat >"$tmp_dir/ambiguous.g.cs" <<'EOF'
 namespace Bukit.Theme;
 internal sealed class Ambiguous
 {
-    private object accessor_11111111111111111111111111111111 = new();
-    private object accessor_22222222222222222222222222222222 = new();
+    private accessor_11111111111111111111111111111111 first = new();
+    private accessor_22222222222222222222222222222222 second = new();
 }
+class accessor_11111111111111111111111111111111 : YamlDotNet.Serialization.IObjectAccessor { }
+class accessor_22222222222222222222222222222222 : YamlDotNet.Serialization.IObjectAccessor { }
 EOF
 if python3 "$normalizer" "$tmp_dir/ambiguous.g.cs" "$tmp_dir/ambiguous.normalized.cs"; then
   echo "normalize-yaml-static-context self-test: ambiguous base-to-GUID mapping succeeded" >&2
+  exit 1
+fi
+
+
+cat >"$tmp_dir/unknown.g.cs" <<'EOF'
+namespace Bukit.Theme;
+class accessor_11111111111111111111111111111111 : YamlDotNet.Serialization.IObjectAccessor { }
+class unrelated_22222222222222222222222222222222 { }
+EOF
+if python3 "$normalizer" "$tmp_dir/unknown.g.cs" "$tmp_dir/unknown.normalized.cs"; then
+  echo "normalize-yaml-static-context self-test: unknown GUID-suffixed identifier succeeded" >&2
+  exit 1
+fi
+if [[ -e "$tmp_dir/unknown.normalized.cs" ]]; then
+  echo "normalize-yaml-static-context self-test: unknown identifier left an output file" >&2
   exit 1
 fi
 if [[ -e "$tmp_dir/ambiguous.normalized.cs" ]]; then

@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <BukitGenerateYamlStaticContext Condition="'$(BukitGenerateYamlStaticContext)' == ''">false</BukitGenerateYamlStaticContext>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,7 +15,11 @@
 
   <ItemGroup>
     <PackageReference Include="YamlDotNet" />
-    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BukitGenerateYamlStaticContext)' == 'true'">
+    <Compile Remove="ThemeManifestYamlStaticContext.Generated.cs" />
+    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
