@@ -5,6 +5,7 @@ public sealed class LocalizedContentBodyStore : IContentBodyStore, IAsyncDisposa
 {
     private readonly IContentBodyStore _inner;
     private readonly ContentImageRewritePipeline _pipeline;
+    private readonly Lazy<SemaphoreSlim> _downloadGate;
     private IDisposable? _ownedLocalizer;
     private int _disposeState;
 
@@ -20,13 +21,14 @@ public sealed class LocalizedContentBodyStore : IContentBodyStore, IAsyncDisposa
     {
         _inner = inner;
         _pipeline = pipeline;
+        _downloadGate = new Lazy<SemaphoreSlim>(() => _pipeline.CreateDownloadGate());
         _ownedLocalizer = ownedLocalizer;
     }
 
     public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         var body = await _inner.GetAsync(document, cancellationToken);
-        var html = await _pipeline.RewriteBodyHtmlAsync(body.Html, cancellationToken) ?? string.Empty;
+        var html = await _pipeline.RewriteBodyHtmlAsync(body.Html, _downloadGate.Value, cancellationToken) ?? string.Empty;
         return body with { Html = html };
     }
 

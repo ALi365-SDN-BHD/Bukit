@@ -67,8 +67,21 @@ public sealed class ContentImageRewritePipeline
 
     public async Task<string?> RewriteBodyHtmlAsync(string? html, CancellationToken cancellationToken)
     {
+        using var downloadGate = CreateDownloadGate();
+        return await RewriteBodyHtmlAsync(html, downloadGate, cancellationToken);
+    }
+
+    internal SemaphoreSlim CreateDownloadGate()
+    {
         var concurrency = _config.MaxConcurrency is > 0 ? _config.MaxConcurrency.Value : 4;
-        using var downloadGate = new SemaphoreSlim(concurrency, concurrency);
+        return new SemaphoreSlim(concurrency, concurrency);
+    }
+
+    internal async Task<string?> RewriteBodyHtmlAsync(
+        string? html,
+        SemaphoreSlim downloadGate,
+        CancellationToken cancellationToken)
+    {
         return await RewriteHtmlAsync(
             html,
             new Dictionary<string, string>(StringComparer.Ordinal),
