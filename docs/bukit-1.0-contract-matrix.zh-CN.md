@@ -95,6 +95,21 @@
 | 确定性构建（clean twice） | `GA-locked` | 冻结 | N/A | `bash scripts/build/build-repro.sh <version> <rid> Release` |
 | Clean vs incremental 一致性 | `GA-locked` | 冻结 | N/A | CI 验证 |
 
+### 2026-07-19 安全与可靠性行为补充
+
+以下为既有 1.0 契约的正确性修复，不改变配置 schema、插件协议、公开 report schema 或持久化格式。
+
+| Finding | 冻结行为 | 明确边界 | 测试要求 |
+|---|---|---|---|
+| F-01 | 所有 output cleanup 入口共用危险路径与 marker guard | marker 不能绕过 root/home/`.git`/项目外/reparse 检查 | CleanCommand + security regression |
+| F-02 | Core 默认 search UI 只把 title/snippet 作为文本写入 DOM | 不覆盖自定义主题、脚本或第三方插件 UI | SearchIndexPluginExtendedTests |
+| F-03 | asset/render destination 在业务写入前唯一归属；冲突返回 BKT-0604 | after-build 第三方插件输出未纳入全局 ownership | AssetPipeline/manifest/integration tests |
+| F-04 | 默认 content/static/media/report walker 不下降进入 directory symlink/reparse point | 显式 follow 只限受控 copy path | 各模块 symlink tests + security regression |
+| F-05 | 下一次同进程调用读取当前 template manifest/root/include/layout 内容 | 不承诺所有 cache 被移除或 watcher 瞬时送达 | Resolver/static-analysis/same-engine tests |
+| F-06 | search cap 传播到 single/list/plugin/publish/i18n，且只截断 content | UTF-16 code units，不承诺 grapheme cluster | Search/config/i18n tests |
+| F-07 | media cap 限制 operation/store 范围内实际 localizer 调用 | 不是 process-wide 网络总预算 | Content media concurrency tests |
+| F-08 | build-report v1 使用本次 build diagnostics 与最终 public inventory | 与 SEO/publish/security issue count 分离 | BuildReporter/integration tests |
+
 ### 其他能力
 
 | 能力 | 1.0 等级 | 允许配置 | 拒绝行为 | 测试要求 |
@@ -113,7 +128,7 @@
 | BKT-030x | Render | 已分配 0301-0399 |
 | BKT-040x | Schema | 已分配 0401-0402 |
 | BKT-050x | Content | 已分配 0501-0503 |
-| BKT-060x | Build | 已分配 0601-0603 |
+| BKT-060x | Build | 已分配 0601-0604；0604 为 asset/render output collision |
 | BKT-070x | Plugin | 已分配 0701-0707 |
 | BKT-080x | SEO/GEO | 已分配 0801-0812 |
 | BKT-090x | Media | 已分配 0901-0904 |

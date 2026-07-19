@@ -25,4 +25,17 @@ sections, components, assets, tokens, and `extends`.
 
 `AssetPipeline` copies static and asset files, processes SCSS when configured,
 generates image variants when configured, honors `build.publishDotFiles`, and
-can follow symlinks only when `build.followSymlinks` allows it.
+can follow symlinks only in supported copy paths when `build.followSymlinks`
+allows it. Other default recursive scanners continue to skip directory symlinks
+and reparse points.
+
+Before render/copy writes, `AssetOutputPlan` combines static, assets, media,
+generated tokens, and render destinations. Parent and site files retain
+same-category override order; cross-category and file/descendant conflicts fail
+instead of relying on copy timing. Third-party after-build plugin outputs are
+outside this plan.
+
+The resolved layouts directory may contain `bukit.templates.yaml`. Capability
+manifests are cached by current content fingerprint, and static root/include/
+layout analysis is scoped to one decision call. A subsequent build observes a
+changed, created, deleted, or corrected manifest/template input.

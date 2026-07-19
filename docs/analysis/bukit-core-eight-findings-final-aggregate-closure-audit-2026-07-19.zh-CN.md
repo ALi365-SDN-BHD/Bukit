@@ -5,6 +5,7 @@
 > 八项 residual 关闭点：`b87a332c`
 > 最终验证点：`main@5808d9a6`，与 `origin/main` 一致
 > 技术状态：**F-01～F-08 全部关闭（8/8）**；历史执行与证据留存偏差见 3.1 节
+> 文档覆盖：见[八项修复文档覆盖矩阵](bukit-core-eight-findings-documentation-coverage-2026-07-19.zh-CN.md)
 
 ## 1. 执行结论
 

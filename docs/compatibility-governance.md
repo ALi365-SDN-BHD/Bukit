@@ -27,6 +27,27 @@ Every compatibility item should use one of the statuses below.
 | `supported-by-policy` | Not a compatibility layer; this is a current platform/product boundary that must be documented clearly. |
 | `deprecated-behavior` | Legacy behavior still exists, but it is not a formal compatibility promise and should be narrowed or removed. |
 
+## Correctness And Safety Tightening (2026-07-19)
+
+The following fixes enforce existing 1.0 intent. They do not add compatibility
+aliases, schema versions, plugin protocol fields, or persistence migrations.
+
+| Finding | Observable change | Compatibility classification |
+|---|---|---|
+| F-01 | Dangerous, outside-root, symlinked, `.git`, and non-empty unmarked clean targets are refused consistently. | Intentional security tightening; previously unsafe deletion is not preserved. |
+| F-02 | HTML embedded in default search title/snippet data is displayed as text. | Security fix; generated DOM construction is not a public ABI. |
+| F-03 | Cross-category and structural output collisions fail deterministically before publication writes. | Correctness tightening; previous timing-dependent overwrite is not supported compatibility. |
+| F-04 | Default publication walkers consistently skip directory symlinks/reparse points. | Enforcement of existing `followSymlinks: false` policy; no new global follow behavior. |
+| F-05 | Same-process template decisions observe current manifest/root/include/layout content. | Cache correctness fix; manifest shape and public capability model are unchanged. |
+| F-06 | Existing `site.search.maxContentLength` now applies to every Core search representation. | Existing field semantics enforced; default `8000` and schema minimum `1` are unchanged. |
+| F-07 | Existing `content.media.maxConcurrency` now limits active localization downloads in its operation/store scope. | Existing field semantics enforced; default and YAML shape are unchanged. |
+| F-08 | Existing build-report fields contain current diagnostic counts and public output inventory. | Value correctness fix; frozen `build-report.v1` shape is unchanged. |
+
+These tightenings are patch-compatible bug fixes. A site that depended on
+dangerous deletion, non-deterministic output overwrites, followed directory
+links under the default false policy, stale template decisions, or ignored
+configuration was depending on behavior outside the documented contract.
+
 ## Governance Table
 
 | ID | Compatibility Item | Current Status | Code Location | Risk | Recommended Action | Target Version | Suggested Owner |

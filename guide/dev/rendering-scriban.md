@@ -28,7 +28,10 @@ models produced by older callers.
 
 `ThemeTemplateResolver` resolves content templates from configured routes and
 theme manifest entries. `TemplateCapabilitiesResolver` reads template capability
-metadata such as search snippet support and list page content requirements.
+metadata from `bukit.templates.yaml`, such as search snippet support and list
+page content requirements. The resolver fingerprints current manifest text;
+static root/include/layout analysis is local to the current call. Returned
+capability field collections are snapshots rather than mutable cache entries.
 
 ## Rendering Flow
 

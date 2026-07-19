@@ -171,6 +171,7 @@ For CI deployment, create a site-specific GitHub Pages workflow. The example at 
 | Archived historical docs | [`guide/archive`](guide/archive/README.md) |
 | CLI reference | [`guide/user/12-cli-reference.md`](guide/user/12-cli-reference.md) |
 | Config reference | [`guide/user/04-site-yaml-config.md`](guide/user/04-site-yaml-config.md) |
+| Core safety and reliability | [`guide/user/20-core-safety-reliability.md`](guide/user/20-core-safety-reliability.md) |
 | GitHub Pages deployment | [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.md) |
 
 If a guide describes clone, import, intent, webhook, remote theme source, theme registry, or external plugin marketplace behavior, treat it as Labs, preview, or historical material unless it is explicitly promoted into the Core command whitelist.

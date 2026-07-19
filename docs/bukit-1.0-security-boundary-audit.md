@@ -1,5 +1,17 @@
 # Bukit 1.0 安全边界审计（Spark 检查结果）
 
+> 2026-07-19 状态补充：本文原始 Spark 观察保留为历史基线。F-01、F-02、F-04 的当前结论以下述补充和[八项最终关闭台账](analysis/bukit-core-eight-findings-final-aggregate-closure-audit-2026-07-19.zh-CN.md)为准。
+
+## 2026-07-19 Core 安全补充
+
+| 边界 | 当前实现 | 明确排除 |
+|---|---|---|
+| 输出清理 | `CleanCommand`、`BuildPlanner` 和 recovery 共用 `OutputDirectoryCleaner`；拒绝 root/home/project root、项目外、任意 `.git` segment、reparse path 和无 marker 非空目录 | 不承诺对恶意本地 symlink-swap/TOCTOU 的 handle-level 原子防护 |
+| 默认 search UI | title/snippet 只通过 text node、`textContent` 和 `<mark>` 构造；placeholder 在 HTML 边界编码 | 不代表任意主题、自定义脚本或第三方插件输出已被 sanitizer 处理 |
+| 默认递归枚举 | content/static/media/report 及相关发布链默认在下降目录前跳过 symlink/junction/reparse point | `build.followSymlinks=true` 只属于已有受控 copy path；不是全局 walker 开关 |
+
+上述行为由安全回归和各模块定向测试约束；没有修改配置 schema 或插件协议。
+
 ## 范围
 
 本次审计覆盖执行路径：`route` / `theme` / `plugin` / `media` / `output` / `外部输入/URL`，并确认当前实现是否在 GA-locked 失效路径上具备可追踪诊断码与拒绝行为。

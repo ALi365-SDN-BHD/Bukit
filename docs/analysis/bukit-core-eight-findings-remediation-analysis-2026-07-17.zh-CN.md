@@ -7,6 +7,8 @@
 > 来源：[Bukit Core 全面审计](./bukit-core-comprehensive-audit-2026-07-15.zh-CN.md)
 >
 > 状态：修复前设计与验收基线；本文未修改任何 Core 代码，也不表示问题已经关闭。
+>
+> 实施结果（2026-07-19）：方案已完成技术关闭；最终状态、过程偏差与验证证据见[八项最终关闭台账](bukit-core-eight-findings-final-aggregate-closure-audit-2026-07-19.zh-CN.md)。
 
 ## 1. 任务边界与结论
 

@@ -19,6 +19,17 @@ Additional aggregate writers such as sitemap, feed, search, and llms output are
 implemented as built-in plugin classes and projection writers, but the current
 registry determines which plugins run through `PluginRunner`.
 
+## Search Output Safety
+
+The default search UI treats indexed title/snippet values as untrusted text.
+Dynamic results use text nodes, `textContent`, and explicit `<mark>` elements;
+configured placeholder text is HTML-encoded. Do not reintroduce an HTML parsing
+sink for content-derived values.
+
+`site.search.maxContentLength` is passed to document/list records, the built-in
+search plugin, publish projections, and multilingual merged output. It caps only
+the `content` value and does not cap title, summary, or generated snippet.
+
 ## Control
 
 `site.plugins.<name>.enabled: false` disables a built-in plugin by name.

@@ -171,6 +171,7 @@ CI 部署应使用站点自己的 GitHub Pages workflow。[`examples/github-page
 | 历史归档文档 | [`guide/archive`](guide/archive/README.md) |
 | CLI 参考 | [`guide/user/12-cli-reference.md`](guide/user/12-cli-reference.md) |
 | 配置参考 | [`guide/user/04-site-yaml-config.md`](guide/user/04-site-yaml-config.md) |
+| Core 安全与可靠性 | [`guide/user/20-core-safety-reliability.md`](guide/user/20-core-safety-reliability.md) |
 | GitHub Pages 部署 | [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.md) |
 
 如果某份指南描述 clone、import、intent、webhook、远程主题源、主题注册表或外部插件市场行为，除非它被明确提升进 Core 命令白名单，否则应视为 Labs、preview 或历史材料。

@@ -16,6 +16,25 @@ Kami akan mengakui laporan anda dalam masa 7 hari dan bertujuan untuk menyediaka
 
 ## Pertimbangan Keselamatan
 
+### Sempadan Kandungan Dan Output Core
+
+Tingkah laku keselamatan Core semasa termasuk:
+
+- pembersihan output melalui konfigurasi atau arahan eksplisit berkongsi satu
+  cleaner terkawal; root projek, home, root filesystem, `.git`, path di luar
+  projek, sasaran symlink/reparse, dan direktori bukan kosong tanpa marker akan
+  ditolak;
+- UI carian lalai menganggap title dan snippet kandungan sebagai teks dan tidak
+  menghantarnya ke sink yang mentafsir HTML;
+- laluan rekursif lalai untuk content, static, media, dan inventori report tidak
+  menuruni symlink direktori atau reparse point.
+
+Jaminan ini tidak membersihkan tema sewenang-wenangnya, skrip tersuai, atau
+output plugin pihak ketiga. `build.followSymlinks: true` kekal terhad kepada
+copy path yang disokong. Lihat
+[Keselamatan Dan Kebolehpercayaan Core](guide/user/20-core-safety-reliability.md)
+untuk tingkah laku dan pengecualian penuh.
+
 ### Sempadan Core dan Labs
 
 Bukit Core tidak mendedahkan API hook dalam proses sebagai sempadan sambungan stabil. Semakan keselamatan untuk tingkah laku sambungan harus bermula daripada laluan plugin proses luaran: `Bukit.PluginHost`, `Bukit.Plugin.Abstractions`, konfigurasi plugin projek, dan pakej plugin `plugin.yaml`.

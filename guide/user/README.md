@@ -27,6 +27,7 @@ quality audits, and GitHub Pages deployment.
 | Prepare AI-readable outputs | [17 GEO](17-geo.md) |
 | Migrate list routes | [18 Static List Routes Migration](18-static-list-routes-migration.md) |
 | Configure privacy-safe analytics providers | [19 Analytics](19-analytics.md) |
+| Understand Core safety and reliability guarantees | [20 Core Safety And Reliability](20-core-safety-reliability.md) |
 
 ## Stable Core Commands
 

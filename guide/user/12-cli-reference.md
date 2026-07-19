@@ -28,7 +28,10 @@ This table is derived from `BukitCliSpecs.cs`.
 
 `bukit clean --dir <path>` only removes an empty directory or a Bukit output
 directory containing `.bukit-output-marker`. It refuses the project root,
-`.git`, paths outside the current directory, and non-empty unmarked directories.
+user home, filesystem root, `.git` or a `.git` descendant, paths outside the
+current project, targets reached through symlink/reparse-point segments, and
+non-empty unmarked directories. A refusal returns exit code 2 and preserves the
+target. Config-based clean and build recovery use the same cleaner.
 
 ## Common Examples
 

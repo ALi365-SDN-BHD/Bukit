@@ -16,6 +16,16 @@
 
 ## 安全注意事项
 
+### Core 内容与输出边界
+
+当前 Core 安全行为包括：
+
+- 配置式和显式输出清理共用一个受保护 cleaner；项目根、home、文件系统根、`.git`、项目外路径、symlink/reparse target 以及无 marker 的非空目录都会被拒绝；
+- 默认生成的搜索 UI 把内容 title 和 snippet 当作文本，不让它们进入 HTML 解释型 sink；
+- 默认递归的 content、static、media 和 report inventory 路径不会下降进入目录 symlink 或 reparse point。
+
+这些保证不负责清洗任意主题、自定义脚本或第三方插件输出；`build.followSymlinks: true` 仍只适用于受支持的 copy path。完整行为与排除项见 [Core 安全与可靠性](guide/user/20-core-safety-reliability.md)。
+
 ### Core 与 Labs 边界
 
 Bukit Core 不把进程内 hook API 作为稳定扩展边界。扩展行为的安全评审应从外部进程插件路径开始：`Bukit.PluginHost`、`Bukit.Plugin.Abstractions`、项目插件配置以及插件包 `plugin.yaml`。

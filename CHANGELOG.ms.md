@@ -4,6 +4,17 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+### Keselamatan Dan Kebolehpercayaan
+
+- **Pembersihan output selamat (F-01)**: Clean eksplisit/konfigurasi, pembersihan build, dan recovery berkongsi cleaner terkawal. Root berbahaya, descendant `.git`, sasaran di luar projek atau symlink/reparse, dan direktori bukan kosong tanpa marker ditolak.
+- **Keselamatan DOM UI carian lalai (F-02)**: Title/snippet kandungan dirender dengan text node dan elemen `<mark>`, bukan sink yang mentafsir HTML; placeholder dikodkan.
+- **Pemilikan output deterministik (F-03)**: Destinasi static, assets, media, generated tokens, dan render dipra-semak sebelum penulisan penerbitan. Konflik silang kategori, struktur, dan variasi huruf pada volume case-insensitive gagal dengan `BuildAssetOutputCollision`.
+- **Penemuan rekursif selamat (F-04)**: Laluan lalai content, static, media, hash, dan inventori report melangkau symlink direktori/reparse point. Follow eksplisit kekal terhad kepada copy path yang disokong.
+- **Keputusan templat semasa (F-05)**: Manifest capability menggunakan fingerprint kandungan, analisis dependensi diasingkan per panggilan, dan rebuild proses sama melihat perubahan manifest/root/include/layout tanpa kebocoran hasil cache boleh ubah.
+- **Penguatkuasaan had content carian (F-06)**: `site.search.maxContentLength` sedia ada kini digunakan pada `content` carian document, list, plugin, publish projection, dan berbilang bahasa; default dan bentuk schema tidak berubah.
+- **Konkurens media pada tahap muat turun (F-07)**: `content.media.maxConcurrency` sedia ada kini mengehadkan muat turun localization aktif dalam skop rewrite operation dan localized body store.
+- **Build health tepat (F-08)**: Medan `build-report.v1` sedia ada kini mengandungi kiraan diagnostik build semasa dan inventori public `generatedFiles` yang stabil; bentuk schema beku tidak berubah.
+
 ### Changed
 - **SiteEngine direfaktor**: 856 → 592 baris orkestrator dengan 8 kelas pipeline bebas (`BuildPipeline`, `ContentPipeline`, `RoutePipeline`, `RenderPipeline`, `AssetPipeline`, `SeoPipeline`, `PluginPipeline`, `BuildReportPipeline`), serta `ThemeBootstrapper`, `BuildOptionsMapper`, `FixedContentProviderFactory`. Dua laluan `BuildAsync` disatukan menjadi rantaian pipeline tunggal. Semua helper ujian refleksi dihapuskan (sifar `BindingFlags`). Ujian regresi prestasi ditambah.
 

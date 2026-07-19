@@ -51,6 +51,17 @@ Body stores avoid rendering every body up front. Markdown uses
 media through `ImageAssetLocalizer`, applies SSRF protections, and writes an
 index through `MediaIndexManager`.
 
+Each rewrite operation creates a download-level gate shared by documents, HTML,
+and media fields. `LocalizedContentBodyStore` uses one lazy store-level gate for
+concurrent reads. `content.media.maxConcurrency` therefore limits active
+localizer calls in those scopes; it is not the document-transform count or a
+process-wide network budget. Cancellation and failure paths release only permits
+that were acquired.
+
+Default recursive Markdown and media-cache enumeration does not descend through
+directory symlinks or reparse points. This is independent from supported copy
+paths that explicitly implement `build.followSymlinks=true`.
+
 ## Schema
 
 `content.modelSchema` can require canonical fields, custom fields, entity

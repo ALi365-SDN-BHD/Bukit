@@ -16,6 +16,24 @@ We will acknowledge your report within 7 days and aim to provide a fix within 30
 
 ## Security Considerations
 
+### Core Content And Output Boundaries
+
+Current Core safety behavior includes:
+
+- configured and explicit output cleanup share one guarded cleaner; project,
+  home, filesystem root, `.git`, outside-root, symlink/reparse targets, and
+  non-empty unmarked directories are refused;
+- the default generated search UI treats content titles and snippets as text
+  and does not pass them through an HTML interpretation sink;
+- default recursive content, static, media, and report inventory paths do not
+  descend through directory symlinks or reparse points.
+
+These guarantees do not sanitize arbitrary themes, custom scripts, or
+third-party plugin output, and `build.followSymlinks: true` remains limited to
+supported copy paths. See
+[Core Safety And Reliability](guide/user/20-core-safety-reliability.md) for the
+full behavior and exclusions.
+
 ### Core and Labs Boundary
 
 Bukit Core does not expose an in-process hook API as the stable extension

@@ -32,3 +32,11 @@ does not follow symbolic links and excludes `.bukit/` report directories at any
 level, `.bukit-build-state.json`, and `.bukit-output-marker`. Internal report
 integrity remains owned by `.bukit/artifact-manifest.json`; internal reports
 and marker files are not duplicated into `generatedFiles`.
+
+The count snapshot is taken before build-report writing. Diagnostics produced
+by report writing itself are not retroactively included. A cancelled or failed
+build is not guaranteed to leave a complete report.
+
+See [Core Safety And Reliability Invariants](core-safety-reliability-invariants.md)
+for the logger, inventory, symlink, and schema boundaries that maintainers must
+preserve.

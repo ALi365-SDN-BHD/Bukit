@@ -31,14 +31,27 @@ Variant stages:
 3. Generate content and list routes.
 4. Inject taxonomy terms.
 5. Run derive-page plugins.
-6. Build SEO models.
-7. Render pages and list routes.
-8. Sync assets and static files.
-9. Run after-build plugins.
-10. Write projections and reports.
+6. Collect render entries and preflight aggregate output ownership.
+7. Build SEO models.
+8. Render pages, list routes, and static templates.
+9. Sync assets, static files, media, and generated theme tokens.
+10. Run after-build plugins.
+11. Write projections and reports.
+
+The output preflight uses `AssetOutputPlan` before publication writes. It checks
+render/static/assets/media/token claims for exact and structural conflicts under
+the destination filesystem's actual case semantics. The same destination
+comparer is passed into incremental manifest tracking.
+
+Default recursive publication discovery uses `SafeFileEnumerator`, which skips
+directory symlinks and reparse points. Explicit symlink following remains a
+separate capability of supported copy paths.
 
 ## Boundary Rule
 
 Core extension points inside `Bukit.Engine.Abstractions` are not the same as
 the external process plugin protocol. Documentation must name those paths
 separately.
+
+See [Core Safety And Reliability Invariants](core-safety-reliability-invariants.md)
+for cleanup, DOM, ownership, symlink, cache, concurrency, and report boundaries.

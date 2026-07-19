@@ -43,3 +43,4 @@ not a historical plan and not a Labs guide.
 | Documentation governance | [documentation-governance.md](documentation-governance.md) |
 | Agent workflow | [agent-task-workflow.md](agent-task-workflow.md) |
 | Public preview boundary | [public-preview-scope.md](public-preview-scope.md) |
+| Core safety and reliability invariants | [core-safety-reliability-invariants.md](core-safety-reliability-invariants.md) |

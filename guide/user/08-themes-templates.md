@@ -88,3 +88,31 @@ The base layout renders child content with `{{ content }}`.
 Managed-tag scanning is limited to the standard head. An SVG `<title>` in the
 body is not removed. If rendered HTML has no complete standard head, Core does
 not synthesize one; diagnostics and the final audit report the gap.
+
+## Live Reload And Capability Decisions
+
+An optional `bukit.templates.yaml` in the resolved layouts directory declares
+per-template capabilities:
+
+```yaml
+templates:
+  pages/list.html:
+    capabilities:
+      needs_page_content: true
+      supports_pagination: true
+      supports_taxonomy: true
+      supports_search_snippets: true
+      fields:
+        - key: summary
+          type: string
+          label: Summary
+```
+
+Each declared template must exist under layouts and declare at least one
+capability. Template paths must remain relative to that directory.
+
+Manifest parsing and static template dependency analysis are content-sensitive.
+A subsequent resolver/build call in the same process observes manifest
+appearance, deletion or correction, plus changes to root templates, includes,
+and layout directive targets. This is a next-call correctness guarantee, not a
+promise of instantaneous watcher delivery or removal of every render cache.

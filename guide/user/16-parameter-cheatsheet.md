@@ -125,6 +125,17 @@
 | `deploy.message` | `bukit deploy` |
 | `deploy.keepHistory` | `false` |
 
+Safety semantics that do not fit in the default-value table:
+
+- `site.search.maxContentLength` is a positive UTF-16 code-unit cap for search
+  `content`, not title, summary, or generated snippet.
+- `content.media.maxConcurrency` limits active downloads within one rewrite
+  operation; it is separate from render jobs.
+- `build.followSymlinks` is limited to supported copy paths. Default recursive
+  content, static, media, and report scans skip directory symlinks.
+- `clean --dir` requires a safe project subdirectory and, when non-empty, a
+  `.bukit-output-marker`.
+
 ## Allowed Values
 
 | Field | Values |

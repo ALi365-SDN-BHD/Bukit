@@ -75,7 +75,7 @@ content:
 | `site.search.ui` | `default` | Search UI identifier. |
 | `site.search.uiTheme` | `light` | `light`, `dark`, or `auto`. |
 | `site.search.placeholderText` | none | Search input placeholder. |
-| `site.search.maxContentLength` | `8000` | Positive content length cap for search records. |
+| `site.search.maxContentLength` | `8000` | Positive UTF-16 code-unit cap for the `content` field in document, list, plugin, publish-projection, and all multilingual modes: root merged records and each language's split/index `search.json`. Title, summary, and generated snippet are not capped. |
 | `site.search.route` | none | Optional final HTML route that explicitly declares the site's search experience, for example `/search/`. |
 | `site.related.enabled` | `false` | Enables related-content data. |
 | `site.related.threshold` | `80` | Match threshold. |
@@ -283,7 +283,7 @@ other than HTTP(S) or root-relative paths fail the build.
 | `content.media.urlBase` | `/assets/uploads` | Public URL base for localized media. |
 | `content.media.defaultImageUrl` | `/assets/images/noneimg-news.jpg` | Fallback image URL. |
 | `content.media.fieldKeys` | `cover`, `image`, `thumbnail`, `og_image`, `seo_image`, `icon` | Fields scanned for media URLs. |
-| `content.media.maxConcurrency` | `4` | Positive concurrency when set. |
+| `content.media.maxConcurrency` | `4` | Positive maximum for active localization downloads. Each rewrite operation has its own gate shared across documents, HTML, and media fields; each localized body store has a separate gate shared across its concurrent reads. It is not a process-wide network limit. |
 | `content.media.maxRetries` | `3` | Non-negative retry count. |
 | `content.media.timeoutMs` | `10000` | Positive timeout. |
 | `content.media.maxFileSizeBytes` | `52428800` | Positive maximum file size. |
@@ -360,7 +360,7 @@ author.
 | `build.report.securityFailMode` | `auto` | `auto`, `off`, `warn`, or `strict`. |
 | `build.fingerprintMode` | `size-time` | `size-time` or `sha256`. |
 | `build.publishDotFiles` | `false` | Allows dotfiles in copied output. |
-| `build.followSymlinks` | `false` | Allows symlink traversal in supported copy paths. |
+| `build.followSymlinks` | `false` | Allows symlink traversal only in supported copy paths with real-path checks. Default recursive content/static/media/report discovery still skips directory symlinks and reparse points. |
 | `build.languageJobs` | `1` | Positive language build concurrency. |
 
 ## Theme Fields

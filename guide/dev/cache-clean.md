@@ -5,16 +5,20 @@
 
 ## Safety Rules
 
-`BuildPlanner` refuses to clean:
+`OutputDirectoryCleaner` is shared by `CleanCommand`, `BuildPlanner`, and build
+recovery. It refuses to clean:
 
 - The site root.
 - The user home directory.
 - Filesystem root.
-- `.git`.
+- Paths outside the site root.
+- `.git` or any descendant containing a `.git` segment.
+- Targets reached through a symlink/reparse-point segment below the site root.
 - Non-empty output directories without `.bukit-output-marker`.
 
-`CleanCommand` requires explicit directories to remain inside the current
-directory when no config is provided.
+The marker is necessary for a non-empty directory but does not bypass the other
+checks. Rejected clean requests preserve the target and return the config/setup
+error path rather than continuing with a success message.
 
 ## Recovery
 

@@ -11,7 +11,7 @@ machine-readable projections.
 | `assets/` | Theme assets and localized media. |
 | `content/*.json` and `content/*.md` | Per-document public machine-readable projections. |
 | `agent-manifest.json` | Public representation inventory for agents and compatible plugins. |
-| `.bukit/build-report.json` | Build summary, timings, render counts, routes, plugin executions. |
+| `.bukit/build-report.json` | Build summary, timings, render counts, diagnostic counts, and public output inventory. |
 | `.bukit/routes.json` | Route inventory. |
 | `.bukit/seo-report.json` | SEO quality data consumed by `seo audit`. |
 | `.bukit/publish-audit-report.json` | Publish-readiness data consumed by `publish audit`. |
@@ -31,6 +31,14 @@ This rule also applies to merged multilingual feeds.
 fragment. They do not create a formal HTML route and do not enable WebSite
 SearchAction structured data. A site that wants SearchAction must provide a
 complete final HTML search route and declare it with `site.search.route`.
+
+The default search UI inserts content titles and snippets with text nodes and
+uses `<mark>` elements for matches. It does not interpret content fields as
+HTML. `site.search.maxContentLength` applies consistently to the `content`
+field of document, list, plugin, and publish-projection records in every search
+mode; it does not truncate titles, summaries, or generated snippets. Merged mode
+caps the root merged records, while split and index modes cap the records in
+each language's `search.json`.
 
 The publish audit semantic outline and heading checks use the primary content
 scope: the first `article` with a visible, non-empty H1 in the first `main`,
@@ -54,6 +62,12 @@ provider names, source item identifiers, and local build paths so that build,
 SEO, and publish diagnostics remain traceable. Do not upload or serve `.bukit/`
 as website content. `.bukit-build-state.json` and `.bukit-output-marker` are
 internal build files as well.
+
+`build-report.json` reports actual build diagnostic counts. Its
+`generatedFiles` array is the sorted, root-relative public output inventory and
+excludes `.bukit/`, state/marker files, and files reachable only through
+directory symlinks. SEO, publish, and security issue totals remain in their own
+reports and are not copied into build health.
 
 `security-report.json` includes the `publicOutputPrivacy` check when the build
 uses Notion content. The check scans public text output for known Notion

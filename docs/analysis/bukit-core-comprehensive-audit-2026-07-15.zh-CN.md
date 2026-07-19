@@ -9,6 +9,8 @@
 > 明确排除：`guide-0.1/`、`guide-0.2/`、`scripts-0.1/`、`scripts-0.2/`；Labs 与插件内部业务实现不做深审
 >
 > 交付性质：只读审计结论；本任务不修改 Core 代码、公共 API、配置 schema、插件协议或持久化格式
+>
+> 状态更新（2026-07-19）：本文的 F-01～F-08 是修复前快照；当前技术状态以[八项最终关闭台账](bukit-core-eight-findings-final-aggregate-closure-audit-2026-07-19.zh-CN.md)为准，八项均已关闭。
 
 ## 1. 执行摘要
 

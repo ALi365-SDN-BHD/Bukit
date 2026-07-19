@@ -171,6 +171,7 @@ Untuk deploy CI, cipta workflow GitHub Pages khusus untuk laman anda. Contoh di 
 | Dokumen sejarah yang diarkib | [`guide/archive`](guide/archive/README.md) |
 | Rujukan CLI | [`guide/user/12-cli-reference.md`](guide/user/12-cli-reference.md) |
 | Rujukan konfigurasi | [`guide/user/04-site-yaml-config.md`](guide/user/04-site-yaml-config.md) |
+| Keselamatan dan kebolehpercayaan Core | [`guide/user/20-core-safety-reliability.md`](guide/user/20-core-safety-reliability.md) |
 | Deploy GitHub Pages | [`guide/user/13-deploy-github-pages.md`](guide/user/13-deploy-github-pages.md) |
 
 Jika panduan menerangkan clone, import, intent, webhook, sumber tema jauh, pendaftaran tema, atau pasaran plugin luaran, anggap ia sebagai Labs, preview, atau bahan sejarah kecuali ia dinaikkan secara jelas ke dalam senarai putih arahan Core.

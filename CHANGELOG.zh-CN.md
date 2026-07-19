@@ -4,6 +4,17 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+### 安全与可靠性修复
+
+- **安全输出清理（F-01）**：显式/配置式 clean、构建清理和 recovery 共用一个受保护 cleaner；危险 root、`.git` descendant、项目外与 symlink/reparse target、无 marker 非空目录都会被拒绝。
+- **默认搜索 UI DOM 安全（F-02）**：内容 title/snippet 使用 text node 与显式 `<mark>` 渲染，不再进入 HTML 解释型 sink；placeholder 会被编码。
+- **确定性输出所有权（F-03）**：static、assets、media、generated tokens 和 render destination 在发布写入前统一 preflight；跨类别、结构性冲突以及大小写不敏感 volume 上的 case-variant 冲突返回 `BuildAssetOutputCollision`。
+- **安全递归发现（F-04）**：默认 content、static、media、hash 和 report inventory 路径跳过目录 symlink/reparse point；显式 follow 仍只限受支持 copy path。
+- **模板决策刷新（F-05）**：capability manifest 使用内容指纹，静态依赖分析按调用隔离；同进程 rebuild 能观察 manifest/root/include/layout 变化，且可变返回值不会污染缓存。
+- **Search content cap 生效（F-06）**：既有 `site.search.maxContentLength` 对 document、list、plugin、publish projection 和多语言 search `content` 生效；默认值与 schema 形状不变。
+- **下载级媒体并发（F-07）**：既有 `content.media.maxConcurrency` 在 rewrite operation 和 localized body store 范围内限制实际本地化下载。
+- **真实 build health（F-08）**：既有 `build-report.v1` 字段写入本次构建诊断计数和稳定 public `generatedFiles` inventory；冻结 schema 形状不变。
+
 ### 变更
 - **SiteEngine 重构**：856 → 592 行编排器，拆分为 8 个独立 Pipeline 类（`BuildPipeline`、`ContentPipeline`、`RoutePipeline`、`RenderPipeline`、`AssetPipeline`、`SeoPipeline`、`PluginPipeline`、`BuildReportPipeline`），外加 `ThemeBootstrapper`、`BuildOptionsMapper`、`FixedContentProviderFactory`。双 `BuildAsync` 路径统一为单一 pipeline 链。消除所有反射测试 helper（零 `BindingFlags` 残留）。新增性能回归测试。
 

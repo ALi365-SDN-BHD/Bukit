@@ -52,6 +52,17 @@ validator, schema generator, user docs, and tests:
 | Taxonomy | `TaxonomyConfig`, `TaxonomyKindConfig` | Includes output mode, page size, pin fields, per-source pin fields, templates, hierarchy, and route prefix. |
 | Deploy | `DeployConfig`, `ProviderValidators` deploy validation | GitHub Pages only; no deploy option bag surface exists. |
 
+## Reliability-Sensitive Values
+
+| Field | Runtime contract |
+|---|---|
+| `site.search.maxContentLength` | Positive UTF-16 code-unit limit for search `content` across document, list, plugin, publish-projection, and i18n outputs. Default `8000`; schema/runtime minimum `1`. |
+| `content.media.maxConcurrency` | Positive active-download limit within one rewrite operation or localized body store. Default `4`; not a process-global network limit. |
+| `build.followSymlinks` | Applies only to supported copy paths. Default Core recursive publication scanners still skip directory symlinks/reparse points. |
+
+These are existing config fields. The reliability fixes changed their runtime
+enforcement, not their YAML shape or schema identity.
+
 `site.sitemapDetail` is the sitemap detail config object. There is no sitemap
 object nested directly under `site`; collection-level output has its own
 `site.collections.<name>.output.sitemap` flag.

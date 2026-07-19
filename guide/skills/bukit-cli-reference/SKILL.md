@@ -37,3 +37,9 @@ bukit doctor
 bukit build --clean
 bukit publish audit --dir dist
 ```
+
+Clean safety: `bukit clean --dir <path>` removes only an empty safe project
+subdirectory or a non-empty Bukit output containing `.bukit-output-marker`. It
+refuses project/home/filesystem roots, paths outside the project, any `.git`
+segment, symlink/reparse-point targets, and non-empty unmarked directories. A
+refusal returns exit code 2 and must preserve the target.

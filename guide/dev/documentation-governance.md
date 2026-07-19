@@ -35,6 +35,11 @@ The active documentation gate blocks drift in these public surfaces:
 Historical analysis, plans, and backup directories remain reference-only unless
 they are promoted into one of the active surfaces above.
 
+When a dated audit or remediation plan is superseded by verified implementation,
+preserve its historical evidence and add a status banner linking the current
+closure record. Do not rewrite old findings as though they were never present,
+and do not leave a pre-fix document as the only discoverable current status.
+
 ## Script Rule
 
 Scripts must stay small. A gate script composes checks; it does not contain

@@ -48,3 +48,12 @@ Key validation files: `ConfigStrictFieldValidator`, `ConfigValidator`,
 
 Use `bukit config check` for validation and `bukit config schema` to emit the
 current schema.
+
+## Reliability-Sensitive Fields
+
+| Field | Contract |
+|---|---|
+| `site.search.maxContentLength` | Positive UTF-16 code-unit cap for search `content` across document, list, plugin, publish-projection, and multilingual output. It does not cap title, summary, or generated snippet. |
+| `content.media.maxConcurrency` | Positive active-download limit within one rewrite operation or localized body store. It is separate from `--jobs` and not process-global. |
+| `build.followSymlinks` | Enables following only in supported copy paths. Default recursive content/static/media/report scanners still skip directory links and reparse points. |
+| `site.search.placeholderText` | Plain text; the default UI encodes it and does not accept markup. |

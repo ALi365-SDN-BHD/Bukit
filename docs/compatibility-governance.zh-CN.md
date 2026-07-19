@@ -25,6 +25,23 @@
 | `supported-by-policy` | 这不是兼容层，而是当前平台/产品边界，需要文档说清楚。 |
 | `deprecated-behavior` | 旧行为仍存在，但不构成正式用户-facing 兼容承诺，需逐步收窄或移除。 |
 
+## 正确性与安全收紧（2026-07-19）
+
+以下修复落实既有 1.0 意图，不新增兼容 alias、schema 版本、插件协议字段或持久化迁移。
+
+| Finding | 可观察变化 | 兼容性分类 |
+|---|---|---|
+| F-01 | 危险、项目外、symlink、`.git` 和无 marker 非空 clean target 会被一致拒绝。 | 有意安全收紧；不保留旧的不安全删除行为。 |
+| F-02 | 默认 search title/snippet 中的 HTML 会按文本显示。 | 安全修复；生成 DOM 的内部构造方式不是公开 ABI。 |
+| F-03 | 跨类别及 file/descendant 输出冲突会在发布写入前确定失败。 | 正确性收紧；不支持旧的时序依赖覆盖。 |
+| F-04 | 默认发布 walker 一致跳过目录 symlink/reparse point。 | 落实既有 `followSymlinks: false` 策略；不新增全局 follow 能力。 |
+| F-05 | 同进程模板决策读取当前 manifest/root/include/layout 内容。 | 缓存正确性修复；manifest 形状与公开 capability model 不变。 |
+| F-06 | 既有 `site.search.maxContentLength` 对所有 Core search representation 生效。 | 落实既有字段语义；默认 `8000` 与 schema minimum `1` 不变。 |
+| F-07 | 既有 `content.media.maxConcurrency` 在 operation/store 范围限制实际本地化下载。 | 落实既有字段语义；默认值与 YAML 形状不变。 |
+| F-08 | 既有 build-report 字段包含当前诊断计数和 public output inventory。 | 值正确性修复；冻结的 `build-report.v1` 形状不变。 |
+
+这些收紧属于 patch-compatible bug fix。依赖危险删除、非确定性覆盖、默认 false 下跟随目录 link、陈旧模板决策或配置不生效的站点，依赖的是文档契约之外的行为。
+
 ## 兼容性治理表
 
 | ID | 兼容项 | 当前状态 | 代码位置 | 风险 | 建议动作 | 目标版本 | 建议负责人 |

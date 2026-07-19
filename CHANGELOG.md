@@ -2,6 +2,19 @@
 
 All notable changes to Bukit will be documented in this file.
 
+## [Unreleased]
+
+### Security And Reliability
+
+- **Safe output cleanup (F-01)**: Explicit/configured clean, build cleanup, and recovery now share one guarded cleaner. Dangerous roots, `.git` descendants, outside-project and symlink/reparse targets, and non-empty unmarked directories are refused.
+- **Default search UI DOM safety (F-02)**: Content title/snippet values are rendered with text nodes and explicit `<mark>` elements instead of an HTML interpretation sink; placeholder text is encoded.
+- **Deterministic output ownership (F-03)**: Static, assets, media, generated tokens, and render destinations are preflighted before publication writes. Cross-category, structural, and case-variant conflicts on case-insensitive volumes fail with `BuildAssetOutputCollision`.
+- **Safe recursive discovery (F-04)**: Default content, static, media, hash, and report inventory paths skip directory symlinks and reparse points. Explicit following remains limited to supported copy paths.
+- **Fresh template decisions (F-05)**: Capability manifests use content fingerprints, static dependency analysis is call-scoped, and same-process rebuilds observe manifest/root/include/layout changes without mutable cached results leaking to callers.
+- **Search content cap enforcement (F-06)**: Existing `site.search.maxContentLength` now applies to document, list, plugin, publish-projection, and multilingual search `content`; default/schema shape are unchanged.
+- **Download-level media concurrency (F-07)**: Existing `content.media.maxConcurrency` now limits active localization downloads within rewrite-operation and localized-body-store scopes.
+- **Truthful build health (F-08)**: Existing `build-report.v1` fields now contain current build diagnostic counts and a stable public `generatedFiles` inventory; the frozen schema shape is unchanged.
+
 ## [1.0.0] - 2026-06-09
 ### 1.0 Trust Hardening
 - **Config strict mode**: `ConfigRemovedFieldScanner` rejects all pre-1.0 config fields (`content.markdown`, `content.provider`, `site.rssMode`, etc.) with migration hints.
