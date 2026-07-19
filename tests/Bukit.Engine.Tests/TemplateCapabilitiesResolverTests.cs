@@ -74,6 +74,60 @@ public sealed class TemplateCapabilitiesResolverTests : IDisposable
     }
 
     [Fact]
+    public void GetCapabilities_ReturnsIndependentFieldsSnapshotForCachedManifest()
+    {
+        File.WriteAllText(Path.Combine(_layoutsDir, "bukit.templates.yaml"), """
+                                                                        templates:
+                                                                          pages/list.html:
+                                                                            capabilities:
+                                                                              needs_page_content: true
+                                                                              supports_pagination: true
+                                                                              supports_taxonomy: true
+                                                                              supports_search_snippets: false
+                                                                              fields:
+                                                                                - key: hero
+                                                                                  type: text
+                                                                                  label: Hero heading
+                                                                                  suggestion: Welcome
+                                                                        """);
+
+        var first = TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir);
+
+        Assert.NotNull(first);
+        Assert.NotNull(first!.Fields);
+        var firstNeedsPageContent = first.NeedsPageContent;
+        var firstSupportsPagination = first.SupportsPagination;
+        var firstSupportsTaxonomy = first.SupportsTaxonomy;
+        var firstSupportsSearchSnippets = first.SupportsSearchSnippets;
+        Assert.True(firstNeedsPageContent);
+        Assert.True(firstSupportsPagination);
+        Assert.True(firstSupportsTaxonomy);
+        Assert.False(firstSupportsSearchSnippets);
+        var firstField = Assert.Single(first.Fields);
+        Assert.Equal("hero", firstField.Key);
+        Assert.Equal("text", firstField.Type);
+        Assert.Equal("Hero heading", firstField.Label);
+        Assert.Equal("Welcome", firstField.Suggestion);
+        first.Fields!.Clear();
+
+        var second = TemplateCapabilitiesResolver.GetCapabilities("pages/list.html", _layoutsDir);
+
+        Assert.NotNull(second);
+        Assert.NotNull(second!.Fields);
+        Assert.Equal(firstNeedsPageContent, second.NeedsPageContent);
+        Assert.Equal(firstSupportsPagination, second.SupportsPagination);
+        Assert.Equal(firstSupportsTaxonomy, second.SupportsTaxonomy);
+        Assert.Equal(firstSupportsSearchSnippets, second.SupportsSearchSnippets);
+        var secondField = Assert.Single(second.Fields);
+        Assert.Equal(firstField.Key, secondField.Key);
+        Assert.Equal(firstField.Type, secondField.Type);
+        Assert.Equal(firstField.Label, secondField.Label);
+        Assert.Equal(firstField.Suggestion, secondField.Suggestion);
+        Assert.NotSame(first, second);
+        Assert.NotSame(first.Fields, second.Fields);
+    }
+
+    [Fact]
     public void GetCapabilities_ReloadsManifestWhenSameLengthContentChangesWithoutTimestampChange()
     {
         var manifestPath = Path.Combine(_layoutsDir, "bukit.templates.yaml");

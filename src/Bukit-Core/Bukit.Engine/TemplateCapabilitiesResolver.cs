@@ -67,7 +67,7 @@ public static class TemplateCapabilitiesResolver
             return null;
         }
 
-        return template.Capabilities;
+        return SnapshotCapabilities(template.Capabilities);
     }
 
     public static bool SupportsPagination(string templateRelativePath, string layoutsDir)
@@ -78,6 +78,18 @@ public static class TemplateCapabilitiesResolver
 
     public static bool SupportsSearchSnippets(string templateRelativePath, string layoutsDir)
         => GetCapabilities(templateRelativePath, layoutsDir)?.SupportsSearchSnippets == true;
+
+    private static TemplateCapabilityFlags SnapshotCapabilities(TemplateCapabilityFlags capabilities)
+    {
+        return new TemplateCapabilityFlags
+        {
+            NeedsPageContent = capabilities.NeedsPageContent,
+            SupportsPagination = capabilities.SupportsPagination,
+            SupportsTaxonomy = capabilities.SupportsTaxonomy,
+            SupportsSearchSnippets = capabilities.SupportsSearchSnippets,
+            Fields = capabilities.Fields is null ? null : new List<TemplateFieldDeclaration>(capabilities.Fields)
+        };
+    }
 
     private static TemplateCapabilitiesManifest? GetManifest(string layoutsDir)
     {
