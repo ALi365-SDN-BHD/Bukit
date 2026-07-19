@@ -34,7 +34,7 @@ override the other safety checks.
 The generated default search UI may construct elements, text nodes, and
 `<mark>` nodes. Content-derived title/snippet values and configured placeholder
 text must remain text or encoded attribute data. Do not restore `innerHTML`,
-`outerHTML`, `insertAdjacentHTML`, `document.write`, or equivalent parsing for
+`outerHTML`, `insertAdjacentHTML`, `document.write()`, or equivalent parsing for
 dynamic results.
 
 This invariant covers the Core default search UI. It is not a sanitizer or CSP
@@ -61,10 +61,10 @@ covered.
 ## F-04 Safe Recursive Enumeration
 
 `SafeFileEnumerator` is the default helper for recursive publication discovery.
-It skips `FileAttributes.ReparsePoint` before descending and does not silently
-ignore inaccessible ordinary paths. Content, static, media, hashes, template
-lint/tooling, and output inventory use this policy where covered by the build
-contract.
+It skips the `ReparsePoint` flag from `FileAttributes` before descending and
+does not silently ignore inaccessible ordinary paths. Content, static, media,
+hashes, template lint/tooling, and output inventory use this policy where
+covered by the build contract.
 
 `build.followSymlinks=true` is implemented only by supported copy paths with
 real-path/source-root checks. Do not route every scanner through a global
@@ -99,9 +99,9 @@ continue to reject values less than one, matching schema `minimum: 1`.
 
 Each public rewrite operation owns a download semaphore shared by its documents,
 HTML, and media fields. `LocalizedContentBodyStore` owns a lazy store-level gate
-so concurrent `GetAsync` calls share the configured limit. Every call to
-`ImageAssetLocalizer.LocalizeAsync` in these paths must acquire the relevant
-gate and release only after successful acquisition.
+so concurrent `GetAsync` calls share the configured limit. Every `LocalizeAsync`
+call on `ImageAssetLocalizer` in these paths must acquire the relevant gate and
+release only after successful acquisition.
 
 The document-transform gate and download gate serve different purposes.
 Operation-local gates must not be replaced with process-global state without a

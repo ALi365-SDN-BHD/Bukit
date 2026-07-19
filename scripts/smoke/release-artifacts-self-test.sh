@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+bash "$repo_root/scripts/smoke/core-self-test.sh"
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-release-artifacts-self-test.XXXXXX")"
 scratch="$(cd "$scratch" && pwd -P)"
 trap 'rm -rf "$scratch"' EXIT
@@ -18,8 +19,8 @@ log_is_ordered() {
   a="$(sed -n '1p' "$log")"; b="$(sed -n '2p' "$log")"
   c="$(sed -n '3p' "$log")"; d="$(sed -n '4p' "$log")"
   case "$a" in "config check --config "*) ;; *) return 1;; esac
-  case "$b" in "build --config "*" --clean") ;; *) return 1;; esac
-  case "$c" in "publish audit --dir "*) ;; *) return 1;; esac
+  case "$b" in "build --config "*" --output dist --clean") ;; *) return 1;; esac
+  case "$c" in "publish audit --dir "*"/site/dist") ;; *) return 1;; esac
   [ -z "$d" ]
 }
 smoke_ok() {

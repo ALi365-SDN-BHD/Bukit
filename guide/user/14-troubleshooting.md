@@ -34,7 +34,7 @@ Rename one destination; changing build parallelism does not resolve ownership.
 
 ### Clean Refuses A Directory
 
-Use a dedicated output directory such as `dist`. Bukit intentionally refuses
+Use a dedicated output directory such as `dist`. The clean operation refuses
 project root, home/root directories, `.git`, paths outside the project,
 symlinked targets, and non-empty directories without
 `.bukit-output-marker`. Review or move existing files instead of manually

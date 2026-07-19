@@ -310,3 +310,29 @@ env -u NOTION_TOKEN NuGetAudit=false \
 最终技术裁决为 **8/8 全部关闭**，没有环境阻塞，没有未解决的代码级 Critical/Important 审计项，也没有需要把任何一项降级为“部分关闭”的实现证据。独立台账复审发现的两项 Important 过程/证据表述问题已通过 3.1、6、7 节修正；它们保留为历史合规偏差，不再被误写为完全符合原逐项执行要求。
 
 本结论严格限定于各 finding 及其已批准 residual 的范围，不表示 Bukit Core 不再存在其他缺陷，也不把第 9 节的架构扩展和验证增强误写成已实现能力。后续任何新问题都必须建立独立任务，重新定义范围、失败证据、修复边界和验收条件。
+
+## 11. Post-closure 当前 `main` 验证附录
+
+本附录不改写第 1～10 节截至 `main@5808d9a6` 的历史关闭裁决，只复核该点之后至 `main@9ae3283e` 的 aggregate delta。范围内共有以下提交：
+
+| 提交 | 分类 | 当前裁决 |
+|---|---|---|
+| `ba552415` | 新增关闭台账与媒体排队取消计划文档 | 仅文档，不改变运行时契约 |
+| `33f6cee9` | 补齐八项修复的正式文档覆盖 | 仅 Markdown，不修改 Core、schema 或插件协议 |
+| `c6b795c9` | 排队媒体任务取得 permit 后传播已观察到的取消 | 保持 operation/store gate、重试和 permit 生命周期；关闭独立取消竞态 |
+| `030dc0a4` | 合并媒体排队取消分支 | 无 merge-only resolution delta |
+| `9ae3283e` | 媒体 localizer 入口响应预取消 token | 在 URL 判断、日志、目录、缓存、HTTP 和重试副作用前取消，不改变并发预算 |
+
+当前验证证据：
+
+- `ContentImageRewritePipelineTests`、`LocalizedContentBodyStoreTests` 和 `ImageAssetLocalizerTests`：71/71 通过；
+- 严格竞态用例 `RewriteBodyHtmlAsync_CanceledQueuedDownloadDoesNotEnterLocalizerOrHang`：重复 30/30 通过；
+- 四个相关生产/测试路径的 `post-change-targeted.sh`：通过，其中 `Bukit.Content.Tests` 715/715 通过；
+- 独立只读 delta 审计：`Ready`，无 Critical/Important、无 F-01～F-08 回归；
+- `git diff --check` 与工作树范围检查：通过。
+
+F-07 的边界仍为：每个 public rewrite operation 使用其 operation-local shared gate，每个 `LocalizedContentBodyStore` 使用独立 store-level shared gate；两者都不是 process-wide 网络预算。`WaitAsync` 未取得 permit 的路径不释放 permit，取得 permit 后的取消、成功和异常路径都由同一个 `finally` 恰好释放一次。localizer 内部重试继续被该次调用已持有的 permit 覆盖，不会为重试取得额外 permit。
+
+因此，截至 `main@9ae3283e`，八项 finding 继续保持 **8/8 全部关闭**，无需重开原 finding。本附录只证明 post-closure delta 未破坏关闭状态。
+
+后续 [RC 资格验证](bukit-core-post-closure-rc-qualification-2026-07-19.zh-CN.md) 曾发现独立的 YamlDotNet 静态生成随机 GUID 阻断 Native AOT 字节级可复现性。该 RC-04 已在独立任务中通过受治理的签入静态上下文、确定性 accessor identity、中央版本 provenance 和必经 drift gate 关闭；两次真实 clean `osx-arm64` Native AOT publish、归档 smoke 与 release asset prepare/verify 均通过。RC-04 的发现和关闭都不重开 F-01～F-08，也不扩大八项正式关闭台账的原范围。

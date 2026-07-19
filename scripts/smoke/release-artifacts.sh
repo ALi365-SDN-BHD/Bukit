@@ -56,5 +56,5 @@ fi
 cp -R tests/fixtures/basic-markdown-site "$scratch/site"
 BUKIT_BIN="${matches[0]}" \
   BUKIT_SMOKE_ROOT="$scratch/site" \
-  BUKIT_SMOKE_OUTPUT="$scratch/output" \
+  BUKIT_SMOKE_OUTPUT="dist" \
   bash scripts/smoke/core.sh

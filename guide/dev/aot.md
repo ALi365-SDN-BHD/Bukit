@@ -15,7 +15,7 @@ belongs to release tasks.
 
 `Bukit.Theme` compiles the checked-in deterministic
 `ThemeManifestYamlStaticContext.Generated.cs` during normal builds. The
-upstream `Vecc.YamlDotNet.Analyzers.StaticGenerator` runs only in the explicit
+upstream Vecc YamlDotNet static generator package runs only in the explicit
 maintenance flow because its generated accessor suffixes are nondeterministic.
 
 After changing the registered theme manifest model or the pinned generator

@@ -30,6 +30,11 @@ commit="${GITHUB_SHA:-$(git rev-parse --short=12 HEAD)}"
 archive_base="bukit-$version-$rid"
 mkdir -p "$output_root"
 output_root="$(cd "$output_root" && pwd -P)"
+build_root="$(mktemp -d "$output_root/.bukit-build-$rid.XXXXXX")"
+cleanup_build_root() {
+  rm -rf -- "$build_root"
+}
+trap cleanup_build_root EXIT
 publish_root="$output_root/publish"
 [[ ! -L "$publish_root" ]] || {
   echo "publish root must not be a symlink" >&2
@@ -60,7 +65,8 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
   -p:ContinuousIntegrationBuild=true \
   -p:Deterministic=true \
   -p:NativeDebugSymbols=false \
-  -p:PathMap="$(pwd -P)=/_/src" \
+  --artifacts-path "$build_root" \
+  -p:PathMap="$(pwd -P)=/_/src%2C$build_root=/_/build" \
   -o "$publish_dir" >&2
 
 [[ -n "$(find "$publish_dir" -mindepth 1 -print -quit)" ]] || {

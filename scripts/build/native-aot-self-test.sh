@@ -73,7 +73,18 @@ archive="$(bash scripts/build/package-native-aot.sh 1.2.3 linux-x64 "$output_roo
 grep -Fx -- '-p:ContinuousIntegrationBuild=true' "$FAKE_DOTNET_ARGS" >/dev/null
 grep -Fx -- '-p:Deterministic=true' "$FAKE_DOTNET_ARGS" >/dev/null
 grep -Fx -- '-p:NativeDebugSymbols=false' "$FAKE_DOTNET_ARGS" >/dev/null
-grep -Fx -- "-p:PathMap=$(pwd -P)=/_/src" "$FAKE_DOTNET_ARGS" >/dev/null
+artifacts_root="$(sed -n '/^--artifacts-path$/{n;p;}' "$FAKE_DOTNET_ARGS")"
+canonical_output_root="$(cd "$output_root" && pwd -P)"
+[[ "$artifacts_root" == "$canonical_output_root"/.bukit-build-linux-x64.* ]] || {
+  echo "native-aot self-test: build artifacts are not isolated under output root" >&2
+  exit 1
+}
+grep -Fx -- "-p:PathMap=$(pwd -P)=/_/src%2C$artifacts_root=/_/build" \
+  "$FAKE_DOTNET_ARGS" >/dev/null
+[[ ! -e "$artifacts_root" ]] || {
+  echo "native-aot self-test: isolated build artifacts survived packaging" >&2
+  exit 1
+}
 
 publish_fail_root="$scratch/publish-fail"
 publish_fail_archive="$publish_fail_root/bukit-1.2.3-linux-x64.tar.gz"

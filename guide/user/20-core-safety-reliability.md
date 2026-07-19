@@ -108,7 +108,8 @@ separate operation budgets; the setting is not a process-wide network governor.
 
 In `.bukit/build-report.json`:
 
-- `summary.warningCount` and `summary.errorCount` count build diagnostic events
+- JSON pointers `/summary/warningCount` and `/summary/errorCount` identify the
+  fields that count build diagnostic events
   emitted by the current build, including concurrent language variants;
 - counts reset between builds and do not copy SEO, publish, or security issue
   totals;
