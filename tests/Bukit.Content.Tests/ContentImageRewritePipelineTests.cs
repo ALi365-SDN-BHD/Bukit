@@ -381,7 +381,7 @@ public sealed class ContentImageRewritePipelineTests
     }
 
     [Fact]
-    public async Task RewriteBodyHtmlAsync_CancellationStopsQueuedDownloadsWithoutHanging()
+    public async Task RewriteBodyHtmlAsync_CanceledQueuedDownloadDoesNotEnterLocalizerOrHang()
     {
         const string html = """
                             <img src="https://img.example/first.jpg" />
@@ -398,11 +398,16 @@ public sealed class ContentImageRewritePipelineTests
 
         var rewrite = pipeline.RewriteBodyHtmlAsync(html, cancellation.Token);
         await localizer.Started.WaitAsync(TimeSpan.FromSeconds(2));
+        // Complete the first call inline from the newest cancellation callback so the test
+        // deterministically exercises the path where Release wins for the queued waiter.
+        using var firstCallCancellation = cancellation.Token.Register(
+            () => localizer.CancelFirstCall(cancellation.Token));
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => rewrite.WaitAsync(TimeSpan.FromSeconds(2)));
         Assert.Equal(1, localizer.CallCount);
+        Assert.Equal(1, localizer.MaxActiveCount);
         Assert.Equal(0, localizer.ActiveCount);
     }
 
@@ -808,8 +813,10 @@ public sealed class ContentImageRewritePipelineTests
     private sealed class CancellationProbeLocalizer : IImageAssetLocalizer
     {
         private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _firstCall = new();
         private int _activeCount;
         private int _callCount;
+        private int _maxActiveCount;
 
         public Task Started => _started.Task;
 
@@ -817,19 +824,48 @@ public sealed class ContentImageRewritePipelineTests
 
         public int CallCount => Volatile.Read(ref _callCount);
 
+        public int MaxActiveCount => Volatile.Read(ref _maxActiveCount);
+
+        public void CancelFirstCall(CancellationToken cancellationToken)
+            => _firstCall.TrySetCanceled(cancellationToken);
+
         public async Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
         {
-            Interlocked.Increment(ref _callCount);
-            Interlocked.Increment(ref _activeCount);
+            var call = Interlocked.Increment(ref _callCount);
+            var active = Interlocked.Increment(ref _activeCount);
+            ObserveMaxActiveCount(active);
             _started.TrySetResult();
             try
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                if (call == 1)
+                {
+                    await _firstCall.Task;
+                }
+                else
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+
                 return sourceUrl ?? string.Empty;
             }
             finally
             {
                 Interlocked.Decrement(ref _activeCount);
+            }
+        }
+
+        private void ObserveMaxActiveCount(int candidate)
+        {
+            var observed = Volatile.Read(ref _maxActiveCount);
+            while (candidate > observed)
+            {
+                var prior = Interlocked.CompareExchange(ref _maxActiveCount, candidate, observed);
+                if (prior == observed)
+                {
+                    return;
+                }
+
+                observed = prior;
             }
         }
     }
