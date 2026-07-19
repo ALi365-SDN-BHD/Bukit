@@ -4,7 +4,7 @@
     <DataCollectors>
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
-          <ExcludeByFile>**/obj/**/*.g.cs</ExcludeByFile>
+          <ExcludeByFile>**/obj/**/*.g.cs,**/ThemeManifestYamlStaticContext.Generated.cs</ExcludeByFile>
         </Configuration>
       </DataCollector>
     </DataCollectors>

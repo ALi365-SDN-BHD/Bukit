@@ -85,7 +85,7 @@ public sealed class CoverageGateTests
     {
         var runsettings = ReadRepoFile("coverage.runsettings");
 
-        Assert.Contains("<ExcludeByFile>**/obj/**/*.g.cs</ExcludeByFile>", runsettings, StringComparison.Ordinal);
+        Assert.Contains("<ExcludeByFile>**/obj/**/*.g.cs,**/ThemeManifestYamlStaticContext.Generated.cs</ExcludeByFile>", runsettings, StringComparison.Ordinal);
         Assert.DoesNotContain("[Bukit.Theme]*", runsettings, StringComparison.Ordinal);
         Assert.DoesNotContain("<Exclude>", runsettings, StringComparison.Ordinal);
     }
