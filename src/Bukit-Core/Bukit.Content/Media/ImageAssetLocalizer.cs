@@ -73,6 +73,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
     public async Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(sourceUrl))
         {
             return _config.DefaultImageUrl;

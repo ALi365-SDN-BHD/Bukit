@@ -13,6 +13,64 @@ namespace Bukit.Content.Tests;
 public sealed class ImageAssetLocalizerTests
 {
     [Fact]
+    public async Task LocalizeAsync_WhenTokenAlreadyCanceled_ThrowsBeforeRemoteSideEffects()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        var cfg = new MediaConfig
+        {
+            DownloadToLocal = true,
+            DownloadDir = dir,
+            UrlBase = "/assets/uploads",
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
+        using var http = new HttpClient(handler);
+        using var localizer = new ImageAssetLocalizer(cfg, http);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        try
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => localizer.LocalizeAsync("https://img.example/a.jpg", cancellation.Token));
+
+            Assert.False(Directory.Exists(dir));
+            Assert.Equal(0, handler.RequestCount);
+            Assert.Empty(localizer.Failures);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_WhenTokenAlreadyCanceledAndUrlIsLocal_ThrowsWithoutLogging()
+    {
+        var cfg = new MediaConfig
+        {
+            DownloadToLocal = true,
+            DownloadDir = Path.GetTempPath(),
+            UrlBase = "/assets/uploads",
+            DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+        };
+        var logger = new RecordingLogger();
+        using var localizer = new ImageAssetLocalizer(cfg, logger);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => localizer.LocalizeAsync("/assets/style.png", cancellation.Token));
+
+        Assert.Empty(logger.Debugs);
+        Assert.Empty(logger.Warnings);
+        Assert.Empty(localizer.Failures);
+    }
+
+    [Fact]
     public async Task LocalizeAsync_WhenSourceMissing_ReturnsDefaultImage()
     {
         var cfg = new MediaConfig
