@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using YamlDotNet.RepresentationModel;
 using Xunit;
 using Xunit.Sdk;
@@ -85,7 +86,32 @@ public sealed class CoverageGateTests
     {
         var runsettings = ReadRepoFile("coverage.runsettings");
 
-        Assert.Contains("<ExcludeByFile>**/obj/**/*.g.cs,**/ThemeManifestYamlStaticContext.Generated.cs</ExcludeByFile>", runsettings, StringComparison.Ordinal);
+        AssertCoverageRunsettingsContract(runsettings);
+    }
+
+    [Theory]
+    [InlineData("**/*.Generated.cs")]
+    [InlineData("**/Bukit.Theme/**/*.cs")]
+    public void CoverageRunsettings_RejectsAdditionalBroadFileExclusions(string broadExclusion)
+    {
+        var runsettings = ReadRepoFile("coverage.runsettings");
+        var mutated = runsettings.Replace(
+            "        </Configuration>",
+            $"          <ExcludeByFile>{broadExclusion}</ExcludeByFile>\n        </Configuration>",
+            StringComparison.Ordinal);
+
+        Assert.NotEqual(runsettings, mutated);
+        Assert.ThrowsAny<XunitException>(() => AssertCoverageRunsettingsContract(mutated));
+    }
+
+    private static void AssertCoverageRunsettingsContract(string runsettings)
+    {
+        var document = XDocument.Parse(runsettings);
+        var excludeByFile = Assert.Single(document.Descendants("ExcludeByFile"));
+
+        Assert.Equal(
+            "**/obj/**/*.g.cs,**/ThemeManifestYamlStaticContext.Generated.cs",
+            excludeByFile.Value);
         Assert.DoesNotContain("[Bukit.Theme]*", runsettings, StringComparison.Ordinal);
         Assert.DoesNotContain("<Exclude>", runsettings, StringComparison.Ordinal);
     }
