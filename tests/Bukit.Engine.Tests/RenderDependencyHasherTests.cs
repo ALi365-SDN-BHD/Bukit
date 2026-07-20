@@ -175,6 +175,31 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
+    public void Compute_AnalyticsRendererContractVersionChange_ProducesDifferentHash()
+    {
+        var config = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Analytics = new AnalyticsConfig { Providers = [CreateAnalyticsProvider()] }
+            }
+        };
+
+        var current = RenderDependencyHasher.Compute(config, s_emptySiteModel);
+        var version1 = RenderDependencyHasher.Compute(
+            config,
+            s_emptySiteModel,
+            analyticsRendererContractVersion: "1");
+        var version2 = RenderDependencyHasher.Compute(
+            config,
+            s_emptySiteModel,
+            analyticsRendererContractVersion: "2");
+
+        Assert.NotEqual(version1, version2);
+        Assert.Equal(version2, current);
+    }
+
+    [Fact]
     public void Compute_AnalyticsPluginEffectiveToggleChange_ProducesDifferentHash()
     {
         var baseConfig = CreateBaseConfig();

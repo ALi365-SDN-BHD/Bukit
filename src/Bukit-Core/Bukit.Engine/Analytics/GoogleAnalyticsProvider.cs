@@ -12,7 +12,7 @@ internal sealed class GoogleAnalyticsProvider : IAnalyticsProvider
         var scriptUrl = AnalyticsValueEncoder.HtmlAttribute(
             $"https://www.googletagmanager.com/gtag/js?id={measurementId}");
         var javascriptMeasurementId = AnalyticsValueEncoder.JavaScriptString(measurementId);
-        var headEnd = $$"""
+        var headStart = $$"""
             <script async src="{{scriptUrl}}"></script>
             <script>
             window.dataLayer = window.dataLayer || [];
@@ -22,6 +22,6 @@ internal sealed class GoogleAnalyticsProvider : IAnalyticsProvider
             </script>
             """;
 
-        return new AnalyticsHtmlFragments(provider.Key, HeadEnd: headEnd);
+        return new AnalyticsHtmlFragments(provider.Key, HeadStart: headStart);
     }
 }

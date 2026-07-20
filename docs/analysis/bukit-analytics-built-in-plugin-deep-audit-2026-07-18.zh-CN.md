@@ -1,25 +1,25 @@
 # Bukit Analytics 内置插件深度全方位复审报告（2026-07-20）
 
 > 复审日期：2026-07-20（Asia/Kuala_Lumpur）
-> 实现基线：`main@fe27bbbe`
+> 原复审实现基线：`main@fe27bbbe`；当前整改基线：`main@a822415a` 加 AN-05/AN-09 当前工作树
 > 原 Analytics 实现提交：`4103959c`
 > 原报告提交：`9ff5d452`
 > 执行环境：macOS arm64，.NET SDK 10.0.100，Bukit 1.0.10
 > 执行 checkout：审计开始时为 `f076a288`；结束前仓库被外部推进到 `main@f80919f8`。`fe27bbbe..f80919f8` 没有 `src/Bukit-Core` 实现变化，因此本文继续以约定的 `fe27bbbe` 为唯一实现基线。
-> 整改状态：AN-01 已进入 `main@738244cf`，AN-02 已进入 `main@2dc924ed`；AN-03 已于 2026-07-21 在该 HEAD 后的当前工作树完成修复和验证；其余状态不自动变化。
-> 审计阶段边界：复审时只重写本报告。后续整改按发现逐项推进；AN-03 仅修改 Preview 显式配置身份传递、CLI 回归测试和本报告，没有修改公共 API、配置 Schema、插件协议、HTML 编码路径或无显式配置时的 fail-open 策略。
+> 整改状态：AN-01～AN-04 已进入 `main@a822415a`；AN-05 于 2026-07-21 在该提交后的当前工作树完成修复和验证，并以最小 renderer contract token 同步关闭其增量依赖 AN-09；其余状态不自动变化。
+> 审计阶段边界：复审时只重写本报告。后续整改按发现逐项推进；AN-05 只扩展内部 HTML fragment 插槽、迁移 GA/GTM 位置并提升 Analytics renderer contract，不修改公共 API、配置 Schema、外部插件协议、Consent/CSP 或 Provider 聚合语义。
 
 ## 一、复审结论
 
 原 AN-01～AN-14 均已从当前源码和运行结果重新验证，旧结论没有自动继承。结论如下：
 
-- 当前未解决问题 **10 项**：P0 0 项、P1 0 项、P2 7 项、P3 3 项。
-- 已修复 **4 项**：AN-01、AN-02、AN-03、AN-04。AN-03 现由同一个显式配置快照同时决定 configured output 和 Preview Analytics 策略，`--dir` 只覆盖服务目录。
+- 当前未解决问题 **8 项**：P0 0 项、P1 0 项、P2 5 项、P3 3 项。
+- 已修复 **6 项**：AN-01～AN-05、AN-09。AN-05 新增内部 HeadStart 插槽并将 GA/GTM 迁移到 opening head 后；renderer contract v2 进入增量 hash，旧输出不会被错误复用。
 - 新增确认问题 **0 项**。本轮扩大到共享 Engine、运行模式、原始字节、报告、增量和 Native AOT 后，没有把不稳定假设升级成新编号。
-- 复审基线相关定向测试 **450/450 通过**；AN-02 整改 gate 为 Config **245/245**、CLI **578/578**，AN-03 整改后的 CLI gate 为 **583/583**。测试通过不用于否定仍未覆盖的其他发现。
+- 复审基线相关定向测试 **450/450 通过**；AN-02 整改 gate 为 Config **245/245**、CLI **578/578**，AN-03 整改后的 CLI gate 为 **583/583**，AN-05/AN-09 整改后的 Engine gate 为 **1564/1564**。测试通过不用于否定仍未覆盖的其他发现。
 - `osx-arm64` Native AOT 发布成功，发布二进制完成四 Provider 最小真实构建；未加载生成页面，也未向 Analytics 服务发送请求。
 
-主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01～AN-04 已全部关闭，P1 已清零；Consent/CSP、Preview fallback fail-open、Provider 规范漂移和增量契约等 P2/P3 问题仍不允许宣称生产级隐私完备。
+主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01～AN-05 与 AN-09 已关闭，P1 已清零；Consent/CSP、Preview fallback fail-open、Plausible 规范漂移等 P2/P3 问题仍不允许宣称生产级隐私完备。
 
 ## 二、严重度与状态总表
 
@@ -42,11 +42,11 @@
 | AN-02 | **已修复** | 原 P1 | 已修复配置契约 Bug | 原五类错误 YAML 及四个同根防御用例均以精确路径失败；插件 Schema 与运行时短/长格式一致。 | 高 |
 | AN-03 | **已修复** | 原 P1 | 已修复 Preview Bug / 隐私风险 | custom config、`--config + --dir`、`--site`、冲突 root config 和外部 output 均使用同一显式配置快照。 | 高 |
 | AN-04 | 已修复 | 原 P1 | 已修复发布 Bug | fresh build 不再生成原始 `raw.html`；旧 manifest 拥有的旁路文件会在增量升级时删除。 | 高 |
-| AN-05 | 仍存在 | P2 | 外部规范漂移 | GA/GTM head 片段固定注入到 `</head>` 前，偏离 Google 当前的 head 起始位置要求。 | 高 |
+| AN-05 | **已修复** | 原 P2 | 已修复外部规范漂移 | GA/GTM 现在按槽内配置顺序紧随 opening head；GTM noscript 仍紧随 opening body。 | 高 |
 | AN-06 | 仍存在 | P2 | Provider 设计缺陷 | 双 GA 产生两套 loader、两次 `dataLayer` bootstrap 和两次 config。 | 高 |
 | AN-07 | 仍存在 | P2 | 外部规范漂移 | Plausible 默认仍使用旧通用 `script.js + data-domain` 模型。 | 高 |
 | AN-08 | 仍存在 | P2 | 安全/隐私风险 | Provider 固定模板没有 Consent Mode、CMP 时序或 CSP nonce/hash 契约。 | 高 |
-| AN-09 | 仍存在 | P2 | 增量设计缺陷 | Render Dependency Hash 未包含 Analytics renderer/template 契约版本。 | 高 |
+| AN-09 | **已修复** | 原 P2 | 已修复增量设计缺陷 | Analytics renderer contract v2 已进入 framed hash；位置/模板契约升级会使旧页面失效。 | 高 |
 | AN-10 | 仍存在 | P2 | 已确认字节保真 Bug | Preview/Dev 无条件文本解码再 UTF-8 编码，BOM 被删、非 UTF-8 字节被替换。 | 高 |
 | AN-11 | 仍存在 | P2 | 安全/隐私风险 | Preview 配置缺失或加载失败时静默 fail-open，保留生产追踪。 | 高 |
 | AN-12 | 仍存在 | P3 | 可靠性问题 | Analytics 报告直接截断并覆盖目标文件，不是原子写入。 | 高 |
@@ -61,11 +61,11 @@
 | AN-02 | 确认 | **已修复（同日整改）** | 原五个黑盒 `config check` 均由退出 0 转为退出 1；合法空 Analytics 与插件长格式仍通过。 |
 | AN-03 | 确认 | **已修复（2026-07-21 整改）** | 五个真实 HTTP 场景由错误保留/误删转绿；显式策略来源输出为已解析配置路径。 |
 | AN-04 | 确认 | **已修复** | `AssetOutputPlan` 输出所有权修复；fresh/upgrade 两种真实构建转绿。 |
-| AN-05 | 漂移 | 仍存在 | 2026-07-20 官方文档与当前 HeadEnd 模型对照。 |
+| AN-05 | 漂移 | **已修复（2026-07-21 整改）** | Google 官方文档重新抓取；混合 Provider、SEO、旧 marker 与真实增量构建均转绿。 |
 | AN-06 | 确认 | 仍存在 | 双 GA 真实构建各计数 2。 |
 | AN-07 | 漂移 | 仍存在 | Plausible 2026 更新指南与默认值对照。 |
 | AN-08 | 风险 | 仍存在 | 配置、片段模型和 Provider 均无 consent/nonce 能力。 |
-| AN-09 | 确认 | 仍存在 | 当前 hasher 只有配置值，没有 renderer contract。 |
+| AN-09 | 确认 | **已修复（AN-05 依赖整改）** | renderer contract v2 进入 framed hash；版本变化 hash 测试与旧 manifest 真实升级转绿。 |
 | AN-10 | 确认 | 仍存在 | HTTP 原始字节证明 BOM/Latin-1 被改变。 |
 | AN-11 | 风险 | 仍存在 | 畸形配置真实 Preview 静默保留管理块。 |
 | AN-12 | 风险 | 仍存在 | 仍为 `File.Create(path)` 直接写入。 |
@@ -92,8 +92,8 @@ flowchart TD
     B -. "AN-02 已修复：wrong-kind 在默认化前失败" .-> C
     A -. "AN-03 已修复：显式 config 快照直达策略" .-> M
     F -. "AN-01 已修复：orphan 不再屏蔽合法块" .-> M
-    G -. "位置、Plausible、CSP、Consent 漂移" .-> I
-    H -. "缺少 renderer contract version" .-> I
+    G -. "AN-05 已修复 HeadStart；Plausible、CSP、Consent 仍开放" .-> I
+    H -. "AN-09 已修复：renderer contract v2" .-> I
     L -. "目标文件直接截断" .-> L
     J -. "AN-04 已修复" .-> I
 ```
@@ -102,7 +102,7 @@ flowchart TD
 
 1. JSON Schema、YAML AST 节点类型、运行时默认值和 CLI 检查曾在 Analytics/plugin 开关处失配；AN-02 已将该范围收敛为同一严格契约。
 2. HTML marker 没有签名或所有权凭据；AN-01 已用线性两遍解析修复可判定的 orphan-before-valid 情形，完整伪造合法 pair 的所有权仍无法从文本本身区分。
-3. Provider 渲染能力被压缩为 `HeadEnd/BodyStart` 两个固定槽，无法表达 head-start、nonce、consent bootstrap 或共享 Google tag bootstrap。
+3. Provider 渲染能力曾被压缩为 `HeadEnd/BodyStart` 两个固定槽；AN-05 已补 HeadStart，但 nonce、consent bootstrap 与共享 Google tag bootstrap 仍未建模。
 
 ## 四、发现详情（含整改状态）
 
@@ -144,19 +144,20 @@ flowchart TD
 - **修复边界：** 无显式 `--config/--site` 时仍执行既有 nearest-`site.yaml` fallback；其 broad catch、加载失败静默 keep 属于 AN-11，未在本项改变。HTML 读取/UTF-8 重编码属于 AN-10，亦未改动。显式配置加载错误继续在 listener 启动前传播。
 - **回归测试：** 五个场景在修复前均稳定 RED、修复后 5/5 GREEN；全部 Preview 定向测试 72/72，仓库 targeted gate CLI 583/583；最终 subagent 只读审查无 Critical/Important。
 
-### AN-05 — P2：GA/GTM head 注入位置偏离 Google 当前安装要求
+### AN-05 — 原 P2：GA/GTM head 注入位置偏离 Google 当前安装要求（已修复）
 
-- **置信度 / 分类：** 高；外部规范漂移、兼容性问题。
-- **源码位置：** `AnalyticsHtmlFragments.cs:3-6`；`AnalyticsHtmlTransform.cs:88-112`；`GoogleAnalyticsProvider.cs:15-25`；`GoogleTagManagerProvider.cs:16-19`。
-- **最小复现：** 构建含 `<head><title>...</title></head>` 的页面并检查 GA/GTM marker；探针输出 `GA_AFTER_TITLE=True`。
-- **命令与输出：** 四 Provider 真实构建的 GA/GTM head 块均位于 `</head>` 之前，而非 opening head 后；GTM noscript 正确位于 opening body 后。
-- **期望 / 实际：** Google tag 文档要求片段紧随 opening `<head>`；GTM 要求第一段尽可能靠近 head 顶部、第二段紧随 body 开始。实际模型只能表达 HeadEnd 和 BodyStart。
-- **根因：** HTML fragment contract 没有 HeadStart 插槽，所有 head Provider 被硬编码到 `head.ContentEnd`。
-- **影响范围：** 所有 GA4/GTM 页面；可能延迟标签初始化，并持续偏离官方安装校验和支持基线。
-- **修复边界：** 内部增加 HeadStart 插槽并明确 Transform 顺序；GA/GTM 迁移到 HeadStart，GTM BodyStart 保持不变；管理 marker 仍需可清理。
-- **回归测试：** opening head 后的位置断言、GTM body 第一子项、无/多/大小写 head/body、SEO/主题 Transform 组合顺序和三次幂等。
+- **置信度 / 分类：** 高；历史外部规范漂移、兼容性问题；当前已修复。
+- **源码位置：** `AnalyticsHtmlFragments.cs:3-7`；`AnalyticsHtmlTransform.cs:88-128`；`GoogleAnalyticsProvider.cs:15-25`；`GoogleTagManagerProvider.cs:16-19`；`AnalyticsRendererContract.cs:1-6`；`RenderDependencyHasher.cs:14-18,54-61`。
+- **官方基线：** 2026-07-21 重新抓取 Google tag 官方文档，仍要求片段 immediately after opening `<head>`；GTM 官方文档仍要求第一段尽可能靠近 head 顶部、第二段 immediately after opening `<body>`。
+- **TDD RED：** 混合大小写 `<HeAd data-x="a>b"><title>...` 输入中，opening head 内容起点为索引 25，GA marker 历史实际位于 title 后；精确位置断言失败。
+- **修复实现：** 内部 fragment contract 增加 `HeadStart`；GA/GTM 改填该槽，Plausible/Umami 保持 `HeadEnd`。Transform 单次扫描 head，先按原坐标写 HeadEnd、再写 HeadStart，槽内保持配置顺序；marker 继续使用兼容的 `location=head`，GTM `BodyStart` 未改变。
+- **期望 / 实际：** `/tmp/bukit-an05-reaudit-*` 四 Provider 真实构建输出为 `head → GTM → GA → theme/SEO → Plausible → Umami → /head`，`body → GTM noscript`；符合按物理槽分组、槽内配置稳定的新契约。
+- **增量闭环：** renderer contract 提升为 v2 并进入 framed Render Dependency Hash。人工植入旧位置 HTML 与旧 hash 后执行 `--no-clean --incremental`，页面重新渲染，旧 HeadEnd 内容消失；相同新契约后续构建可继续增量复用。
+- **影响范围：** GA4/GTM 的 Content、List、Static 与多语言统一 Transform 路径；没有改变配置 Schema、Provider ID、外部插件协议、Plausible/Umami 位置、GTM iframe 或 Consent/CSP 语义。
+- **兼容边界：** Provider 的全局 DOM 顺序现在按槽分组，而非跨槽严格跟随配置列表；HeadStart 内部、HeadEnd 内部各自保持配置顺序。外部插件若也在更晚阶段插入 head 首部，其相对顺序仍由插件 pipeline 决定，不在本项扩展聚合协议。
+- **回归测试：** GA/GTM Provider golden 槽位；opening head 精确索引；混合大小写与含 `>` 属性；首个多 head；GTM body 第一子项；interleaved Provider 槽内顺序；SEO/主题组合；旧 HeadEnd marker 迁移后三次字节幂等；renderer version hash 变化。
 
-官方基线（抓取日期 2026-07-20）：[Google tag](https://developers.google.com/tag-platform/gtagjs)、[GTM 安装规范](https://support.google.com/tagmanager/answer/14847097?hl=en)。
+官方基线（抓取日期 2026-07-21）：[Google tag](https://developers.google.com/tag-platform/gtagjs)、[GTM 安装规范](https://support.google.com/tagmanager/answer/14847097?hl=en)。
 
 ### AN-06 — P2：多个 GA Provider 输出多套 bootstrap
 
@@ -198,17 +199,16 @@ flowchart TD
 
 官方基线（抓取日期 2026-07-20）：[Google Consent Mode](https://developers.google.com/tag-platform/security/guides/consent)、[Google CSP 指南](https://developers.google.com/tag-platform/security/guides/csp)。
 
-### AN-09 — P2：增量哈希不包含 Analytics 渲染契约版本
+### AN-09 — 原 P2：增量哈希不包含 Analytics 渲染契约版本（已修复）
 
-- **置信度 / 分类：** 高；增量设计缺陷。
-- **源码位置：** `RenderDependencyHasher.cs:54-74`；Provider 模板文件。
-- **最小复现：** 保持配置、内容和主题不变，只升级包含 Provider 模板变化但 manifest schema 兼容的 Bukit 二进制，再使用保留 cache 的 `--no-clean --incremental`。
-- **命令与输出：** 源码审计证明 hash 只追加 pluginEnabled、enabled、productionOnly、executionMode、Provider type/key/options；没有 Analytics renderer/template contract 常量。模板源变化本身不能改变 hash。
-- **期望 / 实际：** 期望任何改变最终 Analytics HTML 的实现升级都使相关页面失效；实际相同配置产生相同依赖 hash，可复用旧 HTML。
-- **根因：** 增量依赖只建模输入数据，没有建模生成器契约版本。
-- **影响范围：** Provider snippet、marker 格式、注入位置、转义或 consent 逻辑升级后复用旧 output/cache 的站点。
-- **修复边界：** 增加单一 `AnalyticsRendererContractVersion` 并进入 framed hash；任何可观察 HTML 契约变化必须显式提升版本。
-- **回归测试：** 合同版本相同保持 skip；提升版本强制重渲染；Provider 模板 golden 变化必须伴随版本变化的架构测试。
+- **置信度 / 分类：** 高；历史增量设计缺陷；作为 AN-05 生效依赖已修复。
+- **源码位置：** `AnalyticsRendererContract.cs:1-6`；`RenderDependencyHasher.cs:14-18,54-75`；`VariantBuildPipeline.cs:556-608`。
+- **历史根因：** Render Dependency Hash 只建模配置输入，没有建模 Provider/marker/位置生成器契约，升级二进制仍可能与旧 manifest hash 相等。
+- **修复实现：** 新增单一内部 `AnalyticsRendererContract.Version = "2"`，以 `analytics.rendererContractVersion` framed value 进入基础渲染依赖 hash；AN-05 的 HeadStart 可观察变化以 v2 为升级边界。
+- **期望 / 实际：** 同配置下显式 contract v1/v2 计算得到不同 hash；旧 manifest 人工置入 v1 结果后真实 `--no-clean --incremental` 构建重新渲染并更新为 v2 hash，不再复用旧 HeadEnd 页面。
+- **影响范围：** Provider snippet、marker 格式、注入位置、转义或后续 consent 渲染逻辑的二进制升级；未来每次可观察 HTML 契约变化仍必须显式提升该版本。
+- **修复边界：** 没有改变 manifest schema，也没有顺带裁剪 disabled 配置的过度失效；后者仍属于 AN-14。
+- **回归测试：** `Compute_AnalyticsRendererContractVersionChange_ProducesDifferentHash`；AN-05 真实 legacy hash 升级；Provider golden 与当前 contract v2 同批维护。
 
 ### AN-10 — P2：Preview/Dev 无条件破坏 HTML 原始字节
 
@@ -324,8 +324,8 @@ flowchart TD
 
 | Provider | 当前状态 |
 |---|---|
-| GA4 | ID 校验、HTML/JS 转义有效；head 位置和多 destination 聚合存在 AN-05/06。 |
-| GTM | body noscript 位置正确；head 位置、Consent/CSP 存在 AN-05/08。 |
+| GA4 | ID 校验、HTML/JS 转义和 head-start 位置有效；多 destination 聚合仍存在 AN-06。 |
+| GTM | head-start 与 body noscript 位置正确；Consent/CSP 仍存在 AN-08。 |
 | Plausible | 显式自托管 HTTPS URL 可用；默认协议存在 AN-07。 |
 | Umami | 当前 `defer src + data-website-id` 核心形式与官方配置兼容；自托管 URL 和 UUID 校验正确，未发现确认兼容 Bug。 |
 
@@ -431,9 +431,9 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 
 ### 第二批：Provider 兼容与配置契约
 
-范围：AN-05、AN-06、AN-07、AN-08。
+剩余范围：AN-06、AN-07、AN-08；AN-05 已完成并保留固定回归。
 
-- 支持 HeadStart 和稳定 Transform 次序。
+- AN-05 已完成：支持 HeadStart、按槽分组与槽内稳定顺序，GA/GTM 官方位置真实构建转绿。
 - 聚合 Google tag bootstrap 与多 destination。
 - 设计 Plausible 新/旧/自托管迁移契约。
 - 在扩展公共 Schema 前先完成 Consent/CSP 的内部威胁模型、默认值和迁移说明。
@@ -441,9 +441,9 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 
 ### 第三批：可靠性与性能
 
-范围：AN-09、AN-10、AN-12、AN-14。
+剩余范围：AN-10、AN-12、AN-14；AN-09 已作为 AN-05 的升级闭环完成。
 
-- renderer contract version 进入增量 hash。
+- AN-09 已完成：renderer contract v2 进入增量 hash，旧页面升级强制重渲染。
 - Preview/Dev 增加原字节 fast path 和明确编码契约。
 - 报告采用同目录临时文件和原子替换。
 - hash 按有效启用状态裁剪，保留 stale-block 清理正确性。
@@ -459,6 +459,6 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 
 ## 十、最终判断
 
-Analytics 已具备可工作的主路径，AN-01～AN-04 已关闭且 P1 清零；但 AN-08 的 Consent/CSP 缺口与 AN-11 的 Preview fallback fail-open 仍使生产级隐私完备声明不成立。其后优先处理 Google/Plausible 规范漂移、Consent/CSP 与 renderer contract version，再收敛字节保真、报告原子性和 linked-source 债务。
+Analytics 已具备可工作的主路径，AN-01～AN-05 与 AN-09 已关闭且 P1 清零；GA/GTM 已回到 2026-07-21 Google 官方安装位置，当前 renderer contract 升级也不会复用旧页面。但 AN-08 的 Consent/CSP 缺口与 AN-11 的 Preview fallback fail-open 仍使生产级隐私完备声明不成立。其后优先处理双 GA 聚合、Plausible 规范迁移和 Consent/CSP，再收敛字节保真、报告原子性和 linked-source 债务。
 
-本报告只陈述在 `fe27bbbe` 实现基线上能够由源码、最小复现、真实构建或官方规范稳定支持的结论；未成功复现的假设均保留在测试盲区或已排除项中，没有伪装成确认 Bug。
+本报告的原复审结论来自 `fe27bbbe`，整改状态已按顶部列出的当前提交与工作树重新验证；所有状态变化均有源码、RED/GREEN、真实构建或官方规范证据。未成功复现的假设仍保留在测试盲区或已排除项中，没有伪装成确认 Bug。

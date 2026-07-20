@@ -52,12 +52,14 @@ public sealed class AnalyticsHtmlTransformTests
             Provider("google-tag-manager", containerId: "GTM-TWO"),
             Provider("plausible", domain: "example.com", scriptUrl: "https://plausible.io/js/script.js"),
             Provider("umami", websiteId: "00000000-0000-0000-0000-000000000004", scriptUrl: "https://analytics.example.com/script.js"));
-        const string html = "<html><head><title>x</title></head><body class='page' data-x=\"a>b\"><main>x</main></body></html>";
+        const string html = "<html><HeAd data-x=\"a>b\"><title>x</title></HeAd><BoDy class='page' data-x=\"a>b\"><main>x</main></BoDy></html>";
 
         var result = transform.Transform(Context(), html);
 
-        var ga = result.IndexOf("bukit:analytics:google-analytics:G-ONE:head:start", StringComparison.Ordinal);
-        var gtmHead = result.IndexOf("bukit:analytics:google-tag-manager:GTM-TWO:head:start", StringComparison.Ordinal);
+        Assert.True(HtmlHeadScanner.TryFindHead(result, out var head));
+        var ga = result.IndexOf("<!-- bukit:analytics:google-analytics:G-ONE:head:start", StringComparison.Ordinal);
+        var gtmHead = result.IndexOf("<!-- bukit:analytics:google-tag-manager:GTM-TWO:head:start", StringComparison.Ordinal);
+        var title = result.IndexOf("<title>", StringComparison.Ordinal);
         var plausible = result.IndexOf("bukit:analytics:plausible:example.com:head:start", StringComparison.Ordinal);
         var umami = result.IndexOf("bukit:analytics:umami:00000000-0000-0000-0000-000000000004:head:start", StringComparison.Ordinal);
         var headClose = result.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
@@ -65,7 +67,8 @@ public sealed class AnalyticsHtmlTransformTests
         var bodyTagEnd = HtmlHeadScanner.FindTagEnd(result, bodyStart) + 1;
         var gtmBody = result.IndexOf("<!-- bukit:analytics:google-tag-manager:GTM-TWO:body:start", StringComparison.Ordinal);
 
-        Assert.True(ga >= 0 && ga < gtmHead && gtmHead < plausible && plausible < umami && umami < headClose);
+        Assert.Equal(head.ContentStart, ga);
+        Assert.True(ga < gtmHead && gtmHead < title && title < plausible && plausible < umami && umami < headClose);
         Assert.Equal(bodyTagEnd, gtmBody);
         Assert.Contains("<!-- bukit:analytics:google-analytics:G-ONE:head:start -->\n", result, StringComparison.Ordinal);
         Assert.Contains("\n<!-- bukit:analytics:google-analytics:G-ONE:head:end -->", result, StringComparison.Ordinal);
@@ -101,6 +104,65 @@ public sealed class AnalyticsHtmlTransformTests
         Assert.Equal(first, second);
         Assert.DoesNotContain("plausible:remove.example", afterRemoval, StringComparison.Ordinal);
         Assert.Equal(1, Count(afterRemoval, "bukit:analytics:google-analytics:G-KEEP:head:start"));
+    }
+
+    [Fact]
+    public void Transform_MigratesLegacyGoogleHeadEndBlockToHeadStartAndRemainsIdempotent()
+    {
+        var transform = CreateTransform(Provider("google-analytics", measurementId: "G-MOVE"));
+        const string html = """
+            <html><head><title>x</title><!-- bukit:analytics:google-analytics:G-MOVE:head:start -->
+            <script>legacyHeadEnd()</script>
+            <!-- bukit:analytics:google-analytics:G-MOVE:head:end --></head><body></body></html>
+            """;
+
+        var first = transform.Transform(Context(), html);
+        var second = transform.Transform(Context(), first);
+        var third = transform.Transform(Context(), second);
+
+        Assert.True(HtmlHeadScanner.TryFindHead(first, out var head));
+        Assert.Equal(
+            head.ContentStart,
+            first.IndexOf("<!-- bukit:analytics:google-analytics:G-MOVE:head:start", StringComparison.Ordinal));
+        Assert.DoesNotContain("legacyHeadEnd", first, StringComparison.Ordinal);
+        Assert.Equal(1, Count(first, "bukit:analytics:google-analytics:G-MOVE:head:start"));
+        Assert.Equal(first, second);
+        Assert.Equal(second, third);
+    }
+
+    [Fact]
+    public void Transform_InjectsHeadStartIntoOnlyTheFirstHeadElement()
+    {
+        var transform = CreateTransform(Provider("google-tag-manager", containerId: "GTM-FIRST"));
+        const string html = "<html><HEAD><title>first</title></HEAD><head><title>second</title></head><body></body></html>";
+
+        var result = transform.Transform(Context(), html);
+
+        var firstTitle = result.IndexOf("<title>first", StringComparison.Ordinal);
+        var secondHead = result.IndexOf("<head>", firstTitle, StringComparison.Ordinal);
+        var marker = result.IndexOf("<!-- bukit:analytics:google-tag-manager:GTM-FIRST:head:start", StringComparison.Ordinal);
+        Assert.True(marker >= 0 && marker < firstTitle && firstTitle < secondHead);
+        Assert.Equal(1, Count(result, "bukit:analytics:google-tag-manager:GTM-FIRST:head:start"));
+    }
+
+    [Fact]
+    public void Transform_GroupsProvidersBySlotWhilePreservingOrderWithinEachSlot()
+    {
+        var transform = CreateTransform(
+            Provider("plausible", domain: "first.example", scriptUrl: "https://first.example/script.js"),
+            Provider("google-tag-manager", containerId: "GTM-SECOND"),
+            Provider("umami", websiteId: "00000000-0000-0000-0000-000000000003", scriptUrl: "https://third.example/script.js"),
+            Provider("google-analytics", measurementId: "G-FOURTH"));
+        const string html = "<html><head><meta name='theme'></head><body></body></html>";
+
+        var result = transform.Transform(Context(), html);
+
+        var gtm = result.IndexOf("google-tag-manager:GTM-SECOND:head:start", StringComparison.Ordinal);
+        var ga = result.IndexOf("google-analytics:G-FOURTH:head:start", StringComparison.Ordinal);
+        var theme = result.IndexOf("<meta name='theme'>", StringComparison.Ordinal);
+        var plausible = result.IndexOf("plausible:first.example:head:start", StringComparison.Ordinal);
+        var umami = result.IndexOf("umami:00000000-0000-0000-0000-000000000003:head:start", StringComparison.Ordinal);
+        Assert.True(gtm >= 0 && gtm < ga && ga < theme && theme < plausible && plausible < umami);
     }
 
     [Fact]

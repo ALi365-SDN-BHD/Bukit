@@ -93,11 +93,15 @@ internal sealed class AnalyticsHtmlTransform : IHtmlTransform
     {
         injected = false;
         missing = false;
-        var blocks = fragments
+        var headStartBlocks = fragments
+            .Where(fragment => fragment.HeadStart is not null)
+            .Select(fragment => CreateManagedBlock(fragment.ProviderKey, "head", fragment.HeadStart!))
+            .ToArray();
+        var headEndBlocks = fragments
             .Where(fragment => fragment.HeadEnd is not null)
             .Select(fragment => CreateManagedBlock(fragment.ProviderKey, "head", fragment.HeadEnd!))
             .ToArray();
-        if (blocks.Length == 0)
+        if (headStartBlocks.Length == 0 && headEndBlocks.Length == 0)
         {
             return html;
         }
@@ -109,7 +113,18 @@ internal sealed class AnalyticsHtmlTransform : IHtmlTransform
         }
 
         injected = true;
-        return html.Insert(head.ContentEnd, string.Concat(blocks));
+        var result = html;
+        if (headEndBlocks.Length > 0)
+        {
+            result = result.Insert(head.ContentEnd, string.Concat(headEndBlocks));
+        }
+
+        if (headStartBlocks.Length > 0)
+        {
+            result = result.Insert(head.ContentStart, string.Concat(headStartBlocks));
+        }
+
+        return result;
     }
 
     private static string InjectBodyFragments(

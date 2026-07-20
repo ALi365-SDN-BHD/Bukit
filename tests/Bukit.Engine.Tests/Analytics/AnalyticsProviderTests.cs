@@ -31,7 +31,8 @@ public sealed class AnalyticsProviderTests
             gtag('config', 'G-ABC123');
             </script>
             """,
-            fragments.HeadEnd);
+            fragments.HeadStart);
+        Assert.Null(fragments.HeadEnd);
         Assert.Null(fragments.BodyStart);
     }
 
@@ -45,7 +46,8 @@ public sealed class AnalyticsProviderTests
         Assert.Equal("google-tag-manager:GTM-ABC123", fragments.ProviderKey);
         Assert.Equal(
             "<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-ABC123');</script>",
-            fragments.HeadEnd);
+            fragments.HeadStart);
+        Assert.Null(fragments.HeadEnd);
         Assert.Equal(
             "<noscript><iframe src=\"https://www.googletagmanager.com/ns.html?id=GTM-ABC123\" height=\"0\" width=\"0\" style=\"display:none;visibility:hidden\"></iframe></noscript>",
             fragments.BodyStart);
@@ -66,6 +68,7 @@ public sealed class AnalyticsProviderTests
         Assert.Equal(
             "<script defer data-domain=\"example.com\" src=\"https://plausible.io/js/script.js\"></script>",
             fragments.HeadEnd);
+        Assert.Null(fragments.HeadStart);
         Assert.Null(fragments.BodyStart);
     }
 
@@ -84,6 +87,7 @@ public sealed class AnalyticsProviderTests
         Assert.Equal(
             "<script defer src=\"https://analytics.example.com/script.js\" data-website-id=\"00000000-0000-0000-0000-000000000000\"></script>",
             fragments.HeadEnd);
+        Assert.Null(fragments.HeadStart);
         Assert.Null(fragments.BodyStart);
     }
 
@@ -105,7 +109,8 @@ public sealed class AnalyticsProviderTests
             gtag('config', 'G-X\u0027\u003C/script\u003E\u0026\u0022');
             </script>
             """,
-            fragments.HeadEnd);
+            fragments.HeadStart);
+        Assert.Null(fragments.HeadEnd);
     }
 
     [Fact]
@@ -122,6 +127,7 @@ public sealed class AnalyticsProviderTests
         Assert.Equal(
             "<script defer data-domain=\"a&quot;&amp;&lt;b.example\" src=\"https://example.com/script.js?x=&quot;&amp;y=&lt;\"></script>",
             fragments.HeadEnd);
+        Assert.Null(fragments.HeadStart);
     }
 
     [Fact]
@@ -172,7 +178,7 @@ public sealed class AnalyticsProviderTests
         {
             var fragments = provider.Render(config, FakeContext);
 
-            Assert.NotNull(fragments.HeadEnd);
+            Assert.True(fragments.HeadStart is not null || fragments.HeadEnd is not null);
         }
     }
 

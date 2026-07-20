@@ -295,6 +295,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
 
     [Theory]
     [InlineData(false, "inject")]
+    [InlineData(true, "inject")]
     [InlineData(true, "theme")]
     [InlineData(true, "off")]
     public void CreateHtmlTransformPipeline_AnalyticsDoesNotDependOnSeoMode(
@@ -340,10 +341,25 @@ public sealed class VariantBuildPipelineTests : IDisposable
             new HtmlTransformContext(
                 "/", "index.html", HtmlDocumentKind.Content,
                 BuildExecutionMode.Production, buildContext.Logger,
-                new PageInfo { Title = "Home", Url = "/", Content = string.Empty }),
-            "<html><head></head><body></body></html>");
+                new PageInfo
+                {
+                    Title = "Home",
+                    Url = "/",
+                    Content = string.Empty,
+                    Seo = new SeoModel { Title = "SEO Home", Canonical = "https://example.com/" }
+                }),
+            "<html><head><meta name='theme'></head><body></body></html>");
 
-        Assert.Contains("bukit:analytics:google-analytics:G-TEST:head:start", html);
+        Assert.True(HtmlHeadScanner.TryFindHead(html, out var head));
+        var analytics = html.IndexOf("<!-- bukit:analytics:google-analytics:G-TEST:head:start", StringComparison.Ordinal);
+        var theme = html.IndexOf("<meta name='theme'>", StringComparison.Ordinal);
+        Assert.Equal(head.ContentStart, analytics);
+        Assert.True(analytics < theme);
+        if (seoEnabled && renderMode == "inject")
+        {
+            var canonical = html.IndexOf("rel=\"canonical\"", StringComparison.Ordinal);
+            Assert.True(theme < canonical);
+        }
     }
 
     [Fact]

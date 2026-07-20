@@ -14,7 +14,8 @@ internal static class RenderDependencyHasher
     internal static string Compute(
         AppConfig config,
         SiteModel siteModel,
-        BuildExecutionMode executionMode = BuildExecutionMode.Production)
+        BuildExecutionMode executionMode = BuildExecutionMode.Production,
+        string analyticsRendererContractVersion = AnalyticsRendererContract.Version)
     {
         using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         Span<byte> newline = stackalloc byte[1];
@@ -56,6 +57,7 @@ internal static class RenderDependencyHasher
             hasher,
             "analytics.pluginEnabled",
             AnalyticsBuildState.ResolvePluginEnabled(config.Site.Plugins).ToString(CultureInfo.InvariantCulture));
+        AppendFramedValue(hasher, "analytics.rendererContractVersion", analyticsRendererContractVersion);
         AppendFramedValue(hasher, "analytics.enabled", resolvedAnalytics.Enabled.ToString(CultureInfo.InvariantCulture));
         AppendFramedValue(hasher, "analytics.productionOnly", resolvedAnalytics.ProductionOnly.ToString(CultureInfo.InvariantCulture));
         AppendFramedValue(hasher, "analytics.executionMode", executionMode.ToString());
