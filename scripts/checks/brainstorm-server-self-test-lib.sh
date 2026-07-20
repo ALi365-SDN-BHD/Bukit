@@ -149,7 +149,7 @@ setup_test_runtime() {
   ln -s "$real_node" "$fake_bin/node"
   cat > "$preload" <<'NODE_PRELOAD'
 const fs = require('fs');
-const mode = process.env.BRAINSTORM_TERM_MODE || 'exit';
+const mode = process.env.BRAINSTORM_TERM_MODE || 'exit'; const probeDelayMs = Number(process.env.BRAINSTORM_FAKE_PROBE_DELAY || '0') * 1000; if (probeDelayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, probeDelayMs);
 if (process.env.BRAINSTORM_FAKE_PID_FILE) fs.writeFileSync(process.env.BRAINSTORM_FAKE_PID_FILE, `${process.pid}\n`);
 if (process.env.BRAINSTORM_FAKE_TOKEN_FILE) fs.writeFileSync(process.env.BRAINSTORM_FAKE_TOKEN_FILE, `${process.argv.find(v => v.startsWith('--session-token='))?.slice(16) || ''}\n`);
 if (mode === 'ignore') process.on('SIGTERM', () => {});
@@ -179,18 +179,18 @@ exec /bin/ps "$@"
 FAKE_PS
   cat > "$inject_bin/mv" <<'FAKE_MV'
 #!/usr/bin/env bash
+wait_for_identity_probes() { for attempt in {1..100}; do [[ -s "${BRAINSTORM_FAKE_PID_FILE:-}" && -s "${BRAINSTORM_FAKE_TOKEN_FILE:-}" ]] && return 0; sleep 0.05; done; echo "brainstorm server self-test: injected failure identity probes did not become ready" >&2; return 1; }
 count=0; [[ ! -f "$INJECT_COUNT_FILE" ]] || read -r count < "$INJECT_COUNT_FILE"
 count=$((count + 1)); printf '%s\n' "$count" > "$INJECT_COUNT_FILE"
-sleep "${INJECT_DELAY:-0}"
-[[ -z "${INJECT_MV_FAIL_AT:-}" || "$count" -ne "$INJECT_MV_FAIL_AT" ]] || exit 73
+if [[ -n "${INJECT_MV_FAIL_AT:-}" && "$count" -eq "$INJECT_MV_FAIL_AT" ]]; then wait_for_identity_probes || exit 72; exit 73; fi
 /bin/mv "$@"; status=$?
 [[ -z "${INJECT_MV_SIGNAL_AFTER:-}" || "$count" -ne "$INJECT_MV_SIGNAL_AFTER" ]] || kill -TERM "$PPID"
 exit "$status"
 FAKE_MV
   cat > "$inject_bin/chmod" <<'FAKE_CHMOD'
 #!/usr/bin/env bash
-sleep "${INJECT_DELAY:-0}"
-[[ -z "${INJECT_CHMOD_FAIL:-}" ]] || exit 74
+wait_for_identity_probes() { for attempt in {1..100}; do [[ -s "${BRAINSTORM_FAKE_PID_FILE:-}" && -s "${BRAINSTORM_FAKE_TOKEN_FILE:-}" ]] && return 0; sleep 0.05; done; echo "brainstorm server self-test: injected failure identity probes did not become ready" >&2; return 1; }
+if [[ -n "${INJECT_CHMOD_FAIL:-}" ]]; then wait_for_identity_probes || exit 72; exit 74; fi
 exec /bin/chmod "$@"
 FAKE_CHMOD
   chmod +x "$fake_bin/ps" "$inject_bin/mv" "$inject_bin/chmod"

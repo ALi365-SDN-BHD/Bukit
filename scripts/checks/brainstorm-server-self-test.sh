@@ -43,9 +43,9 @@ assert_publish_failure_safe() {
   project="$scratch/publish-$label"; pid_file="$scratch/publish-$label.pid"; token_file="$scratch/publish-$label.token"; count_file="$scratch/publish-$label.count"
   mkdir -p "$project"; cleanup_dirs+=("$project")
   if [[ "$mode" == mv ]]; then
-    if env PATH="$inject_bin:$fake_bin:$PATH" NODE_OPTIONS="$node_options" BRAINSTORM_FAKE_PID_FILE="$pid_file" BRAINSTORM_FAKE_TOKEN_FILE="$token_file" INJECT_COUNT_FILE="$count_file" INJECT_MV_FAIL_AT="$value" INJECT_DELAY=0.1 bash "$start_script" --project-dir "$project" --background >"$output" 2>&1; then status=0; else status=$?; fi
+    if env PATH="$inject_bin:$fake_bin:$PATH" NODE_OPTIONS="$node_options" BRAINSTORM_FAKE_PID_FILE="$pid_file" BRAINSTORM_FAKE_TOKEN_FILE="$token_file" BRAINSTORM_FAKE_PROBE_DELAY=2 INJECT_COUNT_FILE="$count_file" INJECT_MV_FAIL_AT="$value" bash "$start_script" --project-dir "$project" --background >"$output" 2>&1; then status=0; else status=$?; fi
   else
-    if env PATH="$inject_bin:$fake_bin:$PATH" NODE_OPTIONS="$node_options" BRAINSTORM_FAKE_PID_FILE="$pid_file" BRAINSTORM_FAKE_TOKEN_FILE="$token_file" INJECT_CHMOD_FAIL=1 INJECT_DELAY=0.1 bash "$start_script" --project-dir "$project" --background >"$output" 2>&1; then status=0; else status=$?; fi
+    if env PATH="$inject_bin:$fake_bin:$PATH" NODE_OPTIONS="$node_options" BRAINSTORM_FAKE_PID_FILE="$pid_file" BRAINSTORM_FAKE_TOKEN_FILE="$token_file" BRAINSTORM_FAKE_PROBE_DELAY=2 INJECT_CHMOD_FAIL=1 bash "$start_script" --project-dir "$project" --background >"$output" 2>&1; then status=0; else status=$?; fi
   fi
   [[ "$status" -ne 0 ]] || fail "$label injected state publication failure was accepted"
   wait_for_file "$pid_file" && wait_for_file "$token_file" || fail "$label did not expose server identity"
