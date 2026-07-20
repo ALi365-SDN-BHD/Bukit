@@ -81,7 +81,7 @@
 | Plugin output traversal | `GA-locked` | 冻结 | 路径逃逸 rejected | PluginPermissionEvaluator 测试 |
 | Plugin stale output cleanup | `GA-locked` | 冻结 | 清理失败 rejected | PluginExecutionReporter / PluginHost 集成测试 |
 | Plugin SHA256 校验 | `GA-locked` | 冻结 | 不匹配 rejected | PluginHashVerifier / PluginCiPolicy 测试 |
-| Source-generated plugin SDK | `GA-limited` | 若对外暴露需独立版本说明 | N/A | PluginSourceGenerator 测试 |
+| Process protocol DTO and static JSON serialization support | `GA-limited` | `bukit-plugin-v1` JSON shape and AOT serializer context are governed; third-party process plugins do not reference Bukit CLR assemblies | protocol/schema drift rejected | Plugin protocol + AOT serialization tests |
 
 ### 构建与审计
 

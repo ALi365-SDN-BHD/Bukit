@@ -28,6 +28,10 @@ path_safety_source="tools/Bukit.PublicApiDrift/BaselineFile.cs"
 if grep -Fq 'OrdinalIgnoreCase' "$path_safety_source"; then
   fail "path containment must use ordinal comparisons on every host"
 fi
+grep -Fq 'C# `public` is CLR visibility, not an automatic supported SDK promise.' guide/dev/public-api-governance.md || fail "CLR visibility policy is missing"
+grep -Fq 'bash scripts/checks/public-api-drift.sh snapshot OUTPUT Release' guide/dev/public-api-governance.md || fail "snapshot workflow is missing"
+if grep -Fq 'Source-generated plugin SDK' docs/bukit-1.0-contract-matrix.zh-CN.md; then fail "stale source-generated SDK claim remains"; fi
+grep -Fq 'Process protocol DTO and static JSON serialization support' docs/bukit-1.0-contract-matrix.zh-CN.md || fail "implemented plugin boundary is missing"
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-public-api-drift-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
@@ -119,7 +123,7 @@ expected_real_gate='run_step "public API drift" bash scripts/checks/public-api-d
 [[ "$(grep -Fxc "$expected_real_gate" scripts/gates/ci-fast.sh)" == "1" ]] || fail "ci-fast real-check wiring is missing or duplicated"
 [[ "$(grep -Fxc '  docs/governance/bukit-core-public-api-baseline.v1.json' scripts/checks/docs/public-doc-contracts.sh)" == "1" ]] || fail "governed baseline documentation contract is missing or duplicated"
 [[ "$(grep -Fxc '  docs/schemas/bukit-core-public-api-baseline.v1.schema.json' scripts/checks/docs/public-doc-contracts.sh)" == "1" ]] || fail "public API schema documentation contract is missing or duplicated"
-[[ "$(grep -Fxc '  guide/dev/public-api-governance.md' scripts/checks/docs/public-doc-contracts.sh)" == "0" ]] || fail "Task 4 public API guide contract was registered before the guide exists"
+[[ "$(grep -Fxc '  guide/dev/public-api-governance.md' scripts/checks/docs/public-doc-contracts.sh)" == "1" ]] || fail "public API guide documentation contract is missing or duplicated"
 
 assert_exit 2 "$scratch/ci-fast-extra-argument.txt" bash scripts/gates/ci-fast.sh Release Extra
 assert_exit 2 "$scratch/missing-output.txt" bash scripts/checks/public-api-drift.sh snapshot

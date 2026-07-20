@@ -66,6 +66,7 @@
 | `CG-018` | obsolete 的同步 body resolver API 仍被内部调用 | `deprecated-behavior` | [ContentBodyResolver.cs](../src/Bukit-Core/Bukit.Engine.Abstractions/ContentBodyResolver.cs), [DataModuleBuilder.cs](../src/Bukit-Core/Bukit.Engine/DataModuleBuilder.cs), [SearchIndexBuilder.cs](../src/Bukit-Core/Bukit.Engine/SearchIndexBuilder.cs) | 高 | 先把内部调用迁移到 async，再评估公开 API 移除。 | `v1.2` 内部清理，`v2.0` 视情况移除 | Engine |
 | `CG-019` | AOT 构建禁用动态程序集插件，统一 process protocol | `supported-by-policy` | [PluginRegistry.cs](../src/Bukit-Core/Bukit.Engine/Plugins/PluginRegistry.cs), [Bukit.Engine.csproj](../src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj) | 中 | 明确写成产品边界，不要描述成兼容层。 | `v1.1` 文档清理 | Engine / Docs |
 | `CG-020` | import 流程在输入缺失时默认启用较宽的 `pageTypes` 集合 | `deprecated-behavior` | [SiteConfigGenerator.cs](../src/Bukit-Plugins/Bukit.Importing/SiteConfigGenerator.cs) | 中 | 先评估 fixture 影响，再改为更窄默认或显式策略。 | `v1.3` | Import |
+| `CG-021` | CLR public 可见性不等于通用 SDK 支持承诺 | `supported-by-policy` | [Public API Governance](../guide/dev/public-api-governance.md), [public/protected baseline](governance/bukit-core-public-api-baseline.v1.json) | 中 | 接受任何 public/protected drift 前，必须复审 baseline，并为每个变更 type/member 指定 owner、classification、compatibility、migration horizon 和 reason。 | `current` | Core / Docs |
 
 ## 当前治理优先级
 
