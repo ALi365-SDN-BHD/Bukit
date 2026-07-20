@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/bukit-core-public-api-baseline.v1.schema.json",
+  "title": "Bukit Core public API baseline v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "targetFramework",
+    "sdkPolicy",
+    "assemblies",
+    "types"
+  ],
+  "properties": {
+    "schema": {
+      "const": "bukit-core-public-api-baseline-v1"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "targetFramework": {
+      "const": "net10.0"
+    },
+    "sdkPolicy": {
+      "const": "no-general-clr-sdk"
+    },
+    "assemblies": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Cli.Shared" },
+            "project": { "const": "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Config" },
+            "project": { "const": "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Content" },
+            "project": { "const": "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Engine" },
+            "project": { "const": "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Engine.Abstractions" },
+            "project": { "const": "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Plugin.Abstractions" },
+            "project": { "const": "src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.PluginHost" },
+            "project": { "const": "src/Bukit-Core/Bukit.PluginHost/Bukit.PluginHost.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Rendering" },
+            "project": { "const": "src/Bukit-Core/Bukit.Rendering/Bukit.Rendering.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Routing" },
+            "project": { "const": "src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Shared" },
+            "project": { "const": "src/Bukit-Core/Bukit.Shared/Bukit.Shared.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Theme" },
+            "project": { "const": "src/Bukit-Core/Bukit.Theme/Bukit.Theme.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "bukit" },
+            "project": { "const": "src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj" }
+          }
+        }
+      ],
+      "items": false
+    },
+    "types": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assembly",
+          "name",
+          "owner",
+          "classification",
+          "compatibility",
+          "migrationHorizon",
+          "signature",
+          "publicMembers",
+          "protectedMembers"
+        ],
+        "properties": {
+          "assembly": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "classification": {
+            "enum": [
+              "aot-serialization-surface",
+              "cross-assembly-implementation",
+              "implementation-public",
+              "persisted-internal-format",
+              "plugin-wire-contract",
+              "serialized-contract"
+            ]
+          },
+          "compatibility": {
+            "enum": [
+              "1.x-do-not-narrow",
+              "1.x-migration-safe",
+              "1.x-shape-stable",
+              "2.0-candidate",
+              "not-a-clr-contract"
+            ]
+          },
+          "migrationHorizon": {
+            "type": "string",
+            "minLength": 1
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1
+          },
+          "publicMembers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "protectedMembers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

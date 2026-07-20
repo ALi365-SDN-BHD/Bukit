@@ -18,6 +18,9 @@ required=(
   guide/dev/release.md
   guide/dev/testing.md
   guide/dev/documentation-governance.md
+  docs/governance/bukit-core-public-api-baseline.v1.json
+  docs/schemas/bukit-core-public-api-baseline.v1.schema.json
+  guide/dev/public-api-governance.md
   guide/dev/plugins.md
   guide/dev/config-site-yaml.md
   guide/dev/publish-deploy.md

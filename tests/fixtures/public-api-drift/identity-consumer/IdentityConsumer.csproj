@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>bukit</AssemblyName>
+    <RootNamespace>Bukit.PublicApiDrift.IdentityConsumer</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../identity-v2/IdentityContractV2.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>bukit</AssemblyName>
+    <RootNamespace>Bukit.PublicApiDrift.FormatterFixture</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>$(DefineConstants);ENUM_VALUE_V2</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../formatter/FormatterTypes.cs" Link="FormatterTypes.cs" />
+  </ItemGroup>
+</Project>

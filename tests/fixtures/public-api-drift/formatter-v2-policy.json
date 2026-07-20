@@ -1,0 +1,113 @@
+{
+  "schema": "bukit-core-public-api-baseline-v1",
+  "schemaVersion": 1,
+  "targetFramework": "net10.0",
+  "sdkPolicy": "no-general-clr-sdk",
+  "assemblies": [
+    {
+      "assembly": "bukit",
+      "project": "tests/fixtures/public-api-drift/formatter-v2/FormatterFixtureV2.csproj"
+    }
+  ],
+  "types": [
+    {
+      "assembly": "bukit",
+      "name": "Bukit.PublicApiDrift.FormatterFixture.AccessorBase",
+      "owner": "Fixture",
+      "classification": "implementation-public",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "test-only",
+      "signature": "seed",
+      "publicMembers": [],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "bukit",
+      "name": "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived",
+      "owner": "Fixture",
+      "classification": "implementation-public",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "test-only",
+      "signature": "seed",
+      "publicMembers": [],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "bukit",
+      "name": "Bukit.PublicApiDrift.FormatterFixture.ClassConstraint\u00601",
+      "owner": "Fixture",
+      "classification": "implementation-public",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "test-only",
+      "signature": "seed",
+      "publicMembers": [],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "bukit",
+      "name": "Bukit.PublicApiDrift.FormatterFixture.FixtureEnum",
+      "owner": "Fixture",
+      "classification": "implementation-public",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "test-only",
+      "signature": "seed",
+      "publicMembers": [],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "bukit",
+      "name": "Bukit.PublicApiDrift.FormatterFixture.NotNullConstraint\u00601",
+      "owner": "Fixture",
+      "classification": "implementation-public",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "test-only",
+      "signature": "seed",
+      "publicMembers": [],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "bukit",
+      "name": "Bukit.PublicApiDrift.FormatterFixture.NullableClassConstraint\u00601",
+      "owner": "Fixture",
+      "classification": "implementation-public",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "test-only",
+      "signature": "seed",
+      "publicMembers": [],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "bukit",
+      "name": "Bukit.PublicApiDrift.FormatterFixture.StructConstraint\u00601",
+      "owner": "Fixture",
+      "classification": "implementation-public",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "test-only",
+      "signature": "seed",
+      "publicMembers": [],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "bukit",
+      "name": "Bukit.PublicApiDrift.FormatterFixture.Unconstrained\u00601",
+      "owner": "Fixture",
+      "classification": "implementation-public",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "test-only",
+      "signature": "seed",
+      "publicMembers": [],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "bukit",
+      "name": "Bukit.PublicApiDrift.FormatterFixture.UnmanagedConstraint\u00601",
+      "owner": "Fixture",
+      "classification": "implementation-public",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "test-only",
+      "signature": "seed",
+      "publicMembers": [],
+      "protectedMembers": []
+    }
+  ]
+}

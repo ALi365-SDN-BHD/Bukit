@@ -298,7 +298,13 @@ public sealed class PluginBoundaryTests
     {
         Assert.False(File.Exists(Path.Combine(RepoRoot, "bukit.slnx")), "Legacy bukit.slnx should not be restored.");
 
-        AssertSolutionProjectsStartWith("bukit-core.slnx", "src/Bukit-Core/");
+        const string publicApiDriftProject = "tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj";
+        string[] coreProjects = ReadSolutionProjectPaths("bukit-core.slnx");
+        Assert.Equal(1, coreProjects.Count(path => path == publicApiDriftProject));
+        Assert.All(
+            coreProjects.Where(path => path != publicApiDriftProject),
+            path => Assert.StartsWith("src/Bukit-Core/", path, StringComparison.Ordinal));
+
         AssertSolutionProjectsStartWith("bukit-labs.slnx", "src/Bukit-Labs/");
         AssertSolutionProjectsStartWith("bukit-test.slnx", "tests/");
 

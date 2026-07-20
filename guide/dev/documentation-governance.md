@@ -31,6 +31,9 @@ The active documentation gate blocks drift in these public surfaces:
 - Active script surfaces under `scripts/`.
 - Compatibility governance docs promoted at `docs/compatibility-governance*.md`.
 - `docs/governance/` when that directory exists.
+- CLR public/protected surface baseline and maintainer workflow under
+  `docs/governance/bukit-core-public-api-baseline.v1.json` and
+  `guide/dev/public-api-governance.md`.
 
 Historical analysis, plans, and backup directories remain reference-only unless
 they are promoted into one of the active surfaces above.

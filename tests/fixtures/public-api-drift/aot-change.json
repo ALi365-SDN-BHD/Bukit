@@ -1,0 +1,29 @@
+{
+  "schema": "bukit-core-public-api-baseline-v1",
+  "schemaVersion": 1,
+  "targetFramework": "net10.0",
+  "sdkPolicy": "no-general-clr-sdk",
+  "assemblies": [
+    {
+      "assembly": "Fixture.Core",
+      "project": "tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj"
+    }
+  ],
+  "types": [
+    {
+      "assembly": "Fixture.Core",
+      "name": "Fixture.Widget",
+      "owner": "Fixture",
+      "classification": "aot-serialization-surface",
+      "compatibility": "2.0-candidate",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Fixture.Widget",
+      "publicMembers": [
+        "public System.Int32 Version { get; }",
+        "public System.String Name { get; init; }",
+        "public System.Void .ctor()"
+      ],
+      "protectedMembers": []
+    }
+  ]
+}
