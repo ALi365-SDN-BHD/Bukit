@@ -5,8 +5,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 cd "$(repo_root)"
 
 fail() { echo "public API drift self-test failed: $*" >&2; exit 1; }
-tool=(dotnet run --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj -c Release --no-restore -- compare)
+tool_project="tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj"
 fixtures="tests/fixtures/public-api-drift"
+tool=(dotnet run --project "$tool_project" -c Release --no-build --no-restore -- compare)
 
 assert_exit() {
   local expected="$1" output="$2"; shift 2
@@ -15,22 +16,35 @@ assert_exit() {
   [[ "$status" == "$expected" ]] || fail "expected exit $expected, got $status: $(tr '\n' ' ' <"$output")"
 }
 
+self_test="${BASH_SOURCE[0]}"
+real_wrapper_check='bash scripts/checks/public-api-drift.sh check'
+if grep -Fq "$real_wrapper_check Release" "$self_test" ||
+   grep -Eq -- '-- (check|snapshot) "\$baseline"' "$self_test"; then
+  fail "ci-fast self-test must not execute a real Core check or snapshot"
+fi
+implicit_fixture_builds="$(grep -E 'dotnet build "\$[^" ]*_project"' "$self_test" | grep -Fv -- '--no-restore' || true)"
+[[ -z "$implicit_fixture_builds" ]] || fail "fixture builds must use explicit restore followed by --no-restore"
+
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-public-api-drift-self-test.XXXXXX")"
-repo_scratch="$PWD/.public-api-drift-self-test-$$"
-default_temp_output="/tmp/bukit-public-api-drift-self-test-$$.json"
-trap 'rm -rf -- "$scratch" "$repo_scratch" "$default_temp_output"' EXIT
+trap 'rm -rf -- "$scratch"' EXIT
 
 formatter_project="$fixtures/formatter/FormatterFixture.csproj"
 identity_v1_project="$fixtures/identity-v1/IdentityContractV1.csproj"
 identity_consumer_project="$fixtures/identity-consumer/IdentityConsumer.csproj"
-assert_exit 0 "$scratch/formatter-build.txt" dotnet build "$formatter_project" -c Release --nologo
-assert_exit 0 "$scratch/identity-v1-build.txt" dotnet build "$identity_v1_project" -c Release --nologo
-assert_exit 0 "$scratch/identity-consumer-build.txt" dotnet build "$identity_consumer_project" -c Release --nologo
+package_free_projects=("$tool_project" "$formatter_project" "$identity_v1_project" "$identity_consumer_project")
+for project in "${package_free_projects[@]}"; do
+  name="$(basename "${project%.csproj}")"
+  assert_exit 0 "$scratch/$name-restore.txt" dotnet restore "$project" --nologo
+done
+assert_exit 0 "$scratch/tool-build.txt" dotnet build "$tool_project" -c Release --no-restore --nologo
+assert_exit 0 "$scratch/formatter-build.txt" dotnet build "$formatter_project" -c Release --no-restore --nologo
+assert_exit 0 "$scratch/identity-v1-build.txt" dotnet build "$identity_v1_project" -c Release --no-restore --nologo
+assert_exit 0 "$scratch/identity-consumer-build.txt" dotnet build "$identity_consumer_project" -c Release --no-restore --nologo
 
 formatter_candidate="$scratch/formatter-candidate.json"
 assert_exit 0 "$scratch/formatter-snapshot.txt" dotnet run \
-  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
-  -c Release --no-restore -- snapshot "$fixtures/formatter-policy.json" "$formatter_candidate" "$PWD" Release
+  --project "$tool_project" \
+  -c Release --no-build --no-restore -- snapshot "$fixtures/formatter-policy.json" "$formatter_candidate" "$PWD" Release
 jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
   .publicMembers | index("public virtual final event System.EventHandler? Changed { add; remove; }") != null' \
   "$formatter_candidate" >/dev/null || fail "sealed event accessors lack final state"
@@ -57,8 +71,8 @@ mkdir -p "$identity_output"
 /bin/cp -R "$fixtures/identity-consumer/bin/Release/net10.0/." "$identity_output"
 /bin/cp "$fixtures/identity-v1/bin/Release/net10.0/Bukit.PublicApiDrift.IdentityContract.dll" "$identity_output"
 assert_exit 2 "$scratch/identity-mismatch.txt" dotnet run \
-  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
-  -c Release --no-restore -- snapshot "$fixtures/identity-policy.json" "$scratch/identity-candidate.json" "$identity_root" Release
+  --project "$tool_project" \
+  -c Release --no-build --no-restore -- snapshot "$fixtures/identity-policy.json" "$scratch/identity-candidate.json" "$identity_root" Release
 grep -Fq 'dependency assembly identity mismatch:' "$scratch/identity-mismatch.txt" || fail "dependency mismatch lacks exact identity diagnostic"
 
 python3 - "$fixtures/baseline.json" "$scratch/utf8-bom.json" "$scratch/utf16.json" <<'PY'
@@ -95,23 +109,6 @@ grep -Fq 'gate-error:' "$scratch/unsorted.txt" || fail "unsorted baseline lacks 
 assert_exit 2 "$scratch/unresolved.txt" "${tool[@]}" "$fixtures/unresolved-baseline.json" "$fixtures/unchanged.json"
 grep -Fq 'gate-error:' "$scratch/unresolved.txt" || fail "unresolved committed baseline lacks gate-error"
 
-baseline="docs/governance/bukit-core-public-api-baseline.v1.json"
-assert_exit 0 "$scratch/real-check.txt" dotnet run \
-  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
-  -c Release --no-restore -- check "$baseline" "$PWD" Release
-
-first="$scratch/first.json"
-second="$scratch/second.json"
-assert_exit 0 "$scratch/snapshot-1.txt" dotnet run \
-  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
-  -c Release --no-restore -- snapshot "$baseline" "$first" "$PWD" Release
-assert_exit 0 "$scratch/snapshot-2.txt" dotnet run \
-  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
-  -c Release --no-restore -- snapshot "$baseline" "$second" "$PWD" Release
-cmp -s "$first" "$second" || fail "two captures are not byte-identical"
-[[ "$(jq '.assemblies | length' "$first")" == "12" ]] || fail "capture does not contain 12 assemblies"
-[[ "$(jq '.types | length' "$first")" == "472" ]] || fail "capture does not contain 472 exported types"
-
 expected_self_test='run_step "public API drift self-test" bash scripts/checks/public-api-drift-self-test.sh'
 expected_real_gate='run_step "public API drift" bash scripts/checks/public-api-drift.sh check "$configuration"'
 [[ "$(grep -Fxc "$expected_self_test" scripts/gates/ci-fast.sh)" == "1" ]] || fail "ci-fast self-test wiring is missing or duplicated"
@@ -122,21 +119,50 @@ expected_real_gate='run_step "public API drift" bash scripts/checks/public-api-d
 
 assert_exit 2 "$scratch/ci-fast-extra-argument.txt" bash scripts/gates/ci-fast.sh Release Extra
 assert_exit 2 "$scratch/missing-output.txt" bash scripts/checks/public-api-drift.sh snapshot
-assert_exit 2 "$scratch/baseline-overwrite.txt" bash scripts/checks/public-api-drift.sh snapshot "$baseline" Release
+baseline="docs/governance/bukit-core-public-api-baseline.v1.json"
+fixture_snapshot=(dotnet run \
+  --project "$tool_project" \
+  -c Release --no-build --no-restore -- snapshot "$fixtures/formatter-policy.json")
+assert_exit 2 "$scratch/baseline-overwrite.txt" "${fixture_snapshot[@]}" "$baseline" "$PWD" Release
 touch "$scratch/existing.json"
-assert_exit 2 "$scratch/existing-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/existing.json" Release
+assert_exit 2 "$scratch/existing-output.txt" "${fixture_snapshot[@]}" "$scratch/existing.json" "$PWD" Release
 mkdir "$scratch/existing-directory"
-assert_exit 2 "$scratch/existing-directory-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/existing-directory" Release
+assert_exit 2 "$scratch/existing-directory-output.txt" "${fixture_snapshot[@]}" "$scratch/existing-directory" "$PWD" Release
 ln -s "$scratch/missing-target.json" "$scratch/symlink-output.json"
-assert_exit 2 "$scratch/symlink-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/symlink-output.json" Release
-outside="$(dirname "$PWD")/bukit-public-api-outside-$$.json"
-assert_exit 2 "$scratch/outside-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$outside" Release
-ln -s "$(dirname "$PWD")" "$scratch/outside-link"
-assert_exit 2 "$scratch/symlink-parent-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/outside-link/bukit-public-api-outside-$$.json" Release
-assert_exit 0 "$scratch/temp-snapshot.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/wrapper-temp.json" Release
-assert_exit 0 "$scratch/default-temp-snapshot.txt" env TMPDIR= bash scripts/checks/public-api-drift.sh snapshot "$default_temp_output" Release
-mkdir "$repo_scratch"
-assert_exit 0 "$scratch/repository-snapshot.txt" bash scripts/checks/public-api-drift.sh snapshot "$repo_scratch/wrapper-repository.json" Release
-assert_exit 0 "$scratch/wrapper-check.txt" bash scripts/checks/public-api-drift.sh check Release
+assert_exit 2 "$scratch/symlink-output.txt" "${fixture_snapshot[@]}" "$scratch/symlink-output.json" "$PWD" Release
+
+outside="$(python3 - "$PWD" "${TMPDIR:-/tmp}" "$(basename "$scratch")" <<'PY'
+import os
+from pathlib import Path
+import sys
+
+repository = Path(sys.argv[1]).resolve()
+temporary = Path(sys.argv[2]).resolve()
+token = sys.argv[3]
+
+def contains(root: Path, candidate: Path) -> bool:
+    try:
+        candidate.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+for anchor_text in dict.fromkeys((repository.anchor, temporary.anchor)):
+    candidate = Path(anchor_text) / f".bukit-public-api-outside-{token}.json"
+    if not contains(repository, candidate) and not contains(temporary, candidate) and not os.path.lexists(candidate):
+        print(candidate)
+        break
+else:
+    raise SystemExit("could not derive a nonexistent path outside the repository and temporary roots")
+PY
+)" || fail "could not derive outside-path candidate"
+[[ ! -e "$outside" && ! -L "$outside" ]] || fail "outside-path candidate already exists"
+assert_exit 2 "$scratch/outside-output.txt" "${fixture_snapshot[@]}" "$outside" "$PWD" Release
+[[ ! -e "$outside" && ! -L "$outside" ]] || fail "outside-path rejection created the candidate"
+ln -s "$(dirname "$outside")" "$scratch/outside-link"
+assert_exit 2 "$scratch/symlink-parent-output.txt" \
+  "${fixture_snapshot[@]}" "$scratch/outside-link/$(basename "$outside")" "$PWD" Release
+assert_exit 0 "$scratch/temp-snapshot.txt" \
+  "${fixture_snapshot[@]}" "$scratch/fixture-snapshot.json" "$PWD" Release
 
 echo "public API drift self-test OK"

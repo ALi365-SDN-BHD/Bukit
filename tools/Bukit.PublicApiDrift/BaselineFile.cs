@@ -74,6 +74,8 @@ internal static class BaselineFile
         if (!IsDescendant(destination, repository) && !IsDescendant(destination, temp))
             throw new InvalidOperationException("snapshot output must be inside the repository or system temporary directory");
 
+        // This contains ordinary misuse and links or aliases that exist during validation. It does not
+        // defend against an adversarial same-account process racing to replace a validated parent path.
         using var stream = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         using var writer = new StreamWriter(stream, CanonicalEncoding);
         writer.Write(Serialize(baseline));
