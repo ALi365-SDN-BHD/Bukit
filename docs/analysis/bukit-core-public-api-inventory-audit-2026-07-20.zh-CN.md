@@ -16,7 +16,7 @@ G-01 已建立首份可逐类型追溯的 Bukit Core CLR 公共面基线。结�
 - 当前仓库没有 NuGet SDK 发布流程、包标识、第三方 CLR SDK 安装说明或“所有 public 类型受 SemVer 保护”的政策证据。因此正式受支持的通用 CLR SDK 类型数应记为 **0**，不能把 C# `public` 自动解释为产品承诺。
 - 仓库确实有稳定外部契约：CLI 行为、`site.yaml`/`theme.yaml`、模板对象、公开报告 schema 和 `bukit-plugin-v1` 进程协议。它们分别属于行为、序列化形状或 wire contract，不等同于 CLR SDK。
 - **115 个类型**直接承载 1.x 稳定形状：23 个 process wire/dual-use DTO，6 个插件 YAML-only DTO，82 个配置、主题清单与 Scriban 模型类型，以及 4 个 `build-report.v1` 公共报告 CLR mirror。
-- **175 个类型**在 1.x 不应收窄：172 个有直接项目引用消费者中的协作证据，另有 3 个 AOT/静态序列化支持类型。这里的“不收窄”是当前构建兼容要求，不是对第三方宣布 SDK。
+- **175 个类型**在 1.x 不应收窄：170 个有直接项目引用消费者中的词法协作证据，另有 2 个由 G-04A Roslyn semantic analysis 确认的跨程序集协作类型和 3 个 AOT/静态序列化支持类型。这里的“不收窄”是当前构建兼容要求，不是对第三方宣布 SDK。
 - **176 个类型**属于 implementation-public；其中 136 个是 2.0 复核候选，40 个来自 CLI 可执行程序集、标为 `not-a-clr-contract`。没有跨项目消费者证据只说明“尚未证明跨项目使用”，不构成删除证据。
 - **G-04A 语义纠正：** 原清单对 4 个 `BuildResult` 公共报告镜像漏计 `build-report.v1` 冻结 schema 证据，并对 2 个 Theme 类型漏计 Engine 的生产程序集协作；本次只纠正这 6 项治理元数据和汇总，不改变 CLR 可见性、签名、运行时或既有 G-03 发现记录。
 - 6 个类型属于内部持久化格式：3 个增量 build cache model 与 3 个 Labs theme catalog cache model。它们不是公开 report schema DTO，变更时仍需 cache 迁移/失效策略。
@@ -108,7 +108,7 @@ flowchart LR
 | `plugin-wire-contract` | 23 | `bukit-plugin-v1` protocol/runtime/security/result DTO、常量，以及同时进入 manifest response 的 3 个 command metadata DTO | 保持 JSON 字段和语义；CLR assembly 不升级为 SDK 承诺 |
 | `serialized-contract` | 92 | `site.yaml`、`theme.yaml`、插件 YAML-only DTO、Scriban 可见模型或 `build-report.v1` 公共报告的 CLR mirror | 维持 shape；breaking change 走 schema/major 策略 |
 | `aot-serialization-surface` | 3 | 当前 source-generated serializer/AOT 构建需要的 public 类型 | 1.x 不收窄，修改须做真实 AOT 验证 |
-| `cross-assembly-implementation` | 172 | 直接引用 owner 项目的仓库内程序集存在协作证据的 CLR surface；G-04A 的 2 项 Theme 类型已由 Roslyn semantic analysis 确认 | 1.x 不收窄；2.0 前先做 semantic symbol 验证、拆调用和 owner |
+| `cross-assembly-implementation` | 172 | 170 项在直接引用 owner 项目的仓库内程序集存在词法协作证据；G-04A 的 2 项 Theme 类型由 Roslyn semantic analysis 确认跨程序集协作 | 1.x 不收窄；2.0 前先做 semantic symbol 验证、拆调用和 owner |
 | `implementation-public` | 176 | 未证明跨项目消费，也没有正式外部支持证据 | 仅列 2.0 候选；不得据此直接删除 |
 | `persisted-internal-format` | 6 | `.cache/build-manifest*.json` 与 Labs `.cache/theme-catalog.json` 的内部持久化 model | 变更须迁移或安全失效 cache，不冒充公开 report schema |
 | `documented-cli-contract` | 0 个 CLR 类型 | CLI 契约存在，但由命令、参数、exit code 和 JSON error shape 表达 | 继续用 CLI spec/schema/tests 治理 |
