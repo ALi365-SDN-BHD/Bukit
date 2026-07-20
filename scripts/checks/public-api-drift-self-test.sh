@@ -16,7 +16,9 @@ assert_exit() {
 }
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-public-api-drift-self-test.XXXXXX")"
-trap 'rm -rf -- "$scratch"' EXIT
+repo_scratch="$PWD/.public-api-drift-self-test-$$"
+default_temp_output="/tmp/bukit-public-api-drift-self-test-$$.json"
+trap 'rm -rf -- "$scratch" "$repo_scratch" "$default_temp_output"' EXIT
 
 formatter_project="$fixtures/formatter/FormatterFixture.csproj"
 identity_v1_project="$fixtures/identity-v1/IdentityContractV1.csproj"
@@ -109,5 +111,32 @@ assert_exit 0 "$scratch/snapshot-2.txt" dotnet run \
 cmp -s "$first" "$second" || fail "two captures are not byte-identical"
 [[ "$(jq '.assemblies | length' "$first")" == "12" ]] || fail "capture does not contain 12 assemblies"
 [[ "$(jq '.types | length' "$first")" == "472" ]] || fail "capture does not contain 472 exported types"
+
+expected_self_test='run_step "public API drift self-test" bash scripts/checks/public-api-drift-self-test.sh'
+expected_real_gate='run_step "public API drift" bash scripts/checks/public-api-drift.sh check "$configuration"'
+[[ "$(grep -Fxc "$expected_self_test" scripts/gates/ci-fast.sh)" == "1" ]] || fail "ci-fast self-test wiring is missing or duplicated"
+[[ "$(grep -Fxc "$expected_real_gate" scripts/gates/ci-fast.sh)" == "1" ]] || fail "ci-fast real-check wiring is missing or duplicated"
+[[ "$(grep -Fxc '  docs/governance/bukit-core-public-api-baseline.v1.json' scripts/checks/docs/public-doc-contracts.sh)" == "1" ]] || fail "governed baseline documentation contract is missing or duplicated"
+[[ "$(grep -Fxc '  docs/schemas/bukit-core-public-api-baseline.v1.schema.json' scripts/checks/docs/public-doc-contracts.sh)" == "1" ]] || fail "public API schema documentation contract is missing or duplicated"
+[[ "$(grep -Fxc '  guide/dev/public-api-governance.md' scripts/checks/docs/public-doc-contracts.sh)" == "0" ]] || fail "Task 4 public API guide contract was registered before the guide exists"
+
+assert_exit 2 "$scratch/ci-fast-extra-argument.txt" bash scripts/gates/ci-fast.sh Release Extra
+assert_exit 2 "$scratch/missing-output.txt" bash scripts/checks/public-api-drift.sh snapshot
+assert_exit 2 "$scratch/baseline-overwrite.txt" bash scripts/checks/public-api-drift.sh snapshot "$baseline" Release
+touch "$scratch/existing.json"
+assert_exit 2 "$scratch/existing-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/existing.json" Release
+mkdir "$scratch/existing-directory"
+assert_exit 2 "$scratch/existing-directory-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/existing-directory" Release
+ln -s "$scratch/missing-target.json" "$scratch/symlink-output.json"
+assert_exit 2 "$scratch/symlink-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/symlink-output.json" Release
+outside="$(dirname "$PWD")/bukit-public-api-outside-$$.json"
+assert_exit 2 "$scratch/outside-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$outside" Release
+ln -s "$(dirname "$PWD")" "$scratch/outside-link"
+assert_exit 2 "$scratch/symlink-parent-output.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/outside-link/bukit-public-api-outside-$$.json" Release
+assert_exit 0 "$scratch/temp-snapshot.txt" bash scripts/checks/public-api-drift.sh snapshot "$scratch/wrapper-temp.json" Release
+assert_exit 0 "$scratch/default-temp-snapshot.txt" env TMPDIR= bash scripts/checks/public-api-drift.sh snapshot "$default_temp_output" Release
+mkdir "$repo_scratch"
+assert_exit 0 "$scratch/repository-snapshot.txt" bash scripts/checks/public-api-drift.sh snapshot "$repo_scratch/wrapper-repository.json" Release
+assert_exit 0 "$scratch/wrapper-check.txt" bash scripts/checks/public-api-drift.sh check Release
 
 echo "public API drift self-test OK"

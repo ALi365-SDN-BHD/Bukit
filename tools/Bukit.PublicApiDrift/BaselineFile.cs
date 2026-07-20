@@ -5,6 +5,7 @@ namespace Bukit.PublicApiDrift;
 
 internal static class BaselineFile
 {
+    private const string GovernedBaselinePath = "docs/governance/bukit-core-public-api-baseline.v1.json";
     private static readonly UTF8Encoding CanonicalEncoding = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -60,11 +61,86 @@ internal static class BaselineFile
     public static void WriteNew(string path, ApiBaseline baseline, string repositoryRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryRoot);
-        var destination = Path.GetFullPath(path);
+        var repository = CanonicalizePath(repositoryRoot);
+        var tempRoot = Environment.GetEnvironmentVariable("TMPDIR");
+        var temp = CanonicalizePath(string.IsNullOrEmpty(tempRoot) ? "/tmp" : tempRoot);
+        var destination = CanonicalizePath(path);
+        var governedBaseline = CanonicalizePath(Path.Combine(repository, GovernedBaselinePath));
+
+        if (PathsEqual(destination, governedBaseline))
+            throw new InvalidOperationException("snapshot output must not be the governed baseline");
+        if (PathEntryExists(Path.GetFullPath(path)))
+            throw new IOException("snapshot output must be a new path");
+        if (!IsDescendant(destination, repository) && !IsDescendant(destination, temp))
+            throw new InvalidOperationException("snapshot output must be inside the repository or system temporary directory");
+
         using var stream = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         using var writer = new StreamWriter(stream, CanonicalEncoding);
         writer.Write(Serialize(baseline));
     }
+
+    private static string CanonicalizePath(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var root = Path.GetPathRoot(fullPath) ?? throw new InvalidOperationException("path has no root");
+        var current = root;
+        var relative = fullPath[root.Length..];
+        foreach (var segment in relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        {
+            if (segment.Length == 0) continue;
+            var candidate = Path.Combine(current, segment);
+            var target = ResolveLinkTarget(candidate);
+            current = target is null ? candidate : Path.GetFullPath(target.FullName);
+        }
+
+        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(current));
+    }
+
+    private static FileSystemInfo? ResolveLinkTarget(string path)
+    {
+        FileSystemInfo info = Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
+        if (info.LinkTarget is null) return null;
+        return info.ResolveLinkTarget(returnFinalTarget: true)
+            ?? throw new InvalidOperationException($"cannot resolve symbolic link: {path}");
+    }
+
+    private static bool PathEntryExists(string path)
+    {
+        if (File.Exists(path) || Directory.Exists(path)) return true;
+        try
+        {
+            if (new FileInfo(path).LinkTarget is not null) return true;
+        }
+        catch (IOException)
+        {
+        }
+
+        try
+        {
+            return new DirectoryInfo(path).LinkTarget is not null;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsDescendant(string path, string root)
+    {
+        var relative = Path.GetRelativePath(root, path);
+        return !StringComparerForPaths.Equals(relative, ".") &&
+               !StringComparerForPaths.Equals(relative, "..") &&
+               !relative.StartsWith($"..{Path.DirectorySeparatorChar}", PathComparison) &&
+               !Path.IsPathRooted(relative);
+    }
+
+    private static bool PathsEqual(string left, string right) => StringComparerForPaths.Equals(left, right);
+
+    private static StringComparison PathComparison =>
+        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+    private static StringComparer StringComparerForPaths =>
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private static void Validate(ApiBaseline baseline, BaselineValidationMode mode)
     {
