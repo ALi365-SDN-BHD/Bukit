@@ -87,6 +87,25 @@ public sealed class PreviewCommandTests
     }
 
     [Fact]
+    public void ApplyPreviewAnalyticsPolicy_RemovesValidManagedBlockAfterUnpairedStart()
+    {
+        const string html = """
+            <html><head>
+            <!-- bukit:analytics:google-analytics:G-ORPHAN:head:start -->
+            <!-- bukit:analytics:google-analytics:G-ACTIVE:head:start -->
+            <script>managed()</script>
+            <!-- bukit:analytics:google-analytics:G-ACTIVE:head:end -->
+            </head><body></body></html>
+            """;
+
+        var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: true);
+
+        Assert.Contains("bukit:analytics:google-analytics:G-ORPHAN:head:start", filtered, StringComparison.Ordinal);
+        Assert.DoesNotContain("bukit:analytics:google-analytics:G-ACTIVE", filtered, StringComparison.Ordinal);
+        Assert.DoesNotContain("managed()", filtered, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ApplyPreviewAnalyticsPolicy_WhenRemovalDisabled_LeavesManagedBlockUnchanged()
     {
         var html = "<!-- bukit:analytics:plausible:example.com:head:start --><script>managed</script><!-- bukit:analytics:plausible:example.com:head:end -->";

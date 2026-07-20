@@ -12,62 +12,71 @@ internal static class AnalyticsManagedBlockFilter
     internal static string Remove(string html)
     {
         var comments = CollectHtmlComments(html);
-        if (comments.Count < 2)
+        var markers = new List<ManagedMarkerToken>();
+        foreach (var comment in comments)
+        {
+            if (TryParseManagedMarker(comment, out var marker))
+            {
+                markers.Add(new ManagedMarkerToken(comment, marker));
+            }
+        }
+
+        if (markers.Count < 2)
         {
             return html;
         }
 
-        var removals = new List<(int Start, int End)>();
-        for (var index = 0; index < comments.Count; index++)
+        var closeMarkerIndices = new int[markers.Count];
+        var parentStartIndices = new int[markers.Count];
+        Array.Fill(closeMarkerIndices, -1);
+        Array.Fill(parentStartIndices, -1);
+
+        // Pair marker edges without trusting their key or location. This preserves
+        // the existing conservative boundaries for nested, crossed, and mismatched groups.
+        var openStarts = new Stack<int>();
+        for (var index = 0; index < markers.Count; index++)
         {
-            if (!TryParseManagedMarker(comments[index], out var start) || start.Edge != "start")
+            if (markers[index].Marker.Edge == "start")
+            {
+                if (openStarts.TryPeek(out var parentStartIndex))
+                {
+                    parentStartIndices[index] = parentStartIndex;
+                }
+
+                openStarts.Push(index);
+            }
+            else if (openStarts.TryPop(out var startIndex))
+            {
+                closeMarkerIndices[startIndex] = index;
+            }
+        }
+
+        var removals = new List<(int Start, int End)>();
+        var hasClosedAncestor = new bool[markers.Count];
+        for (var index = 0; index < markers.Count; index++)
+        {
+            var start = markers[index].Marker;
+            if (start.Edge != "start")
             {
                 continue;
             }
 
-            var depth = 1;
-            var groupIsSimplePair = true;
-            var groupClosed = false;
-            for (var candidateIndex = index + 1; candidateIndex < comments.Count; candidateIndex++)
+            var parentStartIndex = parentStartIndices[index];
+            hasClosedAncestor[index] = parentStartIndex >= 0 &&
+                                       (closeMarkerIndices[parentStartIndex] >= 0 || hasClosedAncestor[parentStartIndex]);
+
+            var closeMarkerIndex = closeMarkerIndices[index];
+            // A removable block must be a direct pair outside every closed group.
+            // Unclosed ancestors are preserved but cannot shield a later valid pair.
+            if (closeMarkerIndex != index + 1 || hasClosedAncestor[index])
             {
-                if (!TryParseManagedMarker(comments[candidateIndex], out var candidate))
-                {
-                    continue;
-                }
-
-                if (candidate.Edge == "start")
-                {
-                    depth++;
-                    groupIsSimplePair = false;
-                    continue;
-                }
-
-                depth--;
-                if (depth > 0)
-                {
-                    groupIsSimplePair = false;
-                    continue;
-                }
-
-                if (groupIsSimplePair &&
-                    candidate.Key == start.Key &&
-                    candidate.Location == start.Location)
-                {
-                    removals.Add((comments[index].Start, comments[candidateIndex].End));
-                }
-
-                // Nested, crossed, or mismatched marker groups are malformed.
-                // Skip the entire balanced group without removing any part.
-                index = candidateIndex;
-                groupClosed = true;
-                break;
+                continue;
             }
 
-            if (!groupClosed)
+            var end = markers[closeMarkerIndex].Marker;
+            if (end.Key == start.Key && end.Location == start.Location)
             {
-                // An unclosed marker group makes the remaining marker sequence
-                // ambiguous. Preserve it rather than extracting a later pair.
-                break;
+                removals.Add((markers[index].Comment.Start, markers[closeMarkerIndex].Comment.End));
             }
         }
 
@@ -165,4 +174,6 @@ internal static class AnalyticsManagedBlockFilter
     private readonly record struct HtmlCommentToken(int Start, int End, string Text);
 
     private readonly record struct ManagedMarker(string Key, string Location, string Edge);
+
+    private readonly record struct ManagedMarkerToken(HtmlCommentToken Comment, ManagedMarker Marker);
 }

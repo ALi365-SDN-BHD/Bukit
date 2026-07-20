@@ -104,6 +104,26 @@ public sealed class AnalyticsHtmlTransformTests
     }
 
     [Fact]
+    public void Transform_RemainsIdempotent_WhenUnpairedStartPrecedesManagedBlock()
+    {
+        var transform = CreateTransform(Provider("google-analytics", measurementId: "G-ACTIVE"));
+        const string html = """
+            <html><head>
+            <!-- bukit:analytics:google-analytics:G-ORPHAN:head:start -->
+            </head><body></body></html>
+            """;
+
+        var first = transform.Transform(Context(), html);
+        var second = transform.Transform(Context(), first);
+        var third = transform.Transform(Context(), second);
+
+        Assert.Equal(first, second);
+        Assert.Equal(second, third);
+        Assert.Equal(1, Count(third, "bukit:analytics:google-analytics:G-ACTIVE:head:start"));
+        Assert.Contains("bukit:analytics:google-analytics:G-ORPHAN:head:start", third, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Transform_PreservesUnmarkedScriptsAndMalformedOrUnpairedManagedComments()
     {
         var transform = CreateTransform(Array.Empty<AnalyticsProviderConfig>());
@@ -130,8 +150,9 @@ public sealed class AnalyticsHtmlTransformTests
             <html><head>
             <script>const marker = "<!-- bukit:analytics:google-analytics:G-USER:head:start -->x<!-- bukit:analytics:google-analytics:G-USER:head:end -->";</script>
             <style>/* <!-- bukit:analytics:plausible:user.example:head:start -->x<!-- bukit:analytics:plausible:user.example:head:end --> */</style>
+            <title><!-- bukit:analytics:google-analytics:G-TITLE:head:start -->x<!-- bukit:analytics:google-analytics:G-TITLE:head:end --></title>
             <meta content="<!-- bukit:analytics:umami:00000000-0000-0000-0000-000000000001:head:start -->x<!-- bukit:analytics:umami:00000000-0000-0000-0000-000000000001:head:end -->">
-            </head><body></body></html>
+            </head><body><textarea><!-- bukit:analytics:google-tag-manager:GTM-TEXT:body:start -->x<!-- bukit:analytics:google-tag-manager:GTM-TEXT:body:end --></textarea></body></html>
             """;
 
         var result = transform.Transform(Context(), html);
@@ -163,9 +184,19 @@ public sealed class AnalyticsHtmlTransformTests
             <!-- bukit:analytics:plausible:b.example:head:end -->
             </head><body></body></html>
             """;
+        const string boundedMismatch = """
+            <html><head>
+            <!-- bukit:analytics:google-analytics:G-OUTER:head:start -->
+            <!-- bukit:analytics:plausible:nested.example:head:start -->
+            user-content
+            <!-- bukit:analytics:plausible:nested.example:head:end -->
+            <!-- bukit:analytics:google-analytics:G-DIFFERENT:head:end -->
+            </head><body></body></html>
+            """;
 
         Assert.Equal(nested, transform.Transform(Context(), nested));
         Assert.Equal(crossed, transform.Transform(Context(), crossed));
+        Assert.Equal(boundedMismatch, transform.Transform(Context(), boundedMismatch));
     }
 
     [Fact]
