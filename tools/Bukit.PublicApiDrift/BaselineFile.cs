@@ -129,20 +129,13 @@ internal static class BaselineFile
 
     private static bool IsDescendant(string path, string root)
     {
-        var relative = Path.GetRelativePath(root, path);
-        return !StringComparerForPaths.Equals(relative, ".") &&
-               !StringComparerForPaths.Equals(relative, "..") &&
-               !relative.StartsWith($"..{Path.DirectorySeparatorChar}", PathComparison) &&
-               !Path.IsPathRooted(relative);
+        // Never infer path case sensitivity from the operating system: Windows can host case-sensitive
+        // directories. Differently cased aliases on a case-insensitive filesystem intentionally fail closed.
+        var prefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
+        return path.StartsWith(prefix, StringComparison.Ordinal);
     }
 
-    private static bool PathsEqual(string left, string right) => StringComparerForPaths.Equals(left, right);
-
-    private static StringComparison PathComparison =>
-        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-
-    private static StringComparer StringComparerForPaths =>
-        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    private static bool PathsEqual(string left, string right) => StringComparer.Ordinal.Equals(left, right);
 
     private static void Validate(ApiBaseline baseline, BaselineValidationMode mode)
     {

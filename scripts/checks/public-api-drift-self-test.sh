@@ -24,6 +24,10 @@ if grep -Fq "$real_wrapper_check Release" "$self_test" ||
 fi
 implicit_fixture_builds="$(grep -E 'dotnet build "\$[^" ]*_project"' "$self_test" | grep -Fv -- '--no-restore' || true)"
 [[ -z "$implicit_fixture_builds" ]] || fail "fixture builds must use explicit restore followed by --no-restore"
+path_safety_source="tools/Bukit.PublicApiDrift/BaselineFile.cs"
+if grep -Fq 'OrdinalIgnoreCase' "$path_safety_source"; then
+  fail "path containment must use ordinal comparisons on every host"
+fi
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-public-api-drift-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
