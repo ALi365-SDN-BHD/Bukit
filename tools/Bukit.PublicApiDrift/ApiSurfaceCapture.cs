@@ -67,12 +67,37 @@ internal sealed class ApiAssemblyLoadContext(string assemblyPath, string depende
     protected override Assembly? Load(AssemblyName assemblyName)
     {
         var candidate = Path.Combine(_assemblyDirectory, assemblyName.Name + ".dll");
-        if (File.Exists(candidate)) return LoadFromAssemblyPath(candidate);
+        if (File.Exists(candidate)) return LoadExact(assemblyName, candidate, useDefaultContext: false);
         var resolved = _resolver.ResolveAssemblyToPath(assemblyName);
-        if (resolved is not null) return LoadFromAssemblyPath(resolved);
+        if (resolved is not null) return LoadExact(assemblyName, resolved, useDefaultContext: false);
         var dependency = _dependencyHostResolver.ResolveAssemblyToPath(assemblyName);
         if (dependency is null) return null;
-        var loaded = Default.Assemblies.FirstOrDefault(item => AssemblyName.ReferenceMatchesDefinition(item.GetName(), assemblyName));
-        return loaded ?? Default.LoadFromAssemblyPath(dependency);
+        EnsureExactIdentity(assemblyName, AssemblyName.GetAssemblyName(dependency));
+        var loaded = Default.Assemblies.FirstOrDefault(item => HasExactIdentity(assemblyName, item.GetName()));
+        return loaded ?? LoadExact(assemblyName, dependency, useDefaultContext: true);
+    }
+
+    private Assembly LoadExact(AssemblyName requested, string path, bool useDefaultContext)
+    {
+        EnsureExactIdentity(requested, AssemblyName.GetAssemblyName(path));
+        var loaded = useDefaultContext ? Default.LoadFromAssemblyPath(path) : LoadFromAssemblyPath(path);
+        EnsureExactIdentity(requested, loaded.GetName());
+        return loaded;
+    }
+
+    private static void EnsureExactIdentity(AssemblyName requested, AssemblyName actual)
+    {
+        if (!HasExactIdentity(requested, actual))
+            throw new InvalidDataException($"dependency assembly identity mismatch: requested {requested.FullName}; resolved {actual.FullName}");
+    }
+
+    private static bool HasExactIdentity(AssemblyName requested, AssemblyName actual)
+    {
+        var requestedToken = requested.GetPublicKeyToken() ?? [];
+        var actualToken = actual.GetPublicKeyToken() ?? [];
+        return StringComparer.OrdinalIgnoreCase.Equals(requested.Name, actual.Name) &&
+            Equals(requested.Version, actual.Version) &&
+            StringComparer.OrdinalIgnoreCase.Equals(requested.CultureName ?? string.Empty, actual.CultureName ?? string.Empty) &&
+            requestedToken.AsSpan().SequenceEqual(actualToken);
     }
 }

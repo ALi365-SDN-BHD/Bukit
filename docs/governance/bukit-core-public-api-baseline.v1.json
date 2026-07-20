@@ -192,10 +192,10 @@
       "signature": "public enum Bukit.Cli.Shared.Cli.Metadata.CliOptionType : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Cli.Shared.Cli.Metadata.CliOptionType Flag = 0",
-        "public const Bukit.Cli.Shared.Cli.Metadata.CliOptionType Integer = 2",
-        "public const Bukit.Cli.Shared.Cli.Metadata.CliOptionType Number = 3",
-        "public const Bukit.Cli.Shared.Cli.Metadata.CliOptionType String = 1"
+        "public const Bukit.Cli.Shared.Cli.Metadata.CliOptionType Flag = Bukit.Cli.Shared.Cli.Metadata.CliOptionType.Flag",
+        "public const Bukit.Cli.Shared.Cli.Metadata.CliOptionType Integer = Bukit.Cli.Shared.Cli.Metadata.CliOptionType.Integer",
+        "public const Bukit.Cli.Shared.Cli.Metadata.CliOptionType Number = Bukit.Cli.Shared.Cli.Metadata.CliOptionType.Number",
+        "public const Bukit.Cli.Shared.Cli.Metadata.CliOptionType String = Bukit.Cli.Shared.Cli.Metadata.CliOptionType.String"
       ],
       "protectedMembers": []
     },
@@ -625,8 +625,8 @@
       "signature": "public enum Bukit.Config.BuildExecutionMode : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Config.BuildExecutionMode Development = 1",
-        "public const Bukit.Config.BuildExecutionMode Production = 0"
+        "public const Bukit.Config.BuildExecutionMode Development = Bukit.Config.BuildExecutionMode.Development",
+        "public const Bukit.Config.BuildExecutionMode Production = Bukit.Config.BuildExecutionMode.Production"
       ],
       "protectedMembers": []
     },
@@ -3454,9 +3454,9 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.AliasPlugin : Bukit.Engine.Abstractions.Plugins.IBukitPlugin~, Bukit.Engine.Abstractions.Plugins.IDerivePagesPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
-        "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
+        "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }"
       ],
       "protectedMembers": []
     },
@@ -3470,10 +3470,10 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.ArchivePlugin : Bukit.Engine.Abstractions.Plugins.IBukitPlugin~, Bukit.Engine.Abstractions.Plugins.IDerivePagesPlugin~, Bukit.Engine.Abstractions.Plugins.ITemplateRequirementPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
         "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
-        "public virtual final System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! GetTemplateRequirementKinds(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
+        "public virtual final System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! GetTemplateRequirementKinds(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }"
       ],
       "protectedMembers": []
     },
@@ -3487,9 +3487,9 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.DataFilesPlugin : Bukit.Engine.Abstractions.Plugins.IBukitPlugin~, Bukit.Engine.Abstractions.Plugins.IDerivePagesPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
-        "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
+        "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }"
       ],
       "protectedMembers": []
     },
@@ -3503,8 +3503,8 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.FeedPlugin : Bukit.Engine.Abstractions.Plugins.IAfterBuildPlugin~, Bukit.Engine.Abstractions.Plugins.IBukitPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }",
         "public virtual final System.Void AfterBuild(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
       ],
       "protectedMembers": []
@@ -3532,8 +3532,8 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.ImageProcessingPlugin : Bukit.Engine.Abstractions.Plugins.IAfterBuildPlugin~, Bukit.Engine.Abstractions.Plugins.IBukitPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }",
         "public virtual final System.Void AfterBuild(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
       ],
       "protectedMembers": []
@@ -3548,8 +3548,8 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.LlmsTxtPlugin : Bukit.Engine.Abstractions.Plugins.IAfterBuildPlugin~, Bukit.Engine.Abstractions.Plugins.IBukitPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }",
         "public virtual final System.Void AfterBuild(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
       ],
       "protectedMembers": []
@@ -3564,8 +3564,8 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.MenuPlugin : Bukit.Engine.Abstractions.Plugins.IAfterBuildPlugin~, Bukit.Engine.Abstractions.Plugins.IBukitPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }",
         "public virtual final System.Void AfterBuild(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
       ],
       "protectedMembers": []
@@ -3607,9 +3607,9 @@
       "publicMembers": [
         "public .ctor()",
         "public .ctor(Bukit.Engine.Plugins.BuiltIn.INotionPageFetcher! notionFetcher)",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
-        "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
+        "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }"
       ],
       "protectedMembers": []
     },
@@ -3623,10 +3623,10 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.PaginationPlugin : Bukit.Engine.Abstractions.Plugins.IBukitPlugin~, Bukit.Engine.Abstractions.Plugins.IDerivePagesPlugin~, Bukit.Engine.Abstractions.Plugins.ITemplateRequirementPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
         "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
-        "public virtual final System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! GetTemplateRequirementKinds(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
+        "public virtual final System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! GetTemplateRequirementKinds(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }"
       ],
       "protectedMembers": []
     },
@@ -3640,9 +3640,9 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.RelatedContentPlugin : Bukit.Engine.Abstractions.Plugins.IBukitPlugin~, Bukit.Engine.Abstractions.Plugins.IDerivePagesPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
-        "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
+        "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }"
       ],
       "protectedMembers": []
     },
@@ -3656,8 +3656,8 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.SearchIndexPlugin : Bukit.Engine.Abstractions.Plugins.IAfterBuildPlugin~, Bukit.Engine.Abstractions.Plugins.IBukitPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }",
         "public virtual final System.Void AfterBuild(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
       ],
       "protectedMembers": []
@@ -3672,8 +3672,8 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.SitemapPlugin : Bukit.Engine.Abstractions.Plugins.IAfterBuildPlugin~, Bukit.Engine.Abstractions.Plugins.IBukitPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }",
         "public virtual final System.Void AfterBuild(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
       ],
       "protectedMembers": []
@@ -3688,10 +3688,10 @@
       "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.TaxonomyPlugin : Bukit.Engine.Abstractions.Plugins.IAfterBuildPlugin~, Bukit.Engine.Abstractions.Plugins.IBukitPlugin~, Bukit.Engine.Abstractions.Plugins.IDerivePagesPlugin~, Bukit.Engine.Abstractions.Plugins.ITemplateRequirementPlugin~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
-        "public virtual System.String! Version { get; }",
         "public virtual final System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! DerivePages(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
         "public virtual final System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! GetTemplateRequirementKinds(Bukit.Engine.Abstractions.Plugins.BuildContext! context)",
+        "public virtual final System.String! Name { get; }",
+        "public virtual final System.String! Version { get; }",
         "public virtual final System.Void AfterBuild(Bukit.Engine.Abstractions.Plugins.BuildContext! context)"
       ],
       "protectedMembers": []
@@ -6887,10 +6887,10 @@
       "signature": "public enum Bukit.PluginHost.PluginRuntimeOnlyContext : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Development = 1",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Labs = 2",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext None = 0",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Test = 3"
+        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Development = Bukit.PluginHost.PluginRuntimeOnlyContext.Development",
+        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Labs = Bukit.PluginHost.PluginRuntimeOnlyContext.Labs",
+        "public const Bukit.PluginHost.PluginRuntimeOnlyContext None = Bukit.PluginHost.PluginRuntimeOnlyContext.None",
+        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Test = Bukit.PluginHost.PluginRuntimeOnlyContext.Test"
       ],
       "protectedMembers": []
     },
@@ -6919,8 +6919,8 @@
       "signature": "public enum Bukit.PluginHost.ProcessOutputStream : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.PluginHost.ProcessOutputStream Stderr = 1",
-        "public const Bukit.PluginHost.ProcessOutputStream Stdout = 0"
+        "public const Bukit.PluginHost.ProcessOutputStream Stderr = Bukit.PluginHost.ProcessOutputStream.Stderr",
+        "public const Bukit.PluginHost.ProcessOutputStream Stdout = Bukit.PluginHost.ProcessOutputStream.Stdout"
       ],
       "protectedMembers": []
     },
@@ -7632,10 +7632,10 @@
       "signature": "public enum Bukit.Routing.RouteGenerator.RouteSource : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Routing.RouteGenerator.RouteSource Collection = 2",
-        "public const Bukit.Routing.RouteGenerator.RouteSource FullOverride = 0",
-        "public const Bukit.Routing.RouteGenerator.RouteSource PartialOverride = 1",
-        "public const Bukit.Routing.RouteGenerator.RouteSource Permalink = 3"
+        "public const Bukit.Routing.RouteGenerator.RouteSource Collection = Bukit.Routing.RouteGenerator.RouteSource.Collection",
+        "public const Bukit.Routing.RouteGenerator.RouteSource FullOverride = Bukit.Routing.RouteGenerator.RouteSource.FullOverride",
+        "public const Bukit.Routing.RouteGenerator.RouteSource PartialOverride = Bukit.Routing.RouteGenerator.RouteSource.PartialOverride",
+        "public const Bukit.Routing.RouteGenerator.RouteSource Permalink = Bukit.Routing.RouteGenerator.RouteSource.Permalink"
       ],
       "protectedMembers": []
     },
@@ -7761,59 +7761,59 @@
       "signature": "public enum Bukit.Shared.DiagnosticCode : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Shared.DiagnosticCode BuildAssetOutputCollision = 1540",
-        "public const Bukit.Shared.DiagnosticCode BuildCleanRefused = 1539",
-        "public const Bukit.Shared.DiagnosticCode BuildOutputNoMarker = 1538",
-        "public const Bukit.Shared.DiagnosticCode BuildOutputUnsafe = 1537",
-        "public const Bukit.Shared.DiagnosticCode ConfigDeprecatedField = 5",
-        "public const Bukit.Shared.DiagnosticCode ConfigInvalidValue = 2",
-        "public const Bukit.Shared.DiagnosticCode ConfigPathTraversal = 4",
-        "public const Bukit.Shared.DiagnosticCode ConfigProviderRemoved = 7",
-        "public const Bukit.Shared.DiagnosticCode ConfigRemovedField = 6",
-        "public const Bukit.Shared.DiagnosticCode ConfigRequiredFieldMissing = 1",
-        "public const Bukit.Shared.DiagnosticCode ConfigYamlSyntaxError = 3",
-        "public const Bukit.Shared.DiagnosticCode ContentCollectionMissing = 1284",
-        "public const Bukit.Shared.DiagnosticCode ContentDraftFiltered = 1283",
-        "public const Bukit.Shared.DiagnosticCode ContentLoadFailed = 1281",
-        "public const Bukit.Shared.DiagnosticCode ContentProviderUnavailable = 1282",
-        "public const Bukit.Shared.DiagnosticCode GeoAuditScoreLow = 2066",
-        "public const Bukit.Shared.DiagnosticCode GeoLlmsFullTxtMissing = 2065",
-        "public const Bukit.Shared.DiagnosticCode GeoLlmsTxtMissing = 2064",
-        "public const Bukit.Shared.DiagnosticCode MediaImageFormatInvalid = 2307",
-        "public const Bukit.Shared.DiagnosticCode MediaImageLocalizeFailed = 2306",
-        "public const Bukit.Shared.DiagnosticCode MediaImageMissing = 2305",
-        "public const Bukit.Shared.DiagnosticCode MediaImageSizeExceeded = 2308",
-        "public const Bukit.Shared.DiagnosticCode PluginCapabilityMissing = 1796",
-        "public const Bukit.Shared.DiagnosticCode PluginExecutionFailed = 1793",
-        "public const Bukit.Shared.DiagnosticCode PluginHandshakeV1Rejected = 1797",
-        "public const Bukit.Shared.DiagnosticCode PluginOutputLimitExceeded = 1795",
-        "public const Bukit.Shared.DiagnosticCode PluginOutputTraversal = 1798",
-        "public const Bukit.Shared.DiagnosticCode PluginStaleOutputCleanupFailed = 1799",
-        "public const Bukit.Shared.DiagnosticCode PluginTimeoutExceeded = 1794",
-        "public const Bukit.Shared.DiagnosticCode RenderComponentFailed = 772",
-        "public const Bukit.Shared.DiagnosticCode RenderFailed = 921",
-        "public const Bukit.Shared.DiagnosticCode RenderLayoutNestingExceeded = 771",
-        "public const Bukit.Shared.DiagnosticCode RenderTemplateNotFound = 769",
-        "public const Bukit.Shared.DiagnosticCode RenderTemplateParseError = 770",
-        "public const Bukit.Shared.DiagnosticCode RouteConflict = 513",
-        "public const Bukit.Shared.DiagnosticCode RouteDuplicateOutputPath = 514",
-        "public const Bukit.Shared.DiagnosticCode RouteEncodedSlashInPath = 520",
-        "public const Bukit.Shared.DiagnosticCode RouteInvalidInternalUrl = 517",
-        "public const Bukit.Shared.DiagnosticCode RouteInvalidPattern = 515",
-        "public const Bukit.Shared.DiagnosticCode RouteListRouteInvalid = 516",
-        "public const Bukit.Shared.DiagnosticCode RouteOutputPathRejected = 521",
-        "public const Bukit.Shared.DiagnosticCode RouteReservedWindowsPath = 519",
-        "public const Bukit.Shared.DiagnosticCode RouteUnsafeOutputPath = 518",
-        "public const Bukit.Shared.DiagnosticCode SchemaStrictModeBlocked = 1026",
-        "public const Bukit.Shared.DiagnosticCode SchemaValidationFailed = 1025",
-        "public const Bukit.Shared.DiagnosticCode SeoAuditFailed = 2049",
-        "public const Bukit.Shared.DiagnosticCode SeoImageMissing = 2051",
-        "public const Bukit.Shared.DiagnosticCode SeoMetaMissing = 2050",
-        "public const Bukit.Shared.DiagnosticCode SeoSitemapIncomplete = 2052",
-        "public const Bukit.Shared.DiagnosticCode ThemeComponentNotFound = 258",
-        "public const Bukit.Shared.DiagnosticCode ThemeManifestInvalid = 257",
-        "public const Bukit.Shared.DiagnosticCode ThemeSourceUnavailable = 260",
-        "public const Bukit.Shared.DiagnosticCode ThemeTemplatePathEscape = 259"
+        "public const Bukit.Shared.DiagnosticCode BuildAssetOutputCollision = Bukit.Shared.DiagnosticCode.BuildAssetOutputCollision",
+        "public const Bukit.Shared.DiagnosticCode BuildCleanRefused = Bukit.Shared.DiagnosticCode.BuildCleanRefused",
+        "public const Bukit.Shared.DiagnosticCode BuildOutputNoMarker = Bukit.Shared.DiagnosticCode.BuildOutputNoMarker",
+        "public const Bukit.Shared.DiagnosticCode BuildOutputUnsafe = Bukit.Shared.DiagnosticCode.BuildOutputUnsafe",
+        "public const Bukit.Shared.DiagnosticCode ConfigDeprecatedField = Bukit.Shared.DiagnosticCode.ConfigDeprecatedField",
+        "public const Bukit.Shared.DiagnosticCode ConfigInvalidValue = Bukit.Shared.DiagnosticCode.ConfigInvalidValue",
+        "public const Bukit.Shared.DiagnosticCode ConfigPathTraversal = Bukit.Shared.DiagnosticCode.ConfigPathTraversal",
+        "public const Bukit.Shared.DiagnosticCode ConfigProviderRemoved = Bukit.Shared.DiagnosticCode.ConfigProviderRemoved",
+        "public const Bukit.Shared.DiagnosticCode ConfigRemovedField = Bukit.Shared.DiagnosticCode.ConfigRemovedField",
+        "public const Bukit.Shared.DiagnosticCode ConfigRequiredFieldMissing = Bukit.Shared.DiagnosticCode.ConfigRequiredFieldMissing",
+        "public const Bukit.Shared.DiagnosticCode ConfigYamlSyntaxError = Bukit.Shared.DiagnosticCode.ConfigYamlSyntaxError",
+        "public const Bukit.Shared.DiagnosticCode ContentCollectionMissing = Bukit.Shared.DiagnosticCode.ContentCollectionMissing",
+        "public const Bukit.Shared.DiagnosticCode ContentDraftFiltered = Bukit.Shared.DiagnosticCode.ContentDraftFiltered",
+        "public const Bukit.Shared.DiagnosticCode ContentLoadFailed = Bukit.Shared.DiagnosticCode.ContentLoadFailed",
+        "public const Bukit.Shared.DiagnosticCode ContentProviderUnavailable = Bukit.Shared.DiagnosticCode.ContentProviderUnavailable",
+        "public const Bukit.Shared.DiagnosticCode GeoAuditScoreLow = Bukit.Shared.DiagnosticCode.GeoAuditScoreLow",
+        "public const Bukit.Shared.DiagnosticCode GeoLlmsFullTxtMissing = Bukit.Shared.DiagnosticCode.GeoLlmsFullTxtMissing",
+        "public const Bukit.Shared.DiagnosticCode GeoLlmsTxtMissing = Bukit.Shared.DiagnosticCode.GeoLlmsTxtMissing",
+        "public const Bukit.Shared.DiagnosticCode MediaImageFormatInvalid = Bukit.Shared.DiagnosticCode.MediaImageFormatInvalid",
+        "public const Bukit.Shared.DiagnosticCode MediaImageLocalizeFailed = Bukit.Shared.DiagnosticCode.MediaImageLocalizeFailed",
+        "public const Bukit.Shared.DiagnosticCode MediaImageMissing = Bukit.Shared.DiagnosticCode.MediaImageMissing",
+        "public const Bukit.Shared.DiagnosticCode MediaImageSizeExceeded = Bukit.Shared.DiagnosticCode.MediaImageSizeExceeded",
+        "public const Bukit.Shared.DiagnosticCode PluginCapabilityMissing = Bukit.Shared.DiagnosticCode.PluginCapabilityMissing",
+        "public const Bukit.Shared.DiagnosticCode PluginExecutionFailed = Bukit.Shared.DiagnosticCode.PluginExecutionFailed",
+        "public const Bukit.Shared.DiagnosticCode PluginHandshakeV1Rejected = Bukit.Shared.DiagnosticCode.PluginHandshakeV1Rejected",
+        "public const Bukit.Shared.DiagnosticCode PluginOutputLimitExceeded = Bukit.Shared.DiagnosticCode.PluginOutputLimitExceeded",
+        "public const Bukit.Shared.DiagnosticCode PluginOutputTraversal = Bukit.Shared.DiagnosticCode.PluginOutputTraversal",
+        "public const Bukit.Shared.DiagnosticCode PluginStaleOutputCleanupFailed = Bukit.Shared.DiagnosticCode.PluginStaleOutputCleanupFailed",
+        "public const Bukit.Shared.DiagnosticCode PluginTimeoutExceeded = Bukit.Shared.DiagnosticCode.PluginTimeoutExceeded",
+        "public const Bukit.Shared.DiagnosticCode RenderComponentFailed = Bukit.Shared.DiagnosticCode.RenderComponentFailed",
+        "public const Bukit.Shared.DiagnosticCode RenderFailed = Bukit.Shared.DiagnosticCode.RenderFailed",
+        "public const Bukit.Shared.DiagnosticCode RenderLayoutNestingExceeded = Bukit.Shared.DiagnosticCode.RenderLayoutNestingExceeded",
+        "public const Bukit.Shared.DiagnosticCode RenderTemplateNotFound = Bukit.Shared.DiagnosticCode.RenderTemplateNotFound",
+        "public const Bukit.Shared.DiagnosticCode RenderTemplateParseError = Bukit.Shared.DiagnosticCode.RenderTemplateParseError",
+        "public const Bukit.Shared.DiagnosticCode RouteConflict = Bukit.Shared.DiagnosticCode.RouteConflict",
+        "public const Bukit.Shared.DiagnosticCode RouteDuplicateOutputPath = Bukit.Shared.DiagnosticCode.RouteDuplicateOutputPath",
+        "public const Bukit.Shared.DiagnosticCode RouteEncodedSlashInPath = Bukit.Shared.DiagnosticCode.RouteEncodedSlashInPath",
+        "public const Bukit.Shared.DiagnosticCode RouteInvalidInternalUrl = Bukit.Shared.DiagnosticCode.RouteInvalidInternalUrl",
+        "public const Bukit.Shared.DiagnosticCode RouteInvalidPattern = Bukit.Shared.DiagnosticCode.RouteInvalidPattern",
+        "public const Bukit.Shared.DiagnosticCode RouteListRouteInvalid = Bukit.Shared.DiagnosticCode.RouteListRouteInvalid",
+        "public const Bukit.Shared.DiagnosticCode RouteOutputPathRejected = Bukit.Shared.DiagnosticCode.RouteOutputPathRejected",
+        "public const Bukit.Shared.DiagnosticCode RouteReservedWindowsPath = Bukit.Shared.DiagnosticCode.RouteReservedWindowsPath",
+        "public const Bukit.Shared.DiagnosticCode RouteUnsafeOutputPath = Bukit.Shared.DiagnosticCode.RouteUnsafeOutputPath",
+        "public const Bukit.Shared.DiagnosticCode SchemaStrictModeBlocked = Bukit.Shared.DiagnosticCode.SchemaStrictModeBlocked",
+        "public const Bukit.Shared.DiagnosticCode SchemaValidationFailed = Bukit.Shared.DiagnosticCode.SchemaValidationFailed",
+        "public const Bukit.Shared.DiagnosticCode SeoAuditFailed = Bukit.Shared.DiagnosticCode.SeoAuditFailed",
+        "public const Bukit.Shared.DiagnosticCode SeoImageMissing = Bukit.Shared.DiagnosticCode.SeoImageMissing",
+        "public const Bukit.Shared.DiagnosticCode SeoMetaMissing = Bukit.Shared.DiagnosticCode.SeoMetaMissing",
+        "public const Bukit.Shared.DiagnosticCode SeoSitemapIncomplete = Bukit.Shared.DiagnosticCode.SeoSitemapIncomplete",
+        "public const Bukit.Shared.DiagnosticCode ThemeComponentNotFound = Bukit.Shared.DiagnosticCode.ThemeComponentNotFound",
+        "public const Bukit.Shared.DiagnosticCode ThemeManifestInvalid = Bukit.Shared.DiagnosticCode.ThemeManifestInvalid",
+        "public const Bukit.Shared.DiagnosticCode ThemeSourceUnavailable = Bukit.Shared.DiagnosticCode.ThemeSourceUnavailable",
+        "public const Bukit.Shared.DiagnosticCode ThemeTemplatePathEscape = Bukit.Shared.DiagnosticCode.ThemeTemplatePathEscape"
       ],
       "protectedMembers": []
     },
@@ -7888,10 +7888,10 @@
       "signature": "public enum Bukit.Shared.LogLevel : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Shared.LogLevel Debug = 1",
-        "public const Bukit.Shared.LogLevel Error = 4",
-        "public const Bukit.Shared.LogLevel Info = 2",
-        "public const Bukit.Shared.LogLevel Warn = 3"
+        "public const Bukit.Shared.LogLevel Debug = Bukit.Shared.LogLevel.Debug",
+        "public const Bukit.Shared.LogLevel Error = Bukit.Shared.LogLevel.Error",
+        "public const Bukit.Shared.LogLevel Info = Bukit.Shared.LogLevel.Info",
+        "public const Bukit.Shared.LogLevel Warn = Bukit.Shared.LogLevel.Warn"
       ],
       "protectedMembers": []
     },
@@ -8110,10 +8110,10 @@
       "signature": "public enum Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType CloseTag = 1",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType OpenTag = 0",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType SelfClosingTag = 2",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType Text = 3"
+        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType CloseTag = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.CloseTag",
+        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType OpenTag = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.OpenTag",
+        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType SelfClosingTag = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.SelfClosingTag",
+        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType Text = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.Text"
       ],
       "protectedMembers": []
     },
@@ -9059,9 +9059,9 @@
       "signature": "public enum Bukit.Theme.ValidationMode : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Theme.ValidationMode Off = 0",
-        "public const Bukit.Theme.ValidationMode Strict = 2",
-        "public const Bukit.Theme.ValidationMode Warn = 1"
+        "public const Bukit.Theme.ValidationMode Off = Bukit.Theme.ValidationMode.Off",
+        "public const Bukit.Theme.ValidationMode Strict = Bukit.Theme.ValidationMode.Strict",
+        "public const Bukit.Theme.ValidationMode Warn = Bukit.Theme.ValidationMode.Warn"
       ],
       "protectedMembers": []
     },
@@ -9194,11 +9194,11 @@
       "signature": "public enum Bukit.Cli.Commands.DocsCheck.CheckType : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Cli.Commands.DocsCheck.CheckType Cli = 0",
-        "public const Bukit.Cli.Commands.DocsCheck.CheckType ConfigFields = 1",
-        "public const Bukit.Cli.Commands.DocsCheck.CheckType Examples = 3",
-        "public const Bukit.Cli.Commands.DocsCheck.CheckType FileRefs = 2",
-        "public const Bukit.Cli.Commands.DocsCheck.CheckType Skills = 4"
+        "public const Bukit.Cli.Commands.DocsCheck.CheckType Cli = Bukit.Cli.Commands.DocsCheck.CheckType.Cli",
+        "public const Bukit.Cli.Commands.DocsCheck.CheckType ConfigFields = Bukit.Cli.Commands.DocsCheck.CheckType.ConfigFields",
+        "public const Bukit.Cli.Commands.DocsCheck.CheckType Examples = Bukit.Cli.Commands.DocsCheck.CheckType.Examples",
+        "public const Bukit.Cli.Commands.DocsCheck.CheckType FileRefs = Bukit.Cli.Commands.DocsCheck.CheckType.FileRefs",
+        "public const Bukit.Cli.Commands.DocsCheck.CheckType Skills = Bukit.Cli.Commands.DocsCheck.CheckType.Skills"
       ],
       "protectedMembers": []
     },
@@ -9255,9 +9255,9 @@
       "signature": "public enum Bukit.Cli.Commands.DocsCheck.DocCategory : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Cli.Commands.DocsCheck.DocCategory Guide = 1",
-        "public const Bukit.Cli.Commands.DocsCheck.DocCategory Readme = 0",
-        "public const Bukit.Cli.Commands.DocsCheck.DocCategory Skills = 2"
+        "public const Bukit.Cli.Commands.DocsCheck.DocCategory Guide = Bukit.Cli.Commands.DocsCheck.DocCategory.Guide",
+        "public const Bukit.Cli.Commands.DocsCheck.DocCategory Readme = Bukit.Cli.Commands.DocsCheck.DocCategory.Readme",
+        "public const Bukit.Cli.Commands.DocsCheck.DocCategory Skills = Bukit.Cli.Commands.DocsCheck.DocCategory.Skills"
       ],
       "protectedMembers": []
     },
@@ -9372,8 +9372,8 @@
       "signature": "public enum Bukit.Cli.Commands.DocsCheck.Severity : System.Int32",
       "publicMembers": [
         "public System.Int32 value__",
-        "public const Bukit.Cli.Commands.DocsCheck.Severity Error = 0",
-        "public const Bukit.Cli.Commands.DocsCheck.Severity Warn = 1"
+        "public const Bukit.Cli.Commands.DocsCheck.Severity Error = Bukit.Cli.Commands.DocsCheck.Severity.Error",
+        "public const Bukit.Cli.Commands.DocsCheck.Severity Warn = Bukit.Cli.Commands.DocsCheck.Severity.Warn"
       ],
       "protectedMembers": []
     },
@@ -9558,7 +9558,7 @@
       "signature": "public sealed class Bukit.Cli.Deploy.GitHubPagesDeployProvider : Bukit.Cli.Deploy.IDeployProvider~",
       "publicMembers": [
         "public .ctor()",
-        "public virtual System.String! Name { get; }",
+        "public virtual final System.String! Name { get; }",
         "public virtual final System.Threading.Tasks.Task\u003CBukit.Cli.Deploy.DeployResult!\u003E! DeployAsync(Bukit.Cli.Deploy.DeployContext! context, System.Threading.CancellationToken ct)"
       ],
       "protectedMembers": []

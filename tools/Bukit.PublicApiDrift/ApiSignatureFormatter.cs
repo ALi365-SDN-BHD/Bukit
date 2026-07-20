@@ -70,13 +70,13 @@ internal static class ApiSignatureFormatter
             .Select(item => FormatMethod(item, nullability)));
         members.AddRange(type.GetProperties(DeclaredMembers)
             .Where(item => item.GetAccessors(nonPublic: true).Any(includeMethod))
-            .Select(item => FormatProperty(item, nullability)));
+            .Select(item => FormatProperty(item, nullability, includeMethod)));
         members.AddRange(type.GetFields(DeclaredMembers)
             .Where(includeField)
             .Select(item => FormatField(item, nullability)));
         members.AddRange(type.GetEvents(DeclaredMembers)
             .Where(item => GetEventAccessors(item).Any(includeMethod))
-            .Select(item => FormatEvent(item, nullability)));
+            .Select(item => FormatEvent(item, nullability, includeMethod)));
 
         return members.Distinct(StringComparer.Ordinal).OrderBy(static item => item, StringComparer.Ordinal).ToArray();
     }
@@ -105,12 +105,17 @@ internal static class ApiSignatureFormatter
     }
 
     private static string FormatProperty(PropertyInfo property, NullabilityInfoContext nullability)
+        => FormatProperty(property, nullability, IsPublicOrProtected);
+
+    private static string FormatProperty(
+        PropertyInfo property,
+        NullabilityInfoContext nullability,
+        Func<MethodBase, bool> includeMethod)
     {
-        var accessors = property.GetAccessors(nonPublic: true).Where(IsPublicOrProtected).ToArray();
-        var parts = new List<string> { FormatAccessibility(accessors), FormatTypeName(property.PropertyType, nullability.Create(property)) };
-        if (accessors.Any(static item => item.IsStatic)) parts.Insert(1, "static");
-        if (accessors.Any(static item => item.IsAbstract)) parts.Insert(1, "abstract");
-        else if (accessors.Any(static item => item.IsVirtual)) parts.Insert(1, "virtual");
+        var accessors = property.GetAccessors(nonPublic: true).Where(item => includeMethod(item)).ToArray();
+        var parts = new List<string> { FormatAccessibility(accessors) };
+        AddAccessorState(parts, accessors);
+        parts.Add(FormatTypeName(property.PropertyType, nullability.Create(property)));
 
         var index = property.GetIndexParameters();
         var name = index.Length == 0
@@ -119,8 +124,8 @@ internal static class ApiSignatureFormatter
         var body = new List<string>();
         var getter = property.GetGetMethod(nonPublic: true);
         var setter = property.GetSetMethod(nonPublic: true);
-        if (getter is not null && IsPublicOrProtected(getter)) body.Add(FormatAccessor("get", getter, accessors));
-        if (setter is not null && IsPublicOrProtected(setter)) body.Add(FormatAccessor(IsInitOnly(setter) ? "init" : "set", setter, accessors));
+        if (getter is not null && accessors.Contains(getter)) body.Add(FormatAccessor("get", getter, accessors));
+        if (setter is not null && accessors.Contains(setter)) body.Add(FormatAccessor(IsInitOnly(setter) ? "init" : "set", setter, accessors));
         return string.Join(" ", parts) + " " + name + " { " + string.Join(" ", body) + " }";
     }
 
@@ -135,17 +140,27 @@ internal static class ApiSignatureFormatter
         }
         parts.Add(FormatTypeName(field.FieldType, nullability.Create(field)));
         parts.Add(field.Name);
-        if (field.IsLiteral) parts.Add("= " + FormatDefault(field.GetRawConstantValue()));
+        if (field.IsLiteral)
+        {
+            var value = field.DeclaringType?.IsEnum == true
+                ? FormatTypeName(field.DeclaringType) + "." + field.Name
+                : FormatDefault(field.GetRawConstantValue());
+            parts.Add("= " + value);
+        }
         return string.Join(" ", parts);
     }
 
     private static string FormatEvent(EventInfo @event, NullabilityInfoContext nullability)
+        => FormatEvent(@event, nullability, IsPublicOrProtected);
+
+    private static string FormatEvent(
+        EventInfo @event,
+        NullabilityInfoContext nullability,
+        Func<MethodBase, bool> includeMethod)
     {
-        var accessors = GetEventAccessors(@event).Where(IsPublicOrProtected).ToArray();
+        var accessors = GetEventAccessors(@event).Where(item => includeMethod(item)).ToArray();
         var parts = new List<string> { FormatAccessibility(accessors) };
-        if (accessors.Any(static item => item.IsStatic)) parts.Add("static");
-        if (accessors.Any(static item => item.IsAbstract)) parts.Add("abstract");
-        else if (accessors.Any(static item => item.IsVirtual)) parts.Add("virtual");
+        AddAccessorState(parts, accessors);
         parts.Add("event");
         parts.Add(FormatTypeName(@event.EventHandlerType ?? typeof(void), nullability.Create(@event)));
         parts.Add(@event.Name);
@@ -281,6 +296,14 @@ internal static class ApiSignatureFormatter
         var overall = FormatAccessibility(accessors);
         var accessibility = FormatAccessibility(accessor);
         return (StringComparer.Ordinal.Equals(overall, accessibility) ? string.Empty : accessibility + " ") + name + ";";
+    }
+
+    private static void AddAccessorState(List<string> parts, IReadOnlyList<MethodInfo> accessors)
+    {
+        if (accessors.Any(static item => item.IsStatic)) parts.Add("static");
+        if (accessors.Any(static item => item.IsAbstract)) parts.Add("abstract");
+        else if (accessors.Any(static item => item.IsVirtual)) parts.Add("virtual");
+        if (accessors.Any(static item => item.IsFinal)) parts.Add("final");
     }
 
     private static bool IsInitOnly(MethodInfo setter) => setter.ReturnParameter.GetRequiredCustomModifiers()

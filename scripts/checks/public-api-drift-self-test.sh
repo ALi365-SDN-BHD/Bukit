@@ -18,6 +18,47 @@ assert_exit() {
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-public-api-drift-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
 
+formatter_project="$fixtures/formatter/FormatterFixture.csproj"
+identity_v1_project="$fixtures/identity-v1/IdentityContractV1.csproj"
+identity_consumer_project="$fixtures/identity-consumer/IdentityConsumer.csproj"
+assert_exit 0 "$scratch/formatter-build.txt" dotnet build "$formatter_project" -c Release --nologo
+assert_exit 0 "$scratch/identity-v1-build.txt" dotnet build "$identity_v1_project" -c Release --nologo
+assert_exit 0 "$scratch/identity-consumer-build.txt" dotnet build "$identity_consumer_project" -c Release --nologo
+
+formatter_candidate="$scratch/formatter-candidate.json"
+assert_exit 0 "$scratch/formatter-snapshot.txt" dotnet run \
+  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
+  -c Release --no-restore -- snapshot "$fixtures/formatter-policy.json" "$formatter_candidate" "$PWD" Release
+jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
+  .publicMembers | index("public virtual final event System.EventHandler? Changed { add; remove; }") != null' \
+  "$formatter_candidate" >/dev/null || fail "sealed event accessors lack final state"
+jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
+  .publicMembers | index("public virtual final System.String! Mixed { get; }") != null' \
+  "$formatter_candidate" >/dev/null || fail "public property surface includes non-public accessors"
+jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
+  .publicMembers | all((contains("Mixed") and contains("protected set;")) | not)' \
+  "$formatter_candidate" >/dev/null || fail "public property surface retained protected setter"
+jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
+  .protectedMembers | index("protected virtual final System.String! Mixed { set; }") != null' \
+  "$formatter_candidate" >/dev/null || fail "protected property surface includes public accessors"
+jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
+  .protectedMembers | all((contains("Mixed") and contains("get;")) | not)' \
+  "$formatter_candidate" >/dev/null || fail "protected property surface retained public getter"
+jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.FixtureEnum") |
+  .publicMembers | index("public const Bukit.PublicApiDrift.FormatterFixture.FixtureEnum Ready = Bukit.PublicApiDrift.FormatterFixture.FixtureEnum.Ready") != null' \
+  "$formatter_candidate" >/dev/null || fail "enum field lacks fully qualified member name"
+
+identity_root="$scratch/identity-root"
+identity_relative="tests/fixtures/public-api-drift/identity-consumer"
+identity_output="$identity_root/$identity_relative/bin/Release/net10.0"
+mkdir -p "$identity_output"
+/bin/cp -R "$fixtures/identity-consumer/bin/Release/net10.0/." "$identity_output"
+/bin/cp "$fixtures/identity-v1/bin/Release/net10.0/Bukit.PublicApiDrift.IdentityContract.dll" "$identity_output"
+assert_exit 2 "$scratch/identity-mismatch.txt" dotnet run \
+  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
+  -c Release --no-restore -- snapshot "$fixtures/identity-policy.json" "$scratch/identity-candidate.json" "$identity_root" Release
+grep -Fq 'dependency assembly identity mismatch:' "$scratch/identity-mismatch.txt" || fail "dependency mismatch lacks exact identity diagnostic"
+
 python3 - "$fixtures/baseline.json" "$scratch/utf8-bom.json" "$scratch/utf16.json" <<'PY'
 from pathlib import Path
 import sys
