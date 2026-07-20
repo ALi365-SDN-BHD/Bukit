@@ -143,7 +143,7 @@ internal static class ApiSignatureFormatter
         if (field.IsLiteral)
         {
             var value = field.DeclaringType?.IsEnum == true
-                ? FormatTypeName(field.DeclaringType) + "." + field.Name
+                ? FormatEnumFieldValue(field)
                 : FormatDefault(field.GetRawConstantValue());
             parts.Add("= " + value);
         }
@@ -206,8 +206,14 @@ internal static class ApiSignatureFormatter
     {
         var constraints = new List<string>();
         var attributes = parameter.GenericParameterAttributes;
-        if ((attributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0) constraints.Add("class");
-        if ((attributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0) constraints.Add("struct");
+        var isReferenceType = (attributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0;
+        var isValueType = (attributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
+        var isUnmanaged = HasCustomAttribute(parameter, "System.Runtime.CompilerServices.IsUnmanagedAttribute");
+        var nullableFlag = GetNullableAttributeFlag(parameter);
+
+        if (isReferenceType) constraints.Add(nullableFlag == 2 ? "class?" : "class");
+        if (isValueType) constraints.Add(isUnmanaged ? "unmanaged" : "struct");
+        if (!isReferenceType && !isValueType && nullableFlag == 1) constraints.Add("notnull");
         constraints.AddRange(parameter.GetGenericParameterConstraints()
             .Where(static item => item != typeof(ValueType))
             .Select(static item => FormatTypeName(item))
@@ -216,6 +222,32 @@ internal static class ApiSignatureFormatter
             (attributes & GenericParameterAttributes.NotNullableValueTypeConstraint) == 0)
             constraints.Add("new()");
         return constraints.Count == 0 ? string.Empty : $"where {parameter.Name} : {string.Join(", ", constraints)}";
+    }
+
+    private static string FormatEnumFieldValue(FieldInfo field)
+    {
+        var enumType = field.DeclaringType ?? throw new InvalidDataException("enum field has no declaring type");
+        var rawValue = field.GetRawConstantValue() ?? throw new InvalidDataException($"enum field has no value: {field.Name}");
+        var underlyingValue = Convert.ChangeType(rawValue, Enum.GetUnderlyingType(enumType), CultureInfo.InvariantCulture);
+        var numeric = Convert.ToString(underlyingValue, CultureInfo.InvariantCulture)
+            ?? throw new InvalidDataException($"enum field has no invariant value: {field.Name}");
+        return $"{FormatTypeName(enumType)}.{field.Name} [value={numeric}]";
+    }
+
+    private static bool HasCustomAttribute(Type parameter, string fullName) =>
+        parameter.CustomAttributes.Any(attribute => StringComparer.Ordinal.Equals(attribute.AttributeType.FullName, fullName));
+
+    private static byte? GetNullableAttributeFlag(Type parameter)
+    {
+        var attribute = parameter.CustomAttributes.FirstOrDefault(attribute =>
+            StringComparer.Ordinal.Equals(attribute.AttributeType.FullName, "System.Runtime.CompilerServices.NullableAttribute"));
+        if (attribute is null || attribute.ConstructorArguments.Count != 1) return null;
+
+        var argument = attribute.ConstructorArguments[0];
+        if (argument.Value is byte single) return single;
+        if (argument.Value is IReadOnlyCollection<CustomAttributeTypedArgument> values && values.FirstOrDefault().Value is byte first)
+            return first;
+        return null;
     }
 
     private static string FormatDefault(object? value)

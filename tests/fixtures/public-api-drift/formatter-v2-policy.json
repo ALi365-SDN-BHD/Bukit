@@ -6,7 +6,7 @@
   "assemblies": [
     {
       "assembly": "bukit",
-      "project": "tests/fixtures/public-api-drift/formatter/FormatterFixture.csproj"
+      "project": "tests/fixtures/public-api-drift/formatter-v2/FormatterFixtureV2.csproj"
     }
   ],
   "types": [

@@ -17,12 +17,17 @@ assert_exit() {
 }
 
 self_test="${BASH_SOURCE[0]}"
+self_test_sources=(
+  "$self_test"
+  "scripts/checks/public-api-drift-self-test-formatter.sh"
+  "scripts/checks/public-api-drift-self-test-policy.sh"
+)
 real_wrapper_check='bash scripts/checks/public-api-drift.sh check'
-if grep -Fq "$real_wrapper_check Release" "$self_test" ||
-   grep -Eq -- '-- (check|snapshot) "\$baseline"' "$self_test"; then
+if grep -Fq "$real_wrapper_check Release" "${self_test_sources[@]}" ||
+   grep -Eq -- '-- (check|snapshot) "\$baseline"' "${self_test_sources[@]}"; then
   fail "ci-fast self-test must not execute a real Core check or snapshot"
 fi
-implicit_fixture_builds="$(grep -E 'dotnet build "\$[^" ]*_project"' "$self_test" | grep -Fv -- '--no-restore' || true)"
+implicit_fixture_builds="$(grep -E 'dotnet build "\$[^" ]*_project"' "${self_test_sources[@]}" | grep -Fv -- '--no-restore' || true)"
 [[ -z "$implicit_fixture_builds" ]] || fail "fixture builds must use explicit restore followed by --no-restore"
 path_safety_source="tools/Bukit.PublicApiDrift/BaselineFile.cs"
 if grep -Fq 'OrdinalIgnoreCase' "$path_safety_source"; then
@@ -35,53 +40,8 @@ grep -Fq 'Process protocol DTO and static JSON serialization support' docs/bukit
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-public-api-drift-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
-
-formatter_project="$fixtures/formatter/FormatterFixture.csproj"
-identity_v1_project="$fixtures/identity-v1/IdentityContractV1.csproj"
-identity_consumer_project="$fixtures/identity-consumer/IdentityConsumer.csproj"
-package_free_projects=("$tool_project" "$formatter_project" "$identity_v1_project" "$identity_consumer_project")
-for project in "${package_free_projects[@]}"; do
-  name="$(basename "${project%.csproj}")"
-  assert_exit 0 "$scratch/$name-restore.txt" dotnet restore "$project" --nologo
-done
-assert_exit 0 "$scratch/tool-build.txt" dotnet build "$tool_project" -c Release --no-restore --nologo
-assert_exit 0 "$scratch/formatter-build.txt" dotnet build "$formatter_project" -c Release --no-restore --nologo
-assert_exit 0 "$scratch/identity-v1-build.txt" dotnet build "$identity_v1_project" -c Release --no-restore --nologo
-assert_exit 0 "$scratch/identity-consumer-build.txt" dotnet build "$identity_consumer_project" -c Release --no-restore --nologo
-
-formatter_candidate="$scratch/formatter-candidate.json"
-assert_exit 0 "$scratch/formatter-snapshot.txt" dotnet run \
-  --project "$tool_project" \
-  -c Release --no-build --no-restore -- snapshot "$fixtures/formatter-policy.json" "$formatter_candidate" "$PWD" Release
-jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
-  .publicMembers | index("public virtual final event System.EventHandler? Changed { add; remove; }") != null' \
-  "$formatter_candidate" >/dev/null || fail "sealed event accessors lack final state"
-jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
-  .publicMembers | index("public virtual final System.String! Mixed { get; }") != null' \
-  "$formatter_candidate" >/dev/null || fail "public property surface includes non-public accessors"
-jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
-  .publicMembers | all((contains("Mixed") and contains("protected set;")) | not)' \
-  "$formatter_candidate" >/dev/null || fail "public property surface retained protected setter"
-jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
-  .protectedMembers | index("protected virtual final System.String! Mixed { set; }") != null' \
-  "$formatter_candidate" >/dev/null || fail "protected property surface includes public accessors"
-jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.AccessorDerived") |
-  .protectedMembers | all((contains("Mixed") and contains("get;")) | not)' \
-  "$formatter_candidate" >/dev/null || fail "protected property surface retained public getter"
-jq -e '.types[] | select(.name == "Bukit.PublicApiDrift.FormatterFixture.FixtureEnum") |
-  .publicMembers | index("public const Bukit.PublicApiDrift.FormatterFixture.FixtureEnum Ready = Bukit.PublicApiDrift.FormatterFixture.FixtureEnum.Ready") != null' \
-  "$formatter_candidate" >/dev/null || fail "enum field lacks fully qualified member name"
-
-identity_root="$scratch/identity-root"
-identity_relative="tests/fixtures/public-api-drift/identity-consumer"
-identity_output="$identity_root/$identity_relative/bin/Release/net10.0"
-mkdir -p "$identity_output"
-/bin/cp -R "$fixtures/identity-consumer/bin/Release/net10.0/." "$identity_output"
-/bin/cp "$fixtures/identity-v1/bin/Release/net10.0/Bukit.PublicApiDrift.IdentityContract.dll" "$identity_output"
-assert_exit 2 "$scratch/identity-mismatch.txt" dotnet run \
-  --project "$tool_project" \
-  -c Release --no-build --no-restore -- snapshot "$fixtures/identity-policy.json" "$scratch/identity-candidate.json" "$identity_root" Release
-grep -Fq 'dependency assembly identity mismatch:' "$scratch/identity-mismatch.txt" || fail "dependency mismatch lacks exact identity diagnostic"
+bash scripts/checks/public-api-drift-self-test-formatter.sh "$scratch"
+bash scripts/checks/public-api-drift-self-test-policy.sh "$scratch"
 
 python3 - "$fixtures/baseline.json" "$scratch/utf8-bom.json" "$scratch/utf16.json" <<'PY'
 from pathlib import Path
@@ -104,6 +64,16 @@ assert_exit 1 "$scratch/stable.txt" "${tool[@]}" "$fixtures/baseline.json" "$fix
 grep -Fq 'contract-shape-review:' "$scratch/stable.txt" || fail "stable contract drift lacks contract-shape-review"
 assert_exit 1 "$scratch/aot.txt" "${tool[@]}" "$fixtures/baseline.json" "$fixtures/aot-change.json"
 grep -Fq 'aot-review:' "$scratch/aot.txt" || fail "AOT drift lacks aot-review"
+assert_exit 1 "$scratch/contract-type-addition.txt" "${tool[@]}" "$fixtures/baseline.json" "$fixtures/contract-type-addition.json"
+grep -Fq 'review-required: Fixture.Core::Fixture.ZContractWidget: exported type added' "$scratch/contract-type-addition.txt" || fail "contract type addition lacks review-required"
+grep -Fq 'contract-shape-review: Fixture.Core::Fixture.ZContractWidget:' "$scratch/contract-type-addition.txt" || fail "contract type addition lacks contract-shape-review"
+assert_exit 1 "$scratch/contract-type-removal.txt" "${tool[@]}" "$fixtures/contract-type-addition.json" "$fixtures/baseline.json"
+grep -Fq 'breaking: Fixture.Core::Fixture.ZContractWidget: exported type removed' "$scratch/contract-type-removal.txt" || fail "contract type removal lacks breaking"
+grep -Fq 'contract-shape-review: Fixture.Core::Fixture.ZContractWidget:' "$scratch/contract-type-removal.txt" || fail "contract type removal lacks contract-shape-review"
+assert_exit 1 "$scratch/aot-type-addition.txt" "${tool[@]}" "$fixtures/baseline.json" "$fixtures/aot-type-addition.json"
+grep -Fq 'aot-review: Fixture.Core::Fixture.ZAotWidget:' "$scratch/aot-type-addition.txt" || fail "AOT type addition lacks aot-review"
+assert_exit 1 "$scratch/aot-type-removal.txt" "${tool[@]}" "$fixtures/aot-type-addition.json" "$fixtures/baseline.json"
+grep -Fq 'aot-review: Fixture.Core::Fixture.ZAotWidget:' "$scratch/aot-type-removal.txt" || fail "AOT type removal lacks aot-review"
 assert_exit 1 "$scratch/unclassified.txt" "${tool[@]}" "$fixtures/baseline.json" "$fixtures/unclassified.json"
 grep -Fq 'unclassified:' "$scratch/unclassified.txt" || fail "new type lacks unclassified"
 assert_exit 2 "$scratch/utf8-bom.txt" "${tool[@]}" "$scratch/utf8-bom.json" "$fixtures/unchanged.json"
@@ -127,10 +97,29 @@ expected_real_gate='run_step "public API drift" bash scripts/checks/public-api-d
 
 assert_exit 2 "$scratch/ci-fast-extra-argument.txt" bash scripts/gates/ci-fast.sh Release Extra
 assert_exit 2 "$scratch/missing-output.txt" bash scripts/checks/public-api-drift.sh snapshot
+fake_bin="$scratch/fake-bin"
+mkdir "$fake_bin"
+{
+  printf '%s\n' '#!/usr/bin/env bash' 'if [[ "${1:-}" == "build" ]]; then' \
+    '  printf "fake build failure: " >&2' \
+    '  i=0; while (( i < 800 )); do printf x >&2; i=$((i + 1)); done' \
+    '  printf " SECRET_UNBOUNDED_MARKER\\n" >&2' '  exit 1' 'fi' \
+    'printf "unexpected fake dotnet invocation\\n" >&2' 'exit 99'
+} >"$fake_bin/dotnet"
+chmod +x "$fake_bin/dotnet"
+fake_wrapper_mode="check"
+assert_exit 2 "$scratch/wrapper-build-failure.txt" env PATH="$fake_bin:$PATH" \
+  bash scripts/checks/public-api-drift.sh "$fake_wrapper_mode" Release
+grep -Eq '^gate-error: .*dotnet build --no-restore failed' "$scratch/wrapper-build-failure.txt" || \
+  fail "wrapper build failure lacks gate-error"
+[[ "$(wc -c <"$scratch/wrapper-build-failure.txt")" -le 500 ]] || fail "wrapper build error is not bounded"
+if grep -Fq 'SECRET_UNBOUNDED_MARKER' "$scratch/wrapper-build-failure.txt"; then
+  fail "wrapper leaked unbounded build output"
+fi
 baseline="docs/governance/bukit-core-public-api-baseline.v1.json"
 fixture_snapshot=(dotnet run \
   --project "$tool_project" \
-  -c Release --no-build --no-restore -- snapshot "$fixtures/formatter-policy.json")
+  -c Release --no-build --no-restore -- fixture-snapshot "$fixtures/formatter-policy.json")
 assert_exit 2 "$scratch/baseline-overwrite.txt" "${fixture_snapshot[@]}" "$baseline" "$PWD" Release
 touch "$scratch/existing.json"
 assert_exit 2 "$scratch/existing-output.txt" "${fixture_snapshot[@]}" "$scratch/existing.json" "$PWD" Release

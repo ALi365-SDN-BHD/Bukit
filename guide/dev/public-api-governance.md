@@ -15,6 +15,8 @@ assemblies.
 The check compares the compiled public and protected surfaces with
 `docs/governance/bukit-core-public-api-baseline.v1.json`. It is a
 maintainer-local governance tool, not a general CLR SDK declaration.
+Both `check` and `snapshot` require the exact policy-owned, ordered mapping of
+the twelve Core assemblies to their projects before any assembly is captured.
 
 ## Diagnostics And Exit Codes
 

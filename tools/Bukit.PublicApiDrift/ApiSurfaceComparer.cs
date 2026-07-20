@@ -9,7 +9,11 @@ internal static class ApiSurfaceComparer
         var newTypes = current.Types.ToDictionary(TypeKey, StringComparer.Ordinal);
 
         foreach (var key in oldTypes.Keys.Except(newTypes.Keys, StringComparer.Ordinal))
-            Add(diagnostics, oldTypes[key], "breaking", "exported type removed");
+        {
+            var type = oldTypes[key];
+            Add(diagnostics, type, "breaking", "exported type removed");
+            AddWholeTypeReview(diagnostics, type, "removed");
+        }
 
         foreach (var key in newTypes.Keys.Except(oldTypes.Keys, StringComparer.Ordinal))
         {
@@ -17,6 +21,7 @@ internal static class ApiSurfaceComparer
             Add(diagnostics, type, "review-required", "exported type added");
             if (!ApiPolicy.Classifications.Contains(type.Classification))
                 Add(diagnostics, type, "unclassified", "new type requires approved classification");
+            AddWholeTypeReview(diagnostics, type, "added");
         }
 
         foreach (var key in oldTypes.Keys.Intersect(newTypes.Keys, StringComparer.Ordinal))
@@ -82,6 +87,14 @@ internal static class ApiSurfaceComparer
 
     private static bool IsAotSurface(ApiType type) =>
         StringComparer.Ordinal.Equals(type.Classification, "aot-serialization-surface");
+
+    private static void AddWholeTypeReview(List<DriftDiagnostic> diagnostics, ApiType type, string change)
+    {
+        if (IsContractSurface(type))
+            Add(diagnostics, type, "contract-shape-review", $"contract-classified type {change}");
+        if (IsAotSurface(type))
+            Add(diagnostics, type, "aot-review", $"AOT serialization type {change}");
+    }
 
     private static string TypeKey(ApiType type) => $"{type.Assembly}\u0000{type.Name}";
     private static void Add(List<DriftDiagnostic> items, ApiType type, string category, string detail) =>

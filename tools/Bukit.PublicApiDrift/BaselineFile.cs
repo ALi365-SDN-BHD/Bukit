@@ -44,7 +44,7 @@ internal static class BaselineFile
             ?? throw new InvalidDataException("baseline is empty");
         Validate(baseline, mode);
 
-        if (mode == BaselineValidationMode.Committed)
+        if (mode != BaselineValidationMode.Candidate)
         {
             var expectedBytes = CanonicalEncoding.GetBytes(Serialize(baseline));
             var normalizedInputBytes = CanonicalEncoding.GetBytes(NormalizeLineEndings(input));
@@ -154,6 +154,7 @@ internal static class BaselineFile
             throw new InvalidDataException("baseline must contain assemblies");
         if (baseline.Types is null) throw new InvalidDataException("baseline types are missing");
 
+        if (mode == BaselineValidationMode.Governed) ValidateGovernedAssemblies(baseline.Assemblies);
         ValidateOrderedUnique(baseline.Assemblies, static item => item.Assembly, "assemblies");
         ValidateOrderedUnique(baseline.Types, static item => $"{item.Assembly}\0{item.Name}", "types");
         var assemblyNames = new HashSet<string>(StringComparer.Ordinal);
@@ -163,7 +164,7 @@ internal static class BaselineFile
             Require(assembly.Assembly, "assembly name");
             Require(assembly.Project, "assembly project");
             assemblyNames.Add(assembly.Assembly);
-            if (mode == BaselineValidationMode.Committed && !File.Exists(assembly.Project))
+            if (mode != BaselineValidationMode.Candidate && !File.Exists(assembly.Project))
                 throw new FileNotFoundException("committed baseline project is missing", assembly.Project);
         }
 
@@ -187,12 +188,27 @@ internal static class BaselineFile
             ValidateMembers(type.PublicMembers, "publicMembers", type.Name);
             ValidateMembers(type.ProtectedMembers, "protectedMembers", type.Name);
 
-            if (mode == BaselineValidationMode.Committed &&
+            if (mode != BaselineValidationMode.Candidate &&
                 (StringComparer.Ordinal.Equals(type.Owner, "unresolved-owner-review") ||
                  StringComparer.Ordinal.Equals(type.Classification, "review-required") ||
                  StringComparer.Ordinal.Equals(type.Compatibility, "review-required") ||
                  StringComparer.Ordinal.Equals(type.MigrationHorizon, "review-required")))
                 throw new InvalidDataException($"committed baseline contains unresolved policy metadata for {type.Name}");
+        }
+    }
+
+    private static void ValidateGovernedAssemblies(IReadOnlyList<ApiAssembly> assemblies)
+    {
+        if (assemblies.Count != ApiPolicy.GovernedAssemblies.Count)
+            throw new InvalidDataException("governed assembly mappings must exactly match policy");
+
+        for (var index = 0; index < assemblies.Count; index++)
+        {
+            var actual = assemblies[index];
+            var expected = ApiPolicy.GovernedAssemblies[index];
+            if (!StringComparer.Ordinal.Equals(actual.Assembly, expected.Assembly) ||
+                !StringComparer.Ordinal.Equals(actual.Project, expected.Project))
+                throw new InvalidDataException("governed assembly mappings must exactly match policy");
         }
     }
 

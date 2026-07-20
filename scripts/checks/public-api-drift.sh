@@ -27,7 +27,16 @@ case "$mode" in
     ;;
 esac
 
-dotnet build bukit-core.slnx -c "$configuration" --no-restore --nologo >&2
+build_log="$(mktemp "${TMPDIR:-/tmp}/bukit-public-api-build.XXXXXX")"
+trap 'rm -f -- "$build_log"' EXIT
+if dotnet build bukit-core.slnx -c "$configuration" --no-restore --nologo >"$build_log" 2>&1; then
+  /bin/cat "$build_log" >&2
+else
+  build_status=$?
+  build_detail="$(head -c 400 "$build_log" | tr '\r\n' '  ')"
+  printf 'gate-error: dotnet build --no-restore failed (exit %s): %s\n' "$build_status" "$build_detail" >&2
+  exit 2
+fi
 
 tool=(dotnet run --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj -c "$configuration" --no-build --no-restore --)
 if [[ "$mode" == "check" ]]; then

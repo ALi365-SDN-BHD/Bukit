@@ -27,26 +27,120 @@
     },
     "assemblies": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 12,
+      "maxItems": 12,
       "uniqueItems": true,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "assembly",
-          "project"
-        ],
-        "properties": {
-          "assembly": {
-            "type": "string",
-            "minLength": 1
-          },
-          "project": {
-            "type": "string",
-            "minLength": 1
+      "prefixItems": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Cli.Shared" },
+            "project": { "const": "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Config" },
+            "project": { "const": "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Content" },
+            "project": { "const": "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Engine" },
+            "project": { "const": "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Engine.Abstractions" },
+            "project": { "const": "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Plugin.Abstractions" },
+            "project": { "const": "src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.PluginHost" },
+            "project": { "const": "src/Bukit-Core/Bukit.PluginHost/Bukit.PluginHost.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Rendering" },
+            "project": { "const": "src/Bukit-Core/Bukit.Rendering/Bukit.Rendering.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Routing" },
+            "project": { "const": "src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Shared" },
+            "project": { "const": "src/Bukit-Core/Bukit.Shared/Bukit.Shared.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Theme" },
+            "project": { "const": "src/Bukit-Core/Bukit.Theme/Bukit.Theme.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "bukit" },
+            "project": { "const": "src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj" }
           }
         }
-      }
+      ],
+      "items": false
     },
     "types": {
       "type": "array",
