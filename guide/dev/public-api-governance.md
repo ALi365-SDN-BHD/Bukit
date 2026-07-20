@@ -87,3 +87,20 @@ between validation and file creation.
 
 `ci-fast` runs the fixture-only self-test first, then one real configured Core
 surface check. The self-test must not run a real Core snapshot or check.
+
+## 2.0 Consumer Declaration Preparation
+
+The [2.0 public surface candidate manifest](../../docs/governance/bukit-core-2.0-public-surface-candidates.v1.json)
+and [consumer declaration](../../docs/governance/bukit-core-2.0-consumer-declaration.md)
+record the current G-04B1 preparation state. That state is
+`prepared-not-open`: the candidate inventory is review material, not an active
+consumer call or a removal decision.
+
+All 1.x CLR access levels remain unchanged. A `no-public-match-found` result
+means only that the recorded public searches found no reviewed external match;
+it is not proof that removal is safe and cannot reveal private, unindexed, or
+undisclosed consumers.
+
+Maintainers must obtain separate approval before G-04B2 publishes the material,
+creates the dedicated GitHub Issue, or opens the declaration window. G-04B1
+does not authorize G-04B2 or G-04C.
