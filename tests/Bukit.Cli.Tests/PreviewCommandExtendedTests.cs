@@ -1,12 +1,15 @@
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Reflection;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Commands.Dev;
+using Bukit.Cli.Shared.Cli.Binding;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
 
+[Collection("CWD")]
 public sealed class PreviewCommandExtendedTests : IDisposable
 {
     private static readonly TimeSpan s_requestTimeout = TimeSpan.FromSeconds(5);
@@ -171,6 +174,87 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         var result = (bool)s_resolveRemoveManagedAnalytics.Invoke(null, new object[] { previewDir })!;
 
         Assert.False(result);
+    }
+
+    [Fact]
+    public async Task RunAsync_ExplicitCustomConfig_UsesItsAnalyticsPolicy_WhenNoSiteYamlExists()
+    {
+        var rootDir = Path.Combine(_tempDir, "custom-only");
+        var outputDir = Path.Combine(rootDir, "dist");
+        Directory.CreateDirectory(outputDir);
+        var configPath = Path.Combine(rootDir, "custom.yaml");
+        WriteConfig(configPath, "dist", policyActive: true);
+        WriteManagedHtml(outputDir);
+
+        var body = await RequestPreviewAsync("--config", configPath);
+
+        AssertManagedAnalyticsRemoved(body);
+    }
+
+    [Fact]
+    public async Task RunAsync_ExplicitCustomConfig_WinsOverNearestSiteYaml()
+    {
+        var rootDir = Path.Combine(_tempDir, "custom-wins");
+        var outputDir = Path.Combine(rootDir, "dist");
+        Directory.CreateDirectory(outputDir);
+        var configPath = Path.Combine(rootDir, "custom.yaml");
+        WriteConfig(configPath, "dist", policyActive: false);
+        WriteConfig(Path.Combine(rootDir, "site.yaml"), "dist", policyActive: true);
+        WriteManagedHtml(outputDir);
+
+        var body = await RequestPreviewAsync("--config", configPath);
+
+        Assert.Contains("<script>managed-analytics</script>", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_ConfigAndDir_UsesExplicitConfigForAnalyticsPolicy()
+    {
+        var rootDir = Path.Combine(_tempDir, "config-and-dir");
+        var outputDir = Path.Combine(rootDir, "selected-output");
+        Directory.CreateDirectory(outputDir);
+        var configPath = Path.Combine(rootDir, "custom.yaml");
+        WriteConfig(configPath, "ignored-output", policyActive: true);
+        WriteConfig(Path.Combine(rootDir, "site.yaml"), "ignored-output", policyActive: false);
+        WriteManagedHtml(outputDir);
+
+        var body = await RequestPreviewAsync("--config", configPath, "--dir", outputDir);
+
+        AssertManagedAnalyticsRemoved(body);
+    }
+
+    [Fact]
+    public async Task RunAsync_Site_UsesResolvedSiteConfig_NotRootSiteYaml()
+    {
+        var rootDir = Path.Combine(_tempDir, "multi-site");
+        var outputDir = Path.Combine(rootDir, "dist");
+        var sitesDir = Path.Combine(rootDir, "sites");
+        Directory.CreateDirectory(outputDir);
+        Directory.CreateDirectory(sitesDir);
+        WriteConfig(Path.Combine(sitesDir, "blog.yaml"), "dist", policyActive: true);
+        WriteConfig(Path.Combine(rootDir, "site.yaml"), "dist", policyActive: false);
+        WriteManagedHtml(outputDir);
+
+        using var _ = new CurrentDirectoryScope(rootDir);
+        var body = await RequestPreviewAsync("--site", "blog");
+
+        AssertManagedAnalyticsRemoved(body);
+    }
+
+    [Fact]
+    public async Task RunAsync_ExplicitConfig_UsesPolicyForExternalConfiguredOutput()
+    {
+        var rootDir = Path.Combine(_tempDir, "external-config");
+        var outputDir = Path.Combine(_tempDir, "external-output");
+        Directory.CreateDirectory(rootDir);
+        Directory.CreateDirectory(outputDir);
+        var configPath = Path.Combine(rootDir, "custom.yaml");
+        WriteConfig(configPath, outputDir, policyActive: true);
+        WriteManagedHtml(outputDir);
+
+        var body = await RequestPreviewAsync("--config", configPath);
+
+        AssertManagedAnalyticsRemoved(body);
     }
 
     [Fact]
@@ -375,5 +459,101 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         {
             listener.Close();
         }
+    }
+
+    private static void WriteConfig(string path, string output, bool policyActive)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, $$"""
+            site:
+              name: preview-identity
+              title: Preview Identity
+              analytics:
+                enabled: {{policyActive.ToString().ToLowerInvariant()}}
+                productionOnly: true
+                providers:
+                  - type: google-analytics
+                    measurementId: G-ABCDE123
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            build:
+              output: {{output}}
+            """);
+    }
+
+    private static void WriteManagedHtml(string outputDir)
+    {
+        File.WriteAllText(Path.Combine(outputDir, "index.html"), """
+            <html><head>
+              <!-- bukit:analytics:google-analytics:G-ABCDE123:head:start -->
+              <script>managed-analytics</script>
+              <!-- bukit:analytics:google-analytics:G-ABCDE123:head:end -->
+            </head><body>preview</body></html>
+            """);
+    }
+
+    private static void AssertManagedAnalyticsRemoved(string body)
+    {
+        Assert.Contains("<body>preview</body>", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("managed-analytics", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("bukit:analytics", body, StringComparison.Ordinal);
+    }
+
+    private static async Task<string> RequestPreviewAsync(params string[] keyValues)
+    {
+        var port = PickFreePort();
+        var options = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < keyValues.Length; index += 2)
+        {
+            options[keyValues[index]] = keyValues[index + 1];
+        }
+
+        options["--host"] = IPAddress.Loopback.ToString();
+        options["--port"] = port.ToString();
+        options["--strict-port"] = "true";
+        var bound = new CliBoundCommand(options, Array.Empty<string>());
+
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var previewTask = PreviewCommand.RunAsync(bound, cancellation.Token);
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+            var uri = new Uri($"http://{IPAddress.Loopback}:{port}/");
+            for (var attempt = 0; attempt < 40; attempt++)
+            {
+                if (previewTask.IsCompleted)
+                {
+                    await previewTask;
+                    throw new InvalidOperationException("Preview stopped before serving a request.");
+                }
+
+                try
+                {
+                    using var response = await client.GetAsync(uri, cancellation.Token);
+                    return await response.Content.ReadAsStringAsync(cancellation.Token);
+                }
+                catch (HttpRequestException)
+                {
+                    await Task.Delay(25, cancellation.Token);
+                }
+            }
+
+            throw new TimeoutException("Preview did not start before the request deadline.");
+        }
+        finally
+        {
+            cancellation.Cancel();
+            Assert.Equal(0, await previewTask.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+    }
+
+    private static int PickFreePort()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        return ((IPEndPoint)listener.LocalEndpoint).Port;
     }
 }

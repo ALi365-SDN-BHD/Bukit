@@ -18,18 +18,26 @@ public static class PreviewCommand
     public static async Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken)
     {
         var dirOpt = command.GetString("--dir");
+        var configPathOpt = command.GetString("--config");
+        var siteOpt = command.GetString("--site");
+        ResolvedConfigPath? resolvedConfigPath = null;
+        AppConfig? explicitConfig = null;
+
+        if (!string.IsNullOrWhiteSpace(configPathOpt) || !string.IsNullOrWhiteSpace(siteOpt))
+        {
+            resolvedConfigPath = ConfigPathResolver.Resolve(configPathOpt, siteOpt);
+            explicitConfig = ConfigLoader.Load(resolvedConfigPath.FullConfigPath);
+        }
+
         string dir;
 
         if (!string.IsNullOrWhiteSpace(dirOpt))
         {
             dir = Path.GetFullPath(dirOpt);
         }
-        else if (!string.IsNullOrWhiteSpace(command.GetString("--config")) ||
-                 !string.IsNullOrWhiteSpace(command.GetString("--site")))
+        else if (resolvedConfigPath is not null && explicitConfig is not null)
         {
-            var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
-            var config = ConfigLoader.Load(resolved.FullConfigPath);
-            dir = Path.GetFullPath(Path.Combine(resolved.RootDir, config.Build.Output));
+            dir = Path.GetFullPath(Path.Combine(resolvedConfigPath.RootDir, explicitConfig.Build.Output));
         }
         else
         {
@@ -53,13 +61,17 @@ public static class PreviewCommand
             return 2;
         }
 
-        var removeManagedAnalytics = ResolveRemoveManagedAnalyticsInPreview(dir);
+        var removeManagedAnalytics = explicitConfig is not null
+            ? ShouldRemoveManagedAnalytics(explicitConfig.Site)
+            : ResolveRemoveManagedAnalyticsInPreview(dir);
+        var analyticsPolicySource = resolvedConfigPath?.FullConfigPath ?? "nearest site.yaml fallback";
         var (listener, prefix) = CreateAndStartListener(host, port, strictPort);
         using var startedListener = listener;
         using var cancellationRegistration = cancellationToken.Register(listener.Stop);
 
         Console.WriteLine($"Preview: {prefix}");
         Console.WriteLine($"Serving: {dir}");
+        Console.WriteLine($"Analytics policy source: {analyticsPolicySource}");
         Console.WriteLine("Press Ctrl+C to stop.");
 
         while (true)

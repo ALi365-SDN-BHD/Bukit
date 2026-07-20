@@ -3010,6 +3010,57 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_LegacyTrackedRawStaticHtml_IsDeletedWithoutDeletingUntrackedOutput()
+    {
+        var root = CreateRouteConflictSite();
+        try
+        {
+            var staticDir = Path.Combine(root, "static");
+            Directory.CreateDirectory(staticDir);
+            File.WriteAllText(Path.Combine(staticDir, "raw.html"), "<main>Static Raw</main>");
+            File.WriteAllText(
+                Path.Combine(root, "layouts", "pages", "static.html"),
+                "<article data-rendered=\"true\">{{ page.content }}</article>");
+
+            var outputDir = Path.Combine(root, "dist");
+            Directory.CreateDirectory(outputDir);
+            var legacyRawOutput = Path.Combine(outputDir, "raw.html");
+            var untrackedOutput = Path.Combine(outputDir, "user-kept.html");
+            File.WriteAllText(legacyRawOutput, "legacy-owned");
+            File.WriteAllText(untrackedOutput, "untracked-user-output");
+
+            new BuildManifest
+            {
+                Static = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["raw.html"] = "legacy-fingerprint"
+                }
+            }.Save(Path.Combine(root, ".cache", "build-manifest.json"));
+
+            var config = CreateRouteConflictConfig();
+            config = config with { Build = config.Build with { Clean = false } };
+            await new SiteEngine(new TestLogger()).BuildAsync(
+                config,
+                root,
+                new ConfigOverrides { Incremental = true, Clean = false },
+                CancellationToken.None);
+
+            var renderedOutput = Path.Combine(outputDir, "raw", "index.html");
+            Assert.Contains("data-rendered=\"true\"", File.ReadAllText(renderedOutput), StringComparison.Ordinal);
+            Assert.False(File.Exists(legacyRawOutput));
+            Assert.Equal("untracked-user-output", File.ReadAllText(untrackedOutput));
+
+            var manifest = BuildManifest.Load(Path.Combine(root, ".cache", "build-manifest.json"));
+            Assert.Contains("raw/index.html", manifest.Static.Keys);
+            Assert.DoesNotContain("raw.html", manifest.Static.Keys);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_RenderedStaticAndAssetCollision_FailsBeforeAnyOutputWrite()
     {
         var root = CreateRouteConflictSite();
