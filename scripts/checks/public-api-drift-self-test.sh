@@ -18,6 +18,15 @@ assert_exit() {
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-public-api-drift-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
 
+python3 - "$fixtures/baseline.json" "$scratch/utf8-bom.json" "$scratch/utf16.json" <<'PY'
+from pathlib import Path
+import sys
+
+source = Path(sys.argv[1]).read_bytes()
+Path(sys.argv[2]).write_bytes(b"\xef\xbb\xbf" + source)
+Path(sys.argv[3]).write_bytes(source.decode("utf-8").encode("utf-16"))
+PY
+
 assert_exit 0 "$scratch/unchanged.txt" "${tool[@]}" "$fixtures/baseline.json" "$fixtures/unchanged.json"
 assert_exit 1 "$scratch/additive.txt" "${tool[@]}" "$fixtures/baseline.json" "$fixtures/additive.json"
 grep -Fq 'review-required:' "$scratch/additive.txt" || fail "additive drift lacks review-required"
@@ -32,6 +41,10 @@ assert_exit 1 "$scratch/aot.txt" "${tool[@]}" "$fixtures/baseline.json" "$fixtur
 grep -Fq 'aot-review:' "$scratch/aot.txt" || fail "AOT drift lacks aot-review"
 assert_exit 1 "$scratch/unclassified.txt" "${tool[@]}" "$fixtures/baseline.json" "$fixtures/unclassified.json"
 grep -Fq 'unclassified:' "$scratch/unclassified.txt" || fail "new type lacks unclassified"
+assert_exit 2 "$scratch/utf8-bom.txt" "${tool[@]}" "$scratch/utf8-bom.json" "$fixtures/unchanged.json"
+grep -Fq 'gate-error:' "$scratch/utf8-bom.txt" || fail "UTF-8 BOM baseline lacks gate-error"
+assert_exit 2 "$scratch/utf16.txt" "${tool[@]}" "$scratch/utf16.json" "$fixtures/unchanged.json"
+grep -Fq 'gate-error:' "$scratch/utf16.txt" || fail "UTF-16 baseline lacks gate-error"
 assert_exit 2 "$scratch/malformed.txt" "${tool[@]}" "$fixtures/malformed.json" "$fixtures/unchanged.json"
 grep -Fq 'gate-error:' "$scratch/malformed.txt" || fail "malformed baseline lacks gate-error"
 assert_exit 2 "$scratch/unsorted.txt" "${tool[@]}" "$fixtures/unsorted.json" "$fixtures/unchanged.json"

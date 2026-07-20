@@ -1,9 +1,12 @@
+using System.Text;
 using System.Text.Json;
 
 namespace Bukit.PublicApiDrift;
 
 internal static class BaselineFile
 {
+    private static readonly UTF8Encoding CanonicalEncoding = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -15,7 +18,20 @@ internal static class BaselineFile
 
     public static ApiBaseline Load(string path, BaselineValidationMode mode)
     {
-        var input = File.ReadAllText(path);
+        var inputBytes = File.ReadAllBytes(path);
+        if (inputBytes.Length >= 3 && inputBytes[0] == 0xef && inputBytes[1] == 0xbb && inputBytes[2] == 0xbf)
+            throw new InvalidDataException("baseline must be UTF-8 without a byte-order mark");
+
+        string input;
+        try
+        {
+            input = CanonicalEncoding.GetString(inputBytes);
+        }
+        catch (DecoderFallbackException exception)
+        {
+            throw new InvalidDataException("baseline must be valid UTF-8 without a byte-order mark", exception);
+        }
+
         using var document = JsonDocument.Parse(input, new JsonDocumentOptions
         {
             CommentHandling = JsonCommentHandling.Disallow,
@@ -27,9 +43,13 @@ internal static class BaselineFile
             ?? throw new InvalidDataException("baseline is empty");
         Validate(baseline, mode);
 
-        if (mode == BaselineValidationMode.Committed &&
-            !StringComparer.Ordinal.Equals(Serialize(baseline), NormalizeLineEndings(input)))
-            throw new InvalidDataException("committed baseline is not canonical");
+        if (mode == BaselineValidationMode.Committed)
+        {
+            var expectedBytes = CanonicalEncoding.GetBytes(Serialize(baseline));
+            var normalizedInputBytes = CanonicalEncoding.GetBytes(NormalizeLineEndings(input));
+            if (!expectedBytes.AsSpan().SequenceEqual(normalizedInputBytes))
+                throw new InvalidDataException("committed baseline is not canonical");
+        }
 
         return baseline;
     }
@@ -42,7 +62,7 @@ internal static class BaselineFile
         ArgumentException.ThrowIfNullOrWhiteSpace(repositoryRoot);
         var destination = Path.GetFullPath(path);
         using var stream = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-        using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        using var writer = new StreamWriter(stream, CanonicalEncoding);
         writer.Write(Serialize(baseline));
     }
 
