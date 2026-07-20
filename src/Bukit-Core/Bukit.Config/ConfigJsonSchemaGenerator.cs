@@ -54,7 +54,7 @@ public static class ConfigJsonSchemaGenerator
             ("timezone", StringSchema()),
             ("collections", CollectionSchema()),
             ("permalinks", StringMapSchema()),
-            ("plugins", Obj(("type", "object"), ("additionalProperties", true))),
+            ("plugins", Obj(("type", "object"), ("additionalProperties", PluginToggleSchema()))),
             ("feed", FeedSchema()),
             ("sitemapDetail", SitemapDetailSchema()),
             ("pagination", PaginationGlobalSchema()),
@@ -600,6 +600,17 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject StringMapSchema()
         => Obj(("type", "object"), ("additionalProperties", StringSchema()));
+
+    private static JsonObject PluginToggleSchema()
+    {
+        var mapping = Obj(
+            ("type", "object"),
+            ("properties", Obj(
+                ("enabled", BoolSchema()),
+                ("options", Obj(("type", "object"), ("additionalProperties", true))))));
+
+        return Obj(("oneOf", new JsonArray(BoolSchema(), mapping)));
+    }
 
     private static JsonObject EnumSchema(params string[] values)
     {

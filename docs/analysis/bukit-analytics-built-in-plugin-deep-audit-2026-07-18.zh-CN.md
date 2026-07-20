@@ -6,20 +6,20 @@
 > 原报告提交：`9ff5d452`
 > 执行环境：macOS arm64，.NET SDK 10.0.100，Bukit 1.0.10
 > 执行 checkout：审计开始时为 `f076a288`；结束前仓库被外部推进到 `main@f80919f8`。`fe27bbbe..f80919f8` 没有 `src/Bukit-Core` 实现变化，因此本文继续以约定的 `fe27bbbe` 为唯一实现基线。
-> 整改状态：AN-01 已于 2026-07-20 在 `main@f80919f8` 后的当前工作树完成修复和验证；其余状态不自动变化。
-> 审计阶段边界：复审时只重写本报告。AN-01 整改随后仅修改内部过滤器、Engine/CLI 回归测试和本报告；未修改公共 API、配置协议、插件协议或其他用户文件。
+> 整改状态：AN-01 已进入 `main@738244cf`；本轮期间 `main` 被外部推进到 `7104c93a`（仅合并治理文档、与本项无重叠），AN-02 已于 2026-07-20 在该 HEAD 后的当前工作树完成修复和验证；其余状态不自动变化。
+> 审计阶段边界：复审时只重写本报告。后续整改按发现逐项推进；AN-02 修改 YAML AST 严格校验、生成的 JSON Schema、Config/CLI 回归测试和本报告，没有修改公共 C# API 或插件协议。Schema 收紧仅拒绝此前被静默默认化的无效插件开关，未知插件名及 `options` 内容仍开放。
 
 ## 一、复审结论
 
 原 AN-01～AN-14 均已从当前源码和运行结果重新验证，旧结论没有自动继承。结论如下：
 
-- 当前未解决问题 **12 项**：P0 0 项、P1 2 项、P2 7 项、P3 3 项。
-- 已修复 **2 项**：AN-01、AN-04。AN-01 的线性两遍 marker 解析已恢复幂等和 Preview 清理；AN-04 的统一输出所有权已阻止 Static HTML 原文件旁路发布。
+- 当前未解决问题 **11 项**：P0 0 项、P1 1 项、P2 7 项、P3 3 项。
+- 已修复 **3 项**：AN-01、AN-02、AN-04。AN-02 现会在默认值应用前拒绝错误 Analytics/plugin 节点类型，生成 Schema 与运行时插件开关契约一致。
 - 新增确认问题 **0 项**。本轮扩大到共享 Engine、运行模式、原始字节、报告、增量和 Native AOT 后，没有把不稳定假设升级成新编号。
-- 相关定向测试 **450/450 通过**；这只说明既有断言通过，不否定本文复现出的测试盲区。
+- 复审基线相关定向测试 **450/450 通过**；AN-02 整改后的仓库定向 gate 为 Config **245/245**、CLI **578/578**。测试通过不用于否定仍未覆盖的其他发现。
 - `osx-arm64` Native AOT 发布成功，发布二进制完成四 Provider 最小真实构建；未加载生成页面，也未向 Analytics 服务发送请求。
 
-主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01 已关闭；生产完备性仍被两个 P1 问题阻断：错误 YAML 类型静默降级，以及 Preview 丢失显式配置身份。
+主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01、AN-02 已关闭；生产完备性仍被一个 P1 问题阻断：Preview 丢失显式配置身份。
 
 ## 二、严重度与状态总表
 
@@ -39,7 +39,7 @@
 | ID | 状态 | 等级 | 分类 | 当前结论 | 置信度 |
 |---|---|---:|---|---|---:|
 | AN-01 | **已修复** | 原 P1 | 已修复 Bug / 隐私风险 | orphan 保留但不再屏蔽后续合法块；连续三次 Transform 完全相等，Preview 可清理合法块。 | 高 |
-| AN-02 | 仍存在 | P1 | 已确认配置契约 Bug | 五类错误 YAML 形状均以退出码 0 通过 `config check`，非法插件标量默认为启用。 | 高 |
+| AN-02 | **已修复** | 原 P1 | 已修复配置契约 Bug | 原五类错误 YAML 及四个同根防御用例均以精确路径失败；插件 Schema 与运行时短/长格式一致。 | 高 |
 | AN-03 | 仍存在 | P1 | 已确认 Preview Bug | `preview --config custom.yaml` 用该配置解析输出目录，却只用固定 `site.yaml` 决定清理策略。 | 高 |
 | AN-04 | 已修复 | 原 P1 | 已修复发布 Bug | fresh build 不再生成原始 `raw.html`；旧 manifest 拥有的旁路文件会在增量升级时删除。 | 高 |
 | AN-05 | 仍存在 | P2 | 外部规范漂移 | GA/GTM head 片段固定注入到 `</head>` 前，偏离 Google 当前的 head 起始位置要求。 | 高 |
@@ -58,7 +58,7 @@
 | ID | 2026-07-18 | 2026-07-20 | 复审依据 |
 |---|---|---|---|
 | AN-01 | 确认 | **已修复（同日整改）** | RED 复现 1→2→3；线性两遍解析后连续三次相等，Preview 合法块被清理。 |
-| AN-02 | 确认 | 仍存在 | 五个错误配置均退出 0。 |
+| AN-02 | 确认 | **已修复（同日整改）** | 原五个黑盒 `config check` 均由退出 0 转为退出 1；合法空 Analytics 与插件长格式仍通过。 |
 | AN-03 | 确认 | 仍存在 | 仅加入同内容 `site.yaml` 后 Preview 才清理。 |
 | AN-04 | 确认 | **已修复** | `AssetOutputPlan` 输出所有权修复；fresh/upgrade 两种真实构建转绿。 |
 | AN-05 | 漂移 | 仍存在 | 2026-07-20 官方文档与当前 HeadEnd 模型对照。 |
@@ -89,7 +89,7 @@ flowchart TD
     K --> L["analytics-report.json"]
     F --> M["Preview / Dev 响应清理"]
 
-    B -. "错误节点类型被当作缺失" .-> C
+    B -. "AN-02 已修复：wrong-kind 在默认化前失败" .-> C
     A -. "显式 config 身份丢失" .-> M
     F -. "AN-01 已修复：orphan 不再屏蔽合法块" .-> M
     G -. "位置、Plausible、CSP、Consent 漂移" .-> I
@@ -100,7 +100,7 @@ flowchart TD
 
 三类系统性根因贯穿多数发现：
 
-1. JSON Schema、YAML AST 节点类型、运行时默认值和 CLI 检查没有共享同一严格契约。
+1. JSON Schema、YAML AST 节点类型、运行时默认值和 CLI 检查曾在 Analytics/plugin 开关处失配；AN-02 已将该范围收敛为同一严格契约。
 2. HTML marker 没有签名或所有权凭据；AN-01 已用线性两遍解析修复可判定的 orphan-before-valid 情形，完整伪造合法 pair 的所有权仍无法从文本本身区分。
 3. Provider 渲染能力被压缩为 `HeadEnd/BodyStart` 两个固定槽，无法表达 head-start、nonce、consent bootstrap 或共享 Google tag bootstrap。
 
@@ -119,17 +119,18 @@ flowchart TD
 - **修复边界：** nested、crossed、bounded mismatch、孤立 marker 仍保守整组保留；无签名协议无法区分用户手写的完整合法 pair 与 Bukit pair，这是既有协议边界，不在 AN-01 内扩张协议。
 - **回归测试：** 连续三次完全相等；Preview orphan 后合法块清理；嵌套、交叉、bounded mismatch、属性、普通注释及 `script/style/title/textarea` 中 marker-like 内容不误删。
 
-### AN-02 — P1：错误 YAML 节点类型被静默降级为默认值
+### AN-02 — 原 P1：错误 YAML 节点类型被静默降级为默认值（已修复）
 
-- **置信度 / 分类：** 高；已确认配置契约 Bug。
-- **源码位置：** `ConfigStrictFieldValidator.cs:72-82,312-368`；`ConfigYamlHelpers.cs:20-42,235-243`；`SiteDefaultsApplier.cs:64-113`；`SiteDefaultsApplier.Theme.cs:141-174`；`ConfigJsonSchemaGenerator.cs:206-240`。
-- **最小复现：** 分别配置 `analytics: []`、`providers: {}`、`enabled: []`、`productionOnly: {}`、`site.plugins.analytics: definitely-not-a-bool`。
-- **命令与输出：** 对五个文件运行 `bukit config check --config <file>`，五次均退出 `0` 并输出配置检查通过。
-- **期望 / 实际：** 期望 CLI 按 Schema 拒绝 object/array/boolean 节点类型错误和非法布尔值；实际 `Map/Seq/GetOptional*` 返回 null，将“类型错误”降级为“字段缺失”，插件非法标量则保留 `enabled=true` 默认值。
-- **根因：** 严格校验只在节点恰好为预期类型时继续检查，读取器也用 null 同时表示“不存在”和“类型错误”；插件短格式的 `bool.TryParse` 失败不报错。
-- **影响范围：** `config check`、Production、Development、Preview 策略；尤其非法插件开关可能静默启用真实追踪，错误 providers 形状会静默丢弃全部 Provider。
-- **修复边界：** 在 YAML AST 严格层区分 missing 与 wrong-kind；短格式只接受 YAML boolean；保持 Schema 和公共字段不变。
-- **回归测试：** 五个复现全部非零退出并包含精确路径；同时覆盖空合法 object/list、未知字段、Provider 非 mapping、重复 Provider、IDN、UUID、HTTPS URL、跨 Provider 字段和 Provider 顺序。
+- **置信度 / 分类：** 高；历史已确认配置契约 Bug；当前已修复。
+- **源码位置：** `ConfigStrictFieldValidator.cs:72-104,142-185`；`ConfigJsonSchemaGenerator.cs:57,604-613`；`AnalyticsConfigTests.cs:71-104`；`ConfigCommandTests.cs:111-161`。
+- **历史最小复现：** `analytics: []`、`providers: {}`、`enabled: []`、`productionOnly: {}`、`site.plugins.analytics: definitely-not-a-bool` 均曾被当作缺失或默认启用。
+- **修复后命令与输出：** 用 Release CLI 对原五个文件运行 `dotnet bukit.dll config check --config <file>`，五次均退出 `1`，依次输出 `site.analytics must be a mapping`、`providers must be a sequence`、两个布尔路径错误及 `site.plugins.analytics must be a mapping or boolean`；合法 `analytics.providers: []` 与插件 `{ enabled: false, options: {...} }` 退出 `0`。
+- **期望 / 实际：** 期望 wrong-kind 在默认值应用前失败；当前 YAML AST 严格层按完整路径抛出 `ConfigInvalidValue`，`config check` 返回 1，不再静默启用插件或丢弃 Provider。
+- **历史根因：** `Map/Seq/GetOptional*` 用 null 同时表示“不存在”和“类型错误”，插件短格式的 `bool.TryParse` 失败又保留初始 `enabled=true`。
+- **修复实现：** Analytics object、Provider list 和两个布尔字段均做 presence-aware kind 检查；`site.plugins` 及每个插件短/长格式统一验证。生成 Schema 使用 `oneOf(boolean, strict mapping)`，mapping 只允许 `enabled/options`，同时保留未知插件名与 `options.additionalProperties=true`。
+- **影响范围：** `config check`、Production、Development、Preview 共用同一加载路径；修复同时覆盖所有 Core built-in plugin toggle，避免同类非法标量默认启用。
+- **修复边界：** 没有改动公共 C# API、Analytics Provider 字段或外部插件协议；合法 `analytics: {}`、`providers: []`、插件 true/false 短格式和 mapping 长格式保持兼容。此前无效果的 wrapper 未知字段现在按严格契约拒绝。
+- **回归测试：** 原五个复现加 `site.plugins: []`、长格式错误 `enabled/options`、wrapper 未知字段共九项均精确断言错误码、消息和 CLI 非零退出；合法空 object/list、Provider 校验与顺序、插件短/长格式及 Schema 开放边界保持通过。仓库定向 gate：Config 245/245、CLI 578/578；最终 subagent 只读审查无 Critical/Important。
 
 ### AN-03 — P1：Preview 丢失显式配置身份
 
@@ -410,12 +411,12 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 
 ### 第一批：阻断级正确性与隐私
 
-剩余范围：AN-02、AN-03；AN-01、AN-04 已完成，保留为固定回归。
+剩余范围：AN-03；AN-01、AN-02、AN-04 已完成，保留为固定回归。
 
 - AN-01 已完成：线性两遍 marker 解析只清理可证明的直接 pair，orphan 不再导致累积。
-- YAML strict validator 对 wrong-kind 和非法插件布尔值 fail-fast。
+- AN-02 已完成：YAML strict validator 对 wrong-kind、非法插件布尔值和错误长格式 fail-fast，Schema 与运行时一致。
 - Preview 保留显式配置身份，并为配置错误提供可见的安全决策。
-- 验收：剩余两个 P1 最小复现转绿；Production/Preview/Dev 幂等与 legacy Static upgrade 测试长期通过。
+- 验收：剩余 AN-03 最小复现转绿；AN-01/AN-02/AN-04 的 Production/Preview/Dev、配置契约与 legacy Static upgrade 测试长期通过。
 
 ### 第二批：Provider 兼容与配置契约
 
@@ -447,6 +448,6 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 
 ## 十、最终判断
 
-Analytics 已具备可工作的主路径，AN-01 和 AN-04 已关闭；但在 AN-02、AN-03 关闭前，不应把 Preview 隐私语义和配置契约宣称为生产级安全。其后优先处理 Google/Plausible 规范漂移、Consent/CSP 与 renderer contract version，再收敛字节保真、报告原子性和 linked-source 债务。
+Analytics 已具备可工作的主路径，AN-01、AN-02 和 AN-04 已关闭；但在 AN-03 关闭前，不应把 Preview 隐私语义宣称为生产级安全。其后优先处理 Google/Plausible 规范漂移、Consent/CSP 与 renderer contract version，再收敛字节保真、报告原子性和 linked-source 债务。
 
 本报告只陈述在 `fe27bbbe` 实现基线上能够由源码、最小复现、真实构建或官方规范稳定支持的结论；未成功复现的假设均保留在测试盲区或已排除项中，没有伪装成确认 Bug。

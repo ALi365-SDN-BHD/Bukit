@@ -108,6 +108,58 @@ public sealed class ConfigCommandTests : IDisposable
         }
     }
 
+    public static TheoryData<string, string> InvalidAnalyticsContractNodes => new()
+    {
+        { "analytics: []", "site.analytics" },
+        { "analytics:\n  providers: {}", "site.analytics.providers" },
+        { "analytics:\n  enabled: []", "site.analytics.enabled" },
+        { "analytics:\n  productionOnly: {}", "site.analytics.productionOnly" },
+        { "plugins:\n  analytics: definitely-not-a-bool", "site.plugins.analytics" },
+        { "plugins: []", "site.plugins" },
+        { "plugins:\n  analytics:\n    enabled: []", "site.plugins.analytics.enabled" },
+        { "plugins:\n  analytics:\n    options: []", "site.plugins.analytics.options" },
+        { "plugins:\n  analytics:\n    typo: true", "site.plugins.analytics.typo" }
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidAnalyticsContractNodes))]
+    public async Task Check_InvalidAnalyticsContractNode_ReturnsOne(string siteFragment, string expectedPath)
+    {
+        var indentedFragment = string.Join(
+            Environment.NewLine,
+            siteFragment.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').Select(line => $"  {line}"));
+        File.WriteAllText(_configPath, $$"""
+                                        site:
+                                          name: test
+                                          title: Test
+                                        {{indentedFragment}}
+                                        content:
+                                          sources:
+                                            - type: markdown
+                                              name: page
+                                              collection: page
+                                              markdown:
+                                                dir: content
+                                        """);
+
+        using var writer = new StringWriter(new StringBuilder());
+        var originalOut = Console.Out;
+        Console.SetOut(writer);
+        try
+        {
+            var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config", "check", "--config", _configPath }));
+
+            Assert.Equal(1, exitCode);
+            var output = writer.ToString();
+            Assert.Contains("Config error", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(expectedPath, output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
     [Fact]
     public async Task Check_MissingConfig_ReturnsOne()
     {

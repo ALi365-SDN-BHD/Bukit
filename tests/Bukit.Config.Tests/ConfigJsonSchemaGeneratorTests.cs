@@ -12,6 +12,7 @@ public sealed class ConfigJsonSchemaGeneratorTests
         "$/properties/site/properties/permalinks",
         "$/properties/site/properties/collections",
         "$/properties/site/properties/plugins",
+        "$/properties/site/properties/plugins/additionalProperties/oneOf[1]/properties/options",
         "$/properties/theme/properties/params",
         "$/properties/theme/properties/shortcodes",
         "$/properties/theme/properties/components",
@@ -224,7 +225,16 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.Equal("string", permalinks.GetProperty("type").GetString());
 
         var plugins = site.GetProperty("plugins").GetProperty("additionalProperties");
-        Assert.Equal(JsonValueKind.True, plugins.ValueKind);
+        var pluginForms = plugins.GetProperty("oneOf");
+        Assert.Equal("boolean", pluginForms[0].GetProperty("type").GetString());
+        var pluginMapping = pluginForms[1];
+        Assert.Equal("object", pluginMapping.GetProperty("type").GetString());
+        Assert.False(pluginMapping.GetProperty("additionalProperties").GetBoolean());
+        var pluginProperties = pluginMapping.GetProperty("properties");
+        Assert.Equal("boolean", pluginProperties.GetProperty("enabled").GetProperty("type").GetString());
+        var options = pluginProperties.GetProperty("options");
+        Assert.Equal("object", options.GetProperty("type").GetString());
+        Assert.True(options.GetProperty("additionalProperties").GetBoolean());
 
         var theme = properties.GetProperty("theme").GetProperty("properties");
         var themeParams = theme.GetProperty("params").GetProperty("additionalProperties");

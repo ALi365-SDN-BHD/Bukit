@@ -69,17 +69,38 @@ internal static class ConfigStrictFieldValidator
         }
 
         if (Map(site, "seo") is { } seo) ValidateSeo(seo);
-        if (Map(site, "analytics") is { } analytics)
+        if (site.Children.TryGetValue(new YamlScalarNode("analytics"), out var analyticsNode))
         {
-            RequireOnly(analytics, Set("enabled", "productionOnly", "providers"), "site.analytics");
-            if (Seq(analytics, "providers") is { } providers)
+            if (analyticsNode is not YamlMappingNode analytics)
             {
+                throw new ConfigException("site.analytics must be a mapping.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            RequireOnly(analytics, Set("enabled", "productionOnly", "providers"), "site.analytics");
+            RequireBooleanIfPresent(analytics, "enabled", "site.analytics.enabled");
+            RequireBooleanIfPresent(analytics, "productionOnly", "site.analytics.productionOnly");
+            if (analytics.Children.TryGetValue(new YamlScalarNode("providers"), out var providersNode))
+            {
+                if (providersNode is not YamlSequenceNode providers)
+                {
+                    throw new ConfigException("site.analytics.providers must be a sequence.", DiagnosticCode.ConfigInvalidValue);
+                }
+
                 ValidateSequenceMappings(
                     providers,
                     Set("type", "measurementId", "containerId", "domain", "websiteId", "scriptUrl"),
                     "site.analytics.providers",
                     ValidateAnalyticsProviderFields);
             }
+        }
+        if (site.Children.TryGetValue(new YamlScalarNode("plugins"), out var pluginsNode))
+        {
+            if (pluginsNode is not YamlMappingNode plugins)
+            {
+                throw new ConfigException("site.plugins must be a mapping.", DiagnosticCode.ConfigInvalidValue);
+            }
+
+            ValidatePluginToggles(plugins);
         }
         if (Map(site, "feed") is { } feed) RequireOnly(feed, Set("mode", "formats", "limit", "path"), "site.feed");
         if (Map(site, "search") is { } search) RequireOnly(search, Set("mode", "route", "ui", "uiTheme", "placeholderText", "maxContentLength"), "site.search");
@@ -116,6 +137,52 @@ internal static class ConfigStrictFieldValidator
         {
             RequireOnly(provider, allowedFields, path);
         }
+    }
+
+    private static void ValidatePluginToggles(YamlMappingNode plugins)
+    {
+        foreach (var child in plugins.Children)
+        {
+            var name = KeyName(child.Key, "site.plugins");
+            if (child.Value is YamlMappingNode plugin)
+            {
+                var path = $"site.plugins.{name}";
+                RequireOnly(plugin, Set("enabled", "options"), path);
+                RequireBooleanIfPresent(plugin, "enabled", $"{path}.enabled");
+                if (plugin.Children.TryGetValue(new YamlScalarNode("options"), out var options) &&
+                    options is not YamlMappingNode)
+                {
+                    throw new ConfigException($"{path}.options must be a mapping.", DiagnosticCode.ConfigInvalidValue);
+                }
+
+                continue;
+            }
+
+            if (child.Value is YamlScalarNode scalar &&
+                bool.TryParse(scalar.Value?.Trim(), out _))
+            {
+                continue;
+            }
+
+            throw new ConfigException(
+                $"site.plugins.{name} must be a mapping or boolean.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private static void RequireBooleanIfPresent(YamlMappingNode node, string key, string path)
+    {
+        if (!node.Children.TryGetValue(new YamlScalarNode(key), out var child))
+        {
+            return;
+        }
+
+        if (child is YamlScalarNode scalar && bool.TryParse(scalar.Value?.Trim(), out _))
+        {
+            return;
+        }
+
+        throw new ConfigException($"{path} must be a boolean.", DiagnosticCode.ConfigInvalidValue);
     }
 
     private static void ValidateSeo(YamlMappingNode seo)

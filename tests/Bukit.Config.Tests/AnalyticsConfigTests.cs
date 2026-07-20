@@ -68,6 +68,41 @@ public sealed class AnalyticsConfigTests : IDisposable
         Assert.Equal($"Unknown config field 'site.analytics.{field}'.", ex.Message);
     }
 
+    public static TheoryData<string, string> InvalidAnalyticsContractNodes => new()
+    {
+        { "analytics: []", "site.analytics must be a mapping." },
+        { "analytics:\n  providers: {}", "site.analytics.providers must be a sequence." },
+        { "analytics:\n  enabled: []", "site.analytics.enabled must be a boolean." },
+        { "analytics:\n  productionOnly: {}", "site.analytics.productionOnly must be a boolean." },
+        { "plugins:\n  analytics: definitely-not-a-bool", "site.plugins.analytics must be a mapping or boolean." },
+        { "plugins: []", "site.plugins must be a mapping." },
+        { "plugins:\n  analytics:\n    enabled: []", "site.plugins.analytics.enabled must be a boolean." },
+        { "plugins:\n  analytics:\n    options: []", "site.plugins.analytics.options must be a mapping." },
+        { "plugins:\n  analytics:\n    typo: true", "Unknown config field 'site.plugins.analytics.typo'." }
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidAnalyticsContractNodes))]
+    public void Load_InvalidAnalyticsContractNode_ThrowsInvalidValue(string siteFragment, string expectedMessage)
+    {
+        var ex = Assert.Throws<ConfigException>(() => LoadSiteFragment(siteFragment));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Equal(expectedMessage, ex.Message);
+    }
+
+    [Theory]
+    [InlineData("analytics: {}")]
+    [InlineData("analytics:\n  providers: []")]
+    public void Load_ValidEmptyAnalyticsNodes_KeepDefaults(string siteFragment)
+    {
+        var config = LoadSiteFragment(siteFragment);
+
+        Assert.True(config.Site.Analytics.Enabled);
+        Assert.True(config.Site.Analytics.ProductionOnly);
+        Assert.Empty(config.Site.Analytics.Providers);
+    }
+
     [Theory]
     [InlineData("google-analytics", "containerId:")]
     [InlineData("google-tag-manager", "measurementId:")]
@@ -285,6 +320,28 @@ public sealed class AnalyticsConfigTests : IDisposable
                     dir: content
             """;
         var path = Path.Combine(Path.GetTempPath(), $"bukit-analytics-config-{Guid.NewGuid():N}.yaml");
+        File.WriteAllText(path, yaml);
+        _tempFiles.Add(path);
+        return ConfigLoader.Load(path);
+    }
+
+    private AppConfig LoadSiteFragment(string siteFragment)
+    {
+        var indentedFragment = string.Join(
+            Environment.NewLine,
+            siteFragment.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').Select(line => $"  {line}"));
+        var yaml = $$"""
+            site:
+              name: analytics-test
+              title: Analytics Test
+            {{indentedFragment}}
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = Path.Combine(Path.GetTempPath(), $"bukit-analytics-contract-{Guid.NewGuid():N}.yaml");
         File.WriteAllText(path, yaml);
         _tempFiles.Add(path);
         return ConfigLoader.Load(path);
