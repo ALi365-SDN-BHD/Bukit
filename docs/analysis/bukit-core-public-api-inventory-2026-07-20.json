@@ -20,22 +20,22 @@
     "nugetSdkDistributionEvidence": false,
     "classificationCounts": {
       "aot-serialization-surface": 3,
-      "cross-assembly-implementation": 170,
-      "implementation-public": 182,
+      "cross-assembly-implementation": 172,
+      "implementation-public": 176,
       "persisted-internal-format": 6,
       "plugin-wire-contract": 23,
-      "serialized-contract": 88
+      "serialized-contract": 92
     },
     "compatibilityCounts": {
-      "1.x-do-not-narrow": 173,
+      "1.x-do-not-narrow": 175,
       "1.x-migration-safe": 6,
-      "1.x-shape-stable": 111,
-      "2.0-candidate": 142,
+      "1.x-shape-stable": 115,
+      "2.0-candidate": 136,
       "not-a-clr-contract": 40
     },
     "duplicateClrIdentityCount": 0,
     "protectedExtensionTypeCount": 19,
-    "noProvenCrossProjectNonTestConsumerCount": 182
+    "noProvenCrossProjectNonTestConsumerCount": 176
   },
   "assemblies": [
     {
@@ -87,13 +87,15 @@
       "protectedMembers": 11,
       "classifications": {
         "cross-assembly-implementation": 16,
-        "implementation-public": 61,
-        "persisted-internal-format": 3
+        "implementation-public": 57,
+        "persisted-internal-format": 3,
+        "serialized-contract": 4
       },
       "compatibility": {
         "1.x-do-not-narrow": 16,
         "1.x-migration-safe": 3,
-        "2.0-candidate": 61
+        "1.x-shape-stable": 4,
+        "2.0-candidate": 57
       }
     },
     {
@@ -188,16 +190,16 @@
       "protectedMembers": 0,
       "classifications": {
         "aot-serialization-surface": 2,
-        "cross-assembly-implementation": 9,
-        "implementation-public": 5,
+        "cross-assembly-implementation": 11,
+        "implementation-public": 3,
         "persisted-internal-format": 3,
         "serialized-contract": 15
       },
       "compatibility": {
-        "1.x-do-not-narrow": 11,
+        "1.x-do-not-narrow": 13,
         "1.x-migration-safe": 3,
         "1.x-shape-stable": 15,
-        "2.0-candidate": 5
+        "2.0-candidate": 3
       }
     },
     {
@@ -6331,12 +6333,12 @@
         }
       ],
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "contractSurface": "module implementation CLR surface",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "evidenceConfidence": "medium",
-      "classificationBasis": "no formal external CLR support evidence and no proven cross-project non-test consumer; same-project use may exist and absence is not removal proof",
+      "classification": "serialized-contract",
+      "contractSurface": "build-report.v1 public report CLR mirror",
+      "compatibility": "1.x-shape-stable",
+      "migrationHorizon": "retain-1.x",
+      "evidenceConfidence": "high",
+      "classificationBasis": "type is exposed by BuildResult and mapped by BuildReporter into the frozen build-report.v1 schema",
       "consumerEvidence": {
         "simpleNameMultiplicity": 1,
         "coreSourceReferences": 0,
@@ -6347,9 +6349,7 @@
         "historicalDocReferences": 0,
         "topActiveDocs": []
       },
-      "riskFlags": [
-        "no-proven-cross-project-non-test-consumer"
-      ]
+      "riskFlags": []
     },
     {
       "assembly": "Bukit.Engine",
@@ -6374,12 +6374,12 @@
         }
       ],
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "contractSurface": "module implementation CLR surface",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "evidenceConfidence": "medium",
-      "classificationBasis": "no formal external CLR support evidence and no proven cross-project non-test consumer; same-project use may exist and absence is not removal proof",
+      "classification": "serialized-contract",
+      "contractSurface": "build-report.v1 public report CLR mirror",
+      "compatibility": "1.x-shape-stable",
+      "migrationHorizon": "retain-1.x",
+      "evidenceConfidence": "high",
+      "classificationBasis": "type is exposed by BuildResult and mapped by BuildReporter into the frozen build-report.v1 schema",
       "consumerEvidence": {
         "simpleNameMultiplicity": 1,
         "coreSourceReferences": 0,
@@ -6390,9 +6390,7 @@
         "historicalDocReferences": 0,
         "topActiveDocs": []
       },
-      "riskFlags": [
-        "no-proven-cross-project-non-test-consumer"
-      ]
+      "riskFlags": []
     },
     {
       "assembly": "Bukit.Engine",
@@ -6618,12 +6616,12 @@
         }
       ],
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "contractSurface": "module implementation CLR surface",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "evidenceConfidence": "medium",
-      "classificationBasis": "no formal external CLR support evidence and no proven cross-project non-test consumer; same-project use may exist and absence is not removal proof",
+      "classification": "serialized-contract",
+      "contractSurface": "build-report.v1 public report CLR mirror",
+      "compatibility": "1.x-shape-stable",
+      "migrationHorizon": "retain-1.x",
+      "evidenceConfidence": "high",
+      "classificationBasis": "type is exposed by BuildResult and mapped by BuildReporter into the frozen build-report.v1 schema",
       "consumerEvidence": {
         "simpleNameMultiplicity": 1,
         "coreSourceReferences": 0,
@@ -6634,9 +6632,7 @@
         "historicalDocReferences": 0,
         "topActiveDocs": []
       },
-      "riskFlags": [
-        "no-proven-cross-project-non-test-consumer"
-      ]
+      "riskFlags": []
     },
     {
       "assembly": "Bukit.Engine",
@@ -6702,12 +6698,12 @@
         }
       ],
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "contractSurface": "module implementation CLR surface",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "evidenceConfidence": "medium",
-      "classificationBasis": "no formal external CLR support evidence and no proven cross-project non-test consumer; same-project use may exist and absence is not removal proof",
+      "classification": "serialized-contract",
+      "contractSurface": "build-report.v1 public report CLR mirror",
+      "compatibility": "1.x-shape-stable",
+      "migrationHorizon": "retain-1.x",
+      "evidenceConfidence": "high",
+      "classificationBasis": "type is exposed by BuildResult and mapped by BuildReporter into the frozen build-report.v1 schema",
       "consumerEvidence": {
         "simpleNameMultiplicity": 1,
         "coreSourceReferences": 0,
@@ -6718,9 +6714,7 @@
         "historicalDocReferences": 2,
         "topActiveDocs": []
       },
-      "riskFlags": [
-        "no-proven-cross-project-non-test-consumer"
-      ]
+      "riskFlags": []
     },
     {
       "assembly": "Bukit.Engine",
@@ -19440,15 +19434,15 @@
         }
       ],
       "owner": "Theme runtime",
-      "classification": "implementation-public",
-      "contractSurface": "module implementation CLR surface",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "contractSurface": "repository-internal CLR collaboration",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
-      "evidenceConfidence": "medium",
-      "classificationBasis": "no formal external CLR support evidence and no proven cross-project non-test consumer; same-project use may exist and absence is not removal proof",
+      "evidenceConfidence": "high",
+      "classificationBasis": "Roslyn semantic analysis confirms Bukit.Engine production references to the owning Bukit.Theme type",
       "consumerEvidence": {
         "simpleNameMultiplicity": 1,
-        "coreSourceReferences": 0,
+        "coreSourceReferences": 2,
         "labsSourceReferences": 0,
         "pluginSourceReferences": 0,
         "testSourceReferences": 5,
@@ -19461,9 +19455,7 @@
           }
         ]
       },
-      "riskFlags": [
-        "no-proven-cross-project-non-test-consumer"
-      ]
+      "riskFlags": []
     },
     {
       "assembly": "Bukit.Theme",
@@ -19937,15 +19929,15 @@
         }
       ],
       "owner": "Theme runtime",
-      "classification": "implementation-public",
-      "contractSurface": "module implementation CLR surface",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "contractSurface": "repository-internal CLR collaboration",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
-      "evidenceConfidence": "medium",
-      "classificationBasis": "no formal external CLR support evidence and no proven cross-project non-test consumer; same-project use may exist and absence is not removal proof",
+      "evidenceConfidence": "high",
+      "classificationBasis": "Roslyn semantic analysis confirms Bukit.Engine production references to the owning Bukit.Theme type",
       "consumerEvidence": {
         "simpleNameMultiplicity": 1,
-        "coreSourceReferences": 0,
+        "coreSourceReferences": 1,
         "labsSourceReferences": 0,
         "pluginSourceReferences": 0,
         "testSourceReferences": 5,
@@ -19958,9 +19950,7 @@
           }
         ]
       },
-      "riskFlags": [
-        "no-proven-cross-project-non-test-consumer"
-      ]
+      "riskFlags": []
     },
     {
       "assembly": "Bukit.Theme",

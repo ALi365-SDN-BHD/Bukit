@@ -15,9 +15,10 @@ G-01 已建立首份可逐类型追溯的 Bukit Core CLR 公共面基线。结�
 - 12 个 Core 程序集当前导出 **472 个 CLR 类型**，合计 **3,898 个 declared public members** 和 **52 个 declared protected members**；472/472 均映射到当前源码，程序集加载错误为 0。
 - 当前仓库没有 NuGet SDK 发布流程、包标识、第三方 CLR SDK 安装说明或“所有 public 类型受 SemVer 保护”的政策证据。因此正式受支持的通用 CLR SDK 类型数应记为 **0**，不能把 C# `public` 自动解释为产品承诺。
 - 仓库确实有稳定外部契约：CLI 行为、`site.yaml`/`theme.yaml`、模板对象、公开报告 schema 和 `bukit-plugin-v1` 进程协议。它们分别属于行为、序列化形状或 wire contract，不等同于 CLR SDK。
-- **111 个类型**直接承载 1.x 稳定形状：23 个 process wire/dual-use DTO，6 个插件 YAML-only DTO，82 个配置、主题清单与 Scriban 模型类型。
-- **173 个类型**在 1.x 不应收窄：170 个有直接项目引用消费者中的词法协作证据，另有 3 个 AOT/静态序列化支持类型。这里的“不收窄”是当前构建兼容要求，不是对第三方宣布 SDK。
-- **182 个类型**属于 implementation-public；其中 142 个是 2.0 复核候选，40 个来自 CLI 可执行程序集、标为 `not-a-clr-contract`。没有跨项目消费者证据只说明“尚未证明跨项目使用”，不构成删除证据。
+- **115 个类型**直接承载 1.x 稳定形状：23 个 process wire/dual-use DTO，6 个插件 YAML-only DTO，82 个配置、主题清单与 Scriban 模型类型，以及 4 个 `build-report.v1` 公共报告 CLR mirror。
+- **175 个类型**在 1.x 不应收窄：172 个有直接项目引用消费者中的协作证据，另有 3 个 AOT/静态序列化支持类型。这里的“不收窄”是当前构建兼容要求，不是对第三方宣布 SDK。
+- **176 个类型**属于 implementation-public；其中 136 个是 2.0 复核候选，40 个来自 CLI 可执行程序集、标为 `not-a-clr-contract`。没有跨项目消费者证据只说明“尚未证明跨项目使用”，不构成删除证据。
+- **G-04A 语义纠正：** 原清单对 4 个 `BuildResult` 公共报告镜像漏计 `build-report.v1` 冻结 schema 证据，并对 2 个 Theme 类型漏计 Engine 的生产程序集协作；本次只纠正这 6 项治理元数据和汇总，不改变 CLR 可见性、签名、运行时或既有 G-03 发现记录。
 - 6 个类型属于内部持久化格式：3 个增量 build cache model 与 3 个 Labs theme catalog cache model。它们不是公开 report schema DTO，变更时仍需 cache 迁移/失效策略。
 
 对原审计 `AD-04` 的判定为：**保持确认，但结论已收窄并量化。** 问题不只是“类型数量多”，而是公共可见性、仓库内跨程序集协作、序列化需要、AOT 需要和对外支持承诺尚未形成统一的可执行治理。当前不需要整体重构，也不应在 1.x 批量改成 `internal`；应先建立非破坏性的 API drift 治理，再把收窄工作留给证据充分的 2.0 批次。
@@ -86,14 +87,14 @@ flowchart LR
 | `Bukit.Cli.Shared` | 20 | 173 | 14 | 跨程序集 15；实现层 5 |
 | `Bukit.Config` | 60 | 773 | 0 | 配置形状 49；跨程序集 11 |
 | `Bukit.Content` | 51 | 211 | 0 | 跨程序集 16；实现层 35 |
-| `Bukit.Engine` | 80 | 523 | 11 | 跨程序集 16；实现层 61；内部持久化 3 |
+| `Bukit.Engine` | 80 | 523 | 11 | 跨程序集 16；序列化形状 4；实现层 57；内部持久化 3 |
 | `Bukit.Engine.Abstractions` | 50 | 604 | 0 | 跨程序集 50 |
 | `Bukit.Plugin.Abstractions` | 30 | 438 | 1 | wire/dual-use 23；YAML-only 6；AOT 1 |
 | `Bukit.PluginHost` | 40 | 250 | 0 | 跨程序集 24；实现层 16 |
 | `Bukit.Rendering` | 22 | 269 | 0 | 模板形状 18；跨程序集 2；实现层 2 |
 | `Bukit.Routing` | 6 | 37 | 0 | 跨程序集 5；实现层 1 |
 | `Bukit.Shared` | 39 | 291 | 26 | 跨程序集 22；实现层 17 |
-| `Bukit.Theme` | 34 | 190 | 0 | 序列化形状 15；跨程序集 9；内部持久化 3；AOT 2；实现层 5 |
+| `Bukit.Theme` | 34 | 190 | 0 | 序列化形状 15；跨程序集 11；内部持久化 3；AOT 2；实现层 3 |
 | `bukit` | 40 | 139 | 0 | CLI 实现层 40 |
 | **合计** | **472** | **3,898** | **52** | — |
 
@@ -105,10 +106,10 @@ flowchart LR
 |---|---:|---|---|
 | `supported-sdk` | 0 | 有明确第三方 CLR 安装、分发和 SemVer 支持承诺 | 当前不存在，不应事后推定 |
 | `plugin-wire-contract` | 23 | `bukit-plugin-v1` protocol/runtime/security/result DTO、常量，以及同时进入 manifest response 的 3 个 command metadata DTO | 保持 JSON 字段和语义；CLR assembly 不升级为 SDK 承诺 |
-| `serialized-contract` | 88 | `site.yaml`、`theme.yaml`、插件 YAML-only DTO 或 Scriban 可见模型的 CLR mirror | 维持 shape；breaking change 走 schema/major 策略 |
+| `serialized-contract` | 92 | `site.yaml`、`theme.yaml`、插件 YAML-only DTO、Scriban 可见模型或 `build-report.v1` 公共报告的 CLR mirror | 维持 shape；breaking change 走 schema/major 策略 |
 | `aot-serialization-surface` | 3 | 当前 source-generated serializer/AOT 构建需要的 public 类型 | 1.x 不收窄，修改须做真实 AOT 验证 |
-| `cross-assembly-implementation` | 170 | 直接引用 owner 项目的仓库内程序集存在词法协作证据的 CLR surface | 1.x 不收窄；2.0 前先做 semantic symbol 验证、拆调用和 owner |
-| `implementation-public` | 182 | 未证明跨项目消费，也没有正式外部支持证据 | 仅列 2.0 候选；不得据此直接删除 |
+| `cross-assembly-implementation` | 172 | 直接引用 owner 项目的仓库内程序集存在协作证据的 CLR surface；G-04A 的 2 项 Theme 类型已由 Roslyn semantic analysis 确认 | 1.x 不收窄；2.0 前先做 semantic symbol 验证、拆调用和 owner |
+| `implementation-public` | 176 | 未证明跨项目消费，也没有正式外部支持证据 | 仅列 2.0 候选；不得据此直接删除 |
 | `persisted-internal-format` | 6 | `.cache/build-manifest*.json` 与 Labs `.cache/theme-catalog.json` 的内部持久化 model | 变更须迁移或安全失效 cache，不冒充公开 report schema |
 | `documented-cli-contract` | 0 个 CLR 类型 | CLI 契约存在，但由命令、参数、exit code 和 JSON error shape 表达 | 继续用 CLI spec/schema/tests 治理 |
 
@@ -116,10 +117,10 @@ flowchart LR
 
 | 等级 | 数量 | 含义 |
 |---|---:|---|
-| `1.x-shape-stable` | 111 | wire/配置/主题/模板形状在 1.x 保持兼容 |
-| `1.x-do-not-narrow` | 173 | 当前跨程序集或 AOT 构建依赖 public；1.x 不改可见性 |
+| `1.x-shape-stable` | 115 | wire/配置/主题/模板/build-report 形状在 1.x 保持兼容 |
+| `1.x-do-not-narrow` | 175 | 当前跨程序集或 AOT 构建依赖 public；1.x 不改可见性 |
 | `1.x-migration-safe` | 6 | 内部持久化格式可演进，但必须可迁移或安全失效 |
-| `2.0-candidate` | 142 | 非 CLI 的 implementation-public，待外部消费者与反射/AOT复核 |
+| `2.0-candidate` | 136 | 非 CLI 的 implementation-public，待外部消费者与反射/AOT复核 |
 | `not-a-clr-contract` | 40 | 可执行程序集实现类型，不构成受支持的 CLR 调用契约 |
 
 ## 6. 正式契约盘点
@@ -157,15 +158,15 @@ README 和 [CLI 开发文档](../../guide/dev/cli.md)承诺的是稳定命令面
 
 **处置：** 1.x 只增加治理声明和 drift 检查，不改访问级别；任何未来 CLR SDK 必须有独立 package、allowlist、版本和支持政策。
 
-### G01-F02 高：182 个 implementation-public 类型形成 2.0 收窄候选池
+### G01-F02 高：176 个 implementation-public 类型形成 2.0 收窄候选池
 
-**证据：** 182 个类型没有已证明的跨项目非测试消费者；热点包括 `Bukit.Content.Notion.BlockRenderers`、CLI docs-check 实现、PluginHost helpers 和 Shared Notion models。它们仍可能在所属程序集内部使用，也可能被未扫描的外部代码或反射使用。
+**证据：** 176 个类型没有已证明的跨项目非测试消费者；热点包括 `Bukit.Content.Notion.BlockRenderers`、CLI docs-check 实现、PluginHost helpers 和 Shared Notion models。它们仍可能在所属程序集内部使用，也可能被未扫描的外部代码或反射使用。
 
 **影响：** 继续新增同类类型会扩大变更审查面；直接批量 internalize 又会制造未知 breaking change。
 
 **处置：** 1.x 冻结“不得无评审新增 public implementation type”；2.0 按 owner 小批处理，每批先做 semantic call graph、反射/AOT/serializer 检查和真实构建，再决定 internal、facade、contracts assembly 或保留。
 
-### G01-F03 高：170 个类型的 public 可见性承担仓库内模块协作
+### G01-F03 高：172 个类型的 public 可见性承担仓库内模块协作
 
 **证据：** `Bukit.Engine.Abstractions` 的 50 个导出类型全部在直接引用该项目的程序集内获得词法协作命中；Config、PluginHost、Shared、Content、Engine 也存在大批同类 surface。当前 `.csproj` 图没有循环，但 public 是跨 assembly 可见性的主要工具。词法命中只支持 1.x 的保守“不收窄”判定，2.0 真正变更前仍须用 semantic symbol graph 确认。
 
