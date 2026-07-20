@@ -12,7 +12,12 @@
 | `Bukit.Theme.ThemeManifestException` | `implementation-public`；`2.0-candidate` | `cross-assembly-implementation`；`1.x-do-not-narrow` | Roslyn semantic analysis 确认 Engine 生产代码在 `ThemeBootstrapper.cs` 与 `ThemePathResolver.cs` 引用 owning `Bukit.Theme` 类型（`coreSourceReferences=2`）。 |
 | `Bukit.Theme.ThemeTokensProcessor` | `implementation-public`；`2.0-candidate` | `cross-assembly-implementation`；`1.x-do-not-narrow` | Roslyn semantic analysis 确认 Engine `AssetPipeline.cs` 引用 owning `Bukit.Theme` 类型（`coreSourceReferences=1`）。 |
 
-4 个 build report CLR mirror 的 inventory 补充为：`contractSurface=build-report.v1 public report CLR mirror`、`evidenceConfidence=high`、`classificationBasis=type is exposed by BuildResult and mapped by BuildReporter into the frozen build-report.v1 schema`、空 `riskFlags`。2 个 Theme 类型补充为：`contractSurface=repository-internal CLR collaboration`、`evidenceConfidence=high`、`classificationBasis=Roslyn semantic analysis confirms Bukit.Engine production references to the owning Bukit.Theme type`、空 `riskFlags`。基线仅同步分类、兼容性和迁移窗口，保留 owner、signature、publicMembers 与 protectedMembers 原字节内容。
+其余变化字段的完整对照如下：
+
+- 4 个 build report CLR mirror：`contractSurface` 从 `module implementation CLR surface` 改为 `build-report.v1 public report CLR mirror`；`evidenceConfidence` 从 `medium` 改为 `high`；`classificationBasis` 从 `no formal external CLR support evidence and no proven cross-project non-test consumer; same-project use may exist and absence is not removal proof` 改为 `type is exposed by BuildResult and mapped by BuildReporter into the frozen build-report.v1 schema`；`riskFlags` 保持空数组，`consumerEvidence` 不变。
+- 2 个 Theme 类型：`contractSurface` 从 `module implementation CLR surface` 改为 `repository-internal CLR collaboration`；`evidenceConfidence` 从 `medium` 改为 `high`；`classificationBasis` 从 `no formal external CLR support evidence and no proven cross-project non-test consumer; same-project use may exist and absence is not removal proof` 改为 `Roslyn semantic analysis confirms Bukit.Engine production references to the owning Bukit.Theme type`；`riskFlags` 保持空数组。`ThemeManifestException.consumerEvidence.coreSourceReferences` 从 0 改为 2，`ThemeTokensProcessor.consumerEvidence.coreSourceReferences` 从 0 改为 1，其他 `consumerEvidence` 字段不变。
+
+基线仅同步分类、兼容性和迁移窗口，保留 owner、signature、publicMembers 与 protectedMembers 原字节内容。
 
 ## 汇总对账
 
