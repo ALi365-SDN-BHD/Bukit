@@ -15,6 +15,24 @@ internal static class Program
                 return diagnostics.Count == 0 ? 0 : 1;
             }
 
+            if (args is ["check", var checkBaselinePath, var checkRepositoryRoot, var checkConfiguration])
+            {
+                var baseline = BaselineFile.Load(checkBaselinePath, BaselineValidationMode.Committed);
+                var current = ApiSurfaceCapture.Capture(baseline, checkRepositoryRoot, checkConfiguration);
+                var diagnostics = ApiSurfaceComparer.Compare(baseline, current);
+                foreach (var item in diagnostics) Console.Error.WriteLine(item);
+                return diagnostics.Count == 0 ? 0 : 1;
+            }
+
+            if (args is ["snapshot", var snapshotBaselinePath, var outputPath, var snapshotRepositoryRoot, var snapshotConfiguration])
+            {
+                var baseline = BaselineFile.Load(snapshotBaselinePath, BaselineValidationMode.Committed);
+                var current = ApiSurfaceCapture.Capture(baseline, snapshotRepositoryRoot, snapshotConfiguration);
+                BaselineFile.WriteNew(outputPath, current, snapshotRepositoryRoot);
+                Console.Out.WriteLine($"wrote public API candidate: {Path.GetFullPath(outputPath)}");
+                return 0;
+            }
+
             Console.Error.WriteLine("usage: Bukit.PublicApiDrift compare BASELINE CURRENT | check BASELINE ROOT CONFIGURATION | snapshot BASELINE OUTPUT ROOT CONFIGURATION");
             return 2;
         }

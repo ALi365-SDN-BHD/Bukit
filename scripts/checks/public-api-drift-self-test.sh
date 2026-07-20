@@ -52,4 +52,21 @@ grep -Fq 'gate-error:' "$scratch/unsorted.txt" || fail "unsorted baseline lacks 
 assert_exit 2 "$scratch/unresolved.txt" "${tool[@]}" "$fixtures/unresolved-baseline.json" "$fixtures/unchanged.json"
 grep -Fq 'gate-error:' "$scratch/unresolved.txt" || fail "unresolved committed baseline lacks gate-error"
 
+baseline="docs/governance/bukit-core-public-api-baseline.v1.json"
+assert_exit 0 "$scratch/real-check.txt" dotnet run \
+  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
+  -c Release --no-restore -- check "$baseline" "$PWD" Release
+
+first="$scratch/first.json"
+second="$scratch/second.json"
+assert_exit 0 "$scratch/snapshot-1.txt" dotnet run \
+  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
+  -c Release --no-restore -- snapshot "$baseline" "$first" "$PWD" Release
+assert_exit 0 "$scratch/snapshot-2.txt" dotnet run \
+  --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj \
+  -c Release --no-restore -- snapshot "$baseline" "$second" "$PWD" Release
+cmp -s "$first" "$second" || fail "two captures are not byte-identical"
+[[ "$(jq '.assemblies | length' "$first")" == "12" ]] || fail "capture does not contain 12 assemblies"
+[[ "$(jq '.types | length' "$first")" == "472" ]] || fail "capture does not contain 472 exported types"
+
 echo "public API drift self-test OK"

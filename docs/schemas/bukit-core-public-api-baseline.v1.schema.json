@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/bukit-core-public-api-baseline.v1.schema.json",
+  "title": "Bukit Core public API baseline v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "targetFramework",
+    "sdkPolicy",
+    "assemblies",
+    "types"
+  ],
+  "properties": {
+    "schema": {
+      "const": "bukit-core-public-api-baseline-v1"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "targetFramework": {
+      "const": "net10.0"
+    },
+    "sdkPolicy": {
+      "const": "no-general-clr-sdk"
+    },
+    "assemblies": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assembly",
+          "project"
+        ],
+        "properties": {
+          "assembly": {
+            "type": "string",
+            "minLength": 1
+          },
+          "project": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "types": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assembly",
+          "name",
+          "owner",
+          "classification",
+          "compatibility",
+          "migrationHorizon",
+          "signature",
+          "publicMembers",
+          "protectedMembers"
+        ],
+        "properties": {
+          "assembly": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "classification": {
+            "enum": [
+              "aot-serialization-surface",
+              "cross-assembly-implementation",
+              "implementation-public",
+              "persisted-internal-format",
+              "plugin-wire-contract",
+              "serialized-contract"
+            ]
+          },
+          "compatibility": {
+            "enum": [
+              "1.x-do-not-narrow",
+              "1.x-migration-safe",
+              "1.x-shape-stable",
+              "2.0-candidate",
+              "not-a-clr-contract"
+            ]
+          },
+          "migrationHorizon": {
+            "type": "string",
+            "minLength": 1
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1
+          },
+          "publicMembers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "protectedMembers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
