@@ -91,6 +91,17 @@ public sealed class ReleaseWorkflowContractTests
             Scalar(Mapping(upload, "with"), "path"));
     }
 
+    [Fact]
+    public void PublishRelease_ClassifiesVersionSuffixAsPrerelease()
+    {
+        var publish = Assert.Single(Steps(Job("publish-release")), step =>
+            TryScalar(step, "uses")?.StartsWith("softprops/action-gh-release@", StringComparison.Ordinal) == true);
+
+        Assert.Equal(
+            "${{ contains(inputs.version, '-') }}",
+            Scalar(Mapping(publish, "with"), "prerelease"));
+    }
+
     private YamlMappingNode Job(string name)
     {
         return Mapping(Mapping(_root, "jobs"), name);
