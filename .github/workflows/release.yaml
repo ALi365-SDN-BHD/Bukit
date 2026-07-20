@@ -250,7 +250,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: bukit-win-x64
-          path: ${{ steps.package.outputs.archive }}
+          path: artifacts/bukit-${{ inputs.version }}-win-x64.zip
           if-no-files-found: error
 
   collect-assets:

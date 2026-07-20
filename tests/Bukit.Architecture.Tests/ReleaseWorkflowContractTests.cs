@@ -80,6 +80,17 @@ public sealed class ReleaseWorkflowContractTests
         Assert.Null(TryScalar(smoke, "continue-on-error"));
     }
 
+    [Fact]
+    public void WindowsPackageUpload_UsesWorkspaceRelativeArchivePath()
+    {
+        var upload = Assert.Single(Steps(Job("package-windows")), step =>
+            TryScalar(step, "uses")?.StartsWith("actions/upload-artifact@", StringComparison.Ordinal) == true);
+
+        Assert.Equal(
+            "artifacts/bukit-${{ inputs.version }}-win-x64.zip",
+            Scalar(Mapping(upload, "with"), "path"));
+    }
+
     private YamlMappingNode Job(string name)
     {
         return Mapping(Mapping(_root, "jobs"), name);
