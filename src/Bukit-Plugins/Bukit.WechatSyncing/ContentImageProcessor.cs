@@ -145,8 +145,12 @@ internal sealed class ContentImageProcessor
                 return null;
             }
 
-            // Normalize image format and size for uploadimg (2MB limit, JPEG/PNG only)
-            var normalized = ImageConverter.NormalizeForUpload(bytes, ImageConverter.ContentImageMaxBytes, _logger);
+            // Normalize image format and size for uploadimg (strictly below 1 MiB, JPEG/PNG only).
+            var normalized = ImageConverter.NormalizeForUpload(
+                bytes,
+                ImageConverter.ContentImageMaxBytes,
+                _logger,
+                requireStrictlyBelowMaxBytes: true);
             if (normalized is null)
             {
                 _logger.Warn($"plugin wechat-sync image format conversion failed, skipping: {absoluteUrl}");
@@ -154,6 +158,7 @@ internal sealed class ContentImageProcessor
             }
 
             var (convertedBytes, contentType, ext) = normalized.Value;
+            WechatDraftContract.ValidateInlineImage(convertedBytes, contentType);
 
             // Upload to WeChat
             var fileName = InferFileNameFromUrl(absoluteUrl, ext);
