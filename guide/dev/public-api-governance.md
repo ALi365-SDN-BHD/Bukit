@@ -88,19 +88,23 @@ between validation and file creation.
 `ci-fast` runs the fixture-only self-test first, then one real configured Core
 surface check. The self-test must not run a real Core snapshot or check.
 
-## 2.0 Consumer Declaration Preparation
+## 2.0 Consumer Declaration Window
 
 The [2.0 public surface candidate manifest](../../docs/governance/bukit-core-2.0-public-surface-candidates.v1.json)
 and [consumer declaration](../../docs/governance/bukit-core-2.0-consumer-declaration.md)
-record the current G-04B1 preparation state. That state is
-`prepared-not-open`: the candidate inventory is review material, not an active
-consumer call or a removal decision.
+record the current declaration state as `open`. The window opened at
+`2026-07-21T02:19:46Z`, and
+[GitHub Issue #60](https://github.com/ALi365-SDN-BHD/Bukit/issues/60) is the
+canonical announcement and feedback channel. All 136 candidates remain
+review-only; opening the window is not a removal decision.
 
 All 1.x CLR access levels remain unchanged. A `no-public-match-found` result
 means only that the recorded public searches found no reviewed external match;
 it is not proof that removal is safe and cannot reveal private, unindexed, or
 undisclosed consumers.
 
-Maintainers must obtain separate approval before G-04B2 publishes the material,
-creates the dedicated GitHub Issue, or opens the declaration window. G-04B1
-does not authorize G-04B2 or G-04C.
+Calendar time alone cannot close the window. Closure requires at least one later
+non-prerelease stable release, disposition of all received feedback, and an
+independent evidence audit with no unresolved consumer evidence.
+`eligibleAfterRelease` remains unset (`null`) until that later stable release
+exists. G-04B2 opens the declaration window only; it does not authorize G-04C.

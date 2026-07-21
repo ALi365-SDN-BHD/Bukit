@@ -35355,12 +35355,12 @@
       "simpleName": "DoctorResult"
     }
   ],
-  "declarationState": "prepared-not-open",
+  "declarationState": "open",
   "feedbackChannel": {
-    "issueNumber": null,
+    "issueNumber": 60,
     "kind": "github-issue",
     "repository": "ALi365-SDN-BHD/Bukit",
-    "state": "not-created"
+    "state": "open"
   },
   "migrationTarget": "2.0.0",
   "ownerCounts": {
@@ -35384,11 +35384,11 @@
     "sha256": "a0c8c113c82ff20ba4479879a681ec90e29b0a748fcb7949ded40f8a98ab0e3b"
   },
   "windowPolicy": {
-    "announcementUrl": null,
+    "announcementUrl": "https://github.com/ALi365-SDN-BHD/Bukit/issues/60",
     "calendarTimeAloneIsInsufficient": true,
     "eligibleAfterRelease": null,
     "minimumStableReleaseCycles": 1,
     "openRequiresSeparateApproval": true,
-    "openedAtUtc": null
+    "openedAtUtc": "2026-07-21T02:19:46Z"
   }
 }
