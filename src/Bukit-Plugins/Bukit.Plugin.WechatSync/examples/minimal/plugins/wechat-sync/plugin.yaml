@@ -1,6 +1,6 @@
 id: wechat-sync
 name: Bukit WeChat Sync Plugin
-version: 0.2.0
+version: 0.3.0
 protocol: bukit-plugin-v1
 kind: process
 distribution: self-contained

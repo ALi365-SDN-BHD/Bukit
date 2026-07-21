@@ -24,7 +24,13 @@ internal sealed record SyncOperation(
     string Target,
     string? DraftId,
     string? PublishId,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt)
+{
+    public string? SourceKey { get; init; }
+    public string? SourceId { get; init; }
+    public string? Title { get; init; }
+    public int? LastPublishStatus { get; init; }
+}
 
 public sealed record SyncRecord(
     DateTimeOffset LastSuccessAt,
@@ -606,28 +612,44 @@ internal static class SyncCacheManager
                 string.IsNullOrWhiteSpace(operation.ContentHash) ||
                 operation.Target is not ("draft" or "publish") ||
                 operation.UpdatedAt == default ||
+                operation.SourceKey is null ||
+                operation.SourceId is null ||
+                operation.Title is null ||
                 operation.DraftId is not null && string.IsNullOrWhiteSpace(operation.DraftId) ||
                 operation.PublishId is not null && string.IsNullOrWhiteSpace(operation.PublishId) ||
-                !HasValidOperationIdentifiers(operation))
+                !HasValidOperationState(operation))
             {
                 throw new InvalidDataException("Cache contains an invalid operation record.");
             }
         }
     }
 
-    private static bool HasValidOperationIdentifiers(SyncOperation operation)
+    private static bool HasValidOperationState(SyncOperation operation)
         => operation.State switch
         {
-            "DraftSubmitting" => operation.DraftId is null && operation.PublishId is null,
-            "DraftCreated" => !string.IsNullOrWhiteSpace(operation.DraftId) && operation.PublishId is null,
+            "DraftSubmitting" =>
+                operation.DraftId is null &&
+                operation.PublishId is null &&
+                operation.LastPublishStatus is null,
+            "DraftCreated" =>
+                !string.IsNullOrWhiteSpace(operation.DraftId) &&
+                operation.PublishId is null &&
+                operation.LastPublishStatus is null,
             "PublishSubmitting" =>
                 operation.Target == "publish" &&
                 !string.IsNullOrWhiteSpace(operation.DraftId) &&
-                operation.PublishId is null,
-            "PublishSubmitted" or "PublishFailed" =>
+                operation.PublishId is null &&
+                operation.LastPublishStatus is null,
+            "PublishSubmitted" =>
                 operation.Target == "publish" &&
                 !string.IsNullOrWhiteSpace(operation.DraftId) &&
-                !string.IsNullOrWhiteSpace(operation.PublishId),
+                !string.IsNullOrWhiteSpace(operation.PublishId) &&
+                operation.LastPublishStatus is null or 1,
+            "PublishFailed" =>
+                operation.Target == "publish" &&
+                !string.IsNullOrWhiteSpace(operation.DraftId) &&
+                !string.IsNullOrWhiteSpace(operation.PublishId) &&
+                operation.LastPublishStatus is >= 2 and <= 6,
             _ => false
         };
 

@@ -115,7 +115,11 @@ public sealed class SyncCacheManagerTests : IDisposable
               "Target": "publish",
               "DraftId": "draft-1",
               "PublishId": null,
-              "UpdatedAt": "2026-07-21T00:00:00+00:00"
+              "UpdatedAt": "2026-07-21T00:00:00+00:00",
+              "SourceKey": "notion",
+              "SourceId": "page-1",
+              "Title": "Title",
+              "LastPublishStatus": null
             }
           }
         }
@@ -129,6 +133,10 @@ public sealed class SyncCacheManagerTests : IDisposable
         var operation = document.RootElement.GetProperty("Operations").GetProperty("Notion:Page-1");
         Assert.Equal("DraftCreated", operation.GetProperty("State").GetString());
         Assert.Equal("draft-1", operation.GetProperty("DraftId").GetString());
+        Assert.Equal("notion", operation.GetProperty("SourceKey").GetString());
+        Assert.Equal("page-1", operation.GetProperty("SourceId").GetString());
+        Assert.Equal("Title", operation.GetProperty("Title").GetString());
+        Assert.Equal(JsonValueKind.Null, operation.GetProperty("LastPublishStatus").ValueKind);
     }
 
     [Fact]
@@ -213,7 +221,14 @@ public sealed class SyncCacheManagerTests : IDisposable
         yield return InvalidOperation("PublishSubmitting", "draft", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
         yield return InvalidOperation("PublishSubmitting", "publish", null, null, "2026-07-21T00:00:00+00:00", "hash-1");
         yield return InvalidOperation("PublishSubmitted", "publish", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
-        yield return InvalidOperation("PublishFailed", "publish", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishFailed", "publish", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1", lastPublishStatus: 2);
+        yield return InvalidOperation("DraftCreated", "draft", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1", sourceKey: null);
+        yield return InvalidOperation("DraftCreated", "draft", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1", sourceId: null);
+        yield return InvalidOperation("DraftCreated", "draft", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1", title: null);
+        yield return InvalidOperation("DraftSubmitting", "draft", null, null, "2026-07-21T00:00:00+00:00", "hash-1", lastPublishStatus: 1);
+        yield return InvalidOperation("PublishSubmitted", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1", lastPublishStatus: 2);
+        yield return InvalidOperation("PublishFailed", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishFailed", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1", lastPublishStatus: 7);
     }
 
     [Theory]
@@ -235,7 +250,9 @@ public sealed class SyncCacheManagerTests : IDisposable
         yield return InvalidOperation("DraftCreated", "publish", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
         yield return InvalidOperation("PublishSubmitting", "publish", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
         yield return InvalidOperation("PublishSubmitted", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1");
-        yield return InvalidOperation("PublishFailed", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishSubmitted", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1", lastPublishStatus: 1);
+        yield return InvalidOperation("PublishFailed", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1", lastPublishStatus: 2);
+        yield return InvalidOperation("PublishFailed", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1", lastPublishStatus: 6);
     }
 
     private static object[] InvalidRecord(string key, string record)
@@ -247,7 +264,11 @@ public sealed class SyncCacheManagerTests : IDisposable
         string? draftId,
         string? publishId,
         string updatedAt,
-        string contentHash)
+        string contentHash,
+        string? sourceKey = "notion",
+        string? sourceId = "page-1",
+        string? title = "Title",
+        int? lastPublishStatus = null)
         => [$$"""
         {
           "Version": 3,
@@ -260,7 +281,11 @@ public sealed class SyncCacheManagerTests : IDisposable
               "Target": "{{target}}",
               "DraftId": {{JsonSerializer.Serialize(draftId)}},
               "PublishId": {{JsonSerializer.Serialize(publishId)}},
-              "UpdatedAt": "{{updatedAt}}"
+              "UpdatedAt": "{{updatedAt}}",
+              "SourceKey": {{JsonSerializer.Serialize(sourceKey)}},
+              "SourceId": {{JsonSerializer.Serialize(sourceId)}},
+              "Title": {{JsonSerializer.Serialize(title)}},
+              "LastPublishStatus": {{JsonSerializer.Serialize(lastPublishStatus)}}
             }
           }
         }

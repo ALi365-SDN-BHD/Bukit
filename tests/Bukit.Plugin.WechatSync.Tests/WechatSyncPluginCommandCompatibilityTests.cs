@@ -75,6 +75,26 @@ public sealed class WechatSyncPluginCommandCompatibilityTests
     }
 
     [Fact]
+    public void HandshakeVersion_MatchesActiveMinimalManifestFixture()
+    {
+        const string expectedVersion = "0.3.0";
+        var response = WechatSyncPluginManifestProvider.CreateHandshakeResponse("req-version");
+        var fixturePath = Path.Combine(
+            RepoRoot,
+            "src",
+            "Bukit-Plugins",
+            "Bukit.Plugin.WechatSync",
+            "examples",
+            "minimal",
+            "plugins",
+            "wechat-sync",
+            "plugin.yaml");
+
+        Assert.Equal(expectedVersion, response.Plugin?.Version);
+        Assert.Contains($"version: {expectedVersion}", File.ReadAllText(fixturePath), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MinimalExample_DocumentsManifestAsCompatibilityFixtureUntilReleasePackageExists()
     {
         var readmePath = Path.Combine(

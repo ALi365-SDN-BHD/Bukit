@@ -7,12 +7,13 @@ using static WechatSyncHelpers;
 public sealed class WechatSyncWorkflow
 {
     public const string PluginId = "wechat-sync";
-    public const string Version = "0.2.0";
+    public const string Version = "0.3.0";
 
     private readonly IWechatDraftGateway? _gateway;
     private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
     private readonly Func<string, CancellationToken, Task<byte[]>>? _downloadImageAsync;
     private readonly TimeSpan _runLockTimeout;
+    private readonly Action<string, SyncCache> _saveCache;
 
     public WechatSyncWorkflow()
         : this(null, null, null)
@@ -31,12 +32,14 @@ public sealed class WechatSyncWorkflow
         IWechatDraftGateway? gateway,
         Func<TimeSpan, CancellationToken, Task>? delayAsync,
         Func<string, CancellationToken, Task<byte[]>>? downloadImageAsync,
-        TimeSpan runLockTimeout)
+        TimeSpan runLockTimeout,
+        Action<string, SyncCache>? saveCache = null)
     {
         _gateway = gateway;
         _delayAsync = delayAsync ?? ((delay, ct) => Task.Delay(delay, ct));
         _downloadImageAsync = downloadImageAsync;
         _runLockTimeout = runLockTimeout;
+        _saveCache = saveCache ?? SyncCacheManager.SaveCache;
     }
 
     public async Task<WechatSyncResult> RunAsync(
@@ -87,7 +90,46 @@ public sealed class WechatSyncWorkflow
 
                 var rawHtml = ContentBodyResolver.GetHtml(candidate.Item);
                 var contentHash = SyncCacheManager.ComputeContentHash(candidate.Item, candidate.Route, rawHtml, options, context);
-                if (!forceRetryIgnoreCache &&
+                SyncOperation? currentOperation = null;
+                if (cache.Operations.TryGetValue(candidate.SyncKey, out var operation))
+                {
+                    if (!string.Equals(operation.ContentHash, contentHash, StringComparison.Ordinal) ||
+                        !string.Equals(operation.Target, options.Target, StringComparison.Ordinal))
+                    {
+                        AddRecoveryRequiredDiagnostic(
+                            diagnostics,
+                            candidate.SyncKey,
+                            "stored operation content hash or target does not match the current candidate");
+                        continue;
+                    }
+
+                    if (operation.State is "DraftSubmitting" or "PublishSubmitting")
+                    {
+                        AddRecoveryRequiredDiagnostic(
+                            diagnostics,
+                            candidate.SyncKey,
+                            $"stored operation is in outcome-unknown state '{operation.State}'");
+                        continue;
+                    }
+
+                    if (operation.State == "DraftCreated" && operation.Target == "draft")
+                    {
+                        PersistSuccessfulRecord(context.Logger, cachePath, cache, runLock, candidate.SyncKey, operation);
+                        synced++;
+                        continue;
+                    }
+
+                    if (operation.State == "PublishFailed")
+                    {
+                        AddPublishFailedDiagnostic(diagnostics, candidate.SyncKey);
+                        continue;
+                    }
+
+                    currentOperation = operation;
+                }
+
+                if (currentOperation is null &&
+                    !forceRetryIgnoreCache &&
                     cache.Records.TryGetValue(candidate.SyncKey, out var existing) &&
                     string.Equals(existing.ContentHash, contentHash, StringComparison.Ordinal))
                 {
@@ -95,32 +137,62 @@ public sealed class WechatSyncWorkflow
                     continue;
                 }
 
-                var (draftId, cacheUpdated) = await SyncWithRetryAsync(
-                    context, gateway, thumbResolver, imageProcessor, candidate, options, cache, () => updated = true, cancellationToken);
-                updated |= cacheUpdated;
-
-                if (options.Target == "publish" && !string.IsNullOrWhiteSpace(draftId))
+                if (currentOperation is null)
                 {
-                    var publishSucceeded = await PublishWithPollingAsync(context, gateway, draftId, options, cancellationToken);
-                    if (!publishSucceeded)
+                    SyncOperation createdOperation;
+                    bool cacheUpdated;
+                    try
                     {
-                        diagnostics.Add(new WechatSyncDiagnostic(
-                            "plugin.wechat-sync.publishFailed",
-                            "error",
-                            $"wechat-sync publish failed for '{candidate.SyncKey}'."));
+                        (createdOperation, cacheUpdated) = await SyncWithRetryAsync(
+                            context,
+                            gateway,
+                            thumbResolver,
+                            imageProcessor,
+                            candidate,
+                            options,
+                            cache,
+                            cachePath,
+                            runLock,
+                            contentHash,
+                            () => updated = true,
+                            cancellationToken);
+                    }
+                    catch (DraftSubmissionOutcomeUnknownException)
+                    {
+                        AddRecoveryRequiredDiagnostic(
+                            diagnostics,
+                            candidate.SyncKey,
+                            "draft submission outcome is unknown");
                         continue;
                     }
+
+                    updated |= cacheUpdated;
+                    currentOperation = createdOperation;
                 }
 
-                cache.Records[candidate.SyncKey] = new SyncRecord(
-                    DateTimeOffset.UtcNow,
-                    draftId,
-                    contentHash,
-                    candidate.SourceKey,
-                    candidate.SourceId,
-                    candidate.Item.Title ?? string.Empty);
+                if (options.Target == "publish")
+                {
+                    var publishProgress = await ResumePublishAsync(
+                        context,
+                        gateway,
+                        candidate.SyncKey,
+                        options,
+                        cache,
+                        cachePath,
+                        runLock,
+                        currentOperation,
+                        diagnostics,
+                        cancellationToken);
+                    if (publishProgress != PublishProgress.Succeeded)
+                    {
+                        continue;
+                    }
+
+                    currentOperation = cache.Operations[candidate.SyncKey];
+                }
+
+                PersistSuccessfulRecord(context.Logger, cachePath, cache, runLock, candidate.SyncKey, currentOperation);
                 synced++;
-                updated = true;
             }
 
             if (updated)
@@ -130,9 +202,9 @@ public sealed class WechatSyncWorkflow
                 runLock.ValidateIdentity();
             }
         }
-        catch
+        catch (Exception ex)
         {
-            if (updated)
+            if (updated && ex is not CacheCommitUnknownException)
             {
                 TrySavePartialCache(cachePath, cache, runLock, context.Logger);
             }
@@ -155,7 +227,7 @@ public sealed class WechatSyncWorkflow
             filtered.Count, synced, skipped, messages, diagnostics, cachePath);
     }
 
-    private async Task<(string DraftId, bool CacheUpdated)> SyncWithRetryAsync(
+    private async Task<(SyncOperation Operation, bool CacheUpdated)> SyncWithRetryAsync(
         WechatSyncContext context,
         IWechatDraftGateway gateway,
         ThumbResolver thumbResolver,
@@ -163,17 +235,25 @@ public sealed class WechatSyncWorkflow
         WechatSyncCandidate candidate,
         WechatSyncOptions options,
         SyncCache cache,
+        string cachePath,
+        SyncCacheManager.RunLockHandle runLock,
+        string contentHash,
         Action markCacheUpdated,
         CancellationToken cancellationToken)
     {
         Exception? last = null;
+        var anyAddDraftInvoked = false;
         for (var attempt = 1; attempt <= options.MaxAttempts; attempt++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var thumbCacheUpdated = false;
+            string? draftId;
             try
             {
-                var (thumbMediaId, thumbCacheUpdated) = await thumbResolver.ResolveAndUploadThumbAsync(
+                var thumbResult = await thumbResolver.ResolveAndUploadThumbAsync(
                     context, candidate.Item, options, cache, cancellationToken);
+                var thumbMediaId = thumbResult.ThumbMediaId;
+                thumbCacheUpdated = thumbResult.CacheUpdated;
                 if (thumbCacheUpdated)
                 {
                     markCacheUpdated();
@@ -208,23 +288,207 @@ public sealed class WechatSyncWorkflow
                     }
                 }
 
-                var draftId = await gateway.AddDraftAsync(req, cancellationToken);
-                return (draftId, thumbCacheUpdated);
+                var submittingOperation = CreateOperation(
+                    "DraftSubmitting",
+                    contentHash,
+                    options.Target,
+                    candidate);
+                PersistTransition(
+                    context.Logger,
+                    cachePath,
+                    cache,
+                    runLock,
+                    next => next.Operations[candidate.SyncKey] = submittingOperation);
+                anyAddDraftInvoked = true;
+                draftId = await gateway.AddDraftAsync(req, cancellationToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException and not CacheCommitUnknownException)
             {
                 last = ex;
                 if (attempt >= options.MaxAttempts)
                 {
+                    if (anyAddDraftInvoked)
+                    {
+                        throw new DraftSubmissionOutcomeUnknownException(ex);
+                    }
+
                     break;
                 }
 
                 var sleep = ComputeDelay(options.BaseDelayMs, options.BackoffFactor, attempt);
                 await _delayAsync(sleep, cancellationToken);
+                continue;
             }
+
+            if (string.IsNullOrWhiteSpace(draftId))
+            {
+                throw new DraftSubmissionOutcomeUnknownException();
+            }
+
+            var createdOperation = cache.Operations[candidate.SyncKey] with
+            {
+                State = "DraftCreated",
+                DraftId = draftId,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            PersistTransition(
+                context.Logger,
+                cachePath,
+                cache,
+                runLock,
+                next => next.Operations[candidate.SyncKey] = createdOperation);
+            return (createdOperation, thumbCacheUpdated);
+        }
+
+        if (anyAddDraftInvoked)
+        {
+            throw new DraftSubmissionOutcomeUnknownException(last);
         }
 
         throw new InvalidOperationException($"wechat-sync failed for '{candidate.SyncKey}' after {options.MaxAttempts} attempts: {last?.Message}", last);
+    }
+
+    private static SyncOperation CreateOperation(
+        string state,
+        string contentHash,
+        string target,
+        WechatSyncCandidate candidate,
+        string? draftId = null,
+        string? publishId = null,
+        int? lastPublishStatus = null)
+        => new(
+            state,
+            contentHash,
+            target,
+            draftId,
+            publishId,
+            DateTimeOffset.UtcNow)
+        {
+            SourceKey = candidate.SourceKey,
+            SourceId = candidate.SourceId,
+            Title = candidate.Item.Title ?? string.Empty,
+            LastPublishStatus = lastPublishStatus
+        };
+
+    private void PersistSuccessfulRecord(
+        Bukit.Shared.ILogger logger,
+        string cachePath,
+        SyncCache cache,
+        SyncCacheManager.RunLockHandle runLock,
+        string syncKey,
+        SyncOperation operation)
+    {
+        var record = new SyncRecord(
+                DateTimeOffset.UtcNow,
+                operation.DraftId!,
+                operation.ContentHash,
+                operation.SourceKey!,
+                operation.SourceId!,
+                operation.Title!);
+        PersistTransition(
+            logger,
+            cachePath,
+            cache,
+            runLock,
+            next =>
+            {
+                next.Records[syncKey] = record;
+                next.Operations.Remove(syncKey);
+            });
+    }
+
+    private static void AddRecoveryRequiredDiagnostic(
+        List<WechatSyncDiagnostic> diagnostics,
+        string syncKey,
+        string reason)
+        => diagnostics.Add(new WechatSyncDiagnostic(
+            "plugin.wechat-sync.recoveryRequired",
+            "error",
+            $"wechat-sync recovery required for '{syncKey}': {reason}."));
+
+    private static void AddPublishFailedDiagnostic(
+        List<WechatSyncDiagnostic> diagnostics,
+        string syncKey)
+        => diagnostics.Add(new WechatSyncDiagnostic(
+            "plugin.wechat-sync.publishFailed",
+            "error",
+            $"wechat-sync publish failed for '{syncKey}'."));
+
+    private static void AddPublishPendingDiagnostic(
+        List<WechatSyncDiagnostic> diagnostics,
+        string syncKey)
+        => diagnostics.Add(new WechatSyncDiagnostic(
+            "plugin.wechat-sync.publishPending",
+            "error",
+            $"wechat-sync publish remains pending for '{syncKey}'."));
+
+    private void PersistCache(
+        string cachePath,
+        SyncCache cache,
+        SyncCacheManager.RunLockHandle runLock)
+    {
+        runLock.ValidateIdentity();
+        _saveCache(cachePath, cache);
+        runLock.ValidateIdentity();
+    }
+
+    private void PersistTransition(
+        Bukit.Shared.ILogger logger,
+        string cachePath,
+        SyncCache cache,
+        SyncCacheManager.RunLockHandle runLock,
+        Action<SyncCache> transition)
+    {
+        var next = CloneCache(cache);
+        transition(next);
+        try
+        {
+            PersistCache(cachePath, next, runLock);
+        }
+        catch (Exception saveException)
+        {
+            try
+            {
+                runLock.ValidateIdentity();
+                var durable = SyncCacheManager.LoadCache(cachePath, logger);
+                runLock.ValidateIdentity();
+                ReplaceCacheContents(cache, durable);
+            }
+            catch (Exception reloadException)
+            {
+                throw new CacheCommitUnknownException(saveException, reloadException);
+            }
+
+            throw;
+        }
+
+        ReplaceCacheContents(cache, next);
+    }
+
+    private static SyncCache CloneCache(SyncCache cache)
+        => new(cache.Version, new Dictionary<string, SyncRecord>(cache.Records, StringComparer.Ordinal))
+        {
+            ThumbMediaIds = new Dictionary<string, string>(cache.ThumbMediaIds, StringComparer.Ordinal),
+            Operations = new Dictionary<string, SyncOperation>(cache.Operations, StringComparer.Ordinal)
+        };
+
+    private static void ReplaceCacheContents(SyncCache cache, SyncCache next)
+    {
+        ReplaceDictionary(cache.Records, next.Records);
+        ReplaceDictionary(cache.ThumbMediaIds, next.ThumbMediaIds);
+        ReplaceDictionary(cache.Operations, next.Operations);
+    }
+
+    private static void ReplaceDictionary<TKey, TValue>(
+        Dictionary<TKey, TValue> destination,
+        Dictionary<TKey, TValue> source)
+        where TKey : notnull
+    {
+        destination.Clear();
+        foreach (var pair in source)
+        {
+            destination.Add(pair.Key, pair.Value);
+        }
     }
 
     private static void TrySavePartialCache(
@@ -245,48 +509,162 @@ public sealed class WechatSyncWorkflow
         }
     }
 
-    private async Task<bool> PublishWithPollingAsync(
+    private async Task<PublishProgress> ResumePublishAsync(
         WechatSyncContext context,
         IWechatDraftGateway gateway,
-        string draftMediaId,
+        string syncKey,
         WechatSyncOptions options,
+        SyncCache cache,
+        string cachePath,
+        SyncCacheManager.RunLockHandle runLock,
+        SyncOperation operation,
+        List<WechatSyncDiagnostic> diagnostics,
         CancellationToken cancellationToken)
     {
-        try
+        if (operation.State == "DraftCreated")
         {
-            var publishId = await gateway.PublishAsync(draftMediaId, cancellationToken);
-            context.Logger.Info($"plugin wechat-sync publish submitted: publishId={publishId}");
-
-            var maxPolls = options.PublishPollMaxAttempts;
-            for (var poll = 0; poll < maxPolls; poll++)
+            operation = operation with
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                await _delayAsync(TimeSpan.FromSeconds(options.PublishPollIntervalSeconds), cancellationToken);
+                State = "PublishSubmitting",
+                PublishId = null,
+                LastPublishStatus = null,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            PersistTransition(
+                context.Logger,
+                cachePath,
+                cache,
+                runLock,
+                next => next.Operations[syncKey] = operation);
 
-                var status = await gateway.CheckPublishStatusAsync(publishId, cancellationToken);
-
-                if (status.PublishStatus == 0)
-                {
-                    context.Logger.Info($"plugin wechat-sync publish succeeded: publishId={publishId} articleUrl={status.ArticleUrl}");
-                    return true;
-                }
-
-                if (status.PublishStatus >= 2)
-                {
-                    context.Logger.Warn($"plugin wechat-sync publish failed: publishId={publishId} status={status.PublishStatus}");
-                    return false;
-                }
-
-                context.Logger.Info($"plugin wechat-sync publish in progress: publishId={publishId} poll={poll + 1}/{maxPolls}");
+            string? publishId;
+            try
+            {
+                publishId = await gateway.PublishAsync(operation.DraftId!, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                context.Logger.Warn($"plugin wechat-sync publish submission failed: {ex.Message}");
+                AddRecoveryRequiredDiagnostic(
+                    diagnostics,
+                    syncKey,
+                    "publish submission outcome is unknown");
+                return PublishProgress.RecoveryRequired;
             }
 
-            context.Logger.Warn($"plugin wechat-sync publish status poll timeout: publishId={publishId} after {maxPolls} polls");
-            return false;
+            if (string.IsNullOrWhiteSpace(publishId))
+            {
+                AddRecoveryRequiredDiagnostic(
+                    diagnostics,
+                    syncKey,
+                    "publish submission returned an empty publish id");
+                return PublishProgress.RecoveryRequired;
+            }
+
+            operation = operation with
+            {
+                State = "PublishSubmitted",
+                PublishId = publishId,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            PersistTransition(
+                context.Logger,
+                cachePath,
+                cache,
+                runLock,
+                next => next.Operations[syncKey] = operation);
+            context.Logger.Info($"plugin wechat-sync publish submitted: publishId={publishId}");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+
+        var maxPolls = options.PublishPollMaxAttempts;
+        for (var poll = 0; poll < maxPolls; poll++)
         {
-            context.Logger.Warn($"plugin wechat-sync publish failed: {ex.Message}");
-            return false;
+            cancellationToken.ThrowIfCancellationRequested();
+            await _delayAsync(TimeSpan.FromSeconds(options.PublishPollIntervalSeconds), cancellationToken);
+
+            WechatPublishStatusResult status;
+            try
+            {
+                status = await gateway.CheckPublishStatusAsync(operation.PublishId!, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                context.Logger.Warn($"plugin wechat-sync publish status query failed: {ex.Message}");
+                AddPublishPendingDiagnostic(diagnostics, syncKey);
+                return PublishProgress.Pending;
+            }
+
+            if (status.PublishStatus == 0)
+            {
+                context.Logger.Info($"plugin wechat-sync publish succeeded: publishId={operation.PublishId} articleUrl={status.ArticleUrl}");
+                return PublishProgress.Succeeded;
+            }
+
+            if (status.PublishStatus is >= 2 and <= 6)
+            {
+                operation = operation with
+                {
+                    State = "PublishFailed",
+                    LastPublishStatus = status.PublishStatus,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+                PersistTransition(
+                    context.Logger,
+                    cachePath,
+                    cache,
+                    runLock,
+                    next => next.Operations[syncKey] = operation);
+                context.Logger.Warn($"plugin wechat-sync publish failed: publishId={operation.PublishId} status={status.PublishStatus}");
+                AddPublishFailedDiagnostic(diagnostics, syncKey);
+                return PublishProgress.Failed;
+            }
+
+            if (status.PublishStatus == 1)
+            {
+                operation = operation with
+                {
+                    LastPublishStatus = 1,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+                PersistTransition(
+                    context.Logger,
+                    cachePath,
+                    cache,
+                    runLock,
+                    next => next.Operations[syncKey] = operation);
+            }
+
+            context.Logger.Info($"plugin wechat-sync publish in progress: publishId={operation.PublishId} poll={poll + 1}/{maxPolls}");
+        }
+
+        context.Logger.Warn($"plugin wechat-sync publish status poll timeout: publishId={operation.PublishId} after {maxPolls} polls");
+        AddPublishPendingDiagnostic(diagnostics, syncKey);
+        return PublishProgress.Pending;
+    }
+
+    private enum PublishProgress
+    {
+        Succeeded,
+        Pending,
+        Failed,
+        RecoveryRequired
+    }
+
+    private sealed class CacheCommitUnknownException : IOException
+    {
+        internal CacheCommitUnknownException(Exception saveException, Exception reloadException)
+            : base(
+                "wechat-sync cache commit failed and the durable state could not be reloaded; automatic partial save is disabled.",
+                new AggregateException(saveException, reloadException))
+        {
+        }
+    }
+
+    private sealed class DraftSubmissionOutcomeUnknownException : Exception
+    {
+        internal DraftSubmissionOutcomeUnknownException(Exception? innerException = null)
+            : base("wechat-sync draft submission outcome is unknown.", innerException)
+        {
         }
     }
 

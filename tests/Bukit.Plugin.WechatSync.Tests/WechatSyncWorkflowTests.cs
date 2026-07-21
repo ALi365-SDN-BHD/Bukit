@@ -504,7 +504,13 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         Assert.False(result.Success);
         Assert.Equal(0, result.Synced);
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "plugin.wechat-sync.publishFailed");
-        Assert.False(File.Exists(Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json")));
+        var cache = SyncCacheManager.LoadCache(
+            Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json"),
+            new ConsoleLogger(LogLevel.Error));
+        Assert.Empty(cache.Records);
+        var operation = Assert.Single(cache.Operations).Value;
+        Assert.Equal("PublishFailed", operation.State);
+        Assert.Equal(2, operation.LastPublishStatus);
     }
 
     [Fact]
@@ -529,6 +535,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         Assert.False(result.Success);
         Assert.Empty(cache.Records);
         Assert.NotEmpty(cache.ThumbMediaIds);
+        Assert.Equal("PublishFailed", Assert.Single(cache.Operations).Value.State);
         Assert.Equal(1, gateway.UploadThumbCount);
     }
 
@@ -546,11 +553,14 @@ public sealed class WechatSyncWorkflowTests : IDisposable
             MaxAttempts = 1
         };
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => workflow.RunAsync(context, options));
+        var result = await workflow.RunAsync(context, options);
 
         var cache = SyncCacheManager.LoadCache(Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json"), new ConsoleLogger(LogLevel.Error));
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "plugin.wechat-sync.recoveryRequired");
         Assert.Empty(cache.Records);
         Assert.NotEmpty(cache.ThumbMediaIds);
+        Assert.Equal("DraftSubmitting", Assert.Single(cache.Operations).Value.State);
         Assert.Equal(1, gateway.UploadThumbCount);
     }
 
@@ -566,12 +576,16 @@ public sealed class WechatSyncWorkflowTests : IDisposable
             ("post-1", "page-1", "<p>One</p>"),
             ("post-2", "page-2", "<p>Two</p>"));
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => workflow.RunAsync(context, options));
+        var result = await workflow.RunAsync(context, options);
 
         var cachePath = Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json");
         var cache = SyncCacheManager.LoadCache(cachePath, new ConsoleLogger(LogLevel.Error));
+        Assert.False(result.Success);
+        Assert.Equal(1, result.Synced);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "plugin.wechat-sync.recoveryRequired");
         Assert.Contains("notion:page-1", cache.Records.Keys);
         Assert.DoesNotContain("notion:page-2", cache.Records.Keys);
+        Assert.Equal("DraftSubmitting", cache.Operations["notion:page-2"].State);
     }
 
     [Fact]
