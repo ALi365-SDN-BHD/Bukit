@@ -12,9 +12,9 @@ namespace Bukit.WechatSyncing;
 internal static class ImageConverter
 {
     /// <summary>
-    /// Maximum size for inline content images (uploadimg API): 2 MB.
+    /// Maximum size for inline content images (uploadimg API): strictly below 1 MiB.
     /// </summary>
-    internal const int ContentImageMaxBytes = 2 * 1024 * 1024;
+    internal const int ContentImageMaxBytes = WechatDraftContract.InlineImageMaxBytesExclusive;
 
     /// <summary>
     /// Maximum size for material images (add_material API): 10 MB.
@@ -86,7 +86,7 @@ internal static class ImageConverter
     /// <param name="logger">Logger for warnings.</param>
     /// <returns>A tuple of (converted bytes, content type, file extension) or null if failed.</returns>
     internal static (byte[] Bytes, string ContentType, string Extension)? NormalizeForUpload(
-        byte[] bytes, int maxBytes, Bukit.Shared.ILogger? logger = null)
+        byte[] bytes, int maxBytes, Bukit.Shared.ILogger? logger = null, bool requireStrictlyBelowMaxBytes = false)
     {
         if (bytes is null || bytes.Length == 0)
         {
@@ -101,13 +101,14 @@ internal static class ImageConverter
             return null;
         }
 
-        if (WechatSyncHelpers.IsWechatSupportedImage(detectedType) && bytes.Length <= maxBytes)
+        if (WechatSyncHelpers.IsWechatSupportedImage(detectedType) &&
+            (requireStrictlyBelowMaxBytes ? bytes.Length < maxBytes : bytes.Length <= maxBytes))
         {
             var ext = WechatSyncHelpers.ContentTypeToExtension(detectedType);
             return (bytes, detectedType, ext);
         }
 
-        return NormalizeWithImageSharp(bytes, detectedType, maxBytes, logger);
+        return NormalizeWithImageSharp(bytes, detectedType, requireStrictlyBelowMaxBytes ? maxBytes - 1 : maxBytes, logger);
     }
 
     /// <summary>

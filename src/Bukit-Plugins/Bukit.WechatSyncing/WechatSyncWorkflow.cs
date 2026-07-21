@@ -89,6 +89,22 @@ public sealed class WechatSyncWorkflow
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var rawHtml = ContentBodyResolver.GetHtml(candidate.Item);
+                var preUploadHtml = options.Passthrough
+                    ? rawHtml
+                    : ContentProcessor.ProcessContent(rawHtml);
+                var preUploadRequest = BuildDraftRequest(candidate, options, string.Empty, preUploadHtml);
+                try
+                {
+                    // This preflight is deliberately before cache handling and any thumbnail or
+                    // inline-image activity, so stale cache records cannot hide invalid drafts.
+                    WechatDraftContract.ValidateDraft(preUploadRequest);
+                }
+                catch (WechatDraftContractViolationException ex)
+                {
+                    diagnostics.Add(new WechatSyncDiagnostic(ex.Code, "error", ex.Message));
+                    continue;
+                }
+
                 var contentHash = SyncCacheManager.ComputeContentHash(candidate.Item, candidate.Route, rawHtml, options, context);
                 SyncOperation? currentOperation = null;
                 if (cache.Operations.TryGetValue(candidate.SyncKey, out var operation))
@@ -150,6 +166,7 @@ public sealed class WechatSyncWorkflow
                             imageProcessor,
                             candidate,
                             options,
+                            preUploadHtml,
                             cache,
                             cachePath,
                             runLock,
@@ -163,6 +180,11 @@ public sealed class WechatSyncWorkflow
                             diagnostics,
                             candidate.SyncKey,
                             "draft submission outcome is unknown");
+                        continue;
+                    }
+                    catch (WechatDraftContractViolationException ex)
+                    {
+                        diagnostics.Add(new WechatSyncDiagnostic(ex.Code, "error", ex.Message));
                         continue;
                     }
 
@@ -234,6 +256,7 @@ public sealed class WechatSyncWorkflow
         ContentImageProcessor? imageProcessor,
         WechatSyncCandidate candidate,
         WechatSyncOptions options,
+        string preUploadHtml,
         SyncCache cache,
         string cachePath,
         SyncCacheManager.RunLockHandle runLock,
@@ -259,34 +282,16 @@ public sealed class WechatSyncWorkflow
                     markCacheUpdated();
                 }
 
-                var processedHtml = ContentBodyResolver.GetHtml(candidate.Item);
-                if (!options.Passthrough)
+                var processedHtml = preUploadHtml;
+                if (!options.Passthrough && imageProcessor is not null)
                 {
-                    processedHtml = ContentProcessor.ProcessContent(processedHtml);
-
-                    if (imageProcessor is not null)
-                    {
-                        processedHtml = await imageProcessor.ProcessImagesAsync(context, processedHtml, options, cancellationToken);
-                    }
+                    processedHtml = await imageProcessor.ProcessImagesAsync(context, processedHtml, options, cancellationToken);
                 }
 
                 var req = BuildDraftRequest(candidate, options, thumbMediaId, processedHtml);
-
-                if (req.ContentHtml is { Length: > 0 })
-                {
-                    if (req.ContentHtml.Length > WechatContentMaxChars)
-                    {
-                        context.Logger.Warn(
-                            $"plugin wechat-sync content length {req.ContentHtml.Length} exceeds WeChat limit ({WechatContentMaxChars} chars) for '{candidate.SyncKey}'");
-                    }
-
-                    var contentBytes = Encoding.UTF8.GetByteCount(req.ContentHtml);
-                    if (contentBytes > WechatContentMaxBytes)
-                    {
-                        context.Logger.Warn(
-                            $"plugin wechat-sync content size {contentBytes} bytes exceeds WeChat limit ({WechatContentMaxBytes} bytes) for '{candidate.SyncKey}'");
-                    }
-                }
+                // Inline replacement can expand content, so enforce the final contract again
+                // immediately before persisting DraftSubmitting or calling AddDraftAsync.
+                WechatDraftContract.ValidateDraft(req);
 
                 var submittingOperation = CreateOperation(
                     "DraftSubmitting",
@@ -304,6 +309,11 @@ public sealed class WechatSyncWorkflow
             }
             catch (Exception ex) when (ex is not OperationCanceledException and not CacheCommitUnknownException)
             {
+                if (ex is WechatDraftContractViolationException)
+                {
+                    throw;
+                }
+
                 last = ex;
                 if (attempt >= options.MaxAttempts)
                 {
@@ -679,7 +689,7 @@ public sealed class WechatSyncWorkflow
             ? StripHtml(processedHtml, WechatDigestMaxChars)
             : Truncate(summary!.Trim(), WechatDigestMaxChars);
 
-        var title = Truncate(candidate.Item.Title ?? string.Empty, WechatTitleMaxChars);
+        var title = candidate.Item.Title ?? string.Empty;
         var contentSourceUrl = CombineAbsoluteUrl(options.SiteUrl, options.BaseUrl, candidate.Route.Url);
         var author = string.IsNullOrWhiteSpace(options.Author) ? options.SiteName : options.Author;
 
