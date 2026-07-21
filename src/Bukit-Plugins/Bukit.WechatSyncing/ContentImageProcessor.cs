@@ -312,7 +312,7 @@ internal sealed class ContentImageProcessor
         {
             var bytes = await ImageConverter.TryReadImageFileWithLimitAsync(
                 localPath1,
-                ImageConverter.ContentImageMaxBytes,
+                ImageConverter.InlineImageSourceMaxBytes,
                 "inline image local file",
                 _logger,
                 cancellationToken);
@@ -330,7 +330,7 @@ internal sealed class ContentImageProcessor
         {
             var bytes = await ImageConverter.TryReadImageFileWithLimitAsync(
                 localPath2,
-                ImageConverter.ContentImageMaxBytes,
+                ImageConverter.InlineImageSourceMaxBytes,
                 "inline image local file",
                 _logger,
                 cancellationToken);
@@ -388,7 +388,7 @@ internal sealed class ContentImageProcessor
         {
             var bytes = ImageConverter.TryReadImageFileWithLimit(
                 indexPath,
-                ImageConverter.ContentImageMaxBytes,
+                ImageConverter.InlineImageSourceMaxBytes,
                 "inline image media cache file",
                 _logger);
             if (bytes is not null)
@@ -403,7 +403,7 @@ internal sealed class ContentImageProcessor
         {
             return ImageConverter.TryReadImageFileWithLimit(
                 hashPath,
-                ImageConverter.ContentImageMaxBytes,
+                ImageConverter.InlineImageSourceMaxBytes,
                 "inline image media cache file",
                 _logger);
         }

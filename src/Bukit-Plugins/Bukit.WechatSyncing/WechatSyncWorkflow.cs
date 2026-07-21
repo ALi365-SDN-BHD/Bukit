@@ -89,24 +89,6 @@ public sealed class WechatSyncWorkflow
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var rawHtml = ContentBodyResolver.GetHtml(candidate.Item);
-                var preUploadHtml = options.Passthrough
-                    ? rawHtml
-                    : ContentProcessor.ProcessContent(
-                        rawHtml,
-                        preserveLazyLoadAttributes: imageProcessor is not null);
-                var preUploadRequest = BuildDraftRequest(candidate, options, string.Empty, preUploadHtml);
-                try
-                {
-                    // This preflight is deliberately before cache handling and any thumbnail or
-                    // inline-image activity, so stale cache records cannot hide invalid drafts.
-                    WechatDraftContract.ValidateDraft(preUploadRequest);
-                }
-                catch (WechatDraftContractViolationException ex)
-                {
-                    diagnostics.Add(new WechatSyncDiagnostic(ex.Code, "error", ex.Message));
-                    continue;
-                }
-
                 var contentHash = SyncCacheManager.ComputeContentHash(candidate.Item, candidate.Route, rawHtml, options, context);
                 SyncOperation? currentOperation = null;
                 if (cache.Operations.TryGetValue(candidate.SyncKey, out var operation))
@@ -130,20 +112,41 @@ public sealed class WechatSyncWorkflow
                         continue;
                     }
 
-                    if (operation.State == "DraftCreated" && operation.Target == "draft")
+                    currentOperation = operation;
+                }
+
+                var preUploadHtml = options.Passthrough
+                    ? rawHtml
+                    : ContentProcessor.ProcessContent(
+                        rawHtml,
+                        preserveLazyLoadAttributes: imageProcessor is not null);
+                var preUploadRequest = BuildDraftRequest(candidate, options, string.Empty, preUploadHtml);
+                try
+                {
+                    // Recovery-required operation states take precedence. For all safe states,
+                    // preflight remains before successful cache handling and any network activity.
+                    WechatDraftContract.ValidateDraft(preUploadRequest);
+                }
+                catch (WechatDraftContractViolationException ex)
+                {
+                    diagnostics.Add(new WechatSyncDiagnostic(ex.Code, "error", ex.Message));
+                    continue;
+                }
+
+                if (currentOperation is not null)
+                {
+                    if (currentOperation.State == "DraftCreated" && currentOperation.Target == "draft")
                     {
-                        PersistSuccessfulRecord(context.Logger, cachePath, cache, runLock, candidate.SyncKey, operation);
+                        PersistSuccessfulRecord(context.Logger, cachePath, cache, runLock, candidate.SyncKey, currentOperation);
                         synced++;
                         continue;
                     }
 
-                    if (operation.State == "PublishFailed")
+                    if (currentOperation.State == "PublishFailed")
                     {
                         AddPublishFailedDiagnostic(diagnostics, candidate.SyncKey);
                         continue;
                     }
-
-                    currentOperation = operation;
                 }
 
                 if (currentOperation is null &&

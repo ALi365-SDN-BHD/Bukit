@@ -44,7 +44,7 @@ public sealed class WechatP104InlineImageTests : IDisposable
     }
 
     [Fact]
-    public async Task ProcessImagesAsync_NormalizesExactOneMiBLocalPngWithoutNetworkDownload()
+    public async Task ProcessImagesAsync_NormalizesOneMiBPlusOneLocalPngWithoutNetworkDownload()
     {
         var gateway = new RecordingGateway();
         var downloadCalls = 0;
@@ -59,7 +59,9 @@ public sealed class WechatP104InlineImageTests : IDisposable
         var context = Context("<img src=\"/assets/exact.png\">");
         var assetDirectory = Path.Combine(context.OutputDir, "assets");
         Directory.CreateDirectory(assetDirectory);
-        File.WriteAllBytes(Path.Combine(assetDirectory, "exact.png"), PaddedTinyPng());
+        File.WriteAllBytes(
+            Path.Combine(assetDirectory, "exact.png"),
+            PaddedTinyPng(WechatDraftContract.InlineImageMaxBytesExclusive + 1));
 
         var html = await processor.ProcessImagesAsync(context, "<img src=\"/assets/exact.png\">", Options("app", "secret"), CancellationToken.None);
 
@@ -70,7 +72,7 @@ public sealed class WechatP104InlineImageTests : IDisposable
     }
 
     [Fact]
-    public async Task ProcessImagesAsync_NormalizesExactOneMiBMediaCachePngWithoutNetworkDownload()
+    public async Task ProcessImagesAsync_NormalizesOneMiBPlusOneMediaCachePngWithoutNetworkDownload()
     {
         const string imageUrl = "https://cdn.example.com/cache.png";
         var gateway = new RecordingGateway();
@@ -85,7 +87,9 @@ public sealed class WechatP104InlineImageTests : IDisposable
             new SilentLogger());
         var mediaDirectory = Path.Combine(_rootDir, ".cache", "media");
         Directory.CreateDirectory(mediaDirectory);
-        File.WriteAllBytes(Path.Combine(mediaDirectory, "cache.png"), PaddedTinyPng());
+        File.WriteAllBytes(
+            Path.Combine(mediaDirectory, "cache.png"),
+            PaddedTinyPng(WechatDraftContract.InlineImageMaxBytesExclusive + 1));
         File.WriteAllText(Path.Combine(mediaDirectory, ".media-index.json"), $$"""
 {
   "{{imageUrl}}": "cache.png"
@@ -162,9 +166,9 @@ public sealed class WechatP104InlineImageTests : IDisposable
     private static WechatSyncOptions Options(string appIdEnv, string appSecretEnv)
         => new([], new HashSet<string>(["post"], StringComparer.OrdinalIgnoreCase), new HashSet<string>(["post"], StringComparer.OrdinalIgnoreCase), ".cache/wechat-sync/sync-cache.json", 1, 1, 1, appIdEnv, appSecretEnv, "", null, "thumb-media-id", false, false, "Bukit", "https://example.com", "/", ProcessImages: true);
 
-    private static byte[] PaddedTinyPng()
+    private static byte[] PaddedTinyPng(int length = WechatDraftContract.InlineImageMaxBytesExclusive)
     {
-        var bytes = new byte[WechatDraftContract.InlineImageMaxBytesExclusive];
+        var bytes = new byte[length];
         TinyPng.CopyTo(bytes, 0);
         return bytes;
     }

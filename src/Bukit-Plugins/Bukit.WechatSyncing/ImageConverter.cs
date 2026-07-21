@@ -17,6 +17,12 @@ internal static class ImageConverter
     internal const int ContentImageMaxBytes = WechatDraftContract.InlineImageMaxBytesExclusive;
 
     /// <summary>
+    /// Maximum bytes read from a local or cached inline-image source before normalization.
+    /// This is intentionally separate from the smaller uploadimg payload boundary.
+    /// </summary>
+    internal const int InlineImageSourceMaxBytes = 10 * 1024 * 1024;
+
+    /// <summary>
     /// Maximum size for material images (add_material API): 10 MB.
     /// </summary>
     internal const int MaterialImageMaxBytes = 10 * 1024 * 1024;

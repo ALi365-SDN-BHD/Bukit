@@ -404,7 +404,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         var context = WithLogger(baseContext, logger);
         var assetsDir = Path.Combine(context.OutputDir, "assets");
         Directory.CreateDirectory(assetsDir);
-        WritePngLikeFile(Path.Combine(assetsDir, "huge.png"), ImageConverter.ContentImageMaxBytes + 1);
+        WritePngLikeFile(Path.Combine(assetsDir, "huge.png"), ImageConverter.InlineImageSourceMaxBytes + 1);
 
         var html = await processor.ProcessImagesAsync(
             context,
@@ -428,7 +428,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
             logger);
         var cacheDir = Path.Combine(_rootDir, ".cache", "media");
         Directory.CreateDirectory(cacheDir);
-        WritePngLikeFile(Path.Combine(cacheDir, "huge.png"), ImageConverter.ContentImageMaxBytes + 1);
+        WritePngLikeFile(Path.Combine(cacheDir, "huge.png"), ImageConverter.InlineImageSourceMaxBytes + 1);
         File.WriteAllText(Path.Combine(cacheDir, ".media-index.json"), """
 {
   "https://cdn.example.com/huge.png": "huge.png"
