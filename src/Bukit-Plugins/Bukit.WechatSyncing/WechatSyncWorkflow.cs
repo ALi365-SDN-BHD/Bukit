@@ -12,6 +12,7 @@ public sealed class WechatSyncWorkflow
     private readonly IWechatDraftGateway? _gateway;
     private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
     private readonly Func<string, CancellationToken, Task<byte[]>>? _downloadImageAsync;
+    private readonly TimeSpan _runLockTimeout;
 
     public WechatSyncWorkflow()
         : this(null, null, null)
@@ -22,10 +23,20 @@ public sealed class WechatSyncWorkflow
         IWechatDraftGateway? gateway,
         Func<TimeSpan, CancellationToken, Task>? delayAsync = null,
         Func<string, CancellationToken, Task<byte[]>>? downloadImageAsync = null)
+        : this(gateway, delayAsync, downloadImageAsync, SyncCacheManager.DefaultRunLockTimeout)
+    {
+    }
+
+    internal WechatSyncWorkflow(
+        IWechatDraftGateway? gateway,
+        Func<TimeSpan, CancellationToken, Task>? delayAsync,
+        Func<string, CancellationToken, Task<byte[]>>? downloadImageAsync,
+        TimeSpan runLockTimeout)
     {
         _gateway = gateway;
         _delayAsync = delayAsync ?? ((delay, ct) => Task.Delay(delay, ct));
         _downloadImageAsync = downloadImageAsync;
+        _runLockTimeout = runLockTimeout;
     }
 
     public async Task<WechatSyncResult> RunAsync(
@@ -36,6 +47,11 @@ public sealed class WechatSyncWorkflow
         var messages = new List<WechatSyncMessage>();
         var diagnostics = new List<WechatSyncDiagnostic>();
         var cachePath = SyncCacheManager.ResolvePath(context.RootDir, options.CacheFile);
+        await using var runLock = await SyncCacheManager.AcquireRunLockAsync(
+            context.RootDir,
+            cachePath,
+            _runLockTimeout,
+            cancellationToken);
         var cache = SyncCacheManager.LoadCache(cachePath, context.Logger);
         var forceRetryIgnoreCache = options.Force || ReadTrueFromEnv(options.ForceRetryIgnoreCacheEnv);
         var filtered = FilterCandidates(context, options);
