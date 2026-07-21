@@ -9,65 +9,86 @@ fail() {
   exit 1
 }
 
-require_text() {
-  local path="$1"
-  local expected="$2"
-  grep -Fq -- "$expected" "$path" || fail "$path is missing required text: $expected"
+require_pattern() {
+  local path="$1" pattern="$2"
+  grep -Eq -- "$pattern" "$path" || fail "$path is missing required pattern: $pattern"
 }
 
-reject_text() {
-  local path="$1"
-  local rejected="$2"
-  if grep -Fq -- "$rejected" "$path"; then
-    fail "$path contains obsolete text: $rejected"
+reject_pattern() {
+  local path="$1" pattern="$2"
+  if grep -Eiq -- "$pattern" "$path"; then
+    fail "$path contains disallowed workflow detail: $pattern"
   fi
+}
+
+require_count() {
+  local path="$1" text="$2" expected="$3" actual
+  actual="$(grep -Fc -- "$text" "$path" || true)"
+  [[ "$actual" == "$expected" ]] ||
+    fail "$path expected $expected occurrence(s) of '$text', got $actual"
 }
 
 root_rules="AGENTS.md"
 workflow="guide/dev/agent-task-workflow.md"
 testing="guide/dev/testing.md"
-skills_rules="guide/skills/AGENTS.md"
 
-for path in "$root_rules" "$workflow" "$testing" "$skills_rules"; do
+for path in "$root_rules" "$workflow" "$testing"; do
   [[ -f "$path" ]] || fail "required governance file is missing: $path"
 done
 
-reject_text "$root_rules" "Rule-definition and rule-modification tasks do not require a repository gate."
+root_lines="$(wc -l < "$root_rules" | tr -d ' ')"
+((root_lines >= 25 && root_lines <= 40)) ||
+  fail "AGENTS.md must stay between 25 and 40 lines; got $root_lines"
 
-require_text "$root_rules" "### Applicability and precedence"
-require_text "$root_rules" 'This root `AGENTS.md` applies to the entire repository.'
-require_text "$root_rules" 'A nested `AGENTS.md` applies only to its directory and descendants.'
-require_text "$root_rules" "Higher-priority platform instructions and explicit user instructions take"
-require_text "$root_rules" "Rule-definition and rule-modification tasks do not require runtime, full, or"
-require_text "$root_rules" 'git diff --check -- <changed governance paths>'
-require_text "$root_rules" 'bash scripts/checks/docs-consistency.sh'
-require_text "$root_rules" 'bash scripts/checks/skills-schema.sh'
-require_text "$root_rules" 'bash guide/skills/scripts/validate-skills-strict.sh'
-require_text "$root_rules" "The docs-consistency gate owns this governance contract."
-require_text "$root_rules" "The user may explicitly cancel, replace, pause, or request an interim handoff"
-require_text "$root_rules" "task without explicit user redirection."
-
-require_text "$workflow" "## Lifecycle exits"
-require_text "$workflow" "## Rule applicability and precedence"
-require_text "$workflow" 'The root `AGENTS.md` applies repository-wide.'
-require_text "$workflow" 'A nested `AGENTS.md` applies only'
-require_text "$workflow" "The user may explicitly cancel, replace, pause, or request an interim handoff"
-require_text "$workflow" "without explicit user redirection."
-
-for path in "$workflow" "$testing"; do
-  require_text "$path" "## Rule-change verification"
-  require_text "$path" "Rule-definition and rule-modification tasks do not require runtime, full, or"
-  require_text "$path" 'git diff --check -- <changed-governance-paths>'
-  require_text "$path" 'bash scripts/checks/docs-consistency.sh'
-  require_text "$path" 'bash scripts/checks/skills-schema.sh'
-  require_text "$path" 'bash guide/skills/scripts/validate-skills-strict.sh'
+for heading in \
+  "## Scope and precedence" \
+  "## Protected reference areas" \
+  "## Website/Core isolation" \
+  "## Verification boundaries" \
+  "## Failure boundary"; do
+  grep -Fqx -- "$heading" "$root_rules" || fail "AGENTS.md is missing heading: $heading"
 done
 
-require_text "$skills_rules" 'For rule changes under `guide/skills/` or changes to this nested `AGENTS.md`,'
-require_text "$skills_rules" 'This file applies only to `guide/skills/` and its descendants.'
-require_text "$skills_rules" 'the root `AGENTS.md` and may add stricter requirements'
-require_text "$skills_rules" 'bash scripts/checks/docs-consistency.sh'
-require_text "$skills_rules" 'bash scripts/checks/skills-schema.sh'
-require_text "$skills_rules" 'bash guide/skills/scripts/validate-skills-strict.sh'
+require_pattern "$root_rules" 'Nested `AGENTS\.md`.*never weaken'
+require_pattern "$root_rules" 'guide-0\.1/.*scripts-0\.2/'
+require_pattern "$root_rules" 'src/Bukit-Core/'
+require_pattern "$root_rules" 'full/release.*explicit user authorization'
+require_pattern "$root_rules" 'post-change-focused\.sh.*changed paths'
+require_pattern "$root_rules" 'post-change-targeted\.sh.*parent-base'
+require_pattern "$root_rules" 'CI, release, gate, or verification.*owner test/self-test'
+require_pattern "$root_rules" 'Environment, permission, tool, or infrastructure.*unrelated code changes'
+require_count "$root_rules" 'scripts/checks/post-change-targeted.sh' 1
+
+reject_pattern "$root_rules" 'brainstorming|worktree|test-driven-development|(^|[^A-Za-z])TDD([^A-Za-z]|$)|systematic-debugging|sub-?agents?|code[ -]review|verification-before-completion|pull request|(^|[^A-Za-z])PR([^A-Za-z]|$)|(^|[^A-Za-z])merge([^A-Za-z]|$)|branch cleanup'
+reject_pattern "$root_rules" 'After each code subtask.*post-change-targeted'
+
+for heading in \
+  "## Superpowers ownership" \
+  "### 1. Focused affected checks" \
+  "### 2. High-risk stable checkpoint" \
+  "### 3. Aggregate parent gate" \
+  "## Owner gates and failures"; do
+  grep -Fqx -- "$heading" "$workflow" || fail "$workflow is missing heading: $heading"
+done
+require_pattern "$workflow" 'Superpowers'
+require_pattern "$workflow" 'post-change-focused\.sh.*changed paths'
+require_pattern "$workflow" 'never runs `ci-fast`'
+require_pattern "$workflow" 'post-change-targeted\.sh'
+require_pattern "$workflow" 'invokes `ci-fast` exactly once'
+
+for heading in \
+  "## Focused affected checks" \
+  "## Aggregate targeted gate" \
+  "## Direct owner proof paths" \
+  "## Explicit broad gates" \
+  "## Failure reporting"; do
+  grep -Fqx -- "$heading" "$testing" || fail "$testing is missing heading: $heading"
+done
+require_pattern "$testing" 'post-change-focused\.sh.*changed paths'
+require_pattern "$testing" 'does not run `ci-fast`'
+require_pattern "$testing" 'post-change-targeted\.sh'
+require_pattern "$testing" 'runs `ci-fast`'
+require_pattern "$testing" 'exactly once'
+require_pattern "$testing" 'explicit user authorization'
 
 echo "agent governance contract OK"
