@@ -113,6 +113,11 @@ content:
 | `site.plugins.analytics.enabled` | `true` | Enables the Core built-in Analytics plugin lifecycle. When false, Bukit does not create or run its HTML transform. |
 | `site.analytics.enabled` | `true` | Enables Analytics output after the plugin lifecycle switch has allowed the plugin to run. |
 | `site.analytics.productionOnly` | `true` | Injects during production builds and removes Bukit-managed blocks from development/preview responses. Set false to retain Analytics in development and preview. |
+| `site.analytics.consent.google` | none | Required when any GA or GTM provider exists; defines explicit Consent Mode v2 defaults. |
+| Google consent `mode` | none | Required as `advanced`. |
+| Google consent `defaults` | none | Requires `adStorage`, `analyticsStorage`, `adUserData`, and `adPersonalization`, each `granted` or `denied`. |
+| Google consent `waitForUpdateMs` | none | Optional integer from 0 through 5000. |
+| `site.analytics.csp.mode` | none | Optional `requirements-report`; requires `build.report.enabled: true` and writes incomplete deployment requirements rather than a full CSP. |
 | `site.analytics.providers` | empty | Ordered provider array. An empty array produces no Analytics output. |
 | Provider `type` | required | `google-analytics`, `google-tag-manager`, `plausible`, or `umami`. |
 | Provider `measurementId` | none | Required only for Google Analytics; must match `^G-[A-Z0-9]+$`. |
@@ -127,6 +132,8 @@ and the execution-mode policy must allow output. Analytics is a Core built-in
 plugin, independent of SEO render mode; it is not an external protocol plugin
 and is not exposed to themes or Scriban as a template model. See
 [19 Analytics](19-analytics.md) for provider examples and command behavior.
+Google consent advanced mode is not a zero-network guarantee, and Bukit does
+not own CMP updates or per-response CSP nonces.
 
 Breaking removal: the former googleAnalyticsId and disableInPreview keys have
 been deleted. They are unknown fields, not deprecated aliases, and Bukit does

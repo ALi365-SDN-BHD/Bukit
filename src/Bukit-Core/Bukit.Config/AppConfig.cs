@@ -69,7 +69,34 @@ public sealed record AnalyticsConfig
 {
     public bool Enabled { get; init; } = true;
     public bool ProductionOnly { get; init; } = true;
+    public AnalyticsConsentConfig? Consent { get; init; }
+    public AnalyticsCspConfig? Csp { get; init; }
     public IReadOnlyList<AnalyticsProviderConfig> Providers { get; init; } = Array.Empty<AnalyticsProviderConfig>();
+}
+
+public sealed record AnalyticsCspConfig
+{
+    public string? Mode { get; init; }
+}
+
+public sealed record AnalyticsConsentConfig
+{
+    public AnalyticsGoogleConsentConfig? Google { get; init; }
+}
+
+public sealed record AnalyticsGoogleConsentConfig
+{
+    public string? Mode { get; init; }
+    public AnalyticsGoogleConsentDefaultsConfig? Defaults { get; init; }
+    public int? WaitForUpdateMs { get; init; }
+}
+
+public sealed record AnalyticsGoogleConsentDefaultsConfig
+{
+    public string? AdStorage { get; init; }
+    public string? AnalyticsStorage { get; init; }
+    public string? AdUserData { get; init; }
+    public string? AdPersonalization { get; init; }
 }
 
 public sealed record AnalyticsProviderConfig

@@ -63,6 +63,29 @@ internal static class RenderDependencyHasher
         AppendFramedValue(hasher, "analytics.executionMode", executionMode.ToString());
         AppendFramedValue(
             hasher,
+            "analytics.googleConsent.configured",
+            (resolvedAnalytics.GoogleConsent is not null).ToString(CultureInfo.InvariantCulture));
+        if (resolvedAnalytics.GoogleConsent is { } googleConsent)
+        {
+            AppendFramedValue(hasher, "analytics.googleConsent.mode", googleConsent.Mode);
+            AppendFramedValue(hasher, "analytics.googleConsent.adStorage", googleConsent.AdStorage);
+            AppendFramedValue(hasher, "analytics.googleConsent.analyticsStorage", googleConsent.AnalyticsStorage);
+            AppendFramedValue(hasher, "analytics.googleConsent.adUserData", googleConsent.AdUserData);
+            AppendFramedValue(hasher, "analytics.googleConsent.adPersonalization", googleConsent.AdPersonalization);
+            AppendFramedValue(
+                hasher,
+                "analytics.googleConsent.waitForUpdateMs.configured",
+                googleConsent.WaitForUpdateMs.HasValue.ToString(CultureInfo.InvariantCulture));
+            if (googleConsent.WaitForUpdateMs is { } waitForUpdateMs)
+            {
+                AppendFramedValue(
+                    hasher,
+                    "analytics.googleConsent.waitForUpdateMs",
+                    waitForUpdateMs.ToString(CultureInfo.InvariantCulture));
+            }
+        }
+        AppendFramedValue(
+            hasher,
             "analytics.providerCount",
             resolvedAnalytics.Providers.Count.ToString(CultureInfo.InvariantCulture));
         foreach (var provider in resolvedAnalytics.Providers)

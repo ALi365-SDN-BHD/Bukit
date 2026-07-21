@@ -166,6 +166,90 @@ internal static class I18nValidator
                     DiagnosticCode.ConfigInvalidValue);
             }
         }
+
+        var hasGoogleProvider = analytics.Providers.Any(provider =>
+            provider.Type is "google-analytics" or "google-tag-manager");
+        if (analytics.Consent is not null && analytics.Consent.Google is null)
+        {
+            throw new ConfigException(
+                "site.analytics.consent.google is required when site.analytics.consent is configured.",
+                DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        if (hasGoogleProvider && analytics.Consent?.Google is null)
+        {
+            throw new ConfigException(
+                "site.analytics.consent.google is required when a Google provider is configured.",
+                DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        if (!hasGoogleProvider && analytics.Consent?.Google is not null)
+        {
+            throw new ConfigException(
+                "site.analytics.consent.google requires a Google provider.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (analytics.Consent?.Google is { } googleConsent)
+        {
+            ValidateGoogleConsent(googleConsent);
+        }
+
+        if (analytics.Csp is { } csp)
+        {
+            if (csp.Mode != "requirements-report")
+            {
+                throw new ConfigException(
+                    "site.analytics.csp.mode must be requirements-report.",
+                    string.IsNullOrEmpty(csp.Mode)
+                        ? DiagnosticCode.ConfigRequiredFieldMissing
+                        : DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+    }
+
+    private static void ValidateGoogleConsent(AnalyticsGoogleConsentConfig consent)
+    {
+        const string path = "site.analytics.consent.google";
+        if (string.IsNullOrEmpty(consent.Mode))
+        {
+            throw new ConfigException($"{path}.mode is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        if (consent.Mode != "advanced")
+        {
+            throw new ConfigException($"{path}.mode must be advanced.", DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (consent.Defaults is null)
+        {
+            throw new ConfigException($"{path}.defaults is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        ValidateGoogleConsentState(consent.Defaults.AdStorage, $"{path}.defaults.adStorage");
+        ValidateGoogleConsentState(consent.Defaults.AnalyticsStorage, $"{path}.defaults.analyticsStorage");
+        ValidateGoogleConsentState(consent.Defaults.AdUserData, $"{path}.defaults.adUserData");
+        ValidateGoogleConsentState(consent.Defaults.AdPersonalization, $"{path}.defaults.adPersonalization");
+
+        if (consent.WaitForUpdateMs is < 0 or > 5000)
+        {
+            throw new ConfigException(
+                $"{path}.waitForUpdateMs must be between 0 and 5000.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private static void ValidateGoogleConsentState(string? value, string path)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            throw new ConfigException($"{path} is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        if (value is not ("granted" or "denied"))
+        {
+            throw new ConfigException($"{path} must be granted|denied.", DiagnosticCode.ConfigInvalidValue);
+        }
     }
 
     private static string ValidateGoogleAnalytics(AnalyticsProviderConfig provider, string path)

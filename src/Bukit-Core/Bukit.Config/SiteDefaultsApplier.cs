@@ -73,7 +73,54 @@ internal static partial class SiteDefaultsApplier
         {
             Enabled = ConfigYamlHelpers.GetOptionalBool(analyticsNode, "enabled") ?? true,
             ProductionOnly = ConfigYamlHelpers.GetOptionalBool(analyticsNode, "productionOnly") ?? true,
+            Consent = ReadAnalyticsConsent(analyticsNode),
+            Csp = ReadAnalyticsCsp(analyticsNode),
             Providers = ReadAnalyticsProviders(analyticsNode)
+        };
+    }
+
+    private static AnalyticsCspConfig? ReadAnalyticsCsp(YamlMappingNode analyticsNode)
+    {
+        var cspNode = ConfigYamlHelpers.GetOptionalMapping(analyticsNode, "csp");
+        return cspNode is null
+            ? null
+            : new AnalyticsCspConfig
+            {
+                Mode = ConfigYamlHelpers.GetOptionalString(cspNode, "mode")
+            };
+    }
+
+    private static AnalyticsConsentConfig? ReadAnalyticsConsent(YamlMappingNode analyticsNode)
+    {
+        var consentNode = ConfigYamlHelpers.GetOptionalMapping(analyticsNode, "consent");
+        if (consentNode is null)
+        {
+            return null;
+        }
+
+        var googleNode = ConfigYamlHelpers.GetOptionalMapping(consentNode, "google");
+        if (googleNode is null)
+        {
+            return new AnalyticsConsentConfig();
+        }
+
+        var defaultsNode = ConfigYamlHelpers.GetOptionalMapping(googleNode, "defaults");
+        return new AnalyticsConsentConfig
+        {
+            Google = new AnalyticsGoogleConsentConfig
+            {
+                Mode = ConfigYamlHelpers.GetOptionalString(googleNode, "mode"),
+                WaitForUpdateMs = ConfigYamlHelpers.GetOptionalInt(googleNode, "waitForUpdateMs"),
+                Defaults = defaultsNode is null
+                    ? null
+                    : new AnalyticsGoogleConsentDefaultsConfig
+                    {
+                        AdStorage = ConfigYamlHelpers.GetOptionalString(defaultsNode, "adStorage"),
+                        AnalyticsStorage = ConfigYamlHelpers.GetOptionalString(defaultsNode, "analyticsStorage"),
+                        AdUserData = ConfigYamlHelpers.GetOptionalString(defaultsNode, "adUserData"),
+                        AdPersonalization = ConfigYamlHelpers.GetOptionalString(defaultsNode, "adPersonalization")
+                    }
+            }
         };
     }
 

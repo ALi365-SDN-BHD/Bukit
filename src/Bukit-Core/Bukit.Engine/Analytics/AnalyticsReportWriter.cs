@@ -5,8 +5,8 @@ namespace Bukit.Engine.Analytics;
 
 internal static class AnalyticsReportWriter
 {
-    internal const string Schema = "https://bukit.dev/schemas/analytics-report.v1.json";
-    internal const string SchemaVersion = "1.0";
+    internal const string Schema = "https://bukit.dev/schemas/analytics-report.v2.json";
+    internal const string SchemaVersion = "2.0";
     internal const string FileName = "analytics-report.json";
 
     internal static void WriteIfEnabled(
@@ -47,6 +47,8 @@ internal static class AnalyticsReportWriter
         }
 
         writer.WriteEndArray();
+        WriteGoogleConsent(writer, snapshot.GoogleConsent);
+        WriteCsp(writer, snapshot.Csp);
         writer.WriteNumber("processedHtml", snapshot.ProcessedHtml);
         writer.WriteNumber("injectedHtml", snapshot.InjectedHtml);
         writer.WritePropertyName("skippedByReason");
@@ -61,5 +63,71 @@ internal static class AnalyticsReportWriter
 
         writer.WriteEndObject();
         writer.WriteEndObject();
+    }
+
+    private static void WriteGoogleConsent(Utf8JsonWriter writer, ResolvedGoogleConsent? consent)
+    {
+        writer.WritePropertyName("googleConsent");
+        if (consent is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        writer.WriteStartObject();
+        writer.WriteString("mode", consent.Mode);
+        writer.WritePropertyName("defaults");
+        writer.WriteStartObject();
+        writer.WriteString("adStorage", consent.AdStorage);
+        writer.WriteString("analyticsStorage", consent.AnalyticsStorage);
+        writer.WriteString("adUserData", consent.AdUserData);
+        writer.WriteString("adPersonalization", consent.AdPersonalization);
+        writer.WriteEndObject();
+        if (consent.WaitForUpdateMs is { } waitForUpdateMs)
+        {
+            writer.WriteNumber("waitForUpdateMs", waitForUpdateMs);
+        }
+        else
+        {
+            writer.WriteNull("waitForUpdateMs");
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static void WriteCsp(Utf8JsonWriter writer, AnalyticsCspRequirements? csp)
+    {
+        writer.WritePropertyName("csp");
+        if (csp is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        writer.WriteStartObject();
+        writer.WriteString("mode", "requirements-report");
+        writer.WriteBoolean("completePolicy", false);
+        WriteStringArray(writer, "inlineScriptSha256", csp.InlineScriptSha256);
+        WriteStringArray(writer, "scriptSrcOrigins", csp.ScriptSrcOrigins);
+        WriteStringArray(writer, "frameSrcOrigins", csp.FrameSrcOrigins);
+        writer.WriteBoolean(
+            "dynamicContainerDestinationsUnknown",
+            csp.DynamicContainerDestinationsUnknown);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteStringArray(
+        Utf8JsonWriter writer,
+        string propertyName,
+        IReadOnlyList<string> values)
+    {
+        writer.WritePropertyName(propertyName);
+        writer.WriteStartArray();
+        foreach (var value in values)
+        {
+            writer.WriteStringValue(value);
+        }
+
+        writer.WriteEndArray();
     }
 }

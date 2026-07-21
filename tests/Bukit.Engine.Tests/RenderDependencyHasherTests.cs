@@ -205,11 +205,16 @@ public sealed class RenderDependencyHasherTests
             config,
             s_emptySiteModel,
             analyticsRendererContractVersion: "4");
+        var version5 = RenderDependencyHasher.Compute(
+            config,
+            s_emptySiteModel,
+            analyticsRendererContractVersion: "5");
 
         Assert.NotEqual(version1, version2);
         Assert.NotEqual(version2, version3);
         Assert.NotEqual(version3, version4);
-        Assert.Equal(version4, current);
+        Assert.NotEqual(version4, version5);
+        Assert.Equal(version5, current);
     }
 
     [Fact]
@@ -366,6 +371,56 @@ public sealed class RenderDependencyHasherTests
         Assert.NotEqual(
             RenderDependencyHasher.Compute(legacy, s_emptySiteModel),
             RenderDependencyHasher.Compute(siteSpecific, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_GoogleConsentPolicyChange_ProducesDifferentHash()
+    {
+        static AnalyticsConsentConfig Consent(string adStorage, int? waitForUpdateMs) => new()
+        {
+            Google = new AnalyticsGoogleConsentConfig
+            {
+                Mode = "advanced",
+                Defaults = new AnalyticsGoogleConsentDefaultsConfig
+                {
+                    AdStorage = adStorage,
+                    AnalyticsStorage = "denied",
+                    AdUserData = "denied",
+                    AdPersonalization = "denied"
+                },
+                WaitForUpdateMs = waitForUpdateMs
+            }
+        };
+
+        var baseline = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Analytics = new AnalyticsConfig
+                {
+                    Consent = Consent("denied", 500),
+                    Providers = [CreateAnalyticsProvider()]
+                }
+            }
+        };
+        var stateChanged = baseline with
+        {
+            Site = baseline.Site with
+            {
+                Analytics = baseline.Site.Analytics with { Consent = Consent("granted", 500) }
+            }
+        };
+        var waitChanged = baseline with
+        {
+            Site = baseline.Site with
+            {
+                Analytics = baseline.Site.Analytics with { Consent = Consent("denied", 250) }
+            }
+        };
+
+        var baselineHash = RenderDependencyHasher.Compute(baseline, s_emptySiteModel);
+        Assert.NotEqual(baselineHash, RenderDependencyHasher.Compute(stateChanged, s_emptySiteModel));
+        Assert.NotEqual(baselineHash, RenderDependencyHasher.Compute(waitChanged, s_emptySiteModel));
     }
 
     [Fact]

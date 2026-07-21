@@ -41,6 +41,8 @@
 | `site.plugins.analytics.enabled` | `true` |
 | `site.analytics.enabled` | `true` |
 | `site.analytics.productionOnly` | `true` |
+| `site.analytics.consent.google` | none; required with GA/GTM |
+| `site.analytics.csp.mode` | none; optional `requirements-report` |
 | `site.analytics.providers` | empty array |
 | Plausible provider `snippetMode` | none; required as `site-specific` or `legacy` |
 | Plausible provider `scriptUrl` | none; explicit URL required |
@@ -161,6 +163,10 @@ Safety semantics that do not fit in the default-value table:
 | Provider `snippetMode` | `site-specific` or `legacy`; Plausible only |
 | Provider `websiteId` | UUID; Umami only |
 | Provider `scriptUrl` | Absolute HTTPS `.js` URL without credentials or fragment; Plausible or Umami only |
+| Google consent `mode` | `advanced` |
+| Google consent defaults | `adStorage`, `analyticsStorage`, `adUserData`, `adPersonalization`: `granted` or `denied` |
+| Google consent `waitForUpdateMs` | integer `0..5000` |
+| `site.analytics.csp.mode` | `requirements-report`; requires build reports |
 | `site.collections.<name>.schemaFailMode` | `off`, `warn`, `strict` |
 | `site.collections.<name>.filteredLists[].operator` | `equals`, `contains`, `in` |
 | `site.collections.<name>.filteredLists[].emptyBehavior` | `render`, `skip` |

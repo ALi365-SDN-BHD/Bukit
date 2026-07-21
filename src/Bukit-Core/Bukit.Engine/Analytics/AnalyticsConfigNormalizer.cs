@@ -11,8 +11,21 @@ internal static class AnalyticsConfigNormalizer
         {
             Enabled = config.Enabled,
             ProductionOnly = config.ProductionOnly,
+            GoogleConsent = NormalizeGoogleConsent(config.Consent?.Google),
+            CspMode = config.Csp?.Mode,
             Providers = config.Providers.Select(NormalizeProvider).ToArray()
         };
+
+    private static ResolvedGoogleConsent? NormalizeGoogleConsent(AnalyticsGoogleConsentConfig? consent)
+        => consent is null
+            ? null
+            : new ResolvedGoogleConsent(
+                consent.Mode!,
+                consent.Defaults!.AdStorage!,
+                consent.Defaults.AnalyticsStorage!,
+                consent.Defaults.AdUserData!,
+                consent.Defaults.AdPersonalization!,
+                consent.WaitForUpdateMs);
 
     private static ResolvedAnalyticsProvider NormalizeProvider(AnalyticsProviderConfig provider)
         => provider.Type switch

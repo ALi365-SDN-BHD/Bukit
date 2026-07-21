@@ -112,4 +112,48 @@ public sealed class AnalyticsConfigNormalizerTests
         Assert.Equal("https://plausible.io/js/pa-AN07TEST.js", resolved.Options["scriptUrl"]);
         Assert.Equal("example.com", resolved.Options["domain"]);
     }
+
+    [Fact]
+    public void Normalize_GoogleConsentAndCsp_PreservesValidatedPolicyWithoutChangingProviders()
+    {
+        var config = new AnalyticsConfig
+        {
+            Consent = new AnalyticsConsentConfig
+            {
+                Google = new AnalyticsGoogleConsentConfig
+                {
+                    Mode = "advanced",
+                    Defaults = new AnalyticsGoogleConsentDefaultsConfig
+                    {
+                        AdStorage = "denied",
+                        AnalyticsStorage = "granted",
+                        AdUserData = "denied",
+                        AdPersonalization = "granted"
+                    },
+                    WaitForUpdateMs = 250
+                }
+            },
+            Csp = new AnalyticsCspConfig { Mode = "requirements-report" },
+            Providers =
+            [
+                new AnalyticsProviderConfig
+                {
+                    Type = "google-analytics",
+                    MeasurementId = "G-CONSENT123"
+                }
+            ]
+        };
+
+        var resolved = AnalyticsConfigNormalizer.Normalize(config);
+
+        Assert.Equal("requirements-report", resolved.CspMode);
+        var consent = Assert.IsType<ResolvedGoogleConsent>(resolved.GoogleConsent);
+        Assert.Equal("advanced", consent.Mode);
+        Assert.Equal("denied", consent.AdStorage);
+        Assert.Equal("granted", consent.AnalyticsStorage);
+        Assert.Equal("denied", consent.AdUserData);
+        Assert.Equal("granted", consent.AdPersonalization);
+        Assert.Equal(250, consent.WaitForUpdateMs);
+        Assert.Equal("google-analytics:G-CONSENT123", Assert.Single(resolved.Providers).Key);
+    }
 }

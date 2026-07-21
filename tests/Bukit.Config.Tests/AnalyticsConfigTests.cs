@@ -25,12 +25,247 @@ public sealed class AnalyticsConfigTests : IDisposable
         Assert.Empty(analytics.Providers);
     }
 
+    [Theory]
+    [InlineData("google-analytics", "measurementId: G-CONSENT123")]
+    [InlineData("google-tag-manager", "containerId: GTM-CONSENT123")]
+    public void Validate_GoogleProviderWithoutExplicitConsent_ThrowsRequiredField(
+        string providerType,
+        string providerField)
+    {
+        var config = LoadAnalytics($$"""
+            providers:
+              - type: {{providerType}}
+                {{providerField}}
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Equal("site.analytics.consent.google is required when a Google provider is configured.", ex.Message);
+    }
+
+    [Fact]
+    public void Load_ExplicitGoogleConsent_PreservesV2DefaultsAndWaitPolicy()
+    {
+        var config = LoadAnalytics("""
+            consent:
+              google:
+                mode: advanced
+                defaults:
+                  adStorage: denied
+                  analyticsStorage: granted
+                  adUserData: denied
+                  adPersonalization: granted
+                waitForUpdateMs: 500
+            providers:
+              - type: google-analytics
+                measurementId: G-CONSENT123
+            """);
+
+        ConfigValidator.Validate(config);
+
+        var google = Assert.IsType<AnalyticsGoogleConsentConfig>(config.Site.Analytics.Consent?.Google);
+        Assert.Equal("advanced", google.Mode);
+        Assert.Equal(500, google.WaitForUpdateMs);
+        var defaults = Assert.IsType<AnalyticsGoogleConsentDefaultsConfig>(google.Defaults);
+        Assert.Equal("denied", defaults.AdStorage);
+        Assert.Equal("granted", defaults.AnalyticsStorage);
+        Assert.Equal("denied", defaults.AdUserData);
+        Assert.Equal("granted", defaults.AdPersonalization);
+    }
+
+    [Fact]
+    public void Validate_EmptyConsentMapping_ThrowsRequiredGoogleField()
+    {
+        var config = LoadAnalytics("consent: {}");
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Equal("site.analytics.consent.google is required when site.analytics.consent is configured.", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("consent: []", "site.analytics.consent must be a mapping.")]
+    [InlineData("consent:\n  google: []", "site.analytics.consent.google must be a mapping.")]
+    [InlineData("consent:\n  google:\n    defaults: []", "site.analytics.consent.google.defaults must be a mapping.")]
+    public void Load_GoogleConsentWrongKind_ThrowsInvalidValue(string consentYaml, string expectedMessage)
+    {
+        var ex = Assert.Throws<ConfigException>(() => LoadAnalytics(consentYaml));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Equal(expectedMessage, ex.Message);
+    }
+
+    [Theory]
+    [InlineData("mode", "basic", DiagnosticCode.ConfigInvalidValue)]
+    [InlineData("adStorage", "unknown", DiagnosticCode.ConfigInvalidValue)]
+    [InlineData("analyticsStorage", "", DiagnosticCode.ConfigRequiredFieldMissing)]
+    [InlineData("adUserData", "GRANTED", DiagnosticCode.ConfigInvalidValue)]
+    [InlineData("adPersonalization", "Denied", DiagnosticCode.ConfigInvalidValue)]
+    public void Validate_GoogleConsentInvalidModeOrState_Throws(
+        string field,
+        string value,
+        DiagnosticCode expectedCode)
+    {
+        var mode = field == "mode" ? value : "advanced";
+        var adStorage = field == "adStorage" ? value : "denied";
+        var analyticsStorage = field == "analyticsStorage" ? value : "denied";
+        var adUserData = field == "adUserData" ? value : "denied";
+        var adPersonalization = field == "adPersonalization" ? value : "denied";
+        var config = LoadAnalytics($$"""
+            consent:
+              google:
+                mode: {{mode}}
+                defaults:
+                  adStorage: {{adStorage}}
+                  analyticsStorage: {{analyticsStorage}}
+                  adUserData: {{adUserData}}
+                  adPersonalization: {{adPersonalization}}
+            providers:
+              - type: google-analytics
+                measurementId: G-CONSENT123
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(expectedCode, ex.Code);
+        Assert.Contains(field, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(5001)]
+    public void Validate_GoogleConsentWaitOutsideSupportedRange_Throws(int waitForUpdateMs)
+    {
+        var config = LoadAnalytics($$"""
+            consent:
+              google:
+                mode: advanced
+                defaults:
+                  adStorage: denied
+                  analyticsStorage: denied
+                  adUserData: denied
+                  adPersonalization: denied
+                waitForUpdateMs: {{waitForUpdateMs}}
+            providers:
+              - type: google-analytics
+                measurementId: G-CONSENT123
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("waitForUpdateMs", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_GoogleConsentWithoutGoogleProvider_ThrowsInvalidValue()
+    {
+        var config = LoadAnalytics("""
+            consent:
+              google:
+                mode: advanced
+                defaults:
+                  adStorage: denied
+                  analyticsStorage: denied
+                  adUserData: denied
+                  adPersonalization: denied
+            providers:
+              - type: umami
+                websiteId: 89f9c547-2017-4b05-8a56-8f40b488f927
+                scriptUrl: https://analytics.example.com/script.js
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("requires a Google provider", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_CspRequirementsReport_PreservesExplicitMode()
+    {
+        var config = LoadAnalytics("""
+            csp:
+              mode: requirements-report
+            providers:
+              - type: umami
+                websiteId: 89f9c547-2017-4b05-8a56-8f40b488f927
+                scriptUrl: https://analytics.example.com/script.js
+            """);
+
+        ConfigValidator.Validate(config);
+
+        Assert.Equal("requirements-report", config.Site.Analytics.Csp?.Mode);
+    }
+
+    [Fact]
+    public void Load_CspWrongKind_ThrowsInvalidValue()
+    {
+        var ex = Assert.Throws<ConfigException>(() => LoadAnalytics("csp: []"));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Equal("site.analytics.csp must be a mapping.", ex.Message);
+    }
+
+    [Fact]
+    public void Validate_CspInvalidMode_ThrowsInvalidValue()
+    {
+        var config = LoadAnalytics("""
+            csp:
+              mode: nonce
+            providers:
+              - type: umami
+                websiteId: 89f9c547-2017-4b05-8a56-8f40b488f927
+                scriptUrl: https://analytics.example.com/script.js
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("requirements-report", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_CspRequirementsReportWithBuildReportDisabled_ThrowsInvalidValue()
+    {
+        var loaded = LoadAnalytics("""
+            csp:
+              mode: requirements-report
+            providers:
+              - type: umami
+                websiteId: 89f9c547-2017-4b05-8a56-8f40b488f927
+                scriptUrl: https://analytics.example.com/script.js
+            """);
+        var config = loaded with
+        {
+            Build = loaded.Build with
+            {
+                Report = loaded.Build.Report with { Enabled = false }
+            }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("build.report.enabled", ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Load_AllSupportedProviders_PreservesOrderAndExplicitPlausibleLegacyUrl()
     {
         var config = LoadAnalytics("""
             enabled: false
             productionOnly: false
+            consent:
+              google:
+                mode: advanced
+                defaults:
+                  adStorage: denied
+                  analyticsStorage: denied
+                  adUserData: denied
+                  adPersonalization: denied
             providers:
               - type: google-analytics
                 measurementId: G-ABC123
@@ -470,9 +705,31 @@ public sealed class AnalyticsConfigTests : IDisposable
         {
             Name = "analytics-test",
             Title = "Analytics Test",
-            Analytics = new AnalyticsConfig { Providers = providers }
+            Analytics = new AnalyticsConfig
+            {
+                Consent = providers.Any(provider =>
+                    provider.Type is "google-analytics" or "google-tag-manager")
+                    ? CreateDeniedGoogleConsent()
+                    : null,
+                Providers = providers
+            }
         },
         Content = ContentConfigFactory.FromSources(
             [new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig() }])
+    };
+
+    private static AnalyticsConsentConfig CreateDeniedGoogleConsent() => new()
+    {
+        Google = new AnalyticsGoogleConsentConfig
+        {
+            Mode = "advanced",
+            Defaults = new AnalyticsGoogleConsentDefaultsConfig
+            {
+                AdStorage = "denied",
+                AnalyticsStorage = "denied",
+                AdUserData = "denied",
+                AdPersonalization = "denied"
+            }
+        }
     };
 }

@@ -76,9 +76,11 @@ internal static class ConfigStrictFieldValidator
                 throw new ConfigException("site.analytics must be a mapping.", DiagnosticCode.ConfigInvalidValue);
             }
 
-            RequireOnly(analytics, Set("enabled", "productionOnly", "providers"), "site.analytics");
+            RequireOnly(analytics, Set("enabled", "productionOnly", "consent", "csp", "providers"), "site.analytics");
             RequireBooleanIfPresent(analytics, "enabled", "site.analytics.enabled");
             RequireBooleanIfPresent(analytics, "productionOnly", "site.analytics.productionOnly");
+            ValidateAnalyticsConsent(analytics);
+            ValidateAnalyticsCsp(analytics);
             if (analytics.Children.TryGetValue(new YamlScalarNode("providers"), out var providersNode))
             {
                 if (providersNode is not YamlSequenceNode providers)
@@ -116,6 +118,76 @@ internal static class ConfigStrictFieldValidator
         if (Map(site, "sitemapDetail") is { } sitemap) RequireOnly(sitemap, Set("defaultPriority", "defaultChangefreq", "imageEnabled", "videoEnabled"), "site.sitemapDetail");
         if (Map(site, "pagination") is { } pagination) RequireOnly(pagination, Set("enabled", "pageSize"), "site.pagination");
         if (Map(site, "menus") is { } menus) ValidateMenus(menus);
+    }
+
+    private static void ValidateAnalyticsCsp(YamlMappingNode analytics)
+    {
+        if (!analytics.Children.TryGetValue(new YamlScalarNode("csp"), out var cspNode))
+        {
+            return;
+        }
+
+        if (cspNode is not YamlMappingNode csp)
+        {
+            throw new ConfigException(
+                "site.analytics.csp must be a mapping.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        RequireOnly(csp, Set("mode"), "site.analytics.csp");
+        RequireScalarIfPresent(csp, "mode", "site.analytics.csp.mode");
+    }
+
+    private static void ValidateAnalyticsConsent(YamlMappingNode analytics)
+    {
+        if (!analytics.Children.TryGetValue(new YamlScalarNode("consent"), out var consentNode))
+        {
+            return;
+        }
+
+        if (consentNode is not YamlMappingNode consent)
+        {
+            throw new ConfigException(
+                "site.analytics.consent must be a mapping.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        RequireOnly(consent, Set("google"), "site.analytics.consent");
+        if (!consent.Children.TryGetValue(new YamlScalarNode("google"), out var googleNode))
+        {
+            return;
+        }
+
+        if (googleNode is not YamlMappingNode google)
+        {
+            throw new ConfigException(
+                "site.analytics.consent.google must be a mapping.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        RequireOnly(google, Set("mode", "defaults", "waitForUpdateMs"), "site.analytics.consent.google");
+        RequireScalarIfPresent(google, "mode", "site.analytics.consent.google.mode");
+        RequireIntegerIfPresent(google, "waitForUpdateMs", "site.analytics.consent.google.waitForUpdateMs");
+        if (!google.Children.TryGetValue(new YamlScalarNode("defaults"), out var defaultsNode))
+        {
+            return;
+        }
+
+        if (defaultsNode is not YamlMappingNode defaults)
+        {
+            throw new ConfigException(
+                "site.analytics.consent.google.defaults must be a mapping.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        RequireOnly(
+            defaults,
+            Set("adStorage", "analyticsStorage", "adUserData", "adPersonalization"),
+            "site.analytics.consent.google.defaults");
+        RequireScalarIfPresent(defaults, "adStorage", "site.analytics.consent.google.defaults.adStorage");
+        RequireScalarIfPresent(defaults, "analyticsStorage", "site.analytics.consent.google.defaults.analyticsStorage");
+        RequireScalarIfPresent(defaults, "adUserData", "site.analytics.consent.google.defaults.adUserData");
+        RequireScalarIfPresent(defaults, "adPersonalization", "site.analytics.consent.google.defaults.adPersonalization");
     }
 
     private static void ValidateAnalyticsProviderFields(YamlMappingNode provider, string path)
@@ -183,6 +255,29 @@ internal static class ConfigStrictFieldValidator
         }
 
         throw new ConfigException($"{path} must be a boolean.", DiagnosticCode.ConfigInvalidValue);
+    }
+
+    private static void RequireScalarIfPresent(YamlMappingNode node, string key, string path)
+    {
+        if (node.Children.TryGetValue(new YamlScalarNode(key), out var child) && child is not YamlScalarNode)
+        {
+            throw new ConfigException($"{path} must be a scalar.", DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private static void RequireIntegerIfPresent(YamlMappingNode node, string key, string path)
+    {
+        if (!node.Children.TryGetValue(new YamlScalarNode(key), out var child))
+        {
+            return;
+        }
+
+        if (child is YamlScalarNode scalar && int.TryParse(scalar.Value, out _))
+        {
+            return;
+        }
+
+        throw new ConfigException($"{path} must be an integer.", DiagnosticCode.ConfigInvalidValue);
     }
 
     private static void ValidateSeo(YamlMappingNode seo)

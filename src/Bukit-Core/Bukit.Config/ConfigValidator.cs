@@ -17,6 +17,13 @@ public static class ConfigValidator
     {
         I18nValidator.ValidateSite(config.Site);
 
+        if (config.Site.Analytics.Csp is not null && !config.Build.Report.Enabled)
+        {
+            throw new ConfigException(
+                "site.analytics.csp requires build.report.enabled: true.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
         if (config.Site.Collections is not null)
         {
             CollectionsValidator.ValidateCollections(config.Site.Collections);

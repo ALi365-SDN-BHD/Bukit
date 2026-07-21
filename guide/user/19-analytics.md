@@ -17,6 +17,17 @@ site:
   analytics:
     enabled: true
     productionOnly: true
+    consent:
+      google:
+        mode: advanced
+        defaults:
+          adStorage: denied
+          analyticsStorage: denied
+          adUserData: denied
+          adPersonalization: denied
+        waitForUpdateMs: 500
+    csp:
+      mode: requirements-report
     providers:
       - type: google-analytics
         measurementId: G-XXXXXXXXXX
@@ -32,6 +43,10 @@ site:
       - type: umami
         websiteId: 00000000-0000-0000-0000-000000000000
         scriptUrl: https://analytics.example.com/script.js
+
+build:
+  report:
+    enabled: true
 ```
 
 The values above are placeholders on reserved example domains. Replace only
@@ -113,6 +128,39 @@ Providers generate fixed templates. They cannot read files, access the
 network, or accept arbitrary JavaScript, head HTML, or body HTML. Bukit encodes
 configured values at the HTML or JavaScript boundary.
 
+## Google Consent Mode
+
+Any `google-analytics` or `google-tag-manager` provider requires an explicit
+`site.analytics.consent.google` policy. Bukit currently supports only Google
+Consent Mode v2 `advanced` mode. All four defaults are required and each must
+be `granted` or `denied`; `waitForUpdateMs` is optional from 0 through 5000.
+The generated default command appears once, before every Google loader,
+container bootstrap, and `config` command.
+
+Bukit does not act as a CMP. For a GA-only site, the site CMP owns the standard
+`gtag('consent', 'update', ...)` call. For a GTM site, consent updates belong in
+a GTM consent template using `setDefaultConsentState` and
+`updateConsentState`; Bukit does not add a competing update helper. Advanced
+mode can still load Google resources and send cookieless pings while consent
+is denied. This setting is therefore not a promise of zero network traffic or
+legal compliance. See the [Google Consent Mode guide](https://developers.google.com/tag-platform/security/guides/consent).
+
+## CSP Requirements Report
+
+`site.analytics.csp.mode: requirements-report` is optional and requires
+`build.report.enabled: true`. It extends `.bukit/analytics-report.json` with
+the exact SHA-256 sources for Bukit-generated inline scripts, required
+`script-src` and `frame-src` origins, and a flag when GTM may introduce
+container-defined destinations. The report explicitly sets
+`completePolicy: false`: it covers only Bukit Analytics fragments, not theme
+scripts, content, headers, CMP code, or destinations configured inside GTM.
+
+Bukit is a static generator and does not issue a fixed or placeholder CSP
+nonce. A safe nonce must be random and unique per HTTP response, so it belongs
+to the serving layer. Use the deterministic hashes from the report as inputs
+to your deployment policy, then add all non-Analytics requirements yourself.
+See the [Google CSP guide](https://developers.google.com/tag-platform/security/guides/csp).
+
 ## Build, Dev, And Preview
 
 | Command or mode | `productionOnly: true` | `productionOnly: false` |
@@ -145,9 +193,13 @@ markup.
 
 When build reports are enabled, each build variant writes
 `.bukit/analytics-report.json`. The report records switches, execution mode,
-provider types, processed/injected counts, and fixed skip reasons. It never
-includes measurement IDs, container IDs, domains, website IDs, or script URLs.
-The frozen `build-report.v1` shape is unchanged.
+provider types, Google consent summary, optional CSP requirements,
+processed/injected counts, and fixed skip reasons. It never includes
+measurement IDs, container IDs, the Plausible tracking domain, website IDs,
+or full script URLs. When CSP reporting is enabled, it intentionally includes
+path-free scheme-and-authority origins such as `https://plausible.io`.
+The report uses `analytics-report.v2`; the separate frozen `build-report.v1`
+shape is unchanged.
 
 ## Breaking Removal
 

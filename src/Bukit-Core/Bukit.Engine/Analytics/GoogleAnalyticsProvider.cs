@@ -38,4 +38,23 @@ internal sealed class GoogleAnalyticsProvider : IAnalyticsProvider
 
         return new AnalyticsHtmlFragments(provider.Key, HeadStart: headStart);
     }
+
+    internal AnalyticsHtmlFragments RenderAfterConsent(
+        ResolvedAnalyticsProvider provider,
+        AnalyticsRenderContext context)
+    {
+        var measurementId = provider.Options["measurementId"];
+        var scriptUrl = AnalyticsValueEncoder.HtmlAttribute(
+            $"https://www.googletagmanager.com/gtag/js?id={measurementId}");
+        var javascriptMeasurementId = AnalyticsValueEncoder.JavaScriptString(measurementId);
+        var headStart = $$"""
+            <script async src="{{scriptUrl}}"></script>
+            <script>
+            gtag('js', new Date());
+            gtag('config', '{{javascriptMeasurementId}}');
+            </script>
+            """;
+
+        return new AnalyticsHtmlFragments(provider.Key, HeadStart: headStart);
+    }
 }

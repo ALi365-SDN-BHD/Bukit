@@ -37,6 +37,8 @@ internal sealed record AnalyticsBuildSnapshot(
     bool ProductionOnly,
     BuildExecutionMode ExecutionMode,
     IReadOnlyList<string> ProviderTypes,
+    ResolvedGoogleConsent? GoogleConsent,
+    AnalyticsCspRequirements? Csp,
     long ProcessedHtml,
     long InjectedHtml,
     IReadOnlyDictionary<string, long> SkippedByReason);
@@ -157,6 +159,8 @@ internal sealed class AnalyticsBuildState
             _config.ProductionOnly,
             ExecutionMode,
             _config.Providers.Select(provider => provider.Type).ToArray(),
+            _config.GoogleConsent,
+            AnalyticsCspRequirementsBuilder.Build(PluginEnabled, _config, ExecutionMode),
             Interlocked.Read(ref _processedHtml),
             Interlocked.Read(ref _injectedHtml),
             skipped);

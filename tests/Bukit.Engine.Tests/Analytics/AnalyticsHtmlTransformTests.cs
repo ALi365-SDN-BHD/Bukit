@@ -110,6 +110,74 @@ public sealed class AnalyticsHtmlTransformTests
     }
 
     [Fact]
+    public void Transform_GoogleConsentDefaultPrecedesEveryGoogleBootstrapAndIsIdempotent()
+    {
+        var transform = CreateTransform(
+            [
+                Provider("google-tag-manager", containerId: "GTM-CONSENT"),
+                Provider("google-analytics", measurementId: "G-CONSENT-ONE"),
+                Provider("google-analytics", measurementId: "G-CONSENT-TWO")
+            ],
+            googleConsent: GoogleConsent(waitForUpdateMs: 500));
+        const string html = "<html><head><title>x</title></head><body></body></html>";
+
+        var first = transform.Transform(Context(), html);
+        var second = transform.Transform(Context(), first);
+        var third = transform.Transform(Context(), second);
+
+        var consent = third.IndexOf("bukit:analytics:google-consent:default:head:start", StringComparison.Ordinal);
+        var gtm = third.IndexOf("bukit:analytics:google-tag-manager:GTM-CONSENT:head:start", StringComparison.Ordinal);
+        var ga = third.IndexOf("bukit:analytics:google-analytics:G-CONSENT-ONE:head:start", StringComparison.Ordinal);
+        Assert.True(consent >= 0 && consent < gtm && consent < ga);
+        Assert.Equal(1, Count(third, "bukit:analytics:google-consent:default:head:start"));
+        Assert.Equal(1, Count(third, "window.dataLayer = window.dataLayer || []"));
+        Assert.Equal(1, Count(third, "function gtag(){dataLayer.push(arguments);}"));
+        Assert.Equal(1, Count(third, "gtag('consent', 'default'"));
+        Assert.Contains("'ad_storage': 'denied'", third, StringComparison.Ordinal);
+        Assert.Contains("'analytics_storage': 'denied'", third, StringComparison.Ordinal);
+        Assert.Contains("'ad_user_data': 'denied'", third, StringComparison.Ordinal);
+        Assert.Contains("'ad_personalization': 'denied'", third, StringComparison.Ordinal);
+        Assert.Contains("'wait_for_update': 500", third, StringComparison.Ordinal);
+        Assert.DoesNotContain("gtag('consent', 'update'", third, StringComparison.Ordinal);
+        Assert.Equal(first, second);
+        Assert.Equal(second, third);
+    }
+
+    [Fact]
+    public void Transform_RemovesGoogleConsentBlockWhenGoogleProvidersAreRemoved()
+    {
+        var original = CreateTransform(
+            [Provider("google-analytics", measurementId: "G-REMOVE-CONSENT")],
+            googleConsent: GoogleConsent());
+        var updated = CreateTransform(Array.Empty<AnalyticsProviderConfig>());
+        const string html = "<html><head></head><body></body></html>";
+
+        var beforeRemoval = original.Transform(Context(), html);
+        var afterRemoval = updated.Transform(Context(), beforeRemoval);
+
+        Assert.Contains("bukit:analytics:google-consent:default:head:start", beforeRemoval, StringComparison.Ordinal);
+        Assert.DoesNotContain("bukit:analytics:google-consent", afterRemoval, StringComparison.Ordinal);
+        Assert.Equal(html, afterRemoval);
+    }
+
+    [Fact]
+    public void Transform_ProductionOnlyDevelopmentPassRemovesGoogleConsentAndProviderBlocks()
+    {
+        var transform = CreateTransform(
+            [Provider("google-tag-manager", containerId: "GTM-DEV-CLEAN")],
+            googleConsent: GoogleConsent());
+        const string html = "<html><head></head><body></body></html>";
+
+        var production = transform.Transform(Context(), html);
+        var development = transform.Transform(
+            Context(executionMode: BuildExecutionMode.Development),
+            production);
+
+        Assert.Contains("bukit:analytics:google-consent:default:head:start", production, StringComparison.Ordinal);
+        Assert.Equal(html, development);
+    }
+
+    [Fact]
     public void Transform_RemovesConfigOnlyBlockWhenGoogleAnalyticsDestinationIsRemoved()
     {
         var original = CreateTransform(
@@ -400,15 +468,33 @@ public sealed class AnalyticsHtmlTransformTests
     private static AnalyticsHtmlTransform CreateTransform(
         IReadOnlyList<AnalyticsProviderConfig> providers,
         bool enabled = true,
-        bool productionOnly = true)
+        bool productionOnly = true,
+        AnalyticsGoogleConsentConfig? googleConsent = null)
         => new(
             AnalyticsConfigNormalizer.Normalize(new AnalyticsConfig
             {
                 Enabled = enabled,
                 ProductionOnly = productionOnly,
-                Providers = providers
+                Providers = providers,
+                Consent = googleConsent is null
+                    ? null
+                    : new AnalyticsConsentConfig { Google = googleConsent }
             }),
             AnalyticsProviderRegistry.CreateDefault());
+
+    private static AnalyticsGoogleConsentConfig GoogleConsent(int? waitForUpdateMs = null)
+        => new()
+        {
+            Mode = "advanced",
+            Defaults = new AnalyticsGoogleConsentDefaultsConfig
+            {
+                AdStorage = "denied",
+                AnalyticsStorage = "denied",
+                AdUserData = "denied",
+                AdPersonalization = "denied"
+            },
+            WaitForUpdateMs = waitForUpdateMs
+        };
 
     private static HtmlTransformContext Context(
         HtmlDocumentKind documentKind = HtmlDocumentKind.Content,

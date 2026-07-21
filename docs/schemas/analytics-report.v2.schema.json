@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/analytics-report.v2.json",
+  "title": "Bukit Analytics Report",
+  "type": "object",
+  "required": [
+    "schema",
+    "schemaVersion",
+    "pluginEnabled",
+    "analyticsEnabled",
+    "productionOnly",
+    "executionMode",
+    "providerTypes",
+    "googleConsent",
+    "csp",
+    "processedHtml",
+    "injectedHtml",
+    "skippedByReason"
+  ],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/analytics-report.v2.json" },
+    "schemaVersion": { "const": "2.0" },
+    "pluginEnabled": { "type": "boolean" },
+    "analyticsEnabled": { "type": "boolean" },
+    "productionOnly": { "type": "boolean" },
+    "executionMode": { "enum": ["production", "development"] },
+    "providerTypes": {
+      "type": "array",
+      "items": {
+        "enum": ["google-analytics", "google-tag-manager", "plausible", "umami"]
+      }
+    },
+    "googleConsent": {
+      "type": ["object", "null"],
+      "required": ["mode", "defaults", "waitForUpdateMs"],
+      "properties": {
+        "mode": { "const": "advanced" },
+        "defaults": {
+          "type": "object",
+          "required": ["adStorage", "analyticsStorage", "adUserData", "adPersonalization"],
+          "properties": {
+            "adStorage": { "enum": ["granted", "denied"] },
+            "analyticsStorage": { "enum": ["granted", "denied"] },
+            "adUserData": { "enum": ["granted", "denied"] },
+            "adPersonalization": { "enum": ["granted", "denied"] }
+          },
+          "additionalProperties": false
+        },
+        "waitForUpdateMs": { "type": ["integer", "null"], "minimum": 0, "maximum": 5000 }
+      },
+      "additionalProperties": false
+    },
+    "csp": {
+      "type": ["object", "null"],
+      "required": [
+        "mode",
+        "completePolicy",
+        "inlineScriptSha256",
+        "scriptSrcOrigins",
+        "frameSrcOrigins",
+        "dynamicContainerDestinationsUnknown"
+      ],
+      "properties": {
+        "mode": { "const": "requirements-report" },
+        "completePolicy": { "const": false },
+        "inlineScriptSha256": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/]{43}=$" }
+        },
+        "scriptSrcOrigins": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" }
+        },
+        "frameSrcOrigins": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" }
+        },
+        "dynamicContainerDestinationsUnknown": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "processedHtml": { "type": "integer", "minimum": 0 },
+    "injectedHtml": { "type": "integer", "minimum": 0 },
+    "skippedByReason": {
+      "type": "object",
+      "properties": {
+        "plugin_disabled": { "type": "integer", "minimum": 0 },
+        "analytics_disabled": { "type": "integer", "minimum": 0 },
+        "no_providers": { "type": "integer", "minimum": 0 },
+        "development_mode": { "type": "integer", "minimum": 0 },
+        "head_missing": { "type": "integer", "minimum": 0 },
+        "body_missing": { "type": "integer", "minimum": 0 },
+        "incremental_unchanged": { "type": "integer", "minimum": 0 },
+        "transform_failed": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

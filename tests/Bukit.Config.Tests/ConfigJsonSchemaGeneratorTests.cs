@@ -41,6 +41,38 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.Equal("string", title.GetProperty("type").GetString());
         Assert.True(properties.TryGetProperty("build", out var build));
         Assert.Equal("boolean", build.GetProperty("properties").GetProperty("clean").GetProperty("type").GetString());
+        var cspReportContract = root.GetProperty("allOf")[0];
+        Assert.True(
+            cspReportContract
+                .GetProperty("then")
+                .GetProperty("properties")
+                .GetProperty("build")
+                .GetProperty("properties")
+                .GetProperty("report")
+                .GetProperty("properties")
+                .GetProperty("enabled")
+                .GetProperty("const")
+                .GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("{\"site\":{},\"build\":{\"report\":{\"enabled\":false}}}", true)]
+    [InlineData("{\"site\":{\"analytics\":{\"csp\":{\"mode\":\"requirements-report\"}}}}", true)]
+    [InlineData("{\"site\":{\"analytics\":{\"csp\":{\"mode\":\"requirements-report\"}}},\"build\":{\"report\":{\"enabled\":false}}}", false)]
+    [InlineData("{\"site\":{\"analytics\":{\"csp\":{\"mode\":\"requirements-report\"}}},\"build\":{\"report\":{\"enabled\":true}}}", true)]
+    public void Generate_CspReportConditionalMatchesRuntimeDefaultSemantics(
+        string instanceJson,
+        bool expected)
+    {
+        using var schema = JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
+        using var instance = JsonDocument.Parse(instanceJson);
+        var conditional = schema.RootElement.GetProperty("allOf")[0];
+
+        var conditionMatches = MatchesRequiredProperties(instance.RootElement, conditional.GetProperty("if"));
+        var actual = !conditionMatches ||
+                     MatchesRequiredProperties(instance.RootElement, conditional.GetProperty("then"));
+
+        Assert.Equal(expected, actual);
     }
 
     [Fact]
@@ -81,13 +113,41 @@ public sealed class ConfigJsonSchemaGeneratorTests
             .GetProperty("properties");
         Assert.Equal("string", search.GetProperty("route").GetProperty("type").GetString());
 
-        var analytics = properties
+        var analyticsSchema = properties
             .GetProperty("site")
             .GetProperty("properties")
-            .GetProperty("analytics")
-            .GetProperty("properties");
+            .GetProperty("analytics");
+        var analytics = analyticsSchema.GetProperty("properties");
         Assert.Equal("boolean", analytics.GetProperty("enabled").GetProperty("type").GetString());
         Assert.Equal("boolean", analytics.GetProperty("productionOnly").GetProperty("type").GetString());
+        var consent = analytics.GetProperty("consent");
+        Assert.Equal(new[] { "google" }, consent.GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        var googleConsent = consent.GetProperty("properties").GetProperty("google");
+        Assert.Equal(
+            new[] { "mode", "defaults" },
+            googleConsent.GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(
+            new[] { "advanced" },
+            googleConsent.GetProperty("properties").GetProperty("mode").GetProperty("enum")
+                .EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(0, googleConsent.GetProperty("properties").GetProperty("waitForUpdateMs").GetProperty("minimum").GetInt32());
+        Assert.Equal(5000, googleConsent.GetProperty("properties").GetProperty("waitForUpdateMs").GetProperty("maximum").GetInt32());
+        var consentDefaults = googleConsent.GetProperty("properties").GetProperty("defaults");
+        Assert.Equal(
+            new[] { "adStorage", "analyticsStorage", "adUserData", "adPersonalization" },
+            consentDefaults.GetProperty("required").EnumerateArray().Select(item => item.GetString()));
+        foreach (var consentState in consentDefaults.GetProperty("properties").EnumerateObject())
+        {
+            Assert.Equal(
+                new[] { "granted", "denied" },
+                consentState.Value.GetProperty("enum").EnumerateArray().Select(item => item.GetString()));
+        }
+
+        Assert.Equal(
+            new[] { "requirements-report" },
+            analytics.GetProperty("csp").GetProperty("properties").GetProperty("mode").GetProperty("enum")
+                .EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal(2, analyticsSchema.GetProperty("allOf").GetArrayLength());
         Assert.False(analytics.TryGetProperty("googleAnalyticsId", out _));
         Assert.False(analytics.TryGetProperty("disableInPreview", out _));
         var providerVariants = analytics.GetProperty("providers").GetProperty("items").GetProperty("oneOf");
@@ -300,6 +360,40 @@ public sealed class ConfigJsonSchemaGeneratorTests
         var fieldScopesAddl = fieldScopes.GetProperty("additionalProperties");
         Assert.Equal("array", fieldScopesAddl.GetProperty("type").GetString());
         Assert.Equal("object", fieldScopesAddl.GetProperty("items").GetProperty("type").GetString());
+    }
+
+    private static bool MatchesRequiredProperties(JsonElement instance, JsonElement schema)
+    {
+        if (schema.TryGetProperty("const", out var constant) &&
+            instance.GetRawText() != constant.GetRawText())
+        {
+            return false;
+        }
+
+        if (schema.TryGetProperty("required", out var required))
+        {
+            if (instance.ValueKind != JsonValueKind.Object ||
+                required.EnumerateArray().Any(name =>
+                    !instance.TryGetProperty(name.GetString()!, out _)))
+            {
+                return false;
+            }
+        }
+
+        if (instance.ValueKind == JsonValueKind.Object &&
+            schema.TryGetProperty("properties", out var properties))
+        {
+            foreach (var property in properties.EnumerateObject())
+            {
+                if (instance.TryGetProperty(property.Name, out var value) &&
+                    !MatchesRequiredProperties(value, property.Value))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     private static void AssertObjectSchemasDeclareAdditionalProperties(JsonElement node, string path)

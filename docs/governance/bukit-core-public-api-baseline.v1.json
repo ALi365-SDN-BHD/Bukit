@@ -497,6 +497,8 @@
       "publicMembers": [
         "public .ctor()",
         "public Bukit.Config.AnalyticsConfig! \u003CClone\u003E$()",
+        "public Bukit.Config.AnalyticsConsentConfig? Consent { get; init; }",
+        "public Bukit.Config.AnalyticsCspConfig? Csp { get; init; }",
         "public System.Boolean Enabled { get; init; }",
         "public System.Boolean ProductionOnly { get; init; }",
         "public System.Collections.Generic.IReadOnlyList\u003CBukit.Config.AnalyticsProviderConfig!\u003E! Providers { get; init; }",
@@ -506,6 +508,95 @@
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
         "public virtual final System.Boolean Equals(Bukit.Config.AnalyticsConfig? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Config",
+      "name": "Bukit.Config.AnalyticsConsentConfig",
+      "owner": "Configuration",
+      "classification": "serialized-contract",
+      "compatibility": "1.x-shape-stable",
+      "migrationHorizon": "retain-1.x",
+      "signature": "public sealed class Bukit.Config.AnalyticsConsentConfig : System.IEquatable\u003CBukit.Config.AnalyticsConsentConfig~\u003E~",
+      "publicMembers": [
+        "public .ctor()",
+        "public Bukit.Config.AnalyticsConsentConfig! \u003CClone\u003E$()",
+        "public Bukit.Config.AnalyticsGoogleConsentConfig? Google { get; init; }",
+        "public static System.Boolean op_Equality(Bukit.Config.AnalyticsConsentConfig? left, Bukit.Config.AnalyticsConsentConfig? right)",
+        "public static System.Boolean op_Inequality(Bukit.Config.AnalyticsConsentConfig? left, Bukit.Config.AnalyticsConsentConfig? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Config.AnalyticsConsentConfig? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Config",
+      "name": "Bukit.Config.AnalyticsCspConfig",
+      "owner": "Configuration",
+      "classification": "serialized-contract",
+      "compatibility": "1.x-shape-stable",
+      "migrationHorizon": "retain-1.x",
+      "signature": "public sealed class Bukit.Config.AnalyticsCspConfig : System.IEquatable\u003CBukit.Config.AnalyticsCspConfig~\u003E~",
+      "publicMembers": [
+        "public .ctor()",
+        "public Bukit.Config.AnalyticsCspConfig! \u003CClone\u003E$()",
+        "public System.String? Mode { get; init; }",
+        "public static System.Boolean op_Equality(Bukit.Config.AnalyticsCspConfig? left, Bukit.Config.AnalyticsCspConfig? right)",
+        "public static System.Boolean op_Inequality(Bukit.Config.AnalyticsCspConfig? left, Bukit.Config.AnalyticsCspConfig? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Config.AnalyticsCspConfig? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Config",
+      "name": "Bukit.Config.AnalyticsGoogleConsentConfig",
+      "owner": "Configuration",
+      "classification": "serialized-contract",
+      "compatibility": "1.x-shape-stable",
+      "migrationHorizon": "retain-1.x",
+      "signature": "public sealed class Bukit.Config.AnalyticsGoogleConsentConfig : System.IEquatable\u003CBukit.Config.AnalyticsGoogleConsentConfig~\u003E~",
+      "publicMembers": [
+        "public .ctor()",
+        "public Bukit.Config.AnalyticsGoogleConsentConfig! \u003CClone\u003E$()",
+        "public Bukit.Config.AnalyticsGoogleConsentDefaultsConfig? Defaults { get; init; }",
+        "public System.Int32? WaitForUpdateMs { get; init; }",
+        "public System.String? Mode { get; init; }",
+        "public static System.Boolean op_Equality(Bukit.Config.AnalyticsGoogleConsentConfig? left, Bukit.Config.AnalyticsGoogleConsentConfig? right)",
+        "public static System.Boolean op_Inequality(Bukit.Config.AnalyticsGoogleConsentConfig? left, Bukit.Config.AnalyticsGoogleConsentConfig? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Config.AnalyticsGoogleConsentConfig? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Config",
+      "name": "Bukit.Config.AnalyticsGoogleConsentDefaultsConfig",
+      "owner": "Configuration",
+      "classification": "serialized-contract",
+      "compatibility": "1.x-shape-stable",
+      "migrationHorizon": "retain-1.x",
+      "signature": "public sealed class Bukit.Config.AnalyticsGoogleConsentDefaultsConfig : System.IEquatable\u003CBukit.Config.AnalyticsGoogleConsentDefaultsConfig~\u003E~",
+      "publicMembers": [
+        "public .ctor()",
+        "public Bukit.Config.AnalyticsGoogleConsentDefaultsConfig! \u003CClone\u003E$()",
+        "public System.String? AdPersonalization { get; init; }",
+        "public System.String? AdStorage { get; init; }",
+        "public System.String? AdUserData { get; init; }",
+        "public System.String? AnalyticsStorage { get; init; }",
+        "public static System.Boolean op_Equality(Bukit.Config.AnalyticsGoogleConsentDefaultsConfig? left, Bukit.Config.AnalyticsGoogleConsentDefaultsConfig? right)",
+        "public static System.Boolean op_Inequality(Bukit.Config.AnalyticsGoogleConsentDefaultsConfig? left, Bukit.Config.AnalyticsGoogleConsentDefaultsConfig? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Config.AnalyticsGoogleConsentDefaultsConfig? other)"
       ],
       "protectedMembers": []
     },

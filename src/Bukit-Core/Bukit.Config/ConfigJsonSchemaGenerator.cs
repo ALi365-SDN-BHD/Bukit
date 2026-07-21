@@ -28,6 +28,19 @@ public static class ConfigJsonSchemaGenerator
             ("logging", Obj(("type", "object"), ("properties", Obj(("level", EnumSchema("debug", "info", "warn", "error")))))),
             ("deploy", DeploySchema()));
 
+        var analyticsCspConfigured = Obj(
+            ("properties", Obj(
+                ("site", Obj(
+                    ("properties", Obj(
+                        ("analytics", Obj(("required", Arr("csp")))))),
+                    ("required", Arr("analytics")))))),
+            ("required", Arr("site")));
+        var buildReportEnabled = Obj(("properties", Obj(
+            ("build", Obj(("properties", Obj(
+                ("report", Obj(("properties", Obj(
+                    ("enabled", Obj(("const", true))))))))))))));
+        root["allOf"] = new JsonArray(Obj(("if", analyticsCspConfigured), ("then", buildReportEnabled)));
+
         return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
     }
 
@@ -206,10 +219,56 @@ public static class ConfigJsonSchemaGenerator
     }
 
     private static JsonObject AnalyticsSchema()
-        => Obj(("type", "object"), ("properties", Obj(
+    {
+        var schema = Obj(("type", "object"), ("properties", Obj(
             ("enabled", BoolSchema()),
             ("productionOnly", BoolSchema()),
+            ("consent", AnalyticsConsentSchema()),
+            ("csp", AnalyticsCspSchema()),
             ("providers", Obj(("type", "array"), ("items", AnalyticsProviderSchema()))))));
+
+        var googleProviderConfigured = Obj(
+            ("properties", Obj(
+                ("providers", Obj(("contains", Obj(
+                    ("properties", Obj(
+                        ("type", EnumSchema("google-analytics", "google-tag-manager")))),
+                    ("required", Arr("type")))))))),
+            ("required", Arr("providers")));
+        var consentConfigured = Obj(("required", Arr("consent")));
+        schema["allOf"] = new JsonArray(
+            Obj(("if", googleProviderConfigured), ("then", consentConfigured)),
+            Obj(("if", consentConfigured.DeepClone()), ("then", googleProviderConfigured.DeepClone())));
+        return schema;
+    }
+
+    private static JsonObject AnalyticsConsentSchema()
+    {
+        var defaultProperties = Obj(
+            ("adStorage", EnumSchema("granted", "denied")),
+            ("analyticsStorage", EnumSchema("granted", "denied")),
+            ("adUserData", EnumSchema("granted", "denied")),
+            ("adPersonalization", EnumSchema("granted", "denied")));
+        var defaults = Obj(("type", "object"), ("properties", defaultProperties));
+        defaults["required"] = Arr("adStorage", "analyticsStorage", "adUserData", "adPersonalization");
+
+        var google = Obj(("type", "object"), ("properties", Obj(
+            ("mode", EnumSchema("advanced")),
+            ("defaults", defaults),
+            ("waitForUpdateMs", IntSchema(0, 5000)))));
+        google["required"] = Arr("mode", "defaults");
+
+        var consent = Obj(("type", "object"), ("properties", Obj(("google", google))));
+        consent["required"] = Arr("google");
+        return consent;
+    }
+
+    private static JsonObject AnalyticsCspSchema()
+    {
+        var csp = Obj(("type", "object"), ("properties", Obj(
+            ("mode", EnumSchema("requirements-report")))));
+        csp["required"] = Arr("mode");
+        return csp;
+    }
 
     private static JsonObject AnalyticsProviderSchema()
     {
@@ -614,12 +673,17 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject BoolSchema() => Obj(("type", "boolean"));
 
-    private static JsonObject IntSchema(int? min = null)
+    private static JsonObject IntSchema(int? min = null, int? max = null)
     {
         var schema = Obj(("type", "integer"));
         if (min is not null)
         {
             schema["minimum"] = min.Value;
+        }
+
+        if (max is not null)
+        {
+            schema["maximum"] = max.Value;
         }
 
         return schema;
