@@ -1,25 +1,25 @@
 # Bukit Analytics 内置插件深度全方位复审报告（2026-07-20）
 
 > 复审日期：2026-07-20（Asia/Kuala_Lumpur）
-> 原复审实现基线：`main@fe27bbbe`；当前整改基线：`main@6916c396` 加 AN-10 当前工作树
+> 原复审实现基线：`main@fe27bbbe`；当前整改基线：`main@02a44617` 加 AN-11 当前工作树
 > 原 Analytics 实现提交：`4103959c`
 > 原报告提交：`9ff5d452`
 > 执行环境：macOS arm64，.NET SDK 10.0.100，Bukit 1.0.10
 > 执行 checkout：审计开始时为 `f076a288`；结束前仓库被外部推进到 `main@f80919f8`。`fe27bbbe..f80919f8` 没有 `src/Bukit-Core` 实现变化，因此本文继续以约定的 `fe27bbbe` 为唯一实现基线。
-> 整改状态：AN-01～AN-09 已进入当前 `main`；AN-10 于 2026-07-21 在 `main@6916c396` 后的当前工作树完成修复和验证。Analytics renderer contract 当前为 v5；其余状态不自动变化。
+> 整改状态：AN-01～AN-10 已进入当前 `main`；AN-11 于 2026-07-21 在 `main@02a44617` 后的当前工作树完成修复和验证。Analytics renderer contract 当前为 v5；其余状态不自动变化。
 > 审计阶段边界：复审时只重写本报告。后续整改按发现逐项推进；AN-08 新增显式 Google Consent Mode v2 与 CSP requirements-report 配置、Analytics 报告 v2 和对应公共配置模型，不改变外部插件协议，也不把静态生成器伪装成 CMP、HTTP nonce 发行方或完整 CSP 生成器。
 
 ## 一、复审结论
 
 原 AN-01～AN-14 均已从当前源码和运行结果重新验证，旧结论没有自动继承。结论如下：
 
-- 当前未解决问题 **4 项**：P0 0 项、P1 0 项、P2 1 项、P3 3 项。
-- 已修复 **10 项**：AN-01～AN-10。Preview 无改写路径保留原始字节；Preview 清理与 Dev LiveReload 仅改写严格 UTF-8 并保留已有 BOM。Google Provider 必须显式声明 Consent Mode v2 advanced 默认值；可选 CSP requirements-report 输出与实际片段字节一致的 SHA-256 和 origin 清单，renderer contract v5 进入增量 hash。
+- 当前未解决问题 **3 项**：P0 0 项、P1 0 项、P2 0 项、P3 3 项。
+- 已修复 **11 项**：AN-01～AN-11。Preview fallback 现在区分 Keep/Remove/Error/Source：发现但无法加载的配置会在 listener 启动前退出 2，缺失配置则明确警告后保留管理块。Preview 无改写路径保留原始字节；Preview 清理与 Dev LiveReload 仅改写严格 UTF-8 并保留已有 BOM。Google Provider 必须显式声明 Consent Mode v2 advanced 默认值；可选 CSP requirements-report 输出与实际片段字节一致的 SHA-256 和 origin 清单，renderer contract v5 进入增量 hash。
 - 新增确认问题 **0 项**。本轮扩大到共享 Engine、运行模式、原始字节、报告、增量和 Native AOT 后，没有把不稳定假设升级成新编号。
-- 复审基线相关定向测试 **450/450 通过**；AN-02 整改 gate 为 Config **245/245**、CLI **578/578**，AN-03 整改后的 CLI gate 为 **583/583**，AN-05/AN-09 整改后的 Engine gate 为 **1564/1564**，AN-06 整改后的 Engine gate 为 **1566/1566**，AN-07 整改后的 Config/Engine gate 为 **255/255、1569/1569**，AN-08 最终 Config/Engine 为 **278/278、1577/1577**，AN-10 最终 CLI 为 **599/599**。测试通过不用于否定仍未覆盖的其他发现。
+- 复审基线相关定向测试 **450/450 通过**；AN-02 整改 gate 为 Config **245/245**、CLI **578/578**，AN-03 整改后的 CLI gate 为 **583/583**，AN-05/AN-09 整改后的 Engine gate 为 **1564/1564**，AN-06 整改后的 Engine gate 为 **1566/1566**，AN-07 整改后的 Config/Engine gate 为 **255/255、1569/1569**，AN-08 最终 Config/Engine 为 **278/278、1577/1577**，AN-10 最终 CLI 为 **599/599**，AN-11 最终 CLI 为 **602/602**。测试通过不用于否定仍未覆盖的其他发现。
 - `osx-arm64` Native AOT 发布成功，发布二进制完成四 Provider 最小真实构建；未加载生成页面，也未向 Analytics 服务发送请求。
 
-主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01～AN-10 已关闭，P1 已清零；Preview fallback fail-open 等剩余 P2/P3 问题仍不允许宣称生产级隐私完备。Consent advanced mode 本身也不等于零网络或法规合规保证。
+主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01～AN-11 已关闭，P1/P2 已清零；剩余项为报告原子性、linked-source 所有权和禁用配置过度增量失效三项 P3。Consent advanced mode 本身仍不等于零网络或法规合规保证。
 
 ## 二、严重度与状态总表
 
@@ -48,7 +48,7 @@
 | AN-08 | **已修复** | 原 P2 | 已修复安全/隐私设计缺陷 | Google Provider 强制显式 Consent Mode v2 advanced 默认值；报告 v2 提供精确 CSP hash/origin 要求并明确非完整策略。 | 高 |
 | AN-09 | **已修复** | 原 P2 | 已修复增量设计缺陷 | Analytics renderer contract 已进入 framed hash，AN-08 输出变化同步提升为 v5。 | 高 |
 | AN-10 | **已修复** | 原 P2 | 已修复字节保真 Bug | Preview 无改写时逐字节返回；严格 UTF-8 改写保留 BOM，非法改写输入可见失败而非替换。 | 高 |
-| AN-11 | 仍存在 | P2 | 安全/隐私风险 | Preview 配置缺失或加载失败时静默 fail-open，保留生产追踪。 | 高 |
+| AN-11 | **已修复** | 原 P2 | 已修复安全/隐私风险 | Preview fallback 对损坏/不可读配置在 serving 前报错退出；缺失配置明确警告并保留管理块。 | 高 |
 | AN-12 | 仍存在 | P3 | 可靠性问题 | Analytics 报告直接截断并覆盖目标文件，不是原子写入。 | 高 |
 | AN-13 | 仍存在 | P3 | 架构债务 | CLI 引用 Engine 的同时再次源码编译 Engine 的扫描器和过滤器。 | 高 |
 | AN-14 | 仍存在 | P3 | 性能/增量问题 | 哈希未按有效启用状态裁剪；禁用配置变化仍使页面过度失效。 | 高 |
@@ -67,7 +67,7 @@
 | AN-08 | 风险 | **已修复（2026-07-21 整改）** | Consent default 在全部 Google bootstrap/config 前且只出现一次；CSP 报告 hash 与实际脚本字节一致，Native AOT 四 Provider 构建通过。 |
 | AN-09 | 确认 | **已修复（AN-05～AN-08 依赖整改）** | renderer contract v2 首次进入 framed hash，AN-06/AN-07/AN-08 同步提升为 v3/v4/v5；v1～v5 hash 均不等。 |
 | AN-10 | 确认 | **已修复（2026-07-21 整改）** | 16 个真实 HTTP 原始字节用例由全部失败转绿；Preview 直通、伪 marker、BOM 改写、UTF-16/32 fail-closed、Dev LiveReload 与非法 UTF-8 拒绝均有断言。 |
-| AN-11 | 风险 | 仍存在 | 畸形配置真实 Preview 静默保留管理块。 |
+| AN-11 | 风险 | **已修复（2026-07-21 整改）** | 三个真实 Preview 黑盒场景先红后绿；结构化决策保留来源与异常，损坏/不可读配置在 listener 前退出 2，缺失配置显式警告。 |
 | AN-12 | 风险 | 仍存在 | 仍为 `File.Create(path)` 直接写入。 |
 | AN-13 | 债务 | 仍存在 | `.csproj` linked-source 仍存在。 |
 | AN-14 | 性能 | 仍存在 | 插件关闭时 hasher 仍纳入全部 Provider 值。 |
@@ -141,7 +141,7 @@ flowchart TD
 - **期望 / 实际：** 期望显式配置同时决定 configured output 和 Analytics 策略；当前 `--config/--site` 在目录判定前 Resolve+Load 一次，`--dir` 只覆盖 serving directory，策略使用同一个不可变 `AppConfig` 快照。
 - **历史根因：** Preview 在计算 output 后丢弃 `ResolvedConfigPath` 和已加载配置，策略层再次从 output 向上猜测字面 `site.yaml`；`--config + --dir` 更是完全跳过配置加载。
 - **影响范围：** 自定义配置、多站点、显式目录、外部 output 和同一 output 被多个配置使用的场景；修复后不再由目录祖先偶然决定是否移除追踪块。
-- **修复边界：** 无显式 `--config/--site` 时仍执行既有 nearest-`site.yaml` fallback；其 broad catch、加载失败静默 keep 属于 AN-11，未在本项改变。HTML 读取/UTF-8 重编码属于 AN-10，亦未改动。显式配置加载错误继续在 listener 启动前传播。
+- **修复边界：** 无显式 `--config/--site` 时仍执行既有 nearest-`site.yaml` fallback；其错误状态和缺失状态已由 AN-11 分离。HTML 读取/UTF-8 重编码属于 AN-10，亦未改动。显式配置加载错误继续在 listener 启动前传播。
 - **回归测试：** 五个场景在修复前均稳定 RED、修复后 5/5 GREEN；全部 Preview 定向测试 72/72，仓库 targeted gate CLI 583/583；最终 subagent 只读审查无 Critical/Important。
 
 ### AN-05 — 原 P2：GA/GTM head 注入位置偏离 Google 当前安装要求（已修复）
@@ -206,7 +206,7 @@ flowchart TD
 - **增量与报告：** Consent 的 mode、四个默认值和 wait 值进入 framed render dependency hash；可观察 HTML 契约从 v4 提升为 v5。CSP report-only 开关不污染页面 hash，requirements 清单由配置和共享 renderer 构建，不依赖本轮实际渲染页数。Analytics report 升级为严格 v2，旧 v1 Schema 文件原样保留。
 - **真实命令与输出：** `/tmp` 隔离站点使用合成 GA/GTM/Plausible/Umami 值完成 config check、源码 CLI build 和重复 incremental build。2 个正式页面均为 consent→GA/GTM 顺序、四 Provider 各一份；报告 v2 为 `processedHtml=2`、`injectedHtml=2`，含 4 个 inline hash、3 个 script origin、1 个 frame origin、`dynamicContainerDestinationsUnknown=true`。`osx-arm64` Native AOT publish 成功，`runtime: native-aot` 二进制构建结果与源码 CLI HTML 字节相同，报告断言通过；没有加载页面或发出追踪请求。
 - **影响范围：** 现有 GA/GTM 配置会有意 fail-fast，必须显式选择 consent defaults；Plausible/Umami-only 站点无需 Google consent。报告消费者需要从 analytics-report v1 迁移到 v2。外部插件协议、主题模型、manifest schema 和 HTTP headers 均未扩张。
-- **修复边界：** 不验证 CMP 运行时是否实际发送 update，不生成站点完整 CSP header，不枚举 GTM container 内部目的地，也不保证法规合规；这些属于部署与运行环境责任，不再作为本项实现缺口。AN-11 的 Preview 配置失败 fail-open 仍独立存在。
+- **修复边界：** 不验证 CMP 运行时是否实际发送 update，不生成站点完整 CSP header，不枚举 GTM container 内部目的地，也不保证法规合规；这些属于部署与运行环境责任，不再作为本项实现缺口。AN-11 已修复 Preview fallback 的错误可观测性，但不会把 Preview 变成 CMP 或法规合规验证器。
 - **回归测试：** wrong-kind/unknown/missing/invalid consent 与 CSP、Schema 双向条件、报告开关冲突、标准化、hash 差异、default-before-bootstrap、多 GA、三次幂等、删除与 Development 清理、精确脚本 hash、四 Provider origins、隐私字段排除、report v2 strict schema、源码 CLI 与 Native AOT 构建。
 
 官方基线（抓取日期 2026-07-21）：[Google Consent Mode](https://developers.google.com/tag-platform/security/guides/consent)、[Google CSP 指南](https://developers.google.com/tag-platform/security/guides/csp)。
@@ -232,20 +232,21 @@ flowchart TD
 - **修复实现：** Preview 策略关闭时直接流式复制文件；策略开启时不再以某一种编码的 marker 字节作为前置判断，而是总是调用同一过滤器确认结构是否变化。严格 UTF-8 解码失败时，UTF-16LE/BE、UTF-32LE/BE BOM 由对应严格解码器产生结构投影，其余输入使用一字节 Latin-1 投影；script/style/title/textarea/属性中的伪 marker、孤立 marker 及无管理块输入均返回原数组，真实可移除块则安全拒绝。必须清理时与 Dev LiveReload 共用严格 UTF-8 rewriter：解码前记录 UTF-8 BOM，字符串无变化时返回原数组，发生变化时按原 BOM 状态重新编码；解码失败且确需改写时抛出明确的 `InvalidDataException`，两种服务器均返回 500，Dev 同时记录 `valid UTF-8` 警告。
 - **期望 / 实际：** 无需改写的 UTF-8 BOM 和 Latin-1 输入现在逐字节相等，`Content-Length` 等于原始/实际输出长度；Analytics 清理和 LiveReload 注入保留输入 BOM；必须改写的非法 UTF-8 不再产生 replacement character 或错误 200。
 - **影响范围：** Preview 不改写路径、production-only 管理块清理、Dev Analytics 清理与 LiveReload 注入；磁盘源文件始终不变。
-- **修复边界：** 没有尝试猜测或转码非 UTF-8 HTML。无改写路径保持原字节；需要 Analytics/LiveReload 改写的输入必须是 UTF-8。Preview fallback 配置的错误语义仍属于 AN-11，本项未改变。
+- **修复边界：** 没有尝试猜测或转码非 UTF-8 HTML。无改写路径保持原字节；需要 Analytics/LiveReload 改写的输入必须是 UTF-8。Preview fallback 配置的错误语义已由 AN-11 独立修复，本项编码契约不变。
 - **回归测试：** Preview 策略关闭 BOM 直通、策略开启但无 marker 的 Latin-1 直通、6 类不可移除伪 marker 的 Latin-1 直通、带 BOM marker 清理、非法 UTF-8 真实 marker 拒绝、UTF-16/32 四种 BOM 真实 marker 拒绝；Dev BOM + LiveReload、非法 UTF-8 拒绝。成功直通/改写用例断言 HTTP 状态、原始响应字节和 `Content-Length`；拒绝用例断言 500 与空响应体。
 
-### AN-11 — P2：Preview 配置失败静默 fail-open
+### AN-11 — 原 P2：Preview 配置失败静默 fail-open（已修复）
 
-- **置信度 / 分类：** 高；安全/隐私风险、可观测性缺陷。
-- **源码位置：** `PreviewCommand.cs:290-312`。
-- **最小复现：** `site.yaml` 使用畸形 YAML，`dist/index.html` 含生产管理块，启动 Preview 并请求页面。
-- **命令与输出：** Preview 正常启动且无配置加载警告，HTTP 响应保留完整追踪块；catch 分支直接返回 false。
-- **期望 / 实际：** 隐私敏感策略至少应明确警告并允许 strict fail-closed；实际配置缺失和配置损坏都静默解释为“不清理”。
-- **根因：** 一个 bool 同时承载策略和错误状态，广泛 catch 丢弃异常及来源。
-- **影响范围：** 配置语法错误、路径错误、外部 output、权限/读取失败；开发者可能在本机预览时发送生产事件。
-- **修复边界：** 返回结构化决策 `Remove/Keep/Error/Source`；配置存在但加载失败默认停止 Preview 或至少强警告并支持显式 override；不得吞掉异常类别。
-- **回归测试：** 缺失、畸形、无权限、custom config、显式 keep；断言退出码、警告文本和 HTTP 中是否存在 marker。
+- **置信度 / 分类：** 高；已修复安全/隐私风险、可观测性缺陷。
+- **源码位置：** `PreviewCommand.cs:63-98,335-386`；`PreviewAnalyticsPolicyFailureTests.cs:26-95`；`PreviewCommandExtendedTests.cs:118-184`。
+- **历史最小复现：** `site.yaml` 使用畸形 YAML 或在 Unix/macOS 上不可读，`dist/index.html` 含生产管理块，启动 Preview；另在完全没有 fallback 配置时启动并请求页面。
+- **RED 命令与输出：** 新增的三个真实 `PreviewCommand.RunAsync` 黑盒用例首轮 **0/3**：畸形和不可读配置均返回 0、启动 listener 并静默保留管理块；缺失配置虽保留管理块但没有任何策略警告。
+- **历史根因：** 一个 bool 同时承载 Keep/Remove 与错误状态；nearest-`site.yaml` 分支的 broad catch 把异常、来源和“配置确实存在”一并压成 false。缺失配置与损坏配置因此不可区分。
+- **修复实现：** fallback resolver 现在返回内部结构化 `Decision/Source/ConfigFound/Error`。发现配置并成功加载时产生 Keep 或 Remove；发现但加载失败时保留原始异常对象和配置路径并产生 Error；搜索链没有配置时产生可观察的 Keep。RunAsync 在创建 listener 前处理 Error，向 stderr 输出来源、异常类型和消息并返回 2；缺失配置则向 stderr 明确说明将保留管理块以及可用的 `--config/--site` 显式选择。
+- **期望 / 实际：** 损坏或不可读的 fallback 配置不再被解释为 keep，也不会进入 serving；缺失配置仍保留既有“不要凭空删除未知输出”的安全边界，但从静默行为变为明确警告。正常 active/inactive、显式 custom config 和显式 keep 的策略语义保持不变。
+- **影响范围：** nearest-`site.yaml` 的语法、严格契约、权限和读取失败；Preview 启动时的诊断、退出码和 listener 生命周期。磁盘 HTML、Provider 渲染、Dev、配置 Schema 和外部插件协议均未改变。
+- **修复边界：** 显式 `--config/--site` 仍由既有加载路径 fail-fast；fallback 只停止“已发现但无法加载”的配置。完全缺失配置不自动删除可能并非由当前站点拥有的管理块，而是警告后 keep；没有新增静默 override 或公共 API。
+- **回归测试：** 畸形 fallback、Unix/macOS 无权限 fallback、缺失 fallback 的真实 HTTP 200 + keep + 警告；结构化 resolver 覆盖无配置、active Remove、四类 inactive Keep。权限用例会先证明 mode-000 文件确实不可读；Windows 或特权身份无法构造该前提时明确记为 skip，不伪装成通过。当前 macOS 环境扩大 Preview/Dev 定向 **141/141**，Release CLI targeted gate **602/602**、0 skipped。
 
 ### AN-12 — P3：Analytics 报告写入非原子
 
@@ -317,7 +318,7 @@ flowchart TD
 | Development | 5 个页面均无 Analytics，存在 LiveReload；报告 `development_mode=5`。 |
 | Preview 正常 `site.yaml` | production-only 管理块被清理。 |
 | Preview custom config | AN-03 已修复：显式 custom config、`--site`、`--config + --dir` 与外部 output 均按所选配置清理或保留。 |
-| Preview malformed config | AN-11：静默保留。 |
+| Preview malformed/unreadable fallback config | AN-11 已修复：listener 启动前报告来源与异常并退出 2；完全缺失配置则警告后 keep。 |
 | 插件关闭 | 无 marker；报告 `pluginEnabled=false`、`processedHtml=0`、`plugin_disabled=5`。 |
 | 多 GA | AN-06 已修复：三 GA 页面为一套 loader/bootstrap、三个有序 config；重复构建 SHA-256 不变。 |
 | 多语言 | en 5 页、zh-CN 3 页，8 页均恰有一个 GA 块；两份语言报告分别为 5/5 与 3/3。 |
@@ -404,7 +405,7 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 - TDD RED：五个真实 HTTP 场景全部失败，包括显式 active 配置被错误 keep，以及显式 inactive 配置被最近 `site.yaml` 错误清理。
 - GREEN：custom-only、custom-vs-nearest、`--config + --dir`、`--site`-vs-root、外部绝对 output 五项全部按显式配置快照执行；Preview 定向测试 72/72。
 - 仓库代码 targeted gate：CLI 583/583，并通过文档契约、public API drift、brainstorm server 与 YAML static context 检查。
-- 高风险只读 subagent 复核：Critical/Important 均无；AN-10 编码路径和 AN-11 fallback fail-open 保持未改。
+- 该阶段高风险只读 subagent 复核：Critical/Important 均无；当时 AN-10 编码路径和 AN-11 fallback fail-open 保持未改，二者已在后续独立整改中关闭。
 
 ### 7.8 AN-06 整改验证
 
@@ -436,18 +437,25 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 - TDD RED：Preview 的策略关闭 BOM、策略开启无 marker Latin-1、带 BOM marker 清理和非法 UTF-8 marker 四项全部失败；Dev 的 BOM LiveReload 与非法 UTF-8 拒绝两项亦全部失败。失败值直接证明 BOM 删除、`e9` 变为 `efbfbd` 以及非法改写输入错误返回 200。首轮只读审核随后发现裸 marker 前缀会把“不可移除伪 marker + Latin-1”误报为 500，新增 script/style/title/textarea/属性/孤立 marker 6 项也全部先红；第二轮审核发现相同前缀判断会让 UTF-16/32 管理块 fail-open，四种 BOM 用例亦全部先红。
 - GREEN：三轮共 16 个真实 HTTP 原始字节用例 **16/16**；Preview/Dev Debug 定向测试 **138/138**。直通路径断言响应数组与文件数组完全相同，改写路径断言 BOM、脚本清理/注入、状态码和 `Content-Length`。
 - 仓库代码 targeted gate：修正两轮只读审核发现后重新执行，Release CLI **599/599**，同时通过 diff whitespace、文档契约、public API drift、brainstorm server、YAML static context 与相关自测；Build 为 0 warning、0 error。
-- 编码契约：本项不声明支持转码 Latin-1。Preview 不发生改写时保持源字节；Analytics 清理与 Dev LiveReload 发生改写时仅接受严格 UTF-8，非法输入返回可见 500。AN-11 的配置加载 fail-open 控制流未改。
+- 编码契约：本项不声明支持转码 Latin-1。Preview 不发生改写时保持源字节；Analytics 清理与 Dev LiveReload 发生改写时仅接受严格 UTF-8，非法输入返回可见 500。AN-11 后续只改变策略解析错误控制流，不改变这里的字节契约。
+
+### 7.12 AN-11 整改验证
+
+- TDD RED：新增畸形 fallback、Unix/macOS 无权限 fallback、完全缺失 fallback 三个真实 RunAsync/HTTP 场景，首轮 **0/3**。前两项返回 0 并进入 serving，后一项没有任何警告，直接证明错误和缺失均被压成 silent keep。
+- GREEN：当前 macOS 环境三个黑盒用例 **3/3**、0 skipped；缺失配置 HTTP 路径明确断言 200。结构化 resolver 的无配置、active 和四类 inactive 场景全部通过。扩大 Preview/Analytics policy/Dev 定向测试 **141/141**。权限测试在 Windows 或 Unix 特权身份仍可读取 mode-000 文件时以动态 skip 诚实报告环境限制。
+- 测试盲区修正：扩大回归首次暴露四个旧 inactive fixture 的 Analytics YAML 被重复缩进，实际均为非法 YAML；旧 broad catch 恰好把加载异常变成 false，使错误夹具“通过”。修正夹具后四类合法 inactive 配置仍稳定返回 Keep，且 Error 必须为空。
+- 仓库代码 targeted gate：Release CLI **602/602**，同时通过 diff whitespace、文档契约、public API drift、brainstorm server、YAML static context 与相关自测；Build 为 0 warning、0 error。
+- 控制流契约：显式配置继续沿既有加载路径 fail-fast；nearest fallback 发现配置但加载失败时在 listener 前返回 2 并报告路径、异常类型和消息；搜索链完全没有配置时发出可见警告后 keep。此修复不声称 Preview 会加载页面或阻止浏览器在用户主动请求含追踪脚本的无配置输出时发出网络请求。
 
 ## 八、测试盲区与已排除问题
 
 ### 8.1 仍需补齐的测试盲区
 
-1. Preview fallback 配置加载失败的退出码、警告和 fail-closed 策略。
-2. 以真实 v2/v3/v4 manifest 固件驱动完整二进制升级到 v5 的端到端回归；当前已有 framed hash 单测和真实输出稳定性证据。
-3. CMP 运行时 update 的浏览器级集成与真实部署 CSP header 验证；Core 已固定 default-before-config、hash/origin requirements，但不会执行 CMP 或发 HTTP header。
-4. Plausible 自托管 site-specific endpoint/高级 init 选项；固定 site-specific/legacy 模板和 CSP requirements 已覆盖。
-5. Analytics report 原子写入的故障注入。
-6. Native AOT 下四 Provider + Preview/Dev 组合行为。
+1. 以真实 v2/v3/v4 manifest 固件驱动完整二进制升级到 v5 的端到端回归；当前已有 framed hash 单测和真实输出稳定性证据。
+2. CMP 运行时 update 的浏览器级集成与真实部署 CSP header 验证；Core 已固定 default-before-config、hash/origin requirements，但不会执行 CMP 或发 HTTP header。
+3. Plausible 自托管 site-specific endpoint/高级 init 选项；固定 site-specific/legacy 模板和 CSP requirements 已覆盖。
+4. Analytics report 原子写入的故障注入。
+5. Native AOT 下四 Provider + Preview/Dev 组合行为。
 
 ### 8.2 已排除或不升级为确认 Bug
 
@@ -466,12 +474,13 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 
 ### 第一批：阻断级正确性与隐私
 
-阻断级 P1 范围已完成：AN-01、AN-02、AN-03、AN-04 均保留为固定回归；AN-11 的 P2 fallback fail-open 风险仍未解决。
+正确性与隐私范围已完成：AN-01、AN-02、AN-03、AN-04、AN-11 均保留为固定回归，当前 P1/P2 已清零。
 
 - AN-01 已完成：线性两遍 marker 解析只清理可证明的直接 pair，orphan 不再导致累积。
 - AN-02 已完成：YAML strict validator 对 wrong-kind、非法插件布尔值和错误长格式 fail-fast，Schema 与运行时一致。
-- AN-03 已完成：Preview 保留显式配置身份，输出显式策略来源；无显式配置的错误可观测性留给 AN-11。
-- 验收：AN-01～AN-04 的 Production/Preview/Dev、配置契约、显式配置身份与 legacy Static upgrade 测试长期通过。
+- AN-03 已完成：Preview 保留显式配置身份，输出显式策略来源。
+- AN-11 已完成：fallback 损坏/不可读配置在 listener 前失败；完全缺失配置明确警告后 keep，结构化结果保留决策、来源与异常。
+- 验收：AN-01～AN-04、AN-11 的 Production/Preview/Dev、配置契约、显式/nearest 配置身份、fallback 错误控制流与 legacy Static upgrade 测试长期通过。
 
 ### 第二批：Provider 兼容与配置契约
 
@@ -503,6 +512,6 @@ AN-05～AN-08 已完成并保留固定回归，本批无剩余发现。
 
 ## 十、最终判断
 
-Analytics 已具备可工作的主路径，AN-01～AN-10 已关闭且 P1 清零；GA/GTM 已回到 2026-07-21 Google 官方安装位置，多 GA 已收敛为单 bootstrap，Plausible 新旧片段有显式迁移契约，Google Consent Mode v2 default 与 CSP requirements-report 也已形成严格配置、渲染和报告闭环，renderer contract v5 不会复用旧页面。Preview/Dev 的原始字节与 UTF-8 改写边界现已明确；但 AN-11 的 Preview fallback fail-open 仍使生产级隐私完备声明不成立。下一项应处理 AN-11，再收敛报告原子性和 linked-source 债务。
+Analytics 已具备可工作的主路径，AN-01～AN-11 已关闭且 P1/P2 清零；GA/GTM 已回到 2026-07-21 Google 官方安装位置，多 GA 已收敛为单 bootstrap，Plausible 新旧片段有显式迁移契约，Google Consent Mode v2 default 与 CSP requirements-report 也已形成严格配置、渲染和报告闭环，renderer contract v5 不会复用旧页面。Preview/Dev 的原始字节与 UTF-8 改写边界已明确，Preview fallback 不再把损坏配置静默解释为 keep。仍不能把 Consent advanced mode、缺失配置警告或静态构建本身表述为零网络或法规合规保证。下一项应处理 AN-12，再收敛 AN-14 的过度增量失效和 AN-13 的 linked-source 债务。
 
 本报告的原复审结论来自 `fe27bbbe`，整改状态已按顶部列出的当前提交与工作树重新验证；所有状态变化均有源码、RED/GREEN、真实构建或官方规范证据。未成功复现的假设仍保留在测试盲区或已排除项中，没有伪装成确认 Bug。

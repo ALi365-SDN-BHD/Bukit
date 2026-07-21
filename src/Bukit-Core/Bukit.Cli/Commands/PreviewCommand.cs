@@ -60,17 +60,41 @@ public static class PreviewCommand
             return 2;
         }
 
-        var removeManagedAnalytics = explicitConfig is not null
-            ? ShouldRemoveManagedAnalytics(explicitConfig.Site)
-            : ResolveRemoveManagedAnalyticsInPreview(dir);
-        var analyticsPolicySource = resolvedConfigPath?.FullConfigPath ?? "nearest site.yaml fallback";
+        var analyticsPolicy = explicitConfig is not null
+            ? new PreviewAnalyticsPolicyResolution(
+                ShouldRemoveManagedAnalytics(explicitConfig.Site)
+                    ? PreviewAnalyticsPolicyDecision.Remove
+                    : PreviewAnalyticsPolicyDecision.Keep,
+                resolvedConfigPath!.FullConfigPath,
+                ConfigFound: true,
+                Error: null)
+            : ResolveAnalyticsPolicyInPreview(dir);
+
+        if (analyticsPolicy.Decision == PreviewAnalyticsPolicyDecision.Error)
+        {
+            var error = analyticsPolicy.Error!;
+            Console.Error.WriteLine(
+                $"Preview analytics policy error: failed to load '{analyticsPolicy.Source}' " +
+                $"({error.GetType().Name}): {error.Message}");
+            return 2;
+        }
+
+        if (!analyticsPolicy.ConfigFound)
+        {
+            Console.Error.WriteLine(
+                $"Warning: No site.yaml found while resolving Preview analytics policy from '{dir}'; " +
+                "managed Analytics blocks will be kept. Use --config or --site to select a policy explicitly.");
+        }
+
+        var removeManagedAnalytics = analyticsPolicy.Decision == PreviewAnalyticsPolicyDecision.Remove;
         var (listener, prefix) = CreateAndStartListener(host, port, strictPort);
         using var startedListener = listener;
         using var cancellationRegistration = cancellationToken.Register(listener.Stop);
 
         Console.WriteLine($"Preview: {prefix}");
         Console.WriteLine($"Serving: {dir}");
-        Console.WriteLine($"Analytics policy source: {analyticsPolicySource}");
+        Console.WriteLine($"Analytics policy: {analyticsPolicy.Decision.ToString().ToLowerInvariant()}");
+        Console.WriteLine($"Analytics policy source: {analyticsPolicy.Source}");
         Console.WriteLine("Press Ctrl+C to stop.");
 
         while (true)
@@ -308,7 +332,7 @@ public static class PreviewCommand
         return queryIndex >= 0 ? raw[..queryIndex] : raw;
     }
 
-    private static bool ResolveRemoveManagedAnalyticsInPreview(string previewDir)
+    internal static PreviewAnalyticsPolicyResolution ResolveAnalyticsPolicyInPreview(string previewDir)
     {
         var current = new DirectoryInfo(Path.GetFullPath(previewDir));
         while (current is not null)
@@ -319,17 +343,44 @@ public static class PreviewCommand
                 try
                 {
                     var config = ConfigLoader.Load(configPath);
-                    return ShouldRemoveManagedAnalytics(config.Site);
+                    return new PreviewAnalyticsPolicyResolution(
+                        ShouldRemoveManagedAnalytics(config.Site)
+                            ? PreviewAnalyticsPolicyDecision.Remove
+                            : PreviewAnalyticsPolicyDecision.Keep,
+                        configPath,
+                        ConfigFound: true,
+                        Error: null);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    return false;
+                    return new PreviewAnalyticsPolicyResolution(
+                        PreviewAnalyticsPolicyDecision.Error,
+                        configPath,
+                        ConfigFound: true,
+                        Error: ex);
                 }
             }
 
             current = current.Parent;
         }
 
-        return false;
+        return new PreviewAnalyticsPolicyResolution(
+            PreviewAnalyticsPolicyDecision.Keep,
+            $"no site.yaml found from {Path.GetFullPath(previewDir)}",
+            ConfigFound: false,
+            Error: null);
     }
 }
+
+internal enum PreviewAnalyticsPolicyDecision
+{
+    Keep,
+    Remove,
+    Error
+}
+
+internal sealed record PreviewAnalyticsPolicyResolution(
+    PreviewAnalyticsPolicyDecision Decision,
+    string Source,
+    bool ConfigFound,
+    Exception? Error);

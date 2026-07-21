@@ -21,9 +21,6 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     private static readonly MethodInfo s_parsePort = typeof(PreviewCommand)
         .GetMethod("ParsePort", BindingFlags.NonPublic | BindingFlags.Static)!;
 
-    private static readonly MethodInfo s_resolveRemoveManagedAnalytics = typeof(PreviewCommand)
-        .GetMethod("ResolveRemoveManagedAnalyticsInPreview", BindingFlags.NonPublic | BindingFlags.Static)!;
-
     private static readonly MethodInfo s_createAndStartListener = typeof(PreviewCommand)
         .GetMethod("CreateAndStartListener", BindingFlags.NonPublic | BindingFlags.Static)!;
 
@@ -121,17 +118,21 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     }
 
     [Fact]
-    public void ResolveRemoveManagedAnalyticsInPreview_NoSiteYaml_ReturnsFalse()
+    public void ResolveAnalyticsPolicyInPreview_NoSiteYaml_ReturnsObservableKeepDecision()
     {
         var previewDir = Path.Combine(_tempDir, "no-config");
         Directory.CreateDirectory(previewDir);
 
-        var result = (bool)s_resolveRemoveManagedAnalytics.Invoke(null, new object[] { previewDir })!;
-        Assert.False(result);
+        var result = PreviewCommand.ResolveAnalyticsPolicyInPreview(previewDir);
+
+        Assert.Equal(PreviewAnalyticsPolicyDecision.Keep, result.Decision);
+        Assert.False(result.ConfigFound);
+        Assert.Contains(previewDir, result.Source, StringComparison.Ordinal);
+        Assert.Null(result.Error);
     }
 
     [Fact]
-    public void ResolveRemoveManagedAnalyticsInPreview_EnabledProductionOnlyProvider_ReturnsTrue()
+    public void ResolveAnalyticsPolicyInPreview_EnabledProductionOnlyProvider_ReturnsRemoveDecision()
     {
         var previewDir = Path.Combine(_tempDir, "with-config");
         Directory.CreateDirectory(previewDir);
@@ -154,16 +155,20 @@ public sealed class PreviewCommandExtendedTests : IDisposable
                     dir: content
             """);
 
-        var result = (bool)s_resolveRemoveManagedAnalytics.Invoke(null, new object[] { previewDir })!;
-        Assert.True(result);
+        var result = PreviewCommand.ResolveAnalyticsPolicyInPreview(previewDir);
+
+        Assert.Equal(PreviewAnalyticsPolicyDecision.Remove, result.Decision);
+        Assert.True(result.ConfigFound);
+        Assert.Equal(Path.Combine(previewDir, "site.yaml"), result.Source);
+        Assert.Null(result.Error);
     }
 
     [Theory]
-    [InlineData("enabled: false\n    productionOnly: true\n    providers:\n      - type: google-analytics\n        measurementId: G-ABCDE123", "")]
-    [InlineData("enabled: true\n    productionOnly: false\n    providers:\n      - type: google-analytics\n        measurementId: G-ABCDE123", "")]
-    [InlineData("enabled: true\n    productionOnly: true\n    providers: []", "")]
-    [InlineData("enabled: true\n    productionOnly: true\n    providers:\n      - type: google-analytics\n        measurementId: G-ABCDE123", "  plugins:\n    analytics: false\n")]
-    public void ResolveRemoveManagedAnalyticsInPreview_WhenPolicyInactive_ReturnsFalse(string analyticsYaml, string pluginYaml)
+    [InlineData("enabled: false\nproductionOnly: true\nproviders:\n  - type: google-analytics\n    measurementId: G-ABCDE123", "")]
+    [InlineData("enabled: true\nproductionOnly: false\nproviders:\n  - type: google-analytics\n    measurementId: G-ABCDE123", "")]
+    [InlineData("enabled: true\nproductionOnly: true\nproviders: []", "")]
+    [InlineData("enabled: true\nproductionOnly: true\nproviders:\n  - type: google-analytics\n    measurementId: G-ABCDE123", "  plugins:\n    analytics: false\n")]
+    public void ResolveAnalyticsPolicyInPreview_WhenPolicyInactive_ReturnsKeepDecision(string analyticsYaml, string pluginYaml)
     {
         var previewDir = Path.Combine(_tempDir, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(previewDir);
@@ -171,9 +176,11 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         File.WriteAllText(Path.Combine(previewDir, "site.yaml"),
             $"site:\n  name: test\n  title: Test\n  analytics:\n{indentedAnalytics}\n{pluginYaml}content:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n");
 
-        var result = (bool)s_resolveRemoveManagedAnalytics.Invoke(null, new object[] { previewDir })!;
+        var result = PreviewCommand.ResolveAnalyticsPolicyInPreview(previewDir);
 
-        Assert.False(result);
+        Assert.Null(result.Error);
+        Assert.Equal(PreviewAnalyticsPolicyDecision.Keep, result.Decision);
+        Assert.True(result.ConfigFound);
     }
 
     [Fact]
