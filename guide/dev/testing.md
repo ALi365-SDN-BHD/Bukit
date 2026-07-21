@@ -55,6 +55,17 @@ bash scripts/checks/brainstorm-server-self-test.sh
 bash scripts/checks/find-polluter-self-test.sh
 ```
 
+The active workflow boundary also has a direct self-test:
+
+```bash
+bash scripts/checks/active-workflow-boundary-self-test.sh
+bash scripts/checks/active-workflow-boundary.sh
+```
+
+It proves that backup/reference paths are rejected from runtime source,
+official guide content, active scripts, and CI workflows while allowing only
+the narrow policy declarations that describe the boundary itself.
+
 The brainstorm test requires access to process identity inspection. The
 polluter test proves clean `0`, confirmed polluter `1`, and inconclusive/error
 `2` classification while preserving paths containing spaces or newlines.
@@ -73,11 +84,84 @@ relative to `HEAD`. When unrelated local changes exist, pass the current task
 paths explicitly. Use `--dry-run` to inspect the exact commands before running
 them.
 
+Run the targeted gate before committing the subtask. Its default `--base HEAD`
+then includes the working-tree diff in `git diff --check`. If the subtask was
+already committed, use its exact starting SHA:
+
+```bash
+bash scripts/checks/post-change-targeted.sh \
+  --base <subtask-base-sha> -- <changed paths>
+```
+
+For final verification of a multi-subtask parent task, use the parent task's
+starting SHA and all paths changed by that parent task:
+
+```bash
+bash scripts/checks/post-change-targeted.sh \
+  --base <parent-task-base-sha> -- <all parent-task changed paths>
+```
+
 The targeted gate runs `git diff --check`, `bash -n` for changed shell scripts,
 the thin `ci-fast` gate, and only the affected test projects it can map from
 changed source or test paths. If a runtime source path cannot be mapped to a
 targeted test project, the script fails and asks for an explicit test target
 instead of falling back to a full gate.
+
+If a targeted check fails, stop task progression and classify the result as a
+scoped regression, pre-existing failure, environment restriction, or
+infrastructure noise. Change the active task only when evidence connects the
+failure to its diff. Rerun environment-sensitive checks in an appropriate
+permitted environment when safe; if verification remains blocked, report the
+exact command and limitation. Do not modify unrelated code merely to make a
+gate pass.
+
+## Task classification and review plan
+
+Before implementation, record the parent objective, ordered code subtasks,
+each subtask's risk and targeted gate, immediate high-risk review requirements,
+and whether a final consolidated audit is required.
+
+An ordinary small task has one bounded objective and one primary ownership
+surface, introduces no cross-module contract change, and is fully covered by a
+focused targeted gate. Treat the parent as large when it has multiple code
+subtasks, changes contracts across modules, combines multiple high-risk
+surfaces, makes broad mechanical changes across projects, or the user
+explicitly designates it large. Commit count and a single-subtask label do not
+reduce the classification.
+
+For a website-business task, where the deliverable is a named or specific
+site's content, configuration, theme, or deployment result, Core is a read-only
+dependency. Do not change Core source, Core-defining tests or fixtures, public
+API/config/protocol baselines, Core contract documentation, or CI/release/gate
+logic that changes Core behavior. Reproduce under `/tmp` or the downstream
+workspace and report the proposed Core repair for a separately confirmed task;
+do not add a Core regression test or copy a downstream fixture into this
+repository during the website task.
+
+## Rule-change verification
+
+Rule-definition and rule-modification tasks do not require runtime, full, or
+release gates, but they must run:
+
+```bash
+git diff --check -- <changed-governance-paths>
+bash scripts/checks/docs-consistency.sh
+```
+
+When `guide/skills/` or a nested `AGENTS.md` changes, also run:
+
+```bash
+bash scripts/checks/skills-schema.sh
+bash guide/skills/scripts/validate-skills-strict.sh
+```
+
+`docs-consistency.sh` includes the semantic contract that keeps the root
+`AGENTS.md`, the agent workflow, this testing guide, and applicable nested
+`AGENTS.md` rules aligned.
+
+The root `AGENTS.md` applies repository-wide. Nested `AGENTS.md` files apply
+only to their directory and descendants and may supplement or tighten, but not
+silently weaken, root-level strict prohibitions.
 
 ## Consolidated Post-change Audit
 

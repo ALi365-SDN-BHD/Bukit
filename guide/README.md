@@ -1,13 +1,15 @@
 # Bukit Core Guide
 
-This guide is generated for the current Bukit Core source tree. It uses the
-`guide-0.2` directory only as an information architecture reference; the
-contracts below are taken from the live Core projects under `src/Bukit-Core`
-and the tests under `tests`.
+This guide is generated for the current Bukit Core source tree. A historical
+`guide-0.2` snapshot informed its information architecture, but that snapshot
+is not required to exist. The contracts below are taken from the live Core
+projects under `src/Bukit-Core` and the tests under `tests`.
 
-`guide-0.1`, `guide-0.2`, `scripts-0.1`, and `scripts-0.2` are backup/reference
-trees only. They must not be used as official documentation, CI gates, release
-scripts, or runtime behavior sources.
+If present, `guide-0.1`, `guide-0.2`, `scripts-0.1`, and `scripts-0.2` are
+historical backup/reference trees only. Do not create or synchronize them by
+default. They may be maintained only when explicitly requested and must never
+be used as official documentation, CI gates, release scripts, or runtime
+behavior sources.
 
 ## Entry Points
 

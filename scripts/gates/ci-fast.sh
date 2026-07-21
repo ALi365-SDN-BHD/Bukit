@@ -8,6 +8,7 @@ configuration="${1:-Release}"
 [[ $# -le 1 ]] || { echo "usage: bash scripts/gates/ci-fast.sh [Configuration]" >&2; exit 2; }
 
 run_step "docs consistency" bash scripts/checks/docs-consistency.sh
+run_step "active workflow boundary self-test" bash scripts/checks/active-workflow-boundary-self-test.sh
 run_step "active workflow boundary" bash scripts/checks/active-workflow-boundary.sh
 run_step "post-change targeted self-test" bash scripts/checks/post-change-targeted-self-test.sh
 run_step "public API drift self-test" bash scripts/checks/public-api-drift-self-test.sh
