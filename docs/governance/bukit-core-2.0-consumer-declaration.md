@@ -1,6 +1,6 @@
 # Bukit Core 2.0 Public Surface Consumer Declaration
 
-Status: `prepared-not-open`
+Status: `open`
 
 Target: `2.0.0`
 
@@ -38,31 +38,24 @@ observe private repositories, unindexed code, or consumers who have not
 voluntarily declared their use. Private-consumer status therefore remains
 unknown until voluntary declaration.
 
-## How Feedback Will Work
+## How Feedback Works
 
-The intended feedback channel is a dedicated GitHub Issue in
-`ALi365-SDN-BHD/Bukit`, but that Issue does not yet exist. There is currently no
-Issue number or announcement URL to use for declarations.
-
-G-04B2 requires separate approval before Bukit may publish these materials,
-create the dedicated Issue, record its URL and number, or begin accepting
-declarations through that channel. Until then, this document is preparation
-material rather than an active consumer call.
-
-When the channel is active, consumers should identify the exact type, their
-usage pattern, the Bukit version range, and any reflection, serialization,
-Native AOT, inheritance, or cross-assembly dependency involved. Credentials,
-private source, and other secrets should not be posted.
+The declaration channel is
+[GitHub Issue #60](https://github.com/ALi365-SDN-BHD/Bukit/issues/60) in
+`ALi365-SDN-BHD/Bukit`. Consumers should comment on that Issue with the exact
+type, their usage pattern, the Bukit version range, and any reflection,
+serialization, Native AOT, inheritance, or cross-assembly dependency involved.
+Credentials, private source, and other secrets should not be posted.
 
 ## Window Opening And Closing Rules
 
-The declaration window remains closed while the state is
-`prepared-not-open`. Opening it requires the separately approved G-04B2 work
-to publish the declaration, create the dedicated GitHub Issue, and record the
-actual opening time and announcement URL.
+The declaration window is open. GitHub Issue #60 opened it at
+`2026-07-21T02:19:46Z`; that Issue is the canonical announcement and feedback
+channel. `eligibleAfterRelease` remains `null` until a later non-prerelease
+stable Bukit release exists.
 
-Calendar time alone cannot close the window. After opening, Bukit must complete
-at least one later stable release cycle, classify every received report, and
+Calendar time alone cannot close the window. Bukit must complete at least one
+later non-prerelease stable release cycle, classify every received report, and
 pass an independent evidence review before any candidate can be discussed for
 G-04C eligibility. Eligibility for discussion is not approval to narrow,
 deprecate, or remove a type; G-04C itself requires a separate decision.
@@ -81,7 +74,8 @@ for G-04C eligibility.
 
 ## Explicit Non-Claims
 
-- This document does not announce an active declaration window.
+- This declaration window does not approve any candidate for a compatibility
+  change.
 - The 136 candidates are not approved for deprecation, access narrowing, or
   removal.
 - Public-search results do not establish the absence of private, unindexed, or
@@ -89,5 +83,4 @@ for G-04C eligibility.
 - `Bukit.Engine.RouteInventoryInspectEntry` remains
   `consumer-declaration-pending / review-only`; its inclusion does not authorize
   G-04C work.
-- G-04B1 does not create a GitHub Issue, publish an announcement, or authorize
-  G-04B2 or G-04C.
+- G-04B2 opens the declaration channel only; it does not authorize G-04C.
