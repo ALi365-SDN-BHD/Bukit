@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text;
 using Bukit.Shared;
 
 namespace Bukit.Cli.Commands.Dev;
@@ -64,11 +63,11 @@ internal sealed class DevRequestHandler
 
             if (ext == ".html")
             {
-                var html = await File.ReadAllTextAsync(candidate, ct).ConfigureAwait(false);
-                html = PreviewCommand.ApplyPreviewAnalyticsPolicy(html, _removeManagedAnalytics);
-                html = InjectLivereload(html);
-
-                var bytes = Encoding.UTF8.GetBytes(html);
+                var source = await File.ReadAllBytesAsync(candidate, ct).ConfigureAwait(false);
+                var bytes = HtmlResponseByteTransformer.RewriteUtf8(
+                    source,
+                    html => InjectLivereload(
+                        PreviewCommand.ApplyPreviewAnalyticsPolicy(html, _removeManagedAnalytics)));
                 context.Response.ContentLength64 = bytes.Length;
                 await context.Response.OutputStream.WriteAsync(bytes, ct).ConfigureAwait(false);
             }

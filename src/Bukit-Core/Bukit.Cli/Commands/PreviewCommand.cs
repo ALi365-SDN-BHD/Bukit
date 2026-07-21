@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using Bukit.Cli.Commands.Dev;
 using Bukit.Cli.Shared;
@@ -265,11 +264,21 @@ public static class PreviewCommand
             context.Response.ContentType = GetContentType(candidate);
             if (Path.GetExtension(candidate).Equals(".html", StringComparison.OrdinalIgnoreCase))
             {
-                var html = File.ReadAllText(candidate);
-                var filtered = ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics);
-                var bytes = Encoding.UTF8.GetBytes(filtered);
-                context.Response.ContentLength64 = bytes.Length;
-                context.Response.OutputStream.Write(bytes, 0, bytes.Length);
+                if (!removeManagedAnalytics)
+                {
+                    using var fs = File.OpenRead(candidate);
+                    context.Response.ContentLength64 = fs.Length;
+                    fs.CopyTo(context.Response.OutputStream);
+                }
+                else
+                {
+                    var source = File.ReadAllBytes(candidate);
+                    var bytes = HtmlResponseByteTransformer.RewriteUtf8(
+                        source,
+                        html => ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: true));
+                    context.Response.ContentLength64 = bytes.Length;
+                    context.Response.OutputStream.Write(bytes, 0, bytes.Length);
+                }
             }
             else
             {

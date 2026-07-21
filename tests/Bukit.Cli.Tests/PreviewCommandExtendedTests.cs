@@ -321,6 +321,116 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     }
 
     [Fact]
+    public async Task HandleRequest_WhenAnalyticsRemovalDisabled_PreservesUtf8BomBytesAndContentLength()
+    {
+        var path = Path.Combine(_tempDir, "index.html");
+        var payload = new byte[] { 0xEF, 0xBB, 0xBF }
+            .Concat(System.Text.Encoding.UTF8.GetBytes("<html><body>bom</body></html>"))
+            .ToArray();
+        File.WriteAllBytes(path, payload);
+
+        var response = await SendRawRequestAsync("/", removeManagedAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(payload, response.Body);
+        Assert.Equal(payload.Length, response.ContentLength);
+    }
+
+    [Fact]
+    public async Task HandleRequest_WhenRemovalEnabledButNoManagedMarker_PreservesNonUtf8Bytes()
+    {
+        var path = Path.Combine(_tempDir, "index.html");
+        var payload = "<html><body>caf"u8.ToArray()
+            .Concat(new byte[] { 0xE9 })
+            .Concat("</body></html>"u8.ToArray())
+            .ToArray();
+        File.WriteAllBytes(path, payload);
+
+        var response = await SendRawRequestAsync("/", removeManagedAnalytics: true);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(payload, response.Body);
+        Assert.Equal(payload.Length, response.ContentLength);
+    }
+
+    [Theory]
+    [InlineData("<script>const marker = '<!-- bukit:analytics:google-analytics:G-ABC123:head:start -->user<!-- bukit:analytics:google-analytics:G-ABC123:head:end -->';</script>")]
+    [InlineData("<style>/* <!-- bukit:analytics:google-analytics:G-ABC123:head:start -->user<!-- bukit:analytics:google-analytics:G-ABC123:head:end --> */</style>")]
+    [InlineData("<title><!-- bukit:analytics:google-analytics:G-ABC123:head:start -->user<!-- bukit:analytics:google-analytics:G-ABC123:head:end --></title>")]
+    [InlineData("<textarea><!-- bukit:analytics:google-analytics:G-ABC123:head:start -->user<!-- bukit:analytics:google-analytics:G-ABC123:head:end --></textarea>")]
+    [InlineData("<div data-marker=\"<!-- bukit:analytics:google-analytics:G-ABC123:head:start -->user<!-- bukit:analytics:google-analytics:G-ABC123:head:end -->\"></div>")]
+    [InlineData("<!-- bukit:analytics:google-analytics:G-ABC123:head:start -->")]
+    public async Task HandleRequest_WhenMarkerLikeBytesWouldNotBeRemoved_PreservesNonUtf8Bytes(string markerLikeHtml)
+    {
+        var path = Path.Combine(_tempDir, "index.html");
+        var payload = "<html><body>caf"u8.ToArray()
+            .Concat(new byte[] { 0xE9 })
+            .Concat(System.Text.Encoding.ASCII.GetBytes(markerLikeHtml))
+            .Concat("</body></html>"u8.ToArray())
+            .ToArray();
+        File.WriteAllBytes(path, payload);
+
+        var response = await SendRawRequestAsync("/", removeManagedAnalytics: true);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(payload, response.Body);
+        Assert.Equal(payload.Length, response.ContentLength);
+    }
+
+    [Fact]
+    public async Task HandleRequest_WhenManagedAnalyticsIsRemoved_PreservesUtf8Bom()
+    {
+        var path = Path.Combine(_tempDir, "index.html");
+        var html = "<html><head><!-- bukit:analytics:google-analytics:G-ABC123:head:start --><script>managed</script><!-- bukit:analytics:google-analytics:G-ABC123:head:end --></head><body>ok</body></html>";
+        var payload = new byte[] { 0xEF, 0xBB, 0xBF }
+            .Concat(System.Text.Encoding.UTF8.GetBytes(html))
+            .ToArray();
+        File.WriteAllBytes(path, payload);
+
+        var response = await SendRawRequestAsync("/", removeManagedAnalytics: true);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, response.Body[..3]);
+        Assert.DoesNotContain("managed", System.Text.Encoding.UTF8.GetString(response.Body));
+        Assert.Equal(response.Body.Length, response.ContentLength);
+    }
+
+    [Fact]
+    public async Task HandleRequest_WhenManagedMarkerRequiresRewrite_RejectsInvalidUtf8()
+    {
+        var path = Path.Combine(_tempDir, "index.html");
+        var payload = "<html><head><!-- bukit:analytics:google-analytics:G-ABC123:head:start --><script>caf"u8.ToArray()
+            .Concat(new byte[] { 0xE9 })
+            .Concat("</script><!-- bukit:analytics:google-analytics:G-ABC123:head:end --></head></html>"u8.ToArray())
+            .ToArray();
+        File.WriteAllBytes(path, payload);
+
+        var response = await SendRawRequestAsync("/", removeManagedAnalytics: true);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Empty(response.Body);
+    }
+
+    [Theory]
+    [InlineData("utf-16le")]
+    [InlineData("utf-16be")]
+    [InlineData("utf-32le")]
+    [InlineData("utf-32be")]
+    public async Task HandleRequest_WhenManagedMarkerUsesBomEncodedNonUtf8_RejectsRewrite(string encodingName)
+    {
+        var path = Path.Combine(_tempDir, "index.html");
+        var html = "<html><head><!-- bukit:analytics:google-analytics:G-ABC123:head:start --><script>managed</script><!-- bukit:analytics:google-analytics:G-ABC123:head:end --></head></html>";
+        var encoding = CreateBomEncoding(encodingName);
+        var payload = encoding.GetPreamble().Concat(encoding.GetBytes(html)).ToArray();
+        File.WriteAllBytes(path, payload);
+
+        var response = await SendRawRequestAsync("/", removeManagedAnalytics: true);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Empty(response.Body);
+    }
+
+    [Fact]
     public async Task HandleRequest_DirectoryWithoutExtension_FallsBackToNestedIndex()
     {
         var postsDir = Path.Combine(_tempDir, "posts");
@@ -420,6 +530,14 @@ public sealed class PreviewCommandExtendedTests : IDisposable
 
     private async Task<(HttpStatusCode StatusCode, string Body, string? ContentType)> SendRequestAsync(string path, bool removeManagedAnalytics)
     {
+        var response = await SendRawRequestAsync(path, removeManagedAnalytics);
+        return (response.StatusCode, System.Text.Encoding.UTF8.GetString(response.Body), response.ContentType);
+    }
+
+    private async Task<(HttpStatusCode StatusCode, byte[] Body, string? ContentType, long? ContentLength)> SendRawRequestAsync(
+        string path,
+        bool removeManagedAnalytics)
+    {
         var result = s_createAndStartListener.Invoke(null, new object[] { "localhost", 0, false })!;
         var tupleType = result.GetType();
         var listener = (HttpListener)tupleType.GetField("Item1")!.GetValue(result)!;
@@ -444,16 +562,24 @@ public sealed class PreviewCommandExtendedTests : IDisposable
                 s_handleRequest.Invoke(null, new object[] { _tempDir, context, removeManagedAnalytics });
 
                 using var responseAfterContext = await responseTask;
-                var bodyAfterContext = await responseAfterContext.Content.ReadAsStringAsync();
-                return (responseAfterContext.StatusCode, bodyAfterContext, responseAfterContext.Content.Headers.ContentType?.ToString());
+                var bodyAfterContext = await responseAfterContext.Content.ReadAsByteArrayAsync();
+                return (
+                    responseAfterContext.StatusCode,
+                    bodyAfterContext,
+                    responseAfterContext.Content.Headers.ContentType?.ToString(),
+                    responseAfterContext.Content.Headers.ContentLength);
             }
 
             using var responseAfterTimeout = await responseTask;
             var contextAfterTimeout = await contextTask.WaitAsync(s_requestTimeout);
             s_handleRequest.Invoke(null, new object[] { _tempDir, contextAfterTimeout, removeManagedAnalytics });
 
-            var bodyAfterTimeout = await responseAfterTimeout.Content.ReadAsStringAsync();
-            return (responseAfterTimeout.StatusCode, bodyAfterTimeout, responseAfterTimeout.Content.Headers.ContentType?.ToString());
+            var bodyAfterTimeout = await responseAfterTimeout.Content.ReadAsByteArrayAsync();
+            return (
+                responseAfterTimeout.StatusCode,
+                bodyAfterTimeout,
+                responseAfterTimeout.Content.Headers.ContentType?.ToString(),
+                responseAfterTimeout.Content.Headers.ContentLength);
         }
         finally
         {
@@ -556,4 +682,14 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         listener.Start();
         return ((IPEndPoint)listener.LocalEndpoint).Port;
     }
+
+    private static System.Text.Encoding CreateBomEncoding(string name)
+        => name switch
+        {
+            "utf-16le" => new System.Text.UnicodeEncoding(bigEndian: false, byteOrderMark: true, throwOnInvalidBytes: true),
+            "utf-16be" => new System.Text.UnicodeEncoding(bigEndian: true, byteOrderMark: true, throwOnInvalidBytes: true),
+            "utf-32le" => new System.Text.UTF32Encoding(bigEndian: false, byteOrderMark: true, throwOnInvalidCharacters: true),
+            "utf-32be" => new System.Text.UTF32Encoding(bigEndian: true, byteOrderMark: true, throwOnInvalidCharacters: true),
+            _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unsupported test encoding.")
+        };
 }

@@ -559,6 +559,63 @@ public sealed class DevCommandTests
     }
 
     [Fact]
+    public async Task DevRequestHandler_HandleAsync_PreservesUtf8BomWhenInjectingLiveReload()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-bom-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+        var original = new byte[] { 0xEF, 0xBB, 0xBF }
+            .Concat(System.Text.Encoding.UTF8.GetBytes("<html><head></head><body>ok</body></html>"))
+            .ToArray();
+        File.WriteAllBytes(Path.Combine(outputDir, "index.html"), original);
+
+        try
+        {
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
+            var response = await ProcessSingleRawRequestAsync(
+                "/",
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, response.Body[..3]);
+            Assert.Contains("new WebSocket", System.Text.Encoding.UTF8.GetString(response.Body), StringComparison.Ordinal);
+            Assert.Equal(response.Body.Length, response.ContentLength);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DevRequestHandler_HandleAsync_RejectsInvalidUtf8InsteadOfReplacingBytes()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-invalid-utf8-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+        var payload = "<html><body>caf"u8.ToArray()
+            .Concat(new byte[] { 0xE9 })
+            .Concat("</body></html>"u8.ToArray())
+            .ToArray();
+        File.WriteAllBytes(Path.Combine(outputDir, "index.html"), payload);
+
+        try
+        {
+            var logger = new BufferingLogger();
+            var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, logger);
+            var response = await ProcessSingleRawRequestAsync(
+                "/",
+                (context, ct) => handler.HandleAsync(context, ct));
+
+            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+            Assert.Empty(response.Body);
+            Assert.Contains(logger.Warnings, warning => warning.Contains("valid UTF-8", StringComparison.Ordinal));
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task DevRequestHandler_HandleAsync_ReturnsNotFoundForMissingFile()
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-missing-" + Guid.NewGuid().ToString("N"));
@@ -809,6 +866,14 @@ public sealed class DevCommandTests
         string path,
         Func<HttpListenerContext, CancellationToken, Task> handleAsync)
     {
+        var response = await ProcessSingleRawRequestAsync(path, handleAsync);
+        return (response.StatusCode, System.Text.Encoding.UTF8.GetString(response.Body));
+    }
+
+    private static async Task<(HttpStatusCode StatusCode, byte[] Body, long? ContentLength)> ProcessSingleRawRequestAsync(
+        string path,
+        Func<HttpListenerContext, CancellationToken, Task> handleAsync)
+    {
         using var listener = StartListener(out var prefix, out _);
         using var client = new HttpClient();
         var contextTask = listener.GetContextAsync();
@@ -818,8 +883,8 @@ public sealed class DevCommandTests
         await handleAsync(context, CancellationToken.None);
 
         using var response = await responseTask;
-        var body = await response.Content.ReadAsStringAsync();
-        return (response.StatusCode, body);
+        var body = await response.Content.ReadAsByteArrayAsync();
+        return (response.StatusCode, body, response.Content.Headers.ContentLength);
     }
 
     private static Task InvokeScheduleRebuildAsync(DevFileWatcher watcher, string file)
