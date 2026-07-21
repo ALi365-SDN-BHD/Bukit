@@ -598,9 +598,9 @@ internal static class ContentProcessor
     /// 25. Add heading inline styles (margin-top)
     /// 26. Add link inline styles
     /// 27. Decode HTML entities
-    /// 28. Clean lazy-load attributes
+    /// 28. Optionally clean lazy-load attributes
     /// </summary>
-    internal static string ProcessContent(string html)
+    internal static string ProcessContent(string html, bool preserveLazyLoadAttributes = false)
     {
         if (string.IsNullOrWhiteSpace(html))
         {
@@ -634,7 +634,10 @@ internal static class ContentProcessor
         result = AddHeadingInlineStyles(result);
         result = AddLinkInlineStyles(result);
         result = DecodeHtmlEntities(result);
-        result = CleanLazyLoadAttributes(result);
+        if (!preserveLazyLoadAttributes)
+        {
+            result = CleanLazyLoadAttributes(result);
+        }
         return result;
     }
 

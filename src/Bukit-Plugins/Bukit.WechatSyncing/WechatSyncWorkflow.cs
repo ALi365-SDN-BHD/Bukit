@@ -262,11 +262,14 @@ public sealed class WechatSyncWorkflow
                 var processedHtml = ContentBodyResolver.GetHtml(candidate.Item);
                 if (!options.Passthrough)
                 {
-                    processedHtml = ContentProcessor.ProcessContent(processedHtml);
+                    processedHtml = ContentProcessor.ProcessContent(
+                        processedHtml,
+                        preserveLazyLoadAttributes: imageProcessor is not null);
 
                     if (imageProcessor is not null)
                     {
                         processedHtml = await imageProcessor.ProcessImagesAsync(context, processedHtml, options, cancellationToken);
+                        processedHtml = ContentProcessor.CleanLazyLoadAttributes(processedHtml);
                     }
                 }
 
