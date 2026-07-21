@@ -88,7 +88,7 @@ internal static class ConfigStrictFieldValidator
 
                 ValidateSequenceMappings(
                     providers,
-                    Set("type", "measurementId", "containerId", "domain", "websiteId", "scriptUrl"),
+                    Set("type", "measurementId", "containerId", "domain", "snippetMode", "websiteId", "scriptUrl"),
                     "site.analytics.providers",
                     ValidateAnalyticsProviderFields);
             }
@@ -128,7 +128,7 @@ internal static class ConfigStrictFieldValidator
         {
             "google-analytics" => Set("type", "measurementId"),
             "google-tag-manager" => Set("type", "containerId"),
-            "plausible" => Set("type", "domain", "scriptUrl"),
+            "plausible" => Set("type", "domain", "snippetMode", "scriptUrl"),
             "umami" => Set("type", "websiteId", "scriptUrl"),
             _ => null
         };

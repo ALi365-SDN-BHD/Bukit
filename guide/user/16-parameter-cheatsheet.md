@@ -42,7 +42,8 @@
 | `site.analytics.enabled` | `true` |
 | `site.analytics.productionOnly` | `true` |
 | `site.analytics.providers` | empty array |
-| Plausible provider `scriptUrl` | `https://plausible.io/js/script.js` |
+| Plausible provider `snippetMode` | none; required as `site-specific` or `legacy` |
+| Plausible provider `scriptUrl` | none; explicit URL required |
 | `site.feed.mode` | `split` |
 | `site.feed.formats` | `rss` |
 | `site.feed.limit` | `20` |
@@ -157,6 +158,7 @@ Safety semantics that do not fit in the default-value table:
 | Provider `measurementId` | `^G-[A-Z0-9]+$`; Google Analytics only |
 | Provider `containerId` | `^GTM-[A-Z0-9]+$`; Google Tag Manager only |
 | Provider `domain` | DNS host name without scheme, port, path, credentials, or IP address; Plausible only |
+| Provider `snippetMode` | `site-specific` or `legacy`; Plausible only |
 | Provider `websiteId` | UUID; Umami only |
 | Provider `scriptUrl` | Absolute HTTPS `.js` URL without credentials or fragment; Plausible or Umami only |
 | `site.collections.<name>.schemaFailMode` | `off`, `warn`, `strict` |

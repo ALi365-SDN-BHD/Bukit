@@ -101,11 +101,13 @@ public sealed class RenderDependencyHasherTests
                 new AnalyticsProviderConfig
                 {
                     Type = "plausible", Domain = "example.com",
+                    SnippetMode = "legacy",
                     ScriptUrl = "https://plausible.io/js/script.js"
                 },
                 new AnalyticsProviderConfig
                 {
                     Type = "plausible", Domain = "changed.example.com",
+                    SnippetMode = "legacy",
                     ScriptUrl = "https://stats.example.com/js/script.js"
                 }),
             (
@@ -152,6 +154,7 @@ public sealed class RenderDependencyHasherTests
         {
             Type = "plausible",
             Domain = "plausible.example.com",
+            SnippetMode = "legacy",
             ScriptUrl = "https://plausible.io/js/script.js"
         };
         var baseConfig = CreateBaseConfig() with
@@ -198,10 +201,15 @@ public sealed class RenderDependencyHasherTests
             config,
             s_emptySiteModel,
             analyticsRendererContractVersion: "3");
+        var version4 = RenderDependencyHasher.Compute(
+            config,
+            s_emptySiteModel,
+            analyticsRendererContractVersion: "4");
 
         Assert.NotEqual(version1, version2);
         Assert.NotEqual(version2, version3);
-        Assert.Equal(version3, current);
+        Assert.NotEqual(version3, version4);
+        Assert.Equal(version4, current);
     }
 
     [Fact]
@@ -269,6 +277,7 @@ public sealed class RenderDependencyHasherTests
                         {
                             Type = "plausible",
                             Domain = "B\u00dcCHER.Example",
+                            SnippetMode = "legacy",
                             ScriptUrl = "https://plausible.io/js/script.js"
                         },
                         new AnalyticsProviderConfig
@@ -293,6 +302,7 @@ public sealed class RenderDependencyHasherTests
                         {
                             Type = "plausible",
                             Domain = "xn--bcher-kva.example",
+                            SnippetMode = "legacy",
                             ScriptUrl = "https://plausible.io/js/script.js"
                         },
                         new AnalyticsProviderConfig
@@ -312,9 +322,9 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
-    public void Compute_PlausibleOmittedAndExplicitDefaultScriptUrl_ProduceSameHash()
+    public void Compute_PlausibleSnippetModeChange_ProducesDifferentHash()
     {
-        var omitted = CreateBaseConfig() with
+        var legacy = CreateBaseConfig() with
         {
             Site = CreateBaseConfig().Site with
             {
@@ -322,16 +332,22 @@ public sealed class RenderDependencyHasherTests
                 {
                     Providers =
                     [
-                        new AnalyticsProviderConfig { Type = "plausible", Domain = "example.com" }
+                        new AnalyticsProviderConfig
+                        {
+                            Type = "plausible",
+                            Domain = "example.com",
+                            SnippetMode = "legacy",
+                            ScriptUrl = "https://stats.example.com/tracker.js"
+                        }
                     ]
                 }
             }
         };
-        var explicitDefault = omitted with
+        var siteSpecific = legacy with
         {
-            Site = omitted.Site with
+            Site = legacy.Site with
             {
-                Analytics = omitted.Site.Analytics with
+                Analytics = legacy.Site.Analytics with
                 {
                     Providers =
                     [
@@ -339,16 +355,17 @@ public sealed class RenderDependencyHasherTests
                         {
                             Type = "plausible",
                             Domain = "example.com",
-                            ScriptUrl = "https://plausible.io/js/script.js"
+                            SnippetMode = "site-specific",
+                            ScriptUrl = "https://stats.example.com/tracker.js"
                         }
                     ]
                 }
             }
         };
 
-        Assert.Equal(
-            RenderDependencyHasher.Compute(omitted, s_emptySiteModel),
-            RenderDependencyHasher.Compute(explicitDefault, s_emptySiteModel));
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(legacy, s_emptySiteModel),
+            RenderDependencyHasher.Compute(siteSpecific, s_emptySiteModel));
     }
 
     [Fact]

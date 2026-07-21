@@ -202,16 +202,51 @@ internal static class I18nValidator
 
     private static string ValidatePlausible(AnalyticsProviderConfig provider, string path)
     {
-        RequireOnlyProviderFields(provider, path, domain: true, scriptUrl: true);
+        RequireOnlyProviderFields(provider, path, domain: true, snippetMode: true, scriptUrl: true);
         if (string.IsNullOrEmpty(provider.Domain))
         {
             throw new ConfigException($"{path}.domain is required.", DiagnosticCode.ConfigRequiredFieldMissing);
         }
 
         var asciiDomain = NormalizeDnsDomain(provider.Domain, $"{path}.domain");
-        if (provider.ScriptUrl is not null)
+        if (string.IsNullOrEmpty(provider.SnippetMode))
         {
-            ValidateScriptUrl(provider.ScriptUrl, $"{path}.scriptUrl");
+            throw new ConfigException($"{path}.snippetMode is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        if (provider.SnippetMode is not ("site-specific" or "legacy"))
+        {
+            throw new ConfigException(
+                $"{path}.snippetMode must be site-specific|legacy.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (string.IsNullOrEmpty(provider.ScriptUrl))
+        {
+            throw new ConfigException($"{path}.scriptUrl is required.", DiagnosticCode.ConfigRequiredFieldMissing);
+        }
+
+        ValidateScriptUrl(provider.ScriptUrl, $"{path}.scriptUrl");
+        var scriptUri = new Uri(provider.ScriptUrl, UriKind.Absolute);
+        if (string.Equals(scriptUri.IdnHost, "plausible.io", StringComparison.OrdinalIgnoreCase))
+        {
+            var isSiteSpecificPath = Regex.IsMatch(
+                scriptUri.AbsolutePath,
+                "^/js/pa-[A-Za-z0-9_-]+\\.js$",
+                RegexOptions.CultureInvariant);
+            if (provider.SnippetMode == "site-specific" && !isSiteSpecificPath)
+            {
+                throw new ConfigException(
+                    $"{path}.scriptUrl must use /js/pa-<site-id>.js when snippetMode is site-specific for plausible.io.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            if (provider.SnippetMode == "legacy" && isSiteSpecificPath)
+            {
+                throw new ConfigException(
+                    $"{path}.snippetMode must be site-specific for a plausible.io pa-* scriptUrl.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
         }
 
         return $"plausible:{asciiDomain}";
@@ -245,12 +280,14 @@ internal static class I18nValidator
         bool measurementId = false,
         bool containerId = false,
         bool domain = false,
+        bool snippetMode = false,
         bool websiteId = false,
         bool scriptUrl = false)
     {
         RejectProviderField(provider.MeasurementId, measurementId, $"{path}.measurementId");
         RejectProviderField(provider.ContainerId, containerId, $"{path}.containerId");
         RejectProviderField(provider.Domain, domain, $"{path}.domain");
+        RejectProviderField(provider.SnippetMode, snippetMode, $"{path}.snippetMode");
         RejectProviderField(provider.WebsiteId, websiteId, $"{path}.websiteId");
         RejectProviderField(provider.ScriptUrl, scriptUrl, $"{path}.scriptUrl");
     }

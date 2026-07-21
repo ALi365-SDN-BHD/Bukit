@@ -62,6 +62,7 @@ public sealed class AnalyticsConfigNormalizerTests
                 {
                     Type = "plausible",
                     Domain = "BÜCHER.Example",
+                    SnippetMode = "legacy",
                     ScriptUrl = "https://stats.example/Custom/Script.js?site=One"
                 },
                 new AnalyticsProviderConfig
@@ -79,10 +80,36 @@ public sealed class AnalyticsConfigNormalizerTests
         Assert.Equal("xn--bcher-kva.example", plausible.Options["domain"]);
         Assert.Equal("https://stats.example/Custom/Script.js?site=One", plausible.Options["scriptUrl"]);
         Assert.Equal("plausible:xn--bcher-kva.example", plausible.Key);
+        Assert.Equal("legacy", plausible.Options["mode"]);
 
         var umami = resolved.Providers[1];
         Assert.Equal("89f9c547-2017-4b05-8a56-8f40b488f927", umami.Options["websiteId"]);
         Assert.Equal("https://analytics.example.com/script.js", umami.Options["scriptUrl"]);
         Assert.Equal("umami:89f9c547-2017-4b05-8a56-8f40b488f927", umami.Key);
+    }
+
+    [Fact]
+    public void Normalize_PlausibleSiteSpecificScript_UsesSafeStableKeyWithoutDomain()
+    {
+        var config = new AnalyticsConfig
+        {
+            Providers =
+            [
+                new AnalyticsProviderConfig
+                {
+                    Type = "plausible",
+                    Domain = "example.com",
+                    SnippetMode = "site-specific",
+                    ScriptUrl = "https://plausible.io/js/pa-AN07TEST.js"
+                }
+            ]
+        };
+
+        var resolved = Assert.Single(AnalyticsConfigNormalizer.Normalize(config).Providers);
+
+        Assert.Equal("plausible:example.com", resolved.Key);
+        Assert.Equal("site-specific", resolved.Options["mode"]);
+        Assert.Equal("https://plausible.io/js/pa-AN07TEST.js", resolved.Options["scriptUrl"]);
+        Assert.Equal("example.com", resolved.Options["domain"]);
     }
 }

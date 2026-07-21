@@ -96,6 +96,8 @@ internal static partial class SiteDefaultsApplier
             }
 
             var type = ConfigYamlHelpers.GetRequiredString(providerNode, "type");
+            var hasSnippetMode = providerNode.Children.ContainsKey(new YamlScalarNode("snippetMode"));
+            var snippetMode = ConfigYamlHelpers.GetOptionalString(providerNode, "snippetMode");
             var hasScriptUrl = providerNode.Children.ContainsKey(new YamlScalarNode("scriptUrl"));
             var scriptUrl = ConfigYamlHelpers.GetOptionalString(providerNode, "scriptUrl");
             providers.Add(new AnalyticsProviderConfig
@@ -104,12 +106,9 @@ internal static partial class SiteDefaultsApplier
                 MeasurementId = ConfigYamlHelpers.GetOptionalString(providerNode, "measurementId"),
                 ContainerId = ConfigYamlHelpers.GetOptionalString(providerNode, "containerId"),
                 Domain = ConfigYamlHelpers.GetOptionalString(providerNode, "domain"),
+                SnippetMode = hasSnippetMode && snippetMode is null ? string.Empty : snippetMode,
                 WebsiteId = ConfigYamlHelpers.GetOptionalString(providerNode, "websiteId"),
-                ScriptUrl = type == "plausible" && !hasScriptUrl
-                    ? "https://plausible.io/js/script.js"
-                    : hasScriptUrl && scriptUrl is null
-                        ? string.Empty
-                        : scriptUrl
+                ScriptUrl = hasScriptUrl && scriptUrl is null ? string.Empty : scriptUrl
             });
         }
 

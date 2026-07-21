@@ -525,6 +525,7 @@
         "public System.String? Domain { get; init; }",
         "public System.String? MeasurementId { get; init; }",
         "public System.String? ScriptUrl { get; init; }",
+        "public System.String? SnippetMode { get; init; }",
         "public System.String? WebsiteId { get; init; }",
         "public static System.Boolean op_Equality(Bukit.Config.AnalyticsProviderConfig? left, Bukit.Config.AnalyticsProviderConfig? right)",
         "public static System.Boolean op_Inequality(Bukit.Config.AnalyticsProviderConfig? left, Bukit.Config.AnalyticsProviderConfig? right)",

@@ -26,7 +26,7 @@ public sealed class AnalyticsConfigTests : IDisposable
     }
 
     [Fact]
-    public void Load_AllSupportedProviders_PreservesOrderAndAppliesPlausibleDefaultUrl()
+    public void Load_AllSupportedProviders_PreservesOrderAndExplicitPlausibleLegacyUrl()
     {
         var config = LoadAnalytics("""
             enabled: false
@@ -38,6 +38,8 @@ public sealed class AnalyticsConfigTests : IDisposable
                 containerId: GTM-XYZ789
               - type: plausible
                 domain: bücher.example
+                snippetMode: legacy
+                scriptUrl: https://plausible.io/js/script.js
               - type: umami
                 websiteId: 89f9c547-2017-4b05-8a56-8f40b488f927
                 scriptUrl: https://analytics.example.com/script.js
@@ -55,6 +57,105 @@ public sealed class AnalyticsConfigTests : IDisposable
         Assert.Equal("bücher.example", config.Site.Analytics.Providers[2].Domain);
         Assert.Equal("https://plausible.io/js/script.js", config.Site.Analytics.Providers[2].ScriptUrl);
         Assert.Equal("89f9c547-2017-4b05-8a56-8f40b488f927", config.Site.Analytics.Providers[3].WebsiteId);
+    }
+
+    [Fact]
+    public void Load_PlausibleWithoutScriptUrl_DoesNotInjectLegacyDefault()
+    {
+        var config = LoadAnalytics("""
+            providers:
+              - type: plausible
+                domain: example.com
+            """);
+
+        Assert.Null(Assert.Single(config.Site.Analytics.Providers).ScriptUrl);
+    }
+
+    [Fact]
+    public void Validate_PlausibleWithoutScriptUrl_ThrowsRequiredField()
+    {
+        var ex = Assert.Throws<ConfigException>(() =>
+        {
+            var config = LoadAnalytics("""
+                providers:
+                  - type: plausible
+                    domain: example.com
+                    snippetMode: legacy
+                """);
+            ConfigValidator.Validate(config);
+        });
+
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Contains("scriptUrl is required", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_PlausibleSiteSpecificScript_Passes()
+    {
+        var config = LoadAnalytics("""
+            providers:
+              - type: plausible
+                domain: example.com
+                snippetMode: site-specific
+                scriptUrl: https://plausible.io/js/pa-AN07TEST.js
+            """);
+
+        ConfigValidator.Validate(config);
+    }
+
+    [Fact]
+    public void Validate_PlausibleWithoutSnippetMode_ThrowsRequiredField()
+    {
+        var config = LoadAnalytics("""
+            providers:
+              - type: plausible
+                domain: example.com
+                scriptUrl: https://plausible.io/js/script.js
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigRequiredFieldMissing, ex.Code);
+        Assert.Contains("snippetMode is required", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("site-specific", "https://plausible.io/js/script.js")]
+    [InlineData("legacy", "https://plausible.io/js/pa-AN07TEST.js")]
+    public void Validate_PlausibleOfficialUrlMustMatchSnippetMode_Throws(
+        string snippetMode,
+        string scriptUrl)
+    {
+        var config = LoadAnalytics($$"""
+            providers:
+              - type: plausible
+                domain: example.com
+                snippetMode: {{snippetMode}}
+                scriptUrl: {{scriptUrl}}
+            """);
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("snippetMode", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("automatic")]
+    [InlineData("site_specific")]
+    public void Validate_InvalidPlausibleSnippetMode_Throws(string snippetMode)
+    {
+        var config = WithProvider(new AnalyticsProviderConfig
+        {
+            Type = "plausible",
+            Domain = "example.com",
+            SnippetMode = snippetMode,
+            ScriptUrl = "https://stats.example.com/tracker.js"
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Contains("snippetMode", ex.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -105,6 +206,7 @@ public sealed class AnalyticsConfigTests : IDisposable
 
     [Theory]
     [InlineData("google-analytics", "containerId:")]
+    [InlineData("google-analytics", "snippetMode: legacy")]
     [InlineData("google-tag-manager", "measurementId:")]
     [InlineData("plausible", "websiteId:")]
     [InlineData("umami", "domain:")]
@@ -126,6 +228,7 @@ public sealed class AnalyticsConfigTests : IDisposable
             providers:
               - type: plausible
                 domain: example.com
+                snippetMode: legacy
                 scriptUrl:
             """);
 
@@ -234,7 +337,9 @@ public sealed class AnalyticsConfigTests : IDisposable
         var config = WithProvider(new AnalyticsProviderConfig
         {
             Type = "plausible",
-            Domain = domain
+            Domain = domain,
+            SnippetMode = "legacy",
+            ScriptUrl = "https://plausible.io/js/script.js"
         });
 
         Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
@@ -294,8 +399,18 @@ public sealed class AnalyticsConfigTests : IDisposable
     public void Validate_IdnAndAsciiEquivalentDomains_AreDuplicateProviderKeys()
     {
         var config = WithProviders(
-            new AnalyticsProviderConfig { Type = "plausible", Domain = "bücher.example" },
-            new AnalyticsProviderConfig { Type = "plausible", Domain = "xn--bcher-kva.example" });
+            new AnalyticsProviderConfig
+            {
+                Type = "plausible", Domain = "bücher.example",
+                SnippetMode = "legacy",
+                ScriptUrl = "https://plausible.io/js/script.js"
+            },
+            new AnalyticsProviderConfig
+            {
+                Type = "plausible", Domain = "xn--bcher-kva.example",
+                SnippetMode = "legacy",
+                ScriptUrl = "https://plausible.io/js/script.js"
+            });
 
         var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
 

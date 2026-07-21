@@ -26,7 +26,8 @@ site:
 
       - type: plausible
         domain: example.com
-        scriptUrl: https://plausible.io/js/script.js
+        snippetMode: site-specific
+        scriptUrl: https://plausible.io/js/pa-EXAMPLE123.js
 
       - type: umami
         websiteId: 00000000-0000-0000-0000-000000000000
@@ -59,9 +60,9 @@ true, but `providers` defaults to an empty array, so a new site emits nothing.
 
 | Type | Required fields | Optional fields | Placement |
 |---|---|---|---|
-| `google-analytics` | `measurementId` | none | end of `<head>` |
-| `google-tag-manager` | `containerId` | none | end of `<head>` and start of `<body>` |
-| `plausible` | `domain` | `scriptUrl` | end of `<head>` |
+| `google-analytics` | `measurementId` | none | after opening `<head>` |
+| `google-tag-manager` | `containerId` | none | after opening `<head>` and `<body>` |
+| `plausible` | `domain`, `snippetMode`, `scriptUrl` | none | end of `<head>` |
 | `umami` | `websiteId`, `scriptUrl` | none | end of `<head>` |
 
 Provider types are exact, lowercase kebab-case values. Provider-specific
@@ -76,11 +77,37 @@ Validation rules are deliberately narrow:
 - Google Tag Manager container IDs match `^GTM-[A-Z0-9]+$`.
 - Plausible domains are DNS host names. Schemes, ports, paths, queries,
   fragments, credentials, and IP addresses are rejected.
+- Plausible `snippetMode` is `site-specific` or `legacy`. Site-specific mode
+  emits the current fixed `async` loader, queue bootstrap, and
+  `plausible.init()` structure without `data-domain`; legacy mode emits the
+  historical `defer + data-domain` tag.
 - Umami website IDs are UUIDs.
 - Script URLs are absolute HTTPS URLs ending in `.js`, with no credentials,
   fragment, or non-default port.
-- Plausible defaults to `https://plausible.io/js/script.js` when `scriptUrl` is
-  omitted. Umami requires an explicit script URL.
+- Plausible and Umami require an explicit script URL. Plausible no longer
+  defaults to the historical `https://plausible.io/js/script.js`; existing
+  installations that need it must select `snippetMode: legacy` explicitly.
+- A site-specific Plausible Cloud URL must use `/js/pa-<site-id>.js`; a `pa-*`
+  URL cannot be labeled legacy.
+
+Plausible assigns the site-specific URL in Site Installation settings. Copy
+that URL exactly. Existing legacy Cloud or self-hosted installations remain
+available explicitly:
+
+```yaml
+- type: plausible
+  domain: example.com
+  snippetMode: legacy
+  scriptUrl: https://plausible.io/js/script.js
+```
+
+See the [Plausible script update guide](https://plausible.io/docs/script-update-guide)
+for the upstream migration boundary.
+
+For `site-specific`, Bukit emits the fixed loader/bootstrap only; it does not
+configure a custom event endpoint or accept arbitrary init options. A
+self-hosted or proxied script URL is therefore suitable only when that script
+is already bound to the correct endpoint.
 
 Providers generate fixed templates. They cannot read files, access the
 network, or accept arbitrary JavaScript, head HTML, or body HTML. Bukit encodes

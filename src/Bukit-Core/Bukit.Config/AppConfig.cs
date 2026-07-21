@@ -78,6 +78,7 @@ public sealed record AnalyticsProviderConfig
     public string? MeasurementId { get; init; }
     public string? ContainerId { get; init; }
     public string? Domain { get; init; }
+    public string? SnippetMode { get; init; }
     public string? WebsiteId { get; init; }
     public string? ScriptUrl { get; init; }
 }

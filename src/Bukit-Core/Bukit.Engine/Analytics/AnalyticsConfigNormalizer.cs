@@ -6,8 +6,6 @@ namespace Bukit.Engine.Analytics;
 
 internal static class AnalyticsConfigNormalizer
 {
-    private const string DefaultPlausibleScriptUrl = "https://plausible.io/js/script.js";
-
     internal static ResolvedAnalyticsConfig Normalize(AnalyticsConfig config)
         => new()
         {
@@ -31,7 +29,8 @@ internal static class AnalyticsConfigNormalizer
                 provider.Type,
                 "domain",
                 new IdnMapping().GetAscii(provider.Domain!).ToLowerInvariant(),
-                ("scriptUrl", provider.ScriptUrl ?? DefaultPlausibleScriptUrl)),
+                ("mode", provider.SnippetMode!),
+                ("scriptUrl", provider.ScriptUrl!)),
             "umami" => Create(
                 provider.Type,
                 "websiteId",

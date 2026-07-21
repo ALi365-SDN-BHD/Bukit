@@ -1,25 +1,25 @@
 # Bukit Analytics 内置插件深度全方位复审报告（2026-07-20）
 
 > 复审日期：2026-07-20（Asia/Kuala_Lumpur）
-> 原复审实现基线：`main@fe27bbbe`；当前整改基线：`main@ed2772f5` 加 AN-06 当前工作树
+> 原复审实现基线：`main@fe27bbbe`；当前整改基线：`main@a7d47702` 加 AN-07 当前工作树
 > 原 Analytics 实现提交：`4103959c`
 > 原报告提交：`9ff5d452`
 > 执行环境：macOS arm64，.NET SDK 10.0.100，Bukit 1.0.10
 > 执行 checkout：审计开始时为 `f076a288`；结束前仓库被外部推进到 `main@f80919f8`。`fe27bbbe..f80919f8` 没有 `src/Bukit-Core` 实现变化，因此本文继续以约定的 `fe27bbbe` 为唯一实现基线。
-> 整改状态：AN-01～AN-05、AN-09 已进入 `main@ed2772f5`；AN-06 于 2026-07-21 在该提交后的当前工作树完成修复和验证，并将 Analytics renderer contract 从 v2 提升到 v3；其余状态不自动变化。
-> 审计阶段边界：复审时只重写本报告。后续整改按发现逐项推进；AN-06 只改变内部 GA fragment 选择与 renderer contract，不修改公共 API、配置 Schema、外部插件协议、Consent/CSP、Provider ID 校验或 YAML 列表契约。
+> 整改状态：AN-01～AN-06、AN-09 已进入 `main@a7d47702`；AN-07 于 2026-07-21 在该提交后的当前工作树完成修复和验证。Analytics renderer contract 的 v3 已提交，AN-07 当前工作树提升到 v4；其余状态不自动变化。
+> 审计阶段边界：复审时只重写本报告。后续整改按发现逐项推进；AN-07 新增 Plausible 显式 `snippetMode` 公共配置属性并同步 JSON Schema、严格校验、运行时和公共 API 基线，不改变外部插件协议或 Consent/CSP 契约。
 
 ## 一、复审结论
 
 原 AN-01～AN-14 均已从当前源码和运行结果重新验证，旧结论没有自动继承。结论如下：
 
-- 当前未解决问题 **7 项**：P0 0 项、P1 0 项、P2 4 项、P3 3 项。
-- 已修复 **7 项**：AN-01～AN-06、AN-09。多个 GA destination 现在共享首个 Provider 的唯一 loader/bootstrap，后续 Provider 仅追加各自 `gtag('config')`；renderer contract v3 进入增量 hash。
+- 当前未解决问题 **6 项**：P0 0 项、P1 0 项、P2 3 项、P3 3 项。
+- 已修复 **8 项**：AN-01～AN-07、AN-09。Plausible 不再静默采用旧通用脚本；新旧片段由显式模式和 URL 契约决定，renderer contract v4 进入增量 hash。
 - 新增确认问题 **0 项**。本轮扩大到共享 Engine、运行模式、原始字节、报告、增量和 Native AOT 后，没有把不稳定假设升级成新编号。
-- 复审基线相关定向测试 **450/450 通过**；AN-02 整改 gate 为 Config **245/245**、CLI **578/578**，AN-03 整改后的 CLI gate 为 **583/583**，AN-05/AN-09 整改后的 Engine gate 为 **1564/1564**，AN-06 整改后的 Engine gate 为 **1566/1566**。测试通过不用于否定仍未覆盖的其他发现。
+- 复审基线相关定向测试 **450/450 通过**；AN-02 整改 gate 为 Config **245/245**、CLI **578/578**，AN-03 整改后的 CLI gate 为 **583/583**，AN-05/AN-09 整改后的 Engine gate 为 **1564/1564**，AN-06 整改后的 Engine gate 为 **1566/1566**，AN-07 整改后的 Config/Engine gate 为 **255/255、1569/1569**。测试通过不用于否定仍未覆盖的其他发现。
 - `osx-arm64` Native AOT 发布成功，发布二进制完成四 Provider 最小真实构建；未加载生成页面，也未向 Analytics 服务发送请求。
 
-主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01～AN-06 与 AN-09 已关闭，P1 已清零；Consent/CSP、Preview fallback fail-open、Plausible 规范漂移等 P2/P3 问题仍不允许宣称生产级隐私完备。
+主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01～AN-07 与 AN-09 已关闭，P1 已清零；Consent/CSP、Preview fallback fail-open 等剩余 P2/P3 问题仍不允许宣称生产级隐私完备。
 
 ## 二、严重度与状态总表
 
@@ -44,9 +44,9 @@
 | AN-04 | 已修复 | 原 P1 | 已修复发布 Bug | fresh build 不再生成原始 `raw.html`；旧 manifest 拥有的旁路文件会在增量升级时删除。 | 高 |
 | AN-05 | **已修复** | 原 P2 | 已修复外部规范漂移 | GA/GTM 现在按槽内配置顺序紧随 opening head；GTM noscript 仍紧随 opening body。 | 高 |
 | AN-06 | **已修复** | 原 P2 | 已修复 Provider 设计缺陷 | 多 GA 共享一套 loader/bootstrap；每个 destination 保留一个有序 config 与独立 marker。 | 高 |
-| AN-07 | 仍存在 | P2 | 外部规范漂移 | Plausible 默认仍使用旧通用 `script.js + data-domain` 模型。 | 高 |
+| AN-07 | **已修复** | 原 P2 | 已修复外部规范漂移 / 配置契约 | Plausible 新旧片段由显式 `snippetMode + scriptUrl` 决定；删除旧默认并拒绝官方 URL/模式错配。 | 高 |
 | AN-08 | 仍存在 | P2 | 安全/隐私风险 | Provider 固定模板没有 Consent Mode、CMP 时序或 CSP nonce/hash 契约。 | 高 |
-| AN-09 | **已修复** | 原 P2 | 已修复增量设计缺陷 | Analytics renderer contract 已进入 framed hash，AN-06 输出变化同步提升为 v3。 | 高 |
+| AN-09 | **已修复** | 原 P2 | 已修复增量设计缺陷 | Analytics renderer contract 已进入 framed hash，AN-07 输出变化同步提升为 v4。 | 高 |
 | AN-10 | 仍存在 | P2 | 已确认字节保真 Bug | Preview/Dev 无条件文本解码再 UTF-8 编码，BOM 被删、非 UTF-8 字节被替换。 | 高 |
 | AN-11 | 仍存在 | P2 | 安全/隐私风险 | Preview 配置缺失或加载失败时静默 fail-open，保留生产追踪。 | 高 |
 | AN-12 | 仍存在 | P3 | 可靠性问题 | Analytics 报告直接截断并覆盖目标文件，不是原子写入。 | 高 |
@@ -63,9 +63,9 @@
 | AN-04 | 确认 | **已修复** | `AssetOutputPlan` 输出所有权修复；fresh/upgrade 两种真实构建转绿。 |
 | AN-05 | 漂移 | **已修复（2026-07-21 整改）** | Google 官方文档重新抓取；混合 Provider、SEO、旧 marker 与真实增量构建均转绿。 |
 | AN-06 | 确认 | **已修复（2026-07-21 整改）** | 三 GA 真实构建为 loader/bootstrap 各 1、config 3；配置顺序、marker、删除与三次幂等回归转绿。 |
-| AN-07 | 漂移 | 仍存在 | Plausible 2026 更新指南与默认值对照。 |
+| AN-07 | 漂移 | **已修复（2026-07-21 整改）** | 删除旧 URL 默认；显式 legacy/site-specific 契约、官方 URL 交叉校验、真实新旧构建和迁移幂等均转绿。 |
 | AN-08 | 风险 | 仍存在 | 配置、片段模型和 Provider 均无 consent/nonce 能力。 |
-| AN-09 | 确认 | **已修复（AN-05/AN-06 依赖整改）** | renderer contract v2 首次进入 framed hash，AN-06 同步提升为 v3；v1/v2/v3 hash 均不等。 |
+| AN-09 | 确认 | **已修复（AN-05～AN-07 依赖整改）** | renderer contract v2 首次进入 framed hash，AN-06/AN-07 同步提升为 v3/v4；v1/v2/v3/v4 hash 均不等。 |
 | AN-10 | 确认 | 仍存在 | HTTP 原始字节证明 BOM/Latin-1 被改变。 |
 | AN-11 | 风险 | 仍存在 | 畸形配置真实 Preview 静默保留管理块。 |
 | AN-12 | 风险 | 仍存在 | 仍为 `File.Create(path)` 直接写入。 |
@@ -92,8 +92,8 @@ flowchart TD
     B -. "AN-02 已修复：wrong-kind 在默认化前失败" .-> C
     A -. "AN-03 已修复：显式 config 快照直达策略" .-> M
     F -. "AN-01 已修复：orphan 不再屏蔽合法块" .-> M
-    G -. "AN-05 已修复 HeadStart；Plausible、CSP、Consent 仍开放" .-> I
-    H -. "AN-09 已修复：renderer contract v3" .-> I
+    G -. "AN-05/AN-07 已修复位置与 Plausible 模式；CSP、Consent 仍开放" .-> I
+    H -. "AN-09 已修复：renderer contract v4" .-> I
     L -. "目标文件直接截断" .-> L
     J -. "AN-04 已修复" .-> I
 ```
@@ -102,7 +102,7 @@ flowchart TD
 
 1. JSON Schema、YAML AST 节点类型、运行时默认值和 CLI 检查曾在 Analytics/plugin 开关处失配；AN-02 已将该范围收敛为同一严格契约。
 2. HTML marker 没有签名或所有权凭据；AN-01 已用线性两遍解析修复可判定的 orphan-before-valid 情形，完整伪造合法 pair 的所有权仍无法从文本本身区分。
-3. Provider 渲染能力曾被压缩为 `HeadEnd/BodyStart` 两个固定槽；AN-05 已补 HeadStart，但 nonce、consent bootstrap 与共享 Google tag bootstrap 仍未建模。
+3. Provider 渲染能力曾被压缩为 `HeadEnd/BodyStart` 两个固定槽且 Plausible 只有单一旧模板；AN-05、AN-06、AN-07 已分别补 HeadStart、共享 Google bootstrap 和显式新旧 Plausible 模式，但 nonce 与 consent bootstrap 仍未建模。
 
 ## 四、发现详情（含整改状态）
 
@@ -171,24 +171,28 @@ flowchart TD
 - **增量闭环：** 可观察输出变化将 `AnalyticsRendererContract.Version` 从 v2 提升为 v3；v1、v2、v3 framed hash 两两相异，旧契约 manifest 不会复用多 bootstrap 页面。Provider 列表及顺序本身仍由既有 hasher 覆盖。
 - **根因与关闭依据：** 原根因为逐 Provider 无状态调用完整 GA renderer；现在 Transform 作为唯一持有完整有序 Provider 列表的层，显式跟踪是否已渲染 GA bootstrap。源码闭环、原复现转绿、真实构建计数和 renderer hash 证据均成立。
 - **影响范围：** 所有配置两个或以上不同 GA measurement ID 的 Content、List、Static 与多语言页面；单 GA、GTM body、Plausible、Umami、配置 Schema 和外部插件协议不变。
-- **修复边界：** 没有把 GA 合并为单一 shared marker，也没有把后续 GA 提前越过中间 Provider；每个 destination 仍有独立 managed block。Consent/CSP、Plausible 和禁用时 hash 裁剪分别留在 AN-08、AN-07、AN-14。
+- **修复边界：** 没有把 GA 合并为单一 shared marker，也没有把后续 GA 提前越过中间 Provider；每个 destination 仍有独立 managed block。Consent/CSP 和禁用时 hash 裁剪分别留在 AN-08、AN-14；Plausible 随后的 AN-07 整改独立完成。
 - **回归测试：** `AnalyticsHtmlTransformTests:78-129` 覆盖双/三 GA 一套 bootstrap、N config、首 ID loader、GTM 交错顺序、三个 marker、三次字节幂等和移除 destination；单 GA exact golden 继续通过；`RenderDependencyHasherTests:178-204` 覆盖 v1/v2/v3。
 
 官方基线（抓取日期 2026-07-21）：[Google 配置多个 destination](https://developers.google.com/tag-platform/gtagjs/configure)。文档示例在首个 tag 初始化后追加第二个 `config`，且页面标注最后更新于 2026-05-12 UTC。
 
-### AN-07 — P2：Plausible 默认仍绑定旧通用脚本模型
+### AN-07 — 原 P2：Plausible 默认绑定旧通用脚本模型（已修复）
 
-- **置信度 / 分类：** 高；外部规范漂移。
-- **源码位置：** `SiteDefaultsApplier.cs:98-113`；`PlausibleProvider.cs:7-12`；`ConfigJsonSchemaGenerator.cs:226-233`。
-- **最小复现：** Plausible 只配置 `domain`，不配置 `scriptUrl`。
-- **命令与输出：** 探针输出 `PLAUSIBLE_LEGACY_URL=True`、`PLAUSIBLE_DATA_DOMAIN=True`；真实构建生成 `https://plausible.io/js/script.js` 和 `data-domain`。
-- **期望 / 实际：** 2025-10 后 Plausible Cloud 新机制使用站点设置中生成的 unique per-site snippet；实际 Bukit 默认继续生成旧通用脚本，无法表达官方 snippet 的站点专属 URL/属性组合。
-- **根因：** Schema 和 defaults 将历史 URL 固化为协议默认，Provider 仅接受 domain/scriptUrl 两个字段。
-- **影响范围：** 新 Plausible Cloud 站点和启用新版 snippet 的迁移站点；旧站点和自托管 URL 不必然立即失效，因此本项不是“所有用户均坏”。
-- **修复边界：** 明确区分 legacy、自托管和 site-specific snippet；优先允许完整受控 snippet 参数或官方生成 URL，并提供兼容期诊断，不能静默改写现有站点语义。
-- **回归测试：** 新站点专属片段、旧式显式 URL、自托管、IDN 域名、属性转义、迁移警告与 Schema 示例。
+- **状态 / 置信度 / 分类：** 已修复；高；已修复外部规范漂移、配置契约缺陷。
+- **源码位置：** `AppConfig.cs:74-84`；`SiteDefaultsApplier.cs:88-115`；`I18nValidator.cs:203-253`；`ConfigJsonSchemaGenerator.cs:214-290`；`AnalyticsConfigNormalizer.cs:28-33`；`PlausibleProvider.cs:7-27`；`AnalyticsRendererContract.cs:3-5`。
+- **原最小复现：** Plausible 只配置 `domain`；修复前 Schema/defaults 静默补入 `https://plausible.io/js/script.js`，真实构建固定生成旧式 `defer + data-domain`，无法表达 2025-10 后站点专属脚本及初始化片段。
+- **TDD RED：** 新配置/Engine 用例首先因 `AnalyticsProviderConfig` 没有 `SnippetMode` 无法编译；补齐模型后，旧默认、缺失模式可通过以及仅有旧模板的行为继续使契约测试失败，证明缺口位于公共配置到渲染的完整链路。
+- **修复实现：** 公共配置新增必填 `snippetMode: site-specific|legacy`，两种模式均显式要求 `domain + scriptUrl`；删除旧通用 URL 默认。JSON Schema 以条件规则表达模式/URL 组合，严格字段白名单、YAML AST、默认值读取、运行时验证和标准化保持一致。Plausible Cloud URL 额外交叉校验：`site-specific` 必须使用 `/js/pa-<site-id>.js`，该路径不得声明为 `legacy`。
+- **期望 / 实际：** `site-specific` 生成官方结构的 `async` 外链、固定 queue/bootstrap 与 `plausible.init()`，不再输出 `data-domain`；`legacy` 精确保留旧式 `defer data-domain + src`。两者继续使用 IDN 规范化后的 `plausible:<domain>` 稳定 Provider key，因此切换模式会替换同一 managed block，而不是残留两套脚本。
+- **真实命令与输出：** 在 `/tmp/bukit-an05-reaudit-tS7Q4g/site` 以合成 URL 执行两次源码 CLI 构建。site-specific 输出各 1 个 `pa-AN07TEST.js`、queue bootstrap 和 `plausible.init()`，旧 script/data-domain 计数为 0；legacy 输出恰有 1 个 `defer data-domain="example.test"` 且没有 init。删除 `snippetMode` 后 `config check` 退出 1，并输出 `site.analytics.providers[1].snippetMode is required.`；未加载页面、未发出追踪请求。
+- **根因闭环：** 原实现把一项会随 Plausible 站点设置变化的旧 URL 固化为 Bukit 默认值，并把 Provider 渲染压缩为单一模板。当前配置必须显式选择兼容模式和脚本 URL，运行时不会再猜测或静默迁移用户语义。
+- **增量闭环：** 可观察 HTML 契约将 `AnalyticsRendererContract.Version` 从 v3 提升为 v4；v1/v2/v3/v4 framed hash 均不等。legacy→site-specific 的同 key Transform 会清除旧块、只保留一个新块，第三次结果字节相等。
+- **公共 API 与迁移影响：** `AnalyticsProviderConfig.SnippetMode` 是唯一新增公共成员，已通过 candidate baseline 逐项比对并写入治理基线。现有仅配置 `domain` 或依赖旧默认的站点会有意 fail-fast；继续旧行为需显式增加 `snippetMode: legacy` 和原脚本 URL，迁移新机制则使用 `site-specific` 与 Plausible Site Installation 提供的完整 URL。这是可见但受控的配置破坏性收紧，不宣称向后兼容。
+- **影响范围：** Plausible Cloud 新站点、旧 Cloud 站点、自托管/代理脚本和 IDN domain；没有改变 GA/GTM/Umami、外部插件协议或 managed marker 格式。
+- **修复边界：** 本项只提供固定安全模板和显式 URL，不接受任意 HTML、JavaScript 或初始化选项，也不新增 endpoint 覆盖。site-specific 自托管/代理脚本只有在该脚本自身已绑定正确 endpoint 时可用；CSP nonce、授权前加载和 CMP 时序仍属于 AN-08。
+- **回归测试：** 缺失/非法模式、缺失 URL、Plausible Cloud URL/模式错配、未知/跨 Provider 字段、IDN key、legacy exact golden、site-specific exact golden、属性转义、模式 hash 差异、同 key 迁移清理和三次幂等；仓库 targeted gate 为 Config 255/255、Engine 1569/1569，公共 API drift 检查通过。
 
-官方基线（抓取日期 2026-07-20）：[Plausible script update guide](https://plausible.io/docs/script-update-guide)。
+官方基线（抓取日期 2026-07-21）：[Plausible script update guide](https://plausible.io/docs/script-update-guide)、[Plausible 当前脚本指南](https://plausible.io/docs/plausible-script)、[官方 site-specific snippet 示例](https://plausible.io/docs/proxy/guides/laravel)。官方同时说明旧片段仍可工作，因此本修复保留显式 legacy 模式，而非强制改写现有站点。
 
 ### AN-08 — P2：Consent Mode 与严格 CSP 缺少一等集成契约
 
@@ -206,14 +210,14 @@ flowchart TD
 
 ### AN-09 — 原 P2：增量哈希不包含 Analytics 渲染契约版本（已修复）
 
-- **置信度 / 分类：** 高；历史增量设计缺陷；作为 AN-05 与 AN-06 的生效依赖已修复。
+- **置信度 / 分类：** 高；历史增量设计缺陷；作为 AN-05～AN-07 的生效依赖已修复。
 - **源码位置：** `AnalyticsRendererContract.cs:1-6`；`RenderDependencyHasher.cs:14-18,54-75`；`VariantBuildPipeline.cs:556-608`。
 - **历史根因：** Render Dependency Hash 只建模配置输入，没有建模 Provider/marker/位置生成器契约，升级二进制仍可能与旧 manifest hash 相等。
-- **修复实现：** 新增单一内部 `AnalyticsRendererContract.Version`，以 `analytics.rendererContractVersion` framed value 进入基础渲染依赖 hash；AN-05 的 HeadStart 变化以 v2 为升级边界，AN-06 的多 destination 变化同步提升到当前 v3。
-- **期望 / 实际：** 同配置下显式 contract v1/v2/v3 计算得到不同 hash；旧 manifest 人工置入 v1 结果后 AN-05 真实 `--no-clean --incremental` 构建重新渲染并更新，AN-06 进一步证明默认值等于 v3。
+- **修复实现：** 新增单一内部 `AnalyticsRendererContract.Version`，以 `analytics.rendererContractVersion` framed value 进入基础渲染依赖 hash；AN-05 的 HeadStart 变化以 v2 为升级边界，AN-06 的多 destination 变化提升为 v3，AN-07 的 Plausible 模式变化同步提升到当前 v4。
+- **期望 / 实际：** 同配置下显式 contract v1/v2/v3/v4 计算得到不同 hash；旧 manifest 人工置入 v1 结果后 AN-05 真实 `--no-clean --incremental` 构建重新渲染并更新，AN-06/AN-07 进一步证明默认值依次升级且当前等于 v4。
 - **影响范围：** Provider snippet、marker 格式、注入位置、转义或后续 consent 渲染逻辑的二进制升级；未来每次可观察 HTML 契约变化仍必须显式提升该版本。
 - **修复边界：** 没有改变 manifest schema，也没有顺带裁剪 disabled 配置的过度失效；后者仍属于 AN-14。
-- **回归测试：** `Compute_AnalyticsRendererContractVersionChange_ProducesDifferentHash`；AN-05 真实 legacy hash 升级；Provider golden 与当前 contract v3 同批维护。
+- **回归测试：** `Compute_AnalyticsRendererContractVersionChange_ProducesDifferentHash`；AN-05 真实 legacy hash 升级；Provider golden、Plausible 模式 hash 与当前 contract v4 同批维护。
 
 ### AN-10 — P2：Preview/Dev 无条件破坏 HTML 原始字节
 
@@ -325,13 +329,13 @@ flowchart TD
 - 无 head 时 head Provider 不注入并记录 `head_missing`；无 body 时 GTM body 片段不注入并记录 `body_missing`。
 - 大小写 tag 和常规畸形 HTML 由 `HtmlHeadScanner` 处理；AN-01 的 orphan-before-valid 情形已经整改并加入 Engine/CLI 回归测试。
 
-### 6.4 官方 Provider 对照（2026-07-20）
+### 6.4 官方 Provider 对照（更新至 2026-07-21）
 
 | Provider | 当前状态 |
 |---|---|
 | GA4 | ID 校验、HTML/JS 转义和 head-start 位置有效；多 destination 共享 bootstrap，保留独立 marker 与配置顺序。 |
 | GTM | head-start 与 body noscript 位置正确；Consent/CSP 仍存在 AN-08。 |
-| Plausible | 显式自托管 HTTPS URL 可用；默认协议存在 AN-07。 |
+| Plausible | site-specific/legacy 均为显式模式和 URL；Cloud `pa-*` URL 交叉校验，旧通用默认已删除。CSP/CMP 仍存在 AN-08。 |
 | Umami | 当前 `defer src + data-website-id` 核心形式与官方配置兼容；自托管 URL 和 UUID 校验正确，未发现确认兼容 Bug。 |
 
 官方资料：[Google tag](https://developers.google.com/tag-platform/gtagjs)、[GTM](https://support.google.com/tagmanager/answer/14847097?hl=en)、[Consent Mode](https://developers.google.com/tag-platform/security/guides/consent)、[Google CSP](https://developers.google.com/tag-platform/security/guides/csp)、[Plausible](https://plausible.io/docs/script-update-guide)、[Umami](https://docs.umami.is/docs/tracker-configuration)。
@@ -406,15 +410,23 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 - 仓库代码 targeted gate：沙箱内 `brainstorm-server-self-test` 因进程可见性在 `mv-1` 误判，沙箱外同一命令退出 0，Engine Release **1566/1566**，并通过文档契约、public API drift、brainstorm server 与 YAML static context 检查。
 - 只读 subagent 在实现前识别“合并为首个 shared marker 会跨越 GTM 并破坏槽内顺序”的风险；最终采用首个完整片段 + 后续独立 config-only marker，未引入该回归。
 
+### 7.9 AN-07 整改验证
+
+- TDD RED：新契约测试因公共配置没有 `SnippetMode` 首先编译失败；补齐模型后，旧默认、缺失模式可通过及单一 legacy 模板继续暴露预期缺口。最终只读复核另发现 Schema 尚未编码 Cloud 模式/URL 交叉约束，新增结构回归先以缺少 `allOf` 失败，再补条件规则转绿。
+- GREEN：Config/Schema 定向测试 69/69，Engine Analytics/Hasher 定向测试 75/75，CLI `ConfigCommandTests` 18/18；缺失/非法模式、缺失 URL、Cloud URL/模式错配、新旧 exact golden、IDN、迁移清理、三次幂等及 v1～v4 hash 全部通过。
+- 真实源码 CLI：site-specific 和 legacy 各完成两次最小构建；新模式输出官方固定双片段且没有 `data-domain`，旧模式精确保留旧片段。缺失 `snippetMode` 的 `config check` 退出 1 并报告精确 Provider 路径。
+- 公共 API 治理：candidate snapshot 与现有 baseline 的唯一差异为 `AnalyticsProviderConfig.SnippetMode`；审查该加法后更新治理基线，`public-api-drift.sh check Release` 退出 0。高风险只读复核发现并推动修复 Schema/运行时组合约束漂移；最终复核为 Approved，Critical/Important/Minor 均无。
+- 仓库代码 targeted gate：Config Release **255/255**、Engine Release **1569/1569**，并通过文档契约、公共 API drift、brainstorm server 与 YAML static context 检查。首次文档 gate 把反引号中的服务域名误识别为字段，改为普通产品名称后同一 gate 完整转绿；这不是产品缺陷。
+
 ## 八、测试盲区与已排除问题
 
 ### 8.1 仍需补齐的测试盲区
 
 1. Preview fallback 配置加载失败的退出码、警告和 fail-closed 策略。
 2. BOM、无 BOM、非 UTF-8 原字节直通；Dev LiveReload 编码契约。
-3. 以真实 v2 manifest 固件驱动完整二进制升级到 v3 的端到端回归；当前已有 framed hash 单测和真实输出稳定性证据。
+3. 以真实 v2/v3 manifest 固件驱动完整二进制升级到 v4 的端到端回归；当前已有 framed hash 单测和真实输出稳定性证据。
 4. Native AOT 发布二进制下的多 GA config-only 输出对等性；当前 AOT 基线覆盖四 Provider 单 GA，AN-06 真实构建使用源码 CLI。
-5. Plausible site-specific snippet、Consent Mode、CSP nonce/hash。
+5. Plausible 自托管 site-specific endpoint/高级 init 选项、Consent Mode、CSP nonce/hash；固定 site-specific/legacy 模板已覆盖。
 6. Analytics report 原子写入的故障注入。
 7. Native AOT 下四 Provider + Preview/Dev 组合行为。
 
@@ -444,19 +456,19 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 
 ### 第二批：Provider 兼容与配置契约
 
-剩余范围：AN-07、AN-08；AN-05、AN-06 已完成并保留固定回归。
+剩余范围：AN-08；AN-05、AN-06、AN-07 已完成并保留固定回归。
 
 - AN-05 已完成：支持 HeadStart、按槽分组与槽内稳定顺序，GA/GTM 官方位置真实构建转绿。
 - AN-06 已完成：首个 GA 拥有唯一 bootstrap，后续 destination 使用独立 config-only managed block，槽内配置顺序不变。
-- 设计 Plausible 新/旧/自托管迁移契约。
+- AN-07 已完成：Plausible 新旧模式和 URL 显式化，删除旧默认；Cloud URL/模式错配 fail-fast，site-specific/legacy 真实构建转绿。
 - 在扩展公共 Schema 前先完成 Consent/CSP 的内部威胁模型、默认值和迁移说明。
-- 验收：GA/GTM 官方位置和多 GA 已通过；剩余官方 snippet 结构、严格 CSP、CMP 时序与 Plausible 新旧模式全部通过。
+- 验收：GA/GTM 官方位置、多 GA 和 Plausible 新旧片段已通过；剩余严格 CSP 与 CMP 时序全部通过。
 
 ### 第三批：可靠性与性能
 
 剩余范围：AN-10、AN-12、AN-14；AN-09 已作为 AN-05 的升级闭环完成。
 
-- AN-09 已完成：renderer contract 当前 v3 进入增量 hash，旧页面升级强制重渲染。
+- AN-09 已完成：renderer contract 当前 v4 进入增量 hash，旧页面升级强制重渲染。
 - Preview/Dev 增加原字节 fast path 和明确编码契约。
 - 报告采用同目录临时文件和原子替换。
 - hash 按有效启用状态裁剪，保留 stale-block 清理正确性。
@@ -472,6 +484,6 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 
 ## 十、最终判断
 
-Analytics 已具备可工作的主路径，AN-01～AN-06 与 AN-09 已关闭且 P1 清零；GA/GTM 已回到 2026-07-21 Google 官方安装位置，多 GA 已收敛为单 bootstrap，当前 renderer contract 升级也不会复用旧页面。但 AN-08 的 Consent/CSP 缺口与 AN-11 的 Preview fallback fail-open 仍使生产级隐私完备声明不成立。其后优先处理 Plausible 规范迁移和 Consent/CSP，再收敛字节保真、报告原子性和 linked-source 债务。
+Analytics 已具备可工作的主路径，AN-01～AN-07 与 AN-09 已关闭且 P1 清零；GA/GTM 已回到 2026-07-21 Google 官方安装位置，多 GA 已收敛为单 bootstrap，Plausible 新旧片段有显式迁移契约，当前 renderer contract 升级也不会复用旧页面。但 AN-08 的 Consent/CSP 缺口与 AN-11 的 Preview fallback fail-open 仍使生产级隐私完备声明不成立。下一项应先处理 AN-08，再收敛字节保真、报告原子性和 linked-source 债务。
 
 本报告的原复审结论来自 `fe27bbbe`，整改状态已按顶部列出的当前提交与工作树重新验证；所有状态变化均有源码、RED/GREEN、真实构建或官方规范证据。未成功复现的假设仍保留在测试盲区或已排除项中，没有伪装成确认 Bug。

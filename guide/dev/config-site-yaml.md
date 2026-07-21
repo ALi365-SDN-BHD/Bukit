@@ -97,14 +97,15 @@ Strict provider ownership is:
 |---|---|
 | `google-analytics` | `type`, `measurementId` |
 | `google-tag-manager` | `type`, `containerId` |
-| `plausible` | `type`, `domain`, `scriptUrl` |
+| `plausible` | `type`, `domain`, `snippetMode`, `scriptUrl` |
 | `umami` | `type`, `websiteId`, `scriptUrl` |
 
 Validation normalizes Plausible IDN domains for duplicate detection and
 requires script URLs to be absolute HTTPS `.js` URLs without credentials,
 fragments, or non-default ports. Provider values are never arbitrary script
-text. The loader supplies Plausible's default script URL only when its key is
-omitted; an explicitly empty value remains invalid.
+text. Plausible requires explicit `site-specific` or `legacy` `snippetMode`
+and an explicit `scriptUrl`; there is no legacy URL default. For Plausible
+Cloud, mode and the `/js/pa-<site-id>.js` path must agree.
 
 Breaking removal: the former googleAnalyticsId and disableInPreview keys are
 unknown fields. They are not aliases or deprecated inputs, and no loader,

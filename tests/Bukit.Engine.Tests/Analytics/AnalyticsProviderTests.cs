@@ -61,12 +61,38 @@ public sealed class AnalyticsProviderTests
                 "plausible",
                 "plausible:example.com",
                 ("domain", "example.com"),
+                ("mode", "legacy"),
                 ("scriptUrl", "https://plausible.io/js/script.js")),
             FakeContext);
 
         Assert.Equal("plausible:example.com", fragments.ProviderKey);
         Assert.Equal(
             "<script defer data-domain=\"example.com\" src=\"https://plausible.io/js/script.js\"></script>",
+            fragments.HeadEnd);
+        Assert.Null(fragments.HeadStart);
+        Assert.Null(fragments.BodyStart);
+    }
+
+    [Fact]
+    public void Plausible_RenderSiteSpecific_ReturnsOfficialSnippetStructure()
+    {
+        var fragments = new PlausibleProvider().Render(
+            Provider(
+                "plausible",
+                "plausible:0123456789abcdef",
+                ("mode", "site-specific"),
+                ("scriptUrl", "https://plausible.io/js/pa-AN07TEST.js")),
+            FakeContext);
+
+        Assert.Equal("plausible:0123456789abcdef", fragments.ProviderKey);
+        Assert.Equal(
+            """
+            <script async src="https://plausible.io/js/pa-AN07TEST.js"></script>
+            <script>
+            window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+            plausible.init()
+            </script>
+            """,
             fragments.HeadEnd);
         Assert.Null(fragments.HeadStart);
         Assert.Null(fragments.BodyStart);
@@ -121,6 +147,7 @@ public sealed class AnalyticsProviderTests
                 "plausible",
                 "plausible:unsafe",
                 ("domain", "a\"&<b.example"),
+                ("mode", "legacy"),
                 ("scriptUrl", "https://example.com/script.js?x=\"&y=<")),
             FakeContext);
 
@@ -165,6 +192,7 @@ public sealed class AnalyticsProviderTests
                     "plausible",
                     "plausible:example.com",
                     ("domain", "example.com"),
+                    ("mode", "legacy"),
                     ("scriptUrl", "https://plausible.io/js/script.js"))),
             (new UmamiProvider(),
                 Provider(

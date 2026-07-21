@@ -129,6 +129,33 @@ public sealed class AnalyticsHtmlTransformTests
     }
 
     [Fact]
+    public void Transform_MigratesPlausibleLegacyBlockToSiteSpecificAndRemainsIdempotent()
+    {
+        var legacy = CreateTransform(Provider(
+            "plausible",
+            domain: "example.com",
+            snippetMode: "legacy",
+            scriptUrl: "https://plausible.io/js/script.js"));
+        var siteSpecific = CreateTransform(Provider(
+            "plausible",
+            domain: "example.com",
+            snippetMode: "site-specific",
+            scriptUrl: "https://plausible.io/js/pa-AN07TEST.js"));
+        const string html = "<html><head></head><body></body></html>";
+
+        var legacyHtml = legacy.Transform(Context(), html);
+        var upgraded = siteSpecific.Transform(Context(), legacyHtml);
+        var repeated = siteSpecific.Transform(Context(), upgraded);
+
+        Assert.DoesNotContain("data-domain", upgraded, StringComparison.Ordinal);
+        Assert.DoesNotContain("/js/script.js", upgraded, StringComparison.Ordinal);
+        Assert.Contains("<script async src=\"https://plausible.io/js/pa-AN07TEST.js\"></script>", upgraded, StringComparison.Ordinal);
+        Assert.Contains("plausible.init()", upgraded, StringComparison.Ordinal);
+        Assert.Equal(1, Count(upgraded, "bukit:analytics:plausible:example.com:head:start"));
+        Assert.Equal(upgraded, repeated);
+    }
+
+    [Fact]
     public void Transform_SkipsOnlyTheLocationWhoseContainerIsMissing()
     {
         var transform = CreateTransform(Provider("google-tag-manager", containerId: "GTM-ONLY"));
@@ -393,6 +420,7 @@ public sealed class AnalyticsHtmlTransformTests
         string? measurementId = null,
         string? containerId = null,
         string? domain = null,
+        string? snippetMode = null,
         string? websiteId = null,
         string? scriptUrl = null)
         => new()
@@ -401,6 +429,7 @@ public sealed class AnalyticsHtmlTransformTests
             MeasurementId = measurementId,
             ContainerId = containerId,
             Domain = domain,
+            SnippetMode = snippetMode ?? (type == "plausible" ? "legacy" : null),
             WebsiteId = websiteId,
             ScriptUrl = scriptUrl
         };

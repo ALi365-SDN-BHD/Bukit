@@ -6,6 +6,8 @@ namespace Bukit.Config;
 public static class ConfigJsonSchemaGenerator
 {
     private const string AnalyticsScriptUrlPattern = "^https://(?![^/?#]*@)(?:\\[[0-9A-Fa-f:.]+\\]|[^/?#:@]+)(?::443)?/[^?#]*\\.js(?:\\?[^#]*)?$";
+    private const string PlausibleCloudScriptUrlPrefixPattern = "^https://[Pp][Ll][Aa][Uu][Ss][Ii][Bb][Ll][Ee]\\.[Ii][Oo](?::443)?/";
+    private const string PlausibleCloudSiteSpecificScriptUrlPattern = "^https://[Pp][Ll][Aa][Uu][Ss][Ii][Bb][Ll][Ee]\\.[Ii][Oo](?::443)?/js/pa-[A-Za-z0-9_-]+\\.js(?:\\?[^#]*)?$";
 
     public static string Generate()
     {
@@ -222,15 +224,7 @@ public static class ConfigJsonSchemaGenerator
                 "google-tag-manager",
                 ["type", "containerId"],
                 ("containerId", Obj(("type", "string"), ("pattern", "^GTM-[A-Z0-9]+$")))),
-            AnalyticsProviderVariant(
-                "plausible",
-                ["type", "domain"],
-                ("domain", Obj(("type", "string"), ("format", "idn-hostname"))),
-                ("scriptUrl", Obj(
-                    ("type", "string"),
-                    ("format", "uri"),
-                    ("pattern", AnalyticsScriptUrlPattern),
-                    ("default", "https://plausible.io/js/script.js")))),
+            PlausibleAnalyticsProviderVariant(),
             AnalyticsProviderVariant(
                 "umami",
                 ["type", "websiteId", "scriptUrl"],
@@ -239,6 +233,41 @@ public static class ConfigJsonSchemaGenerator
                     ("type", "string"),
                     ("format", "uri"),
                     ("pattern", AnalyticsScriptUrlPattern))))
+        ]);
+        return schema;
+    }
+
+    private static JsonObject PlausibleAnalyticsProviderVariant()
+    {
+        var schema = AnalyticsProviderVariant(
+            "plausible",
+            ["type", "domain", "snippetMode", "scriptUrl"],
+            ("domain", Obj(("type", "string"), ("format", "idn-hostname"))),
+            ("snippetMode", EnumSchema("site-specific", "legacy")),
+            ("scriptUrl", Obj(
+                ("type", "string"),
+                ("format", "uri"),
+                ("pattern", AnalyticsScriptUrlPattern))));
+
+        var siteSpecificCloudCondition = Obj(("properties", Obj(
+            ("snippetMode", Obj(("const", "site-specific"))),
+            ("scriptUrl", Obj(("pattern", PlausibleCloudScriptUrlPrefixPattern))))));
+        siteSpecificCloudCondition["required"] = Arr("snippetMode", "scriptUrl");
+
+        var legacyCondition = Obj(("properties", Obj(
+            ("snippetMode", Obj(("const", "legacy"))))));
+        legacyCondition["required"] = Arr("snippetMode", "scriptUrl");
+
+        schema["allOf"] = new JsonArray(
+        [
+            Obj(
+                ("if", siteSpecificCloudCondition),
+                ("then", Obj(("properties", Obj(
+                    ("scriptUrl", Obj(("pattern", PlausibleCloudSiteSpecificScriptUrlPattern)))))))),
+            Obj(
+                ("if", legacyCondition),
+                ("then", Obj(("properties", Obj(
+                    ("scriptUrl", Obj(("not", Obj(("pattern", PlausibleCloudSiteSpecificScriptUrlPattern))))))))))
         ]);
         return schema;
     }

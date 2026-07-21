@@ -103,16 +103,53 @@ public sealed class ConfigJsonSchemaGeneratorTests
             new[] { "type", "containerId" },
             providerVariants[1].GetProperty("required").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal(
-            new[] { "type", "domain" },
+            new[] { "type", "domain", "snippetMode", "scriptUrl" },
             providerVariants[2].GetProperty("required").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal(
             new[] { "type", "websiteId", "scriptUrl" },
             providerVariants[3].GetProperty("required").EnumerateArray().Select(item => item.GetString()));
         var plausibleProperties = providerVariants[2].GetProperty("properties");
         Assert.Equal("idn-hostname", plausibleProperties.GetProperty("domain").GetProperty("format").GetString());
-        var plausibleScriptUrl = plausibleProperties.GetProperty("scriptUrl");
-        Assert.Equal("https://plausible.io/js/script.js", plausibleScriptUrl.GetProperty("default").GetString());
-        AssertScriptUrlSchemaPattern(plausibleScriptUrl.GetProperty("pattern").GetString());
+        Assert.Equal(
+            new[] { "site-specific", "legacy" },
+            plausibleProperties.GetProperty("snippetMode").GetProperty("enum").EnumerateArray().Select(item => item.GetString()));
+        AssertScriptUrlSchemaPattern(
+            plausibleProperties.GetProperty("scriptUrl").GetProperty("pattern").GetString());
+        var plausibleModeUrlRules = providerVariants[2].GetProperty("allOf");
+        Assert.Equal(2, plausibleModeUrlRules.GetArrayLength());
+        Assert.Equal(
+            "site-specific",
+            plausibleModeUrlRules[0]
+                .GetProperty("if")
+                .GetProperty("properties")
+                .GetProperty("snippetMode")
+                .GetProperty("const")
+                .GetString());
+        var cloudSiteSpecificPattern = plausibleModeUrlRules[0]
+            .GetProperty("then")
+            .GetProperty("properties")
+            .GetProperty("scriptUrl")
+            .GetProperty("pattern")
+            .GetString();
+        Assert.Matches(cloudSiteSpecificPattern!, "https://plausible.io/js/pa-EXAMPLE_1.js");
+        Assert.DoesNotMatch(cloudSiteSpecificPattern!, "https://plausible.io/js/script.js");
+        Assert.Equal(
+            "legacy",
+            plausibleModeUrlRules[1]
+                .GetProperty("if")
+                .GetProperty("properties")
+                .GetProperty("snippetMode")
+                .GetProperty("const")
+                .GetString());
+        Assert.Equal(
+            cloudSiteSpecificPattern,
+            plausibleModeUrlRules[1]
+                .GetProperty("then")
+                .GetProperty("properties")
+                .GetProperty("scriptUrl")
+                .GetProperty("not")
+                .GetProperty("pattern")
+                .GetString());
         AssertScriptUrlSchemaPattern(
             providerVariants[3].GetProperty("properties").GetProperty("scriptUrl").GetProperty("pattern").GetString());
 

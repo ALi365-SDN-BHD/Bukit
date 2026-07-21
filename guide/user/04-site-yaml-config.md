@@ -118,8 +118,9 @@ content:
 | Provider `measurementId` | none | Required only for Google Analytics; must match `^G-[A-Z0-9]+$`. |
 | Provider `containerId` | none | Required only for Google Tag Manager; must match `^GTM-[A-Z0-9]+$`. |
 | Provider `domain` | none | Required only for Plausible; must be a DNS host name without scheme, port, path, credentials, or an IP address. |
+| Provider `snippetMode` | none | Required only for Plausible; must be `site-specific` or `legacy`. |
 | Provider `websiteId` | none | Required only for Umami; must be a UUID. |
-| Provider `scriptUrl` | provider-specific | Optional for Plausible, whose default is `https://plausible.io/js/script.js`; required for Umami. It must be an absolute HTTPS `.js` URL without credentials or a fragment. |
+| Provider `scriptUrl` | none | Required for Plausible and Umami. It must be an absolute HTTPS `.js` URL without credentials or a fragment; site-specific Plausible Cloud URLs use `/js/pa-<site-id>.js`. |
 
 Both Analytics switches must be enabled, at least one provider must be valid,
 and the execution-mode policy must allow output. Analytics is a Core built-in
