@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -43,12 +45,13 @@ internal static class SyncCacheManager
             : Path.GetFullPath(Path.Combine(rootDir, cacheFile));
 
         var root = Path.GetFullPath(rootDir);
+        var cacheRoot = Path.GetFullPath(Path.Combine(root, ".cache", "wechat-sync"));
+        EnsureNoSymbolicLinks(root, path, "cache path");
         if (!PathUtils.IsSameOrSubPathOf(path, root))
         {
             throw new InvalidOperationException("wechat-sync cacheFile must stay under the project root.");
         }
 
-        var cacheRoot = Path.GetFullPath(Path.Combine(root, ".cache", "wechat-sync"));
         if (!PathUtils.IsSubPathOf(path, cacheRoot))
         {
             throw new InvalidOperationException("wechat-sync cacheFile must stay under .cache/wechat-sync.");
@@ -57,7 +60,7 @@ internal static class SyncCacheManager
         return path;
     }
 
-    internal static async Task<FileStream> AcquireRunLockAsync(
+    internal static async Task<RunLockHandle> AcquireRunLockAsync(
         string rootDir,
         string cachePath,
         TimeSpan timeout,
@@ -82,36 +85,158 @@ internal static class SyncCacheManager
         ValidateManagedPath(rootDir, cachePath, "cache file");
         ValidateManagedPath(rootDir, lockPath, "lock file");
 
-        var stopwatch = Stopwatch.StartNew();
-        while (true)
+        var guardPath = Path.Combine(cacheDir, $".{Path.GetFileName(cachePath)}.{Guid.NewGuid():N}.run-guard");
+        ValidateManagedPath(rootDir, guardPath, "cache directory identity guard");
+        var guardToken = RandomNumberGenerator.GetBytes(32);
+        FileStream? guardStream = null;
+        RunLockHandle? handle = null;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            ValidateManagedPath(rootDir, lockPath, "lock file");
+            guardStream = new FileStream(
+                guardPath,
+                FileMode.CreateNew,
+                FileAccess.ReadWrite,
+                FileShare.Read | FileShare.Delete,
+                bufferSize: 1,
+                FileOptions.WriteThrough | FileOptions.DeleteOnClose);
+            guardStream.Write(guardToken);
+            guardStream.Flush(flushToDisk: true);
+            handle = new RunLockHandle(rootDir, cacheDir, guardPath, guardToken, guardStream);
+            guardStream = null;
+            handle.ValidateIdentity();
+
+            var stopwatch = Stopwatch.StartNew();
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                handle.ValidateIdentity();
+                ValidateManagedPath(rootDir, lockPath, "lock file");
+                FileStream? lockStream = null;
+                try
+                {
+                    lockStream = new FileStream(
+                        lockPath,
+                        FileMode.OpenOrCreate,
+                        FileAccess.ReadWrite,
+                        FileShare.None,
+                        bufferSize: 1,
+                        FileOptions.Asynchronous);
+                    handle.ValidateIdentity();
+                    ValidateManagedPath(rootDir, lockPath, "lock file");
+                    handle.AttachLock(lockStream);
+                    lockStream = null;
+                    return handle;
+                }
+                catch (IOException ex)
+                {
+                    lockStream?.Dispose();
+                    var remaining = timeout - stopwatch.Elapsed;
+                    if (remaining <= TimeSpan.Zero)
+                    {
+                        throw new TimeoutException(
+                            $"wechat-sync timed out after {timeout} waiting for cache lock '{lockPath}'.",
+                            ex);
+                    }
+
+                    var delay = remaining < TimeSpan.FromMilliseconds(50)
+                        ? remaining
+                        : TimeSpan.FromMilliseconds(50);
+                    await Task.Delay(delay, cancellationToken);
+                }
+                catch
+                {
+                    lockStream?.Dispose();
+                    throw;
+                }
+            }
+        }
+        catch
+        {
+            if (handle is not null)
+            {
+                await handle.DisposeAsync();
+            }
+            else if (guardStream is not null)
+            {
+                await guardStream.DisposeAsync();
+            }
+
+            throw;
+        }
+    }
+
+    internal sealed class RunLockHandle : IAsyncDisposable
+    {
+        private readonly string _rootDir;
+        private readonly string _cacheDir;
+        private readonly string _guardPath;
+        private readonly byte[] _guardToken;
+        private readonly FileStream _guardStream;
+        private FileStream? _lockStream;
+
+        internal RunLockHandle(
+            string rootDir,
+            string cacheDir,
+            string guardPath,
+            byte[] guardToken,
+            FileStream guardStream)
+        {
+            _rootDir = rootDir;
+            _cacheDir = cacheDir;
+            _guardPath = guardPath;
+            _guardToken = guardToken;
+            _guardStream = guardStream;
+        }
+
+        internal void AttachLock(FileStream lockStream)
+        {
+            if (_lockStream is not null)
+            {
+                throw new InvalidOperationException("wechat-sync run lock is already attached.");
+            }
+
+            _lockStream = lockStream;
+        }
+
+        internal void ValidateIdentity()
+        {
             try
             {
-                return new FileStream(
-                    lockPath,
-                    FileMode.OpenOrCreate,
-                    FileAccess.ReadWrite,
-                    FileShare.None,
-                    bufferSize: 1,
-                    FileOptions.Asynchronous);
-            }
-            catch (IOException ex)
-            {
-                var remaining = timeout - stopwatch.Elapsed;
-                if (remaining <= TimeSpan.Zero)
+                ValidateManagedPath(_rootDir, _cacheDir, "cache directory");
+                ValidateManagedPath(_rootDir, _guardPath, "cache directory identity guard");
+                var currentToken = new byte[_guardToken.Length];
+                using var stream = new FileStream(
+                    _guardPath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete);
+                if (stream.Length != currentToken.Length)
                 {
-                    throw new TimeoutException(
-                        $"wechat-sync timed out after {timeout} waiting for cache lock '{lockPath}'.",
-                        ex);
+                    throw new InvalidOperationException("cache directory identity guard length changed");
                 }
 
-                var delay = remaining < TimeSpan.FromMilliseconds(50)
-                    ? remaining
-                    : TimeSpan.FromMilliseconds(50);
-                await Task.Delay(delay, cancellationToken);
+                stream.ReadExactly(currentToken);
+                if (!CryptographicOperations.FixedTimeEquals(currentToken, _guardToken))
+                {
+                    throw new InvalidOperationException("cache directory identity guard changed");
+                }
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                throw new InvalidOperationException(
+                    "wechat-sync cache directory changed while the run lock was being acquired or held.",
+                    ex);
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_lockStream is not null)
+            {
+                await _lockStream.DisposeAsync();
+            }
+
+            await _guardStream.DisposeAsync();
         }
     }
 
@@ -190,7 +315,7 @@ internal static class SyncCacheManager
                 stream.Flush(flushToDisk: true);
             }
 
-            File.Move(tempPath, path, overwrite: true);
+            CommitAtomicReplacement(tempPath, path);
             ownsTemp = false;
         }
         finally
@@ -207,6 +332,81 @@ internal static class SyncCacheManager
                 }
             }
         }
+    }
+
+    internal static void CommitAtomicReplacement(string tempPath, string destinationPath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            const uint moveFileReplaceExisting = 0x1;
+            const uint moveFileWriteThrough = 0x8;
+            if (!NativeMethods.MoveFileEx(
+                    tempPath,
+                    destinationPath,
+                    moveFileReplaceExisting | moveFileWriteThrough))
+            {
+                var error = Marshal.GetLastPInvokeError();
+                throw new IOException(
+                    $"Could not durably replace wechat-sync cache '{destinationPath}'.",
+                    new Win32Exception(error));
+            }
+
+            return;
+        }
+
+        File.Move(tempPath, destinationPath, overwrite: true);
+        var directory = Path.GetDirectoryName(destinationPath)
+            ?? throw new InvalidOperationException("wechat-sync cache path must have a parent directory.");
+        FlushParentDirectoryMetadata(directory);
+    }
+
+    internal static void FlushParentDirectoryMetadata(string directory)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException(
+                "Windows cache replacement durability is provided by MoveFileEx with MOVEFILE_WRITE_THROUGH.");
+        }
+
+        var descriptor = NativeMethods.Open(directory, flags: 0);
+        if (descriptor < 0)
+        {
+            var error = Marshal.GetLastPInvokeError();
+            throw new IOException(
+                $"Could not open wechat-sync cache directory '{directory}' for metadata flush.",
+                new Win32Exception(error));
+        }
+
+        try
+        {
+            if (NativeMethods.Fsync(descriptor) != 0)
+            {
+                var error = Marshal.GetLastPInvokeError();
+                throw new IOException(
+                    $"Could not flush wechat-sync cache directory '{directory}' metadata.",
+                    new Win32Exception(error));
+            }
+        }
+        finally
+        {
+            _ = NativeMethods.Close(descriptor);
+        }
+    }
+
+    private static class NativeMethods
+    {
+        [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+        internal static extern int Open([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
+
+        [DllImport("libc", EntryPoint = "fsync", SetLastError = true)]
+        internal static extern int Fsync(int descriptor);
+
+        [DllImport("libc", EntryPoint = "close", SetLastError = true)]
+        internal static extern int Close(int descriptor);
+
+        [DllImport("kernel32.dll", EntryPoint = "MoveFileExW", CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool MoveFileEx(string existingFileName, string newFileName, uint flags);
     }
 
     internal static string ComputeContentHash(
@@ -376,8 +576,9 @@ internal static class SyncCacheManager
         if (cache.Records.Any(entry =>
                 string.IsNullOrWhiteSpace(entry.Key) ||
                 entry.Value is null ||
-                entry.Value.WechatDraftId is null ||
-                entry.Value.ContentHash is null ||
+                entry.Value.LastSuccessAt == default ||
+                string.IsNullOrWhiteSpace(entry.Value.WechatDraftId) ||
+                string.IsNullOrWhiteSpace(entry.Value.ContentHash) ||
                 entry.Value.SourceKey is null ||
                 entry.Value.SourceId is null ||
                 entry.Value.Title is null))
@@ -386,26 +587,55 @@ internal static class SyncCacheManager
         }
 
         if (cache.ThumbMediaIds.Any(entry =>
-                string.IsNullOrWhiteSpace(entry.Key) || entry.Value is null))
+                string.IsNullOrWhiteSpace(entry.Key) || string.IsNullOrWhiteSpace(entry.Value)))
         {
             throw new InvalidDataException("Cache contains an invalid thumb media record.");
         }
 
-        if (cache.Version == 3 && cache.Operations.Any(entry =>
-                string.IsNullOrWhiteSpace(entry.Key) ||
-                entry.Value is null ||
-                string.IsNullOrWhiteSpace(entry.Value.State) ||
-                entry.Value.ContentHash is null ||
-                entry.Value.Target is null))
+        if (cache.Version != 3)
         {
-            throw new InvalidDataException("Cache contains an invalid operation record.");
+            return;
+        }
+
+        foreach (var entry in cache.Operations)
+        {
+            var operation = entry.Value;
+            if (string.IsNullOrWhiteSpace(entry.Key) ||
+                operation is null ||
+                string.IsNullOrWhiteSpace(operation.State) ||
+                string.IsNullOrWhiteSpace(operation.ContentHash) ||
+                operation.Target is not ("draft" or "publish") ||
+                operation.UpdatedAt == default ||
+                operation.DraftId is not null && string.IsNullOrWhiteSpace(operation.DraftId) ||
+                operation.PublishId is not null && string.IsNullOrWhiteSpace(operation.PublishId) ||
+                !HasValidOperationIdentifiers(operation))
+            {
+                throw new InvalidDataException("Cache contains an invalid operation record.");
+            }
         }
     }
+
+    private static bool HasValidOperationIdentifiers(SyncOperation operation)
+        => operation.State switch
+        {
+            "DraftSubmitting" => operation.DraftId is null && operation.PublishId is null,
+            "DraftCreated" => !string.IsNullOrWhiteSpace(operation.DraftId) && operation.PublishId is null,
+            "PublishSubmitting" =>
+                operation.Target == "publish" &&
+                !string.IsNullOrWhiteSpace(operation.DraftId) &&
+                operation.PublishId is null,
+            "PublishSubmitted" or "PublishFailed" =>
+                operation.Target == "publish" &&
+                !string.IsNullOrWhiteSpace(operation.DraftId) &&
+                !string.IsNullOrWhiteSpace(operation.PublishId),
+            _ => false
+        };
 
     private static void ValidateManagedPath(string rootDir, string path, string kind)
     {
         var root = Path.GetFullPath(rootDir);
         var cacheRoot = Path.GetFullPath(Path.Combine(root, ".cache", "wechat-sync"));
+        EnsureNoSymbolicLinks(root, path, kind);
         if (!PathUtils.IsSameOrSubPathOf(path, root) || !PathUtils.IsSameOrSubPathOf(path, cacheRoot))
         {
             throw new InvalidOperationException($"wechat-sync {kind} must stay under the project .cache/wechat-sync directory.");
@@ -434,5 +664,48 @@ internal static class SyncCacheManager
 
         throw new InvalidOperationException(
             $"wechat-sync {kind} must stay under the project .cache/wechat-sync directory.");
+    }
+
+    private static void EnsureNoSymbolicLinks(string rootDir, string path, string kind)
+    {
+        var root = Path.GetFullPath(rootDir);
+        var fullPath = Path.GetFullPath(path);
+        var relative = Path.GetRelativePath(root, fullPath);
+        if (Path.IsPathRooted(relative) ||
+            relative.Equals("..", PlatformPathHelper.PathComparison) ||
+            relative.StartsWith(".." + Path.DirectorySeparatorChar, PlatformPathHelper.PathComparison) ||
+            relative.StartsWith(".." + Path.AltDirectorySeparatorChar, PlatformPathHelper.PathComparison))
+        {
+            throw new InvalidOperationException($"wechat-sync {kind} must stay under the project root.");
+        }
+
+        var current = root;
+        ThrowIfSymbolicLinkOrReparsePoint(current, kind);
+        foreach (var segment in relative.Split(
+                     [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                     StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, segment);
+            ThrowIfSymbolicLinkOrReparsePoint(current, kind);
+
+            if (!File.Exists(current) && !Directory.Exists(current))
+            {
+                break;
+            }
+        }
+    }
+
+    private static void ThrowIfSymbolicLinkOrReparsePoint(string path, string kind)
+    {
+        var file = new FileInfo(path);
+        var directory = new DirectoryInfo(path);
+        if (file.LinkTarget is not null ||
+            directory.LinkTarget is not null ||
+            (file.Exists || directory.Exists) &&
+            (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+        {
+            throw new InvalidOperationException(
+                $"wechat-sync {kind} must not contain a symbolic link or reparse point: '{path}'.");
+        }
     }
 }

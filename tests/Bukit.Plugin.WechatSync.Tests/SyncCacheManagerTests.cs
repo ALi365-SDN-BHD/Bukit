@@ -15,7 +15,7 @@ public sealed class SyncCacheManagerTests : IDisposable
 
     public SyncCacheManagerTests()
     {
-        _rootDir = Path.Combine(Path.GetTempPath(), "bukit-wechat-cache-tests-" + Guid.NewGuid().ToString("N"));
+        _rootDir = Path.Combine(AppContext.BaseDirectory, "bukit-wechat-cache-tests-" + Guid.NewGuid().ToString("N"));
         _cacheDir = Path.Combine(_rootDir, ".cache", "wechat-sync");
         _cachePath = Path.Combine(_cacheDir, "sync-cache.json");
         Directory.CreateDirectory(_cacheDir);
@@ -70,6 +70,34 @@ public sealed class SyncCacheManagerTests : IDisposable
         Assert.Equal("thumb-1", cache.ThumbMediaIds["HTTPS://EXAMPLE.COM/COVER.PNG"]);
         Assert.False(cache.ThumbMediaIds.ContainsKey("https://example.com/cover.png"));
         AssertOperations(cache, expectedCount: 0);
+    }
+
+    [Fact]
+    public void LoadCache_MigratesV2AndExactlyPreservesHistoricallyAllowedEmptyMetadata()
+    {
+        File.WriteAllText(_cachePath, """
+        {
+          "Version": 2,
+          "Records": {
+            "item-1": {
+              "LastSuccessAt": "2026-07-21T00:00:00+00:00",
+              "WechatDraftId": "draft-1",
+              "ContentHash": "hash-1",
+              "SourceKey": "",
+              "SourceId": "",
+              "Title": ""
+            }
+          },
+          "ThumbMediaIds": {}
+        }
+        """);
+
+        var cache = SyncCacheManager.LoadCache(_cachePath, _logger);
+
+        var record = cache.Records["item-1"];
+        Assert.Equal(string.Empty, record.SourceKey);
+        Assert.Equal(string.Empty, record.SourceId);
+        Assert.Equal(string.Empty, record.Title);
     }
 
     [Fact]
@@ -134,6 +162,110 @@ public sealed class SyncCacheManagerTests : IDisposable
         Assert.Equal(original, File.ReadAllBytes(_cachePath));
     }
 
+    [Theory]
+    [MemberData(nameof(InvalidRecordDocuments))]
+    [MemberData(nameof(InvalidOperationDocuments))]
+    public void LoadCache_InvalidRequiredFieldsOrOperationInvariantsFailClosed(string json)
+    {
+        var original = Encoding.UTF8.GetBytes(json);
+        File.WriteAllBytes(_cachePath, original);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            SyncCacheManager.LoadCache(_cachePath, _logger));
+
+        Assert.Contains("repair or remove", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(original, File.ReadAllBytes(_cachePath));
+    }
+
+    public static IEnumerable<object[]> InvalidRecordDocuments()
+    {
+        const string validRecord = """
+        {
+          "LastSuccessAt": "2026-07-21T00:00:00+00:00",
+          "WechatDraftId": "draft-1",
+          "ContentHash": "hash-1",
+          "SourceKey": "notion",
+          "SourceId": "page-1",
+          "Title": "Title"
+        }
+        """;
+
+        yield return InvalidRecord(" ", validRecord);
+        yield return InvalidRecord("key", validRecord.Replace("2026-07-21T00:00:00+00:00", "0001-01-01T00:00:00+00:00"));
+        yield return InvalidRecord("key", validRecord.Replace("draft-1", " "));
+        yield return InvalidRecord("key", validRecord.Replace("hash-1", " "));
+        yield return InvalidRecord("key", validRecord.Replace("\"SourceKey\": \"notion\",", ""));
+        yield return InvalidRecord("key", validRecord.Replace("\"SourceId\": \"page-1\",", ""));
+        yield return InvalidRecord("key", validRecord.Replace("\"Title\": \"Title\"", "\"Title\": null"));
+        yield return ["""{"Version":3,"Records":{},"ThumbMediaIds":{" ":"thumb-1"},"Operations":{}}"""];
+        yield return ["""{"Version":3,"Records":{},"ThumbMediaIds":{"cover":" "},"Operations":{}}"""];
+    }
+
+    public static IEnumerable<object[]> InvalidOperationDocuments()
+    {
+        yield return InvalidOperation("Unknown", "publish", null, null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("DraftSubmitting", "unknown", null, null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("DraftSubmitting", "draft", null, null, "0001-01-01T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("DraftSubmitting", "draft", null, null, "2026-07-21T00:00:00+00:00", " ");
+        yield return InvalidOperation("DraftSubmitting", "draft", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("DraftCreated", "draft", null, null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("DraftCreated", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishSubmitting", "draft", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishSubmitting", "publish", null, null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishSubmitted", "publish", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishFailed", "publish", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
+    }
+
+    [Theory]
+    [MemberData(nameof(ValidOperationDocuments))]
+    public void LoadCache_AcceptsEverySupportedOperationStateAndTargetCombination(string json)
+    {
+        File.WriteAllText(_cachePath, json);
+
+        var cache = SyncCacheManager.LoadCache(_cachePath, _logger);
+
+        AssertOperations(cache, expectedCount: 1);
+    }
+
+    public static IEnumerable<object[]> ValidOperationDocuments()
+    {
+        yield return InvalidOperation("DraftSubmitting", "draft", null, null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("DraftSubmitting", "publish", null, null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("DraftCreated", "draft", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("DraftCreated", "publish", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishSubmitting", "publish", "draft-1", null, "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishSubmitted", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1");
+        yield return InvalidOperation("PublishFailed", "publish", "draft-1", "publish-1", "2026-07-21T00:00:00+00:00", "hash-1");
+    }
+
+    private static object[] InvalidRecord(string key, string record)
+        => [$"{{\"Version\":3,\"Records\":{{{JsonSerializer.Serialize(key)}:{record}}},\"ThumbMediaIds\":{{}},\"Operations\":{{}}}}"];
+
+    private static object[] InvalidOperation(
+        string state,
+        string target,
+        string? draftId,
+        string? publishId,
+        string updatedAt,
+        string contentHash)
+        => [$$"""
+        {
+          "Version": 3,
+          "Records": {},
+          "ThumbMediaIds": {},
+          "Operations": {
+            "key": {
+              "State": "{{state}}",
+              "ContentHash": "{{contentHash}}",
+              "Target": "{{target}}",
+              "DraftId": {{JsonSerializer.Serialize(draftId)}},
+              "PublishId": {{JsonSerializer.Serialize(publishId)}},
+              "UpdatedAt": "{{updatedAt}}"
+            }
+          }
+        }
+        """];
+
     [Fact]
     public void SaveCache_AtomicallyReplacesAnOpenReadableCacheAndLeavesNoTempFile()
     {
@@ -196,6 +328,29 @@ public sealed class SyncCacheManagerTests : IDisposable
     }
 
     [Fact]
+    public void FlushParentDirectoryMetadata_SucceedsForCacheDirectoryOnCurrentPlatform()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            SyncCacheManager.FlushParentDirectoryMetadata(_cacheDir);
+        }
+    }
+
+    [Fact]
+    public void CommitAtomicReplacement_ReplacesDestinationWithDurablePlatformOperation()
+    {
+        var tempPath = Path.Combine(_cacheDir, ".replacement.tmp");
+        var destinationPath = Path.Combine(_cacheDir, "replacement.json");
+        File.WriteAllText(tempPath, "new");
+        File.WriteAllText(destinationPath, "old");
+
+        SyncCacheManager.CommitAtomicReplacement(tempPath, destinationPath);
+
+        Assert.False(File.Exists(tempPath));
+        Assert.Equal("new", File.ReadAllText(destinationPath));
+    }
+
+    [Fact]
     public void ResolvePath_RejectsCacheFileSymlinkEscapingWechatSyncRoot()
     {
         var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-wechat-cache-file-outside-" + Guid.NewGuid().ToString("N"));
@@ -234,6 +389,52 @@ public sealed class SyncCacheManagerTests : IDisposable
         {
             Directory.Delete(outsideDir, recursive: true);
         }
+    }
+
+    [Fact]
+    public void ResolvePath_RejectsInRootCacheFileSymlinkAlias()
+    {
+        var realCache = Path.Combine(_cacheDir, "real.json");
+        File.WriteAllText(realCache, "{\"Version\":3,\"Records\":{},\"ThumbMediaIds\":{},\"Operations\":{}}");
+        var aliasCache = Path.Combine(_cacheDir, "alias.json");
+        File.CreateSymbolicLink(aliasCache, realCache);
+
+        Assert.True(PathUtils.IsSameOrSubPathOf(aliasCache, _rootDir));
+        Assert.True(PathUtils.IsSubPathOf(aliasCache, _cacheDir));
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/alias.json"));
+
+        Assert.Contains("symbolic link", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(File.Exists(realCache));
+    }
+
+    [Fact]
+    public void ResolvePath_RejectsInRootDirectorySymlinkAlias()
+    {
+        var realDir = Path.Combine(_cacheDir, "real");
+        Directory.CreateDirectory(realDir);
+        var aliasDir = Path.Combine(_cacheDir, "alias");
+        Directory.CreateSymbolicLink(aliasDir, realDir);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/alias/cache.json"));
+
+        Assert.Contains("symbolic link", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ResolvePath_RejectsProjectRootSymlinkAlias()
+    {
+        var realRoot = Path.Combine(_rootDir, "real-project");
+        Directory.CreateDirectory(Path.Combine(realRoot, ".cache", "wechat-sync"));
+        var rootAlias = Path.Combine(_rootDir, "project-alias");
+        Directory.CreateSymbolicLink(rootAlias, realRoot);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            SyncCacheManager.ResolvePath(rootAlias, ".cache/wechat-sync/cache.json"));
+
+        Assert.Contains("symbolic link", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AssertOperations(SyncCache cache, int expectedCount)

@@ -52,7 +52,9 @@ public sealed class WechatSyncWorkflow
             cachePath,
             _runLockTimeout,
             cancellationToken);
+        runLock.ValidateIdentity();
         var cache = SyncCacheManager.LoadCache(cachePath, context.Logger);
+        runLock.ValidateIdentity();
         var forceRetryIgnoreCache = options.Force || ReadTrueFromEnv(options.ForceRetryIgnoreCacheEnv);
         var filtered = FilterCandidates(context, options);
         if (filtered.Count == 0)
@@ -123,14 +125,16 @@ public sealed class WechatSyncWorkflow
 
             if (updated)
             {
+                runLock.ValidateIdentity();
                 SyncCacheManager.SaveCache(cachePath, cache);
+                runLock.ValidateIdentity();
             }
         }
         catch
         {
             if (updated)
             {
-                TrySavePartialCache(cachePath, cache, context.Logger);
+                TrySavePartialCache(cachePath, cache, runLock, context.Logger);
             }
 
             throw;
@@ -223,11 +227,17 @@ public sealed class WechatSyncWorkflow
         throw new InvalidOperationException($"wechat-sync failed for '{candidate.SyncKey}' after {options.MaxAttempts} attempts: {last?.Message}", last);
     }
 
-    private static void TrySavePartialCache(string cachePath, SyncCache cache, Bukit.Shared.ILogger logger)
+    private static void TrySavePartialCache(
+        string cachePath,
+        SyncCache cache,
+        SyncCacheManager.RunLockHandle runLock,
+        Bukit.Shared.ILogger logger)
     {
         try
         {
+            runLock.ValidateIdentity();
             SyncCacheManager.SaveCache(cachePath, cache);
+            runLock.ValidateIdentity();
         }
         catch (Exception ex)
         {

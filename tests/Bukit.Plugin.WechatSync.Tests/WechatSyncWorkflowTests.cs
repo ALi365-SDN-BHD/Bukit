@@ -667,7 +667,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
             var ex = Assert.Throws<InvalidOperationException>(() =>
                 SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/sync-cache.json"));
 
-            Assert.Contains("project root", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("symbolic link", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
