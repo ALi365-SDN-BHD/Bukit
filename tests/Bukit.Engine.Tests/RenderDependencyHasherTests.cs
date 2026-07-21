@@ -194,9 +194,14 @@ public sealed class RenderDependencyHasherTests
             config,
             s_emptySiteModel,
             analyticsRendererContractVersion: "2");
+        var version3 = RenderDependencyHasher.Compute(
+            config,
+            s_emptySiteModel,
+            analyticsRendererContractVersion: "3");
 
         Assert.NotEqual(version1, version2);
-        Assert.Equal(version2, current);
+        Assert.NotEqual(version2, version3);
+        Assert.Equal(version3, current);
     }
 
     [Fact]

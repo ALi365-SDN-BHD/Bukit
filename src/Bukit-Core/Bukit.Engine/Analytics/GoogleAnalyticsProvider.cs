@@ -24,4 +24,18 @@ internal sealed class GoogleAnalyticsProvider : IAnalyticsProvider
 
         return new AnalyticsHtmlFragments(provider.Key, HeadStart: headStart);
     }
+
+    internal AnalyticsHtmlFragments RenderDestination(
+        ResolvedAnalyticsProvider provider,
+        AnalyticsRenderContext context)
+    {
+        var measurementId = AnalyticsValueEncoder.JavaScriptString(provider.Options["measurementId"]);
+        var headStart = $$"""
+            <script>
+            gtag('config', '{{measurementId}}');
+            </script>
+            """;
+
+        return new AnalyticsHtmlFragments(provider.Key, HeadStart: headStart);
+    }
 }

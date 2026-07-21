@@ -55,9 +55,7 @@ internal sealed class AnalyticsHtmlTransform : IHtmlTransform
                 context.OutputPath,
                 context.DocumentKind == HtmlDocumentKind.List,
                 context.ExecutionMode);
-            var fragments = _config.Providers
-                .Select(provider => _providers.GetRequired(provider.Type).Render(provider, renderContext))
-                .ToArray();
+            var fragments = RenderProviderFragments(renderContext);
 
             var result = InjectHeadFragments(cleaned, fragments, out var headInjected, out var headMissing);
             result = InjectBodyFragments(result, fragments, out var bodyInjected, out var bodyMissing);
@@ -83,6 +81,28 @@ internal sealed class AnalyticsHtmlTransform : IHtmlTransform
             _buildState.RecordSkipped(AnalyticsSkipReason.TransformFailed);
             throw;
         }
+    }
+
+    private AnalyticsHtmlFragments[] RenderProviderFragments(AnalyticsRenderContext renderContext)
+    {
+        var fragments = new List<AnalyticsHtmlFragments>(_config.Providers.Count);
+        var googleAnalyticsBootstrapRendered = false;
+        foreach (var provider in _config.Providers)
+        {
+            var renderer = _providers.GetRequired(provider.Type);
+            if (renderer is GoogleAnalyticsProvider googleAnalytics)
+            {
+                fragments.Add(googleAnalyticsBootstrapRendered
+                    ? googleAnalytics.RenderDestination(provider, renderContext)
+                    : googleAnalytics.Render(provider, renderContext));
+                googleAnalyticsBootstrapRendered = true;
+                continue;
+            }
+
+            fragments.Add(renderer.Render(provider, renderContext));
+        }
+
+        return fragments.ToArray();
     }
 
     private static string InjectHeadFragments(

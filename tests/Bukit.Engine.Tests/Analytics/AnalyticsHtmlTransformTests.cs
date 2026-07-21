@@ -75,6 +75,60 @@ public sealed class AnalyticsHtmlTransformTests
     }
 
     [Fact]
+    public void Transform_MultipleGoogleAnalyticsProviders_ShareBootstrapAndKeepConfigOrder()
+    {
+        var transform = CreateTransform(
+            Provider("google-analytics", measurementId: "G-FIRST"),
+            Provider("google-tag-manager", containerId: "GTM-MIDDLE"),
+            Provider("google-analytics", measurementId: "G-SECOND"),
+            Provider("google-analytics", measurementId: "G-THIRD"));
+        const string html = "<html><head><title>x</title></head><body></body></html>";
+
+        var first = transform.Transform(Context(), html);
+        var second = transform.Transform(Context(), first);
+        var third = transform.Transform(Context(), second);
+
+        Assert.Equal(1, Count(third, "googletagmanager.com/gtag/js?id="));
+        Assert.Equal(1, Count(third, "window.dataLayer = window.dataLayer || []"));
+        Assert.Equal(1, Count(third, "function gtag()"));
+        Assert.Equal(1, Count(third, "gtag('js', new Date())"));
+        Assert.Equal(3, Count(third, "gtag('config'"));
+        Assert.Contains("gtag/js?id=G-FIRST", third, StringComparison.Ordinal);
+        Assert.DoesNotContain("gtag/js?id=G-SECOND", third, StringComparison.Ordinal);
+        Assert.DoesNotContain("gtag/js?id=G-THIRD", third, StringComparison.Ordinal);
+        Assert.Equal(1, Count(third, "bukit:analytics:google-analytics:G-FIRST:head:start"));
+        Assert.Equal(1, Count(third, "bukit:analytics:google-analytics:G-SECOND:head:start"));
+        Assert.Equal(1, Count(third, "bukit:analytics:google-analytics:G-THIRD:head:start"));
+
+        var firstConfig = third.IndexOf("gtag('config', 'G-FIRST')", StringComparison.Ordinal);
+        var secondConfig = third.IndexOf("gtag('config', 'G-SECOND')", StringComparison.Ordinal);
+        var thirdConfig = third.IndexOf("gtag('config', 'G-THIRD')", StringComparison.Ordinal);
+        var gtm = third.IndexOf("google-tag-manager:GTM-MIDDLE:head:start", StringComparison.Ordinal);
+        Assert.True(firstConfig >= 0 && firstConfig < gtm && gtm < secondConfig && secondConfig < thirdConfig);
+        Assert.Equal(first, second);
+        Assert.Equal(second, third);
+    }
+
+    [Fact]
+    public void Transform_RemovesConfigOnlyBlockWhenGoogleAnalyticsDestinationIsRemoved()
+    {
+        var original = CreateTransform(
+            Provider("google-analytics", measurementId: "G-KEEP"),
+            Provider("google-analytics", measurementId: "G-REMOVE"));
+        var updated = CreateTransform(Provider("google-analytics", measurementId: "G-KEEP"));
+        const string html = "<html><head></head><body></body></html>";
+
+        var beforeRemoval = original.Transform(Context(), html);
+        var afterRemoval = updated.Transform(Context(), beforeRemoval);
+
+        Assert.Equal(1, Count(beforeRemoval, "googletagmanager.com/gtag/js?id="));
+        Assert.Equal(2, Count(beforeRemoval, "gtag('config'"));
+        Assert.DoesNotContain("G-REMOVE", afterRemoval, StringComparison.Ordinal);
+        Assert.Equal(1, Count(afterRemoval, "googletagmanager.com/gtag/js?id="));
+        Assert.Equal(1, Count(afterRemoval, "gtag('config'"));
+    }
+
+    [Fact]
     public void Transform_SkipsOnlyTheLocationWhoseContainerIsMissing()
     {
         var transform = CreateTransform(Provider("google-tag-manager", containerId: "GTM-ONLY"));
