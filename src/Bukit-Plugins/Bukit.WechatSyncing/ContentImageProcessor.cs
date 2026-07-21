@@ -176,6 +176,10 @@ internal sealed class ContentImageProcessor
 
             return BuildReplacedImgTag(imgTag, wechatUrl, candidateUrl);
         }
+        catch (WechatDraftContractViolationException)
+        {
+            throw;
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.Warn($"plugin wechat-sync inline image upload failed for {absoluteUrl}: {ex.Message}");
