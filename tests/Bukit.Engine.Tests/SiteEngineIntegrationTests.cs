@@ -2234,6 +2234,102 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_AnalyticsPluginDisabled_IgnoresProviderChangesUntilReenabled()
+    {
+        var (root, baseConfig) = CreateBuildReportHealthSite();
+
+        try
+        {
+            var disabled = baseConfig with
+            {
+                Site = baseConfig.Site with
+                {
+                    Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["analytics"] = new() { Enabled = false }
+                    },
+                    Analytics = new AnalyticsConfig
+                    {
+                        Providers =
+                        [
+                            new AnalyticsProviderConfig
+                            {
+                                Type = "plausible",
+                                Domain = "inactive.example",
+                                SnippetMode = "legacy",
+                                ScriptUrl = "https://plausible.io/js/script.js"
+                            }
+                        ]
+                    }
+                }
+            };
+            var inactiveProviderChanged = disabled with
+            {
+                Site = disabled.Site with
+                {
+                    Analytics = new AnalyticsConfig
+                    {
+                        Providers =
+                        [
+                            new AnalyticsProviderConfig
+                            {
+                                Type = "umami",
+                                WebsiteId = "00000000-0000-0000-0000-000000000014",
+                                ScriptUrl = "https://analytics.example.com/script.js"
+                            }
+                        ]
+                    }
+                }
+            };
+
+            var first = await CreateEmptySiteEngine(new TestLogger()).BuildAsync(
+                disabled,
+                root,
+                new ConfigOverrides { Clean = false, Incremental = true },
+                CancellationToken.None);
+            var second = await CreateEmptySiteEngine(new TestLogger()).BuildAsync(
+                inactiveProviderChanged,
+                root,
+                new ConfigOverrides { Clean = false, Incremental = true },
+                CancellationToken.None);
+
+            Assert.True(first.Incremental.CacheMissCount > 0);
+            Assert.Equal(0, second.Incremental.CacheMissCount);
+            Assert.Equal(first.Incremental.CacheMissCount, second.Incremental.CacheHitCount);
+
+            var reenabled = inactiveProviderChanged with
+            {
+                Site = inactiveProviderChanged.Site with
+                {
+                    Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["analytics"] = new() { Enabled = true }
+                    }
+                }
+            };
+            var third = await CreateEmptySiteEngine(new TestLogger()).BuildAsync(
+                reenabled,
+                root,
+                new ConfigOverrides { Clean = false, Incremental = true },
+                CancellationToken.None);
+
+            Assert.Equal(first.Incremental.CacheMissCount, third.Incremental.CacheMissCount);
+            Assert.Equal(0, third.Incremental.CacheHitCount);
+            string renderedHtml = Directory.EnumerateFiles(
+                    Path.Combine(root, "dist"),
+                    "*.html",
+                    SearchOption.AllDirectories)
+                .Select(File.ReadAllText)
+                .First(html => html.Contains("<html", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains("00000000-0000-0000-0000-000000000014", renderedHtml, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_IncrementalBuildDeletesRemovedStaticFiles()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-integration-static-delete", Guid.NewGuid().ToString("N"));

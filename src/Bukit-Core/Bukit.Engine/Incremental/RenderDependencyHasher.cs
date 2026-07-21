@@ -52,49 +52,53 @@ internal static class RenderDependencyHasher
         IncrementalBuildEngine.AppendUtf8(hasher, SiteModeResolver.ResolveSearchMode(config.Site));
         hasher.AppendData(newline);
 
-        var resolvedAnalytics = AnalyticsConfigNormalizer.Normalize(config.Site.Analytics);
+        var analyticsPluginEnabled = AnalyticsBuildState.ResolvePluginEnabled(config.Site.Plugins);
         AppendFramedValue(
             hasher,
             "analytics.pluginEnabled",
-            AnalyticsBuildState.ResolvePluginEnabled(config.Site.Plugins).ToString(CultureInfo.InvariantCulture));
+            analyticsPluginEnabled.ToString(CultureInfo.InvariantCulture));
         AppendFramedValue(hasher, "analytics.rendererContractVersion", analyticsRendererContractVersion);
-        AppendFramedValue(hasher, "analytics.enabled", resolvedAnalytics.Enabled.ToString(CultureInfo.InvariantCulture));
-        AppendFramedValue(hasher, "analytics.productionOnly", resolvedAnalytics.ProductionOnly.ToString(CultureInfo.InvariantCulture));
-        AppendFramedValue(hasher, "analytics.executionMode", executionMode.ToString());
-        AppendFramedValue(
-            hasher,
-            "analytics.googleConsent.configured",
-            (resolvedAnalytics.GoogleConsent is not null).ToString(CultureInfo.InvariantCulture));
-        if (resolvedAnalytics.GoogleConsent is { } googleConsent)
+        if (analyticsPluginEnabled)
         {
-            AppendFramedValue(hasher, "analytics.googleConsent.mode", googleConsent.Mode);
-            AppendFramedValue(hasher, "analytics.googleConsent.adStorage", googleConsent.AdStorage);
-            AppendFramedValue(hasher, "analytics.googleConsent.analyticsStorage", googleConsent.AnalyticsStorage);
-            AppendFramedValue(hasher, "analytics.googleConsent.adUserData", googleConsent.AdUserData);
-            AppendFramedValue(hasher, "analytics.googleConsent.adPersonalization", googleConsent.AdPersonalization);
+            var resolvedAnalytics = AnalyticsConfigNormalizer.Normalize(config.Site.Analytics);
+            AppendFramedValue(hasher, "analytics.enabled", resolvedAnalytics.Enabled.ToString(CultureInfo.InvariantCulture));
+            AppendFramedValue(hasher, "analytics.productionOnly", resolvedAnalytics.ProductionOnly.ToString(CultureInfo.InvariantCulture));
+            AppendFramedValue(hasher, "analytics.executionMode", executionMode.ToString());
             AppendFramedValue(
                 hasher,
-                "analytics.googleConsent.waitForUpdateMs.configured",
-                googleConsent.WaitForUpdateMs.HasValue.ToString(CultureInfo.InvariantCulture));
-            if (googleConsent.WaitForUpdateMs is { } waitForUpdateMs)
+                "analytics.googleConsent.configured",
+                (resolvedAnalytics.GoogleConsent is not null).ToString(CultureInfo.InvariantCulture));
+            if (resolvedAnalytics.GoogleConsent is { } googleConsent)
             {
+                AppendFramedValue(hasher, "analytics.googleConsent.mode", googleConsent.Mode);
+                AppendFramedValue(hasher, "analytics.googleConsent.adStorage", googleConsent.AdStorage);
+                AppendFramedValue(hasher, "analytics.googleConsent.analyticsStorage", googleConsent.AnalyticsStorage);
+                AppendFramedValue(hasher, "analytics.googleConsent.adUserData", googleConsent.AdUserData);
+                AppendFramedValue(hasher, "analytics.googleConsent.adPersonalization", googleConsent.AdPersonalization);
                 AppendFramedValue(
                     hasher,
-                    "analytics.googleConsent.waitForUpdateMs",
-                    waitForUpdateMs.ToString(CultureInfo.InvariantCulture));
+                    "analytics.googleConsent.waitForUpdateMs.configured",
+                    googleConsent.WaitForUpdateMs.HasValue.ToString(CultureInfo.InvariantCulture));
+                if (googleConsent.WaitForUpdateMs is { } waitForUpdateMs)
+                {
+                    AppendFramedValue(
+                        hasher,
+                        "analytics.googleConsent.waitForUpdateMs",
+                        waitForUpdateMs.ToString(CultureInfo.InvariantCulture));
+                }
             }
-        }
-        AppendFramedValue(
-            hasher,
-            "analytics.providerCount",
-            resolvedAnalytics.Providers.Count.ToString(CultureInfo.InvariantCulture));
-        foreach (var provider in resolvedAnalytics.Providers)
-        {
-            AppendFramedValue(hasher, "analytics.provider.type", provider.Type);
-            AppendFramedValue(hasher, "analytics.provider.key", provider.Key);
-            foreach (var option in provider.Options.OrderBy(option => option.Key, StringComparer.Ordinal))
+            AppendFramedValue(
+                hasher,
+                "analytics.providerCount",
+                resolvedAnalytics.Providers.Count.ToString(CultureInfo.InvariantCulture));
+            foreach (var provider in resolvedAnalytics.Providers)
             {
-                AppendFramedValue(hasher, $"analytics.provider.option.{option.Key}", option.Value);
+                AppendFramedValue(hasher, "analytics.provider.type", provider.Type);
+                AppendFramedValue(hasher, "analytics.provider.key", provider.Key);
+                foreach (var option in provider.Options.OrderBy(option => option.Key, StringComparer.Ordinal))
+                {
+                    AppendFramedValue(hasher, $"analytics.provider.option.{option.Key}", option.Value);
+                }
             }
         }
 

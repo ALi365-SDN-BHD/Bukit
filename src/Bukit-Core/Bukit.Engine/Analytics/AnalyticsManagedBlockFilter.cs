@@ -5,12 +5,19 @@ namespace Bukit.Engine.Analytics;
 
 internal static class AnalyticsManagedBlockFilter
 {
+    private const string ManagedMarkerPrefix = "<!-- bukit:analytics:";
+
     private static readonly Regex ManagedMarkerPattern = new(
         @"\A<!-- bukit:analytics:(?<key>[A-Za-z0-9.-]+:[A-Za-z0-9._-]+):(?<location>head|body):(?<edge>start|end) -->\z",
         RegexOptions.CultureInvariant);
 
     internal static string Remove(string html)
     {
+        if (!html.Contains(ManagedMarkerPrefix, StringComparison.Ordinal))
+        {
+            return html;
+        }
+
         var comments = CollectHtmlComments(html);
         var markers = new List<ManagedMarkerToken>();
         foreach (var comment in comments)

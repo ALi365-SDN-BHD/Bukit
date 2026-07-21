@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
@@ -95,6 +96,61 @@ public sealed partial class AnalyticsPluginBoundaryTests
                 $"{assembly.GetName().Name} exposes Engine-owned Analytics/HTML runtime types: " +
                 string.Join(", ", offenders.Select(type => type.FullName)));
         }
+    }
+
+    [Fact]
+    public void PreviewAnalyticsFiltering_HasOneEngineOwnerAndCliDoesNotLinkEngineSources()
+    {
+        string cliProject = ReadMainlineSource("src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj");
+        Assert.Empty(FindLinkedExternalCompileIncludes(cliProject));
+
+        Assembly engineAssembly = typeof(BuiltInPluginSource).Assembly;
+        Assembly cliAssembly = typeof(Bukit.Cli.Commands.PreviewCommand).Assembly;
+        string[] engineFriends = engineAssembly.GetCustomAttributes<
+                System.Runtime.CompilerServices.InternalsVisibleToAttribute>()
+            .Select(attribute => attribute.AssemblyName.Split(',')[0].Trim())
+            .ToArray();
+        Assert.Contains(cliAssembly.GetName().Name!, engineFriends, StringComparer.OrdinalIgnoreCase);
+
+        string[] engineOwnedTypes =
+        [
+            "Bukit.Engine.HtmlHeadScanner",
+            "Bukit.Engine.Analytics.AnalyticsManagedBlockFilter"
+        ];
+
+        foreach (string typeName in engineOwnedTypes)
+        {
+            Assert.NotNull(engineAssembly.GetType(typeName, throwOnError: false, ignoreCase: false));
+            Assert.Null(cliAssembly.GetType(typeName, throwOnError: false, ignoreCase: false));
+        }
+    }
+
+    [Theory]
+    [InlineData("..\\Bukit.Engine\\HtmlHeadScanner.cs")]
+    [InlineData("../Bukit.Engine/HtmlHeadScanner.cs")]
+    [InlineData("../Bukit.Engine\\Analytics/AnalyticsManagedBlockFilter.cs")]
+    public void CliLinkedSourceGuard_RejectsCrossPlatformParentPaths(string include)
+    {
+        string project = $"<Project xmlns=\"urn:test\"><ItemGroup><Compile Include=\"{include}\" /></ItemGroup></Project>";
+
+        Assert.Equal(include, Assert.Single(FindLinkedExternalCompileIncludes(project)));
+    }
+
+    [Fact]
+    public void CliLinkedSourceGuard_AllowsGeneratedCompileWithoutLinkOrParentTraversal()
+    {
+        const string project =
+            "<Project><ItemGroup><Compile Include=\"$(IntermediateOutputPath)CliBuildInfo.g.cs\" /></ItemGroup></Project>";
+
+        Assert.Empty(FindLinkedExternalCompileIncludes(project));
+    }
+
+    [Fact]
+    public void CliLinkedSourceGuard_RejectsLinkedCompileWithoutInclude()
+    {
+        const string project = "<Project><ItemGroup><Compile Link=\"Internal/Shared.cs\" /></ItemGroup></Project>";
+
+        Assert.Equal("<missing Include>", Assert.Single(FindLinkedExternalCompileIncludes(project)));
     }
 
     [Fact]
@@ -301,6 +357,32 @@ public sealed partial class AnalyticsPluginBoundaryTests
 
     private static string ReadMainlineSource(string relativePath)
         => File.ReadAllText(Path.Combine(RepoRoot, relativePath));
+
+    private static string[] FindLinkedExternalCompileIncludes(string projectXml)
+        => XDocument.Parse(projectXml)
+            .Descendants()
+            .Where(element => string.Equals(element.Name.LocalName, "Compile", StringComparison.Ordinal))
+            .Where(element =>
+            {
+                string include = element.Attributes()
+                    .FirstOrDefault(attribute => string.Equals(
+                        attribute.Name.LocalName,
+                        "Include",
+                        StringComparison.Ordinal))?.Value ?? string.Empty;
+                string normalized = include.Replace('\\', '/');
+                bool hasLink = element.Attributes().Any(attribute => string.Equals(
+                    attribute.Name.LocalName,
+                    "Link",
+                    StringComparison.Ordinal));
+                return hasLink || normalized.Split('/', StringSplitOptions.RemoveEmptyEntries)
+                    .Any(segment => string.Equals(segment, "..", StringComparison.Ordinal));
+            })
+            .Select(element => element.Attributes()
+                .FirstOrDefault(attribute => string.Equals(
+                    attribute.Name.LocalName,
+                    "Include",
+                    StringComparison.Ordinal))?.Value ?? "<missing Include>")
+            .ToArray();
 
     [GeneratedRegex(@"\bnew\s+(?:BuiltIn\.)?([A-Za-z_][A-Za-z0-9_]*PluginSource)\s*\(", RegexOptions.CultureInvariant)]
     private static partial Regex PluginSourceConstructionRegex();

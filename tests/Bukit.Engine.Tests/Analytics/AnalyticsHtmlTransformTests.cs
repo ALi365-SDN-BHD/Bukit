@@ -411,6 +411,20 @@ public sealed class AnalyticsHtmlTransformTests
     }
 
     [Fact]
+    public void ManagedBlockFilter_NoMarkerFastPath_DoesNotAllocate()
+    {
+        string html = $"<html><head><title>plain</title></head><body>{new string('x', 8 * 1024)}</body></html>";
+        AnalyticsManagedBlockFilter.Remove(html);
+
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        string result = AnalyticsManagedBlockFilter.Remove(html);
+        long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+
+        Assert.Same(html, result);
+        Assert.Equal(0, allocatedBytes);
+    }
+
+    [Fact]
     public void Transform_UpdatesProcessedInjectedAndMissingLocationCounters()
     {
         var resolved = AnalyticsConfigNormalizer.Normalize(new AnalyticsConfig

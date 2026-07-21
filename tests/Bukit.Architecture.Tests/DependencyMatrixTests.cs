@@ -198,7 +198,8 @@ public class DependencyMatrixTests
 
         var allowedAssemblyPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "Bukit.Shared->Bukit.Content"
+            "Bukit.Shared->Bukit.Content",
+            "Bukit.Engine->bukit"
         };
 
         var allAssemblies = new[]

@@ -1,25 +1,25 @@
 # Bukit Analytics 内置插件深度全方位复审报告（2026-07-20）
 
 > 复审日期：2026-07-20（Asia/Kuala_Lumpur）
-> 原复审实现基线：`main@fe27bbbe`；当前整改基线：`main@6e7d899b` 加 AN-12 当前工作树
+> 原复审实现基线：`main@fe27bbbe`；当前整改基线：`main@151d28aa` 加 AN-13/AN-14 当前工作树
 > 原 Analytics 实现提交：`4103959c`
 > 原报告提交：`9ff5d452`
 > 执行环境：macOS arm64，.NET SDK 10.0.100，Bukit 1.0.10
 > 执行 checkout：审计开始时为 `f076a288`；结束前仓库被外部推进到 `main@f80919f8`。`fe27bbbe..f80919f8` 没有 `src/Bukit-Core` 实现变化，因此本文继续以约定的 `fe27bbbe` 为唯一实现基线。
-> 整改状态：AN-01～AN-11 已进入当前 `main`；AN-12 于 2026-07-21 在 `main@6e7d899b` 后的当前工作树完成修复和验证。Analytics renderer contract 当前为 v5；其余状态不自动变化。
+> 整改状态：AN-01～AN-12 已进入当前 `main`；AN-13、AN-14 于 2026-07-21 在 `main@151d28aa` 后的当前工作树完成修复和验证。Analytics renderer contract 当前为 v5；其余状态不自动变化。
 > 审计阶段边界：复审时只重写本报告。后续整改按发现逐项推进；AN-08 新增显式 Google Consent Mode v2 与 CSP requirements-report 配置、Analytics 报告 v2 和对应公共配置模型，不改变外部插件协议，也不把静态生成器伪装成 CMP、HTTP nonce 发行方或完整 CSP 生成器。
 
 ## 一、复审结论
 
 原 AN-01～AN-14 均已从当前源码和运行结果重新验证，旧结论没有自动继承。结论如下：
 
-- 当前未解决问题 **2 项**：P0 0 项、P1 0 项、P2 0 项、P3 2 项。
-- 已修复 **12 项**：AN-01～AN-12。Analytics report 现在写入同目录唯一临时文件，关闭并持久化刷新后原子替换目标；失败保留旧报告并清理本次临时文件。Preview fallback 现在区分 Keep/Remove/Error/Source：发现但无法加载的配置会在 listener 启动前退出 2，缺失配置则明确警告后保留管理块。Preview 无改写路径保留原始字节；Preview 清理与 Dev LiveReload 仅改写严格 UTF-8 并保留已有 BOM。Google Provider 必须显式声明 Consent Mode v2 advanced 默认值；可选 CSP requirements-report 输出与实际片段字节一致的 SHA-256 和 origin 清单，renderer contract v5 进入增量 hash。
+- 当前未解决问题 **0 项**：P0 0 项、P1 0 项、P2 0 项、P3 0 项。
+- 已修复 **14 项**：AN-01～AN-14。插件总开关关闭时，Analytics render hash 仅保留有效总开关和 renderer contract，不再受 execution mode、Provider 或其他无效 Analytics 设置污染；无 marker 页面通过零分配前缀快路径跳过完整 HTML 注释解析，同时保留 stale-block 清理。Engine 现在是 HTML scanner 与 Analytics managed-block filter 的唯一程序集所有者；CLI 不再 linked-compile Engine 源码，而通过受架构白名单约束的 Engine→`bukit` internal friend 访问过滤器。Analytics report 现在写入同目录唯一临时文件，关闭并持久化刷新后原子替换目标；失败保留旧报告并清理本次临时文件。Preview fallback 现在区分 Keep/Remove/Error/Source：发现但无法加载的配置会在 listener 启动前退出 2，缺失配置则明确警告后保留管理块。Preview 无改写路径保留原始字节；Preview 清理与 Dev LiveReload 仅改写严格 UTF-8 并保留已有 BOM。Google Provider 必须显式声明 Consent Mode v2 advanced 默认值；可选 CSP requirements-report 输出与实际片段字节一致的 SHA-256 和 origin 清单，renderer contract v5 进入增量 hash。
 - 新增确认问题 **0 项**。本轮扩大到共享 Engine、运行模式、原始字节、报告、增量和 Native AOT 后，没有把不稳定假设升级成新编号。
-- 复审基线相关定向测试 **450/450 通过**；AN-02 整改 gate 为 Config **245/245**、CLI **578/578**，AN-03 整改后的 CLI gate 为 **583/583**，AN-05/AN-09 整改后的 Engine gate 为 **1564/1564**，AN-06 整改后的 Engine gate 为 **1566/1566**，AN-07 整改后的 Config/Engine gate 为 **255/255、1569/1569**，AN-08 最终 Config/Engine 为 **278/278、1577/1577**，AN-10 最终 CLI 为 **599/599**，AN-11 最终 CLI 为 **602/602**，AN-12 最终 Engine 为 **1578/1578**。测试通过不用于否定仍未覆盖的其他发现。
-- `osx-arm64` Native AOT 发布成功，发布二进制完成四 Provider 最小真实构建；未加载生成页面，也未向 Analytics 服务发送请求。
+- 复审基线相关定向测试 **450/450 通过**；AN-02 整改 gate 为 Config **245/245**、CLI **578/578**，AN-03 整改后的 CLI gate 为 **583/583**，AN-05/AN-09 整改后的 Engine gate 为 **1564/1564**，AN-06 整改后的 Engine gate 为 **1566/1566**，AN-07 整改后的 Config/Engine gate 为 **255/255、1569/1569**，AN-08 最终 Config/Engine 为 **278/278、1577/1577**，AN-10 最终 CLI 为 **599/599**，AN-11 最终 CLI 为 **602/602**，AN-12 最终 Engine 为 **1578/1578**，AN-13 最终 CLI/Engine/Architecture 为 **602/602、1578/1578、87/87**，AN-14 最终 Engine 为 **1582/1582**。测试通过不用于否定仍未覆盖的其他发现。
+- `osx-arm64` Native AOT 发布成功，发布二进制完成四 Provider 最小真实构建；AN-13 后重新发布的二进制报告 `runtime: native-aot`，并对磁盘含 GA 管理块的页面完成真实 Preview 清理。未在浏览器加载生成页面，也未向 Analytics 服务发送请求。
 
-主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01～AN-12 已关闭，P1/P2 已清零；剩余项为 linked-source 所有权和禁用配置过度增量失效两项 P3。Consent advanced mode 本身仍不等于零网络或法规合规保证。
+主体链路能够工作：四个 Provider 可生成脚本，Content/List/Static/多语言页面经过统一 Transform，Development 能抑制 production-only 追踪，插件禁用会生成可解释的报告，Provider 值校验和输出转义有效，报告不泄露 Provider ID。AN-01～AN-14 已全部关闭，当前确认问题清零。Consent advanced mode 本身仍不等于零网络或法规合规保证。
 
 ## 二、严重度与状态总表
 
@@ -50,8 +50,8 @@
 | AN-10 | **已修复** | 原 P2 | 已修复字节保真 Bug | Preview 无改写时逐字节返回；严格 UTF-8 改写保留 BOM，非法改写输入可见失败而非替换。 | 高 |
 | AN-11 | **已修复** | 原 P2 | 已修复安全/隐私风险 | Preview fallback 对损坏/不可读配置在 serving 前报错退出；缺失配置明确警告并保留管理块。 | 高 |
 | AN-12 | **已修复** | 原 P3 | 已修复可靠性问题 | Analytics 报告使用同目录唯一 temp、持久化刷新与原子覆盖；序列化失败保留旧报告。 | 高 |
-| AN-13 | 仍存在 | P3 | 架构债务 | CLI 引用 Engine 的同时再次源码编译 Engine 的扫描器和过滤器。 | 高 |
-| AN-14 | 仍存在 | P3 | 性能/增量问题 | 哈希未按有效启用状态裁剪；禁用配置变化仍使页面过度失效。 | 高 |
+| AN-13 | **已修复** | 原 P3 | 已修复架构债务 | Engine 为 scanner/filter 唯一程序集所有者；CLI linked-source 已删除，friend pair 受架构测试约束。 | 高 |
+| AN-14 | **已修复** | 原 P3 | 已修复性能/增量问题 | 插件关闭时 hash 忽略无效设置；无 marker 页面以零分配前缀快路径跳过完整解析。 | 高 |
 
 ### 2.3 AN-01～AN-14 状态迁移
 
@@ -69,8 +69,8 @@
 | AN-10 | 确认 | **已修复（2026-07-21 整改）** | 16 个真实 HTTP 原始字节用例由全部失败转绿；Preview 直通、伪 marker、BOM 改写、UTF-16/32 fail-closed、Dev LiveReload 与非法 UTF-8 拒绝均有断言。 |
 | AN-11 | 风险 | **已修复（2026-07-21 整改）** | 三个真实 Preview 黑盒场景先红后绿；结构化决策保留来源与异常，损坏/不可读配置在 listener 前退出 2，缺失配置显式警告。 |
 | AN-12 | 风险 | **已修复（2026-07-21 整改）** | 中途 IOException 由旧报告截断转为旧字节不变且无残留 temp；真实 GA 构建生成有效 report v2。 |
-| AN-13 | 债务 | 仍存在 | `.csproj` linked-source 仍存在。 |
-| AN-14 | 性能 | 仍存在 | 插件关闭时 hasher 仍纳入全部 Provider 值。 |
+| AN-13 | 债务 | **已修复（2026-07-21 整改）** | 两条 linked Compile 删除；程序集反射、IVT 白名单、Preview/Dev、AOT Preview 全部转绿。 |
+| AN-14 | 性能 | **已修复（2026-07-21 整改）** | 禁用 Provider 变化为全量 cache hit；重新启用为全量 cache miss 并注入新 Provider，无 marker 快路径分配为 0。 |
 
 ## 三、跨模块根因图
 
@@ -94,6 +94,7 @@ flowchart TD
     F -. "AN-01 已修复：orphan 不再屏蔽合法块" .-> M
     G -. "AN-05～AN-08 已修复位置、Provider 模式与 Consent/CSP 要求" .-> I
     H -. "AN-09 已修复：renderer contract v5" .-> I
+    H -. "AN-14 已修复：禁用时裁剪无效输入" .-> I
     L -. "目标文件直接截断" .-> L
     J -. "AN-04 已修复" .-> I
 ```
@@ -171,7 +172,7 @@ flowchart TD
 - **增量闭环：** 可观察输出变化将 `AnalyticsRendererContract.Version` 从 v2 提升为 v3；v1、v2、v3 framed hash 两两相异，旧契约 manifest 不会复用多 bootstrap 页面。Provider 列表及顺序本身仍由既有 hasher 覆盖。
 - **根因与关闭依据：** 原根因为逐 Provider 无状态调用完整 GA renderer；现在 Transform 作为唯一持有完整有序 Provider 列表的层，显式跟踪是否已渲染 GA bootstrap。源码闭环、原复现转绿、真实构建计数和 renderer hash 证据均成立。
 - **影响范围：** 所有配置两个或以上不同 GA measurement ID 的 Content、List、Static 与多语言页面；单 GA、GTM body、Plausible、Umami、配置 Schema 和外部插件协议不变。
-- **修复边界：** 没有把 GA 合并为单一 shared marker，也没有把后续 GA 提前越过中间 Provider；每个 destination 仍有独立 managed block。Consent/CSP 和禁用时 hash 裁剪分别留在 AN-08、AN-14；Plausible 随后的 AN-07 整改独立完成。
+- **修复边界：** 没有把 GA 合并为单一 shared marker，也没有把后续 GA 提前越过中间 Provider；每个 destination 仍有独立 managed block。Consent/CSP 和禁用时 hash 裁剪分别由后续 AN-08、AN-14 完成；Plausible 的 AN-07 整改独立完成。
 - **回归测试：** `AnalyticsHtmlTransformTests:78-129` 覆盖双/三 GA 一套 bootstrap、N config、首 ID loader、GTM 交错顺序、三个 marker、三次字节幂等和移除 destination；单 GA exact golden 继续通过；`RenderDependencyHasherTests:178-204` 覆盖 v1/v2/v3。
 
 官方基线（抓取日期 2026-07-21）：[Google 配置多个 destination](https://developers.google.com/tag-platform/gtagjs/configure)。文档示例在首个 tag 初始化后追加第二个 `config`，且页面标注最后更新于 2026-05-12 UTC。
@@ -219,7 +220,7 @@ flowchart TD
 - **修复实现：** 新增单一内部 `AnalyticsRendererContract.Version`，以 `analytics.rendererContractVersion` framed value 进入基础渲染依赖 hash；AN-05 的 HeadStart 变化以 v2 为升级边界，AN-06 的多 destination 变化提升为 v3，AN-07 的 Plausible 模式变化提升为 v4，AN-08 的 Consent 渲染同步提升到当前 v5。
 - **期望 / 实际：** 同配置下显式 contract v1/v2/v3/v4/v5 计算得到不同 hash；旧 manifest 人工置入 v1 结果后 AN-05 真实 `--no-clean --incremental` 构建重新渲染并更新，AN-06～AN-08 进一步证明默认值依次升级且当前等于 v5。
 - **影响范围：** Provider snippet、marker 格式、注入位置、转义或后续 consent 渲染逻辑的二进制升级；未来每次可观察 HTML 契约变化仍必须显式提升该版本。
-- **修复边界：** 没有改变 manifest schema，也没有顺带裁剪 disabled 配置的过度失效；后者仍属于 AN-14。
+- **修复边界：** 没有改变 manifest schema，也没有在本项顺带裁剪 disabled 配置的过度失效；后者随后由 AN-14 独立修复。
 - **回归测试：** `Compute_AnalyticsRendererContractVersionChange_ProducesDifferentHash`；AN-05 真实 legacy hash 升级；Provider golden、Plausible 模式/Consent policy hash 与当前 contract v5 同批维护。
 
 ### AN-10 — 原 P2：Preview/Dev 无条件破坏 HTML 原始字节（已修复）
@@ -261,29 +262,31 @@ flowchart TD
 - **修复边界：** 原子性依赖 temp 与目标位于同一目录/文件系统；进程被不可捕获终止时可能留下隐藏 temp，但 canonical report 仍是旧完整版本或已提交的新完整版本。实现不声称提供目录 fsync、跨文件事务或多构建互斥；并发 writer 各用唯一 temp，最终以最后成功提交者为准。
 - **回归测试：** 中途序列化失败保留旧字节并清理 temp；原有精确字段、隐私排除、CSP hash/origin、null、禁用删除和 schema 契约全部保持。报告定向 **8/8**，Release Engine targeted gate **1578/1578**。
 
-### AN-13 — P3：CLI 重复编译 Engine 源文件
+### AN-13 — 原 P3：CLI 重复编译 Engine 源文件（已修复）
 
-- **置信度 / 分类：** 高；架构债务、所有权风险。
-- **源码位置：** `Bukit.Cli.csproj:3-9,29-33`。
-- **最小复现：** 检查项目图：CLI 已 `ProjectReference` Engine，同时 linked compile `HtmlHeadScanner.cs` 和 `AnalyticsManagedBlockFilter.cs`。
-- **命令与输出：** `rg` 同时命中 Engine 引用和两条 `<Compile Include="..\Bukit.Engine\...">`；相同源码形成 CLI/Engine 两个内部类型所有者。
-- **期望 / 实际：** 期望共享行为由一个明确 assembly/abstraction 拥有；实际通过源码链接复制实现，测试和修复可能只覆盖其中一个编译上下文。
-- **根因：** Preview 需要内部过滤器，但没有合适的内部共享程序集或显式 facade。
-- **影响范围：** Native AOT trimming、类型身份、条件编译、可见性、未来重构和测试覆盖解释。
-- **修复边界：** 将纯 HTML 扫描/管理块逻辑移到已有合适的 internal shared 项目，或从 Engine 暴露受控 internal facade 并配合 `InternalsVisibleTo`；避免公共 API 扩张。
-- **回归测试：** 架构测试禁止 CLI linked compile Engine source；Engine/CLI 共享 golden；AOT publish 与 Preview 清理均通过。
+- **置信度 / 分类：** 高；已修复架构债务、所有权风险。
+- **源码位置：** `Bukit.Cli.csproj:3-31`；`Bukit.Engine/InternalsVisibleTo.cs:1-4`；`AnalyticsPluginBoundaryTests.cs:101-134`；`DependencyMatrixTests.cs:199-203`。
+- **历史最小复现：** 检查项目图：CLI 已 `ProjectReference` Engine，同时 linked compile `HtmlHeadScanner.cs` 和 `AnalyticsManagedBlockFilter.cs`；反射也能在 Engine 与 CLI 两个程序集各找到同名内部类型。
+- **RED 命令与输出：** 首版测试用简单子串误把合法 `ProjectReference` 识别为源码链接，先修正为 XML 解析 `<Compile Include>`。精确测试随后按预期失败：`Assert.Empty` 实际得到两条 `..\Bukit.Engine\...` source；这证明失败来自重复编译而非合法程序集引用。
+- **历史根因：** Preview 需要调用 Engine-internal filter，但两个程序集之间没有显式 internal 访问契约；项目文件以 linked-source 绕过程序集边界，复制了 filter 及其 scanner 依赖。
+- **修复实现：** 删除 CLI 项目中的两条 Engine `<Compile Include>`，保留既有 Engine `ProjectReference`；Engine 增加仅面向 CLI 实际程序集名 `bukit` 的 `InternalsVisibleTo`。现有 Architecture IVT guard 仅把 `Bukit.Engine->bukit` 加入精确 source-target pair 白名单，不把 `bukit` 设为所有程序集均可暴露的全局目标。
+- **期望 / 实际：** `HtmlHeadScanner` 与 `AnalyticsManagedBlockFilter` 现在只存在于 `Bukit.Engine`；CLI 程序集中反射结果为 null，Preview 调用的是 Engine 唯一实现。新的架构测试同时约束无 Engine linked Compile、friend 目标存在和两个类型的唯一程序集身份。
+- **影响范围：** CLI/Engine 编译图、内部类型身份、Preview Analytics 清理、Native AOT trimming 与未来 scanner/filter 修改的测试解释。运行时 HTML、配置 Schema、公共 API、外部插件协议和 Provider 模板均未改变。
+- **修复边界：** friend assembly 会让受信任的 Core CLI 在编译期可见 Engine internals，而非只暴露单一类型；该关系由精确 pair 白名单和单一所有者测试治理。没有把 filter/scanner 移入公共 abstractions，也没有新增 public facade 或改变 CLI assembly name。
+- **回归测试：** Architecture 全量 **87/87**；Preview/Dev 定向 **141/141**；Engine Analytics/filter/scanner/SEO 定向 **32/32**；Release targeted gate 为 CLI **602/602**、Engine **1578/1578**、Architecture **87/87**。`osx-arm64` Native AOT publish 成功，发布二进制对磁盘含 consent/GA marker 的页面返回 HTTP 200 且响应中两块均被清理。
 
-### AN-14 — P3：有效禁用状态仍造成增量过度失效和扫描成本
+### AN-14 — 原 P3：有效禁用状态造成增量过度失效和扫描成本（已修复）
 
-- **置信度 / 分类：** 高；性能问题、设计取舍。
-- **源码位置：** `RenderDependencyHasher.cs:54-74`；`AnalyticsHtmlTransform.cs:31-45`。
-- **最小复现：** 将 `site.plugins.analytics: false`，只改变 Provider ID 或 Analytics options，比较 render dependency hash；插件仍关闭但 hash 改变。Analytics enabled=false/no providers 时 Transform 仍先扫描管理块。
-- **命令与输出：** 源码控制流先写 pluginEnabled，再无条件写 enabled/productionOnly/executionMode/全部 Provider；真实禁用构建报告 `pluginEnabled=false`、`processedHtml=0`、`plugin_disabled=5`，证明主插件执行已跳过，但 hash 仍未裁剪。
-- **期望 / 实际：** 期望无效配置变化不使页面失效；实际禁用站点仍被无效 Provider 值污染全局 hash。enabled=false/no providers 的扫描可用于清除 stale block，属于正确性取舍，但缺少 cheap precheck/度量。
-- **根因：** hasher 表达原始完整配置，而非最终有效渲染契约；清理语义与注入语义共用同一 Transform。
-- **影响范围：** 大站点的增量构建、频繁切换配置、禁用但保留历史 Provider 配置的仓库。
-- **修复边界：** plugin disabled 时 hash 只纳入插件开关和 renderer contract；enabled=false/no providers 时保留 stale-block 正确清理，但可先做 marker 字节查找并记录扫描命中率。
-- **回归测试：** disabled 下 Provider 变化 hash 不变；重新启用时 hash 改变并正确注入；stale block 仍被清理；大批无 marker HTML 的基准测试。
+- **置信度 / 分类：** 高；已修复性能/增量问题。
+- **源码位置：** `RenderDependencyHasher.cs:52-103`；`AnalyticsManagedBlockFilter.cs:7-21`；`RenderDependencyHasherTests.cs`；`AnalyticsHtmlTransformTests.cs`；`SiteEngineIntegrationTests.cs`。
+- **历史最小复现：** 将 `site.plugins.analytics: false`，只改变 Provider、`analytics.enabled`、`productionOnly` 或 execution mode，旧 render dependency hash 仍改变。Analytics enabled=false/no providers 时，为保留 stale-block 清理，Transform 对无 marker 页面仍进入完整 HTML 注释扫描并产生临时分配。
+- **RED 命令与输出：** 哈希测试比较两个同为 plugin disabled、但其余 Analytics 设置和 execution mode 全部不同的配置，`Assert.Equal` 按预期失败，hash 分别为 `5c3e78…` 与 `66ffea…`；renderer contract 版本差异测试保持通过。8 KiB 无 marker HTML 的过滤测试期望 0 allocation，旧实现实测 **384 bytes**。
+- **历史根因：** hasher 虽先写 pluginEnabled，仍无条件标准化并写入 enabled/productionOnly/executionMode/Consent/Provider，表达的是原始完整配置而非有效渲染契约。filter 在证明页面不可能含管理块前就创建 comment/marker 集合并执行完整扫描。
+- **修复实现：** 先解析并写入 `analytics.pluginEnabled` 与 renderer contract；仅当插件有效启用时才标准化并 hash 其余 Analytics 输入。filter 在完整解析前以 ordinal 查找固定 `<!-- bukit:analytics:` 前缀；完全不存在时直接返回原字符串，不创建集合或 tag substring。
+- **期望 / 实际：** 插件关闭后无效 Analytics 设置和 execution mode 不改变 hash，renderer contract 变化仍强制失效。端到端三轮构建中，首次建立缓存；仅替换禁用 Provider 后 **0 cache miss、全部 cache hit**；重新启用后 **0 cache hit、全部 cache miss**，生成 HTML 含新的合成 Umami UUID。无 marker 快路径分配从 384 bytes 降为 0。
+- **影响范围：** 大站点增量构建、频繁切换配置、禁用但保留历史 Provider 的仓库，以及 Analytics config disabled/no providers/Development 清理路径中的普通无 marker HTML。
+- **修复边界：** 只裁剪插件总开关关闭时无效的 Analytics hash 输入；站点标题、主题、路由等其他 render dependency 仍正常参与。renderer contract 即使插件关闭也保留在 hash 中。`analytics.enabled=false`、no providers 和 Development 仍执行保守 stale-block 清理；只省略可以由前缀缺失严格证明无管理块的完整解析。没有新增指标、公共 API、配置字段或协议能力。
+- **回归测试：** disabled hash 裁剪与 contract 版本 **2/2**；无 marker 零分配、stale consent 清理、raw-text/属性伪 marker、孤立 marker 幂等 **4/4**；端到端禁用 Provider 变化/重新启用 **1/1**；Release Engine targeted gate **1582/1582**、0 skipped。
 
 ## 五、已修复发现
 
@@ -323,7 +326,7 @@ flowchart TD
 | 插件关闭 | 无 marker；报告 `pluginEnabled=false`、`processedHtml=0`、`plugin_disabled=5`。 |
 | 多 GA | AN-06 已修复：三 GA 页面为一套 loader/bootstrap、三个有序 config；重复构建 SHA-256 不变。 |
 | 多语言 | en 5 页、zh-CN 3 页，8 页均恰有一个 GA 块；两份语言报告分别为 5/5 与 3/3。 |
-| 重复增量 | 构建成功且管理块不重复；部分 List/Static 页面仍发生既有过度失效，归入 AN-14，不另立 Bug。 |
+| 重复增量 | 构建成功且管理块不重复；AN-14 后 plugin disabled 的无效 Provider 变化全部 cache hit，重新启用全部 cache miss。 |
 
 ### 6.3 HTML 对抗矩阵
 
@@ -456,6 +459,23 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
 - 真实源码 CLI：`/tmp/bukit-an12-real-*` 合成 GA 站点真实构建成功，三个正式 HTML 均注入；report v2 可由 `jq` 解析，`processedHtml=3`、`injectedHtml=3`，且 `.bukit` 中没有 temp。前两次夹具构建分别因重复 list route 和缺失 `pages/index.html` 被正确拒绝；改正夹具并换用新的空输出目录后转绿，未把夹具错误归类为产品缺陷。
 - 持久化边界：本项保证 canonical report 的单文件提交原子性和可捕获失败清理，不保证突然断电后的目录项持久化、不实现跨文件事务，也不会删除其他并发 writer 的临时文件。
 
+### 7.14 AN-13 整改验证
+
+- TDD RED：新增 Architecture contract 后，首版子串断言误命中合法 Engine `ProjectReference`；改为解析 csproj 的 `<Compile Include>` 后，测试稳定显示两个 linked Engine source，随后才实施产品修复。
+- GREEN：CLI csproj 不再含 Engine source Compile；反射确认 scanner/filter 只在 Engine assembly，CLI assembly 均为 null；Engine friend targets 含 CLI 实际程序集名 `bukit`。Architecture Debug 全量 **87/87**。
+- 行为回归：Preview/Dev 定向 **141/141**；Engine Analytics managed-block filter、HTML scanner、Analytics transform、SEO renderer 和 title inspector 定向 **32/32**。
+- 仓库代码 targeted gate：Release CLI **602/602**、Engine **1578/1578**、Architecture **87/87**，均 0 skipped；同时通过 diff whitespace、文档契约、public API drift、brainstorm server、YAML static context 与相关自测，Build 为 0 warning、0 error。
+- Native AOT：当前 `osx-arm64` publish 成功，二进制报告 `runtime: native-aot`。磁盘页面先确认含 Google consent 与 GA 管理块，再由已发布二进制 Preview 返回 HTTP 200；响应不含 managed marker、Google loader 或合成 Measurement ID，证明裁剪后 CLI 仍调用 Engine 唯一过滤实现。
+- 架构边界：没有新增公共 API、配置字段或协议能力。`Bukit.Engine->bukit` 是单独批准的 friend pair；全局 IVT allowlist 没有扩大。
+
+### 7.15 AN-14 整改验证
+
+- TDD RED：plugin disabled 配置仅改变 Analytics 设置和 execution mode 时，旧 hash 的相等断言失败，得到 `5c3e78…` 与 `66ffea…`；renderer contract 差异仍通过。8 KiB 无 marker HTML 的零分配断言失败，旧 filter 分配 **384 bytes**。
+- GREEN：hash 定向 **2/2**；无 marker 零分配与三个保守清理边界 **4/4**。marker 前缀不存在时返回原字符串且分配为 0；stale consent、raw-text/属性伪 marker和 orphan-before-valid 行为不变。
+- 真实增量构建：同一隔离站点三轮 SiteEngine 构建 **1/1**。首轮 plugin disabled 建缓存；仅把 inactive Plausible 替换为 Umami 后 `cacheMissCount=0` 且全部 page cache hit；重新启用后全部 cache miss，并在正式 HTML 找到合成 Umami UUID。
+- 仓库代码 targeted gate：三个小子任务分别通过后，Release Engine 最终为 **1582/1582**、0 skipped；同时通过 diff whitespace、文档契约、public API drift、brainstorm server、YAML static context 与相关自测，Build 为 0 warning、0 error。
+- 边界：没有改变 renderer contract v5、公共 API、配置 Schema、Provider 输出或外部插件协议。插件关闭时仍把 renderer contract 纳入 hash；Analytics config disabled/no providers/Development 继续保守清理 stale block，只优化可严格证明无 marker 的页面。
+
 ## 八、测试盲区与已排除问题
 
 ### 8.1 仍需补齐的测试盲区
@@ -502,24 +522,24 @@ AN-05～AN-08 已完成并保留固定回归，本批无剩余发现。
 
 ### 第三批：可靠性与性能
 
-剩余范围：AN-14；AN-09、AN-10、AN-12 已关闭。
+AN-09、AN-10、AN-12、AN-14 已全部关闭，本批无剩余发现。
 
 - AN-09 已完成：renderer contract 当前 v5 进入增量 hash，旧页面升级强制重渲染。
 - AN-10 已完成：Preview 无改写时原字节直通；必须改写时严格 UTF-8、保留 BOM，非法输入可见失败。
 - AN-12 已完成：报告采用同目录唯一临时文件、持久化刷新和原子替换；可捕获失败保留旧报告并清理 temp。
-- hash 按有效启用状态裁剪，保留 stale-block 清理正确性。
+- AN-14 已完成：hash 按插件有效启用状态裁剪；无 marker 页面零分配快速返回，同时保留 stale-block 清理正确性。
 - 验收：二进制升级失效、BOM/Latin-1、报告故障注入、禁用配置 hash 基准全部通过。
 
 ### 第四批：架构债务
 
-范围：AN-13 及跨模块契约收口。
+AN-13 及跨模块所有权收口已完成，本批无剩余发现。
 
-- 消除 CLI linked-source，明确 HTML scanner/managed-block filter 的单一所有者。
-- 用架构测试禁止再次从 Engine 链接编译源码。
-- 验收：CLI/Engine golden 一致、AOT publish、Preview/Dev、Architecture targeted gate 全部通过。
+- AN-13 已完成：消除 CLI linked-source，Engine 是 HTML scanner/managed-block filter 的单一所有者。
+- 架构测试禁止再次从 Engine 链接编译源码、禁止 CLI 出现重复类型，并把 Engine→`bukit` 限定为精确 friend pair。
+- 验收：CLI/Engine 行为一致、AOT publish、已发布二进制 Preview、Preview/Dev 与 Architecture targeted gate 全部通过。
 
 ## 十、最终判断
 
-Analytics 已具备可工作的主路径，AN-01～AN-12 已关闭且 P1/P2 清零；GA/GTM 已回到 2026-07-21 Google 官方安装位置，多 GA 已收敛为单 bootstrap，Plausible 新旧片段有显式迁移契约，Google Consent Mode v2 default 与 CSP requirements-report 也已形成严格配置、渲染和报告闭环，renderer contract v5 不会复用旧页面。Preview/Dev 的原始字节与 UTF-8 改写边界已明确，Preview fallback 不再把损坏配置静默解释为 keep；Analytics report 的 canonical 文件也不再暴露中途截断 JSON。仍不能把 Consent advanced mode、缺失配置警告或静态构建本身表述为零网络或法规合规保证。下一项应处理 AN-13，再处理 AN-14 的过度增量失效。
+Analytics 已具备可工作的主路径，AN-01～AN-14 已全部关闭且当前确认问题清零；GA/GTM 已回到 2026-07-21 Google 官方安装位置，多 GA 已收敛为单 bootstrap，Plausible 新旧片段有显式迁移契约，Google Consent Mode v2 default 与 CSP requirements-report 也已形成严格配置、渲染和报告闭环，renderer contract v5 不会复用旧页面。Preview/Dev 的原始字节与 UTF-8 改写边界已明确，Preview fallback 不再把损坏配置静默解释为 keep；Analytics report 的 canonical 文件也不再暴露中途截断 JSON；Engine 现在独占 scanner/filter 实现且 Native AOT Preview 已验证。插件禁用时无效 Analytics 设置不再污染增量 hash，无 marker 页面也不再进入完整管理块解析。仍不能把 Consent advanced mode、缺失配置警告或静态构建本身表述为零网络或法规合规保证。
 
 本报告的原复审结论来自 `fe27bbbe`，整改状态已按顶部列出的当前提交与工作树重新验证；所有状态变化均有源码、RED/GREEN、真实构建或官方规范证据。未成功复现的假设仍保留在测试盲区或已排除项中，没有伪装成确认 Bug。

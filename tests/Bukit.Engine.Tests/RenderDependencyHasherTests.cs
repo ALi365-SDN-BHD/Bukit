@@ -258,6 +258,69 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
+    public void Compute_AnalyticsPluginDisabled_IgnoresInactiveAnalyticsSettingsAndExecutionMode()
+    {
+        var disabled = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = false }
+                },
+                Analytics = new AnalyticsConfig
+                {
+                    Enabled = true,
+                    ProductionOnly = true,
+                    Providers = [CreateAnalyticsProvider()]
+                }
+            }
+        };
+        var inactiveSettingsChanged = disabled with
+        {
+            Site = disabled.Site with
+            {
+                Analytics = new AnalyticsConfig
+                {
+                    Enabled = false,
+                    ProductionOnly = false,
+                    Providers =
+                    [
+                        new AnalyticsProviderConfig
+                        {
+                            Type = "google-tag-manager",
+                            ContainerId = "GTM-INACTIVE"
+                        }
+                    ]
+                }
+            }
+        };
+
+        Assert.Equal(
+            RenderDependencyHasher.Compute(disabled, s_emptySiteModel, BuildExecutionMode.Production),
+            RenderDependencyHasher.Compute(inactiveSettingsChanged, s_emptySiteModel, BuildExecutionMode.Development));
+    }
+
+    [Fact]
+    public void Compute_AnalyticsPluginDisabled_RendererContractVersionChange_ProducesDifferentHash()
+    {
+        var disabled = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = false }
+                }
+            }
+        };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(disabled, s_emptySiteModel, analyticsRendererContractVersion: "5"),
+            RenderDependencyHasher.Compute(disabled, s_emptySiteModel, analyticsRendererContractVersion: "6"));
+    }
+
+    [Fact]
     public void Compute_ExecutionModeChange_ProducesDifferentHash()
     {
         var config = CreateBaseConfig();

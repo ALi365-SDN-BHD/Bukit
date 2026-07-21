@@ -2,7 +2,7 @@
 
 ## 1. 执行摘要
 
-本报告以 `main` 的提交 `6e7d899b687994611aa329e24b00900da9a3c81d` 为唯一代码基线，是 2026-07-18 审计的完整复核版。旧基线 `4103959c9f7ee1b8dfe8db7e34340f4495e7a9ce` 到当前 HEAD 在 `Bukit.Plugin.WechatSync`、`Bukit.WechatSyncing`、PluginHost/CLI 相关调用链和 WeChat 专项测试上没有生产修复；范围内唯一代码差异是架构测试的公共 API 治理工具调整，与 WeChat 行为无关。因此旧报告的 19 项正式缺陷全部仍存在。本次又以静态证据和 `/tmp` 反例确认 5 项新缺陷，共 24 项：P0 0、P1 7、P2 11、P3 6。
+本报告以当前 `main` 的提交 `151d28aa118e8a081ee2902f614474f295e3cc5d` 为唯一代码基线，是 2026-07-18 审计的完整复核版。审计开始时 HEAD 为 `6e7d899b687994611aa329e24b00900da9a3c81d`；共享仓库随后由外部任务快进到当前 HEAD，新增提交只涉及 Analytics 与本报告初稿，复核确认两个 HEAD 之间的 WeChat、PluginHost、`PluginCliLoader`、SSRF 和对应专项测试均无差异。旧基线 `4103959c9f7ee1b8dfe8db7e34340f4495e7a9ce` 到当前 HEAD 在上述 WeChat 调用链上也没有修复；另有与 WeChat 路由无关的 CLI 开发/预览响应处理和架构测试变更，未作为本报告行为证据。因此旧报告的 19 项正式缺陷全部仍存在。本次又以静态证据和 `/tmp` 反例确认 5 项新缺陷，共 24 项：P0 0、P1 7、P2 11、P3 6。
 
 | 严重度 | 数量 | 核心风险 |
 |---|---:|---|
@@ -343,6 +343,22 @@ Bukit.Cli
 
 遵守仓库规则，没有运行完整 solution、`ci-full`、`release`、`test-all` 或 `smoke-all` gate。
 
+可复现命令账本（SDK `10.0.100`，仓库根目录执行；输出全部在 `/tmp`）：
+
+```bash
+dotnet test tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj -c Release --no-restore -p:NuGetAudit=false
+dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Release --no-restore -p:NuGetAudit=false
+dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --no-restore -p:NuGetAudit=false --filter FullyQualifiedName~PluginCliIntegrationTests
+dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release --no-restore -p:NuGetAudit=false --filter FullyQualifiedName~PluginBoundaryTests
+dotnet build src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj -c Release --no-restore -p:NuGetAudit=false
+dotnet list src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj package --vulnerable --include-transitive
+dotnet list src/Bukit-Plugins/Bukit.WechatSyncing/Bukit.WechatSyncing.csproj package --vulnerable --include-transitive
+```
+
+独立 clean-archive 复核第一次访问本机 NuGet HTTP cache 时受 sandbox 权限限制；按相同 `dotnet list ... --vulnerable --include-transitive` 命令只读复跑后成功。这是环境噪声，不是插件缺陷。
+
+共享 `main` 快进后，先确认 `6e7d899b..151d28aa` 在 WeChat/Host/`PluginCliLoader`/SSRF/专项测试范围 diff 为空，再从 `git archive 151d28aa` 的干净 `/tmp/bukit-wechat-main-151d28` 重跑 `PluginBoundaryTests`，结果仍为 17/17。共享工作树另有未提交的 Analytics boundary test，直接运行会多发现 1 个无关测试，因此不计入本基线。四路并发重跑一度因多个 `dotnet` 进程争用同一 `obj/bin` 产生临时 `MSB3026/CS0436`；改为串行后 CLI 39/39、架构基线 17/17 均通过，故归类为验证方式噪声，不计入 WeChat 缺陷。
+
 ### 5.2 自包含、Native AOT 与协议冒烟
 
 | 项 | 当前结果 |
@@ -351,12 +367,33 @@ Bukit.Cli
 | osx-arm64 Native AOT | 成功，约 14 MB |
 | self-contained SHA256 | `628142c7b13589442749e0b3f57a87e1993d5f78c6ec7986260f16ef04780516` |
 | Native AOT SHA256 | `417b1d95a9abe7109dadac5cb7badb2884dfca634b6febdc63271a60b8a2505c` |
+| clean-archive Host 安装包 SHA256 | `c9eceb3e2029937a82f98ef4fa40439e25883145b1583aa4bea60a907868da8b`；lock 记录 `sha256Verified: true` |
 | raw `handshake` | exit 0；identity/version/platform/capability 正确 |
 | raw `manifest` | exit 0；命令、28 options、权限正确输出 |
 | raw `invoke --dry-run` | exit 0；未要求密钥、未调用微信、`candidates=1` |
 | 临时真实 SHA 包经 Host/CLI 安装 | list/lock/report/hash/handshake/manifest/dry-run 均成功 |
 
 这些 `/tmp` 产物只证明当前机器的技术可行性，不是正式发行证明，也没有提交到仓库。
+
+发行与协议复现命令：
+
+```bash
+dotnet publish src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:NuGetAudit=false -o /tmp/bukit-wechat-audit-20260721/self-contained
+dotnet publish src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj -c Release -r osx-arm64 --self-contained true -p:PublishAot=true -p:NuGetAudit=false -o /tmp/bukit-wechat-audit-20260721/native-aot
+shasum -a 256 /tmp/bukit-wechat-audit-20260721/self-contained/bukit-plugin-wechat-sync /tmp/bukit-wechat-audit-20260721/native-aot/bukit-plugin-wechat-sync
+/tmp/bukit-wechat-audit-20260721/native-aot/bukit-plugin-wechat-sync < /tmp/bukit-wechat-audit-20260721/handshake.json
+/tmp/bukit-wechat-audit-20260721/native-aot/bukit-plugin-wechat-sync < /tmp/bukit-wechat-audit-20260721/manifest-request.json
+/tmp/bukit-wechat-audit-20260721/native-aot/bukit-plugin-wechat-sync < /tmp/bukit-wechat-audit-20260721/invoke-dry-run.json
+```
+
+clean-archive 另以 `PublishAot=true`、`PublishSingleFile=true` 生成 `/tmp/bukit-wechat-package/osx-arm64`，用真实 SHA 写入临时 `plugin.yaml` 后，在 `/tmp/bukit-wechat-package/site` 执行：
+
+```bash
+dotnet /Users/ali/mydev/Git/Github/Bukit/src/Bukit-Core/Bukit.Cli/bin/Release/net10.0/bukit.dll plugin validate-config
+dotnet /Users/ali/mydev/Git/Github/Bukit/src/Bukit-Core/Bukit.Cli/bin/Release/net10.0/bukit.dll plugin validate-manifest plugins/wechat-sync
+dotnet /Users/ali/mydev/Git/Github/Bukit/src/Bukit-Core/Bukit.Cli/bin/Release/net10.0/bukit.dll plugin list
+dotnet /Users/ali/mydev/Git/Github/Bukit/src/Bukit-Core/Bukit.Cli/bin/Release/net10.0/bukit.dll wechat-sync sync --output dist --dry-run
+```
 
 ### 5.3 只读反例矩阵
 
@@ -434,6 +471,8 @@ Bukit.Cli
 4. WX-P3-02：参数上限和总执行预算。
 5. WX-P3-04：远程资源新鲜度策略。
 
+阶段 gate：API fake 覆盖 HTTP/errcode/非 JSON/缺字段/0..6/未来状态；逐步骤验证仅瞬态错误重试，所有 unknown-side-effect 场景可恢复且不新增草稿。
+
 ### 阶段 3：HTML、图片正确性与资源限制
 
 1. WX-P1-03：图片源解析前移。
@@ -442,6 +481,8 @@ Bukit.Cli
 4. WX-P2-03：媒体 key 语义与跨模块迁移。
 5. WX-P2-10：明确 passthrough 与 process-images 契约。
 6. WX-P3-01、WX-P3-03：输入总预算与安全 client 复用。
+
+阶段 gate：完整 HTML corpus/golden 必须结构有效且无节点静默丢失；图片来源/option 四象限、Unicode、输入字节/数量/深度预算和多图连接复用测试全部通过。
 
 ### 阶段 4：协议、CLI、诊断和发行包
 
@@ -456,6 +497,8 @@ Bukit.Cli
 1. WX-P3-05：HTML corpus/golden、官方契约 snapshot、反例矩阵自动化。
 2. 主线 `guide/` 补充账号资格、权限、限制、失败恢复、重试和发布安全说明。
 3. 建立官方契约定期复核；fixture 永远不得替代正式包证明。
+
+阶段 gate：本报告只读反例全部自动化；主线用户文档逐项覆盖账号资格、字段/图片限制、权限、失败恢复与重试；正式根 manifest 和每 RID 安装 smoke 成为不可跳过的发行 gate。
 
 ## 8. 兼容与实施边界
 
