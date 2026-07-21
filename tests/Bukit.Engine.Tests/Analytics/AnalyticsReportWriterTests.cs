@@ -68,6 +68,29 @@ public sealed class AnalyticsReportWriterTests : IDisposable
     }
 
     [Fact]
+    public void WriteIfEnabled_WhenSerializationFails_PreservesPreviousReportAndLeavesNoTempFiles()
+    {
+        var config = CreateConfig(reportEnabled: true);
+        var snapshot = AnalyticsBuildState.Create(config, BuildExecutionMode.Production).Snapshot();
+        var reportDir = Path.Combine(_outputDir, ".bukit");
+        var reportPath = Path.Combine(reportDir, "analytics-report.json");
+        AnalyticsReportWriter.WriteIfEnabled(config, _outputDir, snapshot);
+        var previousBytes = File.ReadAllBytes(reportPath);
+        var invalidSnapshot = snapshot with
+        {
+            ProviderTypes = new ThrowingProviderTypes()
+        };
+
+        Assert.Throws<IOException>(() =>
+            AnalyticsReportWriter.WriteIfEnabled(config, _outputDir, invalidSnapshot));
+
+        Assert.Equal(previousBytes, File.ReadAllBytes(reportPath));
+        Assert.DoesNotContain(
+            Directory.EnumerateFiles(reportDir),
+            path => Path.GetFileName(path).EndsWith(".tmp", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void WriteIfEnabled_CspHashesMatchExactGeneratedInlineScriptBodiesWithoutRenderingPagesFirst()
     {
         var config = CreateConfig(reportEnabled: true);
@@ -398,5 +421,26 @@ public sealed class AnalyticsReportWriterTests : IDisposable
         }
 
         throw new DirectoryNotFoundException("Could not locate repository root.");
+    }
+
+    private sealed class ThrowingProviderTypes : IReadOnlyList<string>
+    {
+        public int Count => 2;
+
+        public string this[int index] => index switch
+        {
+            0 => "google-analytics",
+            1 => throw new IOException("Injected provider enumeration failure."),
+            _ => throw new ArgumentOutOfRangeException(nameof(index))
+        };
+
+        public IEnumerator<string> GetEnumerator()
+        {
+            yield return this[0];
+            yield return this[1];
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            => GetEnumerator();
     }
 }

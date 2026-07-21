@@ -28,8 +28,39 @@ internal static class AnalyticsReportWriter
 
         var reportDir = Path.GetDirectoryName(path)!;
         Directory.CreateDirectory(reportDir);
-        using var stream = File.Create(path);
-        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+        var tempPath = Path.Combine(
+            reportDir,
+            $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var stream = new FileStream(
+                       tempPath,
+                       FileMode.CreateNew,
+                       FileAccess.Write,
+                       FileShare.None))
+            {
+                using (var writer = new Utf8JsonWriter(
+                           stream,
+                           new JsonWriterOptions { Indented = true }))
+                {
+                    WriteReport(writer, snapshot);
+                    writer.Flush();
+                }
+
+                stream.Flush(flushToDisk: true);
+            }
+
+            File.Move(tempPath, path, overwrite: true);
+        }
+        catch
+        {
+            DeleteFileBestEffort(tempPath);
+            throw;
+        }
+    }
+
+    private static void WriteReport(Utf8JsonWriter writer, AnalyticsBuildSnapshot snapshot)
+    {
         writer.WriteStartObject();
         writer.WriteString("schema", Schema);
         writer.WriteString("schemaVersion", SchemaVersion);
@@ -63,6 +94,20 @@ internal static class AnalyticsReportWriter
 
         writer.WriteEndObject();
         writer.WriteEndObject();
+    }
+
+    private static void DeleteFileBestEffort(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private static void WriteGoogleConsent(Utf8JsonWriter writer, ResolvedGoogleConsent? consent)
