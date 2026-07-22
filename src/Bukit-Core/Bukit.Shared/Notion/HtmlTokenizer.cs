@@ -16,15 +16,17 @@ public static class HtmlTokenizer
     }
 
     public static List<HtmlToken> Tokenize(string html)
-        => Bukit.Notion.Conversion.HtmlTokenizer.Tokenize(html)
-            .Select(static token => new HtmlToken
-            {
-                Type = (HtmlTokenType)(int)token.Type,
-                TagName = token.TagName,
-                Attributes = token.Attributes,
-                TextContent = token.TextContent
-            })
-            .ToList();
+        =>
+        [
+            .. Bukit.Notion.Conversion.HtmlTokenizer.Tokenize(html)
+                .Select(static token => new HtmlToken
+                {
+                    Type = (HtmlTokenType)(int)token.Type,
+                    TagName = token.TagName,
+                    Attributes = token.Attributes,
+                    TextContent = token.TextContent
+                })
+        ];
 
     public static string ExtractTagName(string tagContent)
         => Bukit.Notion.Conversion.HtmlTokenizer.ExtractTagName(tagContent);
