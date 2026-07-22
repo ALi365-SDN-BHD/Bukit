@@ -23,6 +23,26 @@ package metadata, installation documentation, target-framework support,
 semantic-versioning commitments, and publication automation require a separate
 productization decision and review.
 
+## Legacy Notion Facade Freeze
+
+Through the 1.x line, `Bukit.Shared.Notion.*` types in `Bukit.Shared.dll` and
+legacy `Bukit.Content.Notion.*` types in `Bukit.Content.dll` are frozen
+compatibility facades. They may receive compatibility, correctness, and security fixes only,
+and those fixes must preserve their existing public and protected
+surface, namespace, and assembly identity.
+
+New Notion capabilities must be implemented in the canonical projects:
+protocol, transport, conversion, diagnostics, rendering, and write behavior in
+`Bukit.Notion`; Bukit content projection and source adaptation in
+`Bukit.Content.Notion`. Legacy facades must delegate to those owners and must not
+acquire a second transport, endpoint list, renderer registry, projection path,
+or cache format.
+
+Removing a legacy facade or the compatibility references from `Bukit.Shared`
+and `Bukit.Content` remains a separately reviewed 2.0 change. The open consumer
+declaration and public-surface governance process must authorize that change;
+the freeze itself is not a deprecation or removal decision.
+
 ## Check
 
 `bash scripts/checks/public-api-drift.sh check Release`

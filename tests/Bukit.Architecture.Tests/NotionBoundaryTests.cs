@@ -281,6 +281,31 @@ public sealed class NotionBoundaryTests
         AssertTypesResolve(sharedAssembly, LegacySharedNotionTypes);
     }
 
+    [Fact]
+    public void LegacyNotionFacades_MustRemainFrozenDuringOneX()
+    {
+        var contentAssembly = typeof(Bukit.Content.Notion.NotionContentProvider).Assembly;
+        var sharedAssembly = typeof(Bukit.Shared.Notion.NotionBlock).Assembly;
+
+        AssertLegacyFacadeExports(
+            contentAssembly,
+            "Bukit.Content.Notion",
+            LegacyContentNotionTypes);
+        AssertLegacyFacadeExports(
+            sharedAssembly,
+            "Bukit.Shared.Notion",
+            LegacySharedNotionTypes);
+
+        var governance = File.ReadAllText(Path.Combine(
+            FindRepoRoot(),
+            "guide",
+            "dev",
+            "public-api-governance.md"));
+        Assert.Contains("## Legacy Notion Facade Freeze", governance, StringComparison.Ordinal);
+        Assert.Contains("compatibility, correctness, and security fixes only", governance, StringComparison.Ordinal);
+        Assert.Contains("New Notion capabilities must be implemented in the canonical projects", governance, StringComparison.Ordinal);
+    }
+
     private static void AssertTypesResolve(System.Reflection.Assembly assembly, IEnumerable<string> typeNames)
     {
         foreach (var typeName in typeNames)
@@ -288,6 +313,26 @@ public sealed class NotionBoundaryTests
             Assert.NotNull(assembly.GetType(typeName, throwOnError: false, ignoreCase: false));
             Assert.NotNull(Type.GetType($"{typeName}, {assembly.GetName().Name}", throwOnError: false, ignoreCase: false));
         }
+    }
+
+    private static void AssertLegacyFacadeExports(
+        System.Reflection.Assembly assembly,
+        string namespacePrefix,
+        IEnumerable<string> expectedTypeNames)
+    {
+        var actual = assembly.GetExportedTypes()
+            .Select(static type => type.FullName)
+            .Where(fullName =>
+                fullName is not null &&
+                fullName.StartsWith(namespacePrefix + ".", StringComparison.Ordinal))
+            .Select(static fullName => fullName!)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var expected = expectedTypeNames
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(expected, actual);
     }
 
     private static bool IsBuildOutput(string path)
