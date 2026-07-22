@@ -31,7 +31,7 @@
 
 - [ ] 本地已通过 `bash scripts/quality-gate.sh Release`
 - [ ] 代码变更已运行目标测试，或已通过 `BUKIT_CI_FULL_SKIP_FAST=1 bash scripts/gates/ci-full.sh Release`
-- [ ] 如涉及格式化，已运行 `dotnet format bukit-core.slnx --verify-no-changes`
+- [ ] 已运行 `bash scripts/checks/dotnet-format.sh`
 - [ ] 如涉及发布产物、Native AOT、冒烟或安全表面，已运行对应 release-owned 检查
 
 ## 风险与回滚

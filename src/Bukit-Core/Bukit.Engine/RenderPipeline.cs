@@ -115,10 +115,10 @@ internal sealed class RenderPipeline
         {
             var graphRoute = listRouteGraph.FindByOutputPath(document.Route.OutputPath);
             var taxonomyMetadataRoute = graphRoute is
-                {
-                    Kind: ListRouteKind.TaxonomyIndex or ListRouteKind.TaxonomyTermPage,
-                    RouteMetadataApplied: true
-                }
+            {
+                Kind: ListRouteKind.TaxonomyIndex or ListRouteKind.TaxonomyTermPage,
+                RouteMetadataApplied: true
+            }
                 ? graphRoute
                 : null;
             entries.Add(RenderEntry.ForPage(document.Document, document.Route, taxonomyMetadataRoute));

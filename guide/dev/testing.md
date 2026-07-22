@@ -29,6 +29,22 @@ bash scripts/checks/post-change-focused-self-test.sh
 bash scripts/checks/post-change-targeted-self-test.sh
 ```
 
+## Format contract
+
+Use the repository-owned wrapper locally and in CI so both environments execute
+the same restored-solution contract:
+
+```bash
+bash scripts/checks/dotnet-format.sh
+```
+
+The wrapper runs `dotnet format bukit-core.slnx --verify-no-changes
+--no-restore`. Its direct wiring and command contract are covered by:
+
+```bash
+bash scripts/checks/dotnet-format-self-test.sh
+```
+
 ## Aggregate targeted gate
 
 Run this once after all parent-task subtasks have passed focused checks:
