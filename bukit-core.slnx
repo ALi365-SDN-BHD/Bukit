@@ -6,6 +6,7 @@
     <Project Path="src/Bukit-Core/Bukit.Content/Bukit.Content.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj" />
     <Project Path="src/Bukit-Core/Bukit.PluginHost/Bukit.PluginHost.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Rendering/Bukit.Rendering.csproj" />
