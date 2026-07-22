@@ -1,78 +1,30 @@
-using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Content.Notion;
 
-/// <summary>
-/// Shared Notion color palette constants. All foreground and background hex values
-/// are aligned with the official Notion rendering (light theme) so that
-/// <see cref="NotionRichTextRenderer"/>, block renderers, CSS, and the WeChat
-/// <c>ContentProcessor</c> produce identical colours.
-/// </summary>
 public static class NotionColorPalette
 {
-    // ── Foreground ──────────────────────────────────────────────────────
+    public const string GrayFg = Bukit.Notion.Rendering.NotionColorPalette.GrayFg;
+    public const string BrownFg = Bukit.Notion.Rendering.NotionColorPalette.BrownFg;
+    public const string OrangeFg = Bukit.Notion.Rendering.NotionColorPalette.OrangeFg;
+    public const string YellowFg = Bukit.Notion.Rendering.NotionColorPalette.YellowFg;
+    public const string GreenFg = Bukit.Notion.Rendering.NotionColorPalette.GreenFg;
+    public const string BlueFg = Bukit.Notion.Rendering.NotionColorPalette.BlueFg;
+    public const string PurpleFg = Bukit.Notion.Rendering.NotionColorPalette.PurpleFg;
+    public const string PinkFg = Bukit.Notion.Rendering.NotionColorPalette.PinkFg;
+    public const string RedFg = Bukit.Notion.Rendering.NotionColorPalette.RedFg;
+    public const string GrayBg = Bukit.Notion.Rendering.NotionColorPalette.GrayBg;
+    public const string BrownBg = Bukit.Notion.Rendering.NotionColorPalette.BrownBg;
+    public const string OrangeBg = Bukit.Notion.Rendering.NotionColorPalette.OrangeBg;
+    public const string YellowBg = Bukit.Notion.Rendering.NotionColorPalette.YellowBg;
+    public const string GreenBg = Bukit.Notion.Rendering.NotionColorPalette.GreenBg;
+    public const string BlueBg = Bukit.Notion.Rendering.NotionColorPalette.BlueBg;
+    public const string PurpleBg = Bukit.Notion.Rendering.NotionColorPalette.PurpleBg;
+    public const string PinkBg = Bukit.Notion.Rendering.NotionColorPalette.PinkBg;
+    public const string RedBg = Bukit.Notion.Rendering.NotionColorPalette.RedBg;
+    public const string DefaultBg = Bukit.Notion.Rendering.NotionColorPalette.DefaultBg;
 
-    public const string GrayFg = "#787774";
-    public const string BrownFg = "#64473A";
-    public const string OrangeFg = "#D9730D";
-    public const string YellowFg = "#DFAB01";
-    public const string GreenFg = "#0F7B6C";
-    public const string BlueFg = "#0B6E99";
-    public const string PurpleFg = "#6940A5";
-    public const string PinkFg = "#AD1A72";
-    public const string RedFg = "#E03E3E";
+    public static string ToForeground(string notionColor)
+        => Bukit.Notion.Rendering.NotionColorPalette.ToForeground(notionColor);
 
-    // ── Background ─────────────────────────────────────────────────────
-
-    public const string GrayBg = "#F1F1EF";
-    public const string BrownBg = "#F4EEEE";
-    public const string OrangeBg = "#FBECDD";
-    public const string YellowBg = "#FBF3DB";
-    public const string GreenBg = "#EDF3EC";
-    public const string BlueBg = "#E7F3F8";
-    public const string PurpleBg = "#F6F3F9";
-    public const string PinkBg = "#F9F0F5";
-    public const string RedBg = "#FDEBEC";
-
-    public const string DefaultBg = "#F7F6F3";
-
-    // ── Helpers ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Maps a Notion color name (e.g. "blue") to its foreground CSS hex value.
-    /// Returns "inherit" for unknown names.
-    /// </summary>
-    public static string ToForeground(string notionColor) =>
-        notionColor.ToLowerInvariant() switch
-        {
-            "gray" => GrayFg,
-            "brown" => BrownFg,
-            "orange" => OrangeFg,
-            "yellow" => YellowFg,
-            "green" => GreenFg,
-            "blue" => BlueFg,
-            "purple" => PurpleFg,
-            "pink" => PinkFg,
-            "red" => RedFg,
-            _ => "inherit"
-        };
-
-    /// <summary>
-    /// Maps a Notion color name or background variant (e.g. "blue_background" or "blue")
-    /// to its background CSS hex value.
-    /// Returns <see cref="DefaultBg"/> for unknown names.
-    /// </summary>
-    public static string ToBackground(string notionColor) =>
-        notionColor.ToLowerInvariant() switch
-        {
-            "gray_background" or "gray" => GrayBg,
-            "brown_background" or "brown" => BrownBg,
-            "orange_background" or "orange" => OrangeBg,
-            "yellow_background" or "yellow" => YellowBg,
-            "green_background" or "green" => GreenBg,
-            "blue_background" or "blue" => BlueBg,
-            "purple_background" or "purple" => PurpleBg,
-            "pink_background" or "pink" => PinkBg,
-            "red_background" or "red" => RedBg,
-            _ => DefaultBg
-        };
+    public static string ToBackground(string notionColor)
+        => Bukit.Notion.Rendering.NotionColorPalette.ToBackground(notionColor);
 }

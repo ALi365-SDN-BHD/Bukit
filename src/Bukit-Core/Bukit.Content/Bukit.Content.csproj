@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\Bukit.Content.Notion\Bukit.Content.Notion.csproj" />
+    <ProjectReference Include="..\Bukit.Notion\Bukit.Notion.csproj" />
     <ProjectReference Include="..\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
     <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />

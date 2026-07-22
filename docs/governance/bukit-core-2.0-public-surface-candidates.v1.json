@@ -3209,7 +3209,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "AudioBlockRenderer"
     },
     {
@@ -3336,7 +3336,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "BookmarkBlockRenderer"
     },
     {
@@ -3908,7 +3908,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "CalloutBlockRenderer"
     },
     {
@@ -3949,7 +3949,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "ChildEntityBlockRenderer"
     },
     {
@@ -4521,7 +4521,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "CodeBlockRenderer"
     },
     {
@@ -4862,7 +4862,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "ColumnBlockRenderer"
     },
     {
@@ -5004,7 +5004,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "ColumnListBlockRenderer"
     },
     {
@@ -5576,7 +5576,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "DividerBlockRenderer"
     },
     {
@@ -6127,7 +6127,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "EmbedBlockRenderer"
     },
     {
@@ -6279,7 +6279,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "EquationBlockRenderer"
     },
     {
@@ -6788,7 +6788,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "FileBlockRenderer"
     },
     {
@@ -7360,7 +7360,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "ImageBlockRenderer"
     },
     {
@@ -7461,7 +7461,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "LinkPreviewBlockRenderer"
     },
     {
@@ -7502,7 +7502,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "LinkToPageBlockRenderer"
     },
     {
@@ -7572,7 +7572,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NoOpBlockRenderer"
     },
     {
@@ -8102,7 +8102,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "PdfBlockRenderer"
     },
     {
@@ -8143,7 +8143,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "RichTextContainerRenderer"
     },
     {
@@ -8379,7 +8379,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "SyncedBlockRenderer"
     },
     {
@@ -8930,7 +8930,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "TableBlockRenderer"
     },
     {
@@ -9031,7 +9031,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "TableOfContentsBlockRenderer"
     },
     {
@@ -9260,7 +9260,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "ToDoBlockRenderer"
     },
     {
@@ -9580,7 +9580,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "ToggleBlockRenderer"
     },
     {
@@ -10152,7 +10152,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "VideoBlockRenderer"
     },
     {
@@ -10193,7 +10193,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "INotionBlockRenderer"
     },
     {
@@ -10234,7 +10234,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NotionBlockRendererRegistry"
     },
     {
@@ -10491,7 +10491,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NotionBlockTransformer"
     },
     {
@@ -10741,7 +10741,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NotionBlocksRenderer"
     },
     {
@@ -10782,7 +10782,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NotionClientStats"
     },
     {
@@ -10823,7 +10823,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NotionColorPalette"
     },
     {
@@ -11059,7 +11059,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NotionRenderContext"
     },
     {
@@ -11231,7 +11231,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Content acquisition",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NotionRichTextRenderer"
     },
     {
@@ -39483,7 +39483,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "BulletedListItemBlock"
     },
     {
@@ -40055,7 +40055,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "CalloutBlock"
     },
     {
@@ -40627,7 +40627,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "CodeBlock"
     },
     {
@@ -41199,7 +41199,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "Heading1Block"
     },
     {
@@ -41771,7 +41771,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "Heading2Block"
     },
     {
@@ -42343,7 +42343,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "Heading3Block"
     },
     {
@@ -42915,7 +42915,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "HtmlTokenizer"
     },
     {
@@ -43487,7 +43487,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "HtmlToken"
     },
     {
@@ -44059,7 +44059,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "HtmlTokenType"
     },
     {
@@ -44631,7 +44631,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "ImageBlock"
     },
     {
@@ -45203,7 +45203,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NotionBlock"
     },
     {
@@ -45775,7 +45775,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "NumberedListItemBlock"
     },
     {
@@ -46347,7 +46347,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "ParagraphBlock"
     },
     {
@@ -46919,7 +46919,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "QuoteBlock"
     },
     {
@@ -47491,7 +47491,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "RichTextSegment"
     },
     {
@@ -48063,7 +48063,7 @@
       "migrationHorizon": "2.0-review",
       "owner": "Shared foundation",
       "privateConsumerStatus": "unknown-until-voluntary-declaration",
-      "proposedAction": "review-only",
+      "proposedAction": "replace-with-bukit-notion",
       "simpleName": "ToggleBlock"
     },
     {

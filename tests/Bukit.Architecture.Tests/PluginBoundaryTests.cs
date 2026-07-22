@@ -68,6 +68,7 @@ public sealed class PluginBoundaryTests
         "Bukit.Config",
         "Bukit.Engine",
         "Bukit.Engine.Abstractions",
+        "Bukit.Notion",
         "Bukit.Shared"
     ];
 

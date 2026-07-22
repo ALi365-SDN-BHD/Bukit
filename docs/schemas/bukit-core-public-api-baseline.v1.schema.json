@@ -27,8 +27,8 @@
     },
     "assemblies": {
       "type": "array",
-      "minItems": 12,
-      "maxItems": 12,
+      "minItems": 14,
+      "maxItems": 14,
       "uniqueItems": true,
       "prefixItems": [
         {
@@ -63,6 +63,15 @@
           "additionalProperties": false,
           "required": ["assembly", "project"],
           "properties": {
+            "assembly": { "const": "Bukit.Content.Notion" },
+            "project": { "const": "src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
             "assembly": { "const": "Bukit.Engine" },
             "project": { "const": "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj" }
           }
@@ -74,6 +83,15 @@
           "properties": {
             "assembly": { "const": "Bukit.Engine.Abstractions" },
             "project": { "const": "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assembly", "project"],
+          "properties": {
+            "assembly": { "const": "Bukit.Notion" },
+            "project": { "const": "src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj" }
           }
         },
         {

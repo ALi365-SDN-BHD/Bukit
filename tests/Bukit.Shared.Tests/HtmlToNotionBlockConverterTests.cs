@@ -190,4 +190,43 @@ public sealed class HtmlToNotionBlockConverterTests
 
         Assert.Empty(blocks);
     }
+
+    [Fact]
+    public async Task Convert_PreCodeContainer_CompletesAndPreservesCode()
+    {
+        var blocks = await Task.Run(() =>
+                HtmlToNotionBlockConverter.Convert("<pre><code>line1\nline2</code></pre>"))
+            .WaitAsync(TimeSpan.FromSeconds(2));
+
+        var code = Assert.IsType<CodeBlock>(Assert.Single(blocks));
+        Assert.Equal("line1\nline2", code.Code);
+    }
+
+    [Fact]
+    public void Convert_EmptyContainer_DoesNotSkipFollowingBlock()
+    {
+        var blocks = HtmlToNotionBlockConverter.Convert("<div></div><p>After</p>");
+
+        var paragraph = Assert.IsType<ParagraphBlock>(Assert.Single(blocks));
+        Assert.Equal("After", Assert.Single(paragraph.Segments).Text);
+    }
+
+    [Fact]
+    public void Convert_AttributeLookup_DoesNotTreatDataSrcAsSrc()
+    {
+        var blocks = HtmlToNotionBlockConverter.Convert(
+            "<img data-src=\"https://example.com/wrong.png\" src=\"https://example.com/right.png\" alt=\"Hero\" />");
+
+        var image = Assert.IsType<ImageBlock>(Assert.Single(blocks));
+        Assert.Equal("https://example.com/right.png", image.Url);
+    }
+
+    [Fact]
+    public void Convert_AttributeWithoutValue_DoesNotThrow()
+    {
+        var exception = Record.Exception(() =>
+            HtmlToNotionBlockConverter.Convert("<img src=>"));
+
+        Assert.Null(exception);
+    }
 }

@@ -1,33 +1,26 @@
-using Bukit.Engine.Abstractions.Content;
-using System.Text;
-using System.Text.Json;
-
 namespace Bukit.Content.Notion;
 
-/// <summary>
-/// Provides shared context for block renderers, including access to
-/// child-block rendering and the Notion API client.
-/// </summary>
 public sealed class NotionRenderContext
 {
-    private readonly NotionBlocksRenderer _renderer;
-
     internal NotionRenderContext(NotionBlocksRenderer renderer, NotionApiClient client)
+        : this(
+            new Bukit.Notion.Rendering.NotionRenderContext(renderer.Inner, client.Transport),
+            client)
     {
-        _renderer = renderer;
+    }
+
+    internal NotionRenderContext(
+        Bukit.Notion.Rendering.NotionRenderContext inner,
+        NotionApiClient client)
+    {
+        Inner = inner;
         Client = client;
     }
 
-    /// <summary>The Notion API client for fetching additional data (e.g. table rows).</summary>
+    internal Bukit.Notion.Rendering.NotionRenderContext Inner { get; }
+
     public NotionApiClient Client { get; }
 
-    /// <summary>
-    /// Renders all children of the given block and returns the combined HTML.
-    /// </summary>
-    public async Task<string> RenderChildrenAsync(string blockId, CancellationToken cancellationToken)
-    {
-        var sb = new StringBuilder();
-        await _renderer.RenderChildrenToBuilderAsync(blockId, sb, cancellationToken);
-        return sb.ToString();
-    }
+    public Task<string> RenderChildrenAsync(string blockId, CancellationToken cancellationToken)
+        => Inner.RenderChildrenAsync(blockId, cancellationToken);
 }

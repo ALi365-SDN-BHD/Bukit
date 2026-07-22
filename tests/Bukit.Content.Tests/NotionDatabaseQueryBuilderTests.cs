@@ -10,7 +10,7 @@ public sealed class NotionDatabaseQueryBuilderTests
     [Fact]
     public void Build_WithCheckboxFilterIncludeSlugsSortAndCursor_ProducesExpectedJson()
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
@@ -47,7 +47,7 @@ public sealed class NotionDatabaseQueryBuilderTests
     [Fact]
     public void Build_WithFilterNoneAndInvalidSortDirection_UsesAscendingSortOnly()
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
@@ -72,7 +72,7 @@ public sealed class NotionDatabaseQueryBuilderTests
     [InlineData("rich_text_equals", "rich_text", "Published")]
     public void Build_WithSupportedFilterTypes_ProducesExpectedFilter(string filterType, string notionFilterKey, object expectedValue)
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
@@ -99,7 +99,7 @@ public sealed class NotionDatabaseQueryBuilderTests
     [Fact]
     public void Build_WithNoFiltersSortOrCursor_TrimsTrailingComma()
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",

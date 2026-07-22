@@ -1,6 +1,5 @@
-using System.Net.Http.Headers;
 using System.Text.Json;
-using Bukit.Shared.Notion;
+using Bukit.Notion.Write;
 
 namespace Bukit.Importing;
 
@@ -19,36 +18,27 @@ internal static class NotionSchemaValidator
     ];
 
     internal static async Task<SchemaValidationReport> ValidateAsync(
-        HttpClient http,
+        NotionWriteClient client,
         string databaseId,
-        string token,
         string? reportPath,
         IReadOnlyList<(string Name, string ExpectedType)>? additionalRequiredFields = null,
         CancellationToken ct = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get,
-            NotionApiUrls.Database(databaseId));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
-
-        using var response = await http.SendAsync(request, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-
-        if (!response.IsSuccessStatusCode)
+        var response = await client.InspectDatabaseSchemaAsync(databaseId, ct);
+        if (!response.IsSuccess)
         {
             var report = new SchemaValidationReport
             {
                 Success = false,
                 DatabaseId = databaseId,
-                Errors = [body],
+                Errors = [response.ErrorMessage ?? response.ReasonPhrase ?? "Notion request failed."],
                 FieldResults = []
             };
             WriteReport(reportPath, databaseId, report);
             return report;
         }
 
-        using var doc = JsonDocument.Parse(body);
-        var properties = doc.RootElement.GetProperty("properties");
+        var properties = response.Payload!.Value.GetProperty("properties");
         var fieldResults = new List<SchemaFieldResult>();
         var errors = new List<string>();
 

@@ -1,12 +1,11 @@
-using System.Net.Http.Headers;
 using System.Text.Json;
-using Bukit.Shared.Notion;
+using Bukit.Notion.Conversion;
+using Bukit.Notion.Write;
 
 namespace Bukit.Importing;
 
 internal sealed record NotionPushOptions(
     string DatabaseId,
-    string Token,
     string ReportPath,
     bool DryRun,
     string Mode = "create",
@@ -38,7 +37,7 @@ internal sealed record QueryExistingPageResult(
 internal static partial class NotionSeedPusher
 {
     internal static async Task<NotionPushResult> PushAsync(
-        HttpClient http,
+        NotionWriteClient client,
         IReadOnlyList<ImportSeedRecord> records,
         NotionPushOptions options,
         CancellationToken cancellationToken = default)
@@ -62,7 +61,7 @@ internal static partial class NotionSeedPusher
             string? existingPageId = null;
             if (isUpsert)
             {
-                var queryResult = await QueryExistingPageAsync(http, options, record, cancellationToken);
+                var queryResult = await QueryExistingPageAsync(client, options, record, cancellationToken);
                 if (!queryResult.QuerySucceeded)
                 {
                     items.Add(new NotionPushItemResult(record, "query-failed", false, null,
@@ -74,13 +73,13 @@ internal static partial class NotionSeedPusher
 
             if (existingPageId != null)
             {
-                var (success, pageId, error) = await UpdatePageAsync(http, options, existingPageId, record, cancellationToken);
+                var (success, pageId, error) = await UpdatePageAsync(client, options, existingPageId, record, cancellationToken);
                 if (success && isUpsert && !string.IsNullOrWhiteSpace(record.Content) &&
                     (options.UpdateContent == "append" || options.UpdateContent == "replace"))
                 {
                     if (options.UpdateContent == "replace")
                     {
-                        var (readSuccess, existingBlockIds) = await GetBlockChildrenIdsAsync(http, options, pageId!, cancellationToken);
+                        var (readSuccess, existingBlockIds) = await GetBlockChildrenIdsAsync(client, pageId!, cancellationToken);
                         if (!readSuccess)
                         {
                             items.Add(new NotionPushItemResult(record, "replace-failed", false, pageId, "Failed to read existing block children."));
@@ -89,7 +88,7 @@ internal static partial class NotionSeedPusher
                         var allDeleted = true;
                         foreach (var blockId in existingBlockIds)
                         {
-                            if (!await DeleteBlockAsync(http, options, blockId, cancellationToken))
+                            if (!await DeleteBlockAsync(client, blockId, cancellationToken))
                                 allDeleted = false;
                         }
                         if (!allDeleted)
@@ -101,7 +100,7 @@ internal static partial class NotionSeedPusher
                     var blocksJson = HtmlToNotionBlockConverter.ToBlocksJson(record.Content);
                     if (blocksJson != "[]")
                     {
-                        var (appendSuccess, appendError) = await AppendBlockChildrenAsync(http, options, pageId!, blocksJson, cancellationToken);
+                        var (appendSuccess, appendError) = await AppendBlockChildrenAsync(client, pageId!, blocksJson, cancellationToken);
                         if (!appendSuccess)
                         {
                             items.Add(new NotionPushItemResult(record, "append-failed", false, pageId, appendError));
@@ -113,7 +112,7 @@ internal static partial class NotionSeedPusher
             }
             else
             {
-                var (success, pageId, error) = await CreatePageAsync(http, options, record, cancellationToken);
+                var (success, pageId, error) = await CreatePageAsync(client, options, record, cancellationToken);
                 items.Add(new NotionPushItemResult(record, "created", success, pageId, error));
             }
         }
@@ -125,7 +124,7 @@ internal static partial class NotionSeedPusher
     }
 
     private static async Task<QueryExistingPageResult> QueryExistingPageAsync(
-        HttpClient http,
+        NotionWriteClient client,
         NotionPushOptions options,
         ImportSeedRecord record,
         CancellationToken ct)
@@ -134,25 +133,11 @@ internal static partial class NotionSeedPusher
         if (string.IsNullOrWhiteSpace(uniqueValue)) return new QueryExistingPageResult(true, null, null);
 
         var filterJson = BuildSlugFilterJson(options.UniqueField, uniqueValue);
-        var queryUrl = $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/databases/{options.DatabaseId}/query";
+        var response = await client.QueryDatabaseAsync(options.DatabaseId, filterJson, ct);
+        if (!response.IsSuccess)
+            return new QueryExistingPageResult(false, null, SafeError(response));
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, queryUrl);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.Token);
-        request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
-        request.Content = new StringContent(filterJson);
-        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
-        using var response = await http.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorBody = await response.Content.ReadAsStringAsync(ct);
-            return new QueryExistingPageResult(false, null,
-                string.IsNullOrWhiteSpace(errorBody) ? response.ReasonPhrase : errorBody);
-        }
-
-        var body = await response.Content.ReadAsStringAsync(ct);
-        using var doc = JsonDocument.Parse(body);
-        var results = doc.RootElement.GetProperty("results");
+        var results = response.Payload!.Value.GetProperty("results");
         if (results.GetArrayLength() > 0)
             return new QueryExistingPageResult(true, results[0].GetProperty("id").GetString(), null);
         return new QueryExistingPageResult(true, null, null);
@@ -187,63 +172,44 @@ internal static partial class NotionSeedPusher
     }
 
     private static async Task<(bool Success, string? PageId, string? Error)> CreatePageAsync(
-        HttpClient http, NotionPushOptions options, ImportSeedRecord record, CancellationToken ct)
+        NotionWriteClient client, NotionPushOptions options, ImportSeedRecord record, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/pages");
-        BuildCommonRequestHeaders(request, options.Token);
-        request.Content = new StringContent(BuildCreatePagePayload(options.DatabaseId, record, options.Schema));
-        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
-        using var response = await http.SendAsync(request, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-        if (response.IsSuccessStatusCode)
-            return (true, ExtractPageId(body), null);
-        return (false, null, string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase : body);
+        var response = await client.CreatePageAsync(
+            BuildCreatePagePayload(options.DatabaseId, record, options.Schema),
+            ct);
+        if (response.IsSuccess)
+            return (true, ExtractPageId(response.Payload), null);
+        return (false, null, SafeError(response));
     }
 
     private static async Task<(bool Success, string? PageId, string? Error)> UpdatePageAsync(
-        HttpClient http, NotionPushOptions options, string pageId,
+        NotionWriteClient client, NotionPushOptions options, string pageId,
         ImportSeedRecord record, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Patch,
-            $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/pages/{pageId}");
-        BuildCommonRequestHeaders(request, options.Token);
-        request.Content = new StringContent(BuildUpdatePagePayload(record, options.Schema));
-        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
-        using var response = await http.SendAsync(request, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-        if (response.IsSuccessStatusCode)
+        var response = await client.UpdatePageAsync(
+            pageId,
+            BuildUpdatePagePayload(record, options.Schema),
+            ct);
+        if (response.IsSuccess)
             return (true, pageId, null);
-        return (false, pageId, string.IsNullOrWhiteSpace(body) ? response.ReasonPhrase : body);
-    }
-
-    private static void BuildCommonRequestHeaders(HttpRequestMessage request, string token)
-    {
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
+        return (false, pageId, SafeError(response));
     }
 
     private static async Task<(bool Success, string? Error)> AppendBlockChildrenAsync(
-        HttpClient http, NotionPushOptions options, string pageId,
+        NotionWriteClient client, string pageId,
         string blocksJson, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Patch,
-            $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/blocks/{pageId}/children");
-        BuildCommonRequestHeaders(request, options.Token);
-        request.Content = new StringContent($"{{\"children\":{blocksJson}}}");
-        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
-        using var response = await http.SendAsync(request, ct);
-        if (response.IsSuccessStatusCode)
+        var response = await client.AppendBlockChildrenAsync(
+            pageId,
+            $"{{\"children\":{blocksJson}}}",
+            ct);
+        if (response.IsSuccess)
             return (true, null);
-        var errorBody = await response.Content.ReadAsStringAsync(ct);
-        return (false, string.IsNullOrWhiteSpace(errorBody) ? response.ReasonPhrase : errorBody);
+        return (false, SafeError(response));
     }
 
     private static async Task<(bool Success, List<string> Ids)> GetBlockChildrenIdsAsync(
-        HttpClient http, NotionPushOptions options, string pageId, CancellationToken ct)
+        NotionWriteClient client, string pageId, CancellationToken ct)
     {
         var ids = new List<string>();
         string? startCursor = null;
@@ -252,43 +218,33 @@ internal static partial class NotionSeedPusher
 
         while (hasMore)
         {
-            var url = $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/blocks/{pageId}/children?page_size=100";
-            if (startCursor != null)
-                url += $"&start_cursor={Uri.EscapeDataString(startCursor)}";
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            BuildCommonRequestHeaders(request, options.Token);
-            using var response = await http.SendAsync(request, ct);
-            if (!response.IsSuccessStatusCode)
+            var response = await client.ListBlockChildrenAsync(pageId, startCursor, ct);
+            if (!response.IsSuccess)
             {
                 allSucceeded = false;
                 break;
             }
 
-            var body = await response.Content.ReadAsStringAsync(ct);
-            using var doc = JsonDocument.Parse(body);
-            foreach (var block in doc.RootElement.GetProperty("results").EnumerateArray())
+            var payload = response.Payload!.Value;
+            foreach (var block in payload.GetProperty("results").EnumerateArray())
             {
                 var id = block.GetProperty("id").GetString();
                 if (!string.IsNullOrWhiteSpace(id))
                     ids.Add(id);
             }
 
-            hasMore = doc.RootElement.TryGetProperty("has_more", out var hm) && hm.GetBoolean();
-            startCursor = hasMore && doc.RootElement.TryGetProperty("next_cursor", out var nc)
+            hasMore = payload.TryGetProperty("has_more", out var hm) && hm.GetBoolean();
+            startCursor = hasMore && payload.TryGetProperty("next_cursor", out var nc)
                 ? nc.GetString() : null;
         }
         return (allSucceeded, ids);
     }
 
     private static async Task<bool> DeleteBlockAsync(
-        HttpClient http, NotionPushOptions options, string blockId, CancellationToken ct)
+        NotionWriteClient client, string blockId, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Delete,
-            $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/blocks/{blockId}");
-        BuildCommonRequestHeaders(request, options.Token);
-        using var response = await http.SendAsync(request, ct);
-        return response.IsSuccessStatusCode;
+        var response = await client.ArchiveBlockAsync(blockId, ct);
+        return response.IsSuccess;
     }
 
     private static NotionPushResult BuildResult(IReadOnlyList<NotionPushItemResult> items)
@@ -511,18 +467,15 @@ internal static partial class NotionSeedPusher
         writer.WriteEndObject();
     }
 
-    private static string? ExtractPageId(string json)
+    private static string? ExtractPageId(JsonElement? payload)
     {
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return payload is { } value && value.TryGetProperty("id", out var id)
+            ? id.GetString()
+            : null;
     }
+
+    private static string SafeError(NotionWriteResult result)
+        => result.ErrorMessage ?? result.ReasonPhrase ?? "Notion request failed.";
 
     private static void WriteReport(string reportPath, string databaseId, bool dryRun, NotionPushResult result)
     {

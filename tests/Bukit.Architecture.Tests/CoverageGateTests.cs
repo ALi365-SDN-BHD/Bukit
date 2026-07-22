@@ -33,6 +33,8 @@ public sealed class CoverageGateTests
         var validatePolicy = ReadRepoFile("scripts", "checks", "coverage", "validate-policy.py");
 
         Assert.Contains("tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj", listProjects, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", listProjects, StringComparison.Ordinal);
+        Assert.Contains("tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj", listProjects, StringComparison.Ordinal);
         Assert.Contains("tests/Bukit.Theme.Tests/Bukit.Theme.Tests.csproj", listProjects, StringComparison.Ordinal);
         Assert.DoesNotContain("SilkroadBiz23", listProjects, StringComparison.Ordinal);
         Assert.DoesNotContain("silkroad_biz23", listProjects, StringComparison.Ordinal);

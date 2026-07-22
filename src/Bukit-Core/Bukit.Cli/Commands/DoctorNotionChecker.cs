@@ -1,7 +1,6 @@
-using System.Net.Http.Headers;
-using System.Text.Json;
 using Bukit.Config;
-using Bukit.Shared.Notion;
+using Bukit.Notion.Diagnostics;
+using Bukit.Notion.Transport;
 
 namespace Bukit.Cli.Commands;
 
@@ -9,77 +8,66 @@ internal static class DoctorNotionChecker
 {
     public static async Task<bool> CheckNotionAsync(string token, string databaseId)
     {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        http.DefaultRequestHeaders.Add("Notion-Version", NotionApiUrls.NotionVersion);
+        using var transport = CreateClient(token, TimeSpan.FromSeconds(30));
+        return await CheckNotionAsync(new NotionHealthClient(transport), databaseId);
+    }
 
-        var url = NotionApiUrls.Database(databaseId);
-        HttpResponseMessage response;
-        try
-        {
-            response = await http.GetAsync(url);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"✖ Notion request failed: {ex.Message}");
-            return false;
-        }
-
-        if (response.IsSuccessStatusCode)
+    internal static async Task<bool> CheckNotionAsync(
+        NotionHealthClient client,
+        string databaseId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await client.CheckDatabaseAsync(databaseId, cancellationToken);
+        if (result.IsSuccess)
         {
             Console.WriteLine("✔ Notion database reachable");
             return true;
         }
 
-        Console.WriteLine($"✖ Notion database check failed: {(int)response.StatusCode} {response.ReasonPhrase}");
+        if (IsHttpFailure(result.ErrorKind) && result.StatusCode is not null)
+        {
+            Console.WriteLine($"✖ Notion database check failed: {(int)result.StatusCode} {result.ReasonPhrase}");
+            return false;
+        }
+
+        Console.WriteLine($"✖ Notion request failed: {result.ErrorMessage}");
         return false;
     }
 
     public static async Task CheckNotionSchemaAsync(string token, NotionConfig config)
     {
+        using var transport = CreateClient(token, TimeSpan.FromSeconds(30));
+        await CheckNotionSchemaAsync(new NotionHealthClient(transport), config);
+    }
+
+    internal static async Task CheckNotionSchemaAsync(
+        NotionHealthClient client,
+        NotionConfig config,
+        CancellationToken cancellationToken = default)
+    {
         Console.WriteLine($"Notion Schema Check for database {config.DatabaseId}:");
         Console.WriteLine();
 
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        http.DefaultRequestHeaders.Add("Notion-Version", NotionApiUrls.NotionVersion);
-
-        var url = NotionApiUrls.Database(config.DatabaseId);
-        HttpResponseMessage response;
-        try
+        var result = await client.InspectDatabaseSchemaAsync(config.DatabaseId, cancellationToken);
+        if (!result.IsSuccess)
         {
-            response = await http.GetAsync(url);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"✖ Schema check failed: {ex.Message}");
-            return;
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            Console.WriteLine($"✖ Cannot fetch database: {(int)response.StatusCode}");
-            return;
-        }
-
-        var body = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(body);
-        var root = doc.RootElement;
-
-        var schemaProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (root.TryGetProperty("properties", out var props) && props.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var prop in props.EnumerateObject())
+            if (IsHttpFailure(result.ErrorKind) && result.StatusCode is not null)
             {
-                var propType = string.Empty;
-                if (prop.Value.TryGetProperty("type", out var typeEl))
-                {
-                    propType = typeEl.GetString() ?? string.Empty;
-                }
-
-                schemaProperties.Add(prop.Name);
-                schemaProperties.Add(prop.Name + $" ({propType})");
+                Console.WriteLine($"✖ Cannot fetch database: {(int)result.StatusCode}");
+                return;
             }
+
+            Console.WriteLine($"✖ Schema check failed: {result.ErrorMessage}");
+            return;
+        }
+
+        // Preserve the 1.x Doctor comparison contract exactly. The two entries per property and
+        // their lookup order are intentionally retained until a separately approved CLI fix.
+        var schemaProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var property in result.Properties)
+        {
+            schemaProperties.Add(property.Name);
+            schemaProperties.Add($"{property.Name} ({property.Type})");
         }
 
         var pm = config.PropertyMap;
@@ -93,21 +81,22 @@ internal static class DoctorNotionChecker
 
             var found = false;
             var typeCorrect = false;
-            foreach (var sp in schemaProperties)
+            foreach (var schemaProperty in schemaProperties)
             {
-                if (sp.StartsWith(effectiveName, StringComparison.OrdinalIgnoreCase))
+                if (schemaProperty.StartsWith(effectiveName, StringComparison.OrdinalIgnoreCase))
                 {
                     found = true;
-                    if (sp.Contains($"({expectedType})", StringComparison.OrdinalIgnoreCase))
+                    if (schemaProperty.Contains($"({expectedType})", StringComparison.OrdinalIgnoreCase))
                     {
                         typeCorrect = true;
                     }
                     else
                     {
-                        var actualType = sp[(sp.IndexOf('(') + 1)..].TrimEnd(')');
+                        var actualType = schemaProperty[(schemaProperty.IndexOf('(') + 1)..].TrimEnd(')');
                         Console.WriteLine($" — type mismatch: expected {expectedType}, got {actualType}");
                         hasErrors = true;
                     }
+
                     break;
                 }
             }
@@ -146,25 +135,38 @@ internal static class DoctorNotionChecker
 
     public static async Task CheckNotionConnectivityAsync(string token)
     {
-        try
-        {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.notion.com/v1/users/me");
-            request.Headers.Add("Authorization", $"Bearer {token}");
-            request.Headers.Add("Notion-Version", NotionApiUrls.NotionVersion);
-            var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"⚠ Notion API unreachable: HTTP {(int)response.StatusCode}");
-            }
-            else
-            {
-                Console.WriteLine("✔ Notion API reachable");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"⚠ Notion API connectivity check failed: {ex.Message}");
-        }
+        using var transport = CreateClient(token, TimeSpan.FromSeconds(10));
+        await CheckNotionConnectivityAsync(new NotionHealthClient(transport));
     }
+
+    internal static async Task CheckNotionConnectivityAsync(
+        NotionHealthClient client,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await client.CheckConnectivityAsync(cancellationToken);
+        if (result.IsSuccess)
+        {
+            Console.WriteLine("✔ Notion API reachable");
+            return;
+        }
+
+        if (IsHttpFailure(result.ErrorKind) && result.StatusCode is not null)
+        {
+            Console.WriteLine($"⚠ Notion API unreachable: HTTP {(int)result.StatusCode}");
+            return;
+        }
+
+        Console.WriteLine($"⚠ Notion API connectivity check failed: {result.ErrorMessage}");
+    }
+
+    private static NotionClient CreateClient(string token, TimeSpan timeout)
+        => new(new NotionClientOptions
+        {
+            Token = token,
+            Timeout = timeout,
+            MaxRetries = 0
+        });
+
+    private static bool IsHttpFailure(NotionApiErrorKind? kind)
+        => kind is NotionApiErrorKind.HttpStatus or NotionApiErrorKind.RateLimited;
 }

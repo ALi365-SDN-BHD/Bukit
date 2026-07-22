@@ -18,8 +18,8 @@ baseline="docs/governance/bukit-core-public-api-baseline.v1.json"
 schema="docs/schemas/bukit-core-public-api-baseline.v1.schema.json"
 
 jq -e --slurpfile baseline "$baseline" '
-  .properties.assemblies.minItems == 12 and
-  .properties.assemblies.maxItems == 12 and
+  .properties.assemblies.minItems == 14 and
+  .properties.assemblies.maxItems == 14 and
   .properties.assemblies.items == false and
   ([.properties.assemblies.prefixItems[] | {
     assembly: .properties.assembly.const,

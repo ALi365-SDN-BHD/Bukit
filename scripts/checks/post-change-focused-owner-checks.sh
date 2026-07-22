@@ -54,6 +54,10 @@ for path in "${paths[@]}"; do
     scripts/checks/code-analysis-ratchet.py|scripts/checks/baselines/code-analysis.v1.json|\
     guide/dev/code-quality-governance.md)
       add_owner_check code-analysis-ratchet-self-test ;;
+    scripts/checks/coverage/list-core-projects.sh)
+      add_owner_check "self-test:scripts/checks/coverage/project-list-self-test.sh" ;;
+    scripts/checks/public-api-drift-self-test-policy.sh)
+      add_owner_check "self-test:scripts/checks/public-api-drift-self-test.sh" ;;
     scripts/gates/ci-fast.sh|scripts/checks/ci-fast-portability-self-test.sh)
       add_owner_check ci-fast-portability ;;
     scripts/quality-gate.sh)

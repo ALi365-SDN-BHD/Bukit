@@ -2,13 +2,15 @@ namespace Bukit.Shared.Notion;
 
 public static class NotionApiUrls
 {
-    public const string Base = "https://api.notion.com";
-    public const string ApiVersion = "v1";
-    public const string NotionVersion = "2022-06-28";
-    public const int DefaultPageSize = 100;
+    public const string Base = Bukit.Notion.NotionApiUrls.Base;
+    public const string ApiVersion = Bukit.Notion.NotionApiUrls.ApiVersion;
+    public const string NotionVersion = Bukit.Notion.NotionApiUrls.NotionVersion;
+    public const int DefaultPageSize = Bukit.Notion.NotionApiUrls.DefaultPageSize;
 
-    public static string Pages(string pageId) => $"{Base}/{ApiVersion}/pages/{pageId}";
-    public static string DatabaseQuery(string databaseId) => $"{Base}/{ApiVersion}/databases/{databaseId}/query";
-    public static string Database(string databaseId) => $"{Base}/{ApiVersion}/databases/{databaseId}";
-    public static string BlockChildren(string blockId, int pageSize = DefaultPageSize) => $"{Base}/{ApiVersion}/blocks/{blockId}/children?page_size={pageSize}";
+    public static string Pages(string pageId) => Bukit.Notion.NotionApiUrls.Pages(pageId);
+    public static string UsersMe() => Bukit.Notion.NotionApiUrls.UsersMe();
+    public static string DatabaseQuery(string databaseId) => Bukit.Notion.NotionApiUrls.DatabaseQuery(databaseId);
+    public static string Database(string databaseId) => Bukit.Notion.NotionApiUrls.Database(databaseId);
+    public static string BlockChildren(string blockId, int pageSize = DefaultPageSize)
+        => Bukit.Notion.NotionApiUrls.BlockChildren(blockId, pageSize);
 }

@@ -1,7 +1,7 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Bukit.Shared.Notion;
+using Bukit.Notion.Transport;
+using Bukit.Notion.Write;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Importing;
@@ -111,7 +111,9 @@ public static class ImportNotionPushWorkflow
             : Path.GetFullPath(options.ReportPath);
 
         using var http = CreateHttpClient();
-        var report = await NotionSchemaValidator.ValidateAsync(http, databaseId, token, reportPath);
+        using var transport = CreateTransport(token, http);
+        var client = new NotionWriteClient(transport);
+        var report = await NotionSchemaValidator.ValidateAsync(client, databaseId, reportPath);
 
         Console.WriteLine($"schema validation: {(report.Success ? "PASSED" : "FAILED")}");
         foreach (var f in report.FieldResults)
@@ -236,6 +238,8 @@ public static class ImportNotionPushWorkflow
 
         using var http = CreateHttpClient();
         var token = Environment.GetEnvironmentVariable(options.TokenEnv) ?? "";
+        using var transport = CreateTransport(options.DryRun ? "dry-run" : token, http);
+        var client = new NotionWriteClient(transport);
         var completedTargets = new List<NotionDatabaseTarget>();
         var pushResults = new List<(NotionDatabaseTarget Target, NotionPushResult Result)>();
         var failed = false;
@@ -258,8 +262,7 @@ public static class ImportNotionPushWorkflow
                 }
 
                 var createdDatabaseId = await CreateDatabaseAsync(
-                    http,
-                    token,
+                    client,
                     options.ParentPageId!,
                     activeTarget.Title,
                     additionalSchemaFields);
@@ -273,9 +276,8 @@ public static class ImportNotionPushWorkflow
                 if (options.ValidateSchema)
                 {
                     var schemaReport = await NotionSchemaValidator.ValidateAsync(
-                        http,
+                        client,
                         activeTarget.DatabaseId!,
-                        token,
                         null,
                         additionalSchemaFields);
                     if (!schemaReport.Success)
@@ -293,9 +295,8 @@ public static class ImportNotionPushWorkflow
             else if (!options.DryRun && options.ValidateSchema)
             {
                 var schemaReport = await NotionSchemaValidator.ValidateAsync(
-                    http,
+                    client,
                     activeTarget.DatabaseId!,
-                    token,
                     null,
                     additionalSchemaFields);
                 if (!schemaReport.Success)
@@ -310,9 +311,8 @@ public static class ImportNotionPushWorkflow
                 }
             }
 
-            var result = await NotionSeedPusher.PushAsync(http, records, new NotionPushOptions(
+            var result = await NotionSeedPusher.PushAsync(client, records, new NotionPushOptions(
                 DatabaseId: activeTarget.DatabaseId ?? "",
-                Token: token,
                 ReportPath: reportPath,
                 DryRun: options.DryRun,
                 Mode: mode,
@@ -372,12 +372,13 @@ public static class ImportNotionPushWorkflow
         }
         using var http = CreateHttpClient();
         var token = Environment.GetEnvironmentVariable(tokenEnv) ?? "";
+        using var transport = CreateTransport(dryRun ? "dry-run" : token, http);
+        var client = new NotionWriteClient(transport);
         if (!dryRun && validateSchema)
         {
             var schemaReport = await NotionSchemaValidator.ValidateAsync(
-                http,
+                client,
                 databaseId,
-                token,
                 null,
                 additionalSchemaFields);
             if (!schemaReport.Success)
@@ -389,9 +390,8 @@ public static class ImportNotionPushWorkflow
             }
         }
 
-        var result = await NotionSeedPusher.PushAsync(http, records, new NotionPushOptions(
+        var result = await NotionSeedPusher.PushAsync(client, records, new NotionPushOptions(
             DatabaseId: databaseId,
-            Token: token,
             ReportPath: reportPath,
             DryRun: dryRun,
             Mode: mode,
@@ -615,32 +615,34 @@ public static class ImportNotionPushWorkflow
     }
 
     private static async Task<string?> CreateDatabaseAsync(
-        HttpClient http,
-        string token,
+        NotionWriteClient client,
         string parentPageId,
         string title,
         IReadOnlyList<(string Name, string ExpectedType)> additionalSchemaFields)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            $"{NotionApiUrls.Base}/{NotionApiUrls.ApiVersion}/databases");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        request.Headers.TryAddWithoutValidation("Notion-Version", NotionApiUrls.NotionVersion);
-        request.Content = new StringContent(
-            BuildCreateDatabasePayload(parentPageId, title, additionalSchemaFields),
-            Encoding.UTF8,
-            "application/json");
-
-        using var response = await http.SendAsync(request);
-        var body = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
+        var response = await client.CreateDatabaseAsync(
+            BuildCreateDatabasePayload(parentPageId, title, additionalSchemaFields));
+        if (!response.IsSuccess)
         {
-            Console.Error.WriteLine($"Notion database create failed for {title}: {body}");
+            Console.Error.WriteLine(
+                $"Notion database create failed for {title}: " +
+                (response.ErrorMessage ?? response.ReasonPhrase ?? "Notion request failed."));
             return null;
         }
 
-        using var doc = JsonDocument.Parse(body);
-        return doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
+        return response.Payload is { } payload && payload.TryGetProperty("id", out var id)
+            ? id.GetString()
+            : null;
     }
+
+    private static NotionClient CreateTransport(string token, HttpClient http)
+        => new(
+            new NotionClientOptions
+            {
+                Token = token,
+                MaxRetries = 0
+            },
+            http);
 
     private static string BuildCreateDatabasePayload(
         string parentPageId,
