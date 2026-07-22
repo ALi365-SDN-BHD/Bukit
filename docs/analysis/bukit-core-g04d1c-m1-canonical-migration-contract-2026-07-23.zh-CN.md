@@ -223,8 +223,9 @@ renderer A 的 nested rendering 使用 A、公开 `context.Client` 却指向 B�
 
 取消必须贯穿 page request、block loop、callback 与 nested request。caller cancellation
 原样传播为 `OperationCanceledException`，并保留原 token；不能翻译为
-`ContentException` 或 `NotionApiException`。自定义 renderer/transformer 抛出的其他异常
-也原样传播，不由 renderer graph 猜测或包装。
+`ContentException` 或 `NotionApiException`。
+
+Legacy `TranslateAsync` 会包装 custom callback 直接抛出的 `NotionRenderingException` 和 `NotionApiException`；只有其他 consumer-defined exception 原样传播。Canonical renderer 不执行该翻译，这三类 callback exception 都直接传播。
 
 ## 6. 完整 old/new exception matrix
 
@@ -235,7 +236,9 @@ renderer A 的 nested rendering 使用 A、公开 `context.Client` 却指向 B�
 | terminal 429 | `ContentException`，inner 为 `NotionApiException(RateLimited)` | 直接 `NotionApiException(RateLimited)` | retry 次数由 request semantics 与 options 决定 |
 | invalid JSON | `ContentException`，inner 为 `NotionApiException(InvalidJson)` | 直接 `NotionApiException(InvalidJson)` | 使用结构化 `Kind` |
 | transport failure / 非 caller timeout cancellation | `ContentException`，inner 为 `NotionApiException(Transport)` | 直接 `NotionApiException(Transport)` | 使用 `Kind` 与 `RootErrorType` |
-| custom renderer/transformer exception | 原异常，不包装 | 原异常，不包装 | consumer 自行拥有其异常契约 |
+| custom callback 抛出 `NotionRenderingException` | `ContentException`，inner 为原 `NotionRenderingException` | 原 `NotionRenderingException` | legacy unwrap inner；canonical 直接 catch |
+| custom callback 抛出 `NotionApiException` | `ContentException`，inner 为原 `NotionApiException` | 原 `NotionApiException` | legacy unwrap inner；canonical 直接 catch |
+| custom callback 抛出其他 consumer-defined exception | 原异常，不包装 | 原异常，不包装 | 两侧按 consumer 自有类型处理 |
 | caller cancellation | `OperationCanceledException`，原 token | `OperationCanceledException`，原 token | 原样重新抛出 |
 
 ### 6.1 Old catch 示例
@@ -273,8 +276,14 @@ public static class LegacyExceptionBoundary
         {
             throw;
         }
+        catch (ConsumerCallbackException)
+        {
+            throw;
+        }
     }
 }
+
+public sealed class ConsumerCallbackException(string message) : Exception(message);
 ```
 
 ### 6.2 New catch 示例
@@ -309,8 +318,14 @@ public static class CanonicalExceptionBoundary
         {
             throw;
         }
+        catch (ConsumerCallbackException)
+        {
+            throw;
+        }
     }
 }
+
+public sealed class ConsumerCallbackException(string message) : Exception(message);
 ```
 
 不要为了保留旧 catch 形状在 canonical owner 重建 `ContentException` wrapper；这会反向

@@ -17,6 +17,14 @@ public sealed class G04D1CM1MigrationContractTests
         "M1 保留五个 legacy CLR 类型；M1 不授权 M2。";
     private const string M2Boundary =
         "M2 必须另行取得 deliberate public API approval，并把五个 legacy CLR identity 作为原子批次处理。";
+    private const string LegacyCallbackTranslationContract =
+        "Legacy `TranslateAsync` 会包装 custom callback 直接抛出的 `NotionRenderingException` 和 `NotionApiException`；只有其他 consumer-defined exception 原样传播。Canonical renderer 不执行该翻译，这三类 callback exception 都直接传播。";
+    private const string CallbackRenderingExceptionRow =
+        "| custom callback 抛出 `NotionRenderingException` | `ContentException`，inner 为原 `NotionRenderingException` | 原 `NotionRenderingException` | legacy unwrap inner；canonical 直接 catch |";
+    private const string CallbackApiExceptionRow =
+        "| custom callback 抛出 `NotionApiException` | `ContentException`，inner 为原 `NotionApiException` | 原 `NotionApiException` | legacy unwrap inner；canonical 直接 catch |";
+    private const string CallbackConsumerExceptionRow =
+        "| custom callback 抛出其他 consumer-defined exception | 原异常，不包装 | 原异常，不包装 | 两侧按 consumer 自有类型处理 |";
 
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly (string Legacy, string Canonical)[] MigrationTypes =
@@ -52,6 +60,61 @@ public sealed class G04D1CM1MigrationContractTests
             AssertPublicTypeResolves(legacyAssembly, legacyName);
             AssertPublicTypeResolves(canonicalAssembly, canonicalName);
         }
+    }
+
+    [Fact]
+    public void CompileTimeConsumers_UseExactLegacyAndCanonicalExtensionGraphShapes()
+    {
+        var legacyConsumer = new LegacyCustomRendererConsumer();
+        var canonicalConsumer = new CanonicalCustomRendererConsumer();
+
+        Assert.IsAssignableFrom<Bukit.Content.Notion.INotionBlockRenderer>(legacyConsumer);
+        Assert.IsAssignableFrom<Bukit.Notion.Rendering.INotionBlockRenderer>(canonicalConsumer);
+        Assert.IsType<Bukit.Content.Notion.NotionBlockTransformer>(
+            LegacyCustomRendererConsumer.Transformer);
+        Assert.IsType<Bukit.Notion.Rendering.NotionBlockTransformer>(
+            CanonicalCustomRendererConsumer.Transformer);
+
+        Assert.Equal(
+            typeof(Bukit.Content.Notion.NotionApiClient),
+            typeof(LegacyCustomRendererConsumer)
+                .GetProperty(nameof(LegacyCustomRendererConsumer.ReceivedClient))!
+                .PropertyType);
+        Assert.Equal(
+            typeof(Bukit.Notion.Transport.NotionClient),
+            typeof(CanonicalCustomRendererConsumer)
+                .GetProperty(nameof(CanonicalCustomRendererConsumer.ReceivedClient))!
+                .PropertyType);
+
+        AssertFactorySignature(
+            typeof(LegacyCustomRendererConsumer),
+            typeof(Bukit.Content.Notion.NotionApiClient),
+            typeof(Bukit.Content.Notion.NotionBlocksRenderer));
+        AssertFactorySignature(
+            typeof(CanonicalCustomRendererConsumer),
+            typeof(Bukit.Notion.Transport.NotionClient),
+            typeof(Bukit.Notion.Rendering.NotionBlocksRenderer));
+    }
+
+    [Fact]
+    public void LegacyAndCanonicalExtensionGraphs_KeepExactPublicSignaturesAndAssemblyIdentities()
+    {
+        AssertExtensionGraphSignatures(
+            "Bukit.Content",
+            typeof(Bukit.Content.Notion.INotionBlockRenderer),
+            typeof(Bukit.Content.Notion.NotionBlockTransformer),
+            typeof(Bukit.Content.Notion.NotionBlockRendererRegistry),
+            typeof(Bukit.Content.Notion.NotionRenderContext),
+            typeof(Bukit.Content.Notion.NotionBlocksRenderer),
+            typeof(Bukit.Content.Notion.NotionApiClient));
+        AssertExtensionGraphSignatures(
+            "Bukit.Notion",
+            typeof(Bukit.Notion.Rendering.INotionBlockRenderer),
+            typeof(Bukit.Notion.Rendering.NotionBlockTransformer),
+            typeof(Bukit.Notion.Rendering.NotionBlockRendererRegistry),
+            typeof(Bukit.Notion.Rendering.NotionRenderContext),
+            typeof(Bukit.Notion.Rendering.NotionBlocksRenderer),
+            typeof(Bukit.Notion.Transport.NotionClient));
     }
 
     [Fact]
@@ -196,6 +259,16 @@ public sealed class G04D1CM1MigrationContractTests
         Assert.All(requiredSourceContracts, contract =>
             Assert.Contains(contract, guide, StringComparison.Ordinal));
 
+        Assert.Contains(LegacyCallbackTranslationContract, guide, StringComparison.Ordinal);
+        Assert.Contains(CallbackRenderingExceptionRow, guide, StringComparison.Ordinal);
+        Assert.Contains(CallbackApiExceptionRow, guide, StringComparison.Ordinal);
+        Assert.Contains(CallbackConsumerExceptionRow, guide, StringComparison.Ordinal);
+        Assert.Equal(2, CountOccurrences(guide, "catch (ConsumerCallbackException)"));
+        Assert.DoesNotContain(
+            "| custom renderer/transformer exception | 原异常，不包装 | 原异常，不包装 |",
+            guide,
+            StringComparison.Ordinal);
+
         Assert.DoesNotContain("状态：已完成", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("parent aggregate：PASS", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("独立复审：PASS", guide, StringComparison.Ordinal);
@@ -217,6 +290,126 @@ public sealed class G04D1CM1MigrationContractTests
                 ignoreCase: false));
     }
 
+    private static void AssertExtensionGraphSignatures(
+        string expectedAssemblyName,
+        Type rendererInterface,
+        Type transformerDelegate,
+        Type registry,
+        Type context,
+        Type blocksRenderer,
+        Type client)
+    {
+        Type[] graphTypes =
+        [
+            rendererInterface,
+            transformerDelegate,
+            registry,
+            context,
+            blocksRenderer
+        ];
+        Assert.All(graphTypes, type =>
+        {
+            Assert.True(type.IsPublic, $"Expected public type: {type.FullName}");
+            Assert.Equal(expectedAssemblyName, type.Assembly.GetName().Name);
+        });
+        Assert.Equal(expectedAssemblyName, client.Assembly.GetName().Name);
+
+        Type[] callbackParameters =
+        [
+            typeof(JsonElement),
+            context,
+            typeof(CancellationToken)
+        ];
+        AssertPublicMethod(
+            rendererInterface,
+            "RenderAsync",
+            typeof(Task<string>),
+            callbackParameters);
+        AssertPublicMethod(
+            transformerDelegate,
+            "Invoke",
+            typeof(Task<string>),
+            callbackParameters);
+
+        var clientProperty = context.GetProperty("Client");
+        Assert.NotNull(clientProperty);
+        Assert.Equal(client, clientProperty.PropertyType);
+        Assert.True(clientProperty.GetMethod?.IsPublic);
+        AssertPublicMethod(
+            context,
+            "RenderChildrenAsync",
+            typeof(Task<string>),
+            typeof(string),
+            typeof(CancellationToken));
+
+        AssertPublicMethod(
+            registry,
+            "Register",
+            registry,
+            typeof(string),
+            rendererInterface);
+        AssertPublicMethod(
+            registry,
+            "SetCustomTransformer",
+            registry,
+            typeof(string),
+            transformerDelegate);
+        AssertPublicMethod(
+            registry,
+            "RemoveCustomTransformer",
+            registry,
+            typeof(string));
+
+        var constructor = blocksRenderer.GetConstructor([client, registry]);
+        Assert.NotNull(constructor);
+        Assert.True(constructor.IsPublic);
+        var registryProperty = blocksRenderer.GetProperty("Registry");
+        Assert.NotNull(registryProperty);
+        Assert.Equal(registry, registryProperty.PropertyType);
+        Assert.True(registryProperty.GetMethod?.IsPublic);
+        AssertPublicMethod(
+            blocksRenderer,
+            "RenderPageAsync",
+            typeof(Task<string>),
+            typeof(string),
+            typeof(CancellationToken));
+    }
+
+    private static void AssertPublicMethod(
+        Type declaringType,
+        string methodName,
+        Type returnType,
+        params Type[] parameterTypes)
+    {
+        var method = declaringType.GetMethod(methodName, parameterTypes);
+
+        Assert.NotNull(method);
+        Assert.True(method.IsPublic);
+        Assert.Equal(returnType, method.ReturnType);
+        Assert.Equal(
+            parameterTypes,
+            method.GetParameters().Select(parameter => parameter.ParameterType).ToArray());
+    }
+
+    private static void AssertFactorySignature(
+        Type consumer,
+        Type client,
+        Type renderer)
+    {
+        var factory = consumer.GetMethod("CreateRenderer");
+
+        Assert.NotNull(factory);
+        Assert.True(factory.IsPublic);
+        Assert.True(factory.IsStatic);
+        Assert.Equal(renderer, factory.ReturnType);
+        Assert.Equal(
+            [client],
+            factory.GetParameters().Select(parameter => parameter.ParameterType).ToArray());
+    }
+
+    private static int CountOccurrences(string value, string fragment)
+        => value.Split(fragment, StringSplitOptions.None).Length - 1;
+
     private static JsonDocument ReadJson(params string[] relativeSegments)
     {
         var path = Path.Combine([RepoRoot, .. relativeSegments]);
@@ -237,5 +430,59 @@ public sealed class G04D1CM1MigrationContractTests
         }
 
         throw new InvalidOperationException("Could not locate repository root.");
+    }
+
+    private sealed class LegacyCustomRendererConsumer : Bukit.Content.Notion.INotionBlockRenderer
+    {
+        public Bukit.Content.Notion.NotionApiClient? ReceivedClient { get; private set; }
+
+        public static Bukit.Content.Notion.NotionBlockTransformer Transformer { get; } =
+            async (_, context, cancellationToken) =>
+                await context.RenderChildrenAsync("legacy-child", cancellationToken);
+
+        public async Task<string?> RenderAsync(
+            JsonElement block,
+            Bukit.Content.Notion.NotionRenderContext context,
+            CancellationToken cancellationToken)
+        {
+            ReceivedClient = context.Client;
+            return await context.RenderChildrenAsync("legacy-child", cancellationToken);
+        }
+
+        public static Bukit.Content.Notion.NotionBlocksRenderer CreateRenderer(
+            Bukit.Content.Notion.NotionApiClient client)
+        {
+            var registry = Bukit.Content.Notion.NotionBlockRendererRegistry.CreateDefault()
+                .Register("custom", new LegacyCustomRendererConsumer())
+                .SetCustomTransformer("custom", Transformer);
+            return new Bukit.Content.Notion.NotionBlocksRenderer(client, registry);
+        }
+    }
+
+    private sealed class CanonicalCustomRendererConsumer : Bukit.Notion.Rendering.INotionBlockRenderer
+    {
+        public Bukit.Notion.Transport.NotionClient? ReceivedClient { get; private set; }
+
+        public static Bukit.Notion.Rendering.NotionBlockTransformer Transformer { get; } =
+            async (_, context, cancellationToken) =>
+                await context.RenderChildrenAsync("canonical-child", cancellationToken);
+
+        public async Task<string?> RenderAsync(
+            JsonElement block,
+            Bukit.Notion.Rendering.NotionRenderContext context,
+            CancellationToken cancellationToken)
+        {
+            ReceivedClient = context.Client;
+            return await context.RenderChildrenAsync("canonical-child", cancellationToken);
+        }
+
+        public static Bukit.Notion.Rendering.NotionBlocksRenderer CreateRenderer(
+            Bukit.Notion.Transport.NotionClient client)
+        {
+            var registry = Bukit.Notion.Rendering.NotionBlockRendererRegistry.CreateDefault()
+                .Register("custom", new CanonicalCustomRendererConsumer())
+                .SetCustomTransformer("custom", Transformer);
+            return new Bukit.Notion.Rendering.NotionBlocksRenderer(client, registry);
+        }
     }
 }
