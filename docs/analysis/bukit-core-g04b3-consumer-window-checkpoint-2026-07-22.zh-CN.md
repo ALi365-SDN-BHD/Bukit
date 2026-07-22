@@ -116,9 +116,9 @@ embedded data 只读复核：interaction `count/totalCount = 2`。它是 API 历
 
 ## 5. 反馈处置与自愿消费者声明（独立证据源）
 
-用户自愿声明 `silushangxun.com`、`silkroute.cc` 和 `ali365.com.my` 使用 Bukit
-完成构建。此项独立于 Issue #60 与公开代码搜索；它强化了 1.x 产品契约保留，
-但本身不改变 CLR candidate 的兼容性结论。处置如下。
+`silushangxun.com` 的声明来自 Issue #60 第二条评论；`silkroute.cc` 与
+`ali365.com.my` 的声明来自当前任务用户输入。三者均与公开代码搜索证据轴分离：
+它们强化了 1.x 产品契约保留，但本身不改变 CLR candidate 的兼容性结论。处置如下。
 
 | 反馈对象与证据范围 | 已确认 | 候选级证据与限制 | 后续所需补证 |
 |---|---|---|---|
