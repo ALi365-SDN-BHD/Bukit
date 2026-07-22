@@ -25,6 +25,7 @@ public sealed class NotionBlockRendererRegistry
     /// </summary>
     public NotionBlockRendererRegistry Register(string blockType, INotionBlockRenderer renderer)
     {
+        ArgumentNullException.ThrowIfNull(renderer);
         _renderers[blockType] = renderer;
         return this;
     }
@@ -36,6 +37,7 @@ public sealed class NotionBlockRendererRegistry
     /// </summary>
     public NotionBlockRendererRegistry SetCustomTransformer(string blockType, NotionBlockTransformer transformer)
     {
+        ArgumentNullException.ThrowIfNull(transformer);
         _customTransformers[blockType] = transformer;
         return this;
     }
