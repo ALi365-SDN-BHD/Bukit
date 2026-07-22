@@ -48,6 +48,11 @@ for path in "${paths[@]}"; do
     scripts/checks/post-change-targeted-paths.sh|scripts/checks/post-change-targeted-projects.sh)
       add_owner_check focused-self-test
       add_owner_check targeted-self-test ;;
+    .editorconfig|Directory.Build.props)
+      add_owner_check dotnet-format-self-test
+      add_owner_check code-analysis-ratchet-self-test ;;
+    scripts/checks/code-analysis-ratchet.py|scripts/checks/baselines/code-analysis.v1.json)
+      add_owner_check code-analysis-ratchet-self-test ;;
     scripts/gates/ci-fast.sh|scripts/checks/ci-fast-portability-self-test.sh)
       add_owner_check ci-fast-portability ;;
     scripts/quality-gate.sh)
@@ -132,6 +137,10 @@ if [[ ${#owner_checks[@]} -gt 0 ]]; then
         run_or_print "post-change focused owner-checks self-test" bash scripts/checks/post-change-focused-owner-checks-self-test.sh ;;
       targeted-self-test)
         run_or_print "post-change targeted self-test" bash scripts/checks/post-change-targeted-self-test.sh ;;
+      dotnet-format-self-test)
+        run_or_print "dotnet format self-test" bash scripts/checks/dotnet-format-self-test.sh ;;
+      code-analysis-ratchet-self-test)
+        run_or_print "code analysis ratchet self-test" bash scripts/checks/code-analysis-ratchet-self-test.sh ;;
       ci-fast-portability)
         run_or_print "ci-fast portability self-test" bash scripts/checks/ci-fast-portability-self-test.sh ;;
       security-regression)

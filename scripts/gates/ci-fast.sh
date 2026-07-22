@@ -14,6 +14,8 @@ run_step "post-change focused self-test" bash scripts/checks/post-change-focused
 run_step "post-change targeted self-test" bash scripts/checks/post-change-targeted-self-test.sh
 run_step "dotnet format self-test" bash scripts/checks/dotnet-format-self-test.sh
 run_step "dotnet format" bash scripts/checks/dotnet-format.sh
+run_step "code analysis ratchet self-test" bash scripts/checks/code-analysis-ratchet-self-test.sh
+run_step "code analysis ratchet" bash scripts/checks/code-analysis-ratchet.sh check
 run_step "public API drift self-test" bash scripts/checks/public-api-drift-self-test.sh
 run_step "public API drift" bash scripts/checks/public-api-drift.sh check "$configuration"
 run_step "ci-fast portability self-test" bash scripts/checks/ci-fast-portability-self-test.sh

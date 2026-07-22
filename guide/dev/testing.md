@@ -45,6 +45,33 @@ The wrapper runs `dotnet format bukit-core.slnx --verify-no-changes
 bash scripts/checks/dotnet-format-self-test.sh
 ```
 
+## Code analysis debt ratchet
+
+The code-analysis gate inventories all SDK style and analyzer diagnostics at
+`info` severity, but it does not promote the historical inventory to build
+errors. It compares per-diagnostic counts and rejects only a new diagnostic ID
+or an increase above the committed baseline:
+
+```bash
+bash scripts/checks/code-analysis-ratchet.sh check
+```
+
+After an intentional analyzer-wave or policy change, write a candidate baseline
+to a new path and review its diagnostic-by-diagnostic delta before replacing the
+committed baseline:
+
+```bash
+bash scripts/checks/code-analysis-ratchet.sh snapshot OUTPUT
+```
+
+The snapshot command refuses to overwrite an existing path. The comparator,
+formatter-status handling, baseline shape, owner routing, and `ci-fast` wiring
+are covered by:
+
+```bash
+bash scripts/checks/code-analysis-ratchet-self-test.sh
+```
+
 ## Aggregate targeted gate
 
 Run this once after all parent-task subtasks have passed focused checks:
