@@ -303,17 +303,20 @@ public sealed class NotionClient : IDisposable
                 ? null
                 : await request.Content.ReadAsByteArrayAsync(cancellationToken);
             var contentHeaders = request.Content?.Headers
-                .Select(static header => new KeyValuePair<string, string[]>(header.Key, header.Value.ToArray()))
+                .Select(static header => new KeyValuePair<string, string[]>(header.Key, [.. header.Value]))
                 .ToArray() ?? [];
+            KeyValuePair<string, string[]>[] headers =
+            [
+                .. request.Headers.Select(static header =>
+                    new KeyValuePair<string, string[]>(header.Key, [.. header.Value]))
+            ];
 
             return new BufferedRequest(
                 request.Method,
                 request.RequestUri!,
                 request.Version,
                 request.VersionPolicy,
-                request.Headers
-                    .Select(static header => new KeyValuePair<string, string[]>(header.Key, header.Value.ToArray()))
-                    .ToArray(),
+                headers,
                 content,
                 contentHeaders);
         }

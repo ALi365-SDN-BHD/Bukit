@@ -101,11 +101,14 @@ internal static class NotionDatabaseOptionReader
             return false;
         }
 
-        options = optionElements.EnumerateArray()
-            .Select(static option => NotionContentSource.GetString(option, "name")?.Trim())
-            .Where(static name => !string.IsNullOrWhiteSpace(name))
-            .Select(static name => name!)
-            .ToArray();
+        string[] parsedOptions =
+        [
+            .. optionElements.EnumerateArray()
+                .Select(static option => NotionContentSource.GetString(option, "name")?.Trim())
+                .Where(static name => !string.IsNullOrWhiteSpace(name))
+                .Select(static name => name!)
+        ];
+        options = parsedOptions;
         return true;
     }
 }
