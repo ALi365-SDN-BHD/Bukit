@@ -331,10 +331,7 @@ public sealed partial class GitHubPagesDeployProvider
                     timeout);
             }
 
-            if (ct.IsCancellationRequested)
-            {
-                throw new OperationCanceledException(ct);
-            }
+            ct.ThrowIfCancellationRequested();
 
             throw;
         }

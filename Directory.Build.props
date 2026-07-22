@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <Nullable>enable</Nullable>
-    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisLevel>9.0</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <UseSharedCompilation>false</UseSharedCompilation>

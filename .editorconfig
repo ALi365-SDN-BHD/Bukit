@@ -8,6 +8,27 @@ indent_size = 4
 insert_final_newline = true
 trim_trailing_whitespace = true
 
+[src/Bukit-Core/**/*.cs]
+# Zero-debt formatting and correctness rules. These warnings are build errors
+# through Directory.Build.props and may only be suppressed at an intentional
+# boundary with a written justification.
+dotnet_diagnostic.IDE0055.severity = warning
+dotnet_diagnostic.CA1001.severity = warning
+dotnet_diagnostic.CA1063.severity = warning
+dotnet_diagnostic.CA1816.severity = warning
+dotnet_diagnostic.CA2012.severity = warning
+dotnet_diagnostic.CA2016.severity = warning
+dotnet_diagnostic.CA2213.severity = warning
+dotnet_diagnostic.CA2215.severity = warning
+dotnet_diagnostic.CA2216.severity = warning
+dotnet_diagnostic.CA2250.severity = warning
+
+# Existing contract-sensitive or noisy findings are report-only and governed
+# by the committed non-increase baseline.
+dotnet_diagnostic.CA1068.severity = suggestion
+dotnet_diagnostic.CA1849.severity = suggestion
+dotnet_diagnostic.CA2000.severity = suggestion
+
 [*.md]
 charset = utf-8
 end_of_line = lf

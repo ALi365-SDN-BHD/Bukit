@@ -37,6 +37,7 @@ not a historical plan and not a Labs guide.
 | Publish and deploy | [publish-deploy.md](publish-deploy.md) |
 | Observability | [observability.md](observability.md) |
 | Testing | [testing.md](testing.md) |
+| Code quality governance | [code-quality-governance.md](code-quality-governance.md) |
 | Release | [release.md](release.md) |
 | Release checklist | [release-checklist.md](release-checklist.md) |
 | Native AOT | [aot.md](aot.md) |

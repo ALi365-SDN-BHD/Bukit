@@ -16,6 +16,23 @@ baseline="scripts/checks/baselines/code-analysis.v1.json"
 [[ -f "$comparator" ]] || fail "ratchet comparator is missing"
 [[ -f "$baseline" ]] || fail "committed ratchet baseline is missing"
 
+[[ "$(grep -Fxc '    <AnalysisLevel>9.0</AnalysisLevel>' Directory.Build.props)" == "1" ]] ||
+  fail "Directory.Build.props must pin AnalysisLevel to 9.0"
+
+assert_editorconfig_severity() {
+  local diagnostic="$1" severity="$2"
+  local expected="dotnet_diagnostic.$diagnostic.severity = $severity"
+  [[ "$(grep -Fxc "$expected" .editorconfig)" == "1" ]] ||
+    fail "$diagnostic must be configured exactly once at $severity"
+}
+
+for diagnostic in IDE0055 CA1001 CA1063 CA1816 CA2012 CA2016 CA2213 CA2215 CA2216 CA2250; do
+  assert_editorconfig_severity "$diagnostic" warning
+done
+for diagnostic in CA1068 CA1849 CA2000; do
+  assert_editorconfig_severity "$diagnostic" suggestion
+done
+
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-code-analysis-ratchet-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT
 

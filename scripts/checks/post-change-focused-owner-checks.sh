@@ -51,7 +51,8 @@ for path in "${paths[@]}"; do
     .editorconfig|Directory.Build.props)
       add_owner_check dotnet-format-self-test
       add_owner_check code-analysis-ratchet-self-test ;;
-    scripts/checks/code-analysis-ratchet.py|scripts/checks/baselines/code-analysis.v1.json)
+    scripts/checks/code-analysis-ratchet.py|scripts/checks/baselines/code-analysis.v1.json|\
+    guide/dev/code-quality-governance.md)
       add_owner_check code-analysis-ratchet-self-test ;;
     scripts/gates/ci-fast.sh|scripts/checks/ci-fast-portability-self-test.sh)
       add_owner_check ci-fast-portability ;;

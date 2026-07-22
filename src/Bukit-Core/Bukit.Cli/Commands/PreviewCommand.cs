@@ -102,7 +102,9 @@ public static class PreviewCommand
             try
             {
                 var context = await listener.GetContextAsync();
-                _ = Task.Run(() => HandleRequest(dir, context, removeManagedAnalytics));
+                _ = Task.Run(
+                    () => HandleRequest(dir, context, removeManagedAnalytics),
+                    CancellationToken.None);
             }
             catch (HttpListenerException) when (cancellationToken.IsCancellationRequested || !listener.IsListening)
             {
