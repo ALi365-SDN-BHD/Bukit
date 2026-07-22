@@ -59,13 +59,15 @@ GitHub Issue #60 opened the declaration window at `2026-07-21T02:19:46Z` and
 was observed closed at `2026-07-22T07:08:30Z`, with the close event at
 `2026-07-22T07:08:31Z`. The eligible stable release is `v1.0.10`.
 
-All 136 entries remain `consumer-declaration-pending`, and every
-private-consumer status remains `unknown-until-voluntary-declaration`. Closure
-does not prove that private consumers do not exist.
+At declaration-window closure, all 136 entries were recorded as
+`consumer-declaration-pending`, and every private-consumer status was recorded
+as `unknown-until-voluntary-declaration`. That historical closure record does
+not prove that private consumers do not exist.
 
-Closure permits only G-04C eligibility discussion. It does not authorize a
-candidate change: G-04C requires separate authorization, is 2.0-only, and is
-limited to a single-type decision. All 1.x CLR visibility remains unchanged.
+The declaration-window closure permitted only G-04C eligibility discussion; it
+did not itself authorize a candidate change. The later G-04C single-type
+decision is the sole authorized exception, is 2.0-only, and leaves all 1.x CLR
+visibility unchanged.
 
 ## What Happens When A Consumer Is Found
 
@@ -81,12 +83,14 @@ for G-04C eligibility.
 
 ## Explicit Non-Claims
 
-- This closed declaration lifecycle does not approve any candidate for a
-  compatibility change.
-- The 136 candidates are not approved for deprecation, access narrowing, or
-  removal.
+- At declaration-window closure, this closed declaration lifecycle did not
+  approve any candidate for a compatibility change.
+- At that time, none of the 136 candidates had been approved for deprecation,
+  access narrowing, or removal.
 - Public-search results do not establish the absence of private, unindexed, or
   undisclosed consumers.
+- Closing G-04B3 does not authorize G-04C.
+
 ## G-04C Single-Type Decision
 
 G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry` is
@@ -97,4 +101,3 @@ records the exact drift, migration boundary, verification, and independent revie
 The closed 136-entry candidate manifest remains the immutable historical cohort
 captured at declaration-window closure. The current public API baseline is the
 source of truth for the post-removal CLR surface.
-- Closing G-04B3 does not authorize G-04C.

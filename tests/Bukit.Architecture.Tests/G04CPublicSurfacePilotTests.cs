@@ -102,6 +102,9 @@ public sealed class G04CPublicSurfacePilotTests
         Assert.Contains("其余 135 项候选没有获得批量变更授权", ledger, StringComparison.Ordinal);
         Assert.Contains("历史 cohort", ledger, StringComparison.Ordinal);
         Assert.Contains("没有替代 API", ledger, StringComparison.Ordinal);
+        Assert.Contains("状态：实施记录已建立 / 跨边界验证与独立复审待执行", ledger, StringComparison.Ordinal);
+        Assert.Contains("Core、Labs、", ledger, StringComparison.Ordinal);
+        Assert.Contains("smoke、aggregate targeted gate 和独立只读复审尚未执行", ledger, StringComparison.Ordinal);
     }
 
     private static JsonDocument ReadJson(params string[] relativeSegments)

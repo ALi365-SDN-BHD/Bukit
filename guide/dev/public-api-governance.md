@@ -130,9 +130,10 @@ and [consumer declaration](../../docs/governance/bukit-core-2.0-consumer-declara
 record the current declaration state as `closed`. The window opened at
 `2026-07-21T02:19:46Z`; [GitHub Issue #60](https://github.com/ALi365-SDN-BHD/Bukit/issues/60)
 was observed closed at `2026-07-22T07:08:30Z`, with its close event at
-`2026-07-22T07:08:31Z`. The eligible stable release is `v1.0.10`. All 136
-candidates remain review-only and `consumer-declaration-pending`; closing the
-window is not a removal decision.
+`2026-07-22T07:08:31Z`. The eligible stable release is `v1.0.10`. At
+declaration-window closure, all 136 candidates were recorded as review-only
+and `consumer-declaration-pending`; closing the window itself was not a removal
+decision.
 
 All 1.x CLR access levels remain unchanged. A `no-public-match-found` result
 means only that the recorded public searches found no reviewed external match;
@@ -144,9 +145,11 @@ The closed lifecycle preserves the limit of public evidence: a
 or undisclosed consumers. New evidence requires a separately opened channel or
 task rather than use of the closed Issue.
 
-Closure permits only a G-04C eligibility discussion. G-04C requires separate
-authorization, is 2.0-only, and is limited to a single-type decision; it does
-not authorize a batch access-level change. All 1.x CLR visibility remains
+At declaration-window closure, it permitted only a G-04C eligibility
+discussion and did not authorize a candidate change. The later G-04C
+single-type decision is the sole authorized exception: it approves one type
+for 2.0 removal while the other 135 candidates remain unapproved. It does not
+authorize a batch access-level change. All 1.x CLR visibility remains
 unchanged.
 
 ### G-04C Single-Type Pilot
