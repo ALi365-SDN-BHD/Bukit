@@ -7,15 +7,6 @@ using Bukit.Shared;
 
 namespace Bukit.Engine;
 
-public sealed record RouteInventoryInspectEntry(
-    string Url,
-    string OutputPath,
-    string Template,
-    string? Collection,
-    string? Type,
-    string? Language,
-    string RouteSource);
-
 public static class RouteInventoryValidator
 {
     /// <summary>
