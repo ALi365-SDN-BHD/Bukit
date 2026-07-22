@@ -15,7 +15,7 @@
 - Do not close, comment on, relabel, or otherwise mutate GitHub Issue #60.
 - Do not treat zero comments, zero public search matches, elapsed calendar time, RC tags, or pre-window releases as proof of no consumers.
 - Do not authorize G-04C or any access-level change.
-- Use only official GitHub API evidence for current Issue and release state; record retrieval time and evidence limitations.
+- Use official GitHub REST API evidence for current Issue and release state; record retrieval time and evidence limitations. If REST quota prevents a refresh, official GitHub Issue-page embedded data may be recorded as supplementary read-only evidence with its own retrieval time; do not conflate it with the earlier REST snapshot.
 - The final status must reflect the first unmet gate: `waiting-stable-release`, `feedback-disposition-required`, or `post-stable-evidence-refresh-required`. Eligibility may be recorded only when every gate is proven complete.
 
 ---
@@ -37,11 +37,11 @@ Record current `main` commit, baseline type count and compatibility counts, cand
 
 - [ ] **Step 2: Capture current official GitHub evidence**
 
-Read Issue #60 and its comments plus the repository releases endpoint. Record Issue state/comment count and list releases relevant to the window-opening timestamp. Do not send any write request.
+Read Issue #60 and its comments plus the repository releases endpoint. Record Issue state/comment count and list releases relevant to the window-opening timestamp. If REST quota prevents a later refresh, record a separately timestamped official Issue-page embedded-data snapshot as supplementary read-only evidence. Do not send any write request.
 
 - [ ] **Step 3: Write the checkpoint report**
 
-The report must classify the current lifecycle from live evidence. It must distinguish `v1.0.10-rc.1` from a qualifying stable release, classify every Issue comment without treating acknowledgements as consumer evidence, distinguish governance containment from actual surface narrowing, document the 472-to-476 baseline evolution without reopening the candidate set, identify whether authenticated candidate searches are fresh enough for closure, and define the exact resume conditions. If the authenticated search cannot be refreshed, the status is `post-stable-evidence-refresh-required` and governed lifecycle fields remain unchanged.
+The report must classify the current lifecycle from live evidence using the first unmet gate. It must distinguish `v1.0.10-rc.1` from a qualifying stable release, classify every Issue comment without treating acknowledgements as consumer evidence, distinguish governance containment from actual surface narrowing, document the 472-to-476 baseline evolution without reopening the candidate set, identify whether authenticated candidate searches are fresh enough for closure, and define the exact resume conditions. If feedback disposition remains incomplete, the status is `feedback-disposition-required`; if feedback is complete but authenticated search cannot be refreshed, it is `post-stable-evidence-refresh-required`. Governed lifecycle fields remain unchanged in either case.
 
 - [ ] **Step 4: Verify documentation ownership and scope**
 
