@@ -199,3 +199,106 @@ bash scripts/checks/post-change-targeted.sh \
 - 未运行 full、release、`test-all`、`smoke-all` 或整仓库解决方案测试。
 
 最终建议：合并 N-07 后将 AD-03 标为“1.x 已治理、2.0 facade 清理待办”，不要继续在同一任务内扩张到 AD-01、AD-05 或 Notion API 功能升级。
+
+## 9. AD03-C1/C2 当前关闭附录
+
+复核日期：2026-07-22。
+
+当前事实基线：`main@82485e4e`；C2 实施提交：`6925fa81`。
+
+本附录只更新 R1～R6 合并后的当前状态，并建立 1.x legacy facade 冻结契约。
+它不改写第 1～8 节在 `b8bc7059` 基线上的历史事实，也不修改公共 CLR
+签名、配置 schema、插件协议、Notion API 版本、HTTP/TLS 策略、内容投影、HTML、
+关系链接或缓存格式。
+
+### 9.1 当前依赖事实
+
+```mermaid
+flowchart LR
+    Engine["Bukit.Engine"] --> Content["Bukit.Content\n1.x facade 与 internal bridge"]
+    Content --> Adapter["Bukit.Content.Notion\ncanonical content adapter"]
+    Content --> Notion["Bukit.Notion\ncanonical Notion implementation"]
+    Adapter --> Notion
+    Adapter --> Config["Bukit.Config"]
+    Adapter --> EA["Bukit.Engine.Abstractions"]
+    Adapter --> Shared["Bukit.Shared"]
+    Shared --> Notion
+    Notion --> BCL["BCL only"]
+```
+
+这张图替代第 1 节旧基线中 `Engine → Bukit.Content.Notion` 的直接边：R4 后
+Engine 只通过 `Bukit.Content` 的 internal compatibility bridge 调用 adapter，
+`Bukit.Engine.csproj` 不直接引用 `Bukit.Content.Notion`，adapter 也不向 Engine
+开放 internals。
+
+### 9.2 R1～R6 正式状态台账
+
+| 项目 | 当前所有权与证据 | 状态 |
+|---|---|---|
+| R1：写请求 retry 分类 | `04b547fb` 使 legacy POST 仅在 canonical database query URL 上按幂等读取处理，未知或写入 POST fail closed 为不可重放。 | 1.x 已关闭 |
+| R2：取消与失败缓存传播 | `04b547fb` 保留调用方取消，并在正文 lazy task 失败后移除失败缓存项。 | 1.x 已关闭 |
+| R3：canonical endpoint owner | `0c2d7805` 使 adapter 直接使用 `Bukit.Notion.NotionApiUrls`；Architecture test 拒绝 Shared endpoint facade 反向进入 adapter。 | 1.x 已关闭 |
+| R4：Engine/adapter internals 隔离 | `fe197148` 删除 Engine 对 adapter 的直接项目引用和 friendship，改由 Content internal bridge 承接旧签名。 | 1.x 已关闭；旧 `INotionPageFetcher` 签名留待 2.0 |
+| R5：registry 与 mapper 单一所有权 | `784c1c7c` 将默认 registry 归 canonical owner，并对 legacy/canonical block subtype 建立双向穷尽性保护。 | 1.x 已关闭 |
+| R6：分发边界 | `af8555d4` 将两个 canonical 项目固定为不可打包的 monorepo Core components，并建立活动治理契约。 | 1.x 已关闭 |
+| C1：当前关闭台账 | 本附录纠正当前依赖图、提交、测试数量、兼容残余和证据边界。 | 已建立 |
+| C2：legacy facade 冻结 | `6925fa81` 增加活动治理规则和 exact-export architecture test。 | 已建立 |
+
+“1.x 已关闭”表示错误的实现所有权和依赖方向已治理，不表示兼容依赖已物理删除。
+`Bukit.Shared → Bukit.Notion`、`Bukit.Content → Bukit.Content.Notion/Bukit.Notion`
+以及跨程序集同名 namespace 仍是为了保留 1.x 程序集身份而接受的兼容成本。
+
+### 9.3 C2 冻结范围
+
+1.x 期间：
+
+- `Bukit.Shared.dll` 中 `Bukit.Shared.Notion.*` 的 18 个导出类型保持 exact set；
+- `Bukit.Content.dll` 中 legacy `Bukit.Content.Notion.*` 的 35 个导出类型保持
+  exact set；
+- 旧 facade 只允许不改变 public/protected surface、namespace 和 assembly identity
+  的兼容性、正确性与安全修复；
+- 新协议、传输、转换、诊断、渲染和写能力进入 `Bukit.Notion`；
+- 新的 Bukit 内容投影和内容源适配能力进入 `Bukit.Content.Notion`；
+- legacy 层不得重新拥有第二份 transport、endpoint、renderer registry、投影路径
+  或缓存格式。
+
+公共成员签名继续由 public API drift baseline 约束；新增 legacy 导出类型则由
+`LegacyNotionFacades_MustRemainFrozenDuringOneX` 直接失败。该冻结不是弃用或删除
+授权，47 个 `replace-with-bukit-notion` 候选仍必须等待 2.0 消费者治理决定。
+
+### 9.4 当前验证证据
+
+以 `NOTION_TOKEN` 从 Engine 测试环境移除后，当前定向结果为：
+
+- `Bukit.Notion.Tests`：32/32；
+- `Bukit.Content.Notion.Tests`：6/6；
+- `Bukit.Content.Tests`：724/724；
+- `Bukit.Shared.Tests`：320/320；
+- `Bukit.Engine.Tests`：1594/1594；
+- `Bukit.Architecture.Tests`：99/99，其中 Notion boundary 为 12/12；
+- public API drift：通过，构建 0 warning、0 error；
+- C2 `post-change-focused.sh`：通过。
+
+public API drift 第一次在新 worktree 中因工具项目缺少 `project.assets.json` 退出；
+只恢复 `tools/Bukit.PublicApiDrift` 后，未修改生产代码或基线，原检查通过。该次失败
+分类为隔离 worktree 的 restore 前置条件，不是公共面 drift。
+
+本任务的最终 aggregate 使用 `82485e4e` 为 base，并覆盖本附录、活动治理文档和
+Architecture test。为避免通过“结果回写”改变已经验证的 diff，本附录不预写
+aggregate 通过；其原始退出状态必须保留在任务交付记录中，失败时不得把 C1/C2
+标记为完成。
+
+### 9.5 关闭判定与剩余边界
+
+- AD-03 原始问题“重 Notion 实现位于 Shared”：已关闭；
+- AD-03 1.x 实现和依赖方向治理：已关闭；
+- AD-03 1.x legacy facade 新能力入口：已冻结；
+- 1.x 兼容依赖、同 namespace 跨程序集和旧 fetcher transport 签名：受控保留；
+- 2.0 facade 删除、程序集依赖移除和 canonical API 收窄：未授权，继续由公共面
+  consumer declaration 与独立 2.0 评审决定；
+- adapter 内部的大型 parser/source 文件属于 AD-05 变更原因拆分候选，不在
+  AD-03 中按行数继续迁移；
+- adapter 对 `Engine.Abstractions` 的依赖可能受 AD-01 contract extraction 影响，
+  也不在 AD-03 中顺带处理。
+
+当前代码判定因此是：**AD-03 在 1.x 中已治理并冻结，2.0 兼容清偿保持开放。**
