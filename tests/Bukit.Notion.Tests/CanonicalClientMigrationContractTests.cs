@@ -104,7 +104,6 @@ public sealed class CanonicalClientMigrationContractTests
     {
         var handler = new HeaderCaptureHandler();
         using var http = new HttpClient(handler);
-        var delays = new List<int>();
         var options = new NotionClientOptions
         {
             Token = "migration-token",
@@ -113,16 +112,7 @@ public sealed class CanonicalClientMigrationContractTests
             MaxRetries = 4,
             MaxRps = 3
         };
-        using var client = new NotionClient(
-            options,
-            http,
-            (milliseconds, _) =>
-            {
-                delays.Add(milliseconds);
-                return Task.CompletedTask;
-            },
-            () => DateTimeOffset.UtcNow,
-            ownsHttpClient: false);
+        using var client = new NotionClient(options, http);
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             "https://api.notion.com/v1/databases/database-id/query")
@@ -137,7 +127,6 @@ public sealed class CanonicalClientMigrationContractTests
         Assert.Equal(17, options.RequestDelayMs);
         Assert.Equal(4, options.MaxRetries);
         Assert.Equal(3, options.MaxRps);
-        Assert.Equal([17], delays);
         Assert.Equal(TimeSpan.FromSeconds(30), new NotionClientOptions { Token = "token" }.Timeout);
     }
 
@@ -145,29 +134,26 @@ public sealed class CanonicalClientMigrationContractTests
     public async Task DatabaseQueryPost_AsIdempotentRead_Retries429ThenSucceeds()
     {
         var handler = new SequenceHandler(
-            Json(HttpStatusCode.TooManyRequests, "{\"code\":\"rate_limited\"}"),
+            RateLimited(),
             Json("{\"ok\":true}"));
         using var http = new HttpClient(handler);
-        var delays = new List<int>();
-        using var client = CreateClient(http, maxRetries: 1, delays);
+        using var client = CreateClient(http, maxRetries: 1);
         using var request = DatabaseQueryRequest();
 
         using var response = await client.SendAsync(request, NotionRequestSemantics.IdempotentRead);
 
         Assert.True(response.RootElement.GetProperty("ok").GetBoolean());
         Assert.Equal(2, handler.RequestCount);
-        Assert.Equal([1000], delays);
     }
 
     [Fact]
     public async Task WriteRequest_AsNonReplayableWrite_DoesNotReplayAfter429()
     {
         var handler = new SequenceHandler(
-            Json(HttpStatusCode.TooManyRequests, "{\"code\":\"rate_limited\"}"),
+            RateLimited(),
             Json("{\"ok\":true}"));
         using var http = new HttpClient(handler);
-        var delays = new List<int>();
-        using var client = CreateClient(http, maxRetries: 3, delays);
+        using var client = CreateClient(http, maxRetries: 3);
         using var request = new HttpRequestMessage(
             HttpMethod.Patch,
             "https://api.notion.com/v1/pages/page-id")
@@ -180,7 +166,6 @@ public sealed class CanonicalClientMigrationContractTests
 
         Assert.Equal(NotionApiErrorKind.RateLimited, exception.Kind);
         Assert.Equal(1, handler.RequestCount);
-        Assert.Empty(delays);
     }
 
     [Fact]
@@ -235,22 +220,14 @@ public sealed class CanonicalClientMigrationContractTests
 
     private static NotionClient CreateClient(
         HttpClient http,
-        int maxRetries = 0,
-        List<int>? delays = null)
+        int maxRetries = 0)
         => new(
             new NotionClientOptions
             {
                 Token = "token",
                 MaxRetries = maxRetries
             },
-            http,
-            (milliseconds, _) =>
-            {
-                delays?.Add(milliseconds);
-                return Task.CompletedTask;
-            },
-            () => DateTimeOffset.UtcNow,
-            ownsHttpClient: false);
+            http);
 
     private static HttpRequestMessage DatabaseQueryRequest()
         => new(HttpMethod.Post, "https://api.notion.com/v1/databases/database-id/query")
@@ -266,6 +243,13 @@ public sealed class CanonicalClientMigrationContractTests
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json")
         };
+
+    private static HttpResponseMessage RateLimited()
+    {
+        var response = Json(HttpStatusCode.TooManyRequests, "{\"code\":\"rate_limited\"}");
+        response.Headers.TryAddWithoutValidation("Retry-After", "0");
+        return response;
+    }
 
     public enum FailureKind
     {
