@@ -160,6 +160,21 @@ public sealed class NotionClientTests
     }
 
     [Fact]
+    public async Task Timeout_IsTranslatedToSafeTransportFailure()
+    {
+        const string secret = "timeout-secret";
+        var handler = new ThrowingHandler(new TaskCanceledException(secret));
+        using var http = new HttpClient(handler);
+        using var client = CreateClient("token", http);
+
+        var exception = await Assert.ThrowsAsync<NotionApiException>(() =>
+            client.GetAsync(NotionApiUrls.Database("db")));
+
+        Assert.Equal(NotionApiErrorKind.Transport, exception.Kind);
+        Assert.DoesNotContain(secret, exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TransportFailure_DoesNotExposeInnerUrlOrToken()
     {
         const string secret = "transport-secret";

@@ -8,6 +8,7 @@ public static class NotionApiUrls
     public const int DefaultPageSize = Bukit.Notion.NotionApiUrls.DefaultPageSize;
 
     public static string Pages(string pageId) => Bukit.Notion.NotionApiUrls.Pages(pageId);
+    public static string UsersMe() => Bukit.Notion.NotionApiUrls.UsersMe();
     public static string DatabaseQuery(string databaseId) => Bukit.Notion.NotionApiUrls.DatabaseQuery(databaseId);
     public static string Database(string databaseId) => Bukit.Notion.NotionApiUrls.Database(databaseId);
     public static string BlockChildren(string blockId, int pageSize = DefaultPageSize)

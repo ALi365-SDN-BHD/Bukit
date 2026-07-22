@@ -8,6 +8,7 @@ public static class NotionApiUrls
     public const int DefaultPageSize = 100;
 
     public static string Pages(string pageId) => $"{Base}/{ApiVersion}/pages/{pageId}";
+    public static string UsersMe() => $"{Base}/{ApiVersion}/users/me";
     public static string DatabaseQuery(string databaseId) => $"{Base}/{ApiVersion}/databases/{databaseId}/query";
     public static string Database(string databaseId) => $"{Base}/{ApiVersion}/databases/{databaseId}";
     public static string BlockChildren(string blockId, int pageSize = DefaultPageSize) => $"{Base}/{ApiVersion}/blocks/{blockId}/children?page_size={pageSize}";

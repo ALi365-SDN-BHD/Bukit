@@ -112,6 +112,14 @@ public sealed class NotionClient : IDisposable
             {
                 throw;
             }
+            catch (OperationCanceledException exception)
+            {
+                throw new NotionApiException(
+                    NotionApiErrorKind.Transport,
+                    "Notion request failed due to a transport error.",
+                    attempts: attempt + 1,
+                    rootErrorType: exception.GetBaseException().GetType().FullName);
+            }
             catch (HttpRequestException exception)
             {
                 throw new NotionApiException(
