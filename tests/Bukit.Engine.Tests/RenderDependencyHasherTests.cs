@@ -41,6 +41,265 @@ public sealed class RenderDependencyHasherTests
         MeasurementId = "G-ABC123"
     };
 
+    private static AppConfig CreateRepresentativeGoldenConfig()
+    {
+        var config = CreateBaseConfig();
+        return config with
+        {
+            Site = config.Site with
+            {
+                Description = "Golden description",
+                BaseUrl = "/docs/",
+                Language = "en",
+                Languages = ["zh-CN", "en"],
+                DefaultLanguage = "en",
+                Url = "https://example.com",
+                SitemapMode = "merged",
+                Feed = config.Site.Feed with { Mode = "merged" },
+                Search = config.Site.Search with { Mode = "merged" },
+                Analytics = new AnalyticsConfig
+                {
+                    Enabled = true,
+                    ProductionOnly = false,
+                    Providers = [CreateAnalyticsProvider()]
+                },
+                Seo = config.Site.Seo with
+                {
+                    RenderMode = "inject",
+                    HomeTitleTemplate = "{siteTitle} Home",
+                    PageTitleTemplate = "{pageTitle} - {siteTitle}",
+                    TitleSeparator = " - ",
+                    DefaultImage = "/cover.png",
+                    TwitterSite = "@bukit"
+                },
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["posts"] = new()
+                    {
+                        Permalink = "/posts/{slug}/",
+                        Template = "pages/post.html",
+                        ListRoute = "/posts/",
+                        ListTitle = "Posts",
+                        ListDescription = "All posts",
+                        ListTemplate = "pages/posts.html",
+                        SchemaFailMode = "warn",
+                        Pagination = new CollectionPaginationConfig
+                        {
+                            Enabled = true,
+                            PageSize = 5,
+                            UrlPattern = "page/{page}/",
+                            FirstPageUsesListRoute = true
+                        },
+                        Output = new CollectionOutputConfig
+                        {
+                            Rss = true,
+                            Sitemap = true,
+                            Archive = true,
+                            FeedPath = "posts.xml",
+                            FeedTitle = "Posts feed",
+                            FeedDescription = "Recent posts",
+                            ArchiveDetail = new ArchiveDetailConfig
+                            {
+                                Depth = "monthly",
+                                Template = "pages/archive.html",
+                                RoutePrefix = "/archive/"
+                            }
+                        },
+                        FilteredLists =
+                        [
+                            new FilteredListConfig
+                            {
+                                Field = "category",
+                                Operator = "in",
+                                Values = ["engineering", "news"],
+                                ListRoute = "/posts/featured/",
+                                Title = "Featured",
+                                Description = "Featured posts",
+                                ListTemplate = "pages/featured.html",
+                                PageSize = 3,
+                                UrlPattern = "p/{page}/",
+                                EmptyBehavior = "skip"
+                            }
+                        ]
+                    }
+                },
+                Plugins = new Dictionary<string, PluginToggleConfig>
+                {
+                    ["analytics"] = new() { Enabled = true },
+                    ["search"] = new() { Enabled = false }
+                }
+            },
+            Content = config.Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>
+                    {
+                        ["posts"] =
+                        [
+                            new CustomFieldDefinitionConfig
+                            {
+                                Name = "rating",
+                                FieldType = "number",
+                                Label = "Rating",
+                                Format = "0.0",
+                                Enum = ["1", "2"],
+                                Min = 1,
+                                Max = 5,
+                                Required = true,
+                                Default = 3
+                            }
+                        ]
+                    }
+                },
+                RouteMetadata = new RouteMetadataConfig
+                {
+                    Source = "page_meta",
+                    RouteField = "path",
+                    TitleField = "heading",
+                    SummaryField = "dek",
+                    SeoTitleField = "meta_title",
+                    SeoDescriptionField = "meta_description",
+                    RequiredRoutes = ["/posts/", "/"]
+                }
+            },
+            Build = config.Build with { ListPageContentMode = "full" },
+            Theme = config.Theme with
+            {
+                Params = new Dictionary<string, object> { ["accent"] = "blue" },
+                Shortcodes = new Dictionary<string, string> { ["notice"] = "shortcodes/notice.html" },
+                Components = new Dictionary<string, ComponentDefinition>
+                {
+                    ["card"] = new()
+                    {
+                        Template = "components/card.html",
+                        Props = new Dictionary<string, string> { ["tone"] = "info" }
+                    }
+                },
+                ComponentValidation = "strict"
+            },
+            Taxonomy = new TaxonomyConfig
+            {
+                OutputMode = "both",
+                PageSize = 12,
+                IndexEnabled = true,
+                PinField = "featured",
+                PinOrderField = "rank",
+                ItemFields = ["categories", "tags"],
+                PinFieldBySource = new Dictionary<string, string> { ["posts"] = "pinned" },
+                PinOrderFieldBySource = new Dictionary<string, string> { ["posts"] = "position" },
+                Kinds =
+                [
+                    new TaxonomyKindConfig
+                    {
+                        Key = "tags",
+                        Kind = "tag",
+                        Title = "Tags",
+                        Description = "Post tags",
+                        SingularTitlePrefix = "Tag",
+                        Template = "pages/tag.html",
+                        IndexTemplate = "pages/tags.html",
+                        TermTemplate = "pages/tag-term.html",
+                        IndexEnabled = true,
+                        Hierarchical = false,
+                        RoutePrefix = "/tags/"
+                    }
+                ]
+            }
+        };
+    }
+
+    private static SiteModel CreateRepresentativeGoldenSiteModel() => new()
+    {
+        Name = "golden",
+        Title = "Golden",
+        BaseUrl = "/docs/",
+        Language = "en",
+        BuildYear = 2026,
+        Modules = new Dictionary<string, IReadOnlyList<ModuleInfo>>
+        {
+            ["posts"] =
+            [
+                new ModuleInfo
+                {
+                    Id = "post-b",
+                    Title = "Post B",
+                    Slug = "post-b",
+                    Content = "B"
+                },
+                new ModuleInfo
+                {
+                    Id = "post-a",
+                    Title = "Post A",
+                    Slug = "post-a",
+                    Content = "A"
+                }
+            ],
+            ["page_meta"] =
+            [
+                new ModuleInfo
+                {
+                    Id = "metadata",
+                    Title = "Metadata",
+                    Slug = "metadata",
+                    Content = "reserved"
+                }
+            ]
+        },
+        Data = new Dictionary<string, object>
+        {
+            ["settings"] = new Dictionary<string, object> { ["region"] = "apac" },
+            ["page_meta"] = "reserved"
+        },
+        DataIndex = new Dictionary<string, object>
+        {
+            ["settings"] = new Dictionary<string, object>
+            {
+                ["contact"] = new Dictionary<string, object> { ["email"] = "hello@example.com" }
+            },
+            ["page_meta"] = "reserved"
+        }
+    };
+
+    [Fact]
+    public void ContributorPlan_UsesStableOrder()
+    {
+        Assert.Equal(
+            new[]
+            {
+                "site-identity-and-modes",
+                "analytics",
+                "seo",
+                "theme-and-template-model",
+                "collections-and-field-scopes",
+                "taxonomy",
+                "route-metadata-configuration",
+                "non-analytics-plugin-enablement",
+                "site-model-data"
+            },
+            RenderDependencyContributorPlan.Contributors.Select(contributor => contributor.Name));
+    }
+
+    [Fact]
+    public void Compute_BaseConfiguration_MatchesGoldenHash()
+    {
+        Assert.Equal(
+            "364a700bfde3ca7844620b94e3c3f9e13a372b406a981f669833978344dc2744",
+            RenderDependencyHasher.Compute(CreateBaseConfig(), s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_RepresentativeConfiguration_MatchesGoldenHash()
+    {
+        Assert.Equal(
+            "97390da25c57eadd059a54100ec70af1876abd24d7cc2eea634e97ad5dcfec8c",
+            RenderDependencyHasher.Compute(
+                CreateRepresentativeGoldenConfig(),
+                CreateRepresentativeGoldenSiteModel(),
+                BuildExecutionMode.Development,
+                analyticsRendererContractVersion: "golden-contract-v1"));
+    }
+
     [Fact]
     public void Compute_SameConfig_ProducesSameHash()
     {
