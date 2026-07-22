@@ -2,7 +2,7 @@
 
 日期：2026-07-22
 
-状态：实施记录已建立 / 跨边界验证与独立复审待执行
+状态：已实施并通过跨边界验证与独立只读复审
 
 基线：`main@88a31b5eba2e52219ec3d1a107b703acdf9a3467`
 
@@ -51,20 +51,23 @@ breaking: Bukit.Engine::Bukit.Engine.RouteInventoryInspectEntry: exported type r
 若后续出现新的直接 CLR、反射、序列化、继承、公共签名或 Native AOT 消费证据，
 必须重新开启独立兼容性任务。本台账不授权临时 facade、兼容 shim 或另外 135 项变更。
 
-## 5. 当前证据与待验收项
+## 5. 验证证据
 
 - 删除前架构测试按预期 RED，删除后同一测试 GREEN；
-- 目标 G-04C 架构测试与 `Bukit.Engine.Tests` 通过；
+- `Bukit.Engine.Tests` 与完整 `Bukit.Architecture.Tests` 通过；
 - public API drift self-test 及更新后的真实 check 通过；
-- Core、Labs、`bukit-plugins.slnx`、`osx-arm64` Native AOT、release-artifact
-  smoke、aggregate targeted gate 和独立只读复审尚未执行。
+- Core、Labs 与 `bukit-plugins.slnx` Release 编译通过；
+- `osx-arm64` Native AOT 归档构建及 release-artifact smoke 通过；
+- 第一次独立只读实施复审未发现未关闭的 Critical 或 Important finding。
 
-未执行项必须在最终关闭提交中根据真实结果改为通过或明确阻塞；不得预先声称通过。
+环境或基础设施阻塞必须保留为未取得证据，不得记录为通过。父任务的
+aggregate targeted gate 和最终 aggregate diff 复审在本关闭提交后执行，并以任务
+最终交接记录为准。
 
 ## 6. 复审结论
 
-最终关闭需独立只读复审确认 diff 只包含已批准的 2.0 版本线、单类型源码删除、
+第一次独立只读复审确认 diff 只包含已批准的 2.0 版本线、单类型源码删除、
 当前 baseline 精确更新、架构守卫和治理文档。路由行为、配置 schema、插件协议、
-持久化格式、asset URL、输出路径、HTTP/TLS 策略及全局路径工具必须保持未改变。
+持久化格式、asset URL、输出路径、HTTP/TLS 策略及全局路径工具均未改变。
 
 本台账关闭的只是一个单类型试点，不代表 G-04C 批量收窄已经获批或完成。
