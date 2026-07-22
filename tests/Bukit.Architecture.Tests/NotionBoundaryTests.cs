@@ -70,6 +70,28 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
+    public void ContentNotion_MustUseCanonicalNotionEndpointOwner()
+    {
+        var repoRoot = FindRepoRoot();
+        var root = Path.Combine(repoRoot, "src", "Bukit-Core", "Bukit.Content.Notion");
+        var forbidden = new[]
+        {
+            "using Bukit.Shared.Notion;",
+            "Bukit.Shared.Notion.NotionApiUrls"
+        };
+
+        var violations = Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !IsBuildOutput(path))
+            .SelectMany(path => forbidden
+                .Where(token => File.ReadAllText(path).Contains(token, StringComparison.Ordinal))
+                .Select(token => $"{Path.GetRelativePath(repoRoot, path)}: {token}"))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
     public void Content_MustReferenceContentNotionCompatibilityAdapter()
     {
         var repoRoot = FindRepoRoot();

@@ -3,9 +3,9 @@ using Bukit.Engine.Abstractions.Content;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Bukit.Notion;
 using Bukit.Notion.Rendering;
 using Bukit.Shared;
-using Bukit.Shared.Notion;
 namespace Bukit.Content.Notion;
 
 public sealed class NotionContentSource
