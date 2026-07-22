@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bukit.Content" />
+    <InternalsVisibleTo Include="Bukit.Notion.Tests" />
+  </ItemGroup>
+
 </Project>
