@@ -135,6 +135,13 @@ public sealed class SeoReportValidatorTests
     }
 
     [Fact]
+    public void SpecializedValidators_ValidateTheirOwnReportContracts()
+    {
+        SeoAuditReportContractValidator.Validate(Parse(ValidReportJson()));
+        PublishAuditReportContractValidator.Validate(Parse(ValidPublishReportJson()));
+    }
+
+    [Fact]
     public void ValidateReportContract_PublishReportWithLlmsFullIncluded_Passes()
     {
         AuditReportContractValidator.ValidateReportContract(Parse(ValidPublishReportJson()), SeoReportValidator.AuditReportContract.PublishOnly);
