@@ -150,6 +150,24 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
         Assert.Contains("paths", ledger, StringComparison.Ordinal);
         Assert.Contains("reports", ledger, StringComparison.Ordinal);
         Assert.Contains("version", ledger, StringComparison.Ordinal);
+        Assert.Contains("## Task 1 已完成验证", ledger, StringComparison.Ordinal);
+        Assert.Contains("Architecture 109 passed / 0 failed", ledger, StringComparison.Ordinal);
+        Assert.Contains("Content 670 passed / 0 failed", ledger, StringComparison.Ordinal);
+        Assert.Contains("Notion 86 passed / 0 failed", ledger, StringComparison.Ordinal);
+        Assert.Contains("public API drift self-test OK", ledger, StringComparison.Ordinal);
+        Assert.Contains("public-api-drift.sh check Release", ledger, StringComparison.Ordinal);
+        Assert.Contains("0 warnings / 0 errors", ledger, StringComparison.Ordinal);
+        Assert.Contains("focused post-change check", ledger, StringComparison.Ordinal);
+        Assert.Contains("candidate manifest", ledger, StringComparison.Ordinal);
+        Assert.Contains("diff 为 0", ledger, StringComparison.Ordinal);
+        Assert.Contains("首轮独立只读复审已执行，结论为 Changes requested；1 Important finding 待本修复复审关闭", ledger, StringComparison.Ordinal);
+
+        var pending = ledger[ledger.IndexOf("## 待完成的跨边界验证", StringComparison.Ordinal)..];
+        Assert.DoesNotContain("Architecture、Content、Notion 测试项目", pending, StringComparison.Ordinal);
+        Assert.DoesNotContain("public API self-test", pending, StringComparison.Ordinal);
+        Assert.DoesNotContain("更新\n  baseline 后真实 check", pending, StringComparison.Ordinal);
+        Assert.DoesNotContain("focused post-change check", pending, StringComparison.Ordinal);
+        Assert.DoesNotContain("candidate manifest", pending, StringComparison.Ordinal);
     }
 
     private static JsonDocument ReadJson(params string[] relativeSegments)

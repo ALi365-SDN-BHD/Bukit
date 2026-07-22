@@ -35,24 +35,30 @@ canonical owner。
 paths、reports 和 version 均未改变；configuration defaults、asset URL、
 path utilities 和 HTTP/TLS 行为同样未改变。
 
-## 实施与已完成验证
+## Task 1 已完成验证
 
 - 编译程序集 RED guard 在删除前失败，且只因两个旧类型仍可解析；删除后
   同一 guard 通过。
 - 已迁移 `NotionColorPaletteTests` 与
   `NotionRichTextRendererExtendedTests` 到 canonical test project，并保留
   原有断言主体。
-- Content、Notion 行为测试及 Architecture removal guard 已执行；当前
-  baseline snapshot 与“仅删除这两个 `Bukit.Content` entries”的语义预期完全
-  一致。
+- Architecture 109 passed / 0 failed。
+- Content 670 passed / 0 failed。
+- Notion 86 passed / 0 failed。
+- `public-api-drift-self-test.sh` 通过：`public API drift self-test OK`。
+- baseline 更新后的 `public-api-drift.sh check Release` 通过，build 为 0 warnings / 0 errors。
+- focused post-change check 通过；其 owner tests 为 Content 670、Architecture
+  109、Notion 86。
+- closed candidate manifest 与
+  `1d72384b10dc011388db44042c35daccb0c5411f` 的 diff 为 0。
+- 当前 baseline snapshot 与“仅删除这两个 `Bukit.Content` entries”的语义预期
+  完全一致。
 - pre-baseline public API drift 被分类为恰好两条 `breaking:` exported type
   removed，无其它 drift category。
 
 ## 待完成的跨边界验证
 
-- 完整 Architecture、Content、Notion 测试项目，public API self-test 与更新
-  baseline 后真实 check；
-- focused post-change check、candidate manifest 与
-  `1d72384b10dc011388db44042c35daccb0c5411f` 的无 diff 核验；
-- Core/Labs/plugins 编译、`osx-arm64` Native AOT archive smoke 与独立只读
-  复审，均不在本次 Task 1 的已完成结论内。
+- Core/Labs/plugins builds 与 `osx-arm64` Native AOT archive smoke；
+- 首轮独立只读复审已执行，结论为 Changes requested；1 Important finding 待本修复复审关闭；
+- parent task 的 aggregate `post-change-targeted.sh`、最终 aggregate diff 与
+  final review/closure。
