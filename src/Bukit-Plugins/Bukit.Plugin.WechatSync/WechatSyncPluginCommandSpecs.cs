@@ -24,6 +24,8 @@ public static class WechatSyncPluginCommandSpecs
                             StringOption("--source-names", "Comma-separated source names."),
                             StringOption("--content-types", "Comma-separated content types."),
                             StringOption("--default-types-when-missing", "Comma-separated fallback content types."),
+                            StringOption("--draft-review-statuses", "Review statuses allowed to create WeChat drafts."),
+                            StringOption("--publish-review-statuses", "Review statuses allowed to publish; must be a subset of draft statuses."),
                             StringOption("--target", "Target mode.", allowed: ["draft", "publish"]),
                             StringOption("--author", "WeChat author."),
                             StringOption("--default-thumb-media-id", "Fallback WeChat thumb media id."),

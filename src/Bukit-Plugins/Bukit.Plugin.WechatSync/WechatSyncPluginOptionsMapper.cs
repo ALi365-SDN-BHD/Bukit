@@ -83,6 +83,21 @@ public static class WechatSyncPluginOptionsMapper
             defaultTypes = new HashSet<string>(contentTypes, StringComparer.OrdinalIgnoreCase);
         }
 
+        var draftReviewStatuses = ReadReviewStatusPolicy(
+            request,
+            "--draft-review-statuses",
+            ["reviewed", "verified", "approved"]);
+        var publishReviewStatuses = ReadReviewStatusPolicy(
+            request,
+            "--publish-review-statuses",
+            ["verified", "approved"]);
+        if (!publishReviewStatuses.IsSubsetOf(draftReviewStatuses))
+        {
+            throw new WechatSyncPluginOptionsException(
+                "plugin.wechat-sync.invalidOption",
+                "--publish-review-statuses must be a subset of --draft-review-statuses.");
+        }
+
         var options = new WechatSyncOptions(
             SourceNames: ParseSet(ReadString(request, "--source-names")),
             ContentTypes: contentTypes,
@@ -107,7 +122,11 @@ public static class WechatSyncPluginOptionsMapper
             PublishPollMaxAttempts: ReadPositiveInt(request, "--poll-max-attempts", 10),
             PublishPollIntervalSeconds: ReadPositiveInt(request, "--poll-interval-seconds", 5),
             Force: ReadBool(request, "--force"),
-            DefaultImageUrl: ReadString(request, "--default-image-url"));
+            DefaultImageUrl: ReadString(request, "--default-image-url"))
+        {
+            DraftReviewStatuses = draftReviewStatuses,
+            PublishReviewStatuses = publishReviewStatuses
+        };
 
         return new WechatSyncPluginMappedInvocation(
             rootDir,
@@ -204,6 +223,27 @@ public static class WechatSyncPluginOptionsMapper
             ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             : value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static HashSet<string> ReadReviewStatusPolicy(
+        PluginInvokeRequest request,
+        string name,
+        IReadOnlyList<string> defaults)
+    {
+        if (!request.Command.Options.ContainsKey(name))
+        {
+            return new HashSet<string>(defaults, StringComparer.OrdinalIgnoreCase);
+        }
+
+        var statuses = ParseSet(ReadString(request, name));
+        if (statuses.Count == 0 || statuses.Contains("*"))
+        {
+            throw new WechatSyncPluginOptionsException(
+                "plugin.wechat-sync.invalidOption",
+                $"{name} must contain one or more explicit review statuses and cannot use a wildcard.");
+        }
+
+        return statuses;
+    }
 
     private static int ReadPositiveInt(PluginInvokeRequest request, string name, int fallback)
     {

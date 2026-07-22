@@ -343,7 +343,10 @@ public sealed class WechatSyncWorkflowLockTests : IDisposable
             {
                 ["sourceKey"] = "notion",
                 ["sourceId"] = "page-1",
-                ["summary"] = "Summary"
+                ["summary"] = "Summary",
+                ["manifestReviewStatus"] = "approved",
+                ["reviewStatus"] = "approved",
+                ["syncStatus"] = string.Empty
             },
             Fields: new Dictionary<string, WechatSyncField>
             {

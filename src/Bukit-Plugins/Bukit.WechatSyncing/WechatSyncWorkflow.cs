@@ -7,13 +7,14 @@ using static WechatSyncHelpers;
 public sealed class WechatSyncWorkflow
 {
     public const string PluginId = "wechat-sync";
-    public const string Version = "0.3.0";
+    public const string Version = "0.4.0";
 
     private readonly IWechatDraftGateway? _gateway;
     private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
     private readonly Func<string, CancellationToken, Task<byte[]>>? _downloadImageAsync;
     private readonly TimeSpan _runLockTimeout;
     private readonly Action<string, SyncCache> _saveCache;
+    private readonly Func<DateTimeOffset> _utcNow;
 
     public WechatSyncWorkflow()
         : this(null, null, null)
@@ -33,13 +34,15 @@ public sealed class WechatSyncWorkflow
         Func<TimeSpan, CancellationToken, Task>? delayAsync,
         Func<string, CancellationToken, Task<byte[]>>? downloadImageAsync,
         TimeSpan runLockTimeout,
-        Action<string, SyncCache>? saveCache = null)
+        Action<string, SyncCache>? saveCache = null,
+        Func<DateTimeOffset>? utcNow = null)
     {
         _gateway = gateway;
         _delayAsync = delayAsync ?? ((delay, ct) => Task.Delay(delay, ct));
         _downloadImageAsync = downloadImageAsync;
         _runLockTimeout = runLockTimeout;
         _saveCache = saveCache ?? SyncCacheManager.SaveCache;
+        _utcNow = utcNow ?? (() => DateTimeOffset.UtcNow);
     }
 
     public async Task<WechatSyncResult> RunAsync(
@@ -50,6 +53,20 @@ public sealed class WechatSyncWorkflow
         var messages = new List<WechatSyncMessage>();
         var diagnostics = new List<WechatSyncDiagnostic>();
         var cachePath = SyncCacheManager.ResolvePath(context.RootDir, options.CacheFile);
+        var plan = WechatSyncPlanner.Create(context, options, _utcNow());
+        diagnostics.AddRange(plan.Exclusions.Select(exclusion => new WechatSyncDiagnostic(
+            exclusion.Code,
+            exclusion.Severity,
+            exclusion.Message,
+            exclusion.Path)));
+        if (plan.HasErrors || plan.Candidates.Count == 0)
+        {
+            const string message = "plugin wechat-sync skipped: no candidate content matched eligibility and filters";
+            context.Logger.Info(message);
+            messages.Add(new WechatSyncMessage("info", message));
+            return new WechatSyncResult(!plan.HasErrors, 0, 0, 0, messages, diagnostics, cachePath);
+        }
+
         await using var runLock = await SyncCacheManager.AcquireRunLockAsync(
             context.RootDir,
             cachePath,
@@ -59,14 +76,7 @@ public sealed class WechatSyncWorkflow
         var cache = SyncCacheManager.LoadCache(cachePath, context.Logger);
         runLock.ValidateIdentity();
         var forceRetryIgnoreCache = options.Force || ReadTrueFromEnv(options.ForceRetryIgnoreCacheEnv);
-        var filtered = FilterCandidates(context, options);
-        if (filtered.Count == 0)
-        {
-            const string message = "plugin wechat-sync skipped: no candidate content matched filters";
-            context.Logger.Info(message);
-            messages.Add(new WechatSyncMessage("info", message));
-            return new WechatSyncResult(true, 0, 0, 0, messages, diagnostics, cachePath);
-        }
+        var filtered = plan.Candidates;
 
         var appId = ReadRequiredEnv(options.AppIdEnv);
         var appSecret = ReadRequiredEnv(options.AppSecretEnv);
@@ -172,10 +182,16 @@ public sealed class WechatSyncWorkflow
 
                 if (options.Target == "publish")
                 {
+                    if (candidate.ExpiresAt is { } expiresAt && expiresAt <= _utcNow())
+                    {
+                        AddContentExpiredDiagnostic(diagnostics, candidate, expiresAt);
+                        continue;
+                    }
+
                     var publishProgress = await ResumePublishAsync(
                         context,
                         gateway,
-                        candidate.SyncKey,
+                        candidate,
                         options,
                         cache,
                         cachePath,
@@ -422,6 +438,16 @@ public sealed class WechatSyncWorkflow
             "error",
             $"wechat-sync publish remains pending for '{syncKey}'."));
 
+    private static void AddContentExpiredDiagnostic(
+        List<WechatSyncDiagnostic> diagnostics,
+        WechatSyncCandidate candidate,
+        DateTimeOffset expiresAt)
+        => diagnostics.Add(new WechatSyncDiagnostic(
+            "plugin.wechat-sync.contentExpired",
+            "warning",
+            $"wechat-sync item '{candidate.Item.Id}' excluded: content expired at {expiresAt:O}.",
+            candidate.Route.OutputPath));
+
     private void PersistCache(
         string cachePath,
         SyncCache cache,
@@ -512,7 +538,7 @@ public sealed class WechatSyncWorkflow
     private async Task<PublishProgress> ResumePublishAsync(
         WechatSyncContext context,
         IWechatDraftGateway gateway,
-        string syncKey,
+        WechatSyncCandidate candidate,
         WechatSyncOptions options,
         SyncCache cache,
         string cachePath,
@@ -521,8 +547,10 @@ public sealed class WechatSyncWorkflow
         List<WechatSyncDiagnostic> diagnostics,
         CancellationToken cancellationToken)
     {
+        var syncKey = candidate.SyncKey;
         if (operation.State == "DraftCreated")
         {
+            var draftCreatedOperation = operation;
             operation = operation with
             {
                 State = "PublishSubmitting",
@@ -536,6 +564,19 @@ public sealed class WechatSyncWorkflow
                 cache,
                 runLock,
                 next => next.Operations[syncKey] = operation);
+
+            if (candidate.ExpiresAt is { } expiresAt && expiresAt <= _utcNow())
+            {
+                operation = draftCreatedOperation with { UpdatedAt = _utcNow() };
+                PersistTransition(
+                    context.Logger,
+                    cachePath,
+                    cache,
+                    runLock,
+                    next => next.Operations[syncKey] = operation);
+                AddContentExpiredDiagnostic(diagnostics, candidate, expiresAt);
+                return PublishProgress.Expired;
+            }
 
             string? publishId;
             try
@@ -647,6 +688,7 @@ public sealed class WechatSyncWorkflow
         Succeeded,
         Pending,
         Failed,
+        Expired,
         RecoveryRequired
     }
 
@@ -694,64 +736,4 @@ public sealed class WechatSyncWorkflow
             options.OnlyFansCanComment);
     }
 
-    private static List<WechatSyncCandidate> FilterCandidates(WechatSyncContext context, WechatSyncOptions options)
-    {
-        var list = new List<WechatSyncCandidate>();
-        foreach (var (item, route) in context.Routed)
-        {
-            if (ReadMetaString(item.Metadata, "sourceMode").Equals("data", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var sourceKey = ReadMetaString(item.Metadata, "sourceKey");
-            if (string.IsNullOrWhiteSpace(sourceKey))
-            {
-                sourceKey = ReadMetaString(item.Metadata, "source");
-            }
-
-            if (options.SourceNames.Count > 0 && !options.SourceNames.Contains(sourceKey))
-            {
-                continue;
-            }
-
-            var fieldType = ReadFieldType(item.Fields);
-            if (!MatchesType(fieldType, options.ContentTypes, options.DefaultTypesWhenMissing))
-            {
-                continue;
-            }
-
-            var sourceId = ReadMetaString(item.Metadata, "sourceId");
-            var syncKey = !string.IsNullOrWhiteSpace(sourceKey) && !string.IsNullOrWhiteSpace(sourceId)
-                ? $"{sourceKey}:{sourceId}"
-                : item.Id;
-
-            list.Add(new WechatSyncCandidate(syncKey, sourceKey, sourceId, item, route));
-        }
-
-        return list;
-    }
-
-    private static bool MatchesType(string? type, HashSet<string> contentTypes, HashSet<string> defaultTypesWhenMissing)
-    {
-        if (contentTypes.Count == 0)
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(type))
-        {
-            return contentTypes.Contains(type);
-        }
-
-        foreach (var fallback in defaultTypesWhenMissing)
-        {
-            if (contentTypes.Contains(fallback))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

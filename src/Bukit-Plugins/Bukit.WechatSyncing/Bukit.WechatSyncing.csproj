@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Bukit.Plugin.WechatSync.Tests" />
+    <InternalsVisibleTo Include="bukit-plugin-wechat-sync" />
   </ItemGroup>
 
   <ItemGroup>

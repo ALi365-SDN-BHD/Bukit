@@ -1,6 +1,6 @@
 id: wechat-sync
 name: Bukit WeChat Sync Plugin
-version: 0.3.0
+version: 0.4.0
 protocol: bukit-plugin-v1
 kind: process
 distribution: self-contained
@@ -34,6 +34,12 @@ commands:
           - name: --default-types-when-missing
             type: string
             description: Comma-separated fallback content types.
+          - name: --draft-review-statuses
+            type: string
+            description: Review statuses allowed to create WeChat drafts.
+          - name: --publish-review-statuses
+            type: string
+            description: Publish review statuses; must be a subset of draft statuses.
           - name: --target
             type: string
             description: Target mode.

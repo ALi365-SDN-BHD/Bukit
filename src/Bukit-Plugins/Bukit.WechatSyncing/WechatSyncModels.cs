@@ -55,7 +55,11 @@ public sealed record WechatSyncOptions(
     int PublishPollMaxAttempts = 10,
     int PublishPollIntervalSeconds = 5,
     bool Force = false,
-    string? DefaultImageUrl = null);
+    string? DefaultImageUrl = null)
+{
+    public HashSet<string>? DraftReviewStatuses { get; init; }
+    public HashSet<string>? PublishReviewStatuses { get; init; }
+}
 
 public sealed record WechatSyncResult(
     bool Success,
@@ -75,7 +79,22 @@ internal sealed record WechatSyncCandidate(
     string SourceKey,
     string SourceId,
     WechatSyncItem Item,
-    WechatSyncRoute Route);
+    WechatSyncRoute Route,
+    DateTimeOffset? ExpiresAt);
+
+internal sealed record WechatSyncPlanExclusion(
+    string Code,
+    string Severity,
+    string Message,
+    string? Path);
+
+internal sealed record WechatSyncPlan(
+    IReadOnlyList<WechatSyncCandidate> Candidates,
+    IReadOnlyList<WechatSyncPlanExclusion> Exclusions)
+{
+    internal bool HasErrors
+        => Exclusions.Any(exclusion => exclusion.Severity.Equals("error", StringComparison.OrdinalIgnoreCase));
+}
 
 internal static class ContentBodyResolver
 {

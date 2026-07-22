@@ -24,6 +24,112 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_ReviewStatusDeniedBeforeGatewayEvenWhenForced()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var context = WithReviewStatus(Context("<p>Hello</p>"), "needs-review");
+        var options = Options(appId.Name, secret.Name) with
+        {
+            Target = "publish",
+            Force = true
+        };
+
+        var result = await new WechatSyncWorkflow(gateway).RunAsync(context, options);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Candidates);
+        Assert.Equal(0, gateway.AddDraftCount);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == "plugin.wechat-sync.reviewStatusDenied" &&
+            diagnostic.Severity == "warning");
+    }
+
+    [Fact]
+    public async Task RunAsync_ContentExpiringAfterDraftCreationIsNotPublished()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var now = DateTimeOffset.Parse("2026-07-22T00:00:00Z");
+        var expiresAt = now.AddMinutes(1);
+        var gateway = new FakeWechatDraftGateway
+        {
+            OnAddDraft = () => now = expiresAt
+        };
+        var context = WithExpiresAt(Context("<p>Hello</p>"), expiresAt);
+        var options = Options(appId.Name, secret.Name) with
+        {
+            Target = "publish",
+            PublishPollMaxAttempts = 1,
+            PublishPollIntervalSeconds = 1
+        };
+        var workflow = new WechatSyncWorkflow(
+            gateway,
+            delayAsync: (_, _) => Task.CompletedTask,
+            downloadImageAsync: null,
+            SyncCacheManager.DefaultRunLockTimeout,
+            saveCache: null,
+            utcNow: () => now);
+
+        var result = await workflow.RunAsync(context, options);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Candidates);
+        Assert.Equal(0, result.Synced);
+        Assert.Equal(1, gateway.AddDraftCount);
+        Assert.Equal(0, gateway.PublishCount);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == "plugin.wechat-sync.contentExpired" &&
+            diagnostic.Severity == "warning");
+    }
+
+    [Fact]
+    public async Task RunAsync_ContentExpiringWhilePublishSubmissionIsPersistedIsNotPublished()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var now = DateTimeOffset.Parse("2026-07-22T00:00:00Z");
+        var expiresAt = now.AddMinutes(1);
+        var saveCount = 0;
+        var savedStates = new List<string?>();
+        var gateway = new FakeWechatDraftGateway();
+        var context = WithExpiresAt(Context("<p>Hello</p>"), expiresAt);
+        var options = Options(appId.Name, secret.Name) with
+        {
+            Target = "publish",
+            PublishPollMaxAttempts = 1,
+            PublishPollIntervalSeconds = 1
+        };
+        var workflow = new WechatSyncWorkflow(
+            gateway,
+            delayAsync: (_, _) => Task.CompletedTask,
+            downloadImageAsync: null,
+            SyncCacheManager.DefaultRunLockTimeout,
+            saveCache: (_, cache) =>
+            {
+                saveCount++;
+                savedStates.Add(cache.Operations.Values.SingleOrDefault()?.State);
+                if (saveCount == 3)
+                {
+                    now = expiresAt;
+                }
+            },
+            utcNow: () => now);
+
+        var result = await workflow.RunAsync(context, options);
+
+        Assert.True(result.Success);
+        Assert.True(saveCount >= 3);
+        Assert.Equal("DraftCreated", savedStates[^1]);
+        Assert.Equal(1, gateway.AddDraftCount);
+        Assert.Equal(0, gateway.PublishCount);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == "plugin.wechat-sync.contentExpired" &&
+            diagnostic.Severity == "warning");
+    }
+
+    [Fact]
     public async Task RunAsync_UsesContentHashToSkipUnchangedCachedContent()
     {
         using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
@@ -840,7 +946,10 @@ public sealed class WechatSyncWorkflowTests : IDisposable
                 {
                     ["sourceKey"] = "notion",
                     ["sourceId"] = entry.SourceId,
-                    ["summary"] = "Summary"
+                    ["summary"] = "Summary",
+                    ["manifestReviewStatus"] = "approved",
+                    ["reviewStatus"] = "approved",
+                    ["syncStatus"] = string.Empty
                 },
                 Fields: new Dictionary<string, WechatSyncField>
                 {
@@ -859,6 +968,43 @@ public sealed class WechatSyncWorkflowTests : IDisposable
             SiteUrl = "https://example.com",
             Logger = new ConsoleLogger(LogLevel.Error),
             Routed = routed
+        };
+    }
+
+    private static WechatSyncContext WithReviewStatus(WechatSyncContext context, string reviewStatus)
+    {
+        var (item, route) = Assert.Single(context.Routed);
+        var metadata = item.Metadata.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        metadata["manifestReviewStatus"] = reviewStatus;
+        metadata["reviewStatus"] = reviewStatus;
+        return new WechatSyncContext
+        {
+            RootDir = context.RootDir,
+            OutputDir = context.OutputDir,
+            BaseUrl = context.BaseUrl,
+            SiteName = context.SiteName,
+            SiteUrl = context.SiteUrl,
+            MediaDownloadDir = context.MediaDownloadDir,
+            Logger = context.Logger,
+            Routed = [(item with { Metadata = metadata }, route)]
+        };
+    }
+
+    private static WechatSyncContext WithExpiresAt(WechatSyncContext context, DateTimeOffset expiresAt)
+    {
+        var (item, route) = Assert.Single(context.Routed);
+        var metadata = item.Metadata.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+        metadata["expiresAt"] = expiresAt;
+        return new WechatSyncContext
+        {
+            RootDir = context.RootDir,
+            OutputDir = context.OutputDir,
+            BaseUrl = context.BaseUrl,
+            SiteName = context.SiteName,
+            SiteUrl = context.SiteUrl,
+            MediaDownloadDir = context.MediaDownloadDir,
+            Logger = context.Logger,
+            Routed = [(item with { Metadata = metadata }, route)]
         };
     }
 
@@ -913,17 +1059,20 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         public int AddDraftCount { get; private set; }
         public int UploadThumbCount { get; private set; }
         public int UploadContentImageCount { get; private set; }
+        public int PublishCount { get; private set; }
         public List<WechatDraftRequest> Requests { get; } = [];
         public int PublishStatus { get; init; }
         public int? FailAddDraftOnAttempt { get; init; }
         public int? FailUploadThumbOnAttempt { get; init; }
         public bool CancelAddDraft { get; init; }
         public bool CancelPublish { get; init; }
+        public Action? OnAddDraft { get; init; }
 
         public Task<string> AddDraftAsync(WechatDraftRequest request, CancellationToken cancellationToken)
         {
             AddDraftCount++;
             Requests.Add(request);
+            OnAddDraft?.Invoke();
             if (CancelAddDraft)
             {
                 throw new OperationCanceledException("draft canceled");
@@ -956,6 +1105,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
 
         public Task<string> PublishAsync(string mediaId, CancellationToken cancellationToken)
         {
+            PublishCount++;
             if (CancelPublish)
             {
                 throw new OperationCanceledException("publish canceled");

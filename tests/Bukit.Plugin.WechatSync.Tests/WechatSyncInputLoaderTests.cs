@@ -85,6 +85,30 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_PreservesReviewExpiryAndSyncEligibilityMetadata()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(Path.Combine(outputDir, "content"));
+        WriteManifest(outputDir, "content/post-1.json", "/posts/hello/", reviewStatus: "verified");
+        File.WriteAllText(
+            Path.Combine(outputDir, "content", "post-1.json"),
+            ContentJson(
+                body: "<p>Hello</p>",
+                route: "/posts/hello/",
+                reviewStatus: "verified",
+                expiresAt: "2099-01-01T00:00:00Z",
+                syncStatus: "synced"));
+
+        var context = await LoadAsync(outputDir);
+
+        var (item, _) = Assert.Single(context.Routed);
+        Assert.Equal("verified", item.Metadata["manifestReviewStatus"]);
+        Assert.Equal("verified", item.Metadata["reviewStatus"]);
+        Assert.Equal(DateTimeOffset.Parse("2099-01-01T00:00:00Z"), item.Metadata["expiresAt"]);
+        Assert.Equal("synced", item.Metadata["syncStatus"]);
+    }
+
+    [Fact]
     public async Task LoadAsync_IgnoresExternalHtmlRepresentationForRenderedHtmlFallback()
     {
         var outputDir = Path.Combine(_rootDir, "dist");
@@ -170,7 +194,12 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
             null,
             new ConsoleLogger(LogLevel.Error));
 
-    private static void WriteManifest(string outputDir, string jsonUrl, string route, string? htmlUrl = null)
+    private static void WriteManifest(
+        string outputDir,
+        string jsonUrl,
+        string route,
+        string? htmlUrl = null,
+        string reviewStatus = "approved")
     {
         var htmlRepresentation = htmlUrl is null
             ? string.Empty
@@ -186,7 +215,7 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
       "canonicalId": "post-1",
       "route": "{{route}}",
       "language": "zh",
-      "reviewStatus": "approved",
+      "reviewStatus": "{{reviewStatus}}",
       "entities": [],
       "representations": [
         { "kind": "json", "url": "{{jsonUrl}}" }{{htmlRepresentation}}
@@ -198,7 +227,12 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
 """);
     }
 
-    private static string ContentJson(string? body, string route)
+    private static string ContentJson(
+        string? body,
+        string route,
+        string reviewStatus = "approved",
+        string? expiresAt = null,
+        string? syncStatus = null)
         => $$"""
 {
   "id": "post-1",
@@ -217,13 +251,13 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
   "organization": null,
   "publishedAt": "2026-01-01T00:00:00Z",
   "updatedAt": null,
-  "expiresAt": null,
+  "expiresAt": {{(expiresAt is null ? "null" : "\"" + expiresAt + "\"")}},
   "reviewedAt": null,
   "originalSource": null,
   "citations": [],
   "references": [],
-  "syncStatus": null,
-  "reviewStatus": "approved",
+  "syncStatus": {{(syncStatus is null ? "null" : "\"" + syncStatus + "\"")}},
+  "reviewStatus": "{{reviewStatus}}",
   "credibilityScore": null,
   "qualityFlags": [],
   "media": [],

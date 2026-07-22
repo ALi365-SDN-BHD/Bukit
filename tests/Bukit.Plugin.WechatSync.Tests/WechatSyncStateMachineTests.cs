@@ -100,6 +100,26 @@ public sealed class WechatSyncStateMachineTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_RevokedReviewBlocksPendingPublishEvenWhenForced()
+    {
+        using var credentials = Credentials();
+        var options = PublishOptions(credentials) with { Force = true };
+        SeedOperation("DraftCreated", options, draftId: "draft-existing");
+        var gateway = new StateGateway();
+
+        var result = await new WechatSyncWorkflow(gateway).RunAsync(
+            Context(reviewStatus: "needs-review"),
+            options);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, result.Candidates);
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == "plugin.wechat-sync.reviewStatusDenied");
+        Assert.Equal(0, gateway.TotalCalls);
+        Assert.Equal("DraftCreated", LoadCache().Operations[SyncKey].State);
+    }
+
+    [Fact]
     public async Task RunAsync_ForceEnvironmentCannotBypassUnknownSubmittingState()
     {
         using var credentials = Credentials();
@@ -790,7 +810,7 @@ public sealed class WechatSyncStateMachineTests : IDisposable
         return SyncCacheManager.ComputeContentHash(item, route, item.ContentHtml ?? string.Empty, options, context);
     }
 
-    private WechatSyncContext Context(string? cover = null)
+    private WechatSyncContext Context(string? cover = null, string reviewStatus = "approved")
     {
         var fields = new Dictionary<string, WechatSyncField>
         {
@@ -811,7 +831,10 @@ public sealed class WechatSyncStateMachineTests : IDisposable
             {
                 ["sourceKey"] = "notion",
                 ["sourceId"] = "page-1",
-                ["summary"] = "Summary"
+                ["summary"] = "Summary",
+                ["manifestReviewStatus"] = reviewStatus,
+                ["reviewStatus"] = reviewStatus,
+                ["syncStatus"] = string.Empty
             },
             Fields: fields);
         var route = new WechatSyncRoute(

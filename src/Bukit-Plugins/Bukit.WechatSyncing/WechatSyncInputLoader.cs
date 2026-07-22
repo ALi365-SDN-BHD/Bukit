@@ -86,8 +86,14 @@ public static class WechatSyncInputLoader
                 ["sourceId"] = content.Id,
                 ["summary"] = content.Summary ?? string.Empty,
                 ["originalSource"] = content.OriginalSource ?? string.Empty,
-                ["syncStatus"] = content.SyncStatus ?? string.Empty
+                ["syncStatus"] = content.SyncStatus ?? string.Empty,
+                ["manifestReviewStatus"] = document.ReviewStatus ?? string.Empty,
+                ["reviewStatus"] = content.ReviewStatus ?? string.Empty
             };
+            if (content.ExpiresAt is { } expiresAt)
+            {
+                meta["expiresAt"] = expiresAt;
+            }
 
             var fields = new Dictionary<string, WechatSyncField>(StringComparer.OrdinalIgnoreCase)
             {

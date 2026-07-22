@@ -1,4 +1,6 @@
+using Bukit.Plugin.Abstractions.Protocol;
 using Bukit.Plugin.WechatSync;
+using Bukit.WechatSyncing;
 using Xunit;
 
 namespace Bukit.Plugin.WechatSync.Tests;
@@ -15,6 +17,8 @@ public sealed class WechatSyncPluginCommandCompatibilityTests
         "--source-names",
         "--content-types",
         "--default-types-when-missing",
+        "--draft-review-statuses",
+        "--publish-review-statuses",
         "--target",
         "--author",
         "--default-thumb-media-id",
@@ -38,6 +42,27 @@ public sealed class WechatSyncPluginCommandCompatibilityTests
         "--need-open-comment",
         "--only-fans-can-comment"
     ];
+
+    [Fact]
+    public void PublicDotNetCompatibility_PreservesExistingOptionsConstructorAndDryRunMapper()
+    {
+        var constructor = Assert.Single(typeof(WechatSyncOptions).GetConstructors());
+        Assert.Equal(24, constructor.GetParameters().Length);
+        Assert.DoesNotContain(constructor.GetParameters(), parameter =>
+            parameter.Name is "draftReviewStatuses" or "publishReviewStatuses");
+        var deconstruct = Assert.Single(typeof(WechatSyncOptions).GetMethods(), method =>
+            method.Name == "Deconstruct");
+        Assert.Equal(24, deconstruct.GetParameters().Length);
+        Assert.NotNull(typeof(WechatSyncOptions).GetProperty(nameof(WechatSyncOptions.DraftReviewStatuses)));
+        Assert.NotNull(typeof(WechatSyncOptions).GetProperty(nameof(WechatSyncOptions.PublishReviewStatuses)));
+
+        var dryRunMapper = typeof(WechatSyncPluginResponseMapper).GetMethod(
+            "FromDryRun",
+            [typeof(PluginInvokeRequest), typeof(WechatSyncContext), typeof(WechatSyncPluginMappedInvocation)]);
+        Assert.NotNull(dryRunMapper);
+        Assert.True(dryRunMapper!.IsPublic);
+        Assert.True(dryRunMapper.IsStatic);
+    }
 
     [Fact]
     public void Manifest_DeclaresWechatSyncCommandSurface()
@@ -77,7 +102,7 @@ public sealed class WechatSyncPluginCommandCompatibilityTests
     [Fact]
     public void HandshakeVersion_MatchesActiveMinimalManifestFixture()
     {
-        const string expectedVersion = "0.3.0";
+        const string expectedVersion = "0.4.0";
         var response = WechatSyncPluginManifestProvider.CreateHandshakeResponse("req-version");
         var fixturePath = Path.Combine(
             RepoRoot,
@@ -112,6 +137,25 @@ public sealed class WechatSyncPluginCommandCompatibilityTests
         Assert.Contains("compatibility fixture", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("not a runnable release package", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("placeholder sha256", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void MinimalExample_DeclaresReviewStatusPolicyOptions()
+    {
+        var manifestPath = Path.Combine(
+            RepoRoot,
+            "src",
+            "Bukit-Plugins",
+            "Bukit.Plugin.WechatSync",
+            "examples",
+            "minimal",
+            "plugins",
+            "wechat-sync",
+            "plugin.yaml");
+        var text = File.ReadAllText(manifestPath);
+
+        Assert.Contains("name: --draft-review-statuses", text, StringComparison.Ordinal);
+        Assert.Contains("name: --publish-review-statuses", text, StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()

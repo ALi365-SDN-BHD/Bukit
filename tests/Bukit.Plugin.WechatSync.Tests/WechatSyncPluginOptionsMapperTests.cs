@@ -58,6 +58,71 @@ public sealed class WechatSyncPluginOptionsMapperTests : IDisposable
         Assert.Equal("/blog", invocation.Options.BaseUrl);
         Assert.Equal("Docs", invocation.Options.SiteName);
         Assert.Equal("https://example.com", invocation.Options.SiteUrl);
+        Assert.Equal(
+            new HashSet<string>(["reviewed", "verified", "approved"], StringComparer.OrdinalIgnoreCase),
+            invocation.Options.DraftReviewStatuses);
+        Assert.Equal(
+            new HashSet<string>(["verified", "approved"], StringComparer.OrdinalIgnoreCase),
+            invocation.Options.PublishReviewStatuses);
+    }
+
+    [Fact]
+    public void Map_ReviewStatusPolicies_AreExplicitAndTargetSpecific()
+    {
+        var request = Request(
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--dry-run"] = Json(true),
+                ["--draft-review-statuses"] = Json("reviewed, editorial-approved"),
+                ["--publish-review-statuses"] = Json("EDITORIAL-APPROVED")
+            });
+
+        var invocation = WechatSyncPluginOptionsMapper.Map(request);
+
+        Assert.Equal(
+            new HashSet<string>(["reviewed", "editorial-approved"], StringComparer.OrdinalIgnoreCase),
+            invocation.Options.DraftReviewStatuses);
+        Assert.Equal(
+            new HashSet<string>(["editorial-approved"], StringComparer.OrdinalIgnoreCase),
+            invocation.Options.PublishReviewStatuses);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData("*")]
+    public void Map_ReviewStatusPolicies_RejectEmptyOrWildcardValues(string value)
+    {
+        var request = Request(
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--dry-run"] = Json(true),
+                ["--publish-review-statuses"] = Json(value)
+            });
+
+        var ex = Assert.Throws<WechatSyncPluginOptionsException>(() => WechatSyncPluginOptionsMapper.Map(request));
+
+        Assert.Equal("plugin.wechat-sync.invalidOption", ex.Code);
+    }
+
+    [Fact]
+    public void Map_ReviewStatusPolicies_RejectPublishStatusOutsideDraftPolicy()
+    {
+        var request = Request(
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--dry-run"] = Json(true),
+                ["--draft-review-statuses"] = Json("reviewed"),
+                ["--publish-review-statuses"] = Json("verified")
+            });
+
+        var ex = Assert.Throws<WechatSyncPluginOptionsException>(() => WechatSyncPluginOptionsMapper.Map(request));
+
+        Assert.Equal("plugin.wechat-sync.invalidOption", ex.Code);
+        Assert.Contains("subset", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

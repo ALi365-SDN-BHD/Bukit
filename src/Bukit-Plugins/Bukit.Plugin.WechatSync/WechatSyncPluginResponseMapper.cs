@@ -10,16 +10,34 @@ public static class WechatSyncPluginResponseMapper
         PluginInvokeRequest request,
         WechatSyncContext context,
         WechatSyncPluginMappedInvocation invocation)
+        => FromDryRun(
+            request,
+            WechatSyncPlanner.Create(context, invocation.Options, DateTimeOffset.UtcNow),
+            invocation);
+
+    private static PluginInvokeResponse FromDryRun(
+        PluginInvokeRequest request,
+        WechatSyncPlan plan,
+        WechatSyncPluginMappedInvocation invocation)
         => new(
             Type: "invokeResponse",
             Protocol: PluginProtocolConstants.ProtocolVersion,
             RequestId: request.RequestId,
-            Success: true,
-            ExitCode: 0,
+            Success: !plan.HasErrors,
+            ExitCode: plan.HasErrors ? 1 : 0,
             Messages:
             [
-                new PluginMessage("info", $"wechat-sync dry-run: candidates={context.Routed.Count} output={ToProjectRelativePath(request.Context.RootDir, invocation.OutputDir)}")
-            ]);
+                new PluginMessage(
+                    "info",
+                    $"wechat-sync dry-run: candidates={plan.Candidates.Count} output={ToProjectRelativePath(request.Context.RootDir, invocation.OutputDir)} excluded={plan.Exclusions.Count}")
+            ],
+            Diagnostics: plan.Exclusions
+                .Select(exclusion => new PluginDiagnostic(
+                    exclusion.Code,
+                    exclusion.Severity,
+                    exclusion.Message,
+                    ToProjectRelativePath(request.Context.RootDir, exclusion.Path)))
+                .ToArray());
 
     public static PluginInvokeResponse FromResult(PluginInvokeRequest request, WechatSyncResult result)
         => new(
