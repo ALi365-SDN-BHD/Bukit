@@ -64,8 +64,8 @@ private-consumer status remains `unknown-until-voluntary-declaration`. Closure
 does not prove that private consumers do not exist.
 
 Closure permits only G-04C eligibility discussion. It does not authorize a
-candidate change: G-04C remains separately authorized, 2.0-only, and limited
-to a single-type decision. All 1.x CLR visibility remains unchanged.
+candidate change: G-04C requires separate authorization, is 2.0-only, and is
+limited to a single-type decision. All 1.x CLR visibility remains unchanged.
 
 ## What Happens When A Consumer Is Found
 

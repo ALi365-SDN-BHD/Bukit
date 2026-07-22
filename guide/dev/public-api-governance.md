@@ -124,7 +124,7 @@ The closed lifecycle preserves the limit of public evidence: a
 or undisclosed consumers. New evidence requires a separately opened channel or
 task rather than use of the closed Issue.
 
-Closure permits only a G-04C eligibility discussion. G-04C remains separately
-authorized, 2.0-only, and limited to a single-type decision; it does not
-authorize a batch access-level change. All 1.x CLR visibility remains
+Closure permits only a G-04C eligibility discussion. G-04C requires separate
+authorization, is 2.0-only, and is limited to a single-type decision; it does
+not authorize a batch access-level change. All 1.x CLR visibility remains
 unchanged.

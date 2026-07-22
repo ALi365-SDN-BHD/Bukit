@@ -66,7 +66,7 @@ Status: `closed`
 Issue close event: `2026-07-22T07:08:31Z`
 Eligible stable release: `v1.0.10`
 Candidate-level state: 136 entries remain consumer-declaration-pending and private-consumer status remains unknown
-Authorization boundary: closure permits only G-04C eligibility discussion; G-04C remains separately authorized, 2.0-only, and single-type
+Authorization boundary: closure permits only G-04C eligibility discussion; G-04C requires separate authorization and remains 2.0-only and single-type
 ```
 
 Retain the feedback instructions as historical context, but state that new evidence must be handled in a separately opened channel or task.
