@@ -6,10 +6,11 @@ Target: `2.0.0`
 
 ## What This List Means
 
-Bukit has prepared a review inventory of 136 CLR-visible types whose governed
-compatibility classification is `2.0-candidate`. All 136 entries are review
-candidates, not removal decisions. Inclusion means only that the type may be
-examined during a separately approved 2.0 compatibility review.
+The closed manifest preserves the 136-type review inventory. It records
+CLR-visible types whose governed compatibility classification is
+`2.0-candidate`. At declaration-window closure, all 136 entries were review candidates rather than removal decisions.
+Inclusion means only that the type may be examined during a separately approved
+2.0 compatibility review. The later separately approved G-04C decision authorizes only `Bukit.Engine.RouteInventoryInspectEntry`; the other 135 remain review-only and are not batch-approved.
 
 C# `public` visibility does not by itself make these types a supported Bukit
 Core SDK. Bukit's supported product contracts remain the documented CLI,

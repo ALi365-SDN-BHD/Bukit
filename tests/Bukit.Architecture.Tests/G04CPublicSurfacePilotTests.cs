@@ -94,6 +94,10 @@ public sealed class G04CPublicSurfacePilotTests
 
         Assert.Contains(decision, declaration, StringComparison.Ordinal);
         Assert.Contains(remainder, declaration, StringComparison.Ordinal);
+        Assert.Contains("The closed manifest preserves the 136-type review inventory.", declaration, StringComparison.Ordinal);
+        Assert.Contains("At declaration-window closure, all 136 entries were review candidates rather than removal decisions.", declaration, StringComparison.Ordinal);
+        Assert.Contains("The later separately approved G-04C decision authorizes only `Bukit.Engine.RouteInventoryInspectEntry`; the other 135 remain review-only and are not batch-approved.", declaration, StringComparison.Ordinal);
+        Assert.DoesNotContain("All 136 entries are review candidates, not removal decisions.", declaration, StringComparison.Ordinal);
         Assert.Contains(decision, guide, StringComparison.Ordinal);
         Assert.Contains(remainder, guide, StringComparison.Ordinal);
         Assert.True(File.Exists(ledgerPath), $"Missing G-04C decision ledger: {ledgerPath}");
