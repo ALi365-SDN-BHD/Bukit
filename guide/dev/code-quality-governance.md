@@ -57,6 +57,21 @@ also matching unrelated methods. Bukit therefore does not approximate it with
 a broad suffix rule. A dedicated analyzer or an assembly-aware contract test
 requires a separate evidence-backed task before it can become build-blocking.
 
+## Complexity governance
+
+Complexity diagnostics are report-only and governed by the same non-increase
+baseline:
+
+- `CA1502` reports methods above cyclomatic complexity 25;
+- `CA1505` reports types below maintainability index 10;
+- `CA1506` reports symbols coupled to more than 40 types.
+
+These metrics identify review candidates; they do not authorize a mechanical
+split and never make file length a pass/fail condition. A finding is resolved
+only when responsibilities, dependencies, failure paths, and test isolation
+improve. Moving the same branches into adjacent helper methods is not accepted
+as an architectural improvement.
+
 ### Broad informational inventory
 
 All SDK style and analyzer diagnostics at `info` severity are inventoried by:

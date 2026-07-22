@@ -34,6 +34,15 @@ dotnet_diagnostic.CA1710.severity = suggestion
 dotnet_diagnostic.CA1711.severity = suggestion
 dotnet_diagnostic.CA1720.severity = suggestion
 
+# Code metrics are report-only. Thresholds prevent regression without using
+# file length as an architectural proxy.
+dotnet_diagnostic.CA1502.severity = suggestion
+dotnet_code_quality.CA1502.threshold = 25
+dotnet_diagnostic.CA1505.severity = suggestion
+dotnet_code_quality.CA1505.threshold = 10
+dotnet_diagnostic.CA1506.severity = suggestion
+dotnet_code_quality.CA1506.threshold = 40
+
 # Stable Core CLR names use PascalCase. Interface names additionally carry an
 # I prefix. Private implementation fields and locals are intentionally outside
 # this build-blocking rule set.

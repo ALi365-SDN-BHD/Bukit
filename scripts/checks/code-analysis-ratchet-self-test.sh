@@ -35,6 +35,21 @@ done
 for diagnostic in CA1000 CA1050 CA1710 CA1711 CA1720; do
   assert_editorconfig_severity "$diagnostic" suggestion
 done
+for diagnostic in CA1502 CA1505 CA1506; do
+  assert_editorconfig_severity "$diagnostic" suggestion
+done
+
+complexity_contract=(
+  'dotnet_code_quality.CA1502.threshold = 25'
+  'dotnet_code_quality.CA1505.threshold = 10'
+  'dotnet_code_quality.CA1506.threshold = 40'
+)
+for contract_line in "${complexity_contract[@]}"; do
+  [[ "$(grep -Fxc "$contract_line" .editorconfig)" == "1" ]] ||
+    fail "missing or duplicated complexity contract: $contract_line"
+done
+grep -Fq 'Complexity diagnostics are report-only' guide/dev/code-quality-governance.md ||
+  fail "code quality guide must state that complexity diagnostics are report-only"
 
 naming_contract=(
   'dotnet_naming_rule.interfaces_must_have_i_prefix.severity = warning'
