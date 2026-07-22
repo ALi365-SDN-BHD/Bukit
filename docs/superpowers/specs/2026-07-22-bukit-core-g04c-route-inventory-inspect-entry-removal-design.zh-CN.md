@@ -2,7 +2,7 @@
 
 日期：2026-07-22
 
-状态：`design-approved / written-spec-review-pending / implementation-not-started`
+状态：`design-approved / written-spec-approved / implementation-not-started`
 
 基线：`main@88a31b5eba2e52219ec3d1a107b703acdf9a3467`
 
