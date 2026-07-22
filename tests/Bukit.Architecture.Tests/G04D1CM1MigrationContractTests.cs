@@ -12,7 +12,9 @@ public sealed class G04D1CM1MigrationContractTests
     private const string GuideRelativePath =
         "docs/analysis/bukit-core-g04d1c-m1-canonical-migration-contract-2026-07-23.zh-CN.md";
     private const string ProvisionalStatus =
-        "状态：provisional（parent aggregate 未通过；独立 whole-branch review 待执行）";
+        "状态：provisional（parent aggregate 未通过；M1 formal closure 尚未达成）";
+    private const string FinalReviewLedgerRow =
+        "| independent whole-branch review | 稳定规则：以最终 handoff 的 fresh review 结果为准；本指南不预判结论 |";
     private const string M1Boundary =
         "M1 保留五个 legacy CLR 类型；M1 不授权 M2。";
     private const string M2Boundary =
@@ -94,6 +96,100 @@ public sealed class G04D1CM1MigrationContractTests
             typeof(CanonicalCustomRendererConsumer),
             typeof(Bukit.Notion.Transport.NotionClient),
             typeof(Bukit.Notion.Rendering.NotionBlocksRenderer));
+    }
+
+    [Fact]
+    public void PublicApiCompilationFixture_LocksExactMigrationSignatures()
+    {
+        var fixture = typeof(G04D1CM1MigrationContractTests).Assembly.GetType(
+            "Bukit.Architecture.Tests.G04D1CM1PublicApiCompilationFixture",
+            throwOnError: false,
+            ignoreCase: false);
+
+        Assert.NotNull(fixture);
+        Assert.True(fixture.IsPublic);
+        Assert.True(fixture.IsAbstract && fixture.IsSealed);
+
+        AssertPublicStaticMethod(
+            fixture,
+            "MapOptions",
+            typeof(Bukit.Notion.Transport.NotionClientOptions),
+            typeof(Bukit.Content.Notion.NotionProviderOptions));
+        AssertPublicStaticMethod(
+            fixture,
+            "CreateOwnedClient",
+            typeof(Bukit.Notion.Transport.NotionClient),
+            typeof(Bukit.Notion.Transport.NotionClientOptions));
+        AssertPublicStaticMethod(
+            fixture,
+            "CreateInjectedClient",
+            typeof(Bukit.Notion.Transport.NotionClient),
+            typeof(Bukit.Notion.Transport.NotionClientOptions),
+            typeof(HttpClient));
+        AssertPublicStaticMethod(
+            fixture,
+            "SendExplicitRequestsAsync",
+            typeof(Task),
+            typeof(Bukit.Notion.Transport.NotionClient),
+            typeof(string),
+            typeof(string),
+            typeof(CancellationToken));
+        AssertPublicStaticMethod(
+            fixture,
+            "CatchLegacyAsync",
+            typeof(Task<string>),
+            typeof(Func<Task<string>>),
+            typeof(CancellationToken));
+        AssertPublicStaticMethod(
+            fixture,
+            "CatchCanonicalAsync",
+            typeof(Task<string>),
+            typeof(Func<Task<string>>),
+            typeof(CancellationToken));
+        AssertPublicStaticMethod(
+            fixture,
+            "CreateLegacyRenderer",
+            typeof(Bukit.Content.Notion.NotionBlocksRenderer),
+            typeof(Bukit.Content.Notion.NotionApiClient));
+        AssertPublicStaticMethod(
+            fixture,
+            "CreateCanonicalRenderer",
+            typeof(Bukit.Notion.Rendering.NotionBlocksRenderer),
+            typeof(Bukit.Notion.Transport.NotionClient));
+
+        AssertPublicStaticProperty(
+            fixture,
+            "LegacyTransformer",
+            typeof(Bukit.Content.Notion.NotionBlockTransformer));
+        AssertPublicStaticProperty(
+            fixture,
+            "CanonicalTransformer",
+            typeof(Bukit.Notion.Rendering.NotionBlockTransformer));
+
+        var legacyRenderer = fixture.GetNestedType("LegacyRenderer");
+        var canonicalRenderer = fixture.GetNestedType("CanonicalRenderer");
+        Assert.NotNull(legacyRenderer);
+        Assert.NotNull(canonicalRenderer);
+        Assert.True(legacyRenderer.IsNestedPublic);
+        Assert.True(canonicalRenderer.IsNestedPublic);
+        Assert.True(legacyRenderer.IsSealed);
+        Assert.True(canonicalRenderer.IsSealed);
+        Assert.Contains(typeof(Bukit.Content.Notion.INotionBlockRenderer), legacyRenderer.GetInterfaces());
+        Assert.Contains(typeof(Bukit.Notion.Rendering.INotionBlockRenderer), canonicalRenderer.GetInterfaces());
+        AssertPublicMethod(
+            legacyRenderer,
+            "RenderAsync",
+            typeof(Task<string>),
+            typeof(JsonElement),
+            typeof(Bukit.Content.Notion.NotionRenderContext),
+            typeof(CancellationToken));
+        AssertPublicMethod(
+            canonicalRenderer,
+            "RenderAsync",
+            typeof(Task<string>),
+            typeof(JsonElement),
+            typeof(Bukit.Notion.Rendering.NotionRenderContext),
+            typeof(CancellationToken));
     }
 
     [Fact]
@@ -213,6 +309,7 @@ public sealed class G04D1CM1MigrationContractTests
         var guide = File.ReadAllText(guidePath);
 
         Assert.Contains(ProvisionalStatus, guide, StringComparison.Ordinal);
+        Assert.Contains(FinalReviewLedgerRow, guide, StringComparison.Ordinal);
         Assert.Contains(M1Boundary, guide, StringComparison.Ordinal);
         Assert.Contains(M2Boundary, guide, StringComparison.Ordinal);
         Assert.Contains("14 个程序集、514 个类型、110 个 `2.0-candidate`", guide, StringComparison.Ordinal);
@@ -272,6 +369,7 @@ public sealed class G04D1CM1MigrationContractTests
         Assert.DoesNotContain("状态：已完成", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("parent aggregate：PASS", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("独立复审：PASS", guide, StringComparison.Ordinal);
+        Assert.DoesNotContain("whole-branch review 待执行", guide, StringComparison.Ordinal);
     }
 
     private static void AssertPublicTypeResolves(
@@ -391,6 +489,36 @@ public sealed class G04D1CM1MigrationContractTests
             method.GetParameters().Select(parameter => parameter.ParameterType).ToArray());
     }
 
+    private static void AssertPublicStaticMethod(
+        Type declaringType,
+        string methodName,
+        Type returnType,
+        params Type[] parameterTypes)
+    {
+        var method = declaringType.GetMethod(methodName, parameterTypes);
+
+        Assert.NotNull(method);
+        Assert.True(method.IsPublic);
+        Assert.True(method.IsStatic);
+        Assert.Equal(returnType, method.ReturnType);
+        Assert.Equal(
+            parameterTypes,
+            method.GetParameters().Select(parameter => parameter.ParameterType).ToArray());
+    }
+
+    private static void AssertPublicStaticProperty(
+        Type declaringType,
+        string propertyName,
+        Type propertyType)
+    {
+        var property = declaringType.GetProperty(propertyName);
+
+        Assert.NotNull(property);
+        Assert.Equal(propertyType, property.PropertyType);
+        Assert.True(property.GetMethod?.IsPublic);
+        Assert.True(property.GetMethod?.IsStatic);
+    }
+
     private static void AssertFactorySignature(
         Type consumer,
         Type client,
@@ -485,4 +613,159 @@ public sealed class G04D1CM1MigrationContractTests
             return new Bukit.Notion.Rendering.NotionBlocksRenderer(client, registry);
         }
     }
+}
+
+public static class G04D1CM1PublicApiCompilationFixture
+{
+    public static Bukit.Content.Notion.NotionBlockTransformer LegacyTransformer { get; } =
+        static async (_, context, cancellationToken) =>
+            await context.RenderChildrenAsync("legacy-child", cancellationToken);
+
+    public static Bukit.Notion.Rendering.NotionBlockTransformer CanonicalTransformer { get; } =
+        static async (_, context, cancellationToken) =>
+            await context.RenderChildrenAsync("canonical-child", cancellationToken);
+
+    public static Bukit.Notion.Transport.NotionClientOptions MapOptions(
+        Bukit.Content.Notion.NotionProviderOptions legacyOptions)
+        => new()
+        {
+            Token = legacyOptions.Token,
+            ApiVersion = Bukit.Notion.NotionApiUrls.NotionVersion,
+            Timeout = TimeSpan.FromSeconds(30),
+            RequestDelayMs = legacyOptions.RequestDelayMs,
+            MaxRetries = legacyOptions.MaxRetries,
+            MaxRps = legacyOptions.MaxRps
+        };
+
+    public static Bukit.Notion.Transport.NotionClient CreateOwnedClient(
+        Bukit.Notion.Transport.NotionClientOptions options)
+        => new(options);
+
+    public static Bukit.Notion.Transport.NotionClient CreateInjectedClient(
+        Bukit.Notion.Transport.NotionClientOptions options,
+        HttpClient httpClient)
+        => new(options, httpClient);
+
+    public static async Task SendExplicitRequestsAsync(
+        Bukit.Notion.Transport.NotionClient client,
+        string databaseId,
+        string pageId,
+        CancellationToken cancellationToken)
+    {
+        using var query = new HttpRequestMessage(
+            HttpMethod.Post,
+            Bukit.Notion.NotionApiUrls.DatabaseQuery(databaseId))
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/json")
+        };
+        using var queryResult = await client.SendAsync(
+            query,
+            Bukit.Notion.Transport.NotionRequestSemantics.IdempotentRead,
+            cancellationToken);
+
+        using var write = new HttpRequestMessage(
+            HttpMethod.Patch,
+            Bukit.Notion.NotionApiUrls.Pages(pageId))
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/json")
+        };
+        using var writeResult = await client.SendAsync(
+            write,
+            Bukit.Notion.Transport.NotionRequestSemantics.NonReplayableWrite,
+            cancellationToken);
+    }
+
+    public static async Task<string> CatchLegacyAsync(
+        Func<Task<string>> renderAsync,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await renderAsync();
+        }
+        catch (OperationCanceledException exception)
+            when (exception.CancellationToken == cancellationToken)
+        {
+            throw;
+        }
+        catch (Bukit.Shared.ContentException exception)
+            when (exception.InnerException is Bukit.Notion.Rendering.NotionRenderingException)
+        {
+            throw;
+        }
+        catch (Bukit.Shared.ContentException exception)
+            when (exception.InnerException is Bukit.Notion.Transport.NotionApiException)
+        {
+            throw;
+        }
+        catch (ConsumerDefinedException)
+        {
+            throw;
+        }
+    }
+
+    public static async Task<string> CatchCanonicalAsync(
+        Func<Task<string>> renderAsync,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await renderAsync();
+        }
+        catch (OperationCanceledException exception)
+            when (exception.CancellationToken == cancellationToken)
+        {
+            throw;
+        }
+        catch (Bukit.Notion.Rendering.NotionRenderingException)
+        {
+            throw;
+        }
+        catch (Bukit.Notion.Transport.NotionApiException)
+        {
+            throw;
+        }
+        catch (ConsumerDefinedException)
+        {
+            throw;
+        }
+    }
+
+    public static Bukit.Content.Notion.NotionBlocksRenderer CreateLegacyRenderer(
+        Bukit.Content.Notion.NotionApiClient client)
+    {
+        var registry = Bukit.Content.Notion.NotionBlockRendererRegistry.CreateDefault()
+            .Register("custom", new LegacyRenderer())
+            .SetCustomTransformer("custom", LegacyTransformer);
+        return new Bukit.Content.Notion.NotionBlocksRenderer(client, registry);
+    }
+
+    public static Bukit.Notion.Rendering.NotionBlocksRenderer CreateCanonicalRenderer(
+        Bukit.Notion.Transport.NotionClient client)
+    {
+        var registry = Bukit.Notion.Rendering.NotionBlockRendererRegistry.CreateDefault()
+            .Register("custom", new CanonicalRenderer())
+            .SetCustomTransformer("custom", CanonicalTransformer);
+        return new Bukit.Notion.Rendering.NotionBlocksRenderer(client, registry);
+    }
+
+    public sealed class LegacyRenderer : Bukit.Content.Notion.INotionBlockRenderer
+    {
+        public async Task<string?> RenderAsync(
+            JsonElement block,
+            Bukit.Content.Notion.NotionRenderContext context,
+            CancellationToken cancellationToken)
+            => await context.RenderChildrenAsync("legacy-child", cancellationToken);
+    }
+
+    public sealed class CanonicalRenderer : Bukit.Notion.Rendering.INotionBlockRenderer
+    {
+        public async Task<string?> RenderAsync(
+            JsonElement block,
+            Bukit.Notion.Rendering.NotionRenderContext context,
+            CancellationToken cancellationToken)
+            => await context.RenderChildrenAsync("canonical-child", cancellationToken);
+    }
+
+    public sealed class ConsumerDefinedException(string message) : Exception(message);
 }

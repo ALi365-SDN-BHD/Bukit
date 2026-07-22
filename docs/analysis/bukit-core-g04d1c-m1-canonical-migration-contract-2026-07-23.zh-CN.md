@@ -2,7 +2,7 @@
 
 日期：2026-07-23
 任务基线：`96cfee5ccce820daec21f996a7ca280bf27d1fa8`
-状态：provisional（parent aggregate 未通过；独立 whole-branch review 待执行）
+状态：provisional（parent aggregate 未通过；M1 formal closure 尚未达成）
 
 ## 1. 范围、结论与不可变边界
 
@@ -459,7 +459,7 @@ plugin consumer 仍未知。这些历史字段不得被覆盖成“无消费者�
 | canonical no-dependency | architecture guard 证明 0 project/package references；canonical project 未修改 |
 | parent aggregate | 从 `a0bd2f3f36ae623f47b06b259bc2ffc36890ea08` 对 7 个实际变更路径仅执行一次；focused、format、analysis、public API、portability 等先行步骤通过，随后 sandbox 中在未变更 `brainstorm-server-self-test` 以 `mv-1 left a live spawned server` 终止；**aggregate 未通过** |
 | blocker owner 复核 | 非沙箱原样执行 `bash scripts/checks/brainstorm-server-self-test.sh`，最终输出 `brainstorm server self-test: PASS`；该证据把失败分类为 sandbox 进程限制，但不把已失败的 aggregate 改写为 PASS |
-| independent whole-branch review | 待 parent dispatch；本指南不声称通过 |
+| independent whole-branch review | 稳定规则：以最终 handoff 的 fresh review 结果为准；本指南不预判结论 |
 
 本次 aggregate 已重现未变更 `brainstorm-server-self-test` 的
 `mv-1 left a live spawned server`；非沙箱 owner self-test 随后通过。当前分类为 sandbox

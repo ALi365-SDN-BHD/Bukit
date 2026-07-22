@@ -51,6 +51,7 @@ public sealed class LegacyNotionExtensionMigrationContractTests
     [InlineData(FailureKind.TerminalRateLimit, NotionApiErrorKind.RateLimited)]
     [InlineData(FailureKind.InvalidJson, NotionApiErrorKind.InvalidJson)]
     [InlineData(FailureKind.Transport, NotionApiErrorKind.Transport)]
+    [InlineData(FailureKind.NonCallerCancellation, NotionApiErrorKind.Transport)]
     public async Task ApiFailures_ExposeContentExceptionWithApiInnerException(
         FailureKind failure,
         NotionApiErrorKind expectedKind)
@@ -66,26 +67,51 @@ public sealed class LegacyNotionExtensionMigrationContractTests
         Assert.Equal(expectedKind, inner.Kind);
     }
 
-    [Fact]
-    public async Task CustomRendererException_PropagatesWithoutTranslation()
+    [Theory]
+    [InlineData(CallbackEntryPoint.Renderer, CallbackFailureKind.Rendering)]
+    [InlineData(CallbackEntryPoint.Renderer, CallbackFailureKind.Api)]
+    [InlineData(CallbackEntryPoint.Renderer, CallbackFailureKind.ConsumerDefined)]
+    [InlineData(CallbackEntryPoint.Transformer, CallbackFailureKind.Rendering)]
+    [InlineData(CallbackEntryPoint.Transformer, CallbackFailureKind.Api)]
+    [InlineData(CallbackEntryPoint.Transformer, CallbackFailureKind.ConsumerDefined)]
+    public async Task CallbackExceptions_PreserveLegacyTranslationAndOriginalInstance(
+        CallbackEntryPoint entryPoint,
+        CallbackFailureKind failureKind)
     {
         using var http = new HttpClient(new SequenceHandler(Json("""
             {
               "has_more": false,
-              "results": [{ "type": "custom_failure", "custom_failure": {} }]
+              "results": [{ "type": "callback_failure", "callback_failure": {} }]
             }
             """)));
         using var client = CreateClient(http);
-        var expected = new ConsumerRendererException("consumer failure");
-        var renderer = new Bukit.Content.Notion.NotionBlocksRenderer(
-            client,
-            new Bukit.Content.Notion.NotionBlockRendererRegistry()
-                .Register("custom_failure", new ThrowingRenderer(expected)));
+        var expected = CreateCallbackException(failureKind);
+        var registry = new Bukit.Content.Notion.NotionBlockRendererRegistry();
+        if (entryPoint == CallbackEntryPoint.Renderer)
+        {
+            registry.Register("callback_failure", new ThrowingRenderer(expected));
+        }
+        else
+        {
+            registry.SetCustomTransformer(
+                "callback_failure",
+                (_, _, _) => throw expected);
+        }
 
-        var actual = await Assert.ThrowsAsync<ConsumerRendererException>(() =>
+        var renderer = new Bukit.Content.Notion.NotionBlocksRenderer(client, registry);
+
+        var actual = await Record.ExceptionAsync(() =>
             renderer.RenderPageAsync("page", CancellationToken.None));
 
-        Assert.Same(expected, actual);
+        if (failureKind is CallbackFailureKind.Rendering or CallbackFailureKind.Api)
+        {
+            var outer = Assert.IsType<ContentException>(actual);
+            Assert.Same(expected, outer.InnerException);
+        }
+        else
+        {
+            Assert.Same(expected, actual);
+        }
     }
 
     [Fact]
@@ -148,7 +174,21 @@ public sealed class LegacyNotionExtensionMigrationContractTests
         HttpStatus,
         TerminalRateLimit,
         InvalidJson,
-        Transport
+        Transport,
+        NonCallerCancellation
+    }
+
+    public enum CallbackEntryPoint
+    {
+        Renderer,
+        Transformer
+    }
+
+    public enum CallbackFailureKind
+    {
+        Rendering,
+        Api,
+        ConsumerDefined
     }
 
     private sealed class LegacyRendererConsumer : Bukit.Content.Notion.INotionBlockRenderer
@@ -171,10 +211,10 @@ public sealed class LegacyNotionExtensionMigrationContractTests
             JsonElement block,
             Bukit.Content.Notion.NotionRenderContext context,
             CancellationToken cancellationToken)
-            => Task.FromException<string?>(exception);
+            => throw exception;
     }
 
-    private sealed class ConsumerRendererException(string message) : Exception(message);
+    private sealed class ConsumerCallbackException(string message) : Exception(message);
 
     private sealed class SequenceHandler(params HttpResponseMessage[] responses) : HttpMessageHandler
     {
@@ -203,6 +243,8 @@ public sealed class LegacyNotionExtensionMigrationContractTests
                 FailureKind.InvalidJson => Task.FromResult(Json("not-json")),
                 FailureKind.Transport => Task.FromException<HttpResponseMessage>(
                     new HttpRequestException("deterministic transport failure")),
+                FailureKind.NonCallerCancellation => Task.FromException<HttpResponseMessage>(
+                    new OperationCanceledException("deterministic non-caller cancellation")),
                 _ => throw new ArgumentOutOfRangeException(nameof(failure), failure, null)
             };
     }
@@ -214,4 +256,16 @@ public sealed class LegacyNotionExtensionMigrationContractTests
             CancellationToken cancellationToken)
             => Task.FromCanceled<HttpResponseMessage>(cancellationToken);
     }
+
+    private static Exception CreateCallbackException(CallbackFailureKind failureKind)
+        => failureKind switch
+        {
+            CallbackFailureKind.Rendering => new NotionRenderingException("callback rendering failure"),
+            CallbackFailureKind.Api => new NotionApiException(
+                NotionApiErrorKind.Transport,
+                "callback API failure"),
+            CallbackFailureKind.ConsumerDefined => new ConsumerCallbackException(
+                "consumer callback failure"),
+            _ => throw new ArgumentOutOfRangeException(nameof(failureKind), failureKind, null)
+        };
 }
