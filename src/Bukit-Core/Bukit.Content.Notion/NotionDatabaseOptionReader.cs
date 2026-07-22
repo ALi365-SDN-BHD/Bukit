@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using Bukit.Notion;
+using Bukit.Notion.Transport;
+using Bukit.Shared;
 
 namespace Bukit.Content.Notion;
 
@@ -11,7 +13,32 @@ internal static class NotionDatabaseOptionReader
         string databaseId,
         CancellationToken cancellationToken)
     {
-        using var document = await client.GetAsync(NotionApiUrls.Database(databaseId), cancellationToken);
+        ArgumentNullException.ThrowIfNull(client);
+        return await ReadCoreAsync(client.GetAsync, databaseId, cancellationToken);
+    }
+
+    internal static async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> ReadAsync(
+        NotionClient client,
+        string databaseId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        try
+        {
+            return await ReadCoreAsync(client.GetAsync, databaseId, cancellationToken);
+        }
+        catch (NotionApiException exception)
+        {
+            throw new ContentException(exception.Message, exception);
+        }
+    }
+
+    private static async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> ReadCoreAsync(
+        Func<string, CancellationToken, Task<JsonDocument>> getAsync,
+        string databaseId,
+        CancellationToken cancellationToken)
+    {
+        using var document = await getAsync(NotionApiUrls.Database(databaseId), cancellationToken);
         if (!document.RootElement.TryGetProperty("properties", out var properties) ||
             properties.ValueKind != JsonValueKind.Object)
         {

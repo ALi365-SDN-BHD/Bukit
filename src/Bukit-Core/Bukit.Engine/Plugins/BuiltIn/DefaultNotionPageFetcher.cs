@@ -11,7 +11,7 @@ internal sealed class DefaultNotionPageFetcher : INotionPageFetcher
     {
         try
         {
-            var page = await NotionPageQuery.FetchAsync(client.Transport, pageId, cancellationToken);
+            var page = await NotionCompatibilityQueries.FetchPageAsync(client, pageId, cancellationToken);
             return new NotionFetchedPage(
                 page.PageId,
                 page.Title,

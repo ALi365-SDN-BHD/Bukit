@@ -111,6 +111,52 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
+    public void Engine_MustUseContentCompatibilityBoundaryForNotionAdapterInternals()
+    {
+        var repoRoot = FindRepoRoot();
+        var coreRoot = Path.Combine(repoRoot, "src", "Bukit-Core");
+        var engineProject = XDocument.Load(Path.Combine(
+            coreRoot,
+            "Bukit.Engine",
+            "Bukit.Engine.csproj"));
+        var engineReferences = engineProject.Descendants("ProjectReference")
+            .Select(reference => Path.GetFileNameWithoutExtension(
+                reference.Attribute("Include")?.Value.Replace('\\', Path.DirectorySeparatorChar)) ?? string.Empty)
+            .ToArray();
+
+        Assert.DoesNotContain("Bukit.Content.Notion", engineReferences);
+
+        var adapterProject = XDocument.Load(Path.Combine(
+            coreRoot,
+            "Bukit.Content.Notion",
+            "Bukit.Content.Notion.csproj"));
+        var adapterFriends = adapterProject.Descendants("InternalsVisibleTo")
+            .Select(friend => friend.Attribute("Include")?.Value ?? string.Empty)
+            .ToArray();
+
+        Assert.DoesNotContain("Bukit.Engine", adapterFriends);
+        Assert.DoesNotContain("Bukit.Engine.Tests", adapterFriends);
+
+        var forbidden = new[]
+        {
+            "NotionContentSourceOptions",
+            "NotionContentClient",
+            "NotionDatabaseOptionReader",
+            "NotionPageQuery"
+        };
+        var engineRoot = Path.Combine(coreRoot, "Bukit.Engine");
+        var violations = Directory.EnumerateFiles(engineRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !IsBuildOutput(path))
+            .SelectMany(path => forbidden
+                .Where(token => File.ReadAllText(path).Contains(token, StringComparison.Ordinal))
+                .Select(token => $"{Path.GetRelativePath(repoRoot, path)}: {token}"))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
     public void ProductionNotionHttpContract_MustBeOwnedByNotionAssembly()
     {
         var repoRoot = FindRepoRoot();

@@ -17,8 +17,6 @@
     <InternalsVisibleTo Include="Bukit.Content" />
     <InternalsVisibleTo Include="Bukit.Content.Tests" />
     <InternalsVisibleTo Include="Bukit.Content.Notion.Tests" />
-    <InternalsVisibleTo Include="Bukit.Engine" />
-    <InternalsVisibleTo Include="Bukit.Engine.Tests" />
   </ItemGroup>
 
 </Project>

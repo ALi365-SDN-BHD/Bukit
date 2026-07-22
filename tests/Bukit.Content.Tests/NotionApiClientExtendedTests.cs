@@ -12,6 +12,96 @@ namespace Bukit.Content.Tests;
 public sealed class NotionApiClientExtendedTests
 {
     [Fact]
+    public async Task CompatibilityQueries_FetchPageAsync_PreservesProjectionAndCallerOwnership()
+    {
+        var requests = 0;
+        var handler = new CaptureHandler((_, _) =>
+        {
+            requests++;
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""
+                {
+                  "url": "https://www.notion.so/page-1",
+                  "properties": {
+                    "Title": {
+                      "type": "title",
+                      "title": [{ "plain_text": "Page One" }]
+                    }
+                  }
+                }
+                """, Encoding.UTF8, "application/json")
+            };
+        });
+        using var http = new HttpClient(handler);
+        using var client = new NotionApiClient(
+            new NotionProviderOptions
+            {
+                DatabaseId = "db",
+                Token = "token",
+                RequestDelayMs = 0
+            },
+            http,
+            (_, _) => Task.CompletedTask);
+
+        var page = await NotionCompatibilityQueries.FetchPageAsync(
+            client,
+            "page-1",
+            CancellationToken.None);
+
+        Assert.Equal("page-1", page.PageId);
+        Assert.Equal("Page One", page.Title);
+        Assert.Equal("page-one", page.Slug);
+        Assert.Equal("https://www.notion.so/page-1", page.NotionUrl);
+
+        using var document = await client.GetAsync(
+            Bukit.Notion.NotionApiUrls.Pages("page-1"),
+            CancellationToken.None);
+        Assert.Equal(2, requests);
+    }
+
+    [Fact]
+    public async Task CompatibilityQueries_ReadDatabaseOptionsAsync_PreservesSchemaProjection()
+    {
+        var handler = new CaptureHandler((_, _) => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""
+            {
+              "properties": {
+                "Tags": {
+                  "type": "multi_select",
+                  "multi_select": {
+                    "options": [
+                      { "name": "Alpha" },
+                      { "name": "Beta" }
+                    ]
+                  }
+                }
+              }
+            }
+            """, Encoding.UTF8, "application/json")
+        });
+        using var http = new HttpClient(handler);
+        using var client = new NotionApiClient(
+            new NotionProviderOptions
+            {
+                DatabaseId = "db",
+                Token = "token",
+                RequestDelayMs = 0
+            },
+            http,
+            (_, _) => Task.CompletedTask);
+
+        var options = await NotionCompatibilityQueries.ReadDatabaseOptionsAsync(
+            client,
+            "db",
+            CancellationToken.None);
+
+        Assert.Equal(["Alpha", "Beta"], options["tags"]);
+        Assert.Equal("publish_at", NotionCompatibilityQueries.NormalizeFieldKey("Publish At"));
+    }
+
+    [Fact]
     public void Constructor_WithDefaultHttpClient_InitializesAndDisposes()
     {
         var options = new NotionProviderOptions

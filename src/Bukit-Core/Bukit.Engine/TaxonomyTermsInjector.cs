@@ -135,7 +135,7 @@ internal static class TaxonomyTermsInjector
                 continue;
             }
 
-            var options = new NotionContentSourceOptions
+            var options = new NotionProviderOptions
             {
                 DatabaseId = databaseId,
                 Token = token.Trim(),
@@ -145,8 +145,8 @@ internal static class TaxonomyTermsInjector
 
             try
             {
-                using var client = new NotionContentClient(options);
-                var schemaOptions = await NotionDatabaseOptionReader.ReadAsync(
+                using var client = new NotionApiClient(options);
+                var schemaOptions = await NotionCompatibilityQueries.ReadDatabaseOptionsAsync(
                     client,
                     databaseId,
                     cancellationToken);
@@ -222,7 +222,7 @@ internal static class TaxonomyTermsInjector
     }
 
     internal static string NormalizeNotionFieldKey(string text)
-        => NotionDatabaseOptionReader.NormalizeFieldKey(text);
+        => NotionCompatibilityQueries.NormalizeFieldKey(text);
 
 
 }
