@@ -87,7 +87,14 @@ for G-04C eligibility.
   removal.
 - Public-search results do not establish the absence of private, unindexed, or
   undisclosed consumers.
-- `Bukit.Engine.RouteInventoryInspectEntry` remains
-  `consumer-declaration-pending / review-only`; its inclusion does not authorize
-  G-04C work.
+## G-04C Single-Type Decision
+
+G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry` is
+approved for removal in 2.0; the other 135 candidates are not batch-approved.
+The [G-04C decision ledger](../analysis/bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md)
+records the exact drift, migration boundary, verification, and independent review.
+
+The closed 136-entry candidate manifest remains the immutable historical cohort
+captured at declaration-window closure. The current public API baseline is the
+source of truth for the post-removal CLR surface.
 - Closing G-04B3 does not authorize G-04C.

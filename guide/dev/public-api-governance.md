@@ -148,3 +148,16 @@ Closure permits only a G-04C eligibility discussion. G-04C requires separate
 authorization, is 2.0-only, and is limited to a single-type decision; it does
 not authorize a batch access-level change. All 1.x CLR visibility remains
 unchanged.
+
+### G-04C Single-Type Pilot
+
+G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry` is
+approved for removal in 2.0; the other 135 candidates are not batch-approved.
+See the [decision ledger](../../docs/analysis/bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md)
+for the breaking-change evidence, migration boundary, targeted verification,
+and independent review.
+
+The closed 136-entry candidate manifest is an immutable declaration-window
+snapshot. It intentionally retains the removed type and its original search
+evidence. The governed public API baseline, not that historical cohort, is the
+current CLR surface inventory.

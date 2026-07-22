@@ -75,6 +75,35 @@ public sealed class G04CPublicSurfacePilotTests
         });
     }
 
+    [Fact]
+    public void ActiveGovernance_RecordsOnlyTheApprovedSingleTypeDecision()
+    {
+        const string decision = "G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry` is";
+        const string remainder = "the other 135 candidates are not batch-approved.";
+        var declaration = File.ReadAllText(Path.Combine(
+            RepoRoot,
+            "docs",
+            "governance",
+            "bukit-core-2.0-consumer-declaration.md"));
+        var guide = File.ReadAllText(Path.Combine(RepoRoot, "guide", "dev", "public-api-governance.md"));
+        var ledgerPath = Path.Combine(
+            RepoRoot,
+            "docs",
+            "analysis",
+            "bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md");
+
+        Assert.Contains(decision, declaration, StringComparison.Ordinal);
+        Assert.Contains(remainder, declaration, StringComparison.Ordinal);
+        Assert.Contains(decision, guide, StringComparison.Ordinal);
+        Assert.Contains(remainder, guide, StringComparison.Ordinal);
+        Assert.True(File.Exists(ledgerPath), $"Missing G-04C decision ledger: {ledgerPath}");
+
+        var ledger = File.ReadAllText(ledgerPath);
+        Assert.Contains("其余 135 项候选没有获得批量变更授权", ledger, StringComparison.Ordinal);
+        Assert.Contains("历史 cohort", ledger, StringComparison.Ordinal);
+        Assert.Contains("没有替代 API", ledger, StringComparison.Ordinal);
+    }
+
     private static JsonDocument ReadJson(params string[] relativeSegments)
     {
         var path = Path.Combine([RepoRoot, .. relativeSegments]);
