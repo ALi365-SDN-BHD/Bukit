@@ -26,7 +26,7 @@
 
 ---
 
-### Task 1: Atomic facade removal, canonical test ownership, and deliberate baseline delta
+### Task 1: Atomic removal, canonical test ownership, baseline approval, and governance convergence
 
 **Files:**
 - Create: `tests/Bukit.Architecture.Tests/G04D1BBlockRendererFacadeRemovalTests.cs`
@@ -40,13 +40,19 @@
 - Create: `tests/Bukit.Notion.Tests/BlockRendererMediaAndContainerTests.cs`
 - Split: `tests/Bukit.Content.Tests/NotionBlockRendererEdgeCasesTests.cs`
 - Create: `tests/Bukit.Notion.Tests/NotionBlockRendererEdgeCasesTests.cs`
+- Create: `tests/Bukit.Notion.Tests/CanonicalBlockRendererTestSupport.cs`
 - Modify: `tests/Bukit.Content.Tests/LegacyNotionConsumerFixture.cs`
 - Modify: `tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs`
+- Modify: `tests/Bukit.Architecture.Tests/G04D1AStaticNotionFacadeRemovalTests.cs`
+- Modify: `tests/Bukit.Architecture.Tests/G04CPublicSurfacePilotTests.cs`
 - Modify: `docs/governance/bukit-core-public-api-baseline.v1.json`
+- Create: `docs/analysis/bukit-core-g04d1b-block-renderer-facade-removal-2026-07-23.zh-CN.md`
+- Modify: `docs/governance/bukit-core-2.0-consumer-declaration.md`
+- Modify: `guide/dev/public-api-governance.md`
 
 **Interfaces:**
 - Consumes: canonical `Bukit.Notion.Rendering.BlockRenderers.*`, canonical internal `NotionRenderContext`, canonical `NotionBlocksRenderer`, and `Bukit.Notion.Transport.NotionClient` already visible to `Bukit.Notion.Tests`.
-- Produces: no legacy D1B renderer exports in `Bukit.Content.dll`, unchanged canonical behavior coverage, preserved D1C tests in `Bukit.Content.Tests`, and a 514/110 current baseline.
+- Produces: no legacy D1B renderer exports in `Bukit.Content.dll`, unchanged canonical behavior coverage, preserved D1C tests in `Bukit.Content.Tests`, a 514/110 current baseline, historically correct earlier decisions, and a provisional G-04D1B ledger.
 
 - [ ] **Step 1: Write the exact compiled-assembly RED guard**
 
@@ -173,28 +179,68 @@ using System.Text.Json;
 using Bukit.Notion.Rendering;
 using Bukit.Notion.Rendering.BlockRenderers;
 using Bukit.Notion.Transport;
+using static Bukit.Notion.Tests.CanonicalBlockRendererTestSupport;
 using Xunit;
 
 namespace Bukit.Notion.Tests;
 ```
 
-Replace the legacy client helper with this test-only canonical helper and keep the existing handler response bodies:
+Create one shared test-only support file and move the common client/handler logic there; do not duplicate it across the two canonical test files:
 
 ```csharp
-private static NotionClient CreateClient(HttpMessageHandler handler)
+using System.Net;
+using System.Text;
+using Bukit.Notion.Transport;
+
+namespace Bukit.Notion.Tests;
+
+internal static class CanonicalBlockRendererTestSupport
 {
-    var options = new NotionClientOptions
+    internal static NotionClient CreateClient(HttpMessageHandler handler)
     {
-        Token = "token",
-        RequestDelayMs = 0,
-        MaxRetries = 0
-    };
-    return new NotionClient(
-        options,
-        new HttpClient(handler),
-        (_, _) => Task.CompletedTask,
-        () => DateTimeOffset.UtcNow,
-        ownsHttpClient: true);
+        var options = new NotionClientOptions
+        {
+            Token = "token",
+            RequestDelayMs = 0,
+            MaxRetries = 0
+        };
+        return new NotionClient(
+            options,
+            new HttpClient(handler),
+            (_, _) => Task.CompletedTask,
+            () => DateTimeOffset.UtcNow,
+            ownsHttpClient: true);
+    }
+
+    internal sealed class JsonHandler(Func<HttpRequestMessage, string> response) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(response(request), Encoding.UTF8, "application/json")
+            });
+    }
+
+    internal sealed class SequenceHandler(params string[] responses) : HttpMessageHandler
+    {
+        private int _index;
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var json = _index < responses.Length
+                ? responses[_index]
+                : "{\"has_more\":false,\"results\":[]}";
+            _index++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
 }
 ```
 
@@ -265,7 +311,7 @@ NotionBlocksRenderer_HasMoreNoCursor_StopsPagination
 
 Keep the existing legacy `NotionApiClient`, `NotionProviderOptions`, `NotionBlocksRenderer`, `JsonHandler`, `SequenceHandler`, and `HttpMessageHandlerStub` helpers with those retained methods. Keep the canonical `NotionRichTextRenderer` alias for the four D1A tests.
 
-The new Notion test file uses the same canonical header and `CreateClient` implementation from Step 4. Preserve all moved test bodies; only replace legacy client/context types with canonical types. No D1C method may appear in the new canonical file.
+The new Notion test file uses the canonical header and the same static import from Step 4. Preserve all moved test bodies; only replace legacy client/context types with canonical types. No D1C method may appear in the new canonical file.
 
 - [ ] **Step 6: Preserve the internal helper bridge and delete the atomic facade cluster**
 
@@ -375,41 +421,13 @@ each searchStatus remains no-public-match-found
 
 Also assert `BlockRendererFacades.cs` is absent, `NotionBlockHelpers.cs` is present, all five D1C identities still resolve, and the candidate manifest blob remains `7b07d6890562387010b52301e9f8716e9bf10ed1` when compared to base.
 
-- [ ] **Step 12: Run owner checks, focused gate, and commit Task 1**
-
-Run all three affected test projects, `public-api-drift-self-test.sh`, and `public-api-drift.sh check Release`. Run the focused gate with every Task 1 changed path, including both old and new test locations, the deleted facade path, the new helper path, the architecture tests, fixture, and baseline.
-
-Commit only Task 1 files:
-
-```bash
-git commit -m "breaking(content): remove legacy Notion block renderer facades"
-```
-
-Expected: no governance prose, schema, protocol, canonical production renderer, project file, or unrelated baseline identity changed.
-
----
-
-### Task 2: Governance convergence and provisional G-04D1B ledger
-
-**Files:**
-- Create: `docs/analysis/bukit-core-g04d1b-block-renderer-facade-removal-2026-07-23.zh-CN.md`
-- Modify: `docs/governance/bukit-core-2.0-consumer-declaration.md`
-- Modify: `guide/dev/public-api-governance.md`
-- Modify: `tests/Bukit.Architecture.Tests/G04D1BBlockRendererFacadeRemovalTests.cs`
-- Modify: `tests/Bukit.Architecture.Tests/G04D1AStaticNotionFacadeRemovalTests.cs`
-- Modify: `tests/Bukit.Architecture.Tests/G04CPublicSurfacePilotTests.cs`
-
-**Interfaces:**
-- Consumes: Task 1 exact removal and 514/110 baseline.
-- Produces: historically correct G-04C/G-04D1A assertions, current G-04D1B governance wording, and a provisional evidence ledger.
-
-- [ ] **Step 1: Make earlier governance tests historical rather than stale**
+- [ ] **Step 12: Make earlier governance tests historical rather than stale**
 
 In `G04CPublicSurfacePilotTests`, keep all G-04C history assertions; update only the current baseline totals to 514/110 and require current wording that the other 110 candidates are not batch-approved. Keep historical 135 and post-D1A 133 statements.
 
 In `G04D1AStaticNotionFacadeRemovalTests`, rename the current-baseline test to express preservation, update current totals to 514/110, keep both D1A removed identities absent, and retain the historical D1A decision sentence that the other 133 candidates were not batch-approved at that point. Add a separate assertion for the current post-D1B 110-candidate state.
 
-- [ ] **Step 2: Add the exact active G-04D1B governance statement**
+- [ ] **Step 13: Add the exact active G-04D1B governance statement**
 
 Append this sentence to both active governance documents and guard it verbatim:
 
@@ -419,7 +437,7 @@ G-04D1B block-renderer-facade decision: only the 23 `Bukit.Content.Notion.BlockR
 
 State that the canonical namespace is `Bukit.Notion.Rendering.BlockRenderers`, the closed 136-entry manifest is historical and immutable, G-04C 135 and G-04D1A 133 are historical snapshots, the current baseline is 514/110, and all 1.x CLR visibility remains unchanged.
 
-- [ ] **Step 3: Create the provisional decision ledger**
+- [ ] **Step 14: Create the provisional decision ledger**
 
 Create the ledger with status:
 
@@ -429,21 +447,23 @@ Create the ledger with status:
 
 Record the base commit, task branch, exact 23 identities, canonical namespace mapping, internal helper preservation, six-file test migration/split, D1C retained methods, combined 756-test preservation, 514/110 baseline result, 136-entry manifest blob, source/binary migration instruction, private-consumer uncertainty, non-goals, and the remaining cross-boundary/review checklist. Do not claim Core/Labs/plugins/AOT or independent review has passed yet.
 
-- [ ] **Step 4: Guard the provisional governance state**
+- [ ] **Step 15: Guard the provisional governance state**
 
 Extend `G04D1BBlockRendererFacadeRemovalTests` to require the exact decision sentence, ledger status, 23 names, canonical namespace, 514/110 counts, 136-entry history, D1C boundary, and all non-goals. Require the ledger to say that cross-boundary validation and independent review remain pending.
 
-- [ ] **Step 5: Run Architecture and documentation-focused checks, then commit**
+- [ ] **Step 16: Run all owner checks and one Task 1 focused gate, then commit**
 
-Run the complete Architecture project and a focused gate for the three governance/analysis documents and three architecture test files. Commit:
+Run the complete Architecture, Content, and Notion projects; require Content + Notion total 756. Run `public-api-drift-self-test.sh` and `public-api-drift.sh check Release`. Run one focused gate with every Task 1 changed path, including both old/new test locations, `CanonicalBlockRendererTestSupport.cs`, the deleted facade, the preserved helper, all architecture tests, fixture, baseline, ledger, declaration, and guide. Commit the cohesive all-green task:
 
 ```bash
-git commit -m "docs(governance): record G-04D1B removal decision"
+git commit -m "breaking(content): remove legacy Notion block renderer facades"
 ```
+
+Expected: no schema, protocol, canonical production renderer, project file, version, gate script, or unrelated baseline identity changed.
 
 ---
 
-### Task 3: Cross-boundary proof, first independent review, and truthful closure
+### Task 2: Cross-boundary proof, first independent review, and truthful closure
 
 **Files:**
 - Verify only: `bukit-core.slnx`
@@ -457,7 +477,7 @@ git commit -m "docs(governance): record G-04D1B removal decision"
 - Modify: `tests/Bukit.Architecture.Tests/G04D1BBlockRendererFacadeRemovalTests.cs`
 
 **Interfaces:**
-- Consumes: reviewed Tasks 1-2 commits.
+- Consumes: the reviewed Task 1 implementation commit.
 - Produces: real cross-boundary evidence, an independent implementation verdict, and a final ledger whose completed claims are executable assertions.
 
 - [ ] **Step 1: Re-run all affected test projects**
@@ -491,7 +511,7 @@ Run the drift self-test and real check. Require 514/110, all canonical replaceme
 
 - [ ] **Step 5: Obtain the first independent read-only implementation review**
 
-The reviewer must inspect the Task 1-2 diff and verify: exact 23-type deletion; helper bridge byte-equivalent logic; all canonical production renderers unchanged; six-file test ownership with no lost cases; seven retained D1A/D1C edge tests; all other Content Notion exports unchanged; exact baseline semantic delta; immutable historical manifest; honest provisional evidence; and no schema/protocol/URL/path/HTTP/TLS/version/gate drift.
+The reviewer must inspect the Task 1 diff and verify: exact 23-type deletion; helper bridge byte-equivalent logic; all canonical production renderers unchanged; six-file test ownership with no lost cases; seven retained D1A/D1C edge tests; all other Content Notion exports unchanged; exact baseline semantic delta; immutable historical manifest; honest provisional evidence; and no schema/protocol/URL/path/HTTP/TLS/version/gate drift.
 
 Resolve every Critical or Important finding, rerun affected checks, and obtain re-review before continuing.
 
@@ -513,14 +533,14 @@ git commit -m "docs(governance): close G-04D1B decision ledger"
 
 ---
 
-### Task 4: Single aggregate gate and fresh final diff audit
+### Task 3: Single aggregate gate and fresh final diff audit
 
 **Files:**
 - Review: every changed path from `136b6ba127ee7edb6a136cf3a70449110ff47d87` through HEAD
 - Do not modify: source, baseline, manifest, governance, test, schema, protocol, CI, release, or gate files after the aggregate gate begins
 
 **Interfaces:**
-- Consumes: closed Tasks 1-3 commits.
+- Consumes: closed Tasks 1-2 commits.
 - Produces: one aggregate targeted-gate result and one fresh independent merge-readiness verdict.
 
 - [ ] **Step 1: Audit final scope before aggregate execution**
@@ -556,6 +576,7 @@ bash scripts/checks/post-change-targeted.sh \
   tests/Bukit.Notion.Tests/BlockRendererExtendedTests.cs \
   tests/Bukit.Notion.Tests/BlockRendererMediaAndContainerTests.cs \
   tests/Bukit.Notion.Tests/BlockRendererUrlSafetyTests.cs \
+  tests/Bukit.Notion.Tests/CanonicalBlockRendererTestSupport.cs \
   tests/Bukit.Notion.Tests/NotionBlockRendererEdgeCasesTests.cs \
   tests/Bukit.Notion.Tests/NotionBlockRenderersTests.cs
 ```
@@ -564,7 +585,7 @@ If the restricted environment causes a process or NuGet-cache failure, preserve 
 
 - [ ] **Step 3: Obtain a fresh final aggregate read-only review**
 
-Use a reviewer different from Task 3. Review the full base-to-HEAD diff, actual aggregate evidence, commit boundaries, exact deletion set, helper preservation, test-count preservation, baseline/manifest semantics, documentation history/current-state separation, D1C isolation, and absence of scope drift. Every Critical or Important finding must be resolved and re-reviewed before merge consideration.
+Use a reviewer different from the Task 2 first reviewer. Review the full base-to-HEAD diff, actual aggregate evidence, commit boundaries, exact deletion set, helper preservation, test-count preservation, baseline/manifest semantics, documentation history/current-state separation, D1C isolation, and absence of scope drift. Every Critical or Important finding must be resolved and re-reviewed before merge consideration.
 
 - [ ] **Step 4: Hand off through finishing-development-branch**
 
