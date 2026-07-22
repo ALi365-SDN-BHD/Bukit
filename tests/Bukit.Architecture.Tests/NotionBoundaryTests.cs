@@ -282,7 +282,7 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
-    public void LegacyNotionFacades_MustRemainFrozenDuringOneX()
+    public void RemainingLegacyNotionFacades_MustMatchGovernedTwoZeroBaseline()
     {
         var contentAssembly = typeof(Bukit.Content.Notion.NotionContentProvider).Assembly;
         var sharedAssembly = typeof(Bukit.Shared.Notion.NotionBlock).Assembly;
@@ -373,12 +373,10 @@ public sealed class NotionBoundaryTests
         "Bukit.Content.Notion.NotionBlockTransformer",
         "Bukit.Content.Notion.NotionBlocksRenderer",
         "Bukit.Content.Notion.NotionClientStats",
-        "Bukit.Content.Notion.NotionColorPalette",
         "Bukit.Content.Notion.NotionContentProvider",
         "Bukit.Content.Notion.NotionPropertyParser",
         "Bukit.Content.Notion.NotionProviderOptions",
-        "Bukit.Content.Notion.NotionRenderContext",
-        "Bukit.Content.Notion.NotionRichTextRenderer"
+        "Bukit.Content.Notion.NotionRenderContext"
     ];
 
     private static readonly string[] LegacySharedNotionTypes =

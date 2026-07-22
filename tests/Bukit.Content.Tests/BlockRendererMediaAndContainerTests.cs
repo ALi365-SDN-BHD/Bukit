@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Bukit.Content.Notion;
 using Bukit.Content.Notion.BlockRenderers;
+using NotionColorPalette = Bukit.Notion.Rendering.NotionColorPalette;
 using Xunit;
 
 namespace Bukit.Content.Tests;

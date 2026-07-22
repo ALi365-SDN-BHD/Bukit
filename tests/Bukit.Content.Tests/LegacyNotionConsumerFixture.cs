@@ -1,6 +1,6 @@
 namespace Bukit.Content.Tests;
 
-// Compiled as part of the test project so 1.x source consumers keep proving the old namespace surface.
+// Compiled as part of the test project so the remaining legacy namespace surface stays proven on the 2.0 line.
 internal static class LegacyNotionConsumerFixture
 {
     internal static readonly Type[] PublicTypes =
@@ -12,7 +12,6 @@ internal static class LegacyNotionConsumerFixture
         typeof(Bukit.Content.Notion.NotionBlocksRenderer),
         typeof(Bukit.Content.Notion.NotionBlockRendererRegistry),
         typeof(Bukit.Content.Notion.NotionRenderContext),
-        typeof(Bukit.Content.Notion.NotionRichTextRenderer),
         typeof(Bukit.Content.Notion.BlockRenderers.ImageBlockRenderer),
         typeof(Bukit.Content.Notion.BlockRenderers.TableBlockRenderer)
     ];

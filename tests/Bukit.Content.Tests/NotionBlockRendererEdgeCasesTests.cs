@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Bukit.Content.Notion;
 using Bukit.Content.Notion.BlockRenderers;
+using NotionRichTextRenderer = Bukit.Notion.Rendering.NotionRichTextRenderer;
 using Xunit;
 
 namespace Bukit.Content.Tests;

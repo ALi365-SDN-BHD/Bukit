@@ -2,6 +2,8 @@ using Bukit.Engine.Abstractions.Content;
 using System.Text.Json;
 using Bukit.Content.Notion;
 using Bukit.Content.Notion.BlockRenderers;
+using NotionColorPalette = Bukit.Notion.Rendering.NotionColorPalette;
+using NotionRichTextRenderer = Bukit.Notion.Rendering.NotionRichTextRenderer;
 using Xunit;
 
 namespace Bukit.Content.Tests;

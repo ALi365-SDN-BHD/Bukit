@@ -32,7 +32,7 @@ public sealed class G04CPublicSurfacePilotTests
     }
 
     [Fact]
-    public void CurrentPublicApiBaseline_ContainsOnlyTheApprovedRemoval()
+    public void CurrentPublicApiBaseline_PreservesTheApprovedG04CRemoval()
     {
         using var document = ReadJson("docs", "governance", "bukit-core-public-api-baseline.v1.json");
         var root = document.RootElement;
@@ -42,8 +42,8 @@ public sealed class G04CPublicSurfacePilotTests
         Assert.Equal("net10.0", root.GetProperty("targetFramework").GetString());
         Assert.Equal("no-general-clr-sdk", root.GetProperty("sdkPolicy").GetString());
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(539, types.Length);
-        Assert.Equal(135, types.Count(type =>
+        Assert.Equal(537, types.Length);
+        Assert.Equal(133, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.DoesNotContain(types, type =>
             type.GetProperty("assembly").GetString() == "Bukit.Engine" &&
@@ -79,7 +79,8 @@ public sealed class G04CPublicSurfacePilotTests
     public void ActiveGovernance_RecordsOnlyTheApprovedSingleTypeDecision()
     {
         const string decision = "G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry` is";
-        const string remainder = "the other 135 candidates are not batch-approved.";
+        const string historicalRemainder = "the other 135 candidates are not batch-approved.";
+        const string currentRemainder = "the other 133 candidates are not batch-approved.";
         var declaration = File.ReadAllText(Path.Combine(
             RepoRoot,
             "docs",
@@ -93,13 +94,15 @@ public sealed class G04CPublicSurfacePilotTests
             "bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md");
 
         Assert.Contains(decision, declaration, StringComparison.Ordinal);
-        Assert.Contains(remainder, declaration, StringComparison.Ordinal);
+        Assert.Contains(historicalRemainder, declaration, StringComparison.Ordinal);
+        Assert.Contains(currentRemainder, declaration, StringComparison.Ordinal);
         Assert.Contains("The closed manifest preserves the 136-type review inventory.", declaration, StringComparison.Ordinal);
         Assert.Contains("At declaration-window closure, all 136 entries were review candidates rather than removal decisions.", declaration, StringComparison.Ordinal);
         Assert.Contains("The later separately approved G-04C decision authorizes only `Bukit.Engine.RouteInventoryInspectEntry`; the other 135 remain review-only and are not batch-approved.", declaration, StringComparison.Ordinal);
         Assert.DoesNotContain("All 136 entries are review candidates, not removal decisions.", declaration, StringComparison.Ordinal);
         Assert.Contains(decision, guide, StringComparison.Ordinal);
-        Assert.Contains(remainder, guide, StringComparison.Ordinal);
+        Assert.Contains(historicalRemainder, guide, StringComparison.Ordinal);
+        Assert.Contains(currentRemainder, guide, StringComparison.Ordinal);
         Assert.True(File.Exists(ledgerPath), $"Missing G-04C decision ledger: {ledgerPath}");
 
         var ledger = File.ReadAllText(ledgerPath);

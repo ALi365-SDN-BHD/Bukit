@@ -2773,39 +2773,6 @@
     },
     {
       "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.NotionColorPalette",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Content.Notion.NotionColorPalette",
-      "publicMembers": [
-        "public const System.String! BlueBg = \u0022#E7F3F8\u0022",
-        "public const System.String! BlueFg = \u0022#0B6E99\u0022",
-        "public const System.String! BrownBg = \u0022#F4EEEE\u0022",
-        "public const System.String! BrownFg = \u0022#64473A\u0022",
-        "public const System.String! DefaultBg = \u0022#F7F6F3\u0022",
-        "public const System.String! GrayBg = \u0022#F1F1EF\u0022",
-        "public const System.String! GrayFg = \u0022#787774\u0022",
-        "public const System.String! GreenBg = \u0022#EDF3EC\u0022",
-        "public const System.String! GreenFg = \u0022#0F7B6C\u0022",
-        "public const System.String! OrangeBg = \u0022#FBECDD\u0022",
-        "public const System.String! OrangeFg = \u0022#D9730D\u0022",
-        "public const System.String! PinkBg = \u0022#F9F0F5\u0022",
-        "public const System.String! PinkFg = \u0022#AD1A72\u0022",
-        "public const System.String! PurpleBg = \u0022#F6F3F9\u0022",
-        "public const System.String! PurpleFg = \u0022#6940A5\u0022",
-        "public const System.String! RedBg = \u0022#FDEBEC\u0022",
-        "public const System.String! RedFg = \u0022#E03E3E\u0022",
-        "public const System.String! YellowBg = \u0022#FBF3DB\u0022",
-        "public const System.String! YellowFg = \u0022#DFAB01\u0022",
-        "public static System.String! ToBackground(System.String! notionColor)",
-        "public static System.String! ToForeground(System.String! notionColor)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
       "name": "Bukit.Content.Notion.NotionContentProvider",
       "owner": "Content acquisition",
       "classification": "cross-assembly-implementation",
@@ -2886,19 +2853,6 @@
       "publicMembers": [
         "public Bukit.Content.Notion.NotionApiClient! Client { get; }",
         "public System.Threading.Tasks.Task\u003CSystem.String!\u003E! RenderChildrenAsync(System.String! blockId, System.Threading.CancellationToken cancellationToken)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.NotionRichTextRenderer",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Content.Notion.NotionRichTextRenderer",
-      "publicMembers": [
-        "public static System.String! Render(System.Text.Json.JsonElement richTextArray)"
       ],
       "protectedMembers": []
     },

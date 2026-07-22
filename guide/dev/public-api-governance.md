@@ -164,3 +164,18 @@ The closed 136-entry candidate manifest is an immutable declaration-window
 snapshot. It intentionally retains the removed type and its original search
 evidence. The governed public API baseline, not that historical cohort, is the
 current CLR surface inventory.
+
+### G-04D1A Two Static Facades
+
+G-04D1A two-static-facade decision: only `Bukit.Content.Notion.NotionColorPalette` and `Bukit.Content.Notion.NotionRichTextRenderer` are approved for removal in 2.0; the other 133 candidates are not batch-approved.
+This is a separately approved 2.0 decision after the historical G-04C state,
+which removed one type while the other 135 candidates were not batch-approved.
+It does not batch-authorize the 133 remaining candidates and does not change
+any 1.x CLR visibility.
+
+The canonical replacements are `Bukit.Notion.Rendering.NotionColorPalette`
+and `Bukit.Notion.Rendering.NotionRichTextRenderer`. See the
+[G-04D1A decision ledger](../../docs/analysis/bukit-core-g04d1a-static-notion-facade-removal-2026-07-22.zh-CN.md)
+for the breaking-change evidence, canonical-test migration, and remaining
+cross-boundary validation. The closed 136-entry candidate manifest remains an
+immutable historical cohort; it is not the current baseline.

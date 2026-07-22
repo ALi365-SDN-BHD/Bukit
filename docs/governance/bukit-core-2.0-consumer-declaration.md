@@ -102,3 +102,19 @@ records the exact drift, migration boundary, verification, and independent revie
 The closed 136-entry candidate manifest remains the immutable historical cohort
 captured at declaration-window closure. The current public API baseline is the
 source of truth for the post-removal CLR surface.
+
+## G-04D1A Two Static Facades
+
+G-04D1A two-static-facade decision: only `Bukit.Content.Notion.NotionColorPalette` and `Bukit.Content.Notion.NotionRichTextRenderer` are approved for removal in 2.0; the other 133 candidates are not batch-approved.
+This separately approved 2.0 decision follows the historical G-04C state,
+where `Bukit.Engine.RouteInventoryInspectEntry` was removed and the other 135
+candidates were not batch-approved. It does not authorize a batch change to
+the remaining candidates and leaves all 1.x CLR visibility unchanged.
+
+The canonical replacements are `Bukit.Notion.Rendering.NotionColorPalette`
+and `Bukit.Notion.Rendering.NotionRichTextRenderer`. The
+[G-04D1A decision ledger](../analysis/bukit-core-g04d1a-static-notion-facade-removal-2026-07-22.zh-CN.md)
+records the source and binary breaking-change boundary, migration, and pending
+cross-boundary validation. The closed 136-entry manifest remains immutable;
+it intentionally retains both historical candidate records and their
+private-consumer uncertainty.
