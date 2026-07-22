@@ -8,8 +8,10 @@ emit() {
 emit tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj
 emit tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj
 emit tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj
+emit tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj
 emit tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj
 emit tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj
+emit tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj
 emit tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj
 emit tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj
 emit tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj

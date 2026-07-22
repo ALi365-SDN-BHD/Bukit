@@ -17,12 +17,20 @@
       "project": "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj"
     },
     {
+      "assembly": "Bukit.Content.Notion",
+      "project": "src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj"
+    },
+    {
       "assembly": "Bukit.Engine",
       "project": "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj"
     },
     {
       "assembly": "Bukit.Engine.Abstractions",
       "project": "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj"
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "project": "src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj"
     },
     {
       "assembly": "Bukit.Plugin.Abstractions",
@@ -2895,6 +2903,63 @@
       "protectedMembers": []
     },
     {
+      "assembly": "Bukit.Content.Notion",
+      "name": "Bukit.Content.Notion.NotionContentSource",
+      "owner": "Notion content adapter contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Content.Notion.NotionContentSource",
+      "publicMembers": [
+        "public .ctor(Bukit.Content.Notion.NotionContentSourceOptions! options, Bukit.Shared.ILogger? logger = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.RawContentLoadResult!\u003E! LoadRawAsync(System.Threading.CancellationToken cancellationToken = null)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Content.Notion",
+      "name": "Bukit.Content.Notion.NotionContentSourceOptions",
+      "owner": "Notion content adapter contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Content.Notion.NotionContentSourceOptions : System.IEquatable\u003CBukit.Content.Notion.NotionContentSourceOptions~\u003E~",
+      "publicMembers": [
+        "public .ctor()",
+        "public Bukit.Config.NotionPropertyMapConfig? PropertyMap { get; init; }",
+        "public Bukit.Content.Notion.NotionContentSourceOptions! \u003CClone\u003E$()",
+        "public System.Boolean AutoSummary { get; init; }",
+        "public System.Boolean RenderContent { get; init; }",
+        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? AllowedFields { get; init; }",
+        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? IncludeSlugs { get; init; }",
+        "public System.Int32 AutoSummaryMaxLength { get; init; }",
+        "public System.Int32 MaxRetries { get; init; }",
+        "public System.Int32 PageSize { get; init; }",
+        "public System.Int32 RequestDelayMs { get; init; }",
+        "public System.Int32? MaxItems { get; init; }",
+        "public System.Int32? MaxRps { get; init; }",
+        "public System.Int32? RenderConcurrency { get; init; }",
+        "public System.String! CacheMode { get; init; }",
+        "public System.String! DatabaseId { get; init; }",
+        "public System.String! FieldPolicyMode { get; init; }",
+        "public System.String! FilterProperty { get; init; }",
+        "public System.String! FilterType { get; init; }",
+        "public System.String! IncludeSlugProperty { get; init; }",
+        "public System.String! SortDirection { get; init; }",
+        "public System.String! Token { get; init; }",
+        "public System.String? CacheDir { get; init; }",
+        "public System.String? FilterValue { get; init; }",
+        "public System.String? SortProperty { get; init; }",
+        "public static System.Boolean op_Equality(Bukit.Content.Notion.NotionContentSourceOptions? left, Bukit.Content.Notion.NotionContentSourceOptions? right)",
+        "public static System.Boolean op_Inequality(Bukit.Content.Notion.NotionContentSourceOptions? left, Bukit.Content.Notion.NotionContentSourceOptions? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Content.Notion.NotionContentSourceOptions? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.AtomFeedGenerator",
       "owner": "Build engine",
@@ -5591,6 +5656,1154 @@
       "protectedMembers": []
     },
     {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.BulletedListItemBlock",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.BulletedListItemBlock : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.BulletedListItemBlock~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments)",
+        "public .ctor(System.String! text)",
+        "public System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments { get; init; }",
+        "public System.Void Deconstruct(out System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.BulletedListItemBlock? left, Bukit.Notion.Blocks.BulletedListItemBlock? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.BulletedListItemBlock? left, Bukit.Notion.Blocks.BulletedListItemBlock? right)",
+        "public virtual Bukit.Notion.Blocks.BulletedListItemBlock! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.BulletedListItemBlock? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.CalloutBlock",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.CalloutBlock : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.CalloutBlock~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Text, System.String! Icon = \u0022\\uD83D\\uDCDD\u0022)",
+        "public System.String! Icon { get; init; }",
+        "public System.String! Text { get; init; }",
+        "public System.Void Deconstruct(out System.String! Text, out System.String! Icon)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.CalloutBlock? left, Bukit.Notion.Blocks.CalloutBlock? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.CalloutBlock? left, Bukit.Notion.Blocks.CalloutBlock? right)",
+        "public virtual Bukit.Notion.Blocks.CalloutBlock! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.CalloutBlock? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.CodeBlock",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.CodeBlock : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.CodeBlock~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Code, System.String! Language = \u0022plain text\u0022)",
+        "public System.String! Code { get; init; }",
+        "public System.String! Language { get; init; }",
+        "public System.Void Deconstruct(out System.String! Code, out System.String! Language)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.CodeBlock? left, Bukit.Notion.Blocks.CodeBlock? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.CodeBlock? left, Bukit.Notion.Blocks.CodeBlock? right)",
+        "public virtual Bukit.Notion.Blocks.CodeBlock! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.CodeBlock? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.Heading1Block",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.Heading1Block : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.Heading1Block~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Text)",
+        "public System.String! Text { get; init; }",
+        "public System.Void Deconstruct(out System.String! Text)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.Heading1Block? left, Bukit.Notion.Blocks.Heading1Block? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.Heading1Block? left, Bukit.Notion.Blocks.Heading1Block? right)",
+        "public virtual Bukit.Notion.Blocks.Heading1Block! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.Heading1Block? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.Heading2Block",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.Heading2Block : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.Heading2Block~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Text)",
+        "public System.String! Text { get; init; }",
+        "public System.Void Deconstruct(out System.String! Text)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.Heading2Block? left, Bukit.Notion.Blocks.Heading2Block? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.Heading2Block? left, Bukit.Notion.Blocks.Heading2Block? right)",
+        "public virtual Bukit.Notion.Blocks.Heading2Block! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.Heading2Block? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.Heading3Block",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.Heading3Block : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.Heading3Block~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Text)",
+        "public System.String! Text { get; init; }",
+        "public System.Void Deconstruct(out System.String! Text)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.Heading3Block? left, Bukit.Notion.Blocks.Heading3Block? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.Heading3Block? left, Bukit.Notion.Blocks.Heading3Block? right)",
+        "public virtual Bukit.Notion.Blocks.Heading3Block! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.Heading3Block? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.ImageBlock",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.ImageBlock : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.ImageBlock~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Url, System.String? Caption = null)",
+        "public System.String! Url { get; init; }",
+        "public System.String? Caption { get; init; }",
+        "public System.Void Deconstruct(out System.String! Url, out System.String? Caption)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.ImageBlock? left, Bukit.Notion.Blocks.ImageBlock? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.ImageBlock? left, Bukit.Notion.Blocks.ImageBlock? right)",
+        "public virtual Bukit.Notion.Blocks.ImageBlock! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.ImageBlock? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.NotionBlock",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public abstract class Bukit.Notion.Blocks.NotionBlock : System.IEquatable\u003CBukit.Notion.Blocks.NotionBlock~\u003E~",
+      "publicMembers": [
+        "public abstract Bukit.Notion.Blocks.NotionBlock! \u003CClone\u003E$()",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.NotionBlock? left, Bukit.Notion.Blocks.NotionBlock? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.NotionBlock? left, Bukit.Notion.Blocks.NotionBlock? right)",
+        "public virtual System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()"
+      ],
+      "protectedMembers": [
+        "protected .ctor()",
+        "protected .ctor(Bukit.Notion.Blocks.NotionBlock! original)",
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.NumberedListItemBlock",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.NumberedListItemBlock : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.NumberedListItemBlock~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments)",
+        "public .ctor(System.String! text)",
+        "public System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments { get; init; }",
+        "public System.Void Deconstruct(out System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.NumberedListItemBlock? left, Bukit.Notion.Blocks.NumberedListItemBlock? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.NumberedListItemBlock? left, Bukit.Notion.Blocks.NumberedListItemBlock? right)",
+        "public virtual Bukit.Notion.Blocks.NumberedListItemBlock! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NumberedListItemBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.ParagraphBlock",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.ParagraphBlock : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.ParagraphBlock~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments)",
+        "public .ctor(System.String! text)",
+        "public System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments { get; init; }",
+        "public System.Void Deconstruct(out System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.ParagraphBlock? left, Bukit.Notion.Blocks.ParagraphBlock? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.ParagraphBlock? left, Bukit.Notion.Blocks.ParagraphBlock? right)",
+        "public virtual Bukit.Notion.Blocks.ParagraphBlock! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.ParagraphBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.QuoteBlock",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.QuoteBlock : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.QuoteBlock~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments)",
+        "public .ctor(System.String! text)",
+        "public System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments { get; init; }",
+        "public System.Void Deconstruct(out System.Collections.Generic.List\u003CBukit.Notion.Blocks.RichTextSegment!\u003E! Segments)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.QuoteBlock? left, Bukit.Notion.Blocks.QuoteBlock? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.QuoteBlock? left, Bukit.Notion.Blocks.QuoteBlock? right)",
+        "public virtual Bukit.Notion.Blocks.QuoteBlock! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.QuoteBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.RichTextSegment",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.RichTextSegment : System.IEquatable\u003CBukit.Notion.Blocks.RichTextSegment~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Text, System.Boolean Bold = false, System.Boolean Italic = false, System.String? LinkUrl = null)",
+        "public Bukit.Notion.Blocks.RichTextSegment! \u003CClone\u003E$()",
+        "public System.Boolean Bold { get; init; }",
+        "public System.Boolean Italic { get; init; }",
+        "public System.String! Text { get; init; }",
+        "public System.String? LinkUrl { get; init; }",
+        "public System.Void Deconstruct(out System.String! Text, out System.Boolean Bold, out System.Boolean Italic, out System.String? LinkUrl)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.RichTextSegment? left, Bukit.Notion.Blocks.RichTextSegment? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.RichTextSegment? left, Bukit.Notion.Blocks.RichTextSegment? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.RichTextSegment? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Blocks.ToggleBlock",
+      "owner": "Notion block contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Blocks.ToggleBlock : Bukit.Notion.Blocks.NotionBlock~, System.IEquatable\u003CBukit.Notion.Blocks.ToggleBlock~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Heading, System.Collections.Generic.List\u003CBukit.Notion.Blocks.NotionBlock!\u003E! Children)",
+        "public System.Collections.Generic.List\u003CBukit.Notion.Blocks.NotionBlock!\u003E! Children { get; init; }",
+        "public System.String! Heading { get; init; }",
+        "public System.Void Deconstruct(out System.String! Heading, out System.Collections.Generic.List\u003CBukit.Notion.Blocks.NotionBlock!\u003E! Children)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Blocks.ToggleBlock? left, Bukit.Notion.Blocks.ToggleBlock? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Blocks.ToggleBlock? left, Bukit.Notion.Blocks.ToggleBlock? right)",
+        "public virtual Bukit.Notion.Blocks.ToggleBlock! \u003CClone\u003E$()",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.NotionBlock? other)",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Blocks.ToggleBlock? other)"
+      ],
+      "protectedMembers": [
+        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
+        "protected virtual System.Type! EqualityContract { get; }"
+      ]
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Conversion.HtmlToNotionBlockConverter",
+      "owner": "Notion conversion contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Notion.Conversion.HtmlToNotionBlockConverter",
+      "publicMembers": [
+        "public static System.Collections.Generic.List\u003CBukit.Notion.Blocks.NotionBlock!\u003E! Convert(System.String! html)",
+        "public static System.String! ToBlocksJson(System.String! html)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Conversion.HtmlTokenizer",
+      "owner": "Notion conversion contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Notion.Conversion.HtmlTokenizer",
+      "publicMembers": [
+        "public static System.Collections.Generic.List\u003CBukit.Notion.Conversion.HtmlTokenizer.HtmlToken!\u003E! Tokenize(System.String! html)",
+        "public static System.String! DecodeHtmlEntities(System.String! text)",
+        "public static System.String! ExtractTagName(System.String! tagContent)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Conversion.HtmlTokenizer\u002BHtmlToken",
+      "owner": "Notion conversion contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Conversion.HtmlTokenizer.HtmlToken",
+      "publicMembers": [
+        "public .ctor()",
+        "public Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType Type { get; init; }",
+        "public System.String! Attributes { get; init; }",
+        "public System.String! TagName { get; init; }",
+        "public System.String! TextContent { get; init; }"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Conversion.HtmlTokenizer\u002BHtmlTokenType",
+      "owner": "Notion conversion contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public enum Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType : System.Int32",
+      "publicMembers": [
+        "public System.Int32 value__",
+        "public const Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType CloseTag = Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType.CloseTag [value=1]",
+        "public const Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType OpenTag = Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType.OpenTag [value=0]",
+        "public const Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType SelfClosingTag = Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType.SelfClosingTag [value=2]",
+        "public const Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType Text = Bukit.Notion.Conversion.HtmlTokenizer.HtmlTokenType.Text [value=3]"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Conversion.NotionBlockJsonWriter",
+      "owner": "Notion conversion contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Notion.Conversion.NotionBlockJsonWriter",
+      "publicMembers": [
+        "public static System.String! SerializeBlocks(System.Collections.Generic.IReadOnlyList\u003CBukit.Notion.Blocks.NotionBlock!\u003E! blocks)",
+        "public static System.String! TruncateBlockText(System.String! text)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Diagnostics.NotionDatabaseProperty",
+      "owner": "Notion diagnostics contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Diagnostics.NotionDatabaseProperty : System.IEquatable\u003CBukit.Notion.Diagnostics.NotionDatabaseProperty~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Name, System.String! Type)",
+        "public Bukit.Notion.Diagnostics.NotionDatabaseProperty! \u003CClone\u003E$()",
+        "public System.String! Name { get; init; }",
+        "public System.String! Type { get; init; }",
+        "public System.Void Deconstruct(out System.String! Name, out System.String! Type)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Diagnostics.NotionDatabaseProperty? left, Bukit.Notion.Diagnostics.NotionDatabaseProperty? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Diagnostics.NotionDatabaseProperty? left, Bukit.Notion.Diagnostics.NotionDatabaseProperty? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Diagnostics.NotionDatabaseProperty? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Diagnostics.NotionDatabaseSchema",
+      "owner": "Notion diagnostics contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Diagnostics.NotionDatabaseSchema : System.IEquatable\u003CBukit.Notion.Diagnostics.NotionDatabaseSchema~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.Boolean IsSuccess, System.Collections.Generic.IReadOnlyList\u003CBukit.Notion.Diagnostics.NotionDatabaseProperty!\u003E! Properties, System.Net.HttpStatusCode? StatusCode = null, System.String? ReasonPhrase = null, Bukit.Notion.Transport.NotionApiErrorKind? ErrorKind = null, System.String? ErrorMessage = null)",
+        "public Bukit.Notion.Diagnostics.NotionDatabaseSchema! \u003CClone\u003E$()",
+        "public Bukit.Notion.Transport.NotionApiErrorKind? ErrorKind { get; init; }",
+        "public System.Boolean IsSuccess { get; init; }",
+        "public System.Collections.Generic.IReadOnlyList\u003CBukit.Notion.Diagnostics.NotionDatabaseProperty!\u003E! Properties { get; init; }",
+        "public System.Net.HttpStatusCode? StatusCode { get; init; }",
+        "public System.String? ErrorMessage { get; init; }",
+        "public System.String? ReasonPhrase { get; init; }",
+        "public System.Void Deconstruct(out System.Boolean IsSuccess, out System.Collections.Generic.IReadOnlyList\u003CBukit.Notion.Diagnostics.NotionDatabaseProperty!\u003E! Properties, out System.Net.HttpStatusCode? StatusCode, out System.String? ReasonPhrase, out Bukit.Notion.Transport.NotionApiErrorKind? ErrorKind, out System.String? ErrorMessage)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Diagnostics.NotionDatabaseSchema? left, Bukit.Notion.Diagnostics.NotionDatabaseSchema? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Diagnostics.NotionDatabaseSchema? left, Bukit.Notion.Diagnostics.NotionDatabaseSchema? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Diagnostics.NotionDatabaseSchema? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Diagnostics.NotionHealthClient",
+      "owner": "Notion diagnostics contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Diagnostics.NotionHealthClient",
+      "publicMembers": [
+        "public .ctor(Bukit.Notion.Transport.NotionClient! client)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Diagnostics.NotionDatabaseSchema!\u003E! InspectDatabaseSchemaAsync(System.String! databaseId, System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Diagnostics.NotionHealthResult!\u003E! CheckConnectivityAsync(System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Diagnostics.NotionHealthResult!\u003E! CheckDatabaseAsync(System.String! databaseId, System.Threading.CancellationToken cancellationToken = null)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Diagnostics.NotionHealthResult",
+      "owner": "Notion diagnostics contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Diagnostics.NotionHealthResult : System.IEquatable\u003CBukit.Notion.Diagnostics.NotionHealthResult~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.Boolean IsSuccess, System.Net.HttpStatusCode? StatusCode = null, System.String? ReasonPhrase = null, Bukit.Notion.Transport.NotionApiErrorKind? ErrorKind = null, System.String? ErrorMessage = null)",
+        "public Bukit.Notion.Diagnostics.NotionHealthResult! \u003CClone\u003E$()",
+        "public Bukit.Notion.Transport.NotionApiErrorKind? ErrorKind { get; init; }",
+        "public System.Boolean IsSuccess { get; init; }",
+        "public System.Net.HttpStatusCode? StatusCode { get; init; }",
+        "public System.String? ErrorMessage { get; init; }",
+        "public System.String? ReasonPhrase { get; init; }",
+        "public System.Void Deconstruct(out System.Boolean IsSuccess, out System.Net.HttpStatusCode? StatusCode, out System.String? ReasonPhrase, out Bukit.Notion.Transport.NotionApiErrorKind? ErrorKind, out System.String? ErrorMessage)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Diagnostics.NotionHealthResult? left, Bukit.Notion.Diagnostics.NotionHealthResult? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Diagnostics.NotionHealthResult? left, Bukit.Notion.Diagnostics.NotionHealthResult? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Diagnostics.NotionHealthResult? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.NotionApiUrls",
+      "owner": "Notion API endpoint contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Notion.NotionApiUrls",
+      "publicMembers": [
+        "public const System.Int32 DefaultPageSize = 100",
+        "public const System.String! ApiVersion = \u0022v1\u0022",
+        "public const System.String! Base = \u0022https://api.notion.com\u0022",
+        "public const System.String! NotionVersion = \u00222022-06-28\u0022",
+        "public static System.String! BlockChildren(System.String! blockId, System.Int32 pageSize = 100)",
+        "public static System.String! BlockChildrenEndpoint(System.String! blockId)",
+        "public static System.String! Blocks(System.String! blockId)",
+        "public static System.String! Database(System.String! databaseId)",
+        "public static System.String! DatabaseQuery(System.String! databaseId)",
+        "public static System.String! Databases()",
+        "public static System.String! Pages()",
+        "public static System.String! Pages(System.String! pageId)",
+        "public static System.String! UsersMe()"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.AudioBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.AudioBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.BookmarkBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.BookmarkBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.CalloutBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.CalloutBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.ChildEntityBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.ChildEntityBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor(System.String! typeName)",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.CodeBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.CodeBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.ColumnBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.ColumnBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.ColumnListBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.ColumnListBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.DividerBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.DividerBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.EmbedBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.EmbedBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.EquationBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.EquationBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.FileBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.FileBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.ImageBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.ImageBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.LinkPreviewBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.LinkPreviewBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.LinkToPageBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.LinkToPageBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.NoOpBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.NoOpBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.PdfBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.PdfBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.RichTextContainerRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.RichTextContainerRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor(System.String! containerName, System.String! tag)",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.SyncedBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.SyncedBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.TableBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.TableBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.TableOfContentsBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.TableOfContentsBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.ToDoBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.ToDoBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.ToggleBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.ToggleBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.BlockRenderers.VideoBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.BlockRenderers.VideoBlockRenderer : Bukit.Notion.Rendering.INotionBlockRenderer~",
+      "publicMembers": [
+        "public .ctor()",
+        "public virtual final System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.INotionBlockRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public interface Bukit.Notion.Rendering.INotionBlockRenderer",
+      "publicMembers": [
+        "public abstract System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)",
+        "public static Bukit.Notion.Rendering.INotionBlockRenderer! NoOp { get; }"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.NotionBlockRendererRegistry",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.NotionBlockRendererRegistry",
+      "publicMembers": [
+        "public .ctor()",
+        "public Bukit.Notion.Rendering.NotionBlockRendererRegistry! Register(System.String! blockType, Bukit.Notion.Rendering.INotionBlockRenderer! renderer)",
+        "public Bukit.Notion.Rendering.NotionBlockRendererRegistry! RemoveCustomTransformer(System.String! blockType)",
+        "public Bukit.Notion.Rendering.NotionBlockRendererRegistry! SetCustomTransformer(System.String! blockType, Bukit.Notion.Rendering.NotionBlockTransformer! transformer)",
+        "public static Bukit.Notion.Rendering.NotionBlockRendererRegistry! CreateDefault()"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.NotionBlockTransformer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public delegate Bukit.Notion.Rendering.NotionBlockTransformer",
+      "publicMembers": [
+        "public .ctor(System.Object~ object, System.IntPtr method)",
+        "public virtual System.IAsyncResult~ BeginInvoke(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken, System.AsyncCallback~ callback, System.Object~ object)",
+        "public virtual System.Threading.Tasks.Task\u003CSystem.String?\u003E! EndInvoke(System.IAsyncResult~ result)",
+        "public virtual System.Threading.Tasks.Task\u003CSystem.String?\u003E! Invoke(System.Text.Json.JsonElement block, Bukit.Notion.Rendering.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.NotionBlocksRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.NotionBlocksRenderer",
+      "publicMembers": [
+        "public .ctor(Bukit.Notion.Transport.NotionClient! client)",
+        "public .ctor(Bukit.Notion.Transport.NotionClient! client, Bukit.Notion.Rendering.NotionBlockRendererRegistry! registry)",
+        "public Bukit.Notion.Rendering.NotionBlockRendererRegistry! Registry { get; }",
+        "public System.Threading.Tasks.Task\u003CSystem.String!\u003E! RenderPageAsync(System.String! pageId, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.NotionColorPalette",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Notion.Rendering.NotionColorPalette",
+      "publicMembers": [
+        "public const System.String! BlueBg = \u0022#E7F3F8\u0022",
+        "public const System.String! BlueFg = \u0022#0B6E99\u0022",
+        "public const System.String! BrownBg = \u0022#F4EEEE\u0022",
+        "public const System.String! BrownFg = \u0022#64473A\u0022",
+        "public const System.String! DefaultBg = \u0022#F7F6F3\u0022",
+        "public const System.String! GrayBg = \u0022#F1F1EF\u0022",
+        "public const System.String! GrayFg = \u0022#787774\u0022",
+        "public const System.String! GreenBg = \u0022#EDF3EC\u0022",
+        "public const System.String! GreenFg = \u0022#0F7B6C\u0022",
+        "public const System.String! OrangeBg = \u0022#FBECDD\u0022",
+        "public const System.String! OrangeFg = \u0022#D9730D\u0022",
+        "public const System.String! PinkBg = \u0022#F9F0F5\u0022",
+        "public const System.String! PinkFg = \u0022#AD1A72\u0022",
+        "public const System.String! PurpleBg = \u0022#F6F3F9\u0022",
+        "public const System.String! PurpleFg = \u0022#6940A5\u0022",
+        "public const System.String! RedBg = \u0022#FDEBEC\u0022",
+        "public const System.String! RedFg = \u0022#E03E3E\u0022",
+        "public const System.String! YellowBg = \u0022#FBF3DB\u0022",
+        "public const System.String! YellowFg = \u0022#DFAB01\u0022",
+        "public static System.String! ToBackground(System.String! notionColor)",
+        "public static System.String! ToForeground(System.String! notionColor)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.NotionRenderContext",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.NotionRenderContext",
+      "publicMembers": [
+        "public Bukit.Notion.Transport.NotionClient! Client { get; }",
+        "public System.Threading.Tasks.Task\u003CSystem.String!\u003E! RenderChildrenAsync(System.String! blockId, System.Threading.CancellationToken cancellationToken)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.NotionRenderingException",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Rendering.NotionRenderingException : System.Exception~",
+      "publicMembers": [
+        "public .ctor(System.String! message)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Rendering.NotionRichTextRenderer",
+      "owner": "Notion rendering contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Notion.Rendering.NotionRichTextRenderer",
+      "publicMembers": [
+        "public static System.String! Render(System.Text.Json.JsonElement richTextArray)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Transport.NotionApiErrorKind",
+      "owner": "Notion transport contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public enum Bukit.Notion.Transport.NotionApiErrorKind : System.Int32",
+      "publicMembers": [
+        "public System.Int32 value__",
+        "public const Bukit.Notion.Transport.NotionApiErrorKind HttpStatus = Bukit.Notion.Transport.NotionApiErrorKind.HttpStatus [value=0]",
+        "public const Bukit.Notion.Transport.NotionApiErrorKind InvalidJson = Bukit.Notion.Transport.NotionApiErrorKind.InvalidJson [value=2]",
+        "public const Bukit.Notion.Transport.NotionApiErrorKind RateLimited = Bukit.Notion.Transport.NotionApiErrorKind.RateLimited [value=1]",
+        "public const Bukit.Notion.Transport.NotionApiErrorKind Transport = Bukit.Notion.Transport.NotionApiErrorKind.Transport [value=3]"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Transport.NotionApiException",
+      "owner": "Notion transport contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Transport.NotionApiException : System.Exception~",
+      "publicMembers": [
+        "public .ctor(Bukit.Notion.Transport.NotionApiErrorKind kind, System.String! message, System.Net.HttpStatusCode? statusCode = null, System.String? reasonPhrase = null, System.Int32 attempts = 1, System.String? rootErrorType = null)",
+        "public Bukit.Notion.Transport.NotionApiErrorKind Kind { get; }",
+        "public System.Int32 Attempts { get; }",
+        "public System.Net.HttpStatusCode? StatusCode { get; }",
+        "public System.String? ReasonPhrase { get; }",
+        "public System.String? RootErrorType { get; }"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Transport.NotionClient",
+      "owner": "Notion transport contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Transport.NotionClient : System.IDisposable~",
+      "publicMembers": [
+        "public .ctor(Bukit.Notion.Transport.NotionClientOptions! options)",
+        "public .ctor(Bukit.Notion.Transport.NotionClientOptions! options, System.Net.Http.HttpClient! httpClient)",
+        "public Bukit.Notion.Transport.NotionClientStats! GetStats()",
+        "public System.Threading.Tasks.Task\u003CSystem.Text.Json.JsonDocument!\u003E! GetAsync(System.String! url, System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CSystem.Text.Json.JsonDocument!\u003E! SendAsync(System.Net.Http.HttpRequestMessage! request, Bukit.Notion.Transport.NotionRequestSemantics semantics, System.Threading.CancellationToken cancellationToken = null)",
+        "public virtual final System.Void Dispose()"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Transport.NotionClientOptions",
+      "owner": "Notion transport contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Transport.NotionClientOptions",
+      "publicMembers": [
+        "public .ctor()",
+        "public System.Int32 MaxRetries { get; init; }",
+        "public System.Int32 RequestDelayMs { get; init; }",
+        "public System.Int32? MaxRps { get; init; }",
+        "public System.String! ApiVersion { get; init; }",
+        "public System.String! Token { get; init; }",
+        "public System.TimeSpan Timeout { get; init; }",
+        "public virtual System.String! ToString()"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Transport.NotionClientStats",
+      "owner": "Notion transport contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Transport.NotionClientStats : System.IEquatable\u003CBukit.Notion.Transport.NotionClientStats~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.Int64 RequestCount, System.Int64 ThrottleWaitCount, System.Int64 ThrottleWaitTotalMs)",
+        "public Bukit.Notion.Transport.NotionClientStats! \u003CClone\u003E$()",
+        "public System.Int64 RequestCount { get; init; }",
+        "public System.Int64 ThrottleWaitCount { get; init; }",
+        "public System.Int64 ThrottleWaitTotalMs { get; init; }",
+        "public System.Void Deconstruct(out System.Int64 RequestCount, out System.Int64 ThrottleWaitCount, out System.Int64 ThrottleWaitTotalMs)",
+        "public static System.Boolean op_Equality(Bukit.Notion.Transport.NotionClientStats? left, Bukit.Notion.Transport.NotionClientStats? right)",
+        "public static System.Boolean op_Inequality(Bukit.Notion.Transport.NotionClientStats? left, Bukit.Notion.Transport.NotionClientStats? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Notion.Transport.NotionClientStats? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Transport.NotionRequestSemantics",
+      "owner": "Notion transport contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public enum Bukit.Notion.Transport.NotionRequestSemantics : System.Int32",
+      "publicMembers": [
+        "public System.Int32 value__",
+        "public const Bukit.Notion.Transport.NotionRequestSemantics IdempotentRead = Bukit.Notion.Transport.NotionRequestSemantics.IdempotentRead [value=0]",
+        "public const Bukit.Notion.Transport.NotionRequestSemantics NonReplayableWrite = Bukit.Notion.Transport.NotionRequestSemantics.NonReplayableWrite [value=1]"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Write.NotionWriteClient",
+      "owner": "Notion write contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Write.NotionWriteClient",
+      "publicMembers": [
+        "public .ctor(Bukit.Notion.Transport.NotionClient! client)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Write.NotionWriteResult!\u003E! AppendBlockChildrenAsync(System.String! blockId, System.String! payload, System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Write.NotionWriteResult!\u003E! ArchiveBlockAsync(System.String! blockId, System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Write.NotionWriteResult!\u003E! CreateDatabaseAsync(System.String! payload, System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Write.NotionWriteResult!\u003E! CreatePageAsync(System.String! payload, System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Write.NotionWriteResult!\u003E! InspectDatabaseSchemaAsync(System.String! databaseId, System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Write.NotionWriteResult!\u003E! ListBlockChildrenAsync(System.String! blockId, System.String? startCursor = null, System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Write.NotionWriteResult!\u003E! QueryDatabaseAsync(System.String! databaseId, System.String! payload, System.Threading.CancellationToken cancellationToken = null)",
+        "public System.Threading.Tasks.Task\u003CBukit.Notion.Write.NotionWriteResult!\u003E! UpdatePageAsync(System.String! pageId, System.String! payload, System.Threading.CancellationToken cancellationToken = null)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Notion",
+      "name": "Bukit.Notion.Write.NotionWriteResult",
+      "owner": "Notion write contract",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Notion.Write.NotionWriteResult",
+      "publicMembers": [
+        "public Bukit.Notion.Transport.NotionApiErrorKind? ErrorKind { get; }",
+        "public System.Boolean IsSuccess { get; }",
+        "public System.Int32 Attempts { get; }",
+        "public System.Net.HttpStatusCode? StatusCode { get; }",
+        "public System.String? ErrorMessage { get; }",
+        "public System.String? ReasonPhrase { get; }",
+        "public System.Text.Json.JsonElement? Payload { get; }",
+        "public virtual System.String! ToString()"
+      ],
+      "protectedMembers": []
+    },
+    {
       "assembly": "Bukit.Plugin.Abstractions",
       "name": "Bukit.Plugin.Abstractions.Config.PluginConfigEntry",
       "owner": "External plugin protocol",
@@ -8252,7 +9465,8 @@
         "public static System.String! BlockChildren(System.String! blockId, System.Int32 pageSize = 100)",
         "public static System.String! Database(System.String! databaseId)",
         "public static System.String! DatabaseQuery(System.String! databaseId)",
-        "public static System.String! Pages(System.String! pageId)"
+        "public static System.String! Pages(System.String! pageId)",
+        "public static System.String! UsersMe()"
       ],
       "protectedMembers": []
     },

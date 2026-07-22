@@ -69,6 +69,12 @@ assert_count "$out" "bash scripts/release/release-assets-self-test.sh" 1
 out="$(bash "$script" --dry-run -- scripts/build/native-aot.sh scripts/build/package-native-aot.sh)"
 assert_count "$out" "bash scripts/build/native-aot-self-test.sh" 1
 
+out="$(bash "$script" --dry-run -- scripts/checks/coverage/list-core-projects.sh)"
+assert_count "$out" "bash scripts/checks/coverage/project-list-self-test.sh" 1
+
+out="$(bash "$script" --dry-run -- scripts/checks/public-api-drift-self-test-policy.sh)"
+assert_count "$out" "bash scripts/checks/public-api-drift-self-test.sh" 1
+
 out="$(bash "$script" --dry-run -- scripts/lib/common.sh)"
 assert_contains "$out" "bash scripts/checks/post-change-focused-self-test.sh"
 assert_contains "$out" "bash scripts/checks/post-change-targeted-self-test.sh"
