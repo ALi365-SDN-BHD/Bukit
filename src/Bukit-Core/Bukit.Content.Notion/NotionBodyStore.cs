@@ -29,6 +29,15 @@ internal sealed class NotionBodyStore : IContentBodyStore
                 async () => new ContentBody(await _htmlFactory(document, cancellationToken)),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
-        return await lazy.Value;
+        try
+        {
+            return await lazy.Value;
+        }
+        catch
+        {
+            ((ICollection<KeyValuePair<string, Lazy<Task<ContentBody>>>>)_cache)
+                .Remove(new KeyValuePair<string, Lazy<Task<ContentBody>>>(key, lazy));
+            throw;
+        }
     }
 }

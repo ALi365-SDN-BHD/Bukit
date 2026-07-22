@@ -95,6 +95,10 @@ internal static class NotionRelationResolver
 
                 return target;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger?.Warn($"event=notion.relation.resolve_failed pageId={pageId} message={ex.Message}");

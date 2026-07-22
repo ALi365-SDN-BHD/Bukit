@@ -61,4 +61,40 @@ public sealed class NotionBodyStoreTests
         Assert.Equal("<p>inline content</p>", body.Html);
         Assert.False(invoked);
     }
+
+    [Fact]
+    public async Task GetAsync_CanceledRender_DoesNotPoisonLaterRequest()
+    {
+        var renderStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var renderCount = 0;
+        var store = new NotionBodyStore(async (_, cancellationToken) =>
+        {
+            if (Interlocked.Increment(ref renderCount) == 1)
+            {
+                renderStarted.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+
+            return "<p>success</p>";
+        });
+        var item = ContentDocument.Create(
+            id: "page",
+            title: "Page",
+            slug: "page",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: null,
+            bodyKey: "page");
+        using var cancellation = new CancellationTokenSource();
+
+        var firstRequest = store.GetAsync(item.ToDocument(), cancellation.Token);
+        await renderStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => firstRequest);
+
+        var second = await store.GetAsync(item.ToDocument());
+
+        Assert.Equal("<p>success</p>", second.Html);
+        Assert.Equal(2, renderCount);
+    }
 }

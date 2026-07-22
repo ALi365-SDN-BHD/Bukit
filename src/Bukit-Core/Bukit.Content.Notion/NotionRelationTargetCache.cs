@@ -61,6 +61,10 @@ internal sealed class NotionRelationTargetCache
 
             return new RelationTargetInfo(cachedPageId, title, slug, type, url);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch
         {
             return null;
