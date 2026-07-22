@@ -10,7 +10,10 @@ The closed manifest preserves the 136-type review inventory. It records
 CLR-visible types whose governed compatibility classification is
 `2.0-candidate`. At declaration-window closure, all 136 entries were review candidates rather than removal decisions.
 Inclusion means only that the type may be examined during a separately approved
-2.0 compatibility review. The later separately approved G-04C decision authorizes only `Bukit.Engine.RouteInventoryInspectEntry`; the other 135 remain review-only and are not batch-approved.
+2.0 compatibility review. G-04C was the first authorized 2.0 removal decision;
+at that point, the other 135 candidates were not batch-approved. G-04D1A was a
+later independent 2.0 removal decision; the current baseline has the other 133
+candidates not batch-approved.
 
 C# `public` visibility does not by itself make these types a supported Bukit
 Core SDK. Bukit's supported product contracts remain the documented CLI,
@@ -66,9 +69,11 @@ as `unknown-until-voluntary-declaration`. That historical closure record does
 not prove that private consumers do not exist.
 
 The declaration-window closure permitted only G-04C eligibility discussion; it
-did not itself authorize a candidate change. The later G-04C single-type
-decision is the sole authorized exception, is 2.0-only, and leaves all 1.x CLR
-visibility unchanged.
+did not itself authorize a candidate change. G-04C was the first authorized
+2.0 removal decision; at that point, the other 135 candidates were not
+batch-approved. G-04D1A was a later independent 2.0 removal decision; the
+current baseline has the other 133 candidates not batch-approved. Both decisions
+are 2.0-only and leave all 1.x CLR visibility unchanged.
 
 ## What Happens When A Consumer Is Found
 
@@ -94,8 +99,9 @@ for G-04C eligibility.
 
 ## G-04C Single-Type Decision
 
-G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry` is
-approved for removal in 2.0; the other 135 candidates are not batch-approved.
+Historical G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry`
+was approved for removal in 2.0; at that point, the other 135 candidates were
+not batch-approved.
 The [G-04C decision ledger](../analysis/bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md)
 records the exact drift, migration boundary, verification, and independent review.
 
@@ -106,15 +112,17 @@ source of truth for the post-removal CLR surface.
 ## G-04D1A Two Static Facades
 
 G-04D1A two-static-facade decision: only `Bukit.Content.Notion.NotionColorPalette` and `Bukit.Content.Notion.NotionRichTextRenderer` are approved for removal in 2.0; the other 133 candidates are not batch-approved.
-This separately approved 2.0 decision follows the historical G-04C state,
-where `Bukit.Engine.RouteInventoryInspectEntry` was removed and the other 135
-candidates were not batch-approved. It does not authorize a batch change to
+G-04D1A was a later independent 2.0 removal decision; the current baseline has
+the other 133 candidates not batch-approved. It follows the historical G-04C
+state, where `Bukit.Engine.RouteInventoryInspectEntry` was removed and the other
+135 candidates were not batch-approved. It does not authorize a batch change to
 the remaining candidates and leaves all 1.x CLR visibility unchanged.
 
 The canonical replacements are `Bukit.Notion.Rendering.NotionColorPalette`
 and `Bukit.Notion.Rendering.NotionRichTextRenderer`. The
 [G-04D1A decision ledger](../analysis/bukit-core-g04d1a-static-notion-facade-removal-2026-07-22.zh-CN.md)
-records the source and binary breaking-change boundary, migration, and pending
-cross-boundary validation. The closed 136-entry manifest remains immutable;
+records the source and binary breaking-change boundary and migration.
+Completed cross-boundary validation and independent review evidence is recorded
+there. The closed 136-entry manifest remains immutable;
 it intentionally retains both historical candidate records and their
 private-consumer uncertainty.

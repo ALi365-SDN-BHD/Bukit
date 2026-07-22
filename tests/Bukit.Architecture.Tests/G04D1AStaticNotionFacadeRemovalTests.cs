@@ -113,6 +113,7 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
         const string decision = "G-04D1A two-static-facade decision: only `Bukit.Content.Notion.NotionColorPalette` and `Bukit.Content.Notion.NotionRichTextRenderer` are approved for removal in 2.0; the other 133 candidates are not batch-approved.";
         const string canonicalPalette = "`Bukit.Notion.Rendering.NotionColorPalette`";
         const string canonicalRenderer = "`Bukit.Notion.Rendering.NotionRichTextRenderer`";
+        const string completedEvidence = "Completed cross-boundary validation and independent review evidence";
         var declaration = File.ReadAllText(Path.Combine(
             RepoRoot,
             "docs",
@@ -128,8 +129,16 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
         Assert.Contains(decision, declaration, StringComparison.Ordinal);
         Assert.Contains(decision, guide, StringComparison.Ordinal);
         Assert.Contains("The closed 136-entry candidate manifest remains the immutable historical cohort", declaration, StringComparison.Ordinal);
-        Assert.Contains("the other 135 candidates are not batch-approved.", declaration, StringComparison.Ordinal);
-        Assert.Contains("the other 135 candidates are not batch-approved.", guide, StringComparison.Ordinal);
+        Assert.Contains("the other 135", declaration, StringComparison.Ordinal);
+        Assert.Contains("the other 135", guide, StringComparison.Ordinal);
+        Assert.Contains("candidates were not batch-approved.", declaration, StringComparison.Ordinal);
+        Assert.Contains("candidates were not batch-approved.", guide, StringComparison.Ordinal);
+        Assert.Contains(completedEvidence, declaration, StringComparison.Ordinal);
+        Assert.Contains(completedEvidence, guide, StringComparison.Ordinal);
+        Assert.DoesNotContain("pending cross-boundary validation", declaration, StringComparison.Ordinal);
+        Assert.DoesNotContain("pending cross-boundary validation", guide, StringComparison.Ordinal);
+        Assert.DoesNotContain("remaining cross-boundary validation", declaration, StringComparison.Ordinal);
+        Assert.DoesNotContain("remaining cross-boundary validation", guide, StringComparison.Ordinal);
         Assert.True(File.Exists(ledgerPath), $"Missing G-04D1A decision ledger: {ledgerPath}");
 
         var ledger = File.ReadAllText(ledgerPath);

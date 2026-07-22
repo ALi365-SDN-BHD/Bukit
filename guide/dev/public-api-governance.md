@@ -146,16 +146,19 @@ or undisclosed consumers. New evidence requires a separately opened channel or
 task rather than use of the closed Issue.
 
 At declaration-window closure, it permitted only a G-04C eligibility
-discussion and did not authorize a candidate change. The later G-04C
-single-type decision is the sole authorized exception: it approves one type
-for 2.0 removal while the other 135 candidates remain unapproved. It does not
-authorize a batch access-level change. All 1.x CLR visibility remains
+discussion and did not authorize a candidate change. G-04C was the first
+authorized 2.0 removal decision; at that point, the other 135
+candidates were not batch-approved. G-04D1A was a later independent 2.0
+removal decision; the current baseline has the other 133 candidates not
+batch-approved. Neither
+decision authorizes a batch access-level change. All 1.x CLR visibility remains
 unchanged.
 
 ### G-04C Single-Type Pilot
 
-G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry` is
-approved for removal in 2.0; the other 135 candidates are not batch-approved.
+Historical G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry`
+was approved for removal in 2.0; at that point, the other 135 candidates were
+not batch-approved.
 See the [decision ledger](../../docs/analysis/bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md)
 for the breaking-change evidence, migration boundary, targeted verification,
 and independent review.
@@ -168,14 +171,16 @@ current CLR surface inventory.
 ### G-04D1A Two Static Facades
 
 G-04D1A two-static-facade decision: only `Bukit.Content.Notion.NotionColorPalette` and `Bukit.Content.Notion.NotionRichTextRenderer` are approved for removal in 2.0; the other 133 candidates are not batch-approved.
-This is a separately approved 2.0 decision after the historical G-04C state,
-which removed one type while the other 135 candidates were not batch-approved.
-It does not batch-authorize the 133 remaining candidates and does not change
-any 1.x CLR visibility.
+G-04D1A was a later independent 2.0 removal decision; the current baseline has
+the other 133 candidates not batch-approved. It follows the historical G-04C
+state, which removed one type while the other 135 candidates were not
+batch-approved. It does not batch-authorize the 133 remaining candidates and
+does not change any 1.x CLR visibility.
 
 The canonical replacements are `Bukit.Notion.Rendering.NotionColorPalette`
 and `Bukit.Notion.Rendering.NotionRichTextRenderer`. See the
 [G-04D1A decision ledger](../../docs/analysis/bukit-core-g04d1a-static-notion-facade-removal-2026-07-22.zh-CN.md)
-for the breaking-change evidence, canonical-test migration, and remaining
-cross-boundary validation. The closed 136-entry candidate manifest remains an
+for the breaking-change evidence and canonical-test migration.
+Completed cross-boundary validation and independent review evidence is recorded
+there. The closed 136-entry candidate manifest remains an
 immutable historical cohort; it is not the current baseline.
