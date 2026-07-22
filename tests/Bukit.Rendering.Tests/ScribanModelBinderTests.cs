@@ -7,6 +7,23 @@ namespace Bukit.Rendering.Tests;
 
 public sealed class ScribanModelBinderTests
 {
+    [Fact]
+    public void RootModelMapper_AndPublicFacade_ExposeTheSameRootContract()
+    {
+        var model = new PageModel
+        {
+            Site = CreateMinimalSite(),
+            Page = CreateMinimalPage()
+        };
+
+        var mapped = ScribanRootModelMapper.ToScriptObject(model);
+        var facade = ScribanModelBinder.ToScriptObject(model);
+
+        Assert.Equal(facade.Keys, mapped.Keys);
+        Assert.IsType<ScriptObject>(mapped["site"]);
+        Assert.IsType<ScriptObject>(mapped["page"]);
+    }
+
     private static SiteModel CreateFullSite()
     {
         return new SiteModel
