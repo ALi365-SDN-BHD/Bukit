@@ -6,7 +6,7 @@ namespace Bukit.Content.Notion;
 internal static class NotionDatabaseQueryBuilder
 {
     internal static string Build(
-        NotionProviderOptions options,
+        NotionContentSourceOptions options,
         string? startCursor,
         string? resolvedFilterProperty,
         string? resolvedSortProperty,

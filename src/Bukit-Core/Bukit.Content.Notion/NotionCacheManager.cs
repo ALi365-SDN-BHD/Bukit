@@ -1,11 +1,12 @@
 using System.Buffers;
 using System.Text.Json;
+using Bukit.Notion.Rendering;
 using Bukit.Shared;
 namespace Bukit.Content.Notion;
 
 internal static class NotionCacheManager
 {
-    internal static PageHtmlCache? CreatePageHtmlCache(NotionProviderOptions options)
+    internal static PageHtmlCache? CreatePageHtmlCache(NotionContentSourceOptions options)
     {
         var mode = NormalizeCacheMode(options.CacheMode);
         if (mode == "off")

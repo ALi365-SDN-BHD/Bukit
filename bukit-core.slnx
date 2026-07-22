@@ -4,6 +4,7 @@
     <Project Path="src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Config/Bukit.Config.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Content/Bukit.Content.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj" />

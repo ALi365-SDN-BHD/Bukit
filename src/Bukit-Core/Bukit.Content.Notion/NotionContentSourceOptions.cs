@@ -1,9 +1,8 @@
 using Bukit.Config;
-using Bukit.Engine.Abstractions.Content;
 
 namespace Bukit.Content.Notion;
 
-public sealed record NotionProviderOptions
+public sealed record NotionContentSourceOptions
 {
     public required string DatabaseId { get; init; }
     public required string Token { get; init; }
@@ -28,32 +27,4 @@ public sealed record NotionProviderOptions
     public NotionPropertyMapConfig? PropertyMap { get; init; }
     public bool AutoSummary { get; init; }
     public int AutoSummaryMaxLength { get; init; } = 200;
-
-    internal NotionContentSourceOptions ToSourceOptions()
-        => new()
-        {
-            DatabaseId = DatabaseId,
-            Token = Token,
-            PageSize = PageSize,
-            MaxItems = MaxItems,
-            RequestDelayMs = RequestDelayMs,
-            MaxRetries = MaxRetries,
-            RenderConcurrency = RenderConcurrency,
-            MaxRps = MaxRps,
-            FieldPolicyMode = FieldPolicyMode,
-            AllowedFields = AllowedFields,
-            FilterProperty = FilterProperty,
-            FilterType = FilterType,
-            FilterValue = FilterValue,
-            SortProperty = SortProperty,
-            SortDirection = SortDirection,
-            RenderContent = RenderContent,
-            IncludeSlugs = IncludeSlugs,
-            IncludeSlugProperty = IncludeSlugProperty,
-            CacheMode = CacheMode,
-            CacheDir = CacheDir,
-            PropertyMap = PropertyMap,
-            AutoSummary = AutoSummary,
-            AutoSummaryMaxLength = AutoSummaryMaxLength
-        };
 }

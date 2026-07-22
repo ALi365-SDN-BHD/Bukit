@@ -12,7 +12,7 @@ public sealed class NotionDatabaseSchemaResolverTests
     [Fact]
     public async Task ResolveAsync_WhenNoSchemaDependentOptions_ReturnsNullsWithoutRequest()
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
@@ -32,7 +32,7 @@ public sealed class NotionDatabaseSchemaResolverTests
     [Fact]
     public async Task ResolveAsync_MatchesPropertyNamesCaseInsensitively()
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
@@ -63,7 +63,7 @@ public sealed class NotionDatabaseSchemaResolverTests
     [Fact]
     public async Task ResolveAsync_WhenSchemaMissingProperties_Throws()
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
@@ -80,7 +80,7 @@ public sealed class NotionDatabaseSchemaResolverTests
     [Fact]
     public async Task ResolveAsync_WhenPropertyMissing_ListsAvailableProperties()
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
@@ -104,9 +104,9 @@ public sealed class NotionDatabaseSchemaResolverTests
         Assert.Contains("Status", ex.Message);
     }
 
-    private static NotionApiClient CreateClient(NotionProviderOptions options, HttpMessageHandler handler)
+    private static NotionContentClient CreateClient(NotionContentSourceOptions options, HttpMessageHandler handler)
     {
-        return new NotionApiClient(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+        return new NotionContentClient(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
     }
 
     private sealed class JsonHandler : HttpMessageHandler

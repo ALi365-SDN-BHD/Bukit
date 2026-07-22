@@ -8,8 +8,8 @@ namespace Bukit.Content.Notion;
 internal static class NotionRelationResolver
 {
     internal static async Task<IReadOnlyDictionary<string, RelationTargetInfo>> ResolveMissingTaxonomyRelationTargetsAsync(
-        NotionApiClient client,
-        IReadOnlyList<NotionContentProvider.PageDraft> drafts,
+        NotionContentClient client,
+        IReadOnlyList<NotionContentSource.PageDraft> drafts,
         IReadOnlyDictionary<string, RelationTargetInfo> existingIndex,
         NotionRelationTargetCache? relationTargetCache,
         int renderConcurrency,
@@ -80,11 +80,11 @@ internal static class NotionRelationResolver
                 using var doc = await client.GetAsync(NotionApiUrls.Pages(pageId), cancellationToken);
                 var page = doc.RootElement;
                 var props = page.TryGetProperty("properties", out var p) && p.ValueKind == JsonValueKind.Object ? p : default;
-                var title = NotionPropertyParser.ExtractTitle(props) ?? pageId;
-                var slug = NotionPropertyParser.ExtractSlug(props) ?? NotionContentProvider.Slugify(title) ?? pageId.Replace("-", string.Empty, StringComparison.Ordinal);
-                var type = NotionPropertyParser.ExtractType(props) ?? string.Empty;
+                var title = NotionContentPropertyParser.ExtractTitle(props) ?? pageId;
+                var slug = NotionContentPropertyParser.ExtractSlug(props) ?? NotionContentSource.Slugify(title) ?? pageId.Replace("-", string.Empty, StringComparison.Ordinal);
+                var type = NotionContentPropertyParser.ExtractType(props) ?? string.Empty;
 
-                var url = NotionContentProvider.GetString(page, "url");
+                var url = NotionContentSource.GetString(page, "url");
                 url = string.IsNullOrWhiteSpace(url) ? null : url.Trim();
 
                 var target = new RelationTargetInfo(pageId, title, slug, type, url);

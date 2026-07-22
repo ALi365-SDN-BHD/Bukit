@@ -8,7 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Content\Bukit.Content.csproj" />
     <ProjectReference Include="..\..\src\Bukit-Core\Bukit.Content.Notion\Bukit.Content.Notion.csproj" />
   </ItemGroup>
 

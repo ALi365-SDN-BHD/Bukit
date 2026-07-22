@@ -106,7 +106,7 @@ internal static class NotionPropertyTypeParser
                     if (property.TryGetProperty("created_time", out var ct) && ct.ValueKind == JsonValueKind.String)
                     {
                         var text = ct.GetString() ?? string.Empty;
-                        if (NotionContentProvider.TryParseDateTimeOffset(text, out var dto))
+                        if (NotionContentSource.TryParseDateTimeOffset(text, out var dto))
                         {
                             field = new ContentField("date", dto);
                             return true;
@@ -121,7 +121,7 @@ internal static class NotionPropertyTypeParser
                     if (property.TryGetProperty("last_edited_time", out var lt) && lt.ValueKind == JsonValueKind.String)
                     {
                         var text = lt.GetString() ?? string.Empty;
-                        if (NotionContentProvider.TryParseDateTimeOffset(text, out var dto))
+                        if (NotionContentSource.TryParseDateTimeOffset(text, out var dto))
                         {
                             field = new ContentField("date", dto);
                             return true;
@@ -366,7 +366,7 @@ internal static class NotionPropertyTypeParser
             d.TryGetProperty("start", out var start) && start.ValueKind == JsonValueKind.String)
         {
             var text = start.GetString() ?? string.Empty;
-            if (NotionContentProvider.TryParseDateTimeOffset(text, out var dto))
+            if (NotionContentSource.TryParseDateTimeOffset(text, out var dto))
             {
                 field = new ContentField("date", dto);
                 return true;
@@ -398,7 +398,7 @@ internal static class NotionPropertyTypeParser
     internal static bool TryParseFormulaToField(JsonElement formula, out ContentField field)
     {
         field = default!;
-        var type = NotionContentProvider.GetString(formula, "type");
+        var type = NotionContentSource.GetString(formula, "type");
         if (string.IsNullOrWhiteSpace(type))
         {
             return false;
@@ -408,7 +408,7 @@ internal static class NotionPropertyTypeParser
         {
             case "string":
                 {
-                    var text = NotionContentProvider.GetString(formula, "string") ?? string.Empty;
+                    var text = NotionContentSource.GetString(formula, "string") ?? string.Empty;
                     field = new ContentField("text", text);
                     return !string.IsNullOrWhiteSpace(text);
                 }

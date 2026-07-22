@@ -12,8 +12,8 @@ internal sealed record NotionResolvedDatabaseProperties(
 internal static class NotionDatabaseSchemaResolver
 {
     internal static async Task<NotionResolvedDatabaseProperties> ResolveAsync(
-        NotionApiClient client,
-        NotionProviderOptions options,
+        NotionContentClient client,
+        NotionContentSourceOptions options,
         CancellationToken cancellationToken)
     {
         var filterType = (options.FilterType ?? "checkbox_true").Trim().ToLowerInvariant();

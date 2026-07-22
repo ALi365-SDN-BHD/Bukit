@@ -1,12 +1,9 @@
-using System.Text;
-using System.Text.Json;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Notion;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
-using Bukit.Shared.Notion;
 namespace Bukit.Engine;
 
 internal static class TaxonomyTermsInjector
@@ -138,7 +135,7 @@ internal static class TaxonomyTermsInjector
                 continue;
             }
 
-            var options = new NotionProviderOptions
+            var options = new NotionContentSourceOptions
             {
                 DatabaseId = databaseId,
                 Token = token.Trim(),
@@ -148,11 +145,14 @@ internal static class TaxonomyTermsInjector
 
             try
             {
-                using var client = new NotionApiClient(options);
-                using var doc = await client.GetAsync(NotionApiUrls.Database(databaseId), cancellationToken);
-                InjectNotionSchemaOptions(doc, keyToKind, context.Data);
+                using var client = new NotionContentClient(options);
+                var schemaOptions = await NotionDatabaseOptionReader.ReadAsync(
+                    client,
+                    databaseId,
+                    cancellationToken);
+                InjectNotionSchemaOptions(schemaOptions, keyToKind, context.Data);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 context.Logger.Warn($"event=taxonomy.ensure_terms.notion_options_failed databaseId={databaseId} error={ex.GetType().Name}");
             }
@@ -160,42 +160,15 @@ internal static class TaxonomyTermsInjector
     }
 
     private static void InjectNotionSchemaOptions(
-        JsonDocument databaseDoc,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> schemaOptions,
         IReadOnlyDictionary<string, string> keyToKind,
         Dictionary<string, object> data)
     {
-        if (!databaseDoc.RootElement.TryGetProperty("properties", out var props) || props.ValueKind != JsonValueKind.Object)
-        {
-            return;
-        }
-
         var ensure = GetOrCreateEnsureTermsMap(data);
 
-        foreach (var prop in props.EnumerateObject())
+        foreach (var property in schemaOptions)
         {
-            var normalizedKey = NormalizeNotionFieldKey(prop.Name);
-            if (string.IsNullOrWhiteSpace(normalizedKey))
-            {
-                continue;
-            }
-
-            if (!keyToKind.TryGetValue(normalizedKey, out var kind) || string.IsNullOrWhiteSpace(kind))
-            {
-                continue;
-            }
-
-            if (!prop.Value.TryGetProperty("type", out var typeEl) || typeEl.ValueKind != JsonValueKind.String)
-            {
-                continue;
-            }
-
-            var type = (typeEl.GetString() ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(type))
-            {
-                continue;
-            }
-
-            if (!TryGetNotionPropertyOptions(prop.Value, type, out var optionsEl))
+            if (!keyToKind.TryGetValue(property.Key, out var kind) || string.IsNullOrWhiteSpace(kind))
             {
                 continue;
             }
@@ -207,14 +180,9 @@ internal static class TaxonomyTermsInjector
                 ensure[kind] = list;
             }
 
-            foreach (var opt in optionsEl.EnumerateArray())
+            foreach (var option in property.Value)
             {
-                if (!opt.TryGetProperty("name", out var nameEl) || nameEl.ValueKind != JsonValueKind.String)
-                {
-                    continue;
-                }
-
-                var title = (nameEl.GetString() ?? string.Empty).Trim();
+                var title = (option ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(title))
                 {
                     continue;
@@ -240,28 +208,6 @@ internal static class TaxonomyTermsInjector
         }
     }
 
-    private static bool TryGetNotionPropertyOptions(JsonElement property, string type, out JsonElement options)
-    {
-        options = default;
-
-        if (type is "select" or "multi_select" or "status")
-        {
-            if (!property.TryGetProperty(type, out var inner) || inner.ValueKind != JsonValueKind.Object)
-            {
-                return false;
-            }
-
-            if (!inner.TryGetProperty("options", out options) || options.ValueKind != JsonValueKind.Array)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
     internal static Dictionary<string, List<Dictionary<string, object>>> GetOrCreateEnsureTermsMap(Dictionary<string, object> data)
     {
         if (data.TryGetValue("taxonomy_ensure_terms", out var existing) &&
@@ -276,35 +222,7 @@ internal static class TaxonomyTermsInjector
     }
 
     internal static string NormalizeNotionFieldKey(string text)
-    {
-        var trimmed = (text ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(trimmed))
-        {
-            return string.Empty;
-        }
-
-        var sb = new StringBuilder(trimmed.Length);
-        var underscore = false;
-
-        foreach (var ch in trimmed)
-        {
-            var lower = char.ToLowerInvariant(ch);
-            if (lower is >= 'a' and <= 'z' or >= '0' and <= '9')
-            {
-                sb.Append(lower);
-                underscore = false;
-                continue;
-            }
-
-            if (!underscore)
-            {
-                sb.Append('_');
-                underscore = true;
-            }
-        }
-
-        return sb.ToString().Trim('_');
-    }
+        => NotionDatabaseOptionReader.NormalizeFieldKey(text);
 
 
 }

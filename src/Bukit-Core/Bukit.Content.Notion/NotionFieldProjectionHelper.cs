@@ -90,7 +90,7 @@ internal static class NotionFieldProjectionHelper
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var a in allowed)
         {
-            var k = NotionPropertyParser.NormalizeFieldKey(a);
+            var k = NotionContentPropertyParser.NormalizeFieldKey(a);
             if (!string.IsNullOrWhiteSpace(k))
             {
                 set.Add(k);
@@ -133,19 +133,19 @@ internal static class NotionFieldProjectionHelper
             return null;
         }
 
-        var fileType = NotionContentProvider.GetString(container, "type");
+        var fileType = NotionContentSource.GetString(container, "type");
         if (fileType == "external" &&
             container.TryGetProperty("external", out var ext) &&
             ext.ValueKind == JsonValueKind.Object)
         {
-            return NotionContentProvider.GetString(ext, "url");
+            return NotionContentSource.GetString(ext, "url");
         }
 
         if (fileType == "file" &&
             container.TryGetProperty("file", out var file) &&
             file.ValueKind == JsonValueKind.Object)
         {
-            return NotionContentProvider.GetString(file, "url");
+            return NotionContentSource.GetString(file, "url");
         }
 
         return null;
@@ -158,20 +158,20 @@ internal static class NotionFieldProjectionHelper
             return null;
         }
 
-        var iconType = NotionContentProvider.GetString(icon, "type");
+        var iconType = NotionContentSource.GetString(icon, "type");
 
         if (iconType == "external" &&
             icon.TryGetProperty("external", out var ext) &&
             ext.ValueKind == JsonValueKind.Object)
         {
-            return NotionContentProvider.GetString(ext, "url");
+            return NotionContentSource.GetString(ext, "url");
         }
 
         if (iconType == "file" &&
             icon.TryGetProperty("file", out var file) &&
             file.ValueKind == JsonValueKind.Object)
         {
-            return NotionContentProvider.GetString(file, "url");
+            return NotionContentSource.GetString(file, "url");
         }
 
         return null;
