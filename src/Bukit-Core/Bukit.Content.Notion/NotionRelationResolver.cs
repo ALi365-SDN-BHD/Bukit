@@ -1,8 +1,8 @@
 using Bukit.Engine.Abstractions.Content;
 using System.Diagnostics;
 using System.Text.Json;
+using Bukit.Notion;
 using Bukit.Shared;
-using Bukit.Shared.Notion;
 namespace Bukit.Content.Notion;
 
 internal static class NotionRelationResolver

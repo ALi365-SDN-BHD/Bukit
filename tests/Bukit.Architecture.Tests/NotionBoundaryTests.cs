@@ -25,6 +25,38 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
+    public void CanonicalNotionProjects_MustRemainNonPackableMonorepoComponents()
+    {
+        var repoRoot = FindRepoRoot();
+        var coreRoot = Path.Combine(repoRoot, "src", "Bukit-Core");
+        var projectNames = new[] { "Bukit.Notion", "Bukit.Content.Notion" };
+
+        foreach (var projectName in projectNames)
+        {
+            var project = XDocument.Load(Path.Combine(
+                coreRoot,
+                projectName,
+                $"{projectName}.csproj"));
+
+            Assert.Collection(
+                project.Descendants("IsPackable"),
+                element => Assert.Equal("false", element.Value));
+            Assert.Empty(project.Descendants("PackageId"));
+            Assert.Empty(project.Descendants("GeneratePackageOnBuild"));
+        }
+
+        var governance = File.ReadAllText(Path.Combine(
+            repoRoot,
+            "guide",
+            "dev",
+            "public-api-governance.md"));
+        Assert.Contains("## Notion Assembly Distribution Boundary", governance, StringComparison.Ordinal);
+        Assert.Contains("monorepo Core components", governance, StringComparison.Ordinal);
+        Assert.Contains("not supported NuGet SDKs", governance, StringComparison.Ordinal);
+        Assert.Contains("`1.x-do-not-narrow`", governance, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Shared_MayReferenceNotion_OnlyForOneXCompatibility()
     {
         var repoRoot = FindRepoRoot();
@@ -70,6 +102,28 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
+    public void ContentNotion_MustUseCanonicalNotionEndpointOwner()
+    {
+        var repoRoot = FindRepoRoot();
+        var root = Path.Combine(repoRoot, "src", "Bukit-Core", "Bukit.Content.Notion");
+        var forbidden = new[]
+        {
+            "using Bukit.Shared.Notion;",
+            "Bukit.Shared.Notion.NotionApiUrls"
+        };
+
+        var violations = Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !IsBuildOutput(path))
+            .SelectMany(path => forbidden
+                .Where(token => File.ReadAllText(path).Contains(token, StringComparison.Ordinal))
+                .Select(token => $"{Path.GetRelativePath(repoRoot, path)}: {token}"))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
     public void Content_MustReferenceContentNotionCompatibilityAdapter()
     {
         var repoRoot = FindRepoRoot();
@@ -86,6 +140,52 @@ public sealed class NotionBoundaryTests
             .ToArray();
 
         Assert.Contains("Bukit.Content.Notion", references);
+    }
+
+    [Fact]
+    public void Engine_MustUseContentCompatibilityBoundaryForNotionAdapterInternals()
+    {
+        var repoRoot = FindRepoRoot();
+        var coreRoot = Path.Combine(repoRoot, "src", "Bukit-Core");
+        var engineProject = XDocument.Load(Path.Combine(
+            coreRoot,
+            "Bukit.Engine",
+            "Bukit.Engine.csproj"));
+        var engineReferences = engineProject.Descendants("ProjectReference")
+            .Select(reference => Path.GetFileNameWithoutExtension(
+                reference.Attribute("Include")?.Value.Replace('\\', Path.DirectorySeparatorChar)) ?? string.Empty)
+            .ToArray();
+
+        Assert.DoesNotContain("Bukit.Content.Notion", engineReferences);
+
+        var adapterProject = XDocument.Load(Path.Combine(
+            coreRoot,
+            "Bukit.Content.Notion",
+            "Bukit.Content.Notion.csproj"));
+        var adapterFriends = adapterProject.Descendants("InternalsVisibleTo")
+            .Select(friend => friend.Attribute("Include")?.Value ?? string.Empty)
+            .ToArray();
+
+        Assert.DoesNotContain("Bukit.Engine", adapterFriends);
+        Assert.DoesNotContain("Bukit.Engine.Tests", adapterFriends);
+
+        var forbidden = new[]
+        {
+            "NotionContentSourceOptions",
+            "NotionContentClient",
+            "NotionDatabaseOptionReader",
+            "NotionPageQuery"
+        };
+        var engineRoot = Path.Combine(coreRoot, "Bukit.Engine");
+        var violations = Directory.EnumerateFiles(engineRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !IsBuildOutput(path))
+            .SelectMany(path => forbidden
+                .Where(token => File.ReadAllText(path).Contains(token, StringComparison.Ordinal))
+                .Select(token => $"{Path.GetRelativePath(repoRoot, path)}: {token}"))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(violations);
     }
 
     [Fact]
@@ -136,6 +236,36 @@ public sealed class NotionBoundaryTests
             .ToArray();
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void LegacyRendererRegistry_MustDelegateDefaultOwnershipToCanonicalRegistry()
+    {
+        var repoRoot = FindRepoRoot();
+        var legacySource = File.ReadAllText(Path.Combine(
+            repoRoot,
+            "src",
+            "Bukit-Core",
+            "Bukit.Content",
+            "Notion",
+            "NotionBlockRendererRegistry.cs"));
+        var canonicalSource = File.ReadAllText(Path.Combine(
+            repoRoot,
+            "src",
+            "Bukit-Core",
+            "Bukit.Notion",
+            "Rendering",
+            "NotionBlockRendererRegistry.cs"));
+
+        Assert.Contains(
+            "Bukit.Notion.Rendering.NotionBlockRendererRegistry.CreateDefault()",
+            legacySource,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("registry.Register(", legacySource, StringComparison.Ordinal);
+        Assert.Single(Regex.Matches(
+            canonicalSource,
+            "registry\\.Register\\(\"paragraph\"",
+            RegexOptions.CultureInvariant).Cast<Match>());
     }
 
     [Fact]
