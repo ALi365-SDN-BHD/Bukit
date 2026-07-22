@@ -88,6 +88,7 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
     {
         const string decision = "G-04D1B block-renderer-facade decision: only the 23 `Bukit.Content.Notion.BlockRenderers` facade types recorded in the G-04D1B ledger are approved for removal in 2.0; the other 110 candidates are not batch-approved.";
         const string currentBaseline = "The current public API baseline contains 514 types, including 110 `2.0-candidate` entries.";
+        const string staleCurrentBaseline = "current baseline has the other 133 candidates";
         var declaration = File.ReadAllText(Path.Combine(
             RepoRoot,
             "docs",
@@ -99,6 +100,8 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
         Assert.Contains(decision, guide, StringComparison.Ordinal);
         Assert.Contains(currentBaseline, declaration, StringComparison.Ordinal);
         Assert.Contains(currentBaseline, guide, StringComparison.Ordinal);
+        Assert.DoesNotContain(staleCurrentBaseline, declaration, StringComparison.Ordinal);
+        Assert.DoesNotContain(staleCurrentBaseline, guide, StringComparison.Ordinal);
     }
 
     [Fact]

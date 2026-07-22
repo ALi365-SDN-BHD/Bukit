@@ -149,10 +149,10 @@ At declaration-window closure, it permitted only a G-04C eligibility
 discussion and did not authorize a candidate change. G-04C was the first
 authorized 2.0 removal decision; at that point, the other 135
 candidates were not batch-approved. G-04D1A was a later independent 2.0
-removal decision; the current baseline has the other 133 candidates not
-batch-approved. Neither
-decision authorizes a batch access-level change. All 1.x CLR visibility remains
-unchanged.
+removal decision; immediately after that decision, the other 133 candidates
+were not batch-approved. Both counts are historical post-decision states.
+Neither decision authorizes a batch access-level change. All 1.x CLR visibility
+remains unchanged.
 
 ### G-04C Single-Type Pilot
 
@@ -171,11 +171,12 @@ current CLR surface inventory.
 ### G-04D1A Two Static Facades
 
 G-04D1A two-static-facade decision: only `Bukit.Content.Notion.NotionColorPalette` and `Bukit.Content.Notion.NotionRichTextRenderer` are approved for removal in 2.0; the other 133 candidates are not batch-approved.
-G-04D1A was a later independent 2.0 removal decision; the current baseline has
-the other 133 candidates not batch-approved. It follows the historical G-04C
-state, which removed one type while the other 135 candidates were not
-batch-approved. It does not batch-authorize the 133 remaining candidates and
-does not change any 1.x CLR visibility.
+G-04D1A was a later independent 2.0 removal decision. The 133-candidate
+remainder was the historical state immediately after that decision. It followed
+the historical G-04C state, which removed one type while
+the other 135 candidates were not batch-approved. At the time, G-04D1A did not
+batch-authorize those 133 remaining candidates, and it does not change any 1.x
+CLR visibility.
 
 The canonical replacements are `Bukit.Notion.Rendering.NotionColorPalette`
 and `Bukit.Notion.Rendering.NotionRichTextRenderer`. See the

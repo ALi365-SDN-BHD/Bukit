@@ -11,9 +11,10 @@ CLR-visible types whose governed compatibility classification is
 `2.0-candidate`. At declaration-window closure, all 136 entries were review candidates rather than removal decisions.
 Inclusion means only that the type may be examined during a separately approved
 2.0 compatibility review. G-04C was the first authorized 2.0 removal decision;
-at that point, the other 135 candidates were not batch-approved. G-04D1A was a
-later independent 2.0 removal decision; the current baseline has the other 133
-candidates not batch-approved.
+at that decision, the other 135 candidates were not batch-approved. G-04D1A was
+a later independent 2.0 removal decision; immediately after that decision, the
+other 133 candidates were not batch-approved. Both counts are historical
+post-decision states.
 
 C# `public` visibility does not by itself make these types a supported Bukit
 Core SDK. Bukit's supported product contracts remain the documented CLI,
@@ -72,8 +73,9 @@ The declaration-window closure permitted only G-04C eligibility discussion; it
 did not itself authorize a candidate change. G-04C was the first authorized
 2.0 removal decision; at that point, the other 135 candidates were not
 batch-approved. G-04D1A was a later independent 2.0 removal decision; the
-current baseline has the other 133 candidates not batch-approved. Both decisions
-are 2.0-only and leave all 1.x CLR visibility unchanged.
+other 133 candidates were not batch-approved immediately after that decision.
+These are historical states; both decisions are 2.0-only and leave all 1.x CLR
+visibility unchanged.
 
 ## What Happens When A Consumer Is Found
 
@@ -112,11 +114,13 @@ source of truth for the post-removal CLR surface.
 ## G-04D1A Two Static Facades
 
 G-04D1A two-static-facade decision: only `Bukit.Content.Notion.NotionColorPalette` and `Bukit.Content.Notion.NotionRichTextRenderer` are approved for removal in 2.0; the other 133 candidates are not batch-approved.
-G-04D1A was a later independent 2.0 removal decision; the current baseline has
-the other 133 candidates not batch-approved. It follows the historical G-04C
-state, where `Bukit.Engine.RouteInventoryInspectEntry` was removed and the other
-135 candidates were not batch-approved. It does not authorize a batch change to
-the remaining candidates and leaves all 1.x CLR visibility unchanged.
+G-04D1A was a later independent 2.0 removal decision. The 133-candidate
+remainder was the historical state immediately after that decision. It followed
+the historical G-04C state, where
+`Bukit.Engine.RouteInventoryInspectEntry` was removed and the other 135
+candidates were not batch-approved. At the time, G-04D1A did not authorize a
+batch change to those 133 remaining candidates, and it leaves all 1.x CLR
+visibility unchanged.
 
 The canonical replacements are `Bukit.Notion.Rendering.NotionColorPalette`
 and `Bukit.Notion.Rendering.NotionRichTextRenderer`. The

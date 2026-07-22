@@ -379,7 +379,7 @@ public sealed class NotionBlockRendererEdgeCasesTests
         Assert.Contains("href=\"https://example.com/page\"", html);
     }
 
-    // ── NotionBlocksRenderer getter ──────────────────────────────────────
+    // ── CalloutBlockRenderer emoji and color paths ──────────────────────
 
     [Fact]
     public async Task CalloutBlockRenderer_EmojiIcon_RendersEmojiSpan()
@@ -427,7 +427,7 @@ public sealed class NotionBlockRendererEdgeCasesTests
         Assert.DoesNotContain("notion-default", html);
     }
 
-    // ── NotionRichTextRenderer edge cases ────────────────────────────────
+    // ── TableBlockRenderer pagination and row validation ────────────────
 
     [Fact]
     public async Task TableBlockRenderer_MultiplePages_ConcatenatesRows()
@@ -730,5 +730,4 @@ public sealed class NotionBlockRendererEdgeCasesTests
         Assert.Null(html);
     }
 
-    // ── NotionBlocksRenderer list switching edge cases ───────────────────
 }

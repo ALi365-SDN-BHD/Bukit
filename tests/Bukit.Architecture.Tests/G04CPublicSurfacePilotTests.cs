@@ -83,6 +83,8 @@ public sealed class G04CPublicSurfacePilotTests
         const string historicalRemainder = "candidates were not batch-approved.";
         const string historicalPostD1ARemainder = "the other 133 candidates are not batch-approved.";
         const string currentRemainder = "the other 110 candidates are not batch-approved.";
+        const string currentBaseline = "The current public API baseline contains 514 types, including 110 `2.0-candidate` entries.";
+        const string staleCurrentBaseline = "current baseline has the other 133 candidates";
         const string historicalDecision = "G-04C was the first";
         const string historicalDecisionKind = "authorized 2.0 removal decision";
         const string currentDecision = "G-04D1A was a later independent 2.0 removal decision";
@@ -106,7 +108,8 @@ public sealed class G04CPublicSurfacePilotTests
         Assert.Contains(historicalDecision, declaration, StringComparison.Ordinal);
         Assert.Contains(historicalDecisionKind, declaration, StringComparison.Ordinal);
         Assert.Contains(currentDecision, declaration, StringComparison.Ordinal);
-        Assert.Contains("the current baseline has", declaration, StringComparison.Ordinal);
+        Assert.Contains(currentBaseline, declaration, StringComparison.Ordinal);
+        Assert.DoesNotContain(staleCurrentBaseline, declaration, StringComparison.Ordinal);
         Assert.Contains("The closed manifest preserves the 136-type review inventory.", declaration, StringComparison.Ordinal);
         Assert.Contains("At declaration-window closure, all 136 entries were review candidates rather than removal decisions.", declaration, StringComparison.Ordinal);
         Assert.DoesNotContain("All 136 entries are review candidates, not removal decisions.", declaration, StringComparison.Ordinal);
@@ -118,7 +121,8 @@ public sealed class G04CPublicSurfacePilotTests
         Assert.Contains(historicalDecision, guide, StringComparison.Ordinal);
         Assert.Contains(historicalDecisionKind, guide, StringComparison.Ordinal);
         Assert.Contains(currentDecision, guide, StringComparison.Ordinal);
-        Assert.Contains("the current baseline has", guide, StringComparison.Ordinal);
+        Assert.Contains(currentBaseline, guide, StringComparison.Ordinal);
+        Assert.DoesNotContain(staleCurrentBaseline, guide, StringComparison.Ordinal);
         Assert.DoesNotContain("sole authorized exception", declaration, StringComparison.Ordinal);
         Assert.DoesNotContain("sole authorized exception", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("remain review-only", declaration, StringComparison.Ordinal);
