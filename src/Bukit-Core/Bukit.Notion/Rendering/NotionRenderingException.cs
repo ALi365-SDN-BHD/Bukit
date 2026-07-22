@@ -1,9 +1,5 @@
 namespace Bukit.Notion.Rendering;
 
-public sealed class NotionRenderingException : Exception
+public sealed class NotionRenderingException(string message) : Exception(message)
 {
-    public NotionRenderingException(string message)
-        : base(message)
-    {
-    }
 }

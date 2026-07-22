@@ -8,16 +8,10 @@ namespace Bukit.Notion.Rendering.BlockRenderers;
 /// (paragraph, heading_1/2/3, quote, etc.).
 /// Supports block-level color via <c>class="notion-{color}"</c>.
 /// </summary>
-public sealed class RichTextContainerRenderer : INotionBlockRenderer
+public sealed class RichTextContainerRenderer(string containerName, string tag) : INotionBlockRenderer
 {
-    private readonly string _containerName;
-    private readonly string _tag;
-
-    public RichTextContainerRenderer(string containerName, string tag)
-    {
-        _containerName = containerName;
-        _tag = tag;
-    }
+    private readonly string _containerName = containerName;
+    private readonly string _tag = tag;
 
     public async Task<string?> RenderAsync(JsonElement block, NotionRenderContext context, CancellationToken cancellationToken)
     {

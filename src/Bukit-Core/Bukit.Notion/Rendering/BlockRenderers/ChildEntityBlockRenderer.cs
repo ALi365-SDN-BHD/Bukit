@@ -7,14 +7,9 @@ namespace Bukit.Notion.Rendering.BlockRenderers;
 /// <summary>
 /// Renders child_page / child_database blocks as simple labeled links/text.
 /// </summary>
-public sealed class ChildEntityBlockRenderer : INotionBlockRenderer
+public sealed class ChildEntityBlockRenderer(string typeName) : INotionBlockRenderer
 {
-    private readonly string _typeName;
-
-    public ChildEntityBlockRenderer(string typeName)
-    {
-        _typeName = typeName;
-    }
+    private readonly string _typeName = typeName;
 
     public Task<string?> RenderAsync(JsonElement block, NotionRenderContext context, CancellationToken cancellationToken)
     {

@@ -10,27 +10,18 @@ public enum NotionApiErrorKind
     Transport
 }
 
-public sealed class NotionApiException : Exception
+public sealed class NotionApiException(
+    NotionApiErrorKind kind,
+    string message,
+    HttpStatusCode? statusCode = null,
+    string? reasonPhrase = null,
+    int attempts = 1,
+    string? rootErrorType = null)
+    : Exception(message)
 {
-    public NotionApiException(
-        NotionApiErrorKind kind,
-        string message,
-        HttpStatusCode? statusCode = null,
-        string? reasonPhrase = null,
-        int attempts = 1,
-        string? rootErrorType = null)
-        : base(message)
-    {
-        Kind = kind;
-        StatusCode = statusCode;
-        ReasonPhrase = reasonPhrase;
-        Attempts = attempts;
-        RootErrorType = rootErrorType;
-    }
-
-    public NotionApiErrorKind Kind { get; }
-    public HttpStatusCode? StatusCode { get; }
-    public string? ReasonPhrase { get; }
-    public int Attempts { get; }
-    public string? RootErrorType { get; }
+    public NotionApiErrorKind Kind { get; } = kind;
+    public HttpStatusCode? StatusCode { get; } = statusCode;
+    public string? ReasonPhrase { get; } = reasonPhrase;
+    public int Attempts { get; } = attempts;
+    public string? RootErrorType { get; } = rootErrorType;
 }
