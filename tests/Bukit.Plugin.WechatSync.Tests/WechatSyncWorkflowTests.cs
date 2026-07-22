@@ -130,6 +130,82 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_RejectsOverlongTitleBeforeGatewayActivity()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(gateway);
+        var context = Context("<p>Hello</p>");
+        context = new WechatSyncContext
+        {
+            RootDir = context.RootDir,
+            OutputDir = context.OutputDir,
+            BaseUrl = context.BaseUrl,
+            SiteName = context.SiteName,
+            SiteUrl = context.SiteUrl,
+            Logger = context.Logger,
+            Routed = context.Routed.Select(pair =>
+                (pair.Item with { Title = new string('中', 33) }, pair.Route)).ToList()
+        };
+
+        var result = await workflow.RunAsync(context, Options(appId.Name, secret.Name));
+
+        Assert.False(result.Success);
+        Assert.Equal(0, gateway.UploadThumbCount);
+        Assert.Equal(0, gateway.UploadContentImageCount);
+        Assert.Equal(0, gateway.AddDraftCount);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "plugin.wechat-sync.contract.title.textElements");
+    }
+
+    [Fact]
+    public async Task RunAsync_RejectsAuthorSourceUrlAndContentBeforeThumbnailActivity()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+
+        foreach (var (html, options, code) in new[]
+        {
+            ("<p>Hello</p>", Options(appId.Name, secret.Name) with { Author = new string('作', 17) }, "plugin.wechat-sync.contract.author.textElements"),
+            ("<p>Hello</p>", Options(appId.Name, secret.Name) with { SiteUrl = "https://example.com/" + new string('a', 1_010) }, "plugin.wechat-sync.contract.contentSourceUrl.utf8Bytes"),
+            (new string('a', 20_000), Options(appId.Name, secret.Name), "plugin.wechat-sync.contract.content.textElements")
+        })
+        {
+            var gateway = new FakeWechatDraftGateway();
+            var result = await new WechatSyncWorkflow(gateway).RunAsync(Context(html), options);
+
+            Assert.False(result.Success);
+            Assert.Equal(0, gateway.UploadThumbCount);
+            Assert.Equal(0, gateway.UploadContentImageCount);
+            Assert.Equal(0, gateway.AddDraftCount);
+            Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == code);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_RejectsFinalInlineImageReplacementWithoutDraftSubmission()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway
+        {
+            ContentImageUrl = "https://mmbiz.qpic.cn/" + new string('a', 1_000) + ".png"
+        };
+        var workflow = new WechatSyncWorkflow(gateway, downloadImageAsync: (_, _) => Task.FromResult(TinyPng));
+        var context = Context(new string('a', 19_900) + "<img src=\"https://images.example.com/a.png\">");
+        var options = Options(appId.Name, secret.Name) with { ProcessImages = true };
+
+        var result = await workflow.RunAsync(context, options);
+
+        Assert.False(result.Success);
+        Assert.Equal(1, gateway.UploadContentImageCount);
+        Assert.Equal(0, gateway.AddDraftCount);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "plugin.wechat-sync.contract.content.textElements");
+        var cache = SyncCacheManager.LoadCache(result.CachePath, context.Logger);
+        Assert.DoesNotContain(cache.Operations.Values, operation => operation.State == "DraftSubmitting");
+    }
+
+    [Fact]
     public async Task RunAsync_UsesContentHashToSkipUnchangedCachedContent()
     {
         using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
@@ -434,7 +510,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         var context = WithLogger(baseContext, logger);
         var assetsDir = Path.Combine(context.OutputDir, "assets");
         Directory.CreateDirectory(assetsDir);
-        WritePngLikeFile(Path.Combine(assetsDir, "huge.png"), ImageConverter.ContentImageMaxBytes + 1);
+        WritePngLikeFile(Path.Combine(assetsDir, "huge.png"), ImageConverter.InlineImageSourceMaxBytes + 1);
 
         var html = await processor.ProcessImagesAsync(
             context,
@@ -458,7 +534,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
             logger);
         var cacheDir = Path.Combine(_rootDir, ".cache", "media");
         Directory.CreateDirectory(cacheDir);
-        WritePngLikeFile(Path.Combine(cacheDir, "huge.png"), ImageConverter.ContentImageMaxBytes + 1);
+        WritePngLikeFile(Path.Combine(cacheDir, "huge.png"), ImageConverter.InlineImageSourceMaxBytes + 1);
         File.WriteAllText(Path.Combine(cacheDir, ".media-index.json"), """
 {
   "https://cdn.example.com/huge.png": "huge.png"
@@ -1064,6 +1140,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         public int PublishStatus { get; init; }
         public int? FailAddDraftOnAttempt { get; init; }
         public int? FailUploadThumbOnAttempt { get; init; }
+        public string ContentImageUrl { get; init; } = "https://mmbiz.qpic.cn/image.jpg";
         public bool CancelAddDraft { get; init; }
         public bool CancelPublish { get; init; }
         public Action? OnAddDraft { get; init; }
@@ -1100,7 +1177,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         public Task<string> UploadContentImageAsync(byte[] bytes, string fileName, string contentType, CancellationToken cancellationToken)
         {
             UploadContentImageCount++;
-            return Task.FromResult("https://mmbiz.qpic.cn/image.jpg");
+            return Task.FromResult(ContentImageUrl);
         }
 
         public Task<string> PublishAsync(string mediaId, CancellationToken cancellationToken)

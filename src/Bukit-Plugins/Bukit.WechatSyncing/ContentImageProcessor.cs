@@ -145,8 +145,12 @@ internal sealed class ContentImageProcessor
                 return null;
             }
 
-            // Normalize image format and size for uploadimg (2MB limit, JPEG/PNG only)
-            var normalized = ImageConverter.NormalizeForUpload(bytes, ImageConverter.ContentImageMaxBytes, _logger);
+            // Normalize image format and size for uploadimg (strictly below 1 MiB, JPEG/PNG only).
+            var normalized = ImageConverter.NormalizeForUpload(
+                bytes,
+                ImageConverter.ContentImageMaxBytes,
+                _logger,
+                requireStrictlyBelowMaxBytes: true);
             if (normalized is null)
             {
                 _logger.Warn($"plugin wechat-sync image format conversion failed, skipping: {absoluteUrl}");
@@ -154,6 +158,7 @@ internal sealed class ContentImageProcessor
             }
 
             var (convertedBytes, contentType, ext) = normalized.Value;
+            WechatDraftContract.ValidateInlineImage(convertedBytes, contentType);
 
             // Upload to WeChat
             var fileName = InferFileNameFromUrl(absoluteUrl, ext);
@@ -170,6 +175,10 @@ internal sealed class ContentImageProcessor
             _logger.Info($"plugin wechat-sync uploaded inline image: {candidateUrl} -> {wechatUrl}");
 
             return BuildReplacedImgTag(imgTag, wechatUrl, candidateUrl);
+        }
+        catch (WechatDraftContractViolationException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -303,7 +312,7 @@ internal sealed class ContentImageProcessor
         {
             var bytes = await ImageConverter.TryReadImageFileWithLimitAsync(
                 localPath1,
-                ImageConverter.ContentImageMaxBytes,
+                ImageConverter.InlineImageSourceMaxBytes,
                 "inline image local file",
                 _logger,
                 cancellationToken);
@@ -321,7 +330,7 @@ internal sealed class ContentImageProcessor
         {
             var bytes = await ImageConverter.TryReadImageFileWithLimitAsync(
                 localPath2,
-                ImageConverter.ContentImageMaxBytes,
+                ImageConverter.InlineImageSourceMaxBytes,
                 "inline image local file",
                 _logger,
                 cancellationToken);
@@ -379,7 +388,7 @@ internal sealed class ContentImageProcessor
         {
             var bytes = ImageConverter.TryReadImageFileWithLimit(
                 indexPath,
-                ImageConverter.ContentImageMaxBytes,
+                ImageConverter.InlineImageSourceMaxBytes,
                 "inline image media cache file",
                 _logger);
             if (bytes is not null)
@@ -394,7 +403,7 @@ internal sealed class ContentImageProcessor
         {
             return ImageConverter.TryReadImageFileWithLimit(
                 hashPath,
-                ImageConverter.ContentImageMaxBytes,
+                ImageConverter.InlineImageSourceMaxBytes,
                 "inline image media cache file",
                 _logger);
         }

@@ -184,7 +184,7 @@ internal static class WechatSyncHelpers
 
         var sb = new StringBuilder(Math.Min(maxChars, html.Length));
         var inside = false;
-        for (var i = 0; i < html.Length && sb.Length < maxChars; i++)
+        for (var i = 0; i < html.Length; i++)
         {
             var ch = html[i];
             if (ch == '<')
@@ -196,10 +196,7 @@ internal static class WechatSyncHelpers
             if (ch == '>')
             {
                 inside = false;
-                if (sb.Length < maxChars)
-                {
-                    sb.Append(' ');
-                }
+                sb.Append(' ');
 
                 continue;
             }
@@ -210,22 +207,13 @@ internal static class WechatSyncHelpers
             }
         }
 
-        return sb.ToString().ReplaceLineEndings(" ").Trim();
+        return Truncate(sb.ToString().ReplaceLineEndings(" ").Trim(), maxChars);
     }
 
     // ── WeChat draft field limits ───────────────────────────────────────
 
-    /// <summary>WeChat draft title limit (64 characters).</summary>
-    internal const int WechatTitleMaxChars = 64;
-
-    /// <summary>WeChat draft digest/description limit (120 characters).</summary>
-    internal const int WechatDigestMaxChars = 120;
-
-    /// <summary>WeChat draft content limit (20,000 characters).</summary>
-    internal const int WechatContentMaxChars = 20_000;
-
-    /// <summary>WeChat draft content size limit (1 MB).</summary>
-    internal const int WechatContentMaxBytes = 1 * 1024 * 1024;
+    /// <summary>WeChat draft digest/description limit in Unicode text elements.</summary>
+    internal const int WechatDigestMaxChars = WechatDraftContract.DigestMaxTextElements;
 
     /// <summary>
     /// Truncates a string to <paramref name="maxChars"/> characters.
@@ -233,13 +221,15 @@ internal static class WechatSyncHelpers
     /// </summary>
     internal static string Truncate(string text, int maxChars)
     {
-        if (string.IsNullOrWhiteSpace(text) || text.Length <= maxChars)
+        if (string.IsNullOrWhiteSpace(text) || WechatDraftContract.CountTextElements(text) <= maxChars)
         {
             return text ?? string.Empty;
         }
 
         // Leave room for the ellipsis
-        return maxChars > 3 ? text[..(maxChars - 3)] + "..." : text[..maxChars];
+        return maxChars > 3
+            ? WechatDraftContract.TruncateTextElements(text, maxChars - 3) + "..."
+            : WechatDraftContract.TruncateTextElements(text, maxChars);
     }
 
     // ── URL ─────────────────────────────────────────────────────────────

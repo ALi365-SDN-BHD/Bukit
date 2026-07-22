@@ -428,7 +428,8 @@ internal static class SyncCacheManager
         var summary = WechatSyncHelpers.ReadMetaString(item.Metadata, "summary");
         var thumbSource = ThumbResolver.ResolveThumbSource(item, options) ?? string.Empty;
         var mediaFingerprint = ComputeMediaFingerprint(context, item, html, options);
-        var payload = string.Join('\n',
+        var payloadParts = new List<string>
+        {
             "wechat-sync-cache-v3",
             item.Id,
             item.Title ?? string.Empty,
@@ -447,7 +448,14 @@ internal static class SyncCacheManager
             options.ProcessImages.ToString(),
             options.Passthrough.ToString(),
             options.Target,
-            mediaFingerprint);
+            mediaFingerprint
+        };
+        if (options.ProcessImages && !options.Passthrough)
+        {
+            payloadParts.Add("lazy-image-processing-v2");
+        }
+
+        var payload = string.Join('\n', payloadParts);
         var bytes = Encoding.UTF8.GetBytes(payload);
         return Convert.ToHexString(sha.ComputeHash(bytes)).ToLowerInvariant();
     }

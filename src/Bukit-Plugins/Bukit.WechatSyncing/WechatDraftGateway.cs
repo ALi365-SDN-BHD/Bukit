@@ -75,6 +75,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
 
     public async Task<string> AddDraftAsync(WechatDraftRequest request, CancellationToken cancellationToken)
     {
+        WechatDraftContract.ValidateDraft(request);
         var token = await GetAccessTokenAsync(cancellationToken);
         try
         {
@@ -230,6 +231,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
 
     public async Task<string> UploadContentImageAsync(byte[] bytes, string fileName, string contentType, CancellationToken cancellationToken)
     {
+        WechatDraftContract.ValidateInlineImage(bytes, contentType);
         var token = await GetAccessTokenAsync(cancellationToken);
         try
         {
@@ -253,12 +255,6 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         if (bytes is null || bytes.Length == 0)
         {
             throw new InvalidOperationException("wechat uploadimg bytes is empty.");
-        }
-
-        // Inline images: 2 MB limit
-        if (bytes.Length > 2 * 1024 * 1024)
-        {
-            throw new InvalidOperationException($"wechat uploadimg file too large: {bytes.Length} bytes (max 2MB)");
         }
 
         contentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType.Trim();
