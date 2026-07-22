@@ -4,16 +4,17 @@
 
 源码基线：`main@b8bc7059fa9f1040d71e12cac1697c8cecac741a`
 
-状态：`feedback-disposition-required`
+状态：`post-stable-evidence-refresh-required`
 
 ## 1. 执行结论
 
 **G-04B3 尚未产生资格、窗口关闭或 G-04C 授权。** 声明窗口之后的一个
 非 draft、非 prerelease 稳定版本已经存在，故本检查点不再是
-`waiting-stable-release`。按门槛顺序，首个未满足项是反馈处置：Issue #60 的
-第二条消费者声明已获得产品级分类，但 `silkroute.cc` 与 `ali365.com.my` 的
-usage mode 仍待补证。故状态是 `feedback-disposition-required`，不是
-`eligible`；认证公开代码检索刷新仍是随后不可跳过的必要门槛。
+`waiting-stable-release`。当前任务用户进一步确认：SRBiz-bukit、sitegen 与
+ALi365WebSiteBuilder 均未直接引用 Bukit CLR 公共类型，均通过可执行程序/命令
+编译网站。三项自愿声明的 usage mode 因此均已按所声明范围完成处置。按门槛
+顺序，首个未满足项现为稳定发布后的认证公开代码检索刷新，故状态是
+`post-stable-evidence-refresh-required`，不是 `eligible`。
 
 - `v1.0.10` 于窗口打开后以稳定版本发布，满足“至少一个后续稳定发布周期”
   的必要条件；它只解除该单一前提，不能单独关闭窗口。
@@ -21,15 +22,16 @@ usage mode 仍待补证。故状态是 `feedback-disposition-required`，不是
   它不合格。任何窗口前发布同样不合格。
 - 当前可用的 136 项公开检索记录来自 2026-07-20 的认证快照。当前环境没有
   `GH_TOKEN` 或 `GITHUB_TOKEN`，匿名 API 剩余额度为 0，不能把旧的零公开
-  命中刷新成当前结论；在反馈门槛完成后仍须刷新。
+  命中刷新成当前结论；这是当前首个未满足门槛。
 - REST 在 `2026-07-22T04:29:23Z` 时快照到 Issue #60 有 1 条评论。随后控制方
   于 `2026-07-22T04:43:02Z` 从官方 Issue 页面 embedded data 复核到 2 条评论；
   两条都已记录并分类，不能删除、忽略或解释成无消费者证明。
-- 自愿声明称 `silushangxun.com`、`silkroute.cc` 与 `ali365.com.my` 使用
-  Bukit 构建。对应 `silushangxun.com` 的 SRBiz-bukit 仓库已有独立只读证据，
-  确认为 CLI/config/theme/process-plugin 消费者；其审计范围内未观察到直接
-  `Bukit.*` CLR 引用。另两个站点仍只有自愿声明。三者都不提供 136 个候选的
-  CLR 使用细节，不能据此授权或否决任一具体候选。
+- 自愿声明及当前补充确认称 `silushangxun.com`、`silkroute.cc` 与
+  `ali365.com.my` 分别由 SRBiz-bukit、sitegen 与 ALi365WebSiteBuilder 通过
+  Bukit/站点编译器进程构建，不直接引用 Bukit CLR 公共类型。项目级只读证据
+  与这一边界一致；sitegen 仓库仍保留 `SiteGen.*` 旧名称运行载荷，须与当前
+  `Bukit.*` 候选集合区分。三者都不提供 136 个候选的直接 CLR 使用细节，不能
+  据此授权或否决任一具体候选。
 
 `no-public-match-found`、零公开命中或日历时间都**不是**无消费者证明：私有、
 未索引或未自愿披露的消费者仍不可见。治理资料的 containment（136 项仍为
@@ -116,14 +118,17 @@ embedded data 只读复核：interaction `count/totalCount = 2`。它是 API 历
 
 ## 5. 反馈处置与自愿消费者声明（独立证据源）
 
-`silushangxun.com` 的声明来自 Issue #60 第二条评论；`silkroute.cc` 与
-`ali365.com.my` 的声明来自当前任务用户输入。三者均与公开代码搜索证据轴分离：
-它们强化了 1.x 产品契约保留，但本身不改变 CLR candidate 的兼容性结论。处置如下。
+`silushangxun.com` 的声明来自 Issue #60 第二条评论；三个项目均不直接引用 CLR、
+而是通过 Bukit/站点编译器进程构建网站的确认来自当前任务用户输入。
+`silkroute.cc` 与 `ali365.com.my` 的项目关联也由各仓库中的站点 URL 佐证。
+这些证据均与公开代码搜索证据轴分离：它们强化了 1.x 产品契约保留，但本身不
+改变 CLR candidate 的兼容性结论。处置如下。
 
 | 反馈对象与证据范围 | 已确认 | 候选级证据与限制 | 后续所需补证 |
 |---|---|---|---|
-| `silushangxun.com` / Issue #60 第二条声明及 SRBiz-bukit 只读审计 | Issue 评论声明该站点使用 Bukit；`site.yaml` 指向该站点；README/scripts 调用 `bukit build`、`config check`、`doctor`；shell launcher 执行 arm64 Native AOT `bukit/bin/bukit`。审计范围内无 `.csproj`、`.sln`、`.slnx`、`.dll`、`ProjectReference`、`PackageReference` 或 `Bukit.*` CLR 调用；分类为 confirmed CLI/config/theme/process-plugin consumer。 | `none-observed-in-audited-repo`：未观察到 136 候选、程序集引用、反射、继承、序列化或 Native AOT CLR 细节；这不是所有私有代码均无直接 CLR 使用的证明。 | 若要主张候选级无使用或有使用，仍须提供直接 CLR 消费证据或明确覆盖范围。 |
-| `silkroute.cc` 与 `ali365.com.my` / 用户自愿声明 | 声明使用 Bukit 构建。 | `unresolved-usage-mode`；没有项目级证据，不能从站点源码推断其依赖，也没有 136 候选或 CLR 使用细节。 | 明确运行的是 `bukit` CLI 二进制，还是直接引用 `Bukit.*` CLR 程序集/类型；若为后者，列出准确程序集、类型和使用方式。 |
+| `silushangxun.com` / Issue #60 第二条声明、用户确认及 SRBiz-bukit 只读审计 | Issue 评论声明该站点使用 Bukit；用户确认项目不引用 CLR、直接使用 Bukit 编译网站；`site.yaml` 指向该站点；README/scripts 调用 `bukit build`、`config check`、`doctor`；shell launcher 执行 arm64 Native AOT `bukit/bin/bukit`。分类为 confirmed CLI/config/theme/process-plugin consumer。 | `declared-no-direct-clr-reference`，且 `none-observed-in-audited-repo`：审计范围内无 `.csproj`、`.sln`、`.slnx`、`.dll`、`ProjectReference`、`PackageReference` 或 `Bukit.*` CLR 调用；未观察到 136 候选、反射、继承或序列化细节。 | usage mode 已处置；声明和仓库观察都有明确范围，不扩张为所有未披露私有代码的全局证明。 |
+| `silkroute.cc` / 用户确认及 sitegen 只读审计 | 用户确认项目不引用 CLR、直接使用 Bukit 编译网站；`site.yaml`、`site_notion.yaml` 均指向该站点。当前 workflow 通过进程边界执行 `dotnet ./sitegen-linux/sitegen.dll build`；仓库携带的是 `SiteGen.*` 旧名称运行载荷，不是站点源码对当前 `Bukit.*` 公共类型的编译期引用。分类为 confirmed process/CLI consumer with legacy runtime naming。 | `declared-no-direct-clr-reference`，且 `none-observed-in-audited-repo-for-current-bukit-candidates`：未发现 C#/VB/F# 项目或源码直接引用当前 136 个 `Bukit.*` 候选。旧 `SiteGen.*` 载荷不能自动转换为当前候选无使用证明。 | usage mode 已处置；后续若迁移/替换旧运行载荷，属于产品采用与升级证据，不属于本轮候选 CLR 使用证据。 |
+| `ali365.com.my` / 用户确认及 ALi365WebSiteBuilder 只读审计 | 用户确认项目不引用 CLR、直接使用 Bukit 编译网站；`site.notion.yaml` 指向该站点；当前 workflow 执行 `./bukit build --config site.notion.yaml`，仓库内 `bukit` 为 Linux 原生可执行文件。分类为 confirmed CLI/config/theme consumer。 | `declared-no-direct-clr-reference`，且 `none-observed-in-audited-repo`：未发现 C#/VB/F# 项目、源码或程序集引用当前 136 个 `Bukit.*` 候选。 | usage mode 已处置；声明和仓库观察都有明确范围，不扩张为所有未披露私有代码的全局证明。 |
 
 这些记录都不是 `RouteInventoryInspectEntry` 或其他任何具体候选被消费的证据，
 也不是未被消费的证据。因此它们既不能授权也不能否决任何具体候选；它们必须保留
@@ -131,22 +136,19 @@ embedded data 只读复核：interaction `count/totalCount = 2`。它是 API 历
 
 ## 6. 仍缺的刷新与恢复条件
 
-首个未满足门槛是反馈处置：`silkroute.cc` 与 `ali365.com.my` 只有自愿构建声明，
-其 `unresolved-usage-mode` 尚未闭环。因此在这两项获得所需补证并完成处置前，
-不得跳过到 eligibility、窗口关闭或 G-04C。
-
-认证搜索刷新是此后的独立必要门槛。2026-07-20 的 manifest 曾对全部 136 项使用认证检索并记录
+反馈处置已按三项用户声明及项目只读证据完成到 usage-mode 层级；没有任何反馈
+声称直接使用某个 136 候选。它不等于候选级无消费者证明。当前首个未满足门槛
+是认证搜索刷新。2026-07-20 的 manifest 曾对全部 136 项使用认证检索并记录
 `no-public-match-found`，但这些是历史证据。此检查点时 `GH_TOKEN` 与
 `GITHUB_TOKEN` 均 unset，匿名 API rate remaining 为 0；因此不能执行新的、
 可认证的 136 项 GitHub code-search 刷新。
 
-要从 `feedback-disposition-required` 恢复为可供独立审计的输入，后续单独授权任务
+要从 `post-stable-evidence-refresh-required` 恢复为可供独立审计的输入，后续单独授权任务
 必须按顺序：
 
 1. 保留并复核 Issue #60 全部反馈；`ok` 作为 non-consumer acknowledgement
-   仍要显示在证据中。SRBiz-bukit 的已确认 CLI/config/theme/process-plugin
-   消费须保持其候选级限制；`silkroute.cc` 与 `ali365.com.my` 也必须先补齐
-   usage mode。任何实质消费者报告必须逐类型分类和处置，才能解除首个门槛。
+   仍要显示在证据中。三个已确认的进程/CLI 消费者须保持其候选级限制；若窗口
+   后续出现新的实质消费者报告，必须逐类型分类和处置。
 2. 在有授权且可用的认证 GitHub 搜索环境中，重新检索全部 136 项，并逐项保存
    查询、时间、结果、假阳性排除和仍然存在的私有可见性限制；不得用旧快照或
    匿名零额度替代。
@@ -163,8 +165,8 @@ embedded data 只读复核：interaction `count/totalCount = 2`。它是 API 历
 | 窗口已打开？ | 是；Issue #60 仍 open。 |
 | 后续稳定发布前提已满足？ | 是；`v1.0.10` 合格。 |
 | RC 或窗口前发布可替代它？ | 否。 |
-| 全部反馈已完成处置？ | 否；`silkroute.cc` 与 `ali365.com.my` 仍为 `unresolved-usage-mode`，是首个未满足门槛。 |
-| 136 项当前外部消费者证据已刷新？ | 否；这是反馈处置后的下一必要门槛，当前被未配置 token 与匿名 rate limit 阻断。 |
-| SRBiz-bukit 声明已完成候选级分类？ | 仅完成仓库范围分类为 `none-observed-in-audited-repo`，不是全域不存在证明。 |
+| 全部已知反馈已完成处置？ | 是，已处置到 usage-mode 层级；三项目均为进程/CLI 消费者，并声明不直接引用 CLR。后续新增反馈仍须另行处置。 |
+| 136 项当前外部消费者证据已刷新？ | 否；这是当前首个未满足门槛，被未配置 token 与匿名 rate limit 阻断。 |
+| 三个项目声明已完成候选级分类？ | 已分类为 `declared-no-direct-clr-reference`，并记录相应仓库观察范围；不是全域不存在证明，也不是 136 项逐项搜索的替代品。 |
 | 可关闭窗口、标记 eligible 或授权 G-04C？ | 否。 |
-| 当前状态 | **`feedback-disposition-required`**。 |
+| 当前状态 | **`post-stable-evidence-refresh-required`**。 |
