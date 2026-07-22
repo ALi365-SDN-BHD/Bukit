@@ -668,6 +668,8 @@ Expected: both commands exit 0 and the real check reports no drift.
 
 **Files:**
 - Review: every path changed from `88a31b5eba2e52219ec3d1a107b703acdf9a3467`
+- Modify: `docs/analysis/bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md`
+- Modify: `tests/Bukit.Architecture.Tests/G04CPublicSurfacePilotTests.cs`
 - Do not modify: `docs/governance/bukit-core-2.0-public-surface-candidates.v1.json`
 
 **Interfaces:**
@@ -743,16 +745,33 @@ Replace the first paragraph under `## 6. 复审结论` with:
 持久化格式、asset URL、输出路径、HTTP/TLS 策略及全局路径工具均未改变。
 ```
 
+In `ActiveGovernance_RecordsOnlyTheApprovedSingleTypeDecision`, replace the
+three provisional assertions with these final-state assertions so the guard and
+ledger transition atomically:
+
+```csharp
+        Assert.Contains("状态：已实施并通过跨边界验证与独立只读复审", ledger, StringComparison.Ordinal);
+        Assert.Contains("- Core、Labs 与 `bukit-plugins.slnx` Release 编译通过；", ledger, StringComparison.Ordinal);
+        Assert.Contains("- `osx-arm64` Native AOT 归档构建及 release-artifact smoke 通过；", ledger, StringComparison.Ordinal);
+        Assert.Contains("- 第一次独立只读实施复审未发现未关闭的 Critical 或 Important finding。", ledger, StringComparison.Ordinal);
+        Assert.Contains("aggregate targeted gate 和最终 aggregate diff 复审在本关闭提交后执行", ledger, StringComparison.Ordinal);
+        Assert.DoesNotContain("状态：实施记录已建立 / 跨边界验证与独立复审待执行", ledger, StringComparison.Ordinal);
+        Assert.DoesNotContain("smoke、aggregate targeted gate 和独立只读复审尚未执行", ledger, StringComparison.Ordinal);
+```
+
 Then run and commit:
 
 ```bash
 bash scripts/checks/post-change-focused.sh -- \
-  docs/analysis/bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md
-git add docs/analysis/bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md
+  docs/analysis/bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md \
+  tests/Bukit.Architecture.Tests/G04CPublicSurfacePilotTests.cs
+git add \
+  docs/analysis/bukit-core-g04c-route-inventory-inspect-entry-removal-2026-07-22.zh-CN.md \
+  tests/Bukit.Architecture.Tests/G04CPublicSurfacePilotTests.cs
 git commit -m "docs(governance): close G-04C pilot ledger"
 ```
 
-Expected: only evidence already obtained in Task 5 and Step 2 is promoted to `通过`; the aggregate gate is not prematurely claimed inside the committed ledger.
+Expected: only evidence already obtained in Task 5 and Step 2 is promoted to `通过`; the guard requires the same final state; the aggregate gate is not prematurely claimed inside the committed ledger.
 
 - [ ] **Step 4: Request the final independent aggregate diff review**
 
