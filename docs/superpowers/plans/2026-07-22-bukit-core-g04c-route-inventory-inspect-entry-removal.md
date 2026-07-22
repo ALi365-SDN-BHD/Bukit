@@ -702,7 +702,7 @@ delta is exactly that one type; the closed 136-candidate manifest is
 byte-identical; the tests independently inspect the compiled assembly and
 governed files; Core/Labs/plugins/AOT evidence is real and honest. Report
 Critical, Important, and Minor findings with file and line evidence. Do not edit
-files and do not treat the provisional ledger status as a defect.
+files.
 ```
 
 Expected: no unresolved Critical or Important finding. Resolve any in-scope finding with the relevant focused check before continuing; do not broaden the source, baseline, manifest, schema, protocol, or path-tool scope.
