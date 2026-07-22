@@ -36,7 +36,7 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
     }
 
     [Fact]
-    public void CurrentBaseline_ContainsExactlyTheApprovedG04D1ARemovals()
+    public void CurrentBaseline_PreservesTheApprovedG04D1ARemovals()
     {
         using var document = ReadJson("docs", "governance", "bukit-core-public-api-baseline.v1.json");
         var root = document.RootElement;
@@ -46,8 +46,8 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
         Assert.Equal("net10.0", root.GetProperty("targetFramework").GetString());
         Assert.Equal("no-general-clr-sdk", root.GetProperty("sdkPolicy").GetString());
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(537, types.Length);
-        Assert.Equal(133, types.Count(type =>
+        Assert.Equal(514, types.Length);
+        Assert.Equal(110, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.All(RemovedTypes, removedType => Assert.DoesNotContain(types, type =>
             type.GetProperty("assembly").GetString() == "Bukit.Content" &&
@@ -81,6 +81,24 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
             "Bukit.Notion",
             "Rendering",
             "NotionRichTextRenderer.cs")));
+    }
+
+    [Fact]
+    public void ActiveGovernance_RecordsCurrentPostG04D1BRemainingCandidateState()
+    {
+        const string decision = "G-04D1B block-renderer-facade decision: only the 23 `Bukit.Content.Notion.BlockRenderers` facade types recorded in the G-04D1B ledger are approved for removal in 2.0; the other 110 candidates are not batch-approved.";
+        const string currentBaseline = "The current public API baseline contains 514 types, including 110 `2.0-candidate` entries.";
+        var declaration = File.ReadAllText(Path.Combine(
+            RepoRoot,
+            "docs",
+            "governance",
+            "bukit-core-2.0-consumer-declaration.md"));
+        var guide = File.ReadAllText(Path.Combine(RepoRoot, "guide", "dev", "public-api-governance.md"));
+
+        Assert.Contains(decision, declaration, StringComparison.Ordinal);
+        Assert.Contains(decision, guide, StringComparison.Ordinal);
+        Assert.Contains(currentBaseline, declaration, StringComparison.Ordinal);
+        Assert.Contains(currentBaseline, guide, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -11,8 +11,6 @@ internal static class LegacyNotionConsumerFixture
         typeof(Bukit.Content.Notion.NotionProviderOptions),
         typeof(Bukit.Content.Notion.NotionBlocksRenderer),
         typeof(Bukit.Content.Notion.NotionBlockRendererRegistry),
-        typeof(Bukit.Content.Notion.NotionRenderContext),
-        typeof(Bukit.Content.Notion.BlockRenderers.ImageBlockRenderer),
-        typeof(Bukit.Content.Notion.BlockRenderers.TableBlockRenderer)
+        typeof(Bukit.Content.Notion.NotionRenderContext)
     ];
 }

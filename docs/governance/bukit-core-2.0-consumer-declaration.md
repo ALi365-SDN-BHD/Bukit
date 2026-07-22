@@ -126,3 +126,19 @@ Completed cross-boundary validation and independent review evidence is recorded
 there. The closed 136-entry manifest remains immutable;
 it intentionally retains both historical candidate records and their
 private-consumer uncertainty.
+
+## G-04D1B Block Renderer Facades
+
+G-04D1B block-renderer-facade decision: only the 23 `Bukit.Content.Notion.BlockRenderers` facade types recorded in the G-04D1B ledger are approved for removal in 2.0; the other 110 candidates are not batch-approved.
+
+Their canonical namespace is `Bukit.Notion.Rendering.BlockRenderers`. The
+closed 136-entry candidate manifest remains the immutable historical cohort;
+the G-04C 135-candidate and G-04D1A 133-candidate statements remain historical
+snapshots. The current public API baseline contains 514 types, including 110 `2.0-candidate` entries.
+This 2.0 decision does not change any 1.x CLR
+visibility.
+
+The [provisional G-04D1B decision ledger](../analysis/bukit-core-g04d1b-block-renderer-facade-removal-2026-07-23.zh-CN.md)
+records the exact identities, source and binary migration boundary, preserved
+D1C surface, Task 1 owner checks, and the pending G-04D1B cross-boundary checks
+and independent-review work.

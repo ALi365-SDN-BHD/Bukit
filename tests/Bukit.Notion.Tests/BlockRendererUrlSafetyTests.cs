@@ -1,10 +1,9 @@
 using System.Text.Json;
-using Bukit.Content.Notion;
-using Bukit.Content.Notion.BlockRenderers;
-using NotionRichTextRenderer = Bukit.Notion.Rendering.NotionRichTextRenderer;
+using Bukit.Notion.Rendering;
+using Bukit.Notion.Rendering.BlockRenderers;
 using Xunit;
 
-namespace Bukit.Content.Tests;
+namespace Bukit.Notion.Tests;
 
 public sealed class BlockRendererUrlSafetyTests
 {

@@ -1,8 +1,8 @@
 using System.Text.Json;
-using Bukit.Content.Notion.BlockRenderers;
+using Bukit.Notion.Rendering.BlockRenderers;
 using Xunit;
 
-namespace Bukit.Content.Tests;
+namespace Bukit.Notion.Tests;
 
 /// <summary>
 /// Regression tests for P1-2: BlockRenderers must HTML-encode the Notion block color value

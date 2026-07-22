@@ -42,8 +42,8 @@ public sealed class G04CPublicSurfacePilotTests
         Assert.Equal("net10.0", root.GetProperty("targetFramework").GetString());
         Assert.Equal("no-general-clr-sdk", root.GetProperty("sdkPolicy").GetString());
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(537, types.Length);
-        Assert.Equal(133, types.Count(type =>
+        Assert.Equal(514, types.Length);
+        Assert.Equal(110, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.DoesNotContain(types, type =>
             type.GetProperty("assembly").GetString() == "Bukit.Engine" &&
@@ -81,7 +81,8 @@ public sealed class G04CPublicSurfacePilotTests
         const string decision = "Historical G-04C single-type decision: only `Bukit.Engine.RouteInventoryInspectEntry`";
         const string historicalCandidateCount = "the other 135";
         const string historicalRemainder = "candidates were not batch-approved.";
-        const string currentRemainder = "the other 133 candidates are not batch-approved.";
+        const string historicalPostD1ARemainder = "the other 133 candidates are not batch-approved.";
+        const string currentRemainder = "the other 110 candidates are not batch-approved.";
         const string historicalDecision = "G-04C was the first";
         const string historicalDecisionKind = "authorized 2.0 removal decision";
         const string currentDecision = "G-04D1A was a later independent 2.0 removal decision";
@@ -100,6 +101,7 @@ public sealed class G04CPublicSurfacePilotTests
         Assert.Contains(decision, declaration, StringComparison.Ordinal);
         Assert.Contains(historicalCandidateCount, declaration, StringComparison.Ordinal);
         Assert.Contains(historicalRemainder, declaration, StringComparison.Ordinal);
+        Assert.Contains(historicalPostD1ARemainder, declaration, StringComparison.Ordinal);
         Assert.Contains(currentRemainder, declaration, StringComparison.Ordinal);
         Assert.Contains(historicalDecision, declaration, StringComparison.Ordinal);
         Assert.Contains(historicalDecisionKind, declaration, StringComparison.Ordinal);
@@ -111,6 +113,7 @@ public sealed class G04CPublicSurfacePilotTests
         Assert.Contains(decision, guide, StringComparison.Ordinal);
         Assert.Contains(historicalCandidateCount, guide, StringComparison.Ordinal);
         Assert.Contains(historicalRemainder, guide, StringComparison.Ordinal);
+        Assert.Contains(historicalPostD1ARemainder, guide, StringComparison.Ordinal);
         Assert.Contains(currentRemainder, guide, StringComparison.Ordinal);
         Assert.Contains(historicalDecision, guide, StringComparison.Ordinal);
         Assert.Contains(historicalDecisionKind, guide, StringComparison.Ordinal);
