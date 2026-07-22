@@ -4,8 +4,6 @@ namespace Bukit.Engine;
 
 internal sealed class I18nRootSearchWriter : II18nRootProjectionWriter
 {
-    public string Name => "search";
-
     public IReadOnlyList<string> RepresentationKinds => ["search"];
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)

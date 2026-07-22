@@ -5,8 +5,6 @@ namespace Bukit.Engine;
 
 internal sealed class I18nRootAgentManifestWriter : II18nRootProjectionWriter
 {
-    public string Name => "agent-manifest";
-
     public IReadOnlyList<string> RepresentationKinds => ["agent-manifest"];
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)

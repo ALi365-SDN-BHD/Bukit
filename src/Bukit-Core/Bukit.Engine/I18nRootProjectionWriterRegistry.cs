@@ -2,8 +2,6 @@ namespace Bukit.Engine;
 
 internal interface II18nRootProjectionWriter
 {
-    string Name { get; }
-
     IReadOnlyList<string> RepresentationKinds { get; }
 
     void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation);
@@ -21,8 +19,6 @@ internal sealed class I18nRootProjectionWriterRegistry
     {
         _writers = writers;
     }
-
-    internal IReadOnlyList<II18nRootProjectionWriter> Writers => _writers;
 
     internal static I18nRootProjectionWriterRegistry CreateDefault()
         => new(
@@ -53,5 +49,5 @@ internal sealed class I18nRootProjectionWriterRegistry
 
     internal II18nRootProjectionWriter? Resolve(PublishRepresentation representation)
         => _writers.FirstOrDefault(writer =>
-            writer.RepresentationKinds.Contains(representation.Kind, StringComparer.OrdinalIgnoreCase));
+            writer.RepresentationKinds.Contains(representation.Kind, StringComparer.Ordinal));
 }

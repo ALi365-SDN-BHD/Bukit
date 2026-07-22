@@ -5,8 +5,6 @@ namespace Bukit.Engine;
 
 internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
 {
-    public string Name => "feeds";
-
     public IReadOnlyList<string> RepresentationKinds => ["feed", "atom", "jsonfeed"];
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)

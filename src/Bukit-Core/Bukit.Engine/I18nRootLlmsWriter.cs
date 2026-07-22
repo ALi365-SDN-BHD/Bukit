@@ -4,8 +4,6 @@ namespace Bukit.Engine;
 
 internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
 {
-    public string Name => "llms";
-
     public IReadOnlyList<string> RepresentationKinds => ["llms", "llms-full"];
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)

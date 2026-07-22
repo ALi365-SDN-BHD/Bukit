@@ -5,8 +5,6 @@ namespace Bukit.Engine;
 
 internal sealed class I18nRootSitemapWriter : II18nRootProjectionWriter
 {
-    public string Name => "sitemap";
-
     public IReadOnlyList<string> RepresentationKinds => ["sitemap"];
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)
