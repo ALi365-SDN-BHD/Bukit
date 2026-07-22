@@ -133,7 +133,7 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
         Assert.True(File.Exists(ledgerPath), $"Missing G-04D1A decision ledger: {ledgerPath}");
 
         var ledger = File.ReadAllText(ledgerPath);
-        Assert.Contains("实施记录已建立 / 跨边界验证与独立复审待执行", ledger, StringComparison.Ordinal);
+        Assert.Contains("状态：已实施并通过跨边界验证与独立只读复审", ledger, StringComparison.Ordinal);
         Assert.Contains("537", ledger, StringComparison.Ordinal);
         Assert.Contains("133", ledger, StringComparison.Ordinal);
         Assert.Contains(LegacyColorPalette, ledger, StringComparison.Ordinal);
@@ -154,20 +154,48 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
         Assert.Contains("Architecture 109 passed / 0 failed", ledger, StringComparison.Ordinal);
         Assert.Contains("Content 670 passed / 0 failed", ledger, StringComparison.Ordinal);
         Assert.Contains("Notion 86 passed / 0 failed", ledger, StringComparison.Ordinal);
+        Assert.Contains("0 skipped", ledger, StringComparison.Ordinal);
+        Assert.Contains("Core Release `--no-restore` build：exit 0，0 warnings / 0 errors", ledger, StringComparison.Ordinal);
+        Assert.Contains("Labs Release `--no-restore` build：exit 0，0 warnings / 0 errors", ledger, StringComparison.Ordinal);
+        Assert.Contains("NETSDK1004", ledger, StringComparison.Ordinal);
+        Assert.Contains("WordCountSectionPlugin", ledger, StringComparison.Ordinal);
+        Assert.Contains("精确 restore", ledger, StringComparison.Ordinal);
+        Assert.Contains("MissingFieldException", ledger, StringComparison.Ordinal);
+        Assert.Contains("21 errors", ledger, StringComparison.Ordinal);
+        Assert.Contains("Plugins 原命令在非沙箱环境原样重跑：exit 0，0 warnings / 0 errors", ledger, StringComparison.Ordinal);
+        Assert.Contains("NU1900", ledger, StringComparison.Ordinal);
+        Assert.Contains("vuln_index.dat-new", ledger, StringComparison.Ordinal);
+        Assert.Contains("native-aot.sh 2.0.0-alpha.1 osx-arm64", ledger, StringComparison.Ordinal);
+        Assert.Contains("非沙箱环境：exit 0", ledger, StringComparison.Ordinal);
+        Assert.Contains("12,022,035 bytes", ledger, StringComparison.Ordinal);
+        Assert.Contains("未上传、未发布", ledger, StringComparison.Ordinal);
+        Assert.Contains("smoke exit 0", ledger, StringComparison.Ordinal);
+        Assert.Contains("Config check passed", ledger, StringComparison.Ordinal);
+        Assert.Contains("fixture build completed", ledger, StringComparison.Ordinal);
+        Assert.Contains("routes=2 errors=0 warnings=22", ledger, StringComparison.Ordinal);
         Assert.Contains("public API drift self-test OK", ledger, StringComparison.Ordinal);
         Assert.Contains("public-api-drift.sh check Release", ledger, StringComparison.Ordinal);
         Assert.Contains("0 warnings / 0 errors", ledger, StringComparison.Ordinal);
         Assert.Contains("focused post-change check", ledger, StringComparison.Ordinal);
         Assert.Contains("candidate manifest", ledger, StringComparison.Ordinal);
         Assert.Contains("diff 为 0", ledger, StringComparison.Ordinal);
-        Assert.Contains("首轮独立只读复审已执行，结论为 Changes requested；1 Important finding 待本修复复审关闭", ledger, StringComparison.Ordinal);
+        Assert.Contains("第一次独立只读实施复审：Approved / PASS", ledger, StringComparison.Ordinal);
+        Assert.Contains("0 Critical、0 Important、0 Minor", ledger, StringComparison.Ordinal);
+        Assert.Contains("base/current blob 同为 `7b07d6890562387010b52301e9f8716e9bf10ed1`", ledger, StringComparison.Ordinal);
+        Assert.Contains("其余 28 个 renderer candidates", ledger, StringComparison.Ordinal);
+        Assert.Contains("canonical", ledger, StringComparison.Ordinal);
+        Assert.Contains("parent aggregate `post-change-targeted.sh`", ledger, StringComparison.Ordinal);
+        Assert.Contains("fresh final aggregate diff review", ledger, StringComparison.Ordinal);
 
-        var pending = ledger[ledger.IndexOf("## 待完成的跨边界验证", StringComparison.Ordinal)..];
+        var pending = ledger[ledger.IndexOf("## closure commit 后 parent 待完成", StringComparison.Ordinal)..];
         Assert.DoesNotContain("Architecture、Content、Notion 测试项目", pending, StringComparison.Ordinal);
         Assert.DoesNotContain("public API self-test", pending, StringComparison.Ordinal);
         Assert.DoesNotContain("更新\n  baseline 后真实 check", pending, StringComparison.Ordinal);
         Assert.DoesNotContain("focused post-change check", pending, StringComparison.Ordinal);
         Assert.DoesNotContain("candidate manifest", pending, StringComparison.Ordinal);
+        Assert.DoesNotContain("Changes requested", pending, StringComparison.Ordinal);
+        Assert.DoesNotContain("实施记录已建立 / 跨边界验证与独立复审待执行", ledger, StringComparison.Ordinal);
+        Assert.DoesNotContain("routes=2 errors=0 warnings=0", ledger, StringComparison.Ordinal);
     }
 
     private static JsonDocument ReadJson(params string[] relativeSegments)
