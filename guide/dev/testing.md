@@ -148,6 +148,11 @@ bash scripts/checks/coverage-baseline-schema.sh
 bash scripts/checks/coverage.sh Release
 ```
 
+In CI and release workflows, `coverage-plan` validates the coverage policy and
+builds a per-project matrix from the Core test project list. The
+`coverage-summary` job downloads those isolated project results, enforces the
+Core thresholds, and uploads the resulting coverage evidence.
+
 Smoke one supported release archive or publish directory with:
 
 ```bash
