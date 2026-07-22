@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text.Json;
+using Bukit.Notion.Transport;
+using Bukit.Notion.Write;
 using Xunit;
 
 namespace Bukit.Importing.Tests;
@@ -104,6 +106,9 @@ databases:
     [Fact]
     public async Task PushSeedDirectoryAsync_DryRunWithCreateMissingDatabasesWritesGeneratedMapAndReport()
     {
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope(
+            "BUKIT_IMPORT_TEST_DRY_RUN_TOKEN",
+            null);
         var inputDir = Path.Combine(_rootDir, "seed");
         Directory.CreateDirectory(inputDir);
         File.WriteAllText(Path.Combine(inputDir, "posts.json"), """
@@ -123,6 +128,7 @@ databases:
             {
                 InputDir = inputDir,
                 DryRun = true,
+                TokenEnv = "BUKIT_IMPORT_TEST_DRY_RUN_TOKEN",
                 CreateMissingDatabases = true,
                 ParentPageId = "parent-page",
                 GeneratedDatabaseMapPath = mapPath,
@@ -143,6 +149,9 @@ databases:
     [Fact]
     public async Task PushSeedDirectoryAsync_SingleDatabaseDryRunWritesReport()
     {
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope(
+            "BUKIT_IMPORT_TEST_DRY_RUN_TOKEN",
+            null);
         var inputDir = Path.Combine(_rootDir, "single-seed");
         Directory.CreateDirectory(inputDir);
         File.WriteAllText(Path.Combine(inputDir, "pages.json"), """
@@ -163,6 +172,7 @@ databases:
                 InputDir = inputDir,
                 DatabaseId = "db-single",
                 DryRun = true,
+                TokenEnv = "BUKIT_IMPORT_TEST_DRY_RUN_TOKEN",
                 ReportPath = reportPath
             }));
 
@@ -470,8 +480,12 @@ databases:
         var record = new ImportSeedRecord(
             "post", "Body update", "body-update", null, "<p>更新正文</p>",
             null, true, null, null);
-        var result = await NotionSeedPusher.PushAsync(http, [record],
-            new NotionPushOptions("db-posts", "secret", Path.Combine(_rootDir, "update-report.json"),
+        using var transport = new NotionClient(
+            new NotionClientOptions { Token = "secret", MaxRetries = 0 },
+            http);
+        var client = new NotionWriteClient(transport);
+        var result = await NotionSeedPusher.PushAsync(client, [record],
+            new NotionPushOptions("db-posts", Path.Combine(_rootDir, "update-report.json"),
                 DryRun: false, Mode: "upsert", UpdateContent: updateContent, WriteReport: false));
 
         Assert.Equal(1, result.Updated);
@@ -482,6 +496,66 @@ databases:
         using var children = JsonDocument.Parse(childrenPayload!);
         Assert.NotEmpty(children.RootElement.GetProperty("children").EnumerateArray());
         Assert.Equal(updateContent == "replace" ? ["old-block"] : [], deletedBlockIds);
+    }
+
+    [Fact]
+    public async Task NotionSeedPusher_FailureDoesNotExposeRawNotionBody()
+    {
+        const string secret = "secret-from-notion-error-body";
+        using var http = new HttpClient(new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = new StringContent($"{{\"message\":\"{secret}\"}}")
+            }));
+        using var transport = new NotionClient(
+            new NotionClientOptions { Token = "token", MaxRetries = 0 },
+            http);
+        var client = new NotionWriteClient(transport);
+        var record = new ImportSeedRecord(
+            "post", "Failure", "failure", null, null, null, true, null, null);
+
+        var result = await NotionSeedPusher.PushAsync(
+            client,
+            [record],
+            new NotionPushOptions(
+                "db-posts",
+                Path.Combine(_rootDir, "safe-error-report.json"),
+                DryRun: false,
+                WriteReport: false));
+
+        Assert.Equal(1, result.Failed);
+        Assert.DoesNotContain(secret, result.Items.Single().Error ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task NotionSeedPusher_CancellationStopsBeforeLaterWrite()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var handler = new CancelFirstRequestHandler(cancellation);
+        using var http = new HttpClient(handler);
+        using var transport = new NotionClient(
+            new NotionClientOptions { Token = "token", MaxRetries = 0 },
+            http);
+        var client = new NotionWriteClient(transport);
+        var records = new[]
+        {
+            new ImportSeedRecord("post", "First", "first", null, null, null, true, null, null),
+            new ImportSeedRecord("post", "Second", "second", null, null, null, true, null, null)
+        };
+
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            NotionSeedPusher.PushAsync(
+                client,
+                records,
+                new NotionPushOptions(
+                    "db-posts",
+                    Path.Combine(_rootDir, "cancel-report.json"),
+                    DryRun: false,
+                    WriteReport: false),
+                cancellation.Token));
+
+        Assert.Equal(cancellation.Token, exception.CancellationToken);
+        Assert.Equal(1, handler.RequestCount);
     }
 
     [Theory]
@@ -1144,5 +1218,19 @@ databases:
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromResult(responder(request));
+    }
+
+    private sealed class CancelFirstRequestHandler(CancellationTokenSource cancellation) : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            cancellation.Cancel();
+            return Task.FromCanceled<HttpResponseMessage>(cancellationToken);
+        }
     }
 }
