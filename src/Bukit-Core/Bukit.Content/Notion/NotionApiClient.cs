@@ -47,7 +47,10 @@ public sealed class NotionApiClient : IDisposable
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
-        return await SendAsync(request, cancellationToken);
+        var semantics = IsDatabaseQueryUrl(url)
+            ? NotionRequestSemantics.IdempotentRead
+            : NotionRequestSemantics.NonReplayableWrite;
+        return await SendAsync(request, semantics, cancellationToken);
     }
 
     public async Task<JsonDocument> GetAsync(string url, CancellationToken cancellationToken)
@@ -80,19 +83,39 @@ public sealed class NotionApiClient : IDisposable
 
     private async Task<JsonDocument> SendAsync(
         HttpRequestMessage request,
+        NotionRequestSemantics semantics,
         CancellationToken cancellationToken)
     {
         try
         {
             return await _client.SendAsync(
                 request,
-                NotionRequestSemantics.IdempotentRead,
+                semantics,
                 cancellationToken);
         }
         catch (NotionApiException exception)
         {
             throw new ContentException(exception.Message, exception);
         }
+    }
+
+    private static bool IsDatabaseQueryUrl(string url)
+    {
+        var baseUri = new Uri(Bukit.Notion.NotionApiUrls.Base);
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.Scheme, baseUri.Scheme, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(uri.Host, baseUri.Host, StringComparison.OrdinalIgnoreCase) ||
+            uri.Port != baseUri.Port)
+        {
+            return false;
+        }
+
+        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length == 4 &&
+               string.Equals(segments[0], Bukit.Notion.NotionApiUrls.ApiVersion, StringComparison.Ordinal) &&
+               string.Equals(segments[1], "databases", StringComparison.Ordinal) &&
+               segments[2].Length > 0 &&
+               string.Equals(segments[3], "query", StringComparison.Ordinal);
     }
 
     private static NotionClientOptions MapOptions(NotionProviderOptions options)

@@ -68,6 +68,10 @@ internal static class NotionCacheManager
                     return cachedHtml!;
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger?.Warn($"event=notion.cache.read_failed pageId={pageId} message={ex.Message}");

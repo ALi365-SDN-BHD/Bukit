@@ -59,6 +59,67 @@ public sealed class NotionApiClientExtendedTests
     }
 
     [Fact]
+    public async Task PostAsync_DatabaseQuery_RetriesRateLimit()
+    {
+        var responses = new Queue<HttpResponseMessage>();
+        responses.Enqueue(new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+        {
+            Content = new StringContent("{\"code\":\"rate_limited\"}", Encoding.UTF8, "application/json")
+        });
+        responses.Enqueue(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+        });
+        var handler = new SequenceHandler(responses);
+        using var http = new HttpClient(handler);
+        var options = new NotionProviderOptions
+        {
+            DatabaseId = "db",
+            Token = "token",
+            MaxRetries = 1
+        };
+        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+
+        using var document = await client.PostAsync(
+            "https://api.notion.com/v1/databases/db/query",
+            "{}",
+            CancellationToken.None);
+
+        Assert.True(document.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal(2, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task PostAsync_MutationEndpoint_DoesNotReplayRateLimit()
+    {
+        var responses = new Queue<HttpResponseMessage>();
+        responses.Enqueue(new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+        {
+            Content = new StringContent("{\"code\":\"rate_limited\"}", Encoding.UTF8, "application/json")
+        });
+        responses.Enqueue(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"id\":\"duplicate-page\"}", Encoding.UTF8, "application/json")
+        });
+        var handler = new SequenceHandler(responses);
+        using var http = new HttpClient(handler);
+        var options = new NotionProviderOptions
+        {
+            DatabaseId = "db",
+            Token = "token",
+            MaxRetries = 5
+        };
+        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+
+        await Assert.ThrowsAsync<ContentException>(() => client.PostAsync(
+            "https://api.notion.com/v1/pages",
+            "{}",
+            CancellationToken.None));
+
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Fact]
     public async Task GetRetryDelayMs_WithRetryAfterDateHeader_UsesDateOffset()
     {
         var futureDate = DateTimeOffset.UtcNow.AddSeconds(5);
