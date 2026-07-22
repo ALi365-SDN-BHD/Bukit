@@ -26,12 +26,45 @@ assert_editorconfig_severity() {
     fail "$diagnostic must be configured exactly once at $severity"
 }
 
-for diagnostic in IDE0055 CA1001 CA1063 CA1816 CA2012 CA2016 CA2213 CA2215 CA2216 CA2250; do
+for diagnostic in IDE0055 IDE1006 CA1001 CA1063 CA1816 CA2012 CA2016 CA2213 CA2215 CA2216 CA2250; do
   assert_editorconfig_severity "$diagnostic" warning
 done
 for diagnostic in CA1068 CA1849 CA2000; do
   assert_editorconfig_severity "$diagnostic" suggestion
 done
+for diagnostic in CA1000 CA1050 CA1710 CA1711 CA1720; do
+  assert_editorconfig_severity "$diagnostic" suggestion
+done
+
+naming_contract=(
+  'dotnet_naming_rule.interfaces_must_have_i_prefix.severity = warning'
+  'dotnet_naming_rule.interfaces_must_have_i_prefix.symbols = interfaces'
+  'dotnet_naming_rule.interfaces_must_have_i_prefix.style = i_prefix_pascal_case'
+  'dotnet_naming_symbols.interfaces.applicable_kinds = interface'
+  'dotnet_naming_style.i_prefix_pascal_case.required_prefix = I'
+  'dotnet_naming_style.i_prefix_pascal_case.capitalization = pascal_case'
+  'dotnet_naming_rule.types_must_be_pascal_case.severity = warning'
+  'dotnet_naming_rule.types_must_be_pascal_case.symbols = types'
+  'dotnet_naming_rule.types_must_be_pascal_case.style = pascal_case'
+  'dotnet_naming_symbols.types.applicable_kinds = class, struct, interface, enum, delegate'
+  'dotnet_naming_rule.members_must_be_pascal_case.severity = warning'
+  'dotnet_naming_rule.members_must_be_pascal_case.symbols = ordinary_members'
+  'dotnet_naming_rule.members_must_be_pascal_case.style = pascal_case'
+  'dotnet_naming_symbols.ordinary_members.applicable_kinds = property, method, event, field'
+  'dotnet_naming_symbols.ordinary_members.applicable_accessibilities = public, internal, protected, protected_internal, private_protected'
+  'dotnet_naming_style.pascal_case.capitalization = pascal_case'
+)
+for contract_line in "${naming_contract[@]}"; do
+  [[ "$(grep -Fxc "$contract_line" .editorconfig)" == "1" ]] ||
+    fail "missing or duplicated naming contract: $contract_line"
+done
+
+[[ "$(grep -Fxc '[src/Bukit-Core/Bukit.Rendering/Scriban/SectionRenderHelper.cs]' .editorconfig)" == "1" ]] ||
+  fail "Scriban helper naming exception must use the exact file boundary"
+[[ "$(grep -Fxc 'dotnet_diagnostic.IDE1006.severity = none' .editorconfig)" == "1" ]] ||
+  fail "the intentional Scriban CLR name must have exactly one narrow IDE1006 exception"
+grep -Fq 'Task/ValueTask-aware `Async` suffix' guide/dev/code-quality-governance.md ||
+  fail "code quality guide must document the Async suffix enforcement boundary"
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-code-analysis-ratchet-self-test.XXXXXX")"
 trap 'rm -rf -- "$scratch"' EXIT

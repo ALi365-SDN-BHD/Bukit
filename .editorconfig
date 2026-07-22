@@ -28,6 +28,38 @@ dotnet_diagnostic.CA2250.severity = warning
 dotnet_diagnostic.CA1068.severity = suggestion
 dotnet_diagnostic.CA1849.severity = suggestion
 dotnet_diagnostic.CA2000.severity = suggestion
+dotnet_diagnostic.CA1000.severity = suggestion
+dotnet_diagnostic.CA1050.severity = suggestion
+dotnet_diagnostic.CA1710.severity = suggestion
+dotnet_diagnostic.CA1711.severity = suggestion
+dotnet_diagnostic.CA1720.severity = suggestion
+
+# Stable Core CLR names use PascalCase. Interface names additionally carry an
+# I prefix. Private implementation fields and locals are intentionally outside
+# this build-blocking rule set.
+dotnet_diagnostic.IDE1006.severity = warning
+dotnet_naming_rule.interfaces_must_have_i_prefix.severity = warning
+dotnet_naming_rule.interfaces_must_have_i_prefix.symbols = interfaces
+dotnet_naming_rule.interfaces_must_have_i_prefix.style = i_prefix_pascal_case
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_style.i_prefix_pascal_case.required_prefix = I
+dotnet_naming_style.i_prefix_pascal_case.capitalization = pascal_case
+
+dotnet_naming_rule.types_must_be_pascal_case.severity = warning
+dotnet_naming_rule.types_must_be_pascal_case.symbols = types
+dotnet_naming_rule.types_must_be_pascal_case.style = pascal_case
+dotnet_naming_symbols.types.applicable_kinds = class, struct, interface, enum, delegate
+
+dotnet_naming_rule.members_must_be_pascal_case.severity = warning
+dotnet_naming_rule.members_must_be_pascal_case.symbols = ordinary_members
+dotnet_naming_rule.members_must_be_pascal_case.style = pascal_case
+dotnet_naming_symbols.ordinary_members.applicable_kinds = property, method, event, field
+dotnet_naming_symbols.ordinary_members.applicable_accessibilities = public, internal, protected, protected_internal, private_protected
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+[src/Bukit-Core/Bukit.Rendering/Scriban/SectionRenderHelper.cs]
+# This CLR member is a stable Scriban function name used by existing themes.
+dotnet_diagnostic.IDE1006.severity = none
 
 [*.md]
 charset = utf-8

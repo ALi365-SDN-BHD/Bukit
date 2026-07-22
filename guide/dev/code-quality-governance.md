@@ -35,6 +35,28 @@ checked by the committed non-increase baseline:
 The baseline records diagnostic counts only. It does not store source paths,
 messages, or line numbers, and a lower count never fails the gate.
 
+## Naming and API design
+
+Core types and ordinary non-private members use PascalCase. Interfaces also use
+the `I` prefix. The policy intentionally does not force a private-field style,
+because doing so would create a separate migration unrelated to public code
+quality.
+
+`SectionRenderHelper.render_section` is the only current naming exception. Its
+snake_case CLR member name is consumed as a stable Scriban theme function, so
+the exception is scoped to that exact source file instead of renaming the
+contract or disabling naming analysis for the project.
+
+`CA1000`, `CA1050`, `CA1068`, `CA1710`, `CA1711`, and `CA1720` remain
+suggestion-level API-design inventory. Public API compatibility is enforced by
+the separate public API drift gate; analyzer findings do not authorize a stable
+signature change.
+
+EditorConfig cannot express a Task/ValueTask-aware `Async` suffix rule without
+also matching unrelated methods. Bukit therefore does not approximate it with
+a broad suffix rule. A dedicated analyzer or an assembly-aware contract test
+requires a separate evidence-backed task before it can become build-blocking.
+
 ### Broad informational inventory
 
 All SDK style and analyzer diagnostics at `info` severity are inventoried by:
