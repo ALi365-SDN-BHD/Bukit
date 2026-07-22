@@ -16,6 +16,17 @@ namespace Bukit.Engine.Tests;
 
 public sealed class BuildReporterTests
 {
+    [Fact]
+    public void WriterPlan_PreservesEnabledAndDisabledExecutionOrder()
+    {
+        Assert.Equal(
+            new[] { "build", "routes", "assets", "incremental", "release-bundle", "artifact-manifest", "digest" },
+            BuildReportWriterPlan.Create(enabled: true).Select(writer => writer.Name));
+        Assert.Equal(
+            new[] { "release-bundle", "artifact-manifest", "digest" },
+            BuildReportWriterPlan.Create(enabled: false).Select(writer => writer.Name));
+    }
+
     private sealed class DiagnosticProbeLogger : ILogger
     {
         private int _debugCount;
@@ -541,7 +552,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WhenDisabled_WritesSecurityReportOnly()
+    public void WriteIfEnabled_WhenDisabled_PreservesIntegrityReportSet()
     {
         var tempDir = CreateTempDir();
         var config = CreateConfig(enabled: false);
@@ -550,11 +561,18 @@ public sealed class BuildReporterTests
 
         BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
-        Assert.False(File.Exists(Path.Combine(tempDir, ".bukit", "build-report.json")));
-        Assert.True(File.Exists(Path.Combine(tempDir, ".bukit", "release-bundle-checksums.json")));
-        Assert.True(File.Exists(Path.Combine(tempDir, ".bukit", "security-report.json")));
-        Assert.True(File.Exists(Path.Combine(tempDir, ".bukit", "artifact-manifest.json")));
-        Assert.True(File.Exists(Path.Combine(tempDir, ".bukit", "build-manifest-digest.json")));
+        Assert.Equal(
+            new[]
+            {
+                "artifact-manifest.json",
+                "build-manifest-digest.json",
+                "release-bundle-checksums.json",
+                "security-report.json"
+            },
+            Directory.EnumerateFiles(Path.Combine(tempDir, ".bukit"), "*.json")
+                .Select(Path.GetFileName)
+                .OrderBy(file => file, StringComparer.Ordinal)
+                .ToArray());
     }
 
     [Fact]
