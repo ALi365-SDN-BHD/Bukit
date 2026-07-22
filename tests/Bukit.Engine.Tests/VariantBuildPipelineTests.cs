@@ -3,6 +3,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine;
+using Bukit.Engine.Incremental;
 using Bukit.Engine.Plugins;
 using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Rendering;
@@ -387,6 +388,65 @@ public sealed class VariantBuildPipelineTests : IDisposable
         Assert.Equal("html-transform", execution.Hook);
         Assert.False(execution.Success);
         Assert.Equal("strict transform failure", execution.Error);
+    }
+
+    [Fact]
+    public async Task RenderAssetPlan_PassesRenderOwnershipToAssetPreflightBeforeWrites()
+    {
+        var staticDir = Path.Combine(_rootDir, "static");
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(staticDir);
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(staticDir, "index.html"), "static");
+        var document = ContentDocument.Create(
+            "home", "Home", "home", DateTimeOffset.UtcNow, null,
+            new Dictionary<string, ContentField>());
+        var routedDocument = new RoutedContentDocument(
+            document,
+            new RouteInfo("/", "index.html", "detail"));
+        var routeResult = new RoutePipelineResult([document], [routedDocument], [])
+        {
+            ListRouteGraph = ListRouteGraph.Empty
+        };
+        var config = CreateMinimalConfig();
+        var context = new BuildVariantContext(
+            Config: config,
+            RootDir: _rootDir,
+            Overrides: new ConfigOverrides { Incremental = false },
+            Documents: [document],
+            ContentGraph: CanonicalContentGraph.Empty,
+            BodyStore: new NoOpBodyStore(),
+            OutputDir: outputDir,
+            BaseUrl: "/",
+            LayoutsDir: Path.Combine(_rootDir, "layouts"),
+            AssetsDir: Path.Combine(_rootDir, "assets"),
+            StaticDir: staticDir,
+            MediaDownloadDir: Path.Combine(_rootDir, "media"),
+            SeoAlternates: new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            RootBaseUrl: null,
+            ManifestSuffix: null,
+            DefaultLanguage: "en",
+            BuildStartedAt: DateTimeOffset.UtcNow);
+        var manifestSetup = new ManifestSetupResult(
+            new BuildManifest(), string.Empty, Path.Combine(_rootDir, "manifest.json"), null, false);
+
+        var plan = VariantRenderAssetPlanner.Create(
+            context,
+            routeResult,
+            derivedDocuments: [],
+            staticEntries: null,
+            new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "en" },
+            manifestSetup,
+            themeRootForTokens: null,
+            parentThemeRootForTokens: null,
+            new ConsoleLogger(LogLevel.Error));
+
+        var exception = await Assert.ThrowsAsync<BukitException>(() =>
+            AssetPipeline.PrepareAsync(plan.AssetPipelineContext));
+
+        Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, exception.Code);
+        Assert.Contains("index.html", exception.Message, StringComparison.Ordinal);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(outputDir));
     }
 
     private BuildContext CreateBuildContext(AppConfig config)
