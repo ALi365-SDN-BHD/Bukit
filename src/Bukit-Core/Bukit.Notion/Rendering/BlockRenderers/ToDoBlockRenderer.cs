@@ -1,9 +1,8 @@
-using Bukit.Engine.Abstractions.Content;
 using System.Net;
 using System.Text.Json;
-using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
+using static Bukit.Notion.Rendering.BlockRenderers.NotionBlockHelpers;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 /// <summary>Renders Notion to_do blocks as checkbox + text with optional block-level color.</summary>
 public sealed class ToDoBlockRenderer : INotionBlockRenderer

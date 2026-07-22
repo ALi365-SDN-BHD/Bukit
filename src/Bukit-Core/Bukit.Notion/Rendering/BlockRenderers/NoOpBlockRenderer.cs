@@ -1,7 +1,6 @@
-using Bukit.Engine.Abstractions.Content;
 using System.Text.Json;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 /// <summary>
 /// A no-op renderer that produces an empty string (renders nothing).

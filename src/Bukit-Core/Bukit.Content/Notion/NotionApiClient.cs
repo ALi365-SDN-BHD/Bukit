@@ -71,6 +71,8 @@ public sealed class NotionApiClient : IDisposable
             stats.ThrottleWaitTotalMs);
     }
 
+    internal NotionClient Transport => _client;
+
     public void Dispose()
     {
         _client.Dispose();

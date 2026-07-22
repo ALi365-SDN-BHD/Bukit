@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Bukit.Content.Notion;
+namespace Bukit.Notion.Rendering;
 
 /// <summary>
 /// Renders a single Notion block type to HTML.

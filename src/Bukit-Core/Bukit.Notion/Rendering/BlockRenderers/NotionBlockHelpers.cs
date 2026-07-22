@@ -1,9 +1,8 @@
-using Bukit.Engine.Abstractions.Content;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 /// <summary>
 /// Shared helper methods used by individual block renderers.

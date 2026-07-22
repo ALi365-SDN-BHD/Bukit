@@ -1,10 +1,8 @@
-using Bukit.Engine.Abstractions.Content;
-using Bukit.Shared;
 using System.Net;
 using System.Text.Json;
-using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
+using static Bukit.Notion.Rendering.BlockRenderers.NotionBlockHelpers;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 /// <summary>Renders Notion pdf blocks as links (safer cross-browser fallback).</summary>
 public sealed class PdfBlockRenderer : INotionBlockRenderer
@@ -17,7 +15,7 @@ public sealed class PdfBlockRenderer : INotionBlockRenderer
         }
 
         var url = ExtractFileUrl(pdf);
-        var safeUrl = SafeUrl.ForMedia(url);
+        var safeUrl = RenderingSafeUrl.ForMedia(url);
         if (string.IsNullOrWhiteSpace(safeUrl))
         {
             return Task.FromResult<string?>(null);
@@ -25,7 +23,7 @@ public sealed class PdfBlockRenderer : INotionBlockRenderer
 
         var captionText = pdf.TryGetProperty("caption", out var cap) ? NotionRichTextRenderer.Render(cap) : null;
         var linkText = string.IsNullOrWhiteSpace(captionText) ? "PDF" : captionText;
-        var rel = SafeUrl.IsExternal(safeUrl) ? " rel=\"noopener noreferrer\"" : "";
+        var rel = RenderingSafeUrl.IsExternal(safeUrl) ? " rel=\"noopener noreferrer\"" : "";
         return Task.FromResult<string?>($"<p class=\"notion-pdf\"><a href=\"{WebUtility.HtmlEncode(safeUrl)}\"{rel}>{linkText}</a></p>");
     }
 }

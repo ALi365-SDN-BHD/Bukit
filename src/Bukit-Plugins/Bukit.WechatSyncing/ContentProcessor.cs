@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using NotionColorPalette = Bukit.Notion.Rendering.NotionColorPalette;
 
 namespace Bukit.WechatSyncing;
 

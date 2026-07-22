@@ -1,10 +1,8 @@
-using Bukit.Engine.Abstractions.Content;
-using Bukit.Shared;
 using System.Net;
 using System.Text.Json;
-using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
+using static Bukit.Notion.Rendering.BlockRenderers.NotionBlockHelpers;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 /// <summary>Renders Notion link_preview blocks as links.</summary>
 public sealed class LinkPreviewBlockRenderer : INotionBlockRenderer
@@ -17,14 +15,14 @@ public sealed class LinkPreviewBlockRenderer : INotionBlockRenderer
         }
 
         var url = GetString(preview, "url");
-        var safeUrl = SafeUrl.ForLink(url);
+        var safeUrl = RenderingSafeUrl.ForLink(url);
         if (string.IsNullOrWhiteSpace(safeUrl))
         {
             return Task.FromResult<string?>(null);
         }
 
         var encodedUrl = WebUtility.HtmlEncode(safeUrl);
-        var rel = SafeUrl.IsExternal(safeUrl) ? " rel=\"noopener noreferrer\"" : "";
+        var rel = RenderingSafeUrl.IsExternal(safeUrl) ? " rel=\"noopener noreferrer\"" : "";
         return Task.FromResult<string?>($"<a href=\"{encodedUrl}\"{rel} class=\"bookmark notion-link-preview\">{encodedUrl}</a>");
     }
 }

@@ -1,12 +1,10 @@
-using Bukit.Engine.Abstractions.Content;
-using Bukit.Shared.Notion;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Bukit.Content.Notion;
-using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
+using Bukit.Notion.Rendering;
+using static Bukit.Notion.Rendering.BlockRenderers.NotionBlockHelpers;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 /// <summary>Renders Notion table blocks (with table_row children) as &lt;table&gt;.</summary>
 public sealed class TableBlockRenderer : INotionBlockRenderer

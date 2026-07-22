@@ -1,10 +1,8 @@
-using Bukit.Engine.Abstractions.Content;
-using Bukit.Shared;
 using System.Net;
 using System.Text.Json;
-using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
+using static Bukit.Notion.Rendering.BlockRenderers.NotionBlockHelpers;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 /// <summary>Renders Notion bookmark blocks as styled &lt;a&gt; links.</summary>
 public sealed class BookmarkBlockRenderer : INotionBlockRenderer
@@ -17,7 +15,7 @@ public sealed class BookmarkBlockRenderer : INotionBlockRenderer
         }
 
         var url = GetString(bookmark, "url");
-        var safeUrl = SafeUrl.ForLink(url);
+        var safeUrl = RenderingSafeUrl.ForLink(url);
         if (string.IsNullOrWhiteSpace(safeUrl))
         {
             return Task.FromResult<string?>(null);
@@ -29,7 +27,7 @@ public sealed class BookmarkBlockRenderer : INotionBlockRenderer
         var color = GetBlockColor(bookmark);
         var cssClasses = color is not null ? $"bookmark notion-{WebUtility.HtmlEncode(color)}" : "bookmark";
 
-        var rel = SafeUrl.IsExternal(safeUrl) ? " rel=\"noopener noreferrer\"" : "";
+        var rel = RenderingSafeUrl.IsExternal(safeUrl) ? " rel=\"noopener noreferrer\"" : "";
         return Task.FromResult<string?>($"<a href=\"{WebUtility.HtmlEncode(safeUrl)}\"{rel} class=\"{cssClasses}\">{linkText}</a>");
     }
 }

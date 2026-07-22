@@ -1,7 +1,6 @@
-using Bukit.Engine.Abstractions.Content;
 using System.Text.Json;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 /// <summary>
 /// Renders Notion <c>table_of_contents</c> blocks as a <c>&lt;nav&gt;</c> placeholder.

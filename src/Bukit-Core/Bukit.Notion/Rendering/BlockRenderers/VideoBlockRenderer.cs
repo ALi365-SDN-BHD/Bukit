@@ -1,11 +1,9 @@
-using Bukit.Engine.Abstractions.Content;
-using Bukit.Shared;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
+using static Bukit.Notion.Rendering.BlockRenderers.NotionBlockHelpers;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 /// <summary>Renders Notion video blocks as &lt;video&gt; or YouTube &lt;iframe&gt;.</summary>
 public sealed class VideoBlockRenderer : INotionBlockRenderer
@@ -25,7 +23,7 @@ public sealed class VideoBlockRenderer : INotionBlockRenderer
 
         if (IsYouTubeUrl(url, out var embedUrl))
         {
-            var safeEmbed = SafeUrl.ForEmbed(embedUrl);
+            var safeEmbed = RenderingSafeUrl.ForEmbed(embedUrl);
             if (string.IsNullOrWhiteSpace(safeEmbed))
             {
                 return Task.FromResult<string?>(null);
@@ -34,7 +32,7 @@ public sealed class VideoBlockRenderer : INotionBlockRenderer
             return Task.FromResult<string?>($"<div class=\"video-embed\"><iframe src=\"{WebUtility.HtmlEncode(safeEmbed)}\" frameborder=\"0\" allowfullscreen></iframe></div>");
         }
 
-        var safeUrl = SafeUrl.ForMedia(url);
+        var safeUrl = RenderingSafeUrl.ForMedia(url);
         if (string.IsNullOrWhiteSpace(safeUrl))
         {
             return Task.FromResult<string?>(null);

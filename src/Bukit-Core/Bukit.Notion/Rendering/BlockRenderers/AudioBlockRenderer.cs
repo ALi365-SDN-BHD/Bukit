@@ -1,11 +1,9 @@
-using Bukit.Engine.Abstractions.Content;
-using Bukit.Shared;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using static Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers;
+using static Bukit.Notion.Rendering.BlockRenderers.NotionBlockHelpers;
 
-namespace Bukit.Content.Notion.BlockRenderers;
+namespace Bukit.Notion.Rendering.BlockRenderers;
 
 public sealed class AudioBlockRenderer : INotionBlockRenderer
 {
@@ -17,7 +15,7 @@ public sealed class AudioBlockRenderer : INotionBlockRenderer
         }
 
         var url = ExtractFileUrl(audio);
-        var safeUrl = SafeUrl.ForMedia(url);
+        var safeUrl = RenderingSafeUrl.ForMedia(url);
         if (string.IsNullOrWhiteSpace(safeUrl))
         {
             return Task.FromResult<string?>(null);
@@ -29,7 +27,7 @@ public sealed class AudioBlockRenderer : INotionBlockRenderer
         var sb = new StringBuilder();
         sb.Append($"<audio controls src=\"{encodedUrl}\"></audio>");
 
-        var isExternal = SafeUrl.IsExternal(safeUrl);
+        var isExternal = RenderingSafeUrl.IsExternal(safeUrl);
         var rel = isExternal ? " rel=\"noopener noreferrer\"" : "";
         sb.Append($"<p><a href=\"{encodedUrl}\"{rel}>Audio</a></p>");
 
