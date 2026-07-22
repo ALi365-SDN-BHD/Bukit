@@ -12,7 +12,7 @@ public sealed class G04D1CM1MigrationContractTests
     private const string GuideRelativePath =
         "docs/analysis/bukit-core-g04d1c-m1-canonical-migration-contract-2026-07-23.zh-CN.md";
     private const string ProvisionalStatus =
-        "状态：provisional（Task 3 focused verification、parent aggregate、四项目 Release test 与独立复审待 parent controller 记录）";
+        "状态：provisional（parent aggregate 未通过；独立 whole-branch review 待执行）";
     private const string M1Boundary =
         "M1 保留五个 legacy CLR 类型；M1 不授权 M2。";
     private const string M2Boundary =

@@ -2,7 +2,7 @@
 
 日期：2026-07-23
 任务基线：`96cfee5ccce820daec21f996a7ca280bf27d1fa8`
-状态：provisional（Task 3 focused verification、parent aggregate、四项目 Release test 与独立复审待 parent controller 记录）
+状态：provisional（parent aggregate 未通过；独立 whole-branch review 待执行）
 
 ## 1. 范围、结论与不可变边界
 
@@ -445,24 +445,25 @@ plugin consumer 仍未知。这些历史字段不得被覆盖成“无消费者�
 
 ## 10. M1 verification ledger（provisional）
 
-本节只记录已经发生的 Task 3 RED 与尚待 controller 汇总的项目，不预写 PASS：
+本节记录当前分支已经实际执行的证据。`PASS` 只用于对应命令自身；sandbox aggregate
+未通过，不能由单独 owner self-test 的结果替代或改写为 aggregate `PASS`。
 
 | 项目 | 当前记录 |
 |---|---|
-| Task 3 RED | 定向 architecture run：5 total，4 passed；唯一 1 failed 是本指南缺失 |
-| Task 3 targeted GREEN | 定向 architecture run：5 passed / 0 failed / 0 skipped |
-| 五组 old/new public identity | RED run 中独立 guard 已解析；最终 M1 结论仍待 parent 汇总 |
-| governed baseline | RED run 中 guard 读取 14 / 514 / 110；未修改 baseline |
-| candidate manifest | RED run 中 guard 读取 136 entries 与固定 blob；未修改 manifest |
-| canonical no-dependency | RED run 中 guard 读取 0 project/package references |
-| Task 3 focused verification | 本指南保持 provisional，不预写结果；Task 3 实施报告记录实际运行，parent controller 后续汇总 |
-| parent aggregate | 待 parent 从指定 base 且仅执行一次；本指南不声称通过 |
-| 四个相关 Release test projects / public API drift | 待 parent completion verification |
+| Task 1 TDD / focused / review | null-validation RED：2 failed；GREEN fixture：6 passed；focused owner：276 passed；独立 task review：0 Critical / 0 Important / 0 Minor |
+| Task 2 targeted / focused / review | canonical 14 passed、legacy 9 passed；最终 focused owner：Notion 290、Content 495；public-constructor finding 修复后独立 task review：0 / 0 / 0 |
+| Task 3 TDD / focused / review | 初始 RED：5 total / 4 passed / 1 missing-guide failed；review-fix RED：7 total / 6 passed / 1 old-guide-contract failed；最终 GREEN：7 passed；focused Architecture：123 passed；独立 task review：0 / 0 / 0 |
+| 四个相关 Release test projects | Architecture 123、Content 495、Notion 290、Content.Notion 6，合计 914 passed / 0 failed / 0 skipped |
+| governed baseline / public API drift | self-test `OK`；真实 Release check exit 0；14 assemblies / 514 types / 110 `2.0-candidate`，baseline 未修改 |
+| candidate manifest | 136 entries；Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`，文件未修改 |
+| canonical no-dependency | architecture guard 证明 0 project/package references；canonical project 未修改 |
+| parent aggregate | 从 `a0bd2f3f36ae623f47b06b259bc2ffc36890ea08` 对 7 个实际变更路径仅执行一次；focused、format、analysis、public API、portability 等先行步骤通过，随后 sandbox 中在未变更 `brainstorm-server-self-test` 以 `mv-1 left a live spawned server` 终止；**aggregate 未通过** |
+| blocker owner 复核 | 非沙箱原样执行 `bash scripts/checks/brainstorm-server-self-test.sh`，最终输出 `brainstorm server self-test: PASS`；该证据把失败分类为 sandbox 进程限制，但不把已失败的 aggregate 改写为 PASS |
 | independent whole-branch review | 待 parent dispatch；本指南不声称通过 |
 
-若 parent aggregate 重现未变更 `brainstorm-server-self-test` 的
-`mv-1 left a live spawned server`，controller 必须记录精确 blocker，不能把它改写为
-M1 回归、不能顺带修复或声称 aggregate 已通过。
+本次 aggregate 已重现未变更 `brainstorm-server-self-test` 的
+`mv-1 left a live spawned server`；非沙箱 owner self-test 随后通过。当前分类为 sandbox
+进程限制，不是已确认的 M1 回归；本任务没有修改或抑制该 gate，也不声称 aggregate 已通过。
 
 M1 只有在适用 fixtures、public API drift、focused/parent aggregate 与独立复审都按各自
 边界形成真实证据后才能由 controller 关闭。即使 M1 最终关闭，也只证明 migration
