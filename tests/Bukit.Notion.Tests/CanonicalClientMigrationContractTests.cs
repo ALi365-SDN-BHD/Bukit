@@ -219,24 +219,34 @@ public sealed class CanonicalClientMigrationContractTests
     }
 
     [Fact]
-    public async Task PublicOneArgumentConstructor_DisposesInternallyOwnedHttpClient()
+    public void PublicOneArgumentConstructor_WiresInternalHttpClientToOwnedDisposalBranch()
     {
-        var client = new NotionClient(new NotionClientOptions { Token = "token" });
-        var httpClientField = typeof(NotionClient).GetField(
-            "_httpClient",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+        NotionClient? client = null;
+        HttpClient? internallyCreatedHttpClient = null;
+        try
+        {
+            client = new NotionClient(new NotionClientOptions { Token = "token" });
+            var httpClientField = typeof(NotionClient).GetField(
+                "_httpClient",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var ownsHttpClientField = typeof(NotionClient).GetField(
+                "_ownsHttpClient",
+                BindingFlags.Instance | BindingFlags.NonPublic);
 
-        Assert.NotNull(httpClientField);
-        var internallyOwnedHttpClient = Assert.IsType<HttpClient>(httpClientField.GetValue(client));
-
-        client.Dispose();
-
-        await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-            internallyOwnedHttpClient.GetAsync("https://example.invalid/"));
+            Assert.NotNull(httpClientField);
+            Assert.NotNull(ownsHttpClientField);
+            internallyCreatedHttpClient = Assert.IsType<HttpClient>(httpClientField.GetValue(client));
+            Assert.True(Assert.IsType<bool>(ownsHttpClientField.GetValue(client)));
+        }
+        finally
+        {
+            client?.Dispose();
+            internallyCreatedHttpClient?.Dispose();
+        }
     }
 
     [Fact]
-    public void InternalOwnershipConstructor_DisposesHandlerExactlyOnceWhenDisposeIsRepeated()
+    public void OwnedDisposalBranch_DisposesHandlerExactlyOnceWhenDisposeIsRepeated()
     {
         var handler = new TrackingDisposeHandler();
         var http = new HttpClient(handler);

@@ -453,6 +453,7 @@ plugin consumer 仍未知。这些历史字段不得被覆盖成“无消费者�
 | Task 1 TDD / focused / review | null-validation RED：2 failed；GREEN fixture：6 passed；focused owner：276 passed；独立 task review：0 Critical / 0 Important / 0 Minor |
 | Task 2 targeted / focused / review | canonical 14 passed、legacy 9 passed；最终 focused owner：Notion 290、Content 495；public-constructor finding 修复后独立 task review：0 / 0 / 0 |
 | Task 3 TDD / focused / review | 初始 RED：5 total / 4 passed / 1 missing-guide failed；review-fix RED：7 total / 6 passed / 1 old-guide-contract failed；最终 GREEN：7 passed；focused Architecture：123 passed；独立 task review：0 / 0 / 0 |
+| final-fix wave targeted / focused | targeted：Notion 21、Content 15、Architecture 8；focused：Notion 297、Content 501、Architecture 124，合计 922 passed / 0 failed / 0 skipped；保留既有 parent/focused 历史，aggregate 仍 **NOT PASS**；final review status 以最终 handoff fresh review 为准 |
 | 四个相关 Release test projects | Architecture 123、Content 495、Notion 290、Content.Notion 6，合计 914 passed / 0 failed / 0 skipped |
 | governed baseline / public API drift | self-test `OK`；真实 Release check exit 0；14 assemblies / 514 types / 110 `2.0-candidate`，baseline 未修改 |
 | candidate manifest | 136 entries；Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`，文件未修改 |
