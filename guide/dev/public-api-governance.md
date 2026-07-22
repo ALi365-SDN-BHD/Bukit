@@ -8,6 +8,21 @@ protocol. Bukit does not currently distribute a general-purpose Core CLR SDK.
 Third-party process plugins exchange JSON and do not reference Bukit CLR
 assemblies.
 
+## Notion Assembly Distribution Boundary
+
+`Bukit.Notion` and `Bukit.Content.Notion` are monorepo Core components. They
+provide canonical implementation boundaries inside Bukit's source and build
+graph, but they are not supported NuGet SDKs. Both projects explicitly set
+`IsPackable=false`; the release workflow continues to distribute the Core CLI,
+not independent Notion library packages.
+
+Their existing exported types remain governed as `1.x-do-not-narrow` through
+the 1.x line. This preserves current source and assembly consumers without
+turning CLR visibility into a new external SDK support promise. Independent
+package metadata, installation documentation, target-framework support,
+semantic-versioning commitments, and publication automation require a separate
+productization decision and review.
+
 ## Check
 
 `bash scripts/checks/public-api-drift.sh check Release`

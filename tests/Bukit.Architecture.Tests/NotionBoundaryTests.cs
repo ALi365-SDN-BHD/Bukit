@@ -25,6 +25,38 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
+    public void CanonicalNotionProjects_MustRemainNonPackableMonorepoComponents()
+    {
+        var repoRoot = FindRepoRoot();
+        var coreRoot = Path.Combine(repoRoot, "src", "Bukit-Core");
+        var projectNames = new[] { "Bukit.Notion", "Bukit.Content.Notion" };
+
+        foreach (var projectName in projectNames)
+        {
+            var project = XDocument.Load(Path.Combine(
+                coreRoot,
+                projectName,
+                $"{projectName}.csproj"));
+
+            Assert.Collection(
+                project.Descendants("IsPackable"),
+                element => Assert.Equal("false", element.Value));
+            Assert.Empty(project.Descendants("PackageId"));
+            Assert.Empty(project.Descendants("GeneratePackageOnBuild"));
+        }
+
+        var governance = File.ReadAllText(Path.Combine(
+            repoRoot,
+            "guide",
+            "dev",
+            "public-api-governance.md"));
+        Assert.Contains("## Notion Assembly Distribution Boundary", governance, StringComparison.Ordinal);
+        Assert.Contains("monorepo Core components", governance, StringComparison.Ordinal);
+        Assert.Contains("not supported NuGet SDKs", governance, StringComparison.Ordinal);
+        Assert.Contains("`1.x-do-not-narrow`", governance, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Shared_MayReferenceNotion_OnlyForOneXCompatibility()
     {
         var repoRoot = FindRepoRoot();
