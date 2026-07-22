@@ -8,7 +8,8 @@ namespace Bukit.Architecture.Tests;
 public sealed class G04D1BBlockRendererFacadeRemovalTests
 {
     private const string Decision = "G-04D1B block-renderer-facade decision: only the 23 `Bukit.Content.Notion.BlockRenderers` facade types recorded in the G-04D1B ledger are approved for removal in 2.0; the other 110 candidates are not batch-approved.";
-    private const string LedgerStatus = "状态：实施记录已建立 / 跨边界验证与独立复审待执行";
+    private const string LedgerStatus = "状态：已实施并通过跨边界验证与独立只读复审";
+    private const string ProvisionalLedgerStatus = "状态：实施记录已建立 / 跨边界验证与独立复审待执行";
     private const string CandidateManifestBlob = "7b07d6890562387010b52301e9f8716e9bf10ed1";
     private static readonly string RepoRoot = FindRepoRoot();
     private static readonly string[] RendererNames =
@@ -157,7 +158,7 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
     }
 
     [Fact]
-    public void ActiveGovernance_RecordsTheProvisionalG04D1BDecisionBoundary()
+    public void ActiveGovernance_RecordsCompletedG04D1BDecisionBoundary()
     {
         var declaration = File.ReadAllText(Path.Combine(
             RepoRoot,
@@ -174,6 +175,8 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
         Assert.Contains(Decision, declaration, StringComparison.Ordinal);
         Assert.Contains(Decision, guide, StringComparison.Ordinal);
         Assert.Contains(LedgerStatus, ledger, StringComparison.Ordinal);
+        Assert.DoesNotContain(ProvisionalLedgerStatus, ledger, StringComparison.Ordinal);
+        Assert.DoesNotContain("跨边界验证与独立复审 remain pending", ledger, StringComparison.Ordinal);
         Assert.Contains("`Bukit.Notion.Rendering.BlockRenderers`", ledger, StringComparison.Ordinal);
         Assert.Contains("514 types", ledger, StringComparison.Ordinal);
         Assert.Contains("110 个 `2.0-candidate`", ledger, StringComparison.Ordinal);
@@ -182,7 +185,20 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
         Assert.Contains("合计 756", ledger, StringComparison.Ordinal);
         Assert.Contains("source/binary breaking boundary", ledger, StringComparison.Ordinal);
         Assert.Contains("unknown-until-voluntary-declaration", ledger, StringComparison.Ordinal);
-        Assert.Contains("跨边界验证与独立复审 remain pending", ledger, StringComparison.Ordinal);
+        Assert.Contains("Architecture 116 passed / 0 failed / 0 skipped", ledger, StringComparison.Ordinal);
+        Assert.Contains("Content 486 passed / 0 failed / 0 skipped", ledger, StringComparison.Ordinal);
+        Assert.Contains("Notion 270 passed / 0 failed / 0 skipped", ledger, StringComparison.Ordinal);
+        Assert.Contains("bukit-core.slnx", ledger, StringComparison.Ordinal);
+        Assert.Contains("bukit-labs.slnx", ledger, StringComparison.Ordinal);
+        Assert.Contains("bukit-plugins.slnx", ledger, StringComparison.Ordinal);
+        Assert.Contains("12021863 bytes", ledger, StringComparison.Ordinal);
+        Assert.Contains("public API drift self-test OK", ledger, StringComparison.Ordinal);
+        Assert.Contains("Approved / PASS; 0 Critical, 0 Important, 0 Minor", ledger, StringComparison.Ordinal);
+        Assert.Contains("parent aggregate", ledger, StringComparison.Ordinal);
+        Assert.Contains("post-change-targeted.sh", ledger, StringComparison.Ordinal);
+        Assert.Contains("最终 aggregate diff 复审仍待 parent task 完成", ledger, StringComparison.Ordinal);
+        Assert.Contains("Completed cross-boundary validation and independent review evidence is recorded there.", declaration, StringComparison.Ordinal);
+        Assert.Contains("Completed cross-boundary validation and independent review evidence is recorded there.", guide, StringComparison.Ordinal);
 
         Assert.All(RendererNames, rendererName => Assert.Contains(
             $"`Bukit.Content.Notion.BlockRenderers.{rendererName}`",

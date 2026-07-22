@@ -138,7 +138,8 @@ snapshots. The current public API baseline contains 514 types, including 110 `2.
 This 2.0 decision does not change any 1.x CLR
 visibility.
 
-The [provisional G-04D1B decision ledger](../analysis/bukit-core-g04d1b-block-renderer-facade-removal-2026-07-23.zh-CN.md)
+The [G-04D1B decision ledger](../analysis/bukit-core-g04d1b-block-renderer-facade-removal-2026-07-23.zh-CN.md)
 records the exact identities, source and binary migration boundary, preserved
-D1C surface, Task 1 owner checks, and the pending G-04D1B cross-boundary checks
-and independent-review work.
+D1C surface, Task 1 owner checks, and completed G-04D1B cross-boundary
+verification. Completed cross-boundary validation and independent review evidence is recorded there. The parent aggregate gate and final aggregate review remain
+pending and are not claimed by the G-04D1B ledger.

@@ -1,6 +1,6 @@
 # G-04D1B Block Renderer Facade 删除实施记录
 
-状态：实施记录已建立 / 跨边界验证与独立复审待执行
+状态：已实施并通过跨边界验证与独立只读复审
 
 ## 范围与基点
 
@@ -111,17 +111,30 @@ source/binary breaking boundary，不改变 1.x CLR visibility。
 - 不修改闭合的 136-entry candidate manifest。
 - 不授权剩余 110 个候选的批量删除，也不改变任何 1.x CLR visibility。
 
-## 剩余跨边界验证与独立复审
+## 已完成的跨边界验证与独立只读复审
 
-以下项目仍待 parent task 在独立步骤完成；本实施记录不声称它们已通过：
+Task 2 Steps 1–4 已在 `5c08c950b0de2de3648a7f487198940acd73efcc` 上完成：
 
-- [ ] Core 跨边界 Release 验证。
-- [ ] Labs 跨边界 Release 验证。
-- [ ] plugins 跨边界 Release 验证。
-- [ ] Native AOT 与 release-artifact smoke。
-- [ ] 独立只读实施复审。
-- [ ] parent aggregate `post-change-targeted.sh` 与最终 aggregate diff 复审。
+- Architecture 116 passed / 0 failed / 0 skipped；Content 486 passed / 0 failed /
+  0 skipped；Notion 270 passed / 0 failed / 0 skipped。Content 与 Notion 合计 756，
+  保持测试所有权迁移前后的总数。
+- Core 跨边界 Release 验证、Labs 跨边界 Release 验证与 plugins 跨边界 Release 验证均使用 `--no-restore` 的 `bukit-core.slnx`、`bukit-labs.slnx` 与
+  `bukit-plugins.slnx` 完成；三者最终均为 0 Warning(s)、0 Error(s)。plugins 首次
+  缺少 `WordCountSectionPlugin` assets 时只 restore 该项目；随后 Roslyn 编译器进程
+  失败经 `dotnet build-server shutdown` 后重跑原命令通过，未修改 NuGet/TLS/CI/gate。
+- Native AOT 与 release-artifact smoke 已完成：临时归档
+  `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/bukit-g04d1b-aot.sOIvMB/bukit-2.0.0-alpha.1-osx-arm64.tar.gz`
+  为 osx-arm64、12021863 bytes，`test -s`、config/build/publish-audit smoke 均通过；
+  publish audit 为 0 errors、22 fixture-quality warnings。初次受限环境的 NuGet
+  vulnerability-cache 写入被拒后，在非受限环境重跑，未上传、发布或保留仓库产物。
+- `public-api-drift-self-test.sh` 输出 `public API drift self-test OK`，真实
+  `public-api-drift.sh check Release` 退出 0，且为 0 Warning(s)、0 Error(s)。基线
+  仍为 14 assemblies、514 types、110 个 `2.0-candidate`、0 legacy facades、23 个
+  canonical renderers；base 与 HEAD 的 candidate manifest blob 都是
+  `7b07d6890562387010b52301e9f8716e9bf10ed1`。
+- 首次独立只读实施复审 verdict：Approved / PASS; 0 Critical, 0 Important, 0 Minor。
+  复审接受 Task 2 证据完整性，并授权本台账关闭步骤。
 
-Task 1 仅负责 Architecture、Content、Notion owner tests、public API drift
-self-test/check 及一次覆盖全部 Task 1 路径的 focused post-change check；其结果在
-Task 1 报告与 commit 中记录。跨边界验证与独立复审 remain pending。
+以上仅完成 G-04D1B 的跨边界证明与独立复审；parent aggregate
+`post-change-targeted.sh` 与最终 aggregate diff 复审仍待 parent task 完成，本文不声称
+它们已通过。
