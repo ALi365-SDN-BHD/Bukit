@@ -127,19 +127,24 @@ surface check. The self-test must not run a real Core snapshot or check.
 
 The [2.0 public surface candidate manifest](../../docs/governance/bukit-core-2.0-public-surface-candidates.v1.json)
 and [consumer declaration](../../docs/governance/bukit-core-2.0-consumer-declaration.md)
-record the current declaration state as `open`. The window opened at
-`2026-07-21T02:19:46Z`, and
-[GitHub Issue #60](https://github.com/ALi365-SDN-BHD/Bukit/issues/60) is the
-canonical announcement and feedback channel. All 136 candidates remain
-review-only; opening the window is not a removal decision.
+record the current declaration state as `closed`. The window opened at
+`2026-07-21T02:19:46Z`; [GitHub Issue #60](https://github.com/ALi365-SDN-BHD/Bukit/issues/60)
+was observed closed at `2026-07-22T07:08:30Z`, with its close event at
+`2026-07-22T07:08:31Z`. The eligible stable release is `v1.0.10`. All 136
+candidates remain review-only and `consumer-declaration-pending`; closing the
+window is not a removal decision.
 
 All 1.x CLR access levels remain unchanged. A `no-public-match-found` result
 means only that the recorded public searches found no reviewed external match;
 it is not proof that removal is safe and cannot reveal private, unindexed, or
 undisclosed consumers.
 
-Calendar time alone cannot close the window. Closure requires at least one later
-non-prerelease stable release, disposition of all received feedback, and an
-independent evidence audit with no unresolved consumer evidence.
-`eligibleAfterRelease` remains unset (`null`) until that later stable release
-exists. G-04B2 opens the declaration window only; it does not authorize G-04C.
+The closed lifecycle preserves the limit of public evidence: a
+`no-public-match-found` result cannot prove the absence of private, unindexed,
+or undisclosed consumers. New evidence requires a separately opened channel or
+task rather than use of the closed Issue.
+
+Closure permits only a G-04C eligibility discussion. G-04C requires separate
+authorization, is 2.0-only, and is limited to a single-type decision; it does
+not authorize a batch access-level change. All 1.x CLR visibility remains
+unchanged.
