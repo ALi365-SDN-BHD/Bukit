@@ -4,7 +4,7 @@
 >
 > 任务：G-04 Group 4 / Task 31
 >
-> G4 基线：`2.0@6f10269c515f328628955f706075d70cc3a21977`
+> G4 基线：`2.0@729088dbc2faf1bf7a20fe670e96a09b7568e7ba`
 >
 > 状态：decision-consolidated / g3-verified / g4-final-review-pending
 
@@ -124,6 +124,10 @@ Task 42 应在 G4 完整验证与最终全量只读复审中确认：
 
 Task 31 本身不产生新的验证通过声明，状态保持
 `g4-final-review-pending`，直到 Task 42 对完整 G4 diff 和 G-04 决策链完成验证。
+
+原 Task 31 提交已在独立 JSON Feed output-path P1 修复合并后变基。该独立修复已成为
+新的 G4 入场基线，不属于 G4 visibility aggregate diff；Theme 的三项决策、G3
+验证证据和历史清单均未因此改变。
 
 ## 8. 关闭边界
 

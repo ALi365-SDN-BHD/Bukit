@@ -4,9 +4,9 @@
 >
 > 任务：G-04 Group 4 / Task 32
 >
-> 源码基线：`2.0@6f10269c515f328628955f706075d70cc3a21977`
+> 源码基线：`2.0@729088dbc2faf1bf7a20fe670e96a09b7568e7ba`
 >
-> 状态：eligibility-audit-complete / implementation-paused-on-pre-existing-p1
+> 状态：eligibility-audit-complete / implementation-ready
 
 ## 1. 审计范围
 
@@ -220,10 +220,9 @@ D9H 结论：1 eligible、4 retained。修改 parent public members 才能收窄
 但 parent 已是 `1.x-do-not-narrow` 且不在 Task 40 候选范围；强行收窄会造成
 inconsistent accessibility 或越界 API 迁移。
 
-## 12. 新发现的范围外安全止损项
+## 12. 范围外安全止损项关闭证明
 
-只读调用链审计确认一个在 G4 基线已经存在、与 CLR accessibility 无关的 Core output
-路径 P1：
+Task 32 只读调用链审计曾确认一个与 CLR accessibility 无关的 Core output 路径 P1：
 
 ```text
 site.feed.path / collection.output.feedPath
@@ -233,11 +232,9 @@ site.feed.path / collection.output.feedPath
   -> File.Create(path)
 ```
 
-`JsonFeedGenerator` 没有像 Atom 的 `FileWriter.WriteUtf8(...)` 或 RSS collection path 的
-normalizer 一样在写入前经过 safe relative path policy。复核确认 config schema 只要求
-string，strict field validator 只检查字段名，`SiteDefaultsApplier`、`ConfigApplier`、
-`I18nValidator` 和 `ConfigValidator` 均不拒绝该值。全局 JSON feed 可通过 `..`、rooted
-path 或 output 内既有 symlink 写出 output root。
+旧基线上的 `JsonFeedGenerator` 没有像 Atom 的 `FileWriter.WriteUtf8(...)` 或 RSS
+collection path 的 normalizer 一样在写入前经过 safe relative path policy。全局 JSON
+feed 因而可通过 `..`、rooted path 或 output 内既有 symlink 写出 output root。
 
 最小复现：
 
@@ -253,19 +250,27 @@ site:
 `<project>/escaped-feed/feed.json`，`File.Create` 会创建或截断该文件。Atom 路径会由
 `SafePathResolver` 拒绝同类输入，因此不是统一上游策略已经覆盖的误报。
 
-本问题：
+该 P1 已严格移出 G-04 visibility diff，并由独立 Core 任务关闭：
 
-- 不是 Task 32 或任何 G-04 visibility change 引入；
-- 不授权在 G-04D9 顺带修改 config schema、feed URL、path policy 或 writer；
-- 不影响 `JsonFeedGenerator` 的纯 accessibility 资格判断；
-- 建议严重度为 **Important / P1**；
-- 不阻断 D9D 的纯 visibility 资格结论；
-- 阻断 Task 42 按总计划给出无条件 Critical/Important/Minor `0/0/0`。
+- production commit：`547b1728`，只把 JSON feed destination resolution 改为调用
+  既有 `FileWriter.GetSafeFullPath(...)`；
+- remediation ledger：`6ca54e6b`；closure ledger：`729088db`；
+- direct sink 与 aggregate config chain 两条安全回归均先 RED 后 GREEN；
+- feed/representation owner tests 为 `35/35`；
+- command-level 隔离宿主 `NOTION_TOKEN` 后，focused owner tests 为 `1597/1597`；
+- 独立任务唯一 aggregate targeted gate 通过，未在 G4 重复；
+- 独立只读复审结果为 Critical/Important/Minor `0/0/0`；
+- public API baseline 仍为 `14/484/56`；
+- historical manifest 仍为 `136/136`，blob
+  `7b07d6890562387010b52301e9f8716e9bf10ed1`；
+- config schema、feed URL、HTTP/TLS、全局 path tool、其他 writer、Labs 和外部插件
+  均未修改。
 
-Task 36 若继续实施，必须保持 JSON/XML/HTML bytes 和 URL 行为不变，并把该项登记为
-独立 Core correctness/security follow-up。按照总计划严格关闭口径，建议先暂停 G4
-production changes，另立受控 Core 修复任务；完成独立回归和复审后，从新的 `2.0`
-基线恢复 G4。G-04 内不得顺带修改 schema、feed URL、全局路径工具或 writer 行为。
+正式证据见
+`docs/analysis/bukit-core-json-feed-output-path-safety-remediation-2026-07-23.zh-CN.md`。
+修复已快进合并到本地 `2.0`，本报告及 Task 31 纯文档提交随后变基到
+`2.0@729088db`。因此该 P1 不再阻断 Task 33～42；它作为 G4 新入场基线存在，不计入
+G4 visibility aggregate diff，也不得在后续 cluster 中重复修改或扩展。
 
 ## 13. Task 33～40 实施顺序
 
