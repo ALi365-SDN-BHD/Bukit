@@ -12,6 +12,21 @@ public sealed class G04D1CM2AtomicRemovalTests
         "G-04D1C-M2 five-type atomic decision: only the five approved `Bukit.Content.Notion` renderer-extension CLR identities are removed in 2.0; the other 105 candidates are not batch-approved.";
     private const string CurrentBaseline =
         "The current public API baseline contains 509 types, including 105 `2.0-candidate` entries.";
+    private const string GovernanceExclusion =
+        """
+        This decision does not
+        authorize removal of `NotionApiClient`, `NotionProviderOptions`, or
+        `NotionClientStats`.
+        """;
+    private const string LedgerDecision =
+        """
+        批准只覆盖以下五个 `Bukit.Content.Notion` legacy renderer-extension CLR
+        identity 的 2.0 原子删除：
+        """;
+    private const string LedgerPrivateConsumer =
+        "- private consumer 继续为 `unknown-until-voluntary-declaration`；";
+    private const string LedgerExclusion =
+        "M2 不授权删除、internalize、重命名、obsolete 或修改以下类型的 public signature：";
     private static readonly string RepoRoot = FindRepoRoot();
 
     private static readonly string[] RemovedLegacyTypes =
@@ -192,6 +207,11 @@ public sealed class G04D1CM2AtomicRemovalTests
         Assert.Contains(CurrentBaseline, guide, StringComparison.Ordinal);
         Assert.Contains("unknown-until-voluntary-declaration", declaration, StringComparison.Ordinal);
         Assert.Contains("unknown-until-voluntary-declaration", guide, StringComparison.Ordinal);
+        Assert.Contains(GovernanceExclusion, declaration, StringComparison.Ordinal);
+        Assert.Contains(GovernanceExclusion, guide, StringComparison.Ordinal);
+        Assert.Contains(LedgerDecision, ledger, StringComparison.Ordinal);
+        Assert.Contains(LedgerPrivateConsumer, ledger, StringComparison.Ordinal);
+        Assert.Contains(LedgerExclusion, ledger, StringComparison.Ordinal);
         Assert.Contains("NotionApiClient", ledger, StringComparison.Ordinal);
         Assert.Contains("NotionProviderOptions", ledger, StringComparison.Ordinal);
         Assert.Contains("NotionClientStats", ledger, StringComparison.Ordinal);
