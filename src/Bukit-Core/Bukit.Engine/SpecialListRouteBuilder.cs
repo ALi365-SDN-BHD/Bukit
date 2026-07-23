@@ -14,7 +14,7 @@ internal sealed record SpecialListDefinition(
     IReadOnlyDictionary<string, ContentField>? PageFields = null,
     ListPageContext? PageContext = null);
 
-public static class SpecialListRouteBuilder
+internal static class SpecialListRouteBuilder
 {
     internal static List<SpecialListDefinition> Build(
         IReadOnlyList<RoutedContentDocument> routed,

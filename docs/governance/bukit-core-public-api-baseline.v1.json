@@ -2872,17 +2872,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.SpecialListRouteBuilder",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.SpecialListRouteBuilder",
-      "publicMembers": [],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.Stages.ContentStageInput",
       "owner": "Build engine",
       "classification": "cross-assembly-implementation",
@@ -2972,8 +2961,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.TemplateCapabilitiesResolver\u002BListPageContentResolution",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.TemplateCapabilitiesResolver.ListPageContentResolution : System.IEquatable\u003CBukit.Engine.TemplateCapabilitiesResolver.ListPageContentResolution~\u003E~",
       "publicMembers": [
@@ -2996,8 +2985,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.TemplateCapabilitiesResolver\u002BTemplateCapabilityFlags",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.TemplateCapabilitiesResolver.TemplateCapabilityFlags",
       "publicMembers": [
@@ -3014,8 +3003,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.TemplateCapabilitiesResolver\u002BTemplateFieldDeclaration",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.TemplateCapabilitiesResolver.TemplateFieldDeclaration : System.IEquatable\u003CBukit.Engine.TemplateCapabilitiesResolver.TemplateFieldDeclaration~\u003E~",
       "publicMembers": [
@@ -3064,8 +3053,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.TemplateVariableWarning",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.TemplateVariableWarning : System.IEquatable\u003CBukit.Engine.TemplateVariableWarning~\u003E~",
       "publicMembers": [
