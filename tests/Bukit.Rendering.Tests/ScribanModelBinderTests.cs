@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using System.Dynamic;
 using Xunit;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering.Scriban;
@@ -8,7 +10,7 @@ namespace Bukit.Rendering.Tests;
 public sealed class ScribanModelBinderTests
 {
     [Fact]
-    public void RootModelMapper_AndPublicFacade_ExposeTheSameRootContract()
+    public void RootModelMapper_AndFacade_ExposeTheSamePageAndListContracts()
     {
         var model = new PageModel
         {
@@ -22,6 +24,21 @@ public sealed class ScribanModelBinderTests
         Assert.Equal(facade.Keys, mapped.Keys);
         Assert.IsType<ScriptObject>(mapped["site"]);
         Assert.IsType<ScriptObject>(mapped["page"]);
+
+        var listModel = new ListPageModel
+        {
+            Site = CreateMinimalSite(),
+            Pages = [CreateMinimalPage()]
+        };
+
+        var mappedList = ScribanRootModelMapper.ToScriptObject(listModel);
+        var facadeList = ScribanModelBinder.ToScriptObject(listModel);
+
+        Assert.Equal(facadeList.Keys, mappedList.Keys);
+        Assert.IsType<ScriptObject>(mappedList["site"]);
+        Assert.IsType<ScriptObject>(mappedList["page"]);
+        Assert.IsType<ScriptArray>(mappedList["pages"]);
+        Assert.IsType<ScriptArray>(mappedList["items"]);
     }
 
     private static SiteModel CreateFullSite()
@@ -1021,5 +1038,94 @@ public sealed class ScribanModelBinderTests
         var page = Assert.IsType<ScriptObject>(obj["page"]);
 
         Assert.Equal("Other Site Title", page["title"]);
+    }
+
+    [Fact]
+    public void ToScriptObject_DynamicValues_PreserveSupportedContainerBoundaries()
+    {
+        IDictionary<string, object> mutable =
+            (IDictionary<string, object>)new ExpandoObject();
+        mutable["answer"] = 42;
+        mutable[" "] = "hidden";
+
+        IReadOnlyDictionary<string, object> readOnly =
+            new ReadOnlyDictionary<string, object>(
+                new Dictionary<string, object>
+                {
+                    ["mutable"] = mutable,
+                    ["items"] = new object?[] { "first", null, mutable },
+                    ["nothing"] = null!,
+                    ["\t"] = "hidden"
+                });
+
+        var model = new PageModel
+        {
+            Site = CreateMinimalSite() with { Data = readOnly },
+            Page = CreateMinimalPage()
+        };
+
+        var root = ScribanModelBinder.ToScriptObject(model);
+        var site = Assert.IsType<ScriptObject>(root["site"]);
+        var data = Assert.IsType<ScriptObject>(site["data"]);
+        var mutableObject = Assert.IsType<ScriptObject>(data["mutable"]);
+        var items = Assert.IsType<ScriptArray>(data["items"]);
+
+        Assert.Equal(42, mutableObject["answer"]);
+        Assert.False(mutableObject.ContainsKey(" "));
+        Assert.Equal("first", items[0]);
+        Assert.Null(items[1]);
+        Assert.Equal(
+            42,
+            Assert.IsType<ScriptObject>(items[2])["answer"]);
+        Assert.Null(data["nothing"]);
+        Assert.False(data.ContainsKey("\t"));
+    }
+
+    [Fact]
+    public void ToScriptObject_UnsupportedObject_UsesOnlyToStringFallback()
+    {
+        var root = ScribanModelBinder.ToScriptObject(
+            CreatePageWithCustomParam(new CustomDisplayValue()));
+        var site = Assert.IsType<ScriptObject>(root["site"]);
+        var parameters = Assert.IsType<ScriptObject>(site["params"]);
+
+        Assert.Equal("safe-display", parameters["custom"]);
+        Assert.IsType<string>(parameters["custom"]);
+    }
+
+    [Fact]
+    public void ToScriptObject_UnsupportedObjectToStringException_Propagates()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => ScribanModelBinder.ToScriptObject(
+                CreatePageWithCustomParam(new ThrowingDisplayValue())));
+
+        Assert.Equal("custom display failed", exception.Message);
+    }
+
+    private static PageModel CreatePageWithCustomParam(object value) =>
+        new()
+        {
+            Site = CreateMinimalSite() with
+            {
+                Params = new Dictionary<string, object>
+                {
+                    ["custom"] = value
+                }
+            },
+            Page = CreateMinimalPage()
+        };
+
+    private sealed class CustomDisplayValue
+    {
+        public string HiddenMember => "must-not-be-reflected";
+
+        public override string ToString() => "safe-display";
+    }
+
+    private sealed class ThrowingDisplayValue
+    {
+        public override string ToString() =>
+            throw new InvalidOperationException("custom display failed");
     }
 }

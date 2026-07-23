@@ -3,7 +3,7 @@ using Scriban.Runtime;
 
 namespace Bukit.Rendering.Scriban;
 
-public static class ScribanModelBinder
+internal static class ScribanModelBinder
 {
     public static ScriptObject ToScriptObject(PageModel model) =>
         ScribanRootModelMapper.ToScriptObject(model);

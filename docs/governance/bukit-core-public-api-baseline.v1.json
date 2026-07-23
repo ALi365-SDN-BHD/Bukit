@@ -7824,20 +7824,6 @@
     },
     {
       "assembly": "Bukit.Rendering",
-      "name": "Bukit.Rendering.Scriban.ScribanModelBinder",
-      "owner": "Rendering and theme model",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Rendering.Scriban.ScribanModelBinder",
-      "publicMembers": [
-        "public static Scriban.Runtime.ScriptObject! ToScriptObject(Bukit.Rendering.ListPageModel! model)",
-        "public static Scriban.Runtime.ScriptObject! ToScriptObject(Bukit.Rendering.PageModel! model)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Rendering",
       "name": "Bukit.Rendering.Scriban.ScribanTemplateRenderer",
       "owner": "Rendering and theme model",
       "classification": "cross-assembly-implementation",

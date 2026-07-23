@@ -4,70 +4,102 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bukit.Rendering;
+using Bukit.Rendering.Scriban;
 using Xunit;
 
 namespace Bukit.Architecture.Tests;
 
-public sealed class G04D4BValueCoercionTests
+public sealed class G04D6BScribanModelBinderTests
 {
-    private const string TypeName = "Bukit.Shared.ValueCoercion";
+    private const string TypeName =
+        "Bukit.Rendering.Scriban.ScribanModelBinder";
     private const string CandidateManifestBlob =
         "7b07d6890562387010b52301e9f8716e9bf10ed1";
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
-    public void ValueCoercion_ExistsButIsInternalAndNotExported()
+    public void Binder_ExistsButIsInternalStaticAndNotExported()
     {
-        Assembly assembly = typeof(Bukit.Shared.ILogger).Assembly;
-        Type type = assembly.GetType(
-            TypeName,
-            throwOnError: true,
-            ignoreCase: false)!;
+        Assembly assembly = typeof(ScribanTemplateRenderer).Assembly;
+        Type binder = GetBinderType(assembly);
 
-        Assert.True(type.IsNotPublic);
-        Assert.DoesNotContain(type, assembly.GetExportedTypes());
+        Assert.True(binder.IsNotPublic);
+        Assert.True(binder.IsAbstract);
+        Assert.True(binder.IsSealed);
+        Assert.DoesNotContain(binder, assembly.GetExportedTypes());
     }
 
     [Fact]
-    public void SharedFriendBoundaryAndProductionConsumerSetRemainUnchanged()
+    public void Binder_PreservesBothPublicStaticOverloads()
     {
-        Assembly assembly = typeof(Bukit.Shared.ILogger).Assembly;
+        Type binder = GetBinderType(
+            typeof(ScribanTemplateRenderer).Assembly);
+        MethodInfo[] overloads = binder
+            .GetMethods(
+                BindingFlags.Public |
+                BindingFlags.Static |
+                BindingFlags.DeclaredOnly)
+            .Where(method => method.Name == "ToScriptObject")
+            .OrderBy(
+                method => method.GetParameters()[0].ParameterType.FullName,
+                StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(2, overloads.Length);
+        Assert.All(overloads, method =>
+        {
+            Assert.Equal(
+                "Scriban.Runtime.ScriptObject",
+                method.ReturnType.FullName);
+            Assert.True(method.IsPublic);
+            Assert.True(method.IsStatic);
+            Assert.False(method.IsGenericMethod);
+            Assert.Single(method.GetParameters());
+        });
+        Assert.Equal(
+            [typeof(ListPageModel), typeof(PageModel)],
+            overloads
+                .Select(method => method.GetParameters()[0].ParameterType)
+                .ToArray());
+    }
+
+    [Fact]
+    public void PublicRenderer_KeepsBothDirectBinderRoots()
+    {
+        string rendererSource = File.ReadAllText(Path.Combine(
+            RepoRoot,
+            "src",
+            "Bukit-Core",
+            "Bukit.Rendering",
+            "Scriban",
+            "ScribanTemplateRenderer.cs"));
+
+        Assert.Equal(
+            2,
+            Regex.Matches(
+                    rendererSource,
+                    @"\bScribanModelBinder\.ToScriptObject\(model\)",
+                    RegexOptions.CultureInvariant)
+                .Count);
+    }
+
+    [Fact]
+    public void RenderingFriendBoundary_RemainsEngineAndOwnerTestsOnly()
+    {
+        Assembly assembly = typeof(ScribanTemplateRenderer).Assembly;
         string[] friends = assembly
             .GetCustomAttributes<InternalsVisibleToAttribute>()
             .Select(attribute => attribute.AssemblyName.Split(',')[0])
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
+
         Assert.Equal(
             [
-                "Bukit.Content",
-                "Bukit.Content.Tests",
                 "Bukit.Engine",
-                "Bukit.Shared.Tests"
+                "Bukit.Rendering.Tests"
             ],
             friends);
-
-        string sourceRoot = Path.Combine(RepoRoot, "src");
-        string declarationPath = Path.Combine(
-            sourceRoot,
-            "Bukit-Core",
-            "Bukit.Shared",
-            "ValueCoercion.cs");
-        var symbol = new Regex(
-            @"\bValueCoercion\b",
-            RegexOptions.CultureInvariant);
-        string[] productionConsumers = Directory
-            .EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
-            .Where(path => !string.Equals(
-                path,
-                declarationPath,
-                StringComparison.Ordinal))
-            .Where(path => !IsBuildOutput(path))
-            .Where(path => symbol.IsMatch(File.ReadAllText(path)))
-            .Select(path => Path.GetRelativePath(RepoRoot, path))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Empty(productionConsumers);
     }
 
     [Fact]
@@ -78,7 +110,9 @@ public sealed class G04D4BValueCoercionTests
             "governance",
             "bukit-core-public-api-baseline.v1.json");
         JsonElement root = current.RootElement;
-        JsonElement[] types = root.GetProperty("types").EnumerateArray().ToArray();
+        JsonElement[] types = root.GetProperty("types")
+            .EnumerateArray()
+            .ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
         Assert.Equal(486, types.Length);
@@ -86,7 +120,8 @@ public sealed class G04D4BValueCoercionTests
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
         Assert.DoesNotContain(types, entry =>
-            entry.GetProperty("assembly").GetString() == "Bukit.Shared" &&
+            entry.GetProperty("assembly").GetString() ==
+            "Bukit.Rendering" &&
             entry.GetProperty("name").GetString() == TypeName);
     }
 
@@ -101,15 +136,17 @@ public sealed class G04D4BValueCoercionTests
         byte[] bytes = File.ReadAllBytes(path);
         using JsonDocument document = JsonDocument.Parse(bytes);
         JsonElement root = document.RootElement;
-        JsonElement[] candidates =
-            root.GetProperty("candidates").EnumerateArray().ToArray();
+        JsonElement[] candidates = root.GetProperty("candidates")
+            .EnumerateArray()
+            .ToArray();
 
         Assert.Equal("closed", root.GetProperty("declarationState").GetString());
         Assert.Equal(136, root.GetProperty("candidateCount").GetInt32());
         Assert.Equal(136, candidates.Length);
 
         JsonElement candidate = Assert.Single(candidates, entry =>
-            entry.GetProperty("assembly").GetString() == "Bukit.Shared" &&
+            entry.GetProperty("assembly").GetString() ==
+            "Bukit.Rendering" &&
             entry.GetProperty("fullName").GetString() == TypeName);
         Assert.Equal(
             "consumer-declaration-pending",
@@ -133,21 +170,16 @@ public sealed class G04D4BValueCoercionTests
             Convert.ToHexStringLower(SHA1.HashData(blobBytes)));
     }
 
+    private static Type GetBinderType(Assembly assembly) =>
+        assembly.GetType(
+            TypeName,
+            throwOnError: true,
+            ignoreCase: false)!;
+
     private static JsonDocument ReadJson(params string[] relativeSegments)
     {
         string path = Path.Combine([RepoRoot, .. relativeSegments]);
         return JsonDocument.Parse(File.ReadAllText(path));
-    }
-
-    private static bool IsBuildOutput(string path)
-    {
-        string separator = Path.DirectorySeparatorChar.ToString();
-        return path.Contains(
-                   $"{separator}bin{separator}",
-                   StringComparison.Ordinal) ||
-               path.Contains(
-                   $"{separator}obj{separator}",
-                   StringComparison.Ordinal);
     }
 
     private static string FindRepoRoot()
