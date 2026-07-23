@@ -123,8 +123,9 @@ public sealed class G04D5BCliErrorPayloadTests
         Assert.True(typeof(JsonSerializerContext).IsAssignableFrom(context));
 
         Type[] roots = context
-            .GetCustomAttributes<JsonSerializableAttribute>()
-            .Select(attribute => attribute.Type)
+            .GetCustomAttributesData()
+            .Where(attribute => attribute.AttributeType == typeof(JsonSerializableAttribute))
+            .Select(attribute => (Type)Assert.Single(attribute.ConstructorArguments).Value!)
             .OrderBy(type => type.FullName, StringComparer.Ordinal)
             .ToArray();
         Assert.Equal(
@@ -155,12 +156,11 @@ public sealed class G04D5BCliErrorPayloadTests
             "Rendering",
             "CliErrorRenderer.cs"));
 
-        Assert.Equal(
-            1,
+        Assert.Single(
             Regex.Matches(
                 source,
                 @"\bJsonSerializer\.Serialize\s*\(",
-                RegexOptions.CultureInvariant).Count);
+                RegexOptions.CultureInvariant).Cast<Match>());
         Assert.Contains(
             "JsonSerializer.Serialize(payload, CliErrorJsonContext.Default.CliErrorPayload)",
             source,

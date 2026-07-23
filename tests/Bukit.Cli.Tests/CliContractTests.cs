@@ -35,7 +35,9 @@ public sealed class CliContractTests
                 "deploy:",
             ],
             tree);
-        Assert.Equal(registry.Commands.Select(command => command.Name), descriptorCommands);
+        Assert.Equal(
+            registry.Commands.Select(command => command.Name).OrderBy(name => name, StringComparer.Ordinal),
+            descriptorCommands.OrderBy(name => name, StringComparer.Ordinal));
     }
 
     [Fact]

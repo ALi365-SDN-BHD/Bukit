@@ -250,7 +250,7 @@ public sealed class G04D5ACliParseGraphTests
             ],
             parseResult.GetProperty("publicMembers")
                 .EnumerateArray()
-                .Select(member => member.GetString())
+                .Select(member => member.GetString()!)
                 .ToArray());
         Assert.Equal(
             [
@@ -261,7 +261,7 @@ public sealed class G04D5ACliParseGraphTests
             ],
             parseResult.GetProperty("protectedMembers")
                 .EnumerateArray()
-                .Select(member => member.GetString())
+                .Select(member => member.GetString()!)
                 .ToArray());
     }
 
