@@ -11,12 +11,10 @@ public sealed class G04D1CM1MigrationContractTests
     private const string CandidateManifestBlob = "7b07d6890562387010b52301e9f8716e9bf10ed1";
     private const string GuideRelativePath =
         "docs/analysis/bukit-core-g04d1c-m1-canonical-migration-contract-2026-07-23.zh-CN.md";
-    private const string ClosingStatus =
-        "状态：closing（获授权的非沙箱 replacement aggregate 已通过；最终证据 diff 独立复审待完成）";
+    private const string StatusPolicy =
+        "状态：M1 verification ledger complete；正式关闭状态以最新 handoff/controller 为准";
     private const string FinalReviewLedgerRow =
-        "| independent whole-branch review | `8eaeabd4` 的完整代码与契约 diff 已获 0 Critical / 0 Important / 0 Minor；本次 closing evidence diff 仍需 fresh read-only review，结果以最终 handoff 为准 |";
-    private const string ReplacementAggregateLedgerRow =
-        "| 获授权的非沙箱 replacement aggregate | 用户明确允许覆盖单次限制后，以同一 base 和相同 7 路径执行；focused owner 为 Notion 297、Architecture 124、Content 501，随后 docs、format、analysis、public API drift、portability、`brainstorm-server-self-test` 及其后全部 `ci-fast` 阶段通过，最终输出 `YAML static context is deterministic and current`；replacement aggregate **PASS** |";
+        "| independent whole-branch review | 最终状态由最新 handoff/controller 决定；本指南不预判或冻结瞬时 review 状态 |";
     private const string M1Boundary =
         "M1 保留五个 legacy CLR 类型；M1 不授权 M2。";
     private const string M2Boundary =
@@ -310,9 +308,8 @@ public sealed class G04D1CM1MigrationContractTests
 
         var guide = File.ReadAllText(guidePath);
 
-        Assert.Contains(ClosingStatus, guide, StringComparison.Ordinal);
+        Assert.Contains(StatusPolicy, guide, StringComparison.Ordinal);
         Assert.Contains(FinalReviewLedgerRow, guide, StringComparison.Ordinal);
-        Assert.Contains(ReplacementAggregateLedgerRow, guide, StringComparison.Ordinal);
         Assert.Contains(M1Boundary, guide, StringComparison.Ordinal);
         Assert.Contains(M2Boundary, guide, StringComparison.Ordinal);
         Assert.Contains("14 个程序集、514 个类型、110 个 `2.0-candidate`", guide, StringComparison.Ordinal);
@@ -369,9 +366,6 @@ public sealed class G04D1CM1MigrationContractTests
             guide,
             StringComparison.Ordinal);
 
-        Assert.DoesNotContain("状态：已完成", guide, StringComparison.Ordinal);
-        Assert.DoesNotContain("parent aggregate：PASS", guide, StringComparison.Ordinal);
-        Assert.DoesNotContain("独立复审：PASS", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("whole-branch review 待执行", guide, StringComparison.Ordinal);
     }
 

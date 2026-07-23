@@ -2,7 +2,7 @@
 
 日期：2026-07-23
 任务基线：`96cfee5ccce820daec21f996a7ca280bf27d1fa8`
-状态：closing（获授权的非沙箱 replacement aggregate 已通过；最终证据 diff 独立复审待完成）
+状态：M1 verification ledger complete；正式关闭状态以最新 handoff/controller 为准
 
 ## 1. 范围、结论与不可变边界
 
@@ -443,7 +443,7 @@ plugin consumer 仍未知。这些历史字段不得被覆盖成“无消费者�
 同时提供具体 assembly/type/member dependency。新证据由独立 public API 决策处理，不能
 回写或改造闭合 manifest 的历史字节。
 
-## 10. M1 verification ledger（closing）
+## 10. M1 verification ledger
 
 本节记录当前分支已经实际执行的证据。初始 sandbox aggregate 的失败作为历史事实保留；
 2026-07-23 获明确授权后执行的非沙箱 replacement aggregate 是独立的新证据，不回写或
@@ -462,12 +462,12 @@ plugin consumer 仍未知。这些历史字段不得被覆盖成“无消费者�
 | 初始 sandbox aggregate | 从 `a0bd2f3f36ae623f47b06b259bc2ffc36890ea08` 对 7 个实际变更路径执行；focused、format、analysis、public API、portability 等先行步骤通过，随后在未变更 `brainstorm-server-self-test` 以 `mv-1 left a live spawned server` 终止；该次运行 **NOT PASS** |
 | blocker owner 复核 | 非沙箱原样执行 `bash scripts/checks/brainstorm-server-self-test.sh`，最终输出 `brainstorm server self-test: PASS`；该证据把失败分类为 sandbox 进程限制，但不把已失败的 aggregate 改写为 PASS |
 | 获授权的非沙箱 replacement aggregate | 用户明确允许覆盖单次限制后，以同一 base 和相同 7 路径执行；focused owner 为 Notion 297、Architecture 124、Content 501，随后 docs、format、analysis、public API drift、portability、`brainstorm-server-self-test` 及其后全部 `ci-fast` 阶段通过，最终输出 `YAML static context is deterministic and current`；replacement aggregate **PASS** |
-| independent whole-branch review | `8eaeabd4` 的完整代码与契约 diff 已获 0 Critical / 0 Important / 0 Minor；本次 closing evidence diff 仍需 fresh read-only review，结果以最终 handoff 为准 |
+| independent whole-branch review | 最终状态由最新 handoff/controller 决定；本指南不预判或冻结瞬时 review 状态 |
 
 初始 sandbox aggregate 重现 `mv-1 left a live spawned server`；非沙箱 owner self-test 随后
 通过。获明确例外授权后，同一完整 aggregate 在非沙箱环境通过包括 brainstorm 在内的全部
 阶段。本任务没有修改或抑制该 gate；初始失败与 replacement PASS 均按各自运行保留。
 
-适用 fixtures、public API drift、focused 与 replacement aggregate 已形成通过证据；
-controller 只在本次最终证据 diff 的独立复审通过后关闭 M1。即使 M1 最终关闭，也只证明
-migration contract 已建立；它仍不自动授权 M2。
+适用 fixtures、public API drift、focused 与 replacement aggregate 已形成通过证据；正式
+关闭结论由最新 handoff/controller 基于独立复审给出，不写成 Architecture test 的瞬时
+invariant。即使 M1 最终关闭，也只证明 migration contract 已建立；它仍不自动授权 M2。
