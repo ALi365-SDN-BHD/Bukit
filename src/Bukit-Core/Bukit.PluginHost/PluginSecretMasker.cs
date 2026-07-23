@@ -1,6 +1,6 @@
 namespace Bukit.PluginHost;
 
-public static class PluginSecretMasker
+internal static class PluginSecretMasker
 {
     private static readonly string[] SecretKeyFragments =
     [

@@ -227,3 +227,27 @@ for the deliberate approval, exact removal set, migration boundary,
 verification evidence, and independent review status. This decision does not
 authorize removal of `NotionApiClient`, `NotionProviderOptions`, or
 `NotionClientStats`.
+
+### G-04D2A Plugin Secret Masker
+
+G-04D2A single-type internalization decision: only `Bukit.PluginHost.PluginSecretMasker` is narrowed from public to internal in 2.0; the other 104 candidates are not batch-approved.
+
+The current public API baseline contains 508 types, including 104 `2.0-candidate` entries.
+It covers 14 assemblies. The closed 136-entry candidate manifest remains
+immutable and intentionally retains the historical `PluginSecretMasker`
+record. Its private-consumer status remains
+`unknown-until-voluntary-declaration`; the absence of a reviewed public-search
+match does not establish that no private, unindexed, or undisclosed direct CLR
+consumer exists.
+
+The narrowing is 2.0-only and is source and binary breaking for such a direct
+CLR consumer. It needs no replacement API because the supported external
+plugin surface is the `bukit-plugin-v1` process protocol, not this
+same-assembly helper. Masking behavior, general URL cleaning, schema and
+report-shape changes, and all other `Bukit.PluginHost` candidates are outside
+the decision.
+
+See the [G-04D2A decision ledger](../../docs/analysis/bukit-core-g04d2a-plugin-secret-masker-internalization-2026-07-23.zh-CN.md)
+for the exact one-token source change, governed baseline delta, consumer and
+Native AOT evidence boundary, exclusions, stop conditions, and task-level
+verification.

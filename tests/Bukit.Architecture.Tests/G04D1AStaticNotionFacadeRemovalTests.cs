@@ -46,8 +46,8 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
         Assert.Equal("net10.0", root.GetProperty("targetFramework").GetString());
         Assert.Equal("no-general-clr-sdk", root.GetProperty("sdkPolicy").GetString());
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(509, types.Length);
-        Assert.Equal(105, types.Count(type =>
+        Assert.Equal(508, types.Length);
+        Assert.Equal(104, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.All(RemovedTypes, removedType => Assert.DoesNotContain(types, type =>
             type.GetProperty("assembly").GetString() == "Bukit.Content" &&
@@ -87,7 +87,7 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
     public void ActiveGovernance_RecordsCurrentPostG04D1CM2RemainingCandidateState()
     {
         const string decision = "G-04D1B block-renderer-facade decision: only the 23 `Bukit.Content.Notion.BlockRenderers` facade types recorded in the G-04D1B ledger are approved for removal in 2.0; the other 110 candidates are not batch-approved.";
-        const string currentBaseline = "The current public API baseline contains 509 types, including 105 `2.0-candidate` entries.";
+        const string currentBaseline = "The current public API baseline contains 508 types, including 104 `2.0-candidate` entries.";
         const string staleCurrentBaseline = "current baseline has the other 133 candidates";
         var declaration = File.ReadAllText(Path.Combine(
             RepoRoot,

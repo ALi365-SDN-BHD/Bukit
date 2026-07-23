@@ -65,7 +65,7 @@ public sealed class PluginLockAndReportTests
                 OutputLimitExceeded: false,
                 StdoutBytes: 10,
                 StderrBytes: 5,
-                Stderr: "plugin stderr leaked secret-token",
+                Stderr: "plugin stderr leaked https://example.invalid/file?token=secret-token",
                 PluginVersion: "0.1.0",
                 Protocol: "bukit-plugin-v1",
                 Platform: "osx-arm64",
@@ -124,9 +124,10 @@ public sealed class PluginLockAndReportTests
         Assert.Contains("\"exitCode\": 2", json, StringComparison.Ordinal);
         Assert.Contains("\"diagnosticCodes\"", json, StringComparison.Ordinal);
         Assert.Contains("\"artifactCount\": 1", json, StringComparison.Ordinal);
-        Assert.Contains("\"stderr\": \"plugin stderr leaked ***\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"stderr\": \"plugin stderr leaked https://example.invalid/file?token=***\"", json, StringComparison.Ordinal);
         Assert.Contains("\"NOTION_TOKEN\": \"***\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("secret-token", json, StringComparison.Ordinal);
+        Assert.Contains("token=***", json, StringComparison.Ordinal);
         Assert.Contains("\"PUBLIC_VALUE\": \"visible\"", json, StringComparison.Ordinal);
     }
 

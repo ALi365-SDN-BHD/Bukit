@@ -7728,21 +7728,6 @@
     },
     {
       "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginSecretMasker",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.PluginHost.PluginSecretMasker",
-      "publicMembers": [
-        "public static System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E! MaskEnvironment(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E! environment)",
-        "public static System.String! MaskText(System.String! value, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E! environment)",
-        "public static System.String! MaskValue(System.String! key, System.String? value)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.ProcessOutputStream",
       "owner": "External plugin host",
       "classification": "implementation-public",
