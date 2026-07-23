@@ -1,6 +1,6 @@
 namespace Bukit.Engine.Output;
 
-public interface IOutputFileSystem
+internal interface IOutputFileSystem
 {
     Task WriteTextAsync(string relativePath, string content, CancellationToken cancellationToken);
     Task CopyFileAsync(string sourcePath, string relativePath, CancellationToken cancellationToken);

@@ -5,7 +5,7 @@ using Bukit.Shared;
 
 namespace Bukit.Engine.Incremental;
 
-public static class HashUtil
+internal static class HashUtil
 {
     public static string Sha256Hex(string text)
     {

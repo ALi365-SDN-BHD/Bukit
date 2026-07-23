@@ -3,7 +3,7 @@ using Bukit.Engine.Output;
 
 namespace Bukit.Engine;
 
-public static class FileWriter
+internal static class FileWriter
 {
     private static IOutputPathPolicy? s_defaultPolicy;
 
@@ -31,4 +31,3 @@ public static class FileWriter
         File.WriteAllText(fullPath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 }
-

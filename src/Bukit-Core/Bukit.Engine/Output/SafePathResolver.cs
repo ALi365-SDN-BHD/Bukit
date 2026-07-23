@@ -2,7 +2,7 @@ using Bukit.Shared;
 
 namespace Bukit.Engine.Output;
 
-public class SafePathResolver : IOutputPathPolicy
+internal class SafePathResolver : IOutputPathPolicy
 {
     private static readonly char[] PathSeparators = { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
 

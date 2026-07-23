@@ -3,7 +3,7 @@ using Bukit.Engine.Abstractions.Routing;
 
 namespace Bukit.Engine.Output;
 
-public sealed class SafeOutputFileSystem : IOutputFileSystem
+internal sealed class SafeOutputFileSystem : IOutputFileSystem
 {
     private readonly string _outputRoot;
     private readonly IOutputPathPolicy _pathPolicy;

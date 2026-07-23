@@ -2658,64 +2658,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.DirectoryCopy",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.DirectoryCopy",
-      "publicMembers": [
-        "public static System.Void Copy(System.String! sourceDir, System.String! destinationDir, System.String? outputRoot = null, Bukit.Engine.Output.IOutputPathPolicy? pathPolicy = null)",
-        "public static System.Void Sync(System.String! sourceDir, System.String! destinationDir, Bukit.Engine.DirectoryCopyOptions! options, System.String? outputRoot = null, Bukit.Engine.Output.IOutputPathPolicy? pathPolicy = null)",
-        "public static System.Void Sync(System.String! sourceDir, System.String! destinationDir, System.Boolean prune = false, System.String? outputRoot = null, Bukit.Engine.Output.IOutputPathPolicy? pathPolicy = null)",
-        "public static System.Void SyncFiles(System.String! sourceDir, System.String! destinationDir, System.Boolean ignoreDotPrefixedFiles = false, System.String? outputRoot = null, Bukit.Engine.Output.IOutputPathPolicy? pathPolicy = null)",
-        "public static System.Void SyncFilesRecursive(System.String! sourceDir, System.String! destinationDir, System.Boolean ignoreDotPrefixedFiles = false, System.String? outputRoot = null, Bukit.Engine.Output.IOutputPathPolicy? pathPolicy = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.DirectoryCopyOptions",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.DirectoryCopyOptions : System.IEquatable\u003CBukit.Engine.DirectoryCopyOptions~\u003E~",
-      "publicMembers": [
-        "public .ctor()",
-        "public Bukit.Engine.DirectoryCopyOptions! \u003CClone\u003E$()",
-        "public System.Boolean AlwaysDenySensitiveDotfiles { get; init; }",
-        "public System.Boolean FollowSymlinks { get; init; }",
-        "public System.Boolean IgnoreDotPrefixedFiles { get; init; }",
-        "public System.Boolean Prune { get; init; }",
-        "public System.Collections.Generic.IReadOnlySet\u003CSystem.String!\u003E? DotfileAllowList { get; init; }",
-        "public System.Collections.Generic.IReadOnlySet\u003CSystem.String!\u003E? DotfileDenyList { get; init; }",
-        "public System.String! HashMode { get; init; }",
-        "public static System.Boolean op_Equality(Bukit.Engine.DirectoryCopyOptions? left, Bukit.Engine.DirectoryCopyOptions? right)",
-        "public static System.Boolean op_Inequality(Bukit.Engine.DirectoryCopyOptions? left, Bukit.Engine.DirectoryCopyOptions? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Engine.DirectoryCopyOptions? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.FileWriter",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.FileWriter",
-      "publicMembers": [
-        "public static System.String! GetSafeFullPath(System.String! outputRoot, System.String! relativePath, Bukit.Engine.Output.IOutputPathPolicy? pathPolicy = null)",
-        "public static System.Void WriteUtf8(System.String! outputRoot, System.String! relativePath, System.String! content, Bukit.Engine.Output.IOutputPathPolicy? pathPolicy = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.IContentProviderFactory",
       "owner": "Build engine",
       "classification": "cross-assembly-implementation",
@@ -2787,22 +2729,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Incremental.HashUtil",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.Incremental.HashUtil",
-      "publicMembers": [
-        "public static System.String! Sha256Hex(System.ReadOnlySpan\u003CSystem.Byte\u003E data)",
-        "public static System.String! Sha256Hex(System.String! text)",
-        "public static System.String! Sha256HexForDirectory(System.String! rootDir, System.Int32 maxFiles = 10000, System.Int64 maxTotalSize = 104857600)",
-        "public static System.String! ToHexLower(System.ReadOnlySpan\u003CSystem.Byte\u003E bytes)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.Incremental.PluginOutputManifestEntry",
       "owner": "Build engine",
       "classification": "persisted-internal-format",
@@ -2828,79 +2754,6 @@
       "signature": "public static class Bukit.Engine.JsonFeedGenerator",
       "publicMembers": [
         "public static System.Void Generate(System.String! outputDir, System.String! siteUrl, System.String! baseUrl, System.String! siteTitle, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.RssGenerator.Post!\u003E! posts, System.String! feedFileName, System.Int32 maxItems = 20, System.String? siteDescription = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Output.IOutputFileSystem",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public interface Bukit.Engine.Output.IOutputFileSystem",
-      "publicMembers": [
-        "public abstract System.String! GetSafeFullPath(System.String! relativePath)",
-        "public abstract System.Threading.Tasks.Task! CopyFileAsync(System.String! sourcePath, System.String! relativePath, System.Threading.CancellationToken cancellationToken)",
-        "public abstract System.Threading.Tasks.Task! DeleteFileAsync(System.String! relativePath, System.Threading.CancellationToken cancellationToken)",
-        "public abstract System.Threading.Tasks.Task! WriteTextAsync(System.String! relativePath, System.String! content, System.Threading.CancellationToken cancellationToken)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Output.IOutputPathPolicy",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public interface Bukit.Engine.Output.IOutputPathPolicy",
-      "publicMembers": [
-        "public abstract System.String! ResolveSafePath(System.String! outputRoot, System.String! relativePath)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Output.OutputPathSecurityException",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public class Bukit.Engine.Output.OutputPathSecurityException : System.InvalidOperationException~",
-      "publicMembers": [
-        "public .ctor(System.String! message)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Output.SafeOutputFileSystem",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.Output.SafeOutputFileSystem : Bukit.Engine.Output.IOutputFileSystem~",
-      "publicMembers": [
-        "public .ctor(System.String! outputRoot, Bukit.Engine.Output.IOutputPathPolicy? pathPolicy = null)",
-        "public virtual final System.String! GetSafeFullPath(System.String! relativePath)",
-        "public virtual final System.Threading.Tasks.Task! CopyFileAsync(System.String! sourcePath, System.String! relativePath, System.Threading.CancellationToken cancellationToken)",
-        "public virtual final System.Threading.Tasks.Task! DeleteFileAsync(System.String! relativePath, System.Threading.CancellationToken cancellationToken)",
-        "public virtual final System.Threading.Tasks.Task! WriteTextAsync(System.String! relativePath, System.String! content, System.Threading.CancellationToken cancellationToken)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Output.SafePathResolver",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public class Bukit.Engine.Output.SafePathResolver : Bukit.Engine.Output.IOutputPathPolicy~",
-      "publicMembers": [
-        "public .ctor()",
-        "public virtual final System.String! ResolveSafePath(System.String! outputRoot, System.String! relativePath)"
       ],
       "protectedMembers": []
     },

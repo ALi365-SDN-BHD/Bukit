@@ -4,7 +4,7 @@ using Bukit.Shared;
 
 namespace Bukit.Engine;
 
-public sealed record DirectoryCopyOptions
+internal sealed record DirectoryCopyOptions
 {
     public string HashMode { get; init; } = "size-time";
     public bool Prune { get; init; }
@@ -20,7 +20,7 @@ internal sealed record DirectoryCopyItem(
     string RelativePath,
     string PhysicalSourceRoot);
 
-public static class DirectoryCopy
+internal static class DirectoryCopy
 {
     public static void Copy(string sourceDir, string destinationDir, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {

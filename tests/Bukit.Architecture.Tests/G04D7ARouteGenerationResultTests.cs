@@ -17,7 +17,7 @@ public sealed class G04D7ARouteGenerationResultTests
     private const string CandidateManifestBlob =
         "7b07d6890562387010b52301e9f8716e9bf10ed1";
     private const string CurrentBaselineStatement =
-        "The current public API baseline contains 478 types, including 40 `2.0-candidate` entries.";
+        "The current public API baseline contains 469 types, including 31 `2.0-candidate` entries.";
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class G04D7ARouteGenerationResultTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsTupleSignatureAnd478Types40Candidates()
+    public void CurrentBaseline_RecordsTupleSignatureAnd469Types31Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -127,8 +127,8 @@ public sealed class G04D7ARouteGenerationResultTests
             .ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(478, types.Length);
-        Assert.Equal(40, types.Count(entry =>
+        Assert.Equal(469, types.Length);
+        Assert.Equal(31, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
         Assert.DoesNotContain(types, entry =>
