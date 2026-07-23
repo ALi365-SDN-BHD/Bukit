@@ -328,3 +328,54 @@ The required single review-fix `post-change-focused.sh` invocation is run only
 after this report is updated so the report itself is in the path set. Its
 result and the independent read-only re-review are reported in the final
 handoff.
+
+## Proof-test review fix: complete recursive graph traversal
+
+The independent re-review found that the recursive no-Config proof had two
+blind spots:
+
+- the `IDictionary` branch pushed visible entries and then returned early,
+  without inspecting instance fields;
+- one `GetFields` call on the runtime type did not include private fields
+  declared by base types.
+
+No production defect or production-code change was required. A malicious test
+dictionary now exposes only ordinary entries while a private field on its base
+class retains an `AppConfig`. A separate self-referencing dictionary locks the
+cycle guard.
+
+RED command:
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+  --filter \
+  FullyQualifiedName~PluginExecutionSessionTests.ConfigGraphCheck_DetectsConfigInDictionaryBasePrivateField \
+  --no-restore --nologo --verbosity quiet
+```
+
+Result: expected exit 1; the old helper returned without detecting the hidden
+configuration, so the test's required exception was absent.
+
+The helper now:
+
+- scans dictionary entries and then continues to instance fields;
+- uses `BindingFlags.DeclaredOnly` while walking every type in the inheritance
+  chain;
+- retains reference-identity `visited` tracking before expanding collections
+  or fields, so cyclic graphs terminate.
+
+GREEN command:
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+  --filter FullyQualifiedName~PluginExecutionSessionTests \
+  --no-restore --nologo --verbosity quiet
+```
+
+Result: exit 0; 7 passed, 0 failed, 0 skipped.
+
+The one allowed proof-test `post-change-focused.sh` run is executed after this
+report update against only this report and
+`PluginExecutionSessionTests.cs`. Its result is reported in the handoff.

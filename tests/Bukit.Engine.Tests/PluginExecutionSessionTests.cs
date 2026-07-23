@@ -231,6 +231,36 @@ public sealed class PluginExecutionSessionTests
         }
     }
 
+    [Fact]
+    public void ConfigGraphCheck_DetectsConfigInDictionaryBasePrivateField()
+    {
+        var malicious = new HiddenConfigDictionary(CreateConfig("hidden"))
+        {
+            ["visible"] = "ordinary"
+        };
+        var data = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["malicious"] = malicious
+        };
+
+        var exception = Record.Exception(() => AssertDataGraphDoesNotReachConfig(data));
+
+        Assert.NotNull(exception);
+    }
+
+    [Fact]
+    public void ConfigGraphCheck_HandlesDictionaryCycles()
+    {
+        var cycle = new Dictionary<string, object>(StringComparer.Ordinal);
+        cycle["self"] = cycle;
+        var data = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["cycle"] = cycle
+        };
+
+        AssertDataGraphDoesNotReachConfig(data);
+    }
+
     private static void AssertDataGraphDoesNotReachConfig(
         IReadOnlyDictionary<string, object> data)
     {
@@ -264,11 +294,8 @@ public sealed class PluginExecutionSessionTests
                         pending.Push(entry.Value);
                     }
                 }
-
-                continue;
             }
-
-            if (value is IEnumerable enumerable)
+            else if (value is IEnumerable enumerable)
             {
                 foreach (var item in enumerable)
                 {
@@ -279,15 +306,23 @@ public sealed class PluginExecutionSessionTests
                 }
             }
 
-            foreach (var field in type.GetFields(
-                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            for (var currentType = type;
+                 currentType is not null;
+                 currentType = currentType.BaseType)
             {
-                if (field.FieldType.IsPointer || field.GetValue(value) is not { } fieldValue)
+                foreach (var field in currentType.GetFields(
+                             BindingFlags.Instance |
+                             BindingFlags.Public |
+                             BindingFlags.NonPublic |
+                             BindingFlags.DeclaredOnly))
                 {
-                    continue;
-                }
+                    if (field.FieldType.IsPointer || field.GetValue(value) is not { } fieldValue)
+                    {
+                        continue;
+                    }
 
-                pending.Push(fieldValue);
+                    pending.Push(fieldValue);
+                }
             }
         }
     }
@@ -327,4 +362,24 @@ public sealed class PluginExecutionSessionTests
             TemplateResolver = kind => $"pages/{kind}.html",
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+
+    private abstract class ConfigHoldingDictionaryBase : Dictionary<object, object>
+    {
+        private readonly AppConfig _hiddenConfig;
+
+        protected ConfigHoldingDictionaryBase(AppConfig hiddenConfig)
+        {
+            _hiddenConfig = hiddenConfig;
+        }
+
+        public override string ToString() => _hiddenConfig.Site.Name;
+    }
+
+    private sealed class HiddenConfigDictionary : ConfigHoldingDictionaryBase
+    {
+        internal HiddenConfigDictionary(AppConfig hiddenConfig)
+            : base(hiddenConfig)
+        {
+        }
+    }
 }
