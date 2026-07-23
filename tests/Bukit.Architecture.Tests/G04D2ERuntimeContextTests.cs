@@ -74,7 +74,7 @@ public sealed class G04D2ERuntimeContextTests
     }
 
     [Fact]
-    public void CurrentBaseline_ContainsFourteenAssemblies484TypesAnd57Candidates()
+    public void CurrentBaseline_ContainsFourteenAssemblies484TypesAnd56Candidates()
     {
         using var document = ReadJson(
             "docs",
@@ -85,7 +85,7 @@ public sealed class G04D2ERuntimeContextTests
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
         Assert.Equal(484, types.Length);
-        Assert.Equal(57, types.Count(entry =>
+        Assert.Equal(56, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.DoesNotContain(types, entry =>
             entry.GetProperty("assembly").GetString() == "Bukit.PluginHost" &&

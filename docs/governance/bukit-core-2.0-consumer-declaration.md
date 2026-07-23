@@ -201,7 +201,7 @@ verification.
 
 G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.
 
-The current public API baseline contains 484 types, including 57 `2.0-candidate` entries.
+The current public API baseline contains 484 types, including 56 `2.0-candidate` entries.
 It covers 14 assemblies. The closed 136-entry candidate manifest remains
 immutable with Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`; private
 consumers remain `unknown-until-voluntary-declaration`. The 2026-07-22
@@ -222,10 +222,10 @@ and exclusions.
 G-04D3B removes only the duplicate
 `Bukit.Content.Notion.NotionClientStats` CLR identity in 2.0. The internal
 legacy `NotionApiClient.GetStats()` facade now returns the canonical
-`Bukit.Notion.Transport.NotionClientStats`; the other 57 candidates are not
+`Bukit.Notion.Transport.NotionClientStats`; the other 56 candidates are not
 batch-approved.
 
-The current public API baseline contains 484 types, including 57
+The current public API baseline contains 484 types, including 56
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`. Authenticated public search found
@@ -253,7 +253,7 @@ identities are removed atomically. Direct CLR consumers must migrate to
 canonical enum ordinals, token defaults, parsing behavior, and exception
 behavior remain unchanged.
 
-The current public API baseline contains 484 types, including 57
+The current public API baseline contains 484 types, including 56
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -268,7 +268,7 @@ G-04D4B narrows only `Bukit.Shared.ValueCoercion` from public to internal in
 public identity, the existing `Bukit.Shared.Tests` friend boundary is
 unchanged, and no replacement or global conversion abstraction is added.
 
-The current public API baseline contains 484 types, including 57
+The current public API baseline contains 484 types, including 56
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -290,7 +290,7 @@ remains public and is reclassified as
 type of `CliParser.Parse`, the public input of
 `CommandDescriptor.DispatchAsync`, and an externally derivable record.
 
-The current public API baseline contains 484 types, including 57
+The current public API baseline contains 484 types, including 56
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -309,7 +309,7 @@ nested record in 2.0. `CliErrorRenderer`, `CliErrorDiagnostic`, and all public
 `RenderJson` overloads remain public; the supported external contract is the
 rendered JSON envelope, not the implementation DTO identity.
 
-The current public API baseline contains 484 types, including 57
+The current public API baseline contains 484 types, including 56
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -329,7 +329,7 @@ The type remains sealed and continues to implement Scriban's
 `ITemplateLoader` with the same constructor and three interface methods.
 `ScribanTemplateRenderer` remains the public Rendering entry point.
 
-The current public API baseline contains 484 types, including 57
+The current public API baseline contains 484 types, including 56
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -348,7 +348,7 @@ G-04D6B narrows only
 The static facade and both `PageModel`/`ListPageModel` overloads remain in
 place, and `ScribanTemplateRenderer` keeps both direct static call roots.
 
-The current public API baseline contains 484 types, including 57
+The current public API baseline contains 484 types, including 56
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -370,7 +370,7 @@ named tuple `(RouteInfo Route, RouteSource Source)`. The method name,
 parameters, optional defaults, tuple element names, public `RouteSource`
 enum, and route/source behavior remain unchanged.
 
-The current public API baseline contains 484 types, including 57
+The current public API baseline contains 484 types, including 56
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -395,7 +395,7 @@ G-04D8A narrows only
 `SectionSchemaValidator.Validate` returns
 `List<SchemaValidationError>`.
 
-The current public API baseline contains 484 types, including 57
+The current public API baseline contains 484 types, including 56
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -409,3 +409,28 @@ logger text, theme schema and source-generated JSON roots remain unchanged.
 No friend assembly is added. The
 [G-04D8A decision ledger](../analysis/bukit-core-g04d8a-theme-validation-graph-resolution-2026-07-23.zh-CN.md)
 records the exact compatibility and G3 verification boundary.
+
+## G-04D8B Theme Doctor Result
+
+G-04D8B retains the public nested
+`Bukit.Theme.ThemeDoctorCommand.DoctorResult` record and reclassifies it as
+`cross-assembly-implementation / 1.x-do-not-narrow`. Public
+`ThemeDoctorCommand.Diagnose` returns that exact type, and public
+`ThemeDoctorCommand.PrintReport` accepts it; narrowing only the companion
+record would make those public signatures inconsistent.
+
+The current public API baseline contains 484 types, including 56
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
+undisclosed consumers remain `unknown-until-voluntary-declaration`.
+
+The record remains public, nested and sealed with its original
+`bool / bool / List<string>` constructor, mutable `Issues` list and record
+reference-equality semantics. Diagnose flags, issue order and Theme doctor
+text remain unchanged. Core CLI doctor remains a separate text and integer
+exit-code pipeline, and `DoctorResult` is not added to a JSON source-generation
+root or Native AOT reflection root. No Theme, CLI, Labs, plugin, schema,
+protocol, config or persisted-format production code is changed. The
+[G-04D8B decision ledger](../analysis/bukit-core-g04d8b-theme-doctor-result-resolution-2026-07-23.zh-CN.md)
+records the exact retained decision and pending G3 verification boundary.

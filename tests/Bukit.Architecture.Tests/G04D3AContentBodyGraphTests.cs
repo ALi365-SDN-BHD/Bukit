@@ -85,7 +85,7 @@ public sealed class G04D3AContentBodyGraphTests
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
         Assert.Equal(484, currentTypes.Length);
-        Assert.Equal(57, currentTypes.Count(entry =>
+        Assert.Equal(56, currentTypes.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.All(CandidateTypeNames, typeName =>
             Assert.DoesNotContain(currentTypes, entry =>

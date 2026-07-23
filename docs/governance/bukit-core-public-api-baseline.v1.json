@@ -9169,8 +9169,8 @@
       "assembly": "Bukit.Theme",
       "name": "Bukit.Theme.ThemeDoctorCommand\u002BDoctorResult",
       "owner": "Theme runtime",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Theme.ThemeDoctorCommand.DoctorResult : System.IEquatable\u003CBukit.Theme.ThemeDoctorCommand.DoctorResult~\u003E~",
       "publicMembers": [

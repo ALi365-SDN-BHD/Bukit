@@ -108,6 +108,7 @@ public sealed class DoctorCommandTests : IDisposable
 
         Assert.Equal(0, exitCode);
         Assert.Contains("Doctor passed", output, StringComparison.OrdinalIgnoreCase);
+        AssertCoreDoctorOutputIsIndependentFromThemeDoctor(output);
     }
 
     [Fact]
@@ -144,8 +145,10 @@ public sealed class DoctorCommandTests : IDisposable
                 Array.Empty<string>()));
 
             Assert.Equal(1, exitCode);
-            Assert.Contains("Theme manifest invalid", writer.ToString(), StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("unknown", writer.ToString(), StringComparison.OrdinalIgnoreCase);
+            string output = writer.ToString();
+            Assert.Contains("Theme manifest invalid", output, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("unknown", output, StringComparison.OrdinalIgnoreCase);
+            AssertCoreDoctorOutputIsIndependentFromThemeDoctor(output);
         }
         finally
         {
@@ -803,5 +806,21 @@ public sealed class DoctorCommandTests : IDisposable
         }
     }
 
+    private static void AssertCoreDoctorOutputIsIndependentFromThemeDoctor(
+        string output)
+    {
+        Assert.DoesNotContain(
+            "═══ Theme Doctor Report ═══",
+            output,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "\"HasErrors\"",
+            output,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "\"HasWarnings\"",
+            output,
+            StringComparison.Ordinal);
+    }
 
 }

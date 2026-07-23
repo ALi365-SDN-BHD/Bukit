@@ -84,7 +84,7 @@ public sealed class G04D2GExecutionReportTests
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
         Assert.Equal(484, types.Length);
-        Assert.Equal(57, types.Count(entry =>
+        Assert.Equal(56, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.All(CandidateTypeNames, typeName =>
             Assert.DoesNotContain(types, entry =>
