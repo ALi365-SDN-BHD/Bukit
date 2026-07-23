@@ -10,7 +10,7 @@ using Bukit.Shared;
 
 namespace Bukit.Engine;
 
-public static class SeoAlternatesService
+internal static class SeoAlternatesService
 {
     internal static IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>> BuildSeoAlternates(
         AppConfig config,

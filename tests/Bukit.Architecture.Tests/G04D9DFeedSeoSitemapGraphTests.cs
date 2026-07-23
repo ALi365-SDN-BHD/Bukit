@@ -7,128 +7,82 @@ using Xunit;
 
 namespace Bukit.Architecture.Tests;
 
-public sealed class G04D9COutputFilesystemGraphTests
+public sealed class G04D9DFeedSeoSitemapGraphTests
 {
     private const string CandidateManifestBlob =
         "7b07d6890562387010b52301e9f8716e9bf10ed1";
     private const string CurrentBaselineStatement =
         "The current public API baseline contains 462 types, including 23 `2.0-candidate` entries.";
     private static readonly string RepoRoot = FindRepoRoot();
-    private static readonly string[] CandidateTypeNames =
+    private static readonly string[] InternalizedTypeNames =
     [
-        "Bukit.Engine.DirectoryCopy",
-        "Bukit.Engine.DirectoryCopyOptions",
-        "Bukit.Engine.FileWriter",
-        "Bukit.Engine.Incremental.HashUtil",
-        "Bukit.Engine.Output.IOutputFileSystem",
-        "Bukit.Engine.Output.IOutputPathPolicy",
-        "Bukit.Engine.Output.OutputPathSecurityException",
-        "Bukit.Engine.Output.SafeOutputFileSystem",
-        "Bukit.Engine.Output.SafePathResolver"
+        "Bukit.Engine.AtomFeedGenerator",
+        "Bukit.Engine.JsonFeedGenerator",
+        "Bukit.Engine.SitemapGenerator",
+        "Bukit.Engine.SitemapGenerator+Alternate",
+        "Bukit.Engine.SitemapGenerator+UrlEntry",
+        "Bukit.Engine.SeoAlternatesService",
+        "Bukit.Engine.SeoInjectionPolicy"
     ];
 
     [Fact]
-    public void OutputFilesystemTypes_ExistInternalAndNotExported()
+    public void ApprovedFeedSeoSitemapTypes_ExistButAreNotExported()
     {
-        Assembly assembly = typeof(SiteEngine).Assembly;
+        Assembly assembly = typeof(RssGenerator).Assembly;
         Type[] exported = assembly.GetExportedTypes();
 
-        foreach (string typeName in CandidateTypeNames)
+        foreach (string typeName in InternalizedTypeNames)
         {
             Type type = GetType(assembly, typeName);
-
-            Assert.True(type.IsNotPublic);
             Assert.DoesNotContain(type, exported);
+
+            if (!type.IsNested)
+            {
+                Assert.True(type.IsNotPublic);
+            }
+            else
+            {
+                Assert.True(type.DeclaringType!.IsNotPublic);
+            }
         }
     }
 
     [Fact]
-    public void OutputFilesystemTypes_KeepTheirApprovedKindsAndRelationships()
+    public void SitemapGraph_KeepsNestedRecordShapeInsideInternalParent()
     {
-        Assembly assembly = typeof(SiteEngine).Assembly;
+        Assembly assembly = typeof(RssGenerator).Assembly;
+        Type sitemap = GetType(assembly, "Bukit.Engine.SitemapGenerator");
+        Type alternate = GetType(
+            assembly,
+            "Bukit.Engine.SitemapGenerator+Alternate");
+        Type entry = GetType(
+            assembly,
+            "Bukit.Engine.SitemapGenerator+UrlEntry");
 
-        foreach (string typeName in new[]
-                 {
-                     "Bukit.Engine.DirectoryCopy",
-                     "Bukit.Engine.FileWriter",
-                     "Bukit.Engine.Incremental.HashUtil"
-                 })
-        {
-            Type type = GetType(assembly, typeName);
-            Assert.True(type.IsAbstract);
-            Assert.True(type.IsSealed);
-        }
-
-        Type options = GetType(
-            assembly,
-            "Bukit.Engine.DirectoryCopyOptions");
-        Assert.True(options.IsSealed);
-        Assert.False(options.IsAbstract);
-
-        Type outputFileSystem = GetType(
-            assembly,
-            "Bukit.Engine.Output.IOutputFileSystem");
-        Type outputPathPolicy = GetType(
-            assembly,
-            "Bukit.Engine.Output.IOutputPathPolicy");
-        Assert.True(outputFileSystem.IsInterface);
-        Assert.True(outputPathPolicy.IsInterface);
-
-        Type safeFileSystem = GetType(
-            assembly,
-            "Bukit.Engine.Output.SafeOutputFileSystem");
-        Type safePathResolver = GetType(
-            assembly,
-            "Bukit.Engine.Output.SafePathResolver");
-        Assert.Contains(outputFileSystem, safeFileSystem.GetInterfaces());
-        Assert.Contains(outputPathPolicy, safePathResolver.GetInterfaces());
-
-        Type securityException = GetType(
-            assembly,
-            "Bukit.Engine.Output.OutputPathSecurityException");
-        Assert.Equal(typeof(InvalidOperationException), securityException.BaseType);
-
-        Type destinationComparer = GetType(
-            assembly,
-            "Bukit.Engine.OutputDestinationIdentityComparer");
-        Assert.True(destinationComparer.IsNotPublic);
-        Assert.DoesNotContain(destinationComparer, assembly.GetExportedTypes());
+        Assert.True(sitemap.IsAbstract);
+        Assert.True(sitemap.IsSealed);
+        Assert.Equal(sitemap, alternate.DeclaringType);
+        Assert.Equal(sitemap, entry.DeclaringType);
+        Assert.True(alternate.IsSealed);
+        Assert.True(entry.IsSealed);
     }
 
     [Fact]
-    public void CoreOutputGraph_KeepsExpectedMemberNames()
+    public void RssGeneratorAndPost_RemainPublicWithFeedCompanionShape()
     {
-        Assembly assembly = typeof(SiteEngine).Assembly;
+        Assembly assembly = typeof(RssGenerator).Assembly;
+        Type[] exported = assembly.GetExportedTypes();
+
+        Assert.True(typeof(RssGenerator).IsPublic);
+        Assert.True(typeof(RssGenerator).IsAbstract);
+        Assert.True(typeof(RssGenerator).IsSealed);
+        Assert.True(typeof(RssGenerator.Post).IsNestedPublic);
+        Assert.Contains(typeof(RssGenerator), exported);
+        Assert.Contains(typeof(RssGenerator.Post), exported);
 
         Assert.Equal(
-            ["Copy", "Sync", "SyncFiles", "SyncFilesRecursive"],
-            GetType(assembly, "Bukit.Engine.DirectoryCopy")
-                .GetMethods(
-                    BindingFlags.Public |
-                    BindingFlags.Static |
-                    BindingFlags.DeclaredOnly)
-                .Select(method => method.Name)
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(name => name, StringComparer.Ordinal)
-                .ToArray());
-        Assert.Equal(
-            ["GetSafeFullPath", "WriteUtf8"],
-            GetType(assembly, "Bukit.Engine.FileWriter")
-                .GetMethods(
-                    BindingFlags.Public |
-                    BindingFlags.Static |
-                    BindingFlags.DeclaredOnly)
-                .Select(method => method.Name)
-                .OrderBy(name => name, StringComparer.Ordinal)
-                .ToArray());
-        Assert.Equal(
-            [
-                "Sha256Hex",
-                "Sha256HexForDirectory",
-                "ToHexLower"
-            ],
-            GetType(assembly, "Bukit.Engine.Incremental.HashUtil")
-                .GetMethods(
+            ["BuildAbsoluteUrl", "Generate", "GenerateMerged"],
+            typeof(RssGenerator).GetMethods(
                     BindingFlags.Public |
                     BindingFlags.Static |
                     BindingFlags.DeclaredOnly)
@@ -139,7 +93,7 @@ public sealed class G04D9COutputFilesystemGraphTests
     }
 
     [Fact]
-    public void CurrentBaseline_RemovesExactlyNineD9CTypes()
+    public void CurrentBaseline_RecordsSevenInternalAndOneRetained()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -155,13 +109,26 @@ public sealed class G04D9COutputFilesystemGraphTests
         Assert.Equal(23, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
-        Assert.All(CandidateTypeNames, typeName =>
+        Assert.All(InternalizedTypeNames, typeName =>
             Assert.DoesNotContain(types, entry =>
                 entry.GetProperty("name").GetString() == typeName));
+
+        JsonElement rss = Assert.Single(types, entry =>
+            entry.GetProperty("name").GetString() ==
+            "Bukit.Engine.RssGenerator");
+        Assert.Equal(
+            "cross-assembly-implementation",
+            rss.GetProperty("classification").GetString());
+        Assert.Equal(
+            "1.x-do-not-narrow",
+            rss.GetProperty("compatibility").GetString());
+        Assert.Contains(types, entry =>
+            entry.GetProperty("name").GetString() ==
+            "Bukit.Engine.RssGenerator+Post");
     }
 
     [Fact]
-    public void ClosedManifest_PreservesNineHistoricalCandidatesAndExactBlob()
+    public void ClosedManifest_PreservesEightHistoricalCandidatesAndExactBlob()
     {
         string path = Path.Combine(
             RepoRoot,
@@ -174,24 +141,26 @@ public sealed class G04D9COutputFilesystemGraphTests
         JsonElement[] candidates = root.GetProperty("candidates")
             .EnumerateArray()
             .ToArray();
+        string[] expected =
+        [
+            .. InternalizedTypeNames,
+            "Bukit.Engine.RssGenerator"
+        ];
 
         Assert.Equal("closed", root.GetProperty("declarationState").GetString());
         Assert.Equal(136, root.GetProperty("candidateCount").GetInt32());
         Assert.Equal(136, candidates.Length);
         JsonElement[] historical = candidates
-            .Where(entry => CandidateTypeNames.Contains(
+            .Where(entry => expected.Contains(
                 entry.GetProperty("fullName").GetString()!,
                 StringComparer.Ordinal))
             .ToArray();
-        Assert.Equal(9, historical.Length);
+        Assert.Equal(8, historical.Length);
         Assert.All(historical, entry =>
         {
             Assert.Equal(
                 "consumer-declaration-pending",
                 entry.GetProperty("declarationStatus").GetString());
-            Assert.Equal(
-                "unknown-until-voluntary-declaration",
-                entry.GetProperty("privateConsumerStatus").GetString());
             Assert.Equal(
                 "no-public-match-found",
                 entry.GetProperty("externalEvidence")
@@ -209,7 +178,7 @@ public sealed class G04D9COutputFilesystemGraphTests
     }
 
     [Fact]
-    public void ActiveGovernance_RecordsCurrentBaselineAndD9CDecision()
+    public void ActiveGovernance_RecordsCurrentBaselineAndD9DDecision()
     {
         foreach (string relativePath in new[]
                  {
@@ -226,12 +195,9 @@ public sealed class G04D9COutputFilesystemGraphTests
             string content = File.ReadAllText(
                 Path.Combine(RepoRoot, relativePath));
             Assert.Contains(CurrentBaselineStatement, content);
-            Assert.Contains("G-04D9C", content, StringComparison.Ordinal);
-            Assert.Contains("SafePathResolver", content, StringComparison.Ordinal);
-            Assert.Contains(
-                "OutputDestinationIdentityComparer",
-                content,
-                StringComparison.Ordinal);
+            Assert.Contains("G-04D9D", content, StringComparison.Ordinal);
+            Assert.Contains("external_unverified", content, StringComparison.Ordinal);
+            Assert.Contains("RssGenerator", content, StringComparison.Ordinal);
         }
     }
 

@@ -2,7 +2,7 @@ using System.Text;
 
 namespace Bukit.Engine;
 
-public static class AtomFeedGenerator
+internal static class AtomFeedGenerator
 {
     public static void Generate(
         string outputDir,

@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Bukit.Engine;
 
-public static class JsonFeedGenerator
+internal static class JsonFeedGenerator
 {
     public static void Generate(
         string outputDir,

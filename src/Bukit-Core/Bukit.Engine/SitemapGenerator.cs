@@ -3,7 +3,7 @@ using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 namespace Bukit.Engine;
 
-public static class SitemapGenerator
+internal static class SitemapGenerator
 {
     public sealed record Alternate(string Hreflang, string Href);
 

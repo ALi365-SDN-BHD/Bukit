@@ -2,7 +2,7 @@ using Bukit.Engine.Abstractions.Content;
 
 namespace Bukit.Engine;
 
-public static class SeoInjectionPolicy
+internal static class SeoInjectionPolicy
 {
     public static bool ShouldSkip(IReadOnlyDictionary<string, ContentField>? fields)
     {

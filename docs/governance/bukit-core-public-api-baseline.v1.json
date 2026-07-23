@@ -2340,19 +2340,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.AtomFeedGenerator",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.AtomFeedGenerator",
-      "publicMembers": [
-        "public static System.Void Generate(System.String! outputDir, System.String! siteUrl, System.String! baseUrl, System.String! siteTitle, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.RssGenerator.Post!\u003E! posts, System.String! feedFileName, System.Int32 maxItems = 20, System.String? siteDescription = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.BuildEnvironmentInfo",
       "owner": "Build engine",
       "classification": "serialized-contract",
@@ -2746,19 +2733,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.JsonFeedGenerator",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.JsonFeedGenerator",
-      "publicMembers": [
-        "public static System.Void Generate(System.String! outputDir, System.String! siteUrl, System.String! baseUrl, System.String! siteTitle, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.RssGenerator.Post!\u003E! posts, System.String! feedFileName, System.Int32 maxItems = 20, System.String? siteDescription = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.OutputDirectoryCleaner",
       "owner": "Build engine",
       "classification": "cross-assembly-implementation",
@@ -3115,8 +3089,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.RssGenerator",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public static class Bukit.Engine.RssGenerator",
       "publicMembers": [
@@ -3176,30 +3150,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.SeoAlternatesService",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.SeoAlternatesService",
-      "publicMembers": [],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.SeoInjectionPolicy",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.SeoInjectionPolicy",
-      "publicMembers": [
-        "public static System.Boolean ShouldSkip(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.ContentField!\u003E? fields)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.SiteEngine",
       "owner": "Build engine",
       "classification": "cross-assembly-implementation",
@@ -3212,70 +3162,6 @@
         "public System.Threading.Tasks.Task\u003CBukit.Engine.BuildResult!\u003E! BuildAsync(Bukit.Config.AppConfig! config, System.String! rootDir, Bukit.Config.ConfigOverrides! overrides, System.Threading.CancellationToken cancellationToken = null)",
         "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(Bukit.Engine.Abstractions.Plugins.BuildContext! context, Bukit.Engine.ThemeTemplateResolver? templateResolver = null)",
         "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, Bukit.Engine.ThemeTemplateResolver? templateResolver = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.SitemapGenerator",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.SitemapGenerator",
-      "publicMembers": [
-        "public static System.String! BuildAbsoluteUrl(System.String! siteUrl, System.String! baseUrl, System.String! url)",
-        "public static System.Void Generate(System.String! outputDir, System.String! siteUrl, System.String! baseUrl, System.Collections.Generic.IReadOnlyList\u003CSystem.ValueTuple\u003CBukit.Engine.Abstractions.Routing.RouteInfo!, System.DateTimeOffset\u003E\u003E! routes)",
-        "public static System.Void GenerateAbsolute(System.String! outputDir, System.Collections.Generic.IReadOnlyList\u003CSystem.ValueTuple\u003CSystem.String!, System.DateTimeOffset\u003E\u003E! entries)",
-        "public static System.Void GenerateAbsoluteWithAlternates(System.String! outputDir, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.SitemapGenerator.UrlEntry!\u003E! entries)",
-        "public static System.Void GenerateIndex(System.String! outputDir, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! sitemapAbsoluteUrls)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.SitemapGenerator\u002BAlternate",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.SitemapGenerator.Alternate : System.IEquatable\u003CBukit.Engine.SitemapGenerator.Alternate~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.String! Hreflang, System.String! Href)",
-        "public Bukit.Engine.SitemapGenerator.Alternate! \u003CClone\u003E$()",
-        "public System.String! Href { get; init; }",
-        "public System.String! Hreflang { get; init; }",
-        "public System.Void Deconstruct(out System.String! Hreflang, out System.String! Href)",
-        "public static System.Boolean op_Equality(Bukit.Engine.SitemapGenerator.Alternate? left, Bukit.Engine.SitemapGenerator.Alternate? right)",
-        "public static System.Boolean op_Inequality(Bukit.Engine.SitemapGenerator.Alternate? left, Bukit.Engine.SitemapGenerator.Alternate? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Engine.SitemapGenerator.Alternate? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.SitemapGenerator\u002BUrlEntry",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.SitemapGenerator.UrlEntry : System.IEquatable\u003CBukit.Engine.SitemapGenerator.UrlEntry~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.String! AbsoluteUrl, System.DateTimeOffset LastModified, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.SitemapGenerator.Alternate!\u003E? Alternates)",
-        "public Bukit.Engine.SitemapGenerator.UrlEntry! \u003CClone\u003E$()",
-        "public System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.SitemapGenerator.Alternate!\u003E? Alternates { get; init; }",
-        "public System.DateTimeOffset LastModified { get; init; }",
-        "public System.String! AbsoluteUrl { get; init; }",
-        "public System.Void Deconstruct(out System.String! AbsoluteUrl, out System.DateTimeOffset LastModified, out System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.SitemapGenerator.Alternate!\u003E? Alternates)",
-        "public static System.Boolean op_Equality(Bukit.Engine.SitemapGenerator.UrlEntry? left, Bukit.Engine.SitemapGenerator.UrlEntry? right)",
-        "public static System.Boolean op_Inequality(Bukit.Engine.SitemapGenerator.UrlEntry? left, Bukit.Engine.SitemapGenerator.UrlEntry? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Engine.SitemapGenerator.UrlEntry? other)"
       ],
       "protectedMembers": []
     },
