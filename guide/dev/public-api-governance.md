@@ -278,7 +278,7 @@ exclusions.
 G-04D3B removes only the duplicate
 `Bukit.Content.Notion.NotionClientStats` CLR identity in 2.0. The internal
 legacy `NotionApiClient.GetStats()` facade now returns the canonical
-`Bukit.Notion.Transport.NotionClientStats`; the other 0 candidates are not
+`Bukit.Notion.Transport.NotionClientStats`; the other 84 candidates are not
 batch-approved.
 
 The current public API baseline contains 443 types, including 0
