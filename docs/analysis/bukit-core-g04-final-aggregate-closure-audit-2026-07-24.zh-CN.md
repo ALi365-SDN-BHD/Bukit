@@ -13,8 +13,8 @@
 G-04 已把 AD-04 从“public 含义不清”转化为可执行治理：
 
 - historical cohort 的 136/136 个 CLR identity 均有终态；
-- 97 项不再 exported，39 项 retained public；
-- migrated、superseded、blocked 的 identity 终态均为 0；
+- 97 项不再 exported，其中 92 项为 internalized/removed、5 项为 migrated；
+- 39 项 retained public；superseded、blocked 的 identity 终态均为 0；
 - current baseline 为 14 assemblies / 443 public types / 0 candidates；
 - 443 项全部具有 owner、classification、compatibility、migration horizon 和
   public/protected member inventory；
@@ -37,12 +37,14 @@ AD-04 判定为 **closed**。依据是 443 项已全部分类、drift gate 已�
 | G-04B1/B2/B3 | `fe2af9ea`～`46c9005e` | 建立 136 项 manifest、认证搜索和声明窗口关闭规则 |
 | G-04C | `aab05364`、`3f77a738` | 单类型 deliberate removal 试点完成 |
 | G-04D1 | `bbec35aa`、`5c08c950`、`3822933a`、`21072f4f` | Notion legacy renderer/facade/extension graph 原子移除 |
-| G-04D2/D3 | `c54671fa`～`b054b471` | PluginHost 与 Content Group 1 完整关闭 |
+| G-04D2A/B | `2272156f`、`757fb149`、`27492e20`、`519eb995` | secret masker 与 error-code contract 迁移/收窄 |
+| G-04D2D～D3 | `c54671fa`～`b054b471` | PluginHost 与 Content Group 1 完整关闭 |
 | G-04D3/D4/D5 | `4f81eba1`～`7faed66a` | Content、Shared、CLI Shared Group 2 完整关闭 |
 | G-04D6/D7/D8 | `4635fc9d`～`6f10269c` | Rendering、Routing、Theme Group 3 完整关闭 |
 | 独立 P1 | `547b1728`～`729088db` | JSON Feed output path 漏洞在 G4 前独立关闭 |
+| G4 入场 | `a853cc0b`、`921f2f85`、`2439a8d6` | Theme 汇总、Engine eligibility 与 P1 后恢复点 |
 | G-04D9A～H | `df9edfc6`～`409aa4b7` | Engine 56 项：41 internalized、15 retained |
-| Task 41/42 | `3b7742ca`、`e368a72d` | 决策汇总与组级验证缺口关闭 |
+| Task 41/42 | `3b7742ca`、`e368a72d`、`2679cd6e`、`0152d9c1` | 决策汇总、验证缺口、最终台账与复审修正 |
 
 完整计划与各 owner 的逐项理由见
 [master plan](../superpowers/plans/2026-07-23-bukit-core-g04-remaining-public-surface-governance-master-plan.md)
@@ -55,23 +57,24 @@ AD-04 判定为 **closed**。依据是 443 项已全部分类、drift gate 已�
 
 ### 3.1 Assembly 汇总
 
-| Historical assembly | internalized/removed | retained-public | 合计 |
-|---|---:|---:|---:|
-| Bukit.Cli.Shared | 4 | 1 | 5 |
-| Bukit.Content | 35 | 0 | 35 |
-| Bukit.Engine | 42 | 15 | 57 |
-| Bukit.PluginHost | 8 | 8 | 16 |
-| Bukit.Rendering | 2 | 0 | 2 |
-| Bukit.Routing | 1 | 0 | 1 |
-| Bukit.Shared | 4 | 13 | 17 |
-| Bukit.Theme | 1 | 2 | 3 |
-| **合计** | **97** | **39** | **136** |
+| Historical assembly | internalized/removed | migrated | retained-public | 合计 |
+|---|---:|---:|---:|---:|
+| Bukit.Cli.Shared | 4 | 0 | 1 | 5 |
+| Bukit.Content | 34 | 1 | 0 | 35 |
+| Bukit.Engine | 42 | 0 | 15 | 57 |
+| Bukit.PluginHost | 8 | 0 | 8 | 16 |
+| Bukit.Rendering | 2 | 0 | 0 | 2 |
+| Bukit.Routing | 0 | 1 | 0 | 1 |
+| Bukit.Shared | 1 | 3 | 13 | 17 |
+| Bukit.Theme | 1 | 0 | 2 | 3 |
+| **合计** | **92** | **5** | **39** | **136** |
 
 ### 3.2 逐项投影
 
 投影规则是 exact CLR full-name membership：历史 identity 若存在于 current compiled
-baseline 则为 `retained-public`，否则为 `internalized/removed`。不存在按 simple name
-猜测、namespace 前缀匹配或文本搜索替代。
+baseline 则为 `retained-public`；不存在时，再按已批准任务决议区分
+`internalized/removed` 与 `migrated`。不存在按 simple name 猜测、namespace 前缀匹配
+或文本搜索替代。
 
 | Assembly | Historical CLR identity | 终态 |
 |---|---|---|
@@ -111,7 +114,7 @@ baseline 则为 `retained-public`，否则为 `internalized/removed`。不存在
 | `Bukit.Content` | `Bukit.Content.Notion.NotionBlockRendererRegistry` | internalized/removed |
 | `Bukit.Content` | `Bukit.Content.Notion.NotionBlockTransformer` | internalized/removed |
 | `Bukit.Content` | `Bukit.Content.Notion.NotionBlocksRenderer` | internalized/removed |
-| `Bukit.Content` | `Bukit.Content.Notion.NotionClientStats` | internalized/removed |
+| `Bukit.Content` | `Bukit.Content.Notion.NotionClientStats` | migrated |
 | `Bukit.Content` | `Bukit.Content.Notion.NotionColorPalette` | internalized/removed |
 | `Bukit.Content` | `Bukit.Content.Notion.NotionRenderContext` | internalized/removed |
 | `Bukit.Content` | `Bukit.Content.Notion.NotionRichTextRenderer` | internalized/removed |
@@ -190,16 +193,16 @@ baseline 则为 `retained-public`，否则为 `internalized/removed`。不存在
 | `Bukit.PluginHost` | `Bukit.PluginHost.ProcessRunResult` | retained-public |
 | `Bukit.Rendering` | `Bukit.Rendering.Scriban.FileTemplateLoader` | internalized/removed |
 | `Bukit.Rendering` | `Bukit.Rendering.Scriban.ScribanModelBinder` | internalized/removed |
-| `Bukit.Routing` | `Bukit.Routing.RouteGenerator+RouteGenerationResult` | internalized/removed |
+| `Bukit.Routing` | `Bukit.Routing.RouteGenerator+RouteGenerationResult` | migrated |
 | `Bukit.Shared` | `Bukit.Shared.Notion.BulletedListItemBlock` | retained-public |
 | `Bukit.Shared` | `Bukit.Shared.Notion.CalloutBlock` | retained-public |
 | `Bukit.Shared` | `Bukit.Shared.Notion.CodeBlock` | retained-public |
 | `Bukit.Shared` | `Bukit.Shared.Notion.Heading1Block` | retained-public |
 | `Bukit.Shared` | `Bukit.Shared.Notion.Heading2Block` | retained-public |
 | `Bukit.Shared` | `Bukit.Shared.Notion.Heading3Block` | retained-public |
-| `Bukit.Shared` | `Bukit.Shared.Notion.HtmlTokenizer` | internalized/removed |
-| `Bukit.Shared` | `Bukit.Shared.Notion.HtmlTokenizer+HtmlToken` | internalized/removed |
-| `Bukit.Shared` | `Bukit.Shared.Notion.HtmlTokenizer+HtmlTokenType` | internalized/removed |
+| `Bukit.Shared` | `Bukit.Shared.Notion.HtmlTokenizer` | migrated |
+| `Bukit.Shared` | `Bukit.Shared.Notion.HtmlTokenizer+HtmlToken` | migrated |
+| `Bukit.Shared` | `Bukit.Shared.Notion.HtmlTokenizer+HtmlTokenType` | migrated |
 | `Bukit.Shared` | `Bukit.Shared.Notion.ImageBlock` | retained-public |
 | `Bukit.Shared` | `Bukit.Shared.Notion.NotionBlock` | retained-public |
 | `Bukit.Shared` | `Bukit.Shared.Notion.NumberedListItemBlock` | retained-public |
@@ -236,6 +239,32 @@ baseline 则为 `retained-public`，否则为 `internalized/removed`。不存在
 
 ### 4.2 Classification / compatibility
 
+Current baseline 还按 20 个语义 owner 完整归属：
+
+| Owner | 数量 |
+|---|---:|
+| Build engine | 38 |
+| CLI contract infrastructure | 16 |
+| Canonical model and in-process engine contracts | 50 |
+| Configuration | 64 |
+| Content acquisition | 16 |
+| Core CLI | 40 |
+| External plugin host | 32 |
+| External plugin protocol | 30 |
+| Notion API endpoint contract | 1 |
+| Notion block contract | 13 |
+| Notion content adapter contract | 2 |
+| Notion conversion contract | 5 |
+| Notion diagnostics contract | 4 |
+| Notion rendering contract | 31 |
+| Notion transport contract | 6 |
+| Notion write contract | 2 |
+| Rendering and theme model | 20 |
+| Routing | 5 |
+| Shared foundation | 35 |
+| Theme runtime | 33 |
+| **合计** | **443** |
+
 | Classification | 数量 |
 |---|---:|
 | aot-serialization-surface | 3 |
@@ -262,9 +291,14 @@ executable assembly，不应被误写成 SDK。
 - G-04C 删除 `RouteInventoryInspectEntry` 旧 inspect entry；
 - D1A/D1B/D1C 删除 legacy Notion static/rendering/extension facade，并以 canonical
   client/renderer contract fixture 固定迁移路径；
+- D3B 把 legacy `Bukit.Content.Notion.NotionClientStats` 迁移到 canonical transport
+  identity；
+- D4A 把三个 Shared `HtmlTokenizer` identity 迁移到 canonical Notion conversion
+  owner；
 - D7 把 nested `RouteGenerationResult` 迁移为命名 tuple，CLI/Engine consumer 与
   baseline 同步；
-- 其余 94 个 absent identity 为经 owner graph 证明的 internalization，未删除
+- 上述 deliberate removal/migration 共 36 项，其余 61 个 absent identity 为经
+  owner graph 证明的 internalization，未删除
   wire、schema 或持久化 shape。
 
 private、未索引或未自愿声明的外部 CLR consumer 仍属于未知信息；这项限制已写入历史
@@ -324,7 +358,8 @@ Core-only Darwin arm64 证明：
 - D9D 保留 external SEO image no-fetch 与两个 `external_unverified` code；
 - D9E/D9G 保留静态 AOT registration 与 CG-019，不引入 CLR plugin SDK；
 - JSON Feed P1 是 G4 基线前独立修复，不被重复计入 visibility diff；
-- 没有新增 `InternalsVisibleTo`；
+- 没有新增 production `InternalsVisibleTo`；D2E 只向
+  `Bukit.PluginHost.Tests` 与 `Bukit.Cli.Tests` 新增两个精确 test-only friends；
 - full/release/whole-solution gates 未运行。
 
 ## 9. Pending closing proof

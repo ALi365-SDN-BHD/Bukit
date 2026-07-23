@@ -211,7 +211,9 @@ GitHub Code Search was available on 2026-07-23.
 Ordinary const-consuming binaries may retain inlined values, but source
 recompilation and public metadata/reflection consumers are breaking in 2.0.
 The six vocabulary strings and five runtime Host behaviors remain unchanged.
-No other `Bukit.PluginHost` candidate is approved.
+G-04D2B2 itself approved no other `Bukit.PluginHost` candidate; later D2
+decisions are recorded in the
+[PluginHost aggregate ledger](../analysis/bukit-core-g04d2-pluginhost-final-aggregate-closure-2026-07-23.zh-CN.md).
 
 The [G-04D2B2 decision ledger](../analysis/bukit-core-g04d2b2-plugin-host-error-codes-internalization-2026-07-23.zh-CN.md)
 records the exact visibility narrowing, governed delta, qualification boundary,

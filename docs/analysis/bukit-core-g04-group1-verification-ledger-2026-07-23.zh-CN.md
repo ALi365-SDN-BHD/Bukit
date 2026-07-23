@@ -100,7 +100,8 @@ AOT published CLI 的真实 process-plugin 路径仍可达。
   `schemaVersion` 或 raw `stdout`；
 - D3A production diff 仅四个 type accessibility 变化；
 - `NotionClientStats` 仍 public；
-- PluginHost 与 Content friendship 未扩张；
+- PluginHost 与 Content 的 production friendship 未扩张；PluginHost 仅新增 D2E
+  批准的 `Bukit.PluginHost.Tests` 与 `Bukit.Cli.Tests` 两个精确 test-only friends；
 - historical manifest blob、baseline 和禁止漂移边界均满足。
 
 ## 6. 唯一 aggregate targeted gate
