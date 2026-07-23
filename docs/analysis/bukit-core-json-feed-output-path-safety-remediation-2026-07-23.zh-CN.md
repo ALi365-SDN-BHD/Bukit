@@ -6,7 +6,7 @@
 >
 > 基线：`2.0@6f10269c515f328628955f706075d70cc3a21977`
 >
-> 状态：implementation-complete / aggregate-passed / review-pending
+> 状态：closure-complete
 
 ## 1. 问题
 
@@ -175,15 +175,42 @@ bash scripts/checks/post-change-targeted.sh
 aggregate 没有重复执行。宿主 token 只通过命令级环境隔离，不修改代码、测试或持久化
 环境。
 
-## 8. 待完成关闭证明
+## 8. 独立只读复审
 
-提交 `547b1728` 已包含 production 与两条测试，唯一 aggregate 已通过。正式关闭前还
-必须：
+独立复审范围为本任务完整 base diff，未编辑文件或重复运行 tests/gates/AOT。
 
-1. `git diff --check`；
-2. 确认 public API baseline 与 136-entry historical manifest 未变化；
-3. 完成一次独立只读复审，记录 Critical/Important/Minor；
-4. 将本台账更新为 closure-complete；
-5. 本地合并回 `2.0` 后，更新暂停中的 G4 branch 基线。
+结果：
 
-在独立复审完成前，本任务不能标记关闭。
+```text
+Critical:  0
+Important: 0
+Minor:     0
+```
+
+复审确认：
+
+- safe path resolution 发生在任何目录创建或文件打开之前；
+- traversal、rooted/absolute path 和 output root 内既有逃逸 symlink/reparse segment
+  由既有 `SafePathResolver` 处理；
+- production 只有一行变化；
+- JSON writer、缩进、字段顺序、feed/home URL、排序和 `_bukit` shape 无变化；
+- direct sink 与 aggregate config chain 测试均真实进入 writer，不是提前返回；
+- 临时目录唯一并在 `finally` 清理；
+- 没有 schema、协议、其他 writer/path tool、Labs 或插件漂移；
+- public API baseline 仍为 `14/484/56`；
+- historical manifest 仍为 `136/136`，blob 未变；
+- `git diff --check` 通过。
+
+残余风险仅为既有全局 path policy 边界：output root 本身是可信根，且路径校验与文件
+打开之间不是无竞态 filesystem 原子操作。本次 diff 没有扩大该风险；扩展为 dirfd、
+handle-relative 或全局 atomic writer 必须另立架构/安全任务。
+
+## 9. 关闭判定
+
+production 修复、RED/GREEN、两条安全回归、35 项 feed/representation owner tests、
+1597 项 focused owner tests、唯一 aggregate targeted gate、静态 baseline/manifest
+复核和独立 `0/0/0` 复审均已完成。
+
+本任务正式判定为 `closure-complete`，可以本地合并回 `2.0`。合并后应更新暂停中的
+G4 branch `GROUP_BASE`，再继续 G-04D9 Task 33；不得把本独立 P1 修复计入 G4
+visibility aggregate diff。
