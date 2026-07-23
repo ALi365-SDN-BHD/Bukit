@@ -64,7 +64,7 @@ public sealed class G04D2DPermissionGraphTests
     }
 
     [Fact]
-    public void CurrentBaseline_ContainsFourteenAssemblies497TypesAnd85Candidates()
+    public void CurrentBaseline_ContainsFourteenAssemblies496TypesAnd84Candidates()
     {
         using var document = ReadJson(
             "docs",
@@ -74,8 +74,8 @@ public sealed class G04D2DPermissionGraphTests
         var types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(497, types.Length);
-        Assert.Equal(85, types.Count(entry =>
+        Assert.Equal(496, types.Length);
+        Assert.Equal(84, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.All(CandidateTypeNames, candidateTypeName =>
             Assert.DoesNotContain(types, entry =>

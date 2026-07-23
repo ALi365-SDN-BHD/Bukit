@@ -48,7 +48,7 @@ public sealed class NotionApiClientTests
         using var doc1 = await client.GetAsync("https://api.notion.com/v1/databases/db", CancellationToken.None);
         using var doc2 = await client.GetAsync("https://api.notion.com/v1/databases/db", CancellationToken.None);
 
-        var stats = client.GetStats();
+        Bukit.Notion.Transport.NotionClientStats stats = client.GetStats();
         Assert.True(doc1.RootElement.TryGetProperty("ok", out var ok1) && ok1.ValueKind == JsonValueKind.True);
         Assert.True(doc2.RootElement.TryGetProperty("ok", out var ok2) && ok2.ValueKind == JsonValueKind.True);
         Assert.Equal(2, handler.RequestCount);
@@ -91,10 +91,15 @@ public sealed class NotionApiClientTests
         });
 
         using var doc = await client.GetAsync("https://api.notion.com/v1/databases/db", CancellationToken.None);
+        Bukit.Notion.Transport.NotionClientStats stats = client.GetStats();
+
         Assert.True(doc.RootElement.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True);
         Assert.Equal(2, handler.RequestCount);
         Assert.Single(delays);
         Assert.Equal(2000, delays[0]);
+        Assert.Equal(2, stats.RequestCount);
+        Assert.Equal(0, stats.ThrottleWaitCount);
+        Assert.Equal(0, stats.ThrottleWaitTotalMs);
     }
 
     [Fact]

@@ -315,7 +315,6 @@ public sealed class NotionBoundaryTests
     private static readonly string[] LegacyContentNotionTypes =
     [
         "Bukit.Content.Notion.NotionApiClient",
-        "Bukit.Content.Notion.NotionClientStats",
         "Bukit.Content.Notion.NotionContentProvider",
         "Bukit.Content.Notion.NotionPropertyParser",
         "Bukit.Content.Notion.NotionProviderOptions"

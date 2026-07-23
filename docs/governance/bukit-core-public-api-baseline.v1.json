@@ -2308,30 +2308,6 @@
     },
     {
       "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.NotionClientStats",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.Notion.NotionClientStats : System.IEquatable\u003CBukit.Content.Notion.NotionClientStats~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.Int64 RequestCount, System.Int64 ThrottleWaitCount, System.Int64 ThrottleWaitTotalMs)",
-        "public Bukit.Content.Notion.NotionClientStats! \u003CClone\u003E$()",
-        "public System.Int64 RequestCount { get; init; }",
-        "public System.Int64 ThrottleWaitCount { get; init; }",
-        "public System.Int64 ThrottleWaitTotalMs { get; init; }",
-        "public System.Void Deconstruct(out System.Int64 RequestCount, out System.Int64 ThrottleWaitCount, out System.Int64 ThrottleWaitTotalMs)",
-        "public static System.Boolean op_Equality(Bukit.Content.Notion.NotionClientStats? left, Bukit.Content.Notion.NotionClientStats? right)",
-        "public static System.Boolean op_Inequality(Bukit.Content.Notion.NotionClientStats? left, Bukit.Content.Notion.NotionClientStats? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Content.Notion.NotionClientStats? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
       "name": "Bukit.Content.Notion.NotionContentProvider",
       "owner": "Content acquisition",
       "classification": "cross-assembly-implementation",

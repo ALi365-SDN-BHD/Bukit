@@ -6,7 +6,6 @@ internal static class LegacyNotionConsumerFixture
     internal static readonly Type[] PublicTypes =
     [
         typeof(Bukit.Content.Notion.NotionApiClient),
-        typeof(Bukit.Content.Notion.NotionClientStats),
         typeof(Bukit.Content.Notion.NotionContentProvider),
         typeof(Bukit.Content.Notion.NotionPropertyParser),
         typeof(Bukit.Content.Notion.NotionProviderOptions)

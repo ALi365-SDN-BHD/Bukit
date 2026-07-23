@@ -201,7 +201,7 @@ verification.
 
 G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.
 
-The current public API baseline contains 497 types, including 85 `2.0-candidate` entries.
+The current public API baseline contains 496 types, including 84 `2.0-candidate` entries.
 It covers 14 assemblies. The closed 136-entry candidate manifest remains
 immutable with Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`; private
 consumers remain `unknown-until-voluntary-declaration`. The 2026-07-22
@@ -216,3 +216,25 @@ No other `Bukit.PluginHost` candidate is approved.
 The [G-04D2B2 decision ledger](../analysis/bukit-core-g04d2b2-plugin-host-error-codes-internalization-2026-07-23.zh-CN.md)
 records the exact visibility narrowing, governed delta, qualification boundary,
 and exclusions.
+
+## G-04D3B Notion Client Stats
+
+G-04D3B removes only the duplicate
+`Bukit.Content.Notion.NotionClientStats` CLR identity in 2.0. The internal
+legacy `NotionApiClient.GetStats()` facade now returns the canonical
+`Bukit.Notion.Transport.NotionClientStats`; the other 84 candidates are not
+batch-approved.
+
+The current public API baseline contains 496 types, including 84
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`. Authenticated public search found
+no reviewed match for the removed full name, but private, unindexed, and
+undisclosed direct consumers remain unknown.
+
+This 2.0 migration is source, binary, and reflection breaking for direct
+consumers of the legacy CLR identity. It does not change request/throttle
+counters, retry, rate limits, Notion API behavior, transport lifetime, or
+public `NotionApiClient` members. The
+[G-04D3B decision ledger](../analysis/bukit-core-g04d3b-notion-client-stats-resolution-2026-07-23.zh-CN.md)
+records the exact replacement and G2 verification boundary.
