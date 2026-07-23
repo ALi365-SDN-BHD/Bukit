@@ -2,7 +2,7 @@
 
 日期：2026-07-23
 基线：`2.0@f7b5bcf2fd9ad2deae71d90930bb7b286a8cc51c`
-状态：实施中；最终状态以最新 handoff/controller 为准
+状态：verification ledger complete；正式关闭状态以最新 handoff/controller 为准
 
 ## 1. 明确批准与原子范围
 
@@ -130,6 +130,22 @@ release-artifact smoke。
 | canonical test ownership migration | focused：Notion 323 / Content 460，全部通过 |
 | five-type atomic removal | focused：Architecture 119 / Content 460，全部通过 |
 | current public API baseline | snapshot 已生成 14 assemblies / 509 types / 105 candidates |
-| owner tests / cross-boundary builds | 待执行 |
-| parent aggregate | 待执行 |
+| owner tests | Architecture 122 / Content 460 / Notion 323 / Content.Notion 6，全部通过 |
+| cross-boundary Release builds | Core / Labs / plugins，全部通过，0 warnings / 0 errors |
+| public API drift | self-test 与真实 Release check 均通过；14 assemblies / 509 types / 105 candidates |
+| parent aggregate | 首次有效执行的最终退出证据因调用句柄丢失而不可判定；经用户明确批准的 replacement aggregate 在非沙箱环境退出码 0，Content 460 / Architecture 122 / Notion 323 及后续门禁全部通过 |
 | independent whole-diff review | 最终状态由最新 handoff/controller 决定；本台账不冻结瞬时 review 状态 |
+
+### 7.1 Aggregate 执行历史
+
+- 第一次尝试使用 macOS Bash 3.2 不支持的 `mapfile`，在变更路径传入前即终止并报告
+  `No changed paths detected`；该次是 setup/no-op，不构成 aggregate 执行。
+- 随后的首次有效 aggregate 已进入门禁，但调用层未保留可轮询的 session handle，
+  因而最终退出码与尾部输出不可恢复；该次证据保持为不可判定，不标记通过。
+- 用户随后明确批准一次 replacement aggregate。该次在非沙箱环境按同一 parent base
+  `f7b5bcf2fd9ad2deae71d90930bb7b286a8cc51c` 和完整 21 项变更路径执行，
+  最终退出码为 `0`。除受影响测试外，code-analysis ratchet、public API drift、
+  文档与 CLI 契约、brainstorm server self-test、YAML static-context determinism
+  等后续门禁均通过。
+- replacement aggregate 是本任务唯一可作为 parent aggregate PASS 的正式证据；
+  不以其覆盖或改写此前不可判定的执行历史，也不再重复运行 aggregate。
