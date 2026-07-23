@@ -161,7 +161,7 @@ public sealed record SchemaValidationError(string Section, string Message)
     public override string ToString() => $"{Section}: {Message}";
 }
 
-public sealed class SchemaValidationException : Exception
+internal sealed class SchemaValidationException : Exception
 {
     public SchemaValidationException(string message) : base(message) { }
 }

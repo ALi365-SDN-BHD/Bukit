@@ -104,8 +104,8 @@ public sealed class G04D2FProcessGraphTests
         var types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(485, types.Length);
-        Assert.Equal(59, types.Count(entry =>
+        Assert.Equal(484, types.Length);
+        Assert.Equal(57, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
 
         foreach (Type type in RetainedTypes)

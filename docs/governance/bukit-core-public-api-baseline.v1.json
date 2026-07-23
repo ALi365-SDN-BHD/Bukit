@@ -8904,8 +8904,8 @@
       "assembly": "Bukit.Theme",
       "name": "Bukit.Theme.SchemaValidationError",
       "owner": "Theme runtime",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Theme.SchemaValidationError : System.IEquatable\u003CBukit.Theme.SchemaValidationError~\u003E~",
       "publicMembers": [
@@ -8920,19 +8920,6 @@
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
         "public virtual final System.Boolean Equals(Bukit.Theme.SchemaValidationError? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Theme",
-      "name": "Bukit.Theme.SchemaValidationException",
-      "owner": "Theme runtime",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Theme.SchemaValidationException : System.Exception~",
-      "publicMembers": [
-        "public .ctor(System.String! message)"
       ],
       "protectedMembers": []
     },
