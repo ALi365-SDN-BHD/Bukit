@@ -6,7 +6,7 @@
 
 `GROUP_BASE`：`b4a60b7ebeef34eda9f53e72a10a76ebc10c8544`
 
-状态：`verification-in-progress / aggregate-pending`
+状态：`verification-in-progress / second-replacement-aggregate-pending`
 
 ## 1. 关闭范围
 
@@ -89,9 +89,23 @@ Core-only Darwin arm64 证明：
 
 ## 5. 唯一 aggregate targeted gate
 
-G3 aggregate 尚未执行。执行前必须把 `GROUP_BASE..HEAD` 的全部 tracked paths 与本台账
-纳入一次 `post-change-targeted.sh --base`；先做独立 whitespace/JSON/manifest 静态
-预检，避免用已知格式问题消费唯一 aggregate。
+G3 aggregate 调用记录：
+
+1. 初始 wrapper 使用 zsh 特殊变量名 `path` 收集 48 个路径，覆盖了 shell `PATH`，
+   因而在 `/bin/bash` 启动前以 `command not found` 退出；没有运行任何 gate；
+2. 首个实际 aggregate 覆盖 48 个路径，在 `Bukit.Engine.Tests` 因宿主
+   `NOTION_TOKEN` 污染而得到 1594 passed / 1 failed；同一项目此前以
+   `env -u NOTION_TOKEN` 得到 1595/1595；
+3. 经用户批准的 replacement aggregate 以命令级 `env -u NOTION_TOKEN` 执行，
+   六个 owner projects、docs consistency 和 `dotnet format` 均通过，随后
+   code-analysis ratchet 报告本组新增一个 `IDE0042`：
+   `RouteInventoryValidator` 对 D7 新 named tuple 仍使用临时 result；
+4. 只把该消费点改为 `(route, source)` 解构，不改返回、source 文本或路由行为。
+   修正后直接 code-analysis ratchet 为 style `586/593`、analyzers `323/326`，
+   Engine tests 再次为 1595/1595。
+
+根据“一次 aggregate”约束，第二次 replacement 必须取得用户明确批准；在此之前不能把
+局部 owner proof 写成完整 aggregate 通过。
 
 ## 6. 独立轻量复审
 
@@ -100,5 +114,6 @@ G3 aggregate 尚未执行。执行前必须把 `GROUP_BASE..HEAD` 的全部 trac
 
 ## 7. 当前关闭判定
 
-Implementation、owner tests、public API drift 与 Native AOT 已完成。G3 仍处于
-`aggregate-pending`，在唯一 aggregate 与独立复审完成前不得标记关闭或合并回 `2.0`。
+Implementation、owner tests、public API drift、Native AOT 与新增 style diagnostic
+修复已完成。G3 仍处于 `second-replacement-aggregate-pending`，在获批 aggregate 与
+独立复审完成前不得标记关闭或合并回 `2.0`。

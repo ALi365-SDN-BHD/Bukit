@@ -83,8 +83,12 @@ public static class RouteInventoryValidator
     public static (RouteInfo Route, string Source) GenerateRouteWithSource(ContentDocument document, SiteConfig site)
     {
         var collections = BuildCollectionRules(site);
-        var result = RouteGenerator.GenerateWithSource(document, site.OutputPathEncoding, site.Permalinks, collections);
-        return (result.Route, result.Source.ToString());
+        var (route, source) = RouteGenerator.GenerateWithSource(
+            document,
+            site.OutputPathEncoding,
+            site.Permalinks,
+            collections);
+        return (route, source.ToString());
     }
 
     internal static IReadOnlyDictionary<string, RouteGenerator.CollectionRouteRule>? BuildCollectionRules(SiteConfig site)
