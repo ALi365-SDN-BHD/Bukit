@@ -63,7 +63,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var derived = new RelatedContentPlugin().DerivePages(ctx);
+        var derived = new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
         Assert.Empty(derived);
     }
 
@@ -101,7 +101,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin().DerivePages(ctx);
+        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
         var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
@@ -144,7 +144,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin().DerivePages(ctx);
+        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
         var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
@@ -180,7 +180,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin().DerivePages(ctx);
+        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.False(ctx.Data.TryGetValue("__related_pages", out var val)
             && val is Dictionary<string, List<object>> d && d.Count > 0);
@@ -204,7 +204,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var derived = new RelatedContentPlugin().DerivePages(ctx);
+        var derived = new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
         Assert.Empty(derived);
     }
 
@@ -236,7 +236,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin().DerivePages(ctx);
+        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.False(ctx.Data.TryGetValue("__related_pages", out var d)
             && d is Dictionary<string, List<object>> dict
@@ -272,7 +272,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin().DerivePages(ctx);
+        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
         var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
@@ -308,7 +308,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin().DerivePages(ctx);
+        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.False(ctx.Data.TryGetValue("__related_pages", out var val)
             && val is Dictionary<string, List<object>> d && d.Values.Any(v => v.Count > 0));

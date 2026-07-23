@@ -35,7 +35,7 @@ public sealed class MenuPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new MenuPlugin().AfterBuild(ctx);
+            new MenuPlugin(ctx.Config).AfterBuild(ctx);
             Assert.False(File.Exists(Path.Combine(outDir, "menus.json")));
             Assert.False(ctx.Data.ContainsKey("menus"));
         }
@@ -77,7 +77,7 @@ public sealed class MenuPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new MenuPlugin().AfterBuild(ctx);
+            new MenuPlugin(ctx.Config).AfterBuild(ctx);
 
             Assert.True(ctx.Data.ContainsKey("menus"));
             var jsonPath = Path.Combine(outDir, "menus.json");
@@ -132,7 +132,7 @@ public sealed class MenuPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new MenuPlugin().AfterBuild(ctx);
+            new MenuPlugin(ctx.Config).AfterBuild(ctx);
 
             var json = File.ReadAllText(Path.Combine(outDir, "menus.json"));
             Assert.Contains("\"children\"", json);
@@ -174,7 +174,7 @@ public sealed class MenuPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new MenuPlugin().AfterBuild(ctx);
+            new MenuPlugin(ctx.Config).AfterBuild(ctx);
 
             var json = File.ReadAllText(Path.Combine(outDir, "menus.json"));
             Assert.Contains("\"main\"", json);

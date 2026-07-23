@@ -74,7 +74,7 @@ public sealed class ArchivePluginTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new ArchivePlugin();
+        var plugin = new ArchivePlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.NotNull(derived);
@@ -103,7 +103,7 @@ public sealed class ArchivePluginTests
             (news, new RouteInfo("/news/news-1/", "news/news-1/index.html", "news.html"))
         ], "news");
 
-        var derived = new ArchivePlugin().DerivePages(context);
+        var derived = new ArchivePlugin(context.Config).DerivePages(context);
 
         Assert.Contains(derived, item => item.Route.Url == "/news/archive/");
         Assert.All(derived, item => Assert.Equal("news", ContentFieldReader.GetCollection(item.Document)));
@@ -125,7 +125,7 @@ public sealed class ArchivePluginTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new ArchivePlugin();
+        var plugin = new ArchivePlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2024/");
@@ -137,7 +137,7 @@ public sealed class ArchivePluginTests
     {
         var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>());
 
-        var plugin = new ArchivePlugin();
+        var plugin = new ArchivePlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.NotNull(derived);
@@ -153,7 +153,7 @@ public sealed class ArchivePluginTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new ArchivePlugin();
+        var plugin = new ArchivePlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         var yearPage = Assert.Single(derived, x => x.Route.Url == "/blog/archive/2024/");
@@ -173,7 +173,7 @@ public sealed class ArchivePluginTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new ArchivePlugin();
+        var plugin = new ArchivePlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2023/");
@@ -191,7 +191,7 @@ public sealed class ArchivePluginTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new ArchivePlugin();
+        var plugin = new ArchivePlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Equal(3, derived.Count);
@@ -240,7 +240,7 @@ public sealed class ArchivePluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var derived = new ArchivePlugin().DerivePages(ctx);
+        var derived = new ArchivePlugin(ctx.Config).DerivePages(ctx);
 
         var index = Assert.Single(derived, x => x.Route.Url == "/Blog Posts/archive/");
         Assert.Equal("Blog%20Posts/archive/index.html", index.Route.OutputPath);

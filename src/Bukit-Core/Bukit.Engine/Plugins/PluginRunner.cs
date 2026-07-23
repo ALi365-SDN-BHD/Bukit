@@ -22,6 +22,16 @@ public static class PluginRunner
 
     internal static CollectedHtmlTransforms CollectHtmlTransforms(
         BuildContext context,
+        AppConfig config,
+        BuildExecutionMode executionMode)
+        => CollectHtmlTransforms(
+            context,
+            executionMode,
+            PluginExecutionPolicy.From(config.Site),
+            PluginRegistry.GetAllPlugins(context, config).Select(item => item.Plugin));
+
+    internal static CollectedHtmlTransforms CollectHtmlTransforms(
+        BuildContext context,
         BuildExecutionMode executionMode,
         IEnumerable<IBukitPlugin> plugins)
         => CollectHtmlTransforms(
@@ -74,14 +84,24 @@ public static class PluginRunner
     public static IReadOnlyList<string> CollectTemplateRequirementKinds(BuildContext context)
         => CollectTemplateRequirementKinds(
             context,
-            PluginExecutionPolicy.From(context.Config.Site));
+            PluginExecutionPolicy.From(context.Config.Site),
+            PluginRegistry.GetAllPlugins(context));
 
     internal static IReadOnlyList<string> CollectTemplateRequirementKinds(
         BuildContext context,
-        PluginExecutionPolicy policy)
+        AppConfig config)
+        => CollectTemplateRequirementKinds(
+            context,
+            PluginExecutionPolicy.From(config.Site),
+            PluginRegistry.GetAllPlugins(context, config));
+
+    internal static IReadOnlyList<string> CollectTemplateRequirementKinds(
+        BuildContext context,
+        PluginExecutionPolicy policy,
+        IEnumerable<(IBukitPlugin Plugin, string Source)> plugins)
     {
         var kinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (plugin, _) in GetOrderedPlugins(context))
+        foreach (var (plugin, _) in GetOrderedPlugins(plugins))
         {
             if (!policy.IsPluginEnabled(plugin.Name))
             {
@@ -120,10 +140,31 @@ public static class PluginRunner
             PluginExecutionPolicy.From(context.Config.Site),
             cancellationToken);
 
+    internal static Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
+        BuildContext context,
+        AppConfig config,
+        CancellationToken cancellationToken = default)
+        => RunDerivePagesAsync(
+            context,
+            PluginExecutionPolicy.From(config.Site),
+            PluginRegistry.GetAllPlugins(context, config),
+            cancellationToken);
+
     internal static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
         BuildContext context,
         PluginExecutionPolicy policy,
         CancellationToken cancellationToken = default)
+        => await RunDerivePagesAsync(
+            context,
+            policy,
+            PluginRegistry.GetAllPlugins(context),
+            cancellationToken);
+
+    private static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
+        BuildContext context,
+        PluginExecutionPolicy policy,
+        IEnumerable<(IBukitPlugin Plugin, string Source)> plugins,
+        CancellationToken cancellationToken)
     {
         var derived = new List<RoutedContentDocument>();
         var contentRouteUrls = new HashSet<string>(context.RoutedDocuments.Select(x => NormalizeUrl(x.Route.Url)), StringComparer.OrdinalIgnoreCase);
@@ -131,7 +172,7 @@ public static class PluginRunner
         var usedRouteUrls = new HashSet<string>(contentRouteUrls, StringComparer.OrdinalIgnoreCase);
         var usedOutputPaths = new HashSet<string>(contentOutputPaths, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (plugin, _) in GetOrderedPlugins(context))
+        foreach (var (plugin, _) in GetOrderedPlugins(plugins))
         {
             if (!policy.IsPluginEnabled(plugin.Name))
             {
@@ -335,12 +376,33 @@ public static class PluginRunner
             PluginExecutionPolicy.From(context.Config.Site),
             cancellationToken);
 
+    internal static Task RunAfterBuildAsync(
+        BuildContext context,
+        AppConfig config,
+        CancellationToken cancellationToken = default)
+        => RunAfterBuildAsync(
+            context,
+            PluginExecutionPolicy.From(config.Site),
+            PluginRegistry.GetAllPlugins(context, config),
+            cancellationToken);
+
     internal static async Task RunAfterBuildAsync(
         BuildContext context,
         PluginExecutionPolicy policy,
         CancellationToken cancellationToken = default)
+        => await RunAfterBuildAsync(
+            context,
+            policy,
+            PluginRegistry.GetAllPlugins(context),
+            cancellationToken);
+
+    private static async Task RunAfterBuildAsync(
+        BuildContext context,
+        PluginExecutionPolicy policy,
+        IEnumerable<(IBukitPlugin Plugin, string Source)> plugins,
+        CancellationToken cancellationToken)
     {
-        foreach (var (plugin, _) in GetOrderedPlugins(context))
+        foreach (var (plugin, _) in GetOrderedPlugins(plugins))
         {
             if (!policy.IsPluginEnabled(plugin.Name))
             {
@@ -386,9 +448,10 @@ public static class PluginRunner
         }
     }
 
-    private static IEnumerable<(IBukitPlugin Plugin, string Source)> GetOrderedPlugins(BuildContext context)
+    private static IEnumerable<(IBukitPlugin Plugin, string Source)> GetOrderedPlugins(
+        IEnumerable<(IBukitPlugin Plugin, string Source)> plugins)
     {
-        return PluginRegistry.GetAllPlugins(context)
+        return plugins
             .OrderBy(x => GetOrder(x.Plugin))
             .ThenBy(x => x.Plugin.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.Plugin.Version, StringComparer.OrdinalIgnoreCase);

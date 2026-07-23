@@ -196,7 +196,7 @@ public sealed class SearchIndexPluginExtendedTests
             };
             context.SeoIndex = seoIndex;
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(context.Config);
             plugin.AfterBuild(context);
 
             var indexPath = Path.Combine(tempDir, "search.json");
@@ -249,7 +249,7 @@ public sealed class SearchIndexPluginExtendedTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new SearchIndexPlugin().AfterBuild(context);
+            new SearchIndexPlugin(context.Config).AfterBuild(context);
 
             using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
             Assert.Equal("abc", Assert.Single(doc.RootElement.EnumerateArray()).GetProperty("content").GetString());
@@ -306,7 +306,7 @@ public sealed class SearchIndexPluginExtendedTests
             context.DerivedDocuments.Add(new RoutedContentDocument(CreateItem("d1", "Derived Item", "derived", "<p>Derived content</p>").ToDocument(), derivedRoute));
             context.DerivedRoutes.Add((derivedRoute, DateTimeOffset.UtcNow));
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(context.Config);
             plugin.AfterBuild(context);
 
             var indexPath = Path.Combine(tempDir, "search.json");
@@ -365,7 +365,7 @@ public sealed class SearchIndexPluginExtendedTests
             context.SeoIndex = seoIndex;
             context.DerivedDocuments.Add(new RoutedContentDocument(CreateItem("d1", "Derived Item", "derived", "<p>Derived content</p>").ToDocument(), derivedRoute));
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(context.Config);
             plugin.AfterBuild(context);
 
             var indexPath = Path.Combine(tempDir, "search.json");
@@ -412,7 +412,7 @@ public sealed class SearchIndexPluginExtendedTests
             };
             context.SeoIndex = new Dictionary<string, SeoIndexEntry>();
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(context.Config);
             plugin.AfterBuild(context);
 
             var indexPath = Path.Combine(tempDir, "search.json");
@@ -504,7 +504,7 @@ public sealed class SearchIndexPluginExtendedTests
                 }
             };
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(context.Config);
             plugin.AfterBuild(context);
 
             using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));

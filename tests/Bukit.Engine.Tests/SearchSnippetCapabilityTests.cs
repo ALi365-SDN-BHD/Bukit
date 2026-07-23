@@ -47,7 +47,7 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
                                                                         """);
 
         var context = CreateContext();
-        new SearchIndexPlugin().AfterBuild(context);
+        new SearchIndexPlugin(context.Config).AfterBuild(context);
 
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(_outputDir, "search.json")));
         var item = doc.RootElement[0];

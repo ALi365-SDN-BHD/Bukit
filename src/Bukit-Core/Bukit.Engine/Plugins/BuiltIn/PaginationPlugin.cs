@@ -10,12 +10,20 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateRequirementPlugin
 {
+    private readonly AppConfig _config;
+
+    internal PaginationPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "pagination";
     public string Version => "2.0.0";
 
     public IReadOnlyList<string> GetTemplateRequirementKinds(BuildContext context)
     {
-        var paginationCollection = ResolvePaginationCollection(context.Config);
+        var paginationCollection = ResolvePaginationCollection(_config);
         if (paginationCollection is null || string.IsNullOrWhiteSpace(paginationCollection.Value.Config.ListRoute))
         {
             return Array.Empty<string>();
@@ -33,7 +41,7 @@ internal sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemp
 
     public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
-        var paginationCollection = ResolvePaginationCollection(context.Config);
+        var paginationCollection = ResolvePaginationCollection(_config);
         if (paginationCollection is null || string.IsNullOrWhiteSpace(paginationCollection.Value.Config.ListRoute))
         {
             return Array.Empty<RoutedContentDocument>();
@@ -73,7 +81,7 @@ internal sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemp
             var listUrl = RoutePathBuilder.NormalizeListRoute(listRoute);
             var html = BuildPageHtml(prefix, listUrl, slice, page, totalPages);
             var url = $"{listUrl}page/{page}/";
-            var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, context.Config.Site.OutputPathEncoding);
+            var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, _config.Site.OutputPathEncoding);
             var route = new RouteInfo(url, outputPath, routeTemplate);
             var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {

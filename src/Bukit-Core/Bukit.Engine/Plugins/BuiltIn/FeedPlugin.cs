@@ -5,24 +5,32 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Engine.Abstractions.Plugins;
 internal sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
 {
+    private readonly AppConfig _config;
+
+    internal FeedPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "feed";
     public string Version => "3.0.0";
 
     public void AfterBuild(BuildContext context)
     {
-        var siteUrl = context.Config.Site.Url;
+        var siteUrl = _config.Site.Url;
         if (string.IsNullOrWhiteSpace(siteUrl))
         {
             return;
         }
 
-        var feedConfig = context.Config.Site.Feed;
+        var feedConfig = _config.Site.Feed;
         var formats = ParseFormats(feedConfig.Formats);
         var limit = feedConfig.Limit > 0 ? feedConfig.Limit : 20;
-        var collections = context.Config.Site.Collections;
+        var collections = _config.Site.Collections;
 
-        var isMergedMode = context.Config.Site.Languages is { Count: > 0 }
-            && SiteModeResolver.ResolveFeedMode(context.Config.Site) == "merged";
+        var isMergedMode = _config.Site.Languages is { Count: > 0 }
+            && SiteModeResolver.ResolveFeedMode(_config.Site) == "merged";
 
         if (isMergedMode)
         {
@@ -32,10 +40,19 @@ internal sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
         var allPosts = RssGenerator.CollectAllPosts(
             collections, context.RoutedDocuments, context.BodyStore, context.ContentGraph, context.SeoIndex, siteUrl, context.BaseUrl);
 
-        GenerateGlobalFeeds(context.OutputDir, siteUrl, context.BaseUrl, context.Config.Site.Title,
-            allPosts, formats, limit, feedConfig.Path, context.Config.Site.Description);
+        GenerateGlobalFeeds(context.OutputDir, siteUrl, context.BaseUrl, _config.Site.Title,
+            allPosts, formats, limit, feedConfig.Path, _config.Site.Description);
 
-        GeneratePerCollectionFeeds(context, collections, siteUrl, allPosts, formats, limit, feedConfig.Path);
+        GeneratePerCollectionFeeds(
+            context,
+            collections,
+            siteUrl,
+            allPosts,
+            formats,
+            limit,
+            feedConfig.Path,
+            _config.Site.Title,
+            _config.Site.Description);
     }
 
     private static void GenerateGlobalFeeds(
@@ -75,7 +92,9 @@ internal sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
         List<RssGenerator.Post> allPosts,
         IReadOnlySet<string> formats,
         int limit,
-        string fallbackPath)
+        string fallbackPath,
+        string siteTitle,
+        string? siteDescription)
     {
         if (collections is null || collections.Count == 0)
         {
@@ -90,8 +109,8 @@ internal sealed class FeedPlugin : IBukitPlugin, IAfterBuildPlugin
             }
 
             var feedBase = cfg.Output.FeedPath ?? $"{fallbackPath}/{key}";
-            var title = cfg.Output.FeedTitle ?? context.Config.Site.Title;
-            var description = cfg.Output.FeedDescription ?? context.Config.Site.Description;
+            var title = cfg.Output.FeedTitle ?? siteTitle;
+            var description = cfg.Output.FeedDescription ?? siteDescription;
 
             var collectionPosts = RssGenerator.CollectPosts(
                 collections, context.RoutedDocuments, context.BodyStore, context.ContentGraph, context.SeoIndex, siteUrl, context.BaseUrl, key);

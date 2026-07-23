@@ -77,6 +77,7 @@ internal sealed class AnalyticsBuildState
 
     internal static AnalyticsBuildState GetOrCreate(
         BuildContext context,
+        AppConfig config,
         BuildExecutionMode executionMode)
     {
         if (context.Data.TryGetValue(BuildContextDataKeys.AnalyticsBuildState, out var value) &&
@@ -85,7 +86,7 @@ internal sealed class AnalyticsBuildState
             return state;
         }
 
-        state = Create(context.Config, executionMode);
+        state = Create(config, executionMode);
         Attach(context, state);
         return state;
     }

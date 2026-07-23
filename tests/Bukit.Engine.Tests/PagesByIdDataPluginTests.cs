@@ -125,7 +125,7 @@ public sealed class PagesByIdDataPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new PagesIndexPlugin();
+        var plugin = new PagesIndexPlugin(ctx.Config);
         plugin.DerivePages(ctx);
 
         var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
@@ -187,7 +187,7 @@ public sealed class PagesByIdDataPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin();
+        var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(ctx.Config);
         plugin.DerivePages(ctx);
 
         var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
@@ -273,7 +273,7 @@ public sealed class PagesByIdDataPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(new FakeFetcher());
+            var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(ctx.Config, new FakeFetcher());
             plugin.DerivePages(ctx);
 
             var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
@@ -361,7 +361,7 @@ public sealed class PagesByIdDataPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(new ThrowingFetcher());
+        var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(ctx.Config, new ThrowingFetcher());
         plugin.DerivePages(ctx);
 
         var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);

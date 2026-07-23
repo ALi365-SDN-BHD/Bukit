@@ -84,7 +84,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.NotNull(derived);
@@ -99,7 +99,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -113,7 +113,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Equal(2, derived.Count);
@@ -127,7 +127,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 10, listRoute: "/blog/");
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/blog/page/2/");
@@ -142,7 +142,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 5);
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Equal(5, derived.Count);
@@ -153,7 +153,7 @@ public sealed class PaginationPluginDerivePagesTests
     {
         var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>(), pageSize: 10);
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -167,7 +167,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 5, listRoute: "/posts/", collectionKey: "post");
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/posts/page/2/");
@@ -182,7 +182,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 5, listRoute: "/Blog Posts/", outputPathEncoding: "slug");
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/Blog Posts/page/2/");
@@ -197,7 +197,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/blog/page/2/");
@@ -234,7 +234,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 5);
 
-        var derived = new PaginationPlugin().DerivePages(ctx);
+        var derived = new PaginationPlugin(ctx.Config).DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/blog/page/2/");
         var items = Assert.IsType<List<object>>(page2.Document.CustomFields!["items"].Value);
@@ -277,7 +277,7 @@ public sealed class PaginationPluginDerivePagesTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -291,7 +291,7 @@ public sealed class PaginationPluginDerivePagesTests
             .ToList();
         var ctx = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin();
+        var plugin = new PaginationPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Equal(4, derived.Count);
@@ -322,7 +322,7 @@ public sealed class PaginationPluginDerivePagesTests
             }
         });
 
-        var derived = new PaginationPlugin().DerivePages(ctx);
+        var derived = new PaginationPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.Empty(derived);
     }
@@ -351,7 +351,7 @@ public sealed class PaginationPluginDerivePagesTests
             }
         });
 
-        var requirements = new PaginationPlugin().GetTemplateRequirementKinds(ctx);
+        var requirements = new PaginationPlugin(ctx.Config).GetTemplateRequirementKinds(ctx);
 
         Assert.Empty(requirements);
     }

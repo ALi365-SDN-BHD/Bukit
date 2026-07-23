@@ -1,16 +1,25 @@
 using System.Text.Json;
+using Bukit.Config;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 using Bukit.Engine.Abstractions.Plugins;
 internal sealed class MenuPlugin : IBukitPlugin, IAfterBuildPlugin
 {
+    private readonly AppConfig _config;
+
+    internal MenuPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "menu";
     public string Version => "1.0.0";
 
     public void AfterBuild(BuildContext context)
     {
-        var menus = context.Config.Site.Menus;
+        var menus = _config.Site.Menus;
         if (menus is null || menus.Count == 0)
         {
             return;

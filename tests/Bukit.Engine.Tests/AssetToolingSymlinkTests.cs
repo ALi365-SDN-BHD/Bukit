@@ -77,7 +77,7 @@ public sealed class AssetToolingSymlinkTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin().AfterBuild(context);
+            new ImageProcessingPlugin(context.Config).AfterBuild(context);
 
             var srcsets = Assert.IsType<Dictionary<string, object>>(context.Data["__image_srcsets"]);
             Assert.Contains("local.jpg", srcsets.Keys);

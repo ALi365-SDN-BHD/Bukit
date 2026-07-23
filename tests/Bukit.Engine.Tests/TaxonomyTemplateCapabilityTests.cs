@@ -47,8 +47,9 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
                                                                               supports_taxonomy: true
                                                                         """);
 
-        var plugin = new TaxonomyPlugin();
-        var derived = plugin.DerivePages(CreateContext());
+        var context = CreateContext();
+        var plugin = new TaxonomyPlugin(context.Config);
+        var derived = plugin.DerivePages(context);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/" && x.Route.Template == "pages/taxonomy-index.html");
         Assert.Contains(derived, x => x.Route.Url == "/tags/news/" && x.Route.Template == "pages/taxonomy-term.html");

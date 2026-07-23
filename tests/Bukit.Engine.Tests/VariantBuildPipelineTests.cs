@@ -325,7 +325,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
         var pluginTransforms = PluginRunner.CollectHtmlTransforms(
             buildContext,
             BuildExecutionMode.Production,
-            [new AnalyticsPlugin()]);
+            [new AnalyticsPlugin(config)]);
         var seoResult = new SeoPipeline().Execute(
             config,
             "/",

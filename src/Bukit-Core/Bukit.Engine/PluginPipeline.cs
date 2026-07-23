@@ -36,7 +36,7 @@ internal sealed class PluginPipeline
         }
 
         var afterBuildStopwatch = Stopwatch.StartNew();
-        await PluginRunner.RunAfterBuildAsync(ctx.PluginContext, cancellationToken);
+        await PluginRunner.RunAfterBuildAsync(ctx.PluginContext, ctx.Config, cancellationToken);
         BuildManifestTracker.TrackPluginOutputs(ctx.PluginContext, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger, ctx.Config.Build.FingerprintMode);
         afterBuildStopwatch.Stop();
         metricsCollector.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);

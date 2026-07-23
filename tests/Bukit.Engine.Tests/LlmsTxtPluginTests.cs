@@ -42,7 +42,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Directory.CreateDirectory(outputDir);
         var context = CreateContext(outputDir, geoEnabled: false);
 
-        var plugin = new LlmsTxtPlugin();
+        var plugin = new LlmsTxtPlugin(context.Config);
         plugin.AfterBuild(context);
 
         Assert.False(File.Exists(Path.Combine(outputDir, "llms.txt")));
@@ -56,7 +56,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Directory.CreateDirectory(outputDir);
         var context = CreateContext(outputDir, geoEnabled: true, llmsTxt: true);
 
-        var plugin = new LlmsTxtPlugin();
+        var plugin = new LlmsTxtPlugin(context.Config);
         plugin.AfterBuild(context);
 
         var path = Path.Combine(outputDir, "llms.txt");
@@ -75,7 +75,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
         var context = CreateContext(outputDir, geoEnabled: true, llmsTxt: true,
             itemSummary: "Canonical llms summary");
 
-        var plugin = new LlmsTxtPlugin();
+        var plugin = new LlmsTxtPlugin(context.Config);
         plugin.AfterBuild(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
@@ -89,7 +89,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Directory.CreateDirectory(outputDir);
         var context = CreateContext(outputDir, geoEnabled: true, llmsFullTxt: true);
 
-        var plugin = new LlmsTxtPlugin();
+        var plugin = new LlmsTxtPlugin(context.Config);
         plugin.AfterBuild(context);
 
         var path = Path.Combine(outputDir, "llms-full.txt");
@@ -107,7 +107,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Directory.CreateDirectory(outputDir);
         var context = CreateContext(outputDir, geoEnabled: true, llmsTxt: true);
 
-        var plugin = new LlmsTxtPlugin();
+        var plugin = new LlmsTxtPlugin(context.Config);
         plugin.AfterBuild(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
@@ -126,7 +126,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
                 new LlmsTxtOptionalLink { Title = "GitHub", Url = "https://github.com/repo", Description = "Source code" }
             });
 
-        var plugin = new LlmsTxtPlugin();
+        var plugin = new LlmsTxtPlugin(context.Config);
         plugin.AfterBuild(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
@@ -143,7 +143,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             itemDescription: "Item-specific description",
             itemSeoDesc: null, itemSummary: null);
 
-        var plugin = new LlmsTxtPlugin();
+        var plugin = new LlmsTxtPlugin(context.Config);
         plugin.AfterBuild(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
@@ -159,7 +159,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
         var context = CreateContext(outputDir, geoEnabled: true, llmsFullTxt: true,
             itemSummary: "Canonical summary");
 
-        var plugin = new LlmsTxtPlugin();
+        var plugin = new LlmsTxtPlugin(context.Config);
         plugin.AfterBuild(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
@@ -179,7 +179,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             itemSummary: "Summary description",
             itemSeoDesc: null, itemDescription: null);
 
-        var plugin = new LlmsTxtPlugin();
+        var plugin = new LlmsTxtPlugin(context.Config);
         plugin.AfterBuild(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);

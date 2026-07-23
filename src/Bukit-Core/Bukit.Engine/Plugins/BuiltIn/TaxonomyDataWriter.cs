@@ -7,11 +7,14 @@ using Bukit.Engine.Abstractions.Plugins;
 
 internal static class TaxonomyDataWriter
 {
-    internal static void SetTaxonomyData(BuildContext context, IReadOnlyList<string> itemFields)
+    internal static void SetTaxonomyData(
+        BuildContext context,
+        IReadOnlyList<string> itemFields,
+        TaxonomyConfig config)
     {
         var taxonomy = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
-        if (context.Config.Taxonomy.Kinds is { Count: > 0 } kinds)
+        if (config.Kinds is { Count: > 0 } kinds)
         {
             foreach (var kindConfig in kinds)
             {
@@ -22,7 +25,7 @@ internal static class TaxonomyDataWriter
                 }
 
                 var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
-                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields);
+                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, config);
                 TaxonomyIndexBuilder.MergeEnsureTerms(context, kind, terms);
                 if (terms.Count == 0)
                 {
@@ -35,14 +38,14 @@ internal static class TaxonomyDataWriter
         }
         else
         {
-            var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields);
+            var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, config);
             TaxonomyIndexBuilder.MergeEnsureTerms(context, "tags", tags);
             if (tags.Count > 0)
             {
                 taxonomy["tags"] = BuildKindData(key: "tags", kind: "tags", title: "Tags", tags);
             }
 
-            var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields);
+            var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, config);
             TaxonomyIndexBuilder.MergeEnsureTerms(context, "categories", categories);
             if (categories.Count > 0)
             {

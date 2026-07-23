@@ -8,12 +8,20 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 {
+    private readonly AppConfig _config;
+
+    internal RelatedContentPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "related-content";
     public string Version => "1.0.0";
 
     public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
-        var relatedConfig = context.Config.Site.Related;
+        var relatedConfig = _config.Site.Related;
         if (!relatedConfig.Enabled)
         {
             return Array.Empty<RoutedContentDocument>();

@@ -112,7 +112,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/alpha/");
@@ -128,7 +128,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/categories/news/");
@@ -144,7 +144,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/");
@@ -160,7 +160,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed, outputPathEncoding: "sanitize");
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(ctx.Config).DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/tags/hello-world/");
         Assert.Equal("tags/hello-world/index.html", term.Route.OutputPath);
@@ -174,7 +174,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         var routed = new List<(ContentDocument Item, RouteInfo Route)> { unpinned, pinned };
         var ctx = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/topic/");
@@ -226,7 +226,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed, taxonomyConfig: config);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/series/");
@@ -264,7 +264,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed, taxonomyConfig: config);
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(ctx.Config).DerivePages(ctx);
 
         var index = Assert.Single(derived, x => x.Route.Url == "/insights/category/");
         var termPage = Assert.Single(derived, x => x.Route.Url == "/insights/category/市场观察/");
@@ -312,7 +312,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: new[] { "market" })
         };
         var ctx = CreateContext(routed, taxonomyConfig: config);
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(ctx.Config).DerivePages(ctx);
 
         var graph = ListRouteGraphBuilder.AddDerivedTaxonomyRoutes(ListRouteGraph.Empty, derived);
 
@@ -337,7 +337,7 @@ public sealed class TaxonomyPluginDerivePagesTests
     {
         var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>());
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -352,7 +352,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -367,7 +367,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.DoesNotContain(derived, x => x.Route.Url.StartsWith("/tags/"));
@@ -393,7 +393,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         var route = new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html");
         var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) });
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(ctx.Config).DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alpha/");
         var items = Assert.IsType<List<object>>(termPage.Document.CustomFields!["items"].Value);
@@ -426,7 +426,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) }, taxonomyConfig: taxonomy);
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(ctx.Config).DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alpha/");
         var items = Assert.IsType<List<object>>(termPage.Document.CustomFields!["items"].Value);
@@ -470,7 +470,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         ], []);
         var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) }, contentGraph: graph);
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/canonical-tag/");
         var categoryPage = Assert.Single(derived, x => x.Route.Url == "/categories/canonical-category/");
@@ -493,7 +493,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed, taxonomyConfig: taxonomyConfig);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.DoesNotContain(derived, x => x.Route.Url == "/tags/");
@@ -509,7 +509,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alphatag/");
@@ -544,7 +544,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var context = CreateContext(routed, taxonomyConfig: taxonomy, language: "zh-CN");
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(context.Config).DerivePages(context);
 
         var first = Assert.Single(derived, page => page.Route.Url == "/insights/category/市场观察/");
         Assert.Equal("商务资讯：市场观察", first.Document.Title);
@@ -583,7 +583,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var context = CreateContext(routed, taxonomyConfig: taxonomy, language: "en");
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(context.Config).DerivePages(context);
 
         var second = Assert.Single(derived, page => page.Route.Url == "/category/market/page/2/");
         Assert.Equal("Category: Market - Page 2", second.Document.Title);
@@ -601,7 +601,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var context = CreateContext(routed, language: "zh-CN");
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(context.Config).DerivePages(context);
 
         var index = Assert.Single(derived, page => page.Route.Url == "/tags/");
         Assert.Equal("标签", index.Document.Title);
@@ -648,7 +648,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             ]
         };
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(context.Config).DerivePages(context);
 
         var first = Assert.Single(derived, page => page.Route.Url == "/category/market/");
         Assert.Equal("市场观察资讯", ContentFieldReader.GetText(first.Document.CustomFields, "summary"));
@@ -687,7 +687,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             ]
         };
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(context.Config).DerivePages(context);
 
         var index = Assert.Single(derived, page => page.Route.Url == "/topic/");
         Assert.Equal("topic", index.Document.Title);
@@ -718,7 +718,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/alpha/");
@@ -750,7 +750,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/");
@@ -766,7 +766,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         };
         var ctx = CreateContext(routed, outputMode: "data");
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);

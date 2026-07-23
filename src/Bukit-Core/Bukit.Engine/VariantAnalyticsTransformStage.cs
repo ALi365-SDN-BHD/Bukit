@@ -24,6 +24,7 @@ internal static class VariantAnalyticsTransformStage
         AnalyticsBuildState.Attach(pluginContext, analyticsBuildState);
         var pluginHtmlTransforms = PluginRunner.CollectHtmlTransforms(
             pluginContext,
+            config,
             overrides.ExecutionMode);
         var htmlTransformPipeline = CreateHtmlTransformPipeline(
             seoResult,

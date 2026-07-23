@@ -475,6 +475,47 @@ public sealed class SiteEngineHelperTests
     }
 
     [Fact]
+    public void BuildListRoutes_WithExplicitConfig_UsesEffectiveConfigInsteadOfContextBridge()
+    {
+        var contextConfig = new AppConfig
+        {
+            Site = new SiteConfig { Name = "context", Title = "Context" },
+            Content = TestContent.Markdown()
+        };
+        var effectiveConfig = contextConfig with
+        {
+            Site = contextConfig.Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["post"] = new()
+                    {
+                        Permalink = "/articles/{slug}/",
+                        Template = "pages/post.html",
+                        ListRoute = "/articles/",
+                        ListTemplate = "pages/list.html"
+                    }
+                }
+            }
+        };
+        var context = new BuildContext
+        {
+            Config = contextConfig,
+            RootDir = ".",
+            OutputDir = "dist",
+            BaseUrl = "/",
+            LayoutsDir = "layouts",
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var result = SiteEngine.GetListRoutes(context, effectiveConfig);
+
+        Assert.Contains(result, route => route.Url == "/articles/");
+        Assert.DoesNotContain(result, route => route.Url == "/blog/");
+    }
+
+    [Fact]
     public void MergeStageMetrics_AccumulatesDurationsAndCounts()
     {
         var collector = new BuildStageMetricsCollector();

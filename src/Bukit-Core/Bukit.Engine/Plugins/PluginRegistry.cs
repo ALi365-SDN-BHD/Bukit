@@ -11,18 +11,26 @@ internal interface IPluginSource
 
 internal sealed class BuiltInPluginSource : IPluginSource
 {
+    private readonly AppConfig _config;
+
+    internal BuiltInPluginSource(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public IEnumerable<IBukitPlugin> GetPlugins()
     {
-        yield return new BuiltIn.AnalyticsPlugin();
-        yield return new BuiltIn.DataFilesPlugin();
-        yield return new BuiltIn.PagesIndexPlugin();
-        yield return new BuiltIn.TaxonomyPlugin();
-        yield return new BuiltIn.PaginationPlugin();
-        yield return new BuiltIn.ArchivePlugin();
-        yield return new BuiltIn.RelatedContentPlugin();
-        yield return new BuiltIn.AliasPlugin();
-        yield return new BuiltIn.MenuPlugin();
-        yield return new BuiltIn.ImageProcessingPlugin();
+        yield return new BuiltIn.AnalyticsPlugin(_config);
+        yield return new BuiltIn.DataFilesPlugin(_config);
+        yield return new BuiltIn.PagesIndexPlugin(_config);
+        yield return new BuiltIn.TaxonomyPlugin(_config);
+        yield return new BuiltIn.PaginationPlugin(_config);
+        yield return new BuiltIn.ArchivePlugin(_config);
+        yield return new BuiltIn.RelatedContentPlugin(_config);
+        yield return new BuiltIn.AliasPlugin(_config);
+        yield return new BuiltIn.MenuPlugin(_config);
+        yield return new BuiltIn.ImageProcessingPlugin(_config);
     }
 }
 
@@ -31,14 +39,23 @@ public static class PluginRegistry
     private const string CacheKey = "__plugin_registry_cache";
     private sealed class PluginCacheEntry
     {
+        public required AppConfig Config { get; init; }
         public required IReadOnlyList<(IBukitPlugin Plugin, string Source)> Plugins { get; init; }
     }
 
     private static int _cacheBuildCount;
 
     public static IEnumerable<(IBukitPlugin Plugin, string Source)> GetAllPlugins(BuildContext context)
+        => GetAllPlugins(context, context.Config);
+
+    internal static IEnumerable<(IBukitPlugin Plugin, string Source)> GetAllPlugins(
+        BuildContext context,
+        AppConfig config)
     {
-        if (TryGetCached(context, out var cached))
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(config);
+
+        if (TryGetCached(context, config, out var cached))
         {
             foreach (var item in cached.Plugins)
             {
@@ -50,11 +67,12 @@ public static class PluginRegistry
 
         lock (context.Data)
         {
-            if (!TryGetCached(context, out cached))
+            if (!TryGetCached(context, config, out cached))
             {
                 cached = new PluginCacheEntry
                 {
-                    Plugins = BuildPlugins(context)
+                    Config = config,
+                    Plugins = BuildPlugins(config)
                 };
                 context.Data[CacheKey] = cached;
                 _cacheBuildCount++;
@@ -67,14 +85,14 @@ public static class PluginRegistry
         }
     }
 
-    private static IReadOnlyList<(IBukitPlugin Plugin, string Source)> BuildPlugins(BuildContext context)
+    private static IReadOnlyList<(IBukitPlugin Plugin, string Source)> BuildPlugins(AppConfig config)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var result = new List<(IBukitPlugin Plugin, string Source)>();
 
         var sources = new (IPluginSource Source, string Name)[]
         {
-            (new BuiltInPluginSource(), "built-in")
+            (new BuiltInPluginSource(config), "built-in")
         };
 
         foreach (var (source, name) in sources)
@@ -102,9 +120,14 @@ public static class PluginRegistry
         _cacheBuildCount = 0;
     }
 
-    private static bool TryGetCached(BuildContext context, out PluginCacheEntry cached)
+    private static bool TryGetCached(
+        BuildContext context,
+        AppConfig config,
+        out PluginCacheEntry cached)
     {
-        if (context.Data.TryGetValue(CacheKey, out var value) && value is PluginCacheEntry entry)
+        if (context.Data.TryGetValue(CacheKey, out var value) &&
+            value is PluginCacheEntry entry &&
+            ReferenceEquals(entry.Config, config))
         {
             cached = entry;
             return true;

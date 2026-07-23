@@ -38,7 +38,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin().AfterBuild(ctx);
+            new ImageProcessingPlugin(ctx.Config).AfterBuild(ctx);
             Assert.False(ctx.Data.ContainsKey("__image_srcsets"));
         }
         finally
@@ -69,7 +69,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin().AfterBuild(ctx);
+            new ImageProcessingPlugin(ctx.Config).AfterBuild(ctx);
             Assert.False(ctx.Data.ContainsKey("__image_srcsets"));
         }
         finally
@@ -104,7 +104,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin().AfterBuild(ctx);
+            new ImageProcessingPlugin(ctx.Config).AfterBuild(ctx);
         }
         finally
         {
@@ -139,7 +139,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin().AfterBuild(ctx);
+            new ImageProcessingPlugin(ctx.Config).AfterBuild(ctx);
         }
         finally
         {

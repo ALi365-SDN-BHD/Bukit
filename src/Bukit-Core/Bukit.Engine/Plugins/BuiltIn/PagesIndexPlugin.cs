@@ -23,18 +23,22 @@ internal interface INotionPageFetcher
 
 internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
 {
+    private readonly AppConfig _config;
     private readonly INotionPageFetcher _notionFetcher;
 
     public string Name => "pages-index";
     public string Version => "1.1.0";
 
-    public PagesIndexPlugin()
-        : this(new DefaultNotionPageFetcher())
+    internal PagesIndexPlugin(AppConfig config)
+        : this(config, new DefaultNotionPageFetcher())
     {
     }
 
-    public PagesIndexPlugin(INotionPageFetcher notionFetcher)
+    internal PagesIndexPlugin(AppConfig config, INotionPageFetcher notionFetcher)
     {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(notionFetcher);
+        _config = config;
         _notionFetcher = notionFetcher;
     }
 
@@ -128,17 +132,17 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
 
     private async Task ResolveNotionRelationsIfConfiguredAsync(BuildContext context, Dictionary<string, object> index)
     {
-        if (!PagesIndexConfigHelper.HasNotionContent(context.Config))
+        if (!PagesIndexConfigHelper.HasNotionContent(_config))
         {
             return;
         }
 
-        if (context.Config.Theme.Params is null || context.Config.Theme.Params.Count == 0)
+        if (_config.Theme.Params is null || _config.Theme.Params.Count == 0)
         {
             return;
         }
 
-        if (!PagesIndexConfigHelper.TryGetMap(context.Config.Theme.Params, "pages_index", out var pagesIndexCfg))
+        if (!PagesIndexConfigHelper.TryGetMap(_config.Theme.Params, "pages_index", out var pagesIndexCfg))
         {
             return;
         }
@@ -260,7 +264,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
             resolvedPages[i] = await tasks[i];
         }
 
-        await LocalizeResolvedPageFieldsAsync(resolvedPages, context);
+        await LocalizeResolvedPageFieldsAsync(resolvedPages, context, _config.Content.Media);
 
         for (var i = 0; i < resolvedPages.Length; i++)
         {
@@ -321,9 +325,11 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
         return null;
     }
 
-    private static async Task LocalizeResolvedPageFieldsAsync(NotionFetchedPage?[] pages, BuildContext context)
+    private static async Task LocalizeResolvedPageFieldsAsync(
+        NotionFetchedPage?[] pages,
+        BuildContext context,
+        MediaConfig media)
     {
-        var media = context.Config.Content.Media;
         if (!media.DownloadToLocal)
         {
             return;

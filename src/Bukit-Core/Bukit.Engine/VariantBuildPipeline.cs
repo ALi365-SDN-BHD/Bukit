@@ -143,6 +143,7 @@ internal sealed partial class VariantBuildPipeline
             cancellationToken);
 
         await VariantPluginStages.RunDeriveAsync(
+            context.Config,
             routePipelineResult.PluginContext,
             variantStageMetrics,
             cancellationToken);

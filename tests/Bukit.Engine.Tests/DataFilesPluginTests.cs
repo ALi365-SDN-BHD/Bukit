@@ -31,7 +31,7 @@ public sealed class DataFilesPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var derived = new DataFilesPlugin().DerivePages(ctx);
+        var derived = new DataFilesPlugin(ctx.Config).DerivePages(ctx);
         Assert.Empty(derived);
     }
 
@@ -61,7 +61,7 @@ public sealed class DataFilesPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            var derived = new DataFilesPlugin().DerivePages(ctx);
+            var derived = new DataFilesPlugin(ctx.Config).DerivePages(ctx);
             Assert.Empty(derived);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
@@ -102,7 +102,7 @@ public sealed class DataFilesPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new DataFilesPlugin().DerivePages(ctx);
+            new DataFilesPlugin(ctx.Config).DerivePages(ctx);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             var nav = Assert.IsType<Dictionary<string, object>>(dict["nav"]);
@@ -149,7 +149,7 @@ public sealed class DataFilesPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new DataFilesPlugin().DerivePages(ctx);
+            new DataFilesPlugin(ctx.Config).DerivePages(ctx);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             Assert.Contains("zh-CN", dict.Keys);
@@ -187,7 +187,7 @@ public sealed class DataFilesPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new DataFilesPlugin().DerivePages(ctx);
+            new DataFilesPlugin(ctx.Config).DerivePages(ctx);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             Assert.Contains("team", dict.Keys);

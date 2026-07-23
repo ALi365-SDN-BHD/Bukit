@@ -16,7 +16,7 @@ public sealed class PluginRegistryTests
     [Fact]
     public void BuiltInPluginSource_RegistersExactlyOneAnalyticsPluginWithLockedMetadata()
     {
-        var plugins = new BuiltInPluginSource().GetPlugins().ToList();
+        var plugins = new BuiltInPluginSource(CreateContext().Config).GetPlugins().ToList();
         var analytics = Assert.Single(plugins, x => x.Name == "analytics");
 
         var typed = Assert.IsType<AnalyticsPlugin>(analytics);
@@ -25,6 +25,68 @@ public sealed class PluginRegistryTests
         Assert.True(typed.SupportsHook(HtmlTransformHooks.HtmlTransform));
         Assert.False(typed.SupportsHook("after-build"));
         Assert.IsAssignableFrom<IHtmlTransformPlugin>(typed);
+    }
+
+    [Fact]
+    public void GetAllPlugins_ExplicitConfig_SameContextAndReference_ReusesCachedInstances()
+    {
+        PluginRegistry.ResetCacheForTests();
+        var context = CreateContext();
+        var config = context.Config;
+
+        var first = PluginRegistry.GetAllPlugins(context, config).ToList();
+        var second = PluginRegistry.GetAllPlugins(context, config).ToList();
+
+        Assert.Equal(1, PluginRegistry.CacheBuildCountForTests);
+        Assert.Equal(first.Count, second.Count);
+        Assert.All(first.Zip(second), pair => Assert.Same(pair.First.Plugin, pair.Second.Plugin));
+    }
+
+    [Fact]
+    public void GetAllPlugins_ExplicitConfig_SameContextAndDifferentReference_RebuildsCachedInstances()
+    {
+        PluginRegistry.ResetCacheForTests();
+        var context = CreateContext();
+        var firstConfig = context.Config;
+        var secondConfig = firstConfig with
+        {
+            Site = firstConfig.Site with { Title = "Second configuration" }
+        };
+
+        var first = PluginRegistry.GetAllPlugins(context, firstConfig).ToList();
+        var second = PluginRegistry.GetAllPlugins(context, secondConfig).ToList();
+        var third = PluginRegistry.GetAllPlugins(context, secondConfig).ToList();
+
+        Assert.Equal(2, PluginRegistry.CacheBuildCountForTests);
+        Assert.Equal(first.Count, second.Count);
+        Assert.All(first.Zip(second), pair => Assert.NotSame(pair.First.Plugin, pair.Second.Plugin));
+        Assert.All(second.Zip(third), pair => Assert.Same(pair.First.Plugin, pair.Second.Plugin));
+    }
+
+    [Fact]
+    public void GetAllPlugins_ExplicitConfig_PreservesLockedRegistrationOrderAndSource()
+    {
+        PluginRegistry.ResetCacheForTests();
+        var context = CreateContext();
+
+        var registrations = PluginRegistry.GetAllPlugins(context, context.Config)
+            .Select(item => (item.Plugin.Name, item.Plugin.Version, item.Source))
+            .ToArray();
+
+        Assert.Equal(
+            [
+                ("analytics", "1.0.0", "built-in"),
+                ("data-files", "1.0.0", "built-in"),
+                ("pages-index", "1.1.0", "built-in"),
+                ("taxonomy", "3.0.0", "built-in"),
+                ("pagination", "2.0.0", "built-in"),
+                ("archive", "2.0.0", "built-in"),
+                ("related-content", "1.0.0", "built-in"),
+                ("alias", "1.0.0", "built-in"),
+                ("menu", "1.0.0", "built-in"),
+                ("image-processing", "1.0.0", "built-in")
+            ],
+            registrations);
     }
 
     [Fact]

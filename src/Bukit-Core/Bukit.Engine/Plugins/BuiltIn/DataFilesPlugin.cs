@@ -5,12 +5,21 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Config;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
 {
+    private readonly AppConfig _config;
+
+    internal DataFilesPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "data-files";
     public string Version => "1.0.0";
 
@@ -24,7 +33,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
 
         var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
-        var languages = context.Config.Site.Languages;
+        var languages = _config.Site.Languages;
         if (languages is { Count: > 0 })
         {
             foreach (var lang in languages)

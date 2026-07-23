@@ -33,7 +33,7 @@ public sealed class AliasPluginTests
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.Equal(2, derived.Count);
         Assert.Contains(derived, x => x.Route.Url == "/old-url/");
@@ -52,7 +52,7 @@ public sealed class AliasPluginTests
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.Single(derived);
         Assert.Equal("/legacy/", derived[0].Route.Url);
@@ -66,7 +66,7 @@ public sealed class AliasPluginTests
             (Item("p1", "Post", "post"), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(ctx.Config).DerivePages(ctx);
         Assert.Empty(derived);
     }
 
@@ -82,7 +82,7 @@ public sealed class AliasPluginTests
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(ctx.Config).DerivePages(ctx);
 
         var html = derived[0].Document.Body.Html;
         Assert.Contains("http-equiv=\"refresh\"", html);
@@ -102,7 +102,7 @@ public sealed class AliasPluginTests
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.Equal("/old-post/", derived[0].Route.Url);
     }
@@ -119,7 +119,7 @@ public sealed class AliasPluginTests
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(ctx.Config).DerivePages(ctx);
 
         Assert.Equal("redirect", ContentFieldReader.GetText(derived[0].Document.CustomFields, "type"));
     }

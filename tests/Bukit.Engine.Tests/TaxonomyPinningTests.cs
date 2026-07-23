@@ -49,7 +49,7 @@ public sealed class TaxonomyPinningTests
         };
         var ctx = CreateContext(layoutsDir, routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
@@ -106,7 +106,7 @@ public sealed class TaxonomyPinningTests
                 }
             });
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
@@ -163,7 +163,7 @@ public sealed class TaxonomyPinningTests
                 PinOrderField = "pinOrder"
             });
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");

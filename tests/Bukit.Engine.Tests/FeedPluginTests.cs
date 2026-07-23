@@ -66,7 +66,7 @@ public sealed class FeedPluginTests
             };
             context.SeoIndex = new Dictionary<string, SeoIndexEntry>();
 
-            var plugin = new FeedPlugin();
+            var plugin = new FeedPlugin(context.Config);
             plugin.AfterBuild(context);
 
             var rssPath = Path.Combine(tempDir, "rss.xml");
@@ -113,7 +113,7 @@ public sealed class FeedPluginTests
             };
             context.SeoIndex = new Dictionary<string, SeoIndexEntry>();
 
-            var plugin = new FeedPlugin();
+            var plugin = new FeedPlugin(context.Config);
             plugin.AfterBuild(context);
 
             var rssPath = Path.Combine(tempDir, "rss.xml");
@@ -163,7 +163,7 @@ public sealed class FeedPluginTests
             };
             context.SeoIndex = new Dictionary<string, SeoIndexEntry>();
 
-            var plugin = new FeedPlugin();
+            var plugin = new FeedPlugin(context.Config);
             plugin.AfterBuild(context);
 
             var rssPath = Path.Combine(tempDir, "rss.xml");
@@ -213,7 +213,7 @@ public sealed class FeedPluginTests
             };
             context.SeoIndex = new Dictionary<string, SeoIndexEntry>();
 
-            var plugin = new FeedPlugin();
+            var plugin = new FeedPlugin(context.Config);
             plugin.AfterBuild(context);
 
             var rssPath = Path.Combine(tempDir, "rss.xml");

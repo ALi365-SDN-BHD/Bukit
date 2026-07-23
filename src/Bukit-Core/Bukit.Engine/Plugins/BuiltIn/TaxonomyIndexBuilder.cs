@@ -13,7 +13,8 @@ internal static class TaxonomyIndexBuilder
     internal static Dictionary<string, TaxonomyTerm> GetOrBuildIndex(
         BuildContext context,
         string key,
-        IReadOnlyList<string> itemFields)
+        IReadOnlyList<string> itemFields,
+        TaxonomyConfig config)
     {
         Dictionary<string, Dictionary<string, TaxonomyTerm>> cache;
         if (context.Data.TryGetValue(TaxonomyPlugin.IndexCacheKey, out var cacheObj)
@@ -30,7 +31,7 @@ internal static class TaxonomyIndexBuilder
         var indexKey = $"{key}|{string.Join(",", itemFields)}";
         if (!cache.TryGetValue(indexKey, out var terms))
         {
-            terms = BuildIndexCore(context.RoutedDocuments, context.ContentGraph, key, itemFields, context.Config.Taxonomy);
+            terms = BuildIndexCore(context.RoutedDocuments, context.ContentGraph, key, itemFields, config);
             cache[indexKey] = terms;
         }
 

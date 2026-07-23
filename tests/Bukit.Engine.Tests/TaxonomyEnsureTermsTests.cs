@@ -46,7 +46,7 @@ public sealed class TaxonomyEnsureTermsTests
             }
         };
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(ctx.Config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/categories/");
@@ -141,7 +141,7 @@ public sealed class TaxonomyEnsureTermsTests
         Directory.CreateDirectory(ctx.OutputDir);
         try
         {
-            var plugin = new TaxonomyPlugin();
+            var plugin = new TaxonomyPlugin(ctx.Config);
             _ = plugin.DerivePages(ctx);
             plugin.AfterBuild(ctx);
         }

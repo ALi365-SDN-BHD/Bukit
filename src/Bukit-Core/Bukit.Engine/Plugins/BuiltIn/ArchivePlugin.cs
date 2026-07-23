@@ -10,12 +10,20 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateRequirementPlugin
 {
+    private readonly AppConfig _config;
+
+    internal ArchivePlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "archive";
     public string Version => "2.0.0";
 
     public IReadOnlyList<string> GetTemplateRequirementKinds(BuildContext context)
     {
-        var archiveCollection = ResolveArchiveCollection(context.Config);
+        var archiveCollection = ResolveArchiveCollection(_config);
         if (archiveCollection is null || string.IsNullOrWhiteSpace(archiveCollection.Value.Config.ListRoute))
         {
             return Array.Empty<string>();
@@ -27,7 +35,7 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
 
     public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
     {
-        var archiveCollection = ResolveArchiveCollection(context.Config);
+        var archiveCollection = ResolveArchiveCollection(_config);
         if (archiveCollection is null || string.IsNullOrWhiteSpace(archiveCollection.Value.Config.ListRoute))
         {
             return Array.Empty<RoutedContentDocument>();
@@ -53,12 +61,12 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         var derived = new List<RoutedContentDocument>();
         var template = context.ResolveTemplateKind("archive");
 
-        derived.Add(CreateArchiveIndex(prefix, archiveBaseUrl, collectionKey, context.Config.Site.OutputPathEncoding, byYear, template));
+        derived.Add(CreateArchiveIndex(prefix, archiveBaseUrl, collectionKey, _config.Site.OutputPathEncoding, byYear, template));
 
         foreach (var yearGroup in byYear)
         {
             var yearPosts = yearGroup.ToList();
-            derived.Add(CreateYearPage(prefix, archiveBaseUrl, yearGroup.Key, yearPosts, collectionKey, context.Config.Site.OutputPathEncoding, template));
+            derived.Add(CreateYearPage(prefix, archiveBaseUrl, yearGroup.Key, yearPosts, collectionKey, _config.Site.OutputPathEncoding, template));
 
             var byMonth = yearPosts
                 .GroupBy(x => x.Document.PublishAt.Month)
@@ -67,7 +75,7 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
 
             foreach (var monthGroup in byMonth)
             {
-                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, context.Config.Site.OutputPathEncoding, template));
+                derived.Add(CreateMonthPage(prefix, archiveBaseUrl, yearGroup.Key, monthGroup.Key, monthGroup.ToList(), collectionKey, _config.Site.OutputPathEncoding, template));
             }
         }
 

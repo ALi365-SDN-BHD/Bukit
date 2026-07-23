@@ -1,5 +1,8 @@
 using Bukit.Config;
 using Bukit.Engine.Analytics;
+using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests.Analytics;
@@ -56,5 +59,51 @@ public sealed class AnalyticsBuildStateTests
         Assert.Equal(3, snapshot.SkippedByReason["plugin_disabled"]);
         Assert.Equal(2, snapshot.SkippedByReason["incremental_unchanged"]);
         Assert.Equal(0, snapshot.ProcessedHtml);
+    }
+
+    [Fact]
+    public void GetOrCreate_UsesExplicitEffectiveConfigInsteadOfContextBridge()
+    {
+        var contextConfig = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "context",
+                Title = "Context",
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = false }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
+        var effectiveConfig = contextConfig with
+        {
+            Site = contextConfig.Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = true }
+                }
+            }
+        };
+        var context = new BuildContext
+        {
+            Config = contextConfig,
+            RootDir = ".",
+            OutputDir = "dist",
+            BaseUrl = "/",
+            LayoutsDir = "layouts",
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            BodyStore = NullContentBodyStore.Instance,
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var state = AnalyticsBuildState.GetOrCreate(
+            context,
+            effectiveConfig,
+            BuildExecutionMode.Production);
+
+        Assert.True(state.Snapshot().PluginEnabled);
     }
 }

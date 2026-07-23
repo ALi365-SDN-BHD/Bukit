@@ -73,7 +73,10 @@ internal static class TaxonomyTermsInjector
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
-    internal static async Task InjectFromNotionDatabaseOptionsAsync(BuildContext context, CancellationToken cancellationToken)
+    internal static async Task InjectFromNotionDatabaseOptionsAsync(
+        BuildContext context,
+        AppConfig config,
+        CancellationToken cancellationToken)
     {
         var token = EnvironmentHelper.GetNotionToken();
         if (string.IsNullOrWhiteSpace(token))
@@ -87,7 +90,7 @@ internal static class TaxonomyTermsInjector
             ["categories"] = "categories"
         };
 
-        if (context.Config.Taxonomy.Kinds is { Count: > 0 } kinds)
+        if (config.Taxonomy.Kinds is { Count: > 0 } kinds)
         {
             foreach (var kindConfig in kinds)
             {
@@ -108,7 +111,7 @@ internal static class TaxonomyTermsInjector
         }
 
         var notionConfigs = new List<NotionConfig>();
-        if (context.Config.Content.Sources is { Count: > 0 } sources)
+        if (config.Content.Sources is { Count: > 0 } sources)
         {
             foreach (var source in sources)
             {

@@ -43,8 +43,9 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
                                                                               supports_pagination: true
                                                                         """);
 
-        var plugin = new PaginationPlugin();
-        var derived = plugin.DerivePages(CreateContext());
+        var context = CreateContext();
+        var plugin = new PaginationPlugin(context.Config);
+        var derived = plugin.DerivePages(context);
 
         Assert.NotEmpty(derived);
         Assert.All(derived, x => Assert.Equal("pages/pagination.html", x.Route.Template));

@@ -65,13 +65,20 @@ public sealed class SiteEngine
     public static IReadOnlyList<RouteInfo> GetListRoutes(
         BuildContext context,
         ThemeTemplateResolver? templateResolver = null)
+        => GetListRoutes(context, context.Config, templateResolver);
+
+    internal static IReadOnlyList<RouteInfo> GetListRoutes(
+        BuildContext context,
+        AppConfig config,
+        ThemeTemplateResolver? templateResolver = null)
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(config);
 
         var graph = ListRouteGraphBuilder.Build(
             context.RoutedDocuments,
-            context.Config.Site.Collections,
-            context.Config.Site.OutputPathEncoding,
+            config.Site.Collections,
+            config.Site.OutputPathEncoding,
             templateResolver);
         context.Data[ListRouteGraphBuilder.BuildContextDataKey] = graph;
         return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
