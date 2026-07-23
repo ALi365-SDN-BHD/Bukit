@@ -133,13 +133,46 @@ public sealed class SystemProcessRunnerTests
         Assert.Equal("allowed", result.Stdout);
     }
 
+    [Fact]
+    public async Task RunAsync_ReleasesCompletedProcessWorkingDirectory()
+    {
+        string workingDirectory = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"bukit-process-runner-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(workingDirectory);
+
+        try
+        {
+            var runner = new SystemProcessRunner();
+
+            ProcessRunResult result = await runner.RunAsync(
+                ProbeRequest(
+                    arguments: ["echo"],
+                    stdin: """{"op":"handshake"}""",
+                    workingDirectory: workingDirectory),
+                CancellationToken.None);
+
+            Assert.Equal(0, result.ExitCode);
+            Directory.Delete(workingDirectory);
+            Assert.False(Directory.Exists(workingDirectory));
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
     private static ProcessRunRequest ProbeRequest(
         IReadOnlyList<string> arguments,
         string stdin = "",
         int timeoutMs = 5000,
         int stdoutMaxBytes = 4096,
         int stderrMaxBytes = 4096,
-        IReadOnlyDictionary<string, string?>? environmentVariables = null)
+        IReadOnlyDictionary<string, string?>? environmentVariables = null,
+        string? workingDirectory = null)
     {
         string? dotnet = Process.GetCurrentProcess().MainModule?.FileName;
         Assert.False(string.IsNullOrWhiteSpace(dotnet));
@@ -149,7 +182,8 @@ public sealed class SystemProcessRunnerTests
             ExecutablePath: dotnet,
             Arguments: [probeAssembly, .. arguments],
             StandardInput: stdin,
-            WorkingDirectory: System.IO.Path.GetDirectoryName(probeAssembly)!,
+            WorkingDirectory: workingDirectory
+                ?? System.IO.Path.GetDirectoryName(probeAssembly)!,
             Timeout: TimeSpan.FromMilliseconds(timeoutMs),
             StdoutMaxBytes: stdoutMaxBytes,
             StderrMaxBytes: stderrMaxBytes,
