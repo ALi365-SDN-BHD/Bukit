@@ -8,42 +8,40 @@ using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
+internal sealed class TaxonomyIndexCache
+{
+    private BuildContext? _context;
+    private Dictionary<string, Dictionary<string, TaxonomyTerm>> _indexes =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    internal Dictionary<string, Dictionary<string, TaxonomyTerm>> For(BuildContext context)
+    {
+        if (!ReferenceEquals(_context, context))
+        {
+            _context = context;
+            _indexes = new Dictionary<string, Dictionary<string, TaxonomyTerm>>(
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        return _indexes;
+    }
+}
+
 internal static class TaxonomyIndexBuilder
 {
-    private sealed class TaxonomyIndexCacheEntry
-    {
-        internal required TaxonomyConfig Config { get; init; }
-        internal required Dictionary<string, Dictionary<string, TaxonomyTerm>> Indexes { get; init; }
-    }
-
     internal static Dictionary<string, TaxonomyTerm> GetOrBuildIndex(
         BuildContext context,
         string key,
         IReadOnlyList<string> itemFields,
-        TaxonomyConfig config)
+        TaxonomyConfig config,
+        TaxonomyIndexCache cache)
     {
-        Dictionary<string, Dictionary<string, TaxonomyTerm>> cache;
-        if (context.Data.TryGetValue(TaxonomyPlugin.IndexCacheKey, out var cacheObj)
-            && cacheObj is TaxonomyIndexCacheEntry existingCache
-            && ReferenceEquals(existingCache.Config, config))
-        {
-            cache = existingCache.Indexes;
-        }
-        else
-        {
-            cache = new Dictionary<string, Dictionary<string, TaxonomyTerm>>(StringComparer.OrdinalIgnoreCase);
-            context.Data[TaxonomyPlugin.IndexCacheKey] = new TaxonomyIndexCacheEntry
-            {
-                Config = config,
-                Indexes = cache
-            };
-        }
-
+        var indexes = cache.For(context);
         var indexKey = $"{key}|{string.Join(",", itemFields)}";
-        if (!cache.TryGetValue(indexKey, out var terms))
+        if (!indexes.TryGetValue(indexKey, out var terms))
         {
             terms = BuildIndexCore(context.RoutedDocuments, context.ContentGraph, key, itemFields, config);
-            cache[indexKey] = terms;
+            indexes[indexKey] = terms;
         }
 
         return terms;

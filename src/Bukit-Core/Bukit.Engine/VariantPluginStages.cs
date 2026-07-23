@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Shared;
@@ -9,13 +8,16 @@ namespace Bukit.Engine;
 internal static class VariantPluginStages
 {
     internal static async Task RunDeriveAsync(
-        AppConfig config,
         BuildContext pluginContext,
+        PluginExecutionSession pluginSession,
         BuildStageMetricsCollector metrics,
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var derived = await PluginRunner.RunDerivePagesAsync(pluginContext, config, cancellationToken);
+        var derived = await PluginRunner.RunDerivePagesAsync(
+            pluginContext,
+            pluginSession,
+            cancellationToken);
         stopwatch.Stop();
         metrics.AddDuration("derivePages", stopwatch.ElapsedMilliseconds);
         foreach (var page in derived)
@@ -28,6 +30,7 @@ internal static class VariantPluginStages
     internal static async Task RunAfterBuildAsync(
         BuildVariantContext context,
         BuildContext pluginContext,
+        PluginExecutionSession pluginSession,
         ManifestSetupResult manifestSetup,
         RenderPipelineResult renderPipelineResult,
         BuildStageMetricsCollector metrics,
@@ -45,7 +48,8 @@ internal static class VariantPluginStages
             RenderedCount: renderPipelineResult.RenderedCount,
             SkippedCount: renderPipelineResult.SkippedCount,
             Logger: logger,
-            Config: context.Config),
+            Config: context.Config,
+            PluginSession: pluginSession),
             cancellationToken);
         metrics.Merge(result.StageMetrics);
     }

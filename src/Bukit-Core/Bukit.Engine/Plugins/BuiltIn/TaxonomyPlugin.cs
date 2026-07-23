@@ -12,6 +12,7 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBuildPlugin, ITemplateRequirementPlugin
 {
     private readonly AppConfig _config;
+    private readonly TaxonomyIndexCache _indexCache = new();
 
     internal TaxonomyPlugin(AppConfig config)
     {
@@ -19,7 +20,6 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         _config = config;
     }
 
-    internal const string IndexCacheKey = "__taxonomy_index_cache";
     internal static readonly AsyncLocal<int> BuildIndexCountForTestsScope = new();
 
     public string Name => "taxonomy";
@@ -47,7 +47,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                 }
 
                 var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
-                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, _config.Taxonomy);
+                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, _config.Taxonomy, _indexCache);
                 TaxonomyIndexBuilder.MergeEnsureTerms(context, kind, terms);
                 if (terms.Count == 0)
                 {
@@ -60,14 +60,14 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
             return requirements.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
-        var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, _config.Taxonomy);
+        var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, _config.Taxonomy, _indexCache);
         TaxonomyIndexBuilder.MergeEnsureTerms(context, "tags", tags);
         if (tags.Count > 0)
         {
             AddTemplateRequirements(_config.Taxonomy, "tags", null, requirements);
         }
 
-        var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, _config.Taxonomy);
+        var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, _config.Taxonomy, _indexCache);
         TaxonomyIndexBuilder.MergeEnsureTerms(context, "categories", categories);
         if (categories.Count > 0)
         {
@@ -83,7 +83,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         var outputMode = NormalizeOutputMode(_config.Taxonomy.OutputMode);
         var itemFields = NormalizeItemFields(_config.Taxonomy.ItemFields);
         var pageSize = NormalizePageSize(_config.Taxonomy.PageSize);
-        TaxonomyDataWriter.SetTaxonomyData(context, itemFields, _config.Taxonomy);
+        TaxonomyDataWriter.SetTaxonomyData(context, itemFields, _config.Taxonomy, _indexCache);
         if (outputMode == "data")
         {
             return derived;
@@ -103,7 +103,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                 }
 
                 var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
-                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, _config.Taxonomy);
+                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, _config.Taxonomy, _indexCache);
                 TaxonomyIndexBuilder.MergeEnsureTerms(context, kind, terms);
                 TaxonomyMetadataLoader.LoadAndEnrich(context, kind, terms);
                 if (terms.Count == 0)
@@ -125,8 +125,8 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
             return derived;
         }
 
-        var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, _config.Taxonomy);
-        var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, _config.Taxonomy);
+        var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, _config.Taxonomy, _indexCache);
+        var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, _config.Taxonomy, _indexCache);
         TaxonomyIndexBuilder.MergeEnsureTerms(context, "tags", tags);
         TaxonomyIndexBuilder.MergeEnsureTerms(context, "categories", categories);
         TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", tags);
@@ -179,7 +179,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                 }
 
                 var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
-                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, _config.Taxonomy);
+                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, _config.Taxonomy, _indexCache);
                 TaxonomyIndexBuilder.MergeEnsureTerms(context, kind, terms);
                 TaxonomyMetadataLoader.LoadAndEnrich(context, kind, terms);
                 if (terms.Count == 0)
@@ -193,7 +193,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         }
         else
         {
-            var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, _config.Taxonomy);
+            var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, _config.Taxonomy, _indexCache);
             TaxonomyIndexBuilder.MergeEnsureTerms(context, "tags", tags);
             TaxonomyMetadataLoader.LoadAndEnrich(context, "tags", tags);
             if (tags.Count > 0)
@@ -202,7 +202,7 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
                 kindTerms.Add(("tags", "tags", title, tags, null));
             }
 
-            var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, _config.Taxonomy);
+            var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, _config.Taxonomy, _indexCache);
             TaxonomyIndexBuilder.MergeEnsureTerms(context, "categories", categories);
             TaxonomyMetadataLoader.LoadAndEnrich(context, "categories", categories);
             if (categories.Count > 0)

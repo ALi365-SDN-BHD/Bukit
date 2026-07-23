@@ -13,25 +13,21 @@ internal sealed record VariantAnalyticsTransformPlan(
 internal static class VariantAnalyticsTransformStage
 {
     internal static VariantAnalyticsTransformPlan Create(
-        AppConfig config,
         ConfigOverrides overrides,
         BuildContext pluginContext,
+        PluginExecutionSession pluginSession,
         SeoPipelineResult seoResult)
     {
-        var analyticsBuildState = AnalyticsBuildState.Create(
-            config,
-            overrides.ExecutionMode);
-        AnalyticsBuildState.Attach(pluginContext, analyticsBuildState);
         var pluginHtmlTransforms = PluginRunner.CollectHtmlTransforms(
             pluginContext,
-            config,
+            pluginSession,
             overrides.ExecutionMode);
         var htmlTransformPipeline = CreateHtmlTransformPipeline(
             seoResult,
             pluginHtmlTransforms,
             overrides.ExecutionMode);
         return new VariantAnalyticsTransformPlan(
-            analyticsBuildState,
+            pluginSession.AnalyticsBuildState,
             pluginHtmlTransforms,
             htmlTransformPipeline);
     }

@@ -284,7 +284,12 @@ public static class DoctorCommand
             Logger = new ConsoleLogger(LogLevel.Info)
         };
 
-        var plugins = PluginRegistry.GetAllPlugins(pluginContext, config).Select(x => x.Plugin).ToList();
+        var discoverySession = PluginExecutionSession.Create(
+            config,
+            BuildExecutionMode.Production);
+        var plugins = PluginRegistry.GetAllPlugins(pluginContext, discoverySession)
+            .Select(x => x.Plugin)
+            .ToList();
         Console.WriteLine($"✔ Plugins discovered: {plugins.Count}");
 
         var issues = 0;
@@ -395,7 +400,13 @@ public static class DoctorCommand
                 config.Site.Collections,
                 config.Site.OutputPathEncoding,
                 templateResolver);
-            pluginRequirementTemplates = DoctorTemplateAnalyzer.CollectPluginRequirementTemplates(routedPluginContext, config, templateResolver);
+            var requirementSession = PluginExecutionSession.Create(
+                config,
+                BuildExecutionMode.Production);
+            pluginRequirementTemplates = DoctorTemplateAnalyzer.CollectPluginRequirementTemplates(
+                routedPluginContext,
+                requirementSession,
+                templateResolver);
         }
         catch (ConfigException ex)
         {

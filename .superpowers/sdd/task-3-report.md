@@ -211,3 +211,120 @@ Tests:
   explicit inputs.
 - Native AOT publish proof was not run because it is outside this task's
   authorized verification boundary.
+
+## Reviewer Important fix: explicit plugin execution session
+
+The first B3 implementation removed `BuildContext.Config`, but a recursive
+review found three configuration-bearing object paths still reachable through
+`BuildContext.Data`:
+
+1. `__plugin_registry_cache` retained both `AppConfig` and the ten
+   configuration-bound built-in plugin instances.
+2. `__analytics_build_state` retained `AnalyticsBuildState._sourceConfig`.
+3. `__taxonomy_index_cache` retained `TaxonomyConfig`.
+
+A complete `Data` writer scan also found that `MenuPlugin` placed
+`MenuConfig` records directly in `Data["menus"]`. That path had to be fixed to
+make the reviewer invariant true for normal builds with non-empty menus.
+
+### Review-fix RED evidence
+
+Before production edits, the new session tests were run with:
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+  --filter FullyQualifiedName~PluginExecutionSessionTests \
+  --no-restore --nologo --verbosity quiet
+```
+
+Result: expected exit 1. Compilation reported four `CS0103` errors because
+`PluginExecutionSession` did not yet exist. The test contract was therefore
+red for the missing explicit execution-state boundary rather than for an
+unrelated environment failure.
+
+### Review-fix implementation
+
+- Added an Engine-internal, per-variant `PluginExecutionSession`.
+- The session owns the effective plugin policy, one materialized set of ten
+  registry registrations, and one `AnalyticsBuildState`.
+- The same session is passed explicitly through variant derive, HTML
+  transform, after-build, and reporting. It is never stored in
+  `BuildContext.Data`.
+- Public config-free `PluginRegistry` and `PluginRunner` signatures are
+  unchanged and create an isolated deterministic compatibility session.
+- Removed the registry cache and Analytics state from `BuildContext.Data`;
+  removed `PluginCacheEntry.Config`, `_sourceConfig`, `Attach`, and
+  `GetOrCreate`.
+- Moved the Taxonomy index cache into each `TaxonomyPlugin` instance and
+  explicitly reused it across template requirements, derive, data projection,
+  and after-build. A new plugin/session receives an isolated cache.
+- Projected menu data to plain dictionaries/lists with the same menu names,
+  item order, and `identifier`, `name`, `url`, `weight`, and `children`
+  fields. `menus.json` continues to use the existing writer and ordering.
+- Doctor binds separate real-config sessions for its two different
+  `BuildContext` instances. SEO alternates retain their narrow direct
+  `TaxonomyPlugin(config)` path and do not construct the other nine plugins.
+- The registry remains exactly ten ordered built-ins and excludes the four
+  aggregate-only publish projections: feed, llms-txt, search-index, and
+  sitemap.
+
+### Review-fix GREEN evidence
+
+Fresh focused runs after the fix:
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+  --no-restore --nologo --verbosity quiet
+```
+
+Result: exit 0; 1626 passed, 0 failed, 0 skipped.
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj \
+  --no-restore --nologo --verbosity quiet
+```
+
+Result: exit 0; 618 passed, 0 failed, 0 skipped.
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj \
+  --no-restore --nologo --verbosity quiet
+```
+
+The first run reported one stale source-text assertion for the old
+`BuiltInPluginSource(config)` construction. After updating that assertion to
+the explicit shared Analytics state constructor, the rerun passed: exit 0;
+264 passed, 0 failed, 0 skipped.
+
+```sh
+env -u NOTION_TOKEN bash \
+  scripts/checks/public-api-drift.sh check Release
+```
+
+Result: exit 0; build succeeded with 0 warnings and 0 errors. The governed
+baseline remains 14 assemblies and 443 types, with no additional API delta.
+
+Runtime regression coverage now proves:
+
+- the same session reuses the same ten plugin instances;
+- different sessions isolate registrations and Analytics state;
+- production effective policy does not fall back to compatibility defaults;
+- the Analytics transform updates the session-owned state and does not attach
+  it to `Data`;
+- Taxonomy indices are reused inside one session and rebuilt across sessions;
+- a normal derive/transform/after-build path with nested menus leaves no
+  object from the `Bukit.Config` assembly reachable from any `Data` value;
+- the three removed hidden keys are absent.
+
+Production source scans have no remaining references to the three removed
+cache keys/entries and no direct assignment of config objects into
+`BuildContext.Data`.
+
+The required single review-fix `post-change-focused.sh` invocation is run only
+after this report is updated so the report itself is in the path set. Its
+result and the independent read-only re-review are reported in the final
+handoff.

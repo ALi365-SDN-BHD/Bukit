@@ -16,9 +16,8 @@ public static class PluginRunner
         BuildExecutionMode executionMode)
         => CollectHtmlTransforms(
             context,
-            executionMode,
-            PluginExecutionPolicy.From(PluginRegistry.CompatibilityConfiguration.Site),
-            PluginRegistry.GetAllPlugins(context).Select(item => item.Plugin));
+            PluginExecutionSession.CreateCompatibility(executionMode),
+            executionMode);
 
     internal static CollectedHtmlTransforms CollectHtmlTransforms(
         BuildContext context,
@@ -26,9 +25,18 @@ public static class PluginRunner
         BuildExecutionMode executionMode)
         => CollectHtmlTransforms(
             context,
+            PluginExecutionSession.Create(config, executionMode),
+            executionMode);
+
+    internal static CollectedHtmlTransforms CollectHtmlTransforms(
+        BuildContext context,
+        PluginExecutionSession session,
+        BuildExecutionMode executionMode)
+        => CollectHtmlTransforms(
+            context,
             executionMode,
-            PluginExecutionPolicy.From(config.Site),
-            PluginRegistry.GetAllPlugins(context, config).Select(item => item.Plugin));
+            session.Policy,
+            session.Registrations.Select(item => item.Plugin));
 
     internal static CollectedHtmlTransforms CollectHtmlTransforms(
         BuildContext context,
@@ -84,16 +92,22 @@ public static class PluginRunner
     public static IReadOnlyList<string> CollectTemplateRequirementKinds(BuildContext context)
         => CollectTemplateRequirementKinds(
             context,
-            PluginExecutionPolicy.From(PluginRegistry.CompatibilityConfiguration.Site),
-            PluginRegistry.GetAllPlugins(context));
+            PluginExecutionSession.CreateCompatibility());
 
     internal static IReadOnlyList<string> CollectTemplateRequirementKinds(
         BuildContext context,
         AppConfig config)
         => CollectTemplateRequirementKinds(
             context,
-            PluginExecutionPolicy.From(config.Site),
-            PluginRegistry.GetAllPlugins(context, config));
+            PluginExecutionSession.Create(config, BuildExecutionMode.Production));
+
+    internal static IReadOnlyList<string> CollectTemplateRequirementKinds(
+        BuildContext context,
+        PluginExecutionSession session)
+        => CollectTemplateRequirementKinds(
+            context,
+            session.Policy,
+            session.Registrations);
 
     internal static IReadOnlyList<string> CollectTemplateRequirementKinds(
         BuildContext context,
@@ -128,7 +142,7 @@ public static class PluginRunner
     public static IReadOnlyList<RoutedContentDocument> RunDerivePages(BuildContext context)
         => RunDerivePagesAsync(
                 context,
-                PluginExecutionPolicy.From(PluginRegistry.CompatibilityConfiguration.Site))
+                PluginExecutionSession.CreateCompatibility())
             .GetAwaiter()
             .GetResult();
 
@@ -137,7 +151,7 @@ public static class PluginRunner
         CancellationToken cancellationToken = default)
         => await RunDerivePagesAsync(
             context,
-            PluginExecutionPolicy.From(PluginRegistry.CompatibilityConfiguration.Site),
+            PluginExecutionSession.CreateCompatibility(),
             cancellationToken);
 
     internal static Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
@@ -146,8 +160,17 @@ public static class PluginRunner
         CancellationToken cancellationToken = default)
         => RunDerivePagesAsync(
             context,
-            PluginExecutionPolicy.From(config.Site),
-            PluginRegistry.GetAllPlugins(context, config),
+            PluginExecutionSession.Create(config, BuildExecutionMode.Production),
+            cancellationToken);
+
+    internal static Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
+        BuildContext context,
+        PluginExecutionSession session,
+        CancellationToken cancellationToken = default)
+        => RunDerivePagesAsync(
+            context,
+            session.Policy,
+            session.Registrations,
             cancellationToken);
 
     internal static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
@@ -157,7 +180,7 @@ public static class PluginRunner
         => await RunDerivePagesAsync(
             context,
             policy,
-            PluginRegistry.GetAllPlugins(context),
+            PluginExecutionSession.CreateCompatibility().Registrations,
             cancellationToken);
 
     private static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
@@ -366,14 +389,14 @@ public static class PluginRunner
     public static void RunAfterBuild(BuildContext context)
         => RunAfterBuildAsync(
                 context,
-                PluginExecutionPolicy.From(PluginRegistry.CompatibilityConfiguration.Site))
+                PluginExecutionSession.CreateCompatibility())
             .GetAwaiter()
             .GetResult();
 
     public static async Task RunAfterBuildAsync(BuildContext context, CancellationToken cancellationToken = default)
         => await RunAfterBuildAsync(
             context,
-            PluginExecutionPolicy.From(PluginRegistry.CompatibilityConfiguration.Site),
+            PluginExecutionSession.CreateCompatibility(),
             cancellationToken);
 
     internal static Task RunAfterBuildAsync(
@@ -382,8 +405,17 @@ public static class PluginRunner
         CancellationToken cancellationToken = default)
         => RunAfterBuildAsync(
             context,
-            PluginExecutionPolicy.From(config.Site),
-            PluginRegistry.GetAllPlugins(context, config),
+            PluginExecutionSession.Create(config, BuildExecutionMode.Production),
+            cancellationToken);
+
+    internal static Task RunAfterBuildAsync(
+        BuildContext context,
+        PluginExecutionSession session,
+        CancellationToken cancellationToken = default)
+        => RunAfterBuildAsync(
+            context,
+            session.Policy,
+            session.Registrations,
             cancellationToken);
 
     internal static async Task RunAfterBuildAsync(
@@ -393,7 +425,7 @@ public static class PluginRunner
         => await RunAfterBuildAsync(
             context,
             policy,
-            PluginRegistry.GetAllPlugins(context),
+            PluginExecutionSession.CreateCompatibility().Registrations,
             cancellationToken);
 
     private static async Task RunAfterBuildAsync(

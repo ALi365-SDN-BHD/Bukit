@@ -215,8 +215,18 @@ public sealed class TaxonomyPinningTests
         var configB = new TaxonomyConfig { PinField = "pinned", PinOrderField = "orderB" };
         TaxonomyPlugin.ResetBuildIndexCountForTests();
 
-        var termsA = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", [], configA);
-        var termsB = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", [], configB);
+        var termsA = TaxonomyIndexBuilder.GetOrBuildIndex(
+            context,
+            "categories",
+            [],
+            configA,
+            new TaxonomyIndexCache());
+        var termsB = TaxonomyIndexBuilder.GetOrBuildIndex(
+            context,
+            "categories",
+            [],
+            configB,
+            new TaxonomyIndexCache());
 
         Assert.Equal("First", termsA["cat-one"].Pages[0].Title);
         Assert.Equal("Second", termsB["cat-one"].Pages[0].Title);

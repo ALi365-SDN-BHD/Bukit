@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using Bukit.Config;
-using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Analytics;
 
@@ -45,7 +44,6 @@ internal sealed record AnalyticsBuildSnapshot(
 
 internal sealed class AnalyticsBuildState
 {
-    private readonly AppConfig? _sourceConfig;
     private readonly ResolvedAnalyticsConfig _config;
     private readonly ConcurrentDictionary<string, long> _skippedByReason =
         new(StringComparer.Ordinal);
@@ -56,13 +54,11 @@ internal sealed class AnalyticsBuildState
     internal AnalyticsBuildState(
         bool pluginEnabled,
         ResolvedAnalyticsConfig config,
-        BuildExecutionMode executionMode,
-        AppConfig? sourceConfig = null)
+        BuildExecutionMode executionMode)
     {
         PluginEnabled = pluginEnabled;
         _config = config;
         ExecutionMode = executionMode;
-        _sourceConfig = sourceConfig;
     }
 
     internal bool PluginEnabled { get; }
@@ -73,29 +69,7 @@ internal sealed class AnalyticsBuildState
         => new(
             ResolvePluginEnabled(config.Site.Plugins),
             AnalyticsConfigNormalizer.Normalize(config.Site.Analytics),
-            executionMode,
-            config);
-
-    internal static void Attach(BuildContext context, AnalyticsBuildState state)
-        => context.Data[BuildContextDataKeys.AnalyticsBuildState] = state;
-
-    internal static AnalyticsBuildState GetOrCreate(
-        BuildContext context,
-        AppConfig config,
-        BuildExecutionMode executionMode)
-    {
-        if (context.Data.TryGetValue(BuildContextDataKeys.AnalyticsBuildState, out var value) &&
-            value is AnalyticsBuildState state &&
-            ReferenceEquals(state._sourceConfig, config) &&
-            state.ExecutionMode == executionMode)
-        {
-            return state;
-        }
-
-        state = Create(config, executionMode);
-        Attach(context, state);
-        return state;
-    }
+            executionMode);
 
     internal static bool ResolvePluginEnabled(IReadOnlyDictionary<string, PluginToggleConfig>? plugins)
     {

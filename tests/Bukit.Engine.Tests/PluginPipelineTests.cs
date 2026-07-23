@@ -58,7 +58,10 @@ public sealed class PluginPipelineTests
             RenderedCount: 1,
             SkippedCount: 0,
             Logger: logger,
-            Config: config),
+            Config: config,
+            PluginSession: PluginExecutionSession.Create(
+                config,
+                BuildExecutionMode.Production)),
             CancellationToken.None);
 
         Assert.NotNull(result);

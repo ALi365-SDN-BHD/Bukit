@@ -10,12 +10,24 @@ internal sealed class AnalyticsPlugin :
     IHookFilterPlugin,
     IHtmlTransformPlugin
 {
-    private readonly AppConfig _config;
+    private readonly ResolvedAnalyticsConfig _config;
+    private readonly AnalyticsBuildState _state;
 
     internal AnalyticsPlugin(AppConfig config)
+        : this(
+            config,
+            AnalyticsBuildState.Create(config, BuildExecutionMode.Production))
+    {
+    }
+
+    internal AnalyticsPlugin(
+        AppConfig config,
+        AnalyticsBuildState state)
     {
         ArgumentNullException.ThrowIfNull(config);
-        _config = config;
+        ArgumentNullException.ThrowIfNull(state);
+        _config = AnalyticsConfigNormalizer.Normalize(config.Site.Analytics);
+        _state = state;
     }
 
     public string Name => "analytics";
@@ -29,7 +41,7 @@ internal sealed class AnalyticsPlugin :
 
     public IHtmlTransform CreateHtmlTransform(HtmlTransformPluginContext context)
         => new AnalyticsHtmlTransform(
-            AnalyticsConfigNormalizer.Normalize(_config.Site.Analytics),
+            _config,
             AnalyticsProviderRegistry.CreateDefault(),
-            AnalyticsBuildState.GetOrCreate(context.BuildContext, _config, context.ExecutionMode));
+            _state);
 }

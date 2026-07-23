@@ -10,7 +10,8 @@ internal static class TaxonomyDataWriter
     internal static void SetTaxonomyData(
         BuildContext context,
         IReadOnlyList<string> itemFields,
-        TaxonomyConfig config)
+        TaxonomyConfig config,
+        TaxonomyIndexCache cache)
     {
         var taxonomy = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
@@ -25,7 +26,7 @@ internal static class TaxonomyDataWriter
                 }
 
                 var kind = string.IsNullOrWhiteSpace(kindConfig.Kind) ? key : kindConfig.Kind.Trim();
-                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, config);
+                var terms = TaxonomyIndexBuilder.GetOrBuildIndex(context, key, itemFields, config, cache);
                 TaxonomyIndexBuilder.MergeEnsureTerms(context, kind, terms);
                 if (terms.Count == 0)
                 {
@@ -38,14 +39,14 @@ internal static class TaxonomyDataWriter
         }
         else
         {
-            var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, config);
+            var tags = TaxonomyIndexBuilder.GetOrBuildIndex(context, "tags", itemFields, config, cache);
             TaxonomyIndexBuilder.MergeEnsureTerms(context, "tags", tags);
             if (tags.Count > 0)
             {
                 taxonomy["tags"] = BuildKindData(key: "tags", kind: "tags", title: "Tags", tags);
             }
 
-            var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, config);
+            var categories = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", itemFields, config, cache);
             TaxonomyIndexBuilder.MergeEnsureTerms(context, "categories", categories);
             if (categories.Count > 0)
             {

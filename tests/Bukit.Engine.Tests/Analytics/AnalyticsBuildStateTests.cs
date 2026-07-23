@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Engine.Analytics;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Plugins;
 using Bukit.Shared;
 using Xunit;
 
@@ -62,7 +63,7 @@ public sealed class AnalyticsBuildStateTests
     }
 
     [Fact]
-    public void GetOrCreate_UsesExplicitEffectiveConfigInsteadOfContextBridge()
+    public void Session_UsesExplicitEffectiveConfigWithoutContextBridge()
     {
         var contextConfig = new AppConfig
         {
@@ -98,16 +99,16 @@ public sealed class AnalyticsBuildStateTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var state = AnalyticsBuildState.GetOrCreate(
-            context,
+        var session = PluginExecutionSession.Create(
             effectiveConfig,
             BuildExecutionMode.Production);
 
-        Assert.True(state.Snapshot().PluginEnabled);
+        Assert.True(session.AnalyticsBuildState.Snapshot().PluginEnabled);
+        Assert.Empty(context.Data);
     }
 
     [Fact]
-    public void GetOrCreate_SameContextAndDifferentConfigReference_ReplacesCachedState()
+    public void Sessions_IsolateDifferentConfigAndExecutionMode()
     {
         var configA = new AppConfig
         {
@@ -143,23 +144,21 @@ public sealed class AnalyticsBuildStateTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var first = AnalyticsBuildState.GetOrCreate(
-            context,
+        var first = PluginExecutionSession.Create(
             configA,
-            BuildExecutionMode.Production);
-        var second = AnalyticsBuildState.GetOrCreate(
-            context,
+            BuildExecutionMode.Production).AnalyticsBuildState;
+        var second = PluginExecutionSession.Create(
             configB,
-            BuildExecutionMode.Production);
-        var third = AnalyticsBuildState.GetOrCreate(
-            context,
+            BuildExecutionMode.Production).AnalyticsBuildState;
+        var third = PluginExecutionSession.Create(
             configB,
-            BuildExecutionMode.Development);
+            BuildExecutionMode.Development).AnalyticsBuildState;
 
         Assert.False(first.Snapshot().PluginEnabled);
         Assert.True(second.Snapshot().PluginEnabled);
         Assert.NotSame(first, second);
         Assert.NotSame(second, third);
         Assert.Equal(BuildExecutionMode.Development, third.ExecutionMode);
+        Assert.Empty(context.Data);
     }
 }

@@ -91,7 +91,10 @@ public sealed class Ad01ConfigDecouplingTests
             "Plugins",
             "PluginRegistry.cs"));
 
-        Assert.Contains("new BuiltInPluginSource(config)", source, StringComparison.Ordinal);
+        Assert.Contains(
+            "new BuiltInPluginSource(config, analyticsBuildState)",
+            source,
+            StringComparison.Ordinal);
         Assert.DoesNotContain("Assembly.Load", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Activator.CreateInstance", source, StringComparison.Ordinal);
         Assert.DoesNotContain("GetExportedTypes", source, StringComparison.Ordinal);

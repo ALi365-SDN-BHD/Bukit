@@ -28,24 +28,25 @@ public sealed class PluginRegistryTests
     }
 
     [Fact]
-    public void GetAllPlugins_ExplicitConfig_SameContextAndReference_ReusesCachedInstances()
+    public void GetAllPlugins_SameSession_ReusesInstances()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var context = CreateContext();
         var config = CreateConfig();
+        var session = PluginExecutionSession.Create(config, BuildExecutionMode.Production);
 
-        var first = PluginRegistry.GetAllPlugins(context, config).ToList();
-        var second = PluginRegistry.GetAllPlugins(context, config).ToList();
+        var first = PluginRegistry.GetAllPlugins(context, session).ToList();
+        var second = PluginRegistry.GetAllPlugins(context, session).ToList();
 
-        Assert.Equal(1, PluginRegistry.CacheBuildCountForTests);
+        Assert.Equal(1, PluginRegistry.RegistrationBuildCountForTests);
         Assert.Equal(first.Count, second.Count);
         Assert.All(first.Zip(second), pair => Assert.Same(pair.First.Plugin, pair.Second.Plugin));
     }
 
     [Fact]
-    public void GetAllPlugins_ExplicitConfig_SameContextAndDifferentReference_RebuildsCachedInstances()
+    public void GetAllPlugins_DifferentSessions_IsolateInstances()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var context = CreateContext();
         var firstConfig = CreateConfig();
         var secondConfig = firstConfig with
@@ -53,24 +54,31 @@ public sealed class PluginRegistryTests
             Site = firstConfig.Site with { Title = "Second configuration" }
         };
 
-        var first = PluginRegistry.GetAllPlugins(context, firstConfig).ToList();
-        var second = PluginRegistry.GetAllPlugins(context, secondConfig).ToList();
-        var third = PluginRegistry.GetAllPlugins(context, secondConfig).ToList();
+        var firstSession = PluginExecutionSession.Create(
+            firstConfig,
+            BuildExecutionMode.Production);
+        var secondSession = PluginExecutionSession.Create(
+            secondConfig,
+            BuildExecutionMode.Production);
+        var first = PluginRegistry.GetAllPlugins(context, firstSession).ToList();
+        var second = PluginRegistry.GetAllPlugins(context, secondSession).ToList();
+        var third = PluginRegistry.GetAllPlugins(context, secondSession).ToList();
 
-        Assert.Equal(2, PluginRegistry.CacheBuildCountForTests);
+        Assert.Equal(2, PluginRegistry.RegistrationBuildCountForTests);
         Assert.Equal(first.Count, second.Count);
         Assert.All(first.Zip(second), pair => Assert.NotSame(pair.First.Plugin, pair.Second.Plugin));
         Assert.All(second.Zip(third), pair => Assert.Same(pair.First.Plugin, pair.Second.Plugin));
     }
 
     [Fact]
-    public void GetAllPlugins_ExplicitConfig_PreservesLockedRegistrationOrderAndSource()
+    public void GetAllPlugins_Session_PreservesLockedRegistrationOrderAndSource()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var context = CreateContext();
         var config = CreateConfig();
+        var session = PluginExecutionSession.Create(config, BuildExecutionMode.Production);
 
-        var registrations = PluginRegistry.GetAllPlugins(context, config)
+        var registrations = PluginRegistry.GetAllPlugins(context, session)
             .Select(item => (item.Plugin.Name, item.Plugin.Version, item.Source))
             .ToArray();
 
@@ -91,9 +99,9 @@ public sealed class PluginRegistryTests
     }
 
     [Fact]
-    public void GetAllPlugins_CachesTheSingleAnalyticsPluginAsBuiltIn()
+    public void GetAllPlugins_CompatibilityCallsUseIsolatedSessions()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var context = CreateContext();
 
         var first = PluginRegistry.GetAllPlugins(context).Where(x => x.Plugin.Name == "analytics").ToList();
@@ -102,14 +110,14 @@ public sealed class PluginRegistryTests
         Assert.Single(first);
         Assert.Single(second);
         Assert.Equal("built-in", first[0].Source);
-        Assert.Same(first[0].Plugin, second[0].Plugin);
-        Assert.Equal(1, PluginRegistry.CacheBuildCountForTests);
+        Assert.NotSame(first[0].Plugin, second[0].Plugin);
+        Assert.Equal(2, PluginRegistry.RegistrationBuildCountForTests);
     }
 
     [Fact]
     public void GetAllPlugins_ReturnsNonEmptyList()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var ctx = new BuildContext
         {
             RootDir = "/test/no-plugins-dir",
@@ -130,7 +138,7 @@ public sealed class PluginRegistryTests
     [Fact]
     public void GetAllPlugins_ReturnsPluginsWithSources()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var ctx = new BuildContext
         {
             RootDir = "/test/no-plugins-dir",
@@ -151,7 +159,7 @@ public sealed class PluginRegistryTests
     [Fact]
     public void GetAllPlugins_NoDuplicateNames()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var ctx = new BuildContext
         {
             RootDir = "/test/no-plugins-dir",
@@ -169,9 +177,9 @@ public sealed class PluginRegistryTests
     }
 
     [Fact]
-    public void GetAllPlugins_UsesCache_OnSecondCall()
+    public void GetAllPlugins_CompatibilityCallBuildsOneShortLivedSession()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var ctx = new BuildContext
         {
             RootDir = "/test/no-plugins-dir",
@@ -182,22 +190,22 @@ public sealed class PluginRegistryTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var firstCallCount = PluginRegistry.CacheBuildCountForTests;
+        var firstCallCount = PluginRegistry.RegistrationBuildCountForTests;
         var first = PluginRegistry.GetAllPlugins(ctx).ToList();
-        var afterFirstCallCount = PluginRegistry.CacheBuildCountForTests;
+        var afterFirstCallCount = PluginRegistry.RegistrationBuildCountForTests;
 
         var second = PluginRegistry.GetAllPlugins(ctx).ToList();
-        var afterSecondCallCount = PluginRegistry.CacheBuildCountForTests;
+        var afterSecondCallCount = PluginRegistry.RegistrationBuildCountForTests;
 
         Assert.Equal(firstCallCount + 1, afterFirstCallCount);
-        Assert.Equal(afterFirstCallCount, afterSecondCallCount);
+        Assert.Equal(afterFirstCallCount + 1, afterSecondCallCount);
         Assert.Equal(first.Count, second.Count);
     }
 
     [Fact]
     public void GetAllPlugins_ContainsKnownBuiltInPlugins()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var ctx = new BuildContext
         {
             RootDir = "/test/no-plugins-dir",
@@ -229,7 +237,7 @@ public sealed class PluginRegistryTests
     [Fact]
     public void GetAllPlugins_DifferentContexts_BuildSeparateCaches()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var ctx1 = new BuildContext
         {
             RootDir = "/test/no-plugins-dir",
@@ -249,12 +257,12 @@ public sealed class PluginRegistryTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var countBefore = PluginRegistry.CacheBuildCountForTests;
+        var countBefore = PluginRegistry.RegistrationBuildCountForTests;
         var plugins1 = PluginRegistry.GetAllPlugins(ctx1).ToList();
-        var countAfter1 = PluginRegistry.CacheBuildCountForTests;
+        var countAfter1 = PluginRegistry.RegistrationBuildCountForTests;
 
         var plugins2 = PluginRegistry.GetAllPlugins(ctx2).ToList();
-        var countAfter2 = PluginRegistry.CacheBuildCountForTests;
+        var countAfter2 = PluginRegistry.RegistrationBuildCountForTests;
 
         Assert.Equal(countBefore + 1, countAfter1);
         Assert.Equal(countAfter1 + 1, countAfter2);
@@ -263,7 +271,7 @@ public sealed class PluginRegistryTests
     [Fact]
     public void GetAllPlugins_EachPluginHasValidSource()
     {
-        PluginRegistry.ResetCacheForTests();
+        PluginRegistry.ResetBuildCountForTests();
         var ctx = new BuildContext
         {
             RootDir = "/test/no-plugins-dir",
@@ -284,10 +292,10 @@ public sealed class PluginRegistryTests
     }
 
     [Fact]
-    public void ResetCacheForTests_ResetsBuildCount()
+    public void ResetBuildCountForTests_ResetsBuildCount()
     {
-        PluginRegistry.ResetCacheForTests();
-        Assert.Equal(0, PluginRegistry.CacheBuildCountForTests);
+        PluginRegistry.ResetBuildCountForTests();
+        Assert.Equal(0, PluginRegistry.RegistrationBuildCountForTests);
 
         var ctx = new BuildContext
         {
@@ -300,10 +308,10 @@ public sealed class PluginRegistryTests
         };
 
         _ = PluginRegistry.GetAllPlugins(ctx).ToList();
-        Assert.True(PluginRegistry.CacheBuildCountForTests > 0);
+        Assert.True(PluginRegistry.RegistrationBuildCountForTests > 0);
 
-        PluginRegistry.ResetCacheForTests();
-        Assert.Equal(0, PluginRegistry.CacheBuildCountForTests);
+        PluginRegistry.ResetBuildCountForTests();
+        Assert.Equal(0, PluginRegistry.RegistrationBuildCountForTests);
     }
 
     private static BuildContext CreateContext()

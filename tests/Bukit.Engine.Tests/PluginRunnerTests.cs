@@ -287,15 +287,18 @@ public sealed class PluginRunnerTests
     }
 
     [Fact]
-    public void GetAllPlugins_UsesSingleRegistryBuild_ForSameContext()
+    public void GetAllPlugins_SameSession_UsesSingleRegistryBuild()
     {
-        PluginRegistry.ResetCacheForTests();
-        var (ctx, _) = CreateContext();
+        PluginRegistry.ResetBuildCountForTests();
+        var (ctx, config) = CreateContext();
+        var session = PluginExecutionSession.Create(
+            config,
+            BuildExecutionMode.Production);
 
-        _ = PluginRegistry.GetAllPlugins(ctx).ToList();
-        var first = PluginRegistry.CacheBuildCountForTests;
-        _ = PluginRegistry.GetAllPlugins(ctx).ToList();
-        var second = PluginRegistry.CacheBuildCountForTests;
+        _ = PluginRegistry.GetAllPlugins(ctx, session).ToList();
+        var first = PluginRegistry.RegistrationBuildCountForTests;
+        _ = PluginRegistry.GetAllPlugins(ctx, session).ToList();
+        var second = PluginRegistry.RegistrationBuildCountForTests;
 
         Assert.Equal(first, second);
     }

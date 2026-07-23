@@ -19,7 +19,8 @@ internal sealed record PluginPipelineContext(
     int RenderedCount,
     int SkippedCount,
     ILogger Logger,
-    AppConfig Config);
+    AppConfig Config,
+    PluginExecutionSession PluginSession);
 
 internal sealed record PluginPipelineResult(
     BuildStageMetrics StageMetrics);
@@ -36,7 +37,10 @@ internal sealed class PluginPipeline
         }
 
         var afterBuildStopwatch = Stopwatch.StartNew();
-        await PluginRunner.RunAfterBuildAsync(ctx.PluginContext, ctx.Config, cancellationToken);
+        await PluginRunner.RunAfterBuildAsync(
+            ctx.PluginContext,
+            ctx.PluginSession,
+            cancellationToken);
         BuildManifestTracker.TrackPluginOutputs(ctx.PluginContext, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger, ctx.Config.Build.FingerprintMode);
         afterBuildStopwatch.Stop();
         metricsCollector.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);

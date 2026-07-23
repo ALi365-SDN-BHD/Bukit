@@ -72,11 +72,11 @@ internal static class DoctorTemplateAnalyzer
 
     internal static IReadOnlyList<string> CollectPluginRequirementTemplates(
         BuildContext context,
-        AppConfig config,
+        PluginExecutionSession session,
         ThemeTemplateResolver templateResolver)
     {
         var templates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kind in PluginRunner.CollectTemplateRequirementKinds(context, config))
+        foreach (var kind in PluginRunner.CollectTemplateRequirementKinds(context, session))
         {
             templates.Add(templateResolver.ResolveKindTemplate(kind));
         }
