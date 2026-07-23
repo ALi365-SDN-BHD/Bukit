@@ -1,21 +1,25 @@
-using Bukit.Engine.Abstractions.Content;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Bukit.Content.Notion;
-using NotionRichTextRenderer = Bukit.Notion.Rendering.NotionRichTextRenderer;
+using Bukit.Notion.Rendering;
+using Bukit.Notion.Transport;
 using Xunit;
 
-namespace Bukit.Content.Tests;
+namespace Bukit.Notion.Tests;
 
-public sealed class NotionBlockRendererEdgeCasesTests
+public sealed class NotionBlockRendererCompatibilityEdgeCasesTests
 {
     [Fact]
     public void NotionBlocksRenderer_Registry_ReturnsRegistry()
     {
         using var http = new HttpClient(new HttpMessageHandlerStub());
-        var options = new NotionProviderOptions { DatabaseId = "db", Token = "t" };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        var options = new NotionClientOptions
+        {
+            Token = "t",
+            RequestDelayMs = 0,
+            MaxRetries = 0
+        };
+        using var client = new NotionClient(options, http);
         var renderer = new NotionBlocksRenderer(client);
 
         var registry = renderer.Registry;
@@ -167,15 +171,15 @@ public sealed class NotionBlockRendererEdgeCasesTests
 
     // ── Helpers ──────────────────────────────────────────────────────────
 
-    private static NotionApiClient CreateClient(HttpMessageHandler handler)
+    private static NotionClient CreateClient(HttpMessageHandler handler)
     {
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        return new NotionApiClient(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+        return new NotionClient(options, new HttpClient(handler));
     }
 
     private sealed class JsonHandler : HttpMessageHandler

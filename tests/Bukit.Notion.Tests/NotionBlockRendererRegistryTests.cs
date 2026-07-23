@@ -1,9 +1,8 @@
-using Bukit.Engine.Abstractions.Content;
 using System.Text.Json;
-using Bukit.Content.Notion;
+using Bukit.Notion.Rendering;
 using Xunit;
 
-namespace Bukit.Content.Tests;
+namespace Bukit.Notion.Tests;
 
 public sealed class NotionBlockRendererRegistryTests
 {

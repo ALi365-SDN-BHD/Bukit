@@ -1,12 +1,10 @@
-using Bukit.Engine.Abstractions.Content;
 using System.Net;
 using System.Text;
-using System.Text.Json;
-using Bukit.Content.Notion;
-using Bukit.Shared;
+using Bukit.Notion.Rendering;
+using Bukit.Notion.Transport;
 using Xunit;
 
-namespace Bukit.Content.Tests;
+namespace Bukit.Notion.Tests;
 
 public sealed class NotionBlocksRendererPaginationTests
 {
@@ -37,13 +35,13 @@ public sealed class NotionBlocksRendererPaginationTests
         });
 
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -103,13 +101,13 @@ public sealed class NotionBlocksRendererPaginationTests
         });
 
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -142,13 +140,13 @@ public sealed class NotionBlocksRendererPaginationTests
         });
 
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -192,13 +190,13 @@ public sealed class NotionBlocksRendererPaginationTests
         });
 
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -262,13 +260,13 @@ public sealed class NotionBlocksRendererPaginationTests
         });
 
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -310,13 +308,13 @@ public sealed class NotionBlocksRendererPaginationTests
         });
 
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -358,13 +356,13 @@ public sealed class NotionBlocksRendererPaginationTests
         });
 
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();

@@ -1,10 +1,10 @@
-using Bukit.Engine.Abstractions.Content;
 using System.Net;
 using System.Text;
-using Bukit.Content.Notion;
+using Bukit.Notion.Rendering;
+using Bukit.Notion.Transport;
 using Xunit;
 
-namespace Bukit.Content.Tests;
+namespace Bukit.Notion.Tests;
 
 public sealed class NotionRenderContextTests
 {
@@ -13,13 +13,13 @@ public sealed class NotionRenderContextTests
     {
         var handler = new RenderContextHttpHandler();
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
         var renderer = new NotionBlocksRenderer(client);
         var context = new NotionRenderContext(renderer, client);
 
@@ -34,13 +34,13 @@ public sealed class NotionRenderContextTests
     {
         var handler = new EmptyChildrenHandler();
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
         var renderer = new NotionBlocksRenderer(client);
         var context = new NotionRenderContext(renderer, client);
 
@@ -53,13 +53,13 @@ public sealed class NotionRenderContextTests
     public void Constructor_ExposesClient()
     {
         using var http = new HttpClient(new EmptyChildrenHandler());
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
         var renderer = new NotionBlocksRenderer(client);
 
         var context = new NotionRenderContext(renderer, client);
@@ -72,13 +72,13 @@ public sealed class NotionRenderContextTests
     {
         var handler = new NestedListHandler();
         using var http = new HttpClient(handler);
-        var options = new NotionProviderOptions
+        var options = new NotionClientOptions
         {
-            DatabaseId = "db",
             Token = "token",
-            RequestDelayMs = 0
+            RequestDelayMs = 0,
+            MaxRetries = 0
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionClient(options, http);
         var renderer = new NotionBlocksRenderer(client);
         var context = new NotionRenderContext(renderer, client);
 
