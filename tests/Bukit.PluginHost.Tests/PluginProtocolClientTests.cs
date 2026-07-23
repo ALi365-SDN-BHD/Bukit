@@ -29,21 +29,34 @@ public sealed class PluginProtocolClientTests
     }
 
     [Theory]
-    [InlineData("bad-protocol", PluginHostErrorCodes.UnsupportedProtocol)]
-    [InlineData("bukit-plugin-v1", PluginHostErrorCodes.InvalidResponse)]
-    public async Task HandshakeAsync_RejectsInvalidProtocolOrMismatchedRequestId(string protocol, string expectedCode)
+    [InlineData(
+        "bad-protocol",
+        "req-1",
+        "plugin.unsupportedProtocol",
+        "Plugin response protocol is unsupported.")]
+    [InlineData(
+        "bukit-plugin-v1",
+        "other",
+        "plugin.invalidResponse",
+        "Plugin response requestId did not match request.")]
+    public async Task HandshakeAsync_RejectsInvalidProtocolOrMismatchedRequestId(
+        string protocol,
+        string responseRequestId,
+        string expectedCode,
+        string expectedDetail)
     {
-        string requestId = expectedCode == PluginHostErrorCodes.UnsupportedProtocol ? "req-1" : "other";
         var invoker = new StubPluginProcessInvoker(
             "{\"type\":\"handshakeResponse\",\"protocol\":\"" + protocol +
-            "\",\"requestId\":\"" + requestId +
+            "\",\"requestId\":\"" + responseRequestId +
             "\",\"success\":true,\"plugin\":{\"id\":\"echo\",\"name\":\"Echo\",\"version\":\"0.1.0\",\"platform\":\"osx-arm64\"}}");
-        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-1"));
+        var client = new PluginProtocolClient(
+            invoker,
+            new FixedRequestIdFactory("req-1"));
 
         ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
             () => client.HandshakeAsync(CreatePlugin(), CancellationToken.None));
 
-        Assert.Contains(expectedCode, exception.Message);
+        AssertProtocolFailure(exception, expectedCode, expectedDetail);
     }
 
     [Fact]
@@ -58,7 +71,10 @@ public sealed class PluginProtocolClientTests
         ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
             () => client.HandshakeAsync(CreatePlugin(), CancellationToken.None));
 
-        Assert.Contains(PluginHostErrorCodes.InvalidResponse, exception.Message);
+        AssertProtocolFailure(
+            exception,
+            "plugin.invalidResponse",
+            "Handshake plugin identity does not match resolved plugin.");
     }
 
     [Fact]
@@ -87,7 +103,28 @@ public sealed class PluginProtocolClientTests
         ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
             () => client.GetManifestAsync(CreatePlugin(), CancellationToken.None));
 
-        Assert.Contains(PluginHostErrorCodes.InvalidResponse, exception.Message);
+        AssertProtocolFailure(
+            exception,
+            "plugin.invalidResponse",
+            "Plugin stdout was not valid protocol JSON.");
+        Assert.IsType<System.Text.Json.JsonException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task GetManifestAsync_RejectsNonZeroProcessExit()
+    {
+        var invoker = new StubPluginProcessInvoker("{}", exitCode: 7);
+        var client = new PluginProtocolClient(
+            invoker,
+            new FixedRequestIdFactory("req-2"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.GetManifestAsync(CreatePlugin(), CancellationToken.None));
+
+        AssertProtocolFailure(
+            exception,
+            "plugin.executionFailed",
+            "Plugin process exited with code 7.");
     }
 
     [Fact]
@@ -116,7 +153,10 @@ public sealed class PluginProtocolClientTests
         ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
             () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
 
-        Assert.Contains(PluginHostErrorCodes.InvalidResponse, exception.Message);
+        Assert.Contains(
+            "plugin.invalidResponse",
+            exception.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -128,7 +168,10 @@ public sealed class PluginProtocolClientTests
         ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
             () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
 
-        Assert.Contains(PluginHostErrorCodes.Timeout, exception.Message);
+        AssertProtocolFailure(
+            exception,
+            "plugin.timeout",
+            "Plugin process timed out.");
     }
 
     [Fact]
@@ -140,7 +183,10 @@ public sealed class PluginProtocolClientTests
         ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
             () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
 
-        Assert.Contains(PluginHostErrorCodes.OutputTooLarge, exception.Message);
+        AssertProtocolFailure(
+            exception,
+            "plugin.outputTooLarge",
+            "Plugin process output exceeded configured limits.");
     }
 
     [Fact]
@@ -157,6 +203,28 @@ public sealed class PluginProtocolClientTests
         Assert.False(response.Success);
         Assert.Equal(2, response.ExitCode);
         Assert.Equal("plugin.input.invalid", Assert.Single(response.Diagnostics).Code);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_PreservesInboundPermissionDeniedErrorCode()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"invokeResponse","protocol":"bukit-plugin-v1","requestId":"req-3","success":false,"exitCode":4,"error":{"code":"plugin.permissionDenied","message":"Permission denied"}}
+            """);
+        var client = new PluginProtocolClient(
+            invoker,
+            new FixedRequestIdFactory("req-3"));
+
+        PluginInvokeResponse response = await client.InvokeAsync(
+            CreatePlugin(),
+            CreateInvokeRequest(),
+            CancellationToken.None);
+
+        Assert.False(response.Success);
+        Assert.Equal(4, response.ExitCode);
+        Assert.Equal("plugin.permissionDenied", response.Error?.Code);
+        Assert.Equal("Permission denied", response.Error?.Message);
     }
 
     [Fact]
@@ -233,7 +301,19 @@ public sealed class PluginProtocolClientTests
         ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
             () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
 
-        Assert.Contains(PluginHostErrorCodes.InvalidResponse, exception.Message);
+        AssertProtocolFailure(
+            exception,
+            "plugin.invalidResponse",
+            "Plugin artifact path must be a project-relative safe path.");
+    }
+
+    private static void AssertProtocolFailure(
+        ConfigException exception,
+        string code,
+        string detail)
+    {
+        Assert.Equal(DiagnosticCode.PluginExecutionFailed, exception.Code);
+        Assert.Equal($"{code}: {detail}", exception.Message);
     }
 
     private static ResolvedPlugin CreatePlugin(string? projectRoot = null)

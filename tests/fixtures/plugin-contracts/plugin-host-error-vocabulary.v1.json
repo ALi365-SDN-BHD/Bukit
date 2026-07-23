@@ -1,0 +1,11 @@
+{
+  "schema": "bukit-plugin-host-error-vocabulary-v1",
+  "codes": [
+    "plugin.unsupportedProtocol",
+    "plugin.invalidResponse",
+    "plugin.timeout",
+    "plugin.executionFailed",
+    "plugin.permissionDenied",
+    "plugin.outputTooLarge"
+  ]
+}
