@@ -16,18 +16,27 @@ public sealed class CliErrorRendererTests
             new CliDiagnostic("missing-option-value", "Missing value for --output", ShowUsage: false),
         };
 
-        using var payload = Parse(CliErrorRenderer.RenderJson("bukit build", diagnostics, "Usage: bukit build"));
+        var json = CliErrorRenderer.RenderJson("bukit build", diagnostics, "Usage: bukit build");
 
-        Assert.Equal("https://bukit.dev/schemas/cli-error.v1.json", payload.RootElement.GetProperty("schema").GetString());
-        Assert.Equal("1.0", payload.RootElement.GetProperty("version").GetString());
-        Assert.Equal("bukit build", payload.RootElement.GetProperty("command").GetString());
-        Assert.Equal(2, payload.RootElement.GetProperty("exitCode").GetInt32());
-        Assert.Equal("Usage: bukit build", payload.RootElement.GetProperty("usage").GetString());
-
-        var error = payload.RootElement.GetProperty("errors")[0];
-        Assert.Equal("missing-option-value", error.GetProperty("code").GetString());
-        Assert.Equal("Missing value for --output", error.GetProperty("message").GetString());
-        Assert.False(error.GetProperty("showUsage").GetBoolean());
+        Assert.Equal(
+            """
+            {
+              "schema": "https://bukit.dev/schemas/cli-error.v1.json",
+              "version": "1.0",
+              "command": "bukit build",
+              "exitCode": 2,
+              "errors": [
+                {
+                  "code": "missing-option-value",
+                  "message": "Missing value for --output",
+                  "showUsage": false
+                }
+              ],
+              "usage": "Usage: bukit build"
+            }
+            """,
+            json);
+        Assert.False(json.EndsWith('\n'));
     }
 
     [Fact]
@@ -57,6 +66,52 @@ public sealed class CliErrorRendererTests
         Assert.Equal(7, payload.RootElement.GetProperty("exitCode").GetInt32());
         Assert.Equal("custom", payload.RootElement.GetProperty("errors")[0].GetProperty("code").GetString());
         Assert.True(payload.RootElement.GetProperty("errors")[0].GetProperty("showUsage").GetBoolean());
+    }
+
+    [Fact]
+    public void RenderJson_NullCommandAndUsage_AreOmittedAndEmptyErrorsRemainAnArray()
+    {
+        var json = CliErrorRenderer.RenderJson(
+            command: null,
+            exitCode: 0,
+            errors: Array.Empty<CliErrorRenderer.CliErrorDiagnostic>(),
+            usage: null);
+
+        Assert.Equal(
+            """
+            {
+              "schema": "https://bukit.dev/schemas/cli-error.v1.json",
+              "version": "1.0",
+              "exitCode": 0,
+              "errors": []
+            }
+            """,
+            json);
+    }
+
+    [Fact]
+    public void RenderJson_MultipleErrors_PreserveOrderShowUsageAndDefaultEscaping()
+    {
+        var errors = new[]
+        {
+            new CliErrorRenderer.CliErrorDiagnostic("first", "<tag>&中\"", ShowUsage: false),
+            new CliErrorRenderer.CliErrorDiagnostic("second", "plain", ShowUsage: true),
+        };
+
+        var json = CliErrorRenderer.RenderJson("bukit build", 2, errors);
+        using var payload = Parse(json);
+        var serializedErrors = payload.RootElement.GetProperty("errors");
+
+        Assert.Equal(2, serializedErrors.GetArrayLength());
+        Assert.Equal("first", serializedErrors[0].GetProperty("code").GetString());
+        Assert.Equal("<tag>&中\"", serializedErrors[0].GetProperty("message").GetString());
+        Assert.False(serializedErrors[0].GetProperty("showUsage").GetBoolean());
+        Assert.Equal("second", serializedErrors[1].GetProperty("code").GetString());
+        Assert.True(serializedErrors[1].GetProperty("showUsage").GetBoolean());
+        Assert.Contains(@"\u003Ctag\u003E\u0026", json, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(@"\u4E2D", json, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(@"\u0022", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("<tag>&中\"", json, StringComparison.Ordinal);
     }
 
     [Fact]

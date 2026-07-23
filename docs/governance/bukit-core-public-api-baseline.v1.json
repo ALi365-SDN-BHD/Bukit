@@ -351,37 +351,6 @@
     },
     {
       "assembly": "Bukit.Cli.Shared",
-      "name": "Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer\u002BCliErrorPayload",
-      "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public class Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload : System.IEquatable\u003CBukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.String! Schema, System.String! Version, System.String? Command, System.Int32 ExitCode, System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorDiagnostic!\u003E! Errors, System.String? Usage)",
-        "public System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorDiagnostic!\u003E! Errors { get; init; }",
-        "public System.Int32 ExitCode { get; init; }",
-        "public System.String! Schema { get; init; }",
-        "public System.String! Version { get; init; }",
-        "public System.String? Command { get; init; }",
-        "public System.String? Usage { get; init; }",
-        "public System.Void Deconstruct(out System.String! Schema, out System.String! Version, out System.String? Command, out System.Int32 ExitCode, out System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorDiagnostic!\u003E! Errors, out System.String? Usage)",
-        "public static System.Boolean op_Equality(Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? left, Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? right)",
-        "public static System.Boolean op_Inequality(Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? left, Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? right)",
-        "public virtual Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload! \u003CClone\u003E$()",
-        "public virtual System.Boolean Equals(Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? other)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()"
-      ],
-      "protectedMembers": [
-        "protected .ctor(Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload! original)",
-        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
-        "protected virtual System.Type! EqualityContract { get; }"
-      ]
-    },
-    {
-      "assembly": "Bukit.Cli.Shared",
       "name": "Bukit.Cli.Shared.Cli.Rendering.CliHelpRenderer",
       "owner": "CLI contract infrastructure",
       "classification": "cross-assembly-implementation",

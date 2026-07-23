@@ -201,7 +201,7 @@ verification.
 
 G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.
 
-The current public API baseline contains 489 types, including 63 `2.0-candidate` entries.
+The current public API baseline contains 488 types, including 62 `2.0-candidate` entries.
 It covers 14 assemblies. The closed 136-entry candidate manifest remains
 immutable with Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`; private
 consumers remain `unknown-until-voluntary-declaration`. The 2026-07-22
@@ -222,10 +222,10 @@ and exclusions.
 G-04D3B removes only the duplicate
 `Bukit.Content.Notion.NotionClientStats` CLR identity in 2.0. The internal
 legacy `NotionApiClient.GetStats()` facade now returns the canonical
-`Bukit.Notion.Transport.NotionClientStats`; the other 63 candidates are not
+`Bukit.Notion.Transport.NotionClientStats`; the other 62 candidates are not
 batch-approved.
 
-The current public API baseline contains 489 types, including 63
+The current public API baseline contains 488 types, including 62
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`. Authenticated public search found
@@ -253,7 +253,7 @@ identities are removed atomically. Direct CLR consumers must migrate to
 canonical enum ordinals, token defaults, parsing behavior, and exception
 behavior remain unchanged.
 
-The current public API baseline contains 489 types, including 63
+The current public API baseline contains 488 types, including 62
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -268,7 +268,7 @@ G-04D4B narrows only `Bukit.Shared.ValueCoercion` from public to internal in
 public identity, the existing `Bukit.Shared.Tests` friend boundary is
 unchanged, and no replacement or global conversion abstraction is added.
 
-The current public API baseline contains 489 types, including 63
+The current public API baseline contains 488 types, including 62
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -290,7 +290,7 @@ remains public and is reclassified as
 type of `CliParser.Parse`, the public input of
 `CommandDescriptor.DispatchAsync`, and an externally derivable record.
 
-The current public API baseline contains 489 types, including 63
+The current public API baseline contains 488 types, including 62
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -299,4 +299,24 @@ undisclosed consumers remain `unknown-until-voluntary-declaration`.
 Binding, recursive parse, diagnostic order, dispatch, command tree, stderr,
 and exit codes remain unchanged. No CLI Shared friend assembly is added. The
 [G-04D5A decision ledger](../analysis/bukit-core-g04d5a-cli-parse-graph-resolution-2026-07-23.zh-CN.md)
+records the exact compatibility and G2 verification boundary.
+
+## G-04D5B CLI Error Payload
+
+G-04D5B narrows only
+`CliErrorRenderer.CliErrorPayload` from public nested record to internal
+nested record in 2.0. `CliErrorRenderer`, `CliErrorDiagnostic`, and all public
+`RenderJson` overloads remain public; the supported external contract is the
+rendered JSON envelope, not the implementation DTO identity.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
+undisclosed consumers remain `unknown-until-voluntary-declaration`.
+
+Source-generated serialization, JSON names/order/indentation, null omission,
+defaults, escaping, stdout/stderr routing, usage, and exit codes remain
+unchanged. The
+[G-04D5B decision ledger](../analysis/bukit-core-g04d5b-cli-error-payload-resolution-2026-07-23.zh-CN.md)
 records the exact compatibility and G2 verification boundary.
