@@ -138,7 +138,7 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
     }
 
     [Fact]
-    public void SourceBoundary_PreservesInternalHelperAndDeferredD1CTypes()
+    public void SourceBoundary_PreservesInternalHelperAndReflectsApprovedM2Removal()
     {
         var blockRendererDirectory = Path.Combine(
             RepoRoot,
@@ -151,7 +151,7 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
 
         Assert.False(File.Exists(Path.Combine(blockRendererDirectory, "BlockRendererFacades.cs")));
         Assert.True(File.Exists(Path.Combine(blockRendererDirectory, "NotionBlockHelpers.cs")));
-        Assert.All(D1CTypeNames, typeName => Assert.NotNull(assembly.GetType(
+        Assert.All(D1CTypeNames, typeName => Assert.Null(assembly.GetType(
             typeName,
             throwOnError: false,
             ignoreCase: false)));

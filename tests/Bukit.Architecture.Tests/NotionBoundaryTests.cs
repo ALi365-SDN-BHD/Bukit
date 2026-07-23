@@ -239,36 +239,6 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
-    public void LegacyRendererRegistry_MustDelegateDefaultOwnershipToCanonicalRegistry()
-    {
-        var repoRoot = FindRepoRoot();
-        var legacySource = File.ReadAllText(Path.Combine(
-            repoRoot,
-            "src",
-            "Bukit-Core",
-            "Bukit.Content",
-            "Notion",
-            "NotionBlockRendererRegistry.cs"));
-        var canonicalSource = File.ReadAllText(Path.Combine(
-            repoRoot,
-            "src",
-            "Bukit-Core",
-            "Bukit.Notion",
-            "Rendering",
-            "NotionBlockRendererRegistry.cs"));
-
-        Assert.Contains(
-            "Bukit.Notion.Rendering.NotionBlockRendererRegistry.CreateDefault()",
-            legacySource,
-            StringComparison.Ordinal);
-        Assert.DoesNotContain("registry.Register(", legacySource, StringComparison.Ordinal);
-        Assert.Single(Regex.Matches(
-            canonicalSource,
-            "registry\\.Register\\(\"paragraph\"",
-            RegexOptions.CultureInvariant).Cast<Match>());
-    }
-
-    [Fact]
     public void LegacyNotionTypes_MustResolveFromOriginalAssemblies()
     {
         var contentAssembly = typeof(Bukit.Content.Notion.NotionContentProvider).Assembly;
@@ -344,16 +314,11 @@ public sealed class NotionBoundaryTests
 
     private static readonly string[] LegacyContentNotionTypes =
     [
-        "Bukit.Content.Notion.INotionBlockRenderer",
         "Bukit.Content.Notion.NotionApiClient",
-        "Bukit.Content.Notion.NotionBlockRendererRegistry",
-        "Bukit.Content.Notion.NotionBlockTransformer",
-        "Bukit.Content.Notion.NotionBlocksRenderer",
         "Bukit.Content.Notion.NotionClientStats",
         "Bukit.Content.Notion.NotionContentProvider",
         "Bukit.Content.Notion.NotionPropertyParser",
-        "Bukit.Content.Notion.NotionProviderOptions",
-        "Bukit.Content.Notion.NotionRenderContext"
+        "Bukit.Content.Notion.NotionProviderOptions"
     ];
 
     private static readonly string[] LegacySharedNotionTypes =
