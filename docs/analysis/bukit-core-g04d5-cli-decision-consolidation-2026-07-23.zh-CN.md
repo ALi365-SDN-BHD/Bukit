@@ -4,7 +4,7 @@
 
 任务：G-04D5 / master plan Task 17～20
 
-状态：`implementation-complete / group-verification-pending`
+状态：`implementation-complete / group-verification-complete`
 
 ## 1. 范围
 
@@ -79,8 +79,8 @@ Task 18/19 固定并验证：
 
 ## 5. Task 20 验证边界
 
-Task 20 的 Core owner tests、public API drift、真实 Native AOT、发布产物 smoke、唯一一次
-aggregate targeted gate 和独立轻量复审完成后，才能把本汇总改为
+Task 20 的 Core owner tests、public API drift、真实 Native AOT、发布产物 smoke、
+second replacement aggregate targeted gate 和独立轻量复审均已完成，本汇总正式标记
 `group-verification-complete`。
 
 Labs CLI 的既有 YAML static-context 缺陷已在 G2 base 原样复现；由于用户明确排除 Labs

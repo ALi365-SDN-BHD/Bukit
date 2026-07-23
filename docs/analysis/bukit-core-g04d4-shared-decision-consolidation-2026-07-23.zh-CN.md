@@ -4,7 +4,7 @@
 >
 > 范围：G2 Task 16
 >
-> 状态：decisions consolidated / group-verification-pending
+> 状态：decisions consolidated / group-verification-complete
 
 ## 1. 汇总结论
 
@@ -299,14 +299,14 @@ migration任务。
 
 ## 11. 正式决策台账
 
-| 范围 | 数量 | 终态 | current candidate状态 | Task 20前状态 |
+| 范围 | 数量 | 终态 | current candidate状态 | Task 20状态 |
 |---|---:|---|---|---|
-| legacy model/record | 13 | retained public / reclassified | 已退出 candidate | group-verification-pending |
-| legacy Shared tokenizer | 3 | removed / canonical migration | 已退出 current baseline | group-verification-pending |
-| `ValueCoercion` | 1 | internalized | 已退出 current baseline | group-verification-pending |
+| legacy model/record | 13 | retained public / reclassified | 已退出 candidate | group-verification-complete |
+| legacy Shared tokenizer | 3 | removed / canonical migration | 已退出 current baseline | group-verification-complete |
+| `ValueCoercion` | 1 | internalized | 已退出 current baseline | group-verification-complete |
 
 G-04D4 的 17项决策至此全部汇总。正式状态为：
 
 ```text
-decisions consolidated / group-verification-pending
+decisions consolidated / group-verification-complete
 ```

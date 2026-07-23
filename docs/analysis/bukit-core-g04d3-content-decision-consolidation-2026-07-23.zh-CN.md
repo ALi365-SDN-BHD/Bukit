@@ -6,7 +6,7 @@
 
 G2 `GROUP_BASE`：`27dcc456d5f6a614d2a7bc9a35fb93bd938a9766`
 
-状态：implementation decisions complete；`group-verification-pending`
+状态：implementation decisions complete；`group-verification-complete`
 
 ## 1. 汇总结论
 
@@ -74,8 +74,8 @@ Task 20 必须统一消费：
 8. Native AOT 与 published Content/Notion 可达性；
 9. G2 唯一轻量只读复审。
 
-在 Task 20 完成前，本汇总只表示五项的 implementation decision 已完整，不表示 G2 已
-关闭。
+Task 20 的 Core owner tests、public API drift、Native AOT、发布产物 smoke、aggregate
+targeted gate 与独立轻量复审均已完成；五项 decision 和 G2 Core 范围正式关闭。
 
 ## 5. 禁止漂移与后续边界
 
