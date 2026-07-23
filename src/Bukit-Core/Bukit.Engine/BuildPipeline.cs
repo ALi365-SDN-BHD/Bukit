@@ -2,12 +2,12 @@ using Bukit.Config;
 
 namespace Bukit.Engine;
 
-public sealed record BuildPipelineContext(
+internal sealed record BuildPipelineContext(
     AppConfig Config,
     string RootDir,
     ConfigOverrides Overrides);
 
-public sealed class BuildPipeline
+internal sealed class BuildPipeline
 {
     private readonly Func<BuildPipelineContext, CancellationToken, Task<BuildResult>> _executor;
 

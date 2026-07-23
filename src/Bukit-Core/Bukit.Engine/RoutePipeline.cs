@@ -6,7 +6,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 namespace Bukit.Engine;
 
-public sealed record RoutePipelineResult(
+internal sealed record RoutePipelineResult(
     IReadOnlyList<ContentDocument> ContentDocuments,
     IReadOnlyList<RoutedContentDocument> RoutedDocuments,
     IReadOnlyList<RouteInfo> ListRoutes)
@@ -14,7 +14,7 @@ public sealed record RoutePipelineResult(
     internal ListRouteGraph ListRouteGraph { get; init; } = ListRouteGraph.Empty;
 }
 
-public sealed class RoutePipeline
+internal sealed class RoutePipeline
 {
     public RoutePipelineResult Execute(AppConfig config, IReadOnlyList<ContentDocument> documents, ThemeTemplateResolver? templateResolver = null)
     {

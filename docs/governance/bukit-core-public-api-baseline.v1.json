@@ -2403,8 +2403,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.BuildOptions",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.BuildOptions : System.IEquatable\u003CBukit.Engine.BuildOptions~\u003E~",
       "publicMembers": [
@@ -2445,44 +2445,6 @@
         "public static System.String! NormalizeRelPath(System.String! path)",
         "public static System.String! SanitizeFileSegment(System.String! value)",
         "public static System.ValueTuple\u003CSystem.String!, System.String!, System.String!, System.String?, System.String?, System.String?, System.String?\u003E ResolveThemeDirectories(System.String! rootDir, Bukit.Config.ThemeConfig! theme, System.String? resolvedThemeRoot = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.BuildPipeline",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.BuildPipeline",
-      "publicMembers": [
-        "public .ctor(System.Func\u003CBukit.Engine.BuildPipelineContext!, System.Threading.CancellationToken, System.Threading.Tasks.Task\u003CBukit.Engine.BuildResult!\u003E!\u003E! executor)",
-        "public System.Threading.Tasks.Task\u003CBukit.Engine.BuildResult!\u003E! ExecuteAsync(Bukit.Engine.BuildPipelineContext! context, System.Threading.CancellationToken cancellationToken = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.BuildPipelineContext",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.BuildPipelineContext : System.IEquatable\u003CBukit.Engine.BuildPipelineContext~\u003E~",
-      "publicMembers": [
-        "public .ctor(Bukit.Config.AppConfig! Config, System.String! RootDir, Bukit.Config.ConfigOverrides! Overrides)",
-        "public Bukit.Config.AppConfig! Config { get; init; }",
-        "public Bukit.Config.ConfigOverrides! Overrides { get; init; }",
-        "public Bukit.Engine.BuildPipelineContext! \u003CClone\u003E$()",
-        "public System.String! RootDir { get; init; }",
-        "public System.Void Deconstruct(out Bukit.Config.AppConfig! Config, out System.String! RootDir, out Bukit.Config.ConfigOverrides! Overrides)",
-        "public static System.Boolean op_Equality(Bukit.Engine.BuildPipelineContext? left, Bukit.Engine.BuildPipelineContext? right)",
-        "public static System.Boolean op_Inequality(Bukit.Engine.BuildPipelineContext? left, Bukit.Engine.BuildPipelineContext? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Engine.BuildPipelineContext? other)"
       ],
       "protectedMembers": []
     },
@@ -2575,8 +2537,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.BuildVariantSummary",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.BuildVariantSummary : System.IEquatable\u003CBukit.Engine.BuildVariantSummary~\u003E~",
       "publicMembers": [
@@ -2646,8 +2608,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.ContentPipelineResult",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.ContentPipelineResult : System.IEquatable\u003CBukit.Engine.ContentPipelineResult~\u003E~",
       "publicMembers": [
@@ -3318,44 +3280,6 @@
         "public static System.ValueTuple\u003CBukit.Engine.Abstractions.Routing.RouteInfo!, System.String!\u003E GenerateRouteWithSource(Bukit.Engine.Abstractions.Content.ContentDocument! document, Bukit.Config.SiteConfig! site)",
         "public static System.Void ValidateContentRoutes(System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! routed, System.String! scope = \u0022content\u0022)",
         "public static System.Void ValidateFinalRoutes(System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! routed, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! derived, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E? specialRoutes = null, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E? staticHtmlRoutes = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.RoutePipeline",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.RoutePipeline",
-      "publicMembers": [
-        "public .ctor()",
-        "public Bukit.Engine.RoutePipelineResult! Execute(Bukit.Config.AppConfig! config, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.ContentDocument!\u003E! documents, Bukit.Engine.ThemeTemplateResolver? templateResolver = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.RoutePipelineResult",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.RoutePipelineResult : System.IEquatable\u003CBukit.Engine.RoutePipelineResult~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.ContentDocument!\u003E! ContentDocuments, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! RoutedDocuments, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! ListRoutes)",
-        "public Bukit.Engine.RoutePipelineResult! \u003CClone\u003E$()",
-        "public System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.ContentDocument!\u003E! ContentDocuments { get; init; }",
-        "public System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! RoutedDocuments { get; init; }",
-        "public System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! ListRoutes { get; init; }",
-        "public System.Void Deconstruct(out System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.ContentDocument!\u003E! ContentDocuments, out System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! RoutedDocuments, out System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! ListRoutes)",
-        "public static System.Boolean op_Equality(Bukit.Engine.RoutePipelineResult? left, Bukit.Engine.RoutePipelineResult? right)",
-        "public static System.Boolean op_Inequality(Bukit.Engine.RoutePipelineResult? left, Bukit.Engine.RoutePipelineResult? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Engine.RoutePipelineResult? other)"
       ],
       "protectedMembers": []
     },

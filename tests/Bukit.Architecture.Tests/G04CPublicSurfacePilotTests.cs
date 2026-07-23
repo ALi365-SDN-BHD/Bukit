@@ -42,8 +42,8 @@ public sealed class G04CPublicSurfacePilotTests
         Assert.Equal("net10.0", root.GetProperty("targetFramework").GetString());
         Assert.Equal("no-general-clr-sdk", root.GetProperty("sdkPolicy").GetString());
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(484, types.Length);
-        Assert.Equal(56, types.Count(type =>
+        Assert.Equal(480, types.Length);
+        Assert.Equal(49, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.DoesNotContain(types, type =>
             type.GetProperty("assembly").GetString() == "Bukit.Engine" &&
@@ -83,7 +83,7 @@ public sealed class G04CPublicSurfacePilotTests
         const string historicalRemainder = "candidates were not batch-approved.";
         const string historicalPostD1ARemainder = "the other 133 candidates are not batch-approved.";
         const string currentRemainder = "the other 103 candidates are not batch-approved.";
-        const string currentBaseline = "The current public API baseline contains 484 types, including 56 `2.0-candidate` entries.";
+        const string currentBaseline = "The current public API baseline contains 480 types, including 49 `2.0-candidate` entries.";
         const string staleCurrentBaseline = "current baseline has the other 133 candidates";
         const string historicalDecision = "G-04C was the first";
         const string historicalDecisionKind = "authorized 2.0 removal decision";
