@@ -66,9 +66,8 @@ Representative Engine behavior regression:
 ```sh
 env -u NOTION_TOKEN dotnet test \
   tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
-  --filter '<PluginRegistry/Runner, Analytics, Taxonomy, Pagination, Archive,
-  Feed/Search/Sitemap/Llms, media, menu/related/pages, SiteEngine and variant
-  test filters>' --no-restore --nologo
+  --filter 'FullyQualifiedName~PluginRegistryTests|FullyQualifiedName~PluginRunnerTests|FullyQualifiedName~AnalyticsBuildStateTests|FullyQualifiedName~TaxonomyTermsInjectorTests|FullyQualifiedName~TaxonomyPlugin|FullyQualifiedName~TaxonomyPinningTests|FullyQualifiedName~TaxonomyEnsureTermsTests|FullyQualifiedName~PaginationPlugin|FullyQualifiedName~ArchivePluginTests|FullyQualifiedName~FeedPluginTests|FullyQualifiedName~SearchIndexPluginExtendedTests|FullyQualifiedName~SitemapPluginTests|FullyQualifiedName~LlmsTxtPluginTests|FullyQualifiedName~ImageProcessingPluginTests|FullyQualifiedName~MenuPluginTests|FullyQualifiedName~RelatedContentPluginTests|FullyQualifiedName~PagesByIdDataPluginTests|FullyQualifiedName~DataFilesPluginTests|FullyQualifiedName~AliasPluginTests|FullyQualifiedName~SiteEngineHelperTests|FullyQualifiedName~VariantBuildPipelineTests' \
+  --no-restore --nologo
 ```
 
 Result: exit 0; 206 passed, 0 failed, 0 skipped.
@@ -165,3 +164,47 @@ plus the new registry, Analytics, and SiteEngine regressions.
   paths and must then remove the Abstractions project reference.
 - Native AOT was not run; it is outside this subtask's authorized verification
   boundary.
+
+## Independent review fix
+
+The independent B2 review found two configuration-reference cache invalidation
+gaps:
+
+- the taxonomy index cache key covered taxonomy kind and `itemFields` but not
+  the `TaxonomyConfig` reference that controls pin and pin-order sorting;
+- `AnalyticsBuildState.GetOrCreate` reused a context-attached state without
+  checking the source `AppConfig` reference or execution mode.
+
+RED command:
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+  --filter 'FullyQualifiedName~GetOrBuildIndex_SameContextAndDifferentTaxonomyConfig_RebuildsSorting|FullyQualifiedName~GetOrCreate_SameContextAndDifferentConfigReference_ReplacesCachedState' \
+  --no-restore --nologo
+```
+
+RED result: exit 1; both tests failed. Taxonomy incorrectly kept `First` ahead
+of `Second` after switching from `orderA` to `orderB`; Analytics incorrectly
+kept the disabled state after switching to the enabled config.
+
+The narrow fix stores the relevant config reference beside each context-local
+cache. Taxonomy rebuilds and replaces its index collection when
+`ReferenceEquals` fails. Analytics reuses its state only when both the
+`AppConfig` reference and `BuildExecutionMode` match.
+
+GREEN result for the same command: exit 0; 2 passed, 0 failed, 0 skipped.
+
+Review-fix focused gate:
+
+```sh
+env -u NOTION_TOKEN bash scripts/checks/post-change-focused.sh -- \
+  .superpowers/sdd/task-2-report.md \
+  src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsBuildState.cs \
+  src/Bukit-Core/Bukit.Engine/Plugins/BuiltIn/TaxonomyIndexBuilder.cs \
+  tests/Bukit.Engine.Tests/Analytics/AnalyticsBuildStateTests.cs \
+  tests/Bukit.Engine.Tests/TaxonomyPinningTests.cs
+```
+
+Result: exit 0. Diff whitespace passed and the Release
+`Bukit.Engine.Tests` owner check passed 1620 tests with 0 failed and 0 skipped.

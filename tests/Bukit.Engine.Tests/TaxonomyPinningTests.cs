@@ -176,6 +176,53 @@ public sealed class TaxonomyPinningTests
         Assert.Equal("Pinned 2", second["title"]);
     }
 
+    [Fact]
+    public void GetOrBuildIndex_SameContextAndDifferentTaxonomyConfig_RebuildsSorting()
+    {
+        var first = ContentDocument.Create(
+            id: "s1:first",
+            title: "First",
+            slug: "first",
+            publishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: string.Empty,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["categories"] = new ContentField("list", new List<object> { "Cat One" }),
+                ["pinned"] = new ContentField("boolean", true),
+                ["orderA"] = new ContentField("number", 1),
+                ["orderB"] = new ContentField("number", 2)
+            });
+        var second = ContentDocument.Create(
+            id: "s1:second",
+            title: "Second",
+            slug: "second",
+            publishAt: new DateTimeOffset(2025, 01, 01, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: string.Empty,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["categories"] = new ContentField("list", new List<object> { "Cat One" }),
+                ["pinned"] = new ContentField("boolean", true),
+                ["orderA"] = new ContentField("number", 2),
+                ["orderB"] = new ContentField("number", 1)
+            });
+        var context = CreateContext(
+            CreateTaxonomyLayoutsDir(),
+            [
+                (first, new RouteInfo("/first/", "first/index.html", "pages/page.html")),
+                (second, new RouteInfo("/second/", "second/index.html", "pages/page.html"))
+            ]);
+        var configA = new TaxonomyConfig { PinField = "pinned", PinOrderField = "orderA" };
+        var configB = new TaxonomyConfig { PinField = "pinned", PinOrderField = "orderB" };
+        TaxonomyPlugin.ResetBuildIndexCountForTests();
+
+        var termsA = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", [], configA);
+        var termsB = TaxonomyIndexBuilder.GetOrBuildIndex(context, "categories", [], configB);
+
+        Assert.Equal("First", termsA["cat-one"].Pages[0].Title);
+        Assert.Equal("Second", termsB["cat-one"].Pages[0].Title);
+        Assert.Equal(2, TaxonomyPlugin.BuildIndexCountForTests);
+    }
+
     private static string ResolveTemplateKind(string kind)
         => kind.Trim().ToLowerInvariant() switch
         {

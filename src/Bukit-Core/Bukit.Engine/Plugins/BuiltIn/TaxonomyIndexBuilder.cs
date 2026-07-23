@@ -10,6 +10,12 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal static class TaxonomyIndexBuilder
 {
+    private sealed class TaxonomyIndexCacheEntry
+    {
+        internal required TaxonomyConfig Config { get; init; }
+        internal required Dictionary<string, Dictionary<string, TaxonomyTerm>> Indexes { get; init; }
+    }
+
     internal static Dictionary<string, TaxonomyTerm> GetOrBuildIndex(
         BuildContext context,
         string key,
@@ -18,14 +24,19 @@ internal static class TaxonomyIndexBuilder
     {
         Dictionary<string, Dictionary<string, TaxonomyTerm>> cache;
         if (context.Data.TryGetValue(TaxonomyPlugin.IndexCacheKey, out var cacheObj)
-            && cacheObj is Dictionary<string, Dictionary<string, TaxonomyTerm>> existingCache)
+            && cacheObj is TaxonomyIndexCacheEntry existingCache
+            && ReferenceEquals(existingCache.Config, config))
         {
-            cache = existingCache;
+            cache = existingCache.Indexes;
         }
         else
         {
             cache = new Dictionary<string, Dictionary<string, TaxonomyTerm>>(StringComparer.OrdinalIgnoreCase);
-            context.Data[TaxonomyPlugin.IndexCacheKey] = cache;
+            context.Data[TaxonomyPlugin.IndexCacheKey] = new TaxonomyIndexCacheEntry
+            {
+                Config = config,
+                Indexes = cache
+            };
         }
 
         var indexKey = $"{key}|{string.Join(",", itemFields)}";

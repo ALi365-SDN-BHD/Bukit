@@ -106,4 +106,62 @@ public sealed class AnalyticsBuildStateTests
 
         Assert.True(state.Snapshot().PluginEnabled);
     }
+
+    [Fact]
+    public void GetOrCreate_SameContextAndDifferentConfigReference_ReplacesCachedState()
+    {
+        var configA = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "a",
+                Title = "A",
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = false }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
+        var configB = configA with
+        {
+            Site = configA.Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = true }
+                }
+            }
+        };
+        var context = new BuildContext
+        {
+            Config = configA,
+            RootDir = ".",
+            OutputDir = "dist",
+            BaseUrl = "/",
+            LayoutsDir = "layouts",
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            BodyStore = NullContentBodyStore.Instance,
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var first = AnalyticsBuildState.GetOrCreate(
+            context,
+            configA,
+            BuildExecutionMode.Production);
+        var second = AnalyticsBuildState.GetOrCreate(
+            context,
+            configB,
+            BuildExecutionMode.Production);
+        var third = AnalyticsBuildState.GetOrCreate(
+            context,
+            configB,
+            BuildExecutionMode.Development);
+
+        Assert.False(first.Snapshot().PluginEnabled);
+        Assert.True(second.Snapshot().PluginEnabled);
+        Assert.NotSame(first, second);
+        Assert.NotSame(second, third);
+        Assert.Equal(BuildExecutionMode.Development, third.ExecutionMode);
+    }
 }
