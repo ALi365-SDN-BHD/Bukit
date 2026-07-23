@@ -257,7 +257,7 @@ verification.
 
 G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.
 
-The current public API baseline contains 493 types, including 68 `2.0-candidate` entries.
+The current public API baseline contains 492 types, including 67 `2.0-candidate` entries.
 It covers 14 assemblies. The closed 136-entry candidate manifest remains
 immutable with Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`; private
 consumers remain `unknown-until-voluntary-declaration`. The 2026-07-22
@@ -278,10 +278,10 @@ exclusions.
 G-04D3B removes only the duplicate
 `Bukit.Content.Notion.NotionClientStats` CLR identity in 2.0. The internal
 legacy `NotionApiClient.GetStats()` facade now returns the canonical
-`Bukit.Notion.Transport.NotionClientStats`; the other 68 candidates are not
+`Bukit.Notion.Transport.NotionClientStats`; the other 67 candidates are not
 batch-approved.
 
-The current public API baseline contains 493 types, including 68
+The current public API baseline contains 492 types, including 67
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`. Direct consumers of the removed
@@ -308,10 +308,30 @@ identities are removed together in 2.0. Direct CLR consumers must migrate to
 ordinals, token defaults, parsing behavior, and exception behavior are
 unchanged.
 
-The current public API baseline contains 493 types, including 68
+The current public API baseline contains 492 types, including 67
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
 remain unknown. See the
 [G-04D4A decision ledger](../../docs/analysis/bukit-core-g04d4a-shared-notion-graph-resolution-2026-07-23.zh-CN.md)
 for the atomic migration contract and G2 verification boundary.
+
+### G-04D4B Value Coercion
+
+G-04D4B narrows only `Bukit.Shared.ValueCoercion` from public to internal in
+2.0. Repository production code has no direct consumer, and the existing
+`Bukit.Shared.Tests` friend boundary continues to characterize its behavior.
+No replacement or global conversion abstraction is introduced.
+
+The current public API baseline contains 492 types, including 67
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
+remain unknown.
+
+This 2.0-only narrowing is source, binary, and reflection breaking for a direct
+CLR consumer. Null, boolean, whitelist casing, whitespace, number, current
+culture, custom `ToString`, fallback, and exception propagation semantics are
+unchanged. See the
+[G-04D4B decision ledger](../../docs/analysis/bukit-core-g04d4b-value-coercion-resolution-2026-07-23.zh-CN.md)
+for the exact one-token change and G2 verification boundary.

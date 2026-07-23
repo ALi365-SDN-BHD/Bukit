@@ -8993,21 +8993,6 @@
       "protectedMembers": []
     },
     {
-      "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.ValueCoercion",
-      "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Shared.ValueCoercion",
-      "publicMembers": [
-        "public static System.Boolean IsFalsy(System.Object? value)",
-        "public static System.Boolean IsTruthy(System.Object? value)",
-        "public static System.Boolean? ToBooleanOrNull(System.Object? value)"
-      ],
-      "protectedMembers": []
-    },
-    {
       "assembly": "Bukit.Theme",
       "name": "Bukit.Theme.PageComposer",
       "owner": "Theme runtime",
