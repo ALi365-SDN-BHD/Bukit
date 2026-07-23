@@ -634,6 +634,9 @@ all Critical/Important findings before Task 2.
 
 - Modify:
   `docs/analysis/bukit-core-g04d2b2-plugin-host-error-codes-internalization-2026-07-23.zh-CN.md`
+- Controller acceptance correction only: Modify this implementation plan to
+  replace two stale lexical assertions with canonical-path identity and the
+  exact existing Echo line output.
 - Verify only: `scripts/build/native-aot.sh`
 - Verify only: `scripts/smoke/release-artifacts.sh`
 - Verify only: `src/Bukit-Plugins/Bukit.Plugin.Echo/`
@@ -675,13 +678,19 @@ bash scripts/build/native-aot.sh \
   Release
 ```
 
+Resolve the physical proof root before checking owner output:
+
+```bash
+AOT_PROOF_ROOT="$(cd /tmp/bukit-g04d2b2-aot && pwd -P)"
+```
+
 Expected final stdout:
 
 ```text
-/tmp/bukit-g04d2b2-aot/bukit-2.0.0-g04d2b2-osx-arm64.tar.gz
+${AOT_PROOF_ROOT}/bukit-2.0.0-g04d2b2-osx-arm64.tar.gz
 ```
 
-Assert:
+Compare the observed final stdout to that expanded canonical path, then assert:
 
 ```bash
 test -s \
@@ -799,11 +808,17 @@ From `/tmp/bukit-g04d2b2-plugin-proof/site`, run:
   plugin validate-manifest plugins/echo
 ```
 
-Expected exact success lines:
+Resolve the physical site root before checking owner output:
+
+```bash
+SITE_PROOF_ROOT="$(cd /tmp/bukit-g04d2b2-plugin-proof/site && pwd -P)"
+```
+
+Expected exact success lines after expanding `SITE_PROOF_ROOT`:
 
 ```text
-Plugin config OK: /tmp/bukit-g04d2b2-plugin-proof/site/.bukit/plugins.yaml
-Plugin manifest OK: /tmp/bukit-g04d2b2-plugin-proof/site/plugins/echo/plugin.yaml
+Plugin config OK: ${SITE_PROOF_ROOT}/.bukit/plugins.yaml
+Plugin manifest OK: ${SITE_PROOF_ROOT}/plugins/echo/plugin.yaml
 ```
 
 Both commands must exit 0 without stderr.
@@ -849,11 +864,14 @@ Expected exit 0, empty stderr, and stdout JSON satisfying:
 ```text
 arguments == ["hello"]
 options == {}
-context.rootDir == "/tmp/bukit-g04d2b2-plugin-proof/site"
-context.workingDir == "/tmp/bukit-g04d2b2-plugin-proof/site"
+context.rootDir == "${SITE_PROOF_ROOT}"
+context.workingDir == "${SITE_PROOF_ROOT}"
 ```
 
-Use `jq -e` to validate stdout. Do not use Python.
+Use `jq -e` to validate stdout. Both context values must exactly equal the
+expanded `SITE_PROOF_ROOT`; this verifies the same physical site identity even
+when macOS reports `/private/tmp` for the `/tmp` alias. Do not accept a loose
+`/tmp|/private/tmp` regular expression. Do not use Python.
 
 Require exactly one
 `.bukit/reports/plugin-executions/echo-invoke-*.json`. Validate it with
@@ -875,8 +893,8 @@ success == true
 timedOut == false
 outputLimitExceeded == false
 stdoutBytes > 0
-stderrBytes > 0
-stderr == "bukit-plugin-echo handled invoke"
+stderrBytes == 33
+stderr == "bukit-plugin-echo handled invoke\n"
 responseSummary.success == true
 responseSummary.exitCode == 0
 responseSummary.diagnosticCodes == []
@@ -899,6 +917,13 @@ Append to the B2 ledger:
 - task review findings and resolutions;
 - final state `qualification-complete` only if every required proof passed.
 
+Controller-approved acceptance correction: the initial Task 2 brief expected
+the lexical `/tmp` alias and omitted Echo's `WriteLine` line terminator. Preserve
+the failed original assertions in the ledger, record the correction and its
+independent read-only review, then rerun the corrected canonical-path and exact
+33-byte stderr assertions. Do not modify the AOT scripts, Echo, process runner
+or reporter to satisfy the stale text.
+
 If a proof is blocked, write `qualification-blocked`, the command, exit code and
 exact blocker. Do not mark the task complete.
 
@@ -913,8 +938,9 @@ git diff --check
 git status --short
 ```
 
-Expected: docs checks and diff check exit 0; only the B2 ledger is modified
-since the Task 1 commit. `/tmp` proof artifacts must not appear in Git status.
+Expected: docs checks and diff check exit 0; only the B2 ledger and the
+controller-approved acceptance correction in this plan are modified since the
+Task 1 commit. `/tmp` proof artifacts must not appear in Git status.
 
 Commit:
 
