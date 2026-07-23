@@ -60,19 +60,19 @@ internal static class WechatSyncPlanner
             var contentReviewStatus = ReadMetaString(item.Metadata, "reviewStatus").Trim();
             if (manifestReviewStatus.Length == 0 || contentReviewStatus.Length == 0)
             {
-                exclusions.Add(Exclude(item, route, "reviewStatusMissing", "error", "manifest and content review status are required"));
+                exclusions.Add(Exclude(item, route, "reviewStatusMissing", "warning", "manifest and content review status are required"));
                 continue;
             }
 
             if (!manifestReviewStatus.Equals(contentReviewStatus, StringComparison.OrdinalIgnoreCase))
             {
-                exclusions.Add(Exclude(item, route, "reviewStatusMismatch", "error", "manifest and content review status do not match"));
+                exclusions.Add(Exclude(item, route, "reviewStatusMismatch", "warning", "manifest and content review status do not match"));
                 continue;
             }
 
             if (!TryReadExpiry(item.Metadata, out var expiresAt))
             {
-                exclusions.Add(Exclude(item, route, "contentExpiryInvalid", "error", "content expiry is invalid"));
+                exclusions.Add(Exclude(item, route, "contentExpiryInvalid", "warning", "content expiry is invalid"));
                 continue;
             }
 

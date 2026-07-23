@@ -150,7 +150,7 @@ public sealed class WechatSyncPluginInvokeCompatibilityTests : IDisposable
     }
 
     [Fact]
-    public async Task Invoke_DryRunFailsClosedWhenReviewStatusesMismatch()
+    public async Task Invoke_DryRunSucceedsWithWarningWhenReviewStatusesMismatch()
     {
         CreateMinimalBuildOutput();
         ReplaceInFile(
@@ -165,15 +165,15 @@ public sealed class WechatSyncPluginInvokeCompatibilityTests : IDisposable
                 ["--dry-run"] = Json(true)
             }));
 
-        Assert.False(response.Success);
-        Assert.Equal(1, response.ExitCode);
+        Assert.True(response.Success);
+        Assert.Equal(0, response.ExitCode);
         Assert.Contains(response.Diagnostics, diagnostic =>
             diagnostic.Code == "plugin.wechat-sync.reviewStatusMismatch" &&
-            diagnostic.Severity == "error");
+            diagnostic.Severity == "warning");
     }
 
     [Fact]
-    public async Task Invoke_DryRunFailsClosedWhenReviewStatusIsMissing()
+    public async Task Invoke_DryRunSucceedsWithWarningWhenReviewStatusIsMissing()
     {
         CreateMinimalBuildOutput();
         ReplaceInFile(
@@ -188,15 +188,15 @@ public sealed class WechatSyncPluginInvokeCompatibilityTests : IDisposable
                 ["--dry-run"] = Json(true)
             }));
 
-        Assert.False(response.Success);
-        Assert.Equal(1, response.ExitCode);
+        Assert.True(response.Success);
+        Assert.Equal(0, response.ExitCode);
         Assert.Contains(response.Diagnostics, diagnostic =>
             diagnostic.Code == "plugin.wechat-sync.reviewStatusMissing" &&
-            diagnostic.Severity == "error");
+            diagnostic.Severity == "warning");
     }
 
     [Fact]
-    public async Task Invoke_DryRunReportsZeroEffectiveCandidatesWhenAnySelectedItemHasAnError()
+    public async Task Invoke_DryRunExcludesOnlyInvalidCandidateWhenOneItemHasWarning()
     {
         CreateMinimalBuildOutput();
         AddMismatchedSecondBuildItem();
@@ -208,13 +208,13 @@ public sealed class WechatSyncPluginInvokeCompatibilityTests : IDisposable
                 ["--dry-run"] = Json(true)
             }));
 
-        Assert.False(response.Success);
-        Assert.Equal(1, response.ExitCode);
+        Assert.True(response.Success);
+        Assert.Equal(0, response.ExitCode);
         Assert.Contains(response.Messages, message =>
-            message.Message.Contains("candidates=0", StringComparison.Ordinal));
+            message.Message.Contains("candidates=1", StringComparison.Ordinal));
         Assert.Contains(response.Diagnostics, diagnostic =>
             diagnostic.Code == "plugin.wechat-sync.reviewStatusMismatch" &&
-            diagnostic.Severity == "error");
+            diagnostic.Severity == "warning");
     }
 
     [Fact]
