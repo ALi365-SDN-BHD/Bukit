@@ -1,73 +1,105 @@
-# Task 1 Report: Strict type/collection contract tests
+# AD-01B1 Report: Plugin execution policy extraction
 
 ## Scope completed
 
-- Modified tests only; no production code was changed by Task 1.
-- Preserved the pre-existing changes in `src/Bukit-Core/Bukit.Engine/Stages/CollectionWarningStage.cs` and `tests/Bukit.Engine.Tests/CollectionWarningStageTests.cs` without staging them.
-- Added contract coverage at the pipeline, normalizer, routing, Markdown provider, and composite provider seams.
+- Added an Engine-owned internal `PluginExecutionPolicy` next to `PluginRunner`.
+- Normalized only:
+  - warn-versus-strict plugin failure handling;
+  - derive conflict policy using the existing null/default, trim, and lowercase semantics;
+  - plugin enablement into a case-insensitive name-to-enabled lookup.
+- Preserved every existing public `PluginRunner` signature.
+- Existing entry points continue to derive the policy from `context.Config.Site`
+  and delegate to internal policy-aware overloads.
+- Kept `BuildContext.Config` and the existing Config references in place.
+- Did not migrate built-in plugin configuration or modify Labs, official/external
+  plugins, schema, YAML, protocols, assets, output ownership, security, or gates.
+
+## RED evidence
+
+Command:
+
+```sh
+env -u NOTION_TOKEN dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+  --filter FullyQualifiedName~PluginExecutionPolicyTests \
+  --no-restore --nologo
+```
+
+Result: expected RED, exit 1. The new focused test file failed to compile with
+five `CS0103` errors because `PluginExecutionPolicy` did not exist yet. No
+production file had been edited at that point.
+
+## GREEN commands and results
+
+New policy tests:
+
+```sh
+env -u NOTION_TOKEN dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+  --filter FullyQualifiedName~PluginExecutionPolicyTests \
+  --no-restore --nologo
+```
+
+Result: exit 0; 16 passed, 0 failed, 0 skipped.
+
+Focused policy and PluginRunner regression tests:
+
+```sh
+env -u NOTION_TOKEN dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+  --filter 'FullyQualifiedName~PluginExecutionPolicyTests|FullyQualifiedName~PluginRunnerTests' \
+  --no-restore --nologo
+```
+
+Result: exit 0; 31 passed, 0 failed, 0 skipped.
+
+Required focused post-change check:
+
+```sh
+env -u NOTION_TOKEN bash scripts/checks/post-change-focused.sh -- \
+  src/Bukit-Core/Bukit.Engine/Plugins/PluginExecutionPolicy.cs \
+  src/Bukit-Core/Bukit.Engine/Plugins/PluginRunner.cs \
+  tests/Bukit.Engine.Tests/PluginExecutionPolicyTests.cs
+```
+
+Result: exit 0. Diff/untracked whitespace checks passed and the Release owner
+check ran `Bukit.Engine.Tests`: 1613 passed, 0 failed, 0 skipped.
 
 ## Changed files
 
-- `tests/Bukit.Engine.Tests/ContentPipelineTests.cs`
-  - Specifies content-mode `type: article` without `collection` as invalid at the pipeline seam.
-- `tests/Bukit.Engine.Tests/ContentStagesTests.cs`
-  - Specifies collection-only `news` as `type: page`, `collection: news`.
-  - Specifies distinct `type: article`, `collection: news` values remain distinct.
-  - Specifies data without collection as `type: module` with an empty collection.
-- `tests/Bukit.Engine.Tests/RouteGeneratorTests.cs`
-  - Specifies a direct call with an empty canonical collection as invalid, even if an empty-key collection rule exists.
-- `tests/Bukit.Content.Tests/MarkdownFolderProviderTests.cs`
-  - Specifies explicit `type: article`, `collection: news` front matter is preserved.
-- `tests/Bukit.Content.Tests/CompositeContentProviderTests.cs`
-  - Specifies source collection `news` overrides item collection while preserving item type `article`, in both custom fields and raw properties.
-
-## TDD commands and results
-
-Engine exact-new-test command:
-
-```sh
-dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --no-restore --filter "FullyQualifiedName~ExecuteAsync_ContentModeTypeOnly_ThrowsConfigException|FullyQualifiedName~ContentDocumentNormalizer_CollectionOnly_DefaultsTypeToPage|FullyQualifiedName~ContentDocumentNormalizer_DistinctTypeAndCollection_PreservesBoth|FullyQualifiedName~ContentDocumentNormalizer_DataModeWithoutCollection_DefaultsTypeToModuleAndLeavesCollectionEmpty|FullyQualifiedName~Generate_EmptyCollection_Throws" --logger "console;verbosity=normal"
-```
-
-Result: expected RED, exit 1; the project compiled and 5 tests ran (1 passed, 4 failed).
-
-Expected contract-gap failures:
-
-- `ContentPipelineTests.ExecuteAsync_ContentModeTypeOnly_ThrowsConfigException`: no `ConfigException` was thrown.
-- `ContentStagesTests.ContentDocumentNormalizer_CollectionOnly_DefaultsTypeToPage`: expected type `page`, actual `news`.
-- `ContentStagesTests.ContentDocumentNormalizer_DataModeWithoutCollection_DefaultsTypeToModuleAndLeavesCollectionEmpty`: expected empty collection, actual `module`.
-- `RouteGeneratorTests.Generate_EmptyCollection_Throws`: no `ConfigException` was thrown.
-
-Passing preservation test:
-
-- `ContentStagesTests.ContentDocumentNormalizer_DistinctTypeAndCollection_PreservesBoth`.
-
-Content exact-new-test command:
-
-```sh
-dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj --no-restore --filter "FullyQualifiedName~LoadAsync_WithDistinctTypeAndCollection_PreservesBoth|FullyQualifiedName~LoadRawAsync_SourceCollectionOverridesItemCollectionWithoutChangingType" --logger "console;verbosity=normal"
-```
-
-Result: exit 0; the project compiled and both tests passed (2 passed, 0 failed), confirming existing provider preservation/override behavior.
-
-Additional check:
-
-```sh
-git diff --check
-```
-
-Result: exit 0 with no whitespace errors.
-
-## Commit
-
-- Message: `test(content): define strict type and collection contract`
-- Base commit before Task 1: `eb6ceae46b5d1f0e0a2301dc54827d2c3797d7e5`
-- Final commit hash is reported in the Task 1 handoff. It cannot be embedded literally in a file contained by that same commit because changing the embedded hash changes the commit hash.
+- `src/Bukit-Core/Bukit.Engine/Plugins/PluginExecutionPolicy.cs`
+  - Adds the internal normalized execution policy.
+- `src/Bukit-Core/Bukit.Engine/Plugins/PluginRunner.cs`
+  - Derives the policy at existing entry points and routes execution through
+    internal policy-aware overloads.
+- `tests/Bukit.Engine.Tests/PluginExecutionPolicyTests.cs`
+  - Covers strict/fail/all-enabled defaults, warn mapping, derive normalization,
+    case-insensitive enabled/disabled lookup, and unknown/blank/null names.
+- `.superpowers/sdd/task-1-report.md`
+  - Records implementation and verification evidence.
 
 ## Self-review
 
-- All required values and boundary cases are represented, including the distinct `type=article, collection=news` fixture.
-- The RouteGenerator test constructs an explicitly empty canonical collection and supplies an empty-key rule so the failure cannot be mistaken for an ordinary missing-route-rule failure.
-- The tests exercise real production seams and use no behavior mocks.
-- No production files, backup/reference directories, broad gates, or unrelated tests were modified.
-- Expected RED failures are assertion failures caused by missing contract behavior, not compilation, discovery, or test setup errors.
+- `PluginRunner` no longer reads `PluginFailMode`, `DeriveConflictPolicy`, or
+  `Plugins` directly.
+- The policy stores no `AppConfig`, options objects, global/sidecar state, or
+  unnormalized configuration graph.
+- Plugin ordering remains `Order -> Name -> Version`; the ordering code was not
+  changed.
+- Sync/async hook selection, conflict application, execution records, logging,
+  and failure rethrow/warn behavior remain in their existing control flow.
+- Unknown and blank plugin names remain enabled. Configured lookup is now
+  explicitly case-insensitive even when the supplied dictionary comparer is not.
+- No B2/B3, Labs, plugin project, backup/reference, CI, release, gate, schema, or
+  protocol files were modified.
+- No aggregate targeted, `ci-fast`, full, release, `test-all`, or `smoke-all`
+  command was run.
+
+## Commit
+
+- Intended message: `refactor(engine): extract plugin execution policy`
+- Base commit before AD-01B1: `b14edc7d`
+- The final commit hash is reported in the AD-01B1 handoff. It cannot be embedded
+  literally in a file contained by that same commit because changing the
+  embedded hash changes the commit hash.
+
+## Concerns
+
+- None.
