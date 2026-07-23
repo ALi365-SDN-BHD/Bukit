@@ -45,8 +45,7 @@ public sealed class RouteGeneratorGoldenTests
                     ["collection"] = "article",
                     ["route"] = new Dictionary<string, object>
                     {
-                        ["url"] = "/partial/",
-                        ["template"] = "pages/partial.html"
+                        ["url"] = "/partial/"
                     }
                 }),
             CreateDocument(

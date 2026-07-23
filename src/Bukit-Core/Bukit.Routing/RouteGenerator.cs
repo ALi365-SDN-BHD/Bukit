@@ -16,8 +16,6 @@ public static class RouteGenerator
         Permalink
     }
 
-    public sealed record RouteGenerationResult(RouteInfo Route, RouteSource Source);
-
     public static RouteInfo Generate(
         ContentDocument document,
         string outputPathEncoding = "none",
@@ -27,14 +25,14 @@ public static class RouteGenerator
         return GenerateWithSource(document, outputPathEncoding, permalinks, collections).Route;
     }
 
-    public static RouteGenerationResult GenerateWithSource(
+    public static (RouteInfo Route, RouteSource Source) GenerateWithSource(
         ContentDocument document,
         string outputPathEncoding = "none",
         IReadOnlyDictionary<string, string>? permalinks = null,
         IReadOnlyDictionary<string, CollectionRouteRule>? collections = null)
         => GenerateWithSource(ToSource(document), outputPathEncoding, permalinks, collections);
 
-    private static RouteGenerationResult GenerateWithSource(
+    private static (RouteInfo Route, RouteSource Source) GenerateWithSource(
         RouteContentSource source,
         string outputPathEncoding = "none",
         IReadOnlyDictionary<string, string>? permalinks = null,
@@ -45,16 +43,16 @@ public static class RouteGenerator
 
         if (TryReadFullRouteOverride(source, outputPathEncoding, out var overridden))
         {
-            return new RouteGenerationResult(ValidateRoute(overridden, source), RouteSource.FullOverride);
+            return (ValidateRoute(overridden, source), RouteSource.FullOverride);
         }
 
         var (baseRoute, baseSource) = GenerateBaseRouteWithSource(source, outputPathEncoding, permalinks, collections);
         if (TryApplyPartialRouteOverride(source, outputPathEncoding, baseRoute, out var partialOverride))
         {
-            return new RouteGenerationResult(ValidateRoute(partialOverride, source), RouteSource.PartialOverride);
+            return (ValidateRoute(partialOverride, source), RouteSource.PartialOverride);
         }
 
-        return new RouteGenerationResult(ValidateRoute(baseRoute, source), baseSource);
+        return (ValidateRoute(baseRoute, source), baseSource);
     }
 
     private static void RequireCollection(RouteContentSource source)

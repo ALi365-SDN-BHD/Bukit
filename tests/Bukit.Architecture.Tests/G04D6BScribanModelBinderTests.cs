@@ -103,7 +103,7 @@ public sealed class G04D6BScribanModelBinderTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsFourteenAssemblies486TypesAnd60Candidates()
+    public void CurrentBaseline_RecordsFourteenAssemblies485TypesAnd59Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -115,8 +115,8 @@ public sealed class G04D6BScribanModelBinderTests
             .ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(486, types.Length);
-        Assert.Equal(60, types.Count(entry =>
+        Assert.Equal(485, types.Length);
+        Assert.Equal(59, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
         Assert.DoesNotContain(types, entry =>

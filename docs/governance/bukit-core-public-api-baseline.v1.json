@@ -8033,7 +8033,7 @@
       "signature": "public static class Bukit.Routing.RouteGenerator",
       "publicMembers": [
         "public static Bukit.Engine.Abstractions.Routing.RouteInfo! Generate(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String! outputPathEncoding = \u0022none\u0022, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? permalinks = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Routing.RouteGenerator.CollectionRouteRule!\u003E? collections = null)",
-        "public static Bukit.Routing.RouteGenerator.RouteGenerationResult! GenerateWithSource(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String! outputPathEncoding = \u0022none\u0022, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? permalinks = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Routing.RouteGenerator.CollectionRouteRule!\u003E? collections = null)",
+        "public static System.ValueTuple\u003CBukit.Engine.Abstractions.Routing.RouteInfo!, Bukit.Routing.RouteGenerator.RouteSource\u003E GenerateWithSource(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String! outputPathEncoding = \u0022none\u0022, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? permalinks = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Routing.RouteGenerator.CollectionRouteRule!\u003E? collections = null)",
         "public static System.String! ExpandPermalinkPattern(System.String! pattern, Bukit.Engine.Abstractions.Content.ContentDocument! document)"
       ],
       "protectedMembers": []
@@ -8058,29 +8058,6 @@
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
         "public virtual final System.Boolean Equals(Bukit.Routing.RouteGenerator.CollectionRouteRule? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Routing",
-      "name": "Bukit.Routing.RouteGenerator\u002BRouteGenerationResult",
-      "owner": "Routing",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Routing.RouteGenerator.RouteGenerationResult : System.IEquatable\u003CBukit.Routing.RouteGenerator.RouteGenerationResult~\u003E~",
-      "publicMembers": [
-        "public .ctor(Bukit.Engine.Abstractions.Routing.RouteInfo! Route, Bukit.Routing.RouteGenerator.RouteSource Source)",
-        "public Bukit.Engine.Abstractions.Routing.RouteInfo! Route { get; init; }",
-        "public Bukit.Routing.RouteGenerator.RouteGenerationResult! \u003CClone\u003E$()",
-        "public Bukit.Routing.RouteGenerator.RouteSource Source { get; init; }",
-        "public System.Void Deconstruct(out Bukit.Engine.Abstractions.Routing.RouteInfo! Route, out Bukit.Routing.RouteGenerator.RouteSource Source)",
-        "public static System.Boolean op_Equality(Bukit.Routing.RouteGenerator.RouteGenerationResult? left, Bukit.Routing.RouteGenerator.RouteGenerationResult? right)",
-        "public static System.Boolean op_Inequality(Bukit.Routing.RouteGenerator.RouteGenerationResult? left, Bukit.Routing.RouteGenerator.RouteGenerationResult? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Routing.RouteGenerator.RouteGenerationResult? other)"
       ],
       "protectedMembers": []
     },

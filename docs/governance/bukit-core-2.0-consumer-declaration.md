@@ -201,7 +201,7 @@ verification.
 
 G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.
 
-The current public API baseline contains 486 types, including 60 `2.0-candidate` entries.
+The current public API baseline contains 485 types, including 59 `2.0-candidate` entries.
 It covers 14 assemblies. The closed 136-entry candidate manifest remains
 immutable with Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`; private
 consumers remain `unknown-until-voluntary-declaration`. The 2026-07-22
@@ -222,10 +222,10 @@ and exclusions.
 G-04D3B removes only the duplicate
 `Bukit.Content.Notion.NotionClientStats` CLR identity in 2.0. The internal
 legacy `NotionApiClient.GetStats()` facade now returns the canonical
-`Bukit.Notion.Transport.NotionClientStats`; the other 60 candidates are not
+`Bukit.Notion.Transport.NotionClientStats`; the other 59 candidates are not
 batch-approved.
 
-The current public API baseline contains 486 types, including 60
+The current public API baseline contains 485 types, including 59
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`. Authenticated public search found
@@ -253,7 +253,7 @@ identities are removed atomically. Direct CLR consumers must migrate to
 canonical enum ordinals, token defaults, parsing behavior, and exception
 behavior remain unchanged.
 
-The current public API baseline contains 486 types, including 60
+The current public API baseline contains 485 types, including 59
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -268,7 +268,7 @@ G-04D4B narrows only `Bukit.Shared.ValueCoercion` from public to internal in
 public identity, the existing `Bukit.Shared.Tests` friend boundary is
 unchanged, and no replacement or global conversion abstraction is added.
 
-The current public API baseline contains 486 types, including 60
+The current public API baseline contains 485 types, including 59
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -290,7 +290,7 @@ remains public and is reclassified as
 type of `CliParser.Parse`, the public input of
 `CommandDescriptor.DispatchAsync`, and an externally derivable record.
 
-The current public API baseline contains 486 types, including 60
+The current public API baseline contains 485 types, including 59
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -309,7 +309,7 @@ nested record in 2.0. `CliErrorRenderer`, `CliErrorDiagnostic`, and all public
 `RenderJson` overloads remain public; the supported external contract is the
 rendered JSON envelope, not the implementation DTO identity.
 
-The current public API baseline contains 486 types, including 60
+The current public API baseline contains 485 types, including 59
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -329,7 +329,7 @@ The type remains sealed and continues to implement Scriban's
 `ITemplateLoader` with the same constructor and three interface methods.
 `ScribanTemplateRenderer` remains the public Rendering entry point.
 
-The current public API baseline contains 486 types, including 60
+The current public API baseline contains 485 types, including 59
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -348,7 +348,7 @@ G-04D6B narrows only
 The static facade and both `PageModel`/`ListPageModel` overloads remain in
 place, and `ScribanTemplateRenderer` keeps both direct static call roots.
 
-The current public API baseline contains 486 types, including 60
+The current public API baseline contains 485 types, including 59
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
@@ -360,3 +360,28 @@ fallback, and exception propagation remain unchanged. No reflection mapper,
 replacement facade, or friend assembly is added. The
 [G-04D6B decision ledger](../analysis/bukit-core-g04d6b-scriban-model-binder-resolution-2026-07-23.zh-CN.md)
 records the exact change and G3 verification boundary.
+
+## G-04D7A Routing Route Generation Result
+
+G-04D7A removes the public nested
+`Bukit.Routing.RouteGenerator.RouteGenerationResult` record in 2.0 and
+changes only `RouteGenerator.GenerateWithSource`'s return carrier to the
+named tuple `(RouteInfo Route, RouteSource Source)`. The method name,
+parameters, optional defaults, tuple element names, public `RouteSource`
+enum, and route/source behavior remain unchanged.
+
+The current public API baseline contains 485 types, including 59
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
+undisclosed consumers remain `unknown-until-voluntary-declaration`.
+
+This is a 2.0 binary break. Consumers that explicitly name or construct the
+record, use record/reference/null semantics, reflect its full name, or
+serialize it directly must migrate. Inferred `.Route`/`.Source` access and
+deconstruction retain the same C# call shape after recompilation. Route
+precedence, collision, locale, encoding, normalization, and security
+validation are unchanged. No friend assembly, replacement DTO, serializer
+root, schema, or protocol is added. The
+[G-04D7A decision ledger](../analysis/bukit-core-g04d7a-route-result-resolution-2026-07-23.zh-CN.md)
+records the exact migration and G3 verification boundary.

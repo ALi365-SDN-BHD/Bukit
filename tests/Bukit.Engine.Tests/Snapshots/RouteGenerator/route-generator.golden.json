@@ -21,8 +21,8 @@
     {
       "url": "/partial/",
       "outputPath": "partial/index.html",
-      "template": "pages/partial.html",
-      "routeSource": "FullOverride",
+      "template": "pages/post.html",
+      "routeSource": "PartialOverride",
       "collection": "article",
       "type": null
     },

@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Content;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Content;
@@ -706,5 +707,31 @@ public sealed class RouteGeneratorTests
 
         Assert.Equal(RouteGenerator.RouteSource.Permalink, result.Source);
         Assert.Equal("/article/news/hello/", result.Route.Url);
+    }
+
+    [Fact]
+    public void GenerateRouteWithSource_ProjectsRouteAndExactSourceString()
+    {
+        var item = Item("hello", new Dictionary<string, object>
+        {
+            ["type"] = "article",
+            ["collection"] = "news"
+        });
+        var site = new SiteConfig
+        {
+            Name = "test",
+            Title = "Test",
+            Permalinks = new Dictionary<string, string>
+            {
+                ["article"] = "/articles/{slug}/"
+            }
+        };
+
+        var (route, source) =
+            RouteInventoryValidator.GenerateRouteWithSource(item, site);
+
+        Assert.Equal("/articles/hello/", route.Url);
+        Assert.Equal("articles/hello/index.html", route.OutputPath);
+        Assert.Equal("Permalink", source);
     }
 }

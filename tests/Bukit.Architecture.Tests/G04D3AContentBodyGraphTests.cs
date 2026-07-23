@@ -84,8 +84,8 @@ public sealed class G04D3AContentBodyGraphTests
         JsonElement[] currentTypes = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(486, currentTypes.Length);
-        Assert.Equal(60, currentTypes.Count(entry =>
+        Assert.Equal(485, currentTypes.Length);
+        Assert.Equal(59, currentTypes.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.All(CandidateTypeNames, typeName =>
             Assert.DoesNotContain(currentTypes, entry =>
