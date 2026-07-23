@@ -86,7 +86,7 @@ internal sealed class MenuPlugin : IBukitPlugin, IAfterBuildPlugin
     {
         if (items is null || items.Count == 0)
         {
-            return Array.Empty<object>();
+            return [];
         }
 
         var projected = new List<object>(items.Count);

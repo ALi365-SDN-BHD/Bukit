@@ -73,7 +73,7 @@ public sealed class SiteEngine
             collections,
             outputPathEncoding,
             templateResolver);
-        return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
+        return [.. graph.Routes.Select(route => route.ToRouteInfo())];
     }
 
     internal static IReadOnlyList<RouteInfo> GetListRoutes(
