@@ -6,7 +6,7 @@
 >
 > G4 基线：`2.0@729088dbc2faf1bf7a20fe670e96a09b7568e7ba`
 >
-> 状态：verification-complete / aggregate-review-pending
+> 状态：closed / group-verification-complete / aggregate-review-complete
 
 ## 1. 执行结论
 
@@ -362,11 +362,43 @@ Core-only Darwin arm64 证明：
   `Bukit.PluginHost.Tests` 与 `Bukit.Cli.Tests` 新增两个精确 test-only friends；
 - full/release/whole-solution gates 未运行。
 
-## 9. Pending closing proof
+## 9. Closing proof
 
-以下证据在本文件进入 G4 aggregate 输入后更新；未完成前不宣称 G-04 正式关闭：
+G4 唯一 aggregate 在 `2679cd6e` 执行：
 
-- G4 唯一一次 `post-change-targeted.sh --base 729088db...`；
-- G4 `GROUP_BASE..HEAD` 独立轻量复审；
-- G-04A～Task 42 完整决策链唯一全量只读复审；
-- 两次复审 Critical / Important / Minor 均须为 `0 / 0 / 0`。
+```text
+post-change-targeted.sh
+  --base 729088dbc2faf1bf7a20fe670e96a09b7568e7ba
+  -- 78 paths
+```
+
+命令级移除宿主 `NOTION_TOKEN`，exit 0。实际通过 Engine 1597/1597、
+Architecture 259/259、docs consistency、`dotnet format`、code-analysis ratchet、
+public API drift/self-test、portability、brainstorm server self-test、CLI/config/docs
+contracts 与 YAML static context deterministic drift。
+
+aggregate 后只发生独立复审要求的治理文档修正：
+
+- 恢复 D3B 历史时点 `84`，不把 current `0` 回写到旧授权边界；
+- 把 136 项终态校准为 92 internalized/removed、5 migrated、39 retained；
+- 补齐 20 个 owner、遗漏提交锚点、test-only IVT 与 D2B2 task-scoped 措辞。
+
+这些 post-aggregate 文档修正分别通过 focused diff check 与完整
+`docs-consistency.sh`；按“G4 aggregate 只执行一次”约束没有重跑 aggregate。
+
+独立复审结果：
+
+| 复审 | 范围 | Critical / Important / Minor |
+|---|---|---:|
+| G4 轻量只读复审 | `729088db..0152d9c1` | 0 / 0 / 0 |
+| G-04 全决策链只读审计 | G-04A～Task 42，含修正后工作树 | 0 / 0 / 0 |
+| 最终台账证据一致性复核 | 136 投影、baseline、提交/测试/AOT 证据 | 0 / 0 / 0 |
+
+最终判定：
+
+- G1～G4 均为 `group-verification-complete`；
+- G-04 historical cohort 136/136 正式关闭；
+- current baseline 无未解释 drift 或悬空 candidate；
+- AD-04 正式关闭；
+- 不需要整体重构；后续新公共面变化继续由 baseline/drift gate 和单独 2.0
+  migration task 治理。
