@@ -8,6 +8,11 @@
 
 状态：`group-verification-pending`
 
+Task 7 实施状态：out-of-band v1 schema、golden、独立 validator、public
+constructor 传播解除与三个 CLR identity 的原子 internalization 已完成，等待
+Group 1 Task 10 统一验证。决策本身及 persisted JSON shape 不变；实施台账见
+[G-04D2G execution-report CLR 图处置](bukit-core-g04d2g-execution-report-resolution-2026-07-23.zh-CN.md)。
+
 ## 1. 决策摘要
 
 三选一结论为：**versioned supported artifact（版本化、受支持的诊断工件）**。

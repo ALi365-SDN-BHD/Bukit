@@ -3,7 +3,7 @@ using Bukit.Plugin.Abstractions.Security;
 
 namespace Bukit.PluginHost;
 
-public sealed record PluginExecutionReport(
+internal sealed record PluginExecutionReport(
     string PluginId,
     string Operation,
     string RequestId,
@@ -37,7 +37,7 @@ public sealed record PluginExecutionReport(
     public IReadOnlyList<PluginArtifact> Artifacts { get; init; } = Artifacts ?? [];
 }
 
-public sealed record PluginExecutionResponseSummary(
+internal sealed record PluginExecutionResponseSummary(
     bool Success,
     int ExitCode,
     IReadOnlyList<string>? DiagnosticCodes = null,
