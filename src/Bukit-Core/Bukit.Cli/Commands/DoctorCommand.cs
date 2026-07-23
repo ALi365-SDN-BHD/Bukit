@@ -274,7 +274,6 @@ public static class DoctorCommand
 
         var pluginContext = new BuildContext
         {
-            Config = config,
             RootDir = rootDir,
             OutputDir = Path.Combine(rootDir, config.Build.Output),
             BaseUrl = config.Site.BaseUrl,
@@ -381,7 +380,6 @@ public static class DoctorCommand
         {
             var routedPluginContext = new BuildContext
             {
-                Config = config,
                 RootDir = rootDir,
                 OutputDir = Path.Combine(rootDir, config.Build.Output),
                 BaseUrl = config.Site.BaseUrl,
@@ -391,7 +389,12 @@ public static class DoctorCommand
                 TemplateResolver = templateResolver.ResolveKindTemplate,
                 Logger = new ConsoleLogger(LogLevel.Info)
             };
-            listRoutes = SiteEngine.GetListRoutes(routedPluginContext, config, templateResolver);
+            listRoutes = SiteEngine.GetListRoutes(
+                routedPluginContext,
+                routedDocuments,
+                config.Site.Collections,
+                config.Site.OutputPathEncoding,
+                templateResolver);
             pluginRequirementTemplates = DoctorTemplateAnalyzer.CollectPluginRequirementTemplates(routedPluginContext, config, templateResolver);
         }
         catch (ConfigException ex)

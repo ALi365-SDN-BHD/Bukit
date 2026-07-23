@@ -37,7 +37,6 @@ public sealed class PluginPipelineTests
         };
         var pluginContext = new BuildContext
         {
-            Config = config,
             RootDir = rootDir,
             OutputDir = outputDir,
             BaseUrl = "/",

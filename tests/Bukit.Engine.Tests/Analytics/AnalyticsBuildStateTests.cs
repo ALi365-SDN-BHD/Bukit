@@ -89,7 +89,6 @@ public sealed class AnalyticsBuildStateTests
         };
         var context = new BuildContext
         {
-            Config = contextConfig,
             RootDir = ".",
             OutputDir = "dist",
             BaseUrl = "/",
@@ -135,7 +134,6 @@ public sealed class AnalyticsBuildStateTests
         };
         var context = new BuildContext
         {
-            Config = configA,
             RootDir = ".",
             OutputDir = "dist",
             BaseUrl = "/",

@@ -37,6 +37,16 @@ internal sealed class BuiltInPluginSource : IPluginSource
 public static class PluginRegistry
 {
     private const string CacheKey = "__plugin_registry_cache";
+    private static readonly AppConfig CompatibilityConfig = new()
+    {
+        Site = new SiteConfig
+        {
+            Name = "plugin-compatibility",
+            Title = "Plugin Compatibility"
+        },
+        Content = new ContentConfig()
+    };
+
     private sealed class PluginCacheEntry
     {
         public required AppConfig Config { get; init; }
@@ -46,7 +56,9 @@ public static class PluginRegistry
     private static int _cacheBuildCount;
 
     public static IEnumerable<(IBukitPlugin Plugin, string Source)> GetAllPlugins(BuildContext context)
-        => GetAllPlugins(context, context.Config);
+        => GetAllPlugins(context, CompatibilityConfig);
+
+    internal static AppConfig CompatibilityConfiguration => CompatibilityConfig;
 
     internal static IEnumerable<(IBukitPlugin Plugin, string Source)> GetAllPlugins(
         BuildContext context,

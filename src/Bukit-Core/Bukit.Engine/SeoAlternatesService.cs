@@ -140,7 +140,6 @@ internal static class SeoAlternatesService
             : layoutsDir;
         var pluginContext = new BuildContext
         {
-            Config = config,
             RootDir = effectiveRootDir,
             OutputDir = Path.Combine(Path.GetTempPath(), "bukit-seo-alternates"),
             BaseUrl = baseUrl,

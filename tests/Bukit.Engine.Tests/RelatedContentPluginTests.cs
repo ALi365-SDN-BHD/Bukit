@@ -48,13 +48,9 @@ public sealed class RelatedContentPluginTests
     [Fact]
     public void DerivePages_NotEnabled_ReturnsEmpty()
     {
+        var config = CreateConfig(new RelatedConfig { Enabled = false });
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t", Related = new RelatedConfig { Enabled = false } },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -63,7 +59,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var derived = new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
+        var derived = new RelatedContentPlugin(config).DerivePages(ctx);
         Assert.Empty(derived);
     }
 
@@ -76,23 +72,14 @@ public sealed class RelatedContentPluginTests
             (CreateItem("2", "Rust Post", "rust-post", tags: "rust,cargo"), Route("/rust-post/")),
             (CreateItem("3", "Go Tips", "go-tips", tags: "go,tips"), Route("/go-tips/")),
         };
+        var config = CreateConfig(new RelatedConfig
+        {
+            Enabled = true,
+            Threshold = 80,
+            Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
+        });
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig
-                {
-                    Name = "t",
-                    Title = "t",
-                    Related = new RelatedConfig
-                    {
-                        Enabled = true,
-                        Threshold = 80,
-                        Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
-                    }
-                },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -101,7 +88,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
+        new RelatedContentPlugin(config).DerivePages(ctx);
 
         Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
         var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
@@ -118,23 +105,14 @@ public sealed class RelatedContentPluginTests
             (CreateFieldItem("2", "Rust Post", "rust-post", new[] { "rust", "cargo" }), Route("/rust-post/")),
             (CreateFieldItem("3", "Go Tips", "go-tips", new[] { "go", "tips" }), Route("/go-tips/")),
         };
+        var config = CreateConfig(new RelatedConfig
+        {
+            Enabled = true,
+            Threshold = 80,
+            Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
+        });
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig
-                {
-                    Name = "t",
-                    Title = "t",
-                    Related = new RelatedConfig
-                    {
-                        Enabled = true,
-                        Threshold = 80,
-                        Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
-                    }
-                },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -144,7 +122,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
+        new RelatedContentPlugin(config).DerivePages(ctx);
 
         Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
         var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
@@ -160,18 +138,14 @@ public sealed class RelatedContentPluginTests
             (CreateItem("1", "A", "a", tags: "go"), Route("/a/")),
             (CreateItem("2", "B", "b", tags: "rust"), Route("/b/")),
         };
+        var config = CreateConfig(new RelatedConfig
+        {
+            Enabled = true,
+            Threshold = 50,
+            Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
+        });
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig
-                {
-                    Name = "t",
-                    Title = "t",
-                    Related = new RelatedConfig { Enabled = true, Threshold = 50, Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } } }
-                },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -180,7 +154,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
+        new RelatedContentPlugin(config).DerivePages(ctx);
 
         Assert.False(ctx.Data.TryGetValue("__related_pages", out var val)
             && val is Dictionary<string, List<object>> d && d.Count > 0);
@@ -189,13 +163,9 @@ public sealed class RelatedContentPluginTests
     [Fact]
     public void DerivePages_SingleItem_NoRelated()
     {
+        var config = CreateConfig(new RelatedConfig { Enabled = true });
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t", Related = new RelatedConfig { Enabled = true } },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -204,7 +174,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var derived = new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
+        var derived = new RelatedContentPlugin(config).DerivePages(ctx);
         Assert.Empty(derived);
     }
 
@@ -221,13 +191,9 @@ public sealed class RelatedContentPluginTests
             (pageItem, Route("/page/2/")),
             (normalItem, Route("/normal/")),
         };
+        var config = CreateConfig(new RelatedConfig { Enabled = true });
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t", Related = new RelatedConfig { Enabled = true } },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -236,7 +202,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
+        new RelatedContentPlugin(config).DerivePages(ctx);
 
         Assert.False(ctx.Data.TryGetValue("__related_pages", out var d)
             && d is Dictionary<string, List<object>> dict
@@ -252,18 +218,14 @@ public sealed class RelatedContentPluginTests
             (CreateItem("2", "B", "b", categories: "life"), Route("/b/")),
             (CreateItem("3", "C", "c", categories: "tech"), Route("/c/")),
         };
+        var config = CreateConfig(new RelatedConfig
+        {
+            Enabled = true,
+            Threshold = 60,
+            Indices = new[] { new RelatedIndexConfig { Name = "categories", Weight = 100 } }
+        });
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig
-                {
-                    Name = "t",
-                    Title = "t",
-                    Related = new RelatedConfig { Enabled = true, Threshold = 60, Indices = new[] { new RelatedIndexConfig { Name = "categories", Weight = 100 } } }
-                },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -272,7 +234,7 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
+        new RelatedContentPlugin(config).DerivePages(ctx);
 
         Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
         var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
@@ -288,18 +250,14 @@ public sealed class RelatedContentPluginTests
             (CreateItem("1", "A", "a", tags: "a"), Route("/a/")),
             (CreateItem("2", "B", "b", tags: "a"), Route("/b/")),
         };
+        var config = CreateConfig(new RelatedConfig
+        {
+            Enabled = true,
+            Threshold = 999,
+            Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
+        });
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig
-                {
-                    Name = "t",
-                    Title = "t",
-                    Related = new RelatedConfig { Enabled = true, Threshold = 999, Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } } }
-                },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -308,9 +266,16 @@ public sealed class RelatedContentPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new RelatedContentPlugin(ctx.Config).DerivePages(ctx);
+        new RelatedContentPlugin(config).DerivePages(ctx);
 
         Assert.False(ctx.Data.TryGetValue("__related_pages", out var val)
             && val is Dictionary<string, List<object>> d && d.Values.Any(v => v.Count > 0));
     }
+
+    private static AppConfig CreateConfig(RelatedConfig related)
+        => new()
+        {
+            Site = new SiteConfig { Name = "t", Title = "t", Related = related },
+            Content = TestContent.Markdown()
+        };
 }

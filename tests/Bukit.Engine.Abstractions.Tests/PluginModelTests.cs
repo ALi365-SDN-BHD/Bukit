@@ -1,10 +1,32 @@
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Abstractions.Tests;
 
 public sealed class PluginModelTests
 {
+    [Fact]
+    public void BuildContext_MissingTemplateResolver_PreservesConfigDiagnostic()
+    {
+        var context = new BuildContext
+        {
+            RootDir = "/test",
+            OutputDir = "/test/dist",
+            BaseUrl = "/",
+            LayoutsDir = "/test/layouts",
+            RoutedDocuments = [],
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var exception = Assert.Throws<ConfigException>(
+            () => context.ResolveTemplateKind("archive"));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("archive", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void PluginExecutionInfo_RecordsSuccess()
     {

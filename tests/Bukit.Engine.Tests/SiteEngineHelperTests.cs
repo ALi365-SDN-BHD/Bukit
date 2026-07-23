@@ -457,7 +457,6 @@ public sealed class SiteEngineHelperTests
         };
         var context = new BuildContext
         {
-            Config = config,
             RootDir = ".",
             OutputDir = "dist",
             BaseUrl = "/",
@@ -466,7 +465,11 @@ public sealed class SiteEngineHelperTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var result = SiteEngine.GetListRoutes(context);
+        var result = SiteEngine.GetListRoutes(
+            context,
+            routed,
+            config.Site.Collections,
+            config.Site.OutputPathEncoding);
 
         Assert.Contains(result, r => r.Url == "/blog/");
         Assert.Contains(result, r => r.Url == "/blog/page/2/");
@@ -475,7 +478,7 @@ public sealed class SiteEngineHelperTests
     }
 
     [Fact]
-    public void BuildListRoutes_WithExplicitConfig_UsesEffectiveConfigInsteadOfContextBridge()
+    public void BuildListRoutes_WithExplicitInputs_UsesRoutedDocumentsAndConfigurationLeaves()
     {
         var contextConfig = new AppConfig
         {
@@ -498,18 +501,10 @@ public sealed class SiteEngineHelperTests
                 }
             }
         };
-        var context = new BuildContext
-        {
-            Config = contextConfig,
-            RootDir = ".",
-            OutputDir = "dist",
-            BaseUrl = "/",
-            LayoutsDir = "layouts",
-            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
-            Logger = new ConsoleLogger(LogLevel.Error)
-        };
-
-        var result = SiteEngine.GetListRoutes(context, effectiveConfig);
+        var result = SiteEngine.GetListRoutes(
+            Array.Empty<RoutedContentDocument>(),
+            effectiveConfig.Site.Collections,
+            effectiveConfig.Site.OutputPathEncoding);
 
         Assert.Contains(result, route => route.Url == "/articles/");
         Assert.DoesNotContain(result, route => route.Url == "/blog/");

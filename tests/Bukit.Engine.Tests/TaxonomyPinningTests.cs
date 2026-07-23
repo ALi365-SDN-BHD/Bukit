@@ -47,9 +47,9 @@ public sealed class TaxonomyPinningTests
             (pinned, new RouteInfo("/pinned/", "pinned/index.html", "pages/page.html")),
             (normal, new RouteInfo("/normal-newer/", "normal-newer/index.html", "pages/page.html"))
         };
-        var ctx = CreateContext(layoutsDir, routed);
+        var (ctx, config) = CreateContext(layoutsDir, routed);
 
-        var plugin = new TaxonomyPlugin(ctx.Config);
+        var plugin = new TaxonomyPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
@@ -94,7 +94,7 @@ public sealed class TaxonomyPinningTests
             (pinned, new RouteInfo("/pinned/", "pinned/index.html", "pages/page.html")),
             (normal, new RouteInfo("/normal-newer/", "normal-newer/index.html", "pages/page.html"))
         };
-        var ctx = CreateContext(
+        var (ctx, config) = CreateContext(
             layoutsDir,
             routed,
             new TaxonomyConfig
@@ -106,7 +106,7 @@ public sealed class TaxonomyPinningTests
                 }
             });
 
-        var plugin = new TaxonomyPlugin(ctx.Config);
+        var plugin = new TaxonomyPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
@@ -154,7 +154,7 @@ public sealed class TaxonomyPinningTests
             (pinned2, new RouteInfo("/pinned-2/", "pinned-2/index.html", "pages/page.html")),
             (pinned1, new RouteInfo("/pinned-1/", "pinned-1/index.html", "pages/page.html"))
         };
-        var ctx = CreateContext(
+        var (ctx, config) = CreateContext(
             layoutsDir,
             routed,
             new TaxonomyConfig
@@ -163,7 +163,7 @@ public sealed class TaxonomyPinningTests
                 PinOrderField = "pinOrder"
             });
 
-        var plugin = new TaxonomyPlugin(ctx.Config);
+        var plugin = new TaxonomyPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
@@ -205,7 +205,7 @@ public sealed class TaxonomyPinningTests
                 ["orderA"] = new ContentField("number", 2),
                 ["orderB"] = new ContentField("number", 1)
             });
-        var context = CreateContext(
+        var (context, _) = CreateContext(
             CreateTaxonomyLayoutsDir(),
             [
                 (first, new RouteInfo("/first/", "first/index.html", "pages/page.html")),
@@ -231,20 +231,20 @@ public sealed class TaxonomyPinningTests
             _ => throw new ConfigException($"Unexpected template kind: {kind}")
         };
 
-    private static BuildContext CreateContext(
+    private static (BuildContext Context, AppConfig Config) CreateContext(
         string layoutsDir,
         IReadOnlyList<(ContentDocument Item, RouteInfo Route)> routed,
         TaxonomyConfig? taxonomy = null)
     {
         var routedDocuments = routed.ToRoutedDocuments();
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = TestContent.Markdown(),
-                Taxonomy = taxonomy ?? new TaxonomyConfig()
-            },
+            Site = new SiteConfig { Name = "t", Title = "t" },
+            Content = TestContent.Markdown(),
+            Taxonomy = taxonomy ?? new TaxonomyConfig()
+        };
+        var context = new BuildContext
+        {
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
@@ -256,6 +256,7 @@ public sealed class TaxonomyPinningTests
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+        return (context, config);
     }
 
     private static string CreateTaxonomyLayoutsDir()

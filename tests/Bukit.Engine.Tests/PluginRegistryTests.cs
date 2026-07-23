@@ -16,7 +16,7 @@ public sealed class PluginRegistryTests
     [Fact]
     public void BuiltInPluginSource_RegistersExactlyOneAnalyticsPluginWithLockedMetadata()
     {
-        var plugins = new BuiltInPluginSource(CreateContext().Config).GetPlugins().ToList();
+        var plugins = new BuiltInPluginSource(CreateConfig()).GetPlugins().ToList();
         var analytics = Assert.Single(plugins, x => x.Name == "analytics");
 
         var typed = Assert.IsType<AnalyticsPlugin>(analytics);
@@ -32,7 +32,7 @@ public sealed class PluginRegistryTests
     {
         PluginRegistry.ResetCacheForTests();
         var context = CreateContext();
-        var config = context.Config;
+        var config = CreateConfig();
 
         var first = PluginRegistry.GetAllPlugins(context, config).ToList();
         var second = PluginRegistry.GetAllPlugins(context, config).ToList();
@@ -47,7 +47,7 @@ public sealed class PluginRegistryTests
     {
         PluginRegistry.ResetCacheForTests();
         var context = CreateContext();
-        var firstConfig = context.Config;
+        var firstConfig = CreateConfig();
         var secondConfig = firstConfig with
         {
             Site = firstConfig.Site with { Title = "Second configuration" }
@@ -68,8 +68,9 @@ public sealed class PluginRegistryTests
     {
         PluginRegistry.ResetCacheForTests();
         var context = CreateContext();
+        var config = CreateConfig();
 
-        var registrations = PluginRegistry.GetAllPlugins(context, context.Config)
+        var registrations = PluginRegistry.GetAllPlugins(context, config)
             .Select(item => (item.Plugin.Name, item.Plugin.Version, item.Source))
             .ToArray();
 
@@ -111,11 +112,6 @@ public sealed class PluginRegistryTests
         PluginRegistry.ResetCacheForTests();
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -137,11 +133,6 @@ public sealed class PluginRegistryTests
         PluginRegistry.ResetCacheForTests();
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -163,11 +154,6 @@ public sealed class PluginRegistryTests
         PluginRegistry.ResetCacheForTests();
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -188,11 +174,6 @@ public sealed class PluginRegistryTests
         PluginRegistry.ResetCacheForTests();
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -219,11 +200,6 @@ public sealed class PluginRegistryTests
         PluginRegistry.ResetCacheForTests();
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -256,11 +232,6 @@ public sealed class PluginRegistryTests
         PluginRegistry.ResetCacheForTests();
         var ctx1 = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -270,11 +241,6 @@ public sealed class PluginRegistryTests
         };
         var ctx2 = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test2", Title = "test2" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -300,11 +266,6 @@ public sealed class PluginRegistryTests
         PluginRegistry.ResetCacheForTests();
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -330,11 +291,6 @@ public sealed class PluginRegistryTests
 
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -353,16 +309,18 @@ public sealed class PluginRegistryTests
     private static BuildContext CreateContext()
         => new()
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test/no-plugins-dir",
             OutputDir = "/test/out",
             BaseUrl = "/",
             LayoutsDir = "/test/layouts",
             RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+    private static AppConfig CreateConfig()
+        => new()
+        {
+            Site = new SiteConfig { Name = "test", Title = "test" },
+            Content = TestContent.Markdown()
         };
 }

@@ -13,39 +13,39 @@ namespace Bukit.Engine.Tests;
 
 public sealed class PaginationPluginDerivePagesTests
 {
-    private static BuildContext CreateContext(
+    private static (BuildContext Context, AppConfig Config) CreateContext(
         IReadOnlyList<(ContentDocument Item, RouteInfo Route)> routed,
         int pageSize = 10,
         string collectionKey = "post",
         string listRoute = "/blog/",
         string outputPathEncoding = "none")
     {
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
+            Site = new SiteConfig
             {
-                Site = new SiteConfig
+                Name = "test",
+                Title = "test",
+                OutputPathEncoding = outputPathEncoding,
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {
-                    Name = "test",
-                    Title = "test",
-                    OutputPathEncoding = outputPathEncoding,
-                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                    [collectionKey] = new CollectionConfig
                     {
-                        [collectionKey] = new CollectionConfig
+                        Permalink = $"/{collectionKey}/{{slug}}/",
+                        Template = $"pages/{collectionKey}.html",
+                        ListRoute = listRoute,
+                        Pagination = new CollectionPaginationConfig
                         {
-                            Permalink = $"/{collectionKey}/{{slug}}/",
-                            Template = $"pages/{collectionKey}.html",
-                            ListRoute = listRoute,
-                            Pagination = new CollectionPaginationConfig
-                            {
-                                Enabled = true,
-                                PageSize = pageSize
-                            }
+                            Enabled = true,
+                            PageSize = pageSize
                         }
                     }
-                },
-                Content = TestContent.Markdown()
+                }
             },
+            Content = TestContent.Markdown()
+        };
+        var context = new BuildContext
+        {
             RootDir = "/test",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -56,6 +56,7 @@ public sealed class PaginationPluginDerivePagesTests
                 : throw new ConfigException($"Unexpected template kind: {kind}"),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+        return (context, config);
     }
 
     private static (ContentDocument Item, RouteInfo Route) CreateRoutedItem(int index, DateTimeOffset? publishAt = null)
@@ -82,9 +83,9 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 5)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 10);
+        var (ctx, config) = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.NotNull(derived);
@@ -97,9 +98,9 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 10)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 10);
+        var (ctx, config) = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -111,9 +112,9 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 25)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 10);
+        var (ctx, config) = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Equal(2, derived.Count);
@@ -125,9 +126,9 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 25)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 10, listRoute: "/blog/");
+        var (ctx, config) = CreateContext(routed, pageSize: 10, listRoute: "/blog/");
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/blog/page/2/");
@@ -140,9 +141,9 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 30)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 5);
+        var (ctx, config) = CreateContext(routed, pageSize: 5);
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Equal(5, derived.Count);
@@ -151,9 +152,9 @@ public sealed class PaginationPluginDerivePagesTests
     [Fact]
     public void DerivePages_EmptyInput_ReturnsEmpty()
     {
-        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>(), pageSize: 10);
+        var (ctx, config) = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>(), pageSize: 10);
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -165,9 +166,9 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 12)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 5, listRoute: "/posts/", collectionKey: "post");
+        var (ctx, config) = CreateContext(routed, pageSize: 5, listRoute: "/posts/", collectionKey: "post");
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/posts/page/2/");
@@ -180,9 +181,9 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 12)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 5, listRoute: "/Blog Posts/", outputPathEncoding: "slug");
+        var (ctx, config) = CreateContext(routed, pageSize: 5, listRoute: "/Blog Posts/", outputPathEncoding: "slug");
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/Blog Posts/page/2/");
@@ -195,9 +196,9 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 22)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 10);
+        var (ctx, config) = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/blog/page/2/");
@@ -232,9 +233,9 @@ public sealed class PaginationPluginDerivePagesTests
                 return (item, route);
             })
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 5);
+        var (ctx, config) = CreateContext(routed, pageSize: 5);
 
-        var derived = new PaginationPlugin(ctx.Config).DerivePages(ctx);
+        var derived = new PaginationPlugin(config).DerivePages(ctx);
 
         var page2 = Assert.Single(derived, x => x.Route.Url == "/blog/page/2/");
         var items = Assert.IsType<List<object>>(page2.Document.CustomFields!["items"].Value);
@@ -248,27 +249,27 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 5)
             .Select(i => CreateRoutedItem(i))
             .ToList();
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "test",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["post"] = new CollectionConfig
+                    {
+                        Permalink = "/blog/{slug}/",
+                        Template = "pages/post.html",
+                        ListRoute = "/blog/",
+                        Pagination = new CollectionPaginationConfig { Enabled = false, PageSize = 10 }
+                    }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig
-                {
-                    Name = "test",
-                    Title = "test",
-                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["post"] = new CollectionConfig
-                        {
-                            Permalink = "/blog/{slug}/",
-                            Template = "pages/post.html",
-                            ListRoute = "/blog/",
-                            Pagination = new CollectionPaginationConfig { Enabled = false, PageSize = 10 }
-                        }
-                    }
-                },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -277,7 +278,7 @@ public sealed class PaginationPluginDerivePagesTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -289,9 +290,9 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 47)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 10);
+        var (ctx, config) = CreateContext(routed, pageSize: 10);
 
-        var plugin = new PaginationPlugin(ctx.Config);
+        var plugin = new PaginationPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Equal(4, derived.Count);
@@ -304,7 +305,7 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 12)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 5);
+        var (ctx, config) = CreateContext(routed, pageSize: 5);
         ctx.Data[ListRouteGraphBuilder.BuildContextDataKey] = ListRouteGraph.Create(new[]
         {
             new ListRoutePlan
@@ -322,7 +323,7 @@ public sealed class PaginationPluginDerivePagesTests
             }
         });
 
-        var derived = new PaginationPlugin(ctx.Config).DerivePages(ctx);
+        var derived = new PaginationPlugin(config).DerivePages(ctx);
 
         Assert.Empty(derived);
     }
@@ -333,7 +334,7 @@ public sealed class PaginationPluginDerivePagesTests
         var routed = Enumerable.Range(0, 12)
             .Select(i => CreateRoutedItem(i))
             .ToList();
-        var ctx = CreateContext(routed, pageSize: 5);
+        var (ctx, config) = CreateContext(routed, pageSize: 5);
         ctx.Data[ListRouteGraphBuilder.BuildContextDataKey] = ListRouteGraph.Create(new[]
         {
             new ListRoutePlan
@@ -351,7 +352,7 @@ public sealed class PaginationPluginDerivePagesTests
             }
         });
 
-        var requirements = new PaginationPlugin(ctx.Config).GetTemplateRequirementKinds(ctx);
+        var requirements = new PaginationPlugin(config).GetTemplateRequirementKinds(ctx);
 
         Assert.Empty(requirements);
     }

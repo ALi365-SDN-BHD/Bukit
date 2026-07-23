@@ -281,11 +281,6 @@ public sealed partial class AnalyticsPluginBoundaryTests
     private static BuildContext CreateBuildContext()
         => new()
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "architecture-test", Title = "Architecture Test" },
-                Content = new ContentConfig()
-            },
             RootDir = "/architecture-test",
             OutputDir = "/architecture-test/dist",
             BaseUrl = "/",
@@ -300,7 +295,23 @@ public sealed partial class AnalyticsPluginBoundaryTests
         Type sourceType = AssertEngineType(
             engineAssembly,
             "Bukit.Engine.Plugins.BuiltInPluginSource");
-        object source = Activator.CreateInstance(sourceType, nonPublic: true)!;
+        object source = Activator.CreateInstance(
+            sourceType,
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            args:
+            [
+                new AppConfig
+                {
+                    Site = new SiteConfig
+                    {
+                        Name = "architecture-test",
+                        Title = "Architecture Test"
+                    },
+                    Content = new ContentConfig()
+                }
+            ],
+            culture: null)!;
         MethodInfo getPlugins = sourceType.GetMethod(
             "GetPlugins",
             BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)!;

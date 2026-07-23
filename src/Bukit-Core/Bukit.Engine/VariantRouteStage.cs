@@ -35,7 +35,6 @@ internal static class VariantRouteStage
 
         var pluginContext = new BuildContext
         {
-            Config = context.Config,
             RootDir = context.RootDir,
             OutputDir = context.OutputDir,
             BaseUrl = context.BaseUrl,

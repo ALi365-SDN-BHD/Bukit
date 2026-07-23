@@ -63,25 +63,51 @@ public sealed class SiteEngine
     }
 
     public static IReadOnlyList<RouteInfo> GetListRoutes(
-        BuildContext context,
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        string outputPathEncoding,
         ThemeTemplateResolver? templateResolver = null)
-        => GetListRoutes(context, context.Config, templateResolver);
+    {
+        var graph = BuildListRouteGraph(
+            routedDocuments,
+            collections,
+            outputPathEncoding,
+            templateResolver);
+        return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
+    }
 
     internal static IReadOnlyList<RouteInfo> GetListRoutes(
         BuildContext context,
-        AppConfig config,
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        string outputPathEncoding,
         ThemeTemplateResolver? templateResolver = null)
     {
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(config);
 
-        var graph = ListRouteGraphBuilder.Build(
-            context.RoutedDocuments,
-            config.Site.Collections,
-            config.Site.OutputPathEncoding,
+        var graph = BuildListRouteGraph(
+            routedDocuments,
+            collections,
+            outputPathEncoding,
             templateResolver);
         context.Data[ListRouteGraphBuilder.BuildContextDataKey] = graph;
         return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
+    }
+
+    private static ListRouteGraph BuildListRouteGraph(
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        string outputPathEncoding,
+        ThemeTemplateResolver? templateResolver)
+    {
+        ArgumentNullException.ThrowIfNull(routedDocuments);
+        ArgumentNullException.ThrowIfNull(outputPathEncoding);
+
+        return ListRouteGraphBuilder.Build(
+            routedDocuments,
+            collections,
+            outputPathEncoding,
+            templateResolver);
     }
 
     public async Task BuildAsync(IContentProvider provider, BuildOptions options, CancellationToken cancellationToken = default)

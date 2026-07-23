@@ -15,7 +15,7 @@ namespace Bukit.Engine.Tests;
 public sealed class PagesByIdDataPluginTests
 {
     [Fact]
-    public void DerivePages_PopulatesSiteDataPagesById()
+    public async Task DerivePages_PopulatesSiteDataPagesById()
     {
         var item = ContentDocument.Create(
             id: "page-1",
@@ -60,7 +60,6 @@ public sealed class PagesByIdDataPluginTests
 
         var ctx = new BuildContext
         {
-            Config = config,
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
@@ -83,7 +82,7 @@ public sealed class PagesByIdDataPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        PluginRunner.RunDerivePages(ctx);
+        await PluginRunner.RunDerivePagesAsync(ctx, config);
 
         Assert.True(ctx.Data.TryGetValue("pages_by_id", out var indexObj));
         var index = Assert.IsType<Dictionary<string, object>>(indexObj);
@@ -105,13 +104,13 @@ public sealed class PagesByIdDataPluginTests
             publishAt: new DateTimeOffset(2026, 06, 05, 0, 0, 0, TimeSpan.Zero),
             contentHtml: "<p>hi</p>",
             fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase));
+        var config = new AppConfig
+        {
+            Site = new SiteConfig { Name = "t", Title = "t" },
+            Content = TestContent.Markdown()
+        };
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
@@ -125,7 +124,7 @@ public sealed class PagesByIdDataPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new PagesIndexPlugin(ctx.Config);
+        var plugin = new PagesIndexPlugin(config);
         plugin.DerivePages(ctx);
 
         var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
@@ -164,21 +163,21 @@ public sealed class PagesByIdDataPluginTests
             ["post"] = new RouteGenerator.CollectionRouteRule("/blog/{slug}/", string.Empty)
         });
 
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "t",
+                Title = "t",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["post"] = new CollectionConfig { Permalink = "/blog/{slug}/" }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig
-                {
-                    Name = "t",
-                    Title = "t",
-                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["post"] = new CollectionConfig { Permalink = "/blog/{slug}/" }
-                    }
-                },
-                Content = TestContent.Markdown()
-            },
             RootDir = root,
             OutputDir = Path.Combine(root, "out"),
             BaseUrl = "/",
@@ -187,7 +186,7 @@ public sealed class PagesByIdDataPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(ctx.Config);
+        var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(config);
         plugin.DerivePages(ctx);
 
         var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
@@ -264,7 +263,6 @@ public sealed class PagesByIdDataPluginTests
 
             var ctx = new BuildContext
             {
-                Config = config,
                 RootDir = "C:\\",
                 OutputDir = "C:\\out",
                 BaseUrl = "/",
@@ -273,7 +271,7 @@ public sealed class PagesByIdDataPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(ctx.Config, new FakeFetcher());
+            var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(config, new FakeFetcher());
             plugin.DerivePages(ctx);
 
             var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
@@ -327,29 +325,29 @@ public sealed class PagesByIdDataPluginTests
                 ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })
             }, new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase) { ["type"] = "post", ["collection"] = "post" }));
 
-        var ctx = new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
+            Site = new SiteConfig { Name = "t", Title = "t" },
+            Content = TestContent.Notion(),
+            Theme = new ThemeConfig
             {
-                Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = TestContent.Notion(),
-                Theme = new ThemeConfig
+                Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                 {
-                    Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    ["pages_index"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
-                        ["pages_index"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        ["resolve_notion"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                         {
-                            ["resolve_notion"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
-                            {
-                                ["enabled"] = true,
-                                ["field_keys"] = new List<object> { "related_posts" },
-                                ["cache_mode"] = "readonly",
-                                ["cache_path"] = cachePath
-                            }
+                            ["enabled"] = true,
+                            ["field_keys"] = new List<object> { "related_posts" },
+                            ["cache_mode"] = "readonly",
+                            ["cache_path"] = cachePath
                         }
                     }
                 }
-            },
+            }
+        };
+        var ctx = new BuildContext
+        {
             RootDir = root,
             OutputDir = Path.Combine(root, "out"),
             BaseUrl = "/",
@@ -361,7 +359,7 @@ public sealed class PagesByIdDataPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(ctx.Config, new ThrowingFetcher());
+        var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(config, new ThrowingFetcher());
         plugin.DerivePages(ctx);
 
         var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);

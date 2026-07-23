@@ -18,13 +18,9 @@ public sealed class TaxonomyEnsureTermsTests
     public void DerivePages_WithEnsureTerms_GeneratesEmptyCategoryTermPage()
     {
         var layoutsDir = CreateTaxonomyLayoutsDir();
+        var config = CreateConfig();
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
@@ -46,7 +42,7 @@ public sealed class TaxonomyEnsureTermsTests
             }
         };
 
-        var plugin = new TaxonomyPlugin(ctx.Config);
+        var plugin = new TaxonomyPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/categories/");
@@ -66,11 +62,6 @@ public sealed class TaxonomyEnsureTermsTests
     {
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
@@ -106,13 +97,9 @@ public sealed class TaxonomyEnsureTermsTests
     {
         TaxonomyPlugin.ResetBuildIndexCountForTests();
         var layoutsDir = CreateTaxonomyLayoutsDir();
+        var config = CreateConfig();
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = TestContent.Markdown()
-            },
             RootDir = "C:\\",
             OutputDir = Path.Combine(Path.GetTempPath(), "bukit-taxonomy-tests", Guid.NewGuid().ToString("N")),
             BaseUrl = "/",
@@ -141,7 +128,7 @@ public sealed class TaxonomyEnsureTermsTests
         Directory.CreateDirectory(ctx.OutputDir);
         try
         {
-            var plugin = new TaxonomyPlugin(ctx.Config);
+            var plugin = new TaxonomyPlugin(config);
             _ = plugin.DerivePages(ctx);
             plugin.AfterBuild(ctx);
         }
@@ -162,6 +149,13 @@ public sealed class TaxonomyEnsureTermsTests
             "taxonomy_index" => "pages/taxonomy-index.html",
             "taxonomy_term" => "pages/taxonomy-term.html",
             _ => throw new ConfigException($"Unexpected template kind: {kind}")
+        };
+
+    private static AppConfig CreateConfig()
+        => new()
+        {
+            Site = new SiteConfig { Name = "t", Title = "t" },
+            Content = TestContent.Markdown()
         };
 
     private static string CreateTaxonomyLayoutsDir()

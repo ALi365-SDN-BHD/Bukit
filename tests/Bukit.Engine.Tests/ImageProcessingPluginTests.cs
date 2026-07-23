@@ -22,14 +22,9 @@ public sealed class ImageProcessingPluginTests
         {
             var assetsDir = Path.Combine(outDir, "assets");
             Directory.CreateDirectory(assetsDir);
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = false });
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = TestContent.Markdown(),
-                    Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = false } }
-                },
                 RootDir = "/t",
                 OutputDir = outDir,
                 BaseUrl = "/",
@@ -38,7 +33,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin(ctx.Config).AfterBuild(ctx);
+            new ImageProcessingPlugin(config).AfterBuild(ctx);
             Assert.False(ctx.Data.ContainsKey("__image_srcsets"));
         }
         finally
@@ -53,14 +48,9 @@ public sealed class ImageProcessingPluginTests
         var outDir = GetTempDir();
         try
         {
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true });
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = TestContent.Markdown(),
-                    Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = true } }
-                },
                 RootDir = "/t",
                 OutputDir = outDir,
                 BaseUrl = "/",
@@ -69,7 +59,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin(ctx.Config).AfterBuild(ctx);
+            new ImageProcessingPlugin(config).AfterBuild(ctx);
             Assert.False(ctx.Data.ContainsKey("__image_srcsets"));
         }
         finally
@@ -88,14 +78,10 @@ public sealed class ImageProcessingPluginTests
             Directory.CreateDirectory(assetsDir);
             File.WriteAllText(Path.Combine(assetsDir, "test.jpg"), "fake-jpeg");
 
+            var config = CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } });
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = TestContent.Markdown(),
-                    Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } } }
-                },
                 RootDir = "/t",
                 OutputDir = outDir,
                 BaseUrl = "/",
@@ -104,7 +90,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin(ctx.Config).AfterBuild(ctx);
+            new ImageProcessingPlugin(config).AfterBuild(ctx);
         }
         finally
         {
@@ -123,14 +109,9 @@ public sealed class ImageProcessingPluginTests
             File.WriteAllText(Path.Combine(assetsDir, "doc.pdf"), "fake-pdf");
             File.WriteAllText(Path.Combine(assetsDir, "style.css"), "fake-css");
 
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true });
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = TestContent.Markdown(),
-                    Theme = new ThemeConfig { Images = new ImageOptimizationConfig { Enabled = true } }
-                },
                 RootDir = "/t",
                 OutputDir = outDir,
                 BaseUrl = "/",
@@ -139,7 +120,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin(ctx.Config).AfterBuild(ctx);
+            new ImageProcessingPlugin(config).AfterBuild(ctx);
         }
         finally
         {
@@ -148,4 +129,11 @@ public sealed class ImageProcessingPluginTests
     }
 
     private static string GetTempDir() => Path.Combine(Path.GetTempPath(), "bukit_img_test_" + Guid.NewGuid().ToString("N"));
+
+    private static AppConfig CreateConfig(ImageOptimizationConfig images) => new()
+    {
+        Site = new SiteConfig { Name = "t", Title = "t" },
+        Content = TestContent.Markdown(),
+        Theme = new ThemeConfig { Images = images }
+    };
 }

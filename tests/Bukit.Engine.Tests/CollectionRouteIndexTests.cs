@@ -1,4 +1,3 @@
-using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
@@ -25,11 +24,6 @@ public sealed class CollectionRouteIndexTests
 
         var context = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
             RootDir = Path.GetTempPath(),
             OutputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N")),
             BaseUrl = "/",

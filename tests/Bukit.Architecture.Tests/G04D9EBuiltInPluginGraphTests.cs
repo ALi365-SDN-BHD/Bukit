@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Bukit.Config;
 using Bukit.Engine;
 using Bukit.Engine.Abstractions.Plugins;
 using Xunit;
@@ -59,7 +60,21 @@ public sealed class G04D9EBuiltInPluginGraphTests
             "Bukit.Engine.Plugins.BuiltInPluginSource");
         object source = Activator.CreateInstance(
             sourceType,
-            nonPublic: true)!;
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            args:
+            [
+                new AppConfig
+                {
+                    Site = new SiteConfig
+                    {
+                        Name = "architecture-test",
+                        Title = "Architecture Test"
+                    },
+                    Content = new ContentConfig()
+                }
+            ],
+            culture: null)!;
         MethodInfo getPlugins = sourceType.GetMethod(
             "GetPlugins",
             BindingFlags.Public |

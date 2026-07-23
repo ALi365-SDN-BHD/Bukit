@@ -17,10 +17,10 @@ public sealed class PluginRunnerTests
     [Fact]
     public void CollectHtmlTransforms_UsesRegistryOrderHookAndCreatesFreshTransformPerVariant()
     {
-        var context = CreateContext(analytics: Analytics(Provider("google-analytics", measurementId: "G-ORDER")));
+        var (context, config) = CreateContext(analytics: Analytics(Provider("google-analytics", measurementId: "G-ORDER")));
 
-        var first = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
-        var second = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+        var first = PluginRunner.CollectHtmlTransforms(context, config, BuildExecutionMode.Production);
+        var second = PluginRunner.CollectHtmlTransforms(context, config, BuildExecutionMode.Production);
 
         var firstAnalytics = Assert.Single(first, x => x.Name == "analytics");
         var secondAnalytics = Assert.Single(second, x => x.Name == "analytics");
@@ -32,7 +32,7 @@ public sealed class PluginRunnerTests
     public void CollectHtmlTransforms_WhenGenericPluginIsDisabled_CreatesNoTransformOrExecutionRecord()
     {
         var plugin = new TestHtmlTransformPlugin("generic", order: 1, () => new AppendingTransform("generic"));
-        var context = CreateContext(plugins: new Dictionary<string, PluginToggleConfig>
+        var (context, config) = CreateContext(plugins: new Dictionary<string, PluginToggleConfig>
         {
             ["generic"] = new() { Enabled = false }
         });
@@ -40,6 +40,7 @@ public sealed class PluginRunnerTests
         var transforms = PluginRunner.CollectHtmlTransforms(
             context,
             BuildExecutionMode.Production,
+            PluginExecutionPolicy.From(config.Site),
             [plugin]);
         transforms.RecordExecutions();
 
@@ -51,14 +52,14 @@ public sealed class PluginRunnerTests
     [Fact]
     public void CollectHtmlTransforms_WhenAnalyticsPluginIsDisabled_CreatesNoTransformOrExecutionRecord()
     {
-        var context = CreateContext(
+        var (context, config) = CreateContext(
             plugins: new Dictionary<string, PluginToggleConfig>
             {
                 ["analytics"] = new() { Enabled = false }
             },
             analytics: Analytics(Provider("google-analytics", measurementId: "G-DISABLED")));
 
-        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+        var transforms = PluginRunner.CollectHtmlTransforms(context, config, BuildExecutionMode.Production);
         transforms.RecordExecutions();
 
         Assert.DoesNotContain(transforms, x => x.Name == "analytics");
@@ -69,11 +70,12 @@ public sealed class PluginRunnerTests
     public void CollectHtmlTransforms_ExcludesPluginWhoseHookFilterRejectsHtmlTransform()
     {
         var plugin = new RejectingHtmlTransformPlugin();
-        var context = CreateContext();
+        var (context, config) = CreateContext();
 
         var transforms = PluginRunner.CollectHtmlTransforms(
             context,
             BuildExecutionMode.Production,
+            PluginExecutionPolicy.From(config.Site),
             [plugin]);
         transforms.RecordExecutions();
 
@@ -85,11 +87,11 @@ public sealed class PluginRunnerTests
     [Fact]
     public void CollectHtmlTransforms_WhenAnalyticsFeatureIsDisabled_StillCreatesTransformWithoutInjection()
     {
-        var context = CreateContext(analytics: Analytics(
+        var (context, config) = CreateContext(analytics: Analytics(
             [Provider("google-analytics", measurementId: "G-OFF")],
             enabled: false));
 
-        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+        var transforms = PluginRunner.CollectHtmlTransforms(context, config, BuildExecutionMode.Production);
         var analytics = Assert.Single(transforms, x => x.Name == "analytics");
         const string html = "<html><head></head><body></body></html>";
 
@@ -99,8 +101,8 @@ public sealed class PluginRunnerTests
     [Fact]
     public void CollectedHtmlTransforms_RecordZeroPageExecutionExactlyOnce()
     {
-        var context = CreateContext(analytics: Analytics());
-        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+        var (context, config) = CreateContext(analytics: Analytics());
+        var transforms = PluginRunner.CollectHtmlTransforms(context, config, BuildExecutionMode.Production);
 
         Parallel.Invoke(transforms.RecordExecutions, transforms.RecordExecutions, transforms.RecordExecutions);
 
@@ -113,8 +115,8 @@ public sealed class PluginRunnerTests
     [Fact]
     public void CollectedHtmlTransforms_EveryConcurrentCallerReturnsAfterRecordIsVisible()
     {
-        var context = CreateContext(analytics: Analytics());
-        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production);
+        var (context, config) = CreateContext(analytics: Analytics());
+        var transforms = PluginRunner.CollectHtmlTransforms(context, config, BuildExecutionMode.Production);
 
         Parallel.For(0, 100, _ =>
         {
@@ -129,8 +131,12 @@ public sealed class PluginRunnerTests
     public void TrackedHtmlTransform_StrictRecordsFirstErrorAndRethrows()
     {
         var plugin = new TestHtmlTransformPlugin("throwing", 1, () => new ThrowingTransform("strict boom"));
-        var context = CreateContext(pluginFailMode: "strict");
-        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production, [plugin]);
+        var (context, config) = CreateContext(pluginFailMode: "strict");
+        var transforms = PluginRunner.CollectHtmlTransforms(
+            context,
+            BuildExecutionMode.Production,
+            PluginExecutionPolicy.From(config.Site),
+            [plugin]);
         var transform = Assert.IsType<TrackedHtmlTransform>(Assert.Single(transforms));
 
         var exception = Assert.Throws<InvalidOperationException>(() => transform.Transform(HtmlContext(), "before"));
@@ -149,8 +155,12 @@ public sealed class PluginRunnerTests
         var logger = new RecordingLogger();
         var throwing = new TestHtmlTransformPlugin("a-throwing", 1, () => new ThrowingTransform("warn boom"));
         var appending = new TestHtmlTransformPlugin("b-appending", 2, () => new AppendingTransform("after"));
-        var context = CreateContext(pluginFailMode: "warn", logger: logger);
-        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production, [appending, throwing]);
+        var (context, config) = CreateContext(pluginFailMode: "warn", logger: logger);
+        var transforms = PluginRunner.CollectHtmlTransforms(
+            context,
+            BuildExecutionMode.Production,
+            PluginExecutionPolicy.From(config.Site),
+            [appending, throwing]);
 
         var html = "before";
         foreach (var transform in transforms)
@@ -182,8 +192,12 @@ public sealed class PluginRunnerTests
     {
         var logger = new RecordingLogger();
         var plugin = new TestHtmlTransformPlugin("parallel", 1, () => new SometimesThrowingTransform());
-        var context = CreateContext(pluginFailMode: "warn", logger: logger);
-        var transforms = PluginRunner.CollectHtmlTransforms(context, BuildExecutionMode.Production, [plugin]);
+        var (context, config) = CreateContext(pluginFailMode: "warn", logger: logger);
+        var transforms = PluginRunner.CollectHtmlTransforms(
+            context,
+            BuildExecutionMode.Production,
+            PluginExecutionPolicy.From(config.Site),
+            [plugin]);
         var transform = Assert.IsType<TrackedHtmlTransform>(Assert.Single(transforms));
 
         Parallel.For(0, 500, i =>
@@ -203,11 +217,11 @@ public sealed class PluginRunnerTests
     }
 
     [Fact]
-    public void RunDerivePages_RecordsPluginExecutionInfo()
+    public async Task RunDerivePages_RecordsPluginExecutionInfo()
     {
-        var ctx = CreateContext(plugins: DisableAfterBuildPlugins());
+        var (ctx, config) = CreateContext(plugins: DisableAfterBuildPlugins());
 
-        PluginRunner.RunDerivePages(ctx);
+        await PluginRunner.RunDerivePagesAsync(ctx, config);
 
         Assert.NotEmpty(ctx.PluginExecutions);
         var deriveExecs = ctx.PluginExecutions.Where(e => e.Hook == "derive-pages").ToList();
@@ -221,11 +235,11 @@ public sealed class PluginRunnerTests
     }
 
     [Fact]
-    public void RunAfterBuild_RecordsPluginExecutionInfo()
+    public async Task RunAfterBuild_RecordsPluginExecutionInfo()
     {
-        var ctx = CreateContext(root: CreateTempRoot(), siteUrl: "https://example.com", plugins: DisableDerivePlugins());
+        var (ctx, config) = CreateContext(root: CreateTempRoot(), siteUrl: "https://example.com", plugins: DisableDerivePlugins());
 
-        PluginRunner.RunAfterBuild(ctx);
+        await PluginRunner.RunAfterBuildAsync(ctx, config);
 
         Assert.NotEmpty(ctx.PluginExecutions);
         var afterBuildExecs = ctx.PluginExecutions.Where(e => e.Hook == "after-build").ToList();
@@ -239,11 +253,11 @@ public sealed class PluginRunnerTests
     }
 
     [Fact]
-    public void Plugins_OrderedByOrderThenNameThenVersion()
+    public async Task Plugins_OrderedByOrderThenNameThenVersion()
     {
-        var ctx = CreateContext(plugins: DisableAfterBuildPlugins());
+        var (ctx, config) = CreateContext(plugins: DisableAfterBuildPlugins());
 
-        PluginRunner.RunDerivePages(ctx);
+        await PluginRunner.RunDerivePagesAsync(ctx, config);
 
         var names = ctx.PluginExecutions.Where(e => e.Hook == "derive-pages").Select(e => e.Name!).ToList();
         var sorted = names.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase).ToList();
@@ -251,7 +265,7 @@ public sealed class PluginRunnerTests
     }
 
     [Fact]
-    public void PluginDisabledViaConfig_Skipped()
+    public async Task PluginDisabledViaConfig_Skipped()
     {
         var plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
         {
@@ -263,10 +277,10 @@ public sealed class PluginRunnerTests
             ["pagination"] = new PluginToggleConfig { Enabled = false },
             ["archive"] = new PluginToggleConfig { Enabled = false }
         };
-        var ctx = CreateContext(plugins: plugins);
+        var (ctx, config) = CreateContext(plugins: plugins);
 
-        PluginRunner.RunDerivePages(ctx);
-        PluginRunner.RunAfterBuild(ctx);
+        await PluginRunner.RunDerivePagesAsync(ctx, config);
+        await PluginRunner.RunAfterBuildAsync(ctx, config);
 
         Assert.DoesNotContain(ctx.PluginExecutions, e => e.Name == "pages-index");
         Assert.DoesNotContain(ctx.PluginExecutions, e => e.Name == "sitemap");
@@ -276,7 +290,7 @@ public sealed class PluginRunnerTests
     public void GetAllPlugins_UsesSingleRegistryBuild_ForSameContext()
     {
         PluginRegistry.ResetCacheForTests();
-        var ctx = CreateContext();
+        var (ctx, _) = CreateContext();
 
         _ = PluginRegistry.GetAllPlugins(ctx).ToList();
         var first = PluginRegistry.CacheBuildCountForTests;
@@ -286,7 +300,7 @@ public sealed class PluginRunnerTests
         Assert.Equal(first, second);
     }
 
-    private static BuildContext CreateContext(
+    private static (BuildContext Context, AppConfig Config) CreateContext(
         string? root = null,
         string? siteUrl = null,
         string pluginFailMode = "strict",
@@ -308,13 +322,13 @@ public sealed class PluginRunnerTests
             Analytics = analytics ?? new AnalyticsConfig()
         };
 
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
-            {
-                Site = site,
-                Content = TestContent.Markdown()
-            },
+            Site = site,
+            Content = TestContent.Markdown()
+        };
+        var context = new BuildContext
+        {
             RootDir = root,
             OutputDir = outputDir,
             BaseUrl = "/",
@@ -322,6 +336,7 @@ public sealed class PluginRunnerTests
             RoutedDocuments = Array.Empty<RoutedContentDocument>(),
             Logger = logger ?? new ConsoleLogger(LogLevel.Error)
         };
+        return (context, config);
     }
 
     private static string CreateTempRoot()

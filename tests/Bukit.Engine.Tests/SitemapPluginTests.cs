@@ -44,7 +44,6 @@ public sealed class SitemapPluginTests
 
         var context = new BuildContext
         {
-            Config = config,
             RootDir = root,
             OutputDir = outDir,
             BaseUrl = "/",
@@ -67,7 +66,7 @@ public sealed class SitemapPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new SitemapPlugin(context.Config).AfterBuild(context);
+        new SitemapPlugin(config).AfterBuild(context);
 
         var sitemap = File.ReadAllText(Path.Combine(outDir, "sitemap.xml"));
         Assert.DoesNotContain("https://example.com/pages/a/", sitemap, StringComparison.Ordinal);
@@ -103,7 +102,6 @@ public sealed class SitemapPluginTests
 
         var context = new BuildContext
         {
-            Config = config,
             RootDir = root,
             OutputDir = outDir,
             BaseUrl = "/",
@@ -126,7 +124,7 @@ public sealed class SitemapPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        new SitemapPlugin(context.Config).AfterBuild(context);
+        new SitemapPlugin(config).AfterBuild(context);
 
         var sitemap = File.ReadAllText(Path.Combine(outDir, "sitemap.xml"));
         Assert.Contains("<loc>https://example.com/pages/b/</loc>", sitemap, StringComparison.Ordinal);
@@ -170,7 +168,6 @@ public sealed class SitemapPluginTests
         };
         var context = new BuildContext
         {
-            Config = config,
             RootDir = root,
             OutputDir = outDir,
             BaseUrl = "/",
@@ -192,7 +189,7 @@ public sealed class SitemapPluginTests
         };
         context.DerivedDocuments.Add(new RoutedContentDocument(archive, archiveRoute));
 
-        new SitemapPlugin(context.Config).AfterBuild(context);
+        new SitemapPlugin(config).AfterBuild(context);
 
         var sitemap = File.ReadAllText(Path.Combine(outDir, "sitemap.xml"));
         Assert.DoesNotContain("https://example.com/news/news-1/", sitemap, StringComparison.Ordinal);

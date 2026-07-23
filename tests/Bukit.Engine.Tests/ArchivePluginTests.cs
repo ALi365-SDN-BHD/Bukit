@@ -28,29 +28,31 @@ public sealed class ArchivePluginTests
             fields: ContentFieldReader.ToFieldMap(meta));
     }
 
-    private static BuildContext CreateContext(List<(ContentDocument Item, RouteInfo Route)> routed, string collectionKey = "post")
+    private static (BuildContext Context, AppConfig Config) CreateContext(
+        List<(ContentDocument Item, RouteInfo Route)> routed,
+        string collectionKey = "post")
     {
         var routePrefix = string.Equals(collectionKey, "post", StringComparison.OrdinalIgnoreCase) ? "blog" : collectionKey;
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
+            Site = new SiteConfig
             {
-                Site = new SiteConfig
+                Name = "test",
+                Title = "test",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {
-                    Name = "test",
-                    Title = "test",
-                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                    [collectionKey] = new()
                     {
-                        [collectionKey] = new()
-                        {
-                            Permalink = $"/{routePrefix}/{{slug}}/",
-                            ListRoute = $"/{routePrefix}/",
-                            Output = new CollectionOutputConfig { Archive = true }
-                        }
+                        Permalink = $"/{routePrefix}/{{slug}}/",
+                        ListRoute = $"/{routePrefix}/",
+                        Output = new CollectionOutputConfig { Archive = true }
                     }
-                },
-                Content = TestContent.Markdown()
+                }
             },
+            Content = TestContent.Markdown()
+        };
+        var context = new BuildContext
+        {
             RootDir = "/test",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -61,6 +63,8 @@ public sealed class ArchivePluginTests
                 : throw new ConfigException($"Unexpected template kind: {kind}"),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+
+        return (context, config);
     }
 
     [Fact]
@@ -72,9 +76,9 @@ public sealed class ArchivePluginTests
             (CreateItem("p2", "Post 2", "post-2", new DateTimeOffset(2024, 3, 20, 0, 0, 0, TimeSpan.Zero)), new RouteInfo("/blog/post-2/", "blog/post-2/index.html", "pages/post.html")),
             (CreateItem("p3", "Post 3", "post-3", new DateTimeOffset(2024, 6, 1, 0, 0, 0, TimeSpan.Zero)), new RouteInfo("/blog/post-3/", "blog/post-3/index.html", "pages/post.html")),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, config) = CreateContext(routed);
 
-        var plugin = new ArchivePlugin(ctx.Config);
+        var plugin = new ArchivePlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.NotNull(derived);
@@ -98,12 +102,12 @@ public sealed class ArchivePluginTests
                 ["type"] = "article",
                 ["collection"] = "news"
             }));
-        var context = CreateContext(
+        var (context, config) = CreateContext(
         [
             (news, new RouteInfo("/news/news-1/", "news/news-1/index.html", "news.html"))
         ], "news");
 
-        var derived = new ArchivePlugin(context.Config).DerivePages(context);
+        var derived = new ArchivePlugin(config).DerivePages(context);
 
         Assert.Contains(derived, item => item.Route.Url == "/news/archive/");
         Assert.All(derived, item => Assert.Equal("news", ContentFieldReader.GetCollection(item.Document)));
@@ -123,9 +127,9 @@ public sealed class ArchivePluginTests
             (itemNoDate, new RouteInfo("/blog/no-date/", "blog/no-date/index.html", "pages/post.html")),
             (CreateItem("p1", "Post 1", "post-1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero)), new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, config) = CreateContext(routed);
 
-        var plugin = new ArchivePlugin(ctx.Config);
+        var plugin = new ArchivePlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2024/");
@@ -135,9 +139,9 @@ public sealed class ArchivePluginTests
     [Fact]
     public void DerivePages_EmptyContent_ReturnsEmptyList()
     {
-        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>());
+        var (ctx, config) = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>());
 
-        var plugin = new ArchivePlugin(ctx.Config);
+        var plugin = new ArchivePlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.NotNull(derived);
@@ -151,9 +155,9 @@ public sealed class ArchivePluginTests
         {
             (CreateItem("p1", "Post 1", "post-1", new DateTimeOffset(2024, 5, 10, 0, 0, 0, TimeSpan.Zero)), new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, config) = CreateContext(routed);
 
-        var plugin = new ArchivePlugin(ctx.Config);
+        var plugin = new ArchivePlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         var yearPage = Assert.Single(derived, x => x.Route.Url == "/blog/archive/2024/");
@@ -171,9 +175,9 @@ public sealed class ArchivePluginTests
             (CreateItem("p1", "Post 1", "post-1", new DateTimeOffset(2023, 12, 1, 0, 0, 0, TimeSpan.Zero)), new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
             (CreateItem("p2", "Post 2", "post-2", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero)), new RouteInfo("/blog/post-2/", "blog/post-2/index.html", "pages/post.html")),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, config) = CreateContext(routed);
 
-        var plugin = new ArchivePlugin(ctx.Config);
+        var plugin = new ArchivePlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2023/");
@@ -189,9 +193,9 @@ public sealed class ArchivePluginTests
         {
             (CreateItem("p1", "Post 1", "post-1", new DateTimeOffset(2025, 4, 22, 0, 0, 0, TimeSpan.Zero)), new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, config) = CreateContext(routed);
 
-        var plugin = new ArchivePlugin(ctx.Config);
+        var plugin = new ArchivePlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Equal(3, derived.Count);
@@ -207,28 +211,28 @@ public sealed class ArchivePluginTests
         {
             (item, new RouteInfo("/Blog Posts/post-1/", "Blog Posts/post-1/index.html", "pages/post.html"))
         };
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "test",
+                OutputPathEncoding = "urlencode",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["post"] = new()
+                    {
+                        Permalink = "/Blog Posts/{slug}/",
+                        Template = "pages/post.html",
+                        ListRoute = "/Blog Posts/",
+                        Output = new CollectionOutputConfig { Archive = true }
+                    }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig
-                {
-                    Name = "test",
-                    Title = "test",
-                    OutputPathEncoding = "urlencode",
-                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["post"] = new()
-                        {
-                            Permalink = "/Blog Posts/{slug}/",
-                            Template = "pages/post.html",
-                            ListRoute = "/Blog Posts/",
-                            Output = new CollectionOutputConfig { Archive = true }
-                        }
-                    }
-                },
-                Content = TestContent.Markdown()
-            },
             RootDir = "/test",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -240,7 +244,7 @@ public sealed class ArchivePluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var derived = new ArchivePlugin(ctx.Config).DerivePages(ctx);
+        var derived = new ArchivePlugin(config).DerivePages(ctx);
 
         var index = Assert.Single(derived, x => x.Route.Url == "/Blog Posts/archive/");
         Assert.Equal("Blog%20Posts/archive/index.html", index.Route.OutputPath);
