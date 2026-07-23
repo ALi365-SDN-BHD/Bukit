@@ -138,7 +138,8 @@ G-04D1B block-renderer-facade decision: only the 23 `Bukit.Content.Notion.BlockR
 Their canonical namespace is `Bukit.Notion.Rendering.BlockRenderers`. The
 closed 136-entry candidate manifest remains the immutable historical cohort;
 the G-04C 135-candidate and G-04D1A 133-candidate statements remain historical
-snapshots. The current public API baseline contains 514 types, including 110 `2.0-candidate` entries.
+snapshots. Immediately after G-04D1B, the public API baseline contained 514
+types, including 110 `2.0-candidate` entries.
 This 2.0 decision does not change any 1.x CLR
 visibility.
 
@@ -147,3 +148,27 @@ records the exact identities, source and binary migration boundary, preserved
 D1C surface, Task 1 owner checks, and completed G-04D1B cross-boundary
 verification. Completed cross-boundary validation and independent review evidence is recorded there. The parent aggregate gate and final aggregate review remain
 pending and are not claimed by the G-04D1B ledger.
+
+## G-04D1C-M2 Notion Extension Graph
+
+G-04D1C-M2 five-type atomic decision: only the five approved `Bukit.Content.Notion` renderer-extension CLR identities are removed in 2.0; the other 105 candidates are not batch-approved.
+
+The approved identities are:
+
+- `Bukit.Content.Notion.INotionBlockRenderer`;
+- `Bukit.Content.Notion.NotionBlockTransformer`;
+- `Bukit.Content.Notion.NotionBlockRendererRegistry`;
+- `Bukit.Content.Notion.NotionRenderContext`;
+- `Bukit.Content.Notion.NotionBlocksRenderer`.
+
+Their canonical replacements are in `Bukit.Notion.Rendering`.
+The current public API baseline contains 509 types, including 105 `2.0-candidate` entries.
+The closed 136-entry candidate manifest remains the immutable historical
+cohort and continues to record `unknown-until-voluntary-declaration` for
+private consumers. This decision does not modify any 1.x CLR visibility.
+
+The [G-04D1C-M2 decision ledger](../analysis/bukit-core-g04d1c-m2-five-type-atomic-removal-2026-07-23.zh-CN.md)
+records the deliberate approval, exact removal set, migration boundary,
+verification evidence, and independent review status. This decision does not
+authorize removal of `NotionApiClient`, `NotionProviderOptions`, or
+`NotionClientStats`.

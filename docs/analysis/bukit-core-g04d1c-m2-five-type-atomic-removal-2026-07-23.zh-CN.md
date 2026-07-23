@@ -126,10 +126,10 @@ release-artifact smoke。
 | M2 独立工作树基线 | Notion 27 / Content 15 / Architecture 8，全部通过 |
 | 删除前仓内 CLR 搜索 | 未发现 compatibility graph 以外的完整 legacy CLR identity 生产引用 |
 | closed manifest | 136 entries；blob `7b07d6890562387010b52301e9f8716e9bf10ed1` |
-| Task 1 focused | 待执行 |
-| canonical test ownership migration | 待执行 |
-| five-type atomic removal | 待执行 |
-| current public API baseline | 待更新为 14 / 509 / 105 |
+| Task 1 focused | 文档 focused check 通过 |
+| canonical test ownership migration | focused：Notion 323 / Content 460，全部通过 |
+| five-type atomic removal | focused：Architecture 119 / Content 460，全部通过 |
+| current public API baseline | snapshot 已生成 14 assemblies / 509 types / 105 candidates |
 | owner tests / cross-boundary builds | 待执行 |
 | parent aggregate | 待执行 |
 | independent whole-diff review | 最终状态由最新 handoff/controller 决定；本台账不冻结瞬时 review 状态 |

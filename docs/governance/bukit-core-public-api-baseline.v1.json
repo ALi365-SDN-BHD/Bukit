@@ -2348,20 +2348,6 @@
     },
     {
       "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.INotionBlockRenderer",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public interface Bukit.Content.Notion.INotionBlockRenderer",
-      "publicMembers": [
-        "public abstract System.Threading.Tasks.Task\u003CSystem.String?\u003E! RenderAsync(System.Text.Json.JsonElement block, Bukit.Content.Notion.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)",
-        "public static Bukit.Content.Notion.INotionBlockRenderer! NoOp { get; }"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
       "name": "Bukit.Content.Notion.NotionApiClient",
       "owner": "Content acquisition",
       "classification": "cross-assembly-implementation",
@@ -2373,55 +2359,6 @@
         "public System.Threading.Tasks.Task\u003CSystem.Text.Json.JsonDocument!\u003E! GetAsync(System.String! url, System.Threading.CancellationToken cancellationToken)",
         "public System.Threading.Tasks.Task\u003CSystem.Text.Json.JsonDocument!\u003E! PostAsync(System.String! url, System.String! json, System.Threading.CancellationToken cancellationToken)",
         "public virtual final System.Void Dispose()"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.NotionBlockRendererRegistry",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.Notion.NotionBlockRendererRegistry",
-      "publicMembers": [
-        "public .ctor()",
-        "public Bukit.Content.Notion.NotionBlockRendererRegistry! Register(System.String! blockType, Bukit.Content.Notion.INotionBlockRenderer! renderer)",
-        "public Bukit.Content.Notion.NotionBlockRendererRegistry! RemoveCustomTransformer(System.String! blockType)",
-        "public Bukit.Content.Notion.NotionBlockRendererRegistry! SetCustomTransformer(System.String! blockType, Bukit.Content.Notion.NotionBlockTransformer! transformer)",
-        "public static Bukit.Content.Notion.NotionBlockRendererRegistry! CreateDefault()"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.NotionBlockTransformer",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public delegate Bukit.Content.Notion.NotionBlockTransformer",
-      "publicMembers": [
-        "public .ctor(System.Object~ object, System.IntPtr method)",
-        "public virtual System.IAsyncResult~ BeginInvoke(System.Text.Json.JsonElement block, Bukit.Content.Notion.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken, System.AsyncCallback~ callback, System.Object~ object)",
-        "public virtual System.Threading.Tasks.Task\u003CSystem.String?\u003E! EndInvoke(System.IAsyncResult~ result)",
-        "public virtual System.Threading.Tasks.Task\u003CSystem.String?\u003E! Invoke(System.Text.Json.JsonElement block, Bukit.Content.Notion.NotionRenderContext! context, System.Threading.CancellationToken cancellationToken)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.NotionBlocksRenderer",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.Notion.NotionBlocksRenderer",
-      "publicMembers": [
-        "public .ctor(Bukit.Content.Notion.NotionApiClient! client)",
-        "public .ctor(Bukit.Content.Notion.NotionApiClient! client, Bukit.Content.Notion.NotionBlockRendererRegistry! registry)",
-        "public Bukit.Content.Notion.NotionBlockRendererRegistry! Registry { get; }",
-        "public System.Threading.Tasks.Task\u003CSystem.String!\u003E! RenderPageAsync(System.String! pageId, System.Threading.CancellationToken cancellationToken)"
       ],
       "protectedMembers": []
     },
@@ -2517,20 +2454,6 @@
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
         "public virtual final System.Boolean Equals(Bukit.Content.Notion.NotionProviderOptions? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.NotionRenderContext",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.Notion.NotionRenderContext",
-      "publicMembers": [
-        "public Bukit.Content.Notion.NotionApiClient! Client { get; }",
-        "public System.Threading.Tasks.Task\u003CSystem.String!\u003E! RenderChildrenAsync(System.String! blockId, System.Threading.CancellationToken cancellationToken)"
       ],
       "protectedMembers": []
     },

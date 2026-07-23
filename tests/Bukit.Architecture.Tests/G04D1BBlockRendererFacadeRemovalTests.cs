@@ -71,7 +71,7 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
     }
 
     [Fact]
-    public void CurrentBaseline_ContainsOnlyTheApprovedG04D1BRemovals()
+    public void CurrentBaseline_PreservesG04D1BAndG04D1CM2Removals()
     {
         using var document = ReadJson("docs", "governance", "bukit-core-public-api-baseline.v1.json");
         var root = document.RootElement;
@@ -81,8 +81,8 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
         Assert.Equal("net10.0", root.GetProperty("targetFramework").GetString());
         Assert.Equal("no-general-clr-sdk", root.GetProperty("sdkPolicy").GetString());
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(514, types.Length);
-        Assert.Equal(110, types.Count(type =>
+        Assert.Equal(509, types.Length);
+        Assert.Equal(105, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
 
         Assert.All(RendererNames, rendererName =>
