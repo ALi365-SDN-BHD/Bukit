@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Output;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using System.Text.Json;
@@ -359,6 +360,37 @@ public sealed class RssGeneratorTests
         var extension = item.GetProperty("_bukit");
         Assert.Equal("Bukit", Assert.Single(extension.GetProperty("entities").EnumerateArray()).GetString());
         Assert.DoesNotContain(relatedNotionId, File.ReadAllText(Path.Combine(outDir, "feed.json")), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GenerateJsonFeed_RejectsTraversalBeforeWritingOutsideOutputRoot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-json-feed-safety-" + Guid.NewGuid().ToString("N"));
+        var outDir = Path.Combine(root, "dist");
+        var escapedPath = Path.Combine(root, "escaped-feed", "feed.json");
+
+        try
+        {
+            Directory.CreateDirectory(outDir);
+
+            Assert.Throws<OutputPathSecurityException>(() =>
+                JsonFeedGenerator.Generate(
+                    outDir,
+                    "https://example.com",
+                    "/",
+                    "Site",
+                    Array.Empty<RssGenerator.Post>(),
+                    "../escaped-feed/feed.json"));
+
+            Assert.False(File.Exists(escapedPath));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
     }
 
     [Fact]

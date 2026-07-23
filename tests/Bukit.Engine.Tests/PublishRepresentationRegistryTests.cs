@@ -2,6 +2,7 @@ using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Output;
 using Bukit.Rendering;
 using Xunit;
 
@@ -483,6 +484,55 @@ public sealed class PublishRepresentationRegistryTests
             if (Directory.Exists(outputDir))
             {
                 Directory.Delete(outputDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void JsonFeedProjection_RejectsConfiguredTraversalBeforeWritingOutsideOutputRoot()
+    {
+        var root = Path.Combine(
+            Path.GetTempPath(),
+            "bukit_projection_json_feed_safety_" + Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(root, "dist");
+        var escapedPath = Path.Combine(root, "escaped-feed", "feed.json");
+        Directory.CreateDirectory(outputDir);
+
+        try
+        {
+            var context = new PublishProjectionContext(
+                Config: new AppConfig
+                {
+                    Site = new SiteConfig
+                    {
+                        Name = "test",
+                        Title = "Test",
+                        Url = "https://example.com",
+                        Feed = new FeedConfig
+                        {
+                            Formats = ["json"],
+                            Path = "../escaped-feed"
+                        }
+                    },
+                    Content = TestContent.Markdown()
+                },
+                OutputDir: outputDir,
+                ContentGraph: CanonicalContentGraph.Empty,
+                SeoIndex: new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase),
+                SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
+                RoutedDocuments: Array.Empty<RoutedContentDocument>());
+            var projection = Assert.Single(
+                PublishRepresentationRegistry.AggregateProjectionAdapters(),
+                candidate => candidate.Representation.Kind == "jsonfeed");
+
+            Assert.Throws<OutputPathSecurityException>(() => projection.Project(context));
+            Assert.False(File.Exists(escapedPath));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
             }
         }
     }
