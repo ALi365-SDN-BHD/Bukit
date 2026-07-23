@@ -9,14 +9,14 @@ using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed record NotionFetchedPage(
+internal sealed record NotionFetchedPage(
     string PageId,
     string Title,
     string Slug,
     string NotionUrl,
     IReadOnlyDictionary<string, ContentField> Fields);
 
-public interface INotionPageFetcher
+internal interface INotionPageFetcher
 {
     Task<NotionFetchedPage?> FetchAsync(NotionApiClient client, string pageId, CancellationToken cancellationToken);
 }

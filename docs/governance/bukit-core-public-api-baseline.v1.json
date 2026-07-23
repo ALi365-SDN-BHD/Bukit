@@ -2746,45 +2746,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Plugins.BuiltIn.INotionPageFetcher",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public interface Bukit.Engine.Plugins.BuiltIn.INotionPageFetcher",
-      "publicMembers": [
-        "public abstract System.Threading.Tasks.Task\u003CBukit.Engine.Plugins.BuiltIn.NotionFetchedPage?\u003E! FetchAsync(Bukit.Content.Notion.NotionApiClient! client, System.String! pageId, System.Threading.CancellationToken cancellationToken)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage : System.IEquatable\u003CBukit.Engine.Plugins.BuiltIn.NotionFetchedPage~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.String! PageId, System.String! Title, System.String! Slug, System.String! NotionUrl, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.ContentField!\u003E! Fields)",
-        "public Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage! \u003CClone\u003E$()",
-        "public System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.ContentField!\u003E! Fields { get; init; }",
-        "public System.String! NotionUrl { get; init; }",
-        "public System.String! PageId { get; init; }",
-        "public System.String! Slug { get; init; }",
-        "public System.String! Title { get; init; }",
-        "public System.Void Deconstruct(out System.String! PageId, out System.String! Title, out System.String! Slug, out System.String! NotionUrl, out System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.ContentField!\u003E! Fields)",
-        "public static System.Boolean op_Equality(Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage? left, Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage? right)",
-        "public static System.Boolean op_Inequality(Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage? left, Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.Plugins.BuiltInPluginSource",
       "owner": "Build engine",
       "classification": "implementation-public",
