@@ -2,7 +2,7 @@
 
 日期：2026-07-23
 
-状态：implementation complete；`group-verification-pending`
+状态：`closed-by-g1-verification`
 
 分支：`codex/g04-group1-pluginhost-content-a`
 
@@ -52,9 +52,9 @@ unindexed 或 undisclosed consumers 仍为 unknown。
 不是安全批准**。本任务不修改 Markdown pipeline 或 URL policy；若要禁止危险 scheme，
 必须建立独立安全任务。`.DisableHtml()` 的 raw HTML 防线不等于 URL scheme sanitizer。
 
-本任务不修改 async disposal。G1 组级验证必须运行既有
+本任务不修改 async disposal。G1 组级验证已运行既有
 `Bukit.Engine.Tests.SiteEngineBodyStoreLifetimeTests` 的成功、异常、取消三个
-exactly-once disposal 场景；完成前保持 `group-verification-pending`。
+exactly-once disposal 场景，结果为 3/3 通过。
 
 ## 4. Friendship 源码事实纠正
 
@@ -76,24 +76,16 @@ D3A 四个候选所需，也不得在本任务迁移或移除。
 legacy stats 与 canonical `Bukit.Notion.Transport.NotionClientStats` 的迁移涉及 transport
 facade、统计语义和 lifetime，只能由 G2 Task 11 / G-04D3B 处理。
 
-## 6. 组级待验证集合
+## 6. 组级验证结果
 
-当前只完成源码、测试与治理证据编辑，尚未运行任何测试、build、gate 或 Native AOT。
-父级 Task 10 必须统一执行并记录：
+父级 Task 10 已完成全部 G1 验证：PluginHost 171/171、Content 464/464、CLI
+610/610、Architecture 155/155、Engine lifetime 3/3、public API drift、唯一
+aggregate targeted gate、published Native AOT Markdown smoke 与真实 Echo process
+report proof 均通过。独立轻量只读复审为 Critical 0 / Important 0 / Minor 0。
 
-- `Bukit.PluginHost.Tests`
-- `Bukit.Content.Tests`
-- `Bukit.Cli.Tests`
-- `Bukit.Architecture.Tests`
-- `Bukit.Engine.Tests.SiteEngineBodyStoreLifetimeTests` 三场景
-- public API drift
-- 从 G1 `GROUP_BASE` 起的一次 aggregate targeted gate
-- published Native AOT Markdown smoke
-- `git diff --check`
-- 一次独立轻量只读复审
-
-验证和复审全部通过前，四项只能标记
-`implemented / group-verification-pending`，不得申请关闭。
+完整命令、初始阻断、最小修复、AOT 和 report v1 字段证据见
+[G-04 Group 1 组级验证台账](bukit-core-g04-group1-verification-ledger-2026-07-23.zh-CN.md)。
+四个 D3A 类型正式关闭。
 
 ## 7. 防漂移审计
 

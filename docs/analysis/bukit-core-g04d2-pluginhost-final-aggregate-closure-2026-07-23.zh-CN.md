@@ -4,11 +4,12 @@
 
 范围：G-04D2、D2A、D2B1、D2B2、D2R、D2C、D2D、D2E、D2F、D2G
 
-状态：`group-verification-pending`
+状态：`closed-by-g1-verification`
 
-> 本文只汇总 PluginHost 16 项原始候选的实现终态和 Group 1 待验证输入。
-> Task 10 尚未执行统一测试、targeted gate、Native AOT 或轻量复审，因此本文
-> 不使用 `closed`，也不预判任何组级验证结果。
+> 本文主体保留 Task 8 时的实现快照和待验证输入。Task 10 已完成统一测试、唯一
+> targeted gate、Native AOT、真实 Echo process report proof 与轻量复审；最终 observed
+> evidence 见
+> [G-04 Group 1 组级验证台账](bukit-core-g04-group1-verification-ledger-2026-07-23.zh-CN.md)。
 
 ## 1. Aggregate 边界
 
@@ -17,7 +18,8 @@
 | D2 parent base | `21072f4f45fdb23c0f3a95f03c837c1dab4665b5` |
 | 当前实现 HEAD | `c0195b92c32d46a2700fff603bc0f67bf5be469f` |
 | aggregate diff | 48 files；8,031 insertions；232 deletions |
-| current public API baseline | 14 assemblies / 501 public types / 89 `2.0-candidate` |
+| Task 8 public API baseline | 14 assemblies / 501 public types / 89 `2.0-candidate` |
+| G1 closure public API baseline | 14 assemblies / 497 public types / 85 `2.0-candidate` |
 | current PluginHost | 32 public types / 0 `2.0-candidate` |
 | 历史候选 manifest | 136 entries；PluginHost 16 entries |
 | 历史 manifest Git blob | `7b07d6890562387010b52301e9f8716e9bf10ed1` |
@@ -148,6 +150,6 @@ Task 10 应把以下输入并入 G1 唯一完整验证，不在 Task 8 单独执
 - 0 项悬空、0 项 blocked；
 - current PluginHost `2.0-candidate=0`。
 
-这是**实现与治理投影完成**，不是组级关闭。正式状态继续为
-`group-verification-pending`，必须进入 Task 9，并在 Task 10 完成 G1 唯一完整验证
-和轻量复审后，才能申请把 D2 标记为 closed。
+Task 10 已完成 G1 唯一完整验证与轻量复审，PluginHost D2 正式关闭。16 项终态保持
+8 项 `internalized`、8 项 `retained-by-design`，PluginHost candidate 为 0；G1
+closure baseline 为 14 / 497 / 85，历史 manifest blob 未变。
