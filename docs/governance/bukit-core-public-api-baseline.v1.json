@@ -7824,22 +7824,6 @@
     },
     {
       "assembly": "Bukit.Rendering",
-      "name": "Bukit.Rendering.Scriban.FileTemplateLoader",
-      "owner": "Rendering and theme model",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Rendering.Scriban.FileTemplateLoader : Scriban.Runtime.ITemplateLoader~",
-      "publicMembers": [
-        "public .ctor(System.String! rootDir, System.String? fallbackDir = null, System.String? overrideDir = null)",
-        "public virtual final System.String! GetPath(Scriban.TemplateContext! context, Scriban.Parsing.SourceSpan callerSpan, System.String! templateName)",
-        "public virtual final System.String! Load(Scriban.TemplateContext! context, Scriban.Parsing.SourceSpan callerSpan, System.String! templatePath)",
-        "public virtual final System.Threading.Tasks.ValueTask\u003CSystem.String?\u003E LoadAsync(Scriban.TemplateContext! context, Scriban.Parsing.SourceSpan callerSpan, System.String! templatePath)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Rendering",
       "name": "Bukit.Rendering.Scriban.ScribanModelBinder",
       "owner": "Rendering and theme model",
       "classification": "implementation-public",

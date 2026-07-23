@@ -257,7 +257,7 @@ verification.
 
 G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.
 
-The current public API baseline contains 488 types, including 62 `2.0-candidate` entries.
+The current public API baseline contains 487 types, including 61 `2.0-candidate` entries.
 It covers 14 assemblies. The closed 136-entry candidate manifest remains
 immutable with Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`; private
 consumers remain `unknown-until-voluntary-declaration`. The 2026-07-22
@@ -278,10 +278,10 @@ exclusions.
 G-04D3B removes only the duplicate
 `Bukit.Content.Notion.NotionClientStats` CLR identity in 2.0. The internal
 legacy `NotionApiClient.GetStats()` facade now returns the canonical
-`Bukit.Notion.Transport.NotionClientStats`; the other 62 candidates are not
+`Bukit.Notion.Transport.NotionClientStats`; the other 61 candidates are not
 batch-approved.
 
-The current public API baseline contains 488 types, including 62
+The current public API baseline contains 487 types, including 61
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`. Direct consumers of the removed
@@ -308,7 +308,7 @@ identities are removed together in 2.0. Direct CLR consumers must migrate to
 ordinals, token defaults, parsing behavior, and exception behavior are
 unchanged.
 
-The current public API baseline contains 488 types, including 62
+The current public API baseline contains 487 types, including 61
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
@@ -323,7 +323,7 @@ G-04D4B narrows only `Bukit.Shared.ValueCoercion` from public to internal in
 `Bukit.Shared.Tests` friend boundary continues to characterize its behavior.
 No replacement or global conversion abstraction is introduced.
 
-The current public API baseline contains 488 types, including 62
+The current public API baseline contains 487 types, including 61
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
@@ -345,7 +345,7 @@ G-04D5A narrows `CliBoundCommandFactory`, `SimpleParseResult`, and
 `CliParser.Parse` returns it, `CommandDescriptor.DispatchAsync` accepts it,
 and external record derivation is an existing contract.
 
-The current public API baseline contains 488 types, including 62
+The current public API baseline contains 487 types, including 61
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
@@ -365,7 +365,7 @@ nested record in 2.0. `CliErrorRenderer`, `CliErrorDiagnostic`, all public
 `RenderJson` overloads, and the machine-readable JSON contract remain public
 and unchanged.
 
-The current public API baseline contains 488 types, including 62
+The current public API baseline contains 487 types, including 61
 `2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
 manifest remains immutable with Git blob
 `7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
@@ -376,3 +376,23 @@ indentation, null omission, defaults, escaping, stdout/stderr routing, usage,
 and exit codes are unchanged. See the
 [G-04D5B decision ledger](../../docs/analysis/bukit-core-g04d5b-cli-error-payload-resolution-2026-07-23.zh-CN.md)
 for the exact one-token change and G2 verification boundary.
+
+### G-04D6A Rendering File Template Loader
+
+G-04D6A narrows only
+`Bukit.Rendering.Scriban.FileTemplateLoader` from public to internal in 2.0.
+The type remains sealed and continues to implement Scriban's
+`ITemplateLoader` with the same constructor and three interface methods.
+`ScribanTemplateRenderer` remains the public Rendering entry point.
+
+The current public API baseline contains 487 types, including 61
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
+undisclosed consumers remain `unknown-until-voluntary-declaration`.
+
+Override, child, and parent fallback order, missing-template primary path,
+path safety, sync/async loading, cache signatures, exceptions, and Scriban
+interface dispatch remain unchanged. No friend assembly is added. The
+[G-04D6A decision ledger](../../docs/analysis/bukit-core-g04d6a-file-template-loader-resolution-2026-07-23.zh-CN.md)
+records the exact change and G3 verification boundary.

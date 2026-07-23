@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 
 namespace Bukit.Rendering.Scriban;
 
-public sealed class FileTemplateLoader : ITemplateLoader
+internal sealed class FileTemplateLoader : ITemplateLoader
 {
     private readonly string? _overrideDir;
     private readonly string _rootDir;

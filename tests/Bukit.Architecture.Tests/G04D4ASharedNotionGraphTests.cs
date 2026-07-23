@@ -157,7 +157,7 @@ public sealed class G04D4ASharedNotionGraphTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsFourteenAssemblies488TypesAnd62Candidates()
+    public void CurrentBaseline_RecordsFourteenAssemblies487TypesAnd61Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -167,8 +167,8 @@ public sealed class G04D4ASharedNotionGraphTests
         JsonElement[] types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(488, types.Length);
-        Assert.Equal(62, types.Count(entry =>
+        Assert.Equal(487, types.Length);
+        Assert.Equal(61, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
 

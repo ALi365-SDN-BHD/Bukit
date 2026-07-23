@@ -185,16 +185,18 @@ public sealed class FileTemplateLoaderTests : IDisposable
     public void GetPath_FallsBackToChildWhenOverrideMissing()
     {
         var parentDir = Path.Combine(_rootDir, "parent");
+        var overrideDir = Path.Combine(_rootDir, "override");
         var childTemplate = Path.Combine(_rootDir, "pages", "home.html");
         var parentTemplate = Path.Combine(parentDir, "pages", "home.html");
 
         Directory.CreateDirectory(Path.GetDirectoryName(childTemplate)!);
         Directory.CreateDirectory(Path.GetDirectoryName(parentTemplate)!);
+        Directory.CreateDirectory(overrideDir);
 
         File.WriteAllText(childTemplate, "child");
         File.WriteAllText(parentTemplate, "parent");
 
-        var loader = new FileTemplateLoader(_rootDir, parentDir, overrideDir: null);
+        var loader = new FileTemplateLoader(_rootDir, parentDir, overrideDir);
         var result = loader.GetPath(null!, default, "pages/home.html");
 
         Assert.Equal(Path.GetFullPath(childTemplate), result, ignoreCase: true);
@@ -204,15 +206,33 @@ public sealed class FileTemplateLoaderTests : IDisposable
     public void GetPath_FallsBackToParentWhenChildMissing()
     {
         var parentDir = Path.Combine(_rootDir, "parent");
+        var overrideDir = Path.Combine(_rootDir, "override");
         var parentTemplate = Path.Combine(parentDir, "pages", "home.html");
 
         Directory.CreateDirectory(Path.GetDirectoryName(parentTemplate)!);
+        Directory.CreateDirectory(overrideDir);
         File.WriteAllText(parentTemplate, "parent");
 
-        var loader = new FileTemplateLoader(_rootDir, parentDir, overrideDir: null);
+        var loader = new FileTemplateLoader(_rootDir, parentDir, overrideDir);
         var result = loader.GetPath(null!, default, "pages/home.html");
 
         var expected = Path.GetFullPath(parentTemplate);
+        Assert.Equal(expected, result, ignoreCase: true);
+    }
+
+    [Fact]
+    public void GetPath_WhenAllLayersAreMissing_ReturnsPrimaryPath()
+    {
+        var parentDir = Path.Combine(_rootDir, "parent");
+        var overrideDir = Path.Combine(_rootDir, "override");
+        Directory.CreateDirectory(parentDir);
+        Directory.CreateDirectory(overrideDir);
+
+        var loader = new FileTemplateLoader(_rootDir, parentDir, overrideDir);
+        var result = loader.GetPath(null!, default, "pages/missing.html");
+
+        var expected = Path.GetFullPath(
+            Path.Combine(_rootDir, "pages", "missing.html"));
         Assert.Equal(expected, result, ignoreCase: true);
     }
 
