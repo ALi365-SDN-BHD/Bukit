@@ -10,7 +10,12 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
 {
     private readonly PluginRuntimeOnlyContext _runtimeOnlyContext;
 
-    public PluginConfigLoader(PluginRuntimeOnlyContext runtimeOnlyContext = PluginRuntimeOnlyContext.None)
+    public PluginConfigLoader()
+        : this(PluginRuntimeOnlyContext.None)
+    {
+    }
+
+    internal PluginConfigLoader(PluginRuntimeOnlyContext runtimeOnlyContext)
     {
         _runtimeOnlyContext = runtimeOnlyContext;
     }

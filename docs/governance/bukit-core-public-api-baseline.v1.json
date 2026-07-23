@@ -7287,7 +7287,7 @@
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.PluginHost.PluginConfigLoader : Bukit.PluginHost.IPluginConfigLoader~",
       "publicMembers": [
-        "public .ctor(Bukit.PluginHost.PluginRuntimeOnlyContext runtimeOnlyContext = Bukit.PluginHost.PluginRuntimeOnlyContext.None)",
+        "public .ctor()",
         "public virtual final System.Threading.Tasks.Task\u003CBukit.Plugin.Abstractions.Config.PluginHostConfig!\u003E! LoadAsync(System.String! projectRoot, System.Threading.CancellationToken cancellationToken)"
       ],
       "protectedMembers": []
@@ -7659,23 +7659,6 @@
       "publicMembers": [
         "public .ctor()",
         "public virtual final System.String! Create()"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginRuntimeOnlyContext",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public enum Bukit.PluginHost.PluginRuntimeOnlyContext : System.Int32",
-      "publicMembers": [
-        "public System.Int32 value__",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Development = Bukit.PluginHost.PluginRuntimeOnlyContext.Development [value=1]",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Labs = Bukit.PluginHost.PluginRuntimeOnlyContext.Labs [value=2]",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext None = Bukit.PluginHost.PluginRuntimeOnlyContext.None [value=0]",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Test = Bukit.PluginHost.PluginRuntimeOnlyContext.Test [value=3]"
       ],
       "protectedMembers": []
     },

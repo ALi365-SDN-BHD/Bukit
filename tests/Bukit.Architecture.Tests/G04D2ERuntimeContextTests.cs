@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -6,61 +7,70 @@ using Xunit;
 
 namespace Bukit.Architecture.Tests;
 
-public sealed class G04D2DPermissionGraphTests
+public sealed class G04D2ERuntimeContextTests
 {
     private const string CandidateManifestBlob =
         "7b07d6890562387010b52301e9f8716e9bf10ed1";
-    private const string FileSystemEvaluatorTypeName =
-        "Bukit.PluginHost.PluginFileSystemPermissionEvaluator";
-    private const string PathNormalizerTypeName =
-        "Bukit.PluginHost.PluginPermissionPathNormalizer";
+    private const string RuntimeContextTypeName =
+        "Bukit.PluginHost.PluginRuntimeOnlyContext";
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
-    public void PermissionCandidates_ExistButAreInternalAndNotExported()
+    public void RuntimeContext_ExistsButIsInternalAndNotExported()
     {
-        var assembly = typeof(Bukit.PluginHost.PluginPermissionEvaluator).Assembly;
-        var exportedTypes = assembly.GetExportedTypes();
+        var assembly = typeof(Bukit.PluginHost.PluginConfigLoader).Assembly;
+        var type = assembly.GetType(
+            RuntimeContextTypeName,
+            throwOnError: true,
+            ignoreCase: false)!;
 
-        foreach (string typeName in CandidateTypeNames)
-        {
-            var type = assembly.GetType(typeName, throwOnError: false, ignoreCase: false);
-
-            Assert.NotNull(type);
-            Assert.False(type.IsPublic);
-            Assert.DoesNotContain(exportedTypes, exported => exported.FullName == typeName);
-            Assert.Empty(type.GetConstructors(BindingFlags.Public | BindingFlags.Instance));
-            Assert.Empty(type.GetMethods(
-                BindingFlags.Public |
-                BindingFlags.Instance |
-                BindingFlags.Static |
-                BindingFlags.DeclaredOnly));
-        }
+        Assert.False(type.IsPublic);
+        Assert.DoesNotContain(
+            assembly.GetExportedTypes(),
+            exported => exported.FullName == RuntimeContextTypeName);
     }
 
     [Fact]
-    public void RetainedPermissionEvaluator_ExposesOnlyParameterlessPublicConstruction()
+    public void RetainedConfigLoader_HasOnlyParameterlessPublicConstruction()
     {
-        var retainedType = typeof(Bukit.PluginHost.PluginPermissionEvaluator);
-        var candidateType = retainedType.Assembly.GetType(
-            FileSystemEvaluatorTypeName,
+        var retainedType = typeof(Bukit.PluginHost.PluginConfigLoader);
+        var runtimeContextType = retainedType.Assembly.GetType(
+            RuntimeContextTypeName,
             throwOnError: true,
             ignoreCase: false)!;
         var publicConstructors = retainedType.GetConstructors(
             BindingFlags.Public | BindingFlags.Instance);
-        var injectionConstructor = retainedType.GetConstructor(
+        var runtimeContextConstructor = retainedType.GetConstructor(
             BindingFlags.NonPublic | BindingFlags.Instance,
             binder: null,
-            types: [candidateType],
+            types: [runtimeContextType],
             modifiers: null);
 
         var parameterless = Assert.Single(publicConstructors);
         Assert.Empty(parameterless.GetParameters());
-        Assert.NotNull(injectionConstructor);
-        Assert.True(injectionConstructor.IsAssembly);
-        Assert.DoesNotContain(publicConstructors, constructor =>
-            constructor.GetParameters().Any(parameter =>
-                parameter.ParameterType == candidateType));
+        Assert.NotNull(runtimeContextConstructor);
+        Assert.True(runtimeContextConstructor.IsAssembly);
+        Assert.DoesNotContain(
+            publicConstructors,
+            constructor => constructor.GetParameters().Any(parameter =>
+                parameter.ParameterType == runtimeContextType));
+    }
+
+    [Fact]
+    public void PluginHost_GrantsOnlyTheApprovedTestFriendAccess()
+    {
+        var assembly = typeof(Bukit.PluginHost.PluginConfigLoader).Assembly;
+        var friends = assembly
+            .GetCustomAttributes<InternalsVisibleToAttribute>()
+            .Select(attribute => attribute.AssemblyName)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+            ["Bukit.Cli.Tests", "Bukit.PluginHost.Tests"],
+            friends);
+        Assert.DoesNotContain(friends, friend =>
+            !friend.EndsWith(".Tests", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -77,15 +87,14 @@ public sealed class G04D2DPermissionGraphTests
         Assert.Equal(504, types.Length);
         Assert.Equal(100, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
-        Assert.All(CandidateTypeNames, candidateTypeName =>
-            Assert.DoesNotContain(types, entry =>
-                entry.GetProperty("assembly").GetString() == "Bukit.PluginHost" &&
-                entry.GetProperty("name").GetString() == candidateTypeName));
+        Assert.DoesNotContain(types, entry =>
+            entry.GetProperty("assembly").GetString() == "Bukit.PluginHost" &&
+            entry.GetProperty("name").GetString() == RuntimeContextTypeName);
 
         var retained = Assert.Single(types, entry =>
             entry.GetProperty("assembly").GetString() == "Bukit.PluginHost" &&
             entry.GetProperty("name").GetString() ==
-            "Bukit.PluginHost.PluginPermissionEvaluator");
+            "Bukit.PluginHost.PluginConfigLoader");
         var members = retained.GetProperty("publicMembers")
             .EnumerateArray()
             .Select(member => member.GetString())
@@ -93,11 +102,11 @@ public sealed class G04D2DPermissionGraphTests
 
         Assert.Contains("public .ctor()", members);
         Assert.DoesNotContain(members, member =>
-            member?.Contains(FileSystemEvaluatorTypeName, StringComparison.Ordinal) == true);
+            member?.Contains(RuntimeContextTypeName, StringComparison.Ordinal) == true);
     }
 
     [Fact]
-    public void ClosedManifest_PreservesBothHistoricalCandidatesAndExactBlob()
+    public void ClosedManifest_PreservesHistoricalCandidateAndExactBlob()
     {
         var path = Path.Combine(
             RepoRoot,
@@ -113,24 +122,20 @@ public sealed class G04D2DPermissionGraphTests
         Assert.Equal(136, root.GetProperty("candidateCount").GetInt32());
         Assert.Equal(136, candidates.Length);
 
-        foreach (string typeName in CandidateTypeNames)
-        {
-            var candidate = Assert.Single(candidates, entry =>
-                entry.GetProperty("assembly").GetString() == "Bukit.PluginHost" &&
-                entry.GetProperty("fullName").GetString() == typeName);
-
-            Assert.Equal(
-                "consumer-declaration-pending",
-                candidate.GetProperty("declarationStatus").GetString());
-            Assert.Equal(
-                "unknown-until-voluntary-declaration",
-                candidate.GetProperty("privateConsumerStatus").GetString());
-            Assert.Equal(
-                "no-public-match-found",
-                candidate.GetProperty("externalEvidence")
-                    .GetProperty("searchStatus")
-                    .GetString());
-        }
+        var candidate = Assert.Single(candidates, entry =>
+            entry.GetProperty("assembly").GetString() == "Bukit.PluginHost" &&
+            entry.GetProperty("fullName").GetString() == RuntimeContextTypeName);
+        Assert.Equal(
+            "consumer-declaration-pending",
+            candidate.GetProperty("declarationStatus").GetString());
+        Assert.Equal(
+            "unknown-until-voluntary-declaration",
+            candidate.GetProperty("privateConsumerStatus").GetString());
+        Assert.Equal(
+            "no-public-match-found",
+            candidate.GetProperty("externalEvidence")
+                .GetProperty("searchStatus")
+                .GetString());
 
         var prefix = Encoding.UTF8.GetBytes($"blob {bytes.Length}\0");
         var blobBytes = new byte[prefix.Length + bytes.Length];
@@ -141,12 +146,6 @@ public sealed class G04D2DPermissionGraphTests
             CandidateManifestBlob,
             Convert.ToHexStringLower(SHA1.HashData(blobBytes)));
     }
-
-    private static string[] CandidateTypeNames =>
-    [
-        FileSystemEvaluatorTypeName,
-        PathNormalizerTypeName
-    ];
 
     private static JsonDocument ReadJson(params string[] relativeSegments)
     {

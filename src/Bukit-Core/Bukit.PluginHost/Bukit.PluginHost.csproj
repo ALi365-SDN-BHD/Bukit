@@ -15,4 +15,9 @@
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bukit.PluginHost.Tests" />
+    <InternalsVisibleTo Include="Bukit.Cli.Tests" />
+  </ItemGroup>
+
 </Project>
