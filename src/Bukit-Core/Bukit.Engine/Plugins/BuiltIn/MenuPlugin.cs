@@ -82,7 +82,7 @@ internal sealed class MenuPlugin : IBukitPlugin, IAfterBuildPlugin
         return projected;
     }
 
-    private static IReadOnlyList<object> ProjectMenuItems(IReadOnlyList<MenuConfig>? items)
+    private static List<object> ProjectMenuItems(IReadOnlyList<MenuConfig>? items)
     {
         if (items is null || items.Count == 0)
         {
