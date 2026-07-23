@@ -11,7 +11,7 @@ public sealed class G04D1CM2AtomicRemovalTests
     private const string Decision =
         "G-04D1C-M2 five-type atomic decision: only the five approved `Bukit.Content.Notion` renderer-extension CLR identities are removed in 2.0; the other 105 candidates are not batch-approved.";
     private const string CurrentBaseline =
-        "The current public API baseline contains 507 types, including 103 `2.0-candidate` entries.";
+        "The current public API baseline contains 505 types, including 101 `2.0-candidate` entries.";
     private const string GovernanceExclusion =
         """
         This decision does not
@@ -114,7 +114,7 @@ public sealed class G04D1CM2AtomicRemovalTests
     }
 
     [Fact]
-    public void CurrentBaseline_ContainsFourteenAssembliesFiveHundredSevenTypesAndOneHundredThreeCandidates()
+    public void CurrentBaseline_ContainsFourteenAssembliesFiveHundredFiveTypesAndOneHundredOneCandidates()
     {
         using var document = ReadJson(
             "docs",
@@ -125,8 +125,8 @@ public sealed class G04D1CM2AtomicRemovalTests
 
         Assert.Equal("bukit-core-public-api-baseline-v1", root.GetProperty("schema").GetString());
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(507, types.Length);
-        Assert.Equal(103, types.Count(type =>
+        Assert.Equal(505, types.Length);
+        Assert.Equal(101, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.All(RemovedLegacyTypes, removed => Assert.DoesNotContain(types, type =>
             type.GetProperty("assembly").GetString() == "Bukit.Content" &&

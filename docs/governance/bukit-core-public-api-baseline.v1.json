@@ -7379,21 +7379,6 @@
     },
     {
       "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginFileSystemPermissionEvaluator",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.PluginHost.PluginFileSystemPermissionEvaluator",
-      "publicMembers": [
-        "public .ctor(Bukit.PluginHost.PluginPermissionPathNormalizer? pathNormalizer = null)",
-        "public System.Void ValidatePaths(System.String! pluginId, System.String! permissionName, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! paths)",
-        "public System.Void ValidateSubset(System.String! pluginId, System.String! permissionName, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! granted, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! required)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.PluginHashVerificationResult",
       "owner": "External plugin host",
       "classification": "cross-assembly-implementation",
@@ -7555,24 +7540,10 @@
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.PluginHost.PluginPermissionEvaluator",
       "publicMembers": [
-        "public .ctor(Bukit.PluginHost.PluginFileSystemPermissionEvaluator? fileSystemEvaluator = null)",
+        "public .ctor()",
         "public System.Void ValidateGrantedPermissions(System.String! pluginId, Bukit.Plugin.Abstractions.Security.PluginPermissionSet! granted, Bukit.Plugin.Abstractions.Security.PluginPermissionSet! required)",
         "public static System.Void ValidateFileSystemPermissionPaths(System.String! pluginId, Bukit.Plugin.Abstractions.Security.PluginPermissionSet! permissions)",
         "public static System.Void ValidateNoEnvironmentWildcard(System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! names)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginPermissionPathNormalizer",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.PluginHost.PluginPermissionPathNormalizer",
-      "publicMembers": [
-        "public .ctor()",
-        "public System.String! Normalize(System.String! permissionName, System.String! path, System.String? pluginId = null)"
       ],
       "protectedMembers": []
     },
