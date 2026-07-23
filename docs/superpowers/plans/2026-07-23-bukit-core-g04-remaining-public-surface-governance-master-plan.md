@@ -11,8 +11,13 @@
 ## Global Constraints
 
 - 基线分支为 `2.0`；每个任务组必须从前一任务组已合并且验证完成的最新 `2.0` 建立一个 `codex/` 分支。
-- 当前可观察起点为 `2.0@757fb149`：baseline 为 14 assemblies / 508 public types / 104 `2.0-candidate`；历史消费者 manifest 固定为 136 entries，不随类型删除而重写。
-- `G-04D2B2` 正在执行；它并入任务组G1，不再单独执行测试和复审。只有G1全部10项完成、组内完整测试通过并完成轻量复审后，D2B2才随G1一起关闭。
+- 当前执行起点为 `2.0@10bfead3f28b8a9f82a9b5fc008a16d49e290cae`：
+  baseline 为 14 assemblies / 507 public types / 103 `2.0-candidate`；
+  历史消费者 manifest 固定为 136 entries，不随类型删除而重写。
+- `G-04D2B2` 已在 `2fa890260f49293cdae917ad418819e8d9d68956`
+  完成单类型收窄、真实 Native AOT/process-plugin 证明、唯一 aggregate 和最终只读
+  复审，并已合并进 `2.0`。G1 将其作为 Task 1 已满足的前置证据，不重复 RED/GREEN、
+  单任务测试或复审；Task 10 仍验证包含该终态的当前整合状态。
 - 1.x 公共面不在本计划中收窄；所有 breaking CLR 变化仅针对明确批准的 2.0 分支。
 - C# `public` 不是自动 SDK 承诺，但“没有仓内引用”也不是删除授权。
 - 每个资格审计必须检查 public/protected signature、跨程序集调用、反射、序列化、source generator、Native AOT、测试、活动文档和外部消费者新证据。
@@ -39,12 +44,14 @@
 - G-04D1：Content Notion renderer cluster；D1A、D1B、D1C-M1、D1C-M2 已形成关闭证据。
 - G-04D2A：`PluginSecretMasker` internalization。
 - G-04D2B1：`PluginHostErrorCodes` diagnostic contract 迁移证据。
+- G-04D2B2：`PluginHostErrorCodes` internalization、AOT/process-plugin 证明和
+  aggregate/final review 已完成并合并。
 
 ### 1.2 当前剩余候选
 
 | Assembly / owner | 当前候选 | 本计划 owner 批次 |
 |---|---:|---|
-| `Bukit.PluginHost` / External plugin host | 15 | G-04D2 |
+| `Bukit.PluginHost` / External plugin host | 14 | G-04D2 |
 | `Bukit.Content` / Content acquisition | 5 | G-04D3 |
 | `Bukit.Shared` / Shared foundation | 17 | G-04D4 |
 | `Bukit.Cli.Shared` / CLI contract infrastructure | 5 | G-04D5 |
@@ -52,9 +59,11 @@
 | `Bukit.Routing` / Routing | 1 | G-04D7 |
 | `Bukit.Theme` / Theme runtime | 3 | G-04D8 |
 | `Bukit.Engine` / Build engine | 56 | G-04D9 |
-| **合计** | **104** | |
+| **合计** | **103** | |
 
-若 D2B2 最终批准并 internalize `PluginHostErrorCodes`，下一基线应为 507 public types / 103 candidates。若整个 D2 的其他 14 项最终都获得收窄资格，D2 关闭后理论基线为 493 public types / 89 candidates；这是推演值，不是预先授权。
+D2B2 已批准并 internalize `PluginHostErrorCodes`，当前基线为 507 public types /
+103 candidates。若整个 D2 的其他 14 项最终都获得收窄资格，D2 关闭后理论基线为
+493 public types / 89 candidates；这是推演值，不是预先授权。
 
 ### 1.3 任务组与内部任务总数
 
@@ -155,11 +164,15 @@ git diff --check "$GROUP_BASE"..HEAD
 
 **Group branch:** `codex/g04-group1-pluginhost-content-a`
 
-**Group base:** 建立分支前记录最新`2.0`完整SHA为`GROUP_BASE`。
+**Group base:** `GROUP_BASE=10bfead3f28b8a9f82a9b5fc008a16d49e290cae`。
 
 **Group rule:** Task 1～9只实现和记录`group-verification-pending`；Task 10统一运行PluginHost、Content、CLI、Architecture、public API drift、targeted gate、Native AOT和一次轻量复审。
 
 ### Task 1: G-04D2B2 `PluginHostErrorCodes` eligibility/internalization
+
+**Execution calibration:** 本任务已在 G1 基点的祖先提交
+`2fa890260f49293cdae917ad418819e8d9d68956` 完成；G1 只消费其已审计证据，
+不重新修改下列文件，也不重复单任务测试。Task 10 负责验证当前整合状态。
 
 **Purpose:** 在B1已将测试从public const CLR引用迁移到入口诊断与固定词汇fixture后，在G1内决定并实施单类型收窄。
 
