@@ -29,7 +29,7 @@ internalize”，也不是“PluginHost 是安全边界，所以全部 public �
 | execution-report 图 | 3 | 被 retained `PluginProtocolClient` constructor 与尚未版本化的报告工件共同阻断 |
 | filesystem permission 图 | 2 | 被 retained `PluginPermissionEvaluator` constructor 及类型间传播阻断 |
 | runtime-only config context | 1 | 被 retained `PluginConfigLoader` constructor 阻断 |
-| `PluginHostErrorCodes` | 1 | 条件资格；必须先锁定六个可观察诊断字符串，迁移测试所有权 |
+| `PluginHostErrorCodes` | 1 | 条件资格；必须分别锁定五个实际 Host 异常码和一个保留协议词汇 |
 | `PluginSecretMasker` | 1 | 当前唯一适合作为下一项独立单类型 2.0 internalization 试点的候选 |
 
 因此：
@@ -39,7 +39,8 @@ internalize”，也不是“PluginHost 是安全边界，所以全部 public �
 3. **推荐下一项是独立的 G-04D2A：`PluginSecretMasker` 单类型
    internalization。**
 4. `PluginHostErrorCodes` 可作为后续单类型任务，但必须保留协议文档中的六个字符串
-   语义，并用入口行为断言替代对 public constants 类型的测试依赖。
+   语义；五个当前实际 Host 异常码迁移为入口行为测试，`permissionDenied` 由文档或
+   wire-contract fixture 锁定，不得借迁移新增错误语义。
 5. 其余 14 项要先处理 retained public member 传播、report contract 与测试可见性，
    不能仅修改类型访问级别。
 
@@ -166,7 +167,7 @@ consumer”，但不能扩张成对私有代码的全局证明。
 | `PluginFileSystemPermissionEvaluator` | permission | retained `PluginPermissionEvaluator` public ctor | 阻断 | constructor seam + permission behavior fixtures |
 | `PluginPermissionPathNormalizer` | permission | candidate evaluator public ctor和内部字段 | 阻断 | 与 evaluator 原子处理 |
 | `PluginRuntimeOnlyContext` | config | retained `PluginConfigLoader` public ctor/default value | 阻断 | parameterless/default facade 与 Labs/Test mapping |
-| `PluginHostErrorCodes` | diagnostic | Host 内部使用；六个字符串由活动协议文档公开 | 条件资格 | 锁定实际异常字符串；迁移直接类型测试 |
+| `PluginHostErrorCodes` | diagnostic | Host 内部使用；五值实际输出，一值仅为保留协议词汇；六值均由活动文档公开 | 条件资格 | 分开锁定实际输出与保留词汇；迁移直接类型测试 |
 | `PluginSecretMasker` | report security | 仅 Reporter 内部调用；无 public signature 传播 | **可进入独立单类型任务** | 保留所有 masking 行为和入口测试 |
 
 ## 6. Process/Protocol 编排图为什么不能逐类型删除
@@ -314,9 +315,17 @@ public `const string` 还具有编译期内联特性：删除类型不会改变�
 字符串，但会破坏重新编译、reflection 和 type lookup。直接把测试改成不检查 code
 会削弱契约，属于超限修复。
 
-所以它只有条件资格：先把测试改为通过 `PluginProtocolClient` 的实际异常输出断言六个
-稳定字符串，必要时由 protocol owner 提供内部常量；不得新建一个未经治理的 public
-CLR constants 类型。完成 RED/GREEN 迁移证据后，才能申请独立 internalization。
+生产源码进一步显示，`PluginProtocolClient` 当前实际发出其中五个：
+`unsupportedProtocol`、`invalidResponse`、`timeout`、`executionFailed` 和
+`outputTooLarge`。`permissionDenied` 没有生产消费者；权限入口当前抛出
+`DiagnosticCode.PluginCapabilityMissing`。因此，把六个值都迁移成 Host 实际异常输出
+会新增错误语义，不属于公共面收窄。
+
+所以它只有条件资格：先通过 `PluginProtocolClient` 入口行为测试锁定五个实际 Host
+异常码，再通过活动文档或 wire-contract fixture 锁定 `permissionDenied` 这一保留协议
+词汇；必要时由 protocol owner 提供内部常量，但不得新建未经治理的 public CLR
+constants 类型。只有完成这两类 RED/GREEN 迁移证据，才能申请独立 internalization。
+若未来要让 Host 实际发出 `permissionDenied`，必须另立行为变更任务并取得明确授权。
 
 ## 10. Reflection、serialization 与 Native AOT
 
@@ -390,7 +399,9 @@ Native AOT smoke 和独立只读复审。
 
 ### G-04D2B：`PluginHostErrorCodes` diagnostic-contract migration
 
-先建立实际入口的六值契约，再决定 internalization；禁止修改字符串或协议错误语义。
+先建立实际入口的五值契约，并用文档或 wire-contract fixture 锁定
+`permissionDenied` 保留词汇，再决定 internalization；禁止修改字符串、把保留词汇
+伪装成现有运行时行为，或新增协议错误语义。
 
 ### G-04D2R：execution-report contract decision
 
