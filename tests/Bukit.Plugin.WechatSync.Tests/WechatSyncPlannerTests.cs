@@ -35,19 +35,19 @@ public sealed class WechatSyncPlannerTests
     }
 
     [Fact]
-    public void Create_FailsClosedWhenManifestAndContentReviewStatusDiffer()
+    public void Create_ExcludesItemWhenManifestAndContentReviewStatusDiffer()
     {
         var plan = WechatSyncPlanner.Create(Context("verified", manifestReviewStatus: "approved"), Options(), Now);
 
         Assert.Empty(plan.Candidates);
-        Assert.True(plan.HasErrors);
+        Assert.False(plan.HasErrors);
         Assert.Contains(plan.Exclusions, exclusion =>
             exclusion.Code == "plugin.wechat-sync.reviewStatusMismatch" &&
-            exclusion.Severity == "error");
+            exclusion.Severity == "warning");
     }
 
     [Fact]
-    public void Create_FailsClosedWhenEitherReviewStatusIsMissing()
+    public void Create_ExcludesItemWhenEitherReviewStatusIsMissing()
     {
         var missingManifest = WechatSyncPlanner.Create(Context("approved", manifestReviewStatus: ""), Options(), Now);
         var missingContent = WechatSyncPlanner.Create(Context("", manifestReviewStatus: "approved"), Options(), Now);
@@ -55,9 +55,10 @@ public sealed class WechatSyncPlannerTests
         Assert.All([missingManifest, missingContent], plan =>
         {
             Assert.Empty(plan.Candidates);
-            Assert.True(plan.HasErrors);
+            Assert.False(plan.HasErrors);
             Assert.Contains(plan.Exclusions, exclusion =>
-                exclusion.Code == "plugin.wechat-sync.reviewStatusMissing");
+                exclusion.Code == "plugin.wechat-sync.reviewStatusMissing" &&
+                exclusion.Severity == "warning");
         });
     }
 
@@ -150,7 +151,7 @@ public sealed class WechatSyncPlannerTests
     }
 
     [Fact]
-    public void Create_HidesAllEffectiveCandidatesWhenAnySelectedItemHasAnError()
+    public void Create_ExcludesOnlyInvalidCandidateWhenOneItemHasWarning()
     {
         var valid = Context("approved");
         var invalid = Context("verified", manifestReviewStatus: "approved");
@@ -167,10 +168,11 @@ public sealed class WechatSyncPlannerTests
 
         var plan = WechatSyncPlanner.Create(context, Options(), Now);
 
-        Assert.True(plan.HasErrors);
-        Assert.Empty(plan.Candidates);
+        Assert.False(plan.HasErrors);
+        Assert.Single(plan.Candidates);
         Assert.Contains(plan.Exclusions, exclusion =>
-            exclusion.Code == "plugin.wechat-sync.reviewStatusMismatch");
+            exclusion.Code == "plugin.wechat-sync.reviewStatusMismatch" &&
+            exclusion.Severity == "warning");
     }
 
     private static WechatSyncContext Context(

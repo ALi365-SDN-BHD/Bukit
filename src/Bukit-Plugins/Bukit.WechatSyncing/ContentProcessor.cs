@@ -27,6 +27,15 @@ namespace Bukit.WechatSyncing;
 /// </summary>
 internal static class ContentProcessor
 {
+    /// <summary>
+    /// The processing pipeline uses 28+ distinct regex patterns.
+    /// Increase the cache size from the default 15 to ensure all patterns
+    /// remain cached across sequential calls, avoiding repeated recompilation.
+    /// </summary>
+    static ContentProcessor()
+    {
+        Regex.CacheSize = 40;
+    }
     // ── Figure → P conversion ───────────────────────────────────────────
 
     /// <summary>

@@ -1,12 +1,9 @@
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bukit.Shared;
-
-[assembly: InternalsVisibleTo("Bukit.Plugin.WechatSync.Tests")]
 
 namespace Bukit.WechatSyncing;
 
@@ -60,6 +57,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
     private readonly Bukit.Shared.ILogger _logger;
     private readonly string _appId;
     private readonly string _appSecret;
+    private readonly SemaphoreSlim _tokenLock = new(1, 1);
     private string? _cachedAccessToken;
     private DateTimeOffset _tokenExpireAt = DateTimeOffset.MinValue;
 
@@ -71,22 +69,33 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
     }
 
-    // ── AddDraft ────────────────────────────────────────────────────────
+    // ── Token-retry helper ─────────────────────────────────────────────
 
-    public async Task<string> AddDraftAsync(WechatDraftRequest request, CancellationToken cancellationToken)
+    private async Task<T> ExecuteWithTokenRetryAsync<T>(
+        Func<string, CancellationToken, Task<T>> operation,
+        CancellationToken cancellationToken)
     {
-        WechatDraftContract.ValidateDraft(request);
         var token = await GetAccessTokenAsync(cancellationToken);
         try
         {
-            return await AddDraftCoreAsync(token, request, cancellationToken);
+            return await operation(token, cancellationToken);
         }
         catch (WechatApiException ex) when (IsTokenInvalid(ex.ErrCode))
         {
             InvalidateToken();
             token = await GetAccessTokenAsync(cancellationToken);
-            return await AddDraftCoreAsync(token, request, cancellationToken);
+            return await operation(token, cancellationToken);
         }
+    }
+
+    // ── AddDraft ────────────────────────────────────────────────────────
+
+    public async Task<string> AddDraftAsync(WechatDraftRequest request, CancellationToken cancellationToken)
+    {
+        WechatDraftContract.ValidateDraft(request);
+        return await ExecuteWithTokenRetryAsync(
+            (token, ct) => AddDraftCoreAsync(token, request, ct),
+            cancellationToken);
     }
 
     private async Task<string> AddDraftCoreAsync(string accessToken, WechatDraftRequest request, CancellationToken cancellationToken)
@@ -125,7 +134,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         var text = await resp.Content.ReadAsStringAsync(cancellationToken);
         if (!resp.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"wechat draft add http {(int)resp.StatusCode}: {text}");
+            throw new WechatHttpException("wechat draft add", (int)resp.StatusCode, text);
         }
 
         using var doc = JsonDocument.Parse(text);
@@ -150,17 +159,9 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
 
     public async Task<string> UploadThumbAsync(byte[] bytes, string fileName, string contentType, CancellationToken cancellationToken)
     {
-        var token = await GetAccessTokenAsync(cancellationToken);
-        try
-        {
-            return await UploadMaterialCoreAsync(token, bytes, fileName, contentType, cancellationToken);
-        }
-        catch (WechatApiException ex) when (IsTokenInvalid(ex.ErrCode))
-        {
-            InvalidateToken();
-            token = await GetAccessTokenAsync(cancellationToken);
-            return await UploadMaterialCoreAsync(token, bytes, fileName, contentType, cancellationToken);
-        }
+        return await ExecuteWithTokenRetryAsync(
+            (token, ct) => UploadMaterialCoreAsync(token, bytes, fileName, contentType, ct),
+            cancellationToken);
     }
 
     private async Task<string> UploadMaterialCoreAsync(
@@ -206,7 +207,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         var textResp = await resp.Content.ReadAsStringAsync(cancellationToken);
         if (!resp.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"wechat addMaterial http {(int)resp.StatusCode}: {textResp}");
+            throw new WechatHttpException("wechat addMaterial", (int)resp.StatusCode, textResp);
         }
 
         using var doc = JsonDocument.Parse(textResp);
@@ -232,17 +233,9 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
     public async Task<string> UploadContentImageAsync(byte[] bytes, string fileName, string contentType, CancellationToken cancellationToken)
     {
         WechatDraftContract.ValidateInlineImage(bytes, contentType);
-        var token = await GetAccessTokenAsync(cancellationToken);
-        try
-        {
-            return await UploadContentImageCoreAsync(token, bytes, fileName, contentType, cancellationToken);
-        }
-        catch (WechatApiException ex) when (IsTokenInvalid(ex.ErrCode))
-        {
-            InvalidateToken();
-            token = await GetAccessTokenAsync(cancellationToken);
-            return await UploadContentImageCoreAsync(token, bytes, fileName, contentType, cancellationToken);
-        }
+        return await ExecuteWithTokenRetryAsync(
+            (token, ct) => UploadContentImageCoreAsync(token, bytes, fileName, contentType, ct),
+            cancellationToken);
     }
 
     private async Task<string> UploadContentImageCoreAsync(
@@ -285,7 +278,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         var textResp = await resp.Content.ReadAsStringAsync(cancellationToken);
         if (!resp.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"wechat uploadimg http {(int)resp.StatusCode}: {textResp}");
+            throw new WechatHttpException("wechat uploadimg", (int)resp.StatusCode, textResp);
         }
 
         using var doc = JsonDocument.Parse(textResp);
@@ -310,23 +303,16 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
 
     public async Task<string> PublishAsync(string mediaId, CancellationToken cancellationToken)
     {
-        var token = await GetAccessTokenAsync(cancellationToken);
-        try
-        {
-            return await PublishCoreAsync(token, mediaId, cancellationToken);
-        }
-        catch (WechatApiException ex) when (IsTokenInvalid(ex.ErrCode))
-        {
-            InvalidateToken();
-            token = await GetAccessTokenAsync(cancellationToken);
-            return await PublishCoreAsync(token, mediaId, cancellationToken);
-        }
+        return await ExecuteWithTokenRetryAsync(
+            (token, ct) => PublishCoreAsync(token, mediaId, ct),
+            cancellationToken);
     }
 
     private async Task<string> PublishCoreAsync(string accessToken, string mediaId, CancellationToken cancellationToken)
     {
         var endpoint = $"https://api.weixin.qq.com/cgi-bin/freepublish/submit?access_token={Uri.EscapeDataString(accessToken)}";
-        var json = $"{{\"media_id\":\"{mediaId}\"}}";
+        var payload = new WechatPublishSubmitRequest(mediaId);
+        var json = JsonSerializer.Serialize(payload, WechatSyncJsonContext.Default.WechatPublishSubmitRequest);
         using var resp = await _httpClient.PostAsync(
             endpoint,
             new StringContent(json, Encoding.UTF8, "application/json"),
@@ -334,7 +320,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         var text = await resp.Content.ReadAsStringAsync(cancellationToken);
         if (!resp.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"wechat publish http {(int)resp.StatusCode}: {text}");
+            throw new WechatHttpException("wechat publish", (int)resp.StatusCode, text);
         }
 
         using var doc = JsonDocument.Parse(text);
@@ -359,24 +345,17 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
 
     public async Task<WechatPublishStatusResult> CheckPublishStatusAsync(string publishId, CancellationToken cancellationToken)
     {
-        var token = await GetAccessTokenAsync(cancellationToken);
-        try
-        {
-            return await CheckPublishStatusCoreAsync(token, publishId, cancellationToken);
-        }
-        catch (WechatApiException ex) when (IsTokenInvalid(ex.ErrCode))
-        {
-            InvalidateToken();
-            token = await GetAccessTokenAsync(cancellationToken);
-            return await CheckPublishStatusCoreAsync(token, publishId, cancellationToken);
-        }
+        return await ExecuteWithTokenRetryAsync(
+            (token, ct) => CheckPublishStatusCoreAsync(token, publishId, ct),
+            cancellationToken);
     }
 
     private async Task<WechatPublishStatusResult> CheckPublishStatusCoreAsync(
         string accessToken, string publishId, CancellationToken cancellationToken)
     {
         var endpoint = $"https://api.weixin.qq.com/cgi-bin/freepublish/get?access_token={Uri.EscapeDataString(accessToken)}";
-        var json = $"{{\"publish_id\":\"{publishId}\"}}";
+        var payload = new WechatPublishStatusRequest(publishId);
+        var json = JsonSerializer.Serialize(payload, WechatSyncJsonContext.Default.WechatPublishStatusRequest);
         using var resp = await _httpClient.PostAsync(
             endpoint,
             new StringContent(json, Encoding.UTF8, "application/json"),
@@ -384,7 +363,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         var text = await resp.Content.ReadAsStringAsync(cancellationToken);
         if (!resp.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"wechat freepublish/get http {(int)resp.StatusCode}: {text}");
+            throw new WechatHttpException("wechat freepublish/get", (int)resp.StatusCode, text);
         }
 
         using var doc = JsonDocument.Parse(text);
@@ -528,43 +507,51 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
 
     private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(_cachedAccessToken) && _tokenExpireAt > DateTimeOffset.UtcNow.AddMinutes(1))
+        await _tokenLock.WaitAsync(cancellationToken);
+        try
         {
-            return _cachedAccessToken!;
-        }
+            if (!string.IsNullOrWhiteSpace(_cachedAccessToken) && _tokenExpireAt > DateTimeOffset.UtcNow.AddMinutes(1))
+            {
+                return _cachedAccessToken!;
+            }
 
-        var endpoint =
-            $"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={Uri.EscapeDataString(_appId)}&secret={Uri.EscapeDataString(_appSecret)}";
-        using var resp = await _httpClient.GetAsync(endpoint, cancellationToken);
-        var text = await resp.Content.ReadAsStringAsync(cancellationToken);
-        if (!resp.IsSuccessStatusCode)
+            var endpoint =
+                $"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={Uri.EscapeDataString(_appId)}&secret={Uri.EscapeDataString(_appSecret)}";
+            using var resp = await _httpClient.GetAsync(endpoint, cancellationToken);
+            var text = await resp.Content.ReadAsStringAsync(cancellationToken);
+            if (!resp.IsSuccessStatusCode)
+            {
+                throw new WechatHttpException("wechat token", (int)resp.StatusCode, text);
+            }
+
+            using var doc = JsonDocument.Parse(text);
+            var root = doc.RootElement;
+            ThrowIfWechatErr(root, "wechat token", text);
+
+            if (!root.TryGetProperty("access_token", out var tokenEl) || tokenEl.ValueKind != JsonValueKind.String)
+            {
+                throw new InvalidOperationException("wechat token response missing access_token.");
+            }
+
+            var token = tokenEl.GetString();
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw new InvalidOperationException("wechat token response access_token empty.");
+            }
+
+            var expiresIn = root.TryGetProperty("expires_in", out var expiresEl) && expiresEl.ValueKind == JsonValueKind.Number
+                ? expiresEl.GetInt32()
+                : 7200;
+
+            _cachedAccessToken = token;
+            _tokenExpireAt = DateTimeOffset.UtcNow.AddSeconds(Math.Max(300, expiresIn));
+            _logger.Info("plugin wechat-sync token refreshed");
+            return token;
+        }
+        finally
         {
-            throw new InvalidOperationException($"wechat token http {(int)resp.StatusCode}: {text}");
+            _tokenLock.Release();
         }
-
-        using var doc = JsonDocument.Parse(text);
-        var root = doc.RootElement;
-        ThrowIfWechatErr(root, "wechat token", text);
-
-        if (!root.TryGetProperty("access_token", out var tokenEl) || tokenEl.ValueKind != JsonValueKind.String)
-        {
-            throw new InvalidOperationException("wechat token response missing access_token.");
-        }
-
-        var token = tokenEl.GetString();
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            throw new InvalidOperationException("wechat token response access_token empty.");
-        }
-
-        var expiresIn = root.TryGetProperty("expires_in", out var expiresEl) && expiresEl.ValueKind == JsonValueKind.Number
-            ? expiresEl.GetInt32()
-            : 7200;
-
-        _cachedAccessToken = token;
-        _tokenExpireAt = DateTimeOffset.UtcNow.AddSeconds(Math.Max(300, expiresIn));
-        _logger.Info("plugin wechat-sync token refreshed");
-        return token;
     }
 
     private void InvalidateToken()
@@ -631,7 +618,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         if (!resp.IsSuccessStatusCode)
         {
             var detail = SanitizeErrorResponseBody(bytes);
-            throw new InvalidOperationException($"wechat thumb download http {(int)resp.StatusCode} url={url}: {detail}");
+            throw new WechatHttpException($"wechat thumb download url={url}", (int)resp.StatusCode, detail);
         }
 
         if (bytes.Length == 0)
@@ -669,8 +656,20 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         }
     }
 
-    public void Dispose() => _httpClient.Dispose();
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        _tokenLock.Dispose();
+    }
 }
+
+// ── Publish request models ─────────────────────────────────────────────
+
+internal sealed record WechatPublishSubmitRequest(
+    [property: JsonPropertyName("media_id")] string MediaId);
+
+internal sealed record WechatPublishStatusRequest(
+    [property: JsonPropertyName("publish_id")] string PublishId);
 
 // ── API request/article models ──────────────────────────────────────────
 
@@ -736,4 +735,24 @@ public sealed class WechatApiException : Exception
 
         return sb.ToString();
     }
+}
+
+// ── Structured WeChat HTTP exception ────────────────────────────────────
+
+/// <summary>
+/// Thrown when a WeChat API call returns a non-success HTTP status code.
+/// </summary>
+public sealed class WechatHttpException : InvalidOperationException
+{
+    public WechatHttpException(string operation, int statusCode, string responseBody)
+        : base($"{operation} http {statusCode}: {responseBody}")
+    {
+        Operation = operation;
+        StatusCode = statusCode;
+        ResponseBody = responseBody;
+    }
+
+    public string Operation { get; }
+    public int StatusCode { get; }
+    public string ResponseBody { get; }
 }
