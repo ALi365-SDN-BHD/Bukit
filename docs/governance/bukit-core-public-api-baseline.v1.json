@@ -8487,8 +8487,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.BulletedListItemBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.BulletedListItemBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.BulletedListItemBlock~\u003E~",
       "publicMembers": [
@@ -8514,8 +8514,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.CalloutBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.CalloutBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.CalloutBlock~\u003E~",
       "publicMembers": [
@@ -8541,8 +8541,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.CodeBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.CodeBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.CodeBlock~\u003E~",
       "publicMembers": [
@@ -8568,8 +8568,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.Heading1Block",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.Heading1Block : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.Heading1Block~\u003E~",
       "publicMembers": [
@@ -8594,8 +8594,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.Heading2Block",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.Heading2Block : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.Heading2Block~\u003E~",
       "publicMembers": [
@@ -8620,8 +8620,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.Heading3Block",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.Heading3Block : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.Heading3Block~\u003E~",
       "publicMembers": [
@@ -8658,59 +8658,10 @@
     },
     {
       "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.Notion.HtmlTokenizer",
-      "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Shared.Notion.HtmlTokenizer",
-      "publicMembers": [
-        "public static System.Collections.Generic.List\u003CBukit.Shared.Notion.HtmlTokenizer.HtmlToken!\u003E! Tokenize(System.String! html)",
-        "public static System.String! DecodeHtmlEntities(System.String! text)",
-        "public static System.String! ExtractTagName(System.String! tagContent)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.Notion.HtmlTokenizer\u002BHtmlToken",
-      "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Shared.Notion.HtmlTokenizer.HtmlToken",
-      "publicMembers": [
-        "public .ctor()",
-        "public Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType Type { get; init; }",
-        "public System.String! Attributes { get; init; }",
-        "public System.String! TagName { get; init; }",
-        "public System.String! TextContent { get; init; }"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.Notion.HtmlTokenizer\u002BHtmlTokenType",
-      "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public enum Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType : System.Int32",
-      "publicMembers": [
-        "public System.Int32 value__",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType CloseTag = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.CloseTag [value=1]",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType OpenTag = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.OpenTag [value=0]",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType SelfClosingTag = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.SelfClosingTag [value=2]",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType Text = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.Text [value=3]"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.ImageBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.ImageBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.ImageBlock~\u003E~",
       "publicMembers": [
@@ -8757,8 +8708,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.NotionBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public abstract class Bukit.Shared.Notion.NotionBlock : System.IEquatable\u003CBukit.Shared.Notion.NotionBlock~\u003E~",
       "publicMembers": [
@@ -8781,8 +8732,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.NumberedListItemBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.NumberedListItemBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.NumberedListItemBlock~\u003E~",
       "publicMembers": [
@@ -8808,8 +8759,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.ParagraphBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.ParagraphBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.ParagraphBlock~\u003E~",
       "publicMembers": [
@@ -8835,8 +8786,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.QuoteBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.QuoteBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.QuoteBlock~\u003E~",
       "publicMembers": [
@@ -8862,8 +8813,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.RichTextSegment",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.RichTextSegment : System.IEquatable\u003CBukit.Shared.Notion.RichTextSegment~\u003E~",
       "publicMembers": [
@@ -8887,8 +8838,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.ToggleBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.ToggleBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.ToggleBlock~\u003E~",
       "publicMembers": [

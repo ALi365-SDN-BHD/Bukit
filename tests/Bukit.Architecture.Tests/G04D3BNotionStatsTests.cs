@@ -79,8 +79,8 @@ public sealed class G04D3BNotionStatsTests
         JsonElement[] types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(496, types.Length);
-        Assert.Equal(84, types.Count(entry =>
+        Assert.Equal(493, types.Length);
+        Assert.Equal(68, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.DoesNotContain(types, entry =>
             entry.GetProperty("assembly").GetString() == "Bukit.Content" &&
