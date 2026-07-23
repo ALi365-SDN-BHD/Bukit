@@ -2,7 +2,7 @@
 
 日期：2026-07-23
 任务基线：`96cfee5ccce820daec21f996a7ca280bf27d1fa8`
-状态：provisional（parent aggregate 未通过；M1 formal closure 尚未达成）
+状态：closing（获授权的非沙箱 replacement aggregate 已通过；最终证据 diff 独立复审待完成）
 
 ## 1. 范围、结论与不可变边界
 
@@ -443,29 +443,31 @@ plugin consumer 仍未知。这些历史字段不得被覆盖成“无消费者�
 同时提供具体 assembly/type/member dependency。新证据由独立 public API 决策处理，不能
 回写或改造闭合 manifest 的历史字节。
 
-## 10. M1 verification ledger（provisional）
+## 10. M1 verification ledger（closing）
 
-本节记录当前分支已经实际执行的证据。`PASS` 只用于对应命令自身；sandbox aggregate
-未通过，不能由单独 owner self-test 的结果替代或改写为 aggregate `PASS`。
+本节记录当前分支已经实际执行的证据。初始 sandbox aggregate 的失败作为历史事实保留；
+2026-07-23 获明确授权后执行的非沙箱 replacement aggregate 是独立的新证据，不回写或
+伪造初始运行结果。
 
 | 项目 | 当前记录 |
 |---|---|
 | Task 1 TDD / focused / review | null-validation RED：2 failed；GREEN fixture：6 passed；focused owner：276 passed；独立 task review：0 Critical / 0 Important / 0 Minor |
 | Task 2 targeted / focused / review | canonical 14 passed、legacy 9 passed；最终 focused owner：Notion 290、Content 495；public-constructor finding 修复后独立 task review：0 / 0 / 0 |
 | Task 3 TDD / focused / review | 初始 RED：5 total / 4 passed / 1 missing-guide failed；review-fix RED：7 total / 6 passed / 1 old-guide-contract failed；最终 GREEN：7 passed；focused Architecture：123 passed；独立 task review：0 / 0 / 0 |
-| final-fix wave targeted / focused | targeted：Notion 21、Content 15、Architecture 8；focused：Notion 297、Content 501、Architecture 124，合计 922 passed / 0 failed / 0 skipped；保留既有 parent/focused 历史，aggregate 仍 **NOT PASS**；final review status 以最终 handoff fresh review 为准 |
+| final-fix wave targeted / focused | targeted：Notion 21、Content 15、Architecture 8；focused：Notion 297、Content 501、Architecture 124，合计 922 passed / 0 failed / 0 skipped |
 | 四个相关 Release test projects | Architecture 123、Content 495、Notion 290、Content.Notion 6，合计 914 passed / 0 failed / 0 skipped |
 | governed baseline / public API drift | self-test `OK`；真实 Release check exit 0；14 assemblies / 514 types / 110 `2.0-candidate`，baseline 未修改 |
 | candidate manifest | 136 entries；Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`，文件未修改 |
 | canonical no-dependency | architecture guard 证明 0 project/package references；canonical project 未修改 |
-| parent aggregate | 从 `a0bd2f3f36ae623f47b06b259bc2ffc36890ea08` 对 7 个实际变更路径仅执行一次；focused、format、analysis、public API、portability 等先行步骤通过，随后 sandbox 中在未变更 `brainstorm-server-self-test` 以 `mv-1 left a live spawned server` 终止；**aggregate 未通过** |
+| 初始 sandbox aggregate | 从 `a0bd2f3f36ae623f47b06b259bc2ffc36890ea08` 对 7 个实际变更路径执行；focused、format、analysis、public API、portability 等先行步骤通过，随后在未变更 `brainstorm-server-self-test` 以 `mv-1 left a live spawned server` 终止；该次运行 **NOT PASS** |
 | blocker owner 复核 | 非沙箱原样执行 `bash scripts/checks/brainstorm-server-self-test.sh`，最终输出 `brainstorm server self-test: PASS`；该证据把失败分类为 sandbox 进程限制，但不把已失败的 aggregate 改写为 PASS |
-| independent whole-branch review | 稳定规则：以最终 handoff 的 fresh review 结果为准；本指南不预判结论 |
+| 获授权的非沙箱 replacement aggregate | 用户明确允许覆盖单次限制后，以同一 base 和相同 7 路径执行；focused owner 为 Notion 297、Architecture 124、Content 501，随后 docs、format、analysis、public API drift、portability、`brainstorm-server-self-test` 及其后全部 `ci-fast` 阶段通过，最终输出 `YAML static context is deterministic and current`；replacement aggregate **PASS** |
+| independent whole-branch review | `8eaeabd4` 的完整代码与契约 diff 已获 0 Critical / 0 Important / 0 Minor；本次 closing evidence diff 仍需 fresh read-only review，结果以最终 handoff 为准 |
 
-本次 aggregate 已重现未变更 `brainstorm-server-self-test` 的
-`mv-1 left a live spawned server`；非沙箱 owner self-test 随后通过。当前分类为 sandbox
-进程限制，不是已确认的 M1 回归；本任务没有修改或抑制该 gate，也不声称 aggregate 已通过。
+初始 sandbox aggregate 重现 `mv-1 left a live spawned server`；非沙箱 owner self-test 随后
+通过。获明确例外授权后，同一完整 aggregate 在非沙箱环境通过包括 brainstorm 在内的全部
+阶段。本任务没有修改或抑制该 gate；初始失败与 replacement PASS 均按各自运行保留。
 
-M1 只有在适用 fixtures、public API drift、focused/parent aggregate 与独立复审都按各自
-边界形成真实证据后才能由 controller 关闭。即使 M1 最终关闭，也只证明 migration
-contract 已建立；它仍不自动授权 M2。
+适用 fixtures、public API drift、focused 与 replacement aggregate 已形成通过证据；
+controller 只在本次最终证据 diff 的独立复审通过后关闭 M1。即使 M1 最终关闭，也只证明
+migration contract 已建立；它仍不自动授权 M2。
