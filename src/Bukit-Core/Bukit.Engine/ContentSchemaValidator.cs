@@ -6,7 +6,7 @@ using System.Globalization;
 
 namespace Bukit.Engine;
 
-public static class ContentSchemaValidator
+internal static class ContentSchemaValidator
 {
     internal static List<ContentValidationIssue> ValidateFields(
         IReadOnlyDictionary<string, ContentField>? fields,

@@ -2562,20 +2562,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.ContentCollectionContractValidator",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.ContentCollectionContractValidator",
-      "publicMembers": [
-        "public static System.Void Validate(Bukit.Engine.Abstractions.Content.RawContentDocument! document)",
-        "public static System.Void Validate(System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RawContentDocument!\u003E! documents)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.ContentModelSchemaProjection",
       "owner": "Build engine",
       "classification": "cross-assembly-implementation",
@@ -2632,21 +2618,10 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.ContentSchemaValidator",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.ContentSchemaValidator",
-      "publicMembers": [],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.ContentValidationIssue",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.ContentValidationIssue : System.IEquatable\u003CBukit.Engine.ContentValidationIssue~\u003E~",
       "publicMembers": [
@@ -2743,8 +2718,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.IContentProviderFactory",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public interface Bukit.Engine.IContentProviderFactory",
       "publicMembers": [
@@ -2757,8 +2732,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.ITemplateRenderer",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public interface Bukit.Engine.ITemplateRenderer",
       "publicMembers": [
@@ -3466,8 +3441,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.Stages.ContentStageInput",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.Stages.ContentStageInput : System.IEquatable\u003CBukit.Engine.Stages.ContentStageInput~\u003E~",
       "publicMembers": [
@@ -3494,8 +3469,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.Stages.ContentStageOutput",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Engine.Stages.ContentStageOutput : System.IEquatable\u003CBukit.Engine.Stages.ContentStageOutput~\u003E~",
       "publicMembers": [
@@ -3520,8 +3495,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.Stages.IContentStage",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public interface Bukit.Engine.Stages.IContentStage",
       "publicMembers": [
@@ -3619,8 +3594,8 @@
       "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.TemplateRendererBase",
       "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public abstract class Bukit.Engine.TemplateRendererBase : Bukit.Engine.ITemplateRenderer~",
       "publicMembers": [

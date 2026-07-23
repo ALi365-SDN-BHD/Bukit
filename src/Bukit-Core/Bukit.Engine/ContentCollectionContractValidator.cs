@@ -3,7 +3,7 @@ using Bukit.Shared;
 
 namespace Bukit.Engine;
 
-public static class ContentCollectionContractValidator
+internal static class ContentCollectionContractValidator
 {
     private const string UnknownSourceLabel = "unknown";
 
