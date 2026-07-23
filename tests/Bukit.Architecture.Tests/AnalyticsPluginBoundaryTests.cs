@@ -17,7 +17,7 @@ public sealed partial class AnalyticsPluginBoundaryTests
     [Fact]
     public void AnalyticsPlugin_IsRegisteredExactlyOnceAsBuiltInWithInternalHtmlLifecycle()
     {
-        var sourcePlugins = new BuiltInPluginSource().GetPlugins()
+        var sourcePlugins = GetBuiltInPlugins()
             .Where(plugin => string.Equals(plugin.Name, "analytics", StringComparison.Ordinal))
             .ToArray();
         var analytics = Assert.Single(sourcePlugins);
@@ -48,7 +48,7 @@ public sealed partial class AnalyticsPluginBoundaryTests
     [Fact]
     public void HtmlTransformAndAnalyticsRuntimeTypes_RemainInternalToEngine()
     {
-        Assembly engineAssembly = typeof(BuiltInPluginSource).Assembly;
+        Assembly engineAssembly = typeof(PluginRegistry).Assembly;
         string[] internalEngineTypes =
         [
             "Bukit.Engine.IHtmlTransform",
@@ -104,7 +104,7 @@ public sealed partial class AnalyticsPluginBoundaryTests
         string cliProject = ReadMainlineSource("src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj");
         Assert.Empty(FindLinkedExternalCompileIncludes(cliProject));
 
-        Assembly engineAssembly = typeof(BuiltInPluginSource).Assembly;
+        Assembly engineAssembly = typeof(PluginRegistry).Assembly;
         Assembly cliAssembly = typeof(Bukit.Cli.Commands.PreviewCommand).Assembly;
         string[] engineFriends = engineAssembly.GetCustomAttributes<
                 System.Runtime.CompilerServices.InternalsVisibleToAttribute>()
@@ -207,9 +207,17 @@ public sealed partial class AnalyticsPluginBoundaryTests
         ];
 
         Assert.Empty(schemaPropertyNames.Intersect(forbiddenSchemaProperties, StringComparer.OrdinalIgnoreCase));
+        Type capabilityType = AssertEngineType(
+            typeof(PluginRegistry).Assembly,
+            "Bukit.Engine.Plugins.PluginCapability");
+        var allCapabilities = Assert.IsAssignableFrom<IReadOnlyCollection<string>>(
+            capabilityType.GetProperty(
+                "AllCapabilities",
+                BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null));
         Assert.Equal(
             ["derive-pages", "emit-outputs"],
-            PluginCapability.AllCapabilities.OrderBy(value => value, StringComparer.Ordinal).ToArray());
+            allCapabilities.OrderBy(value => value, StringComparer.Ordinal).ToArray());
     }
 
     [Fact]
@@ -285,6 +293,20 @@ public sealed partial class AnalyticsPluginBoundaryTests
             RoutedDocuments = [],
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+
+    private static IEnumerable<IBukitPlugin> GetBuiltInPlugins()
+    {
+        Assembly engineAssembly = typeof(PluginRegistry).Assembly;
+        Type sourceType = AssertEngineType(
+            engineAssembly,
+            "Bukit.Engine.Plugins.BuiltInPluginSource");
+        object source = Activator.CreateInstance(sourceType, nonPublic: true)!;
+        MethodInfo getPlugins = sourceType.GetMethod(
+            "GetPlugins",
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)!;
+        return Assert.IsAssignableFrom<IEnumerable<IBukitPlugin>>(
+            getPlugins.Invoke(source, null));
+    }
 
     private static Type AssertEngineType(Assembly engineAssembly, string typeName)
     {

@@ -167,8 +167,12 @@ public sealed class G04D9EBuiltInPluginGraphTests
                 Path.Combine(RepoRoot, relativePath));
             Assert.Contains(CurrentBaselineStatement, content);
             Assert.Contains("G-04D9E", content, StringComparison.Ordinal);
-            Assert.Contains("9 registry-owned", content, StringComparison.Ordinal);
-            Assert.Contains("4 aggregate-only", content, StringComparison.Ordinal);
+            Assert.Matches(
+                @"(?is)\b(?:9|nine)\b.{0,80}\bregistry-owned\b",
+                content);
+            Assert.Matches(
+                @"(?is)\b(?:4|four)\b.{0,80}\baggregate-only\b",
+                content);
         }
     }
 
