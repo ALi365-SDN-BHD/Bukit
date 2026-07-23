@@ -7433,24 +7433,6 @@
     },
     {
       "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginHostErrorCodes",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.PluginHost.PluginHostErrorCodes",
-      "publicMembers": [
-        "public const System.String! ExecutionFailed = \u0022plugin.executionFailed\u0022",
-        "public const System.String! InvalidResponse = \u0022plugin.invalidResponse\u0022",
-        "public const System.String! OutputTooLarge = \u0022plugin.outputTooLarge\u0022",
-        "public const System.String! PermissionDenied = \u0022plugin.permissionDenied\u0022",
-        "public const System.String! Timeout = \u0022plugin.timeout\u0022",
-        "public const System.String! UnsupportedProtocol = \u0022plugin.unsupportedProtocol\u0022"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.PluginIdValidator",
       "owner": "External plugin host",
       "classification": "cross-assembly-implementation",

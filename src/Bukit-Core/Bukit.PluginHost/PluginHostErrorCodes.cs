@@ -1,6 +1,6 @@
 namespace Bukit.PluginHost;
 
-public static class PluginHostErrorCodes
+internal static class PluginHostErrorCodes
 {
     public const string UnsupportedProtocol = "plugin.unsupportedProtocol";
     public const string InvalidResponse = "plugin.invalidResponse";

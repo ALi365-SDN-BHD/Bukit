@@ -240,7 +240,7 @@ not compilation.
 Use a new `/tmp` directory so the snapshot output does not already exist:
 
 ```bash
-snapshot_root="$(mktemp -d /tmp/bukit-g04d2b2-snapshot.XXXXXX)"
+snapshot_root="$(mktemp -d "${TMPDIR%/}/bukit-g04d2b2-snapshot.XXXXXX")"
 candidate="$snapshot_root/bukit-core-public-api-baseline.v1.json"
 
 bash scripts/checks/public-api-drift.sh snapshot "$candidate" Release

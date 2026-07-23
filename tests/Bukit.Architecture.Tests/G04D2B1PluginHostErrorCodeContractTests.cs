@@ -13,6 +13,10 @@ public sealed class G04D2B1PluginHostErrorCodeContractTests
         "bukit-plugin-host-error-vocabulary-v1";
     private const string CandidateManifestBlob =
         "7b07d6890562387010b52301e9f8716e9bf10ed1";
+    private const string Decision =
+        "G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.";
+    private const string CurrentBaseline =
+        "The current public API baseline contains 507 types, including 103 `2.0-candidate` entries.";
     private static readonly string[] StableVocabulary =
     [
         "plugin.unsupportedProtocol",
@@ -21,15 +25,6 @@ public sealed class G04D2B1PluginHostErrorCodeContractTests
         "plugin.executionFailed",
         "plugin.permissionDenied",
         "plugin.outputTooLarge"
-    ];
-    private static readonly string[] BaselineMembers =
-    [
-        "public const System.String! ExecutionFailed = \"plugin.executionFailed\"",
-        "public const System.String! InvalidResponse = \"plugin.invalidResponse\"",
-        "public const System.String! OutputTooLarge = \"plugin.outputTooLarge\"",
-        "public const System.String! PermissionDenied = \"plugin.permissionDenied\"",
-        "public const System.String! Timeout = \"plugin.timeout\"",
-        "public const System.String! UnsupportedProtocol = \"plugin.unsupportedProtocol\""
     ];
     private static readonly string RepoRoot = FindRepoRoot();
 
@@ -113,7 +108,7 @@ public sealed class G04D2B1PluginHostErrorCodeContractTests
     }
 
     [Fact]
-    public void CurrentPublicSurface_KeepsErrorCodeTypeAndExactBaseline()
+    public void PluginHostAssembly_KeepsErrorCodeTypeInternalAndDoesNotExportIt()
     {
         var assembly = typeof(Bukit.PluginHost.PluginConfigLoader).Assembly;
         var type = assembly.GetType(
@@ -122,31 +117,29 @@ public sealed class G04D2B1PluginHostErrorCodeContractTests
             ignoreCase: false);
 
         Assert.NotNull(type);
-        Assert.True(type.IsPublic);
-        Assert.Contains(
+        Assert.False(type.IsPublic);
+        Assert.DoesNotContain(
             assembly.GetExportedTypes(),
             exported => exported.FullName == TargetTypeName);
+    }
 
+    [Fact]
+    public void CurrentBaseline_ContainsFourteenAssemblies507TypesAnd103Candidates()
+    {
         using var document = ReadJson(
             "docs",
             "governance",
             "bukit-core-public-api-baseline.v1.json");
         var root = document.RootElement;
         var types = root.GetProperty("types").EnumerateArray().ToArray();
-        var target = Assert.Single(types, entry =>
-            entry.GetProperty("assembly").GetString() == "Bukit.PluginHost" &&
-            entry.GetProperty("name").GetString() == TargetTypeName);
-        var members = target.GetProperty("publicMembers")
-            .EnumerateArray()
-            .Select(member => member.GetString())
-            .ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(508, types.Length);
-        Assert.Equal(104, types.Count(entry =>
+        Assert.Equal(507, types.Length);
+        Assert.Equal(103, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
-        Assert.Equal("2.0-candidate", target.GetProperty("compatibility").GetString());
-        Assert.Equal(BaselineMembers, members);
+        Assert.DoesNotContain(types, entry =>
+            entry.GetProperty("assembly").GetString() == "Bukit.PluginHost" &&
+            entry.GetProperty("name").GetString() == TargetTypeName);
     }
 
     [Fact]
@@ -188,6 +181,32 @@ public sealed class G04D2B1PluginHostErrorCodeContractTests
         Assert.Equal(
             CandidateManifestBlob,
             Convert.ToHexStringLower(SHA1.HashData(blobBytes)));
+    }
+
+    [Fact]
+    public void ActiveGovernance_RecordsExactG04D2B2DecisionAndCurrentBaseline()
+    {
+        var declaration = File.ReadAllText(Path.Combine(
+            RepoRoot,
+            "docs",
+            "governance",
+            "bukit-core-2.0-consumer-declaration.md"));
+        var guide = File.ReadAllText(Path.Combine(
+            RepoRoot,
+            "guide",
+            "dev",
+            "public-api-governance.md"));
+        var ledgerPath = Path.Combine(
+            RepoRoot,
+            "docs",
+            "analysis",
+            "bukit-core-g04d2b2-plugin-host-error-codes-internalization-2026-07-23.zh-CN.md");
+
+        Assert.Contains(Decision, declaration, StringComparison.Ordinal);
+        Assert.Contains(Decision, guide, StringComparison.Ordinal);
+        Assert.Contains(CurrentBaseline, declaration, StringComparison.Ordinal);
+        Assert.Contains(CurrentBaseline, guide, StringComparison.Ordinal);
+        Assert.True(File.Exists(ledgerPath), $"Missing G-04D2B2 decision ledger: {ledgerPath}");
     }
 
     private static JsonDocument ReadJson(params string[] relativeSegments)

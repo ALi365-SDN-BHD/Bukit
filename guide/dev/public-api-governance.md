@@ -232,7 +232,8 @@ authorize removal of `NotionApiClient`, `NotionProviderOptions`, or
 
 G-04D2A single-type internalization decision: only `Bukit.PluginHost.PluginSecretMasker` is narrowed from public to internal in 2.0; the other 104 candidates are not batch-approved.
 
-The current public API baseline contains 508 types, including 104 `2.0-candidate` entries.
+At the G-04D2A decision, the public API baseline contained 508 types,
+including 104 `2.0-candidate` entries.
 It covers 14 assemblies. The closed 136-entry candidate manifest remains
 immutable and intentionally retains the historical `PluginSecretMasker`
 record. Its private-consumer status remains
@@ -251,3 +252,23 @@ See the [G-04D2A decision ledger](../../docs/analysis/bukit-core-g04d2a-plugin-s
 for the exact one-token source change, governed baseline delta, consumer and
 Native AOT evidence boundary, exclusions, stop conditions, and task-level
 verification.
+
+### G-04D2B2 Plugin Host Error Codes
+
+G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.
+
+The current public API baseline contains 507 types, including 103 `2.0-candidate` entries.
+It covers 14 assemblies. The closed 136-entry candidate manifest remains
+immutable with Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`; private
+consumers remain `unknown-until-voluntary-declaration`. The 2026-07-22
+authenticated public search found no public match, and no new governance-grade
+GitHub Code Search was available on 2026-07-23.
+
+Ordinary const-consuming binaries may retain inlined values, but source
+recompilation and public metadata/reflection consumers are breaking in 2.0.
+The six vocabulary strings and five runtime Host behaviors remain unchanged.
+No other `Bukit.PluginHost` candidate is approved.
+
+See the [G-04D2B2 decision ledger](../../docs/analysis/bukit-core-g04d2b2-plugin-host-error-codes-internalization-2026-07-23.zh-CN.md)
+for the exact visibility narrowing, governed delta, qualification boundary, and
+exclusions.

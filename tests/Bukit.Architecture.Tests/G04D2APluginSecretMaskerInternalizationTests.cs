@@ -14,7 +14,7 @@ public sealed class G04D2APluginSecretMaskerInternalizationTests
     private const string Decision =
         "G-04D2A single-type internalization decision: only `Bukit.PluginHost.PluginSecretMasker` is narrowed from public to internal in 2.0; the other 104 candidates are not batch-approved.";
     private const string CurrentBaseline =
-        "The current public API baseline contains 508 types, including 104 `2.0-candidate` entries.";
+        "The current public API baseline contains 507 types, including 103 `2.0-candidate` entries.";
     private const string HistoricalD1CM2Decision =
         "G-04D1C-M2 five-type atomic decision: only the five approved `Bukit.Content.Notion` renderer-extension CLR identities are removed in 2.0; the other 105 candidates are not batch-approved.";
     private static readonly string RepoRoot = FindRepoRoot();
@@ -33,7 +33,7 @@ public sealed class G04D2APluginSecretMaskerInternalizationTests
     }
 
     [Fact]
-    public void CurrentBaseline_ContainsFourteenAssemblies508TypesAnd104Candidates()
+    public void CurrentBaseline_ContainsFourteenAssemblies507TypesAnd103Candidates()
     {
         using var document = ReadJson(
             "docs", "governance", "bukit-core-public-api-baseline.v1.json");
@@ -41,8 +41,8 @@ public sealed class G04D2APluginSecretMaskerInternalizationTests
         var types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(508, types.Length);
-        Assert.Equal(104, types.Count(type =>
+        Assert.Equal(507, types.Length);
+        Assert.Equal(103, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.DoesNotContain(types, type =>
             type.GetProperty("assembly").GetString() == "Bukit.PluginHost" &&
