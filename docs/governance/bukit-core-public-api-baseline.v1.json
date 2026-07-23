@@ -2125,20 +2125,6 @@
     },
     {
       "assembly": "Bukit.Content",
-      "name": "Bukit.Content.CompositeContentBodyStore",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.CompositeContentBodyStore : Bukit.Engine.Abstractions.Content.IContentBodyStore~",
-      "publicMembers": [
-        "public .ctor(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.IContentBodyStore!\u003E! stores)",
-        "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.ContentBody!\u003E! GetAsync(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.Threading.CancellationToken cancellationToken = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
       "name": "Bukit.Content.CompositeContentProvider",
       "owner": "Content acquisition",
       "classification": "cross-assembly-implementation",
@@ -2149,20 +2135,6 @@
         "public .ctor(System.Collections.Generic.IReadOnlyList\u003CSystem.ValueTuple\u003CSystem.String!, System.String!, Bukit.Content.IContentProvider!\u003E\u003E! providers)",
         "public .ctor(System.Collections.Generic.IReadOnlyList\u003CSystem.ValueTuple\u003CSystem.String!, System.String!, System.String?, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E?, Bukit.Content.IContentProvider!\u003E\u003E! providers)",
         "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.RawContentLoadResult!\u003E! LoadRawAsync(System.Threading.CancellationToken cancellationToken = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.DictionaryContentBodyStore",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.DictionaryContentBodyStore : Bukit.Engine.Abstractions.Content.IContentBodyStore~",
-      "publicMembers": [
-        "public .ctor(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.ContentBody!\u003E! bodies)",
-        "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.ContentBody!\u003E! GetAsync(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.Threading.CancellationToken cancellationToken = null)"
       ],
       "protectedMembers": []
     },
@@ -2190,34 +2162,6 @@
       "signature": "public interface Bukit.Content.IContentProvider",
       "publicMembers": [
         "public abstract System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.RawContentLoadResult!\u003E! LoadRawAsync(System.Threading.CancellationToken cancellationToken = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Markdown.BasicMarkdownToHtml",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Content.Markdown.BasicMarkdownToHtml",
-      "publicMembers": [
-        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.TableOfContentsEntry!\u003E! ExtractTableOfContents(System.String! markdown)",
-        "public static System.String! Convert(System.String! markdown)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Markdown.MarkdownBodyStore",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.Markdown.MarkdownBodyStore : Bukit.Engine.Abstractions.Content.IContentBodyStore~",
-      "publicMembers": [
-        "public .ctor()",
-        "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.ContentBody!\u003E! GetAsync(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.Threading.CancellationToken cancellationToken = null)"
       ],
       "protectedMembers": []
     },

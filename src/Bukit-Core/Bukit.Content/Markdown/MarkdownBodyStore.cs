@@ -1,7 +1,7 @@
 using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Content.Markdown;
 
-public sealed class MarkdownBodyStore : IContentBodyStore
+internal sealed class MarkdownBodyStore : IContentBodyStore
 {
     public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {

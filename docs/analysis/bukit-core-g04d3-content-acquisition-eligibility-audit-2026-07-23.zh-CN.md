@@ -34,7 +34,8 @@ G-04D3 的五个候选不能作为一个批次处理。当前源码和消费者�
   concrete/helper CLR identity；
 - 类型均无继承扩展点、protected member、反射绑定、序列化契约或 source-generator
   注册；
-- 仓库内跨程序集直接构造仅出现在测试中，并已有精确 test friendship；
+- 仓库内跨程序集直接构造仅出现在测试中；Task 10 复核确认 test friendship 由
+  `InternalsVisibleTo.cs` 提供，而不是项目文件；
 - internalize 不需要 facade、不需要新增 production `InternalsVisibleTo`，也不需要改变
   Markdown、content body、配置或持久化语义。
 
@@ -78,12 +79,14 @@ Task 10 只获得“四个类型由 `public` 变为 `internal`”的资格，不
 
 ## 3. 当前事实基线
 
-当前 public API baseline 为：
+Task 9 资格调查时 public API baseline 为 14 / 501 / 89。Task 10 实施四项收窄后，当前
+public API baseline 为：
 
 - 14 个 Core assemblies；
-- 501 个 public types；
-- 89 个 `2.0-candidate`；
-- 五个本任务候选均仍为 public、均仍在 current baseline。
+- 497 个 public types；
+- 85 个 `2.0-candidate`；
+- 四个 Body/Markdown 候选已从 current baseline 移除；
+- `NotionClientStats` 仍 public，并继续留在 current baseline 直到 Task 11。
 
 四个 Body/Markdown 类型与 stats 类型的职责边界如下：
 
@@ -113,7 +116,7 @@ canonical owner 的跨程序集 facade migration 问题，不能用“同样改�
 | 候选 | 仓库内 production 消费 | 构造/签名传播 | 行为替代边界 | reflection / serialization / AOT | 终态 |
 |---|---|---|---|---|---|
 | `CompositeContentBodyStore` | `CompositeContentProvider` 同程序集构造 | 只以 `IContentBodyStore` 返回，不进入 retained public signature | `IContentBodyStore` + composite provider 行为 | 无 identity binding；Markdown CLI 路径静态可达 | Task 10 internalize |
-| `DictionaryContentBodyStore` | 无 production 构造 | Engine 跨程序集直接构造仅在 tests，已有 IVT | `IContentBodyStore` test/helper seam | 无 runtime binding；无 production AOT root | Task 10 internalize |
+| `DictionaryContentBodyStore` | 无 production 构造 | Engine 跨程序集直接构造仅在 tests；既有 source-level IVT | `IContentBodyStore` test/helper seam | 无 runtime binding；无 production AOT root | Task 10 internalize |
 | `BasicMarkdownToHtml` | `MarkdownFolderProvider`、`MarkdownTextHelper` 同程序集静态调用 | helper identity 不传播 | Markdown provider/CLI 的 rendered HTML 与 TOC 行为 | 无 identity binding；Markdown CLI 路径静态可达 | Task 10 internalize |
 | `MarkdownBodyStore` | `MarkdownFolderProvider` 同程序集构造 | 只以 `IContentBodyStore` 返回 | `IContentBodyStore` + Markdown provider 行为 | 无 identity binding；Markdown CLI 路径静态可达 | Task 10 internalize |
 | `NotionClientStats` | legacy internal `GetStats()` 构造；canonical owner 已存在 | 不在 retained public member 返回值中；测试刻意冻结旧 identity | canonical `Bukit.Notion.Transport.NotionClientStats` | 无 runtime serializer/AOT root；有 test/governance roots | Task 11 canonical facade migration |
@@ -223,14 +226,18 @@ public sealed class DictionaryContentBodyStore : IContentBodyStore
 `SiteEngineIntegrationTests` 另有一个同名 nested private test type，不能误判为
 `Bukit.Content.DictionaryContentBodyStore` 消费者。
 
-`Bukit.Content` 已精确 friend：
+`Bukit.Content` 的 `InternalsVisibleTo.cs` 已精确 friend：
 
 - `Bukit.Content.Tests`
 - `Bukit.Engine`
 - `Bukit.Engine.Tests`
 
-因此 test consumers 在 internalize 后仍可编译，不需要扩张 friendship；尤其不得为了
-收窄该 helper 新增 production assembly friend。
+Task 9 并行调查把这些 friend 误写成项目文件已有配置；实际
+`Bukit.Content.csproj` 没有任何 `InternalsVisibleTo` item。Task 10 以源码事实为准，
+不复制、不移动也不扩张这三项。`Bukit.Engine` 是既有 production friend，用于 Engine
+调用 internal `NotionCompatibilityQueries`，属于 Notion compatibility 跨程序集债务，
+不是四个 Body/Markdown 候选的需求，也不在本任务调整。两个 test consumers 在
+internalize 后继续依赖既有精确 friendship。
 
 ### 6.3 必须保持的行为
 
@@ -580,7 +587,9 @@ Task 10 新增的 `G04D3AContentBodyGraphTests` 至少应断言：
 3. `Bukit.Content.Notion.NotionClientStats` 仍 public/exported；
 4. current baseline 只移除四项，其他类型/member 不漂移；
 5. 136-entry historical manifest 内容和 Git blob 不变；
-6. 没有新增 production friendship；
+6. 既有 source-level friendship 精确保持
+   `Bukit.Content.Tests`、`Bukit.Engine`、`Bukit.Engine.Tests`，且没有新增
+   production friendship；
 7. public API 总数和 candidate 总数按最终 G1 aggregate 的真实 PluginHost delta 计算，
    不提前硬编码本报告调查时的中间数。
 
@@ -641,7 +650,7 @@ Task 10 负责一次性验证 G1 当前整合终态，包括：
 |---|---|---|
 | direct CLR consumer source/binary break | 公开证据无确认命中；private unknown | 2.0-only；保留历史 manifest；明确 breaking |
 | public signature propagation | 四项未传播；stats 单独处理 | architecture exact-name/signature tests |
-| test consumer 编译失败 | 已有精确 test IVT | 不新增 production friend；组级完整编译 |
+| test consumer 编译失败 | 已有精确 source-level test IVT | 不复制到 csproj；不新增 production friend；组级完整编译 |
 | Markdown 行为漂移 | access change 本身不改行为 | 全套 owner tests + 危险 scheme characterization |
 | body identity/fallback 漂移 | sourceId + BodyKey 联合证据不足 | Task 10 必须补 recording-store test |
 | async disposal 误报通过 | Engine owner test 不在四个明列项目中 | 明确运行或证明 targeted gate 选择 |

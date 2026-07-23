@@ -71,6 +71,35 @@ public sealed class ContentBodyStoreTests
     }
 
     [Fact]
+    public async Task CompositeContentBodyStore_WithSourceIdAndPrefixedBodyKey_RestoresInnerIdentityUsingOrdinalPrefix()
+    {
+        var expectedBody = new ContentBody("<p>from source</p>");
+        var inner = new RecordingBodyStore(expectedBody);
+        var store = new CompositeContentBodyStore(new Dictionary<string, IContentBodyStore>(StringComparer.Ordinal)
+        {
+            ["markdown"] = inner
+        });
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["sourceId"] = new("text", "source-page-1")
+        };
+        var document = ContentDocument.Create(
+            id: "markdown:projected-page-1",
+            title: "Projected page",
+            slug: "projected-page-1",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: null,
+            fields: fields,
+            bodyKey: "markdown:source-body-1");
+
+        var body = await store.GetAsync(document);
+
+        Assert.Same(expectedBody, body);
+        Assert.Equal("source-page-1", inner.LastDocument?.Id);
+        Assert.Equal("source-body-1", inner.LastDocument?.Body.BodyKey);
+    }
+
+    [Fact]
     public async Task CompositeContentBodyStore_WithInlineHtml_DoesNotDispatch()
     {
         var inner = new RecordingBodyStore(new ContentBody("<p>stored</p>"));

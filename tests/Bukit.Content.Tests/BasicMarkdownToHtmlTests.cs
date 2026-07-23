@@ -163,4 +163,17 @@ public sealed class BasicMarkdownToHtmlTests
         Assert.DoesNotContain("<script>", html, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("&lt;script&gt;alert(1)&lt;/script&gt;", html, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("javascript:alert", "javascript")]
+    [InlineData("data:text/plain;base64,SGVsbG8=", "data")]
+    [InlineData("vbscript:msgbox", "vbscript")]
+    public void Convert_DangerousLinkSchemes_CurrentlyPassThrough_CharacterizesResidualRisk_NotSecurityApproval(
+        string destination,
+        string label)
+    {
+        var html = BasicMarkdownToHtml.Convert($"[{label}]({destination})");
+
+        Assert.Equal($"<p><a href=\"{destination}\">{label}</a></p>", html);
+    }
 }

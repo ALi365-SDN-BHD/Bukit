@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace Bukit.Content.Markdown;
 
-public static class BasicMarkdownToHtml
+internal static class BasicMarkdownToHtml
 {
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UsePipeTables()
