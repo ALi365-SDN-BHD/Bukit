@@ -4,7 +4,7 @@
 >
 > 任务：G-04D7 / master plan Task 25～27
 >
-> 状态：implementation-complete / group-verification-pending
+> 状态：implementation-complete / group-verification-complete
 
 ## 1. 范围
 
@@ -150,7 +150,7 @@ Git blob = 7b07d6890562387010b52301e9f8716e9bf10ed1
 
 文件内容未修改。历史条目继续保留公开搜索与 private-consumer 限制证据。
 
-## 6. 已建立但尚未执行的验证合同
+## 6. 实现阶段建立的验证合同
 
 Routing owner tests 已建立：
 
@@ -177,7 +177,7 @@ Engine tests 已建立：
 - Routing friend set 为空；
 - current baseline/member 与 historical manifest/blob。
 
-这些 tests/guards 在 Task 27 没有运行，不能据此宣称验证通过。
+这些 tests/guards 在 Task 27 实现阶段没有运行；其通过状态由 Task 30 的组级验证确认。
 
 ## 7. 明确无范围漂移
 
@@ -197,26 +197,26 @@ D7 没有修改：
 
 任何相邻需求必须另立 Core 任务，不得借 Task 30 失败扩大修复范围。
 
-## 8. Task 30 待验证集合
+## 8. Task 30 组级验证结果
 
-Task 25～27 均未运行 tests、aggregate、Native AOT 或独立复审。D7 当前只是
-`implementation-complete`，不能标记为 `group-verification-complete`。
+Task 25～27 的实现阶段没有单独运行 tests、aggregate、Native AOT 或独立复审；Task 30
+随后对完整 G3 diff 完成闭环：
 
-Task 30 必须验证：
+1. `Bukit.Routing.Tests` 27/27，通过四种 source 与 tuple/deconstruction；
+2. `Bukit.Engine.Tests` 1595/1595，通过 golden、validator 投影、route pipeline、
+   collision、locale 与 security 回归；
+3. `Bukit.Architecture.Tests` 215/215，通过 old identity absence、tuple metadata、
+   parameters/defaults、enum ordinals、friend set、baseline 与 historical manifest；
+4. public API drift 通过，只接受批准的 old type removal 与 return type replacement；
+5. G3 最终 replacement aggregate targeted gate 完整通过；
+6. real Native AOT package 与 release artifact smoke 通过，没有 missing type、
+   reflection 或 trimmer regression；
+7. 独立轻量只读复审结果为 Critical/Important/Minor `0/0/0`，确认没有 schema、
+   插件、Labs 或相邻 Core 漂移。
 
-1. `Bukit.Routing.Tests` 四种 source 与 tuple/deconstruction；
-2. `Bukit.Engine.Tests` golden、validator 投影、route pipeline、collision、locale 与
-   security 回归；
-3. `Bukit.Architecture.Tests` old identity absence、tuple metadata、parameters/defaults、
-   enum ordinals、friend set、baseline 与 historical manifest；
-4. public API drift 只包含批准的 old type removal 与 return type replacement；
-5. G3 唯一 aggregate targeted gate 通过；
-6. real Native AOT package/smoke 不出现 missing type、tuple metadata、reflection 或
-   trimmer regression；
-7. 一次独立轻量只读复审确认没有 schema、插件、Labs 或相邻 Core 漂移。
-
-后续 Theme 决议会继续改变 current baseline。Task 30 必须使用 Task 29 后的 G3 最终值，
-而不是把 D7 的阶段 `485/59` 固定为组终值。
+code-analysis 首次识别到 Engine 消费点可使用命名 tuple 解构；唯一 production follow-up
+把临时 result 改为 `(route, source)`，没有改变返回值、source 文本或路由行为。最终值
+使用 Task 29 后的完整 G3 状态 `14/484/56`，没有把 D7 阶段值 `485/59` 固定为组终值。
 
 ## 9. 关闭条件
 

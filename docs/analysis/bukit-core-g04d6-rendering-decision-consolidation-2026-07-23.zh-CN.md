@@ -4,7 +4,7 @@
 >
 > 任务：G-04D6 / master plan Task 21～24
 >
-> 状态：implementation-complete / group-verification-pending
+> 状态：implementation-complete / group-verification-complete
 
 ## 1. 范围
 
@@ -157,28 +157,25 @@ D6 没有借公共面治理处理：
 
 这些相邻事项若需要变化，必须另立 Core 任务。
 
-## 7. G3 待验证集合
+## 7. G3 验证集合
 
-Task 21～24 均未运行 tests、aggregate、Native AOT 或独立复审。D6 当前只是
-`implementation-complete`，不能标记为 `group-verification-complete`。
+Task 21～24 的实现阶段没有单独运行 tests、aggregate、Native AOT 或独立复审；当时
+D6 只能标记为 `implementation-complete`。Task 30 随后对完整 G3 diff 完成下列验证：
 
-Task 30 必须验证 D6：
-
-1. `Bukit.Rendering.Tests` 全部通过；
+1. `Bukit.Rendering.Tests` 169/169 通过；
 2. D6A fallback matrix 与 path safety 通过；
 3. D6B Page/List、template keys、null/container/safe-object fixtures 通过；
-4. `Bukit.Theme.Tests` 证明旧/新主题路径与 public renderer 不回归；
-5. `Bukit.Engine.Tests` 证明 friend access 和 render pipeline 不回归；
-6. `Bukit.Architecture.Tests` 证明两项 internal shape、overloads/interface、friends、
-   current baseline 与 historical manifest；
-7. public API drift 接受 G3 最终 baseline；
-8. G3 唯一 aggregate targeted gate 通过；
-9. real Native AOT package/smoke 证明 Scriban interface dispatch、binder direct roots 与
-   template projection 可达；
-10. 一次独立轻量只读复审确认没有范围漂移。
+4. `Bukit.Theme.Tests` 74/74、`Bukit.Engine.Tests` 1595/1595，证明旧/新主题路径、
+   public renderer、friend access 和 render pipeline 不回归；
+5. `Bukit.Architecture.Tests` 215/215，证明两项 internal shape、overloads/interface、
+   friends、current baseline 与 historical manifest；
+6. public API drift 通过，G3 最终 baseline 为 `14/484/56`；
+7. 经明确批准的最终 replacement aggregate targeted gate 完整通过；
+8. real Native AOT package 与 release artifact smoke 通过，证明 Scriban interface
+   dispatch、binder direct roots 与 template projection 可达；
+9. 独立轻量只读复审结果为 Critical/Important/Minor `0/0/0`，确认没有范围漂移。
 
-后续 Routing/Theme 决议会继续改变 current baseline。Task 30 必须使用 Task 29 后的 G3
-最终值，而不是把 D6 的阶段 `486/60` 固定为组终值。
+最终值使用 Task 29 后的完整 G3 状态，没有把 D6 阶段值 `486/60` 固定为组终值。
 
 ## 8. 关闭条件
 

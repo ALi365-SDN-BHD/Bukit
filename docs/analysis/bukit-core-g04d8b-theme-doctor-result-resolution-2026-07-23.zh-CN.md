@@ -7,7 +7,7 @@
 >
 > 基线：`2c2049b9b7fe156e924982ccb8bedd068ff65069`
 >
-> 状态：implementation-complete / group-verification-pending
+> 状态：implementation-complete / group-verification-complete
 
 ## 1. 决议
 
@@ -252,25 +252,26 @@ Git blob = 7b07d6890562387010b52301e9f8716e9bf10ed1
 
 ## 10. Group 3 验证状态
 
-按 master plan，Task 30 的实现提交不单独运行 tests、focused gate、aggregate、
-Native AOT 或 review。本提交只完成 behavior guards、governance terminal state
-和 Group 3 验证输入：
+按 master plan，Task 30 的实现提交没有单独运行 tests、focused gate、aggregate、
+Native AOT 或 review；该阶段只完成 behavior guards、governance terminal state
+和 Group 3 验证输入。主任务随后对完整 G3 diff 完成组级验证：
 
-| 检查 | 当前状态 |
+| 检查 | 组级结果 |
 |---|---|
 | production diff | 无 production source 变化 |
 | DoctorResult public facade graph | 保留并建立 guard |
-| Theme/CLI behavior tests | 已补，未运行 |
-| current baseline JSON | 待提交前静态确认为 `14/484/56` |
-| historical manifest/blob | 待提交前静态确认为 `136/136` 与原 blob |
-| Rendering/Routing/Theme/CLI/Engine/Architecture tests | **未运行** |
-| public API drift | **未运行** |
-| Group 3 aggregate targeted gate | **未运行** |
-| real Native AOT package/smoke | **未运行** |
-| independent light review | **未运行** |
+| Theme/CLI behavior tests | Theme 74/74；CLI 618/618 |
+| current baseline JSON | `14/484/56` |
+| historical manifest/blob | `136/136`；blob `7b07d6890562387010b52301e9f8716e9bf10ed1` |
+| Rendering/Routing/Engine/Architecture integration | 169/169；27/27；1595/1595；215/215 |
+| public API drift | 通过 |
+| Group 3 aggregate targeted gate | 经明确批准的最终 replacement 完整通过 |
+| real Native AOT package/smoke | 通过 |
+| published CLI doctor | 有效站点 exit 0；无效 theme exit 1；均无 Theme doctor JSON |
+| independent light review | Critical/Important/Minor `0/0/0` |
 
-运行结果必须由主任务完成 Group 3 唯一完整验证后回填关闭证据；在此之前不得把
-`group-verification-pending` 写成通过。
+因此 `DoctorResult` 保持 public、未新增 JSON/AOT root、未接入 Core CLI doctor，D8B
+可以标记为 `group-verification-complete`。
 
 ## 11. Group 3 关闭清单
 

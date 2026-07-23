@@ -6,7 +6,7 @@
 
 `GROUP_BASE`：`b4a60b7ebeef34eda9f53e72a10a76ebc10c8544`
 
-状态：`verification-in-progress / second-replacement-aggregate-pending`
+状态：`group-verification-complete`
 
 ## 1. 关闭范围
 
@@ -102,18 +102,35 @@ G3 aggregate 调用记录：
    `RouteInventoryValidator` 对 D7 新 named tuple 仍使用临时 result；
 4. 只把该消费点改为 `(route, source)` 解构，不改返回、source 文本或路由行为。
    修正后直接 code-analysis ratchet 为 style `586/593`、analyzers `323/326`，
-   Engine tests 再次为 1595/1595。
+   Engine tests 再次为 1595/1595；
+5. 用户明确批准第二次 replacement，并允许在非沙箱环境执行。最终调用覆盖 49 个
+   G3 changed paths，以命令级 `env -u NOTION_TOKEN` 隔离宿主凭据，exit `0`。六个
+   owner projects、docs consistency、`dotnet format`、code-analysis ratchet、
+   public API drift/self-test、portability、brainstorm server self-test 与其余
+   `ci-fast` contracts 全部通过。
 
-根据“一次 aggregate”约束，第二次 replacement 必须取得用户明确批准；在此之前不能把
-局部 owner proof 写成完整 aggregate 通过。
+因此，wrapper 失败不计为实际 aggregate；两个实际失败均有明确分类与最小修复/环境
+隔离；最终 replacement 获得单独授权并完整通过。本台账不把局部 owner proof 替代为
+aggregate proof，也不隐藏调用历史。
 
 ## 6. 独立轻量复审
 
-尚未执行。aggregate 通过后，必须基于完整 `GROUP_BASE..HEAD` 做一次独立只读复审，
-并记录 Critical、Important、Minor 结果。
+已基于完整 `GROUP_BASE..b22e32cd` 完成一次独立只读轻量复审：
+
+- Critical：0；
+- Important：0；
+- Minor：0。
+
+复审确认 Rendering 仅改变两个 type accessibility；Routing 为原子 named tuple
+迁移并同步 Engine consumer；Theme exception internal，而 `SchemaValidationError` 与
+`DoctorResult` 正确保留 public。current baseline `14/484/56`、136-entry manifest 与
+Git blob 均一致；没有 Labs、插件、schema、protocol、config、security/path、Core CLI
+production、JSON/AOT root 漂移。剩余风险仅是 private/unindexed consumer 无法被公开
+证据排除，以及两项 2.0 breaking change 本身需要发布说明。
 
 ## 7. 当前关闭判定
 
-Implementation、owner tests、public API drift、Native AOT 与新增 style diagnostic
-修复已完成。G3 仍处于 `second-replacement-aggregate-pending`，在获批 aggregate 与
-独立复审完成前不得标记关闭或合并回 `2.0`。
+Implementation、owner tests、public API drift、Native AOT、release artifact smoke、
+published doctor、最终 replacement aggregate 与独立复审均已完成。G3 正式判定为
+`group-verification-complete`，可以申请本地合并回 `2.0`，随后按 master plan 进入
+G4；本任务不自行执行合并。
