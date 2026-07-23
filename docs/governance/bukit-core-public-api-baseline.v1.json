@@ -2125,20 +2125,6 @@
     },
     {
       "assembly": "Bukit.Content",
-      "name": "Bukit.Content.CompositeContentBodyStore",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.CompositeContentBodyStore : Bukit.Engine.Abstractions.Content.IContentBodyStore~",
-      "publicMembers": [
-        "public .ctor(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.IContentBodyStore!\u003E! stores)",
-        "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.ContentBody!\u003E! GetAsync(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.Threading.CancellationToken cancellationToken = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
       "name": "Bukit.Content.CompositeContentProvider",
       "owner": "Content acquisition",
       "classification": "cross-assembly-implementation",
@@ -2149,20 +2135,6 @@
         "public .ctor(System.Collections.Generic.IReadOnlyList\u003CSystem.ValueTuple\u003CSystem.String!, System.String!, Bukit.Content.IContentProvider!\u003E\u003E! providers)",
         "public .ctor(System.Collections.Generic.IReadOnlyList\u003CSystem.ValueTuple\u003CSystem.String!, System.String!, System.String?, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E?, Bukit.Content.IContentProvider!\u003E\u003E! providers)",
         "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.RawContentLoadResult!\u003E! LoadRawAsync(System.Threading.CancellationToken cancellationToken = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.DictionaryContentBodyStore",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.DictionaryContentBodyStore : Bukit.Engine.Abstractions.Content.IContentBodyStore~",
-      "publicMembers": [
-        "public .ctor(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.ContentBody!\u003E! bodies)",
-        "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.ContentBody!\u003E! GetAsync(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.Threading.CancellationToken cancellationToken = null)"
       ],
       "protectedMembers": []
     },
@@ -2190,34 +2162,6 @@
       "signature": "public interface Bukit.Content.IContentProvider",
       "publicMembers": [
         "public abstract System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.RawContentLoadResult!\u003E! LoadRawAsync(System.Threading.CancellationToken cancellationToken = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Markdown.BasicMarkdownToHtml",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Content.Markdown.BasicMarkdownToHtml",
-      "publicMembers": [
-        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.TableOfContentsEntry!\u003E! ExtractTableOfContents(System.String! markdown)",
-        "public static System.String! Convert(System.String! markdown)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Markdown.MarkdownBodyStore",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.Markdown.MarkdownBodyStore : Bukit.Engine.Abstractions.Content.IContentBodyStore~",
-      "publicMembers": [
-        "public .ctor()",
-        "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.ContentBody!\u003E! GetAsync(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.Threading.CancellationToken cancellationToken = null)"
       ],
       "protectedMembers": []
     },
@@ -7200,8 +7144,8 @@
       "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.IPluginProcessInvoker",
       "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public interface Bukit.PluginHost.IPluginProcessInvoker",
       "publicMembers": [
@@ -7228,8 +7172,8 @@
       "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.IPluginRequestIdFactory",
       "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public interface Bukit.PluginHost.IPluginRequestIdFactory",
       "publicMembers": [
@@ -7241,8 +7185,8 @@
       "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.IProcessRunner",
       "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public interface Bukit.PluginHost.IProcessRunner",
       "publicMembers": [
@@ -7287,108 +7231,8 @@
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.PluginHost.PluginConfigLoader : Bukit.PluginHost.IPluginConfigLoader~",
       "publicMembers": [
-        "public .ctor(Bukit.PluginHost.PluginRuntimeOnlyContext runtimeOnlyContext = Bukit.PluginHost.PluginRuntimeOnlyContext.None)",
-        "public virtual final System.Threading.Tasks.Task\u003CBukit.Plugin.Abstractions.Config.PluginHostConfig!\u003E! LoadAsync(System.String! projectRoot, System.Threading.CancellationToken cancellationToken)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginExecutionReport",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.PluginHost.PluginExecutionReport : System.IEquatable\u003CBukit.PluginHost.PluginExecutionReport~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.String! PluginId, System.String! Operation, System.String! RequestId, System.Int32 ProcessExitCode, System.Boolean Success, System.Boolean TimedOut, System.Boolean OutputLimitExceeded, System.Int32 StdoutBytes, System.Int32 StderrBytes, System.String! Stderr, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? Environment = null, System.String? PluginVersion = null, System.String? Protocol = null, System.String? Platform = null, System.String? Command = null, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? CommandPath = null, System.String? Entry = null, System.DateTimeOffset? StartedAt = null, System.Int64? DurationMs = null, System.Int32? ResponseExitCode = null, System.Boolean? Sha256Verified = null, Bukit.Plugin.Abstractions.Security.PluginPermissionSet? Permissions = null, System.Collections.Generic.IReadOnlyList\u003CBukit.Plugin.Abstractions.Results.PluginDiagnostic!\u003E? Diagnostics = null, System.Collections.Generic.IReadOnlyList\u003CBukit.Plugin.Abstractions.Results.PluginArtifact!\u003E? Artifacts = null, Bukit.PluginHost.PluginExecutionResponseSummary? ResponseSummary = null)",
-        "public Bukit.Plugin.Abstractions.Security.PluginPermissionSet? Permissions { get; init; }",
-        "public Bukit.PluginHost.PluginExecutionReport! \u003CClone\u003E$()",
-        "public Bukit.PluginHost.PluginExecutionResponseSummary? ResponseSummary { get; init; }",
-        "public System.Boolean OutputLimitExceeded { get; init; }",
-        "public System.Boolean Success { get; init; }",
-        "public System.Boolean TimedOut { get; init; }",
-        "public System.Boolean? Sha256Verified { get; init; }",
-        "public System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E! Environment { get; init; }",
-        "public System.Collections.Generic.IReadOnlyList\u003CBukit.Plugin.Abstractions.Results.PluginArtifact!\u003E! Artifacts { get; init; }",
-        "public System.Collections.Generic.IReadOnlyList\u003CBukit.Plugin.Abstractions.Results.PluginDiagnostic!\u003E! Diagnostics { get; init; }",
-        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! CommandPath { get; init; }",
-        "public System.DateTimeOffset? StartedAt { get; init; }",
-        "public System.Int32 ProcessExitCode { get; init; }",
-        "public System.Int32 StderrBytes { get; init; }",
-        "public System.Int32 StdoutBytes { get; init; }",
-        "public System.Int32? ResponseExitCode { get; init; }",
-        "public System.Int64? DurationMs { get; init; }",
-        "public System.String! Operation { get; init; }",
-        "public System.String! PluginId { get; init; }",
-        "public System.String! RequestId { get; init; }",
-        "public System.String! Stderr { get; init; }",
-        "public System.String? Command { get; init; }",
-        "public System.String? Entry { get; init; }",
-        "public System.String? Platform { get; init; }",
-        "public System.String? PluginVersion { get; init; }",
-        "public System.String? Protocol { get; init; }",
-        "public System.Void Deconstruct(out System.String! PluginId, out System.String! Operation, out System.String! RequestId, out System.Int32 ProcessExitCode, out System.Boolean Success, out System.Boolean TimedOut, out System.Boolean OutputLimitExceeded, out System.Int32 StdoutBytes, out System.Int32 StderrBytes, out System.String! Stderr, out System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? Environment, out System.String? PluginVersion, out System.String? Protocol, out System.String? Platform, out System.String? Command, out System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? CommandPath, out System.String? Entry, out System.DateTimeOffset? StartedAt, out System.Int64? DurationMs, out System.Int32? ResponseExitCode, out System.Boolean? Sha256Verified, out Bukit.Plugin.Abstractions.Security.PluginPermissionSet? Permissions, out System.Collections.Generic.IReadOnlyList\u003CBukit.Plugin.Abstractions.Results.PluginDiagnostic!\u003E? Diagnostics, out System.Collections.Generic.IReadOnlyList\u003CBukit.Plugin.Abstractions.Results.PluginArtifact!\u003E? Artifacts, out Bukit.PluginHost.PluginExecutionResponseSummary? ResponseSummary)",
-        "public static System.Boolean op_Equality(Bukit.PluginHost.PluginExecutionReport? left, Bukit.PluginHost.PluginExecutionReport? right)",
-        "public static System.Boolean op_Inequality(Bukit.PluginHost.PluginExecutionReport? left, Bukit.PluginHost.PluginExecutionReport? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.PluginHost.PluginExecutionReport? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginExecutionReporter",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.PluginHost.PluginExecutionReporter",
-      "publicMembers": [
         "public .ctor()",
-        "public System.Threading.Tasks.Task\u003CSystem.String!\u003E! WriteAsync(System.String! projectRoot, Bukit.PluginHost.PluginExecutionReport! report, System.Threading.CancellationToken cancellationToken)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginExecutionResponseSummary",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.PluginHost.PluginExecutionResponseSummary : System.IEquatable\u003CBukit.PluginHost.PluginExecutionResponseSummary~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.Boolean Success, System.Int32 ExitCode, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? DiagnosticCodes = null, System.Int32 ArtifactCount = 0)",
-        "public Bukit.PluginHost.PluginExecutionResponseSummary! \u003CClone\u003E$()",
-        "public System.Boolean Success { get; init; }",
-        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! DiagnosticCodes { get; init; }",
-        "public System.Int32 ArtifactCount { get; init; }",
-        "public System.Int32 ExitCode { get; init; }",
-        "public System.Void Deconstruct(out System.Boolean Success, out System.Int32 ExitCode, out System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? DiagnosticCodes, out System.Int32 ArtifactCount)",
-        "public static System.Boolean op_Equality(Bukit.PluginHost.PluginExecutionResponseSummary? left, Bukit.PluginHost.PluginExecutionResponseSummary? right)",
-        "public static System.Boolean op_Inequality(Bukit.PluginHost.PluginExecutionResponseSummary? left, Bukit.PluginHost.PluginExecutionResponseSummary? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.PluginHost.PluginExecutionResponseSummary? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginFileSystemPermissionEvaluator",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.PluginHost.PluginFileSystemPermissionEvaluator",
-      "publicMembers": [
-        "public .ctor(Bukit.PluginHost.PluginPermissionPathNormalizer? pathNormalizer = null)",
-        "public System.Void ValidatePaths(System.String! pluginId, System.String! permissionName, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! paths)",
-        "public System.Void ValidateSubset(System.String! pluginId, System.String! permissionName, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! granted, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! required)"
+        "public virtual final System.Threading.Tasks.Task\u003CBukit.Plugin.Abstractions.Config.PluginHostConfig!\u003E! LoadAsync(System.String! projectRoot, System.Threading.CancellationToken cancellationToken)"
       ],
       "protectedMembers": []
     },
@@ -7555,24 +7399,10 @@
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.PluginHost.PluginPermissionEvaluator",
       "publicMembers": [
-        "public .ctor(Bukit.PluginHost.PluginFileSystemPermissionEvaluator? fileSystemEvaluator = null)",
+        "public .ctor()",
         "public System.Void ValidateGrantedPermissions(System.String! pluginId, Bukit.Plugin.Abstractions.Security.PluginPermissionSet! granted, Bukit.Plugin.Abstractions.Security.PluginPermissionSet! required)",
         "public static System.Void ValidateFileSystemPermissionPaths(System.String! pluginId, Bukit.Plugin.Abstractions.Security.PluginPermissionSet! permissions)",
         "public static System.Void ValidateNoEnvironmentWildcard(System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! names)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginPermissionPathNormalizer",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.PluginHost.PluginPermissionPathNormalizer",
-      "publicMembers": [
-        "public .ctor()",
-        "public System.String! Normalize(System.String! permissionName, System.String! path, System.String? pluginId = null)"
       ],
       "protectedMembers": []
     },
@@ -7609,8 +7439,8 @@
       "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.PluginProcessRequest",
       "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.PluginHost.PluginProcessRequest : System.IEquatable\u003CBukit.PluginHost.PluginProcessRequest~\u003E~",
       "publicMembers": [
@@ -7638,8 +7468,8 @@
       "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.PluginProcessResult",
       "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.PluginHost.PluginProcessResult : System.IEquatable\u003CBukit.PluginHost.PluginProcessResult~\u003E~",
       "publicMembers": [
@@ -7670,7 +7500,7 @@
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.PluginHost.PluginProtocolClient : Bukit.PluginHost.IPluginProtocolClient~",
       "publicMembers": [
-        "public .ctor(Bukit.PluginHost.IPluginProcessInvoker! processInvoker, Bukit.PluginHost.IPluginRequestIdFactory! requestIdFactory, Bukit.PluginHost.PluginExecutionReporter? executionReporter = null)",
+        "public .ctor(Bukit.PluginHost.IPluginProcessInvoker! processInvoker, Bukit.PluginHost.IPluginRequestIdFactory! requestIdFactory)",
         "public virtual final System.Threading.Tasks.Task\u003CBukit.Plugin.Abstractions.Protocol.PluginHandshakeResponse!\u003E! HandshakeAsync(Bukit.PluginHost.ResolvedPlugin! plugin, System.Threading.CancellationToken cancellationToken)",
         "public virtual final System.Threading.Tasks.Task\u003CBukit.Plugin.Abstractions.Protocol.PluginInvokeResponse!\u003E! InvokeAsync(Bukit.PluginHost.ResolvedPlugin! plugin, Bukit.Plugin.Abstractions.Protocol.PluginInvokeRequest! request, System.Threading.CancellationToken cancellationToken)",
         "public virtual final System.Threading.Tasks.Task\u003CBukit.Plugin.Abstractions.Protocol.PluginManifestResponse!\u003E! GetManifestAsync(Bukit.PluginHost.ResolvedPlugin! plugin, System.Threading.CancellationToken cancellationToken)"
@@ -7693,27 +7523,10 @@
     },
     {
       "assembly": "Bukit.PluginHost",
-      "name": "Bukit.PluginHost.PluginRuntimeOnlyContext",
-      "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public enum Bukit.PluginHost.PluginRuntimeOnlyContext : System.Int32",
-      "publicMembers": [
-        "public System.Int32 value__",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Development = Bukit.PluginHost.PluginRuntimeOnlyContext.Development [value=1]",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Labs = Bukit.PluginHost.PluginRuntimeOnlyContext.Labs [value=2]",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext None = Bukit.PluginHost.PluginRuntimeOnlyContext.None [value=0]",
-        "public const Bukit.PluginHost.PluginRuntimeOnlyContext Test = Bukit.PluginHost.PluginRuntimeOnlyContext.Test [value=3]"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.ProcessOutputStream",
       "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public enum Bukit.PluginHost.ProcessOutputStream : System.Int32",
       "publicMembers": [
@@ -7727,8 +7540,8 @@
       "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.ProcessRunRequest",
       "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.PluginHost.ProcessRunRequest : System.IEquatable\u003CBukit.PluginHost.ProcessRunRequest~\u003E~",
       "publicMembers": [
@@ -7756,8 +7569,8 @@
       "assembly": "Bukit.PluginHost",
       "name": "Bukit.PluginHost.ProcessRunResult",
       "owner": "External plugin host",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.PluginHost.ProcessRunResult : System.IEquatable\u003CBukit.PluginHost.ProcessRunResult~\u003E~",
       "publicMembers": [

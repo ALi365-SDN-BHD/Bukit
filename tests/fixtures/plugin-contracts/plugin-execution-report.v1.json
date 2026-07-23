@@ -1,0 +1,65 @@
+{
+  "pluginId": "echo",
+  "pluginVersion": "0.1.0",
+  "operation": "invoke",
+  "protocol": "bukit-plugin-v1",
+  "platform": "osx-arm64",
+  "command": "echo",
+  "commandPath": [],
+  "entry": "plugins/echo/bin/osx-arm64/bukit-plugin-echo",
+  "startedAt": "2026-06-24T00:00:00+00:00",
+  "durationMs": 12,
+  "requestId": "req-1",
+  "processExitCode": 0,
+  "responseExitCode": 2,
+  "sha256Verified": true,
+  "success": true,
+  "timedOut": false,
+  "outputLimitExceeded": false,
+  "stdoutBytes": 10,
+  "stderrBytes": 5,
+  "stderr": "plugin stderr leaked https://example.invalid/file?token=***",
+  "environment": {
+    "NOTION_TOKEN": "***",
+    "PUBLIC_VALUE": "visible"
+  },
+  "permissions": {
+    "fileSystem": {
+      "read": [
+        "content"
+      ],
+      "write": [
+        "public"
+      ]
+    },
+    "network": true,
+    "environment": {
+      "read": [
+        "NOTION_TOKEN"
+      ]
+    }
+  },
+  "diagnostics": [
+    {
+      "code": "plugin.input.invalid",
+      "severity": "error",
+      "message": "Invalid input ***",
+      "path": "content/***.md"
+    }
+  ],
+  "artifacts": [
+    {
+      "type": "file",
+      "path": "out/result.json",
+      "description": "Result ***"
+    }
+  ],
+  "responseSummary": {
+    "success": false,
+    "exitCode": 2,
+    "diagnosticCodes": [
+      "plugin.input.invalid"
+    ],
+    "artifactCount": 1
+  }
+}

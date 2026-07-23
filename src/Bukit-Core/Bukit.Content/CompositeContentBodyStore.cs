@@ -1,7 +1,7 @@
 using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Content;
 
-public sealed class CompositeContentBodyStore : IContentBodyStore
+internal sealed class CompositeContentBodyStore : IContentBodyStore
 {
     private readonly IReadOnlyDictionary<string, IContentBodyStore> _stores;
 

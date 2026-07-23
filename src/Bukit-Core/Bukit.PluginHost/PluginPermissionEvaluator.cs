@@ -7,9 +7,15 @@ public sealed class PluginPermissionEvaluator
 {
     private readonly PluginFileSystemPermissionEvaluator _fileSystemEvaluator;
 
-    public PluginPermissionEvaluator(PluginFileSystemPermissionEvaluator? fileSystemEvaluator = null)
+    public PluginPermissionEvaluator()
+        : this(new PluginFileSystemPermissionEvaluator())
     {
-        _fileSystemEvaluator = fileSystemEvaluator ?? new PluginFileSystemPermissionEvaluator();
+    }
+
+    internal PluginPermissionEvaluator(PluginFileSystemPermissionEvaluator fileSystemEvaluator)
+    {
+        ArgumentNullException.ThrowIfNull(fileSystemEvaluator);
+        _fileSystemEvaluator = fileSystemEvaluator;
     }
 
     public void ValidateGrantedPermissions(

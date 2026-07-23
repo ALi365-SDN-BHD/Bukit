@@ -2,9 +2,13 @@ using Bukit.Shared;
 
 namespace Bukit.PluginHost;
 
-public sealed class PluginPermissionPathNormalizer
+internal sealed class PluginPermissionPathNormalizer
 {
-    public string Normalize(string permissionName, string path, string? pluginId = null)
+    internal PluginPermissionPathNormalizer()
+    {
+    }
+
+    internal string Normalize(string permissionName, string path, string? pluginId = null)
     {
         if (string.IsNullOrWhiteSpace(path))
         {

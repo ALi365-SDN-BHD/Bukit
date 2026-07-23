@@ -63,6 +63,8 @@ tests/fixtures/*
 !tests/fixtures/release-assets/**
 !tests/fixtures/workflow-evidence/
 !tests/fixtures/workflow-evidence/**
+!tests/fixtures/plugin-contracts/
+!tests/fixtures/plugin-contracts/**
 .smoke-all-run/
 examples/silkroad_biz24/
 .playwright-mcp/

@@ -4,9 +4,9 @@ using Bukit.Plugin.Abstractions.Security;
 
 namespace Bukit.PluginHost;
 
-public sealed class PluginExecutionReporter
+internal sealed class PluginExecutionReporter
 {
-    public async Task<string> WriteAsync(
+    internal async Task<string> WriteAsync(
         string projectRoot,
         PluginExecutionReport report,
         CancellationToken cancellationToken)

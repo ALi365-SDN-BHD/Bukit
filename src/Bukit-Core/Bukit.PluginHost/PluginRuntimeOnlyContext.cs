@@ -1,6 +1,6 @@
 namespace Bukit.PluginHost;
 
-public enum PluginRuntimeOnlyContext
+internal enum PluginRuntimeOnlyContext
 {
     None,
     Development,

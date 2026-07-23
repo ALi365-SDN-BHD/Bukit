@@ -2,16 +2,16 @@ using Bukit.Shared;
 
 namespace Bukit.PluginHost;
 
-public sealed class PluginFileSystemPermissionEvaluator
+internal sealed class PluginFileSystemPermissionEvaluator
 {
     private readonly PluginPermissionPathNormalizer _pathNormalizer;
 
-    public PluginFileSystemPermissionEvaluator(PluginPermissionPathNormalizer? pathNormalizer = null)
+    internal PluginFileSystemPermissionEvaluator(PluginPermissionPathNormalizer? pathNormalizer = null)
     {
         _pathNormalizer = pathNormalizer ?? new PluginPermissionPathNormalizer();
     }
 
-    public void ValidatePaths(string pluginId, string permissionName, IReadOnlyList<string> paths)
+    internal void ValidatePaths(string pluginId, string permissionName, IReadOnlyList<string> paths)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
         ArgumentNullException.ThrowIfNull(paths);
@@ -22,7 +22,7 @@ public sealed class PluginFileSystemPermissionEvaluator
         }
     }
 
-    public void ValidateSubset(
+    internal void ValidateSubset(
         string pluginId,
         string permissionName,
         IReadOnlyList<string> granted,

@@ -21,12 +21,22 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
 
     public PluginProtocolClient(
         IPluginProcessInvoker processInvoker,
+        IPluginRequestIdFactory requestIdFactory)
+        : this(
+            processInvoker,
+            requestIdFactory,
+            new PluginExecutionReporter())
+    {
+    }
+
+    internal PluginProtocolClient(
+        IPluginProcessInvoker processInvoker,
         IPluginRequestIdFactory requestIdFactory,
-        PluginExecutionReporter? executionReporter = null)
+        PluginExecutionReporter executionReporter)
     {
         _processInvoker = processInvoker ?? throw new ArgumentNullException(nameof(processInvoker));
         _requestIdFactory = requestIdFactory ?? throw new ArgumentNullException(nameof(requestIdFactory));
-        _executionReporter = executionReporter ?? new PluginExecutionReporter();
+        _executionReporter = executionReporter ?? throw new ArgumentNullException(nameof(executionReporter));
     }
 
     public async Task<PluginHandshakeResponse> HandshakeAsync(

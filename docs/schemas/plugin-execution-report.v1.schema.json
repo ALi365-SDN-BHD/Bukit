@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/plugin-execution-report.v1.schema.json",
+  "title": "Bukit plugin execution report v1",
+  "type": "object",
+  "required": [
+    "pluginId",
+    "pluginVersion",
+    "operation",
+    "protocol",
+    "platform",
+    "command",
+    "commandPath",
+    "entry",
+    "startedAt",
+    "durationMs",
+    "requestId",
+    "processExitCode",
+    "responseExitCode",
+    "sha256Verified",
+    "success",
+    "timedOut",
+    "outputLimitExceeded",
+    "stdoutBytes",
+    "stderrBytes",
+    "stderr",
+    "environment",
+    "permissions",
+    "diagnostics",
+    "artifacts",
+    "responseSummary"
+  ],
+  "properties": {
+    "pluginId": {
+      "type": "string"
+    },
+    "pluginVersion": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "operation": {
+      "type": "string"
+    },
+    "protocol": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "platform": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "command": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "commandPath": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "entry": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "startedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "durationMs": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "requestId": {
+      "type": "string"
+    },
+    "processExitCode": {
+      "type": "integer"
+    },
+    "responseExitCode": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "sha256Verified": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "timedOut": {
+      "type": "boolean"
+    },
+    "outputLimitExceeded": {
+      "type": "boolean"
+    },
+    "stdoutBytes": {
+      "type": "integer"
+    },
+    "stderrBytes": {
+      "type": "integer"
+    },
+    "stderr": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "permissions": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "fileSystem",
+        "network",
+        "environment"
+      ],
+      "properties": {
+        "fileSystem": {
+          "type": "object",
+          "required": [
+            "read",
+            "write"
+          ],
+          "properties": {
+            "read": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "write": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "network": {
+          "type": "boolean"
+        },
+        "environment": {
+          "type": "object",
+          "required": [
+            "read"
+          ],
+          "properties": {
+            "read": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message",
+          "path"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "path",
+          "description"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "responseSummary": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "success",
+        "exitCode",
+        "diagnosticCodes",
+        "artifactCount"
+      ],
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "exitCode": {
+          "type": "integer"
+        },
+        "diagnosticCodes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "artifactCount": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
