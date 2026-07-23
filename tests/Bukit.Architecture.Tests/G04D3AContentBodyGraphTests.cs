@@ -42,17 +42,16 @@ public sealed class G04D3AContentBodyGraphTests
     }
 
     [Fact]
-    public void LegacyNotionClientStats_RemainsPublicUntilTask11()
+    public void LegacyNotionClientStats_IsAbsentAfterTask11CanonicalMigration()
     {
         Assembly assembly = typeof(IContentProvider).Assembly;
         const string typeName = "Bukit.Content.Notion.NotionClientStats";
-        Type type = assembly.GetType(
-            typeName,
-            throwOnError: true,
-            ignoreCase: false)!;
 
-        Assert.True(type.IsPublic);
-        Assert.Contains(typeName, assembly.GetExportedTypes()
+        Assert.Null(assembly.GetType(
+            typeName,
+            throwOnError: false,
+            ignoreCase: false));
+        Assert.DoesNotContain(typeName, assembly.GetExportedTypes()
             .Select(exported => exported.FullName));
     }
 
@@ -85,8 +84,8 @@ public sealed class G04D3AContentBodyGraphTests
         JsonElement[] currentTypes = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(497, currentTypes.Length);
-        Assert.Equal(85, currentTypes.Count(entry =>
+        Assert.Equal(488, currentTypes.Length);
+        Assert.Equal(62, currentTypes.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.All(CandidateTypeNames, typeName =>
             Assert.DoesNotContain(currentTypes, entry =>

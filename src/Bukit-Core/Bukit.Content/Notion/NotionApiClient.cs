@@ -5,8 +5,6 @@ using Bukit.Shared;
 
 namespace Bukit.Content.Notion;
 
-public sealed record NotionClientStats(long RequestCount, long ThrottleWaitCount, long ThrottleWaitTotalMs);
-
 public sealed class NotionApiClient : IDisposable
 {
     private readonly NotionClient _client;
@@ -65,14 +63,7 @@ public sealed class NotionApiClient : IDisposable
         }
     }
 
-    internal NotionClientStats GetStats()
-    {
-        var stats = _client.GetStats();
-        return new NotionClientStats(
-            stats.RequestCount,
-            stats.ThrottleWaitCount,
-            stats.ThrottleWaitTotalMs);
-    }
+    internal NotionClientStats GetStats() => _client.GetStats();
 
     internal NotionClient Transport => _client;
 

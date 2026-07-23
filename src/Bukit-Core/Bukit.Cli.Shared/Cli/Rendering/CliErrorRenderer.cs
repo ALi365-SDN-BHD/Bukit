@@ -8,7 +8,7 @@ namespace Bukit.Cli.Shared.Cli.Rendering;
 public static class CliErrorRenderer
 {
     public record CliErrorDiagnostic(string Code, string Message, bool ShowUsage = true);
-    public record CliErrorPayload(
+    internal record CliErrorPayload(
         string Schema,
         string Version,
         string? Command,

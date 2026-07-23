@@ -81,19 +81,6 @@
     },
     {
       "assembly": "Bukit.Cli.Shared",
-      "name": "Bukit.Cli.Shared.Cli.Binding.CliBoundCommandFactory",
-      "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Cli.Shared.Cli.Binding.CliBoundCommandFactory",
-      "publicMembers": [
-        "public static Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! Create(System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! args, Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec? spec = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Cli.Shared",
       "name": "Bukit.Cli.Shared.Cli.Metadata.CliArgumentSpec",
       "owner": "CLI contract infrastructure",
       "classification": "cross-assembly-implementation",
@@ -278,8 +265,8 @@
       "assembly": "Bukit.Cli.Shared",
       "name": "Bukit.Cli.Shared.Cli.Parsing.CliParseResult",
       "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public abstract class Bukit.Cli.Shared.Cli.Parsing.CliParseResult : System.IEquatable\u003CBukit.Cli.Shared.Cli.Parsing.CliParseResult~\u003E~",
       "publicMembers": [
@@ -315,58 +302,6 @@
         "public static Bukit.Cli.Shared.Cli.Parsing.CliParseResult! Parse(Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! command, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! args)"
       ],
       "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Cli.Shared",
-      "name": "Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult",
-      "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult : Bukit.Cli.Shared.Cli.Parsing.CliParseResult~, System.IEquatable\u003CBukit.Cli.Shared.Cli.Parsing.SimpleParseResult~\u003E~",
-      "publicMembers": [
-        "public .ctor(Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! Command, Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! BoundCommand, System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Parsing.CliDiagnostic!\u003E! Diagnostics)",
-        "public System.Void Deconstruct(out Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! Command, out Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! BoundCommand, out System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Parsing.CliDiagnostic!\u003E! Diagnostics)",
-        "public static System.Boolean op_Equality(Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? left, Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? right)",
-        "public static System.Boolean op_Inequality(Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? left, Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? right)",
-        "public virtual Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult! \u003CClone\u003E$()",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Cli.Shared.Cli.Parsing.CliParseResult? other)",
-        "public virtual final System.Boolean Equals(Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? other)"
-      ],
-      "protectedMembers": [
-        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
-        "protected virtual System.Type! EqualityContract { get; }"
-      ]
-    },
-    {
-      "assembly": "Bukit.Cli.Shared",
-      "name": "Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult",
-      "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult : Bukit.Cli.Shared.Cli.Parsing.CliParseResult~, System.IEquatable\u003CBukit.Cli.Shared.Cli.Parsing.SubcommandParseResult~\u003E~",
-      "publicMembers": [
-        "public .ctor(Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! Command, Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! BoundCommand, System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Parsing.CliDiagnostic!\u003E! Diagnostics, System.String! SubcommandName, Bukit.Cli.Shared.Cli.Parsing.CliParseResult! InnerResult)",
-        "public Bukit.Cli.Shared.Cli.Parsing.CliParseResult! InnerResult { get; init; }",
-        "public System.String! SubcommandName { get; init; }",
-        "public System.Void Deconstruct(out Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! Command, out Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! BoundCommand, out System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Parsing.CliDiagnostic!\u003E! Diagnostics, out System.String! SubcommandName, out Bukit.Cli.Shared.Cli.Parsing.CliParseResult! InnerResult)",
-        "public static System.Boolean op_Equality(Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? left, Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? right)",
-        "public static System.Boolean op_Inequality(Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? left, Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? right)",
-        "public virtual Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult! \u003CClone\u003E$()",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Cli.Shared.Cli.Parsing.CliParseResult? other)",
-        "public virtual final System.Boolean Equals(Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? other)"
-      ],
-      "protectedMembers": [
-        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
-        "protected virtual System.Type! EqualityContract { get; }"
-      ]
     },
     {
       "assembly": "Bukit.Cli.Shared",
@@ -410,37 +345,6 @@
       ],
       "protectedMembers": [
         "protected .ctor(Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorDiagnostic! original)",
-        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
-        "protected virtual System.Type! EqualityContract { get; }"
-      ]
-    },
-    {
-      "assembly": "Bukit.Cli.Shared",
-      "name": "Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer\u002BCliErrorPayload",
-      "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public class Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload : System.IEquatable\u003CBukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.String! Schema, System.String! Version, System.String? Command, System.Int32 ExitCode, System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorDiagnostic!\u003E! Errors, System.String? Usage)",
-        "public System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorDiagnostic!\u003E! Errors { get; init; }",
-        "public System.Int32 ExitCode { get; init; }",
-        "public System.String! Schema { get; init; }",
-        "public System.String! Version { get; init; }",
-        "public System.String? Command { get; init; }",
-        "public System.String? Usage { get; init; }",
-        "public System.Void Deconstruct(out System.String! Schema, out System.String! Version, out System.String? Command, out System.Int32 ExitCode, out System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorDiagnostic!\u003E! Errors, out System.String? Usage)",
-        "public static System.Boolean op_Equality(Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? left, Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? right)",
-        "public static System.Boolean op_Inequality(Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? left, Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? right)",
-        "public virtual Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload! \u003CClone\u003E$()",
-        "public virtual System.Boolean Equals(Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload? other)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()"
-      ],
-      "protectedMembers": [
-        "protected .ctor(Bukit.Cli.Shared.Cli.Rendering.CliErrorRenderer.CliErrorPayload! original)",
         "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
         "protected virtual System.Type! EqualityContract { get; }"
       ]
@@ -2303,30 +2207,6 @@
         "public System.Threading.Tasks.Task\u003CSystem.Text.Json.JsonDocument!\u003E! GetAsync(System.String! url, System.Threading.CancellationToken cancellationToken)",
         "public System.Threading.Tasks.Task\u003CSystem.Text.Json.JsonDocument!\u003E! PostAsync(System.String! url, System.String! json, System.Threading.CancellationToken cancellationToken)",
         "public virtual final System.Void Dispose()"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.NotionClientStats",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.Notion.NotionClientStats : System.IEquatable\u003CBukit.Content.Notion.NotionClientStats~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.Int64 RequestCount, System.Int64 ThrottleWaitCount, System.Int64 ThrottleWaitTotalMs)",
-        "public Bukit.Content.Notion.NotionClientStats! \u003CClone\u003E$()",
-        "public System.Int64 RequestCount { get; init; }",
-        "public System.Int64 ThrottleWaitCount { get; init; }",
-        "public System.Int64 ThrottleWaitTotalMs { get; init; }",
-        "public System.Void Deconstruct(out System.Int64 RequestCount, out System.Int64 ThrottleWaitCount, out System.Int64 ThrottleWaitTotalMs)",
-        "public static System.Boolean op_Equality(Bukit.Content.Notion.NotionClientStats? left, Bukit.Content.Notion.NotionClientStats? right)",
-        "public static System.Boolean op_Inequality(Bukit.Content.Notion.NotionClientStats? left, Bukit.Content.Notion.NotionClientStats? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Content.Notion.NotionClientStats? other)"
       ],
       "protectedMembers": []
     },
@@ -8511,8 +8391,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.BulletedListItemBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.BulletedListItemBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.BulletedListItemBlock~\u003E~",
       "publicMembers": [
@@ -8538,8 +8418,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.CalloutBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.CalloutBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.CalloutBlock~\u003E~",
       "publicMembers": [
@@ -8565,8 +8445,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.CodeBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.CodeBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.CodeBlock~\u003E~",
       "publicMembers": [
@@ -8592,8 +8472,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.Heading1Block",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.Heading1Block : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.Heading1Block~\u003E~",
       "publicMembers": [
@@ -8618,8 +8498,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.Heading2Block",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.Heading2Block : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.Heading2Block~\u003E~",
       "publicMembers": [
@@ -8644,8 +8524,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.Heading3Block",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.Heading3Block : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.Heading3Block~\u003E~",
       "publicMembers": [
@@ -8682,59 +8562,10 @@
     },
     {
       "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.Notion.HtmlTokenizer",
-      "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Shared.Notion.HtmlTokenizer",
-      "publicMembers": [
-        "public static System.Collections.Generic.List\u003CBukit.Shared.Notion.HtmlTokenizer.HtmlToken!\u003E! Tokenize(System.String! html)",
-        "public static System.String! DecodeHtmlEntities(System.String! text)",
-        "public static System.String! ExtractTagName(System.String! tagContent)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.Notion.HtmlTokenizer\u002BHtmlToken",
-      "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Shared.Notion.HtmlTokenizer.HtmlToken",
-      "publicMembers": [
-        "public .ctor()",
-        "public Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType Type { get; init; }",
-        "public System.String! Attributes { get; init; }",
-        "public System.String! TagName { get; init; }",
-        "public System.String! TextContent { get; init; }"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.Notion.HtmlTokenizer\u002BHtmlTokenType",
-      "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public enum Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType : System.Int32",
-      "publicMembers": [
-        "public System.Int32 value__",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType CloseTag = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.CloseTag [value=1]",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType OpenTag = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.OpenTag [value=0]",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType SelfClosingTag = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.SelfClosingTag [value=2]",
-        "public const Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType Text = Bukit.Shared.Notion.HtmlTokenizer.HtmlTokenType.Text [value=3]"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.ImageBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.ImageBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.ImageBlock~\u003E~",
       "publicMembers": [
@@ -8781,8 +8612,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.NotionBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public abstract class Bukit.Shared.Notion.NotionBlock : System.IEquatable\u003CBukit.Shared.Notion.NotionBlock~\u003E~",
       "publicMembers": [
@@ -8805,8 +8636,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.NumberedListItemBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.NumberedListItemBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.NumberedListItemBlock~\u003E~",
       "publicMembers": [
@@ -8832,8 +8663,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.ParagraphBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.ParagraphBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.ParagraphBlock~\u003E~",
       "publicMembers": [
@@ -8859,8 +8690,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.QuoteBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.QuoteBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.QuoteBlock~\u003E~",
       "publicMembers": [
@@ -8886,8 +8717,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.RichTextSegment",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.RichTextSegment : System.IEquatable\u003CBukit.Shared.Notion.RichTextSegment~\u003E~",
       "publicMembers": [
@@ -8911,8 +8742,8 @@
       "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.Notion.ToggleBlock",
       "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public sealed class Bukit.Shared.Notion.ToggleBlock : Bukit.Shared.Notion.NotionBlock~, System.IEquatable\u003CBukit.Shared.Notion.ToggleBlock~\u003E~",
       "publicMembers": [
@@ -9062,21 +8893,6 @@
       "signature": "public static class Bukit.Shared.UrlRedactor",
       "publicMembers": [
         "public static System.String! Redact(System.String! url)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.ValueCoercion",
-      "owner": "Shared foundation",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Shared.ValueCoercion",
-      "publicMembers": [
-        "public static System.Boolean IsFalsy(System.Object? value)",
-        "public static System.Boolean IsTruthy(System.Object? value)",
-        "public static System.Boolean? ToBooleanOrNull(System.Object? value)"
       ],
       "protectedMembers": []
     },

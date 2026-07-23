@@ -1,6 +1,6 @@
 namespace Bukit.Shared;
 
-public static class ValueCoercion
+internal static class ValueCoercion
 {
     public static bool IsTruthy(object? value)
     {

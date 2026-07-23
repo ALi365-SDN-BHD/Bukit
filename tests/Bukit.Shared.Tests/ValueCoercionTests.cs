@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bukit.Shared;
 using Xunit;
 
@@ -145,5 +146,116 @@ public sealed class ValueCoercionTests
     {
         Assert.Null(ValueCoercion.ToBooleanOrNull("maybe"));
         Assert.Null(ValueCoercion.ToBooleanOrNull(42));
+    }
+
+    [Fact]
+    public void ToBooleanOrNull_Null_ReturnsFalse()
+    {
+        Assert.False(ValueCoercion.ToBooleanOrNull(null));
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public void ToBooleanOrNull_Boolean_PreservesValue(bool input, bool expected)
+    {
+        Assert.Equal(expected, ValueCoercion.ToBooleanOrNull(input));
+    }
+
+    [Theory]
+    [InlineData("tRuE")]
+    [InlineData("YeS")]
+    [InlineData("oN")]
+    [InlineData("fAlSe")]
+    [InlineData("nO")]
+    [InlineData("oFf")]
+    public void MixedCaseValuesOutsideStrictWhitelist_RemainUnknown(string input)
+    {
+        Assert.False(ValueCoercion.IsTruthy(input));
+        Assert.False(ValueCoercion.IsFalsy(input));
+        Assert.Null(ValueCoercion.ToBooleanOrNull(input));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("\t\r\n")]
+    public void WhitespaceValues_RemainFalsy(string input)
+    {
+        Assert.False(ValueCoercion.IsTruthy(input));
+        Assert.True(ValueCoercion.IsFalsy(input));
+        Assert.False(ValueCoercion.ToBooleanOrNull(input));
+    }
+
+    [Theory]
+    [InlineData(0, false, true, false)]
+    [InlineData(1, true, false, true)]
+    [InlineData(42, false, false, null)]
+    public void IntegerValues_UseTheirCurrentToStringRepresentation(
+        int input,
+        bool expectedTruthy,
+        bool expectedFalsy,
+        bool? expected)
+    {
+        Assert.Equal(expectedTruthy, ValueCoercion.IsTruthy(input));
+        Assert.Equal(expectedFalsy, ValueCoercion.IsFalsy(input));
+        Assert.Equal(expected, ValueCoercion.ToBooleanOrNull(input));
+    }
+
+    [Fact]
+    public void DecimalValue_UsesCurrentCultureToStringRepresentation()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
+            const decimal value = 1.5m;
+
+            Assert.Equal("1,5", value.ToString());
+            Assert.False(ValueCoercion.IsTruthy(value));
+            Assert.False(ValueCoercion.IsFalsy(value));
+            Assert.Null(ValueCoercion.ToBooleanOrNull(value));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
+    [Theory]
+    [InlineData(" yes ", true)]
+    [InlineData(" off ", false)]
+    public void CustomToStringValue_ParticipatesInCoercion(string text, bool expected)
+    {
+        var value = new CustomStringValue(text);
+
+        Assert.Equal(expected, ValueCoercion.ToBooleanOrNull(value));
+    }
+
+    [Fact]
+    public void CustomToStringValue_UnknownTextRemainsUnknown()
+    {
+        Assert.Null(ValueCoercion.ToBooleanOrNull(new CustomStringValue("perhaps")));
+    }
+
+    [Fact]
+    public void ThrowingToString_ExceptionPropagatesFromAllEntryPoints()
+    {
+        var value = new ThrowingStringValue();
+
+        Assert.Throws<InvalidOperationException>(() => ValueCoercion.IsTruthy(value));
+        Assert.Throws<InvalidOperationException>(() => ValueCoercion.IsFalsy(value));
+        Assert.Throws<InvalidOperationException>(() => ValueCoercion.ToBooleanOrNull(value));
+    }
+
+    private sealed class CustomStringValue(string text)
+    {
+        public override string ToString() => text;
+    }
+
+    private sealed class ThrowingStringValue
+    {
+        public override string ToString()
+            => throw new InvalidOperationException("custom ToString failure");
     }
 }

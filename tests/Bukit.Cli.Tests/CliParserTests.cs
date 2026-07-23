@@ -70,4 +70,40 @@ public sealed class CliParserTests
 
         Assert.Contains(result.Diagnostics, d => d.Code == "unknown-option");
     }
+
+    [Fact]
+    public void Parse_PreservesDiagnosticOrder()
+    {
+        var spec = new CliCommandSpec(
+            Name: "build",
+            Description: "build",
+            Arguments:
+            [
+                new CliArgumentSpec("source", "source", Required: true),
+            ],
+            Options:
+            [
+                new CliOptionSpec("--count", "count", CliOptionType.Integer),
+                new CliOptionSpec("--value", "value"),
+                new CliOptionSpec("--output", "output", Required: true),
+                new CliOptionSpec("--clean", "clean", CliOptionType.Flag, ConflictWith: "--no-clean"),
+                new CliOptionSpec("--no-clean", "no clean", CliOptionType.Flag, ConflictWith: "--clean"),
+            ]);
+
+        var result = CliParser.Parse(
+            spec,
+            ["--unknown", "--count", "not-an-integer", "--value", "--clean", "--no-clean"]);
+
+        Assert.Equal(
+            [
+                "unknown-option",
+                "invalid-option-value",
+                "missing-option-value",
+                "missing-argument",
+                "missing-option",
+                "conflicting-options",
+                "conflicting-options",
+            ],
+            result.Diagnostics.Select(diagnostic => diagnostic.Code));
+    }
 }

@@ -315,7 +315,6 @@ public sealed class NotionBoundaryTests
     private static readonly string[] LegacyContentNotionTypes =
     [
         "Bukit.Content.Notion.NotionApiClient",
-        "Bukit.Content.Notion.NotionClientStats",
         "Bukit.Content.Notion.NotionContentProvider",
         "Bukit.Content.Notion.NotionPropertyParser",
         "Bukit.Content.Notion.NotionProviderOptions"
@@ -330,9 +329,6 @@ public sealed class NotionBoundaryTests
         "Bukit.Shared.Notion.Heading2Block",
         "Bukit.Shared.Notion.Heading3Block",
         "Bukit.Shared.Notion.HtmlToNotionBlockConverter",
-        "Bukit.Shared.Notion.HtmlTokenizer",
-        "Bukit.Shared.Notion.HtmlTokenizer+HtmlToken",
-        "Bukit.Shared.Notion.HtmlTokenizer+HtmlTokenType",
         "Bukit.Shared.Notion.ImageBlock",
         "Bukit.Shared.Notion.NotionApiUrls",
         "Bukit.Shared.Notion.NotionBlock",

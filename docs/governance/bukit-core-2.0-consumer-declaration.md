@@ -201,7 +201,7 @@ verification.
 
 G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.
 
-The current public API baseline contains 497 types, including 85 `2.0-candidate` entries.
+The current public API baseline contains 488 types, including 62 `2.0-candidate` entries.
 It covers 14 assemblies. The closed 136-entry candidate manifest remains
 immutable with Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`; private
 consumers remain `unknown-until-voluntary-declaration`. The 2026-07-22
@@ -216,3 +216,107 @@ No other `Bukit.PluginHost` candidate is approved.
 The [G-04D2B2 decision ledger](../analysis/bukit-core-g04d2b2-plugin-host-error-codes-internalization-2026-07-23.zh-CN.md)
 records the exact visibility narrowing, governed delta, qualification boundary,
 and exclusions.
+
+## G-04D3B Notion Client Stats
+
+G-04D3B removes only the duplicate
+`Bukit.Content.Notion.NotionClientStats` CLR identity in 2.0. The internal
+legacy `NotionApiClient.GetStats()` facade now returns the canonical
+`Bukit.Notion.Transport.NotionClientStats`; the other 62 candidates are not
+batch-approved.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`. Authenticated public search found
+no reviewed match for the removed full name, but private, unindexed, and
+undisclosed direct consumers remain unknown.
+
+This 2.0 migration is source, binary, and reflection breaking for direct
+consumers of the legacy CLR identity. It does not change request/throttle
+counters, retry, rate limits, Notion API behavior, transport lifetime, or
+public `NotionApiClient` members. The
+[G-04D3B decision ledger](../analysis/bukit-core-g04d3b-notion-client-stats-resolution-2026-07-23.zh-CN.md)
+records the exact replacement and G2 verification boundary.
+
+## G-04D4A Shared Notion Graph
+
+G-04D4A retains all 13 `Bukit.Shared.Notion` model/record identities as public
+companion types of `HtmlToNotionBlockConverter.Convert(string)` and
+reclassifies them as
+`cross-assembly-implementation / 1.x-do-not-narrow`. This does not authorize
+their unconditional removal in 2.0.
+
+The duplicate Shared `HtmlTokenizer`, `HtmlToken`, and `HtmlTokenType`
+identities are removed atomically. Direct CLR consumers must migrate to
+`Bukit.Notion.Conversion.HtmlTokenizer` and its canonical nested types. The
+canonical enum ordinals, token defaults, parsing behavior, and exception
+behavior remain unchanged.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
+undisclosed consumers remain `unknown-until-voluntary-declaration`. The
+[G-04D4A decision ledger](../analysis/bukit-core-g04d4a-shared-notion-graph-resolution-2026-07-23.zh-CN.md)
+records the exact compatibility and G2 verification boundary.
+
+## G-04D4B Value Coercion
+
+G-04D4B narrows only `Bukit.Shared.ValueCoercion` from public to internal in
+2.0. No repository production consumer or runtime metadata root requires the
+public identity, the existing `Bukit.Shared.Tests` friend boundary is
+unchanged, and no replacement or global conversion abstraction is added.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
+undisclosed consumers remain `unknown-until-voluntary-declaration`.
+
+This 2.0-only narrowing is source, binary, and reflection breaking for any
+direct CLR consumer. Null, boolean, whitelist casing, whitespace, number,
+current culture, custom `ToString`, fallback, and exception propagation
+semantics remain unchanged. The
+[G-04D4B decision ledger](../analysis/bukit-core-g04d4b-value-coercion-resolution-2026-07-23.zh-CN.md)
+records the exact change and G2 verification boundary.
+
+## G-04D5A CLI Parse Graph
+
+G-04D5A narrows `CliBoundCommandFactory`, `SimpleParseResult`, and
+`SubcommandParseResult` from public to internal in 2.0. `CliParseResult`
+remains public and is reclassified as
+`cross-assembly-implementation / 1.x-do-not-narrow`: it is the public return
+type of `CliParser.Parse`, the public input of
+`CommandDescriptor.DispatchAsync`, and an externally derivable record.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
+undisclosed consumers remain `unknown-until-voluntary-declaration`.
+
+Binding, recursive parse, diagnostic order, dispatch, command tree, stderr,
+and exit codes remain unchanged. No CLI Shared friend assembly is added. The
+[G-04D5A decision ledger](../analysis/bukit-core-g04d5a-cli-parse-graph-resolution-2026-07-23.zh-CN.md)
+records the exact compatibility and G2 verification boundary.
+
+## G-04D5B CLI Error Payload
+
+G-04D5B narrows only
+`CliErrorRenderer.CliErrorPayload` from public nested record to internal
+nested record in 2.0. `CliErrorRenderer`, `CliErrorDiagnostic`, and all public
+`RenderJson` overloads remain public; the supported external contract is the
+rendered JSON envelope, not the implementation DTO identity.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private, unindexed, and
+undisclosed consumers remain `unknown-until-voluntary-declaration`.
+
+Source-generated serialization, JSON names/order/indentation, null omission,
+defaults, escaping, stdout/stderr routing, usage, and exit codes remain
+unchanged. The
+[G-04D5B decision ledger](../analysis/bukit-core-g04d5b-cli-error-payload-resolution-2026-07-23.zh-CN.md)
+records the exact compatibility and G2 verification boundary.

@@ -32,22 +32,26 @@ public sealed class CommandDescriptorTests
     public async Task DispatchAsync_SimpleParseResult_InvokesHandler()
     {
         CliBoundCommand? handled = null;
-        var bound = CreateBoundCommand(
-            options: new Dictionary<string, string?> { ["--output"] = "dist" },
-            arguments: ["content"]);
+        var spec = CreateSpec(
+            "build",
+            arguments: [new CliArgumentSpec("source", "source")],
+            options: [new CliOptionSpec("--output", "output")]);
 
         var descriptor = new CommandDescriptor(
-            CreateSpec("build"),
+            spec,
             Handler: command =>
             {
                 handled = command;
                 return Task.FromResult(17);
             });
+        var result = CliParser.Parse(spec, ["--output", "dist", "content"]);
 
-        var exitCode = await descriptor.DispatchAsync(new SimpleParseResult(descriptor.Spec, bound, []));
+        var exitCode = await descriptor.DispatchAsync(result);
 
         Assert.Equal(17, exitCode);
-        Assert.Same(bound, handled);
+        Assert.Same(result.BoundCommand, handled);
+        Assert.Equal("dist", handled!.GetString("--output"));
+        Assert.Equal("content", handled.GetArgument(0));
     }
 
     [Fact]
@@ -61,7 +65,8 @@ public sealed class CommandDescriptorTests
         {
             Console.SetError(stderr);
 
-            var exitCode = await descriptor.DispatchAsync(new SimpleParseResult(descriptor.Spec, CreateBoundCommand(), []));
+            var exitCode = await descriptor.DispatchAsync(
+                CliParser.Parse(descriptor.Spec, Array.Empty<string>()));
 
             Assert.Equal(2, exitCode);
             Assert.Contains("Unknown command: build", stderr.ToString());
@@ -76,7 +81,10 @@ public sealed class CommandDescriptorTests
     public async Task DispatchAsync_SubcommandParseResult_PrefersChildHandlerAndMergesArguments()
     {
         CliBoundCommand? handled = null;
-        var serve = CreateSpec("serve");
+        var serve = CreateSpec(
+            "serve",
+            arguments: [new CliArgumentSpec("directory", "directory")],
+            options: [new CliOptionSpec("--port", "port", CliOptionType.Integer)]);
         var rootSpec = CreateSpec("preview", subcommands: [serve]);
         var root = new CommandDescriptor(
             rootSpec,
@@ -92,24 +100,12 @@ public sealed class CommandDescriptorTests
                     }),
             ]);
 
-        var parentBound = CreateBoundCommand(
-            options: new Dictionary<string, string?> { ["--verbose"] = "true" });
-        var innerBound = CreateBoundCommand(
-            options: new Dictionary<string, string?> { ["--port"] = "8080" },
-            arguments: ["dist"]);
-
-        var exitCode = await root.DispatchAsync(
-            new SubcommandParseResult(
-                rootSpec,
-                parentBound,
-                [],
-                "serve",
-                new SimpleParseResult(serve, innerBound, [])));
+        var result = CliParser.Parse(rootSpec, ["serve", "--port", "8080", "dist"]);
+        var exitCode = await root.DispatchAsync(result);
 
         Assert.Equal(9, exitCode);
         Assert.NotNull(handled);
-        Assert.True(handled!.GetBool("--verbose"));
-        Assert.Equal(8080, handled.GetInt("--port"));
+        Assert.Equal(8080, handled!.GetInt("--port"));
         Assert.Equal("serve", handled.GetArgument(0));
         Assert.Equal("dist", handled.GetArgument(1));
     }
@@ -118,7 +114,10 @@ public sealed class CommandDescriptorTests
     public async Task DispatchAsync_SubcommandParseResult_FallsBackToParentHandler_WhenChildHasNoHandler()
     {
         CliBoundCommand? handled = null;
-        var child = CreateSpec("json");
+        var child = CreateSpec(
+            "json",
+            arguments: [new CliArgumentSpec("source", "source")],
+            options: [new CliOptionSpec("--verbose", "verbose", CliOptionType.Flag)]);
         var rootSpec = CreateSpec("export", subcommands: [child]);
         var root = new CommandDescriptor(
             rootSpec,
@@ -132,13 +131,8 @@ public sealed class CommandDescriptorTests
                 new CommandDescriptor(child),
             ]);
 
-        var exitCode = await root.DispatchAsync(
-            new SubcommandParseResult(
-                rootSpec,
-                CreateBoundCommand(options: new Dictionary<string, string?> { ["--verbose"] = "true" }),
-                [],
-                "json",
-                new SimpleParseResult(child, CreateBoundCommand(arguments: ["posts"]), [])));
+        var result = CliParser.Parse(rootSpec, ["json", "--verbose", "posts"]);
+        var exitCode = await root.DispatchAsync(result);
 
         Assert.Equal(23, exitCode);
         Assert.NotNull(handled);
@@ -148,7 +142,7 @@ public sealed class CommandDescriptorTests
     }
 
     [Fact]
-    public async Task DispatchAsync_SubcommandParseResult_WithoutMatchingHandler_ReturnsUnknownCommand()
+    public async Task DispatchAsync_SubcommandParseResult_WithoutHandler_ReturnsUnknownCommand()
     {
         var child = CreateSpec("json");
         var rootSpec = CreateSpec("export", subcommands: [child]);
@@ -160,21 +154,52 @@ public sealed class CommandDescriptorTests
         {
             Console.SetError(stderr);
 
-            var exitCode = await root.DispatchAsync(
-                new SubcommandParseResult(
-                    rootSpec,
-                    CreateBoundCommand(),
-                    [],
-                    "yaml",
-                    new SimpleParseResult(child, CreateBoundCommand(), [])));
+            var result = CliParser.Parse(rootSpec, ["json"]);
+            var exitCode = await root.DispatchAsync(result);
 
             Assert.Equal(2, exitCode);
-            Assert.Contains("Unknown command: export yaml", stderr.ToString());
+            Assert.Contains("Unknown command: export json", stderr.ToString());
         }
         finally
         {
             Console.SetError(original);
         }
+    }
+
+    [Fact]
+    public async Task DispatchAsync_NestedSubcommand_UsesCurrentImmediateChildDispatch()
+    {
+        CliBoundCommand? handled = null;
+        var leaf = CreateSpec(
+            "leaf",
+            arguments: [new CliArgumentSpec("source", "source")]);
+        var group = CreateSpec("group", subcommands: [leaf]);
+        var rootSpec = CreateSpec("root", subcommands: [group]);
+        var root = new CommandDescriptor(
+            rootSpec,
+            Children:
+            [
+                new CommandDescriptor(
+                    group,
+                    Handler: command =>
+                    {
+                        handled = command;
+                        return Task.FromResult(29);
+                    },
+                    Children:
+                    [
+                        new CommandDescriptor(leaf, Handler: _ => Task.FromResult(31)),
+                    ]),
+            ]);
+
+        var result = CliParser.Parse(rootSpec, ["group", "leaf", "content"]);
+        var exitCode = await root.DispatchAsync(result);
+
+        Assert.Equal(29, exitCode);
+        Assert.NotNull(handled);
+        Assert.Equal("group", handled!.GetArgument(0));
+        Assert.Equal("leaf", handled.GetArgument(1));
+        Assert.Null(handled.GetArgument(2));
     }
 
     [Fact]
@@ -220,9 +245,17 @@ public sealed class CommandDescriptorTests
     private static CliCommandSpec CreateSpec(
         string name,
         IReadOnlyList<string>? aliases = null,
-        IReadOnlyList<CliCommandSpec>? subcommands = null)
+        IReadOnlyList<CliCommandSpec>? subcommands = null,
+        IReadOnlyList<CliArgumentSpec>? arguments = null,
+        IReadOnlyList<CliOptionSpec>? options = null)
     {
-        return new CliCommandSpec(name, $"{name} command", aliases, Subcommands: subcommands);
+        return new CliCommandSpec(
+            name,
+            $"{name} command",
+            aliases,
+            Arguments: arguments,
+            Options: options,
+            Subcommands: subcommands);
     }
 
     private static CliBoundCommand CreateBoundCommand(

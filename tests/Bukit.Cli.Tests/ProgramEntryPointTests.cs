@@ -108,8 +108,17 @@ public sealed class ProgramEntryPointTests : IDisposable
         var result = await InvokeEntryPointAsync(["missing-command", "--log-format=json"]);
 
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains("\"code\": \"unknown-command\"", result.StdErr, StringComparison.Ordinal);
-        Assert.Contains("\"command\": \"missing-command\"", result.StdErr, StringComparison.Ordinal);
+        Assert.Empty(result.StdOut);
+
+        var envelope = result.StdErr.TrimEnd('\r', '\n');
+        using var payload = System.Text.Json.JsonDocument.Parse(envelope);
+        var root = payload.RootElement;
+        var error = Assert.Single(root.GetProperty("errors").EnumerateArray().ToArray());
+
+        Assert.Equal("missing-command", root.GetProperty("command").GetString());
+        Assert.Equal(2, root.GetProperty("exitCode").GetInt32());
+        Assert.Equal("unknown-command", error.GetProperty("code").GetString());
+        Assert.Equal(envelope + Environment.NewLine, result.StdErr);
     }
 
     [Fact]

@@ -11,13 +11,13 @@ public abstract record CliParseResult(
     public bool IsSuccess => Diagnostics.Count == 0;
 }
 
-public sealed record SimpleParseResult(
+internal sealed record SimpleParseResult(
     CliCommandSpec Command,
     CliBoundCommand BoundCommand,
     IReadOnlyList<CliDiagnostic> Diagnostics)
     : CliParseResult(Command, BoundCommand, Diagnostics);
 
-public sealed record SubcommandParseResult(
+internal sealed record SubcommandParseResult(
     CliCommandSpec Command,
     CliBoundCommand BoundCommand,
     IReadOnlyList<CliDiagnostic> Diagnostics,

@@ -257,7 +257,7 @@ verification.
 
 G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.
 
-The current public API baseline contains 497 types, including 85 `2.0-candidate` entries.
+The current public API baseline contains 488 types, including 62 `2.0-candidate` entries.
 It covers 14 assemblies. The closed 136-entry candidate manifest remains
 immutable with Git blob `7b07d6890562387010b52301e9f8716e9bf10ed1`; private
 consumers remain `unknown-until-voluntary-declaration`. The 2026-07-22
@@ -272,3 +272,107 @@ No other `Bukit.PluginHost` candidate is approved.
 See the [G-04D2B2 decision ledger](../../docs/analysis/bukit-core-g04d2b2-plugin-host-error-codes-internalization-2026-07-23.zh-CN.md)
 for the exact visibility narrowing, governed delta, qualification boundary, and
 exclusions.
+
+### G-04D3B Notion Client Stats
+
+G-04D3B removes only the duplicate
+`Bukit.Content.Notion.NotionClientStats` CLR identity in 2.0. The internal
+legacy `NotionApiClient.GetStats()` facade now returns the canonical
+`Bukit.Notion.Transport.NotionClientStats`; the other 62 candidates are not
+batch-approved.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`. Direct consumers of the removed
+legacy CLR identity must migrate namespaces; private and undisclosed consumers
+remain unknown.
+
+This decision does not change request/throttle counters, retry, rate limits,
+Notion API behavior, transport lifetime, or public `NotionApiClient` members.
+See the
+[G-04D3B decision ledger](../../docs/analysis/bukit-core-g04d3b-notion-client-stats-resolution-2026-07-23.zh-CN.md)
+for the migration contract and G2 verification boundary.
+
+### G-04D4A Shared Notion Graph
+
+G-04D4A keeps all 13 `Bukit.Shared.Notion` model/record identities public as
+required companion types of the retained
+`HtmlToNotionBlockConverter.Convert(string)` signature. They are reclassified
+as `cross-assembly-implementation / 1.x-do-not-narrow`; this is a retention
+decision, not an unconditional 2.0 removal authorization.
+
+The duplicate Shared `HtmlTokenizer`, `HtmlToken`, and `HtmlTokenType`
+identities are removed together in 2.0. Direct CLR consumers must migrate to
+`Bukit.Notion.Conversion.HtmlTokenizer` and its canonical nested types. Enum
+ordinals, token defaults, parsing behavior, and exception behavior are
+unchanged.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
+remain unknown. See the
+[G-04D4A decision ledger](../../docs/analysis/bukit-core-g04d4a-shared-notion-graph-resolution-2026-07-23.zh-CN.md)
+for the atomic migration contract and G2 verification boundary.
+
+### G-04D4B Value Coercion
+
+G-04D4B narrows only `Bukit.Shared.ValueCoercion` from public to internal in
+2.0. Repository production code has no direct consumer, and the existing
+`Bukit.Shared.Tests` friend boundary continues to characterize its behavior.
+No replacement or global conversion abstraction is introduced.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
+remain unknown.
+
+This 2.0-only narrowing is source, binary, and reflection breaking for a direct
+CLR consumer. Null, boolean, whitelist casing, whitespace, number, current
+culture, custom `ToString`, fallback, and exception propagation semantics are
+unchanged. See the
+[G-04D4B decision ledger](../../docs/analysis/bukit-core-g04d4b-value-coercion-resolution-2026-07-23.zh-CN.md)
+for the exact one-token change and G2 verification boundary.
+
+### G-04D5A CLI Parse Graph
+
+G-04D5A narrows `CliBoundCommandFactory`, `SimpleParseResult`, and
+`SubcommandParseResult` from public to internal in 2.0. The public
+`CliParseResult` base is retained and reclassified as
+`cross-assembly-implementation / 1.x-do-not-narrow` because
+`CliParser.Parse` returns it, `CommandDescriptor.DispatchAsync` accepts it,
+and external record derivation is an existing contract.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
+remain unknown.
+
+Argument binding, subcommand recursion, diagnostic order, dispatch, command
+tree, stderr, and exit-code behavior are unchanged. Tests use the public
+parser/dispatcher contract; no CLI Shared friend assembly is added. See the
+[G-04D5A decision ledger](../../docs/analysis/bukit-core-g04d5a-cli-parse-graph-resolution-2026-07-23.zh-CN.md)
+for the exact migration and G2 verification boundary.
+
+### G-04D5B CLI Error Payload
+
+G-04D5B narrows only
+`CliErrorRenderer.CliErrorPayload` from public nested record to internal
+nested record in 2.0. `CliErrorRenderer`, `CliErrorDiagnostic`, all public
+`RenderJson` overloads, and the machine-readable JSON contract remain public
+and unchanged.
+
+The current public API baseline contains 488 types, including 62
+`2.0-candidate` entries across 14 assemblies. The closed 136-entry candidate
+manifest remains immutable with Git blob
+`7b07d6890562387010b52301e9f8716e9bf10ed1`; private and undisclosed consumers
+remain unknown.
+
+The source-generated serializer root remains explicit. Property names, order,
+indentation, null omission, defaults, escaping, stdout/stderr routing, usage,
+and exit codes are unchanged. See the
+[G-04D5B decision ledger](../../docs/analysis/bukit-core-g04d5b-cli-error-payload-resolution-2026-07-23.zh-CN.md)
+for the exact one-token change and G2 verification boundary.
