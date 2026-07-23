@@ -85,4 +85,3 @@ aggregate targeted gate 和独立轻量复审完成后，才能把本汇总改�
 
 Labs CLI 的既有 YAML static-context 缺陷已在 G2 base 原样复现；由于用户明确排除 Labs
 修复，它记录为 out-of-scope baseline evidence，不授权修改 Labs 项目或测试。
-

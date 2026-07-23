@@ -1,7 +1,7 @@
 # Bukit Core G-04D3B `NotionClientStats` transport facade 决议
 
-> 日期：2026-07-23  
-> 范围：G2 Task 11，仅处理 legacy `Bukit.Content.Notion.NotionClientStats`  
+> 日期：2026-07-23
+> 范围：G2 Task 11，仅处理 legacy `Bukit.Content.Notion.NotionClientStats`
 > 状态：implementation complete / group-verification-pending
 
 ## 1. 决议
