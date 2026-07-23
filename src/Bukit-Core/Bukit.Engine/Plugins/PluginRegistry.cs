@@ -4,12 +4,12 @@ using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins;
 
-public interface IPluginSource
+internal interface IPluginSource
 {
     IEnumerable<IBukitPlugin> GetPlugins();
 }
 
-public sealed class BuiltInPluginSource : IPluginSource
+internal sealed class BuiltInPluginSource : IPluginSource
 {
     public IEnumerable<IBukitPlugin> GetPlugins()
     {

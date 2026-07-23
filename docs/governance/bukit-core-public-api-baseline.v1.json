@@ -2746,49 +2746,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Plugins.BuiltInPluginSource",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.Plugins.BuiltInPluginSource : Bukit.Engine.Plugins.IPluginSource~",
-      "publicMembers": [
-        "public .ctor()",
-        "public virtual final System.Collections.Generic.IEnumerable\u003CBukit.Engine.Abstractions.Plugins.IBukitPlugin!\u003E! GetPlugins()"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Plugins.IPluginSource",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public interface Bukit.Engine.Plugins.IPluginSource",
-      "publicMembers": [
-        "public abstract System.Collections.Generic.IEnumerable\u003CBukit.Engine.Abstractions.Plugins.IBukitPlugin!\u003E! GetPlugins()"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.Plugins.PluginCapability",
-      "owner": "Build engine",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.Plugins.PluginCapability",
-      "publicMembers": [
-        "public const System.String! DerivePages = \u0022derive-pages\u0022",
-        "public const System.String! EmitOutputs = \u0022emit-outputs\u0022",
-        "public static System.Boolean IsKnown(System.String? capability)",
-        "public static System.Collections.Generic.IReadOnlyCollection\u003CSystem.String!\u003E! AllCapabilities { get; }"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.Plugins.PluginRegistry",
       "owner": "Build engine",
       "classification": "cross-assembly-implementation",

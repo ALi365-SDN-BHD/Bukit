@@ -16,7 +16,7 @@ public sealed class G04D9FNotionFetchGraphTests
     private const string CandidateManifestBlob =
         "7b07d6890562387010b52301e9f8716e9bf10ed1";
     private const string CurrentBaselineStatement =
-        "The current public API baseline contains 447 types, including 8 `2.0-candidate` entries.";
+        "The current public API baseline contains 444 types, including 5 `2.0-candidate` entries.";
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
@@ -55,8 +55,8 @@ public sealed class G04D9FNotionFetchGraphTests
         JsonElement[] types = root.GetProperty("types")
             .EnumerateArray()
             .ToArray();
-        Assert.Equal(447, types.Length);
-        Assert.Equal(8, types.Count(entry =>
+        Assert.Equal(444, types.Length);
+        Assert.Equal(5, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
         Assert.DoesNotContain(types, entry =>
