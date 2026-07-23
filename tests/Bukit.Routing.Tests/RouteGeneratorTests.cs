@@ -142,12 +142,22 @@ public sealed class RouteGeneratorTests
         string slug,
         IReadOnlyDictionary<string, object> fieldValues)
     {
+        string contentType =
+            fieldValues.TryGetValue("type", out object? typeValue) &&
+            typeValue is string type
+                ? type
+                : "post";
+        string collection =
+            fieldValues.TryGetValue("collection", out object? collectionValue) &&
+            collectionValue is string collectionName
+                ? collectionName
+                : "posts";
         var record = new ContentRecord(
             new ContentIdentity(
                 slug,
                 slug,
                 slug,
-                "post",
+                contentType,
                 "published"),
             new ContentPresentation(
                 slug,
@@ -156,8 +166,8 @@ public sealed class RouteGeneratorTests
                 "en",
                 Array.Empty<string>()),
             new ContentClassification(
-                "post",
-                "posts",
+                contentType,
+                collection,
                 Array.Empty<string>(),
                 Array.Empty<string>()),
             new ContentOwnership(null, null, null, null),

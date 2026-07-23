@@ -1043,8 +1043,7 @@ public sealed class ScribanModelBinderTests
     [Fact]
     public void ToScriptObject_DynamicValues_PreserveSupportedContainerBoundaries()
     {
-        IDictionary<string, object> mutable =
-            (IDictionary<string, object>)new ExpandoObject();
+        IDictionary<string, object?> mutable = new ExpandoObject();
         mutable["answer"] = 42;
         mutable[" "] = "hidden";
 

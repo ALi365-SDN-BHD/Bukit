@@ -8033,8 +8033,8 @@
       "signature": "public static class Bukit.Routing.RouteGenerator",
       "publicMembers": [
         "public static Bukit.Engine.Abstractions.Routing.RouteInfo! Generate(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String! outputPathEncoding = \u0022none\u0022, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? permalinks = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Routing.RouteGenerator.CollectionRouteRule!\u003E? collections = null)",
-        "public static System.ValueTuple\u003CBukit.Engine.Abstractions.Routing.RouteInfo!, Bukit.Routing.RouteGenerator.RouteSource\u003E GenerateWithSource(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String! outputPathEncoding = \u0022none\u0022, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? permalinks = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Routing.RouteGenerator.CollectionRouteRule!\u003E? collections = null)",
-        "public static System.String! ExpandPermalinkPattern(System.String! pattern, Bukit.Engine.Abstractions.Content.ContentDocument! document)"
+        "public static System.String! ExpandPermalinkPattern(System.String! pattern, Bukit.Engine.Abstractions.Content.ContentDocument! document)",
+        "public static System.ValueTuple\u003CBukit.Engine.Abstractions.Routing.RouteInfo!, Bukit.Routing.RouteGenerator.RouteSource\u003E GenerateWithSource(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String! outputPathEncoding = \u0022none\u0022, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? permalinks = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Routing.RouteGenerator.CollectionRouteRule!\u003E? collections = null)"
       ],
       "protectedMembers": []
     },

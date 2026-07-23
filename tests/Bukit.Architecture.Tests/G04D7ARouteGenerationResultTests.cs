@@ -42,10 +42,10 @@ public sealed class G04D7ARouteGenerationResultTests
                 .GetMethods(
                     BindingFlags.Public |
                     BindingFlags.Static |
-                    BindingFlags.DeclaredOnly)
-                .Where(candidate =>
-                    candidate.Name ==
-                    nameof(RouteGenerator.GenerateWithSource)));
+                    BindingFlags.DeclaredOnly),
+            candidate =>
+                candidate.Name ==
+                nameof(RouteGenerator.GenerateWithSource));
 
         Assert.Equal(
             typeof(ValueTuple<
@@ -57,9 +57,10 @@ public sealed class G04D7ARouteGenerationResultTests
             Assert.IsType<TupleElementNamesAttribute>(
                 method.ReturnParameter.GetCustomAttribute(
                     typeof(TupleElementNamesAttribute)));
-        Assert.Equal(
-            ["Route", "Source"],
-            tupleNames.TransformNames.ToArray());
+        Assert.Collection(
+            tupleNames.TransformNames,
+            name => Assert.Equal("Route", name),
+            name => Assert.Equal("Source", name));
 
         ParameterInfo[] parameters = method.GetParameters();
         Assert.Equal(
@@ -144,11 +145,11 @@ public sealed class G04D7ARouteGenerationResultTests
         string member = Assert.Single(
             generator.GetProperty("publicMembers")
                 .EnumerateArray()
-                .Select(entry => entry.GetString()!)
-                .Where(signature =>
-                    signature.Contains(
-                        " GenerateWithSource(",
-                        StringComparison.Ordinal)));
+                .Select(entry => entry.GetString()!),
+            signature =>
+                signature.Contains(
+                    " GenerateWithSource(",
+                    StringComparison.Ordinal));
 
         Assert.StartsWith(
             "public static System.ValueTuple" +
