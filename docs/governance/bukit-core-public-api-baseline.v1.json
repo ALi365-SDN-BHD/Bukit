@@ -81,19 +81,6 @@
     },
     {
       "assembly": "Bukit.Cli.Shared",
-      "name": "Bukit.Cli.Shared.Cli.Binding.CliBoundCommandFactory",
-      "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Cli.Shared.Cli.Binding.CliBoundCommandFactory",
-      "publicMembers": [
-        "public static Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! Create(System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! args, Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec? spec = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Cli.Shared",
       "name": "Bukit.Cli.Shared.Cli.Metadata.CliArgumentSpec",
       "owner": "CLI contract infrastructure",
       "classification": "cross-assembly-implementation",
@@ -278,8 +265,8 @@
       "assembly": "Bukit.Cli.Shared",
       "name": "Bukit.Cli.Shared.Cli.Parsing.CliParseResult",
       "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public abstract class Bukit.Cli.Shared.Cli.Parsing.CliParseResult : System.IEquatable\u003CBukit.Cli.Shared.Cli.Parsing.CliParseResult~\u003E~",
       "publicMembers": [
@@ -315,58 +302,6 @@
         "public static Bukit.Cli.Shared.Cli.Parsing.CliParseResult! Parse(Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! command, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! args)"
       ],
       "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Cli.Shared",
-      "name": "Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult",
-      "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult : Bukit.Cli.Shared.Cli.Parsing.CliParseResult~, System.IEquatable\u003CBukit.Cli.Shared.Cli.Parsing.SimpleParseResult~\u003E~",
-      "publicMembers": [
-        "public .ctor(Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! Command, Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! BoundCommand, System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Parsing.CliDiagnostic!\u003E! Diagnostics)",
-        "public System.Void Deconstruct(out Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! Command, out Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! BoundCommand, out System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Parsing.CliDiagnostic!\u003E! Diagnostics)",
-        "public static System.Boolean op_Equality(Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? left, Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? right)",
-        "public static System.Boolean op_Inequality(Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? left, Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? right)",
-        "public virtual Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult! \u003CClone\u003E$()",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Cli.Shared.Cli.Parsing.CliParseResult? other)",
-        "public virtual final System.Boolean Equals(Bukit.Cli.Shared.Cli.Parsing.SimpleParseResult? other)"
-      ],
-      "protectedMembers": [
-        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
-        "protected virtual System.Type! EqualityContract { get; }"
-      ]
-    },
-    {
-      "assembly": "Bukit.Cli.Shared",
-      "name": "Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult",
-      "owner": "CLI contract infrastructure",
-      "classification": "implementation-public",
-      "compatibility": "2.0-candidate",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult : Bukit.Cli.Shared.Cli.Parsing.CliParseResult~, System.IEquatable\u003CBukit.Cli.Shared.Cli.Parsing.SubcommandParseResult~\u003E~",
-      "publicMembers": [
-        "public .ctor(Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! Command, Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! BoundCommand, System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Parsing.CliDiagnostic!\u003E! Diagnostics, System.String! SubcommandName, Bukit.Cli.Shared.Cli.Parsing.CliParseResult! InnerResult)",
-        "public Bukit.Cli.Shared.Cli.Parsing.CliParseResult! InnerResult { get; init; }",
-        "public System.String! SubcommandName { get; init; }",
-        "public System.Void Deconstruct(out Bukit.Cli.Shared.Cli.Metadata.CliCommandSpec! Command, out Bukit.Cli.Shared.Cli.Binding.CliBoundCommand! BoundCommand, out System.Collections.Generic.IReadOnlyList\u003CBukit.Cli.Shared.Cli.Parsing.CliDiagnostic!\u003E! Diagnostics, out System.String! SubcommandName, out Bukit.Cli.Shared.Cli.Parsing.CliParseResult! InnerResult)",
-        "public static System.Boolean op_Equality(Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? left, Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? right)",
-        "public static System.Boolean op_Inequality(Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? left, Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? right)",
-        "public virtual Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult! \u003CClone\u003E$()",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Cli.Shared.Cli.Parsing.CliParseResult? other)",
-        "public virtual final System.Boolean Equals(Bukit.Cli.Shared.Cli.Parsing.SubcommandParseResult? other)"
-      ],
-      "protectedMembers": [
-        "protected virtual System.Boolean PrintMembers(System.Text.StringBuilder! builder)",
-        "protected virtual System.Type! EqualityContract { get; }"
-      ]
     },
     {
       "assembly": "Bukit.Cli.Shared",

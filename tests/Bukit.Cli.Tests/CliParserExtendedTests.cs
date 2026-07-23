@@ -1,4 +1,3 @@
-using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Cli.Shared.Cli.Metadata;
 using Bukit.Cli.Shared.Cli.Parsing;
 using Xunit;
@@ -247,10 +246,10 @@ public sealed class CliParserExtendedTests
                 new CliOptionSpec("--force", "force build", CliOptionType.Flag, ShortName: "-f"),
             });
 
-        var bound = CliBoundCommandFactory.Create(new[] { "--output", "-f" }, spec);
+        var result = CliParser.Parse(spec, new[] { "--output", "-f" });
 
-        Assert.Equal("true", bound.GetString("--force"));
-        Assert.Null(bound.GetString("--output"));
+        Assert.Equal("true", result.BoundCommand.GetString("--force"));
+        Assert.Null(result.BoundCommand.GetString("--output"));
     }
 
     [Fact]

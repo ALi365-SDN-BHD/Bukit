@@ -2,7 +2,7 @@ using Bukit.Cli.Shared.Cli.Metadata;
 
 namespace Bukit.Cli.Shared.Cli.Binding;
 
-public static class CliBoundCommandFactory
+internal static class CliBoundCommandFactory
 {
     public static CliBoundCommand Create(IReadOnlyList<string> args, CliCommandSpec? spec = null)
     {
