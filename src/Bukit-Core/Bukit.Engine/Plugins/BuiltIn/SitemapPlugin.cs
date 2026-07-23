@@ -6,7 +6,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
+internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
 {
     public string Name => "sitemap";
     public string Version => "2.0.1";

@@ -176,7 +176,7 @@ public sealed class G04D5BCliErrorPayloadTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsFourteenAssemblies462TypesAnd23Candidates()
+    public void CurrentBaseline_RecordsFourteenAssemblies449TypesAnd10Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -186,8 +186,8 @@ public sealed class G04D5BCliErrorPayloadTests
         JsonElement[] types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(462, types.Length);
-        Assert.Equal(23, types.Count(entry =>
+        Assert.Equal(449, types.Length);
+        Assert.Equal(10, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
         Assert.DoesNotContain(types, entry =>

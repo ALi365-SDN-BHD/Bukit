@@ -6,7 +6,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
+internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 {
     public string Name => "related-content";
     public string Version => "1.0.0";

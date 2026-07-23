@@ -8,7 +8,7 @@ using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateRequirementPlugin
+internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateRequirementPlugin
 {
     public string Name => "archive";
     public string Version => "2.0.0";

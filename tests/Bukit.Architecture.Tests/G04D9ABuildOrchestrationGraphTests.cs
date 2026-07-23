@@ -25,7 +25,7 @@ public sealed class G04D9ABuildOrchestrationGraphTests
     private const string CandidateManifestBlob =
         "7b07d6890562387010b52301e9f8716e9bf10ed1";
     private const string CurrentBaselineStatement =
-        "The current public API baseline contains 462 types, including 23 `2.0-candidate` entries.";
+        "The current public API baseline contains 449 types, including 10 `2.0-candidate` entries.";
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
@@ -269,8 +269,8 @@ public sealed class G04D9ABuildOrchestrationGraphTests
             .ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(462, types.Length);
-        Assert.Equal(23, types.Count(entry =>
+        Assert.Equal(449, types.Length);
+        Assert.Equal(10, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
 

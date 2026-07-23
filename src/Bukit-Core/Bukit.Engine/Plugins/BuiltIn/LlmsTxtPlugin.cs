@@ -7,7 +7,7 @@ using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
+internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
 {
     public string Name => "llms-txt";
     public string Version => "1.0.0";

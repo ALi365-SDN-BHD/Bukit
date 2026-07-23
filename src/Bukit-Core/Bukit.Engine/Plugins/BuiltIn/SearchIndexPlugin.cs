@@ -10,7 +10,7 @@ using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
+internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
 {
     public string Name => "search-index";
     public string Version => "3.0.0";

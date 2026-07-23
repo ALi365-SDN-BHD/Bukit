@@ -9,7 +9,7 @@ using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
+internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
 {
     public string Name => "data-files";
     public string Version => "1.0.0";

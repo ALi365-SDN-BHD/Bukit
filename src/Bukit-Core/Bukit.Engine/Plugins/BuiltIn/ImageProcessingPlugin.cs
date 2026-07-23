@@ -5,7 +5,7 @@ using Bukit.Shared;
 using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildPlugin
+internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildPlugin
 {
     public string Name => "image-processing";
     public string Version => "1.0.0";

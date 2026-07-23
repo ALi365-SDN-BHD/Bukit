@@ -6,7 +6,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
+internal sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
 {
     public string Name => "alias";
     public string Version => "1.0.0";

@@ -8,7 +8,7 @@ using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateRequirementPlugin
+internal sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemplateRequirementPlugin
 {
     public string Name => "pagination";
     public string Version => "2.0.0";

@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 using Bukit.Engine.Abstractions.Plugins;
-public sealed class MenuPlugin : IBukitPlugin, IAfterBuildPlugin
+internal sealed class MenuPlugin : IBukitPlugin, IAfterBuildPlugin
 {
     public string Name => "menu";
     public string Version => "1.0.0";

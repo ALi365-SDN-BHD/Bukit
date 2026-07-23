@@ -21,7 +21,7 @@ public interface INotionPageFetcher
     Task<NotionFetchedPage?> FetchAsync(NotionApiClient client, string pageId, CancellationToken cancellationToken);
 }
 
-public sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
+internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
 {
     private readonly INotionPageFetcher _notionFetcher;
 

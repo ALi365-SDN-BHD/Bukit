@@ -9,7 +9,7 @@ using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-public sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBuildPlugin, ITemplateRequirementPlugin
+internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterBuildPlugin, ITemplateRequirementPlugin
 {
     internal const string IndexCacheKey = "__taxonomy_index_cache";
     internal static readonly AsyncLocal<int> BuildIndexCountForTestsScope = new();
