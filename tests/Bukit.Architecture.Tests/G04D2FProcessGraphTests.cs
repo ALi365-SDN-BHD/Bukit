@@ -55,8 +55,8 @@ public sealed class G04D2FProcessGraphTests
                 .Select(parameter => parameter.ParameterType)
                 .ToArray());
         MethodInfo invokeAsync = Assert.Single(
-            processInvoker.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                .Where(method => method.Name == "InvokeAsync"));
+            processInvoker.GetMethods(BindingFlags.Public | BindingFlags.Instance),
+            method => method.Name == "InvokeAsync");
         Assert.Equal(
             typeof(Task<Bukit.PluginHost.PluginProcessResult>),
             invokeAsync.ReturnType);
@@ -66,14 +66,14 @@ public sealed class G04D2FProcessGraphTests
 
         Assert.Contains(typeof(Bukit.PluginHost.IPluginRequestIdFactory), requestIdFactory.GetInterfaces());
         MethodInfo create = Assert.Single(
-            requestIdFactory.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                .Where(method => method.Name == "Create"));
+            requestIdFactory.GetMethods(BindingFlags.Public | BindingFlags.Instance),
+            method => method.Name == "Create");
         Assert.Equal(typeof(string), create.ReturnType);
 
         Assert.Contains(typeof(Bukit.PluginHost.IProcessRunner), processRunner.GetInterfaces());
         MethodInfo runAsync = Assert.Single(
-            processRunner.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                .Where(method => method.Name == "RunAsync"));
+            processRunner.GetMethods(BindingFlags.Public | BindingFlags.Instance),
+            method => method.Name == "RunAsync");
         Assert.Equal(
             typeof(Task<Bukit.PluginHost.ProcessRunResult>),
             runAsync.ReturnType);

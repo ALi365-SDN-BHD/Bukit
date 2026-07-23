@@ -108,11 +108,12 @@ public sealed class PluginConfigLoaderTests
     }
 
     [Theory]
-    [InlineData(PluginRuntimeOnlyContext.Development)]
-    [InlineData(PluginRuntimeOnlyContext.Labs)]
-    [InlineData(PluginRuntimeOnlyContext.Test)]
-    public async Task LoadAsync_RuntimeOnlyManifestPolicy_InPrivilegedContext_LoadsConfig(PluginRuntimeOnlyContext context)
+    [InlineData(nameof(PluginRuntimeOnlyContext.Development))]
+    [InlineData(nameof(PluginRuntimeOnlyContext.Labs))]
+    [InlineData(nameof(PluginRuntimeOnlyContext.Test))]
+    public async Task LoadAsync_RuntimeOnlyManifestPolicy_InPrivilegedContext_LoadsConfig(string contextName)
     {
+        PluginRuntimeOnlyContext context = Enum.Parse<PluginRuntimeOnlyContext>(contextName);
         using var directory = TestDirectory.Create();
         directory.Write(".bukit/plugins.yaml",
             """

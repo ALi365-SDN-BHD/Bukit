@@ -4,6 +4,10 @@ namespace Bukit.PluginHost;
 
 internal sealed class PluginPermissionPathNormalizer
 {
+    internal PluginPermissionPathNormalizer()
+    {
+    }
+
     internal string Normalize(string permissionName, string path, string? pluginId = null)
     {
         if (string.IsNullOrWhiteSpace(path))

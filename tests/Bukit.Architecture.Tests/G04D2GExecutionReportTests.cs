@@ -58,10 +58,10 @@ public sealed class G04D2GExecutionReportTests
             throwOnError: true,
             ignoreCase: false)!;
         ConstructorInfo injectionConstructor = Assert.Single(
-            client.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)
-                .Where(constructor =>
-                    constructor.GetParameters().Length == 3 &&
-                    constructor.GetParameters()[2].ParameterType == reporter));
+            client.GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance),
+            constructor =>
+                constructor.GetParameters().Length == 3 &&
+                constructor.GetParameters()[2].ParameterType == reporter);
         ParameterInfo reporterParameter = injectionConstructor.GetParameters()[2];
 
         Assert.True(injectionConstructor.IsAssembly);
