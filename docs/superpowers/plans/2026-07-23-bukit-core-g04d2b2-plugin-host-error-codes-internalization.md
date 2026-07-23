@@ -946,7 +946,8 @@ Commit:
 
 ```bash
 git add \
-  docs/analysis/bukit-core-g04d2b2-plugin-host-error-codes-internalization-2026-07-23.zh-CN.md
+  docs/analysis/bukit-core-g04d2b2-plugin-host-error-codes-internalization-2026-07-23.zh-CN.md \
+  docs/superpowers/plans/2026-07-23-bukit-core-g04d2b2-plugin-host-error-codes-internalization.md
 git commit -m "docs(architecture): qualify g04d2b2"
 ```
 
