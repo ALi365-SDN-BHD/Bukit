@@ -87,6 +87,40 @@ public sealed class ConfigContractDriftTests
     }
 
     [Theory]
+    [InlineData("BuildContext.Data")]
+    [InlineData("BuildContext.Config")]
+    [InlineData("CliParser.Parse")]
+    [InlineData("CommandDescriptor.DispatchAsync")]
+    [InlineData("CliErrorRenderer.CliErrorPayload")]
+    [InlineData("RouteGenerator.GenerateWithSource")]
+    [InlineData("SectionSchemaValidator.Validate")]
+    [InlineData("Incremental.HashUtil")]
+    [InlineData("RssGenerator.Post")]
+    [InlineData("PluginRegistry.GetAllPlugins")]
+    [InlineData("Directory.Build.props")]
+    public void InlineCodeSpanConfigReferences_IgnoreClrApiIdentities(string reference)
+    {
+        Assert.False(TryNormalizeConfigPath(reference, out _));
+    }
+
+    [Theory]
+    [InlineData("site.title", "site.title")]
+    [InlineData("markdown.dir", "content.sources[].markdown.dir")]
+    public void InlineCodeSpanConfigReferences_NormalizeKnownLowercasePaths(string reference, string expected)
+    {
+        Assert.True(TryNormalizeConfigPath(reference, out var normalized));
+        Assert.Equal(expected, normalized);
+        Assert.True(IsAllowedConfigPath(normalized, BuildAllowedConfigPaths()));
+    }
+
+    [Fact]
+    public void InlineCodeSpanConfigReferences_RejectUnknownLowercasePaths()
+    {
+        Assert.True(TryNormalizeConfigPath("site.notARealField", out var normalized));
+        Assert.False(IsAllowedConfigPath(normalized, BuildAllowedConfigPaths()));
+    }
+
+    [Theory]
     [InlineData("site", "SiteKeys")]
     [InlineData("content", "ContentKeys")]
     [InlineData("build", "BuildKeys")]
@@ -281,6 +315,11 @@ public sealed class ConfigContractDriftTests
     {
         normalized = value.Trim();
         if (!ConfigPathRegex.IsMatch(normalized))
+        {
+            return false;
+        }
+
+        if (char.IsUpper(normalized[0]))
         {
             return false;
         }
