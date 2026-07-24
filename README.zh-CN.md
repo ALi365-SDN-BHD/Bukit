@@ -8,6 +8,13 @@
 
 Bukit 是面向 **笔记即 CMS**、**AI Agent 工作流**和 **GEO 优化网站**的 .NET Native AOT 静态站点生成引擎。它把 Markdown 和 Notion 内容转换为快速、可部署的静态网站。
 
+> **当前产品状态：** Bukit Core 2.0 优先供企业内部使用。路线 2
+> “确定性的可信内容发布编译器”是产品方向；路线 3“内部稳定引擎”是当前运营模式。
+> 仓库和许可证继续公开，但外部使用者需自行评估，项目不提供公开支持、SLA、兼容性、
+> 产品就绪或固定发布节奏承诺。常规公开二进制发布暂停。
+> 例外公开发布必须获得明确的管理批准；Labs 和外部插件不属于 Core 发布就绪范围。
+> 详见 [Bukit Core 产品定位](docs/governance/bukit-core-product-positioning.md)。
+
 ## Bukit 是什么
 
 Bukit 是运行时和构建引擎：
@@ -23,7 +30,7 @@ BukitJalil 是独立的本地控制面板。它不属于 Bukit runtime，也不�
 
 Bukit 不是 SaaS 平台、全功能 CMS 后端、可视化页面构建器，也不是 BukitJalil 的替代品。
 
-## Core 1.0 能力
+## Core 2.0 能力
 
 - **Native AOT CLI**：启动快、内存占用低，可面向 Linux、macOS、Windows 发布单文件二进制。
 - **内容源**：Core 直接 provider 只有 Markdown 和 Notion。
@@ -59,7 +66,7 @@ bukit dev
 
 ## Core CLI 命令
 
-Bukit Core 1.0 只暴露以下稳定命令面：
+Bukit Core 2.0 将以下命令面作为内部使用的受治理范围；这不是公开支持承诺：
 
 | 命令 | 用途 |
 |---|---|
@@ -130,7 +137,7 @@ themes/<name>/
   theme.yaml
 ```
 
-在 `site.yaml` 中用 `theme.name` 选择主题。远程主题源、主题注册表、主题安装和主题市场工作流不属于 Core 1.0。
+在 `site.yaml` 中用 `theme.name` 选择主题。远程主题源、主题注册表、主题安装和主题市场工作流不属于内部 Core 2.0。
 
 ## 开发与预览
 
@@ -178,13 +185,13 @@ CI 部署应使用站点自己的 GitHub Pages workflow。[`examples/github-page
 
 ## AI Agent Skills
 
-面向 Agent 的说明位于 [`guide/skills`](guide/skills/README.md)。这套技能与 Core 1.0 对齐，只应教授稳定 Core 命令和契约。
+面向 Agent 的说明位于 [`guide/skills`](guide/skills/README.md)。这套技能与 Core 2.0 对齐，只应教授受治理的内部 Core 命令和契约。
 
 Labs skills 位于 [`guide/labs-skills`](guide/labs-skills/README.md)。它们是显式选择使用的能力，不能当作默认 Core 行为。
 
-## 稳定范围
+## 内部稳定范围
 
-**Bukit Core 1.0 Stable** 包含：
+**Bukit Core 2.0 内部稳定范围**包含以下受治理的内部使用范围：
 
 - [Core CLI 命令](#core-cli-命令)列出的命令
 - `content.sources[]` 配置契约
@@ -202,7 +209,7 @@ Labs skills 位于 [`guide/labs-skills`](guide/labs-skills/README.md)。它们�
 - Native AOT CLI
 - GitHub Pages 部署
 
-**不包含在 Core 1.0 中**：
+**不包含在内部 Core 2.0 中**：
 
 - clone-to-theme
 - HTML demo import
@@ -215,22 +222,24 @@ Labs skills 位于 [`guide/labs-skills`](guide/labs-skills/README.md)。它们�
 - BukitJalil 控制面板
 - 飞书、语雀和其他知识库的更广泛直接集成
 
-## 路线图
+## 路线 2 / 路线 3 优先级
 
-| 领域 | 状态 |
+| 优先级 | 状态 |
 |---|---|
-| 构建、预览、dev、路由、模板 | Stable |
-| Markdown、Notion、SEO/GEO、publish audit | Stable |
-| GitHub Pages 部署 | Stable |
-| 主题生态和模板工具 | Labs / Future |
-| AI intent 工作流 | Labs / Future |
-| 外部插件生态和市场 | Future |
-| BukitJalil 控制面板 | Future |
-| 更广泛的直接知识源集成 | Future |
+| 确定性构建、安全性、契约真实性、审计 | 路线 2 - 进行中 |
+| Markdown/Notion 内部发布 | 路线 2 - 进行中 |
+| 现有企业站点和受控部署 | 路线 3 - 优先 |
+| 可靠性、可观测性、维护简化 | 路线 3 - 优先 |
+| 通用 SSG 扩展和广泛集成 | 非当前目标 |
+| 主题/插件市场和公开生态增长 | 暂停 |
+| Labs 和外部插件 | 独立，不属于 Core 发布就绪范围 |
 
 ## 参与贡献
 
-欢迎贡献。请参阅：
+仓库仍按现有许可证公开。外部 issue 和贡献可能会被审阅，但不保证接受、响应时间、
+兼容性、支持或发布时间。内部业务优先级优先。
+
+请参阅：
 
 - [`guide/dev/README.md`](guide/dev/README.md)
 - [`guide/dev/testing.md`](guide/dev/testing.md)

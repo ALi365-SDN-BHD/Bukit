@@ -8,6 +8,16 @@ Language versions: English (current) | [简体中文](./README.zh-CN.md) | [Baha
 
 Bukit is a .NET Native AOT static site generation engine for **Notes-as-CMS**, **AI agent workflows**, and **GEO-ready websites**. It turns Markdown and Notion content into fast, deployable static sites.
 
+> **Current product status:** Bukit Core 2.0 is enterprise internal-first.
+> Route 2, a deterministic trusted-content publishing compiler, is the product
+> direction; Route 3, an internal stable engine, is the current operating mode.
+> The repository and license remain public, but external use is self-directed
+> without public support, SLA, compatibility, product-readiness, or release
+> cadence commitments. Regular public binary releases are paused.
+> An exceptional public release requires explicit management approval. Labs
+> and external plugins are outside Core release readiness.
+> See [Bukit Core Product Positioning](docs/governance/bukit-core-product-positioning.md).
+
 ## What Bukit Is
 
 Bukit is the runtime and build engine:
@@ -23,7 +33,7 @@ BukitJalil is a separate local control panel. It is not part of the Bukit runtim
 
 Bukit is not a SaaS platform, a full CMS backend, a visual page builder, or a replacement for BukitJalil.
 
-## Core 1.0 Capabilities
+## Core 2.0 Capabilities
 
 - **Native AOT CLI**: fast startup, low memory, single-binary distribution for Linux, macOS, and Windows.
 - **Content sources**: direct Core providers are Markdown and Notion.
@@ -59,7 +69,7 @@ Use `bukit preview --dir dist` when you only want to serve an existing build out
 
 ## Core CLI Commands
 
-Bukit Core 1.0 exposes only this stable command surface:
+Bukit Core 2.0 governs this command surface for internal use; it is not a public support promise:
 
 | Command | Purpose |
 |---|---|
@@ -130,7 +140,7 @@ themes/<name>/
   theme.yaml
 ```
 
-Use `theme.name` in `site.yaml` to select the theme. Remote theme sources, theme registries, theme installation, and theme marketplace workflows are not part of Core 1.0.
+Use `theme.name` in `site.yaml` to select the theme. Remote theme sources, theme registries, theme installation, and theme marketplace workflows are not part of internal Core 2.0.
 
 ## Development And Preview
 
@@ -178,13 +188,13 @@ If a guide describes clone, import, intent, webhook, remote theme source, theme 
 
 ## AI Agent Skills
 
-Agent-facing instructions live under [`guide/skills`](guide/skills/README.md). That pack is aligned with Core 1.0 and should only teach stable Core commands and contracts.
+Agent-facing instructions live under [`guide/skills`](guide/skills/README.md). That pack is aligned with Core 2.0 and should only teach governed internal Core commands and contracts.
 
 Labs skills live under [`guide/labs-skills`](guide/labs-skills/README.md). They are opt-in and must not be treated as default Core behavior.
 
-## Stability Scope
+## Internal Stability Scope
 
-**Bukit Core 1.0 Stable** includes:
+**Bukit Core 2.0 Internal Stability Scope** includes the following governed internal-use surface:
 
 - CLI commands listed in [Core CLI Commands](#core-cli-commands)
 - `content.sources[]` config contract
@@ -202,7 +212,7 @@ Labs skills live under [`guide/labs-skills`](guide/labs-skills/README.md). They 
 - Native AOT CLI
 - GitHub Pages deployment
 
-**Not included in Core 1.0**:
+**Not included in internal Core 2.0**:
 
 - clone-to-theme
 - HTML demo import
@@ -215,22 +225,26 @@ Labs skills live under [`guide/labs-skills`](guide/labs-skills/README.md). They 
 - BukitJalil control panel
 - broader direct integrations for Feishu, Yuque, and other knowledge bases
 
-## Roadmap
+## Route 2 / Route 3 Priorities
 
-| Area | Status |
+| Priority | Status |
 |---|---|
-| Build, preview, dev, routing, templates | Stable |
-| Markdown, Notion, SEO/GEO, publish audit | Stable |
-| GitHub Pages deployment | Stable |
-| Theme ecosystem and template tooling | Labs / Future |
-| AI intent workflow | Labs / Future |
-| External plugin ecosystem and marketplace | Future |
-| BukitJalil control panel | Future |
-| Broader direct knowledge-source integrations | Future |
+| Deterministic build, safety, contract truth, audits | Route 2 - active |
+| Markdown/Notion internal publishing | Route 2 - active |
+| Existing enterprise sites and controlled deployment | Route 3 - priority |
+| Reliability, observability, maintenance simplification | Route 3 - priority |
+| General SSG expansion and broad integrations | Not a current objective |
+| Theme/plugin marketplace and public ecosystem growth | Paused |
+| Labs and external plugins | Separate, not Core release-ready |
 
 ## Contributing
 
-Contributions are welcome. See:
+The repository remains open under its existing license. External issues and
+contributions may be reviewed, but acceptance, response time, compatibility,
+support, and release timing are not guaranteed. Internal business priorities
+take precedence.
+
+See:
 
 - [`guide/dev/README.md`](guide/dev/README.md)
 - [`guide/dev/testing.md`](guide/dev/testing.md)

@@ -8,6 +8,17 @@ Versi bahasa: [English](./README.md) | [简体中文](./README.zh-CN.md) | Bahas
 
 Bukit ialah enjin penjanaan tapak statik .NET Native AOT untuk **Nota-sebagai-CMS**, **aliran kerja ejen AI**, dan **laman web sedia GEO**. Ia menukar kandungan Markdown dan Notion kepada laman statik yang pantas dan boleh dideploy.
 
+> **Status produk semasa:** Bukit Core 2.0 mengutamakan penggunaan dalaman
+> perusahaan. Laluan 2, pengkompil penerbitan kandungan dipercayai yang
+> deterministik, ialah hala tuju produk; Laluan 3, enjin stabil dalaman, ialah
+> mod operasi semasa. Repositori dan lesen kekal terbuka, tetapi penggunaan
+> luaran adalah kendiri tanpa komitmen sokongan awam, SLA, keserasian,
+> kesediaan produk, atau jadual keluaran tetap. Keluaran binari awam berkala
+> dihentikan sementara.
+> Keluaran awam luar biasa memerlukan kelulusan pengurusan yang eksplisit;
+> Labs dan plugin luaran berada di luar kesediaan keluaran Core.
+> Lihat [Kedudukan Produk Bukit Core](docs/governance/bukit-core-product-positioning.md).
+
 ## Apa Itu Bukit
 
 Bukit ialah runtime dan enjin binaan:
@@ -23,7 +34,7 @@ BukitJalil ialah panel kawalan tempatan yang berasingan. Ia bukan sebahagian dar
 
 Bukit bukan platform SaaS, backend CMS penuh, pembina halaman visual, atau pengganti BukitJalil.
 
-## Keupayaan Core 1.0
+## Keupayaan Core 2.0
 
 - **Native AOT CLI**: permulaan pantas, memori rendah, dan edaran binari tunggal untuk Linux, macOS, dan Windows.
 - **Sumber kandungan**: provider langsung Core hanyalah Markdown dan Notion.
@@ -59,7 +70,7 @@ Gunakan `bukit preview --dir dist` apabila anda hanya mahu menyajikan output bin
 
 ## Arahan Core CLI
 
-Bukit Core 1.0 hanya mendedahkan permukaan arahan stabil ini:
+Bukit Core 2.0 mentadbir permukaan arahan ini untuk kegunaan dalaman; ini bukan janji sokongan awam:
 
 | Arahan | Tujuan |
 |---|---|
@@ -130,7 +141,7 @@ themes/<name>/
   theme.yaml
 ```
 
-Gunakan `theme.name` dalam `site.yaml` untuk memilih tema. Sumber tema jauh, pendaftaran tema, pemasangan tema, dan aliran kerja pasaran tema bukan sebahagian daripada Core 1.0.
+Gunakan `theme.name` dalam `site.yaml` untuk memilih tema. Sumber tema jauh, pendaftaran tema, pemasangan tema, dan aliran kerja pasaran tema bukan sebahagian daripada Core 2.0 dalaman.
 
 ## Pembangunan Dan Pratonton
 
@@ -178,13 +189,13 @@ Jika panduan menerangkan clone, import, intent, webhook, sumber tema jauh, penda
 
 ## AI Agent Skills
 
-Arahan untuk ejen berada di [`guide/skills`](guide/skills/README.md). Pek itu selaras dengan Core 1.0 dan hanya patut mengajar arahan serta kontrak Core yang stabil.
+Arahan untuk ejen berada di [`guide/skills`](guide/skills/README.md). Pek itu selaras dengan Core 2.0 dan hanya patut mengajar arahan serta kontrak Core dalaman yang ditadbir.
 
 Labs skills berada di [`guide/labs-skills`](guide/labs-skills/README.md). Ia bersifat opt-in dan tidak boleh dianggap sebagai kelakuan Core lalai.
 
-## Skop Kestabilan
+## Skop Kestabilan Dalaman
 
-**Bukit Core 1.0 Stable** merangkumi:
+**Skop Kestabilan Dalaman Bukit Core 2.0** merangkumi permukaan kegunaan dalaman yang ditadbir berikut:
 
 - arahan CLI yang disenaraikan dalam [Arahan Core CLI](#arahan-core-cli)
 - kontrak konfigurasi `content.sources[]`
@@ -202,7 +213,7 @@ Labs skills berada di [`guide/labs-skills`](guide/labs-skills/README.md). Ia ber
 - Native AOT CLI
 - deploy GitHub Pages
 
-**Tidak termasuk dalam Core 1.0**:
+**Tidak termasuk dalam Core 2.0 dalaman**:
 
 - clone-to-theme
 - import demo HTML
@@ -215,22 +226,25 @@ Labs skills berada di [`guide/labs-skills`](guide/labs-skills/README.md). Ia ber
 - panel kawalan BukitJalil
 - integrasi langsung yang lebih luas untuk Feishu, Yuque, dan pangkalan pengetahuan lain
 
-## Pelan Hala Tuju
+## Keutamaan Laluan 2 / Laluan 3
 
-| Kawasan | Status |
+| Keutamaan | Status |
 |---|---|
-| Bina, pratonton, dev, penghalaan, templat | Stable |
-| Markdown, Notion, SEO/GEO, audit penerbitan | Stable |
-| Deploy GitHub Pages | Stable |
-| Ekosistem tema dan perkakasan templat | Labs / Future |
-| Workflow AI intent | Labs / Future |
-| Ekosistem plugin luaran dan pasaran | Future |
-| Panel kawalan BukitJalil | Future |
-| Integrasi sumber pengetahuan langsung yang lebih luas | Future |
+| Binaan deterministik, keselamatan, kebenaran kontrak, audit | Laluan 2 - aktif |
+| Penerbitan dalaman Markdown/Notion | Laluan 2 - aktif |
+| Laman perusahaan sedia ada dan deploy terkawal | Laluan 3 - keutamaan |
+| Kebolehpercayaan, kebolehcerapan, pemudahan penyelenggaraan | Laluan 3 - keutamaan |
+| Pengembangan SSG umum dan integrasi meluas | Bukan objektif semasa |
+| Pasaran tema/plugin dan pertumbuhan ekosistem awam | Dijeda |
+| Labs dan plugin luaran | Berasingan, bukan sedia keluaran Core |
 
 ## Menyumbang
 
-Sumbangan dialu-alukan. Lihat:
+Repositori kekal terbuka di bawah lesen sedia ada. Isu dan sumbangan luaran
+mungkin disemak, tetapi penerimaan, masa respons, keserasian, sokongan, dan
+masa keluaran tidak dijamin. Keutamaan perniagaan dalaman didahulukan.
+
+Lihat:
 
 - [`guide/dev/README.md`](guide/dev/README.md)
 - [`guide/dev/testing.md`](guide/dev/testing.md)
