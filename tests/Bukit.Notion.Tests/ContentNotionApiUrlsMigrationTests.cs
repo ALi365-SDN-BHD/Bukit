@@ -1,10 +1,9 @@
-using Bukit.Engine.Abstractions.Content;
-using Bukit.Shared.Notion;
+using Bukit.Notion;
 using Xunit;
 
-namespace Bukit.Content.Tests;
+namespace Bukit.Notion.Tests;
 
-public sealed class NotionApiUrlsTests
+public sealed class ContentNotionApiUrlsMigrationTests
 {
     [Fact]
     public void Pages_ReturnsCorrectUrl()

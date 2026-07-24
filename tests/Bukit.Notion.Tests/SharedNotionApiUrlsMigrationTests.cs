@@ -1,9 +1,9 @@
-using Bukit.Shared.Notion;
+using Bukit.Notion;
 using Xunit;
 
-namespace Bukit.Shared.Tests;
+namespace Bukit.Notion.Tests;
 
-public sealed class NotionApiUrlsTests
+public sealed class SharedNotionApiUrlsMigrationTests
 {
     [Fact]
     public void Base_IsCorrect()

@@ -330,7 +330,6 @@ public sealed class NotionBoundaryTests
         "Bukit.Shared.Notion.Heading3Block",
         "Bukit.Shared.Notion.HtmlToNotionBlockConverter",
         "Bukit.Shared.Notion.ImageBlock",
-        "Bukit.Shared.Notion.NotionApiUrls",
         "Bukit.Shared.Notion.NotionBlock",
         "Bukit.Shared.Notion.NumberedListItemBlock",
         "Bukit.Shared.Notion.ParagraphBlock",

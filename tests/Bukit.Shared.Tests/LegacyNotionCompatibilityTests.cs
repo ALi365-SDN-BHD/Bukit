@@ -12,7 +12,6 @@ public sealed class LegacyNotionCompatibilityTests
     {
         Assert.Equal("Bukit.Shared", typeof(HtmlToNotionBlockConverter).Assembly.GetName().Name);
         Assert.Equal("Bukit.Shared", typeof(NotionBlock).Assembly.GetName().Name);
-        Assert.Equal("Bukit.Shared", typeof(NotionApiUrls).Assembly.GetName().Name);
     }
 
     [Theory]
