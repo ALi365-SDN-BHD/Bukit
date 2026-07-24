@@ -202,6 +202,9 @@ After the opening authorization warning in
 > 绕过，并仅允许 `main`；部署审批记录是发布授权证据。
 ```
 
+Replace the existing `main` or `master` instruction with `main` so the
+operator guide matches the workflow's fail-closed branch contract.
+
 - [ ] **Step 4: Run focused documentation verification**
 
 Run:

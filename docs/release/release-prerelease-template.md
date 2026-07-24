@@ -3,10 +3,13 @@
 > 当前默认用途是企业内部制品验证，常规公开二进制发布暂停。
 > 若任务未记录明确的管理批准，不得创建公开 tag、上传公开资产或发布 GitHub Release。
 > CI、coverage、security、Native AOT、smoke 和资产校验通过只证明技术状态，不构成发布授权。
+> `publish-release` 必须等待 `public-release` GitHub Environment 审批，并且只允许
+> `main` 分支。该 Environment 必须指定获授权的管理审批者、禁止自批、禁止管理员
+> 绕过，并仅允许 `main`；部署审批记录是发布授权证据。
 
 ## 已授权公开发布的主干 CI 预检（强制）
 
-1. 先在 `main` 或 `master` 上提交待发布改动，并等待 `.github/workflows/ci.yaml` 全量通过。
+1. 先在 `main` 上提交待发布改动，并等待 `.github/workflows/ci.yaml` 全量通过。
 2. 在打 tag 前确认同一 commit 的主干 CI 绿灯：
    - `Fast contracts`（含 `Architecture contracts`）、`Core tests`、`Core coverage plan`、全部 `Core coverage: <project>` 和最终 `Core coverage` 都必须成功。
 3. 确认无误后再创建并推送 tag：

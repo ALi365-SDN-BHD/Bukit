@@ -10,6 +10,21 @@ Passing CI, Native AOT, reproducibility, smoke, coverage, security, checksum,
 or release-asset verification proves technical state only. It does not
 authorize publication. A public release requires explicit management approval.
 
+### GitHub Enforcement
+
+The `publish-release` job targets the `public-release` GitHub Environment and
+accepts only `refs/heads/main`. Repository administrators must configure that
+Environment with:
+
+- at least one explicitly authorized management reviewer;
+- prevent self-review enabled;
+- administrator bypass disabled;
+- a deployment branch policy allowing only `main`.
+
+The workflow contract is not operationally complete until those external
+settings are present. Internal artifact runs keep `publish=false` and do not
+enter the protected Environment.
+
 Release work is broader than the fast docs gate. It should be explicit and
 artifact-driven.
 
