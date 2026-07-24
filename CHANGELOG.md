@@ -4,6 +4,15 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+### Product Positioning
+
+- **Internal-first operating mode**: Bukit Core adopts Route 2, a deterministic
+  trusted-content publishing compiler, as its product direction and Route 3,
+  an internal stable engine, as its current operating mode. The public
+  repository and license remain available, but regular public binary releases,
+  public support, compatibility guarantees, SLA commitments, and a fixed
+  release cadence are paused.
+
 ### Security And Reliability
 
 - **Safe output cleanup (F-01)**: Explicit/configured clean, build cleanup, and recovery now share one guarded cleaner. Dangerous roots, `.git` descendants, outside-project and symlink/reparse targets, and non-empty unmarked directories are refused.
