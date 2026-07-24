@@ -1,5 +1,7 @@
 # 贡献指南
 
+Bukit Core 目前采用企业内部优先模式。仓库和许可证仍然公开，外部贡献可能会被评审，但不保证评审、接纳、响应时间、兼容性、支持或发布时间。内部业务优先级优先。见 [Bukit Core 产品定位](docs/governance/bukit-core-product-positioning.md)。
+
 感谢你对 Bukit 的关注。
 
 ## 快速开始

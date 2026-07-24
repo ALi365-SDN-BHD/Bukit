@@ -2,9 +2,10 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-|---------|--------------------|
-| 1.0.x   | :white_check_mark: |
+| Version | Support status |
+|---------|----------------|
+| 2.0.x   | Governed for internal use; no public support SLA |
+| 1.x     | Historical; no public support commitment |
 
 ## Reporting a Vulnerability
 
@@ -12,7 +13,10 @@ If you discover a security vulnerability in Bukit, please report it privately.
 
 **Do not open a public issue.** Instead, send details to the maintainers.
 
-We will acknowledge your report within 7 days and aim to provide a fix within 30 days.
+Good-faith private reports are welcome and may be reviewed on a best-effort
+basis. The project does not promise a public acknowledgement deadline,
+remediation deadline, support SLA, or release timeline. See
+[Bukit Core Product Positioning](docs/governance/bukit-core-product-positioning.md).
 
 ## Security Considerations
 

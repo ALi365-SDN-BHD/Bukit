@@ -1,5 +1,7 @@
 # Menyumbang kepada Bukit
 
+Bukit Core kini mengutamakan kegunaan dalaman perusahaan. Repositori dan lesen kekal terbuka, dan sumbangan luaran mungkin disemak, tetapi semakan, penerimaan, masa respons, keserasian, sokongan, dan masa keluaran tidak dijamin. Keutamaan perniagaan dalaman didahulukan. Lihat [Kedudukan Produk Bukit Core](docs/governance/bukit-core-product-positioning.md).
+
 Terima kasih atas minat anda untuk menyumbang kepada Bukit.
 
 ## Bermula

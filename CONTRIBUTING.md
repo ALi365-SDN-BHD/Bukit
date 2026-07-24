@@ -1,5 +1,11 @@
 # Contributing to Bukit
 
+Bukit Core is currently enterprise internal-first. The repository and license
+remain public, and external contributions may be reviewed, but review,
+acceptance, response time, compatibility, support, and release timing are not
+guaranteed. Internal business priorities take precedence. See
+[Bukit Core Product Positioning](docs/governance/bukit-core-product-positioning.md).
+
 Thank you for your interest in contributing to Bukit.
 
 ## Getting Started

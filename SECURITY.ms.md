@@ -2,9 +2,10 @@
 
 ## Versi Disokong
 
-| Versi  | Disokong           |
-|--------|--------------------|
-| 1.0.x  | :white_check_mark: |
+| Versi  | Status sokongan |
+|--------|-----------------|
+| 2.0.x  | Ditadbir untuk kegunaan dalaman; tiada SLA sokongan awam |
+| 1.x    | Sejarah; tiada komitmen sokongan awam |
 
 ## Melaporkan Kerentanan
 
@@ -12,7 +13,7 @@ Jika anda menemui kerentanan keselamatan dalam Bukit, sila laporkan secara perib
 
 **Jangan buka isu awam.** Sebaliknya, hantar butiran kepada penyelenggara.
 
-Kami akan mengakui laporan anda dalam masa 7 hari dan bertujuan untuk menyediakan pembaikan dalam masa 30 hari.
+Laporan peribadi yang dibuat dengan niat baik dialu-alukan dan mungkin disemak atas dasar usaha terbaik. Projek ini tidak menjanjikan tempoh pengakuan awam, tempoh pemulihan, SLA sokongan, atau garis masa keluaran. Lihat [Kedudukan Produk Bukit Core](docs/governance/bukit-core-product-positioning.md).
 
 ## Pertimbangan Keselamatan
 
