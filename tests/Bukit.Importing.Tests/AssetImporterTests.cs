@@ -94,7 +94,7 @@ public sealed class AssetImporterTests : IDisposable
         var result = AssetImporter.Import(options, pages);
 
         Assert.Equal(0, result.Count);
-        Assert.Contains(result.Warnings, w => w.Contains("路径穿越"));
+        Assert.Contains(result.Warnings, w => w.Contains("Path traversal"));
     }
 
     [Fact]

@@ -37,7 +37,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
             }));
 
         Assert.Equal(2, response.ExitCode);
-        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Message == "缺少必填参数: <demo-dir>");
+        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Message == "Missing required argument: <demo-dir>");
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
             options: new Dictionary<string, JsonElement>()));
 
         Assert.Equal(2, response.ExitCode);
-        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Message == "缺少必填选项: --theme <名称>");
+        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Message == "Missing required option: --theme <name>");
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
 
         Assert.Equal(2, response.ExitCode);
         Assert.Contains(response.Diagnostics, diagnostic =>
-            diagnostic.Message == "--push-notion 不能与 --dry-run 同时使用。先生成草稿后再执行实际推送。");
+            diagnostic.Message == "--push-notion cannot be used with --dry-run. Generate first, then push.");
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
 
         Assert.Equal(2, response.ExitCode);
         Assert.Contains(response.Diagnostics, diagnostic =>
-            diagnostic.Message == "--create-missing-notion-databases 需要 --notion-parent-page-id <id>。");
+            diagnostic.Message == "--create-missing-notion-databases requires --notion-parent-page-id <id>.");
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
             options: new Dictionary<string, JsonElement>()));
 
         Assert.Equal(2, response.ExitCode);
-        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Message == "缺少必填选项: --output <content-dir>");
+        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Message == "Missing required option: --output <content-dir>");
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
         Assert.True(response.Success);
         Assert.Equal(0, response.ExitCode);
         Assert.True(File.Exists(Path.Combine(_rootDir, "content", "posts", "hello.md")));
-        Assert.Contains(response.Messages, message => message.Message.Contains("seed import 完成: records=1 written=1", StringComparison.Ordinal));
+        Assert.Contains(response.Messages, message => message.Message.Contains("seed import complete: records=1 written=1", StringComparison.Ordinal));
         Assert.All(response.Artifacts, artifact => Assert.False(Path.IsPathRooted(artifact.Path)));
     }
 
@@ -154,7 +154,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
         Assert.True(response.Success);
         Assert.Equal(0, response.ExitCode);
         Assert.False(Directory.Exists(Path.Combine(_rootDir, "themes", "demo-theme")));
-        Assert.Contains(response.Messages, message => message.Message.Contains("未提取到共享布局", StringComparison.Ordinal));
+        Assert.Contains(response.Messages, message => message.Message.Contains("No shared layout", StringComparison.Ordinal));
         Assert.Contains(response.Diagnostics, diagnostic =>
             diagnostic.Code == "import.content.author_missing" &&
             diagnostic.Severity == "warning" &&
@@ -224,7 +224,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
         Assert.True(response.Success);
         Assert.Equal(0, response.ExitCode);
         Assert.True(File.Exists(Path.Combine(_rootDir, "reports", "notion-plan.json")));
-        Assert.Contains(response.Messages, message => message.Message.Contains("notion push dry-run 完成: records=1", StringComparison.Ordinal));
+        Assert.Contains(response.Messages, message => message.Message.Contains("notion push dry-run complete: records=1", StringComparison.Ordinal));
         var artifact = Assert.Single(response.Artifacts, artifact => artifact.Type == "report");
         Assert.Equal("reports/notion-plan.json", artifact.Path);
     }
@@ -298,7 +298,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
 
         Assert.Equal(2, response.ExitCode);
         Assert.Contains(response.Diagnostics, diagnostic =>
-            diagnostic.Message == "缺少必填选项: --database-id <id>");
+            diagnostic.Message == "Missing required option: --database-id <id>");
     }
 
     private PluginInvokeRequest Request(

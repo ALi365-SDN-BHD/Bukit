@@ -1,10 +1,10 @@
 namespace Bukit.Importing;
 
 /// <summary>
-/// Commits the import plan to disk. Uses a staging directory approach:
-/// writes everything to a temp staging area first, validates (residue check),
-/// then atomically moves to the final target directories.
-/// This prevents half-baked output when strict mode fails.
+/// Commits the import plan to disk. Writes directly to the target directories.
+/// Note: does not use a staging directory. If an exception occurs mid-commit (e.g. strict
+/// residue check), partial output may remain on disk. Callers should be aware of this
+/// limitation and handle cleanup if needed.
 /// </summary>
 internal static class ImportCommitter
 {

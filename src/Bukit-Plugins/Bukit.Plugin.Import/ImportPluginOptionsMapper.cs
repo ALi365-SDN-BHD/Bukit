@@ -14,7 +14,7 @@ public static class ImportPluginOptionsMapper
 
         throw new ImportPluginOptionsException(
             "plugin.import.unsupportedCommand",
-            $"未知的 import 子命令: {string.Join(" ", GetCommandPath(request))}");
+            $"Unknown import subcommand: {string.Join(" ", GetCommandPath(request))}");
     }
 
     public static ImportPluginMappedInvocation MapInvocation(PluginInvokeRequest request)

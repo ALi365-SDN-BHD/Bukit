@@ -2,31 +2,41 @@ using System.Text;
 using System.Text.Json;
 using Bukit.Notion.Transport;
 using Bukit.Notion.Write;
-using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Importing;
 
 public static class ImportNotionPushWorkflow
 {
-    internal static Func<HttpClient> CreateHttpClient { get; set; } = () => new HttpClient();
+    private static Func<HttpClient> _createHttpClient = () => new HttpClient();
+
+    /// <summary>
+    /// Factory for creating HttpClient instances. Thread-safe setter for test seams.
+    /// </summary>
+    internal static Func<HttpClient> CreateHttpClient
+    {
+#pragma warning disable CS8601 // Possible null reference assignment.
+        get => Interlocked.CompareExchange(ref _createHttpClient, null, null);
+#pragma warning restore CS8601
+        set => Interlocked.Exchange(ref _createHttpClient, value);
+    }
 
     public static Task<int> PushGeneratedSeedAsync(ImportGeneratedNotionPushOptions options)
     {
         if (options.DryRun)
         {
-            Console.Error.WriteLine("--push-notion 不能与 --dry-run 同时使用。先生成草稿后再执行实际推送。");
+            Console.Error.WriteLine("--push-notion cannot be used with --dry-run. Generate first, then push.");
             return Task.FromResult(2);
         }
 
         if (!options.GenerateSeed)
         {
-            Console.Error.WriteLine("--push-notion 需要 seed 数据。请不要同时使用 --no-seed。");
+            Console.Error.WriteLine("--push-notion requires seed data. Do not use --no-seed.");
             return Task.FromResult(2);
         }
 
         if (options.CreateMissingDatabases && string.IsNullOrWhiteSpace(options.ParentPageId))
         {
-            Console.Error.WriteLine("--create-missing-notion-databases 需要 --notion-parent-page-id <id>。");
+            Console.Error.WriteLine("--create-missing-notion-databases requires --notion-parent-page-id <id>.");
             return Task.FromResult(2);
         }
 
@@ -53,7 +63,7 @@ public static class ImportNotionPushWorkflow
             resolvedDatabaseMap = Path.IsPathRooted(effectiveDatabaseMap)
                 ? effectiveDatabaseMap
                 : Path.Combine(siteDir, effectiveDatabaseMap);
-            if (!options.CreateMissingDatabases && DatabaseMapHasMissingDatabaseIds(resolvedDatabaseMap, seedDir))
+            if (!options.CreateMissingDatabases && NotionDatabaseMapReader.DatabaseMapHasMissingDatabaseIds(resolvedDatabaseMap, seedDir))
             {
                 Console.Error.WriteLine("Notion database map exists but one or more databaseId values are empty.");
                 Console.Error.WriteLine("Use --create-missing-notion-databases --notion-parent-page-id <id>, or fill databaseId in the map.");
@@ -95,7 +105,7 @@ public static class ImportNotionPushWorkflow
         var databaseId = options.DatabaseId;
         if (string.IsNullOrWhiteSpace(databaseId))
         {
-            Console.Error.WriteLine("缺少必填选项: --database-id <id>");
+            Console.Error.WriteLine("Missing required option: --database-id <id>");
             return 2;
         }
 
@@ -132,28 +142,28 @@ public static class ImportNotionPushWorkflow
     {
         if (string.IsNullOrWhiteSpace(options.InputDir))
         {
-            Console.Error.WriteLine("缺少必填选项: --input <seed-dir>");
+            Console.Error.WriteLine("Missing required option: --input <seed-dir>");
             return 2;
         }
 
         var inputDir = Path.GetFullPath(options.InputDir);
         if (!Directory.Exists(inputDir))
         {
-            Console.Error.WriteLine($"seed 目录不存在: {inputDir}");
+            Console.Error.WriteLine($"Seed directory does not exist: {inputDir}");
             return 2;
         }
 
         var mode = options.Mode;
         if (mode is not ("create" or "upsert"))
         {
-            Console.Error.WriteLine($"不支持的推送模式: {mode}，可用: create | upsert");
+            Console.Error.WriteLine($"Unsupported push mode: {mode}. Available: create | upsert");
             return 2;
         }
 
         var updateContent = options.UpdateContent;
         if (updateContent is not ("" or "append" or "replace"))
         {
-            Console.Error.WriteLine($"不支持的 --update-content 值: {updateContent}，可用: append | replace");
+            Console.Error.WriteLine($"Unsupported --update-content value: {updateContent}. Available: append | replace");
             return 2;
         }
 
@@ -195,7 +205,7 @@ public static class ImportNotionPushWorkflow
         {
             targets = string.IsNullOrWhiteSpace(databaseMapPath)
                 ? BuildDefaultDatabaseTargets(inputDir, options.UniqueField)
-                : ReadDatabaseMap(Path.GetFullPath(databaseMapPath), inputDir, options.UniqueField);
+                : NotionDatabaseMapReader.ReadDatabaseMap(Path.GetFullPath(databaseMapPath), inputDir, options.UniqueField);
             targets = PrepareTargets(inputDir, targets);
         }
         catch (FormatException ex)
@@ -218,21 +228,21 @@ public static class ImportNotionPushWorkflow
 
         if (targets.Count == 0)
         {
-            Console.Error.WriteLine($"没有可推送的 seed 文件: {inputDir}");
+            Console.Error.WriteLine($"No pushable seed files found: {inputDir}");
             return 2;
         }
 
         var missingTargets = targets.Where(t => string.IsNullOrWhiteSpace(t.DatabaseId)).ToList();
         if (missingTargets.Count > 0 && !options.CreateMissingDatabases)
         {
-            Console.Error.WriteLine("缺少 databaseId。请提供 --database-map 中的 databaseId，或使用 --create-missing-databases --parent-page-id <id> 自动创建。");
+            Console.Error.WriteLine("Missing databaseId. Provide databaseId in --database-map, or use --create-missing-databases --parent-page-id <id>.");
             foreach (var target in missingTargets)
                 Console.Error.WriteLine($"  {target.Key}: {target.SeedFile}");
             return 2;
         }
         if (missingTargets.Count > 0 && string.IsNullOrWhiteSpace(options.ParentPageId))
         {
-            Console.Error.WriteLine("--create-missing-databases 需要 --parent-page-id <id>。");
+            Console.Error.WriteLine("--create-missing-databases requires --parent-page-id <id>.");
             return 2;
         }
 
@@ -328,15 +338,15 @@ public static class ImportNotionPushWorkflow
         WriteMultiDatabaseReport(reportPath, options.DryRun, completedTargets, pushResults);
         if (options.CreateMissingDatabases || !string.IsNullOrWhiteSpace(options.GeneratedDatabaseMapPath))
         {
-            var mapOutputPath = ResolveGeneratedMapPath(inputDir, databaseMapPath, options.GeneratedDatabaseMapPath);
-            WriteDatabaseMap(mapOutputPath, completedTargets);
+            var mapOutputPath = NotionDatabaseMapReader.ResolveGeneratedMapPath(inputDir, databaseMapPath, options.GeneratedDatabaseMapPath);
+            NotionDatabaseMapReader.WriteDatabaseMap(mapOutputPath, completedTargets);
         }
 
         var totalRecords = pushResults.Sum(r => r.Result.Total);
         var totalCreated = pushResults.Sum(r => r.Result.Created);
         var totalUpdated = pushResults.Sum(r => r.Result.Updated);
         var totalFailed = pushResults.Sum(r => r.Result.Failed);
-        Console.WriteLine($"notion push {(options.DryRun ? "dry-run" : "api")} 完成: databases={completedTargets.Count} records={totalRecords} created={totalCreated} updated={totalUpdated} failed={totalFailed} report={reportPath}");
+        Console.WriteLine($"notion push {(options.DryRun ? "dry-run" : "api")} complete: databases={completedTargets.Count} records={totalRecords} created={totalCreated} updated={totalUpdated} failed={totalFailed} report={reportPath}");
         if (failed)
         {
             Console.Error.WriteLine("Notion push failed for one or more databases. See report for details.");
@@ -358,12 +368,12 @@ public static class ImportNotionPushWorkflow
         bool validateSchema)
     {
         var records = ImportSeedRecordReader.ReadDirectory(inputDir);
-        var additionalSchemaFields = BuildAdditionalSchemaFields(collection: "", records);
+        var additionalSchemaFields = NotionSchemaTypeValidator.BuildAdditionalSchemaFields(collection: "", records);
         var effectiveSchema = additionalSchemaFields
             .ToDictionary(field => field.Name, field => field.ExpectedType, StringComparer.OrdinalIgnoreCase);
         try
         {
-            ValidateTypedValues(databaseId, records, effectiveSchema);
+            NotionSchemaTypeValidator.ValidateTypedValues(databaseId, records, effectiveSchema);
         }
         catch (FormatException ex)
         {
@@ -398,7 +408,7 @@ public static class ImportNotionPushWorkflow
             UniqueField: uniqueField,
             UpdateContent: updateContent,
             Schema: effectiveSchema));
-        Console.WriteLine($"notion push {(dryRun ? "dry-run" : "api")} 完成: records={result.Total} created={result.Created} updated={result.Updated} failed={result.Failed} report={reportPath}");
+        Console.WriteLine($"notion push {(dryRun ? "dry-run" : "api")} complete: records={result.Total} created={result.Created} updated={result.Updated} failed={result.Failed} report={reportPath}");
         if (result.Failed > 0)
         {
             Console.Error.WriteLine("Notion push failed for one or more records. See report for details.");
@@ -432,7 +442,7 @@ public static class ImportNotionPushWorkflow
 
             targets.Add(new NotionDatabaseTarget(
                 Key: fileBase,
-                Title: ToTitle(fileBase),
+                Title: NotionDatabaseMapReader.ToTitle(fileBase),
                 SeedFile: seedFile,
                 Collection: collection,
                 DatabaseId: null,
@@ -441,177 +451,23 @@ public static class ImportNotionPushWorkflow
         return targets;
     }
 
-    private static List<NotionDatabaseTarget> ReadDatabaseMap(string mapPath, string inputDir, string defaultUniqueField)
-    {
-        var stream = new YamlStream();
-        using var reader = File.OpenText(mapPath);
-        stream.Load(reader);
-        if (stream.Documents.Count == 0 ||
-            stream.Documents[0].RootNode is not YamlMappingNode root ||
-            GetMap(root, "databases") is not { } databases)
-            return [];
-
-        var targets = new List<NotionDatabaseTarget>();
-        foreach (var kv in databases.Children)
-        {
-            if (kv.Key is not YamlScalarNode keyNode || string.IsNullOrWhiteSpace(keyNode.Value) ||
-                kv.Value is not YamlMappingNode map)
-                continue;
-
-            var key = keyNode.Value.Trim();
-            var seedFile = GetScalar(map, "seed") ?? $"{key}.json";
-            var collection = GetScalar(map, "collection") ?? InferCollection(key, seedFile);
-            targets.Add(new NotionDatabaseTarget(
-                Key: key,
-                Title: GetScalar(map, "title") ?? ToTitle(key),
-                SeedFile: seedFile,
-                Collection: collection,
-                DatabaseId: GetScalar(map, "databaseId"),
-                UniqueField: GetScalar(map, "uniqueField") ?? defaultUniqueField,
-                Schema: ReadSchema(map, key, mapPath)));
-        }
-        return targets.Where(t => File.Exists(Path.Combine(inputDir, t.SeedFile))).ToList();
-    }
-
-    private static IReadOnlyDictionary<string, string>? ReadSchema(
-        YamlMappingNode map,
-        string databaseKey,
-        string mapPath)
-    {
-        var schemaPath = $"{mapPath}:databases.{databaseKey}.schema";
-        var schemaNode = GetNode(map, "schema");
-        if (schemaNode is null)
-            return null;
-        if (schemaNode is not YamlMappingNode schemaMap)
-            throw new FormatException($"{schemaPath}: schema must be a mapping.");
-
-        var parsed = new List<(string Raw, string Canonical, string Type)>();
-        var canonicalKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var pair in schemaMap.Children)
-        {
-            if (pair.Key is not YamlScalarNode keyNode || string.IsNullOrWhiteSpace(keyNode.Value))
-                throw new FormatException($"{schemaPath}: schema contains an invalid field name.");
-            var field = keyNode.Value;
-            if (field != field.Trim())
-                throw new FormatException($"{schemaPath}: schema key '{field}' must not contain boundary whitespace.");
-            var canonical = NotionPropertyNaming.Canonicalize(field);
-            if (string.IsNullOrWhiteSpace(canonical))
-                throw new FormatException($"{schemaPath}: Schema key '{field}' has an empty canonical Notion property name.");
-            if (pair.Value is not YamlScalarNode typeNode || string.IsNullOrWhiteSpace(typeNode.Value))
-                throw new FormatException($"{schemaPath}: Schema field '{field}' must declare a scalar type.");
-            var type = typeNode.Value.Trim().ToLowerInvariant();
-            if (type is not ("rich_text" or "select" or "multi_select" or "url" or "date" or "number" or "checkbox"))
-                throw new FormatException($"{schemaPath}: Unsupported Notion schema type '{type}' for database '{databaseKey}', field '{field}'.");
-            if (!canonicalKeys.Add(canonical))
-                throw new FormatException($"{schemaPath}: schema keys normalize to duplicate Notion property '{canonical}'.");
-            parsed.Add((field, canonical, type));
-        }
-
-        var schema = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (raw, canonical, type) in parsed)
-        {
-            if (!raw.Equals(canonical, StringComparison.Ordinal))
-                throw new FormatException($"{schemaPath}: Schema key '{raw}' must use canonical Notion property name '{canonical}'.");
-            if (NotionPropertyNaming.IsCore(canonical))
-                throw new FormatException($"{schemaPath}: Schema key '{raw}' conflicts with fixed core property '{canonical}'.");
-            schema.Add(canonical, type);
-        }
-        return schema;
-    }
-
     private static List<NotionDatabaseTarget> PrepareTargets(string inputDir, List<NotionDatabaseTarget> targets)
     {
         var prepared = new List<NotionDatabaseTarget>(targets.Count);
         foreach (var target in targets)
         {
             var records = ImportSeedRecordReader.ReadSeedFile(inputDir, target.SeedFile, target.Collection);
-            var schema = BuildAdditionalSchemaFields(target.Collection, records)
+            var schema = NotionSchemaTypeValidator.BuildAdditionalSchemaFields(target.Collection, records)
                 .ToDictionary(f => f.Name, f => f.ExpectedType, StringComparer.OrdinalIgnoreCase);
             if (target.Schema is not null)
             {
                 foreach (var field in target.Schema)
                     schema[field.Key] = field.Value;
             }
-            ValidateTypedValues(target.Key, records, schema);
+            NotionSchemaTypeValidator.ValidateTypedValues(target.Key, records, schema);
             prepared.Add(target with { Schema = schema });
         }
         return prepared;
-    }
-
-    private static void ValidateTypedValues(
-        string databaseKey,
-        IReadOnlyList<ImportSeedRecord> records,
-        IReadOnlyDictionary<string, string> effectiveSchema)
-    {
-        foreach (var record in records)
-        {
-            if (record.ExtraFields is null)
-                continue;
-            foreach (var (rawName, value) in record.ExtraFields)
-            {
-                var field = NotionPropertyNaming.Canonicalize(rawName);
-                if (value is null || !effectiveSchema.TryGetValue(field, out var type))
-                    continue;
-                var error = GetCompatibilityError(type, value);
-                if (error is not null)
-                    throw new FormatException($"Invalid typed Notion value in database '{databaseKey}', field '{field}', record '{record.Slug}': {error}");
-            }
-        }
-    }
-
-    private static string? GetCompatibilityError(string type, object value)
-    {
-        if (type == "multi_select" && value is IReadOnlyList<object?> items)
-        {
-            if (items.Any(item => item is not string))
-                return "expected multi_select with string options.";
-            var options = items.Cast<string>().ToArray();
-            if (options.Any(string.IsNullOrWhiteSpace))
-                return "multi_select contains a blank option.";
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var option in options)
-            {
-                if (!seen.Add(option))
-                    return $"multi_select contains duplicate option '{option}'.";
-            }
-            return null;
-        }
-
-        if (type == "number" && IsNumeric(value))
-        {
-            var number = Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
-            return double.IsFinite(number) ? null : "expected a finite number.";
-        }
-
-        var compatible = type switch
-        {
-            "rich_text" or "select" => value is string,
-            "multi_select" => false,
-            "url" => value is string text && Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https",
-            "date" => value is string text && IsIsoDate(text),
-            "number" => false,
-            "checkbox" => value is bool,
-            _ => false
-        };
-        return compatible ? null : $"expected {type}.";
-    }
-
-    private static bool IsNumeric(object value)
-        => value is sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal;
-
-    private static bool IsIsoDate(string value)
-    {
-        if (DateOnly.TryParseExact(value, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out _))
-            return true;
-
-        var formats = new[]
-        {
-            "yyyy-MM-dd'T'HH:mm:ssK",
-            "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK"
-        };
-        return DateTimeOffset.TryParseExact(value, formats, System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.None, out _);
     }
 
     private static async Task<string?> CreateDatabaseAsync(
@@ -689,90 +545,11 @@ public static class ImportNotionPushWorkflow
         writer.WriteEndObject();
     }
 
-    private static IReadOnlyList<(string Name, string ExpectedType)> BuildAdditionalSchemaFields(
-        string collection,
-        IReadOnlyList<ImportSeedRecord> records)
-    {
-        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (collection.Equals("navigation", StringComparison.OrdinalIgnoreCase))
-        {
-            fields["Link"] = "url";
-            fields["Order"] = "number";
-            fields["Enabled"] = "checkbox";
-        }
-
-        foreach (var record in records)
-        {
-            if (record.ExtraFields is null)
-                continue;
-
-            foreach (var (name, value) in record.ExtraFields)
-            {
-                var propertyName = NotionPropertyNaming.Canonicalize(name);
-                if (string.IsNullOrWhiteSpace(propertyName) || NotionPropertyNaming.IsCore(propertyName) || value is null)
-                    continue;
-
-                fields.TryAdd(propertyName, ToNotionPropertyType(propertyName, value));
-            }
-        }
-
-        return fields
-            .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(f => (f.Key, f.Value))
-            .ToArray();
-    }
-
-    private static string ToNotionPropertyType(string propertyName, object value)
-    {
-        if (value is bool)
-            return "checkbox";
-        if (value is int or long or float or double or decimal)
-            return "number";
-        if (value is IReadOnlyList<object?>)
-            return "multi_select";
-        if (propertyName is "Link" or "Url" or "Href")
-            return "url";
-        return "rich_text";
-    }
-
     private static NotionPushResult BuildDryRunResult(string inputDir, NotionDatabaseTarget target)
     {
         var records = ImportSeedRecordReader.ReadSeedFile(inputDir, target.SeedFile, target.Collection);
         var items = records.Select(r => new NotionPushItemResult(r, "review", true, null, null)).ToList();
         return new NotionPushResult(items.Count, 0, 0, 0, 0, items);
-    }
-
-    private static string ResolveGeneratedMapPath(string inputDir, string? databaseMapPath, string? generatedMapPath)
-    {
-        if (!string.IsNullOrWhiteSpace(generatedMapPath))
-            return Path.GetFullPath(generatedMapPath);
-        if (!string.IsNullOrWhiteSpace(databaseMapPath))
-            return Path.GetFullPath(databaseMapPath);
-        return Path.Combine(inputDir, "notion-database-map.generated.yaml");
-    }
-
-    private static void WriteDatabaseMap(string path, IReadOnlyList<NotionDatabaseTarget> targets)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var sb = new StringBuilder();
-        sb.AppendLine("databases:");
-        foreach (var target in targets)
-        {
-            sb.AppendLine($"  {target.Key}:");
-            sb.AppendLine($"    title: {target.Title}");
-            sb.AppendLine($"    seed: {target.SeedFile}");
-            sb.AppendLine($"    collection: {target.Collection}");
-            if (!string.IsNullOrWhiteSpace(target.DatabaseId))
-                sb.AppendLine($"    databaseId: {target.DatabaseId}");
-            sb.AppendLine($"    uniqueField: {target.UniqueField}");
-            if (target.Schema is { Count: > 0 })
-            {
-                sb.AppendLine("    schema:");
-                foreach (var field in target.Schema.OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase))
-                    sb.AppendLine($"      {field.Key}: {field.Value}");
-            }
-        }
-        File.WriteAllText(path, sb.ToString());
     }
 
     private static void WriteMultiDatabaseReport(
@@ -811,67 +588,4 @@ public static class ImportNotionPushWorkflow
         writer.Flush();
         File.WriteAllText(reportPath, Encoding.UTF8.GetString(stream.ToArray()));
     }
-
-    private static bool DatabaseMapHasMissingDatabaseIds(string databaseMapPath, string seedDir)
-    {
-        if (!File.Exists(databaseMapPath))
-            return false;
-
-        var stream = new YamlStream();
-        using var reader = File.OpenText(databaseMapPath);
-        stream.Load(reader);
-        if (stream.Documents.Count == 0 ||
-            stream.Documents[0].RootNode is not YamlMappingNode root ||
-            root.Children.FirstOrDefault(kv =>
-                kv.Key is YamlScalarNode scalar && scalar.Value == "databases").Value is not YamlMappingNode databases)
-            return false;
-
-        foreach (var kv in databases.Children)
-        {
-            if (kv.Key is not YamlScalarNode key ||
-                string.IsNullOrWhiteSpace(key.Value) ||
-                kv.Value is not YamlMappingNode database)
-                continue;
-            var seed = database.Children.FirstOrDefault(entry =>
-                entry.Key is YamlScalarNode scalar && scalar.Value == "seed").Value is YamlScalarNode seedNode
-                ? seedNode.Value
-                : $"{key.Value.Trim()}.json";
-            if (string.IsNullOrWhiteSpace(seed) || !File.Exists(Path.Combine(seedDir, seed)))
-                continue;
-            var id = database.Children.FirstOrDefault(entry =>
-                entry.Key is YamlScalarNode scalar && scalar.Value == "databaseId").Value as YamlScalarNode;
-            if (string.IsNullOrWhiteSpace(id?.Value))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static YamlMappingNode? GetMap(YamlMappingNode map, string key)
-        => map.Children.FirstOrDefault(kv =>
-            kv.Key is YamlScalarNode scalar && scalar.Value == key).Value as YamlMappingNode;
-
-    private static YamlNode? GetNode(YamlMappingNode map, string key)
-        => map.Children.FirstOrDefault(kv =>
-            kv.Key is YamlScalarNode scalar && scalar.Value == key).Value;
-
-    private static string? GetScalar(YamlMappingNode map, string key)
-        => map.Children.FirstOrDefault(kv =>
-            kv.Key is YamlScalarNode scalar && scalar.Value == key).Value is YamlScalarNode value
-            ? value.Value
-            : null;
-
-    private static string InferCollection(string key, string seedFile)
-    {
-        var fileBase = Path.GetFileNameWithoutExtension(seedFile);
-        var found = ImportSeedRecordReader.KnownFiles.FirstOrDefault(k =>
-            k.FileBase.Equals(fileBase, StringComparison.OrdinalIgnoreCase) ||
-            k.FileBase.Equals(key, StringComparison.OrdinalIgnoreCase));
-        return string.IsNullOrWhiteSpace(found.Collection) ? key.TrimEnd('s') : found.Collection;
-    }
-
-    private static string ToTitle(string key)
-        => string.IsNullOrWhiteSpace(key)
-            ? "Content"
-            : char.ToUpperInvariant(key[0]) + key[1..];
 }

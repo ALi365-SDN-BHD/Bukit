@@ -8,7 +8,7 @@ internal static class ContentDraftWriter
     {
         if (IsNotionBuildSource(options))
         {
-            Console.WriteLine("  Content draft 已跳过（--build-source notion）");
+            Console.WriteLine("  Content draft skipped (--build-source notion)");
             return;
         }
 
@@ -76,6 +76,11 @@ internal static class ContentDraftWriter
 
     private static string EscapeYaml(string value)
     {
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        return value
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t");
     }
 }

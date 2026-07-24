@@ -46,7 +46,7 @@ internal static partial class AssetImporter
 
                 if (!IsSafeAsset(assetPath))
                 {
-                    warnings.Add($"跳过敏感文件: {assetPath}");
+                    warnings.Add($"Skipped sensitive file: {assetPath}");
                     continue;
                 }
 
@@ -61,7 +61,7 @@ internal static partial class AssetImporter
                         StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(sourcePath, fullInputPath, StringComparison.OrdinalIgnoreCase))
                 {
-                    warnings.Add($"拒绝路径穿越: {assetPath}");
+                    warnings.Add($"Path traversal rejected: {assetPath}");
                     continue;
                 }
 
@@ -139,8 +139,13 @@ internal static partial class AssetImporter
             }
             else
             {
-                // 目标已存在（Import 方法已写入 static/assets/...），删除源文件避免冗余
-                File.Delete(file);
+                // Destination already exists (Import wrote to static/assets/...).
+                // Only delete source if the destination is valid (non-zero size).
+                var destInfo = new FileInfo(dest);
+                if (destInfo.Length > 0)
+                {
+                    File.Delete(file);
+                }
             }
         }
     }

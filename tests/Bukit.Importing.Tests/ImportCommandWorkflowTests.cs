@@ -24,8 +24,8 @@ public sealed class ImportCommandWorkflowTests : IDisposable
         var result = await ImportCommandWorkflow.RunAsync(BaseOptions("mystery"));
 
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains(result.Messages, m => m.Level == "error" && m.Message == "未知的 import 子命令: mystery");
-        Assert.Contains(result.Messages, m => m.Level == "error" && m.Message == "可用: html-demo");
+        Assert.Contains(result.Messages, m => m.Level == "error" && m.Message == "Unknown import subcommand: mystery");
+        Assert.Contains(result.Messages, m => m.Level == "error" && m.Message == "Available: html-demo, seed");
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class ImportCommandWorkflowTests : IDisposable
         });
 
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains(result.Messages, m => m.Level == "error" && m.Message == "缺少必填选项: --output <content-dir>");
+        Assert.Contains(result.Messages, m => m.Level == "error" && m.Message == "Missing required option: --output <content-dir>");
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class ImportCommandWorkflowTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_rootDir, "content", "posts", "hello.md")));
         Assert.Contains(result.Messages, m =>
             m.Level == "info" &&
-            m.Message == $"seed import 完成: records=1 written=1 output={Path.Combine(_rootDir, "content")}");
+            m.Message == $"seed import complete: records=1 written=1 output={Path.Combine(_rootDir, "content")}");
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class ImportCommandWorkflowTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         Assert.NotNull(result.HtmlDemoResult);
         Assert.False(Directory.Exists(Path.Combine(_rootDir, "themes", "demo-theme")));
-        Assert.Contains(result.Messages, m => m.Level == "info" && m.Message.Contains("未提取到共享布局", StringComparison.Ordinal));
+        Assert.Contains(result.Messages, m => m.Level == "info" && m.Message.Contains("No shared layout", StringComparison.Ordinal));
         Assert.Contains(result.Diagnostics, diagnostic =>
             diagnostic.Code == "import.content.author_missing" &&
             diagnostic.Severity == "warning" &&
@@ -109,7 +109,7 @@ public sealed class ImportCommandWorkflowTests : IDisposable
         Assert.Equal(2, result.ExitCode);
         Assert.Contains(result.Messages, m =>
             m.Level == "error" &&
-            m.Message == "--push-notion 不能与 --dry-run 同时使用。先生成草稿后再执行实际推送。");
+            m.Message == "--push-notion cannot be used with --dry-run. Generate first, then push.");
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public sealed class ImportCommandWorkflowTests : IDisposable
         Assert.Equal(2, result.ExitCode);
         Assert.Contains(result.Messages, m =>
             m.Level == "error" &&
-            m.Message == "主题已存在: demo-theme。使用 --force 覆盖。");
+            m.Message == "Theme already exists: demo-theme. Use --force to overwrite.");
     }
 
     private ImportCommandOptions BaseOptions(string subcommand)
