@@ -102,6 +102,36 @@ public sealed class ReleaseWorkflowContractTests
             Scalar(Mapping(publish, "with"), "prerelease"));
     }
 
+    [Fact]
+    public void PublicRelease_RequiresProtectedEnvironmentAndMain()
+    {
+        var publishJob = Job("publish-release");
+
+        Assert.Equal(
+            "${{ inputs.publish == 'true' && github.ref == 'refs/heads/main' }}",
+            Scalar(publishJob, "if"));
+        Assert.Equal(
+            "public-release",
+            Scalar(Mapping(publishJob, "environment"), "name"));
+        Assert.Equal(
+            "write",
+            Scalar(Mapping(publishJob, "permissions"), "contents"));
+    }
+
+    [Fact]
+    public void ValidateInputs_RejectsPublicReleaseOutsideMain()
+    {
+        var validate = Step(Job("validate-inputs"), "Validate release request");
+        var env = Mapping(validate, "env");
+        var run = Scalar(validate, "run");
+
+        Assert.Equal("${{ github.ref }}", Scalar(env, "REF"));
+        Assert.Contains(
+            "if [[ \"$PUBLISH\" == \"true\" && \"$REF\" != \"refs/heads/main\" ]]; then exit 1; fi",
+            run,
+            StringComparison.Ordinal);
+    }
+
     private YamlMappingNode Job(string name)
     {
         return Mapping(Mapping(_root, "jobs"), name);

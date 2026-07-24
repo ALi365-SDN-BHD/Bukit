@@ -45,10 +45,12 @@ jobs:
           VERSION: ${{ inputs.version }}
           RIDS: ${{ inputs.rids }}
           PUBLISH: ${{ inputs.publish }}
+          REF: ${{ github.ref }}
         run: |
           [[ "$VERSION" =~ ^[0-9]+[.][0-9]+[.][0-9]+([-][A-Za-z0-9._-]+)?$ ]]
           if [[ "$PUBLISH" == "true" && "$RIDS" != "all" ]]; then exit 1; fi
           if [[ "$PUBLISH" == "true" && "$VERSION" == "0.0.0-ci" ]]; then exit 1; fi
+          if [[ "$PUBLISH" == "true" && "$REF" != "refs/heads/main" ]]; then exit 1; fi
 
   fast-contracts:
     name: Fast contracts
@@ -305,7 +307,9 @@ jobs:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
     needs: collect-assets
-    if: ${{ inputs.publish == 'true' }}
+    if: ${{ inputs.publish == 'true' && github.ref == 'refs/heads/main' }}
+    environment:
+      name: public-release
     timeout-minutes: 10
     permissions:
       contents: write
