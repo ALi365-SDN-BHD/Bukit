@@ -17,6 +17,14 @@ public sealed class Ad03C6AggregateClosureTests
         "docs/analysis/bukit-core-ad03c-final-aggregate-closure-2026-07-24.zh-CN.md";
     private const string C0Path =
         "docs/analysis/bukit-core-ad03c-eligibility-migration-contract-audit-2026-07-24.zh-CN.md";
+    private const string ParentBase =
+        "e16142331111060a09385fb29fdf72c28da260c4";
+    private const string PreCorrectionReviewedHead =
+        "119ebfb56217f092e2a035854d8bf731c4a4d14d";
+    private const string BaseNotionBoundaryPermalink =
+        "https://github.com/ALi365-SDN-BHD/Bukit/blob/" +
+        ParentBase +
+        "/tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs";
     private static readonly string RepoRoot = FindRepoRoot();
 
     private static readonly (string Assembly, string Name)[] RemovedTypes =
@@ -141,7 +149,8 @@ public sealed class Ad03C6AggregateClosureTests
         "| AD-03C2 | `ed226179` | public -1 | 1404 | CLEAN | complete |",
         "| AD-03C3 | `9ef16a6a` | public -14; compatibility project references -1 | 2570 | CLEAN | complete |",
         "| AD-03C4 | `6d053a13` | public -3 | 2734 | CLEAN | complete |",
-        "| AD-03C5 | `1caa0482` + review fix `954a1fcb` | retained legacy public types 1; public 0 | 734 | CLEAN | complete |"
+        "| AD-03C5 | `1caa0482` + review fix `954a1fcb` | retained legacy public types 1; public 0 | 734 | CLEAN | complete |",
+        "| AD-03C6 | `86c67e95` + contract strengthening `119ebfb5` + post-review closure correction (the commit containing this row) | runtime 0; aggregate public -18; test-only helpers -2; compatibility project references -1; governed baseline 14 / 425 / 0 | 3043 | CLEAN | complete |"
     ];
 
     [Fact]
@@ -281,7 +290,7 @@ public sealed class Ad03C6AggregateClosureTests
     }
 
     [Fact]
-    public void ClosureLedger_RecordsC0ThroughC5DeltasAndClosedStatus()
+    public void ClosureLedger_RecordsC0ThroughC6DeltasAndFrozenReviewRange()
     {
         string ledger = ReadText(ClosurePath);
         string c0 = ReadText(C0Path);
@@ -301,6 +310,14 @@ public sealed class Ad03C6AggregateClosureTests
         Assert.Contains("retain-by-design", ledger, StringComparison.Ordinal);
         Assert.Contains(CandidateManifestBlob, ledger, StringComparison.Ordinal);
         Assert.Contains(
+            $"终审前冻结审阅范围：`{ParentBase}..{PreCorrectionReviewedHead}`",
+            ledger,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "终审后 closure correction：包含本台账 C6 行与对应 contract 的提交",
+            ledger,
+            StringComparison.Ordinal);
+        Assert.Contains(
             "[Bukit Core 2.0 Notion compatibility migration](../governance/bukit-core-2.0-notion-compatibility-migration.md)",
             ledger,
             StringComparison.Ordinal);
@@ -314,6 +331,18 @@ public sealed class Ad03C6AggregateClosureTests
             StringComparison.Ordinal);
         Assert.Contains(
             "G-04 已以 443 public types / 0 candidates 关闭",
+            c0,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            $"{BaseNotionBoundaryPermalink}#L242-L252",
+            c0,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            $"{BaseNotionBoundaryPermalink}#L315-L340",
+            c0,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            $"{BaseNotionBoundaryPermalink}#L60-L75",
             c0,
             StringComparison.Ordinal);
     }

@@ -75,9 +75,9 @@ G-04 已以 443 public types / 0 candidates 关闭；“0 candidates”表示候
 ## 3. 当前 19 项 public inventory
 
 Architecture contract 同时验证原 assembly identity 与 namespace exact set；见
-[`NotionBoundaryTests`](../../tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs#L242-L267)
+[`NotionBoundaryTests`](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs#L242-L252)
 及其
-[exact arrays](../../tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs#L315-L340)。
+[exact arrays](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs#L315-L340)。
 
 ### 3.1 `Bukit.Shared.Notion`：15 项
 
@@ -139,7 +139,7 @@ AD-03C3 是新的 2.0 原子清偿决议，不追溯改写该历史结论。
 这些类型的 namespace 与 canonical `Bukit.Content.Notion` 项目相同，但 assembly identity
 不同：legacy 四项位于 `Bukit.Content.dll`；canonical project 仍只导出其自身受保护的
 public surface。Architecture test 对原 assembly resolution 有显式断言，见
-[`LegacyNotionTypes_MustResolveFromOriginalAssemblies`](../../tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs#L241-L252)。
+[`LegacyNotionTypes_MustResolveFromOriginalAssemblies`](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs#L242-L252)。
 
 Engine 的现实消费者包括：
 
@@ -165,7 +165,7 @@ Engine 的现实消费者包括：
 | `Bukit.Content -> Bukit.Content.Notion` | legacy provider bridge 到 canonical content adapter | C4 后保留 |
 
 `Bukit.Shared` 的 exact reference 由 Architecture test 固定，见
-[`Shared_MayReferenceNotion_OnlyForOneXCompatibility`](../../tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs#L59-L76)；
+[`Shared_MayReferenceNotion_OnlyForOneXCompatibility`](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/tests/Bukit.Architecture.Tests/NotionBoundaryTests.cs#L60-L75)；
 项目文件见
 [`Bukit.Shared.csproj`](../../src/Bukit-Core/Bukit.Shared/Bukit.Shared.csproj)。
 `Bukit.Content` 的两条 Notion reference 见

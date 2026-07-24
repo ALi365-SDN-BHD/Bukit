@@ -6,6 +6,12 @@
 >
 > C6 入场：`954a1fcb545605b3ebc4310fcf9cd6628e40dd4c`
 >
+> 终审前冻结审阅范围：`e16142331111060a09385fb29fdf72c28da260c4..119ebfb56217f092e2a035854d8bf731c4a4d14d`
+>
+> 终审后 closure correction：包含本台账 C6 行与对应 contract 的提交
+> （提交内容不能自引用其尚未生成的 hash）；最终 replacement aggregate 以该提交为
+> 新 HEAD，并在父任务最终验证记录中绑定实际 hash。
+>
 > 范围：Bukit Core；Labs 与外部插件业务实现不在实施范围
 >
 > 状态：AD-03C 实现与治理范围正式关闭；父任务最终 aggregate/full 审计证据另行追加
@@ -48,6 +54,7 @@ AD-03C0 到 AD-03C5 已按独立回退边界顺序完成并通过各自完整 ow
 | AD-03C3 | `9ef16a6a` | public -14; compatibility project references -1 | 2570 | CLEAN | complete |
 | AD-03C4 | `6d053a13` | public -3 | 2734 | CLEAN | complete |
 | AD-03C5 | `1caa0482` + review fix `954a1fcb` | retained legacy public types 1; public 0 | 734 | CLEAN | complete |
+| AD-03C6 | `86c67e95` + contract strengthening `119ebfb5` + post-review closure correction (the commit containing this row) | runtime 0; aggregate public -18; test-only helpers -2; compatibility project references -1; governed baseline 14 / 425 / 0 | 3043 | CLEAN | complete |
 
 上述测试数是各任务完成时的 unfiltered Release owner-suite 计数，不可相加为 unique
 test 数；相同 suite 在不同任务边界被重复验证。C6 自身的六套完整 owner-suite、
