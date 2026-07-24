@@ -68,3 +68,4 @@ tests/fixtures/*
 .smoke-all-run/
 examples/silkroad_biz24/
 .playwright-mcp/
+/.qoder
