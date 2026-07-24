@@ -27,7 +27,7 @@ public static class ImportPluginPathGuard
 
     public static string ResolveRequiredPath(string rootDir, string baseDir, string value, string name)
         => ResolveOptionalPath(rootDir, baseDir, value, name)
-           ?? throw new ImportPluginOptionsException("plugin.import.missingArgument", $"缺少必填参数: <{name}>");
+           ?? throw new ImportPluginOptionsException("plugin.import.missingArgument", $"Missing required argument: <{name}>");
 
     public static string? PreserveSafeRelativeOrRootedPath(string rootDir, string? value, string name)
     {

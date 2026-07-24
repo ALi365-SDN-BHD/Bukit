@@ -37,7 +37,7 @@ public sealed class ImportNotionPushWorkflowTests : IDisposable
             }));
 
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains("--push-notion 不能与 --dry-run 同时使用。先生成草稿后再执行实际推送。", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("--push-notion cannot be used with --dry-run. Generate first, then push.", result.StdErr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ databases:
             }));
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("notion push dry-run 完成: databases=2 records=2", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("notion push dry-run complete: databases=2 records=2", result.StdOut, StringComparison.Ordinal);
         Assert.True(File.Exists(reportPath));
         Assert.True(File.Exists(mapPath));
 
@@ -177,7 +177,7 @@ databases:
             }));
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("notion push dry-run 完成: records=1", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("notion push dry-run complete: records=1", result.StdOut, StringComparison.Ordinal);
         Assert.True(File.Exists(reportPath));
         Assert.Contains("\"dryRun\": true", File.ReadAllText(reportPath), StringComparison.Ordinal);
     }
@@ -1106,7 +1106,7 @@ databases:
             }));
 
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains("缺少必填选项: --database-id <id>", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("Missing required option: --database-id <id>", result.StdErr, StringComparison.Ordinal);
     }
 
     [Fact]

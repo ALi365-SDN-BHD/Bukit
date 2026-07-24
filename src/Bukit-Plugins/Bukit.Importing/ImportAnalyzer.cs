@@ -18,13 +18,13 @@ internal static class ImportAnalyzer
         if (string.IsNullOrWhiteSpace(layout.Header) && string.IsNullOrWhiteSpace(layout.Footer))
         {
             Console.WriteLine();
-            Console.WriteLine("  ! 未提取到共享布局（header/footer）。可能原因：");
-            Console.WriteLine("    - HTML 文件格式不一致（压缩 vs 分行）");
-            Console.WriteLine("    - 页面结构差异过大");
-            Console.WriteLine("  建议：");
-            Console.WriteLine("    - 使用 --route-map route-map.yaml 精确指定页面结构");
-            Console.WriteLine("    - 导入后手动创建 themes/<name>/layouts/partials/header.html 和 footer.html");
-            Console.WriteLine("    - 原始文件已保留在 sites/<name>/original-demo/ 中供参考");
+            Console.WriteLine("  ! No shared layout (header/footer) extracted. Possible causes:");
+            Console.WriteLine("    - HTML file format inconsistency (minified vs line-separated)");
+            Console.WriteLine("    - Page structure differs too greatly");
+            Console.WriteLine("  Suggestions:");
+            Console.WriteLine("    - Use --route-map route-map.yaml to precisely specify page structure");
+            Console.WriteLine("    - After import, manually create themes/<name>/layouts/partials/header.html and footer.html");
+            Console.WriteLine("    - Original files are preserved in sites/<name>/original-demo/ for reference");
             Console.WriteLine();
         }
 

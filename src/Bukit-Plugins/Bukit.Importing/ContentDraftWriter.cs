@@ -8,7 +8,7 @@ internal static class ContentDraftWriter
     {
         if (IsNotionBuildSource(options))
         {
-            Console.WriteLine("  Content draft 已跳过（--build-source notion）");
+            Console.WriteLine("  Content draft skipped (--build-source notion)");
             return;
         }
 

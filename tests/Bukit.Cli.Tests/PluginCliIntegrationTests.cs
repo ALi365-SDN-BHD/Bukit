@@ -277,7 +277,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
         var result = await InvokeEntryPointAsync(["import", "seed", "seed", "--output", "content", "--force"]);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("seed import 完成: records=1 written=1", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("seed import complete: records=1 written=1", result.StdOut, StringComparison.Ordinal);
         Assert.Empty(result.StdErr);
         Assert.True(File.Exists(Path.Combine(_tempDir, "content", "posts", "hello.md")));
         string lockText = ReadImportLock();
@@ -313,7 +313,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
         ]);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("notion push dry-run 完成: records=1", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("notion push dry-run complete: records=1", result.StdOut, StringComparison.Ordinal);
         Assert.Empty(result.StdErr);
         Assert.True(File.Exists(Path.Combine(_tempDir, "reports", "notion-plan.json")));
         string lockText = ReadImportLock();
@@ -353,7 +353,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
         var result = await InvokeEntryPointAsync(["import", "html-demo", "demo", "--theme", "demo", "--dry-run"]);
 
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("未提取到共享布局", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("No shared layout", result.StdOut, StringComparison.Ordinal);
         Assert.Empty(result.StdErr);
         Assert.False(Directory.Exists(Path.Combine(_tempDir, "themes", "demo")));
         string lockText = ReadImportLock();
@@ -379,7 +379,7 @@ public sealed class PluginCliIntegrationTests : IDisposable
             var result = await InvokeEntryPointAsync(["import", "html-demo", "demo", "--theme", "demo", "--push-notion", "--dry-run"]);
 
             Assert.Equal(2, result.ExitCode);
-            Assert.Contains("--push-notion 不能与 --dry-run 同时使用。先生成草稿后再执行实际推送。", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("--push-notion cannot be used with --dry-run. Generate first, then push.", result.StdErr, StringComparison.Ordinal);
             string lockText = ReadImportLock();
             Assert.Contains("source: plugins/import", lockText, StringComparison.Ordinal);
             string report = ReadSingleImportExecutionReport();

@@ -60,10 +60,10 @@ public static class HtmlDemoImporter
         foreach (var page in pages)
         {
             if (string.IsNullOrWhiteSpace(page.Slug) && page.Type != PageType.Home)
-                throw new ImportException(ImportErrorKind.UserInput, $"Strict 模式: 页面缺少 slug: {page.RelativePath}");
+                throw new ImportException(ImportErrorKind.UserInput, $"Strict mode: page missing slug: {page.RelativePath}");
 
             if (!string.IsNullOrWhiteSpace(page.Slug) && !slugs.Add(page.Slug))
-                throw new ImportException(ImportErrorKind.UserInput, $"Strict 模式: 重复 slug: {page.Slug} ({page.RelativePath})");
+                throw new ImportException(ImportErrorKind.UserInput, $"Strict mode: duplicate slug: {page.Slug} ({page.RelativePath})");
         }
     }
 
@@ -75,7 +75,7 @@ public static class HtmlDemoImporter
         if (strictDiagnostics.Count == 0) return;
 
         var summary = string.Join(", ", strictDiagnostics.Select(d => d.Code).Distinct());
-        throw new ImportException(ImportErrorKind.UserInput, $"Strict 模式: 导入诊断失败: {summary}");
+        throw new ImportException(ImportErrorKind.UserInput, $"Strict mode: import diagnostics failed: {summary}");
     }
 
     internal static void ThrowIfStrictResidue(HardcodedContentReport hardcodedReport)
@@ -90,7 +90,7 @@ public static class HtmlDemoImporter
             .Take(3)
             .Select(r => $"{Path.GetFileName(r.TemplatePath)}:{r.ResidualTextCount}"));
         throw new ImportException(ImportErrorKind.UserInput,
-            $"Strict 模式: 硬编码内容残留: {summary}");
+            $"Strict mode: hardcoded content residue: {summary}");
     }
 
     internal static void ThrowIfErrorDiagnostics(List<ImportDiagnostic> diagnostics)
@@ -101,7 +101,7 @@ public static class HtmlDemoImporter
         if (errors.Count == 0) return;
 
         var summary = string.Join(", ", errors.Select(d => d.Code).Distinct());
-        throw new ImportException(ImportErrorKind.UserInput, $"导入诊断失败: {summary}");
+        throw new ImportException(ImportErrorKind.UserInput, $"Import diagnostics failed: {summary}");
     }
 
     internal static string GetSiteDir(HtmlDemoImportOptions options)
@@ -146,7 +146,7 @@ public static class HtmlDemoImporter
             File.Copy(file, destFile, overwrite: true);
         }
 
-        Console.WriteLine($"  原始 HTML 已保留: {preserveDir}");
+        Console.WriteLine($"  Original HTML preserved: {preserveDir}");
     }
 
     internal static void WriteComponentTemplates(HtmlDemoImportOptions options,
@@ -170,11 +170,11 @@ public static class HtmlDemoImporter
     internal static void ValidateInput(HtmlDemoImportOptions options)
     {
         if (!Directory.Exists(options.InputPath))
-            throw new ImportException(ImportErrorKind.UserInput, $"输入目录不存在: {options.InputPath}");
+            throw new ImportException(ImportErrorKind.UserInput, $"Input directory does not exist: {options.InputPath}");
 
         var indexPath = Path.Combine(options.InputPath, "index.html");
         if (!File.Exists(indexPath))
-            throw new ImportException(ImportErrorKind.UserInput, $"输入目录中缺少 index.html: {options.InputPath}");
+            throw new ImportException(ImportErrorKind.UserInput, $"Missing index.html in input directory: {options.InputPath}");
 
         ValidateThemeName(options.ThemeName);
 
@@ -182,7 +182,7 @@ public static class HtmlDemoImporter
         {
             var themeDir = GetThemeDir(options);
             if (Directory.Exists(themeDir) && !options.Force)
-                throw new ImportException(ImportErrorKind.UserInput, $"主题已存在: {options.ThemeName}。使用 --force 覆盖。");
+                throw new ImportException(ImportErrorKind.UserInput, $"Theme already exists: {options.ThemeName}. Use --force to overwrite.");
         }
 
         ScanDangerousFiles(options.InputPath);
@@ -196,21 +196,21 @@ public static class HtmlDemoImporter
             {
                 var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
                 if (matches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感文件 ({pattern}): {Path.GetRelativePath(inputPath, matches[0])}");
+                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive files ({pattern}): {Path.GetRelativePath(inputPath, matches[0])}");
             }
             else
             {
                 var fullPath = Path.Combine(inputPath, pattern);
                 if (File.Exists(fullPath) || Directory.Exists(fullPath))
-                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感项: {pattern}");
+                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive item: {pattern}");
 
                 var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
                 if (fileMatches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感文件 ({pattern}): {Path.GetRelativePath(inputPath, fileMatches[0])}");
+                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive files ({pattern}): {Path.GetRelativePath(inputPath, fileMatches[0])}");
 
                 var dirMatches = Directory.GetDirectories(inputPath, pattern, SearchOption.AllDirectories);
                 if (dirMatches.Length > 0)
-                    throw new ImportException(ImportErrorKind.UserInput, $"输入目录包含敏感目录 ({pattern}): {Path.GetRelativePath(inputPath, dirMatches[0])}");
+                    throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive directory ({pattern}): {Path.GetRelativePath(inputPath, dirMatches[0])}");
             }
         }
     }
@@ -218,15 +218,15 @@ public static class HtmlDemoImporter
     private static void ValidateThemeName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ImportException(ImportErrorKind.UserInput, "主题名不能为空");
+            throw new ImportException(ImportErrorKind.UserInput, "Theme name cannot be empty.");
 
         if (name is "." or "..")
-            throw new ImportException(ImportErrorKind.UserInput, $"无效的主题名: {name}");
+            throw new ImportException(ImportErrorKind.UserInput, $"Invalid theme name: {name}");
 
         if (Path.IsPathRooted(name))
-            throw new ImportException(ImportErrorKind.UserInput, $"无效的主题名（绝对路径）: {name}");
+            throw new ImportException(ImportErrorKind.UserInput, $"Invalid theme name (absolute path): {name}");
 
         if (name.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0)
-            throw new ImportException(ImportErrorKind.UserInput, $"无效的主题名（包含路径分隔符）: {name}");
+            throw new ImportException(ImportErrorKind.UserInput, $"Invalid theme name (contains path separators): {name}");
     }
 }

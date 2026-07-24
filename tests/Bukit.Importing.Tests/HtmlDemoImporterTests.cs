@@ -272,7 +272,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
         };
 
         var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
-        Assert.Contains("敏感", ex.Message);
+        Assert.Contains("sensitive", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -711,7 +711,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
         Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
-        Assert.Contains("硬编码内容残留", ex.Message);
+        Assert.Contains("hardcoded content residue", ex.Message);
     }
 
     [Fact]
@@ -776,7 +776,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
         Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
-        Assert.Contains("硬编码内容残留", ex.Message);
+        Assert.Contains("hardcoded content residue", ex.Message);
     }
 
     [Fact]
@@ -1133,7 +1133,7 @@ pages:
         };
 
         var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(options));
-        Assert.Contains("敏感", ex.Message);
+        Assert.Contains("sensitive", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(File.Exists(Path.Combine(_tempDir, "sites", "sensitive-dir-test", "original-demo", "nested", ".git", "HEAD")));
     }
 

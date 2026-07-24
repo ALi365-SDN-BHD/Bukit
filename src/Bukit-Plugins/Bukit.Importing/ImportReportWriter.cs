@@ -17,21 +17,21 @@ internal static class ImportReportWriter
         var warnCount = diagnostics.Count(d => d.Severity == ImportDiagnosticSeverity.Warning);
 
         Console.WriteLine();
-        Console.WriteLine($"迁移完成: {options.ThemeName}");
-        Console.WriteLine($"  HTML 页面扫描:   {result.PagesFound}");
-        Console.WriteLine($"  模板生成:        {result.TemplatesGenerated}");
-        Console.WriteLine($"  局部模板生成:    {result.PartialsGenerated}");
-        Console.WriteLine($"  组件识别:        {result.ComponentsGenerated}");
-        Console.WriteLine($"  内容记录抽取:    {result.RecordsExtracted}");
-        Console.WriteLine($"  资源复制:        {result.AssetsCopied}");
-        Console.WriteLine($"  错误:            {errors}");
-        Console.WriteLine($"  警告:            {warnCount}");
-        Console.WriteLine($"  site.yaml:        {(result.SiteYamlCreated ? "已创建" : "已跳过（已存在）")}");
-        Console.WriteLine($"  bukit.templates.yaml: {(result.TemplatesSynced ? "已创建" : "待同步")}");
-        Console.WriteLine($"  {SeedLabel(options),-16}{(result.SeedGenerated ? "已生成" : "跳过")}");
+        Console.WriteLine($"Import complete: {options.ThemeName}");
+        Console.WriteLine($"  HTML pages scanned:   {result.PagesFound}");
+        Console.WriteLine($"  Templates generated:  {result.TemplatesGenerated}");
+        Console.WriteLine($"  Partials generated:   {result.PartialsGenerated}");
+        Console.WriteLine($"  Components identified: {result.ComponentsGenerated}");
+        Console.WriteLine($"  Content records extracted: {result.RecordsExtracted}");
+        Console.WriteLine($"  Assets copied:        {result.AssetsCopied}");
+        Console.WriteLine($"  Errors:               {errors}");
+        Console.WriteLine($"  Warnings:             {warnCount}");
+        Console.WriteLine($"  site.yaml:            {(result.SiteYamlCreated ? "created" : "skipped (already exists)")}");
+        Console.WriteLine($"  bukit.templates.yaml: {(result.TemplatesSynced ? "created" : "pending sync")}");
+        Console.WriteLine($"  {SeedLabel(options),-16}{(result.SeedGenerated ? "generated" : "skipped")}");
 
         foreach (var w in result.Warnings)
-            Console.WriteLine($"  注意: {w}");
+            Console.WriteLine($"  Note: {w}");
 
         if (diagnostics.Count > 0)
         {
@@ -40,9 +40,9 @@ internal static class ImportReportWriter
             {
                 var prefix = d.Severity switch
                 {
-                    ImportDiagnosticSeverity.Error => "错误",
-                    ImportDiagnosticSeverity.Warning => "警告",
-                    _ => "信息"
+                    ImportDiagnosticSeverity.Error => "ERROR",
+                    ImportDiagnosticSeverity.Warning => "WARNING",
+                    _ => "INFO"
                 };
                 var location = d.FilePath is not null ? $" ({d.FilePath}" +
                     (d.LineNumber.HasValue ? $":L{d.LineNumber}" : "") + ")" : "";
@@ -51,7 +51,7 @@ internal static class ImportReportWriter
         }
 
         Console.WriteLine();
-        Console.WriteLine("后续步骤:");
+        Console.WriteLine("Next steps:");
         Console.WriteLine("  bukit dev");
         Console.WriteLine("  bukit build");
         Console.WriteLine("  bukit doctor");
@@ -59,7 +59,7 @@ internal static class ImportReportWriter
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine();
-            Console.WriteLine("  提示: content 已配置为 notion provider，使用 bukit notion push 推送内容到 Notion。");
+            Console.WriteLine("  Note: content is configured with notion provider. Use 'bukit notion push' to push content to Notion.");
         }
 
         if (options.GenerateReport)
@@ -68,15 +68,14 @@ internal static class ImportReportWriter
 
     private static void WriteDryRunSummary(ImportResult result)
     {
-        Console.WriteLine();
-        Console.WriteLine("=== DRY-RUN 分析结果 ===");
-        Console.WriteLine($"  HTML 页面扫描:   {result.PagesFound}");
-        Console.WriteLine($"  将生成模板:      {result.TemplatesGenerated}");
-        Console.WriteLine($"  将生成局部模板:  {result.PartialsGenerated}");
-        Console.WriteLine($"  将生成组件:      {result.ComponentsGenerated}");
-        Console.WriteLine($"  将抽取记录:      {result.RecordsExtracted}");
-        Console.WriteLine($"  将复制资源:      {result.AssetsCopied}");
-        Console.WriteLine("  (未写入任何文件)");
+        Console.WriteLine("=== DRY-RUN Analysis Results ===");
+        Console.WriteLine($"  HTML pages scanned:   {result.PagesFound}");
+        Console.WriteLine($"  Templates to generate:  {result.TemplatesGenerated}");
+        Console.WriteLine($"  Partials to generate:   {result.PartialsGenerated}");
+        Console.WriteLine($"  Components to generate: {result.ComponentsGenerated}");
+        Console.WriteLine($"  Records to extract:     {result.RecordsExtracted}");
+        Console.WriteLine($"  Assets to copy:         {result.AssetsCopied}");
+        Console.WriteLine("  (no files written)");
     }
 
     private static void WriteReportFile(HtmlDemoImportOptions options,
@@ -293,7 +292,7 @@ internal static class ImportReportWriter
         sb.AppendLine("```");
 
         File.WriteAllText(reportPath, sb.ToString());
-        Console.WriteLine($"  导入报告已生成: {reportPath}");
+        Console.WriteLine($"  Import report written: {reportPath}");
     }
 
     private static string SeedLabel(HtmlDemoImportOptions options)
