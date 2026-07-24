@@ -42,12 +42,12 @@ AD-03C0 到 AD-03C5 已按独立回退边界顺序完成并通过各自完整 ow
 
 | 任务 | 提交 | 精确 delta | 完整测试 | 独立复审 | 状态 |
 |---|---|---|---:|---|---|
-| AD-03C0 | `38dbc0fb` + contract correction `7f700d99` | 冻结 19 项 inventory、原子边界、迁移最低合同；runtime 0 | 3036 | clean | closed |
-| AD-03C1 | `fafed2bd` | 删除 2 个 internal test-only helpers；public 0 | 1403 | clean | closed |
-| AD-03C2 | `ed226179` | 删除 Shared URL facade；public -1 | 1404 | clean | closed |
-| AD-03C3 | `9ef16a6a` | 原子删除 Shared converter + 13 models；删除 mapper 与 Shared→Notion reference；public -14 | 2570 | clean | closed |
-| AD-03C4 | `6d053a13` | 原子 internalize Content client/provider/options；public -3 | 2734 | clean | closed |
-| AD-03C5 | `1caa0482` + review fix `954a1fcb` | parser retain-by-design；runtime/public count 0；classification 修正 1 | 734 | clean after fix | closed |
+| AD-03C0 | `38dbc0fb` + contract correction `7f700d99` | inventory 19; runtime 0 | 3036 | CLEAN | complete |
+| AD-03C1 | `fafed2bd` | test-only helpers -2; public 0 | 1403 | CLEAN | complete |
+| AD-03C2 | `ed226179` | public -1 | 1404 | CLEAN | complete |
+| AD-03C3 | `9ef16a6a` | public -14; compatibility project references -1 | 2570 | CLEAN | complete |
+| AD-03C4 | `6d053a13` | public -3 | 2734 | CLEAN | complete |
+| AD-03C5 | `1caa0482` + review fix `954a1fcb` | retained legacy public types 1; public 0 | 734 | CLEAN | complete |
 
 上述测试数是各任务完成时的 unfiltered Release owner-suite 计数，不可相加为 unique
 test 数；相同 suite 在不同任务边界被重复验证。C6 自身的六套完整 owner-suite、

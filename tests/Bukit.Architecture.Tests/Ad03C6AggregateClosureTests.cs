@@ -40,6 +40,109 @@ public sealed class Ad03C6AggregateClosureTests
         ("Bukit.Content", "Bukit.Content.Notion.NotionContentProvider"),
         ("Bukit.Content", "Bukit.Content.Notion.NotionProviderOptions")
     ];
+    private static readonly (string Assembly, string Name, string Target)[]
+        MigrationRows =
+    [
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.NotionApiUrls",
+            "`Bukit.Notion.NotionApiUrls` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.HtmlToNotionBlockConverter",
+            "`Bukit.Notion.Conversion.HtmlToNotionBlockConverter` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.NotionBlock",
+            "`Bukit.Notion.Blocks.NotionBlock` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.Heading1Block",
+            "`Bukit.Notion.Blocks.Heading1Block` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.Heading2Block",
+            "`Bukit.Notion.Blocks.Heading2Block` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.Heading3Block",
+            "`Bukit.Notion.Blocks.Heading3Block` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.ParagraphBlock",
+            "`Bukit.Notion.Blocks.ParagraphBlock` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.BulletedListItemBlock",
+            "`Bukit.Notion.Blocks.BulletedListItemBlock` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.NumberedListItemBlock",
+            "`Bukit.Notion.Blocks.NumberedListItemBlock` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.QuoteBlock",
+            "`Bukit.Notion.Blocks.QuoteBlock` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.ImageBlock",
+            "`Bukit.Notion.Blocks.ImageBlock` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.ToggleBlock",
+            "`Bukit.Notion.Blocks.ToggleBlock` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.CodeBlock",
+            "`Bukit.Notion.Blocks.CodeBlock` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.CalloutBlock",
+            "`Bukit.Notion.Blocks.CalloutBlock` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Shared.dll",
+            "Bukit.Shared.Notion.RichTextSegment",
+            "`Bukit.Notion.Blocks.RichTextSegment` in `Bukit.Notion.dll`"
+        ),
+        (
+            "Bukit.Content.dll",
+            "Bukit.Content.Notion.NotionApiClient",
+            "`Bukit.Notion.Transport.NotionClient` + `Bukit.Notion.Transport.NotionClientOptions` in `Bukit.Notion.dll`; explicitly adapt request semantics, error translation, and `HttpClient` ownership"
+        ),
+        (
+            "Bukit.Content.dll",
+            "Bukit.Content.Notion.NotionContentProvider",
+            "`Bukit.Content.Notion.NotionContentSource` in `Bukit.Content.Notion.dll`; explicitly adapt the consumer interface and content semantics"
+        ),
+        (
+            "Bukit.Content.dll",
+            "Bukit.Content.Notion.NotionProviderOptions",
+            "`Bukit.Content.Notion.NotionContentSourceOptions` in `Bukit.Content.Notion.dll`; explicitly map options; not a drop-in replacement"
+        )
+    ];
+    private static readonly string[] ClosureRows =
+    [
+        "| AD-03C0 | `38dbc0fb` + contract correction `7f700d99` | inventory 19; runtime 0 | 3036 | CLEAN | complete |",
+        "| AD-03C1 | `fafed2bd` | test-only helpers -2; public 0 | 1403 | CLEAN | complete |",
+        "| AD-03C2 | `ed226179` | public -1 | 1404 | CLEAN | complete |",
+        "| AD-03C3 | `9ef16a6a` | public -14; compatibility project references -1 | 2570 | CLEAN | complete |",
+        "| AD-03C4 | `6d053a13` | public -3 | 2734 | CLEAN | complete |",
+        "| AD-03C5 | `1caa0482` + review fix `954a1fcb` | retained legacy public types 1; public 0 | 734 | CLEAN | complete |"
+    ];
 
     [Fact]
     public void GovernedBaseline_RecordsExactFinalSurfaceAndDistributions()
@@ -144,22 +247,15 @@ public sealed class Ad03C6AggregateClosureTests
 
         Assert.Contains("2.0-only", notice, StringComparison.Ordinal);
         Assert.Contains("1.x remains unchanged", notice, StringComparison.Ordinal);
-        foreach ((string assembly, string name) in RemovedTypes)
+        foreach ((string assembly, string name, string target) in MigrationRows)
         {
-            Assert.Contains($"`{name}`", notice, StringComparison.Ordinal);
-            Assert.Contains($"`{assembly}.dll`", notice, StringComparison.Ordinal);
+            Assert.Contains(
+                $"| `{assembly}` | `{name}` | {target} |",
+                notice,
+                StringComparison.Ordinal);
         }
 
-        Assert.Contains("`Bukit.Notion.NotionApiUrls`", notice, StringComparison.Ordinal);
-        Assert.Contains(
-            "`Bukit.Notion.Conversion.HtmlToNotionBlockConverter`",
-            notice,
-            StringComparison.Ordinal);
         Assert.Contains("`Bukit.Notion.Blocks`", notice, StringComparison.Ordinal);
-        Assert.Contains(
-            "`Bukit.Content.Notion.NotionContentSource`",
-            notice,
-            StringComparison.Ordinal);
         Assert.Contains("not a drop-in", notice, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("not a productized public SDK", notice, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("update assembly references", notice, StringComparison.OrdinalIgnoreCase);
@@ -188,20 +284,11 @@ public sealed class Ad03C6AggregateClosureTests
     public void ClosureLedger_RecordsC0ThroughC5DeltasAndClosedStatus()
     {
         string ledger = ReadText(ClosurePath);
-        var expectedCommits = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["AD-03C0"] = "38dbc0fb",
-            ["AD-03C1"] = "fafed2bd",
-            ["AD-03C2"] = "ed226179",
-            ["AD-03C3"] = "9ef16a6a",
-            ["AD-03C4"] = "6d053a13",
-            ["AD-03C5"] = "1caa0482"
-        };
+        string c0 = ReadText(C0Path);
 
-        foreach ((string task, string commit) in expectedCommits)
+        foreach (string row in ClosureRows)
         {
-            Assert.Contains(task, ledger, StringComparison.Ordinal);
-            Assert.Contains(commit, ledger, StringComparison.Ordinal);
+            Assert.Contains(row, ledger, StringComparison.Ordinal);
         }
 
         Assert.Contains("正式关闭", ledger, StringComparison.Ordinal);
@@ -213,6 +300,22 @@ public sealed class Ad03C6AggregateClosureTests
         Assert.Contains(ParserTypeName, ledger, StringComparison.Ordinal);
         Assert.Contains("retain-by-design", ledger, StringComparison.Ordinal);
         Assert.Contains(CandidateManifestBlob, ledger, StringComparison.Ordinal);
+        Assert.Contains(
+            "[Bukit Core 2.0 Notion compatibility migration](../governance/bukit-core-2.0-notion-compatibility-migration.md)",
+            ledger,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "[Bukit Core 2.0 Notion compatibility migration](../governance/bukit-core-2.0-notion-compatibility-migration.md)",
+            c0,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "[AD-03C 最终汇总关闭台账](bukit-core-ad03c-final-aggregate-closure-2026-07-24.zh-CN.md)",
+            c0,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "G-04 已以 443 public types / 0 candidates 关闭",
+            c0,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -225,22 +328,45 @@ public sealed class Ad03C6AggregateClosureTests
 
         Assert.Contains("425 public types", guide, StringComparison.Ordinal);
         Assert.DoesNotContain("443 public types", guide, StringComparison.Ordinal);
+        Assert.Contains(
+            "This records the historical G-04D4A state, not the current 2.0 public surface.",
+            guide,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "The later independently authorized AD-03C 2.0 compatibility cleanup superseded that retention outcome",
+            guide,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "[2.0 Notion compatibility migration](../../docs/governance/bukit-core-2.0-notion-compatibility-migration.md)",
+            guide,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "G-04D4A keeps all 13 `Bukit.Shared.Notion` model/record identities public",
+            guide,
+            StringComparison.Ordinal);
         Assert.Contains("425 types", declaration, StringComparison.Ordinal);
         Assert.DoesNotContain("443 types", declaration, StringComparison.Ordinal);
+        Assert.Contains(
+            "This records the historical G-04D4A state, not the current 2.0 public surface.",
+            declaration,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "The later independently authorized AD-03C 2.0 compatibility cleanup superseded that retention outcome",
+            declaration,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "[2.0 Notion compatibility migration](bukit-core-2.0-notion-compatibility-migration.md)",
+            declaration,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "G-04D4A retains all 13 `Bukit.Shared.Notion` model/record identities as public",
+            declaration,
+            StringComparison.Ordinal);
 
         Assert.Contains("C1-C6 complete", c0, StringComparison.Ordinal);
         Assert.Contains("14 / 425 / 0", c0, StringComparison.Ordinal);
         Assert.Contains("18 removed", c0, StringComparison.Ordinal);
         Assert.Contains("one retained", c0, StringComparison.Ordinal);
-        Assert.Contains("G-04 已以 443 public types / 0 candidates 关闭", c0, StringComparison.Ordinal);
-        Assert.Contains(
-            "bukit-core-2.0-notion-compatibility-migration.md",
-            c0,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "bukit-core-ad03c-final-aggregate-closure-2026-07-24.zh-CN.md",
-            c0,
-            StringComparison.Ordinal);
         Assert.Contains(
             $"blob/e16142331111060a09385fb29fdf72c28da260c4/src/Bukit-Core/Bukit.Shared/Notion/NotionBlockTypes.cs",
             c0,

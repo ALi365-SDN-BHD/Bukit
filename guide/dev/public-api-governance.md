@@ -358,11 +358,12 @@ for the migration contract and G2 verification boundary.
 
 ### G-04D4A Shared Notion Graph
 
-G-04D4A keeps all 13 `Bukit.Shared.Notion` model/record identities public as
-required companion types of the retained
-`HtmlToNotionBlockConverter.Convert(string)` signature. They are reclassified
-as `cross-assembly-implementation / 1.x-do-not-narrow`; this is a retention
-decision, not an unconditional 2.0 removal authorization.
+At G-04D4A closure, all 13 `Bukit.Shared.Notion` model/record identities were
+retained as companion types of `HtmlToNotionBlockConverter.Convert(string)`.
+This records the historical G-04D4A state, not the current 2.0 public surface.
+The later independently authorized AD-03C 2.0 compatibility cleanup superseded that retention outcome
+and removed the 13 models plus the Shared converter in 2.0. See the
+[2.0 Notion compatibility migration](../../docs/governance/bukit-core-2.0-notion-compatibility-migration.md).
 
 The duplicate Shared `HtmlTokenizer`, `HtmlToken`, and `HtmlTokenType`
 identities are removed together in 2.0. Direct CLR consumers must migrate to

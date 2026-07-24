@@ -26,9 +26,9 @@ The following public identities are no longer exported in 2.0.
 | `Bukit.Shared.dll` | `Bukit.Shared.Notion.CodeBlock` | `Bukit.Notion.Blocks.CodeBlock` in `Bukit.Notion.dll` |
 | `Bukit.Shared.dll` | `Bukit.Shared.Notion.CalloutBlock` | `Bukit.Notion.Blocks.CalloutBlock` in `Bukit.Notion.dll` |
 | `Bukit.Shared.dll` | `Bukit.Shared.Notion.RichTextSegment` | `Bukit.Notion.Blocks.RichTextSegment` in `Bukit.Notion.dll` |
-| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionApiClient` | Build directly on `Bukit.Notion.Transport` contracts and explicitly preserve the required request semantics |
-| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionContentProvider` | Build on `Bukit.Content.Notion.NotionContentSource` in `Bukit.Content.Notion.dll` and explicitly adapt it to the consumer's content-provider boundary |
-| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionProviderOptions` | Use the applicable canonical content-source/options and transport configuration contracts rather than assuming property-for-property equivalence |
+| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionApiClient` | `Bukit.Notion.Transport.NotionClient` + `Bukit.Notion.Transport.NotionClientOptions` in `Bukit.Notion.dll`; explicitly adapt request semantics, error translation, and `HttpClient` ownership |
+| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionContentProvider` | `Bukit.Content.Notion.NotionContentSource` in `Bukit.Content.Notion.dll`; explicitly adapt the consumer interface and content semantics |
+| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionProviderOptions` | `Bukit.Content.Notion.NotionContentSourceOptions` in `Bukit.Content.Notion.dll`; explicitly map options; not a drop-in replacement |
 
 The canonical block model namespace is `Bukit.Notion.Blocks`. The canonical
 URL and conversion owners are public APIs of `Bukit.Notion.dll`. The three
