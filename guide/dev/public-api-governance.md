@@ -43,6 +43,35 @@ and `Bukit.Content` remains a separately reviewed 2.0 change. The open consumer
 declaration and public-surface governance process must authorize that change;
 the freeze itself is not a deprecation or removal decision.
 
+### AD-03C5 Notion Property Parser Retention
+
+`Bukit.Content.Notion.NotionPropertyParser` in `Bukit.Content.dll` is
+retain-by-design. It remains a public static implementation facade with only
+`ExtractFields(JsonElement)` and `ExtractAllFields(JsonElement)` as its public
+declared methods. Its governed classification is
+`implementation-public / 1.x-do-not-narrow / 2.0-review`; this is CLR
+visibility for a retained implementation detail, not a general-purpose SDK
+promise.
+
+There is no public canonical replacement for this parser in the canonical
+`Bukit.Content.Notion` adapter. Its existing `NotionContentPropertyParser` and
+`NotionPropertyTypeParser` implementations remain internal, and this decision
+does not expose either implementation or create another public parser API.
+Repository and reviewed public evidence found no direct current production
+caller, but private, unindexed, binary-only, reflection-based, and undisclosed
+consumers remain unknown.
+
+Re-review requires a separate task and at least one concrete trigger. A real
+security or correctness defect that cannot be resolved compatibly is one
+trigger. A direct consumer declaration that changes the migration analysis is
+another. An approved CLR SDK productization decision with an explicit
+migration and versioning plan is the third.
+Absent one of those triggers, consumer-search silence is not permission to
+delete, internalize, or replace the facade.
+
+The exact decision and evidence limits are recorded in the
+[AD-03C5 retention ledger](../../docs/analysis/bukit-core-ad03c5-notion-property-parser-retention-decision-2026-07-24.zh-CN.md).
+
 ## Check
 
 `bash scripts/checks/public-api-drift.sh check Release`

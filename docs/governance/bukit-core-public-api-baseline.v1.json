@@ -2228,7 +2228,7 @@
       "assembly": "Bukit.Content",
       "name": "Bukit.Content.Notion.NotionPropertyParser",
       "owner": "Content acquisition",
-      "classification": "cross-assembly-implementation",
+      "classification": "implementation-public",
       "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
       "signature": "public static class Bukit.Content.Notion.NotionPropertyParser",
