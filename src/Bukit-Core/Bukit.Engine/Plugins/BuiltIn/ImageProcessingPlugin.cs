@@ -7,12 +7,20 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildPlugin
 {
+    private readonly AppConfig _config;
+
+    internal ImageProcessingPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "image-processing";
     public string Version => "1.0.0";
 
     public void AfterBuild(BuildContext context)
     {
-        var config = context.Config.Theme.Images;
+        var config = _config.Theme.Images;
         if (config is not { Enabled: true })
         {
             return;

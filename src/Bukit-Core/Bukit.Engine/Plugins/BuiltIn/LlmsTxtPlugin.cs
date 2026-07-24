@@ -9,6 +9,14 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
 {
+    private readonly AppConfig _config;
+
+    internal LlmsTxtPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "llms-txt";
     public string Version => "1.0.0";
 
@@ -30,7 +38,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
 
     public void AfterBuild(BuildContext context)
     {
-        var geo = context.Config.Site.Seo.Geo;
+        var geo = _config.Site.Seo.Geo;
         if (!geo.Enabled)
         {
             return;
@@ -38,18 +46,21 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
 
         if (geo.LlmsTxt)
         {
-            WriteLlmsTxt(context, geo);
+            WriteLlmsTxt(context, _config, geo);
         }
 
         if (geo.LlmsFullTxt)
         {
-            WriteLlmsFullTxt(context);
+            WriteLlmsFullTxt(context, _config);
         }
     }
 
-    internal static void WriteLlmsTxt(BuildContext context, SeoGeoConfig geo)
+    internal static void WriteLlmsTxt(
+        BuildContext context,
+        AppConfig config,
+        SeoGeoConfig geo)
         => WriteLlmsTxt(
-            context.Config,
+            config,
             context.OutputDir,
             context.BaseUrl,
             context.RoutedDocuments,
@@ -206,9 +217,9 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
     }
 
-    internal static void WriteLlmsFullTxt(BuildContext context)
+    internal static void WriteLlmsFullTxt(BuildContext context, AppConfig config)
         => WriteLlmsFullTxt(
-            context.Config,
+            config,
             context.OutputDir,
             context.BaseUrl,
             context.RoutedDocuments,
@@ -399,9 +410,6 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
 
         return b + u;
     }
-
-    private static string BuildBase(BuildContext context)
-        => BuildBase(context.Config, context.BaseUrl);
 
     private static string BuildBase(AppConfig config, string baseUrl)
     {

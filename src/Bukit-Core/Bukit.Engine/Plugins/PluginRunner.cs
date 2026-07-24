@@ -16,18 +16,44 @@ public static class PluginRunner
         BuildExecutionMode executionMode)
         => CollectHtmlTransforms(
             context,
+            PluginExecutionSession.CreateCompatibility(executionMode),
+            executionMode);
+
+    internal static CollectedHtmlTransforms CollectHtmlTransforms(
+        BuildContext context,
+        AppConfig config,
+        BuildExecutionMode executionMode)
+        => CollectHtmlTransforms(
+            context,
+            PluginExecutionSession.Create(config, executionMode),
+            executionMode);
+
+    internal static CollectedHtmlTransforms CollectHtmlTransforms(
+        BuildContext context,
+        PluginExecutionSession session,
+        BuildExecutionMode executionMode)
+        => CollectHtmlTransforms(
+            context,
             executionMode,
-            PluginRegistry.GetAllPlugins(context).Select(item => item.Plugin));
+            session.Policy,
+            session.Registrations.Select(item => item.Plugin));
 
     internal static CollectedHtmlTransforms CollectHtmlTransforms(
         BuildContext context,
         BuildExecutionMode executionMode,
         IEnumerable<IBukitPlugin> plugins)
+        => CollectHtmlTransforms(
+            context,
+            executionMode,
+            PluginExecutionPolicy.From(PluginRegistry.CompatibilityConfiguration.Site),
+            plugins);
+
+    internal static CollectedHtmlTransforms CollectHtmlTransforms(
+        BuildContext context,
+        BuildExecutionMode executionMode,
+        PluginExecutionPolicy policy,
+        IEnumerable<IBukitPlugin> plugins)
     {
-        var warnOnPluginFailure = string.Equals(
-            context.Config.Site.PluginFailMode,
-            "warn",
-            StringComparison.OrdinalIgnoreCase);
         var transforms = new List<TrackedHtmlTransform>();
 
         foreach (var plugin in plugins
@@ -35,7 +61,7 @@ public static class PluginRunner
                      .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
                      .ThenBy(item => item.Version, StringComparer.OrdinalIgnoreCase))
         {
-            if (!IsPluginEnabled(context, plugin.Name))
+            if (!policy.IsPluginEnabled(plugin.Name))
             {
                 continue;
             }
@@ -56,7 +82,7 @@ public static class PluginRunner
             transforms.Add(new TrackedHtmlTransform(
                 plugin.Name,
                 transform,
-                warnOnPluginFailure,
+                policy.WarnOnPluginFailure,
                 context));
         }
 
@@ -64,11 +90,34 @@ public static class PluginRunner
     }
 
     public static IReadOnlyList<string> CollectTemplateRequirementKinds(BuildContext context)
+        => CollectTemplateRequirementKinds(
+            context,
+            PluginExecutionSession.CreateCompatibility());
+
+    internal static IReadOnlyList<string> CollectTemplateRequirementKinds(
+        BuildContext context,
+        AppConfig config)
+        => CollectTemplateRequirementKinds(
+            context,
+            PluginExecutionSession.Create(config, BuildExecutionMode.Production));
+
+    internal static IReadOnlyList<string> CollectTemplateRequirementKinds(
+        BuildContext context,
+        PluginExecutionSession session)
+        => CollectTemplateRequirementKinds(
+            context,
+            session.Policy,
+            session.Registrations);
+
+    internal static IReadOnlyList<string> CollectTemplateRequirementKinds(
+        BuildContext context,
+        PluginExecutionPolicy policy,
+        IEnumerable<(IBukitPlugin Plugin, string Source)> plugins)
     {
         var kinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (plugin, _) in GetOrderedPlugins(context))
+        foreach (var (plugin, _) in GetOrderedPlugins(plugins))
         {
-            if (!IsPluginEnabled(context, plugin.Name))
+            if (!policy.IsPluginEnabled(plugin.Name))
             {
                 continue;
             }
@@ -91,23 +140,64 @@ public static class PluginRunner
     }
 
     public static IReadOnlyList<RoutedContentDocument> RunDerivePages(BuildContext context)
-        => RunDerivePagesAsync(context).GetAwaiter().GetResult();
+        => RunDerivePagesAsync(
+                context,
+                PluginExecutionSession.CreateCompatibility())
+            .GetAwaiter()
+            .GetResult();
 
     public static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
         BuildContext context,
         CancellationToken cancellationToken = default)
+        => await RunDerivePagesAsync(
+            context,
+            PluginExecutionSession.CreateCompatibility(),
+            cancellationToken);
+
+    internal static Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
+        BuildContext context,
+        AppConfig config,
+        CancellationToken cancellationToken = default)
+        => RunDerivePagesAsync(
+            context,
+            PluginExecutionSession.Create(config, BuildExecutionMode.Production),
+            cancellationToken);
+
+    internal static Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
+        BuildContext context,
+        PluginExecutionSession session,
+        CancellationToken cancellationToken = default)
+        => RunDerivePagesAsync(
+            context,
+            session.Policy,
+            session.Registrations,
+            cancellationToken);
+
+    internal static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
+        BuildContext context,
+        PluginExecutionPolicy policy,
+        CancellationToken cancellationToken = default)
+        => await RunDerivePagesAsync(
+            context,
+            policy,
+            PluginExecutionSession.CreateCompatibility().Registrations,
+            cancellationToken);
+
+    private static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
+        BuildContext context,
+        PluginExecutionPolicy policy,
+        IEnumerable<(IBukitPlugin Plugin, string Source)> plugins,
+        CancellationToken cancellationToken)
     {
         var derived = new List<RoutedContentDocument>();
         var contentRouteUrls = new HashSet<string>(context.RoutedDocuments.Select(x => NormalizeUrl(x.Route.Url)), StringComparer.OrdinalIgnoreCase);
         var contentOutputPaths = new HashSet<string>(context.RoutedDocuments.Select(x => NormalizeOutputPath(x.Route.OutputPath)), StringComparer.OrdinalIgnoreCase);
         var usedRouteUrls = new HashSet<string>(contentRouteUrls, StringComparer.OrdinalIgnoreCase);
         var usedOutputPaths = new HashSet<string>(contentOutputPaths, StringComparer.OrdinalIgnoreCase);
-        var deriveConflictPolicy = (context.Config.Site.DeriveConflictPolicy ?? "fail").Trim().ToLowerInvariant();
-        var warnOnPluginFailure = string.Equals(context.Config.Site.PluginFailMode, "warn", StringComparison.OrdinalIgnoreCase);
 
-        foreach (var (plugin, _) in GetOrderedPlugins(context))
+        foreach (var (plugin, _) in GetOrderedPlugins(plugins))
         {
-            if (!IsPluginEnabled(context, plugin.Name))
+            if (!policy.IsPluginEnabled(plugin.Name))
             {
                 continue;
             }
@@ -143,7 +233,7 @@ public static class PluginRunner
                         usedOutputPaths,
                         contentRouteUrls,
                         contentOutputPaths,
-                        deriveConflictPolicy);
+                        policy.DeriveConflictPolicy);
                     if (acceptedPages.Count > 0)
                     {
                         derived.AddRange(acceptedPages);
@@ -159,7 +249,7 @@ public static class PluginRunner
                 sw.Stop();
                 context.PluginExecutions.Add(new PluginExecutionInfo(plugin.Name, "derive-pages", sw.ElapsedMilliseconds, false, ex.Message));
                 context.Logger.Error($"plugin {plugin.Name} derive-pages failed: {ex.Message}");
-                if (!warnOnPluginFailure)
+                if (!policy.WarnOnPluginFailure)
                 {
                     throw;
                 }
@@ -297,15 +387,56 @@ public static class PluginRunner
     }
 
     public static void RunAfterBuild(BuildContext context)
-        => RunAfterBuildAsync(context).GetAwaiter().GetResult();
+        => RunAfterBuildAsync(
+                context,
+                PluginExecutionSession.CreateCompatibility())
+            .GetAwaiter()
+            .GetResult();
 
     public static async Task RunAfterBuildAsync(BuildContext context, CancellationToken cancellationToken = default)
-    {
-        var warnOnPluginFailure = string.Equals(context.Config.Site.PluginFailMode, "warn", StringComparison.OrdinalIgnoreCase);
+        => await RunAfterBuildAsync(
+            context,
+            PluginExecutionSession.CreateCompatibility(),
+            cancellationToken);
 
-        foreach (var (plugin, _) in GetOrderedPlugins(context))
+    internal static Task RunAfterBuildAsync(
+        BuildContext context,
+        AppConfig config,
+        CancellationToken cancellationToken = default)
+        => RunAfterBuildAsync(
+            context,
+            PluginExecutionSession.Create(config, BuildExecutionMode.Production),
+            cancellationToken);
+
+    internal static Task RunAfterBuildAsync(
+        BuildContext context,
+        PluginExecutionSession session,
+        CancellationToken cancellationToken = default)
+        => RunAfterBuildAsync(
+            context,
+            session.Policy,
+            session.Registrations,
+            cancellationToken);
+
+    internal static async Task RunAfterBuildAsync(
+        BuildContext context,
+        PluginExecutionPolicy policy,
+        CancellationToken cancellationToken = default)
+        => await RunAfterBuildAsync(
+            context,
+            policy,
+            PluginExecutionSession.CreateCompatibility().Registrations,
+            cancellationToken);
+
+    private static async Task RunAfterBuildAsync(
+        BuildContext context,
+        PluginExecutionPolicy policy,
+        IEnumerable<(IBukitPlugin Plugin, string Source)> plugins,
+        CancellationToken cancellationToken)
+    {
+        foreach (var (plugin, _) in GetOrderedPlugins(plugins))
         {
-            if (!IsPluginEnabled(context, plugin.Name))
+            if (!policy.IsPluginEnabled(plugin.Name))
             {
                 continue;
             }
@@ -341,7 +472,7 @@ public static class PluginRunner
                 sw.Stop();
                 context.PluginExecutions.Add(new PluginExecutionInfo(plugin.Name, "after-build", sw.ElapsedMilliseconds, false, ex.Message));
                 context.Logger.Error($"plugin {plugin.Name} after-build failed: {ex.Message}");
-                if (!warnOnPluginFailure)
+                if (!policy.WarnOnPluginFailure)
                 {
                     throw;
                 }
@@ -349,24 +480,10 @@ public static class PluginRunner
         }
     }
 
-    private static bool IsPluginEnabled(BuildContext context, string name)
+    private static IEnumerable<(IBukitPlugin Plugin, string Source)> GetOrderedPlugins(
+        IEnumerable<(IBukitPlugin Plugin, string Source)> plugins)
     {
-        if (context.Config.Site.Plugins is null || string.IsNullOrWhiteSpace(name))
-        {
-            return true;
-        }
-
-        if (context.Config.Site.Plugins.TryGetValue(name, out var cfg))
-        {
-            return cfg.Enabled;
-        }
-
-        return true;
-    }
-
-    private static IEnumerable<(IBukitPlugin Plugin, string Source)> GetOrderedPlugins(BuildContext context)
-    {
-        return PluginRegistry.GetAllPlugins(context)
+        return plugins
             .OrderBy(x => GetOrder(x.Plugin))
             .ThenBy(x => x.Plugin.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.Plugin.Version, StringComparer.OrdinalIgnoreCase);

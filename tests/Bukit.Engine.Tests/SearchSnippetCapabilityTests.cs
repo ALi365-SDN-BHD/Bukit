@@ -46,8 +46,8 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
                                                                               supports_search_snippets: true
                                                                         """);
 
-        var context = CreateContext();
-        new SearchIndexPlugin().AfterBuild(context);
+        var (context, config) = CreateContext();
+        new SearchIndexPlugin(config).AfterBuild(context);
 
         using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(_outputDir, "search.json")));
         var item = doc.RootElement[0];
@@ -55,7 +55,7 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
         Assert.Equal("Summary text", snippet.GetString());
     }
 
-    private BuildContext CreateContext()
+    private (BuildContext Context, AppConfig Config) CreateContext()
     {
         var item = ContentDocument.Create(
             id: "post-1",
@@ -70,13 +70,13 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
             }));
 
         var route = new RouteInfo("/blog/post/", Path.Combine("blog", "post", "index.html"), "pages/post.html");
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
+            Site = new SiteConfig { Name = "test", Title = "test" },
+            Content = TestContent.Markdown()
+        };
+        var context = new BuildContext
+        {
             RootDir = _rootDir,
             OutputDir = _outputDir,
             BaseUrl = "/",
@@ -101,5 +101,6 @@ public sealed class SearchSnippetCapabilityTests : IDisposable
             },
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+        return (context, config);
     }
 }

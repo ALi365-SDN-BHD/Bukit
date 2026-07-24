@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Analytics;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins;
@@ -11,70 +12,84 @@ internal interface IPluginSource
 
 internal sealed class BuiltInPluginSource : IPluginSource
 {
+    private readonly AppConfig _config;
+    private readonly AnalyticsBuildState _analyticsBuildState;
+
+    internal BuiltInPluginSource(AppConfig config)
+        : this(
+            config,
+            AnalyticsBuildState.Create(
+                config,
+                BuildExecutionMode.Production))
+    {
+    }
+
+    internal BuiltInPluginSource(
+        AppConfig config,
+        AnalyticsBuildState analyticsBuildState)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(analyticsBuildState);
+        _config = config;
+        _analyticsBuildState = analyticsBuildState;
+    }
+
     public IEnumerable<IBukitPlugin> GetPlugins()
     {
-        yield return new BuiltIn.AnalyticsPlugin();
-        yield return new BuiltIn.DataFilesPlugin();
-        yield return new BuiltIn.PagesIndexPlugin();
-        yield return new BuiltIn.TaxonomyPlugin();
-        yield return new BuiltIn.PaginationPlugin();
-        yield return new BuiltIn.ArchivePlugin();
-        yield return new BuiltIn.RelatedContentPlugin();
-        yield return new BuiltIn.AliasPlugin();
-        yield return new BuiltIn.MenuPlugin();
-        yield return new BuiltIn.ImageProcessingPlugin();
+        yield return new BuiltIn.AnalyticsPlugin(_config, _analyticsBuildState);
+        yield return new BuiltIn.DataFilesPlugin(_config);
+        yield return new BuiltIn.PagesIndexPlugin(_config);
+        yield return new BuiltIn.TaxonomyPlugin(_config);
+        yield return new BuiltIn.PaginationPlugin(_config);
+        yield return new BuiltIn.ArchivePlugin(_config);
+        yield return new BuiltIn.RelatedContentPlugin(_config);
+        yield return new BuiltIn.AliasPlugin(_config);
+        yield return new BuiltIn.MenuPlugin(_config);
+        yield return new BuiltIn.ImageProcessingPlugin(_config);
     }
 }
 
 public static class PluginRegistry
 {
-    private const string CacheKey = "__plugin_registry_cache";
-    private sealed class PluginCacheEntry
+    private static readonly AppConfig CompatibilityConfig = new()
     {
-        public required IReadOnlyList<(IBukitPlugin Plugin, string Source)> Plugins { get; init; }
-    }
+        Site = new SiteConfig
+        {
+            Name = "plugin-compatibility",
+            Title = "Plugin Compatibility"
+        },
+        Content = new ContentConfig()
+    };
 
-    private static int _cacheBuildCount;
+    private static int _registrationBuildCount;
 
     public static IEnumerable<(IBukitPlugin Plugin, string Source)> GetAllPlugins(BuildContext context)
+        => GetAllPlugins(context, PluginExecutionSession.CreateCompatibility());
+
+    internal static AppConfig CompatibilityConfiguration => CompatibilityConfig;
+
+    internal static IEnumerable<(IBukitPlugin Plugin, string Source)> GetAllPlugins(
+        BuildContext context,
+        PluginExecutionSession session)
     {
-        if (TryGetCached(context, out var cached))
-        {
-            foreach (var item in cached.Plugins)
-            {
-                yield return item;
-            }
-
-            yield break;
-        }
-
-        lock (context.Data)
-        {
-            if (!TryGetCached(context, out cached))
-            {
-                cached = new PluginCacheEntry
-                {
-                    Plugins = BuildPlugins(context)
-                };
-                context.Data[CacheKey] = cached;
-                _cacheBuildCount++;
-            }
-        }
-
-        foreach (var item in cached.Plugins)
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(session);
+        foreach (var item in session.Registrations)
         {
             yield return item;
         }
     }
 
-    private static IReadOnlyList<(IBukitPlugin Plugin, string Source)> BuildPlugins(BuildContext context)
+    internal static IReadOnlyList<(IBukitPlugin Plugin, string Source)> BuildPlugins(
+        AppConfig config,
+        AnalyticsBuildState analyticsBuildState)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var result = new List<(IBukitPlugin Plugin, string Source)>();
 
         var sources = new (IPluginSource Source, string Name)[]
         {
-            (new BuiltInPluginSource(), "built-in")
+            (new BuiltInPluginSource(config, analyticsBuildState), "built-in")
         };
 
         foreach (var (source, name) in sources)
@@ -92,25 +107,14 @@ public static class PluginRegistry
             }
         }
 
+        Interlocked.Increment(ref _registrationBuildCount);
         return result;
     }
 
-    internal static int CacheBuildCountForTests => _cacheBuildCount;
+    internal static int RegistrationBuildCountForTests => _registrationBuildCount;
 
-    internal static void ResetCacheForTests()
+    internal static void ResetBuildCountForTests()
     {
-        _cacheBuildCount = 0;
-    }
-
-    private static bool TryGetCached(BuildContext context, out PluginCacheEntry cached)
-    {
-        if (context.Data.TryGetValue(CacheKey, out var value) && value is PluginCacheEntry entry)
-        {
-            cached = entry;
-            return true;
-        }
-
-        cached = null!;
-        return false;
+        _registrationBuildCount = 0;
     }
 }

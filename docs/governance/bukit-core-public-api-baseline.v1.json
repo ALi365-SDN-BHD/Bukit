@@ -2865,8 +2865,8 @@
         "public .ctor(Bukit.Shared.ILogger! logger)",
         "public System.Threading.Tasks.Task! BuildAsync(Bukit.Content.IContentProvider! provider, Bukit.Engine.BuildOptions! options, System.Threading.CancellationToken cancellationToken = null)",
         "public System.Threading.Tasks.Task\u003CBukit.Engine.BuildResult!\u003E! BuildAsync(Bukit.Config.AppConfig! config, System.String! rootDir, Bukit.Config.ConfigOverrides! overrides, System.Threading.CancellationToken cancellationToken = null)",
-        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(Bukit.Engine.Abstractions.Plugins.BuildContext! context, Bukit.Engine.ThemeTemplateResolver? templateResolver = null)",
-        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, Bukit.Engine.ThemeTemplateResolver? templateResolver = null)"
+        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, Bukit.Engine.ThemeTemplateResolver? templateResolver = null)",
+        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! routedDocuments, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, System.String! outputPathEncoding, Bukit.Engine.ThemeTemplateResolver? templateResolver = null)"
       ],
       "protectedMembers": []
     },
@@ -4122,7 +4122,6 @@
       "signature": "public sealed class Bukit.Engine.Abstractions.Plugins.BuildContext",
       "publicMembers": [
         "public .ctor()",
-        "public Bukit.Config.AppConfig! Config { get; init; }",
         "public Bukit.Engine.Abstractions.Content.CanonicalContentGraph! ContentGraph { get; init; }",
         "public Bukit.Engine.Abstractions.Content.IContentBodyStore! BodyStore { get; init; }",
         "public Bukit.Shared.ILogger! Logger { get; init; }",

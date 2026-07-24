@@ -140,7 +140,6 @@ internal static class SeoAlternatesService
             : layoutsDir;
         var pluginContext = new BuildContext
         {
-            Config = config,
             RootDir = effectiveRootDir,
             OutputDir = Path.Combine(Path.GetTempPath(), "bukit-seo-alternates"),
             BaseUrl = baseUrl,
@@ -160,7 +159,7 @@ internal static class SeoAlternatesService
 
         var dataDocuments = variantDocuments.Where(ContentFieldReader.IsDataItem).ToList();
         TaxonomyTermsInjector.InjectFromDataDocuments(pluginContext, dataDocuments);
-        var derived = new TaxonomyPlugin().DerivePages(pluginContext);
+        var derived = new TaxonomyPlugin(config).DerivePages(pluginContext);
         return ListRouteGraphBuilder.AddDerivedTaxonomyRoutes(listRouteGraph, derived);
     }
 

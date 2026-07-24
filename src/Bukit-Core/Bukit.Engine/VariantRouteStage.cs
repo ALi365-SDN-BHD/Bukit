@@ -35,7 +35,6 @@ internal static class VariantRouteStage
 
         var pluginContext = new BuildContext
         {
-            Config = context.Config,
             RootDir = context.RootDir,
             OutputDir = context.OutputDir,
             BaseUrl = context.BaseUrl,
@@ -51,7 +50,10 @@ internal static class VariantRouteStage
 
         var taxonomyStopwatch = Stopwatch.StartNew();
         TaxonomyTermsInjector.InjectFromDataDocuments(pluginContext, dataDocuments);
-        await TaxonomyTermsInjector.InjectFromNotionDatabaseOptionsAsync(pluginContext, cancellationToken);
+        await TaxonomyTermsInjector.InjectFromNotionDatabaseOptionsAsync(
+            pluginContext,
+            context.Config,
+            cancellationToken);
         taxonomyStopwatch.Stop();
         metrics.AddDuration("taxonomySetup", taxonomyStopwatch.ElapsedMilliseconds);
 

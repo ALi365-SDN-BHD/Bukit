@@ -16,13 +16,9 @@ public sealed class DataFilesPluginTests
     [Fact]
     public void DerivePages_NoDataDir_ReturnsEmpty()
     {
+        var config = CreateConfig();
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = TestContent.Markdown()
-            },
             RootDir = Path.Combine(Path.GetTempPath(), "bukit_nonexistent_" + Guid.NewGuid().ToString("N")),
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -31,7 +27,7 @@ public sealed class DataFilesPluginTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var derived = new DataFilesPlugin().DerivePages(ctx);
+        var derived = new DataFilesPlugin(config).DerivePages(ctx);
         Assert.Empty(derived);
     }
 
@@ -46,13 +42,9 @@ public sealed class DataFilesPluginTests
             File.WriteAllText(Path.Combine(dataDir, "authors.yaml"),
                 "john:\n  name: John Doe\n  email: john@example.com\n");
 
+            var config = CreateConfig();
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = TestContent.Markdown()
-                },
                 RootDir = root,
                 OutputDir = "/t/out",
                 BaseUrl = "/",
@@ -61,7 +53,7 @@ public sealed class DataFilesPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            var derived = new DataFilesPlugin().DerivePages(ctx);
+            var derived = new DataFilesPlugin(config).DerivePages(ctx);
             Assert.Empty(derived);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
@@ -87,13 +79,9 @@ public sealed class DataFilesPluginTests
             File.WriteAllText(Path.Combine(dataDir, "nav.json"),
                 """{"items":[{"name":"Home","url":"/"},{"name":"Blog","url":"/blog/"}]}""");
 
+            var config = CreateConfig();
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = TestContent.Markdown()
-                },
                 RootDir = root,
                 OutputDir = "/t/out",
                 BaseUrl = "/",
@@ -102,7 +90,7 @@ public sealed class DataFilesPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new DataFilesPlugin().DerivePages(ctx);
+            new DataFilesPlugin(config).DerivePages(ctx);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             var nav = Assert.IsType<Dictionary<string, object>>(dict["nav"]);
@@ -129,18 +117,18 @@ public sealed class DataFilesPluginTests
             File.WriteAllText(Path.Combine(dataDir, "zh-CN", "strings.yaml"), "hello: 你好\n");
             File.WriteAllText(Path.Combine(dataDir, "en", "strings.yaml"), "hello: Hello\n");
 
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    Languages = new[] { "zh-CN", "en" }
+                },
+                Content = TestContent.Markdown()
+            };
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig
-                    {
-                        Name = "t",
-                        Title = "t",
-                        Languages = new[] { "zh-CN", "en" }
-                    },
-                    Content = TestContent.Markdown()
-                },
                 RootDir = root,
                 OutputDir = "/t/out",
                 BaseUrl = "/",
@@ -149,7 +137,7 @@ public sealed class DataFilesPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new DataFilesPlugin().DerivePages(ctx);
+            new DataFilesPlugin(config).DerivePages(ctx);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             Assert.Contains("zh-CN", dict.Keys);
@@ -172,13 +160,9 @@ public sealed class DataFilesPluginTests
             Directory.CreateDirectory(subDir);
             File.WriteAllText(Path.Combine(subDir, "members.yaml"), "devs:\n  - Alice\n  - Bob\n");
 
+            var config = CreateConfig();
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = TestContent.Markdown()
-                },
                 RootDir = root,
                 OutputDir = "/t/out",
                 BaseUrl = "/",
@@ -187,7 +171,7 @@ public sealed class DataFilesPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new DataFilesPlugin().DerivePages(ctx);
+            new DataFilesPlugin(config).DerivePages(ctx);
             Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             Assert.Contains("team", dict.Keys);
@@ -199,4 +183,10 @@ public sealed class DataFilesPluginTests
     }
 
     private static string GetTempDir() => Path.Combine(Path.GetTempPath(), "bukit_data_test_" + Guid.NewGuid().ToString("N"));
+
+    private static AppConfig CreateConfig() => new()
+    {
+        Site = new SiteConfig { Name = "t", Title = "t" },
+        Content = TestContent.Markdown()
+    };
 }

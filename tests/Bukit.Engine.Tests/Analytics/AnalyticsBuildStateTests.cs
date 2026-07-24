@@ -1,5 +1,9 @@
 using Bukit.Config;
 using Bukit.Engine.Analytics;
+using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Plugins;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests.Analytics;
@@ -56,5 +60,105 @@ public sealed class AnalyticsBuildStateTests
         Assert.Equal(3, snapshot.SkippedByReason["plugin_disabled"]);
         Assert.Equal(2, snapshot.SkippedByReason["incremental_unchanged"]);
         Assert.Equal(0, snapshot.ProcessedHtml);
+    }
+
+    [Fact]
+    public void Session_UsesExplicitEffectiveConfigWithoutContextBridge()
+    {
+        var contextConfig = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "context",
+                Title = "Context",
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = false }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
+        var effectiveConfig = contextConfig with
+        {
+            Site = contextConfig.Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = true }
+                }
+            }
+        };
+        var context = new BuildContext
+        {
+            RootDir = ".",
+            OutputDir = "dist",
+            BaseUrl = "/",
+            LayoutsDir = "layouts",
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            BodyStore = NullContentBodyStore.Instance,
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var session = PluginExecutionSession.Create(
+            effectiveConfig,
+            BuildExecutionMode.Production);
+
+        Assert.True(session.AnalyticsBuildState.Snapshot().PluginEnabled);
+        Assert.Empty(context.Data);
+    }
+
+    [Fact]
+    public void Sessions_IsolateDifferentConfigAndExecutionMode()
+    {
+        var configA = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "a",
+                Title = "A",
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = false }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
+        var configB = configA with
+        {
+            Site = configA.Site with
+            {
+                Plugins = new Dictionary<string, PluginToggleConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["analytics"] = new() { Enabled = true }
+                }
+            }
+        };
+        var context = new BuildContext
+        {
+            RootDir = ".",
+            OutputDir = "dist",
+            BaseUrl = "/",
+            LayoutsDir = "layouts",
+            RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+            BodyStore = NullContentBodyStore.Instance,
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+
+        var first = PluginExecutionSession.Create(
+            configA,
+            BuildExecutionMode.Production).AnalyticsBuildState;
+        var second = PluginExecutionSession.Create(
+            configB,
+            BuildExecutionMode.Production).AnalyticsBuildState;
+        var third = PluginExecutionSession.Create(
+            configB,
+            BuildExecutionMode.Development).AnalyticsBuildState;
+
+        Assert.False(first.Snapshot().PluginEnabled);
+        Assert.True(second.Snapshot().PluginEnabled);
+        Assert.NotSame(first, second);
+        Assert.NotSame(second, third);
+        Assert.Equal(BuildExecutionMode.Development, third.ExecutionMode);
+        Assert.Empty(context.Data);
     }
 }

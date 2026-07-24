@@ -181,7 +181,6 @@ public sealed class SearchIndexPluginExtendedTests
 
             var context = new BuildContext
             {
-                Config = config,
                 RootDir = tempDir,
                 OutputDir = tempDir,
                 BaseUrl = "https://example.com",
@@ -196,7 +195,7 @@ public sealed class SearchIndexPluginExtendedTests
             };
             context.SeoIndex = seoIndex;
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(config);
             plugin.AfterBuild(context);
 
             var indexPath = Path.Combine(tempDir, "search.json");
@@ -221,18 +220,18 @@ public sealed class SearchIndexPluginExtendedTests
         {
             var route = CreateRoute("/post/", "post/index.html");
             var document = CreateItem("post", "Post", "post", "abcdef");
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "Test Site",
+                    Search = new SearchDetailConfig { MaxContentLength = 3 }
+                },
+                Content = TestContent.Markdown()
+            };
             var context = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig
-                    {
-                        Name = "test",
-                        Title = "Test Site",
-                        Search = new SearchDetailConfig { MaxContentLength = 3 }
-                    },
-                    Content = TestContent.Markdown()
-                },
                 RootDir = tempDir,
                 OutputDir = tempDir,
                 BaseUrl = "/",
@@ -249,7 +248,7 @@ public sealed class SearchIndexPluginExtendedTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new SearchIndexPlugin().AfterBuild(context);
+            new SearchIndexPlugin(config).AfterBuild(context);
 
             using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));
             Assert.Equal("abc", Assert.Single(doc.RootElement.EnumerateArray()).GetProperty("content").GetString());
@@ -290,7 +289,6 @@ public sealed class SearchIndexPluginExtendedTests
 
             var context = new BuildContext
             {
-                Config = config,
                 RootDir = tempDir,
                 OutputDir = tempDir,
                 BaseUrl = "https://example.com",
@@ -306,7 +304,7 @@ public sealed class SearchIndexPluginExtendedTests
             context.DerivedDocuments.Add(new RoutedContentDocument(CreateItem("d1", "Derived Item", "derived", "<p>Derived content</p>").ToDocument(), derivedRoute));
             context.DerivedRoutes.Add((derivedRoute, DateTimeOffset.UtcNow));
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(config);
             plugin.AfterBuild(context);
 
             var indexPath = Path.Combine(tempDir, "search.json");
@@ -350,7 +348,6 @@ public sealed class SearchIndexPluginExtendedTests
 
             var context = new BuildContext
             {
-                Config = config,
                 RootDir = tempDir,
                 OutputDir = tempDir,
                 BaseUrl = "https://example.com",
@@ -365,7 +362,7 @@ public sealed class SearchIndexPluginExtendedTests
             context.SeoIndex = seoIndex;
             context.DerivedDocuments.Add(new RoutedContentDocument(CreateItem("d1", "Derived Item", "derived", "<p>Derived content</p>").ToDocument(), derivedRoute));
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(config);
             plugin.AfterBuild(context);
 
             var indexPath = Path.Combine(tempDir, "search.json");
@@ -401,7 +398,6 @@ public sealed class SearchIndexPluginExtendedTests
 
             var context = new BuildContext
             {
-                Config = config,
                 RootDir = tempDir,
                 OutputDir = tempDir,
                 BaseUrl = "https://example.com",
@@ -412,7 +408,7 @@ public sealed class SearchIndexPluginExtendedTests
             };
             context.SeoIndex = new Dictionary<string, SeoIndexEntry>();
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(config);
             plugin.AfterBuild(context);
 
             var indexPath = Path.Combine(tempDir, "search.json");
@@ -480,7 +476,6 @@ public sealed class SearchIndexPluginExtendedTests
             var routeInfo = route.ToRouteInfo();
             var context = new BuildContext
             {
-                Config = config,
                 RootDir = tempDir,
                 OutputDir = tempDir,
                 BaseUrl = "/",
@@ -504,7 +499,7 @@ public sealed class SearchIndexPluginExtendedTests
                 }
             };
 
-            var plugin = new SearchIndexPlugin();
+            var plugin = new SearchIndexPlugin(config);
             plugin.AfterBuild(context);
 
             using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, "search.json")));

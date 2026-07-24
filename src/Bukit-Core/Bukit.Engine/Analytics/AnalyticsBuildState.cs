@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using Bukit.Config;
-using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Analytics;
 
@@ -71,24 +70,6 @@ internal sealed class AnalyticsBuildState
             ResolvePluginEnabled(config.Site.Plugins),
             AnalyticsConfigNormalizer.Normalize(config.Site.Analytics),
             executionMode);
-
-    internal static void Attach(BuildContext context, AnalyticsBuildState state)
-        => context.Data[BuildContextDataKeys.AnalyticsBuildState] = state;
-
-    internal static AnalyticsBuildState GetOrCreate(
-        BuildContext context,
-        BuildExecutionMode executionMode)
-    {
-        if (context.Data.TryGetValue(BuildContextDataKeys.AnalyticsBuildState, out var value) &&
-            value is AnalyticsBuildState state)
-        {
-            return state;
-        }
-
-        state = Create(context.Config, executionMode);
-        Attach(context, state);
-        return state;
-    }
 
     internal static bool ResolvePluginEnabled(IReadOnlyDictionary<string, PluginToggleConfig>? plugins)
     {

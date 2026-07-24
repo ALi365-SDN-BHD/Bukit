@@ -63,18 +63,51 @@ public sealed class SiteEngine
     }
 
     public static IReadOnlyList<RouteInfo> GetListRoutes(
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        string outputPathEncoding,
+        ThemeTemplateResolver? templateResolver = null)
+    {
+        var graph = BuildListRouteGraph(
+            routedDocuments,
+            collections,
+            outputPathEncoding,
+            templateResolver);
+        return [.. graph.Routes.Select(route => route.ToRouteInfo())];
+    }
+
+    internal static IReadOnlyList<RouteInfo> GetListRoutes(
         BuildContext context,
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        string outputPathEncoding,
         ThemeTemplateResolver? templateResolver = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var graph = ListRouteGraphBuilder.Build(
-            context.RoutedDocuments,
-            context.Config.Site.Collections,
-            context.Config.Site.OutputPathEncoding,
+        var graph = BuildListRouteGraph(
+            routedDocuments,
+            collections,
+            outputPathEncoding,
             templateResolver);
         context.Data[ListRouteGraphBuilder.BuildContextDataKey] = graph;
         return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
+    }
+
+    private static ListRouteGraph BuildListRouteGraph(
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
+        IReadOnlyDictionary<string, CollectionConfig>? collections,
+        string outputPathEncoding,
+        ThemeTemplateResolver? templateResolver)
+    {
+        ArgumentNullException.ThrowIfNull(routedDocuments);
+        ArgumentNullException.ThrowIfNull(outputPathEncoding);
+
+        return ListRouteGraphBuilder.Build(
+            routedDocuments,
+            collections,
+            outputPathEncoding,
+            templateResolver);
     }
 
     public async Task BuildAsync(IContentProvider provider, BuildOptions options, CancellationToken cancellationToken = default)

@@ -325,7 +325,8 @@ public sealed class VariantBuildPipelineTests : IDisposable
         var pluginTransforms = PluginRunner.CollectHtmlTransforms(
             buildContext,
             BuildExecutionMode.Production,
-            [new AnalyticsPlugin()]);
+            PluginExecutionPolicy.From(config.Site),
+            [new AnalyticsPlugin(config)]);
         var seoResult = new SeoPipeline().Execute(
             config,
             "/",
@@ -374,6 +375,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
         var transforms = PluginRunner.CollectHtmlTransforms(
             context,
             BuildExecutionMode.Production,
+            PluginExecutionPolicy.From(config.Site),
             [new ThrowingHtmlTransformPlugin()]);
         var htmlContext = new HtmlTransformContext(
             "/", "index.html", HtmlDocumentKind.Content,
@@ -452,7 +454,6 @@ public sealed class VariantBuildPipelineTests : IDisposable
     private BuildContext CreateBuildContext(AppConfig config)
         => new()
         {
-            Config = config,
             RootDir = _rootDir,
             OutputDir = Path.Combine(_rootDir, "dist"),
             BaseUrl = "/",

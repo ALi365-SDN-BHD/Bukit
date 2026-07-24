@@ -47,9 +47,9 @@ public sealed class TaxonomyPinningTests
             (pinned, new RouteInfo("/pinned/", "pinned/index.html", "pages/page.html")),
             (normal, new RouteInfo("/normal-newer/", "normal-newer/index.html", "pages/page.html"))
         };
-        var ctx = CreateContext(layoutsDir, routed);
+        var (ctx, config) = CreateContext(layoutsDir, routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
@@ -94,7 +94,7 @@ public sealed class TaxonomyPinningTests
             (pinned, new RouteInfo("/pinned/", "pinned/index.html", "pages/page.html")),
             (normal, new RouteInfo("/normal-newer/", "normal-newer/index.html", "pages/page.html"))
         };
-        var ctx = CreateContext(
+        var (ctx, config) = CreateContext(
             layoutsDir,
             routed,
             new TaxonomyConfig
@@ -106,7 +106,7 @@ public sealed class TaxonomyPinningTests
                 }
             });
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
@@ -154,7 +154,7 @@ public sealed class TaxonomyPinningTests
             (pinned2, new RouteInfo("/pinned-2/", "pinned-2/index.html", "pages/page.html")),
             (pinned1, new RouteInfo("/pinned-1/", "pinned-1/index.html", "pages/page.html"))
         };
-        var ctx = CreateContext(
+        var (ctx, config) = CreateContext(
             layoutsDir,
             routed,
             new TaxonomyConfig
@@ -163,7 +163,7 @@ public sealed class TaxonomyPinningTests
                 PinOrderField = "pinOrder"
             });
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(config);
         var derived = plugin.DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/categories/cat-one/");
@@ -176,6 +176,63 @@ public sealed class TaxonomyPinningTests
         Assert.Equal("Pinned 2", second["title"]);
     }
 
+    [Fact]
+    public void GetOrBuildIndex_SameContextAndDifferentTaxonomyConfig_RebuildsSorting()
+    {
+        var first = ContentDocument.Create(
+            id: "s1:first",
+            title: "First",
+            slug: "first",
+            publishAt: new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: string.Empty,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["categories"] = new ContentField("list", new List<object> { "Cat One" }),
+                ["pinned"] = new ContentField("boolean", true),
+                ["orderA"] = new ContentField("number", 1),
+                ["orderB"] = new ContentField("number", 2)
+            });
+        var second = ContentDocument.Create(
+            id: "s1:second",
+            title: "Second",
+            slug: "second",
+            publishAt: new DateTimeOffset(2025, 01, 01, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: string.Empty,
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["categories"] = new ContentField("list", new List<object> { "Cat One" }),
+                ["pinned"] = new ContentField("boolean", true),
+                ["orderA"] = new ContentField("number", 2),
+                ["orderB"] = new ContentField("number", 1)
+            });
+        var (context, _) = CreateContext(
+            CreateTaxonomyLayoutsDir(),
+            [
+                (first, new RouteInfo("/first/", "first/index.html", "pages/page.html")),
+                (second, new RouteInfo("/second/", "second/index.html", "pages/page.html"))
+            ]);
+        var configA = new TaxonomyConfig { PinField = "pinned", PinOrderField = "orderA" };
+        var configB = new TaxonomyConfig { PinField = "pinned", PinOrderField = "orderB" };
+        TaxonomyPlugin.ResetBuildIndexCountForTests();
+
+        var termsA = TaxonomyIndexBuilder.GetOrBuildIndex(
+            context,
+            "categories",
+            [],
+            configA,
+            new TaxonomyIndexCache());
+        var termsB = TaxonomyIndexBuilder.GetOrBuildIndex(
+            context,
+            "categories",
+            [],
+            configB,
+            new TaxonomyIndexCache());
+
+        Assert.Equal("First", termsA["cat-one"].Pages[0].Title);
+        Assert.Equal("Second", termsB["cat-one"].Pages[0].Title);
+        Assert.Equal(2, TaxonomyPlugin.BuildIndexCountForTests);
+    }
+
     private static string ResolveTemplateKind(string kind)
         => kind.Trim().ToLowerInvariant() switch
         {
@@ -184,20 +241,20 @@ public sealed class TaxonomyPinningTests
             _ => throw new ConfigException($"Unexpected template kind: {kind}")
         };
 
-    private static BuildContext CreateContext(
+    private static (BuildContext Context, AppConfig Config) CreateContext(
         string layoutsDir,
         IReadOnlyList<(ContentDocument Item, RouteInfo Route)> routed,
         TaxonomyConfig? taxonomy = null)
     {
         var routedDocuments = routed.ToRoutedDocuments();
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = TestContent.Markdown(),
-                Taxonomy = taxonomy ?? new TaxonomyConfig()
-            },
+            Site = new SiteConfig { Name = "t", Title = "t" },
+            Content = TestContent.Markdown(),
+            Taxonomy = taxonomy ?? new TaxonomyConfig()
+        };
+        var context = new BuildContext
+        {
             RootDir = "C:\\",
             OutputDir = "C:\\out",
             BaseUrl = "/",
@@ -209,6 +266,7 @@ public sealed class TaxonomyPinningTests
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+        return (context, config);
     }
 
     private static string CreateTaxonomyLayoutsDir()

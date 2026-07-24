@@ -8,30 +8,40 @@ using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
+internal sealed class TaxonomyIndexCache
+{
+    private BuildContext? _context;
+    private Dictionary<string, Dictionary<string, TaxonomyTerm>> _indexes =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    internal Dictionary<string, Dictionary<string, TaxonomyTerm>> For(BuildContext context)
+    {
+        if (!ReferenceEquals(_context, context))
+        {
+            _context = context;
+            _indexes = new Dictionary<string, Dictionary<string, TaxonomyTerm>>(
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        return _indexes;
+    }
+}
+
 internal static class TaxonomyIndexBuilder
 {
     internal static Dictionary<string, TaxonomyTerm> GetOrBuildIndex(
         BuildContext context,
         string key,
-        IReadOnlyList<string> itemFields)
+        IReadOnlyList<string> itemFields,
+        TaxonomyConfig config,
+        TaxonomyIndexCache cache)
     {
-        Dictionary<string, Dictionary<string, TaxonomyTerm>> cache;
-        if (context.Data.TryGetValue(TaxonomyPlugin.IndexCacheKey, out var cacheObj)
-            && cacheObj is Dictionary<string, Dictionary<string, TaxonomyTerm>> existingCache)
-        {
-            cache = existingCache;
-        }
-        else
-        {
-            cache = new Dictionary<string, Dictionary<string, TaxonomyTerm>>(StringComparer.OrdinalIgnoreCase);
-            context.Data[TaxonomyPlugin.IndexCacheKey] = cache;
-        }
-
+        var indexes = cache.For(context);
         var indexKey = $"{key}|{string.Join(",", itemFields)}";
-        if (!cache.TryGetValue(indexKey, out var terms))
+        if (!indexes.TryGetValue(indexKey, out var terms))
         {
-            terms = BuildIndexCore(context.RoutedDocuments, context.ContentGraph, key, itemFields, context.Config.Taxonomy);
-            cache[indexKey] = terms;
+            terms = BuildIndexCore(context.RoutedDocuments, context.ContentGraph, key, itemFields, config);
+            indexes[indexKey] = terms;
         }
 
         return terms;

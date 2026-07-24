@@ -1,22 +1,31 @@
 using System.Text.Json;
+using Bukit.Config;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 using Bukit.Engine.Abstractions.Plugins;
 internal sealed class MenuPlugin : IBukitPlugin, IAfterBuildPlugin
 {
+    private readonly AppConfig _config;
+
+    internal MenuPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "menu";
     public string Version => "1.0.0";
 
     public void AfterBuild(BuildContext context)
     {
-        var menus = context.Config.Site.Menus;
+        var menus = _config.Site.Menus;
         if (menus is null || menus.Count == 0)
         {
             return;
         }
 
-        context.Data["menus"] = menus;
+        context.Data["menus"] = ProjectMenus(menus);
 
         var jsonPath = Path.Combine(context.OutputDir, "menus.json");
         Directory.CreateDirectory(context.OutputDir);
@@ -59,5 +68,42 @@ internal sealed class MenuPlugin : IBukitPlugin, IAfterBuildPlugin
 
             writer.WriteEndObject();
         }
+    }
+
+    private static IReadOnlyDictionary<string, object> ProjectMenus(
+        IReadOnlyDictionary<string, IReadOnlyList<MenuConfig>> menus)
+    {
+        var projected = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, items) in menus)
+        {
+            projected[name] = ProjectMenuItems(items);
+        }
+
+        return projected;
+    }
+
+    private static List<object> ProjectMenuItems(IReadOnlyList<MenuConfig>? items)
+    {
+        if (items is null || items.Count == 0)
+        {
+            return [];
+        }
+
+        var projected = new List<object>(items.Count);
+        foreach (var item in items)
+        {
+            projected.Add(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["identifier"] = item.Identifier,
+                ["name"] = item.Name,
+                ["url"] = item.Url,
+                ["weight"] = item.Weight,
+                ["children"] = item.Children is null
+                    ? null!
+                    : ProjectMenuItems(item.Children)
+            });
+        }
+
+        return projected;
     }
 }

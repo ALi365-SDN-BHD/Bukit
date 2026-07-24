@@ -43,14 +43,15 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
                                                                               supports_pagination: true
                                                                         """);
 
-        var plugin = new PaginationPlugin();
-        var derived = plugin.DerivePages(CreateContext());
+        var (context, config) = CreateContext();
+        var plugin = new PaginationPlugin(config);
+        var derived = plugin.DerivePages(context);
 
         Assert.NotEmpty(derived);
         Assert.All(derived, x => Assert.Equal("pages/pagination.html", x.Route.Template));
     }
 
-    private BuildContext CreateContext()
+    private (BuildContext Context, AppConfig Config) CreateContext()
     {
         var routed = new List<(ContentDocument Item, RouteInfo Route)>();
         for (var i = 1; i <= 12; i++)
@@ -70,26 +71,26 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
                 new RouteInfo($"/blog/post-{i}/", Path.Combine("blog", $"post-{i}", "index.html"), "pages/post.html")));
         }
 
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
+            Site = new SiteConfig
             {
-                Site = new SiteConfig
+                Name = "test",
+                Title = "test",
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
                 {
-                    Name = "test",
-                    Title = "test",
-                    Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                    ["post"] = new()
                     {
-                        ["post"] = new()
-                        {
-                            Permalink = "/blog/{slug}/",
-                            ListRoute = "/blog/",
-                            Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 10 }
-                        }
+                        Permalink = "/blog/{slug}/",
+                        ListRoute = "/blog/",
+                        Pagination = new CollectionPaginationConfig { Enabled = true, PageSize = 10 }
                     }
-                },
-                Content = TestContent.Markdown()
+                }
             },
+            Content = TestContent.Markdown()
+        };
+        var context = new BuildContext
+        {
             RootDir = _rootDir,
             OutputDir = Path.Combine(_rootDir, "dist"),
             BaseUrl = "/",
@@ -100,5 +101,6 @@ public sealed class PaginationPluginCapabilityTests : IDisposable
                 : throw new ConfigException($"Unexpected template kind: {kind}"),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+        return (context, config);
     }
 }

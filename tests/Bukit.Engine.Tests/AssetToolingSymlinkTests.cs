@@ -58,17 +58,17 @@ public sealed class AssetToolingSymlinkTests
             Environment.SetEnvironmentVariable(
                 "PATH",
                 string.IsNullOrEmpty(originalPath) ? toolDir : toolDir + Path.PathSeparator + originalPath);
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "Test" },
+                Content = TestContent.Markdown(),
+                Theme = new ThemeConfig
+                {
+                    Images = new ImageOptimizationConfig { Enabled = true, Sizes = Array.Empty<int>() }
+                }
+            };
             var context = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig { Name = "test", Title = "Test" },
-                    Content = TestContent.Markdown(),
-                    Theme = new ThemeConfig
-                    {
-                        Images = new ImageOptimizationConfig { Enabled = true, Sizes = Array.Empty<int>() }
-                    }
-                },
                 RootDir = root,
                 OutputDir = root,
                 BaseUrl = "/",
@@ -77,7 +77,7 @@ public sealed class AssetToolingSymlinkTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin().AfterBuild(context);
+            new ImageProcessingPlugin(config).AfterBuild(context);
 
             var srcsets = Assert.IsType<Dictionary<string, object>>(context.Data["__image_srcsets"]);
             Assert.Contains("local.jpg", srcsets.Keys);

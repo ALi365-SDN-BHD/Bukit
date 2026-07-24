@@ -1,4 +1,3 @@
-using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
@@ -18,7 +17,7 @@ public sealed class TaxonomyTermsInjectorTests
     }
 
     [Fact]
-    public void InjectFromDataDocuments_WithTaxonomyConfig_InjectsTerms()
+    public void InjectFromDataDocuments_WithDocuments_DoesNotThrow()
     {
         var documents = new List<ContentDocument>
         {
@@ -26,23 +25,8 @@ public sealed class TaxonomyTermsInjectorTests
             CreateDocument("2", "Programming 101", "programming-101"),
         };
 
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-            Content = TestContent.Markdown(),
-            Taxonomy = new TaxonomyConfig
-            {
-                Kinds = new List<TaxonomyKindConfig>
-                {
-                    new TaxonomyKindConfig { Key = "tags", Kind = "tags" },
-                    new TaxonomyKindConfig { Key = "categories", Kind = "categories" }
-                }
-            }
-        };
-
         var context = new BuildContext
         {
-            Config = config,
             RootDir = "/tmp/test",
             OutputDir = "/tmp/test",
             BaseUrl = "/",
@@ -59,16 +43,8 @@ public sealed class TaxonomyTermsInjectorTests
     public void InjectFromDataDocuments_WithEmptyItems_DoesNotThrow()
     {
         var documents = Array.Empty<ContentDocument>();
-        var config = new AppConfig
-        {
-            Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
-            Content = TestContent.Markdown(),
-            Taxonomy = new TaxonomyConfig()
-        };
-
         var context = new BuildContext
         {
-            Config = config,
             RootDir = "/tmp/test",
             OutputDir = "/tmp/test",
             BaseUrl = "/",

@@ -8,17 +8,25 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
 {
+    private readonly AppConfig _config;
+
+    internal SitemapPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "sitemap";
     public string Version => "2.0.1";
 
     public void AfterBuild(BuildContext context)
     {
-        if (context.Config.Site.Languages is { Count: > 0 } && context.Config.Site.SitemapMode.Equals("merged", StringComparison.OrdinalIgnoreCase))
+        if (_config.Site.Languages is { Count: > 0 } && _config.Site.SitemapMode.Equals("merged", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        var siteUrl = context.Config.Site.Url;
+        var siteUrl = _config.Site.Url;
         if (string.IsNullOrWhiteSpace(siteUrl))
         {
             return;
@@ -26,9 +34,9 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
 
         var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>(context.SeoIndex.Count);
         var documentExclusions = BuildDocumentSitemapExclusions(
-            context.Config,
+            _config,
             context.RoutedDocuments.Concat(context.DerivedDocuments));
-        var listRouteExclusions = BuildListRouteSitemapExclusions(context);
+        var listRouteExclusions = BuildListRouteSitemapExclusions(context, _config);
         foreach (var seo in context.SeoIndex.Values.OrderBy(x => x.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             if (!seo.Indexable)
@@ -77,11 +85,13 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
                !collectionConfig.Output.Sitemap;
     }
 
-    private static HashSet<string> BuildListRouteSitemapExclusions(BuildContext context)
+    private static HashSet<string> BuildListRouteSitemapExclusions(
+        BuildContext context,
+        AppConfig config)
     {
         var graph = context.Data.TryGetValue(ListRouteGraphBuilder.BuildContextDataKey, out var value) && value is ListRouteGraph routeGraph
             ? routeGraph
             : null;
-        return ListRouteSitemapPolicy.BuildExcludedOutputPaths(context.Config, graph);
+        return ListRouteSitemapPolicy.BuildExcludedOutputPaths(config, graph);
     }
 }

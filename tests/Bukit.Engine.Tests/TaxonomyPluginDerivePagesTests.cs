@@ -13,7 +13,7 @@ namespace Bukit.Engine.Tests;
 
 public sealed class TaxonomyPluginDerivePagesTests
 {
-    private static BuildContext CreateContext(
+    private static (BuildContext Context, AppConfig Config) CreateContext(
         IReadOnlyList<(ContentDocument Item, RouteInfo Route)> routed,
         TaxonomyConfig? taxonomyConfig = null,
         string outputMode = "pages",
@@ -22,24 +22,24 @@ public sealed class TaxonomyPluginDerivePagesTests
         string language = "en")
     {
         var layoutsDir = CreateTaxonomyLayoutsDir();
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
+            Site = new SiteConfig
             {
-                Site = new SiteConfig
-                {
-                    Name = "test",
-                    Title = "test",
-                    Language = language,
-                    OutputPathEncoding = outputPathEncoding
-                },
-                Content = TestContent.Markdown(),
-                Taxonomy = taxonomyConfig ?? new TaxonomyConfig
-                {
-                    OutputMode = outputMode,
-                    IndexEnabled = true
-                }
+                Name = "test",
+                Title = "test",
+                Language = language,
+                OutputPathEncoding = outputPathEncoding
             },
+            Content = TestContent.Markdown(),
+            Taxonomy = taxonomyConfig ?? new TaxonomyConfig
+            {
+                OutputMode = outputMode,
+                IndexEnabled = true
+            }
+        };
+        var context = new BuildContext
+        {
             RootDir = "/test",
             OutputDir = "/test/out",
             BaseUrl = "/",
@@ -49,6 +49,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             TemplateResolver = ResolveTemplateKind,
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+        return (context, config);
     }
 
     private static string ResolveTemplateKind(string kind)
@@ -110,9 +111,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha", "beta" }),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, appConfig) = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/alpha/");
@@ -126,9 +127,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: new[] { "News", "Tech" }),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, appConfig) = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/categories/news/");
@@ -142,9 +143,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, appConfig) = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/");
@@ -158,9 +159,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "hello world" }),
         };
-        var ctx = CreateContext(routed, outputPathEncoding: "sanitize");
+        var (ctx, appConfig) = CreateContext(routed, outputPathEncoding: "sanitize");
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(ctx);
 
         var term = Assert.Single(derived, x => x.Route.Url == "/tags/hello-world/");
         Assert.Equal("tags/hello-world/index.html", term.Route.OutputPath);
@@ -172,9 +173,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         var unpinned = CreateItem("p1", "Not Pinned", new DateTimeOffset(2024, 3, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "topic" }, pinned: false);
         var pinned = CreateItem("p2", "Pinned", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "topic" }, pinned: true);
         var routed = new List<(ContentDocument Item, RouteInfo Route)> { unpinned, pinned };
-        var ctx = CreateContext(routed);
+        var (ctx, appConfig) = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/topic/");
@@ -224,9 +225,9 @@ public sealed class TaxonomyPluginDerivePagesTests
                 }))
             }
         };
-        var ctx = CreateContext(routed, taxonomyConfig: config);
+        var (ctx, appConfig) = CreateContext(routed, taxonomyConfig: config);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/series/");
@@ -262,9 +263,9 @@ public sealed class TaxonomyPluginDerivePagesTests
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: new[] { "市场观察" }),
             CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: new[] { "市场观察" })
         };
-        var ctx = CreateContext(routed, taxonomyConfig: config);
+        var (ctx, appConfig) = CreateContext(routed, taxonomyConfig: config);
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(ctx);
 
         var index = Assert.Single(derived, x => x.Route.Url == "/insights/category/");
         var termPage = Assert.Single(derived, x => x.Route.Url == "/insights/category/市场观察/");
@@ -311,8 +312,8 @@ public sealed class TaxonomyPluginDerivePagesTests
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: new[] { "market" }),
             CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: new[] { "market" })
         };
-        var ctx = CreateContext(routed, taxonomyConfig: config);
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var (ctx, appConfig) = CreateContext(routed, taxonomyConfig: config);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(ctx);
 
         var graph = ListRouteGraphBuilder.AddDerivedTaxonomyRoutes(ListRouteGraph.Empty, derived);
 
@@ -335,9 +336,9 @@ public sealed class TaxonomyPluginDerivePagesTests
     [Fact]
     public void DerivePages_EmptyItems_ReturnsEmpty()
     {
-        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>());
+        var (ctx, appConfig) = CreateContext(new List<(ContentDocument Item, RouteInfo Route)>());
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -350,9 +351,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero)),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, appConfig) = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);
@@ -365,9 +366,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: new[] { "News" }),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, appConfig) = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.DoesNotContain(derived, x => x.Route.Url.StartsWith("/tags/"));
@@ -391,9 +392,9 @@ public sealed class TaxonomyPluginDerivePagesTests
                 ["summary"] = new("text", "Canonical taxonomy summary")
             });
         var route = new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html");
-        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) });
+        var (ctx, appConfig) = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) });
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alpha/");
         var items = Assert.IsType<List<object>>(termPage.Document.CustomFields!["items"].Value);
@@ -424,9 +425,9 @@ public sealed class TaxonomyPluginDerivePagesTests
             OutputMode = "pages",
             ItemFields = new[] { "cover", "categories", "summary", "date" }
         };
-        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) }, taxonomyConfig: taxonomy);
+        var (ctx, appConfig) = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) }, taxonomyConfig: taxonomy);
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alpha/");
         var items = Assert.IsType<List<object>>(termPage.Document.CustomFields!["items"].Value);
@@ -468,9 +469,9 @@ public sealed class TaxonomyPluginDerivePagesTests
                 [],
                 [])
         ], []);
-        var ctx = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) }, contentGraph: graph);
+        var (ctx, appConfig) = CreateContext(new List<(ContentDocument Item, RouteInfo Route)> { (item, route) }, contentGraph: graph);
 
-        var derived = new TaxonomyPlugin().DerivePages(ctx);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/canonical-tag/");
         var categoryPage = Assert.Single(derived, x => x.Route.Url == "/categories/canonical-category/");
@@ -491,9 +492,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
-        var ctx = CreateContext(routed, taxonomyConfig: taxonomyConfig);
+        var (ctx, appConfig) = CreateContext(routed, taxonomyConfig: taxonomyConfig);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.DoesNotContain(derived, x => x.Route.Url == "/tags/");
@@ -507,9 +508,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "AlphaTag" }),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, appConfig) = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         var termPage = Assert.Single(derived, x => x.Route.Url == "/tags/alphatag/");
@@ -542,9 +543,9 @@ public sealed class TaxonomyPluginDerivePagesTests
             CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: ["市场观察"]),
             CreateItem("p3", "Post 3", new DateTimeOffset(2024, 1, 3, 0, 0, 0, TimeSpan.Zero), categories: ["市场观察"])
         };
-        var context = CreateContext(routed, taxonomyConfig: taxonomy, language: "zh-CN");
+        var (context, appConfig) = CreateContext(routed, taxonomyConfig: taxonomy, language: "zh-CN");
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(context);
 
         var first = Assert.Single(derived, page => page.Route.Url == "/insights/category/市场观察/");
         Assert.Equal("商务资讯：市场观察", first.Document.Title);
@@ -581,9 +582,9 @@ public sealed class TaxonomyPluginDerivePagesTests
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: ["Market"]),
             CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: ["Market"])
         };
-        var context = CreateContext(routed, taxonomyConfig: taxonomy, language: "en");
+        var (context, appConfig) = CreateContext(routed, taxonomyConfig: taxonomy, language: "en");
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(context);
 
         var second = Assert.Single(derived, page => page.Route.Url == "/category/market/page/2/");
         Assert.Equal("Category: Market - Page 2", second.Document.Title);
@@ -599,9 +600,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: ["AlphaTag"])
         };
-        var context = CreateContext(routed, language: "zh-CN");
+        var (context, appConfig) = CreateContext(routed, language: "zh-CN");
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(context);
 
         var index = Assert.Single(derived, page => page.Route.Url == "/tags/");
         Assert.Equal("标签", index.Document.Title);
@@ -635,7 +636,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), categories: ["Market"]),
             CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: ["Market"])
         };
-        var context = CreateContext(routed, taxonomyConfig: taxonomy, language: "zh-CN");
+        var (context, appConfig) = CreateContext(routed, taxonomyConfig: taxonomy, language: "zh-CN");
         context.Data["taxonomy_ensure_terms"] = new Dictionary<string, List<Dictionary<string, object>>>
         {
             ["category"] =
@@ -648,7 +649,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             ]
         };
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(context);
 
         var first = Assert.Single(derived, page => page.Route.Url == "/category/market/");
         Assert.Equal("市场观察资讯", ContentFieldReader.GetText(first.Document.CustomFields, "summary"));
@@ -674,7 +675,7 @@ public sealed class TaxonomyPluginDerivePagesTests
                 }
             ]
         };
-        var context = CreateContext([], taxonomyConfig: taxonomy, language: "zh-CN");
+        var (context, appConfig) = CreateContext([], taxonomyConfig: taxonomy, language: "zh-CN");
         context.Data["taxonomy_ensure_terms"] = new Dictionary<string, List<Dictionary<string, object>>>
         {
             ["topic"] =
@@ -687,7 +688,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             ]
         };
 
-        var derived = new TaxonomyPlugin().DerivePages(context);
+        var derived = new TaxonomyPlugin(appConfig).DerivePages(context);
 
         var index = Assert.Single(derived, page => page.Route.Url == "/topic/");
         Assert.Equal("topic", index.Document.Title);
@@ -716,9 +717,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             (item, new RouteInfo("/blog/p1/", "blog/p1/index.html", "pages/post.html")),
         };
-        var ctx = CreateContext(routed);
+        var (ctx, appConfig) = CreateContext(routed);
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/alpha/");
@@ -733,14 +734,14 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
+        var appConfig = new AppConfig
+        {
+            Site = new SiteConfig { Name = "test", Title = "test" },
+            Content = TestContent.Markdown(),
+            Taxonomy = new TaxonomyConfig { OutputMode = "pages", IndexEnabled = true }
+        };
         var ctx = new BuildContext
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown(),
-                Taxonomy = new TaxonomyConfig { OutputMode = "pages", IndexEnabled = true }
-            },
             RootDir = "/test",
             OutputDir = "/test/out",
             BaseUrl = "/my-site",
@@ -750,7 +751,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/");
@@ -764,9 +765,9 @@ public sealed class TaxonomyPluginDerivePagesTests
         {
             CreateItem("p1", "Post 1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), tags: new[] { "alpha" }),
         };
-        var ctx = CreateContext(routed, outputMode: "data");
+        var (ctx, appConfig) = CreateContext(routed, outputMode: "data");
 
-        var plugin = new TaxonomyPlugin();
+        var plugin = new TaxonomyPlugin(appConfig);
         var derived = plugin.DerivePages(ctx);
 
         Assert.Empty(derived);

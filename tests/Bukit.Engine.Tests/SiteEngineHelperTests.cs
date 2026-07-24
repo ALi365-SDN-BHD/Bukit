@@ -457,7 +457,6 @@ public sealed class SiteEngineHelperTests
         };
         var context = new BuildContext
         {
-            Config = config,
             RootDir = ".",
             OutputDir = "dist",
             BaseUrl = "/",
@@ -466,12 +465,49 @@ public sealed class SiteEngineHelperTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        var result = SiteEngine.GetListRoutes(context);
+        var result = SiteEngine.GetListRoutes(
+            context,
+            routed,
+            config.Site.Collections,
+            config.Site.OutputPathEncoding);
 
         Assert.Contains(result, r => r.Url == "/blog/");
         Assert.Contains(result, r => r.Url == "/blog/page/2/");
         var graph = Assert.IsType<ListRouteGraph>(context.Data[ListRouteGraphBuilder.BuildContextDataKey]);
         Assert.Equal(graph.Routes.Select(route => route.Url), result.Select(route => route.Url));
+    }
+
+    [Fact]
+    public void BuildListRoutes_WithExplicitInputs_UsesRoutedDocumentsAndConfigurationLeaves()
+    {
+        var contextConfig = new AppConfig
+        {
+            Site = new SiteConfig { Name = "context", Title = "Context" },
+            Content = TestContent.Markdown()
+        };
+        var effectiveConfig = contextConfig with
+        {
+            Site = contextConfig.Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["post"] = new()
+                    {
+                        Permalink = "/articles/{slug}/",
+                        Template = "pages/post.html",
+                        ListRoute = "/articles/",
+                        ListTemplate = "pages/list.html"
+                    }
+                }
+            }
+        };
+        var result = SiteEngine.GetListRoutes(
+            Array.Empty<RoutedContentDocument>(),
+            effectiveConfig.Site.Collections,
+            effectiveConfig.Site.OutputPathEncoding);
+
+        Assert.Contains(result, route => route.Url == "/articles/");
+        Assert.DoesNotContain(result, route => route.Url == "/blog/");
     }
 
     [Fact]

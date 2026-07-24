@@ -1,5 +1,6 @@
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Analytics;
+using Bukit.Config;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -9,6 +10,26 @@ internal sealed class AnalyticsPlugin :
     IHookFilterPlugin,
     IHtmlTransformPlugin
 {
+    private readonly ResolvedAnalyticsConfig _config;
+    private readonly AnalyticsBuildState _state;
+
+    internal AnalyticsPlugin(AppConfig config)
+        : this(
+            config,
+            AnalyticsBuildState.Create(config, BuildExecutionMode.Production))
+    {
+    }
+
+    internal AnalyticsPlugin(
+        AppConfig config,
+        AnalyticsBuildState state)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(state);
+        _config = AnalyticsConfigNormalizer.Normalize(config.Site.Analytics);
+        _state = state;
+    }
+
     public string Name => "analytics";
 
     public string Version => "1.0.0";
@@ -20,7 +41,7 @@ internal sealed class AnalyticsPlugin :
 
     public IHtmlTransform CreateHtmlTransform(HtmlTransformPluginContext context)
         => new AnalyticsHtmlTransform(
-            AnalyticsConfigNormalizer.Normalize(context.BuildContext.Config.Site.Analytics),
+            _config,
             AnalyticsProviderRegistry.CreateDefault(),
-            AnalyticsBuildState.GetOrCreate(context.BuildContext, context.ExecutionMode));
+            _state);
 }

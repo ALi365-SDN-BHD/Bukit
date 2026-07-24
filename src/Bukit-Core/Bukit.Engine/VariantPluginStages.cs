@@ -9,11 +9,15 @@ internal static class VariantPluginStages
 {
     internal static async Task RunDeriveAsync(
         BuildContext pluginContext,
+        PluginExecutionSession pluginSession,
         BuildStageMetricsCollector metrics,
         CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var derived = await PluginRunner.RunDerivePagesAsync(pluginContext, cancellationToken);
+        var derived = await PluginRunner.RunDerivePagesAsync(
+            pluginContext,
+            pluginSession,
+            cancellationToken);
         stopwatch.Stop();
         metrics.AddDuration("derivePages", stopwatch.ElapsedMilliseconds);
         foreach (var page in derived)
@@ -26,6 +30,7 @@ internal static class VariantPluginStages
     internal static async Task RunAfterBuildAsync(
         BuildVariantContext context,
         BuildContext pluginContext,
+        PluginExecutionSession pluginSession,
         ManifestSetupResult manifestSetup,
         RenderPipelineResult renderPipelineResult,
         BuildStageMetricsCollector metrics,
@@ -43,7 +48,8 @@ internal static class VariantPluginStages
             RenderedCount: renderPipelineResult.RenderedCount,
             SkippedCount: renderPipelineResult.SkippedCount,
             Logger: logger,
-            Config: context.Config),
+            Config: context.Config,
+            PluginSession: pluginSession),
             cancellationToken);
         metrics.Merge(result.StageMetrics);
     }

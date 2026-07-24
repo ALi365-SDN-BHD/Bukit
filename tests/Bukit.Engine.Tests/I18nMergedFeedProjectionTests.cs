@@ -133,7 +133,11 @@ public sealed class I18nMergedFeedProjectionTests
     [Fact]
     public void BuiltInPluginSource_DoesNotDoubleOwnProjectionAggregateOutputs()
     {
-        var plugins = new BuiltInPluginSource().GetPlugins().Select(x => x.GetType().Name).ToArray();
+        var plugins = new BuiltInPluginSource(new AppConfig
+        {
+            Site = new SiteConfig { Name = "test", Title = "Test" },
+            Content = TestContent.Markdown()
+        }).GetPlugins().Select(x => x.GetType().Name).ToArray();
 
         Assert.DoesNotContain("FeedPlugin", plugins);
         Assert.DoesNotContain("SitemapPlugin", plugins);

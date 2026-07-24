@@ -12,6 +12,14 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
 {
+    private readonly AppConfig _config;
+
+    internal SearchIndexPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "search-index";
     public string Version => "3.0.0";
 
@@ -100,16 +108,16 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
         SearchIndexBuilder.GenerateSingleSearchIndex(
             context.OutputDir,
             context.BaseUrl,
-            context.Config.Site.SearchIncludeDerived,
+            _config.Site.SearchIncludeDerived,
             emitSnippet,
-            context.Config.Site.Search.MaxContentLength,
+            _config.Site.Search.MaxContentLength,
             context.RoutedDocuments,
             context.DerivedDocuments,
             context.SeoIndex,
             context.BodyStore,
             listRouteGraph,
             seoModels);
-        WriteSearchUi(context.Config, context.OutputDir);
+        WriteSearchUi(_config, context.OutputDir);
     }
 
     private static bool TryResolveTemplate(BuildContext context, string kind, out string template)
@@ -125,9 +133,6 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
             return false;
         }
     }
-
-    internal static void WriteSearchUi(BuildContext context)
-        => WriteSearchUi(context.Config, context.OutputDir);
 
     internal static void WriteSearchUi(AppConfig config, string outputDir)
     {

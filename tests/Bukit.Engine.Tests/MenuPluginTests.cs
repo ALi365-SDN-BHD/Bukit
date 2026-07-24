@@ -20,13 +20,13 @@ public sealed class MenuPluginTests
         var outDir = GetTempDir();
         try
         {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "t" },
+                Content = TestContent.Markdown()
+            };
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig { Name = "t", Title = "t" },
-                    Content = TestContent.Markdown()
-                },
                 RootDir = "/t",
                 OutputDir = outDir,
                 BaseUrl = "/",
@@ -35,7 +35,7 @@ public sealed class MenuPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new MenuPlugin().AfterBuild(ctx);
+            new MenuPlugin(config).AfterBuild(ctx);
             Assert.False(File.Exists(Path.Combine(outDir, "menus.json")));
             Assert.False(ctx.Data.ContainsKey("menus"));
         }
@@ -51,24 +51,24 @@ public sealed class MenuPluginTests
         var outDir = GetTempDir();
         try
         {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["main"] = new[]
+                        {
+                            new MenuConfig { Identifier = "home", Name = "Home", Url = "/", Weight = 1 }
+                        }
+                    }
+                },
+                Content = TestContent.Markdown()
+            };
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig
-                    {
-                        Name = "t",
-                        Title = "t",
-                        Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["main"] = new[]
-                            {
-                                new MenuConfig { Identifier = "home", Name = "Home", Url = "/", Weight = 1 }
-                            }
-                        }
-                    },
-                    Content = TestContent.Markdown()
-                },
                 RootDir = "/t",
                 OutputDir = outDir,
                 BaseUrl = "/",
@@ -77,7 +77,7 @@ public sealed class MenuPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new MenuPlugin().AfterBuild(ctx);
+            new MenuPlugin(config).AfterBuild(ctx);
 
             Assert.True(ctx.Data.ContainsKey("menus"));
             var jsonPath = Path.Combine(outDir, "menus.json");
@@ -99,31 +99,31 @@ public sealed class MenuPluginTests
         var outDir = GetTempDir();
         try
         {
-            var ctx = new BuildContext
+            var config = new AppConfig
             {
-                Config = new AppConfig
+                Site = new SiteConfig
                 {
-                    Site = new SiteConfig
+                    Name = "t",
+                    Title = "t",
+                    Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
                     {
-                        Name = "t",
-                        Title = "t",
-                        Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
+                        ["main"] = new[]
                         {
-                            ["main"] = new[]
+                            new MenuConfig
                             {
-                                new MenuConfig
+                                Identifier = "blog", Name = "Blog", Url = "/blog/", Weight = 1,
+                                Children = new[]
                                 {
-                                    Identifier = "blog", Name = "Blog", Url = "/blog/", Weight = 1,
-                                    Children = new[]
-                                    {
-                                        new MenuConfig { Identifier = "tech", Name = "Tech", Url = "/blog/tech/", Weight = 1 }
-                                    }
+                                    new MenuConfig { Identifier = "tech", Name = "Tech", Url = "/blog/tech/", Weight = 1 }
                                 }
                             }
                         }
-                    },
-                    Content = TestContent.Markdown()
+                    }
                 },
+                Content = TestContent.Markdown()
+            };
+            var ctx = new BuildContext
+            {
                 RootDir = "/t",
                 OutputDir = outDir,
                 BaseUrl = "/",
@@ -132,11 +132,84 @@ public sealed class MenuPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new MenuPlugin().AfterBuild(ctx);
+            new MenuPlugin(config).AfterBuild(ctx);
 
             var json = File.ReadAllText(Path.Combine(outDir, "menus.json"));
             Assert.Contains("\"children\"", json);
             Assert.Contains("\"Tech\"", json);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public void AfterBuild_ProjectsMenuDataWithoutConfigObjects()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(
+                        StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["Main"] =
+                        [
+                            new MenuConfig
+                            {
+                                Identifier = "parent",
+                                Name = "Parent",
+                                Url = "/parent/",
+                                Weight = 9,
+                                Children =
+                                [
+                                    new MenuConfig
+                                    {
+                                        Identifier = "child",
+                                        Name = "Child",
+                                        Url = "/child/",
+                                        Weight = 3
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                Content = TestContent.Markdown()
+            };
+            var ctx = new BuildContext
+            {
+                RootDir = "/t",
+                OutputDir = outDir,
+                BaseUrl = "/",
+                LayoutsDir = "/t/l",
+                RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+                Logger = new ConsoleLogger(LogLevel.Error)
+            };
+
+            new MenuPlugin(config).AfterBuild(ctx);
+
+            var menus = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(
+                ctx.Data["menus"]);
+            var main = Assert.IsAssignableFrom<IReadOnlyList<object>>(menus["Main"]);
+            var parent = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(Assert.Single(main));
+            Assert.Equal("parent", parent["identifier"]);
+            Assert.Equal("Parent", parent["name"]);
+            Assert.Equal("/parent/", parent["url"]);
+            Assert.Equal(9, parent["weight"]);
+            var children = Assert.IsAssignableFrom<IReadOnlyList<object>>(parent["children"]);
+            var child = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(Assert.Single(children));
+            Assert.Equal("child", child["identifier"]);
+            Assert.Equal(3, child["weight"]);
+            Assert.DoesNotContain(
+                TraverseValues(menus),
+                value => value.GetType().Assembly == typeof(AppConfig).Assembly);
         }
         finally
         {
@@ -150,22 +223,22 @@ public sealed class MenuPluginTests
         var outDir = GetTempDir();
         try
         {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["main"] = new[] { new MenuConfig { Identifier = "home", Name = "Home", Url = "/", Weight = 1 } },
+                        ["footer"] = new[] { new MenuConfig { Identifier = "about", Name = "About", Url = "/about/", Weight = 1 } }
+                    }
+                },
+                Content = TestContent.Markdown()
+            };
             var ctx = new BuildContext
             {
-                Config = new AppConfig
-                {
-                    Site = new SiteConfig
-                    {
-                        Name = "t",
-                        Title = "t",
-                        Menus = new Dictionary<string, IReadOnlyList<MenuConfig>>(StringComparer.OrdinalIgnoreCase)
-                        {
-                            ["main"] = new[] { new MenuConfig { Identifier = "home", Name = "Home", Url = "/", Weight = 1 } },
-                            ["footer"] = new[] { new MenuConfig { Identifier = "about", Name = "About", Url = "/about/", Weight = 1 } }
-                        }
-                    },
-                    Content = TestContent.Markdown()
-                },
                 RootDir = "/t",
                 OutputDir = outDir,
                 BaseUrl = "/",
@@ -174,7 +247,7 @@ public sealed class MenuPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new MenuPlugin().AfterBuild(ctx);
+            new MenuPlugin(config).AfterBuild(ctx);
 
             var json = File.ReadAllText(Path.Combine(outDir, "menus.json"));
             Assert.Contains("\"main\"", json);
@@ -187,4 +260,34 @@ public sealed class MenuPluginTests
     }
 
     private static string GetTempDir() => Path.Combine(Path.GetTempPath(), "bukit_menu_test_" + Guid.NewGuid().ToString("N"));
+
+    private static IEnumerable<object> TraverseValues(object root)
+    {
+        var pending = new Stack<object>();
+        pending.Push(root);
+        while (pending.TryPop(out var value))
+        {
+            yield return value;
+            if (value is IReadOnlyDictionary<string, object> dictionary)
+            {
+                foreach (var item in dictionary.Values)
+                {
+                    if (item is not null)
+                    {
+                        pending.Push(item);
+                    }
+                }
+            }
+            else if (value is IEnumerable<object> sequence)
+            {
+                foreach (var item in sequence)
+                {
+                    if (item is not null)
+                    {
+                        pending.Push(item);
+                    }
+                }
+            }
+        }
+    }
 }

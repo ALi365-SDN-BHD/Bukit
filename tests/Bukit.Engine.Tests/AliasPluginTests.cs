@@ -28,12 +28,12 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = new[] { "/old-url/", "/another-old/" }
         };
-        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
+        var (ctx, config) = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(config).DerivePages(ctx);
 
         Assert.Equal(2, derived.Count);
         Assert.Contains(derived, x => x.Route.Url == "/old-url/");
@@ -47,12 +47,12 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = "/legacy/"
         };
-        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
+        var (ctx, config) = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(config).DerivePages(ctx);
 
         Assert.Single(derived);
         Assert.Equal("/legacy/", derived[0].Route.Url);
@@ -61,12 +61,12 @@ public sealed class AliasPluginTests
     [Fact]
     public void DerivePages_NoAliases_ReturnsEmpty()
     {
-        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
+        var (ctx, config) = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post"), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(config).DerivePages(ctx);
         Assert.Empty(derived);
     }
 
@@ -77,12 +77,12 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = new[] { "/old/" }
         };
-        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
+        var (ctx, config) = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(config).DerivePages(ctx);
 
         var html = derived[0].Document.Body.Html;
         Assert.Contains("http-equiv=\"refresh\"", html);
@@ -97,12 +97,12 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = new[] { "old-post" }
         };
-        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
+        var (ctx, config) = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(config).DerivePages(ctx);
 
         Assert.Equal("/old-post/", derived[0].Route.Url);
     }
@@ -114,25 +114,26 @@ public sealed class AliasPluginTests
         {
             ["aliases"] = new[] { "/old/" }
         };
-        var ctx = CreateContext(new List<(ContentDocument, RouteInfo)>
+        var (ctx, config) = CreateContext(new List<(ContentDocument, RouteInfo)>
         {
             (Item("p1", "Post", "post", fieldValues), Route("/post/"))
         });
 
-        var derived = new AliasPlugin().DerivePages(ctx);
+        var derived = new AliasPlugin(config).DerivePages(ctx);
 
         Assert.Equal("redirect", ContentFieldReader.GetText(derived[0].Document.CustomFields, "type"));
     }
 
-    private static BuildContext CreateContext(List<(ContentDocument, RouteInfo)> routed)
+    private static (BuildContext Context, AppConfig Config) CreateContext(
+        List<(ContentDocument, RouteInfo)> routed)
     {
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "t", Title = "t" },
-                Content = TestContent.Markdown()
-            },
+            Site = new SiteConfig { Name = "t", Title = "t" },
+            Content = TestContent.Markdown()
+        };
+        var context = new BuildContext
+        {
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
@@ -140,5 +141,7 @@ public sealed class AliasPluginTests
             RoutedDocuments = routed.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+
+        return (context, config);
     }
 }

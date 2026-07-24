@@ -47,14 +47,15 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
                                                                               supports_taxonomy: true
                                                                         """);
 
-        var plugin = new TaxonomyPlugin();
-        var derived = plugin.DerivePages(CreateContext());
+        var (context, config) = CreateContext();
+        var plugin = new TaxonomyPlugin(config);
+        var derived = plugin.DerivePages(context);
 
         Assert.Contains(derived, x => x.Route.Url == "/tags/" && x.Route.Template == "pages/taxonomy-index.html");
         Assert.Contains(derived, x => x.Route.Url == "/tags/news/" && x.Route.Template == "pages/taxonomy-term.html");
     }
 
-    private BuildContext CreateContext()
+    private (BuildContext Context, AppConfig Config) CreateContext()
     {
         var item = ContentDocument.Create(
             id: "post-1",
@@ -68,13 +69,13 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
                 ["tags"] = new[] { "News" }
             }));
 
-        return new BuildContext
+        var config = new AppConfig
         {
-            Config = new AppConfig
-            {
-                Site = new SiteConfig { Name = "test", Title = "test" },
-                Content = TestContent.Markdown()
-            },
+            Site = new SiteConfig { Name = "test", Title = "test" },
+            Content = TestContent.Markdown()
+        };
+        var context = new BuildContext
+        {
             RootDir = _rootDir,
             OutputDir = Path.Combine(_rootDir, "dist"),
             BaseUrl = "/",
@@ -91,5 +92,6 @@ public sealed class TaxonomyTemplateCapabilityTests : IDisposable
             },
             Logger = new ConsoleLogger(LogLevel.Error)
         };
+        return (context, config);
     }
 }

@@ -1,4 +1,3 @@
-using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
@@ -7,7 +6,6 @@ namespace Bukit.Engine.Abstractions.Plugins;
 
 public sealed class BuildContext
 {
-    public required AppConfig Config { get; init; }
     public required string RootDir { get; init; }
     public required string OutputDir { get; init; }
     public required string BaseUrl { get; init; }
@@ -28,7 +26,9 @@ public sealed class BuildContext
     {
         if (TemplateResolver is null)
         {
-            throw new ConfigException($"No template resolver is available for plugin template kind '{kind}'.", DiagnosticCode.ConfigInvalidValue);
+            throw new ConfigException(
+                $"No template resolver is available for plugin template kind '{kind}'.",
+                DiagnosticCode.ConfigInvalidValue);
         }
 
         return TemplateResolver(kind);

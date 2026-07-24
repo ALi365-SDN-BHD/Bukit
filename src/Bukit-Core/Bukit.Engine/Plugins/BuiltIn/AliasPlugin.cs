@@ -1,4 +1,5 @@
 using System.Text;
+using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
@@ -8,6 +9,14 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
 {
+    private readonly AppConfig _config;
+
+    internal AliasPlugin(AppConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        _config = config;
+    }
+
     public string Name => "alias";
     public string Version => "1.0.0";
 
@@ -37,7 +46,7 @@ internal sealed class AliasPlugin : IBukitPlugin, IDerivePagesPlugin
                 var targetUrl = route.Url.StartsWith('/') ? route.Url : "/" + route.Url;
 
                 var html = BuildRedirectHtml($"{baseUrl}{targetUrl}");
-                var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, context.Config.Site.OutputPathEncoding);
+                var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(aliasUrl, _config.Site.OutputPathEncoding);
                 var aliasRoute = new RouteInfo(aliasUrl, outputPath, null!);
                 var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
                 {

@@ -141,9 +141,13 @@ internal sealed partial class VariantBuildPipeline
             logger,
             variantStageMetrics,
             cancellationToken);
+        var pluginSession = PluginExecutionSession.Create(
+            context.Config,
+            context.Overrides.ExecutionMode);
 
         await VariantPluginStages.RunDeriveAsync(
             routePipelineResult.PluginContext,
+            pluginSession,
             variantStageMetrics,
             cancellationToken);
         routePipelineResult = routePipelineResult with
@@ -194,9 +198,9 @@ internal sealed partial class VariantBuildPipeline
             dataModules.RouteMetadata,
             logger);
         var analyticsTransformPlan = VariantAnalyticsTransformStage.Create(
-            context.Config,
             context.Overrides,
             routePipelineResult.PluginContext,
+            pluginSession,
             seoStage.SeoResult);
 
         try
@@ -227,6 +231,7 @@ internal sealed partial class VariantBuildPipeline
             await VariantPluginStages.RunAfterBuildAsync(
                 context,
                 routePipelineResult.PluginContext,
+                pluginSession,
                 manifestSetup,
                 renderPipelineResult,
                 variantStageMetrics,
