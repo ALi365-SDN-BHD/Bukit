@@ -87,14 +87,16 @@ internal static class RouteMapLoader
     {
         if (!node.Children.TryGetValue(key, out var valueNode))
             return "";
-        return ((YamlScalarNode)valueNode).Value ?? "";
+        return valueNode is YamlScalarNode scalar ? scalar.Value ?? "" : "";
     }
 
     private static string? ReadOptionalString(YamlMappingNode node, string key)
     {
         if (!node.Children.TryGetValue(key, out var valueNode))
             return null;
-        var val = ((YamlScalarNode)valueNode).Value;
+        if (valueNode is not YamlScalarNode scalar)
+            return null;
+        var val = scalar.Value;
         return string.IsNullOrWhiteSpace(val) ? null : val;
     }
 }

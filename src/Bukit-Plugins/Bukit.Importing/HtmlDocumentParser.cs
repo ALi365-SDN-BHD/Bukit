@@ -34,7 +34,7 @@ internal static class HtmlDocumentParser
                 slug = routeSlug;
         }
 
-        var (bodyOpening, uniqueBody, bodyClosing) = SplitBody(html);
+        var (bodyOpening, uniqueBody, bodyClosing) = SplitBody(document);
         var assetPaths = ExtractAssetPaths(document, html);
 
         return new DiscoveredPage
@@ -54,12 +54,11 @@ internal static class HtmlDocumentParser
         };
     }
 
-    private static (string opening, string unique, string closing) SplitBody(string html)
+    private static (string opening, string unique, string closing) SplitBody(IDocument document)
     {
-        var document = Parser.ParseDocument(html);
         var body = document.Body;
         if (body == null)
-            return ("", html, "");
+            return ("", document.DocumentElement?.OuterHtml ?? "", "");
 
         var bodyHtml = body.InnerHtml;
         if (string.IsNullOrWhiteSpace(bodyHtml))

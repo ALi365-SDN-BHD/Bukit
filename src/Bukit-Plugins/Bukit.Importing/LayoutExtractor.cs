@@ -207,13 +207,20 @@ internal static partial class LayoutExtractor
             if (origIdx < 0) break;
 
             var normLine = normalizedLines[0][normalizedLines[0].Count - 1 - i];
-            if (normalizedLines.All(l =>
+            var allMatch = true;
+            for (var p = 0; p < normalizedLines.Count; p++)
+            {
+                var ni = normalizedLines[p].Count - 1 - i;
+                var oi = originalLines[p].Count - 1 - i;
+                if (ni < 0 || oi < 0 ||
+                    !string.Equals(normalizedLines[p][ni], normLine, StringComparison.Ordinal))
                 {
-                    var ni = l.Count - 1 - i;
-                    var oi = originalLines[normalizedLines.IndexOf(l)].Count - 1 - i;
-                    return ni >= 0 && oi >= 0 &&
-                        string.Equals(l[ni], normLine, StringComparison.Ordinal);
-                }))
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch)
             {
                 result.Insert(0, originalLines[0][origIdx]);
             }

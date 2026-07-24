@@ -219,7 +219,7 @@ internal static class SiteConfigGenerator
         sb.AppendLine($"        dir: {contentDir}");
     }
 
-    private static List<NotionDatabaseTarget> ReadNotionDatabaseTargets(HtmlDemoImportOptions options)
+    private static List<SiteConfigNotionTarget> ReadNotionDatabaseTargets(HtmlDemoImportOptions options)
     {
         var mapPath = ResolveNotionDatabaseMapPath(options);
         if (mapPath is null || !File.Exists(mapPath))
@@ -233,7 +233,7 @@ internal static class SiteConfigGenerator
             GetMap(root, "databases") is not { } databases)
             return [];
 
-        var targets = new List<NotionDatabaseTarget>();
+        var targets = new List<SiteConfigNotionTarget>();
         foreach (var kv in databases.Children)
         {
             if (kv.Key is not YamlScalarNode keyNode ||
@@ -250,7 +250,7 @@ internal static class SiteConfigGenerator
             if (string.IsNullOrWhiteSpace(databaseId))
                 databaseId = $"${{NOTION_{key.ToUpperInvariant()}_DATABASE_ID}}";
 
-            targets.Add(new NotionDatabaseTarget(key, collection, databaseId, IsBuildNotionDataCollectionKey(key) ? "data" : "content"));
+            targets.Add(new SiteConfigNotionTarget(key, collection, databaseId, IsBuildNotionDataCollectionKey(key) ? "data" : "content"));
         }
 
         return targets;
@@ -300,5 +300,5 @@ internal static class SiteConfigGenerator
             ? value.Value
             : null;
 
-    private sealed record NotionDatabaseTarget(string Key, string Collection, string DatabaseId, string Mode);
+    private sealed record SiteConfigNotionTarget(string Key, string Collection, string DatabaseId, string Mode);
 }
