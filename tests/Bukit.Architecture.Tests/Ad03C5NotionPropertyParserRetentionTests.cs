@@ -23,6 +23,7 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
         Assert.True(parser.IsPublic);
         Assert.True(parser.IsAbstract);
         Assert.True(parser.IsSealed);
+        Assert.Contains(parser, parser.Assembly.GetExportedTypes());
 
         MethodInfo[] methods = parser
             .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
@@ -32,9 +33,11 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
         Assert.Equal(["ExtractAllFields", "ExtractFields"], methods.Select(method => method.Name));
         Assert.All(methods, method =>
         {
+            Assert.False(method.IsGenericMethod);
             ParameterInfo parameter = Assert.Single(method.GetParameters());
             Assert.Equal("properties", parameter.Name);
             Assert.Equal(typeof(JsonElement), parameter.ParameterType);
+            Assert.False(parameter.IsOptional);
             Assert.Equal(
                 typeof(IReadOnlyDictionary<string, ContentField>),
                 method.ReturnType);
@@ -76,12 +79,7 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
 
         Assert.DoesNotContain(
             adapterAssembly.GetExportedTypes(),
-            type =>
-                string.Equals(
-                    type.Namespace,
-                    "Bukit.Content.Notion",
-                    StringComparison.Ordinal) &&
-                type.Name.Contains("PropertyParser", StringComparison.Ordinal));
+            ExposesSamePurposeParserContract);
     }
 
     [Fact]
@@ -124,9 +122,18 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
             StringComparison.Ordinal);
         Assert.Contains("retain-by-design", governance, StringComparison.Ordinal);
         Assert.Contains("no public canonical replacement", governance, StringComparison.Ordinal);
-        Assert.Contains("security or correctness defect", governance, StringComparison.Ordinal);
-        Assert.Contains("direct consumer declaration", governance, StringComparison.Ordinal);
-        Assert.Contains("CLR SDK productization", governance, StringComparison.Ordinal);
+        Assert.Contains(
+            "Any real security or correctness defect starts a re-review.",
+            governance,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Any direct consumer declaration starts a re-review.",
+            governance,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Any separately approved CLR SDK productization decision with a migration and versioning plan starts a re-review.",
+            governance,
+            StringComparison.Ordinal);
 
         Assert.Contains("# Bukit Core AD-03C5", ledger, StringComparison.Ordinal);
         Assert.Contains("retain-by-design", ledger, StringComparison.Ordinal);
@@ -134,10 +141,38 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
         Assert.Contains("private", ledger, StringComparison.Ordinal);
         Assert.Contains("binary-only", ledger, StringComparison.Ordinal);
         Assert.Contains("reflection", ledger, StringComparison.Ordinal);
-        Assert.Contains("security or correctness defect", ledger, StringComparison.Ordinal);
-        Assert.Contains("direct consumer declaration", ledger, StringComparison.Ordinal);
-        Assert.Contains("CLR SDK productization", ledger, StringComparison.Ordinal);
-        Assert.Contains("migration and versioning plan", ledger, StringComparison.Ordinal);
+        Assert.Contains(
+            "Any real security or correctness defect starts a re-review.",
+            ledger,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Any direct consumer declaration starts a re-review.",
+            ledger,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Any separately approved CLR SDK productization decision with a migration and versioning plan starts a re-review.",
+            ledger,
+            StringComparison.Ordinal);
+    }
+
+    private static bool ExposesSamePurposeParserContract(Type type)
+    {
+        MethodInfo[] declaredMethods = type.GetMethods(
+            BindingFlags.Public |
+            BindingFlags.Static |
+            BindingFlags.Instance |
+            BindingFlags.DeclaredOnly);
+
+        return new[] { "ExtractFields", "ExtractAllFields" }.All(methodName =>
+            declaredMethods.Any(method =>
+            {
+                ParameterInfo[] parameters = method.GetParameters();
+                return method.Name == methodName &&
+                       parameters.Length == 1 &&
+                       parameters[0].ParameterType == typeof(JsonElement) &&
+                       method.ReturnType ==
+                       typeof(IReadOnlyDictionary<string, ContentField>);
+            }));
     }
 
     private static JsonDocument ReadJson(params string[] relativeSegments)

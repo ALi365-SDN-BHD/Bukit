@@ -70,14 +70,16 @@ C0 对 Core、Labs、仓库内插件、已知本地 site repositories 和公开 
 
 ## 5. 未来重审触发条件
 
-只有单独任务取得明确授权，并出现至少一个具体触发条件，才重新评估该 facade：
+任何以下事件都无条件启动单独重审，不附加预先筛选：
 
-1. 发现无法通过兼容修复解决的真实 security or correctness defect；
-2. 出现 direct consumer declaration，改变现有兼容或迁移分析；
-3. 另行批准 CLR SDK productization，并同时批准 public replacement 和完整的
-   migration and versioning plan。
+1. Any real security or correctness defect starts a re-review.
+2. Any direct consumer declaration starts a re-review.
+3. Any separately approved CLR SDK productization decision with a migration and versioning plan starts a re-review.
 
-重审仍须验证 assembly identity、binary/reflection 风险、消费者迁移路径和版本策略。
+重审启动后，才评估缺陷能否兼容修复、consumer evidence 是否改变迁移结论，以及
+productization 是否应包含 public replacement。上述评估内容不是阻止三类事件启动重审的
+前置条件。重审还须验证 assembly identity、binary/reflection 风险、消费者迁移路径和
+版本策略。
 不得以搜索无结果、文件行数、public type 数量或 canonical internal implementation
 已经存在为由静默改变可见性。
 

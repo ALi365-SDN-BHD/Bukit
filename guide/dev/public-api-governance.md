@@ -61,13 +61,19 @@ Repository and reviewed public evidence found no direct current production
 caller, but private, unindexed, binary-only, reflection-based, and undisclosed
 consumers remain unknown.
 
-Re-review requires a separate task and at least one concrete trigger. A real
-security or correctness defect that cannot be resolved compatibly is one
-trigger. A direct consumer declaration that changes the migration analysis is
-another. An approved CLR SDK productization decision with an explicit
-migration and versioning plan is the third.
-Absent one of those triggers, consumer-search silence is not permission to
-delete, internalize, or replace the facade.
+Re-review requires a separate task.
+
+Any real security or correctness defect starts a re-review.
+
+Any direct consumer declaration starts a re-review.
+
+Any separately approved CLR SDK productization decision with a migration and versioning plan starts a re-review.
+
+The resulting review determines whether a defect has a compatible fix, how
+consumer evidence changes the migration analysis, and whether productization
+includes an approved replacement. Those are review questions, not filters that
+can prevent one of the three events from starting review. Consumer-search
+silence alone is not permission to delete, internalize, or replace the facade.
 
 The exact decision and evidence limits are recorded in the
 [AD-03C5 retention ledger](../../docs/analysis/bukit-core-ad03c5-notion-property-parser-retention-decision-2026-07-24.zh-CN.md).
