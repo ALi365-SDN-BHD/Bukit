@@ -105,22 +105,33 @@ Synchronize concise summaries and a link to the canonical source in:
 - `README.md`;
 - `README.zh-CN.md`;
 - `README.ms.md`;
+- `CONTRIBUTING.md`;
+- `CONTRIBUTING.zh-CN.md`;
+- `CONTRIBUTING.ms.md`;
+- `SECURITY.md`;
+- `SECURITY.zh-CN.md`;
+- `SECURITY.ms.md`;
+- `.github/PULL_REQUEST_TEMPLATE.md`;
 - `guide/README.md`;
 - `guide/user/README.md`;
 - `guide/dev/README.md`.
 
-The three README translations must express the same normative meaning. They do
-not need to be literal word-for-word translations.
+Each English, Chinese, and Malay document family must express the same
+normative meaning. Translations do not need to be literal word-for-word
+copies.
 
 ### 6.3 Stability and release semantics
 
 Update:
 
 - `guide/dev/public-preview-scope.md`;
+- `guide/dev/public-api-governance.md`;
 - `guide/dev/release.md`;
 - `guide/dev/release-checklist.md`;
 - `docs/release/release-prerelease-template.md`;
 - `guide/dev/documentation-governance.md`;
+- `docs/governance/bukit-core-2.0-consumer-declaration.md`;
+- `docs/governance/bukit-core-2.0-notion-compatibility-migration.md`;
 - `CHANGELOG.md`.
 
 Release instructions remain available because internal artifact production and
@@ -156,6 +167,12 @@ Every active entry point must make the following facts unambiguous:
 7. An exceptional public release needs explicit management approval.
 8. Labs and external plugins are not covered by Core release readiness.
 
+Security documentation must continue to accept good-faith private reports but
+must not promise a public acknowledgement or remediation deadline. Contribution
+documentation must keep its technical gate instructions while making review,
+acceptance, response time, and release timing explicitly best-effort and
+subordinate to internal priorities.
+
 The wording must not claim that:
 
 - external use is prohibited by policy when the license permits it;
@@ -188,6 +205,8 @@ Implementation acceptance requires:
 
 - all intended active files contain consistent positioning;
 - all three README translations agree on the eight required facts;
+- the three contribution and three security translations agree on their
+  support, response-time, and internal-priority boundaries;
 - the canonical governance link resolves from each entry point;
 - historical evidence remains unchanged;
 - protected reference trees remain unchanged;
