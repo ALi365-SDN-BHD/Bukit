@@ -357,42 +357,11 @@ public static class ImportCommandWorkflow
 
     private static async Task<CapturedConsole<T>> CaptureConsoleAsync<T>(Func<Task<T>> action)
     {
-        using var stdout = new StringWriter();
-        using var stderr = new StringWriter();
-        var originalOut = Console.Out;
-        var originalErr = Console.Error;
-        T? result = default;
-        Exception? exception = null;
-
-        try
-        {
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
-            result = await action();
-        }
-        catch (Exception ex)
-        {
-            exception = ex;
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalErr);
-        }
-
+        var capture = await ImportConsoleCapture.CaptureAsync(action);
         var messages = new List<ImportCommandMessage>();
-        messages.AddRange(ReadLines(stdout.ToString()).Select(line => new ImportCommandMessage("info", line)));
-        messages.AddRange(ReadLines(stderr.ToString()).Select(line => new ImportCommandMessage("error", line)));
-        return new CapturedConsole<T>(result, exception, messages);
-    }
-
-    private static IEnumerable<string> ReadLines(string value)
-    {
-        using var reader = new StringReader(value);
-        while (reader.ReadLine() is { } line)
-        {
-            yield return line;
-        }
+        messages.AddRange(capture.StdOutLines.Select(line => new ImportCommandMessage("info", line)));
+        messages.AddRange(capture.StdErrLines.Select(line => new ImportCommandMessage("error", line)));
+        return new CapturedConsole<T>(capture.Result, capture.Exception, messages);
     }
 
     private sealed record CapturedConsole<T>(

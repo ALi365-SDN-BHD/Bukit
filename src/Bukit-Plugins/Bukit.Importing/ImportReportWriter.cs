@@ -310,5 +310,8 @@ internal static class ImportReportWriter
     }
 
     private static string EscapeCell(string value)
-        => value.Replace("|", "\\|");
+        => value
+            .Replace("|", "\\|")
+            .Replace("\n", " ")
+            .Replace("\r", "");
 }

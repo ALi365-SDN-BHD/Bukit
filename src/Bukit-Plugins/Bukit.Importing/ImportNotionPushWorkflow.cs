@@ -8,7 +8,18 @@ namespace Bukit.Importing;
 
 public static class ImportNotionPushWorkflow
 {
-    internal static Func<HttpClient> CreateHttpClient { get; set; } = () => new HttpClient();
+    private static Func<HttpClient> _createHttpClient = () => new HttpClient();
+
+    /// <summary>
+    /// Factory for creating HttpClient instances. Thread-safe setter for test seams.
+    /// </summary>
+    internal static Func<HttpClient> CreateHttpClient
+    {
+#pragma warning disable CS8601 // Possible null reference assignment.
+        get => Interlocked.CompareExchange(ref _createHttpClient, null, null);
+#pragma warning restore CS8601
+        set => Interlocked.Exchange(ref _createHttpClient, value);
+    }
 
     public static Task<int> PushGeneratedSeedAsync(ImportGeneratedNotionPushOptions options)
     {

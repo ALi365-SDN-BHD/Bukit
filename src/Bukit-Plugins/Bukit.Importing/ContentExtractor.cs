@@ -11,6 +11,12 @@ internal static partial class ContentExtractor
     private static readonly Regex FaqItemRegex = FaqItemPattern();
     private static readonly Regex SectionHeadingRegex = SectionHeadingPattern();
     private static readonly Regex SectionLinkRegex = SectionLinkPattern();
+    private static readonly Regex CardHeadingRegex = CardHeadingPattern();
+    private static readonly Regex CardParagraphRegex = CardParagraphPattern();
+    private static readonly Regex CardLinkRegex = CardLinkPattern();
+    private static readonly Regex FaqHeadingRegex = FaqHeadingPattern();
+    private static readonly Regex SectionOuterRegex = SectionOuterPattern();
+    private static readonly Regex SectionClassRegex = SectionClassPattern();
 
     internal static ExtractedContent Extract(List<DiscoveredPage> pages)
     {
@@ -146,9 +152,9 @@ internal static partial class ContentExtractor
         foreach (Match match in CardRegex.Matches(page.UniqueBody))
         {
             var cardHtml = match.Value;
-            var h3 = Regex.Match(cardHtml, @"<h3[^>]*>(.*?)</h3>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            var p = Regex.Match(cardHtml, @"<p[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            var link = Regex.Match(cardHtml, @"<a[^>]*href=[""']([^""']*)[""']", RegexOptions.IgnoreCase);
+            var h3 = CardHeadingRegex.Match(cardHtml);
+            var p = CardParagraphRegex.Match(cardHtml);
+            var link = CardLinkRegex.Match(cardHtml);
 
             var title = h3.Success ? StripHtml(h3.Groups[1].Value).Trim() : "";
             if (string.IsNullOrWhiteSpace(title)) continue;
@@ -200,8 +206,8 @@ internal static partial class ContentExtractor
         foreach (Match match in CardRegex.Matches(page.UniqueBody))
         {
             var cardHtml = match.Value;
-            var h3 = Regex.Match(cardHtml, @"<h3[^>]*>(.*?)</h3>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            var p = Regex.Match(cardHtml, @"<p[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var h3 = CardHeadingRegex.Match(cardHtml);
+            var p = CardParagraphRegex.Match(cardHtml);
 
             var title = h3.Success ? StripHtml(h3.Groups[1].Value).Trim() : "";
             if (string.IsNullOrWhiteSpace(title)) continue;
@@ -243,8 +249,8 @@ internal static partial class ContentExtractor
         foreach (Match match in CardRegex.Matches(page.UniqueBody))
         {
             var cardHtml = match.Value;
-            var h3 = Regex.Match(cardHtml, @"<h3[^>]*>(.*?)</h3>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            var p = Regex.Match(cardHtml, @"<p[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var h3 = CardHeadingRegex.Match(cardHtml);
+            var p = CardParagraphRegex.Match(cardHtml);
 
             var title = h3.Success ? StripHtml(h3.Groups[1].Value).Trim() : "";
             if (string.IsNullOrWhiteSpace(title)) continue;
@@ -284,15 +290,13 @@ internal static partial class ContentExtractor
     {
         if (page.Type != PageType.Home) return;
 
-        var sections = Regex.Matches(page.UniqueBody,
-            @"<(?:section|div)[^>]*class\s*=\s*""[^""]*(?:hero|cta|stats|features|about)[^""]*""[^>]*>(.*?)</(?:section|div)>",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        var sections = SectionOuterRegex.Matches(page.UniqueBody);
 
         var sortOrder = 10;
         foreach (Match section in sections)
         {
             var sectionHtml = section.Value;
-            var classMatch = Regex.Match(sectionHtml, @"class\s*=\s*""([^""]*)""", RegexOptions.IgnoreCase);
+            var classMatch = SectionClassRegex.Match(sectionHtml);
             var className = classMatch.Success ? classMatch.Groups[1].Value : "unknown";
             var sectionType = DetermineSectionType(className);
 
@@ -330,8 +334,8 @@ internal static partial class ContentExtractor
         foreach (Match match in FaqItemRegex.Matches(page.UniqueBody))
         {
             var itemHtml = match.Value;
-            var h3 = Regex.Match(itemHtml, @"<h[3-6][^>]*>(.*?)</h[3-6]>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            var p = Regex.Match(itemHtml, @"<p[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var h3 = FaqHeadingRegex.Match(itemHtml);
+            var p = CardParagraphRegex.Match(itemHtml);
 
             var question = h3.Success ? StripHtml(h3.Groups[1].Value).Trim() : "";
             if (string.IsNullOrWhiteSpace(question)) continue;
@@ -411,4 +415,21 @@ internal static partial class ContentExtractor
     [GeneratedRegex(@"<a[^>]*href=[""']([^""']*)[""'][^>]*>.*?</a>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex SectionLinkPattern();
 
+    [GeneratedRegex(@"<h3[^>]*>(.*?)</h3>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex CardHeadingPattern();
+
+    [GeneratedRegex(@"<p[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex CardParagraphPattern();
+
+    [GeneratedRegex(@"<a[^>]*href=[""']([^""']*)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex CardLinkPattern();
+
+    [GeneratedRegex(@"<h[3-6][^>]*>(.*?)</h[3-6]>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex FaqHeadingPattern();
+
+    [GeneratedRegex(@"<(?:section|div)[^>]*class\s*=\s*""[^""]*(?:hero|cta|stats|features|about)[^""]*""[^>]*>(.*?)</(?:section|div)>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex SectionOuterPattern();
+
+    [GeneratedRegex(@"class\s*=\s*""([^""]*)""", RegexOptions.IgnoreCase)]
+    private static partial Regex SectionClassPattern();
 }
