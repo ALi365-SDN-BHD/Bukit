@@ -2,7 +2,6 @@ using System.Net;
 using System.Text;
 using Bukit.Content.Notion;
 using Bukit.Engine.Abstractions.Content;
-using Bukit.Shared.Notion;
 using Xunit;
 
 namespace Bukit.Engine.Tests;

@@ -57,7 +57,7 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
-    public void Shared_MayReferenceNotion_OnlyForOneXCompatibility()
+    public void Shared_MustHaveNoProjectReferencesAfterCompatibilityRemoval()
     {
         var repoRoot = FindRepoRoot();
         var project = XDocument.Load(Path.Combine(
@@ -72,7 +72,7 @@ public sealed class NotionBoundaryTests
                 reference.Attribute("Include")?.Value.Replace('\\', Path.DirectorySeparatorChar)) ?? string.Empty)
             .ToArray();
 
-        Assert.Equal(["Bukit.Notion"], references);
+        Assert.Empty(references);
     }
 
     [Fact]
@@ -239,23 +239,23 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
-    public void LegacyNotionTypes_MustResolveFromOriginalAssemblies()
+    public void RemainingContentTypesResolveAndRemovedSharedTypesStayAbsent()
     {
         var contentAssembly = typeof(Bukit.Content.Notion.NotionContentProvider).Assembly;
-        var sharedAssembly = typeof(Bukit.Shared.Notion.NotionBlock).Assembly;
+        var sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
 
         Assert.Equal("Bukit.Content", contentAssembly.GetName().Name);
         Assert.Equal("Bukit.Shared", sharedAssembly.GetName().Name);
 
         AssertTypesResolve(contentAssembly, LegacyContentNotionTypes);
-        AssertTypesResolve(sharedAssembly, LegacySharedNotionTypes);
+        AssertTypesAbsent(sharedAssembly, LegacySharedNotionTypes);
     }
 
     [Fact]
     public void RemainingLegacyNotionFacades_MustMatchGovernedTwoZeroBaseline()
     {
         var contentAssembly = typeof(Bukit.Content.Notion.NotionContentProvider).Assembly;
-        var sharedAssembly = typeof(Bukit.Shared.Notion.NotionBlock).Assembly;
+        var sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
 
         AssertLegacyFacadeExports(
             contentAssembly,
@@ -264,7 +264,7 @@ public sealed class NotionBoundaryTests
         AssertLegacyFacadeExports(
             sharedAssembly,
             "Bukit.Shared.Notion",
-            LegacySharedNotionTypes);
+            []);
 
         var governance = File.ReadAllText(Path.Combine(
             FindRepoRoot(),
@@ -282,6 +282,23 @@ public sealed class NotionBoundaryTests
         {
             Assert.NotNull(assembly.GetType(typeName, throwOnError: false, ignoreCase: false));
             Assert.NotNull(Type.GetType($"{typeName}, {assembly.GetName().Name}", throwOnError: false, ignoreCase: false));
+        }
+    }
+
+    private static void AssertTypesAbsent(
+        System.Reflection.Assembly assembly,
+        IEnumerable<string> typeNames)
+    {
+        foreach (var typeName in typeNames)
+        {
+            Assert.Null(assembly.GetType(
+                typeName,
+                throwOnError: false,
+                ignoreCase: false));
+            Assert.Null(Type.GetType(
+                $"{typeName}, {assembly.GetName().Name}",
+                throwOnError: false,
+                ignoreCase: false));
         }
     }
 

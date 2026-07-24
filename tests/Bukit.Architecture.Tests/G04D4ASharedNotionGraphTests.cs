@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Legacy = Bukit.Shared.Notion;
+using Canonical = Bukit.Notion.Blocks;
 using Xunit;
 
 namespace Bukit.Architecture.Tests;
@@ -24,18 +24,34 @@ public sealed class G04D4ASharedNotionGraphTests
         "Bukit.Notion.Conversion.HtmlTokenizer+HtmlToken",
         "Bukit.Notion.Conversion.HtmlTokenizer+HtmlTokenType"
     ];
+    private static readonly string[] LegacyModelTypeNames =
+    [
+        "Bukit.Shared.Notion.NotionBlock",
+        "Bukit.Shared.Notion.Heading1Block",
+        "Bukit.Shared.Notion.Heading2Block",
+        "Bukit.Shared.Notion.Heading3Block",
+        "Bukit.Shared.Notion.ParagraphBlock",
+        "Bukit.Shared.Notion.BulletedListItemBlock",
+        "Bukit.Shared.Notion.NumberedListItemBlock",
+        "Bukit.Shared.Notion.QuoteBlock",
+        "Bukit.Shared.Notion.ImageBlock",
+        "Bukit.Shared.Notion.ToggleBlock",
+        "Bukit.Shared.Notion.CodeBlock",
+        "Bukit.Shared.Notion.CalloutBlock",
+        "Bukit.Shared.Notion.RichTextSegment"
+    ];
 
     [Fact]
     public void LegacyTokenizerTriplet_IsAbsentAndCanonicalTripletRemainsPublic()
     {
-        Assembly sharedAssembly = typeof(Legacy.NotionBlock).Assembly;
+        Assembly sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
         Assembly notionAssembly =
             typeof(Bukit.Notion.Conversion.HtmlTokenizer).Assembly;
         string[] sharedExports = sharedAssembly.GetExportedTypes()
-            .Select(type => type.FullName!)
+            .Select(static type => type.FullName!)
             .ToArray();
         string[] notionExports = notionAssembly.GetExportedTypes()
-            .Select(type => type.FullName!)
+            .Select(static type => type.FullName!)
             .ToArray();
 
         foreach (string typeName in LegacyTokenizerTypeNames)
@@ -60,32 +76,45 @@ public sealed class G04D4ASharedNotionGraphTests
     }
 
     [Fact]
-    public void LegacyModelGraph_RemainsPublicExportedAndComplete()
+    public void LegacyModelGraph_IsAbsentAndCanonicalModelGraphRemainsComplete()
     {
-        Assembly assembly = typeof(Legacy.NotionBlock).Assembly;
-        Type[] exportedTypes = assembly.GetExportedTypes();
+        Assembly sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
+        string[] sharedExports = sharedAssembly.GetExportedTypes()
+            .Select(static type => type.FullName!)
+            .ToArray();
+        Type[] notionExports = typeof(Canonical.NotionBlock).Assembly.GetExportedTypes();
 
-        foreach (Type type in LegacyModelTypes)
+        foreach (string typeName in LegacyModelTypeNames)
+        {
+            Assert.Null(sharedAssembly.GetType(
+                typeName,
+                throwOnError: false,
+                ignoreCase: false));
+            Assert.DoesNotContain(typeName, sharedExports);
+        }
+
+        Assert.True(typeof(Canonical.NotionBlock).IsAbstract);
+        foreach (Type type in CanonicalModelTypes)
         {
             Assert.True(type.IsPublic);
-            Assert.Contains(type, exportedTypes);
+            Assert.Contains(type, notionExports);
         }
 
-        Assert.True(typeof(Legacy.NotionBlock).IsAbstract);
-        foreach (Type type in LegacyDerivedBlockTypes)
+        foreach (Type type in CanonicalDerivedBlockTypes)
         {
-            Assert.Equal(typeof(Legacy.NotionBlock), type.BaseType);
-            Assert.True(typeof(Legacy.NotionBlock).IsAssignableFrom(type));
+            Assert.Equal(typeof(Canonical.NotionBlock), type.BaseType);
+            Assert.True(typeof(Canonical.NotionBlock).IsAssignableFrom(type));
         }
 
-        Assert.False(typeof(Legacy.NotionBlock)
-            .IsAssignableFrom(typeof(Legacy.RichTextSegment)));
+        Assert.False(typeof(Canonical.NotionBlock)
+            .IsAssignableFrom(typeof(Canonical.RichTextSegment)));
     }
 
     [Fact]
-    public void RetainedConverter_PublicConvertStillReturnsExactLegacyModelGraph()
+    public void CanonicalConverter_PublicMethodsReturnExactCanonicalModelGraph()
     {
-        Type converter = typeof(Legacy.HtmlToNotionBlockConverter);
+        Type converter =
+            typeof(Bukit.Notion.Conversion.HtmlToNotionBlockConverter);
         MethodInfo convert = Assert.Single(
             converter.GetMethods(
                 BindingFlags.Public |
@@ -99,56 +128,57 @@ public sealed class G04D4ASharedNotionGraphTests
                 BindingFlags.DeclaredOnly),
             method => method.Name == "ToBlocksJson");
 
-        Assert.Equal(typeof(List<Legacy.NotionBlock>), convert.ReturnType);
+        Assert.Equal(typeof(List<Canonical.NotionBlock>), convert.ReturnType);
         Assert.Equal(
             [typeof(string)],
             convert.GetParameters()
-                .Select(parameter => parameter.ParameterType)
+                .Select(static parameter => parameter.ParameterType)
                 .ToArray());
         Assert.Equal(typeof(string), toBlocksJson.ReturnType);
         Assert.Equal(
             [typeof(string)],
             toBlocksJson.GetParameters()
-                .Select(parameter => parameter.ParameterType)
+                .Select(static parameter => parameter.ParameterType)
                 .ToArray());
     }
 
     [Fact]
-    public void LegacyRecords_PreserveDefaultsDeconstructionAndListReferenceEquality()
+    public void CanonicalRecords_PreserveDefaultsDeconstructionAndListReferenceEquality()
     {
-        var richText = new Legacy.RichTextSegment("text");
+        var richText = new Canonical.RichTextSegment("text");
         var (text, bold, italic, linkUrl) = richText;
         Assert.Equal("text", text);
         Assert.False(bold);
         Assert.False(italic);
         Assert.Null(linkUrl);
 
-        var image = new Legacy.ImageBlock("https://example.com/image.png");
+        var image = new Canonical.ImageBlock("https://example.com/image.png");
         var (imageUrl, caption) = image;
         Assert.Equal("https://example.com/image.png", imageUrl);
         Assert.Null(caption);
 
-        var code = new Legacy.CodeBlock("Console.WriteLine();");
+        var code = new Canonical.CodeBlock("Console.WriteLine();");
         var (codeText, language) = code;
         Assert.Equal("Console.WriteLine();", codeText);
         Assert.Equal("plain text", language);
 
-        var callout = new Legacy.CalloutBlock("Notice");
+        var callout = new Canonical.CalloutBlock("Notice");
         var (calloutText, icon) = callout;
         Assert.Equal("Notice", calloutText);
         Assert.Equal("📝", icon);
 
-        var firstSegments = new List<Legacy.RichTextSegment>
+        var firstSegments = new List<Canonical.RichTextSegment>
         {
             new("same")
         };
-        var secondSegments = new List<Legacy.RichTextSegment>
+        var secondSegments = new List<Canonical.RichTextSegment>
         {
             new("same")
         };
-        var first = new Legacy.ParagraphBlock(firstSegments);
-        var second = new Legacy.ParagraphBlock(secondSegments);
-        first.Deconstruct(out List<Legacy.RichTextSegment> deconstructedSegments);
+        var first = new Canonical.ParagraphBlock(firstSegments);
+        var second = new Canonical.ParagraphBlock(secondSegments);
+        first.Deconstruct(
+            out List<Canonical.RichTextSegment> deconstructedSegments);
 
         Assert.Same(firstSegments, deconstructedSegments);
         Assert.NotSame(firstSegments, secondSegments);
@@ -157,7 +187,7 @@ public sealed class G04D4ASharedNotionGraphTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsFourteenAssemblies443TypesAnd0Candidates()
+    public void DeferredBaseline_StillRecordsFourteenAssemblies443TypesAnd0Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -179,12 +209,12 @@ public sealed class G04D4ASharedNotionGraphTests
                 entry.GetProperty("name").GetString() == typeName);
         }
 
-        foreach (Type type in LegacyModelTypes)
+        foreach (string typeName in LegacyModelTypeNames)
         {
             JsonElement entry = Assert.Single(types, candidate =>
                 candidate.GetProperty("assembly").GetString() ==
                 "Bukit.Shared" &&
-                candidate.GetProperty("name").GetString() == type.FullName);
+                candidate.GetProperty("name").GetString() == typeName);
             Assert.Equal(
                 "cross-assembly-implementation",
                 entry.GetProperty("classification").GetString());
@@ -254,31 +284,31 @@ public sealed class G04D4ASharedNotionGraphTests
             Convert.ToHexStringLower(SHA1.HashData(blobBytes)));
     }
 
-    private static Type[] LegacyModelTypes =>
+    private static Type[] CanonicalModelTypes =>
     [
-        typeof(Legacy.NotionBlock),
-        .. LegacyDerivedBlockTypes,
-        typeof(Legacy.RichTextSegment)
+        typeof(Canonical.NotionBlock),
+        .. CanonicalDerivedBlockTypes,
+        typeof(Canonical.RichTextSegment)
     ];
 
-    private static Type[] LegacyDerivedBlockTypes =>
+    private static Type[] CanonicalDerivedBlockTypes =>
     [
-        typeof(Legacy.Heading1Block),
-        typeof(Legacy.Heading2Block),
-        typeof(Legacy.Heading3Block),
-        typeof(Legacy.ParagraphBlock),
-        typeof(Legacy.BulletedListItemBlock),
-        typeof(Legacy.NumberedListItemBlock),
-        typeof(Legacy.QuoteBlock),
-        typeof(Legacy.ImageBlock),
-        typeof(Legacy.ToggleBlock),
-        typeof(Legacy.CodeBlock),
-        typeof(Legacy.CalloutBlock)
+        typeof(Canonical.Heading1Block),
+        typeof(Canonical.Heading2Block),
+        typeof(Canonical.Heading3Block),
+        typeof(Canonical.ParagraphBlock),
+        typeof(Canonical.BulletedListItemBlock),
+        typeof(Canonical.NumberedListItemBlock),
+        typeof(Canonical.QuoteBlock),
+        typeof(Canonical.ImageBlock),
+        typeof(Canonical.ToggleBlock),
+        typeof(Canonical.CodeBlock),
+        typeof(Canonical.CalloutBlock)
     ];
 
     private static string[] HistoricalCandidateTypeNames =>
     [
-        .. LegacyModelTypes.Select(type => type.FullName!),
+        .. LegacyModelTypeNames,
         .. LegacyTokenizerTypeNames
     ];
 

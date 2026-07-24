@@ -12,7 +12,7 @@ public sealed class Ad03C2SharedNotionApiUrlsRemovalTests
     [Fact]
     public void LegacySharedUrlFacade_IsAbsentAndCanonicalOwnerRemainsPublic()
     {
-        Assembly sharedAssembly = typeof(Bukit.Shared.Notion.NotionBlock).Assembly;
+        Assembly sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
         Assembly notionAssembly = typeof(Bukit.Notion.NotionApiUrls).Assembly;
         string[] sharedExports = sharedAssembly.GetExportedTypes()
             .Select(static type => type.FullName!)

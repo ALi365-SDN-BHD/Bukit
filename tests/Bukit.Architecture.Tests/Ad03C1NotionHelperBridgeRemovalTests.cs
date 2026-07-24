@@ -11,7 +11,7 @@ public sealed class Ad03C1NotionHelperBridgeRemovalTests
     [Fact]
     public void LegacyNotionTestHelperBridges_AreAbsentFromAssembliesAndSource()
     {
-        var sharedAssembly = typeof(Bukit.Shared.Notion.NotionBlock).Assembly;
+        var sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
         var contentAssembly = typeof(Bukit.Content.Notion.NotionApiClient).Assembly;
 
         Assert.Null(sharedAssembly.GetType(
