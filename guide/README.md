@@ -10,8 +10,9 @@ projects under `src/Bukit-Core` and the tests under `tests`.
 Bukit Core 2.0 uses Route 2, a deterministic trusted-content publishing
 compiler, as its product direction and Route 3, an internal stable engine, as
 its current operating mode. Enterprise internal use has priority. External use
-under the public license is self-directed and carries no public support, SLA,
-compatibility, or release-cadence commitment.
+is self-directed: the repository and its existing license remain public, but
+external use carries no public support, SLA, compatibility, product-readiness,
+or release-cadence commitment.
 
 Regular public binary releases are paused; an exceptional public release
 requires explicit management approval. Labs and external plugins remain

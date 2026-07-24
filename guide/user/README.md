@@ -4,10 +4,12 @@ This guide covers the stable Bukit Core user surface: configuration, content
 loading, route generation, rendering, built-in outputs, local development,
 quality audits, and GitHub Pages deployment.
 
-> This guide documents the governed Bukit Core 2.0 surface used by internal
-> enterprise sites. It is public reference material, not a public support,
-> compatibility, product-readiness, or release-cadence commitment. See the
-> [current product positioning](../../docs/governance/bukit-core-product-positioning.md).
+> Route 2 is Bukit Core's product direction and Route 3 is its current
+> operating mode: this guide documents the governed Core 2.0 surface used by
+> internal enterprise sites. The repository and its existing license remain
+> public, while external use is self-directed and carries no public support,
+> SLA, compatibility, product-readiness, or release-cadence commitment. See
+> the [current product positioning](../../docs/governance/bukit-core-product-positioning.md).
 > Regular public binary releases are paused, exceptional publication requires
 > explicit management approval, and Labs or external plugins are outside Core
 > release readiness.

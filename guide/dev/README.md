@@ -3,9 +3,12 @@
 This directory documents the current Core implementation for maintainers. It is
 not a historical plan and not a Labs guide.
 
-Bukit Core currently follows Route 2 for technical direction and Route 3 for
-internal-first operation. Maintenance decisions prioritize named internal
-consumers, reliability, contract truth, and controlled simplification. See
+Bukit Core uses Route 2 as its product direction and Route 3 as its current
+operating mode. Maintenance decisions prioritize enterprise internal use and
+named internal consumers, reliability, contract truth, and controlled
+simplification. The repository and its existing license remain public, while
+external use is self-directed and carries no public support, SLA,
+compatibility, product-readiness, or release-cadence commitment. See
 [Bukit Core Product Positioning](../../docs/governance/bukit-core-product-positioning.md).
 
 Regular public binary releases are paused and require explicit management
