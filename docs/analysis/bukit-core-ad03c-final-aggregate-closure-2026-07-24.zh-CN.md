@@ -14,7 +14,9 @@
 >
 > 范围：Bukit Core；Labs 与外部插件业务实现不在实施范围
 >
-> 状态：AD-03C 实现与治理范围正式关闭；父任务最终 aggregate/full 审计证据另行追加
+> 状态：AD-03C 实现、治理与父任务最终验证正式关闭；C6 的历史验证边界保留，
+> 父级后续证据见
+> [AD-03C 父任务最终验证关闭台账](bukit-core-ad03c-parent-verification-closure-2026-07-24.zh-CN.md)
 
 ## 1. 关闭结论
 
@@ -166,6 +168,12 @@ direct-owner checks 结果：
 实现子任务内运行；它们必须以 C6 独立复审后冻结的 HEAD 为输入。任何后续 tracked 修复
 都会使该父级证据失效并需要显式 replacement authorization。
 
+以上两段保留 C6 完成时的真实任务边界，不表示父级验证仍然 pending。后续 CFG/SEC
+门禁修复完成后，用户已明确授权以最终组合代码 HEAD `52e38b4c` 和父基线
+`e1614233` 执行一次 68 路径 replacement aggregate，并补齐 exact-entrypoint
+full/release、安全、覆盖率和最终复审证据。正式结果见
+[父任务最终验证关闭台账](bukit-core-ad03c-parent-verification-closure-2026-07-24.zh-CN.md)。
+
 ## 7. 历史不可变证据
 
 历史 136-entry candidate manifest 保持 closed：
@@ -185,3 +193,7 @@ AD-03C 关闭的是 2.0 Notion legacy compatibility cleanup，不是一次新的
 产品能力交付。它没有改变 API/TLS/retry/cache/schema、plugin protocol、assets、SEO、
 global path tools、Labs 或外部插件业务实现。parser 的未来删除、internalization 或
 public SDK productization 仍须另立任务并满足 C5 的无条件重审触发合同。
+
+父任务最终验证只关闭 AD-03C 当前组合 HEAD 的验证债务，不扩大 AD-03C 的产品范围，
+也不把 release thin gate 误表述为发布制品验证。最终命令、测试数、覆盖率和审查边界见
+[AD-03C 父任务最终验证关闭台账](bukit-core-ad03c-parent-verification-closure-2026-07-24.zh-CN.md)。
