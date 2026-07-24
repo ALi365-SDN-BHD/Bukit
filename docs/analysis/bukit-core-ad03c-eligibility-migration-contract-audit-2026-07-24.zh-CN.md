@@ -286,23 +286,23 @@ tests 或 gates。
 | public delta | `Bukit.Shared.dll` -1 public type；19 项降为 18 项 |
 | migration/replacement | source consumer 改用 `Bukit.Notion.NotionApiUrls`；binary consumer 更新 assembly reference 并重新编译 |
 | risks | 固定常量或默认 page size 的来源变化；reflection/assembly-qualified name break；误把 C2 扩展到 Shared model graph |
-| complete owner-test projects | `Bukit.Shared.Tests`、`Bukit.Notion.Tests`、`Bukit.Architecture.Tests` |
+| complete owner-test projects | `Bukit.Shared.Tests`、`Bukit.Notion.Tests`、`Bukit.Content.Tests`、`Bukit.Architecture.Tests` |
 | rollback boundary | 单一 C2 提交恢复 facade、其 tests 与 governed baseline delta；不回退 C1 |
 | entry criteria | C1 exit complete；repository-local consumer search 无 Shared URL facade production consumer；canonical constants/builders exact replacement 已核对 |
-| exit criteria | 旧 URL CLR identity 不再 exported；canonical URL owner 不变；只出现预期 -1 public delta；三个 owner projects 全绿；无 Notion API/header/wire behavior drift |
+| exit criteria | 旧 URL CLR identity 不再 exported；canonical URL owner 不变；只出现预期 -1 public delta；四个 owner projects 全绿；无 Notion API/header/wire behavior drift |
 
 ### 7.3 AD-03C3：原子删除 Shared converter、13 models 与 mapper
 
 | 合同项 | 要求 |
 |---|---|
-| scope | 同一提交删除 `HtmlToNotionBlockConverter`、13 个 legacy model identities、`NotionCompatibilityMapper` 及对应 Shared tests；删除 `Bukit.Shared -> Bukit.Notion` project reference |
+| scope | 同一提交删除 `HtmlToNotionBlockConverter`、13 个 legacy model identities、`NotionCompatibilityMapper` 及对应 Shared tests；清理 `tests/Bukit.Engine.Tests/NotionSchemaDrivenMappingTests.cs` 中 stale `using Bukit.Shared.Notion;`；删除 `Bukit.Shared -> Bukit.Notion` project reference |
 | public delta | `Bukit.Shared.dll` -14 public types；18 项降为 4 项；同时减少一条 compatibility project reference |
 | migration/replacement | `HtmlToNotionBlockConverter.ToBlocksJson/Convert` 迁到 `Bukit.Notion.Conversion.HtmlToNotionBlockConverter`；model types 迁到 `Bukit.Notion.Blocks`；direct CLR consumer 更新 namespace/assembly reference 并重新编译；自定义 `NotionBlock` subclass 需由消费者显式重写/映射 |
 | risks | 半拆 graph 造成不可编译 public signature；遗漏 recursive `ToggleBlock.Children` 或 `RichTextSegment`；binary/reflection/serializer break；误改 canonical 62-type surface；误影响 Importing |
-| complete owner-test projects | `Bukit.Shared.Tests`、`Bukit.Notion.Tests`、`Bukit.Architecture.Tests` |
+| complete owner-test projects | `Bukit.Shared.Tests`、`Bukit.Notion.Tests`、`Bukit.Engine.Tests`、`Bukit.Architecture.Tests` |
 | rollback boundary | 单一 C3 提交恢复 converter、13 models、mapper、Shared reference、tests 和 baseline；不回退 C1/C2 |
-| entry criteria | C2 exit complete；Core/Labs/plugins Shared graph production consumer search 仍为空；external/unknown risk 已进入 breaking notice；完整 14-identity atomic set 已固定 |
-| exit criteria | 14 个 legacy public identities 与 internal mapper 均不存在；`Bukit.Shared` 不再引用 `Bukit.Notion`；canonical 62 public types及 Importing canonical 调用不变；只出现预期 -14 public delta；三个 owner projects 全绿 |
+| entry criteria | C2 exit complete；Core/Labs/plugins Shared graph production consumer search 仍为空；external/unknown 风险已冻结在 C0 minimum breaking/migration notice contract，且 C6 不得删减；完整 14-identity atomic set 已固定 |
+| exit criteria | 14 个 legacy public identities 与 internal mapper 均不存在；`Bukit.Shared` 不再引用 `Bukit.Notion`；canonical 62 public types及 Importing canonical 调用不变；只出现预期 -14 public delta；四个 owner projects 全绿 |
 
 ### 7.4 AD-03C4：原子 internalize Content API client/provider/options
 
@@ -337,13 +337,13 @@ decision；不得静默并入 C5。
 
 | 合同项 | 要求 |
 |---|---|
-| scope | 汇总 C1-C5；更新 governed public API baseline、active public API governance、2.0 breaking/migration notice，并建立 AD-03C formal closure ledger |
+| scope | 汇总 C1-C5；更新 governed public API baseline、active public API governance，最终汇总并发布 2.0 breaking/migration notice，并建立 AD-03C formal closure ledger；C6 不是 C3 的前置条件 |
 | public delta | 不再新增 runtime delta；汇总确认相对 C0 为 legacy public types -18、test-only helpers -2、compatibility references -1，最终 retained legacy public type 为 1 |
 | migration/replacement | 发布完整 Shared URL、conversion/model、Content bridge 迁移表；明确 assembly identity、重新编译、external subclass 与 unknown-consumer 风险；记录 parser retained-by-design |
 | risks | 把 0 public-search results 宣称为无 consumer；把 G-04 误写为未完成；改写 immutable manifest/历史 ledgers；baseline 包含非目标 drift；过度宣称 full/release readiness |
 | complete owner-test projects | `Bukit.Shared.Tests`、`Bukit.Notion.Tests`、`Bukit.Content.Notion.Tests`、`Bukit.Content.Tests`、`Bukit.Engine.Tests`、`Bukit.Architecture.Tests` |
 | rollback boundary | C6 治理/closure 提交独立回退；若 aggregate proof 失败，回退 C6 状态声明但保留 C1-C5 各自已验证提交，逐项定位而非整组隐式重写 |
-| entry criteria | C1-C5 每项 exit complete；所有预期 public/project-reference delta 可从 aggregate diff 精确解释；breaking notice 已包含 unknown-consumer 限制 |
+| entry criteria | C1-C5 每项 exit complete；所有预期 public/project-reference delta 可从 aggregate diff 精确解释；C0 minimum notice contract 在各实施任务中未被删减，等待 C6 最终汇总/发布 |
 | exit criteria | governed baseline 与 compiled surface exact match；active governance 和 formal closure ledger 一致；六个 owner projects 全绿；direct owner self-tests、public API drift 与父级授权的 aggregate targeted verification 通过；immutable 136-entry manifest blob 与 G-04 ledgers无变化；独立只读复审无阻断项 |
 
 C6 不得修改
@@ -355,7 +355,9 @@ search 结论。current surface 的事实来源是
 
 ## 8. 2.0 breaking-change notice 最低合同
 
-C6 的对外/维护者迁移说明至少必须包含：
+以下最低合同已在 C0 冻结，是 C3 的 entry evidence；C6 负责把它与 C1-C5 的实际
+delta 最终汇总并发布，可以补充、不得删减。因此 C6 本身不是 C3 的前置条件。最终
+对外/维护者迁移说明至少必须包含：
 
 1. 删除的 exact legacy CLR identities 与原 assembly；
 2. canonical namespace、assembly 与 API 对照；
