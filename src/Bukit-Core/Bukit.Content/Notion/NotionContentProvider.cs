@@ -3,7 +3,7 @@ using Bukit.Shared;
 
 namespace Bukit.Content.Notion;
 
-public sealed class NotionContentProvider : IContentProvider
+internal sealed class NotionContentProvider : IContentProvider
 {
     private readonly NotionContentSource _source;
 

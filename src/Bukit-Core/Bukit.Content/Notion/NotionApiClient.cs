@@ -5,7 +5,7 @@ using Bukit.Shared;
 
 namespace Bukit.Content.Notion;
 
-public sealed class NotionApiClient : IDisposable
+internal sealed class NotionApiClient : IDisposable
 {
     private readonly NotionClient _client;
 

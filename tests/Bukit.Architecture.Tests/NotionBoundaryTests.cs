@@ -241,7 +241,7 @@ public sealed class NotionBoundaryTests
     [Fact]
     public void RemainingContentTypesResolveAndRemovedSharedTypesStayAbsent()
     {
-        var contentAssembly = typeof(Bukit.Content.Notion.NotionContentProvider).Assembly;
+        var contentAssembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
         var sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
 
         Assert.Equal("Bukit.Content", contentAssembly.GetName().Name);
@@ -254,13 +254,13 @@ public sealed class NotionBoundaryTests
     [Fact]
     public void RemainingLegacyNotionFacades_MustMatchGovernedTwoZeroBaseline()
     {
-        var contentAssembly = typeof(Bukit.Content.Notion.NotionContentProvider).Assembly;
+        var contentAssembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
         var sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
 
         AssertLegacyFacadeExports(
             contentAssembly,
             "Bukit.Content.Notion",
-            LegacyContentNotionTypes);
+            ExportedLegacyContentNotionTypes);
         AssertLegacyFacadeExports(
             sharedAssembly,
             "Bukit.Shared.Notion",
@@ -335,6 +335,11 @@ public sealed class NotionBoundaryTests
         "Bukit.Content.Notion.NotionContentProvider",
         "Bukit.Content.Notion.NotionPropertyParser",
         "Bukit.Content.Notion.NotionProviderOptions"
+    ];
+
+    private static readonly string[] ExportedLegacyContentNotionTypes =
+    [
+        "Bukit.Content.Notion.NotionPropertyParser"
     ];
 
     private static readonly string[] LegacySharedNotionTypes =

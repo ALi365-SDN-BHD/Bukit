@@ -50,7 +50,7 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
     [Fact]
     public void BukitContent_DoesNotExposeApprovedLegacyBlockRendererFacades()
     {
-        var assembly = typeof(Bukit.Content.Notion.NotionApiClient).Assembly;
+        var assembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
 
         Assert.All(RendererNames, rendererName => Assert.Null(assembly.GetType(
             $"Bukit.Content.Notion.BlockRenderers.{rendererName}",
@@ -147,7 +147,7 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
             "Bukit.Content",
             "Notion",
             "BlockRenderers");
-        var assembly = typeof(Bukit.Content.Notion.NotionApiClient).Assembly;
+        var assembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
 
         Assert.False(File.Exists(Path.Combine(blockRendererDirectory, "BlockRendererFacades.cs")));
         Assert.False(File.Exists(Path.Combine(blockRendererDirectory, "NotionBlockHelpers.cs")));

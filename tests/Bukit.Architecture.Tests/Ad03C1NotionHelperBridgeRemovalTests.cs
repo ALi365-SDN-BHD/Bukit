@@ -12,7 +12,7 @@ public sealed class Ad03C1NotionHelperBridgeRemovalTests
     public void LegacyNotionTestHelperBridges_AreAbsentFromAssembliesAndSource()
     {
         var sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
-        var contentAssembly = typeof(Bukit.Content.Notion.NotionApiClient).Assembly;
+        var contentAssembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
 
         Assert.Null(sharedAssembly.GetType(
             SharedWriterTypeName,

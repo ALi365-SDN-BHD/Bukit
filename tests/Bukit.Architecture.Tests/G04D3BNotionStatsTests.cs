@@ -21,7 +21,7 @@ public sealed class G04D3BNotionStatsTests
     public void LegacyStatsIdentity_IsAbsentAndCanonicalStatsRemainsPublic()
     {
         Assembly contentAssembly =
-            typeof(Bukit.Content.Notion.NotionApiClient).Assembly;
+            typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
         Assembly notionAssembly =
             typeof(Bukit.Notion.Transport.NotionClientStats).Assembly;
 
@@ -54,8 +54,14 @@ public sealed class G04D3BNotionStatsTests
     [Fact]
     public void LegacyFacade_InternalGetStatsReturnsCanonicalIdentityDirectly()
     {
+        Assembly contentAssembly =
+            typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
+        Type legacyClient = contentAssembly.GetType(
+            "Bukit.Content.Notion.NotionApiClient",
+            throwOnError: true,
+            ignoreCase: false)!;
         MethodInfo method = Assert.Single(
-            typeof(Bukit.Content.Notion.NotionApiClient).GetMethods(
+            legacyClient.GetMethods(
                 BindingFlags.NonPublic |
                 BindingFlags.Instance |
                 BindingFlags.DeclaredOnly),
@@ -107,7 +113,7 @@ public sealed class G04D3BNotionStatsTests
                 "Bukit.Engine.Tests"
             ],
             GetFriendAssemblies(
-                typeof(Bukit.Content.Notion.NotionApiClient).Assembly));
+                typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly));
         Assert.Equal(
             [
                 "Bukit.Content",

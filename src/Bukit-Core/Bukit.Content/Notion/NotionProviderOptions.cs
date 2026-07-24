@@ -3,7 +3,7 @@ using Bukit.Engine.Abstractions.Content;
 
 namespace Bukit.Content.Notion;
 
-public sealed record NotionProviderOptions
+internal sealed record NotionProviderOptions
 {
     public required string DatabaseId { get; init; }
     public required string Token { get; init; }
