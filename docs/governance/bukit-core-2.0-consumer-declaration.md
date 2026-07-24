@@ -1,5 +1,9 @@
 # Bukit Core 2.0 Public Surface Consumer Declaration
 
+> **Current policy note:** This record remains authoritative for technical
+> compatibility and migration. Current product support and release expectations
+> are governed by [Bukit Core Product Positioning](bukit-core-product-positioning.md).
+
 Status: `closed`
 
 Target: `2.0.0`

@@ -6,9 +6,11 @@ text.
 ## Source Priority
 
 1. Current `src/Bukit-Core` code and tests.
-2. Current lightweight script gates.
-3. README entry points.
-4. Historical docs, only as context.
+2. `docs/governance/bukit-core-product-positioning.md` for current product
+   positioning questions.
+3. Current lightweight script gates.
+4. README entry points.
+5. Historical docs, only as context.
 
 ## Update Rule
 
@@ -20,6 +22,11 @@ boundary changes, update:
 - `guide/skills`.
 - README links if entry points change.
 - Focused scripts if a new invariant needs checking.
+
+README, guide entry points, stability wording, contribution wording, and
+release authorization wording must remain synchronized with the current product
+positioning policy. Historical audit and plan wording is evidence of its time
+and is not rewritten when the current product policy changes.
 
 ## Checked Surfaces
 

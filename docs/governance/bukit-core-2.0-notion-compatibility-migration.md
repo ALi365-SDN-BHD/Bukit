@@ -1,5 +1,9 @@
 # Bukit Core 2.0 Notion compatibility migration
 
+> **Current policy note:** This record remains authoritative for technical
+> compatibility and migration. Current product support and release expectations
+> are governed by [Bukit Core Product Positioning](bukit-core-product-positioning.md).
+
 This notice applies to Bukit Core 2.0-only. Bukit Core 1.x remains unchanged.
 The changes below remove or narrow legacy CLR identities that
 duplicated canonical Notion owners; they do not change the Notion wire API or

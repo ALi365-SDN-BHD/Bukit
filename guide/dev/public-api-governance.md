@@ -1,5 +1,14 @@
 # Public API Governance
 
+[Bukit Core Product Positioning](../../docs/governance/bukit-core-product-positioning.md)
+governs current product support and release expectations.
+
+The CLI, configuration, theme, template, report, and process-protocol surfaces
+below are governed interoperability contracts for internal Core operation.
+“Supported” in this document identifies the intended technical contract; it
+does not create public support, SLA, compatibility, product-readiness, or
+release-cadence commitments.
+
 C# `public` is CLR visibility, not an automatic supported SDK promise.
 
 Bukit's supported external surfaces are CLI behavior, configuration and theme

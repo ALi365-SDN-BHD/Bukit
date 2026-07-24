@@ -4,6 +4,14 @@ This guide covers the stable Bukit Core user surface: configuration, content
 loading, route generation, rendering, built-in outputs, local development,
 quality audits, and GitHub Pages deployment.
 
+> This guide documents the governed Bukit Core 2.0 surface used by internal
+> enterprise sites. It is public reference material, not a public support,
+> compatibility, product-readiness, or release-cadence commitment. See the
+> [current product positioning](../../docs/governance/bukit-core-product-positioning.md).
+> Regular public binary releases are paused, exceptional publication requires
+> explicit management approval, and Labs or external plugins are outside Core
+> release readiness.
+
 ## Reading Path
 
 | Goal | Read |
@@ -29,7 +37,7 @@ quality audits, and GitHub Pages deployment.
 | Configure privacy-safe analytics providers | [19 Analytics](19-analytics.md) |
 | Understand Core safety and reliability guarantees | [20 Core Safety And Reliability](20-core-safety-reliability.md) |
 
-## Stable Core Commands
+## Governed Core Commands
 
 `build`, `doctor`, `config`, `preview`, `dev`, `clean`, `version`,
 `completion`, `seo`, `geo`, `publish`, and `deploy`.

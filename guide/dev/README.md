@@ -3,6 +3,15 @@
 This directory documents the current Core implementation for maintainers. It is
 not a historical plan and not a Labs guide.
 
+Bukit Core currently follows Route 2 for technical direction and Route 3 for
+internal-first operation. Maintenance decisions prioritize named internal
+consumers, reliability, contract truth, and controlled simplification. See
+[Bukit Core Product Positioning](../../docs/governance/bukit-core-product-positioning.md).
+
+Regular public binary releases are paused and require explicit management
+approval as an exception. Labs and external plugins remain outside Core release
+readiness.
+
 ## Core Source Anchors
 
 | Area | Source |
@@ -21,6 +30,7 @@ not a historical plan and not a Labs guide.
 
 | Topic | File |
 |---|---|
+| Product positioning | [Bukit Core Product Positioning](../../docs/governance/bukit-core-product-positioning.md) |
 | Architecture | [architecture.md](architecture.md) |
 | CLI contract | [cli.md](cli.md) |
 | Config contract | [config-site-yaml.md](config-site-yaml.md) |

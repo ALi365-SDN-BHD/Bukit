@@ -5,6 +5,20 @@ This guide is generated for the current Bukit Core source tree. A historical
 is not required to exist. The contracts below are taken from the live Core
 projects under `src/Bukit-Core` and the tests under `tests`.
 
+## Current Product Mode
+
+Bukit Core 2.0 uses Route 2, a deterministic trusted-content publishing
+compiler, as its product direction and Route 3, an internal stable engine, as
+its current operating mode. Enterprise internal use has priority. External use
+under the public license is self-directed and carries no public support, SLA,
+compatibility, or release-cadence commitment.
+
+Regular public binary releases are paused; an exceptional public release
+requires explicit management approval. Labs and external plugins remain
+outside Core release readiness.
+
+See [Bukit Core Product Positioning](../docs/governance/bukit-core-product-positioning.md).
+
 If present, `guide-0.1`, `guide-0.2`, `scripts-0.1`, and `scripts-0.2` are
 historical backup/reference trees only. Do not create or synchronize them by
 default. They may be maintained only when explicitly requested and must never

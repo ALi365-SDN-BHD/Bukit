@@ -1,9 +1,15 @@
-# Public Preview Scope
+# Core Stability And External Expectation Scope
 
-Core docs describe stable behavior. Labs and preview areas may describe future
-or optional workflows, but they cannot be used as proof of current Core support.
+Core documents describe governed internal behavior. “Stable” means an internal
+Core contract protected by source and tests; it does not imply public support,
+an SLA, compatibility guarantees, product readiness, or a fixed release
+cadence.
 
-## Stable In Core
+Route 2 is the technical direction and Route 3 is the current internal-first
+operating mode. Labs and preview material cannot be used as proof of Core
+support or release readiness.
+
+## Governed In Internal Core
 
 - Static command registry.
 - Strict config.
@@ -14,7 +20,7 @@ or optional workflows, but they cannot be used as proof of current Core support.
 - SEO, GEO, publish audit, search, feeds, sitemap, and build reports.
 - GitHub Pages deployment.
 
-## Outside Stable Core
+## Outside Internal Core
 
 - Clone workflows.
 - HTML demo import workflows.
