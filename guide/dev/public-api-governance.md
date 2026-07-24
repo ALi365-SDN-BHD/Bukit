@@ -51,7 +51,7 @@ The check compares the compiled public and protected surfaces with
 `docs/governance/bukit-core-public-api-baseline.v1.json`. It is a
 maintainer-local governance tool, not a general CLR SDK declaration.
 Both `check` and `snapshot` require the exact policy-owned, ordered mapping of
-the twelve Core assemblies to their projects before any assembly is captured.
+the fourteen Core assemblies to their projects before any assembly is captured.
 
 ## Diagnostics And Exit Codes
 
@@ -82,6 +82,31 @@ review, and `2` for invalid input or a gate error.
 
 Never infer removal safety from zero repository-local consumers. Access
 narrowing remains a separate major-version task.
+
+## AD-01 2.0 Configuration-Decoupling Migration
+
+The approved AD-01 change removes
+`BuildContext.Config : Bukit.Config.AppConfig` and the public
+`SiteEngine.GetListRoutes(BuildContext, ThemeTemplateResolver?)` overload.
+The replacement list-route overload accepts routed documents, collections,
+output-path encoding, and the optional template resolver explicitly.
+
+The existing collections-only overload, public `PluginRegistry` and
+`PluginRunner` facades, and in-process plugin interfaces remain unchanged.
+The governed baseline still contains 14 assemblies and 443 public types; its
+AD-01 diff has exactly one removed property, one removed overload, and one
+added overload.
+
+Known reviewed site repositories use the Bukit CLI and did not expose a direct
+CLR match, but private, unindexed, binary-only, and undisclosed consumers remain
+unknown. Direct CLR consumers must remove `BuildContext.Config` access and pass
+list-route inputs explicitly. They must not recreate the removed ambient
+configuration channel through `BuildContext.Data`.
+
+See the
+[AD-01 final closure and migration ledger](../../docs/analysis/bukit-core-ad01-config-decoupling-final-closure-2026-07-24.zh-CN.md)
+for exact signatures, evidence, exclusions, rollback boundaries, and migration
+examples.
 
 ## Baseline Review Vocabulary
 

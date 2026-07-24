@@ -38,6 +38,22 @@ Variant stages:
 10. Run after-build plugins.
 11. Write projections and reports.
 
+## Configuration Ownership
+
+`Bukit.Engine.Abstractions` does not reference `Bukit.Config`.
+`BuildContext` carries content, routes, logger state, and plugin projections,
+but not the effective `AppConfig`.
+
+Configuration stays at the Engine/CLI composition boundary. Core production
+builds bind it to an Engine-internal per-variant plugin execution session and
+pass that session explicitly through derive, HTML-transform, and after-build
+stages. Core built-in writers must not use `BuildContext.Data` as an ambient
+configuration channel.
+
+The public config-free `PluginRegistry` and `PluginRunner` facades are
+compatibility entry points with deterministic defaults; site-aware production
+execution uses the explicit effective configuration path.
+
 The output preflight uses `AssetOutputPlan` before publication writes. It checks
 render/static/assets/media/token claims for exact and structural conflicts under
 the destination filesystem's actual case semantics. The same destination
@@ -55,3 +71,5 @@ separately.
 
 See [Core Safety And Reliability Invariants](core-safety-reliability-invariants.md)
 for cleanup, DOM, ownership, symlink, cache, concurrency, and report boundaries.
+The approved 2.0 CLR migration and its limits are recorded in the
+[AD-01 final closure ledger](../../docs/analysis/bukit-core-ad01-config-decoupling-final-closure-2026-07-24.zh-CN.md).

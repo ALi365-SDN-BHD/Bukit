@@ -1,63 +1,159 @@
-# Task 4 Report: Remove legacy collection fallback warnings
+# AD-01B4 Report: Aggregate closure and documentation
 
-## Integration note
+## Scope completed
 
-- Intentionally integrated the pre-existing staged and unstaged experiments in `CollectionWarningStage.cs` and `CollectionWarningStageTests.cs` into the Task 4 behavior.
-- Removed all per-document inspection from `CollectionWarningStage`; `type`, `collection`, their same/distinct combinations, and `sourceMode: data` no longer produce compatibility warnings in this stage.
-- Preserved the existing `filteredLists` behavior:
-  - a configured parent `listRoute` emits one collection-level INFO;
-  - a missing parent `listRoute` emits one WARN per configured filtered route.
-- `ContentStageOutput` has no warning-count field: its fourth field is `DurationMs`. The final implementation leaves that duration override at zero for both INFO and WARN paths, rather than misreporting the WARN count as elapsed milliseconds; actual warning counts are verified against logger WARN entries.
-- No data-index, documentation, routing, or other parallel-task path was modified for this task.
+- Added the formal Chinese AD-01 closure ledger:
+  `docs/analysis/bukit-core-ad01-config-decoupling-final-closure-2026-07-24.zh-CN.md`.
+- Updated active architecture guidance with the config ownership and
+  `BuildContext.Data` boundary.
+- Updated active public API governance with the exact 2.0 CLR delta and
+  migration link.
+- The documentation change did not modify tests, schemas, plugin protocols,
+  gates, Labs, external plugin implementations, historical audit snapshots,
+  G-04 historical ledgers, or protected backup/reference directories. Two
+  narrow production style fixes required by aggregate ratchets are recorded
+  separately below.
 
-## TDD and verification
+Parent base:
+`b14edc7d16e8ecdcfaf3a27712f86fe74fa0669b`.
 
-- RED: after rewriting the compatibility-warning tests first, the full `CollectionWarningStageTests` class reported 3 expected failures (`type-only`, same `type`/`collection`, and distinct `type`/`collection`) and 4 passes.
-- GREEN: `dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --no-restore --filter "FullyQualifiedName~CollectionWarningStageTests"` passed: 7 passed, 0 failed, 0 skipped.
-- Whitespace: `git diff HEAD --check -- src/Bukit-Core/Bukit.Engine/Stages/CollectionWarningStage.cs tests/Bukit.Engine.Tests/CollectionWarningStageTests.cs` passed.
-- Targeted gate: `bash scripts/checks/post-change-targeted.sh -- src/Bukit-Core/Bukit.Engine/Stages/CollectionWarningStage.cs tests/Bukit.Engine.Tests/CollectionWarningStageTests.cs` reached the `Bukit.Engine.Tests` project after all preceding diff, contract, docs, and self-tests passed, then failed with 23 unrelated planned RED tests that still expect the superseded collection/type fallback behavior:
-  - `RouteGeneratorCoverageTests.ExpandPermalinkPattern_TypePlaceholder_ExplicitType`
-  - `RouteGeneratorCoverageTests.ExpandPermalinkPattern_NoTypeField_UsesCanonicalPage`
-  - `RouteGeneratorCoverageTests.ExpandPermalinkPattern_TypePlaceholder_NonStringType_UsesToString`
-  - `RouteGeneratorCoverageTests.Generate_GetCollection_NoCollectionField_UsesCanonicalType`
-  - `RouteGeneratorCoverageTests.Generate_GetCollection_EmptyCollectionField_UsesCanonicalType`
-  - `RouteGeneratorCoverageTests.ExpandPermalinkPattern_TypePlaceholder_MissingTypeUsesCanonicalPage`
-  - `RouteGeneratorCoverageTests.Generate_GetType_IntMetaValueWithoutRule_Throws`
-  - `RouteGeneratorCoverageTests.Generate_GetType_NullMetaTypeWithoutRule_Throws`
-  - `RouteGeneratorCoverageTests.Generate_NormalizeUrl_AlreadyNormalized_Unchanged`
-  - `RouteGeneratorCoverageTests.ExpandPermalinkPattern_AllPlaceholders_ReplacesCorrectly`
-  - `RouteGeneratorCoverageTests.Generate_GetCollection_WhitespaceCollectionField_UsesCanonicalType`
-  - `RouteGeneratorCoverageTests.Generate_NormalizeUrl_MissingLeadingSlash_Added`
-  - `RouteGeneratorCoverageTests.ExpandPermalinkPattern_NullTypeValue_UsesCanonicalPage`
-  - `RouteGeneratorGoldenTests.GenerateWithSource_MatchesGoldenSnapshot`
-  - `SeoIndexBuilderTests.Build_WithRoutedItems_CreatesEntriesAndModels`
-  - `ContentPipelineTests.ExecuteAsync_WhenCanonicalSchemaStrict_ThrowsConfigException`
-  - `ContentPipelineTests.ExecuteAsync_LoadsLocalizesFiltersDraftsAndBuildsCanonicalContent`
-  - `RouteGeneratorTests.Generate_CollectionsRule_TypeOnly_UsesCanonicalCollection`
-  - `ContentStagesTests.ContentLoadStage_ProjectsConfiguredCanonicalMappings`
-  - `ContentStagesTests.ContentLoadStage_EnrichesCanonicalGraphFromConfiguredEntityAndRelationMappings`
-  - `ContentStagesTests.ContentLoadStage_RoutesToProviderFactory`
-  - `SiteEngineHelperTests.GetCollection_WithNeither_ReturnsPage`
-  - `SiteEngineHelperTests.GetCollection_WithTypeMeta_ReturnsTypeValue`
+Code terminal:
+`1d3f7b9f1db23ba2dcd67a75fd0cbcaf35f2374f`.
+
+## Evidence inventory
+
+The closure ledger records:
+
+- the original AD-01 root cause;
+- B1 `5a7a30ad`;
+- B2 `042c3203` plus review fix `73d14e34`;
+- B3 `42b0b0c9` plus review fixes `171fc428` and `466f4a26`;
+- aggregate ratchet remediations `4a53a744` and `1d3f7b9f`;
+- RED/GREEN, focused-gate, and independent-review closure for each phase;
+- the final dependency graph and explicit plugin-session ownership;
+- exact public API migration and compatibility examples;
+- unchanged schema, protocol, output, asset, security, and AOT-design
+  boundaries;
+- known consumer evidence without claiming external-consumer absence;
+- atomic rollback groups and residual risks.
+
+## Fresh focused verification
+
+All commands ran sequentially outside the sandbox with `NOTION_TOKEN` removed:
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj \
+  --no-restore --nologo --verbosity quiet
+```
+
+Result: exit 0; 61 passed, 0 failed, 0 skipped.
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+  --no-restore --nologo --verbosity quiet
+```
+
+Result: exit 0; 1628 passed, 0 failed, 0 skipped.
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj \
+  --no-restore --nologo --verbosity quiet
+```
+
+Result: exit 0; 618 passed, 0 failed, 0 skipped.
+
+```sh
+env -u NOTION_TOKEN dotnet test \
+  tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj \
+  --no-restore --nologo --verbosity quiet
+```
+
+Result: exit 0; 264 passed, 0 failed, 0 skipped.
+
+## Aggregate and authorized replacement chain
+
+Before the run, task reports and SDD records were searched for the fixed base.
+B1, B2, and B3 explicitly recorded that no parent aggregate had run; no prior
+invocation against this base was found.
+
+The path list was the sorted, de-duplicated union of:
+
+- `git diff --name-only
+  b14edc7d16e8ecdcfaf3a27712f86fe74fa0669b...HEAD`;
+- the four B4 tracked/new paths.
+
+Ignored/untracked briefs and review packages were excluded.
+
+Command:
+
+```sh
+env -u NOTION_TOKEN bash scripts/checks/post-change-targeted.sh \
+  --base b14edc7d16e8ecdcfaf3a27712f86fe74fa0669b \
+  -- "${changed_paths[@]}"
+```
+
+Final authorized replacement result: exit 0. It reached completion with all
+diff, documentation, contract, self-test, public API drift, Release owner-test,
+and Architecture stages passing.
+
+That exit-0 result was the end of the following complete, authorized evidence
+chain:
+
+1. The original aggregate passed CLI 618/618, Abstractions 61/61,
+   Engine 1628/1628, and Architecture 264/264, then exited 1 at the
+   code-analysis ratchet:
+   - `IDE0301`: 181, baseline 180;
+   - `IDE0305`: 135, baseline 134.
+2. Commit `4a53a744` made only the two narrow collection-style corrections.
+   Focused Engine passed 1628/1628; raw style returned to
+   `IDE0301=180` and `IDE0305=134`.
+3. The first replacement aggregate was explicitly authorized by the user. It
+   exited 1 on the next real ratchet violation: `CA1859=89`, baseline 88.
+4. Commit `1d3f7b9f` made one private return-type correction. Focused Engine
+   passed 1628/1628; raw counts were `IDE0301=180`, `IDE0305=134`, and
+   `CA1859=88`; independent narrow review was COMPLIANT.
+5. The user explicitly authorized a second replacement aggregate. It ran
+   outside the sandbox with `NOTION_TOKEN` removed, against the same base and
+   76 frozen paths, and exited 0:
+   - CLI 618/618;
+   - Engine.Abstractions 61/61;
+   - Engine 1628/1628;
+   - Architecture 264/264;
+   - style 584/593;
+   - analyzers 323/326;
+   - public API drift, documentation/contracts, brainstorm server self-test,
+     YAML static context, and all remaining reached stages passed.
+
+Both failed aggregates remain part of the evidence. No third replacement
+aggregate and no standalone `ci-fast` command ran; each aggregate reached the
+internal fast contract gate only through `post-change-targeted.sh`. No full,
+release, `test-all`, `smoke-all`, or Native AOT command ran.
+
+## Static self-check
+
+- Active Markdown links and repository-relative paths: checked.
+- Placeholders and public absolute paths: none.
+- Commit and test evidence: matched against reports and `git log`.
+- Public baseline: 14 assemblies / 443 types / exact three AD-01 semantic
+  changes.
+- `git diff --check`: exit 0.
 
 ## Commit
 
-- Subject: `refactor(diagnostics): remove legacy collection fallback warnings`
-- Scope: only `CollectionWarningStage.cs`, `CollectionWarningStageTests.cs`, and this report.
+- Subject: `docs(core): close ad01 config decoupling`
+- The final commit hash is returned in the handoff because a file within a
+  commit cannot contain that commit's stable hash.
 
-## Self-review
+## Residuals
 
-- The implementation is the minimum behavior change: the stage now delegates exclusively to the already-established `filteredLists` advisory logic.
-- Tests cover all required no-warning metadata cases, assert INFO/WARN logging counts, and ensure warning counts are not written into the `DurationMs` output field.
-- The final two-path diff contains no data-specific branch or legacy type/collection warning text.
-- The targeted gate failures are outside Task 4 and were not hidden or modified.
-- The required bounded read-only diff review found no remaining Critical or Important issues after the `DurationMs` correction.
-
-## P2 follow-up: remove dead warning counter
-
-- Changed `WarnFilteredLists` from `int` to `void`; the empty-collections branch now returns without a value.
-- Removed the unused `warned` local, its increments, and the final return. The INFO and WARN branches and message text are unchanged.
-- Before and after the refactor, `dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --no-restore --filter "FullyQualifiedName~CollectionWarningStageTests"` passed: 7 passed, 0 failed, 0 skipped.
-- `git diff HEAD --check -- src/Bukit-Core/Bukit.Engine/Stages/CollectionWarningStage.cs .superpowers/sdd/task-4-report.md` passed.
-- `bash scripts/checks/post-change-targeted.sh -- src/Bukit-Core/Bukit.Engine/Stages/CollectionWarningStage.cs` passed its diff, contract, documentation, self-test, and script checks, then reached the full `Bukit.Engine.Tests` project and reproduced the same 23 unrelated planned RED tests listed above (1240 passed, 23 failed).
-- Follow-up commit subject: `refactor(diagnostics): remove dead warning counter`.
+- Private, unindexed, undisclosed, and binary-only direct CLR consumers remain
+  unknown.
+- Public `BuildContext.Data` remains caller-writable; the no-Config invariant
+  applies to current Core built-in production writers.
+- Native AOT proof was not authorized or run; only the static, reflection-free
+  registration design remained covered.
+- Independent whole-branch read-only review is dispatched by the parent
+  controller after this commit.
