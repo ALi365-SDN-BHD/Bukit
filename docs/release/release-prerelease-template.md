@@ -1,6 +1,10 @@
 # Release Precheck Template（维护者）
 
-## 发布前主干 CI 预检（强制）
+> 当前默认用途是企业内部制品验证，常规公开二进制发布暂停。
+> 若任务未记录明确的管理批准，不得创建公开 tag、上传公开资产或发布 GitHub Release。
+> CI、coverage、security、Native AOT、smoke 和资产校验通过只证明技术状态，不构成发布授权。
+
+## 已授权公开发布的主干 CI 预检（强制）
 
 1. 先在 `main` 或 `master` 上提交待发布改动，并等待 `.github/workflows/ci.yaml` 全量通过。
 2. 在打 tag 前确认同一 commit 的主干 CI 绿灯：

@@ -1,5 +1,15 @@
 # Release
 
+## Authorization Boundary
+
+Bukit Core is currently enterprise internal-first. Regular public binary
+releases are paused. The procedures below remain active for internal artifacts,
+internal deployment validation, and an exceptionally approved public release.
+
+Passing CI, Native AOT, reproducibility, smoke, coverage, security, checksum,
+or release-asset verification proves technical state only. It does not
+authorize publication. A public release requires explicit management approval.
+
 Release work is broader than the fast docs gate. It should be explicit and
 artifact-driven.
 
