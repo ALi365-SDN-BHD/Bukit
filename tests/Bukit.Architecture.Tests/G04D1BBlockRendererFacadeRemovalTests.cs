@@ -138,7 +138,7 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
     }
 
     [Fact]
-    public void SourceBoundary_PreservesInternalHelperAndReflectsApprovedM2Removal()
+    public void SourceBoundary_ReflectsApprovedHelperAndM2Removals()
     {
         var blockRendererDirectory = Path.Combine(
             RepoRoot,
@@ -150,7 +150,7 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
         var assembly = typeof(Bukit.Content.Notion.NotionApiClient).Assembly;
 
         Assert.False(File.Exists(Path.Combine(blockRendererDirectory, "BlockRendererFacades.cs")));
-        Assert.True(File.Exists(Path.Combine(blockRendererDirectory, "NotionBlockHelpers.cs")));
+        Assert.False(File.Exists(Path.Combine(blockRendererDirectory, "NotionBlockHelpers.cs")));
         Assert.All(D1CTypeNames, typeName => Assert.Null(assembly.GetType(
             typeName,
             throwOnError: false,

@@ -1,8 +1,9 @@
 using System.Text.Json;
-using Bukit.Shared.Notion;
+using Bukit.Notion.Blocks;
+using Bukit.Notion.Conversion;
 using Xunit;
 
-namespace Bukit.Shared.Tests;
+namespace Bukit.Notion.Tests;
 
 public sealed class NotionBlockJsonWriterTests
 {

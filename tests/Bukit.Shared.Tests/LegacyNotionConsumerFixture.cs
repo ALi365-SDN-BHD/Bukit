@@ -8,7 +8,6 @@ internal static class LegacyNotionConsumerFixture
         typeof(Bukit.Shared.Notion.NotionBlock),
         typeof(Bukit.Shared.Notion.RichTextSegment),
         typeof(Bukit.Shared.Notion.HtmlToNotionBlockConverter),
-        typeof(Bukit.Shared.Notion.NotionBlockJsonWriter),
         typeof(Bukit.Shared.Notion.NotionApiUrls)
     ];
 }
