@@ -9,7 +9,8 @@ results="$(mktemp -d "${TMPDIR:-/tmp}/bukit-security-results.XXXXXX")"
 trap 'rm -rf "$results"' EXIT
 projects=(
   "tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj|FullyQualifiedName~SsrfGuardIntegrationTests|FullyQualifiedName~DevRequestHandler_HandleAsync_DoesNotServeBukitInternalFiles"
-  "tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj|FullyQualifiedName~BlockRendererUrlSafetyTests|FullyQualifiedName~ImageAssetLocalizerTests"
+  "tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj|FullyQualifiedName~ImageAssetLocalizerTests"
+  "tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj|FullyQualifiedName~BlockRendererUrlSafetyTests"
   "tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj|FullyQualifiedName~RouteSecurityValidatorTests|FullyQualifiedName~SafeOutputFileSystemTests|FullyQualifiedName~BuildReporterTests|FullyQualifiedName~ThemeBootstrapperSanitizationTests|FullyQualifiedName~DirectoryCopyFollowSymlinksTests"
   "tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj|FullyQualifiedName~PluginPermissionEvaluatorTests|FullyQualifiedName~PluginHashVerifierTests|FullyQualifiedName~PluginManifestLoaderTests|FullyQualifiedName~PluginConfigLoaderTests|FullyQualifiedName~PluginPathValidatorTests"
   "tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj|FullyQualifiedName~RouteSecurityValidatorTests"

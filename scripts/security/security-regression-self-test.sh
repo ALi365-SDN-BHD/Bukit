@@ -20,6 +20,11 @@ set -euo pipefail
 filter=""
 logger=""
 results_directory=""
+project=""
+if [[ "${1:-}" == "test" ]]; then
+  project="${2:-}"
+  shift 2
+fi
 while (($#)); do
   case "$1" in
     --filter)
@@ -47,6 +52,24 @@ trx_name="${logger#*LogFileName=}"
 trx="$results_directory/$trx_name"
 mkdir -p "$results_directory"
 IFS='|' read -r -a selectors <<<"$filter"
+case "$project" in
+  *Bukit.Content.Tests.csproj)
+    owner="ImageAssetLocalizerTests"
+    ;;
+  *Bukit.Notion.Tests.csproj)
+    owner="BlockRendererUrlSafetyTests"
+    ;;
+  *)
+    owner=""
+    ;;
+esac
+if [[ -n "$owner" ]]; then
+  owned_selectors=()
+  for selector in "${selectors[@]}"; do
+    [[ "$selector" == "FullyQualifiedName~$owner" ]] && owned_selectors+=("$selector")
+  done
+  selectors=("${owned_selectors[@]}")
+fi
 mode="${FAKE_TRX_MODE:-valid}"
 if [[ "$mode" == "missing-selector" ]]; then
   selectors=("${selectors[@]:1}")
