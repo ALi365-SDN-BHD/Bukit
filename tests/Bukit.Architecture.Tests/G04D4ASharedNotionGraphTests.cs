@@ -187,7 +187,7 @@ public sealed class G04D4ASharedNotionGraphTests
     }
 
     [Fact]
-    public void DeferredBaseline_StillRecordsFourteenAssemblies443TypesAnd0Candidates()
+    public void FinalBaseline_RecordsFourteenAssemblies425TypesAndNoSharedLegacyNotionEntries()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -197,7 +197,7 @@ public sealed class G04D4ASharedNotionGraphTests
         JsonElement[] types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(443, types.Length);
+        Assert.Equal(425, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
@@ -211,31 +211,22 @@ public sealed class G04D4ASharedNotionGraphTests
 
         foreach (string typeName in LegacyModelTypeNames)
         {
-            JsonElement entry = Assert.Single(types, candidate =>
-                candidate.GetProperty("assembly").GetString() ==
-                "Bukit.Shared" &&
-                candidate.GetProperty("name").GetString() == typeName);
-            Assert.Equal(
-                "cross-assembly-implementation",
-                entry.GetProperty("classification").GetString());
-            Assert.Equal(
-                "1.x-do-not-narrow",
-                entry.GetProperty("compatibility").GetString());
-            Assert.Equal(
-                "2.0-review",
-                entry.GetProperty("migrationHorizon").GetString());
+            Assert.DoesNotContain(types, entry =>
+                entry.GetProperty("assembly").GetString() == "Bukit.Shared" &&
+                entry.GetProperty("name").GetString() == typeName);
         }
 
-        JsonElement converter = Assert.Single(types, entry =>
-            entry.GetProperty("assembly").GetString() == "Bukit.Shared" &&
-            entry.GetProperty("name").GetString() ==
-            "Bukit.Shared.Notion.HtmlToNotionBlockConverter");
-        Assert.Equal(
-            "cross-assembly-implementation",
-            converter.GetProperty("classification").GetString());
-        Assert.Equal(
-            "1.x-do-not-narrow",
-            converter.GetProperty("compatibility").GetString());
+        Assert.All(
+            new[]
+            {
+                "Bukit.Shared.Notion.HtmlToNotionBlockConverter",
+                "Bukit.Shared.Notion.NotionApiUrls"
+            },
+            typeName =>
+                Assert.DoesNotContain(types, entry =>
+                    entry.GetProperty("assembly").GetString() ==
+                    "Bukit.Shared" &&
+                    entry.GetProperty("name").GetString() == typeName));
     }
 
     [Fact]

@@ -74,7 +74,7 @@ public sealed class G04D2ERuntimeContextTests
     }
 
     [Fact]
-    public void CurrentBaseline_ContainsFourteenAssemblies443TypesAnd0Candidates()
+    public void CurrentBaseline_ContainsFourteenAssemblies425TypesAnd0Candidates()
     {
         using var document = ReadJson(
             "docs",
@@ -84,7 +84,7 @@ public sealed class G04D2ERuntimeContextTests
         var types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(443, types.Length);
+        Assert.Equal(425, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.DoesNotContain(types, entry =>

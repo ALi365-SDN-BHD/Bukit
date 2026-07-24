@@ -16,7 +16,7 @@ public sealed class G04D2B1PluginHostErrorCodeContractTests
     private const string Decision =
         "G-04D2B2 single-type internalization decision: only `Bukit.PluginHost.PluginHostErrorCodes` is narrowed from public to internal in 2.0; the other 103 candidates are not batch-approved.";
     private const string CurrentBaseline =
-        "The current public API baseline contains 443 types, including 0 `2.0-candidate` entries.";
+        "The current public API baseline contains 425 types, including 0 `2.0-candidate` entries.";
     private static readonly string[] StableVocabulary =
     [
         "plugin.unsupportedProtocol",
@@ -124,7 +124,7 @@ public sealed class G04D2B1PluginHostErrorCodeContractTests
     }
 
     [Fact]
-    public void CurrentBaseline_ContainsFourteenAssemblies443TypesAnd0Candidates()
+    public void CurrentBaseline_ContainsFourteenAssemblies425TypesAnd0Candidates()
     {
         using var document = ReadJson(
             "docs",
@@ -134,7 +134,7 @@ public sealed class G04D2B1PluginHostErrorCodeContractTests
         var types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(443, types.Length);
+        Assert.Equal(425, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.DoesNotContain(types, entry =>

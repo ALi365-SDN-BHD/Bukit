@@ -6,7 +6,7 @@
 >
 > 范围：Bukit Core；Labs 与外部插件业务实现不在实施范围
 >
-> 状态：C0 read-only audit complete / C1-C6 not executed
+> 状态：C0 read-only audit complete / C1-C6 complete
 
 ## 1. 执行结论
 
@@ -99,13 +99,13 @@ Architecture contract 同时验证原 assembly identity 与 namespace exact set�
 | converter | `Bukit.Shared.Notion.HtmlToNotionBlockConverter` | canonical converter facade + legacy mapping | 与 13 models、mapper 原子删除 |
 | URL facade | `Bukit.Shared.Notion.NotionApiUrls` | canonical URL owner facade | 可独立删除 |
 
-13 个 model identity 的源码定义见
-[`NotionBlockTypes.cs`](../../src/Bukit-Core/Bukit.Shared/Notion/NotionBlockTypes.cs)。
+13 个 model identity 在 C0 基线的源码定义见
+[`NotionBlockTypes.cs`](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/src/Bukit-Core/Bukit.Shared/Notion/NotionBlockTypes.cs)。
 converter 的 `ToBlocksJson` 已直接委托 canonical converter；`Convert` 则把 canonical
 block 重新映射成 legacy records，见
-[`HtmlToNotionBlockConverter.cs`](../../src/Bukit-Core/Bukit.Shared/Notion/HtmlToNotionBlockConverter.cs)
+[`HtmlToNotionBlockConverter.cs`](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/src/Bukit-Core/Bukit.Shared/Notion/HtmlToNotionBlockConverter.cs)
 和
-[`NotionCompatibilityMapper.cs`](../../src/Bukit-Core/Bukit.Shared/Notion/NotionCompatibilityMapper.cs)。
+[`NotionCompatibilityMapper.cs`](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/src/Bukit-Core/Bukit.Shared/Notion/NotionCompatibilityMapper.cs)。
 
 这里不能逐个 internalize model：
 
@@ -123,8 +123,8 @@ retain-by-design 决议也明确把 13 项视为 converter 的必要 companion g
 AD-03C3 是新的 2.0 原子清偿决议，不追溯改写该历史结论。
 
 `NotionApiUrls` 只转发 canonical constants 和 URL builders，不参与上述 model graph，
-见
-[`NotionApiUrls.cs`](../../src/Bukit-Core/Bukit.Shared/Notion/NotionApiUrls.cs)；
+见 C0 基线的
+[`NotionApiUrls.cs`](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/src/Bukit-Core/Bukit.Shared/Notion/NotionApiUrls.cs)；
 因此它属于独立 C2。
 
 ### 3.2 `Bukit.Content.Notion` in `Bukit.Content.dll`：4 项
@@ -189,10 +189,10 @@ C4 只收窄三个 legacy CLR types 的可见性，不把 Engine 改成直接依
 | `Bukit.Shared.Notion.NotionBlockJsonWriter` | `Bukit.Shared.dll` | `Bukit.Shared.Tests` | 测试迁至 canonical owner 后删除 |
 | `Bukit.Content.Notion.BlockRenderers.NotionBlockHelpers` | `Bukit.Content.dll` | `Bukit.Content.Tests` | 测试迁至 canonical owner 后删除 |
 
-二者均只是 canonical helper 的 internal forwarding bridge，见
-[`NotionBlockJsonWriter.cs`](../../src/Bukit-Core/Bukit.Shared/Notion/NotionBlockJsonWriter.cs)
+二者均只是 canonical helper 的 internal forwarding bridge，见 C0 基线的
+[`NotionBlockJsonWriter.cs`](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/src/Bukit-Core/Bukit.Shared/Notion/NotionBlockJsonWriter.cs)
 和
-[`NotionBlockHelpers.cs`](../../src/Bukit-Core/Bukit.Content/Notion/BlockRenderers/NotionBlockHelpers.cs)。
+[`NotionBlockHelpers.cs`](https://github.com/ALi365-SDN-BHD/Bukit/blob/e16142331111060a09385fb29fdf72c28da260c4/src/Bukit-Core/Bukit.Content/Notion/BlockRenderers/NotionBlockHelpers.cs)。
 后者是 G-04D1B 为测试过渡明确保留的 internal bridge；见
 [G-04D1B 台账](bukit-core-g04d1b-block-renderer-facade-removal-2026-07-23.zh-CN.md#测试所有权迁移与保留边界)。
 C1 删除 helper，不改变 canonical writer/renderer 行为，也不新增 public test hook。
@@ -384,5 +384,39 @@ delta 最终汇总并发布，可以补充、不得删减。因此 C6 本身不�
 | unknown external consumers | unknowable；必须进入 breaking/migration notice |
 | implementation authorization | 仅按 C1-C6 顺序、原子边界与 entry/exit criteria 分项进入 |
 
-C0 只建立资格、迁移和验证合同；它没有执行任何 public API change，也不宣称后续
-owner tests、aggregate targeted gate、full gate 或 release gate 已通过。
+C0 初始发布时只建立资格、迁移和验证合同；它没有执行任何 public API change，也未在
+当时宣称后续 owner tests、aggregate targeted gate、full gate 或 release gate 已通过。
+后续实际实施结果在下一节和正式关闭台账中单独记录，不追溯改写本节的资格判断。
+
+## 10. C1-C6 实际实施结果
+
+AD-03C1 至 AD-03C6 已按本报告冻结的顺序与原子边界完成。最终 governed surface 为
+**14 / 425 / 0**：14 assemblies、425 public types、0 `2.0-candidate`。相对 C0：
+
+- **18 removed**：Shared legacy URL/converter/13-model graph 共 15 项，
+  Content client/provider/options 共 3 项；
+- **one retained**：
+  `Bukit.Content.Notion.NotionPropertyParser` in `Bukit.Content.dll`，
+  `retain-by-design`；
+- 两个 test-only internal forwarding helpers 已删除；
+- `Bukit.Shared -> Bukit.Notion` compatibility project reference 已删除；
+- C6 没有新增 runtime diff。
+
+| 任务 | 实施/审查提交 | 完整 owner-suite 证据 | 独立复审 |
+|---|---|---:|---|
+| C0 | `38dbc0fb`；contract correction `7f700d99` | 3036 | clean |
+| C1 | `fafed2bd` | 1403 | clean |
+| C2 | `ed226179` | 1404 | clean |
+| C3 | `9ef16a6a` | 2570 | clean |
+| C4 | `6d053a13` | 2734 | clean |
+| C5 | `1caa0482`；review fix `954a1fcb` | 734 | clean after fix |
+| C6 | governance/closure commit 见正式关闭台账 | 六套完整 owner suites 见正式关闭台账 | 独立复审后冻结 |
+
+上述测试数是各任务边界的 unfiltered Release project totals，不是 unique tests 的可加总
+统计。2.0 consumer migration contract 见
+[Bukit Core 2.0 Notion compatibility migration](../governance/bukit-core-2.0-notion-compatibility-migration.md)；
+完整 delta、baseline 语义比较、验证边界与残余风险见
+[AD-03C 最终汇总关闭台账](bukit-core-ad03c-final-aggregate-closure-2026-07-24.zh-CN.md)。
+
+C0 记录的历史事实仍成立：**G-04 已以 443 public types / 0 candidates 关闭**；
+AD-03C 是后续独立 2.0 cleanup，不把 G-04 改写为未完成。

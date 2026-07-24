@@ -71,7 +71,7 @@ public sealed class G04D4BValueCoercionTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsFourteenAssemblies443TypesAnd0Candidates()
+    public void CurrentBaseline_RecordsFourteenAssemblies425TypesAnd0Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -81,7 +81,7 @@ public sealed class G04D4BValueCoercionTests
         JsonElement[] types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(443, types.Length);
+        Assert.Equal(425, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
