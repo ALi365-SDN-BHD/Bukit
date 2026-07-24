@@ -5,11 +5,11 @@
     <Project Path="tests/Bukit.Clone.Tests/Bukit.Clone.Tests.csproj" />
     <Project Path="tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj" />
     <Project Path="tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj" />
-    <Project Path="tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj" />
     <Project Path="tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj" />
     <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
     <Project Path="tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj" />
     <Project Path="tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj" />
+    <Project Path="tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj" />
     <Project Path="tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj" />
     <Project Path="tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj" />
     <Project Path="tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj" />

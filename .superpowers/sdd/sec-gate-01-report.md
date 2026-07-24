@@ -51,6 +51,17 @@ fail-closed TRX verification rather than by a string-only assertion.
 - `bash scripts/security/security-regression.sh Release`: passed with the same
   302/302 selector-run total and successful TRX validation for all six projects.
 
+## Follow-up Review Verification
+
+- `git diff --check`: passed with no output.
+- `bash scripts/checks/post-change-focused.sh -- bukit-test.slnx
+  scripts/security/security-regression.sh
+  scripts/security/security-regression-self-test.sh
+  .superpowers/sdd/sec-gate-01-report.md`: passed. It completed whitespace and
+  shell-syntax checks, focused owner checks, and the security regression
+  self-test with successful TRX validation for Cli, Content, Notion, Engine,
+  PluginHost, and Routing. Passing the report path did not trigger a docs gate.
+
 ## Scope and Concerns
 
 No Architecture project changed, so no Architecture test project was required.
