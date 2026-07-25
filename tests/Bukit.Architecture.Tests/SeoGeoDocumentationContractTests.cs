@@ -40,6 +40,9 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal(
             ["schema", "siteUrl", "routes"],
             snapshotSchema.RootElement.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var siteUrl = snapshotSchema.RootElement.GetProperty("properties").GetProperty("siteUrl");
+        Assert.Equal(string.Empty, siteUrl.GetProperty("oneOf")[0].GetProperty("const").GetString());
+        Assert.Equal("^https?://", siteUrl.GetProperty("oneOf")[1].GetProperty("pattern").GetString());
         var route = snapshotSchema.RootElement
             .GetProperty("properties")
             .GetProperty("routes")
@@ -50,6 +53,9 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal(
             "^sha256:[0-9a-f]{64}$",
             route.GetProperty("properties").GetProperty("semanticHash").GetProperty("pattern").GetString());
+        Assert.Equal(
+            "^https?://",
+            route.GetProperty("properties").GetProperty("url").GetProperty("pattern").GetString());
 
         using var changeSetSchema = ReadJson("docs", "schemas", "publish-url-change-set.v1.schema.json");
         var change = changeSetSchema.RootElement
@@ -61,6 +67,9 @@ public sealed class SeoGeoDocumentationContractTests
             change.GetProperty("properties").GetProperty("type").GetProperty("enum")
                 .EnumerateArray().Select(value => value.GetString()));
         Assert.Equal(["type", "url", "semanticHash"], change.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            "^https?://",
+            change.GetProperty("properties").GetProperty("url").GetProperty("pattern").GetString());
     }
 
     [Fact]
@@ -168,6 +177,14 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Matches("^[0-9a-f]{64}$", plugin.GetProperty("entrySha256").GetString());
         Assert.Matches("^[0-9a-f]{64}$", plugin.GetProperty("packageSha256").GetString());
         Assert.False(string.IsNullOrWhiteSpace(plugin.GetProperty("installTarget").GetString()));
+        Assert.Equal(
+            "stage/plugins/indexnow/bin/osx-arm64/bukit-plugin-indexnow",
+            plugin.GetProperty("stagedEntry").GetString());
+        Assert.Equal(
+            "plugins/indexnow/bin/osx-arm64/bukit-plugin-indexnow",
+            plugin.GetProperty("packageEntry").GetString());
+        Assert.NotEqual(plugin.GetProperty("stagedEntry").GetString(), plugin.GetProperty("packageEntry").GetString());
+        Assert.False(plugin.TryGetProperty("entry", out _));
 
         var manifest = ReadText(
             "src", "Bukit-Plugins", "Bukit.Plugin.IndexNow", "examples", "minimal", "plugins", "indexnow", "plugin.yaml");

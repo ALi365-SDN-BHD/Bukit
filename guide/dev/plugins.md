@@ -52,6 +52,7 @@ network call, key-file write, or state mutation.
 
 The internal SRBiz install bundle is platform-specific. Its installer manifest
 records Core and plugin versions, the `osx-arm64` RID, relative install targets,
-and real SHA-256 archive, plugin-entry, and package hashes. This internal
-artifact is not a public release and does not imply release, smoke, or audit
-verification.
+and real SHA-256 archive, plugin-entry, and package hashes. `stagedEntry` is
+relative to the recorded artifact root; `packageEntry` is the corresponding
+path inside the combined archive. This internal artifact is not a public
+release and does not imply release, smoke, or audit verification.

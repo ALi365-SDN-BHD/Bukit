@@ -14,9 +14,16 @@
       "const": "https://bukit.dev/schemas/publish-url-snapshot.v1.json"
     },
     "siteUrl": {
-      "type": "string",
-      "format": "uri",
-      "pattern": "^https://"
+      "oneOf": [
+        {
+          "const": ""
+        },
+        {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        }
+      ]
     },
     "routes": {
       "type": "array",
@@ -32,7 +39,7 @@
           "url": {
             "type": "string",
             "format": "uri",
-            "pattern": "^https://"
+            "pattern": "^https?://"
           },
           "indexable": {
             "type": "boolean"
