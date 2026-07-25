@@ -43,7 +43,7 @@ internal static class PublishAuditReportContractValidator
             AuditReportJsonReader.ReadRequiredString(document, path, "outputPath");
             AuditReportJsonReader.ReadRequiredString(document, path, "canonical");
             AuditReportJsonReader.ReadRequiredBool(document, path, "indexable");
-            AuditReportJsonReader.ReadRequiredString(document, path, "lastModified");
+            AuditReportJsonReader.ReadOptionalString(document, path, "lastModified");
             AuditReportJsonReader.ReadOptionalString(document, path, "contentType");
             AuditReportJsonReader.ReadOptionalString(document, path, "sourceItemId");
             AuditReportJsonReader.ReadOptionalString(document, path, "title");

@@ -31,7 +31,7 @@ internal sealed record PublishAuditDocument(
     string OutputPath,
     string Canonical,
     bool Indexable,
-    DateTimeOffset LastModified,
+    DateTimeOffset? LastModified,
     string? ContentType,
     string? SourceItemId,
     string? Title,

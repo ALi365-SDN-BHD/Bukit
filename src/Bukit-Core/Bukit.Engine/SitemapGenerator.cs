@@ -7,13 +7,13 @@ internal static class SitemapGenerator
 {
     public sealed record Alternate(string Hreflang, string Href);
 
-    public sealed record UrlEntry(string AbsoluteUrl, DateTimeOffset LastModified, IReadOnlyList<Alternate>? Alternates);
+    public sealed record UrlEntry(string AbsoluteUrl, DateTimeOffset? LastModified, IReadOnlyList<Alternate>? Alternates);
 
     public static void Generate(
         string outputDir,
         string siteUrl,
         string baseUrl,
-        IReadOnlyList<(RouteInfo Route, DateTimeOffset LastModified)> routes)
+        IReadOnlyList<(RouteInfo Route, DateTimeOffset? LastModified)> routes)
     {
         var normalizedSiteUrl = NormalizeSiteUrl(siteUrl);
         var normalizedBaseUrl = NormalizeBaseUrl(baseUrl);
@@ -27,7 +27,7 @@ internal static class SitemapGenerator
             var loc = BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, route.Url);
             sb.AppendLine("  <url>");
             sb.AppendLine($"    <loc>{EscapeXml(loc)}</loc>");
-            sb.AppendLine($"    <lastmod>{lastModified:yyyy-MM-dd}</lastmod>");
+            AppendLastModified(sb, lastModified);
             sb.AppendLine("  </url>");
         }
 
@@ -36,9 +36,18 @@ internal static class SitemapGenerator
         FileWriter.WriteUtf8(outputDir, "sitemap.xml", sb.ToString());
     }
 
+    public static void Generate(
+        string outputDir,
+        string siteUrl,
+        string baseUrl,
+        IReadOnlyList<(RouteInfo Route, DateTimeOffset LastModified)> routes)
+        => Generate(outputDir, siteUrl, baseUrl, routes
+            .Select(static route => (route.Route, (DateTimeOffset?)route.LastModified))
+            .ToArray());
+
     public static void GenerateAbsolute(
         string outputDir,
-        IReadOnlyList<(string AbsoluteUrl, DateTimeOffset LastModified)> entries)
+        IReadOnlyList<(string AbsoluteUrl, DateTimeOffset? LastModified)> entries)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -48,13 +57,20 @@ internal static class SitemapGenerator
         {
             sb.AppendLine("  <url>");
             sb.AppendLine($"    <loc>{EscapeXml(absoluteUrl)}</loc>");
-            sb.AppendLine($"    <lastmod>{lastModified:yyyy-MM-dd}</lastmod>");
+            AppendLastModified(sb, lastModified);
             sb.AppendLine("  </url>");
         }
 
         sb.AppendLine("</urlset>");
         FileWriter.WriteUtf8(outputDir, "sitemap.xml", sb.ToString());
     }
+
+    public static void GenerateAbsolute(
+        string outputDir,
+        IReadOnlyList<(string AbsoluteUrl, DateTimeOffset LastModified)> entries)
+        => GenerateAbsolute(outputDir, entries
+            .Select(static entry => (entry.AbsoluteUrl, (DateTimeOffset?)entry.LastModified))
+            .ToArray());
 
     public static void GenerateAbsoluteWithAlternates(string outputDir, IReadOnlyList<UrlEntry> entries)
     {
@@ -70,7 +86,7 @@ internal static class SitemapGenerator
         {
             sb.AppendLine("  <url>");
             sb.AppendLine($"    <loc>{EscapeXml(entry.AbsoluteUrl)}</loc>");
-            sb.AppendLine($"    <lastmod>{entry.LastModified:yyyy-MM-dd}</lastmod>");
+            AppendLastModified(sb, entry.LastModified);
 
             if (hasAlternates && entry.Alternates is { Count: > 0 } alts)
             {
@@ -111,6 +127,16 @@ internal static class SitemapGenerator
         var u = url.StartsWith('/') ? url : "/" + url;
         var path = baseUrl == "/" ? u : $"{baseUrl}{u}";
         return siteUrl + path;
+    }
+
+    private static void AppendLastModified(StringBuilder sb, DateTimeOffset? lastModified)
+    {
+        if (lastModified is null || lastModified == DateTimeOffset.UnixEpoch)
+        {
+            return;
+        }
+
+        sb.AppendLine($"    <lastmod>{lastModified.Value:yyyy-MM-dd}</lastmod>");
     }
 
     private static string NormalizeSiteUrl(string siteUrl)

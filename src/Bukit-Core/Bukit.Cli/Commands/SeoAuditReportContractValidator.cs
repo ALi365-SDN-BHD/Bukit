@@ -50,7 +50,7 @@ internal static class SeoAuditReportContractValidator
             AuditReportJsonReader.ReadRequiredString(route, path, "canonical");
             AuditReportJsonReader.ReadOptionalString(route, path, "robots");
             AuditReportJsonReader.ReadRequiredBool(route, path, "indexable");
-            AuditReportJsonReader.ReadRequiredString(route, path, "lastModified");
+            AuditReportJsonReader.ReadOptionalString(route, path, "lastModified");
             AuditReportJsonReader.ReadOptionalString(route, path, "contentType");
             AuditReportJsonReader.ReadOptionalString(route, path, "sourceItemId");
             AuditReportJsonReader.ReadRequiredBool(route, path, "sitemapIncluded");

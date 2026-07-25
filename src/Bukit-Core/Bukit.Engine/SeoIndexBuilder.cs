@@ -79,13 +79,15 @@ internal static class SeoIndexBuilder
             var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
             var page = BuildListPageInfo(config, route, routed);
             var alternateKey = SeoModelBuilder.BuildListAlternateKey(route);
+            var collection = ResolveLegacyListCollection(config, route);
             var model = SeoModelBuilder.BuildForList(
                 config,
                 baseUrl,
                 page,
                 alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
                 searchAction,
-                breadcrumbs?.Find(route.Url));
+                breadcrumbs?.Find(route.Url),
+                IsEmptyPrimaryCollection(config, collection, ResolveListItems(config, route, routed).Count));
             models[key] = model;
             entries[key] = new SeoIndexEntry(
                 route,
@@ -96,7 +98,7 @@ internal static class SeoIndexBuilder
                 SourceItemId: null,
                 ContentType: "list",
                 IsDerived: true,
-                Collection: ResolveLegacyListCollection(config, route));
+                Collection: collection);
         }
 
         return new SeoIndexBuildResult(entries, models);
@@ -130,6 +132,9 @@ internal static class SeoIndexBuilder
             };
         }
         var alternateKey = SeoModelBuilder.BuildListAlternateKey(routeInfo);
+        var forceNoindexWhenEmpty = route.Kind == ListRouteKind.CollectionPage &&
+                                    route.TotalItems == 0 &&
+                                    IsEmptyPrimaryCollection(config, route.Collection, route.TotalItems);
         var model = SeoModelBuilder.BuildForList(
             config,
             baseUrl,
@@ -137,7 +142,8 @@ internal static class SeoIndexBuilder
             route,
             alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
             searchAction,
-            breadcrumbs?.Find(route.Url));
+            breadcrumbs?.Find(route.Url),
+            forceNoindexWhenEmpty);
         models[key] = model;
         entries[key] = new SeoIndexEntry(
             routeInfo,
@@ -331,18 +337,18 @@ internal static class SeoIndexBuilder
         return char.ToUpperInvariant(lastSegment[0]) + lastSegment[1..].Replace('-', ' ');
     }
 
-    private static DateTimeOffset ResolveListLastModified(
+    private static DateTimeOffset? ResolveListLastModified(
         AppConfig config,
         RouteInfo route,
         IReadOnlyList<RoutedContentDocument> routed)
     {
         var items = ResolveListItems(config, route, routed);
         return items.Count == 0
-            ? DateTimeOffset.UnixEpoch
+            ? null
             : items.Max(x => SitemapPolicy.ResolveLastModified(x.Document));
     }
 
-    private static DateTimeOffset ResolveListLastModified(
+    private static DateTimeOffset? ResolveListLastModified(
         AppConfig config,
         ListRoutePlan route,
         IReadOnlyList<RoutedContentDocument> routed)
@@ -432,6 +438,13 @@ internal static class SeoIndexBuilder
 
         return null;
     }
+
+    private static bool IsEmptyPrimaryCollection(AppConfig config, string? collectionKey, int itemCount)
+        => itemCount == 0 &&
+           !string.IsNullOrWhiteSpace(collectionKey) &&
+           config.Site.Collections is { Count: > 0 } collections &&
+           collections.TryGetValue(collectionKey, out var collection) &&
+           collection.NoindexWhenEmpty;
 
     private static bool IsDerived(ContentDocument document)
         => string.Equals(document.Record.Identity.ContentType, "derived", StringComparison.OrdinalIgnoreCase) ||

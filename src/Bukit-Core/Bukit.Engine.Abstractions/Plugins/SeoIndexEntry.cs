@@ -7,7 +7,7 @@ public sealed record SeoIndexEntry(
     string Canonical,
     string? Robots,
     bool Indexable,
-    DateTimeOffset LastModified,
+    DateTimeOffset? LastModified,
     string? SourceItemId,
     string? ContentType,
     bool IsDerived = false,

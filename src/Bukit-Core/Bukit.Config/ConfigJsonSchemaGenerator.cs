@@ -534,6 +534,7 @@ public static class ConfigJsonSchemaGenerator
             ("listDescription", StringSchema()),
             ("listTemplate", StringSchema()),
             ("schemaFailMode", EnumSchema("off", "warn", "strict")),
+            ("noindexWhenEmpty", BoolSchema()),
             ("pagination", CollectionPaginationSchema()),
             ("output", CollectionOutputSchema()),
             ("filteredLists", Obj(("type", "array"), ("items", CollectionFilteredListItemSchema()))));

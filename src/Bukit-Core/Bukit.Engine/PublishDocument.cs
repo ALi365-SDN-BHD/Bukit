@@ -12,7 +12,7 @@ internal sealed record PublishDocument(
     string? ContentType,
     bool IsDerived,
     string? SourceItemId,
-    DateTimeOffset LastModified,
+    DateTimeOffset? LastModified,
     string? Title,
     string? Description,
     string? Language,

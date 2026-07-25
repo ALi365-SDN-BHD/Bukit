@@ -105,8 +105,9 @@ internal static class SeoModelBuilder
         PageInfo page,
         IReadOnlyList<SeoAlternateModel>? alternates = null,
         SearchActionDescriptor? searchAction = null,
-        BreadcrumbDescriptor? breadcrumb = null)
-        => BuildForListCore(config, baseUrl, page, page.Url, prevUrl: null, nextUrl: null, alternates, searchAction, breadcrumb);
+        BreadcrumbDescriptor? breadcrumb = null,
+        bool forceNoindexWhenEmpty = false)
+        => BuildForListCore(config, baseUrl, page, page.Url, prevUrl: null, nextUrl: null, alternates, searchAction, breadcrumb, forceNoindexWhenEmpty);
 
     internal static SeoModel BuildForList(
         AppConfig config,
@@ -115,8 +116,9 @@ internal static class SeoModelBuilder
         ListRoutePlan route,
         IReadOnlyList<SeoAlternateModel>? alternates = null,
         SearchActionDescriptor? searchAction = null,
-        BreadcrumbDescriptor? breadcrumb = null)
-        => BuildForListCore(config, baseUrl, page, route.CanonicalUrl, route.PrevUrl, route.NextUrl, alternates, searchAction, breadcrumb);
+        BreadcrumbDescriptor? breadcrumb = null,
+        bool forceNoindexWhenEmpty = false)
+        => BuildForListCore(config, baseUrl, page, route.CanonicalUrl, route.PrevUrl, route.NextUrl, alternates, searchAction, breadcrumb, forceNoindexWhenEmpty);
 
     private static SeoModel BuildForListCore(
         AppConfig config,
@@ -127,7 +129,8 @@ internal static class SeoModelBuilder
         string? nextUrl,
         IReadOnlyList<SeoAlternateModel>? alternates,
         SearchActionDescriptor? searchAction,
-        BreadcrumbDescriptor? breadcrumb)
+        BreadcrumbDescriptor? breadcrumb,
+        bool forceNoindexWhenEmpty)
     {
         var title = page.Title;
         var description = page.Summary ?? config.Site.Description;
@@ -146,6 +149,7 @@ internal static class SeoModelBuilder
                 page.Url),
             Description = description,
             Canonical = canonical,
+            Robots = forceNoindexWhenEmpty ? "noindex,follow" : null,
             Prev = prev,
             Next = next,
             Og = new SeoOpenGraphModel

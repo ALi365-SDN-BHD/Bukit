@@ -137,6 +137,15 @@ internal static class SeoJsonLdBuilder
             }
         }
 
+        if (!isPost && record is not null && IsCompanyContent(record, schemaType))
+        {
+            var entity = BuildCompanyEntityNode(record, schemaType, config.Site.Url, baseUrl);
+            if (entity is not null)
+            {
+                result.Add(ToJson(entity));
+            }
+        }
+
         if (geo.GeoAuthor is not null && !geoAuthorMergedIntoArticle)
         {
             BuildPersonJsonLd(result, geo.GeoAuthor);
@@ -320,6 +329,78 @@ internal static class SeoJsonLdBuilder
         if (sameAs.Length > 0)
         {
             node["sameAs"] = sameAs;
+        }
+
+        return node;
+    }
+
+    private static bool IsCompanyContent(ContentRecord record, string? schemaType)
+        => string.Equals(record.Identity.ContentType, "company", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(record.Classification.Type, "company", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(record.Classification.Collection, "companies", StringComparison.OrdinalIgnoreCase) ||
+           record.Entities.Any(entity => string.Equals(entity.Type, "company", StringComparison.OrdinalIgnoreCase)) ||
+           string.Equals(schemaType, "Organization", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(schemaType, "LocalBusiness", StringComparison.OrdinalIgnoreCase);
+
+    private static Dictionary<string, object?>? BuildCompanyEntityNode(
+        ContentRecord record,
+        string? schemaType,
+        string? siteUrl,
+        string baseUrl)
+    {
+        var entity = PublicContentProjectionPolicy.SanitizeEntities(record)
+            .FirstOrDefault(item => string.Equals(item.Type, "company", StringComparison.OrdinalIgnoreCase));
+        if (entity is null || string.IsNullOrWhiteSpace(entity.Name))
+        {
+            return null;
+        }
+
+        var profile = entity.LocalBusinessProfile;
+        var useLocalBusiness = string.Equals(schemaType, "LocalBusiness", StringComparison.OrdinalIgnoreCase) &&
+                               profile?.HasCompleteVerifiedLocalOperations == true;
+        var node = new Dictionary<string, object?>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = useLocalBusiness ? "LocalBusiness" : "Organization",
+            ["name"] = entity.Name.Trim()
+        };
+
+        var description = useLocalBusiness
+            ? profile!.LocalOperationsDescription
+            : entity.Description;
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            node["description"] = description.Trim();
+        }
+
+        var url = BuildAbsoluteHttpUrl(siteUrl, baseUrl, entity.Url);
+        if (url is not null)
+        {
+            node["url"] = url;
+        }
+
+        var sameAs = (entity.SameAs ?? Array.Empty<string>())
+            .Select(value => BuildAbsoluteHttpUrl(siteUrl, baseUrl, value))
+            .Where(static value => value is not null)
+            .Cast<string>()
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (sameAs.Length > 0)
+        {
+            node["sameAs"] = sameAs;
+        }
+
+        if (useLocalBusiness)
+        {
+            node["address"] = new Dictionary<string, object?>
+            {
+                ["@type"] = "PostalAddress",
+                ["streetAddress"] = profile!.StreetAddress!.Trim(),
+                ["addressLocality"] = profile.AddressLocality!.Trim(),
+                ["addressRegion"] = profile.AddressRegion!.Trim(),
+                ["postalCode"] = profile.PostalCode!.Trim(),
+                ["addressCountry"] = profile.AddressCountry!.Trim()
+            };
         }
 
         return node;

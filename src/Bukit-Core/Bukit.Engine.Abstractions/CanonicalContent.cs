@@ -163,7 +163,32 @@ public sealed record EntityRecord(
     string? Description = null,
     string? Id = null,
     string? Url = null,
-    IReadOnlyList<string>? SameAs = null);
+    IReadOnlyList<string>? SameAs = null)
+{
+    public LocalBusinessProfile? LocalBusinessProfile { get; init; }
+}
+
+public sealed record LocalBusinessProfile
+{
+    public bool AddressVerified { get; init; }
+    public bool LocalOperationsVerified { get; init; }
+    public string? StreetAddress { get; init; }
+    public string? AddressLocality { get; init; }
+    public string? AddressRegion { get; init; }
+    public string? PostalCode { get; init; }
+    public string? AddressCountry { get; init; }
+    public string? LocalOperationsDescription { get; init; }
+
+    public bool HasCompleteVerifiedLocalOperations =>
+        AddressVerified &&
+        LocalOperationsVerified &&
+        !string.IsNullOrWhiteSpace(StreetAddress) &&
+        !string.IsNullOrWhiteSpace(AddressLocality) &&
+        !string.IsNullOrWhiteSpace(AddressRegion) &&
+        !string.IsNullOrWhiteSpace(PostalCode) &&
+        !string.IsNullOrWhiteSpace(AddressCountry) &&
+        !string.IsNullOrWhiteSpace(LocalOperationsDescription);
+}
 
 public sealed record ContentRelation(
     string Type,

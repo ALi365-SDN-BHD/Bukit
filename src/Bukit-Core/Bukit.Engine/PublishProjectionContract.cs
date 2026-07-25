@@ -295,7 +295,7 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
         }
 
         var logger = context.Logger ?? new ConsoleLogger(LogLevel.Error);
-        var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>();
+        var filtered = new List<(string AbsoluteUrl, DateTimeOffset? LastModified)>();
         var documentExclusions = SitemapPlugin.BuildDocumentSitemapExclusions(
             context.Config,
             context.RoutedDocuments.Concat(context.DerivedDocuments));

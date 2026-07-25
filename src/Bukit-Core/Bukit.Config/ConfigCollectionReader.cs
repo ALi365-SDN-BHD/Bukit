@@ -38,6 +38,7 @@ internal static class ConfigCollectionReader
                 ListDescription = ConfigYamlHelpers.GetOptionalString(collectionNode, "listDescription"),
                 ListTemplate = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTemplate"),
                 SchemaFailMode = ConfigYamlHelpers.GetOptionalString(collectionNode, "schemaFailMode"),
+                NoindexWhenEmpty = ConfigYamlHelpers.GetOptionalBool(collectionNode, "noindexWhenEmpty") ?? false,
                 Pagination = new CollectionPaginationConfig
                 {
                     Enabled = paginationNode is not null && (ConfigYamlHelpers.GetOptionalBool(paginationNode, "enabled") ?? false),

@@ -71,7 +71,7 @@ internal sealed record SeoAuditRoute(
     string Canonical,
     string? Robots,
     bool Indexable,
-    DateTimeOffset LastModified,
+    DateTimeOffset? LastModified,
     string? ContentType,
     string? SourceItemId,
     bool SitemapIncluded,

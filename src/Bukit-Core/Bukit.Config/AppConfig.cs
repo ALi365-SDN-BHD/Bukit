@@ -152,6 +152,7 @@ public sealed record CollectionConfig
     public string? ListDescription { get; init; }
     public string? ListTemplate { get; init; }
     public string? SchemaFailMode { get; init; }
+    public bool NoindexWhenEmpty { get; init; }
     public CollectionPaginationConfig Pagination { get; init; } = new();
     public CollectionOutputConfig Output { get; init; } = new();
     public IReadOnlyList<FilteredListConfig>? FilteredLists { get; init; }

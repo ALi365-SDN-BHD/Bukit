@@ -32,7 +32,7 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
             return;
         }
 
-        var filtered = new List<(string AbsoluteUrl, DateTimeOffset LastModified)>(context.SeoIndex.Count);
+        var filtered = new List<(string AbsoluteUrl, DateTimeOffset? LastModified)>(context.SeoIndex.Count);
         var documentExclusions = BuildDocumentSitemapExclusions(
             _config,
             context.RoutedDocuments.Concat(context.DerivedDocuments));
