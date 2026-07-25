@@ -31,9 +31,13 @@ internal static partial class SiteDefaultsApplier
                 ? null
                 : new SeoOrganizationConfig
                 {
+                    Type = orgNode.Children.ContainsKey(new YamlScalarNode("type"))
+                        ? ConfigYamlHelpers.GetOptionalString(orgNode, "type") ?? string.Empty
+                        : "Organization",
                     Name = ConfigYamlHelpers.GetOptionalString(orgNode, "name"),
                     Url = ConfigYamlHelpers.GetOptionalString(orgNode, "url"),
-                    Logo = ConfigYamlHelpers.GetOptionalString(orgNode, "logo")
+                    Logo = ConfigYamlHelpers.GetOptionalString(orgNode, "logo"),
+                    SameAs = ConfigYamlHelpers.ReadStringList(orgNode, "sameAs") ?? Array.Empty<string>()
                 },
             RobotsTxt = new SeoRobotsTxtConfig
             {

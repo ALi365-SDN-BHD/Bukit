@@ -47,22 +47,19 @@ internal static class SeoJsonLdBuilder
 
         result.Add(ToJson(website));
 
-        if (config.Site.Seo.Organization is { } org &&
-            (!string.IsNullOrWhiteSpace(org.Name) || !string.IsNullOrWhiteSpace(org.Url) || !string.IsNullOrWhiteSpace(org.Logo)))
+        var organizationNode = BuildOrganizationNode(config, baseUrl);
+        if (organizationNode is not null)
         {
-            var organization = new Dictionary<string, object?>
+            var standaloneOrganization = new Dictionary<string, object?>
             {
-                ["@context"] = "https://schema.org",
-                ["@type"] = "Organization",
-                ["name"] = string.IsNullOrWhiteSpace(org.Name) ? config.Site.Title : org.Name,
-                ["url"] = string.IsNullOrWhiteSpace(org.Url) ? siteHome : org.Url
+                ["@context"] = "https://schema.org"
             };
-            if (!string.IsNullOrWhiteSpace(org.Logo))
+            foreach (var property in organizationNode)
             {
-                organization["logo"] = org.Logo;
+                standaloneOrganization[property.Key] = property.Value;
             }
 
-            result.Add(ToJson(organization));
+            result.Add(ToJson(standaloneOrganization));
         }
 
         if (config.Site.Seo.Schema.WebPage)
@@ -127,7 +124,8 @@ internal static class SeoJsonLdBuilder
                     document,
                     geo,
                     record,
-                    config.Site.Language);
+                    config.Site.Language,
+                    organizationNode);
             }
         }
 
@@ -165,7 +163,8 @@ internal static class SeoJsonLdBuilder
         ContentDocument document,
         SeoGeoMetaParser.ParsedGeoMeta geo,
         ContentRecord? record,
-        string? language)
+        string? language,
+        IReadOnlyDictionary<string, object?>? organizationNode)
     {
         var article = new Dictionary<string, object?>
         {
@@ -206,6 +205,13 @@ internal static class SeoJsonLdBuilder
             article["inLanguage"] = contentLanguage;
         }
 
+        if (organizationNode is not null &&
+            (string.Equals(schemaType, "Article", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(schemaType, "BlogPosting", StringComparison.OrdinalIgnoreCase)))
+        {
+            article["publisher"] = organizationNode;
+        }
+
         var author = SeoAuthorResolver.Resolve(record, document.CustomFields, geo.GeoAuthor);
         if (!string.IsNullOrWhiteSpace(author.Name) && !string.IsNullOrWhiteSpace(author.SchemaType))
         {
@@ -242,6 +248,80 @@ internal static class SeoJsonLdBuilder
 
         result.Add(ToJson(article));
         return author.HasMatchingCanonicalGeoAuthor;
+    }
+
+    private static IReadOnlyDictionary<string, object?>? BuildOrganizationNode(
+        AppConfig config,
+        string baseUrl)
+    {
+        if (config.Site.Seo.Organization is not { } organization ||
+            (string.IsNullOrWhiteSpace(organization.Name) &&
+             string.IsNullOrWhiteSpace(organization.Url) &&
+             string.IsNullOrWhiteSpace(organization.Logo) &&
+             organization.SameAs.Count == 0))
+        {
+            return null;
+        }
+
+        var node = new Dictionary<string, object?>
+        {
+            ["@type"] = organization.Type is "Organization" or "NewsMediaOrganization"
+                ? organization.Type
+                : "Organization",
+            ["name"] = string.IsNullOrWhiteSpace(organization.Name)
+                ? config.Site.Title
+                : organization.Name.Trim()
+        };
+
+        var url = BuildAbsoluteHttpUrl(config.Site.Url, baseUrl, organization.Url);
+        if (url is not null)
+        {
+            node["url"] = url;
+        }
+
+        var logo = BuildAbsoluteHttpUrl(config.Site.Url, baseUrl, organization.Logo);
+        if (logo is not null)
+        {
+            node["logo"] = logo;
+        }
+
+        var sameAs = organization.SameAs
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Select(static value => value.Trim())
+            .ToArray();
+        if (sameAs.Length > 0)
+        {
+            node["sameAs"] = sameAs;
+        }
+
+        return node;
+    }
+
+    private static string? BuildAbsoluteHttpUrl(string? siteUrl, string baseUrl, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        var schemeSeparator = trimmed.IndexOf(':');
+        if (schemeSeparator > 0 &&
+            char.IsLetter(trimmed[0]) &&
+            trimmed[..schemeSeparator].All(static character =>
+                char.IsLetterOrDigit(character) || character is '+' or '-' or '.'))
+        {
+            return Uri.TryCreate(trimmed, UriKind.Absolute, out var configuredUri) &&
+                   configuredUri.Scheme is "http" or "https"
+                ? trimmed
+                : null;
+        }
+
+        var candidate = SeoModelBuilder.BuildMaybeAbsoluteUrl(siteUrl, baseUrl, trimmed);
+        return Uri.TryCreate(candidate, UriKind.Absolute, out var uri) &&
+               uri.Scheme is "http" or "https"
+            ? candidate
+            : null;
     }
 
     private static void BuildFaqPageJsonLd(

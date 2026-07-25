@@ -192,9 +192,11 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject SeoOrganizationSchema()
         => Obj(("type", "object"), ("properties", Obj(
+            ("type", EnumSchema("Organization", "NewsMediaOrganization")),
             ("name", StringSchema()),
             ("url", StringSchema()),
-            ("logo", StringSchema()))));
+            ("logo", StringSchema()),
+            ("sameAs", StringArraySchema()))));
 
     private static JsonObject SeoGeoSchema()
         => Obj(("type", "object"), ("properties", Obj(

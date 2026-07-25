@@ -60,9 +60,11 @@ public sealed record SeoConfig
 
 public sealed record SeoOrganizationConfig
 {
+    public string Type { get; init; } = "Organization";
     public string? Name { get; init; }
     public string? Url { get; init; }
     public string? Logo { get; init; }
+    public IReadOnlyList<string> SameAs { get; init; } = Array.Empty<string>();
 }
 
 public sealed record AnalyticsConfig
