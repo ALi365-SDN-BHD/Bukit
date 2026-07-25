@@ -288,7 +288,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
 
         var secondTransport = new FakeTransport { AutoServeKeyFiles = false };
         secondTransport.PageResponses[url] = new IndexNowPageResponse(200, url);
-        secondTransport.PageResponses[keyUrl] = new IndexNowPageResponse(200, null, " \npublic-key\t");
+        secondTransport.PageResponses[keyUrl] = new IndexNowPageResponse(200, null, "public-key");
         secondTransport.SubmitResponses.Add(new IndexNowSubmitResponse(200));
 
         var second = await new IndexNowSubmissionWorkflow(secondTransport, new FakeDelay())
@@ -311,7 +311,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
         var transport = new FakeTransport { AutoServeKeyFiles = false };
         transport.PageResponses[url] = new IndexNowPageResponse(200, url);
         transport.PageResponses["https://silushangxun.com/public-key.txt"] =
-            new IndexNowPageResponse(200, null, "different-key");
+            new IndexNowPageResponse(200, null, " \npublic-key\t");
 
         var result = await new IndexNowSubmissionWorkflow(transport, new FakeDelay())
             .RunAsync(RequestForWorkflow(key));

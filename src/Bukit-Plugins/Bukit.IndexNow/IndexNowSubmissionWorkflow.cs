@@ -155,7 +155,7 @@ public sealed class IndexNowSubmissionWorkflow
                 return new IndexNowSubmissionResult(false, state.Deployed.Count, 0, state.Pending.Count, diagnostics);
             }
 
-            if (!string.Equals(keyResponse.Body?.Trim(), request.Key, StringComparison.Ordinal))
+            if (!string.Equals(keyResponse.Body, request.Key, StringComparison.Ordinal))
             {
                 diagnostics.Add(new IndexNowDiagnostic(
                     "plugin.indexnow.keyMismatch",
