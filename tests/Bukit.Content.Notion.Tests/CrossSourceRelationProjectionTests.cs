@@ -25,6 +25,51 @@ public sealed class CrossSourceRelationProjectionTests
     }
 
     [Fact]
+    public async Task CompositeProvider_UsesSourceBoundedFallbackAndPreservesPermissionDiagnostic()
+    {
+        var schema = Schema(Mapping("authoredBy", "authoredBy", "person"));
+        var resolver = new RecordingResolver(
+            targets: [new RelationTargetInfo("remote-author", "Remote Author", "remote-author", "Person", "/authors/remote-author/")],
+            failures: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["private-author"] = "notion.relation.permission_denied"
+            });
+        var article = Document("article-1", "Article", "article", "article", ("authoredby", Relation("remote-author", "private-author")));
+        var composite = new CompositeContentProvider(
+        [
+            ("articles", "content", (IContentProvider)new FallbackStaticProvider(resolver, article))
+        ],
+        schema);
+
+        var result = await composite.LoadRawAsync();
+
+        Assert.Equal(1, resolver.CallCount);
+        Assert.Equal(["remote-author", "private-author"], resolver.LastRequestedIds);
+        var document = Assert.Single(result.Documents);
+        var links = Projection(document, "authoredby");
+        Assert.Equal("Remote Author", links[0]["title"]);
+        Assert.Null(links[1]["title"]);
+        var diagnostic = Assert.Single(document.Diagnostics);
+        Assert.Equal("notion.relation.permission_denied", diagnostic.Code);
+    }
+
+    [Fact]
+    public async Task ProjectAsync_UsesFirstLoadedTargetWhenSourcesContainTheSamePageId()
+    {
+        var schema = Schema(Mapping("authoredBy", "authoredBy", "person"));
+        var article = Document("article-1", "Article", "article", "article", ("authoredby", Relation("author-1")));
+        var first = Target("author-1", "First Author", "first-author", "Person", "/authors/first/", "/images/first.jpg", ["https://social.example/first"]);
+        var second = Target("author-1", "Second Author", "second-author", "Person", "/authors/second/", "/images/second.jpg", ["https://social.example/second"]);
+
+        var projected = await NotionCrossSourceRelationProjector.ProjectAsync(
+            [Batch("articles", article), Batch("authors-primary", first), Batch("authors-secondary", second)],
+            schema,
+            CancellationToken.None);
+
+        AssertProjection(projected[0].Documents[0], "authoredby", "author-1", "First Author", "first-author", "Person", "/authors/first/", "/images/first.jpg", ["https://social.example/first"]);
+    }
+
+    [Fact]
     public async Task ProjectAsync_IndexesAllLoadedSourcesAndProjectsConfiguredRelationTargets()
     {
         var schema = Schema(
@@ -343,6 +388,16 @@ public sealed class CrossSourceRelationProjectionTests
 
     private sealed class StaticProvider(params RawContentDocument[] documents) : IContentProvider
     {
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new RawContentLoadResult(documents, EmptyContentBodyStore.Instance));
+    }
+
+    private sealed class FallbackStaticProvider(
+        INotionRelationFallbackResolver resolver,
+        params RawContentDocument[] documents) : IContentProvider, INotionRelationFallbackResolverProvider
+    {
+        public INotionRelationFallbackResolver RelationFallbackResolver => resolver;
+
         public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new RawContentLoadResult(documents, EmptyContentBodyStore.Instance));
     }

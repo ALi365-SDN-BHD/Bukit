@@ -18,6 +18,11 @@ internal interface INotionRelationFallbackResolver
         CancellationToken cancellationToken);
 }
 
+internal interface INotionRelationFallbackResolverProvider
+{
+    INotionRelationFallbackResolver RelationFallbackResolver { get; }
+}
+
 internal sealed record NotionRelationFallbackResult(
     IReadOnlyList<RelationTargetInfo> Targets,
     IReadOnlyDictionary<string, string> Failures);
@@ -44,8 +49,7 @@ internal static class NotionCrossSourceRelationProjector
             return sources;
         }
 
-        var index = NotionRelationLinkBuilder.BuildIndex(
-            sources.SelectMany(source => source.Documents).Select(ToTarget));
+        var index = BuildLoadedTargetIndex(sources);
         var projected = new NotionRelationProjectionSource[sources.Count];
 
         for (var sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
@@ -77,6 +81,25 @@ internal static class NotionCrossSourceRelationProjector
     private static readonly NotionRelationFallbackResult EmptyFallback = new(
         Array.Empty<RelationTargetInfo>(),
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+
+    private static IReadOnlyDictionary<string, RelationTargetInfo> BuildLoadedTargetIndex(
+        IReadOnlyList<NotionRelationProjectionSource> sources)
+    {
+        var index = new Dictionary<string, RelationTargetInfo>(StringComparer.OrdinalIgnoreCase);
+        foreach (var source in sources)
+        {
+            foreach (var document in source.Documents)
+            {
+                var target = ToTarget(document);
+                if (!string.IsNullOrWhiteSpace(target.PageId) && !index.ContainsKey(target.PageId))
+                {
+                    index[target.PageId] = target;
+                }
+            }
+        }
+
+        return index;
+    }
 
     private static RelationTargetInfo ToTarget(RawContentDocument document)
     {

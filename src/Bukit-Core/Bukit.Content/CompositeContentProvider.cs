@@ -50,7 +50,10 @@ public sealed class CompositeContentProvider : IContentProvider
         var relationSources = new NotionRelationProjectionSource[_providers.Count];
         for (var i = 0; i < _providers.Count; i++)
         {
-            relationSources[i] = new NotionRelationProjectionSource(_providers[i].SourceKey, (await tasks[i]).Documents);
+            var resolver = _providers[i].Provider is INotionRelationFallbackResolverProvider provider
+                ? provider.RelationFallbackResolver
+                : null;
+            relationSources[i] = new NotionRelationProjectionSource(_providers[i].SourceKey, (await tasks[i]).Documents, resolver);
         }
         var projectedSources = await NotionCrossSourceRelationProjector.ProjectAsync(relationSources, _schema, cancellationToken);
 

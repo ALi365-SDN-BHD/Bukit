@@ -1,10 +1,12 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using System.Globalization;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using Bukit.Notion;
 using Bukit.Notion.Rendering;
+using Bukit.Notion.Transport;
 using Bukit.Shared;
 namespace Bukit.Content.Notion;
 
@@ -25,6 +27,9 @@ public sealed class NotionContentSource
         _logger = logger;
         _clientFactory = clientFactory;
     }
+
+    internal INotionRelationFallbackResolver CreateRelationFallbackResolver()
+        => new SourceBoundedRelationFallbackResolver(_options, _logger, _clientFactory);
 
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
@@ -267,6 +272,72 @@ public sealed class NotionContentSource
         string? LastEditedTime,
         IReadOnlyDictionary<string, ContentField> Fields,
         IReadOnlyList<string> RelationKeys);
+
+    private sealed class SourceBoundedRelationFallbackResolver(
+        NotionContentSourceOptions options,
+        ILogger? logger,
+        Func<NotionContentClient> clientFactory) : INotionRelationFallbackResolver
+    {
+        public async Task<NotionRelationFallbackResult> ResolveAsync(
+            IReadOnlyList<string> pageIds,
+            CancellationToken cancellationToken)
+        {
+            var targets = new List<RelationTargetInfo>();
+            var failures = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            using var client = clientFactory();
+            foreach (var pageId in pageIds.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    using var document = await client.GetAsync(NotionApiUrls.Pages(pageId), cancellationToken);
+                    var page = document.RootElement;
+                    var properties = page.TryGetProperty("properties", out var value) && value.ValueKind == JsonValueKind.Object
+                        ? value
+                        : default;
+                    var policyMode = NotionFieldProjectionHelper.NormalizePolicyMode(options.FieldPolicyMode);
+                    var fields = NotionContentPropertyParser.ExtractFields(
+                        properties,
+                        policyMode,
+                        policyMode == "whitelist" ? NotionFieldProjectionHelper.BuildAllowedSet(options.AllowedFields) : null,
+                        out _);
+                    fields = NotionFieldProjectionHelper.InjectPageCoverAndIcon(fields, page);
+                    var title = NotionContentPropertyParser.ExtractTitle(properties, options.PropertyMap);
+                    var slug = NotionContentPropertyParser.ExtractSlug(properties, options.PropertyMap);
+                    var type = NotionContentPropertyParser.ExtractType(properties, options.PropertyMap);
+                    if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(slug) || string.IsNullOrWhiteSpace(type))
+                    {
+                        failures[pageId] = "notion.relation.invalid_target";
+                        continue;
+                    }
+
+                    targets.Add(new RelationTargetInfo(
+                        pageId,
+                        title,
+                        slug,
+                        type,
+                        ContentFieldReader.GetText(fields, "url"),
+                        ContentFieldReader.GetText(fields, "image") ?? ContentFieldReader.GetText(fields, "cover"),
+                        ContentFieldReader.GetTextList(fields, "sameAs") ?? ContentFieldReader.GetTextList(fields, "same_as")));
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (NotionApiException exception) when (exception.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+                {
+                    failures[pageId] = "notion.relation.permission_denied";
+                }
+                catch (Exception exception)
+                {
+                    logger?.Warn($"event=notion.relation.resolve_failed pageId={pageId} message={exception.Message}");
+                    failures[pageId] = "notion.relation.unresolved";
+                }
+            }
+
+            return new NotionRelationFallbackResult(targets, failures);
+        }
+    }
 
     internal static string? Slugify(string text)
     {

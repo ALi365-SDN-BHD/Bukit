@@ -3,7 +3,7 @@ using Bukit.Shared;
 
 namespace Bukit.Content.Notion;
 
-internal sealed class NotionContentProvider : IContentProvider
+internal sealed class NotionContentProvider : IContentProvider, INotionRelationFallbackResolverProvider
 {
     private readonly NotionContentSource _source;
 
@@ -27,4 +27,7 @@ internal sealed class NotionContentProvider : IContentProvider
 
     public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
         => _source.LoadRawAsync(cancellationToken);
+
+    public INotionRelationFallbackResolver RelationFallbackResolver
+        => _source.CreateRelationFallbackResolver();
 }
