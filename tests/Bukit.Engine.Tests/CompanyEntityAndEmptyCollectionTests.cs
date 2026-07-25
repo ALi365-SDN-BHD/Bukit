@@ -112,6 +112,18 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
     }
 
     [Fact]
+    public void BuildForContent_NullableMappedLocalBusinessProfile_PropagatesToJsonLd()
+    {
+        var document = NormalizedCompanyDocument(localOperationsVerified: true, nullableMaps: true);
+
+        var model = SeoModelBuilder.BuildForContent(CreateConfig(), "/", document, CompanyRoute());
+        using var localBusiness = JsonDocuments(model.JsonLd)
+            .Single(json => json.RootElement.GetProperty("@type").GetString() == "LocalBusiness");
+
+        Assert.Equal("10 Jalan Example", localBusiness.RootElement.GetProperty("address").GetProperty("streetAddress").GetString());
+    }
+
+    [Fact]
     public void BuildForContent_MappedLocalBusinessProfileWithoutBothVerifications_FallsBackToOrganization()
     {
         var document = NormalizedCompanyDocument(localOperationsVerified: false);
@@ -249,6 +261,23 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
             Name = "Bukit",
             Url = "https://example.com/"
         });
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", document, CompanyRoute());
+
+        Assert.Equal(2, JsonDocuments(model.JsonLd).Count(json => json.RootElement.GetProperty("@type").GetString() == "Organization"));
+    }
+
+    [Fact]
+    public void BuildForContent_SameNameOrganizationsWithoutUrls_AreNotMerged()
+    {
+        var document = CompanyDocument("Organization") with
+        {
+            Record = CompanyDocument("Organization").Record with
+            {
+                Entities = [new EntityRecord("company", "Acme Malaysia")]
+            }
+        };
+        var config = CreateConfig(organization: new SeoOrganizationConfig { Name = "Acme Malaysia" });
 
         var model = SeoModelBuilder.BuildForContent(config, "/", document, CompanyRoute());
 
@@ -429,28 +458,48 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
             }
         ]);
 
-    private static ContentDocument NormalizedCompanyDocument(bool localOperationsVerified)
+    private static ContentDocument NormalizedCompanyDocument(bool localOperationsVerified, bool nullableMaps = false)
     {
+        object localBusinessProfile = nullableMaps
+            ? new Dictionary<string, object?>
+            {
+                ["addressVerified"] = true,
+                ["localOperationsVerified"] = localOperationsVerified,
+                ["streetAddress"] = "10 Jalan Example",
+                ["addressLocality"] = "Kuala Lumpur",
+                ["addressRegion"] = "Kuala Lumpur",
+                ["postalCode"] = "50000",
+                ["addressCountry"] = "MY",
+                ["localOperationsDescription"] = "Provides verified local operations in Kuala Lumpur."
+            }
+            : new Dictionary<string, object?>
+            {
+                ["addressVerified"] = true,
+                ["localOperationsVerified"] = localOperationsVerified,
+                ["streetAddress"] = "10 Jalan Example",
+                ["addressLocality"] = "Kuala Lumpur",
+                ["addressRegion"] = "Kuala Lumpur",
+                ["postalCode"] = "50000",
+                ["addressCountry"] = "MY",
+                ["localOperationsDescription"] = "Provides verified local operations in Kuala Lumpur."
+            };
+        object company = nullableMaps
+            ? (object)new Dictionary<string, object?>
+            {
+                ["name"] = "Acme Malaysia",
+                ["localBusinessProfile"] = localBusinessProfile
+            }
+            : (object)new Dictionary<string, object>
+            {
+                ["name"] = "Acme Malaysia",
+                ["localBusinessProfile"] = localBusinessProfile
+            };
         var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
         {
             ["collection"] = "companies",
             ["type"] = "company",
             ["schema_type"] = "LocalBusiness",
-            ["company"] = new Dictionary<string, object>
-            {
-                ["name"] = "Acme Malaysia",
-                ["localBusinessProfile"] = new Dictionary<string, object>
-                {
-                    ["addressVerified"] = true,
-                    ["localOperationsVerified"] = localOperationsVerified,
-                    ["streetAddress"] = "10 Jalan Example",
-                    ["addressLocality"] = "Kuala Lumpur",
-                    ["addressRegion"] = "Kuala Lumpur",
-                    ["postalCode"] = "50000",
-                    ["addressCountry"] = "MY",
-                    ["localOperationsDescription"] = "Provides verified local operations in Kuala Lumpur."
-                }
-            },
+            ["company"] = company,
             ["phone"] = "+60 123456789",
             ["address"] = "untrusted standalone address"
         });

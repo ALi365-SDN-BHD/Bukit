@@ -425,9 +425,7 @@ internal static class SeoJsonLdBuilder
             return string.Equals(siteUrl, companyUrl, StringComparison.OrdinalIgnoreCase);
         }
 
-        return TryGetText(siteOrganization, "name", out var siteName) &&
-               TryGetText(companyOrganization, "name", out var companyName) &&
-               string.Equals(siteName, companyName, StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 
     private static bool TryGetText(IReadOnlyDictionary<string, object?> node, string key, out string value)

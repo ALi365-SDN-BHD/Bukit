@@ -155,7 +155,9 @@ internal static partial class CanonicalContentGraphBuilder
     {
         switch (raw)
         {
-            case IReadOnlyDictionary<string, object> mapWithValues:
+            // Nullable annotations are erased at runtime, so this also accepts legacy
+            // IReadOnlyDictionary<string, object> implementations without a second cast.
+            case IReadOnlyDictionary<string, object?> mapWithValues:
                 map = mapWithValues.ToDictionary(static pair => pair.Key, static pair => (object?)pair.Value, StringComparer.OrdinalIgnoreCase);
                 return true;
             default:
