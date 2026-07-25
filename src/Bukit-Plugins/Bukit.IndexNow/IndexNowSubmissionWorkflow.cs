@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Bukit.IndexNow;
 
@@ -9,6 +10,9 @@ public sealed class IndexNowSubmissionWorkflow
     private const int MaximumBatchSize = 10_000;
     private const int MaximumAttempts = 3;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly Regex SemanticHashPattern = new(
+        "^sha256:[0-9a-f]{64}$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private readonly IIndexNowTransport _transport;
     private readonly IIndexNowRetryDelay _delay;
     private readonly IndexNowStateStore _stateStore;
@@ -53,11 +57,21 @@ public sealed class IndexNowSubmissionWorkflow
                 TimeSpan.FromSeconds(30),
                 cancellationToken);
             var state = await _stateStore.LoadAsync(statePath, cancellationToken);
-            changes = changes.Concat(state.Pending)
-                .GroupBy(IndexNowStateStore.Fingerprint, StringComparer.Ordinal)
-                .Select(group => group.First())
+            var currentUrls = changes.Select(change => change.Url).ToHashSet(StringComparer.Ordinal);
+            ValidateState(state);
+            var recoveredPending = ValidateChanges(
+                    new PublishUrlChangeSetDocument(
+                        state.Pending.Where(change => !currentUrls.Contains(change.Url)).ToArray()),
+                    snapshot)
+                .Where(change => !state.Notified.TryGetValue(change.Url, out var notified) ||
+                                 !string.Equals(notified, IndexNowStateStore.Fingerprint(change), StringComparison.Ordinal))
+                .ToArray();
+            var pendingChanged = !state.Pending
+                .Select(IndexNowStateStore.Fingerprint)
+                .SequenceEqual(recoveredPending.Select(IndexNowStateStore.Fingerprint), StringComparer.Ordinal);
+            state = state with { Pending = recoveredPending };
+            changes = changes.Concat(recoveredPending)
                 .OrderBy(change => change.Url, StringComparer.Ordinal)
-                .ThenBy(change => change.Type, StringComparer.Ordinal)
                 .ToArray();
 
             var actionable = changes
@@ -66,6 +80,11 @@ public sealed class IndexNowSubmissionWorkflow
                 .ToArray();
             if (actionable.Length == 0)
             {
+                if (pendingChanged)
+                {
+                    await _stateStore.SaveAsync(statePath, state, cancellationToken);
+                }
+
                 return new IndexNowSubmissionResult(true, state.Deployed.Count, 0, state.Pending.Count, diagnostics);
             }
 
@@ -271,6 +290,11 @@ public sealed class IndexNowSubmissionWorkflow
             }
 
             _ = IndexNowUrlPolicy.ParseContentUrl(change.Url);
+            if (change.SemanticHash is null || !SemanticHashPattern.IsMatch(change.SemanticHash))
+            {
+                throw new InvalidOperationException("Change semanticHash must be a lowercase sha256 value.");
+            }
+
             if (change.Type is "added" or "updated")
             {
                 if (!routes.ContainsKey(change.Url))
@@ -282,11 +306,45 @@ public sealed class IndexNowSubmissionWorkflow
             changes.Add(change);
         }
 
-        return changes.GroupBy(IndexNowStateStore.Fingerprint, StringComparer.Ordinal)
-            .Select(group => group.First())
+        return changes.GroupBy(change => change.Url, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var distinct = group
+                    .GroupBy(IndexNowStateStore.Fingerprint, StringComparer.Ordinal)
+                    .Select(items => items.First())
+                    .ToArray();
+                if (distinct.Length != 1)
+                {
+                    throw new InvalidOperationException("Change-set must contain at most one distinct change per URL.");
+                }
+
+                return distinct[0];
+            })
             .OrderBy(change => change.Url, StringComparer.Ordinal)
-            .ThenBy(change => change.Type, StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static void ValidateState(IndexNowState state)
+    {
+        foreach (var url in state.Deployed)
+        {
+            _ = IndexNowUrlPolicy.ParseContentUrl(url);
+        }
+
+        foreach (var pair in state.Notified)
+        {
+            var keyUrl = IndexNowUrlPolicy.ParseContentUrl(pair.Key).AbsoluteUri;
+            var parts = pair.Value.Split('\n');
+            if (parts.Length != 3 ||
+                parts[0] is not ("added" or "updated" or "deleted") ||
+                !string.Equals(parts[1], keyUrl, StringComparison.Ordinal) ||
+                !SemanticHashPattern.IsMatch(parts[2]))
+            {
+                throw new InvalidOperationException("IndexNow notified state contains an invalid fingerprint.");
+            }
+
+            _ = IndexNowUrlPolicy.ParseContentUrl(parts[1]);
+        }
     }
 
     private static async Task<T> ReadAsync<T>(string path, CancellationToken cancellationToken)

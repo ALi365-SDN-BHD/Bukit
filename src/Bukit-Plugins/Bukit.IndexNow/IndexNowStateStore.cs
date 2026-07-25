@@ -43,6 +43,13 @@ public sealed class IndexNowStateStore
             throw new InvalidDataException("IndexNow state document is invalid or unsupported.");
         }
 
+        if (state.Deployed.Any(value => string.IsNullOrWhiteSpace(value)) ||
+            state.Notified.Any(pair => string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value)) ||
+            state.Pending.Any(change => change is null))
+        {
+            throw new InvalidDataException("IndexNow state document contains null or empty members.");
+        }
+
         return Normalize(state);
     }
 
@@ -66,6 +73,7 @@ public sealed class IndexNowStateStore
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            ValidatePath(lockPath);
             try
             {
                 var stream = new FileStream(
@@ -146,7 +154,7 @@ public sealed class IndexNowStateStore
         var directory = Path.GetDirectoryName(full)
                         ?? throw new InvalidOperationException("IndexNow state path has no parent.");
         var directoryInfo = new DirectoryInfo(directory);
-        if (directoryInfo.Exists && directoryInfo.LinkTarget is not null)
+        if (directoryInfo.LinkTarget is not null)
         {
             throw new InvalidOperationException("IndexNow state directory must not be a symbolic link.");
         }
@@ -173,7 +181,7 @@ public sealed class IndexNowStateStore
             FileSystemInfo info = Directory.Exists(current)
                 ? new DirectoryInfo(current)
                 : new FileInfo(current);
-            if (info.Exists && info.LinkTarget is not null)
+            if (info.LinkTarget is not null)
             {
                 throw new InvalidOperationException("IndexNow managed path must not traverse a symbolic link.");
             }

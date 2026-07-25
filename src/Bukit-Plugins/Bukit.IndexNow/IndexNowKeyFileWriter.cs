@@ -22,8 +22,48 @@ public static partial class IndexNowKeyFileWriter
             throw new InvalidOperationException("IndexNow key file must stay in the production output root.");
         }
 
-        File.WriteAllText(path, key, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        return path;
+        var targetInfo = new FileInfo(path);
+        if (targetInfo.LinkTarget is not null)
+        {
+            throw new InvalidOperationException("IndexNow key file target must not be a symbolic link.");
+        }
+
+        var temporary = Path.Combine(root, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var stream = new FileStream(
+                       temporary,
+                       FileMode.CreateNew,
+                       FileAccess.Write,
+                       FileShare.None,
+                       4096,
+                       FileOptions.WriteThrough))
+            using (var writer = new StreamWriter(
+                       stream,
+                       new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+                       leaveOpen: true))
+            {
+                writer.Write(key);
+                writer.Flush();
+                stream.Flush(flushToDisk: true);
+            }
+
+            targetInfo.Refresh();
+            if (targetInfo.LinkTarget is not null)
+            {
+                throw new InvalidOperationException("IndexNow key file target must not be a symbolic link.");
+            }
+
+            File.Move(temporary, path, overwrite: true);
+            return path;
+        }
+        finally
+        {
+            if (File.Exists(temporary))
+            {
+                File.Delete(temporary);
+            }
+        }
     }
 
     private static StringComparison PathComparison
@@ -32,7 +72,7 @@ public static partial class IndexNowKeyFileWriter
     private static void EnsureNoSymbolicLinks(string path)
     {
         var current = new DirectoryInfo(path);
-        if (current.Exists && current.LinkTarget is not null)
+        if (current.LinkTarget is not null)
         {
             throw new InvalidOperationException("Production output root must not be a symbolic link.");
         }
