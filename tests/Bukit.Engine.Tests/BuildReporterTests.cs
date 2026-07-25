@@ -20,7 +20,7 @@ public sealed class BuildReporterTests
     public void WriterPlan_PreservesEnabledAndDisabledExecutionOrder()
     {
         Assert.Equal(
-            new[] { "build", "routes", "assets", "incremental", "release-bundle", "artifact-manifest", "digest" },
+            new[] { "build", "routes", "assets", "incremental", "publish-url-snapshot", "release-bundle", "artifact-manifest", "digest" },
             BuildReportWriterPlan.Create(enabled: true).Select(writer => writer.Name));
         Assert.Equal(
             new[] { "release-bundle", "artifact-manifest", "digest" },

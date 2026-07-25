@@ -1,3 +1,5 @@
+using Bukit.Config;
+
 namespace Bukit.Engine;
 
 internal interface IBuildReportWriter
@@ -8,6 +10,7 @@ internal interface IBuildReportWriter
 }
 
 internal sealed record BuildReportWriterContext(
+    AppConfig Config,
     string ReportDir,
     string OutputDir,
     BuildResult Result,
@@ -22,6 +25,7 @@ internal static class BuildReportWriterPlan
         new RoutesReportWriter(),
         new AssetsReportWriter(),
         new IncrementalManifestReportWriter(),
+        new PublishUrlSnapshotReportWriter(),
         new ReleaseBundleChecksumsReportWriter(),
         new ArtifactManifestReportWriter(),
         new BuildManifestDigestReportWriter()
