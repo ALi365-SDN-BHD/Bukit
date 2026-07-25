@@ -132,7 +132,7 @@ internal static class SeoIndexBuilder
             };
         }
         var alternateKey = SeoModelBuilder.BuildListAlternateKey(routeInfo);
-        var forceNoindexWhenEmpty = route.Kind == ListRouteKind.CollectionPage &&
+        var forceNoindexWhenEmpty = route.Kind is ListRouteKind.CollectionList or ListRouteKind.CollectionPage &&
                                     route.TotalItems == 0 &&
                                     IsEmptyPrimaryCollection(config, route.Collection, route.TotalItems);
         var model = SeoModelBuilder.BuildForList(

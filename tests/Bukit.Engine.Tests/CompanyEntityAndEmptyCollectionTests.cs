@@ -448,7 +448,7 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
             new ListRoutePlan
             {
                 RouteId = "collection:companies:1",
-                Kind = ListRouteKind.CollectionPage,
+                Kind = ListRouteKind.CollectionList,
                 Url = "/companies/",
                 OutputPath = "companies/index.html",
                 Template = "pages/list.html",
