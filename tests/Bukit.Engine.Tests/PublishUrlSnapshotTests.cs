@@ -171,6 +171,33 @@ public sealed class PublishUrlSnapshotTests
     }
 
     [Fact]
+    public void Snapshot_UsesBodyStoreForBodyKeyOnlyDocuments()
+    {
+        var config = CreateConfig();
+        const string canonical = "https://silushangxun.com/insights/body-store/";
+
+        var first = PublishUrlSnapshotBuilder.Build(config, [CreateBodyStoreVariant(config, canonical, "<p>First body</p>")]);
+        var second = PublishUrlSnapshotBuilder.Build(config, [CreateBodyStoreVariant(config, canonical, "<p>Changed body</p>")]);
+
+        Assert.NotEqual(Assert.Single(first.Routes).SemanticHash, Assert.Single(second.Routes).SemanticHash);
+    }
+
+    [Fact]
+    public void SemanticHash_PreservesJsonLdArrayOrder()
+    {
+        var document = ContentDocument.Create("article", "Example", "example", DateTimeOffset.Parse("2026-07-25T00:00:00Z"), "<p>Canonical body</p>");
+        var route = new RouteInfo("/insights/example/", "insights/example/index.html", "pages/post.html");
+        var entry = new SeoIndexEntry(route, "https://silushangxun.com/insights/example/", "index,follow", true, null, document.Id, "post");
+        var model = CreateSeo(entry.Canonical);
+        var ordered = model with { JsonLd = ["{\"@type\":\"ItemList\",\"itemListElement\":{\"@list\":[\"first\",\"second\"]}}"] };
+        var reversed = model with { JsonLd = ["{\"itemListElement\":{\"@list\":[\"second\",\"first\"]},\"@type\":\"ItemList\"}"] };
+
+        Assert.NotEqual(
+            PublishUrlSemanticHasher.Compute(document, entry, ordered),
+            PublishUrlSemanticHasher.Compute(document, entry, reversed));
+    }
+
+    [Fact]
     public void Diff_UsesOnlyExplicitBaselineAndCurrentSnapshots()
     {
         var baseline = Snapshot(
@@ -262,6 +289,38 @@ public sealed class PublishUrlSnapshotTests
             RoutedDocuments: [new RoutedContentDocument(document, route, document.PublishAt)]);
     }
 
+    private static BuildVariantResult CreateBodyStoreVariant(AppConfig config, string canonical, string body)
+    {
+        var relativeUrl = new Uri(canonical).AbsolutePath;
+        var outputPath = relativeUrl.Trim('/').Replace('/', Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar + "index.html";
+        var route = new RouteInfo(relativeUrl, outputPath, "pages/post.html");
+        var document = ContentDocument.Create(
+            "article",
+            "Example",
+            "example",
+            DateTimeOffset.Parse("2026-07-25T00:00:00Z"),
+            null) with { Body = new ContentBodyRef(BodyKey: "body-key") };
+        var model = CreateSeo(canonical);
+        return new BuildVariantResult(
+            Language: config.Site.Language,
+            OutputDir: Path.GetTempPath(),
+            BaseUrl: "/",
+            SearchSnippetsEnabled: false,
+            BodyStore: new StaticBodyStore(body),
+            DerivedRoutes: Array.Empty<(RouteInfo, DateTimeOffset)>(),
+            SeoIndex: new Dictionary<string, SeoIndexEntry>
+            {
+                [route.OutputPath] = new SeoIndexEntry(route, canonical, "index,follow", true, null, document.Id, "post")
+            },
+            SeoModels: new Dictionary<string, SeoModel> { [route.OutputPath] = model },
+            PluginExecutions: Array.Empty<PluginExecutionInfo>(),
+            RenderedCount: 1,
+            SkippedCount: 0,
+            RenderReasons: new Dictionary<string, int>(),
+            StageMetrics: new BuildStageMetrics(new Dictionary<string, long>(), new Dictionary<string, int>()),
+            RoutedDocuments: [new RoutedContentDocument(document, route, document.PublishAt)]);
+    }
+
     private static SeoModel CreateSeo(string canonical)
         => new()
         {
@@ -279,4 +338,10 @@ public sealed class PublishUrlSnapshotTests
 
     private static PublishUrlSnapshot Snapshot(params PublishUrlSnapshotRoute[] routes)
         => new("https://bukit.dev/schemas/publish-url-snapshot.v1.json", "https://silushangxun.com/", routes);
+
+    private sealed class StaticBodyStore(string body) : IContentBodyStore
+    {
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(body));
+    }
 }

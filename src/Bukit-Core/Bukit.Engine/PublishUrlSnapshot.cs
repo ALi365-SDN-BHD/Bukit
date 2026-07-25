@@ -65,8 +65,38 @@ internal static class PublishUrlSnapshotBuilder
             yield return new PublishUrlSnapshotRoute(
                 url,
                 true,
-                PublishUrlSemanticHasher.Compute(document, entry with { Canonical = url }, model));
+                PublishUrlSemanticHasher.Compute(ResolveBody(variant.BodyStore, document), entry with { Canonical = url }, model));
         }
+    }
+
+    private static string ResolveBody(IContentBodyStore bodyStore, ContentDocument? document)
+    {
+        if (document is null)
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrEmpty(document.Body.Html))
+        {
+            return document.Body.Html;
+        }
+
+        if (!string.IsNullOrEmpty(document.Body.Markdown))
+        {
+            return document.Body.Markdown;
+        }
+
+        if (!string.IsNullOrEmpty(document.Body.PlainText))
+        {
+            return document.Body.PlainText;
+        }
+
+        if (!string.IsNullOrEmpty(document.Record.Presentation.Body))
+        {
+            return document.Record.Presentation.Body;
+        }
+
+        return bodyStore.GetAsync(document).GetAwaiter().GetResult().Html;
     }
 
     private static PublishUrlSnapshotRoute ResolveDuplicate(IGrouping<string, PublishUrlSnapshotRoute> duplicates)
@@ -130,12 +160,15 @@ internal static class PublishUrlSemanticHasher
     };
 
     internal static string Compute(ContentDocument? document, SeoIndexEntry entry, SeoModel model)
+        => Compute(ResolveBody(document), entry, model);
+
+    internal static string Compute(string body, SeoIndexEntry entry, SeoModel model)
     {
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
             writer.WriteStartObject();
-            writer.WriteString("body", NormalizeText(ResolveBody(document)));
+            writer.WriteString("body", NormalizeText(body));
             writer.WriteString("title", NormalizeText(model.Title));
             writer.WriteString("description", NormalizeText(model.Description));
             writer.WriteString("canonical", PublishUrlSnapshotBuilder.NormalizeAbsoluteUrl(entry.Canonical));
@@ -244,11 +277,9 @@ internal static class PublishUrlSemanticHasher
                 return;
             case JsonValueKind.Array:
                 writer.WriteStartArray();
-                foreach (var item in element.EnumerateArray()
-                             .Select(CanonicalizeElement)
-                             .OrderBy(item => item, StringComparer.Ordinal))
+                foreach (var item in element.EnumerateArray())
                 {
-                    writer.WriteRawValue(item, skipInputValidation: true);
+                    WriteCanonicalJson(writer, item);
                 }
 
                 writer.WriteEndArray();
@@ -259,16 +290,6 @@ internal static class PublishUrlSemanticHasher
         }
     }
 
-    private static string CanonicalizeElement(JsonElement element)
-    {
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
-        {
-            WriteCanonicalJson(writer, element);
-        }
-
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
 }
 
 internal static class PublishUrlSnapshotJson
