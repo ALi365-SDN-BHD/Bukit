@@ -115,6 +115,7 @@ internal sealed class TemplateContextBuilder
             int.TryParse(maxLen, out var n) ? ComponentUtilityFunctions.Truncate(input, n) : ComponentUtilityFunctions.Truncate(input)), readOnly: true);
         utilObj.SetValue("titleize", new Func<string, string>(ComponentUtilityFunctions.Titleize), readOnly: true);
         utilObj.SetValue("slugify", new Func<string, string>(ComponentUtilityFunctions.Slugify), readOnly: true);
+        utilObj.SetValue("json_string", new JsonStringFunction(), readOnly: true);
         context.PushGlobal(new ScriptObject { ["util"] = utilObj });
 
         // Run all registered contributors before pushing model globals.

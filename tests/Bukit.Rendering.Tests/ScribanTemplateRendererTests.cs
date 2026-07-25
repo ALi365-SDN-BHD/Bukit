@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bukit.Config;
 using Bukit.Shared;
 using Bukit.Theme;
@@ -79,6 +80,32 @@ public sealed class ScribanTemplateRendererTests : IDisposable
         var result = renderer.RenderPage("page.html", model);
         Assert.Contains("<title>Hello</title>", result);
         Assert.Contains("<p>World</p>", result);
+    }
+
+    [Fact]
+    public void RenderPage_UtilJsonString_EmitsJsonStringLiteral()
+    {
+        var templatePath = Path.Combine(_layoutsDir, "page.html");
+        File.WriteAllText(templatePath, """<script>{"name":{{ page.title | util.json_string }}}</script>""");
+
+        var renderer = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir);
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo
+            {
+                Title = "A \"quoted\" & named company",
+                Content = "",
+                Url = "/hello/"
+            }
+        };
+
+        var result = renderer.RenderPage("page.html", model);
+        var json = result
+            .Replace("<script>", string.Empty, StringComparison.Ordinal)
+            .Replace("</script>", string.Empty, StringComparison.Ordinal);
+        using var document = JsonDocument.Parse(json);
+        Assert.Equal("A \"quoted\" & named company", document.RootElement.GetProperty("name").GetString());
     }
 
     [Fact]

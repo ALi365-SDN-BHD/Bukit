@@ -310,3 +310,71 @@ internal static class ComponentUtilityFunctions
         return sb.ToString();
     }
 }
+
+internal sealed class JsonStringFunction : IScriptCustomFunction
+{
+    public object? Invoke(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        var value = arguments.Count > 0 ? arguments[0] : null;
+        return ToJsonString(value?.ToString() ?? string.Empty);
+    }
+
+    public ValueTask<object?> InvokeAsync(TemplateContext context, ScriptNode? callerContext, ScriptArray arguments, ScriptBlockStatement? blockStatement)
+    {
+        return new ValueTask<object?>(Invoke(context, callerContext, arguments, blockStatement));
+    }
+
+    public int RequiredParameterCount => 1;
+    public int ParameterCount => 1;
+    public ScriptVarParamKind VarParamKind => ScriptVarParamKind.None;
+    public Type ReturnType => typeof(string);
+    public ScriptParameterInfo GetParameterInfo(int index) => new(typeof(object), "value");
+
+    private static string ToJsonString(string value)
+    {
+        var sb = new StringBuilder(value.Length + 2);
+        sb.Append('"');
+        foreach (var ch in value)
+        {
+            switch (ch)
+            {
+                case '"':
+                    sb.Append("\\\"");
+                    break;
+                case '\\':
+                    sb.Append("\\\\");
+                    break;
+                case '\b':
+                    sb.Append("\\b");
+                    break;
+                case '\f':
+                    sb.Append("\\f");
+                    break;
+                case '\n':
+                    sb.Append("\\n");
+                    break;
+                case '\r':
+                    sb.Append("\\r");
+                    break;
+                case '\t':
+                    sb.Append("\\t");
+                    break;
+                default:
+                    if (char.IsControl(ch))
+                    {
+                        sb.Append("\\u");
+                        sb.Append(((int)ch).ToString("x4"));
+                    }
+                    else
+                    {
+                        sb.Append(ch);
+                    }
+
+                    break;
+            }
+        }
+
+        sb.Append('"');
+        return sb.ToString();
+    }
+}
