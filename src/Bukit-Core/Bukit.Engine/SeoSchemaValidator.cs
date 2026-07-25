@@ -4,6 +4,10 @@ namespace Bukit.Engine;
 
 internal static class SeoSchemaValidator
 {
+    internal static bool IsSupportedArticleAuthorType(string? type)
+        => string.Equals(type, "Person", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(type, "Organization", StringComparison.OrdinalIgnoreCase);
+
     internal static IReadOnlyList<string> ExtractSchemaTypes(
         IReadOnlyList<string> jsonLd,
         string routeUrl,
@@ -297,7 +301,7 @@ internal static class SeoSchemaValidator
         {
             issues.Add(Warning($"{prefix}_author_type_missing", routeUrl, "Article author should declare @type Person or Organization."));
         }
-        else if (types.Any(authorType => authorType is not "Person" and not "Organization"))
+        else if (types.Any(authorType => !IsSupportedArticleAuthorType(authorType)))
         {
             issues.Add(Error($"{prefix}_author_type_invalid", routeUrl, "Article author @type must be Person or Organization."));
         }

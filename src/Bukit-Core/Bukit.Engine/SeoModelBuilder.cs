@@ -47,7 +47,7 @@ internal static class SeoModelBuilder
         var updated = record.Lifecycle.UpdatedAt;
         var resolvedAuthor = SeoAuthorResolver.Resolve(record, fields, geo.GeoAuthor);
         var tags = record.Classification.Tags.Count > 0 ? record.Classification.Tags : ContentFieldReader.GetTextList(fields, "tags") ?? Array.Empty<string>();
-        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, visibleTitle, description, canonical, image, route.Url, document, fields, isStructuredContent, isCollectionPage, geo, schemaType, record, searchAction, breadcrumb);
+        var jsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, visibleTitle, description, canonical, image, route.Url, document, fields, isStructuredContent, isCollectionPage, geo, schemaType, record, resolvedAuthor, searchAction, breadcrumb);
 
         return new SeoModel
         {
@@ -83,8 +83,8 @@ internal static class SeoModelBuilder
             {
                 PublishedTime = isArticle ? record.Lifecycle.PublishedAt : null,
                 ModifiedTime = isArticle ? updated : null,
-                Author = isArticle ? resolvedAuthor.Name : null,
-                AuthorType = isArticle ? resolvedAuthor.SchemaType : null,
+                Author = isArticle ? resolvedAuthor.Primary?.Name : null,
+                AuthorType = isArticle ? resolvedAuthor.Primary?.SchemaType : null,
                 Tags = isArticle ? tags : Array.Empty<string>()
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
@@ -167,7 +167,7 @@ internal static class SeoModelBuilder
                 Site = config.Site.Seo.TwitterSite
             },
             Alternates = alternates ?? Array.Empty<SeoAlternateModel>(),
-            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, canonicalUrl, document: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null, searchAction, breadcrumb)
+            JsonLd = SeoJsonLdBuilder.BuildJsonLd(config, baseUrl, title, description, canonical, image, canonicalUrl, document: null, itemListFields: page.Fields, isPost: false, isCollectionPage: page.Url != "/", geo: SeoGeoMetaParser.ParsedGeoMeta.Empty, schemaType: null, record: null, resolvedAuthors: null, searchAction, breadcrumb)
         };
     }
 

@@ -59,6 +59,81 @@ public sealed record ContentOwnership(
     string? Reviewer)
 {
     public string? AuthorType { get; init; }
+    public bool UsesAuthorRelation { get; init; }
+    public IReadOnlyList<ContentAuthorProfile> AuthorProfiles { get; init; } = Array.Empty<ContentAuthorProfile>();
+}
+
+public sealed record ContentAuthorProfile(
+    string? Id,
+    string? Title,
+    string? Slug,
+    string? Type,
+    string? Image,
+    IReadOnlyList<string> SameAs);
+
+internal sealed record ContentAuthorProjection(
+    bool UsesAuthorRelation,
+    IReadOnlyList<ContentAuthorProfile> Profiles);
+
+internal static class ContentAuthorProfileProjectionReader
+{
+    internal static ContentAuthorProjection Read(IReadOnlyDictionary<string, ContentField>? fields)
+    {
+        if (fields is null)
+        {
+            return new ContentAuthorProjection(false, Array.Empty<ContentAuthorProfile>());
+        }
+
+        var relation = fields.FirstOrDefault(static pair =>
+            string.Equals(pair.Key, "authoredBy", StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrEmpty(relation.Key))
+        {
+            return new ContentAuthorProjection(false, Array.Empty<ContentAuthorProfile>());
+        }
+
+        var items = relation.Value.Value switch
+        {
+            null => Array.Empty<object>(),
+            string id => new object[] { id },
+            IEnumerable<object> values => values.ToArray(),
+            _ => new[] { relation.Value.Value }
+        };
+        var profiles = items
+            .Select(ReadProfile)
+            .ToArray();
+        return new ContentAuthorProjection(true, profiles);
+    }
+
+    private static ContentAuthorProfile ReadProfile(object? value)
+    {
+        if (value is not IReadOnlyDictionary<string, object?> map)
+        {
+            var id = Clean(value?.ToString());
+            return new ContentAuthorProfile(id, null, null, null, null, Array.Empty<string>());
+        }
+
+        return new ContentAuthorProfile(
+            Text(map, "id"),
+            Text(map, "title"),
+            Text(map, "slug"),
+            Text(map, "type"),
+            Text(map, "image"),
+            TextList(map, "sameAs"));
+    }
+
+    private static string? Text(IReadOnlyDictionary<string, object?> map, string key)
+        => Clean(map.FirstOrDefault(pair =>
+            string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase)).Value?.ToString());
+
+    private static IReadOnlyList<string> TextList(IReadOnlyDictionary<string, object?> map, string key)
+    {
+        var value = map.FirstOrDefault(pair =>
+            string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase)).Value;
+        return ContentFieldReader.ToTextList(value) ?? Array.Empty<string>();
+    }
+
+    private static string? Clean(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
 public sealed record ContentLifecycle(

@@ -66,6 +66,7 @@ public sealed record ContentDocument
         var entities = ExtractEntities(fields);
         var relations = ExtractRelations(fields, translations, entities);
         var media = ExtractMedia(fields);
+        var authorProjection = ContentAuthorProfileProjectionReader.Read(fields);
 
         var record = new ContentRecord(
             new ContentIdentity(id, slug, ContentFieldReader.GetText(fields, "i18nKey") ?? slug, type, status),
@@ -73,7 +74,9 @@ public sealed record ContentDocument
             new ContentClassification(type, collection, sections, tags),
             new ContentOwnership(ContentFieldReader.GetText(fields, "author"), ContentFieldReader.GetText(fields, "organization"), ContentFieldReader.GetText(fields, "owner"), ContentFieldReader.GetText(fields, "reviewer"))
             {
-                AuthorType = ContentFieldReader.GetText(fields, "authorType")
+                AuthorType = ContentFieldReader.GetText(fields, "authorType"),
+                UsesAuthorRelation = authorProjection.UsesAuthorRelation,
+                AuthorProfiles = authorProjection.Profiles
             },
             new ContentLifecycle(publishAt, ContentFieldReader.GetDate(fields, "updated"), ContentFieldReader.GetDate(fields, "expires_at"), ContentFieldReader.GetDate(fields, "reviewed_at"))
             {

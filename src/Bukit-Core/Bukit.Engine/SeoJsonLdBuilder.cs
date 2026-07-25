@@ -22,6 +22,7 @@ internal static class SeoJsonLdBuilder
         SeoGeoMetaParser.ParsedGeoMeta geo,
         string? schemaType,
         ContentRecord? record,
+        ResolvedSeoAuthors? resolvedAuthors = null,
         SearchActionDescriptor? searchAction = null,
         BreadcrumbDescriptor? breadcrumb = null)
     {
@@ -125,7 +126,10 @@ internal static class SeoJsonLdBuilder
                     geo,
                     record,
                     config.Site.Language,
-                    organizationNode);
+                    organizationNode,
+                    resolvedAuthors ?? SeoAuthorResolver.Resolve(record, document.CustomFields, geo.GeoAuthor),
+                    config.Site.Url,
+                    baseUrl);
             }
         }
 
@@ -164,7 +168,10 @@ internal static class SeoJsonLdBuilder
         SeoGeoMetaParser.ParsedGeoMeta geo,
         ContentRecord? record,
         string? language,
-        IReadOnlyDictionary<string, object?>? organizationNode)
+        IReadOnlyDictionary<string, object?>? organizationNode,
+        ResolvedSeoAuthors resolvedAuthors,
+        string? siteUrl,
+        string baseUrl)
     {
         var article = new Dictionary<string, object?>
         {
@@ -212,25 +219,14 @@ internal static class SeoJsonLdBuilder
             article["publisher"] = organizationNode;
         }
 
-        var author = SeoAuthorResolver.Resolve(record, document.CustomFields, geo.GeoAuthor);
-        if (!string.IsNullOrWhiteSpace(author.Name) && !string.IsNullOrWhiteSpace(author.SchemaType))
+        if (resolvedAuthors.Authors.Count > 0)
         {
-            var authorNode = new Dictionary<string, object?>
-            {
-                ["@type"] = author.SchemaType,
-                ["name"] = author.Name
-            };
-            if (!string.IsNullOrWhiteSpace(author.Url))
-            {
-                authorNode["url"] = author.Url;
-            }
-
-            if (author.SameAs.Count > 0)
-            {
-                authorNode["sameAs"] = author.SameAs;
-            }
-
-            article["author"] = authorNode;
+            var authorNodes = resolvedAuthors.Authors
+                .Select(author => BuildAuthorNode(author, siteUrl, baseUrl))
+                .ToArray();
+            article["author"] = authorNodes.Length == 1
+                ? authorNodes[0]
+                : authorNodes;
         }
 
         if (geo.SameAs is { Count: > 0 })
@@ -247,7 +243,35 @@ internal static class SeoJsonLdBuilder
         }
 
         result.Add(ToJson(article));
-        return author.HasMatchingCanonicalGeoAuthor;
+        return resolvedAuthors.SuppressStandaloneGeoAuthor;
+    }
+
+    private static Dictionary<string, object?> BuildAuthorNode(
+        ResolvedSeoAuthor author,
+        string? siteUrl,
+        string baseUrl)
+    {
+        var node = new Dictionary<string, object?>
+        {
+            ["@type"] = author.SchemaType,
+            ["name"] = author.Name
+        };
+        if (!string.IsNullOrWhiteSpace(author.Url))
+        {
+            node["url"] = SeoModelBuilder.BuildMaybeAbsoluteUrl(siteUrl, baseUrl, author.Url);
+        }
+
+        if (!string.IsNullOrWhiteSpace(author.Image))
+        {
+            node["image"] = SeoModelBuilder.BuildMaybeAbsoluteUrl(siteUrl, baseUrl, author.Image);
+        }
+
+        if (author.SameAs.Count > 0)
+        {
+            node["sameAs"] = author.SameAs;
+        }
+
+        return node;
     }
 
     private static IReadOnlyDictionary<string, object?>? BuildOrganizationNode(

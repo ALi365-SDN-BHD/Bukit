@@ -71,6 +71,7 @@ internal static partial class CanonicalContentGraphBuilder
         var authors = FirstList(source, "authors");
         var owners = FirstList(source, "owners");
         var reviewers = FirstList(source, "reviewers");
+        var authorProjection = ContentAuthorProfileProjectionReader.Read(source.Fields);
 
         return new ContentRecord(
             new ContentIdentity(
@@ -94,7 +95,9 @@ internal static partial class CanonicalContentGraphBuilder
                 FirstText(source, "owner") ?? owners?.FirstOrDefault(),
                 FirstText(source, "reviewer") ?? reviewers?.FirstOrDefault())
             {
-                AuthorType = FirstText(source, "authorType")
+                AuthorType = FirstText(source, "authorType"),
+                UsesAuthorRelation = authorProjection.UsesAuthorRelation,
+                AuthorProfiles = authorProjection.Profiles
             },
             new ContentLifecycle(
                 source.PublishAt,

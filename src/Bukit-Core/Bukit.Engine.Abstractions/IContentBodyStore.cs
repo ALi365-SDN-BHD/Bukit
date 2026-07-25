@@ -87,13 +87,16 @@ public interface IContentBodyStore
             ? "draft"
             : ContentFieldReader.GetText(fields, "status") ?? "published";
 
+        var authorProjection = ContentAuthorProfileProjectionReader.Read(fields);
         return new ContentRecord(
             new ContentIdentity(id, slug, ContentFieldReader.GetText(fields, "i18nKey") ?? slug, type, status),
             new ContentPresentation(title, GetSummary(fields), contentHtml, ContentFieldReader.GetText(fields, "language") ?? "und", Array.Empty<string>()),
             new ContentClassification(type, collection, Array.Empty<string>(), ContentFieldReader.GetTextList(fields, "tags") ?? Array.Empty<string>()),
             new ContentOwnership(ContentFieldReader.GetText(fields, "author"), ContentFieldReader.GetText(fields, "organization"), ContentFieldReader.GetText(fields, "owner"), ContentFieldReader.GetText(fields, "reviewer"))
             {
-                AuthorType = ContentFieldReader.GetText(fields, "authorType")
+                AuthorType = ContentFieldReader.GetText(fields, "authorType"),
+                UsesAuthorRelation = authorProjection.UsesAuthorRelation,
+                AuthorProfiles = authorProjection.Profiles
             },
             new ContentLifecycle(publishAt, ContentFieldReader.GetDate(fields, "updated"), ContentFieldReader.GetDate(fields, "expires_at"), ContentFieldReader.GetDate(fields, "reviewed_at"))
             {
