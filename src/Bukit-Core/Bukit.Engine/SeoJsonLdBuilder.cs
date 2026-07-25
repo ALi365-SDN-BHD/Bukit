@@ -140,7 +140,7 @@ internal static class SeoJsonLdBuilder
         if (!isPost && record is not null && IsCompanyContent(record, schemaType))
         {
             var entity = BuildCompanyEntityNode(record, schemaType, config.Site.Url, baseUrl);
-            if (entity is not null)
+            if (entity is not null && !MatchesOrganization(organizationNode, entity))
             {
                 result.Add(ToJson(entity));
             }
@@ -404,6 +404,42 @@ internal static class SeoJsonLdBuilder
         }
 
         return node;
+    }
+
+    private static bool MatchesOrganization(
+        IReadOnlyDictionary<string, object?>? siteOrganization,
+        IReadOnlyDictionary<string, object?> companyOrganization)
+    {
+        if (siteOrganization is null ||
+            !TryGetText(siteOrganization, "@type", out var siteType) ||
+            !TryGetText(companyOrganization, "@type", out var companyType) ||
+            !string.Equals(siteType, companyType, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var hasSiteUrl = TryGetText(siteOrganization, "url", out var siteUrl);
+        var hasCompanyUrl = TryGetText(companyOrganization, "url", out var companyUrl);
+        if (hasSiteUrl && hasCompanyUrl)
+        {
+            return string.Equals(siteUrl, companyUrl, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return TryGetText(siteOrganization, "name", out var siteName) &&
+               TryGetText(companyOrganization, "name", out var companyName) &&
+               string.Equals(siteName, companyName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetText(IReadOnlyDictionary<string, object?> node, string key, out string value)
+    {
+        if (node.TryGetValue(key, out var raw) && raw is string text && !string.IsNullOrWhiteSpace(text))
+        {
+            value = text.Trim();
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
     }
 
     private static string? BuildAbsoluteHttpUrl(string? siteUrl, string baseUrl, string? value)

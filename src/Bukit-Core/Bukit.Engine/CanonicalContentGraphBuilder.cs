@@ -390,7 +390,10 @@ internal static partial class CanonicalContentGraphBuilder
                         ?? ReadMappedValue(value, "url"),
                     ReadMappedList(value, mapping.SameAsField)
                         ?? ReadMappedList(value, "sameAs")
-                        ?? ReadMappedList(value, "same_as")));
+                        ?? ReadMappedList(value, "same_as"))
+                {
+                    LocalBusinessProfile = ReadLocalBusinessProfile(value)
+                });
             }
         }
     }

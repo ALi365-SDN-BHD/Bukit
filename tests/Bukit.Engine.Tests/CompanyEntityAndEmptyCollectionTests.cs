@@ -5,6 +5,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Rendering;
 using Xunit;
 
@@ -95,6 +96,163 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
 
         Assert.Equal("10 Jalan Example", localBusiness.RootElement.GetProperty("address").GetProperty("streetAddress").GetString());
         Assert.Equal("Provides verified local operations in Kuala Lumpur.", localBusiness.RootElement.GetProperty("description").GetString());
+    }
+
+    [Fact]
+    public void BuildForContent_MappedLocalBusinessProfile_PropagatesVerifiedCanonicalFieldsToJsonLd()
+    {
+        var document = NormalizedCompanyDocument(localOperationsVerified: true);
+
+        var model = SeoModelBuilder.BuildForContent(CreateConfig(), "/", document, CompanyRoute());
+        using var localBusiness = JsonDocuments(model.JsonLd)
+            .Single(json => json.RootElement.GetProperty("@type").GetString() == "LocalBusiness");
+
+        Assert.Equal("10 Jalan Example", localBusiness.RootElement.GetProperty("address").GetProperty("streetAddress").GetString());
+        Assert.Equal("Provides verified local operations in Kuala Lumpur.", localBusiness.RootElement.GetProperty("description").GetString());
+    }
+
+    [Fact]
+    public void BuildForContent_MappedLocalBusinessProfileWithoutBothVerifications_FallsBackToOrganization()
+    {
+        var document = NormalizedCompanyDocument(localOperationsVerified: false);
+
+        var model = SeoModelBuilder.BuildForContent(CreateConfig(), "/", document, CompanyRoute());
+        var types = JsonDocuments(model.JsonLd)
+            .Select(json => json.RootElement.GetProperty("@type").GetString())
+            .ToArray();
+
+        Assert.Contains("Organization", types);
+        Assert.DoesNotContain("LocalBusiness", types);
+        Assert.DoesNotContain("10 Jalan Example", string.Concat(model.JsonLd), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EmptyCollectionIndexability_ExcludesSearchAndLlmsConsumers_AndContentRestoresThem()
+    {
+        var config = CreateConfig(noindexWhenEmpty: true);
+        var emptyGraph = CollectionGraph(totalItems: 0);
+        var emptyIndex = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            emptyGraph);
+        var emptyOutput = CreateTempDirectory();
+
+        SearchIndexBuilder.GenerateSingleSearchIndex(
+            emptyOutput,
+            "/",
+            includeDerived: false,
+            emitSnippet: false,
+            maxContentLength: 120,
+            routed: Array.Empty<RoutedContentDocument>(),
+            derivedRouted: Array.Empty<RoutedContentDocument>(),
+            emptyIndex.Entries,
+            NullContentBodyStore.Instance,
+            emptyGraph,
+            emptyIndex.Models);
+        LlmsTxtPlugin.WriteLlmsTxt(
+            config,
+            emptyOutput,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RoutedContentDocument>(),
+            emptyIndex.Entries,
+            emptyIndex.Models,
+            config.Site.Seo.Geo);
+        LlmsTxtPlugin.WriteLlmsFullTxt(
+            config,
+            emptyOutput,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RoutedContentDocument>(),
+            CanonicalContentGraph.Empty,
+            emptyIndex.Entries,
+            NullContentBodyStore.Instance);
+
+        using (var search = JsonDocument.Parse(File.ReadAllText(Path.Combine(emptyOutput, "search.json"))))
+        {
+            Assert.Empty(search.RootElement.EnumerateArray());
+        }
+        Assert.DoesNotContain("/companies/", File.ReadAllText(Path.Combine(emptyOutput, "llms.txt")), StringComparison.Ordinal);
+        Assert.DoesNotContain("/companies/", File.ReadAllText(Path.Combine(emptyOutput, "llms-full.txt")), StringComparison.Ordinal);
+
+        var document = CompanyDocument("Organization");
+        var routed = new[] { new RoutedContentDocument(document, CompanyRoute()) };
+        var contentGraph = CollectionGraph(totalItems: 1);
+        var contentIndex = SeoIndexBuilder.Build(
+            config,
+            "/",
+            routed,
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            contentGraph);
+        var contentOutput = CreateTempDirectory();
+
+        SearchIndexBuilder.GenerateSingleSearchIndex(
+            contentOutput,
+            "/",
+            includeDerived: false,
+            emitSnippet: false,
+            maxContentLength: 120,
+            routed,
+            Array.Empty<RoutedContentDocument>(),
+            contentIndex.Entries,
+            NullContentBodyStore.Instance,
+            contentGraph,
+            contentIndex.Models);
+        LlmsTxtPlugin.WriteLlmsTxt(config, contentOutput, "/", routed, Array.Empty<RoutedContentDocument>(), contentIndex.Entries, contentIndex.Models, config.Site.Seo.Geo);
+        LlmsTxtPlugin.WriteLlmsFullTxt(config, contentOutput, "/", routed, Array.Empty<RoutedContentDocument>(), CanonicalContentGraphBuilder.BuildFromDocuments([document]), contentIndex.Entries, NullContentBodyStore.Instance);
+
+        using (var search = JsonDocument.Parse(File.ReadAllText(Path.Combine(contentOutput, "search.json"))))
+        {
+            Assert.Contains(search.RootElement.EnumerateArray(), item => item.GetProperty("url").GetString() == "/companies/");
+        }
+        Assert.Contains("/companies/acme/", File.ReadAllText(Path.Combine(contentOutput, "llms.txt")), StringComparison.Ordinal);
+        Assert.Contains("/companies/acme/", File.ReadAllText(Path.Combine(contentOutput, "llms-full.txt")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildForContent_CompanyOrganizationMatchingSiteOrganization_IsDeduplicatedByAbsoluteUrl()
+    {
+        var document = CompanyDocument("Organization") with
+        {
+            Record = CompanyDocument("Organization").Record with
+            {
+                Entities = [new EntityRecord("company", "Acme Malaysia", Url: "https://example.com/companies/acme/")]
+            }
+        };
+        var config = CreateConfig(organization: new SeoOrganizationConfig
+        {
+            Name = "Acme Malaysia",
+            Url = "/companies/acme/"
+        });
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", document, CompanyRoute());
+
+        Assert.Equal(1, JsonDocuments(model.JsonLd).Count(json => json.RootElement.GetProperty("@type").GetString() == "Organization"));
+    }
+
+    [Fact]
+    public void BuildForContent_DifferentCompanyOrganization_DoesNotMergeWithSiteOrganization()
+    {
+        var document = CompanyDocument("Organization") with
+        {
+            Record = CompanyDocument("Organization").Record with
+            {
+                Entities = [new EntityRecord("company", "Acme Malaysia", Url: "https://example.com/companies/acme/")]
+            }
+        };
+        var config = CreateConfig(organization: new SeoOrganizationConfig
+        {
+            Name = "Bukit",
+            Url = "https://example.com/"
+        });
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", document, CompanyRoute());
+
+        Assert.Equal(2, JsonDocuments(model.JsonLd).Count(json => json.RootElement.GetProperty("@type").GetString() == "Organization"));
     }
 
     [Fact]
@@ -204,7 +362,7 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
         }
     }
 
-    private static AppConfig CreateConfig(bool noindexWhenEmpty = false)
+    private static AppConfig CreateConfig(bool noindexWhenEmpty = false, SeoOrganizationConfig? organization = null)
     {
         var collection = new CollectionConfig
         {
@@ -224,6 +382,7 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
                 Url = "https://example.com",
                 Seo = new SeoConfig
                 {
+                    Organization = organization,
                     Schema = new SeoSchemaConfig { WebPage = false, CollectionPage = false, SearchAction = false }
                 },
                 Collections = new Dictionary<string, CollectionConfig> { ["companies"] = collection }
@@ -253,6 +412,62 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
 
     private static RouteInfo CompanyRoute()
         => new("/companies/acme/", "companies/acme/index.html", "pages/company.html");
+
+    private static ListRouteGraph CollectionGraph(int totalItems)
+        => ListRouteGraph.Create(
+        [
+            new ListRoutePlan
+            {
+                RouteId = "collection:companies:1",
+                Kind = ListRouteKind.CollectionPage,
+                Url = "/companies/",
+                OutputPath = "companies/index.html",
+                Template = "pages/list.html",
+                Collection = "companies",
+                TotalItems = totalItems,
+                CanonicalUrl = "/companies/"
+            }
+        ]);
+
+    private static ContentDocument NormalizedCompanyDocument(bool localOperationsVerified)
+    {
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["collection"] = "companies",
+            ["type"] = "company",
+            ["schema_type"] = "LocalBusiness",
+            ["company"] = new Dictionary<string, object>
+            {
+                ["name"] = "Acme Malaysia",
+                ["localBusinessProfile"] = new Dictionary<string, object>
+                {
+                    ["addressVerified"] = true,
+                    ["localOperationsVerified"] = localOperationsVerified,
+                    ["streetAddress"] = "10 Jalan Example",
+                    ["addressLocality"] = "Kuala Lumpur",
+                    ["addressRegion"] = "Kuala Lumpur",
+                    ["postalCode"] = "50000",
+                    ["addressCountry"] = "MY",
+                    ["localOperationsDescription"] = "Provides verified local operations in Kuala Lumpur."
+                }
+            },
+            ["phone"] = "+60 123456789",
+            ["address"] = "untrusted standalone address"
+        });
+        var raw = new RawContentDocument(
+            "acme",
+            "Acme Malaysia",
+            "acme",
+            new DateTimeOffset(2026, 7, 25, 9, 30, 0, TimeSpan.Zero),
+            new RawBody("<p>Acme</p>"),
+            CustomFields: fields);
+        var schema = new ContentModelSchema(EntityMappings: new Dictionary<string, EntityMapping>
+        {
+            ["company"] = new EntityMapping("company", "company")
+        });
+
+        return ContentDocumentNormalizer.ToDocument(raw, schema);
+    }
 
     private static IEnumerable<JsonDocument> JsonDocuments(IEnumerable<string> json)
     {

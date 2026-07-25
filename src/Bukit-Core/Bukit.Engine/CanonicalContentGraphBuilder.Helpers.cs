@@ -129,6 +129,54 @@ internal static partial class CanonicalContentGraphBuilder
         return ContentFieldReader.ToTextList(raw);
     }
 
+    private static LocalBusinessProfile? ReadLocalBusinessProfile(MappedValue entity)
+    {
+        if (entity.Map is null ||
+            !entity.Map.TryGetValue("localBusinessProfile", out var rawProfile) ||
+            !TryReadMap(rawProfile, out var profile))
+        {
+            return null;
+        }
+
+        return new LocalBusinessProfile
+        {
+            AddressVerified = ReadMapBool(profile, "addressVerified"),
+            LocalOperationsVerified = ReadMapBool(profile, "localOperationsVerified"),
+            StreetAddress = ReadMapText(profile, "streetAddress"),
+            AddressLocality = ReadMapText(profile, "addressLocality"),
+            AddressRegion = ReadMapText(profile, "addressRegion"),
+            PostalCode = ReadMapText(profile, "postalCode"),
+            AddressCountry = ReadMapText(profile, "addressCountry"),
+            LocalOperationsDescription = ReadMapText(profile, "localOperationsDescription")
+        };
+    }
+
+    private static bool TryReadMap(object? raw, out IReadOnlyDictionary<string, object?> map)
+    {
+        switch (raw)
+        {
+            case IReadOnlyDictionary<string, object> mapWithValues:
+                map = mapWithValues.ToDictionary(static pair => pair.Key, static pair => (object?)pair.Value, StringComparer.OrdinalIgnoreCase);
+                return true;
+            default:
+                map = null!;
+                return false;
+        }
+    }
+
+    private static bool ReadMapBool(IReadOnlyDictionary<string, object?> map, string key)
+        => map.TryGetValue(key, out var raw) && raw switch
+        {
+            bool value => value,
+            string value when bool.TryParse(value, out var parsed) => parsed,
+            _ => false
+        };
+
+    private static string? ReadMapText(IReadOnlyDictionary<string, object?> map, string key)
+        => map.TryGetValue(key, out var raw) && raw is not null
+            ? raw.ToString()?.Trim()
+            : null;
+
     private sealed record ContentRecordSource(
         string Id,
         string Title,
