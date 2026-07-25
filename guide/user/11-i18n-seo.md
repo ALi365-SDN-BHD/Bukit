@@ -36,6 +36,13 @@ site:
     titleSeparator: " | "
     defaultImage: /assets/og.png
     twitterSite: "@example"
+    organization:
+      type: NewsMediaOrganization
+      name: Example News
+      url: https://example.com/
+      logo: https://example.com/assets/logo.png
+      sameAs:
+        - https://www.linkedin.com/company/example/
     schema:
       webPage: true
       collectionPage: true
@@ -49,6 +56,18 @@ and `site.url` must be set, or the build fails with `ConfigInvalidValue`. The
 target is `<site.url><baseUrl><language-prefix><route>?q={search_term_string}`.
 When `route` is omitted, Bukit emits no SearchAction. Search index or UI fragment
 generation alone does not enable it.
+
+`site.seo.organization.type` accepts only `Organization` and
+`NewsMediaOrganization`. Organization `url` and `logo` may be absolute HTTP(S)
+URLs or root-relative URLs resolved against `site.url`; only absolute HTTP(S)
+results are emitted. `organization.sameAs` contains explicit identity URLs,
+omits an empty array, and is never guessed. The configured organization becomes
+the matching publisher for article JSON-LD.
+
+For collection list routes, `site.collections.<name>.noindexWhenEmpty: true`
+marks an empty result as `noindex,follow`. The same indexability decision
+removes that empty route from sitemap, search output, `llms.txt`, and
+`llms-full.txt`.
 
 `SeoPipeline` builds page-level metadata, alternate links, Open Graph, Twitter,
 article metadata, JSON-LD, and report issues. The `Title` property on `SeoModel`

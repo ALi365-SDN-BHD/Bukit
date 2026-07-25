@@ -4,6 +4,16 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+### SEO/GEO Internal Integration
+
+- Added the verified organization publisher contract (`type`, absolute HTTP(S)
+  URL output, and `sameAs`), cross-source relation projection, relation-backed
+  authors, empty-list indexability, company entities, and deterministic publish
+  URL snapshot/change-set schemas.
+- Added the isolated IndexNow process plugin, its minimal project example, and
+  an `osx-arm64` internal Core/plugin install manifest with real SHA-256 values.
+  This is an internal artifact, not a public release or release-gate result.
+
 ### Product Positioning
 
 - **Internal-first operating mode**: Bukit Core adopts Route 2, a deterministic

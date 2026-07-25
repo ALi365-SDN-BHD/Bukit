@@ -4,6 +4,16 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+### SEO/GEO 内部集成
+
+- 新增已核验的组织 publisher 契约（`type`、绝对 HTTP(S) URL 输出与
+  `sameAs`）、跨源 relation 投影、relation-backed author、空列表
+  indexability、企业实体，以及确定性的 publish URL snapshot/change-set
+  schema。
+- 新增隔离的 IndexNow process plugin、最小项目示例，以及带真实 SHA-256
+  的 `osx-arm64` Core/插件内部安装清单。该产物仅供内部使用，不代表公开
+  release 或 release gate 结果。
+
 ### 安全与可靠性修复
 
 - **安全输出清理（F-01）**：显式/配置式 clean、构建清理和 recovery 共用一个受保护 cleaner；危险 root、`.git` descendant、项目外与 symlink/reparse target、无 marker 非空目录都会被拒绝。

@@ -95,9 +95,11 @@ content:
 | `site.seo.titleSeparator` | ` \| ` | Text substituted for `{separator}`; may be explicitly empty. |
 | `site.seo.defaultImage` | none | Default social image. |
 | `site.seo.twitterSite` | none | Twitter/X site handle. |
+| `site.seo.organization.type` | `Organization` | `Organization` or `NewsMediaOrganization`; invalid values fail configuration validation. |
 | `site.seo.organization.name` | none | Organization schema name. |
-| `site.seo.organization.url` | none | Organization URL. |
-| `site.seo.organization.logo` | none | Organization logo. |
+| `site.seo.organization.url` | none | Absolute HTTP(S) URL or root-relative URL resolved against `site.url`; only an absolute HTTP(S) result is emitted. |
+| `site.seo.organization.logo` | none | Absolute HTTP(S) URL or root-relative URL resolved against `site.url`; only an absolute HTTP(S) result is emitted. |
+| `site.seo.organization.sameAs` | empty | Explicit organization identity/profile URLs. Empty values are omitted and Bukit never guesses them. |
 | `site.seo.robotsTxt.enabled` | `false` | Controls generated `robots.txt`. |
 | `site.seo.schema.webPage` | `true` | Emits WebPage JSON-LD. |
 | `site.seo.schema.collectionPage` | `true` | Emits CollectionPage JSON-LD. |
@@ -164,6 +166,7 @@ SearchAction and does not perform the final-route check.
 | `site.collections.<name>.listDescription` | none | List page description. |
 | `site.collections.<name>.listTemplate` | none | List route template. |
 | `site.collections.<name>.schemaFailMode` | none | `off`, `warn`, or `strict`. |
+| `site.collections.<name>.noindexWhenEmpty` | `false` | When true, an empty list route uses `noindex,follow` and is excluded from sitemap, search, `llms.txt`, and `llms-full.txt`. |
 | `site.collections.<name>.pagination.enabled` | `false` | Enables collection pagination. |
 | `site.collections.<name>.pagination.pageSize` | `10` | Positive page size. |
 | `site.collections.<name>.pagination.urlPattern` | `page/:num/` | Relative pattern with `:num`, `{num}`, or `{page}`. |

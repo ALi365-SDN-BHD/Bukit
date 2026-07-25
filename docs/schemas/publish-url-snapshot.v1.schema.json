@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/publish-url-snapshot.v1.json",
+  "title": "Bukit Publish URL Candidate Snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "siteUrl",
+    "routes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "https://bukit.dev/schemas/publish-url-snapshot.v1.json"
+    },
+    "siteUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url",
+          "indexable",
+          "semanticHash"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "indexable": {
+            "type": "boolean"
+          },
+          "semanticHash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

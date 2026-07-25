@@ -12,6 +12,7 @@
     <Project Path="tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj" />
     <Project Path="tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj" />
     <Project Path="tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj" />
+    <Project Path="tests/Bukit.Plugin.IndexNow.Tests/Bukit.Plugin.IndexNow.Tests.csproj" />
     <Project Path="tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj" />
     <Project Path="tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj" />
     <Project Path="tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj" />

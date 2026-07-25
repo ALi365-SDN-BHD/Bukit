@@ -2,8 +2,10 @@
   <Folder Name="/src/Bukit-Plugins/">
     <Project Path="src/Bukit-Plugins/Bukit.Clone/Bukit.Clone.csproj" />
     <Project Path="src/Bukit-Plugins/Bukit.Importing/Bukit.Importing.csproj" />
+    <Project Path="src/Bukit-Plugins/Bukit.IndexNow/Bukit.IndexNow.csproj" />
     <Project Path="src/Bukit-Plugins/Bukit.Plugin.Echo/Bukit.Plugin.Echo.csproj" />
     <Project Path="src/Bukit-Plugins/Bukit.Plugin.Import/Bukit.Plugin.Import.csproj" />
+    <Project Path="src/Bukit-Plugins/Bukit.Plugin.IndexNow/Bukit.Plugin.IndexNow.csproj" />
     <Project Path="src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj" />
     <Project Path="src/Bukit-Plugins/Bukit.WechatSyncing/Bukit.WechatSyncing.csproj" />
     <Project Path="src/Bukit-Plugins/WordCountSectionPlugin/WordCountSectionPlugin.csproj" />

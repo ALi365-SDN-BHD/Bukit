@@ -7,7 +7,7 @@ distribution: self-contained
 platforms:
   osx-arm64:
     entry: bin/osx-arm64/bukit-plugin-indexnow
-    sha256: 0000000000000000000000000000000000000000000000000000000000000000
+    sha256: 32d77f5ce152bb51c6f78a8ad42edb948f7f0ea92aeb761c378b9a8b8f08aa2a
 commands:
   - name: indexnow
     description: Submit verified deployed URL changes through IndexNow.

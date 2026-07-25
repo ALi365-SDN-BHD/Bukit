@@ -21,9 +21,11 @@ public sealed class PluginBoundaryTests
         "Bukit.Labs.Cli",
         "Bukit.Clone",
         "Bukit.Importing",
+        "Bukit.IndexNow",
         "Bukit.WechatSyncing",
         "Bukit.Plugin.Echo",
         "Bukit.Plugin.Import",
+        "Bukit.Plugin.IndexNow",
         "Bukit.Plugin.WechatSync",
         "WordCountSectionPlugin"
     ];
@@ -55,6 +57,7 @@ public sealed class PluginBoundaryTests
         "Bukit.PluginHost",
         "Bukit.Plugin.Echo",
         "Bukit.Plugin.Import",
+        "Bukit.Plugin.IndexNow",
         "Bukit.Plugin.WechatSync",
         "Bukit.Rendering",
         "Bukit.Routing",
@@ -100,8 +103,10 @@ public sealed class PluginBoundaryTests
         "bukit-labs",
         "Bukit.Clone",
         "Bukit.Importing",
+        "Bukit.IndexNow",
         "bukit-plugin-echo",
         "bukit-plugin-import",
+        "bukit-plugin-indexnow",
         "bukit-plugin-wechat-sync",
         "WordCountSectionPlugin"
     ];
@@ -133,6 +138,7 @@ public sealed class PluginBoundaryTests
         "Bukit.PluginHost",
         "bukit-plugin-echo",
         "bukit-plugin-import",
+        "bukit-plugin-indexnow",
         "bukit-plugin-wechat-sync",
         "Bukit.Rendering",
         "Bukit.Routing",
@@ -182,6 +188,7 @@ public sealed class PluginBoundaryTests
         {
             "src/Bukit-Plugins/Bukit.Plugin.Echo/Bukit.Plugin.Echo.csproj",
             "src/Bukit-Plugins/Bukit.Plugin.Import/Bukit.Plugin.Import.csproj",
+            "src/Bukit-Plugins/Bukit.Plugin.IndexNow/Bukit.Plugin.IndexNow.csproj",
             "src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj"
         };
 
@@ -200,6 +207,7 @@ public sealed class PluginBoundaryTests
         var domainProjects = new[]
         {
             "src/Bukit-Plugins/Bukit.Clone/Bukit.Clone.csproj",
+            "src/Bukit-Plugins/Bukit.IndexNow/Bukit.IndexNow.csproj",
             "src/Bukit-Plugins/Bukit.WechatSyncing/Bukit.WechatSyncing.csproj"
         };
 
@@ -246,6 +254,7 @@ public sealed class PluginBoundaryTests
         {
             typeof(Bukit.Plugin.Echo.EchoPluginMarker).Assembly,
             typeof(Bukit.Plugin.Import.ImportPluginApp).Assembly,
+            typeof(Bukit.Plugin.IndexNow.IndexNowPluginApp).Assembly,
             typeof(Bukit.Plugin.WechatSync.WechatSyncPluginApp).Assembly
         };
 
@@ -261,6 +270,7 @@ public sealed class PluginBoundaryTests
         var assemblies = new[]
         {
             typeof(Bukit.Clone.CloneDomainBlueprint).Assembly,
+            typeof(Bukit.IndexNow.IndexNowSubmissionWorkflow).Assembly,
             typeof(Bukit.WechatSyncing.WechatSyncWorkflow).Assembly
         };
 
@@ -314,8 +324,10 @@ public sealed class PluginBoundaryTests
         {
             "src/Bukit-Plugins/Bukit.Clone/Bukit.Clone.csproj",
             "src/Bukit-Plugins/Bukit.Importing/Bukit.Importing.csproj",
+            "src/Bukit-Plugins/Bukit.IndexNow/Bukit.IndexNow.csproj",
             "src/Bukit-Plugins/Bukit.Plugin.Echo/Bukit.Plugin.Echo.csproj",
             "src/Bukit-Plugins/Bukit.Plugin.Import/Bukit.Plugin.Import.csproj",
+            "src/Bukit-Plugins/Bukit.Plugin.IndexNow/Bukit.Plugin.IndexNow.csproj",
             "src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj",
             "src/Bukit-Plugins/Bukit.WechatSyncing/Bukit.WechatSyncing.csproj",
             "src/Bukit-Plugins/WordCountSectionPlugin/WordCountSectionPlugin.csproj"

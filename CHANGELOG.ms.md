@@ -4,6 +4,17 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+### Integrasi Dalaman SEO/GEO
+
+- Menambah kontrak publisher organisasi yang disahkan (`type`, output URL
+  HTTP(S) mutlak, dan `sameAs`), unjuran relation silang sumber, author berasaskan
+  relation, indexability senarai kosong, entiti syarikat, serta schema snapshot
+  dan change-set URL penerbitan yang deterministik.
+- Menambah process plugin IndexNow yang diasingkan, contoh projek minimum, dan
+  manifest pemasangan dalaman Core/plugin `osx-arm64` dengan SHA-256 sebenar.
+  Artifak ini untuk kegunaan dalaman, bukan keluaran awam atau keputusan gate
+  release.
+
 ### Keselamatan Dan Kebolehpercayaan
 
 - **Pembersihan output selamat (F-01)**: Clean eksplisit/konfigurasi, pembersihan build, dan recovery berkongsi cleaner terkawal. Root berbahaya, descendant `.git`, sasaran di luar projek atau symlink/reparse, dan direktori bukan kosong tanpa marker ditolak.

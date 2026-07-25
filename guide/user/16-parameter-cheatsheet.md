@@ -30,6 +30,8 @@
 | `site.seo.homeTitleTemplate` | `{siteTitle}` |
 | `site.seo.pageTitleTemplate` | `{pageTitle}` |
 | `site.seo.titleSeparator` | ` \| ` |
+| `site.seo.organization.type` | `Organization` |
+| `site.seo.organization.sameAs` | empty array |
 | `site.seo.schema.webPage` | `true` |
 | `site.seo.schema.collectionPage` | `true` |
 | `site.seo.schema.searchAction` | `true` |
@@ -65,6 +67,7 @@
 | `site.related.threshold` | `80` |
 | `site.related.limit` | `5` |
 | `site.collections.<name>.pagination.enabled` | `false` |
+| `site.collections.<name>.noindexWhenEmpty` | `false` |
 | `site.collections.<name>.pagination.pageSize` | `10` |
 | `site.collections.<name>.pagination.urlPattern` | `page/:num/` |
 | `site.collections.<name>.pagination.firstPageUsesListRoute` | `true` |
@@ -155,6 +158,9 @@ Safety semantics that do not fit in the default-value table:
 | `site.seo.diagnostics` | `off`, `warn`, `strict` |
 | `site.seo.homeTitleTemplate` | `{pageTitle}`, `{siteTitle}`, and `{separator}` placeholders; must include page or site title |
 | `site.seo.pageTitleTemplate` | `{pageTitle}`, `{siteTitle}`, and `{separator}` placeholders; must include page title |
+| `site.seo.organization.type` | `Organization`, `NewsMediaOrganization` |
+| `site.seo.organization.url`, `logo` | Absolute HTTP(S), or root-relative with `site.url`; output is absolute |
+| `site.seo.organization.sameAs[]` | Explicit identity/profile URLs; empty values are omitted |
 | `site.seo.geo.aiBotMode` | `allow`, `block`, `selective` |
 | Provider `type` | `google-analytics`, `google-tag-manager`, `plausible`, `umami` |
 | Provider `measurementId` | `^G-[A-Z0-9]+$`; Google Analytics only |

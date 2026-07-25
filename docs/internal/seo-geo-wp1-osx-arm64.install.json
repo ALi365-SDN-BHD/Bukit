@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "f95d9a88f9647c9f0363c0d66c4b9335c01616bb",
+  "artifactRoot": "out/internal/seo-geo-wp1/osx-arm64",
+  "core": {
+    "version": "2.0.0",
+    "rid": "osx-arm64",
+    "archive": "core/bukit-2.0.0-osx-arm64.tar.gz",
+    "archiveSha256": "47a8477ce9510530a87c005b4c0d2e8962f2910cdea8ea5df201ea2c36e9d203",
+    "installTarget": ".bukit/tools/bukit/osx-arm64/"
+  },
+  "plugin": {
+    "id": "indexnow",
+    "version": "0.1.0",
+    "protocol": "bukit-plugin-v1",
+    "rid": "osx-arm64",
+    "entry": "plugins/indexnow/bin/osx-arm64/bukit-plugin-indexnow",
+    "entrySha256": "32d77f5ce152bb51c6f78a8ad42edb948f7f0ea92aeb761c378b9a8b8f08aa2a",
+    "package": "seo-geo-wp1-core-2.0.0-indexnow-0.1.0-osx-arm64.tar.gz",
+    "packageSha256": "bdaece1f20c91d3ad9ac7626ba41aefb85091d481023cce39e44edba6c39aaec",
+    "installTarget": "plugins/indexnow/"
+  }
+}
