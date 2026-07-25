@@ -88,6 +88,7 @@ public sealed class IndexNowSubmissionWorkflow
                 return new IndexNowSubmissionResult(true, state.Deployed.Count, 0, state.Pending.Count, diagnostics);
             }
 
+            _ = IndexNowKeyFileWriter.Write(request.OutputRoot, request.Key);
             foreach (var change in actionable)
             {
                 try
@@ -116,13 +117,52 @@ public sealed class IndexNowSubmissionWorkflow
                 return new IndexNowSubmissionResult(false, state.Deployed.Count, 0, state.Pending.Count, diagnostics);
             }
 
-            _ = IndexNowKeyFileWriter.Write(request.OutputRoot, request.Key);
             var deployed = state.Deployed.Concat(actionable.Select(change => change.Url))
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(value => value, StringComparer.Ordinal)
                 .ToArray();
-            state = state with { Deployed = deployed };
+            var verifiedPending = state.Pending.Concat(actionable)
+                .GroupBy(IndexNowStateStore.Fingerprint, StringComparer.Ordinal)
+                .Select(group => group.First())
+                .OrderBy(change => change.Url, StringComparer.Ordinal)
+                .ToArray();
+            state = state with { Deployed = deployed, Pending = verifiedPending };
             await _stateStore.SaveAsync(statePath, state, cancellationToken);
+
+            var keyLocation = new Uri(siteUrl, request.Key + ".txt");
+            IndexNowPageResponse keyResponse;
+            try
+            {
+                keyResponse = await _transport.GetPageAsync(keyLocation, cancellationToken);
+            }
+            catch (Exception exception) when (
+                exception is HttpRequestException or
+                TaskCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                diagnostics.Add(new IndexNowDiagnostic(
+                    "plugin.indexnow.keyUnavailable",
+                    "warning",
+                    "The public IndexNow key file is not reachable yet; deploy the output and retry."));
+                return new IndexNowSubmissionResult(false, state.Deployed.Count, 0, state.Pending.Count, diagnostics);
+            }
+
+            if (keyResponse.StatusCode != 200)
+            {
+                diagnostics.Add(new IndexNowDiagnostic(
+                    "plugin.indexnow.keyUnavailable",
+                    "warning",
+                    "The public IndexNow key file is not reachable yet; deploy the output and retry."));
+                return new IndexNowSubmissionResult(false, state.Deployed.Count, 0, state.Pending.Count, diagnostics);
+            }
+
+            if (!string.Equals(keyResponse.Body?.Trim(), request.Key, StringComparison.Ordinal))
+            {
+                diagnostics.Add(new IndexNowDiagnostic(
+                    "plugin.indexnow.keyMismatch",
+                    "error",
+                    "The public IndexNow key file does not match INDEXNOW_KEY."));
+                return new IndexNowSubmissionResult(false, state.Deployed.Count, 0, state.Pending.Count, diagnostics);
+            }
 
             var totalNotified = 0;
             var overallSuccess = true;
@@ -297,7 +337,8 @@ public sealed class IndexNowSubmissionWorkflow
 
             if (change.Type is "added" or "updated")
             {
-                if (!routes.ContainsKey(change.Url))
+                if (!routes.TryGetValue(change.Url, out var route) ||
+                    !string.Equals(route.SemanticHash, change.SemanticHash, StringComparison.Ordinal))
                 {
                     throw new InvalidOperationException("Added or updated change must match the candidate snapshot.");
                 }

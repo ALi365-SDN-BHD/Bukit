@@ -18,14 +18,15 @@ public sealed partial class IndexNowHttpClient : IIndexNowTransport
     {
         using var response = await _client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         string? canonical = null;
+        string? body = null;
         if (response.StatusCode == HttpStatusCode.OK)
         {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            body = await response.Content.ReadAsStringAsync(cancellationToken);
             var match = CanonicalLink().Match(body);
             canonical = match.Success ? WebUtility.HtmlDecode(match.Groups["url"].Value) : null;
         }
 
-        return new IndexNowPageResponse((int)response.StatusCode, canonical);
+        return new IndexNowPageResponse((int)response.StatusCode, canonical, body);
     }
 
     public async Task<IndexNowSubmitResponse> SubmitAsync(

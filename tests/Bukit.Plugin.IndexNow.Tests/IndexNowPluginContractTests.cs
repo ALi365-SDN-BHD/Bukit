@@ -24,7 +24,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(_snapshotPath)!);
         WriteSnapshot("https://silushangxun.com/one/", "https://silushangxun.com/two/");
         WriteChangeSet(
-            ("added", "https://silushangxun.com/one/", Hash('a')),
+            ("added", "https://silushangxun.com/one/", Hash('f')),
             ("deleted", "https://silushangxun.com/two/", Hash('b')));
     }
 
@@ -159,7 +159,11 @@ public sealed class IndexNowPluginContractTests : IDisposable
 
         Assert.True(result.Success, string.Join(" | ", result.Diagnostics.Select(item => $"{item.Code}:{item.Message}")));
         Assert.Equal(
-            ["https://silushangxun.com/one/", "https://silushangxun.com/two/"],
+            [
+                "https://silushangxun.com/one/",
+                "https://silushangxun.com/two/",
+                "https://silushangxun.com/key-for-public-file.txt"
+            ],
             transport.PageRequests);
         var submitted = Assert.Single(transport.Submissions);
         Assert.Equal(["https://silushangxun.com/one/", "https://silushangxun.com/two/"], submitted.Urls);
@@ -169,7 +173,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
     [Fact]
     public async Task Workflow_RejectsCanonicalMismatchAndInjectedChangeUrlWithoutPosting()
     {
-        WriteChangeSet(("added", "https://silushangxun.com.evil/one/", Hash('a')));
+        WriteChangeSet(("added", "https://silushangxun.com.evil/one/", Hash('f')));
         var injectedTransport = new FakeTransport();
         var workflow = new IndexNowSubmissionWorkflow(injectedTransport, new FakeDelay());
 
@@ -179,7 +183,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
         Assert.Empty(injectedTransport.PageRequests);
         Assert.Empty(injectedTransport.Submissions);
 
-        WriteChangeSet(("added", "https://silushangxun.com/one/", Hash('a')));
+        WriteChangeSet(("added", "https://silushangxun.com/one/", Hash('f')));
         var mismatchTransport = new FakeTransport
         {
             PageResponses =
@@ -191,13 +195,14 @@ public sealed class IndexNowPluginContractTests : IDisposable
             .RunAsync(RequestForWorkflow("key"));
         Assert.False(mismatch.Success);
         Assert.Empty(mismatchTransport.Submissions);
+        Assert.Equal("key", File.ReadAllText(Path.Combine(_outputDir, "key.txt")));
     }
 
     [Fact]
     public async Task Workflow_PreflightNetworkFailureIsStructuredAndHasNoSubmissionSideEffects()
     {
         WriteSnapshot("https://silushangxun.com/one/");
-        WriteChangeSet(("added", "https://silushangxun.com/one/", Hash('a')));
+        WriteChangeSet(("added", "https://silushangxun.com/one/", Hash('f')));
         var transport = new FakeTransport { PageException = new HttpRequestException("offline with private details") };
 
         var result = await new IndexNowSubmissionWorkflow(transport, new FakeDelay())
@@ -206,7 +211,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
         Assert.False(result.Success);
         Assert.Contains(result.Diagnostics, item => item.Code == "plugin.indexnow.preflightUnavailable");
         Assert.Empty(transport.Submissions);
-        Assert.False(File.Exists(Path.Combine(_outputDir, "public-key.txt")));
+        Assert.Equal("public-key", File.ReadAllText(Path.Combine(_outputDir, "public-key.txt")));
         Assert.False(File.Exists(Path.Combine(_rootDir, ".cache", "indexnow", "state.json")));
         Assert.DoesNotContain("private details", JsonSerializer.Serialize(result), StringComparison.Ordinal);
     }
@@ -215,7 +220,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
     public async Task Workflow_RejectsStateDirectorySymlinkEscapeBeforeWritingOrSubmitting()
     {
         WriteSnapshot("https://silushangxun.com/one/");
-        WriteChangeSet(("added", "https://silushangxun.com/one/", Hash('a')));
+        WriteChangeSet(("added", "https://silushangxun.com/one/", Hash('f')));
         var outside = Path.Combine(Path.GetTempPath(), "bukit-indexnow-workflow-outside-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outside);
         Directory.CreateDirectory(Path.Combine(_rootDir, ".cache"));
@@ -239,11 +244,93 @@ public sealed class IndexNowPluginContractTests : IDisposable
     }
 
     [Fact]
+    public async Task Workflow_RejectsStaleChangeHashBeforeNetworkKeyOrState()
+    {
+        const string url = "https://silushangxun.com/one/";
+        WriteSnapshot(url);
+        WriteChangeSet(("updated", url, Hash('e')));
+        var transport = new FakeTransport();
+
+        var result = await new IndexNowSubmissionWorkflow(transport, new FakeDelay())
+            .RunAsync(RequestForWorkflow("public-key"));
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, item => item.Code == "plugin.indexnow.invalidInput");
+        Assert.Empty(transport.PageRequests);
+        Assert.Empty(transport.Submissions);
+        Assert.False(File.Exists(Path.Combine(_outputDir, "public-key.txt")));
+        Assert.False(File.Exists(Path.Combine(_rootDir, ".cache", "indexnow", "state.json")));
+    }
+
+    [Fact]
+    public async Task Workflow_KeyNotYetPublicKeepsVerifiedContentPendingThenRetryReceives()
+    {
+        const string url = "https://silushangxun.com/one/";
+        const string key = "public-key";
+        const string keyUrl = "https://silushangxun.com/public-key.txt";
+        WriteSnapshot(url);
+        WriteChangeSet(("updated", url, Hash('f')));
+        var firstTransport = new FakeTransport { AutoServeKeyFiles = false };
+        firstTransport.PageResponses[url] = new IndexNowPageResponse(200, url);
+        firstTransport.PageResponses[keyUrl] = new IndexNowPageResponse(404, null, null);
+
+        var first = await new IndexNowSubmissionWorkflow(firstTransport, new FakeDelay())
+            .RunAsync(RequestForWorkflow(key));
+
+        Assert.False(first.Success);
+        Assert.Contains(first.Diagnostics, item => item.Code == "plugin.indexnow.keyUnavailable");
+        Assert.Equal(key, File.ReadAllText(Path.Combine(_outputDir, key + ".txt")));
+        Assert.Empty(firstTransport.Submissions);
+        var pending = await LoadStateAsync();
+        Assert.Equal([url], pending.Deployed);
+        Assert.Empty(pending.Notified);
+        Assert.Single(pending.Pending);
+
+        var secondTransport = new FakeTransport { AutoServeKeyFiles = false };
+        secondTransport.PageResponses[url] = new IndexNowPageResponse(200, url);
+        secondTransport.PageResponses[keyUrl] = new IndexNowPageResponse(200, null, " \npublic-key\t");
+        secondTransport.SubmitResponses.Add(new IndexNowSubmitResponse(200));
+
+        var second = await new IndexNowSubmissionWorkflow(secondTransport, new FakeDelay())
+            .RunAsync(RequestForWorkflow(key));
+
+        Assert.True(second.Success, string.Join(" | ", second.Diagnostics.Select(item => item.Message)));
+        Assert.Single(secondTransport.Submissions);
+        var received = await LoadStateAsync();
+        Assert.Empty(received.Pending);
+        Assert.Equal($"updated\n{url}\n{Hash('f')}", received.Notified[url]);
+    }
+
+    [Fact]
+    public async Task Workflow_PublicKeyWrongBodyNeverSubmitsAndKeepsPending()
+    {
+        const string url = "https://silushangxun.com/one/";
+        const string key = "public-key";
+        WriteSnapshot(url);
+        WriteChangeSet(("added", url, Hash('f')));
+        var transport = new FakeTransport { AutoServeKeyFiles = false };
+        transport.PageResponses[url] = new IndexNowPageResponse(200, url);
+        transport.PageResponses["https://silushangxun.com/public-key.txt"] =
+            new IndexNowPageResponse(200, null, "different-key");
+
+        var result = await new IndexNowSubmissionWorkflow(transport, new FakeDelay())
+            .RunAsync(RequestForWorkflow(key));
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, item => item.Code == "plugin.indexnow.keyMismatch");
+        Assert.Empty(transport.Submissions);
+        var state = await LoadStateAsync();
+        Assert.Equal([url], state.Deployed);
+        Assert.Single(state.Pending);
+        Assert.Empty(state.Notified);
+    }
+
+    [Fact]
     public async Task Workflow_BatchesAtTenThousandWithStableDeduplication()
     {
         var changes = Enumerable.Range(0, 10_001)
-            .Select(index => ("added", $"https://silushangxun.com/items/{index:D5}/", "sha256:" + index.ToString("x64")))
-            .Concat([("added", "https://silushangxun.com/items/00000/", "sha256:" + 0.ToString("x64"))])
+            .Select(index => ("added", $"https://silushangxun.com/items/{index:D5}/", Hash('f')))
+            .Concat([("added", "https://silushangxun.com/items/00000/", Hash('f'))])
             .ToArray();
         WriteSnapshot(changes.Select(change => change.Item2).ToArray());
         WriteChangeSet(changes);
@@ -264,7 +351,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
     public async Task Workflow_Retries429WithinBoundAndClassifiesServerFailureAsPending()
     {
         WriteSnapshot("https://silushangxun.com/one/");
-        WriteChangeSet(("updated", "https://silushangxun.com/one/", Hash('c')));
+        WriteChangeSet(("updated", "https://silushangxun.com/one/", Hash('f')));
         var delay = new FakeDelay();
         var transport = new FakeTransport
         {
@@ -296,7 +383,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
     public async Task Workflow_TerminalResponsesNeverAdvanceNotifiedOrPending(int status)
     {
         WriteSnapshot("https://silushangxun.com/one/");
-        WriteChangeSet(("added", "https://silushangxun.com/one/", Hash('a')));
+        WriteChangeSet(("added", "https://silushangxun.com/one/", Hash('f')));
         var transport = new FakeTransport
         {
             DefaultPageResponse = new IndexNowPageResponse(200, null),
@@ -316,7 +403,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
     public async Task Workflow_RestoresPendingAndDoesNotRenotifyEquivalentSuccessfulUrls()
     {
         WriteSnapshot("https://silushangxun.com/one/");
-        WriteChangeSet(("updated", "https://silushangxun.com/one/", Hash('c')));
+        WriteChangeSet(("updated", "https://silushangxun.com/one/", Hash('f')));
         var firstTransport = new FakeTransport
         {
             DefaultPageResponse = new IndexNowPageResponse(200, null),
@@ -366,7 +453,9 @@ public sealed class IndexNowPluginContractTests : IDisposable
         Assert.True(result.Success, string.Join(" | ", result.Diagnostics.Select(item => item.Message)));
         var submission = Assert.Single(transport.Submissions);
         Assert.Equal([url], submission.Urls);
-        Assert.Single(transport.PageRequests);
+        Assert.Equal(
+            [url, "https://silushangxun.com/public-key.txt"],
+            transport.PageRequests);
         var state = await LoadStateAsync();
         Assert.Empty(state.Pending);
         Assert.Equal($"deleted\nhttps://silushangxun.com/one/\n{Hash('c')}", state.Notified[url]);
@@ -407,12 +496,12 @@ public sealed class IndexNowPluginContractTests : IDisposable
     {
         const string url = "https://silushangxun.com/one/";
         WriteSnapshot(url);
-        WriteChangeSet(("updated", url, Hash('c')));
+        WriteChangeSet(("updated", url, Hash('f')));
         await SaveStateAsync(IndexNowState.Empty with
         {
             Notified = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [url] = $"updated\nhttps://silushangxun.com.evil/one/\n{Hash('c')}"
+                [url] = $"updated\nhttps://silushangxun.com.evil/one/\n{Hash('f')}"
             }
         });
         var transport = new FakeTransport();
@@ -460,13 +549,13 @@ public sealed class IndexNowPluginContractTests : IDisposable
     public async Task Workflow_ClearsPendingAlreadyCoveredByEquivalentNotifiedState()
     {
         const string url = "https://silushangxun.com/one/";
-        var fingerprint = $"updated\nhttps://silushangxun.com/one/\n{Hash('c')}";
+        var fingerprint = $"updated\nhttps://silushangxun.com/one/\n{Hash('f')}";
         WriteSnapshot(url);
-        WriteChangeSet(("updated", url, Hash('c')));
+        WriteChangeSet(("updated", url, Hash('f')));
         await SaveStateAsync(IndexNowState.Empty with
         {
             Notified = new Dictionary<string, string>(StringComparer.Ordinal) { [url] = fingerprint },
-            Pending = [new IndexNowPendingChange("updated", url, Hash('c'))]
+            Pending = [new IndexNowPendingChange("updated", url, Hash('f'))]
         });
         var transport = new FakeTransport();
 
@@ -677,6 +766,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
     {
         public Dictionary<string, IndexNowPageResponse> PageResponses { get; } = new(StringComparer.Ordinal);
         public IndexNowPageResponse? DefaultPageResponse { get; set; }
+        public bool AutoServeKeyFiles { get; set; } = true;
         public List<IndexNowSubmitResponse> SubmitResponses { get; } = [];
         public Exception? SubmitException { get; set; }
         public Exception? PageException { get; set; }
@@ -694,6 +784,14 @@ public sealed class IndexNowPluginContractTests : IDisposable
             if (PageResponses.TryGetValue(url.AbsoluteUri, out var response))
             {
                 return Task.FromResult(response);
+            }
+
+            if (AutoServeKeyFiles && url.AbsolutePath.EndsWith(".txt", StringComparison.Ordinal))
+            {
+                return Task.FromResult(new IndexNowPageResponse(
+                    200,
+                    null,
+                    Path.GetFileNameWithoutExtension(url.AbsolutePath)));
             }
 
             var fallback = DefaultPageResponse ?? throw new InvalidOperationException("Missing fake page response.");

@@ -20,7 +20,10 @@ public sealed record IndexNowSubmissionResult(
 
 public sealed record IndexNowDiagnostic(string Code, string Severity, string Message, string? Path = null);
 
-public sealed record IndexNowPageResponse(int StatusCode, string? CanonicalUrl);
+public sealed record IndexNowPageResponse(
+    int StatusCode,
+    string? CanonicalUrl,
+    string? Body = null);
 
 public sealed record IndexNowSubmitResponse(int StatusCode);
 
