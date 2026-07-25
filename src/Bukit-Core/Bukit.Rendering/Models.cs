@@ -131,6 +131,7 @@ public sealed record PageModel
 {
     public required SiteModel Site { get; init; }
     public required PageInfo Page { get; init; }
+    public IReadOnlyList<PageInfo> Pages { get; init; } = Array.Empty<PageInfo>();
 }
 
 public sealed record ListPaginationModel

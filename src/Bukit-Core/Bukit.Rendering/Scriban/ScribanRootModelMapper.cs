@@ -10,6 +10,7 @@ internal static class ScribanRootModelMapper
         var root = new ScriptObject();
         root.SetValue("site", ScribanSiteModelMapper.ToScriptObject(model.Site), readOnly: true);
         root.SetValue("page", ScribanPageModelMapper.ToScriptObject(model.Page), readOnly: true);
+        root.SetValue("pages", ScribanListModelMapper.ToPageInfoScriptArray(model.Pages), readOnly: true);
         if (model.Page.Seo is not null)
         {
             root.SetValue("seo", ScribanSeoModelMapper.ToScriptObject(model.Page.Seo), readOnly: true);

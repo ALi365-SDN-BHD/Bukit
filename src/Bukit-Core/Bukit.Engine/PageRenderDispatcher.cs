@@ -68,6 +68,30 @@ internal static class PageRenderDispatcher
         }
 
         var needsIncrementalMode = incrementalEnabled && manifestEntries is not null;
+        var pageIndex = entries
+            .Where(e => e.Kind == RenderEntryKind.Page && e.Document is not null)
+            .Select(e =>
+            {
+                var document = e.Document!;
+                var pageInfo = new PageInfo
+                {
+                    Title = document.Title,
+                    Url = e.Route.Url,
+                    Content = string.Empty,
+                    Summary = document.Record.Presentation.Summary ?? ContentFieldReader.GetSummary(document),
+                    PublishDate = document.PublishAt,
+                    UpdatedAt = document.Record.Lifecycle.UpdatedAt,
+                    Fields = document.CustomFields,
+                    ContentRecord = document.Record,
+                    Entities = document.Record.Entities,
+                    Provenance = document.Record.Provenance,
+                    Trust = document.Record.Trust,
+                    Representations = PublishRepresentationRegistry.DocumentKinds(),
+                    Seo = seoBuilder?.Invoke(document, e.Route)
+                };
+                return RouteMetadataApplicator.ApplyToPage(pageInfo, e.Route.Url, routeMetadata, document);
+            })
+            .ToArray();
 
         await Parallel.ForEachAsync(entries, parallelOptions, async (entry, ct) =>
         {
@@ -166,7 +190,7 @@ internal static class PageRenderDispatcher
                             pageInfo = RouteMetadataApplicator.ApplyToPage(
                                 pageInfo, route.Url, routeMetadata, document);
                         }
-                        var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
+                        var pageModel = new PageModel { Site = siteModel, Page = pageInfo, Pages = pageIndex };
                         var html = renderer.RenderPage(route.Template, pageModel);
                         if (htmlTransformPipeline is not null)
                         {
@@ -246,7 +270,7 @@ internal static class PageRenderDispatcher
                             Representations = [PublishRepresentationRegistry.Html.Kind]
                         };
                         pageInfo = RouteMetadataApplicator.ApplyToPage(pageInfo, route.Url, routeMetadata);
-                        var pageModel = new PageModel { Site = siteModel, Page = pageInfo };
+                        var pageModel = new PageModel { Site = siteModel, Page = pageInfo, Pages = pageIndex };
                         var staticHtml = renderer.RenderPage(route.Template, pageModel);
                         if (htmlTransformPipeline is not null)
                         {

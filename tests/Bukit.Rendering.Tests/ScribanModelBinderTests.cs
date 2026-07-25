@@ -15,7 +15,11 @@ public sealed class ScribanModelBinderTests
         var model = new PageModel
         {
             Site = CreateMinimalSite(),
-            Page = CreateMinimalPage()
+            Page = CreateMinimalPage(),
+            Pages =
+            [
+                CreateMinimalPage() with { Title = "Author Profile", Url = "/authors/editorial/" }
+            ]
         };
 
         var mapped = ScribanRootModelMapper.ToScriptObject(model);
@@ -24,6 +28,8 @@ public sealed class ScribanModelBinderTests
         Assert.Equal(facade.Keys, mapped.Keys);
         Assert.IsType<ScriptObject>(mapped["site"]);
         Assert.IsType<ScriptObject>(mapped["page"]);
+        var mappedPages = Assert.IsType<ScriptArray>(mapped["pages"]);
+        Assert.Equal("Author Profile", Assert.IsType<ScriptObject>(mappedPages[0])["title"]);
 
         var listModel = new ListPageModel
         {
