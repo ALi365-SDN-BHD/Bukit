@@ -45,10 +45,22 @@ production output root only from the required
 `<output>/.bukit/publish-url-snapshot.json` layout.
 
 `INDEXNOW_KEY` is the only accepted key source and must be explicitly granted
-through the plugin environment permission. Online submission writes the public
-`{key}.txt` only in the derived production output root and keeps notification
-state under the exact `.cache/indexnow` state directory. Dry-run performs no
-network call, key-file write, or state mutation.
+through the plugin environment permission. The non-dry-run workflow is
+deliberately two-phase:
+
+1. **Phase 1 — generate locally:** run the command to write the public
+   `{key}.txt` into the derived production output root. The run may remain
+   pending and must not submit while the deployed content/key proof is absent.
+2. Deploy the generated output to GitHub Pages, including `{key}.txt`.
+3. **Phase 2 — verify and notify:** rerun the same command. The plugin checks
+   deployed content first, then fetches the public key URL. Only when that
+   response is HTTP 200 and its response body exactly equals `INDEXNOW_KEY`
+   is the public key proof accepted. Only then does the plugin submit the
+   verified URL batch to IndexNow. Whitespace normalization is not accepted as
+   equality.
+
+Notification state remains under the exact `.cache/indexnow` directory.
+Dry-run performs no network call, key-file write, or state mutation.
 
 The internal SRBiz install bundle is platform-specific. Its installer manifest
 records Core and plugin versions, the `osx-arm64` RID, relative install targets,

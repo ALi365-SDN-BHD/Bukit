@@ -93,6 +93,12 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Contains("osx-arm64", pluginGuide, StringComparison.Ordinal);
         Assert.Contains("SHA-256", pluginGuide, StringComparison.Ordinal);
         Assert.Contains("internal", pluginGuide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Phase 1", pluginGuide, StringComparison.Ordinal);
+        Assert.Contains("Deploy the generated output to GitHub Pages", pluginGuide, StringComparison.Ordinal);
+        Assert.Contains("rerun the same command", pluginGuide, StringComparison.Ordinal);
+        Assert.Contains("HTTP 200", pluginGuide, StringComparison.Ordinal);
+        Assert.Contains("response body exactly equals `INDEXNOW_KEY`", pluginGuide, StringComparison.Ordinal);
+        Assert.Contains("only then", pluginGuide, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -163,6 +169,9 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Contains("tests/Bukit.Plugin.IndexNow.Tests/Bukit.Plugin.IndexNow.Tests.csproj", testProjects);
 
         using var install = ReadJson("docs", "internal", "seo-geo-wp1-osx-arm64.install.json");
+        Assert.Equal(
+            "d186278302caa3b757d1a233468c4fe7e89766b2",
+            install.RootElement.GetProperty("sourceCommit").GetString());
         var core = install.RootElement.GetProperty("core");
         Assert.Equal("2.0.0", core.GetProperty("version").GetString());
         Assert.Equal("osx-arm64", core.GetProperty("rid").GetString());
