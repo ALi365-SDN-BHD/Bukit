@@ -21,7 +21,9 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         var fields = ApplyContentModelDefaults(
             ApplyCanonicalMappings(BuildInputFieldMap(raw), schema),
             schema);
-        var diagnostics = BuildDiagnostics(raw, fields, schema);
+        var diagnostics = raw.Diagnostics
+            .Concat(BuildDiagnostics(raw, fields, schema))
+            .ToArray();
         ThrowIfUnknownRawKeyRejected(schema, diagnostics);
         var normalizedRaw = raw with { CustomFields = fields };
         return new ContentDocument(

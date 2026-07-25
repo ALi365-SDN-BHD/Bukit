@@ -415,7 +415,6 @@ internal static partial class CanonicalContentGraphBuilder
                     ?? ReadMappedValue(value, "title")
                     ?? ReadMappedValue(value, "name")
                     ?? ReadMappedValue(value, "label")
-                    ?? ReadMappedValue(value, "id")
                     ?? value.Scalar;
                 if (string.IsNullOrWhiteSpace(target))
                 {

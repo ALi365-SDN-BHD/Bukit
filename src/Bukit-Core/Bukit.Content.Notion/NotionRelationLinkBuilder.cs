@@ -6,7 +6,9 @@ internal sealed record RelationTargetInfo(
     string Title,
     string Slug,
     string Type,
-    string? Url);
+    string? Url,
+    string? Image = null,
+    IReadOnlyList<string>? SameAs = null);
 
 internal static class NotionRelationLinkBuilder
 {

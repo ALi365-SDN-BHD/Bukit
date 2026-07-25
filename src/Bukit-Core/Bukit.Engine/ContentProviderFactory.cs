@@ -74,7 +74,7 @@ internal static class ContentProviderFactory
                 throw new ConfigException($"Unsupported content source type: {type}", DiagnosticCode.ConfigInvalidValue);
             }
 
-            return new CompositeContentProvider(providers);
+            return new CompositeContentProvider(providers, ContentModelSchemaFactory.FromConfig(config));
         }
 
         throw new ConfigException("content.sources is required in Bukit 1.0.", DiagnosticCode.ConfigRequiredFieldMissing);

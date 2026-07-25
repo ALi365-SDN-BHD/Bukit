@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Content.Notion;
 using Bukit.Shared;
 
 namespace Bukit.Content;
@@ -6,17 +7,34 @@ namespace Bukit.Content;
 public sealed class CompositeContentProvider : IContentProvider
 {
     private readonly IReadOnlyList<(string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)> _providers;
+    private readonly ContentModelSchema? _schema;
 
     public CompositeContentProvider(IReadOnlyList<(string SourceKey, string SourceMode, IContentProvider Provider)> providers)
+        : this(providers, schema: null)
+    {
+    }
+
+    public CompositeContentProvider(
+        IReadOnlyList<(string SourceKey, string SourceMode, IContentProvider Provider)> providers,
+        ContentModelSchema? schema)
     {
         _providers = providers
             .Select(x => (x.SourceKey, x.SourceMode, Collection: (string?)null, AddToCollections: (IReadOnlyList<string>?)null, x.Provider))
             .ToList();
+        _schema = schema;
     }
 
     public CompositeContentProvider(IReadOnlyList<(string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)> providers)
+        : this(providers, schema: null)
+    {
+    }
+
+    public CompositeContentProvider(
+        IReadOnlyList<(string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)> providers,
+        ContentModelSchema? schema)
     {
         _providers = providers;
+        _schema = schema;
     }
 
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
@@ -29,13 +47,20 @@ public sealed class CompositeContentProvider : IContentProvider
 
         await Task.WhenAll(tasks);
 
+        var relationSources = new NotionRelationProjectionSource[_providers.Count];
+        for (var i = 0; i < _providers.Count; i++)
+        {
+            relationSources[i] = new NotionRelationProjectionSource(_providers[i].SourceKey, (await tasks[i]).Documents);
+        }
+        var projectedSources = await NotionCrossSourceRelationProjector.ProjectAsync(relationSources, _schema, cancellationToken);
+
         var all = new List<RawContentDocument>();
         var stores = new Dictionary<string, IContentBodyStore>(StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < _providers.Count; i++)
         {
             var (sourceKey, sourceMode, collection, addToCollections, _) = _providers[i];
             var result = await tasks[i];
-            var items = result.Documents;
+            var items = projectedSources[i].Documents;
             stores[sourceKey] = result.BodyStore;
 
             foreach (var item in items)

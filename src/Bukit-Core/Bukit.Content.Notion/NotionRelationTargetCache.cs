@@ -14,7 +14,7 @@ internal sealed class NotionRelationTargetCache
         _relationsDir = relationsDir;
     }
 
-    internal static NotionRelationTargetCache? Create(string? mode, string? rootDir)
+    internal static NotionRelationTargetCache? Create(string? mode, string? rootDir, string? scope = null)
     {
         var normalizedMode = (mode ?? "off").Trim().ToLowerInvariant();
         if (normalizedMode == "off" || string.IsNullOrWhiteSpace(rootDir))
@@ -23,6 +23,10 @@ internal sealed class NotionRelationTargetCache
         }
 
         var relationsDir = Path.Combine(rootDir.Trim(), "relations");
+        if (!string.IsNullOrWhiteSpace(scope))
+        {
+            relationsDir = Path.Combine(relationsDir, ToSafePathSegment(scope));
+        }
         Directory.CreateDirectory(relationsDir);
         return new NotionRelationTargetCache(normalizedMode, relationsDir);
     }
@@ -46,10 +50,16 @@ internal sealed class NotionRelationTargetCache
             }
 
             var cachedPageId = GetString(root, "pageId");
+            if (!root.TryGetProperty("version", out var version) || version.ValueKind != JsonValueKind.Number || version.GetInt32() != 2)
+            {
+                return null;
+            }
             var title = GetString(root, "title");
             var slug = GetString(root, "slug");
             var type = GetString(root, "type");
             var url = GetNullableString(root, "url");
+            var image = GetNullableString(root, "image");
+            var sameAs = GetStringList(root, "sameAs");
 
             if (string.IsNullOrWhiteSpace(cachedPageId) ||
                 string.IsNullOrWhiteSpace(title) ||
@@ -59,7 +69,7 @@ internal sealed class NotionRelationTargetCache
                 return null;
             }
 
-            return new RelationTargetInfo(cachedPageId, title, slug, type, url);
+            return new RelationTargetInfo(cachedPageId, title, slug, type, url, image, sameAs);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -82,7 +92,7 @@ internal sealed class NotionRelationTargetCache
         await using var stream = File.Create(path);
         await using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false });
         writer.WriteStartObject();
-        writer.WriteNumber("version", 1);
+        writer.WriteNumber("version", 2);
         writer.WriteString("pageId", target.PageId);
         writer.WriteString("title", target.Title);
         writer.WriteString("slug", target.Slug);
@@ -95,6 +105,21 @@ internal sealed class NotionRelationTargetCache
         {
             writer.WriteString("url", target.Url);
         }
+        if (target.Image is null)
+        {
+            writer.WriteNull("image");
+        }
+        else
+        {
+            writer.WriteString("image", target.Image);
+        }
+        writer.WritePropertyName("sameAs");
+        writer.WriteStartArray();
+        foreach (var sameAs in target.SameAs ?? Array.Empty<string>())
+        {
+            writer.WriteStringValue(sameAs);
+        }
+        writer.WriteEndArray();
         writer.WriteEndObject();
         await writer.FlushAsync(cancellationToken);
     }
@@ -103,6 +128,9 @@ internal sealed class NotionRelationTargetCache
     {
         return Path.Combine(_relationsDir, $"{pageId}.json");
     }
+
+    private static string ToSafePathSegment(string scope)
+        => string.Concat(scope.Trim().Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '_'));
 
     private static string GetString(JsonElement element, string name)
     {
@@ -119,5 +147,20 @@ internal sealed class NotionRelationTargetCache
         }
 
         return value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    }
+
+    private static IReadOnlyList<string> GetStringList(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<string>();
+        }
+
+        return value.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString()?.Trim())
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Cast<string>()
+            .ToArray();
     }
 }
