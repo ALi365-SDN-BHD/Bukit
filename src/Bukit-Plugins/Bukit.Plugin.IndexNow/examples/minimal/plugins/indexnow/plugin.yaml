@@ -1,0 +1,47 @@
+id: indexnow
+name: Bukit IndexNow Plugin
+version: 0.1.0
+protocol: bukit-plugin-v1
+kind: process
+distribution: self-contained
+platforms:
+  osx-arm64:
+    entry: bin/osx-arm64/bukit-plugin-indexnow
+    sha256: 0000000000000000000000000000000000000000000000000000000000000000
+commands:
+  - name: indexnow
+    description: Submit verified deployed URL changes through IndexNow.
+    subcommands:
+      - name: submit
+        description: Verify deployed URL changes and submit them through IndexNow.
+        options:
+          - name: --change-set
+            type: string
+            description: Publish URL change-set path.
+            required: true
+          - name: --snapshot
+            type: string
+            description: Candidate publish URL snapshot path.
+            required: true
+          - name: --site-url
+            type: string
+            description: Exact production site URL.
+            required: true
+          - name: --state-dir
+            type: string
+            description: IndexNow state directory.
+            required: true
+          - name: --dry-run
+            type: flag
+            description: Validate local inputs without network or writes.
+requiredPermissions:
+  fileSystem:
+    read:
+      - .
+    write:
+      - .cache/indexnow
+      - ./dist
+  network: true
+  environment:
+    read:
+      - INDEXNOW_KEY

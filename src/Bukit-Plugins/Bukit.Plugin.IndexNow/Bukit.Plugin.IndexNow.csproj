@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>bukit-plugin-indexnow</AssemblyName>
+    <RootNamespace>Bukit.Plugin.IndexNow</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Plugin.Abstractions\Bukit.Plugin.Abstractions.csproj" />
+    <ProjectReference Include="..\Bukit.IndexNow\Bukit.IndexNow.csproj" />
+  </ItemGroup>
+
+</Project>
