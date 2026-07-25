@@ -105,6 +105,77 @@ public sealed class SeoAuthorProfileTests
         Assert.DoesNotContain(model.JsonLd, json => json.Contains("geo.example", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("FAQPage")]
+    [InlineData("HowTo")]
+    public void BuildForContent_SpecializedSchemaWithRelationProfile_SuppressesConflictingGeoAuthor(
+        string schemaType)
+    {
+        var document = CreateDocument(
+            ("authoredby", Profiles(Profile("author-1", "Aisha Tan", "aisha-tan", "Person"))),
+            ("geo", new ContentField("map", new Dictionary<string, object>
+            {
+                ["schema_type"] = schemaType,
+                ["author"] = new Dictionary<string, object>
+                {
+                    ["name"] = "Conflicting Geo Author",
+                    ["url"] = "https://geo.example/conflict"
+                },
+                ["faq"] = new List<object>
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["question"] = "What changed?",
+                        ["answer"] = "The author relation wins."
+                    }
+                },
+                ["steps"] = new List<object>
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["name"] = "Resolve author",
+                        ["text"] = "Use the verified relation profile."
+                    }
+                }
+            })));
+
+        var model = Build(document);
+
+        Assert.Contains(model.JsonLd, json => json.Contains($"\"@type\":\"{schemaType}\"", StringComparison.Ordinal));
+        Assert.DoesNotContain(model.JsonLd, json => json.Contains("Conflicting Geo Author", StringComparison.Ordinal));
+        Assert.DoesNotContain(model.JsonLd, json => json.Contains("geo.example", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("person")]
+    [InlineData("organization")]
+    [InlineData("PeRsOn")]
+    [InlineData("OrGaNiZaTiOn")]
+    public void SchemaValidator_NonCanonicalAuthorTypeCasing_ReportsBlockingError(string authorType)
+    {
+        using var json = JsonDocument.Parse(
+            $$"""
+            {
+              "@context": "https://schema.org",
+              "@type": "BlogPosting",
+              "headline": "Profile article",
+              "datePublished": "2026-07-25T00:00:00Z",
+              "author": {
+                "@type": "{{authorType}}",
+                "name": "Aisha Tan"
+              }
+            }
+            """);
+        var issues = new List<SeoAuditIssue>();
+
+        SeoSchemaValidator.ValidateSchemaObject(json.RootElement, "/posts/article/", issues);
+
+        Assert.Contains(
+            issues,
+            issue => issue.Code == "seo.schema_blogposting_author_type_invalid" &&
+                     issue.Severity == "error");
+    }
+
     [Fact]
     public void BuildForContent_WithoutRelation_KeepsLegacyTextAndMatchingGeoFallback()
     {

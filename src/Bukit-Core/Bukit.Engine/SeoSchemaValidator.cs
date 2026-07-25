@@ -5,6 +5,9 @@ namespace Bukit.Engine;
 internal static class SeoSchemaValidator
 {
     internal static bool IsSupportedArticleAuthorType(string? type)
+        => type is "Person" or "Organization";
+
+    internal static bool IsSupportedProfileAuthorType(string? type)
         => string.Equals(type, "Person", StringComparison.OrdinalIgnoreCase) ||
            string.Equals(type, "Organization", StringComparison.OrdinalIgnoreCase);
 

@@ -15,6 +15,7 @@ internal sealed record ResolvedSeoAuthors(
     bool SuppressStandaloneGeoAuthor)
 {
     internal ResolvedSeoAuthor? Primary => Authors.FirstOrDefault();
+    internal bool UsesAuthorRelation { get; init; }
 }
 
 internal static class SeoAuthorResolver
@@ -94,7 +95,7 @@ internal static class SeoAuthorResolver
                 throw Block($"authoredBy target '{id ?? "<unknown>"}' is not resolved.");
             }
 
-            if (!SeoSchemaValidator.IsSupportedArticleAuthorType(declaredType))
+            if (!SeoSchemaValidator.IsSupportedProfileAuthorType(declaredType))
             {
                 throw Block(
                     $"authoredBy target '{id}' has invalid author type '{declaredType}'; expected Person or Organization.");
@@ -111,7 +112,10 @@ internal static class SeoAuthorResolver
                 CleanList(profile.SameAs)));
         }
 
-        return new ResolvedSeoAuthors(authors, true);
+        return new ResolvedSeoAuthors(authors, true)
+        {
+            UsesAuthorRelation = true
+        };
     }
 
     private static InvalidOperationException Block(string message)

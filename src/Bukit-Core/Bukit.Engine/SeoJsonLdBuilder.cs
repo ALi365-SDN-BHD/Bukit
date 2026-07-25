@@ -105,13 +105,17 @@ internal static class SeoJsonLdBuilder
         if (isPost && document is not null)
         {
             var effectiveType = schemaType ?? "BlogPosting";
+            var effectiveAuthors = resolvedAuthors
+                ?? SeoAuthorResolver.Resolve(record, document.CustomFields, geo.GeoAuthor);
             if (string.Equals(effectiveType, "FAQPage", StringComparison.OrdinalIgnoreCase) && geo.FaqItems is { Count: > 0 })
             {
                 BuildFaqPageJsonLd(result, contentTitle, description, canonical, image, document, geo.FaqItems);
+                geoAuthorMergedIntoArticle = effectiveAuthors.UsesAuthorRelation;
             }
             else if (string.Equals(effectiveType, "HowTo", StringComparison.OrdinalIgnoreCase) && geo.HowToSteps is { Count: > 0 })
             {
                 BuildHowToJsonLd(result, contentTitle, description, canonical, image, document, geo.HowToSteps);
+                geoAuthorMergedIntoArticle = effectiveAuthors.UsesAuthorRelation;
             }
             else
             {
@@ -127,7 +131,7 @@ internal static class SeoJsonLdBuilder
                     record,
                     config.Site.Language,
                     organizationNode,
-                    resolvedAuthors ?? SeoAuthorResolver.Resolve(record, document.CustomFields, geo.GeoAuthor),
+                    effectiveAuthors,
                     config.Site.Url,
                     baseUrl);
             }
