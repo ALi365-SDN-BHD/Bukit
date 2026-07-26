@@ -117,6 +117,13 @@ internal static class I18nValidator
 
         SeoTitleTemplateValidator.Validate(site.Seo);
 
+        if (site.Seo.Geo.LlmsTxtMaxArticles < 0)
+        {
+            throw new ConfigException(
+                "site.seo.geo.llmsTxtMaxArticles must be zero (unlimited) or a positive integer.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
         var geoAiBotMode = (site.Seo.Geo.AiBotMode ?? "allow").Trim().ToLowerInvariant();
         if (geoAiBotMode is not ("allow" or "block" or "selective"))
         {

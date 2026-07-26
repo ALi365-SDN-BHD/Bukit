@@ -302,6 +302,24 @@ public sealed class ConfigJsonSchemaGeneratorTests
     }
 
     [Fact]
+    public void Generate_LlmsTxtMaxArticles_DeclaresZeroMinimum()
+    {
+        using var document = JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
+        var maxArticles = document.RootElement
+            .GetProperty("properties")
+            .GetProperty("site")
+            .GetProperty("properties")
+            .GetProperty("seo")
+            .GetProperty("properties")
+            .GetProperty("geo")
+            .GetProperty("properties")
+            .GetProperty("llmsTxtMaxArticles");
+
+        Assert.Equal("integer", maxArticles.GetProperty("type").GetString());
+        Assert.Equal(0, maxArticles.GetProperty("minimum").GetInt32());
+    }
+
+    [Fact]
     public void Generate_AllObjectSchemasDeclareAdditionalProperties()
     {
         var json = ConfigJsonSchemaGenerator.Generate();

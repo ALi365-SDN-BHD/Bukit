@@ -83,7 +83,7 @@ internal static class SeoModelBuilder
             {
                 PublishedTime = isArticle ? record.Lifecycle.PublishedAt : null,
                 ModifiedTime = isArticle ? updated : null,
-                Author = isArticle ? resolvedAuthor.Primary?.Name : null,
+                Author = isArticle ? resolvedAuthor.Primary?.Name ?? resolvedAuthor.TextByline : null,
                 AuthorType = isArticle ? resolvedAuthor.Primary?.SchemaType : null,
                 Tags = isArticle ? tags : Array.Empty<string>()
             },

@@ -57,7 +57,7 @@ public sealed record RawContentDocument
     public IReadOnlyDictionary<string, RawContentValue>? Properties { get; init; }
     public ContentSourceInfo Source { get; init; }
     public IReadOnlyDictionary<string, ContentField>? CustomFields { get; init; }
-    public IReadOnlyList<ContentDiagnostic> Diagnostics { get; init; } = Array.Empty<ContentDiagnostic>();
+    internal IReadOnlyList<ContentDiagnostic> Diagnostics { get; init; } = Array.Empty<ContentDiagnostic>();
 
     public string Id => SourceId;
     public DateTimeOffset PublishAt => PublishedAt ?? DateTimeOffset.UnixEpoch;

@@ -7,15 +7,15 @@ public sealed record CanonicalContentGraph(
     IReadOnlyList<ContentDocument> Documents)
 {
     public static readonly CanonicalContentGraph Empty = new(
-        Array.Empty<ContentRecord>(),
-        Array.Empty<EntityRecord>(),
-        Array.Empty<ContentRelation>(),
-        Array.Empty<ContentDocument>());
+        [],
+        [],
+        [],
+        []);
 
     public CanonicalContentGraph(
         IReadOnlyList<ContentRecord> records,
         IReadOnlyList<EntityRecord> entities)
-        : this(records, entities, records.SelectMany(x => x.Relations).ToArray(), Array.Empty<ContentDocument>())
+        : this(records, entities, [.. records.SelectMany(x => x.Relations)], [])
     {
     }
 }
@@ -59,11 +59,11 @@ public sealed record ContentOwnership(
     string? Reviewer)
 {
     public string? AuthorType { get; init; }
-    public bool UsesAuthorRelation { get; init; }
-    public IReadOnlyList<ContentAuthorProfile> AuthorProfiles { get; init; } = Array.Empty<ContentAuthorProfile>();
+    internal bool UsesAuthorRelation { get; init; }
+    internal IReadOnlyList<ContentAuthorProfile> AuthorProfiles { get; init; } = [];
 }
 
-public sealed record ContentAuthorProfile(
+internal sealed record ContentAuthorProfile(
     string? Id,
     string? Title,
     string? Slug,
@@ -81,22 +81,22 @@ internal static class ContentAuthorProfileProjectionReader
     {
         if (fields is null)
         {
-            return new ContentAuthorProjection(false, Array.Empty<ContentAuthorProfile>());
+            return new ContentAuthorProjection(false, []);
         }
 
         var relation = fields.FirstOrDefault(static pair =>
             string.Equals(pair.Key, "authoredBy", StringComparison.OrdinalIgnoreCase));
         if (string.IsNullOrEmpty(relation.Key))
         {
-            return new ContentAuthorProjection(false, Array.Empty<ContentAuthorProfile>());
+            return new ContentAuthorProjection(false, []);
         }
 
         var items = relation.Value.Value switch
         {
             null => Array.Empty<object>(),
-            string id => new object[] { id },
-            IEnumerable<object> values => values.ToArray(),
-            _ => new[] { relation.Value.Value }
+            string id => [id],
+            IEnumerable<object> values => [.. values],
+            _ => [relation.Value.Value]
         };
         var profiles = items
             .Select(ReadProfile)
@@ -109,7 +109,7 @@ internal static class ContentAuthorProfileProjectionReader
         if (value is not IReadOnlyDictionary<string, object?> map)
         {
             var id = Clean(value?.ToString());
-            return new ContentAuthorProfile(id, null, null, null, null, Array.Empty<string>());
+            return new ContentAuthorProfile(id, null, null, null, null, []);
         }
 
         return new ContentAuthorProfile(
@@ -129,7 +129,7 @@ internal static class ContentAuthorProfileProjectionReader
     {
         var value = map.FirstOrDefault(pair =>
             string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase)).Value;
-        return ContentFieldReader.ToTextList(value) ?? Array.Empty<string>();
+        return ContentFieldReader.ToTextList(value) ?? [];
     }
 
     private static string? Clean(string? value)
@@ -165,10 +165,10 @@ public sealed record EntityRecord(
     string? Url = null,
     IReadOnlyList<string>? SameAs = null)
 {
-    public LocalBusinessProfile? LocalBusinessProfile { get; init; }
+    internal LocalBusinessProfile? LocalBusinessProfile { get; init; }
 }
 
-public sealed record LocalBusinessProfile
+internal sealed record LocalBusinessProfile
 {
     public bool AddressVerified { get; init; }
     public bool LocalOperationsVerified { get; init; }

@@ -199,6 +199,9 @@ public class DependencyMatrixTests
         var allowedAssemblyPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Bukit.Shared->Bukit.Content",
+            "Bukit.Engine.Abstractions->Bukit.Content.Notion",
+            "Bukit.Engine.Abstractions->Bukit.Content.Notion.Tests",
+            "Bukit.Content->Bukit.Content.Notion.Tests",
             "Bukit.Engine->bukit"
         };
 

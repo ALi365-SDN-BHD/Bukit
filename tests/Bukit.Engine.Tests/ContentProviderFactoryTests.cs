@@ -391,13 +391,15 @@ public sealed class ContentProviderFactoryTests
     }
 
     [Fact]
-    public void CreateNotionProvider_WithNotionConfig_ReturnsNotionProvider()
+    public void Create_WithNotionSourceAndMissingToken_ThrowsConfigException()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit_test_notion_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
 
         try
         {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, null);
             var config = new AppConfig
             {
                 Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
@@ -413,6 +415,7 @@ public sealed class ContentProviderFactoryTests
         }
         finally
         {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
             if (Directory.Exists(tempDir))
             {
                 Directory.Delete(tempDir, true);

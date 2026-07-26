@@ -42,10 +42,17 @@ Default `layouts`, `assets`, and `static` paths resolve under
 |---|---|---|
 | `site` | all templates | `SiteModel` |
 | `page` | page and list templates | `PageInfo` |
-| `pages` | list templates | list items |
+| `pages` | page and list templates | page index on detail pages; list items on list routes |
 | `items` | list templates | alias for list items |
 | `pagination` | paginated lists | `ListPaginationModel` |
 | `collection`, `taxonomy`, `filter` | list routes | list route metadata |
+
+On detail pages, `pages` is the page index for the current render batch. Each
+index item exposes page metadata but has empty `content`; use `page.content` for
+the current page body. On list routes, the existing `pages` and `items`
+semantics remain unchanged. Templates should not use the presence or absence of
+`pages` to distinguish detail pages from list routes; use the selected template
+or explicit route context instead.
 
 `page.seo.title` is the SEO title used by Open Graph, Twitter, search, and the
 existing SEO title rules. It is not the content title used by page-level

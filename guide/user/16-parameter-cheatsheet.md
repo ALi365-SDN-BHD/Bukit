@@ -133,6 +133,10 @@
 
 Safety semantics that do not fit in the default-value table:
 
+- `site.seo.geo.llmsTxtMaxArticles` defaults to `20`. `0` is unlimited and
+  writes every published, indexable article in each collection; a positive
+  integer caps each collection; a negative value is invalid. Prefer `0` for
+  dynamically growing collections, while monitoring `llms.txt` file size.
 - `site.search.maxContentLength` is a positive UTF-16 code-unit cap for search
   `content`, not title, summary, or generated snippet.
 - `content.media.maxConcurrency` limits active downloads within one rewrite

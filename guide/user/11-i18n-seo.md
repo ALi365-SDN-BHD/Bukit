@@ -60,7 +60,7 @@ generation alone does not enable it.
 `site.seo.organization.type` accepts only `Organization` and
 `NewsMediaOrganization`. Organization `url` and `logo` may be absolute HTTP(S)
 URLs or root-relative URLs resolved against `site.url`; only absolute HTTP(S)
-results are emitted. `organization.sameAs` contains explicit identity URLs,
+results are emitted. `site.seo.organization.sameAs` contains explicit identity URLs,
 omits an empty array, and is never guessed. The configured organization becomes
 the matching publisher for article JSON-LD.
 

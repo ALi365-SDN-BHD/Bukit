@@ -171,10 +171,13 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
 
         foreach (var (groupKey, items) in groups.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var sorted = items.OrderByDescending(a => a.Published).Take(geo.LlmsTxtMaxArticles).ToList();
+            var sorted = items.OrderByDescending(a => a.Published);
+            var selected = geo.LlmsTxtMaxArticles == 0
+                ? sorted.ToList()
+                : sorted.Take(geo.LlmsTxtMaxArticles).ToList();
             sb.AppendLine($"## {ToTitle(groupKey)}");
             sb.AppendLine();
-            foreach (var item in sorted)
+            foreach (var item in selected)
             {
                 sb.Append(MarkdownLink(item.Title, item.Url));
                 if (!string.IsNullOrWhiteSpace(item.Description))

@@ -82,7 +82,7 @@ internal static class NotionCrossSourceRelationProjector
         Array.Empty<RelationTargetInfo>(),
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 
-    private static IReadOnlyDictionary<string, RelationTargetInfo> BuildLoadedTargetIndex(
+    private static Dictionary<string, RelationTargetInfo> BuildLoadedTargetIndex(
         IReadOnlyList<NotionRelationProjectionSource> sources)
     {
         var index = new Dictionary<string, RelationTargetInfo>(StringComparer.OrdinalIgnoreCase);
@@ -114,10 +114,10 @@ internal static class NotionCrossSourceRelationProjector
             ContentFieldReader.GetTextList(fields, "sameAs") ?? ContentFieldReader.GetTextList(fields, "same_as"));
     }
 
-    private static IReadOnlyList<string> BuildMissingIds(
+    private static List<string> BuildMissingIds(
         IReadOnlyList<RawContentDocument> documents,
         IReadOnlyList<RelationMapping> mappings,
-        IReadOnlyDictionary<string, RelationTargetInfo> index)
+        Dictionary<string, RelationTargetInfo> index)
     {
         var missing = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -152,7 +152,7 @@ internal static class NotionCrossSourceRelationProjector
     private static RawContentDocument ProjectDocument(
         RawContentDocument document,
         IReadOnlyList<RelationMapping> mappings,
-        IReadOnlyDictionary<string, RelationTargetInfo> index,
+        Dictionary<string, RelationTargetInfo> index,
         IReadOnlyDictionary<string, string> failures)
     {
         var fields = document.CustomFields;

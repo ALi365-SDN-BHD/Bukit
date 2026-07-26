@@ -285,17 +285,20 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
     }
 
     [Fact]
-    public void CanonicalEntity_ExposesInitOnlyVerifiedLocalBusinessProfile()
+    public void CanonicalEntity_KeepsInternalInitOnlyVerifiedLocalBusinessProfile()
     {
-        var property = typeof(EntityRecord).GetProperty("LocalBusinessProfile");
+        var property = typeof(EntityRecord).GetProperty(
+            "LocalBusinessProfile",
+            BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(property);
+        Assert.True(property.GetMethod?.IsAssembly);
 
         Assert.True(property.SetMethod?.ReturnParameter.GetRequiredCustomModifiers()
             .Any(modifier => modifier.FullName == "System.Runtime.CompilerServices.IsExternalInit"));
     }
 
     [Fact]
-    public void Build_EmptyPrimaryCollectionWithNoindexPolicy_UsesNoindexAndOmitsLastModified()
+    public void Build_EmptyPrimaryCollectionWithNoindexPolicy_UsesNoindexAndEpochLastModifiedSentinel()
     {
         var config = CreateConfig(noindexWhenEmpty: true);
         var route = new RouteInfo("/companies/", "companies/index.html", "pages/list.html");
@@ -311,8 +314,8 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
 
         Assert.Equal("noindex,follow", model.Robots);
         Assert.False(entry.Indexable);
-        Assert.Equal(typeof(DateTimeOffset?), typeof(SeoIndexEntry).GetProperty(nameof(entry.LastModified))?.PropertyType);
-        Assert.Null(typeof(SeoIndexEntry).GetProperty(nameof(entry.LastModified))?.GetValue(entry));
+        Assert.Equal(typeof(DateTimeOffset), typeof(SeoIndexEntry).GetProperty(nameof(entry.LastModified))?.PropertyType);
+        Assert.Equal(DateTimeOffset.UnixEpoch, entry.LastModified);
     }
 
     [Fact]

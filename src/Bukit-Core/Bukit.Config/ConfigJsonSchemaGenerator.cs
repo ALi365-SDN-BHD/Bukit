@@ -203,7 +203,7 @@ public static class ConfigJsonSchemaGenerator
             ("enabled", BoolSchema()),
             ("llmsTxt", BoolSchema()),
             ("llmsFullTxt", BoolSchema()),
-            ("llmsTxtMaxArticles", IntSchema(1)),
+            ("llmsTxtMaxArticles", IntSchema(0)),
             ("aiBotMode", EnumSchema("allow", "block", "selective")),
             ("aiBotAllowList", StringArraySchema()),
             ("aiBotBlockList", StringArraySchema()),
@@ -274,8 +274,9 @@ public static class ConfigJsonSchemaGenerator
 
     private static JsonObject AnalyticsProviderSchema()
     {
-        var schema = new JsonObject();
-        schema["oneOf"] = new JsonArray(
+        var schema = new JsonObject
+        {
+            ["oneOf"] = new JsonArray(
         [
             AnalyticsProviderVariant(
                 "google-analytics",
@@ -294,7 +295,8 @@ public static class ConfigJsonSchemaGenerator
                     ("type", "string"),
                     ("format", "uri"),
                     ("pattern", AnalyticsScriptUrlPattern))))
-        ]);
+        ])
+        };
         return schema;
     }
 
@@ -711,12 +713,12 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject EnumSchema(params string[] values)
     {
         var schema = StringSchema();
-        schema["enum"] = new JsonArray(values.Select(v => JsonValue.Create(v)).ToArray<JsonNode?>());
+        schema["enum"] = new JsonArray([.. values.Select(v => JsonValue.Create(v))]);
         return schema;
     }
 
     private static JsonArray Arr(params string[] values)
-        => new(values.Select(v => JsonValue.Create(v)).ToArray<JsonNode?>());
+        => new([.. values.Select(v => JsonValue.Create(v))]);
 
     private static JsonObject Obj(params (string Key, object? Value)[] values)
     {

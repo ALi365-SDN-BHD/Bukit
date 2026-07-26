@@ -26,42 +26,53 @@ internal static class ConfigCollectionReader
                 throw new ConfigException($"site.collections.{keyNode.Value} must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
-            var paginationNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "pagination");
-            var outputNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "output");
-            ThrowIfCollectionSchemaDeclared($"site.collections.{keyNode.Value}.schema", collectionNode);
-            collections[keyNode.Value.Trim()] = new CollectionConfig
-            {
-                Permalink = ConfigYamlHelpers.GetRequiredString(collectionNode, "permalink"),
-                Template = ConfigYamlHelpers.GetOptionalString(collectionNode, "template"),
-                ListRoute = ConfigYamlHelpers.GetOptionalString(collectionNode, "listRoute"),
-                ListTitle = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTitle"),
-                ListDescription = ConfigYamlHelpers.GetOptionalString(collectionNode, "listDescription"),
-                ListTemplate = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTemplate"),
-                SchemaFailMode = ConfigYamlHelpers.GetOptionalString(collectionNode, "schemaFailMode"),
-                NoindexWhenEmpty = ConfigYamlHelpers.GetOptionalBool(collectionNode, "noindexWhenEmpty") ?? false,
-                Pagination = new CollectionPaginationConfig
-                {
-                    Enabled = paginationNode is not null && (ConfigYamlHelpers.GetOptionalBool(paginationNode, "enabled") ?? false),
-                    PageSize = paginationNode is null ? 10 : ConfigYamlHelpers.GetOptionalIntStrict(paginationNode, "pageSize") ?? 10,
-                    UrlPattern = paginationNode is null ? "page/:num/" : ConfigYamlHelpers.GetOptionalString(paginationNode, "urlPattern") ?? "page/:num/",
-                    FirstPageUsesListRoute = paginationNode is null || (ConfigYamlHelpers.GetOptionalBool(paginationNode, "firstPageUsesListRoute") ?? true)
-                },
-                Output = new CollectionOutputConfig
-                {
-                    Rss = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "rss") ?? true,
-                    Sitemap = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "sitemap") ?? true,
-                    Archive = outputNode is not null && (ConfigYamlHelpers.GetOptionalBool(outputNode, "archive") ?? false),
-                    FeedPath = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedPath"),
-                    FeedTitle = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedTitle"),
-                    FeedDescription = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedDescription"),
-                    ArchiveDetail = outputNode is null ? null : ReadArchiveDetail(outputNode)
-                },
-                FilteredLists = ReadFilteredLists(collectionNode)
-            };
+            collections[keyNode.Value.Trim()] = ReadCollection(keyNode.Value, collectionNode);
         }
 
         return collections.Count == 0 ? null : collections;
     }
+
+    private static CollectionConfig ReadCollection(string collectionName, YamlMappingNode collectionNode)
+    {
+        var paginationNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "pagination");
+        var outputNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "output");
+        ThrowIfCollectionSchemaDeclared($"site.collections.{collectionName}.schema", collectionNode);
+        return new CollectionConfig
+        {
+            Permalink = ConfigYamlHelpers.GetRequiredString(collectionNode, "permalink"),
+            Template = ConfigYamlHelpers.GetOptionalString(collectionNode, "template"),
+            ListRoute = ConfigYamlHelpers.GetOptionalString(collectionNode, "listRoute"),
+            ListTitle = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTitle"),
+            ListDescription = ConfigYamlHelpers.GetOptionalString(collectionNode, "listDescription"),
+            ListTemplate = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTemplate"),
+            SchemaFailMode = ConfigYamlHelpers.GetOptionalString(collectionNode, "schemaFailMode"),
+            NoindexWhenEmpty = ConfigYamlHelpers.GetOptionalBool(collectionNode, "noindexWhenEmpty") ?? false,
+            Pagination = ReadCollectionPagination(paginationNode),
+            Output = ReadCollectionOutput(outputNode),
+            FilteredLists = ReadFilteredLists(collectionNode)
+        };
+    }
+
+    private static CollectionPaginationConfig ReadCollectionPagination(YamlMappingNode? paginationNode)
+        => new()
+        {
+            Enabled = paginationNode is not null && (ConfigYamlHelpers.GetOptionalBool(paginationNode, "enabled") ?? false),
+            PageSize = paginationNode is null ? 10 : ConfigYamlHelpers.GetOptionalIntStrict(paginationNode, "pageSize") ?? 10,
+            UrlPattern = paginationNode is null ? "page/:num/" : ConfigYamlHelpers.GetOptionalString(paginationNode, "urlPattern") ?? "page/:num/",
+            FirstPageUsesListRoute = paginationNode is null || (ConfigYamlHelpers.GetOptionalBool(paginationNode, "firstPageUsesListRoute") ?? true)
+        };
+
+    private static CollectionOutputConfig ReadCollectionOutput(YamlMappingNode? outputNode)
+        => new()
+        {
+            Rss = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "rss") ?? true,
+            Sitemap = outputNode is null ? true : ConfigYamlHelpers.GetOptionalBool(outputNode, "sitemap") ?? true,
+            Archive = outputNode is not null && (ConfigYamlHelpers.GetOptionalBool(outputNode, "archive") ?? false),
+            FeedPath = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedPath"),
+            FeedTitle = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedTitle"),
+            FeedDescription = outputNode is null ? null : ConfigYamlHelpers.GetOptionalString(outputNode, "feedDescription"),
+            ArchiveDetail = outputNode is null ? null : ReadArchiveDetail(outputNode)
+        };
 
     internal static IReadOnlyList<FilteredListConfig>? ReadFilteredLists(YamlMappingNode collectionNode)
     {

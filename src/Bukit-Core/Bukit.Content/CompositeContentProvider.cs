@@ -14,7 +14,7 @@ public sealed class CompositeContentProvider : IContentProvider
     {
     }
 
-    public CompositeContentProvider(
+    internal CompositeContentProvider(
         IReadOnlyList<(string SourceKey, string SourceMode, IContentProvider Provider)> providers,
         ContentModelSchema? schema)
     {
@@ -29,7 +29,7 @@ public sealed class CompositeContentProvider : IContentProvider
     {
     }
 
-    public CompositeContentProvider(
+    internal CompositeContentProvider(
         IReadOnlyList<(string SourceKey, string SourceMode, string? Collection, IReadOnlyList<string>? AddToCollections, IContentProvider Provider)> providers,
         ContentModelSchema? schema)
     {

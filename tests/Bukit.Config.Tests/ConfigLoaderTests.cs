@@ -55,6 +55,84 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("My Blog", config.Site.Title);
         Assert.Null(config.Site.Search.Route);
         Assert.NotNull(config.Content.Sources![0].Markdown);
+        Assert.Equal(20, config.Site.Seo.Geo.LlmsTxtMaxArticles);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(7)]
+    public void Load_LlmsTxtMaxArticlesNonNegative_ParsesAndValidates(int maxArticles)
+    {
+        var yaml = $$"""
+            site:
+              name: myblog
+              title: My Blog
+              seo:
+                geo:
+                  llmsTxtMaxArticles: {{maxArticles}}
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var config = ConfigLoader.Load(path);
+        ConfigValidator.Validate(config);
+
+        Assert.Equal(maxArticles, config.Site.Seo.Geo.LlmsTxtMaxArticles);
+    }
+
+    [Fact]
+    public void Validate_LlmsTxtMaxArticlesNegative_ThrowsConfigException()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              seo:
+                geo:
+                  llmsTxtMaxArticles: -1
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+        var config = ConfigLoader.Load(path);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("site.seo.geo.llmsTxtMaxArticles", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_SeoGeoUnknownField_RemainsRejected()
+    {
+        var yaml = """
+            site:
+              name: myblog
+              title: My Blog
+              seo:
+                geo:
+                  llmsTxtMaximumArticles: 20
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """;
+        var path = WriteTempYaml(yaml);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+
+        Assert.Contains(
+            "Unknown config field 'site.seo.geo.llmsTxtMaximumArticles'.",
+            exception.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -430,6 +508,7 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("blog", childMenuItem.Identifier);
         Assert.Equal("Blog", childMenuItem.Name);
 
+        Assert.Equal(12, config.Site.Seo.Geo.LlmsTxtMaxArticles);
         Assert.Equal("selective", config.Site.Seo.Geo.AiBotMode);
         Assert.Equal(["GPTBot"], config.Site.Seo.Geo.AiBotAllowList);
         Assert.Equal(["BadBot"], config.Site.Seo.Geo.AiBotBlockList);

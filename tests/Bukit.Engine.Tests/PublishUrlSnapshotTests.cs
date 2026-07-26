@@ -60,7 +60,7 @@ public sealed class PublishUrlSnapshotTests
                 DerivedRoutes: Array.Empty<(RouteInfo, DateTimeOffset)>(),
                 SeoIndex: new Dictionary<string, SeoIndexEntry>
                 {
-                    [route.OutputPath] = new SeoIndexEntry(route, seo.Canonical, null, true, null, document.Id, "post")
+                    [route.OutputPath] = new SeoIndexEntry(route, seo.Canonical, null, true, DateTimeOffset.UnixEpoch, document.Id, "post")
                 },
                 SeoModels: new Dictionary<string, SeoModel> { [route.OutputPath] = seo },
                 PluginExecutions: Array.Empty<PluginExecutionInfo>(),
@@ -102,6 +102,47 @@ public sealed class PublishUrlSnapshotTests
     }
 
     [Fact]
+    public void Writer_MissingSiteUrl_DoesNotFailForRelativeCanonicalRoutes()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+
+        try
+        {
+            var exception = Record.Exception(() => WriteReportsWithoutSiteUrl(outputDir));
+
+            Assert.Null(exception);
+            Assert.False(File.Exists(Path.Combine(outputDir, ".bukit", "publish-url-snapshot.json")));
+        }
+        finally
+        {
+            Directory.Delete(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Writer_MissingSiteUrl_DeletesExistingSnapshot()
+    {
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var reportDir = Path.Combine(outputDir, ".bukit");
+        Directory.CreateDirectory(reportDir);
+        var snapshotPath = Path.Combine(reportDir, "publish-url-snapshot.json");
+        File.WriteAllText(snapshotPath, """{"siteUrl":"https://stale.example/"}""");
+
+        try
+        {
+            var exception = Record.Exception(() => WriteReportsWithoutSiteUrl(outputDir));
+
+            Assert.Null(exception);
+            Assert.False(File.Exists(snapshotPath));
+        }
+        finally
+        {
+            Directory.Delete(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Snapshot_BuildsStableCanonicalUrlOrderAndExcludesBuildMetadata()
     {
         var config = CreateConfig();
@@ -134,7 +175,7 @@ public sealed class PublishUrlSnapshotTests
             DateTimeOffset.Parse("2026-07-25T00:00:00Z"),
             "<p>Canonical body</p>");
         var route = new RouteInfo("/insights/example/", "insights/example/index.html", "pages/post.html");
-        var entry = new SeoIndexEntry(route, "https://silushangxun.com/insights/example/", "index,follow", true, null, document.Id, "post");
+        var entry = new SeoIndexEntry(route, "https://silushangxun.com/insights/example/", "index,follow", true, DateTimeOffset.UnixEpoch, document.Id, "post");
         var model = CreateSeo(entry.Canonical);
         var baseline = PublishUrlSemanticHasher.Compute(document, entry, model);
 
@@ -158,7 +199,7 @@ public sealed class PublishUrlSnapshotTests
     public void SemanticHash_ExcludesVolatileMetadataAndLocalOrNotionIdentifiers()
     {
         var route = new RouteInfo("/insights/example/", "insights/example/index.html", "pages/post.html");
-        var entry = new SeoIndexEntry(route, "https://silushangxun.com/insights/example/", "index,follow", true, null, null, "post");
+        var entry = new SeoIndexEntry(route, "https://silushangxun.com/insights/example/", "index,follow", true, DateTimeOffset.UnixEpoch, null, "post");
         var model = CreateSeo(entry.Canonical);
         var localFirst = ContentDocument.Create("record-a", "Example", "example", DateTimeOffset.Parse("2026-07-25T00:00:00Z"), "<img src=\"/private/tmp/first/image.png\"> 11111111-1111-1111-1111-111111111111");
         var localSecond = ContentDocument.Create("record-b", "Example", "example", DateTimeOffset.Parse("2026-07-25T00:00:00Z"), "<img src=\"/private/tmp/second/image.png\"> 22222222-2222-2222-2222-222222222222");
@@ -187,7 +228,7 @@ public sealed class PublishUrlSnapshotTests
     {
         var document = ContentDocument.Create("article", "Example", "example", DateTimeOffset.Parse("2026-07-25T00:00:00Z"), "<p>Canonical body</p>");
         var route = new RouteInfo("/insights/example/", "insights/example/index.html", "pages/post.html");
-        var entry = new SeoIndexEntry(route, "https://silushangxun.com/insights/example/", "index,follow", true, null, document.Id, "post");
+        var entry = new SeoIndexEntry(route, "https://silushangxun.com/insights/example/", "index,follow", true, DateTimeOffset.UnixEpoch, document.Id, "post");
         var model = CreateSeo(entry.Canonical);
         var ordered = model with { JsonLd = ["{\"@type\":\"ItemList\",\"itemListElement\":{\"@list\":[\"first\",\"second\"]}}"] };
         var reversed = model with { JsonLd = ["{\"itemListElement\":{\"@list\":[\"second\",\"first\"]},\"@type\":\"ItemList\"}"] };
@@ -257,6 +298,49 @@ public sealed class PublishUrlSnapshotTests
             Build = new BuildConfig { Report = new BuildReportConfig { Enabled = true } }
         };
 
+    private static void WriteReportsWithoutSiteUrl(string outputDir)
+    {
+        var baseConfig = CreateConfig();
+        var config = baseConfig with { Site = baseConfig.Site with { Url = null } };
+        var route = new RouteInfo("/insights/example/", "insights/example/index.html", "pages/post.html");
+        var document = ContentDocument.Create(
+            "article",
+            "Example",
+            "example",
+            DateTimeOffset.Parse("2026-07-25T00:00:00Z"),
+            "<p>Canonical body</p>");
+        var seo = CreateSeo(route.Url);
+        var variant = new BuildVariantResult(
+            Language: config.Site.Language,
+            OutputDir: outputDir,
+            BaseUrl: "/",
+            SearchSnippetsEnabled: false,
+            BodyStore: EmptyContentBodyStore.Instance,
+            DerivedRoutes: Array.Empty<(RouteInfo, DateTimeOffset)>(),
+            SeoIndex: new Dictionary<string, SeoIndexEntry>
+            {
+                [route.OutputPath] = new SeoIndexEntry(route, route.Url, "index,follow", true, DateTimeOffset.UnixEpoch, document.Id, "post")
+            },
+            SeoModels: new Dictionary<string, SeoModel> { [route.OutputPath] = seo },
+            PluginExecutions: Array.Empty<PluginExecutionInfo>(),
+            RenderedCount: 1,
+            SkippedCount: 0,
+            RenderReasons: new Dictionary<string, int>(),
+            StageMetrics: new BuildStageMetrics(new Dictionary<string, long>(), new Dictionary<string, int>()),
+            RoutedDocuments: [new RoutedContentDocument(document, route, document.PublishAt)]);
+        var result = BuildResultFactory.Create(
+            config,
+            outputDir,
+            outputDir,
+            new ConfigOverrides(),
+            DateTimeOffset.Parse("2026-07-25T00:00:00Z"),
+            DateTimeOffset.Parse("2026-07-25T00:00:01Z"),
+            1000,
+            [variant]);
+
+        BuildReporter.WriteIfEnabled(config, outputDir, outputDir, result, [variant], new ConsoleLogger(LogLevel.Error));
+    }
+
     private static BuildVariantResult CreateVariant(AppConfig config, string canonical, string body)
     {
         var relativeUrl = new Uri(canonical).AbsolutePath;
@@ -278,7 +362,7 @@ public sealed class PublishUrlSnapshotTests
             DerivedRoutes: Array.Empty<(RouteInfo, DateTimeOffset)>(),
             SeoIndex: new Dictionary<string, SeoIndexEntry>
             {
-                [route.OutputPath] = new SeoIndexEntry(route, canonical, "index,follow", true, null, document.Id, "post")
+                [route.OutputPath] = new SeoIndexEntry(route, canonical, "index,follow", true, DateTimeOffset.UnixEpoch, document.Id, "post")
             },
             SeoModels: new Dictionary<string, SeoModel> { [route.OutputPath] = model },
             PluginExecutions: Array.Empty<PluginExecutionInfo>(),
@@ -310,7 +394,7 @@ public sealed class PublishUrlSnapshotTests
             DerivedRoutes: Array.Empty<(RouteInfo, DateTimeOffset)>(),
             SeoIndex: new Dictionary<string, SeoIndexEntry>
             {
-                [route.OutputPath] = new SeoIndexEntry(route, canonical, "index,follow", true, null, document.Id, "post")
+                [route.OutputPath] = new SeoIndexEntry(route, canonical, "index,follow", true, DateTimeOffset.UnixEpoch, document.Id, "post")
             },
             SeoModels: new Dictionary<string, SeoModel> { [route.OutputPath] = model },
             PluginExecutions: Array.Empty<PluginExecutionInfo>(),

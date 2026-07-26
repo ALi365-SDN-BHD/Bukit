@@ -27,41 +27,63 @@ internal static partial class SiteDefaultsApplier
             TitleSeparator = ConfigYamlHelpers.GetOptionalString(seoNode, "titleSeparator") ?? " | ",
             DefaultImage = ConfigYamlHelpers.GetOptionalString(seoNode, "defaultImage"),
             TwitterSite = ConfigYamlHelpers.GetOptionalString(seoNode, "twitterSite"),
-            Organization = orgNode is null
-                ? null
-                : new SeoOrganizationConfig
-                {
-                    Type = orgNode.Children.ContainsKey(new YamlScalarNode("type"))
-                        ? ConfigYamlHelpers.GetOptionalString(orgNode, "type") ?? string.Empty
-                        : "Organization",
-                    Name = ConfigYamlHelpers.GetOptionalString(orgNode, "name"),
-                    Url = ConfigYamlHelpers.GetOptionalString(orgNode, "url"),
-                    Logo = ConfigYamlHelpers.GetOptionalString(orgNode, "logo"),
-                    SameAs = ConfigYamlHelpers.ReadStringList(orgNode, "sameAs") ?? Array.Empty<string>()
-                },
-            RobotsTxt = new SeoRobotsTxtConfig
-            {
-                Enabled = robotsTxtNode is not null && (ConfigYamlHelpers.GetOptionalBool(robotsTxtNode, "enabled") ?? false)
-            },
-            Schema = new SeoSchemaConfig
-            {
-                WebPage = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "webPage") ?? true),
-                CollectionPage = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "collectionPage") ?? true),
-                SearchAction = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "searchAction") ?? true)
-            },
-            Geo = geoNode is null
-                ? new SeoGeoConfig()
-                : new SeoGeoConfig
-                {
-                    Enabled = ConfigYamlHelpers.GetOptionalBool(geoNode, "enabled") ?? true,
-                    LlmsTxt = ConfigYamlHelpers.GetOptionalBool(geoNode, "llmsTxt") ?? true,
-                    LlmsFullTxt = ConfigYamlHelpers.GetOptionalBool(geoNode, "llmsFullTxt") ?? false,
-                    LlmsTxtMaxArticles = ConfigYamlHelpers.GetOptionalInt(geoNode, "llmsTxtMaxArticles") ?? 20,
-                    AiBotMode = ConfigYamlHelpers.GetOptionalString(geoNode, "aiBotMode") ?? "allow",
-                    AiBotAllowList = ConfigYamlHelpers.ReadStringList(geoNode, "aiBotAllowList"),
-                    AiBotBlockList = ConfigYamlHelpers.ReadStringList(geoNode, "aiBotBlockList"),
-                    LlmsTxtOptionalLinks = ReadLlmsTxtOptionalLinks(geoNode)
-                }
+            Organization = ReadSeoOrganization(orgNode),
+            RobotsTxt = ReadSeoRobotsTxt(robotsTxtNode),
+            Schema = ReadSeoSchema(schemaNode),
+            Geo = ReadSeoGeo(geoNode)
+        };
+    }
+
+    private static SeoOrganizationConfig? ReadSeoOrganization(YamlMappingNode? organizationNode)
+    {
+        if (organizationNode is null)
+        {
+            return null;
+        }
+
+        return new SeoOrganizationConfig
+        {
+            Type = organizationNode.Children.ContainsKey(new YamlScalarNode("type"))
+                ? ConfigYamlHelpers.GetOptionalString(organizationNode, "type") ?? string.Empty
+                : "Organization",
+            Name = ConfigYamlHelpers.GetOptionalString(organizationNode, "name"),
+            Url = ConfigYamlHelpers.GetOptionalString(organizationNode, "url"),
+            Logo = ConfigYamlHelpers.GetOptionalString(organizationNode, "logo"),
+            SameAs = ConfigYamlHelpers.ReadStringList(organizationNode, "sameAs") ?? Array.Empty<string>()
+        };
+    }
+
+    private static SeoRobotsTxtConfig ReadSeoRobotsTxt(YamlMappingNode? robotsTxtNode)
+        => new()
+        {
+            Enabled = robotsTxtNode is not null && (ConfigYamlHelpers.GetOptionalBool(robotsTxtNode, "enabled") ?? false)
+        };
+
+    private static SeoSchemaConfig ReadSeoSchema(YamlMappingNode? schemaNode)
+        => new()
+        {
+            WebPage = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "webPage") ?? true),
+            CollectionPage = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "collectionPage") ?? true),
+            SearchAction = schemaNode is null || (ConfigYamlHelpers.GetOptionalBool(schemaNode, "searchAction") ?? true)
+        };
+
+    private static SeoGeoConfig ReadSeoGeo(YamlMappingNode? geoNode)
+    {
+        if (geoNode is null)
+        {
+            return new SeoGeoConfig();
+        }
+
+        return new SeoGeoConfig
+        {
+            Enabled = ConfigYamlHelpers.GetOptionalBool(geoNode, "enabled") ?? true,
+            LlmsTxt = ConfigYamlHelpers.GetOptionalBool(geoNode, "llmsTxt") ?? true,
+            LlmsFullTxt = ConfigYamlHelpers.GetOptionalBool(geoNode, "llmsFullTxt") ?? false,
+            LlmsTxtMaxArticles = ConfigYamlHelpers.GetOptionalInt(geoNode, "llmsTxtMaxArticles") ?? 20,
+            AiBotMode = ConfigYamlHelpers.GetOptionalString(geoNode, "aiBotMode") ?? "allow",
+            AiBotAllowList = ConfigYamlHelpers.ReadStringList(geoNode, "aiBotAllowList"),
+            AiBotBlockList = ConfigYamlHelpers.ReadStringList(geoNode, "aiBotBlockList"),
+            LlmsTxtOptionalLinks = ReadLlmsTxtOptionalLinks(geoNode)
         };
     }
 

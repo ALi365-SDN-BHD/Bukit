@@ -141,14 +141,18 @@ internal static class PublishUrlSnapshotBuilder
     }
 }
 
-internal static class PublishUrlSemanticHasher
+internal static partial class PublishUrlSemanticHasher
 {
-    private static readonly Regex LocalPath = new(
+    [GeneratedRegex(
         "(?:file://[^\\s\\\"'<>]+|/(?:Users|private|var|tmp|home)/[^\\s\\\"'<>]+|[A-Za-z]:\\\\[^\\s\\\"'<>]+)",
-        RegexOptions.CultureInvariant | RegexOptions.Compiled);
-    private static readonly Regex NotionIdentifier = new(
+        RegexOptions.CultureInvariant)]
+    private static partial Regex LocalPath();
+
+    [GeneratedRegex(
         @"\b(?:[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}|[0-9a-fA-F]{32})\b",
-        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        RegexOptions.CultureInvariant)]
+    private static partial Regex NotionIdentifier();
+
     private static readonly HashSet<string> VolatileJsonProperties = new(StringComparer.OrdinalIgnoreCase)
     {
         "generatedAt",
@@ -234,7 +238,7 @@ internal static class PublishUrlSemanticHasher
             return string.Empty;
         }
 
-        return NotionIdentifier.Replace(LocalPath.Replace(value, "[local-path]"), "[notion-id]")
+        return NotionIdentifier().Replace(LocalPath().Replace(value, "[local-path]"), "[notion-id]")
             .Replace("\r\n", "\n", StringComparison.Ordinal)
             .Replace("\r", "\n", StringComparison.Ordinal)
             .Trim();

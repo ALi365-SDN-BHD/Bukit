@@ -275,7 +275,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .OrderBy(entry => entry.Route.Url, StringComparer.OrdinalIgnoreCase)
             .Select(entry => new FeedAuditCandidate(
                 entry,
-                ResolveRecordForEntry(recordsById, entry, config.Site.Language)?.Lifecycle.PublishedAt ?? entry.LastModified ?? DateTimeOffset.MinValue));
+                ResolveRecordForEntry(recordsById, entry, config.Site.Language)?.Lifecycle.PublishedAt ?? entry.LastModified));
         return FeedWindowSelector.Select(
                 candidates,
                 candidate => candidate.PublishedAt,

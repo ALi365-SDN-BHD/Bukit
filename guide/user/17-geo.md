@@ -12,13 +12,19 @@ site:
       enabled: true
       llmsTxt: true
       llmsFullTxt: false
-      llmsTxtMaxArticles: 20
+      llmsTxtMaxArticles: 0
       aiBotMode: allow
       llmsTxtOptionalLinks:
         - title: Documentation
           url: https://example.com/docs/
           description: Public documentation
 ```
+
+`llmsTxtMaxArticles: 0` is unlimited and writes every published, indexable
+article in each collection. A positive integer limits each collection to that
+many articles, and a negative value fails configuration validation. The default
+remains `20` when the field is omitted. Use `0` for collections whose article
+count grows over time, while monitoring the generated `llms.txt` file size.
 
 ## Outputs
 

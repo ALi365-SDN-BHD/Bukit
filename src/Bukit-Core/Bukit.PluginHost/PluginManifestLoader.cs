@@ -92,7 +92,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         return root;
     }
 
-    private static IReadOnlyDictionary<string, PluginPlatformEntry> ReadPlatforms(YamlMappingNode root)
+    private static Dictionary<string, PluginPlatformEntry> ReadPlatforms(YamlMappingNode root)
     {
         YamlMappingNode platformsNode = PluginYaml.GetRequiredMapping(root, "platforms", "plugin.platforms");
         var platforms = new Dictionary<string, PluginPlatformEntry>(StringComparer.Ordinal);
@@ -117,7 +117,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         return platforms;
     }
 
-    private static IReadOnlyList<PluginCommandSpec> ReadCommands(YamlSequenceNode? sequence)
+    private static List<PluginCommandSpec> ReadCommands(YamlSequenceNode? sequence)
     {
         if (sequence is null)
         {
@@ -166,7 +166,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
             Subcommands: ReadSubcommands(PluginYaml.GetOptionalSequence(commandNode, "subcommands"), $"{path}.subcommands"));
     }
 
-    private static IReadOnlyList<PluginArgumentSpec> ReadArguments(YamlSequenceNode? sequence, string path)
+    private static List<PluginArgumentSpec> ReadArguments(YamlSequenceNode? sequence, string path)
     {
         if (sequence is null)
         {
@@ -194,7 +194,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         return arguments;
     }
 
-    private static IReadOnlyList<PluginOptionSpec> ReadOptions(YamlSequenceNode? sequence, string path)
+    private static List<PluginOptionSpec> ReadOptions(YamlSequenceNode? sequence, string path)
     {
         if (sequence is null)
         {
@@ -226,7 +226,7 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         return options;
     }
 
-    private static IReadOnlyList<PluginCommandSpec> ReadSubcommands(YamlSequenceNode? sequence, string path)
+    private static List<PluginCommandSpec> ReadSubcommands(YamlSequenceNode? sequence, string path)
     {
         if (sequence is null)
         {

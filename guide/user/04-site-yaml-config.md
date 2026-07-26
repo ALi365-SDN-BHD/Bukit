@@ -107,7 +107,7 @@ content:
 | `site.seo.geo.enabled` | `true` | Enables GEO report data. |
 | `site.seo.geo.llmsTxt` | `true` | Writes `llms.txt` when build output is indexable. |
 | `site.seo.geo.llmsFullTxt` | `false` | Writes `llms-full.txt`. |
-| `site.seo.geo.llmsTxtMaxArticles` | `20` | Positive article cap. |
+| `site.seo.geo.llmsTxtMaxArticles` | `20` | `0` writes every published, indexable article in each collection; a positive integer caps each collection; a negative value fails configuration validation. |
 | `site.seo.geo.aiBotMode` | `allow` | `allow`, `block`, or `selective`. |
 | `site.seo.geo.aiBotAllowList` | none | Bot names allowed in selective mode. |
 | `site.seo.geo.aiBotBlockList` | none | Bot names blocked in selective mode. |
@@ -128,6 +128,10 @@ content:
 | Provider `snippetMode` | none | Required only for Plausible; must be `site-specific` or `legacy`. |
 | Provider `websiteId` | none | Required only for Umami; must be a UUID. |
 | Provider `scriptUrl` | none | Required for Plausible and Umami. It must be an absolute HTTPS `.js` URL without credentials or a fragment; site-specific Plausible Cloud URLs use `/js/pa-<site-id>.js`. |
+
+For collections whose article count grows over time, use
+`site.seo.geo.llmsTxtMaxArticles: 0` to avoid silently truncating `llms.txt`.
+Monitor the generated file size when using this unlimited mode.
 
 Both Analytics switches must be enabled, at least one provider must be valid,
 and the execution-mode policy must allow output. Analytics is a Core built-in

@@ -14,7 +14,8 @@ internal sealed record ResolvedSeoAuthors(
     IReadOnlyList<ResolvedSeoAuthor> Authors,
     bool SuppressStandaloneGeoAuthor)
 {
-    internal ResolvedSeoAuthor? Primary => Authors.FirstOrDefault();
+    internal ResolvedSeoAuthor? Primary => Authors.Count == 0 ? null : Authors[0];
+    internal string? TextByline { get; init; }
     internal bool UsesAuthorRelation { get; init; }
 }
 
@@ -49,6 +50,9 @@ internal static class SeoAuthorResolver
 
             return schemaType is null
                 ? new ResolvedSeoAuthors(Array.Empty<ResolvedSeoAuthor>(), matchingGeoAuthor is not null)
+                {
+                    TextByline = canonicalName
+                }
                 : new ResolvedSeoAuthors(
                     [
                         new ResolvedSeoAuthor(

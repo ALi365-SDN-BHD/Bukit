@@ -19,7 +19,7 @@ public sealed record ContentDocument
         Publish = publish ?? ContentPublishPolicy.Empty;
         CustomFields = customFields;
         Source = source ?? ContentSourceInfo.Unknown;
-        Diagnostics = diagnostics ?? Array.Empty<ContentDiagnostic>();
+        Diagnostics = diagnostics ?? [];
     }
 
     public ContentRecord Record { get; init; }
@@ -57,12 +57,12 @@ public sealed record ContentDocument
             ?? ContentFieldReader.GetText(fields, "excerpt");
         var sections = ContentFieldReader.GetTextList(fields, "sections")
             ?? ContentFieldReader.GetTextList(fields, "categories")
-            ?? Array.Empty<string>();
+            ?? [];
         var tags = MergeLists(
             ContentFieldReader.GetTextList(fields, "tags"),
             ContentFieldReader.GetTextList(fields, "categories"));
         var translations = ContentFieldReader.GetTextList(fields, "translations")
-            ?? Array.Empty<string>();
+            ?? [];
         var entities = ExtractEntities(fields);
         var relations = ExtractRelations(fields, translations, entities);
         var media = ExtractMedia(fields);
@@ -85,13 +85,13 @@ public sealed record ContentDocument
             new ProvenanceRecord(
                 ContentFieldReader.GetText(fields, "source"),
                 ContentFieldReader.GetText(fields, "original_url") ?? ContentFieldReader.GetText(fields, "source_url") ?? ContentFieldReader.GetText(fields, "url"),
-                ContentFieldReader.GetTextList(fields, "citations") ?? Array.Empty<string>(),
-                ContentFieldReader.GetTextList(fields, "references") ?? Array.Empty<string>(),
+                ContentFieldReader.GetTextList(fields, "citations") ?? [],
+                ContentFieldReader.GetTextList(fields, "references") ?? [],
                 ContentFieldReader.GetText(fields, "sync_status")),
             new TrustMetadata(
                 ContentFieldReader.GetNumber(fields, "credibility_score") ?? ContentFieldReader.GetNumber(fields, "trust_score"),
                 ContentFieldReader.GetText(fields, "review_status") ?? status,
-                ContentFieldReader.GetTextList(fields, "quality_flags") ?? Array.Empty<string>()),
+                ContentFieldReader.GetTextList(fields, "quality_flags") ?? []),
             entities,
             relations,
             media);
@@ -136,10 +136,9 @@ public sealed record ContentDocument
         AppendNamedEntities(entities, "person", ContentFieldReader.GetTextList(fields, "people"));
         AppendNamedEntities(entities, "company", ContentFieldReader.GetTextList(fields, "companies"));
 
-        return entities
+        return [.. entities
             .GroupBy(x => $"{x.Type}:{x.Name}", StringComparer.OrdinalIgnoreCase)
-            .Select(x => x.First())
-            .ToArray();
+            .Select(x => x.First())];
     }
 
     private static void AppendNamedEntities(List<EntityRecord> target, string type, IReadOnlyList<string>? names)
@@ -169,7 +168,7 @@ public sealed record ContentDocument
             relations.Add(new ContentRelation("translation-of", translation, "content", translation));
         }
 
-        foreach (var related in ContentFieldReader.GetTextList(fields, "related_to") ?? Array.Empty<string>())
+        foreach (var related in ContentFieldReader.GetTextList(fields, "related_to") ?? [])
         {
             relations.Add(new ContentRelation("related-to", related, "content", related));
         }
@@ -179,10 +178,9 @@ public sealed record ContentDocument
             relations.Add(new ContentRelation("mentions", entity.Name, entity.Type, entity.Id));
         }
 
-        return relations
+        return [.. relations
             .GroupBy(x => $"{x.Type}:{x.Target}", StringComparer.OrdinalIgnoreCase)
-            .Select(x => x.First())
-            .ToArray();
+            .Select(x => x.First())];
     }
 
     private static IReadOnlyList<MediaAsset> ExtractMedia(IReadOnlyDictionary<string, ContentField>? fields)

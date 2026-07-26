@@ -186,6 +186,252 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Assert.Contains("Summary description", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void AfterBuild_WithPositiveLimit_CapsCollectionAtConfiguredCount()
+    {
+        var outputDir = Path.Combine(_root, "dist-positive-limit");
+        var articles = CreateArticles("posts", 21);
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 20);
+
+        new LlmsTxtPlugin(config).AfterBuild(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        var urls = ReadSectionUrls(content, "Posts");
+        var expected = Enumerable.Range(1, 20)
+            .Reverse()
+            .Select(index => $"https://example.com/posts/posts-{index:D2}/")
+            .ToArray();
+        Assert.Equal(expected, urls);
+        Assert.DoesNotContain("https://example.com/posts/posts-00/", urls);
+    }
+
+    [Fact]
+    public void AfterBuild_WithZeroLimit_IncludesAllArticlesInEveryCollection()
+    {
+        var outputDir = Path.Combine(_root, "dist-unlimited-collections");
+        var articles = CreateArticles("posts", 21)
+            .Concat(CreateArticles("news", 23))
+            .ToArray();
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0);
+
+        new LlmsTxtPlugin(config).AfterBuild(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        var postUrls = ReadSectionUrls(content, "Posts");
+        var newsUrls = ReadSectionUrls(content, "News");
+        Assert.Equal(
+            Enumerable.Range(0, 21)
+                .Reverse()
+                .Select(index => $"https://example.com/posts/posts-{index:D2}/"),
+            postUrls);
+        Assert.Equal(
+            Enumerable.Range(0, 23)
+                .Reverse()
+                .Select(index => $"https://example.com/news/news-{index:D2}/"),
+            newsUrls);
+
+        var allUrls = postUrls.Concat(newsUrls).ToArray();
+        Assert.Equal(44, allUrls.Length);
+        Assert.Equal(allUrls.Length, allUrls.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    [Fact]
+    public void AfterBuild_CollectionArticles_AreOrderedByPublishedDescending()
+    {
+        var outputDir = Path.Combine(_root, "dist-published-order");
+        var articles = new[]
+        {
+            new ArticleFixture("middle", "posts", DateTimeOffset.Parse("2026-02-02T00:00:00Z"), "/posts/middle/"),
+            new ArticleFixture("oldest", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/oldest/"),
+            new ArticleFixture("newest", "posts", DateTimeOffset.Parse("2026-03-03T00:00:00Z"), "/posts/newest/")
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0);
+
+        new LlmsTxtPlugin(config).AfterBuild(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Equal(
+            [
+                "https://example.com/posts/newest/",
+                "https://example.com/posts/middle/",
+                "https://example.com/posts/oldest/"
+            ],
+            ReadSectionUrls(content, "Posts"));
+    }
+
+    [Fact]
+    public void AfterBuild_Unlimited_DeduplicatesEntriesAndPreservesCanonicalUrls()
+    {
+        var outputDir = Path.Combine(_root, "dist-unlimited-deduplicated");
+        var articles = new[]
+        {
+            new ArticleFixture("first", "posts", DateTimeOffset.Parse("2026-02-02T00:00:00Z"), "/posts/first/"),
+            new ArticleFixture("second", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/second/")
+        };
+        var (context, config) = CreateArticleContext(
+            outputDir,
+            articles,
+            maxArticles: 0,
+            duplicateFirstInDerived: true);
+
+        new LlmsTxtPlugin(config).AfterBuild(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        var urls = ReadSectionUrls(content, "Posts");
+        Assert.Equal(
+            ["https://example.com/posts/first/", "https://example.com/posts/second/"],
+            urls);
+        Assert.Equal(urls.Count, urls.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    [Fact]
+    public void AfterBuild_EmptyConfiguredCollection_WritesLlmsTxtWithoutError()
+    {
+        var outputDir = Path.Combine(_root, "dist-empty-collection");
+        var (context, config) = CreateArticleContext(
+            outputDir,
+            Array.Empty<ArticleFixture>(),
+            maxArticles: 0,
+            configuredCollections: ["empty"]);
+
+        var exception = Record.Exception(() => new LlmsTxtPlugin(config).AfterBuild(context));
+
+        Assert.Null(exception);
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Contains("No indexable pages found.", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("## Empty", content, StringComparison.Ordinal);
+    }
+
+    private sealed record ArticleFixture(
+        string Id,
+        string Collection,
+        DateTimeOffset Published,
+        string RouteUrl)
+    {
+        public string Canonical => $"https://example.com{RouteUrl}";
+    }
+
+    private static IReadOnlyList<ArticleFixture> CreateArticles(string collection, int count)
+        => Enumerable.Range(0, count)
+            .Select(index => new ArticleFixture(
+                $"{collection}-{index:D2}",
+                collection,
+                DateTimeOffset.Parse("2026-01-01T00:00:00Z").AddDays(index),
+                $"/{collection}/{collection}-{index:D2}/"))
+            .ToArray();
+
+    private (BuildContext Context, AppConfig Config) CreateArticleContext(
+        string outputDir,
+        IReadOnlyList<ArticleFixture> articles,
+        int maxArticles,
+        bool duplicateFirstInDerived = false,
+        IReadOnlyList<string>? configuredCollections = null)
+    {
+        var documents = new List<ContentDocument>();
+        var routedDocuments = new List<RoutedContentDocument>();
+        var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var article in articles)
+        {
+            var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["collection"] = article.Collection,
+                ["status"] = "published",
+                ["summary"] = $"Summary for {article.Id}"
+            });
+            var document = ContentDocument.Create(
+                id: article.Id,
+                title: $"Article {article.Id}",
+                slug: article.Id,
+                publishAt: article.Published,
+                contentHtml: $"<p>{article.Id}</p>",
+                fields: fields);
+            var outputPath = $"{article.Collection}/{article.Id}/index.html";
+            var route = new RouteInfo(article.RouteUrl, outputPath, "posts/post.html");
+            var routed = new RoutedContentDocument(document, route);
+            documents.Add(document);
+            routedDocuments.Add(routed);
+            seoIndex[outputPath] = new SeoIndexEntry(
+                route,
+                article.Canonical,
+                Robots: null,
+                Indexable: true,
+                LastModified: DateTimeOffset.UnixEpoch,
+                SourceItemId: article.Id,
+                ContentType: "post",
+                IsDerived: false,
+                Collection: article.Collection);
+        }
+
+        var collections = configuredCollections?.ToDictionary(
+            name => name,
+            name => new CollectionConfig { Permalink = $"/{name}/{{slug}}/" },
+            StringComparer.OrdinalIgnoreCase);
+        var config = new AppConfig
+        {
+            Site = new SiteConfig
+            {
+                Name = "test",
+                Title = "Test Site",
+                Description = "A test site",
+                Url = "https://example.com",
+                Collections = collections,
+                Seo = new SeoConfig
+                {
+                    Geo = new SeoGeoConfig
+                    {
+                        Enabled = true,
+                        LlmsTxt = true,
+                        LlmsTxtMaxArticles = maxArticles
+                    }
+                }
+            },
+            Content = TestContent.Markdown()
+        };
+        var derivedDocuments = duplicateFirstInDerived && routedDocuments.Count > 0
+            ? new[] { routedDocuments[0] }
+            : Array.Empty<RoutedContentDocument>();
+        var context = new BuildContext
+        {
+            RootDir = _root,
+            OutputDir = outputDir,
+            BaseUrl = "/",
+            LayoutsDir = Path.Combine(_root, "layouts"),
+            RoutedDocuments = routedDocuments,
+            ContentGraph = new CanonicalContentGraph(
+                documents.Select(document => document.Record).ToArray(),
+                Array.Empty<EntityRecord>()),
+            BodyStore = NullContentBodyStore.Instance,
+            SeoIndex = seoIndex,
+            Logger = new TestLogger()
+        };
+        context.DerivedDocuments.AddRange(derivedDocuments);
+
+        return (context, config);
+    }
+
+    private static IReadOnlyList<string> ReadSectionUrls(string content, string heading)
+    {
+        var lines = content.Split('\n');
+        var headingIndex = Array.FindIndex(
+            lines,
+            line => string.Equals(line.Trim(), $"## {heading}", StringComparison.Ordinal));
+        Assert.True(headingIndex >= 0, $"Missing llms.txt section: {heading}");
+
+        return lines
+            .Skip(headingIndex + 1)
+            .TakeWhile(line => !line.StartsWith("## ", StringComparison.Ordinal))
+            .Where(line => line.StartsWith("- [", StringComparison.Ordinal))
+            .Select(line =>
+            {
+                var urlStart = line.IndexOf("](", StringComparison.Ordinal) + 2;
+                var urlEnd = line.IndexOf(')', urlStart);
+                return line[urlStart..urlEnd];
+            })
+            .ToArray();
+    }
+
     private (BuildContext Context, AppConfig Config) CreateContext(
         string outputDir,
         bool geoEnabled = true,
