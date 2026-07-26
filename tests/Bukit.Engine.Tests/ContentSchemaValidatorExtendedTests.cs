@@ -91,6 +91,33 @@ public sealed class ContentSchemaValidatorExtendedTests
     }
 
     [Fact]
+    public void CanonicalContentGraphBuilder_DoesNotProjectAuthorProfileTypeAsOwnershipWithoutAuthor()
+    {
+        var raw = new RawContentDocument(
+            Id: "editorial-profile",
+            Title: "Editorial profile",
+            Slug: "editorial-profile",
+            PublishAt: DateTimeOffset.Parse("2026-07-25T00:00:00Z"),
+            Body: new RawBody(),
+            CustomFields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["type"] = "author-profile",
+                ["authorType"] = "Organization"
+            }));
+
+        var document = ContentDocumentNormalizer.ToDocument(raw);
+        var graph = CanonicalContentGraphBuilder.BuildFromDocuments([document]);
+        var record = Assert.Single(graph.Records);
+
+        Assert.Equal("Organization", ContentFieldReader.GetText(document.CustomFields, "authorType"));
+        Assert.Null(record.Ownership.Author);
+        Assert.Null(record.Ownership.AuthorType);
+        Assert.DoesNotContain(
+            ContentModelSchemaValidator.Validate(graph),
+            error => error.Code == "canonical_author_type_without_author");
+    }
+
+    [Fact]
     public void ContentModelSchemaValidator_ReportsInvalidAndOrphanedAuthorTypes()
     {
         var invalid = ContentDocument.Create(
@@ -112,6 +139,7 @@ public sealed class ContentSchemaValidatorExtendedTests
             null,
             ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
+                ["type"] = "post",
                 ["authorType"] = "Organization"
             }));
 

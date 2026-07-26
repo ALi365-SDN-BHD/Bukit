@@ -319,6 +319,76 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
     }
 
     [Fact]
+    public void Build_EmptyFilteredCollectionInheritsNoindexPolicyAndAggregateExclusions()
+    {
+        var config = CreateConfig(noindexWhenEmpty: true);
+        var graph = FilteredCollectionGraph(totalItems: 0);
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+        var entry = result.Entries["companies/malaysia/index.html"];
+        var model = result.Models["companies/malaysia/index.html"];
+
+        Assert.Equal("noindex,follow", model.Robots);
+        Assert.False(entry.Indexable);
+        Assert.Equal(DateTimeOffset.UnixEpoch, entry.LastModified);
+
+        var outputDir = CreateTempDirectory();
+        var context = new PublishProjectionContext(
+            config,
+            outputDir,
+            CanonicalContentGraph.Empty,
+            result.Entries,
+            result.Models,
+            Array.Empty<RoutedContentDocument>(),
+            NullContentBodyStore.Instance,
+            ListRouteGraph: graph);
+        foreach (var kind in new[] { "sitemap", "search", "llms", "llms-full" })
+        {
+            PublishRepresentationRegistry.AggregateProjectionAdapters()
+                .Single(adapter => adapter.Representation.Kind == kind)
+                .Project(context);
+        }
+
+        Assert.DoesNotContain("/companies/malaysia/", File.ReadAllText(Path.Combine(outputDir, "sitemap.xml")), StringComparison.Ordinal);
+        Assert.DoesNotContain("/companies/malaysia/", File.ReadAllText(Path.Combine(outputDir, "search.json")), StringComparison.Ordinal);
+        Assert.DoesNotContain("/companies/malaysia/", File.ReadAllText(Path.Combine(outputDir, "llms.txt")), StringComparison.Ordinal);
+        var llmsFullPath = Path.Combine(outputDir, "llms-full.txt");
+        Assert.False(
+            File.Exists(llmsFullPath) &&
+            File.ReadAllText(llmsFullPath).Contains("/companies/malaysia/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Build_EmptyListEpochSentinelIsNullInSeoAndPublishAuditModels()
+    {
+        var config = CreateConfig(noindexWhenEmpty: true);
+        var graph = FilteredCollectionGraph(totalItems: 0);
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+        var audit = MachineReadabilityTrustAuditBuilder.Build(
+            config,
+            CreateTempDirectory(),
+            result.Entries,
+            result.Models,
+            CanonicalContentGraph.Empty,
+            requireHreflangTargets: false);
+
+        Assert.Equal(DateTimeOffset.UnixEpoch, Assert.Single(result.Entries).Value.LastModified);
+        Assert.Null(Assert.Single(audit.SeoReport.Routes).LastModified);
+        Assert.Null(Assert.Single(audit.PublishReport.Documents).LastModified);
+    }
+
+    [Fact]
     public void Build_PrimaryCollectionWithContent_RecoversIndexabilityAndUsesContentDate()
     {
         var publishedAt = new DateTimeOffset(2026, 7, 25, 9, 30, 0, TimeSpan.Zero);
@@ -458,6 +528,29 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
                 Collection = "companies",
                 TotalItems = totalItems,
                 CanonicalUrl = "/companies/"
+            }
+        ]);
+
+    private static ListRouteGraph FilteredCollectionGraph(int totalItems)
+        => ListRouteGraph.Create(
+        [
+            new ListRoutePlan
+            {
+                RouteId = "filter:companies:country:malaysia:1",
+                Kind = ListRouteKind.FilteredListPage,
+                Url = "/companies/malaysia/",
+                OutputPath = "companies/malaysia/index.html",
+                Template = "pages/company-list.html",
+                Collection = "companies",
+                PageNumber = 1,
+                PageSize = 10,
+                TotalItems = totalItems,
+                CanonicalUrl = "/companies/malaysia/",
+                FilterContext = new ListRouteFilterContext
+                {
+                    Field = "country",
+                    Value = "Malaysia"
+                }
             }
         ]);
 

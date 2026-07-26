@@ -72,6 +72,7 @@ internal static partial class CanonicalContentGraphBuilder
         var owners = FirstList(source, "owners");
         var reviewers = FirstList(source, "reviewers");
         var authorProjection = ContentAuthorProfileProjectionReader.Read(source.Fields);
+        var author = FirstText(source, "author") ?? authors?.FirstOrDefault();
 
         return new ContentRecord(
             new ContentIdentity(
@@ -90,12 +91,12 @@ internal static partial class CanonicalContentGraphBuilder
                 translations),
             new ContentClassification(type, collection, sections, tags),
             new ContentOwnership(
-                FirstText(source, "author") ?? authors?.FirstOrDefault(),
+                author,
                 FirstText(source, "organization") ?? FirstText(source, "org") ?? FirstText(source, "company"),
                 FirstText(source, "owner") ?? owners?.FirstOrDefault(),
                 FirstText(source, "reviewer") ?? reviewers?.FirstOrDefault())
             {
-                AuthorType = FirstText(source, "authorType"),
+                AuthorType = ResolveCanonicalAuthorType(source, type, author),
                 UsesAuthorRelation = authorProjection.UsesAuthorRelation,
                 AuthorProfiles = authorProjection.Profiles
             },
@@ -120,6 +121,26 @@ internal static partial class CanonicalContentGraphBuilder
             entities,
             relations,
             media);
+    }
+
+    private static string? ResolveCanonicalAuthorType(
+        ContentRecordSource source,
+        string contentType,
+        string? author)
+    {
+        var authorType = FirstText(source, "authorType");
+        if (string.IsNullOrWhiteSpace(authorType) || !string.IsNullOrWhiteSpace(author))
+        {
+            return authorType;
+        }
+
+        var schemaType = SeoModelBuilder.ResolveSchemaType(source.Fields, ParseGeoMeta(source));
+        var isAuthoredContent =
+            string.Equals(contentType, "article", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(contentType, "post", StringComparison.OrdinalIgnoreCase) ||
+            SeoModelBuilder.IsArticleSchemaType(schemaType) ||
+            ContentFieldReader.GetBool(source.Fields, "seo_article") is true;
+        return isAuthoredContent ? authorType : null;
     }
 
     private static string ResolveStatus(ContentRecordSource source)

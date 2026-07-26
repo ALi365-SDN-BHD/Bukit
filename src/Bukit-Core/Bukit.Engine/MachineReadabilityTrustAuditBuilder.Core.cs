@@ -176,7 +176,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 Canonical: entry.Canonical,
                 Robots: entry.Robots,
                 Indexable: entry.Indexable,
-                LastModified: entry.LastModified,
+                LastModified: PublishDocumentBuilder.NormalizeLastModified(entry.LastModified),
                 ContentType: entry.ContentType,
                 SourceItemId: entry.SourceItemId,
                 SitemapIncluded: sitemapIncluded,

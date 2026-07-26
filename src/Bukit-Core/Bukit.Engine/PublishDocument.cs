@@ -61,7 +61,7 @@ internal static class PublishDocumentBuilder
             entry.ContentType,
             entry.IsDerived,
             entry.SourceItemId,
-            entry.LastModified,
+            NormalizeLastModified(entry.LastModified),
             model?.Title,
             model?.Description,
             record?.Presentation.Language,
@@ -90,6 +90,9 @@ internal static class PublishDocumentBuilder
             model,
             record);
     }
+
+    internal static DateTimeOffset? NormalizeLastModified(DateTimeOffset lastModified)
+        => lastModified == DateTimeOffset.UnixEpoch ? null : lastModified;
 
     private static IReadOnlyList<string> BuildSourceReferences(ContentRecord? record)
     {
