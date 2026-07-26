@@ -1,0 +1,130 @@
+{
+  "pathRules": [
+    {
+      "contractConsumerGlobs": [],
+      "id": "codex-workflow",
+      "matches": [
+        "scripts/checks/codex-workflow.py",
+        "scripts/checks/codex-workflow-policy.v1.json",
+        "scripts/checks/codex-workflow-self-test.sh"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/codex-workflow-self-test.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "codex-workflow-plans",
+      "matches": [
+        "docs/superpowers/plans/*codex*workflow*.md",
+        "docs/superpowers/plans/**/*codex*workflow*.md"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/codex-workflow-self-test.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "agent-governance",
+      "matches": [
+        "AGENTS.md",
+        "guide/dev/agent-task-workflow.md",
+        "guide/dev/testing.md",
+        "scripts/checks/agent-governance-contract.sh"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/agent-governance-contract.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
+        "tests/Bukit.Config.Tests/*.cs",
+        "tests/Bukit.Config.Tests/**/*.cs"
+      ],
+      "id": "bukit-config",
+      "matches": [
+        "src/Bukit-Core/Bukit.Config/*.cs",
+        "src/Bukit-Core/Bukit.Config/**/*.cs",
+        "tests/Bukit.Config.Tests/*.cs",
+        "tests/Bukit.Config.Tests/**/*.cs"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
+        "tests/Bukit.Engine.Tests/*.cs",
+        "tests/Bukit.Engine.Tests/**/*.cs"
+      ],
+      "id": "bukit-engine",
+      "matches": [
+        "src/Bukit-Core/Bukit.Engine/*.cs",
+        "src/Bukit-Core/Bukit.Engine/**/*.cs",
+        "tests/Bukit.Engine.Tests/*.cs",
+        "tests/Bukit.Engine.Tests/**/*.cs"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "owner-routing",
+      "matches": [
+        "scripts/checks/post-change-focused-owner-checks.sh",
+        "scripts/checks/post-change-focused-owner-checks-self-test.sh"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/post-change-focused-owner-checks-self-test.sh"
+      ]
+    }
+  ],
+  "resourceRules": [
+    {
+      "class": "fixture-exclusive",
+      "commandContains": [
+        "bukit build",
+        "build-manifest",
+        "plugin-lock"
+      ],
+      "matches": [
+        "**/Fixtures/**",
+        "**/build-manifest*",
+        "**/plugin-lock*"
+      ]
+    },
+    {
+      "class": "dotnet-serial",
+      "commandContains": [
+        "dotnet test"
+      ],
+      "matches": [
+        "*.cs",
+        "**/*.cs",
+        "*.csproj",
+        "**/*.csproj"
+      ]
+    },
+    {
+      "class": "static-parallel",
+      "commandContains": [],
+      "matches": [
+        "*"
+      ]
+    }
+  ],
+  "schemaVersion": 1
+}

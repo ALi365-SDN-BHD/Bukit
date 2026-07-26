@@ -1,33 +1,61 @@
 # Testing
 
-## Focused affected checks
+## Verification closure
 
-Run this after each code subtask with only that subtask's paths:
-
-```bash
-bash scripts/checks/post-change-focused.sh -- <changed paths>
-```
-
-With no explicit paths, the script discovers tracked and untracked changes
-relative to `HEAD`. Use `--base <sha>` for an already committed diff and
-`--dry-run` to print commands without executing them.
-
-The focused gate runs:
-
-- `git diff --check` and untracked-file whitespace checks;
-- `bash -n` for changed shell scripts;
-- registered direct owner tests or self-tests;
-- only test projects mapped from affected source or test paths.
-
-It fails on an unmapped runtime source. It does not run `ci-fast`, full/release
-gates, unrelated projects, or whole-solution tests.
-
-The focused gate and mapping contract have direct self-tests:
+Before a subtask is dispatched, generate its complete affected closure:
 
 ```bash
-bash scripts/checks/post-change-focused-self-test.sh
-bash scripts/checks/post-change-targeted-self-test.sh
+python3 scripts/checks/codex-workflow.py closure \
+  --policy scripts/checks/codex-workflow-policy.v1.json \
+  --changed <path>
 ```
+
+The result contains changed files, direct source consumers, public or
+serialized-contract consumers, exact specialty test commands, and unmapped
+files. Resolve unmapped files explicitly; do not infer an aggregate matrix.
+
+## GREEN evidence cache
+
+Record a passing specialty command under `/tmp/codex-reports/` with:
+
+```bash
+python3 scripts/checks/codex-workflow.py cache record \
+  --record /tmp/codex-reports/<task>.json \
+  --base HEAD \
+  --command "<exact specialty command>" \
+  --path <closure-file> \
+  --result passed --exit-code 0 --duration-ms <milliseconds>
+```
+
+Run the corresponding `cache check` before repeating a previously GREEN
+command. Reuse exit `0` only when HEAD, every closure file's content, the exact
+command, relevant environment state, and SDK/toolchain version are unchanged.
+Exit `1` means the evidence is stale; exit `2` means the record or invocation is
+invalid. Environment values are never persisted.
+
+The workflow tool and policy have a direct self-test:
+
+```bash
+bash scripts/checks/codex-workflow-self-test.sh
+```
+
+## Resource classification
+
+Before scheduling the closure's exact specialty commands, classify its paths
+and commands:
+
+```bash
+python3 scripts/checks/codex-workflow.py classify \
+  --policy scripts/checks/codex-workflow-policy.v1.json \
+  --path <closure-file> \
+  --test-command "<exact specialty command>"
+```
+
+Execute the returned batches in order. Disjoint `static-parallel` commands may
+run concurrently. `dotnet-serial` commands run one at a time.
+`fixture-exclusive` work runs alone because it may contend for Bukit locks,
+plugin locks, build manifests, caches, or fixture output. The closure command
+entries carry the same resource labels.
 
 ## Format contract
 
@@ -72,18 +100,17 @@ are covered by:
 bash scripts/checks/code-analysis-ratchet-self-test.sh
 ```
 
-## Aggregate targeted gate
+## Final review scope
 
-Run this once after all parent-task subtasks have passed focused checks:
+Use `review-scope` once after all specialty work finishes. Its result limits the
+final unified review to cross-task intersections, invalidated or missing
+evidence, uncovered changed files, public-contract focus, and open
+Critical/Important findings. Unchanged specialty proof is not rerun, and Minor
+findings do not broaden the scope.
 
-```bash
-bash scripts/checks/post-change-targeted.sh \
-  --base <parent-task-base-sha> -- <all parent-task changed paths>
-```
-
-It applies focused verification to the aggregate diff and then runs `ci-fast`
-exactly once. It does not invoke full, release, smoke-all, test-all, or a
-whole-solution test.
+No `post-change-*`, `ci-fast`, full/release, whole-solution, historical fixture,
+or unnamed gate is routine. Run only the exact specialty tests and final gate
+explicitly required by the task contract.
 
 ## Direct owner proof paths
 
@@ -91,7 +118,6 @@ For repository agent-governance and active development-documentation changes:
 
 ```bash
 bash scripts/checks/agent-governance-contract.sh
-bash scripts/checks/docs-consistency.sh
 ```
 
 For `guide/skills/` content changes, use the Skills pack's own validators:
@@ -121,9 +147,8 @@ bash scripts/build/normalize-yaml-static-context-self-test.sh
 ```
 
 Run a real full/release owner gate only with explicit user authorization. If
-authorization is absent, report the remaining verification boundary.
-Unknown gate or verification paths fail focused verification until a direct
-owner self-test is registered.
+authorization is absent, report the remaining verification boundary. Unknown
+gate or verification paths require a registered direct owner self-test.
 
 ## Explicit broad gates
 

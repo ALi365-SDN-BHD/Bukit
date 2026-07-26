@@ -21,30 +21,25 @@ reject_pattern() {
   fi
 }
 
-require_count() {
-  local path="$1" text="$2" expected="$3" actual
-  actual="$(grep -Fc -- "$text" "$path" || true)"
-  [[ "$actual" == "$expected" ]] ||
-    fail "$path expected $expected occurrence(s) of '$text', got $actual"
-}
-
 root_rules="AGENTS.md"
 workflow="guide/dev/agent-task-workflow.md"
 testing="guide/dev/testing.md"
+workflow_tool="scripts/checks/codex-workflow.py"
+workflow_policy="scripts/checks/codex-workflow-policy.v1.json"
+workflow_self_test="scripts/checks/codex-workflow-self-test.sh"
 
-for path in "$root_rules" "$workflow" "$testing"; do
+for path in \
+  "$root_rules" "$workflow" "$testing" \
+  "$workflow_tool" "$workflow_policy" "$workflow_self_test"; do
   [[ -f "$path" ]] || fail "required governance file is missing: $path"
 done
-
-root_lines="$(wc -l < "$root_rules" | tr -d ' ')"
-((root_lines >= 25 && root_lines <= 40)) ||
-  fail "AGENTS.md must stay between 25 and 40 lines; got $root_lines"
 
 for heading in \
   "## Scope and precedence" \
   "## Protected reference areas" \
   "## Website/Core isolation" \
   "## Verification boundaries" \
+  "## High-speed agent workflow" \
   "## Failure boundary"; do
   grep -Fqx -- "$heading" "$root_rules" || fail "AGENTS.md is missing heading: $heading"
 done
@@ -53,42 +48,64 @@ require_pattern "$root_rules" 'Nested `AGENTS\.md`.*never weaken'
 require_pattern "$root_rules" 'guide-0\.1/.*scripts-0\.2/'
 require_pattern "$root_rules" 'src/Bukit-Core/'
 require_pattern "$root_rules" 'full/release.*explicit user authorization'
-require_pattern "$root_rules" 'post-change-focused\.sh.*changed paths'
-require_pattern "$root_rules" 'post-change-targeted\.sh.*parent-base'
+require_pattern "$root_rules" 'codex-workflow\.py closure'
+require_pattern "$root_rules" 'codex-workflow\.py cache record'
+require_pattern "$root_rules" 'HEAD.*verification-closure content.*exact test command.*environment-variable state.*SDK/toolchain'
+require_pattern "$root_rules" 'codex-workflow\.py classify'
+require_pattern "$root_rules" 'static-parallel.*dotnet-serial.*fixture-exclusive'
 require_pattern "$root_rules" 'CI, release, gate, or verification.*owner test/self-test'
+require_pattern "$root_rules" 'only one implementation agent'
+require_pattern "$root_rules" 'codex-workflow\.py queue init'
+require_pattern "$root_rules" 'one specialty review'
+require_pattern "$root_rules" 'Critical or Important'
+require_pattern "$root_rules" 'review-scope.*delta-only unified review'
+require_pattern "$root_rules" 'codex-workflow\.py metrics add'
+require_pattern "$root_rules" 'same error occurs twice'
+require_pattern "$root_rules" 'no progress for 90 seconds'
 require_pattern "$root_rules" 'Environment, permission, tool, or infrastructure.*unrelated code changes'
-require_count "$root_rules" 'scripts/checks/post-change-targeted.sh' 1
-
-reject_pattern "$root_rules" 'brainstorming|worktree|test-driven-development|(^|[^A-Za-z])TDD([^A-Za-z]|$)|systematic-debugging|sub-?agents?|code[ -]review|verification-before-completion|pull request|(^|[^A-Za-z])PR([^A-Za-z]|$)|(^|[^A-Za-z])merge([^A-Za-z]|$)|branch cleanup'
-reject_pattern "$root_rules" 'After each code subtask.*post-change-targeted'
+reject_pattern "$root_rules" 'After each code subtask.*post-change-(focused|targeted)'
 
 for heading in \
   "## Superpowers ownership" \
-  "### 1. Focused affected checks" \
-  "### 2. High-risk stable checkpoint" \
-  "### 3. Aggregate parent gate" \
+  "### 1. Generate the verification closure" \
+  "### 2. Record and reuse GREEN evidence" \
+  "### 3. Specialty review" \
+  "### 4. Delta-only final review" \
+  "## Single-writer queue" \
+  "## Speed metrics" \
   "## Owner gates and failures"; do
   grep -Fqx -- "$heading" "$workflow" || fail "$workflow is missing heading: $heading"
 done
 require_pattern "$workflow" 'Superpowers'
-require_pattern "$workflow" 'post-change-focused\.sh.*changed paths'
-require_pattern "$workflow" 'never runs `ci-fast`'
-require_pattern "$workflow" 'post-change-targeted\.sh'
-require_pattern "$workflow" 'invokes `ci-fast` exactly once'
+require_pattern "$workflow" 'codex-workflow\.py closure'
+require_pattern "$workflow" 'codex-workflow\.py cache record'
+require_pattern "$workflow" 'cross-task file intersections'
+require_pattern "$workflow" 'Minor findings'
+require_pattern "$workflow" 'do not expand the final review scope'
+require_pattern "$workflow" 'codex-workflow\.py queue acquire'
+require_pattern "$workflow" 'writing.*testing.*review_wait'
+require_pattern "$workflow" 'codex-workflow\.py metrics add'
+require_pattern "$workflow" 'never pass the raw command'
 
 for heading in \
-  "## Focused affected checks" \
-  "## Aggregate targeted gate" \
+  "## Verification closure" \
+  "## GREEN evidence cache" \
+  "## Resource classification" \
+  "## Final review scope" \
   "## Direct owner proof paths" \
   "## Explicit broad gates" \
   "## Failure reporting"; do
   grep -Fqx -- "$heading" "$testing" || fail "$testing is missing heading: $heading"
 done
-require_pattern "$testing" 'post-change-focused\.sh.*changed paths'
-require_pattern "$testing" 'does not run `ci-fast`'
-require_pattern "$testing" 'post-change-targeted\.sh'
-require_pattern "$testing" 'runs `ci-fast`'
-require_pattern "$testing" 'exactly once'
+require_pattern "$testing" 'codex-workflow\.py closure'
+require_pattern "$testing" 'codex-workflow\.py cache record'
+require_pattern "$testing" 'codex-workflow-self-test\.sh'
+require_pattern "$testing" 'codex-workflow\.py classify'
+require_pattern "$testing" 'static-parallel.*commands may'
+require_pattern "$testing" 'dotnet-serial'
+require_pattern "$testing" 'fixture-exclusive'
+require_pattern "$testing" 'No `post-change-\*`'
+require_pattern "$testing" 'unnamed gate is routine'
 require_pattern "$testing" 'explicit user authorization'
 
 echo "agent governance contract OK"

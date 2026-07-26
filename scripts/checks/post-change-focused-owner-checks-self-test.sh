@@ -35,6 +35,12 @@ bash "$script" --dry-run
 out="$(bash "$script" --dry-run -- AGENTS.md guide/dev/agent-task-workflow.md)"
 assert_count "$out" "bash scripts/checks/agent-governance-contract.sh" 1
 
+out="$(bash "$script" --dry-run -- \
+  scripts/checks/codex-workflow.py \
+  scripts/checks/codex-workflow-policy.v1.json \
+  scripts/checks/codex-workflow-self-test.sh)"
+assert_count "$out" "bash scripts/checks/codex-workflow-self-test.sh" 1
+
 out="$(bash "$script" --dry-run -- guide/skills/AGENTS.md)"
 assert_count "$out" "bash guide/skills/scripts/validate-skills-strict.sh" 1
 assert_not_contains "$out" "bash scripts/checks/agent-governance-contract.sh"

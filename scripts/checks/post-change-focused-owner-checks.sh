@@ -35,6 +35,10 @@ for path in "${paths[@]}"; do
     AGENTS.md|guide/dev/agent-task-workflow.md|guide/dev/testing.md|\
     scripts/checks/agent-governance-contract.sh)
       add_owner_check governance ;;
+    scripts/checks/codex-workflow.py|\
+    scripts/checks/codex-workflow-policy.v1.json|\
+    scripts/checks/codex-workflow-self-test.sh)
+      add_owner_check "self-test:scripts/checks/codex-workflow-self-test.sh" ;;
     guide/skills/AGENTS.md)
       add_owner_check skills-strict ;;
     scripts/checks/post-change-focused.sh|scripts/checks/post-change-focused-self-test.sh|\
