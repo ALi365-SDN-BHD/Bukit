@@ -68,3 +68,46 @@ env -u NOTION_TOKEN dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.cspr
 - 空 filtered-list 的 sitemap/search/llms/llms-full 聚合输出不包含路由。
 - 内部 Epoch 哨兵仍存在，只有 SEO/publish 审计模型归一为 `null`。
 - Critical：0；Important：0；Minor：0。
+
+## Follow-up：fieldScope 布尔默认值
+
+- BASE_HEAD：`1da73f84b6386027ba87bc592de28065499bc788`
+- 缺口：`ConfigYamlHelpers.ToObject` 把所有 YAML scalar 都投影为字符串，导致
+  `fieldType: boolean` 的 plain `default: true|false` 经过配置读取、schema
+  构建与 normalizer 后，字段类型为 `bool` 但值仍为 `string`。
+- 边界：只修复 plain、非字符串 tag 的 `true|false`；不扩展 integer、null、
+  float 等 YAML 隐式类型。双引号 scalar 和显式 `!!str` 继续返回字符串。
+
+### Follow-up RED
+
+命令：
+
+```text
+env -u NOTION_TOKEN dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~ContentDocumentNormalizer_FieldScopePlainBooleanDefaultFromYaml_PreservesBoolean|FullyQualifiedName~ConfigLoader_FieldScopeBooleanLikeStringDefault_RemainsString'
+```
+
+结果：`Failed 2 / Passed 2 / Total 4`。plain `true` 与 `false` 均为
+`Expected bool / Actual string`；双引号 `"true"` 与 `!!str true` 两个字符串
+保护用例通过。
+
+### Follow-up GREEN
+
+命令：
+
+```text
+env -u NOTION_TOKEN dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~ContentStagesTests'
+```
+
+结果：`Failed 0 / Passed 30 / Skipped 0`，耗时约 `4.6s`。
+
+此前 `CompanyEntityAndEmptyCollectionTests|ContentSchemaValidatorExtendedTests`
+的 `22/22` 证据未重跑，并标记为 `STALE`：本 follow-up 修改了测试运行时引用的
+`Bukit.Config` 程序集，无法完整证明其 transitive input 哈希未变化。按照本任务
+范围只运行 `ContentStagesTests`，不把旧证据表述为本次通过。
+
+### Follow-up 自审
+
+- 实现仅修改 YAML scalar 到 object 的布尔分支。
+- 测试覆盖配置读取、schema factory、normalizer 最终字段值，以及两种字符串保留形式。
+- 不修改 SRBiz、公开配置结构、数字/null 解析、插件 lock 或构建 manifest。
+- 未运行审计、`post-change-*`、旧 22-case 矩阵、全方案测试或未定义门禁。

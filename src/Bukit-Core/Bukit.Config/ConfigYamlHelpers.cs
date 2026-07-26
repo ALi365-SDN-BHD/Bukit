@@ -1,5 +1,6 @@
 using System.Globalization;
 using Bukit.Shared;
+using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Config;
@@ -220,7 +221,7 @@ internal static class ConfigYamlHelpers
     {
         return node switch
         {
-            YamlScalarNode s => s.Value ?? string.Empty,
+            YamlScalarNode s => ToScalarObject(s),
             YamlSequenceNode seq => seq.Children.Select(ToObject).ToList(),
             YamlMappingNode map => map.Children
                 .Where(p => p.Key is YamlScalarNode ks && !string.IsNullOrWhiteSpace(ks.Value))
@@ -230,6 +231,21 @@ internal static class ConfigYamlHelpers
                     StringComparer.OrdinalIgnoreCase),
             _ => node.ToString()
         };
+    }
+
+    private static object ToScalarObject(YamlScalarNode scalar)
+    {
+        var value = scalar.Value ?? string.Empty;
+        var tag = scalar.Tag.ToString();
+
+        if (scalar.Style == ScalarStyle.Plain
+            && tag is not "tag:yaml.org,2002:str" and not "!!str"
+            && bool.TryParse(value, out var boolean))
+        {
+            return boolean;
+        }
+
+        return value;
     }
 
     internal static YamlSequenceNode? GetOptionalSequence(YamlMappingNode node, string key)

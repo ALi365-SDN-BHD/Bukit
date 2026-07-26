@@ -137,6 +137,63 @@ public sealed class ContentStagesTests
         Assert.Contains("articleOnly", exception.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    public void ContentDocumentNormalizer_FieldScopePlainBooleanDefaultFromYaml_PreservesBoolean(
+        string yamlDefault,
+        bool expected)
+    {
+        var path = WriteFieldScopeDefaultConfig(yamlDefault);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            var configuredDefault = Assert.Single(config.Content.ModelSchema!.FieldScopes!["posts"]).Default;
+            Assert.Equal(expected, Assert.IsType<bool>(configuredDefault));
+            var raw = new RawContentDocument(
+                Id: "post-with-default",
+                Title: "Post with default",
+                Slug: "post-with-default",
+                PublishAt: DateTimeOffset.UnixEpoch,
+                Body: new RawBody(),
+                Properties: new Dictionary<string, RawContentValue>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["collection"] = new("text", "posts")
+                });
+
+            var document = ContentDocumentNormalizer.ToDocument(
+                raw,
+                ContentModelSchemaFactory.FromConfig(config));
+
+            Assert.True(ContentFieldReader.TryGetField(document.CustomFields, "featured", out var field));
+            Assert.Equal("bool", field.Type);
+            Assert.Equal(expected, Assert.IsType<bool>(field.Value));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Theory]
+    [InlineData("\"true\"")]
+    [InlineData("!!str true")]
+    public void ConfigLoader_FieldScopeBooleanLikeStringDefault_RemainsString(string yamlDefault)
+    {
+        var path = WriteFieldScopeDefaultConfig(yamlDefault);
+        try
+        {
+            var config = ConfigLoader.Load(path);
+            var configuredDefault = Assert.Single(config.Content.ModelSchema!.FieldScopes!["posts"]).Default;
+
+            Assert.Equal("true", Assert.IsType<string>(configuredDefault));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Fact]
     public async Task ContentLoadStage_RoutesToProviderFactory()
     {
@@ -1138,6 +1195,30 @@ public sealed class ContentStagesTests
     }
 
     private static RawContentLoadResult ToRawResult(RawContentLoadResult result) => result;
+
+    private static string WriteFieldScopeDefaultConfig(string yamlDefault)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"bukit-field-scope-default-{Guid.NewGuid():N}.yaml");
+        File.WriteAllText(
+            path,
+            $$"""
+            site:
+              name: field-scope-default
+              title: Field scope default
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+              modelSchema:
+                fieldScopes:
+                  posts:
+                    - name: featured
+                      fieldType: boolean
+                      default: {{yamlDefault}}
+            """);
+        return path;
+    }
 
     private sealed class NoOpLogger : ILogger
     {
