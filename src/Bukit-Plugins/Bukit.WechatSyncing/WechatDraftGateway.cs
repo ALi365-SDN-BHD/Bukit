@@ -408,10 +408,12 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
     /// </summary>
     internal static byte[] BuildMultipart(string boundary, byte[] fileBytes, string fileName, string contentType)
     {
+        var safeContentType = contentType.Replace("\"", string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
+        var safeFileName = fileName.Replace("\"", string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
         var header =
             $"--{boundary}\r\n" +
-            $"Content-Disposition: form-data; name=\"media\"; filename=\"{fileName}\"\r\n" +
-            $"Content-Type: {contentType}\r\n\r\n";
+            $"Content-Disposition: form-data; name=\"media\"; filename=\"{safeFileName}\"\r\n" +
+            $"Content-Type: {safeContentType}\r\n\r\n";
         var footer = $"\r\n--{boundary}--\r\n";
 
         var headerBytes = Encoding.UTF8.GetBytes(header);

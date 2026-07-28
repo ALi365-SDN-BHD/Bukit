@@ -33,15 +33,19 @@ internal static class ScssCompiler
             try
             {
                 var cssFile = Path.ChangeExtension(scssFile, ".css");
-                var process = Process.Start(new ProcessStartInfo
+                var startInfo = new ProcessStartInfo
                 {
                     FileName = sassCli,
-                    Arguments = $"\"{scssFile}\" \"{cssFile}\" --no-source-map --style=compressed",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
-                });
+                };
+                startInfo.ArgumentList.Add(scssFile);
+                startInfo.ArgumentList.Add(cssFile);
+                startInfo.ArgumentList.Add("--no-source-map");
+                startInfo.ArgumentList.Add("--style=compressed");
+                var process = Process.Start(startInfo);
 
                 if (process is null)
                 {
@@ -93,7 +97,8 @@ internal static class ScssCompiler
 
                 if (process is not null)
                 {
-                    process.WaitForExitAsync(new CancellationTokenSource(3000).Token).GetAwaiter().GetResult();
+                    using var cts = new CancellationTokenSource(3000);
+                    process.WaitForExitAsync(cts.Token).GetAwaiter().GetResult();
                     if (process.ExitCode == 0)
                     {
                         return name;

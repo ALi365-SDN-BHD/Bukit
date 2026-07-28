@@ -66,26 +66,38 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildPlugin
 
                 try
                 {
-                    var args = $"\"{imageFile}\" -resize {size}x -quality {quality} \"{sizedFile}\"";
-                    using var process = Process.Start(new ProcessStartInfo
+                    var startInfo = new ProcessStartInfo
                     {
                         FileName = tool,
-                        Arguments = args,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
-                    });
+                    };
+                    startInfo.ArgumentList.Add(imageFile);
+                    startInfo.ArgumentList.Add("-resize");
+                    startInfo.ArgumentList.Add($"{size}x");
+                    startInfo.ArgumentList.Add("-quality");
+                    startInfo.ArgumentList.Add(quality.ToString());
+                    startInfo.ArgumentList.Add(sizedFile);
+                    using var process = Process.Start(startInfo);
 
-                    process?.WaitForExit(10000);
-                    if (process?.ExitCode == 0)
+                    if (process is not null && process.WaitForExit(10000))
                     {
-                        context.Logger.Info($"event=image_resize.ok file={Path.GetFileName(sizedFile)}");
+                        if (process.ExitCode == 0)
+                        {
+                            context.Logger.Info($"event=image_resize.ok file={Path.GetFileName(sizedFile)}");
+                        }
+                        else
+                        {
+                            var err = process.StandardError.ReadToEnd();
+                            context.Logger.Warn($"event=image_resize.error file={Path.GetFileName(imageFile)} reason={err}");
+                        }
                     }
-                    else
+                    else if (process is not null)
                     {
-                        var err = process?.StandardError.ReadToEnd();
-                        context.Logger.Warn($"event=image_resize.error file={Path.GetFileName(imageFile)} reason={err}");
+                        process.Kill(entireProcessTree: true);
+                        context.Logger.Warn($"event=image_resize.error file={Path.GetFileName(imageFile)} reason=timeout");
                     }
                 }
                 catch (Exception ex)

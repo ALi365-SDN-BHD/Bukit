@@ -86,13 +86,35 @@ internal static class ImageOptimizer
             return;
         }
 
-        var args = toolPath.EndsWith("cwebp", StringComparison.OrdinalIgnoreCase)
-            ? $"-q {quality} \"{inputFile}\" -o \"{outputFile}\""
-            : $"magick \"{inputFile}\" -quality {quality} \"{outputFile}\"";
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = toolPath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        if (toolPath.EndsWith("cwebp", StringComparison.OrdinalIgnoreCase))
+        {
+            startInfo.ArgumentList.Add("-q");
+            startInfo.ArgumentList.Add(quality.ToString());
+            startInfo.ArgumentList.Add(inputFile);
+            startInfo.ArgumentList.Add("-o");
+            startInfo.ArgumentList.Add(outputFile);
+        }
+        else
+        {
+            startInfo.ArgumentList.Add("magick");
+            startInfo.ArgumentList.Add(inputFile);
+            startInfo.ArgumentList.Add("-quality");
+            startInfo.ArgumentList.Add(quality.ToString());
+            startInfo.ArgumentList.Add(outputFile);
+        }
 
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-        await RunTool(toolPath, args, logger, inputFile, linkedCts.Token);
+        await RunTool(startInfo, logger, inputFile, linkedCts.Token);
     }
 
     private static async Task ConvertToAvif(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
@@ -104,10 +126,22 @@ internal static class ImageOptimizer
             return;
         }
 
-        var args = $"magick \"{inputFile}\" -quality {quality} \"{outputFile}\"";
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = toolPath,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("magick");
+        startInfo.ArgumentList.Add(inputFile);
+        startInfo.ArgumentList.Add("-quality");
+        startInfo.ArgumentList.Add(quality.ToString());
+        startInfo.ArgumentList.Add(outputFile);
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-        await RunTool(toolPath, args, logger, inputFile, linkedCts.Token);
+        await RunTool(startInfo, logger, inputFile, linkedCts.Token);
     }
 
     private static string? FindImageTool()
@@ -143,17 +177,9 @@ internal static class ImageOptimizer
         return null;
     }
 
-    private static async Task RunTool(string toolPath, string args, ILogger logger, string inputFile, CancellationToken cancellationToken)
+    private static async Task RunTool(ProcessStartInfo startInfo, ILogger logger, string inputFile, CancellationToken cancellationToken)
     {
-        using var process = Process.Start(new ProcessStartInfo
-        {
-            FileName = toolPath,
-            Arguments = args,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        });
+        using var process = Process.Start(startInfo);
 
         if (process is null)
         {

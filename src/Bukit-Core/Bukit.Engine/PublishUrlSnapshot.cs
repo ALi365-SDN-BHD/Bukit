@@ -96,7 +96,10 @@ internal static class PublishUrlSnapshotBuilder
             return document.Record.Presentation.Body;
         }
 
-        return bodyStore.GetAsync(document).GetAwaiter().GetResult().Html;
+        // Safe in build pipeline: no SynchronizationContext, yield-return iterator cannot be async.
+#pragma warning disable CS0618
+        return ContentBodyResolver.GetHtml(document, bodyStore);
+#pragma warning restore CS0618
     }
 
     private static PublishUrlSnapshotRoute ResolveDuplicate(IGrouping<string, PublishUrlSnapshotRoute> duplicates)
