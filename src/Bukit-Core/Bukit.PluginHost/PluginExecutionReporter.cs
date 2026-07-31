@@ -69,6 +69,16 @@ internal sealed class PluginExecutionReporter
         writer.WriteBoolean("success", report.Success);
         writer.WriteBoolean("timedOut", report.TimedOut);
         writer.WriteBoolean("outputLimitExceeded", report.OutputLimitExceeded);
+        if (report.ResourceLimitExceeded is not null)
+        {
+            writer.WriteString("resourceLimitExceeded", report.ResourceLimitExceeded);
+        }
+
+        if (report.NetworkPermissionGranted is bool networkGranted)
+        {
+            writer.WriteBoolean("networkPermissionGranted", networkGranted);
+        }
+
         writer.WriteNumber("stdoutBytes", report.StdoutBytes);
         writer.WriteNumber("stderrBytes", report.StderrBytes);
         writer.WriteString("stderr", PluginSecretMasker.MaskText(report.Stderr, report.Environment));

@@ -240,7 +240,9 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
                     Permissions: request.Permissions,
                     Diagnostics: response?.Diagnostics,
                     Artifacts: response?.Artifacts,
-                    ResponseSummary: CreateResponseSummary(response)),
+                    ResponseSummary: CreateResponseSummary(response),
+                    ResourceLimitExceeded: result.ResourceLimitExceeded,
+                    NetworkPermissionGranted: request.Permissions?.Network),
                 cancellationToken);
     }
 
@@ -330,6 +332,11 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
         if (result.OutputLimitExceeded)
         {
             throw ProtocolError(PluginHostErrorCodes.OutputTooLarge, "Plugin process output exceeded configured limits.");
+        }
+
+        if (result.ResourceLimitExceeded is not null)
+        {
+            throw ProtocolError(PluginHostErrorCodes.ResourceLimitExceeded, result.ResourceLimitExceeded);
         }
 
         if (result.ExitCode != 0)

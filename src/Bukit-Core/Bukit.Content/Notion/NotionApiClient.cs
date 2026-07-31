@@ -118,7 +118,8 @@ internal sealed class NotionApiClient : IDisposable
             ApiVersion = Bukit.Notion.NotionApiUrls.NotionVersion,
             RequestDelayMs = options.RequestDelayMs,
             MaxRetries = options.MaxRetries,
-            MaxRps = options.MaxRps
+            MaxRps = options.MaxRps,
+            HttpHandlerFactory = static () => SsrfGuard.CreateSafeHandler()
         };
     }
 }

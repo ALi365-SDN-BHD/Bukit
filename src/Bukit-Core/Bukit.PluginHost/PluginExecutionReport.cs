@@ -28,7 +28,9 @@ internal sealed record PluginExecutionReport(
     PluginPermissionSet? Permissions = null,
     IReadOnlyList<PluginDiagnostic>? Diagnostics = null,
     IReadOnlyList<PluginArtifact>? Artifacts = null,
-    PluginExecutionResponseSummary? ResponseSummary = null)
+    PluginExecutionResponseSummary? ResponseSummary = null,
+    string? ResourceLimitExceeded = null,
+    bool? NetworkPermissionGranted = null)
 {
     public IReadOnlyDictionary<string, string> Environment { get; init; } =
         Environment ?? new Dictionary<string, string>(StringComparer.Ordinal);

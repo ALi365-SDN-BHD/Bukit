@@ -6,4 +6,5 @@ public sealed record ProcessRunResult(
     string Stderr,
     bool TimedOut,
     bool OutputLimitExceeded,
-    ProcessOutputStream? OutputLimitStream = null);
+    ProcessOutputStream? OutputLimitStream = null,
+    string? ResourceLimitExceeded = null);

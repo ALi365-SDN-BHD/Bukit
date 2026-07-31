@@ -90,7 +90,8 @@ internal sealed class NotionContentClient : IDisposable
             ApiVersion = NotionApiUrls.NotionVersion,
             RequestDelayMs = options.RequestDelayMs,
             MaxRetries = options.MaxRetries,
-            MaxRps = options.MaxRps
+            MaxRps = options.MaxRps,
+            HttpHandlerFactory = static () => SsrfGuard.CreateSafeHandler()
         };
     }
 }

@@ -9,6 +9,8 @@ namespace Bukit.PluginHost;
 
 public sealed class PluginManifestLoader : IPluginManifestLoader
 {
+    internal const int SupportedManifestVersion = 1;
+
     public async Task<PluginManifest> LoadAsync(string pluginRoot, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(pluginRoot))
@@ -25,6 +27,19 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
         await using var stream = File.OpenRead(manifestPath);
         using var reader = new StreamReader(stream);
         YamlMappingNode root = LoadRoot(reader, manifestPath);
+
+        // Detect manifest schema version (default: 1 for backward compat)
+        int manifestVersion = PluginYaml.GetOptionalInt(root, "manifestVersion") ?? 1;
+        if (manifestVersion < 1 || manifestVersion > SupportedManifestVersion)
+        {
+            throw new ConfigException(
+                $"Plugin manifest version {manifestVersion} is not supported. Supported versions: 1–{SupportedManifestVersion}.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        // Migrate if needed (currently v1 is the only version, no-op)
+        root = PluginManifestMigrator.Migrate(root, manifestVersion, SupportedManifestVersion);
+        manifestVersion = SupportedManifestVersion;
 
         string id = PluginYaml.GetRequiredString(root, "id", "plugin.id");
         PluginIdValidator.Validate(id);
@@ -64,7 +79,8 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
             distribution,
             platforms,
             commands,
-            permissions);
+            permissions,
+            manifestVersion);
     }
 
     private static YamlMappingNode LoadRoot(TextReader reader, string path)

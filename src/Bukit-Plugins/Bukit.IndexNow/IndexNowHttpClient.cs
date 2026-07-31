@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
+using Bukit.Shared;
 
 namespace Bukit.IndexNow;
 
@@ -11,7 +12,7 @@ public sealed partial class IndexNowHttpClient : IIndexNowTransport
 
     public IndexNowHttpClient(HttpClient? client = null)
     {
-        _client = client ?? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+        _client = client ?? SsrfGuard.CreateSafeHttpClient();
     }
 
     public async Task<IndexNowPageResponse> GetPageAsync(Uri url, CancellationToken cancellationToken)

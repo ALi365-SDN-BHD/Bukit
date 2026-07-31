@@ -198,12 +198,19 @@ public sealed class NotionClient : IDisposable
     private static HttpClient CreateHttpClient(NotionClientOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        return new HttpClient
+
+        HttpMessageHandler handler;
+        if (options.HttpHandlerFactory is not null)
         {
-            Timeout = options.Timeout > TimeSpan.Zero
-                ? options.Timeout
-                : Timeout.InfiniteTimeSpan
-        };
+            handler = options.HttpHandlerFactory();
+        }
+        else
+        {
+            handler = new SocketsHttpHandler();
+        }
+
+        var timeout = options.Timeout > TimeSpan.Zero ? options.Timeout : Timeout.InfiniteTimeSpan;
+        return new HttpClient(handler, disposeHandler: true) { Timeout = timeout };
     }
 
     private void ApplyNotionHeaders(HttpRequestMessage request)

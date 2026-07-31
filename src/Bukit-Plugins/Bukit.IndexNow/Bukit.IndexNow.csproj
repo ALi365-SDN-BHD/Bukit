@@ -10,4 +10,8 @@
     <InternalsVisibleTo Include="Bukit.Plugin.IndexNow.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Bukit-Core\Bukit.Shared\Bukit.Shared.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -101,4 +101,38 @@ public static class SsrfGuard
         var mask = uint.MaxValue << (32 - prefixLength);
         return (value & mask) == (network & mask);
     }
+
+    // ── Unified HttpClient factory ─────────────────────────────────────
+
+    /// <summary>
+    /// Creates a <see cref="SocketsHttpHandler"/> whose <c>ConnectCallback</c>
+    /// is wired to <see cref="SsrfSafeConnectAsync"/>. Use this to inject SSRF
+    /// protection into APIs that accept a handler factory.
+    /// </summary>
+    public static SocketsHttpHandler CreateSafeHandler()
+        => new() { ConnectCallback = SsrfSafeConnectAsync };
+
+    /// <summary>
+    /// Creates an <see cref="HttpClient"/> with a <see cref="SocketsHttpHandler"/>
+    /// whose <c>ConnectCallback</c> is wired to <see cref="SsrfSafeConnectAsync"/>.
+    /// All outbound HTTP in the engine should flow through this factory.
+    /// </summary>
+    public static HttpClient CreateSafeHttpClient(
+        TimeSpan? timeout = null,
+        string? userAgent = null)
+    {
+        var handler = CreateSafeHandler();
+        var client = new HttpClient(handler, disposeHandler: true);
+        if (timeout.HasValue)
+        {
+            client.Timeout = timeout.Value;
+        }
+
+        if (!string.IsNullOrEmpty(userAgent))
+        {
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(userAgent);
+        }
+
+        return client;
+    }
 }

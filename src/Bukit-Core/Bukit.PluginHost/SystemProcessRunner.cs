@@ -28,6 +28,7 @@ public sealed class SystemProcessRunner : IProcessRunner
         using var timeoutCts = new CancellationTokenSource(request.Timeout);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
         var limitState = new OutputLimitState(process);
+        string? resourceLimitExceeded = null;
 
         Task<LimitedOutput> stdoutTask = ReadLimitedAsync(
             process.StandardOutput.BaseStream,
@@ -41,6 +42,14 @@ public sealed class SystemProcessRunner : IProcessRunner
             ProcessOutputStream.Stderr,
             limitState,
             cancellationToken);
+
+        // Start resource monitoring if limits are configured
+        Task? resourceMonitorTask = null;
+        if (request.MaxCpuTime is not null || request.MaxMemoryBytes is not null)
+        {
+            resourceMonitorTask = MonitorResourceLimitsAsync(
+                process, request.MaxCpuTime, request.MaxMemoryBytes, linkedCts.Token);
+        }
 
         await WriteStandardInputAsync(process, request.StandardInput, cancellationToken);
 
@@ -61,6 +70,16 @@ public sealed class SystemProcessRunner : IProcessRunner
             throw;
         }
 
+        // Check if resource monitor killed the process
+        if (resourceMonitorTask is not null)
+        {
+            try { await resourceMonitorTask; } catch { /* swallow — already killed process */ }
+            if (process.HasExited && !timedOut && !limitState.WasExceeded)
+            {
+                resourceLimitExceeded = DetectResourceLimitViolation(process, request);
+            }
+        }
+
         LimitedOutput stdout = await stdoutTask;
         LimitedOutput stderr = await stderrTask;
         bool outputLimitExceeded = stdout.Exceeded || stderr.Exceeded;
@@ -70,14 +89,15 @@ public sealed class SystemProcessRunner : IProcessRunner
                 ? ProcessOutputStream.Stderr
                 : null;
 
-        int exitCode = timedOut || outputLimitExceeded ? -1 : process.ExitCode;
+        int exitCode = timedOut || outputLimitExceeded || resourceLimitExceeded is not null ? -1 : process.ExitCode;
         return new ProcessRunResult(
             exitCode,
             stdout.Text,
             stderr.Text,
             timedOut,
             outputLimitExceeded,
-            outputLimitStream);
+            outputLimitStream,
+            resourceLimitExceeded);
     }
 
     private static ProcessStartInfo CreateStartInfo(ProcessRunRequest request)
@@ -216,6 +236,8 @@ public sealed class SystemProcessRunner : IProcessRunner
             _process = process;
         }
 
+        public bool WasExceeded => Volatile.Read(ref _exceeded) == 1;
+
         public void MarkExceeded(ProcessOutputStream outputStream)
         {
             if (Interlocked.Exchange(ref _exceeded, 1) == 0)
@@ -226,4 +248,69 @@ public sealed class SystemProcessRunner : IProcessRunner
     }
 
     private sealed record LimitedOutput(string Text, bool Exceeded);
+
+    // ── Resource monitoring ──────────────────────────────────────────────
+
+    private static async Task MonitorResourceLimitsAsync(
+        Process process,
+        TimeSpan? maxCpuTime,
+        long? maxMemoryBytes,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested && !process.HasExited)
+            {
+                await Task.Delay(500, cancellationToken);
+                if (process.HasExited) break;
+
+                try
+                {
+                    process.Refresh();
+
+                    if (maxCpuTime is not null && process.TotalProcessorTime > maxCpuTime.Value)
+                    {
+                        KillProcess(process);
+                        return;
+                    }
+
+                    if (maxMemoryBytes is not null && process.PeakWorkingSet64 > maxMemoryBytes.Value)
+                    {
+                        KillProcess(process);
+                        return;
+                    }
+                }
+                catch (InvalidOperationException) { break; }
+                catch (System.ComponentModel.Win32Exception) { break; }
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private static string? DetectResourceLimitViolation(Process process, ProcessRunRequest request)
+    {
+        try
+        {
+            if (request.MaxCpuTime is not null)
+            {
+                var cpuTime = process.TotalProcessorTime;
+                if (cpuTime > request.MaxCpuTime.Value)
+                {
+                    return $"CPU time {cpuTime.TotalSeconds:F1}s exceeded limit {request.MaxCpuTime.Value.TotalSeconds:F1}s";
+                }
+            }
+
+            if (request.MaxMemoryBytes is not null)
+            {
+                var peakMem = process.PeakWorkingSet64;
+                if (peakMem > request.MaxMemoryBytes.Value)
+                {
+                    return $"Peak memory {peakMem / (1024 * 1024)}MB exceeded limit {request.MaxMemoryBytes.Value / (1024 * 1024)}MB";
+                }
+            }
+        }
+        catch (InvalidOperationException) { }
+
+        return null;
+    }
 }

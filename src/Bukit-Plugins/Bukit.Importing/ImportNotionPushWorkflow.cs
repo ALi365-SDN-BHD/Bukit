@@ -2,12 +2,13 @@ using System.Text;
 using System.Text.Json;
 using Bukit.Notion.Transport;
 using Bukit.Notion.Write;
+using Bukit.Shared;
 
 namespace Bukit.Importing;
 
 public static class ImportNotionPushWorkflow
 {
-    private static Func<HttpClient> _createHttpClient = () => new HttpClient();
+    private static Func<HttpClient> _createHttpClient = () => SsrfGuard.CreateSafeHttpClient();
 
     /// <summary>
     /// Factory for creating HttpClient instances. Thread-safe setter for test seams.

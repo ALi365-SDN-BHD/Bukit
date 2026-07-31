@@ -11,7 +11,8 @@ public sealed record PluginManifest(
     string Distribution,
     IReadOnlyDictionary<string, PluginPlatformEntry>? Platforms = null,
     IReadOnlyList<PluginCommandSpec>? Commands = null,
-    PluginPermissionSet? RequiredPermissions = null)
+    PluginPermissionSet? RequiredPermissions = null,
+    int ManifestVersion = 1)
 {
     public IReadOnlyDictionary<string, PluginPlatformEntry> Platforms { get; init; } = Platforms ?? new Dictionary<string, PluginPlatformEntry>(StringComparer.Ordinal);
     public IReadOnlyList<PluginCommandSpec> Commands { get; init; } = Commands ?? [];

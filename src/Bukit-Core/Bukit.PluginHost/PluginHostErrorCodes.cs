@@ -8,4 +8,5 @@ internal static class PluginHostErrorCodes
     public const string ExecutionFailed = "plugin.executionFailed";
     public const string PermissionDenied = "plugin.permissionDenied";
     public const string OutputTooLarge = "plugin.outputTooLarge";
+    public const string ResourceLimitExceeded = "plugin.resourceLimitExceeded";
 }
