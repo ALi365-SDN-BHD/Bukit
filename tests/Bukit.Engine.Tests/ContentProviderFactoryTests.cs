@@ -110,6 +110,130 @@ public sealed class ContentProviderFactoryTests
     }
 
     [Fact]
+    public void Create_WithEmptySourceType_ThrowsConfigException()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_test_content_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig { Type = "" }
+                ])
+            };
+            var logger = new ConsoleLogger(LogLevel.Debug);
+
+            var ex = Assert.Throws<ConfigException>(() => ContentProviderFactory.Create(config, tempDir, false, logger));
+            Assert.Contains("type is required", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Create_WithUnsupportedType_ThrowsConfigException()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_test_content_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig { Type = "unknown-type", Name = "src" }
+                ])
+            };
+            var logger = new ConsoleLogger(LogLevel.Debug);
+
+            var ex = Assert.Throws<ConfigException>(() => ContentProviderFactory.Create(config, tempDir, false, logger));
+            Assert.Contains("Unsupported content source type", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Create_WithDuplicatedUnnamedMarkdownSources_GeneratesUniqueKeys()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_test_content_" + Guid.NewGuid().ToString("N"));
+        var mdDir1 = Path.Combine(tempDir, "content", "one");
+        var mdDir2 = Path.Combine(tempDir, "content", "two");
+        Directory.CreateDirectory(mdDir1);
+        Directory.CreateDirectory(mdDir2);
+
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig { Dir = "content/one" } },
+                    new ContentSourceConfig { Type = "markdown", Markdown = new MarkdownConfig { Dir = "content/two" } }
+                ])
+            };
+            var logger = new ConsoleLogger(LogLevel.Debug);
+
+            var provider = ContentProviderFactory.Create(config, tempDir, false, logger);
+            Assert.NotNull(provider);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Create_WithNotionSourceAndMissingNotionConfig_ThrowsConfigException()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_test_content_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "test", Title = "Test", BaseUrl = "/" },
+                Content = ContentConfigFactory.FromSources(
+                [
+                    new ContentSourceConfig { Type = "notion", Name = "notion-src" }
+                ])
+            };
+            var logger = new ConsoleLogger(LogLevel.Debug);
+
+            var ex = Assert.Throws<ConfigException>(() => ContentProviderFactory.Create(config, tempDir, false, logger));
+            Assert.Contains("notion is required", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task LocalizeContentImagesAsync_WithEmptyItems_ReturnsEmptyResult()
     {
         var items = Array.Empty<ContentDocument>();

@@ -548,4 +548,165 @@ public sealed class DirectoryCopyTests : IDisposable
         _tempRoots.Add(root);
         return root;
     }
+
+    // ── Copy method ──────────────────────────────────────────────────
+
+    [Fact]
+    public void Copy_NoOps_WhenSourceDirectoryDoesNotExist()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "missing");
+        var destinationDir = Path.Combine(root, "output");
+
+        DirectoryCopy.Copy(sourceDir, destinationDir);
+
+        Assert.False(Directory.Exists(destinationDir));
+    }
+
+    [Fact]
+    public void Copy_CopiesFilesAndSubdirectories()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(Path.Combine(sourceDir, "sub"));
+        File.WriteAllText(Path.Combine(sourceDir, "a.txt"), "a");
+        File.WriteAllText(Path.Combine(sourceDir, "sub", "b.txt"), "b");
+
+        DirectoryCopy.Copy(sourceDir, destinationDir);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "a.txt")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, "sub", "b.txt")));
+        Assert.Equal("a", File.ReadAllText(Path.Combine(destinationDir, "a.txt")));
+    }
+
+    [Fact]
+    public void Copy_SkipsDotPrefixedFilesAndDirectories()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(Path.Combine(sourceDir, ".hidden-dir"));
+        File.WriteAllText(Path.Combine(sourceDir, ".hidden.txt"), "skip");
+        File.WriteAllText(Path.Combine(sourceDir, "visible.txt"), "keep");
+
+        DirectoryCopy.Copy(sourceDir, destinationDir);
+
+        Assert.False(File.Exists(Path.Combine(destinationDir, ".hidden.txt")));
+        Assert.False(Directory.Exists(Path.Combine(destinationDir, ".hidden-dir")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, "visible.txt")));
+    }
+
+    [Fact]
+    public void Copy_OverwritesExistingDestinationFile()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(destinationDir);
+        File.WriteAllText(Path.Combine(sourceDir, "a.txt"), "new");
+        File.WriteAllText(Path.Combine(destinationDir, "a.txt"), "old");
+
+        DirectoryCopy.Copy(sourceDir, destinationDir);
+
+        Assert.Equal("new", File.ReadAllText(Path.Combine(destinationDir, "a.txt")));
+    }
+
+    [Fact]
+    public void Sync_NonExistentSource_NoOps()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "missing");
+        var destinationDir = Path.Combine(root, "output");
+
+        DirectoryCopy.Sync(sourceDir, destinationDir);
+
+        Assert.False(Directory.Exists(destinationDir));
+    }
+
+    [Fact]
+    public void Sync_WithPrune_RemovesStaleDestinationFiles()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(destinationDir);
+        File.WriteAllText(Path.Combine(sourceDir, "keep.txt"), "keep");
+        File.WriteAllText(Path.Combine(destinationDir, "keep.txt"), "old");
+        File.WriteAllText(Path.Combine(destinationDir, "stale.txt"), "stale");
+        Directory.CreateDirectory(Path.Combine(destinationDir, "stale-dir"));
+
+        DirectoryCopy.Sync(sourceDir, destinationDir, prune: true);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "keep.txt")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "stale.txt")));
+        Assert.False(Directory.Exists(Path.Combine(destinationDir, "stale-dir")));
+    }
+
+    [Fact]
+    public void SyncFilesRecursive_CopiesNestedStructure()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(Path.Combine(sourceDir, "deep", "nested"));
+        File.WriteAllText(Path.Combine(sourceDir, "top.txt"), "top");
+        File.WriteAllText(Path.Combine(sourceDir, "deep", "nested", "bottom.txt"), "bottom");
+
+        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "top.txt")));
+        Assert.True(File.Exists(Path.Combine(destinationDir, "deep", "nested", "bottom.txt")));
+    }
+
+    [Fact]
+    public void EnumerateFilesForSync_ReturnsSortedRelativePaths()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        Directory.CreateDirectory(Path.Combine(sourceDir, "sub"));
+        File.WriteAllText(Path.Combine(sourceDir, "b.txt"), "b");
+        File.WriteAllText(Path.Combine(sourceDir, "a.txt"), "a");
+        File.WriteAllText(Path.Combine(sourceDir, "sub", "c.txt"), "c");
+
+        var items = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions());
+
+        Assert.Equal(3, items.Count);
+        Assert.Equal("a.txt", items[0].RelativePath);
+        Assert.Equal("b.txt", items[1].RelativePath);
+        Assert.Equal(Path.Combine("sub", "c.txt"), items[2].RelativePath);
+    }
+
+    [Fact]
+    public void EnumerateFilesForSync_NonExistentSource_ReturnsEmpty()
+    {
+        var root = CreateTempRoot();
+        var items = DirectoryCopy.EnumerateFilesForSync(Path.Combine(root, "missing"), new DirectoryCopyOptions());
+        Assert.Empty(items);
+    }
+
+    [Fact]
+    public void SyncPlannedFile_CopiesFileWhenSourceUnchanged()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(destinationDir);
+        File.WriteAllText(Path.Combine(sourceDir, "asset.txt"), "content");
+
+        // Obtain the planned item (source + physical root) exactly as AssetPipeline does
+        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions()).Single();
+        DirectoryCopy.SyncPlannedFile(
+            planned.SourcePath,
+            Path.Combine(destinationDir, "asset.txt"),
+            "size-time",
+            destinationDir,
+            planned.PhysicalSourceRoot,
+            new DirectoryCopyOptions());
+
+        Assert.True(File.Exists(Path.Combine(destinationDir, "asset.txt")));
+    }
 }

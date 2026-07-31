@@ -69,3 +69,5 @@ tests/fixtures/*
 examples/silkroad_biz24/
 .playwright-mcp/
 /.qoder
+coverage-results/
+coverage-results-filtered/
