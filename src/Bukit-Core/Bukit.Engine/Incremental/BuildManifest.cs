@@ -21,7 +21,7 @@ public sealed class BuildManifest
 
         try
         {
-            using var stream = File.OpenRead(manifestPath);
+            using var stream = new FileStream(manifestPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 65536);
             using var doc = JsonDocument.Parse(stream);
 
             var manifest = new BuildManifest();
@@ -94,8 +94,8 @@ public sealed class BuildManifest
         var tempPath = manifestPath + ".tmp";
         try
         {
-            using (var stream = File.Create(tempPath))
-            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+            using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 65536))
+            using (var writer = new Utf8JsonWriter(stream))
             {
                 writer.WriteStartObject();
                 writer.WriteNumber("version", Version);

@@ -198,10 +198,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         var endpoint =
             $"https://api.weixin.qq.com/cgi-bin/material/add_material?access_token={Uri.EscapeDataString(accessToken)}&type=image";
 
-        var boundary = "----bukit-" + Guid.NewGuid().ToString("N");
-        var multipartBytes = BuildMultipart(boundary, bytes, fileName, contentType);
-        using var body = new ByteArrayContent(multipartBytes);
-        body.Headers.ContentType = MediaTypeHeaderValue.Parse($"multipart/form-data; boundary={boundary}");
+        using var body = BuildMultipartContent(bytes, fileName, contentType);
 
         using var resp = await _httpClient.PostAsync(endpoint, body, cancellationToken);
         var textResp = await resp.Content.ReadAsStringAsync(cancellationToken);
@@ -269,10 +266,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         var endpoint =
             $"https://api.weixin.qq.com/cgi-bin/media/uploadimg?access_token={Uri.EscapeDataString(accessToken)}";
 
-        var boundary = "----bukit-" + Guid.NewGuid().ToString("N");
-        var multipartBytes = BuildMultipart(boundary, bytes, fileName, contentType);
-        using var body = new ByteArrayContent(multipartBytes);
-        body.Headers.ContentType = MediaTypeHeaderValue.Parse($"multipart/form-data; boundary={boundary}");
+        using var body = BuildMultipartContent(bytes, fileName, contentType);
 
         using var resp = await _httpClient.PostAsync(endpoint, body, cancellationToken);
         var textResp = await resp.Content.ReadAsStringAsync(cancellationToken);
@@ -402,28 +396,21 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
     // ── Hand-crafted multipart builder ──────────────────────────────────
 
     /// <summary>
-    /// Builds the raw bytes for a multipart/form-data body with explicit
-    /// boundary, Content-Disposition (name="media"), and Content-Type.
-    /// This ensures WeChat can reliably read the <c>media</c> field.
+    /// Builds a <see cref="MultipartFormDataContent"/> with a single file part
+    /// (name="media") for WeChat material/image upload endpoints.
+    /// Uses streaming — avoids allocating a full byte[] copy of the multipart body.
     /// </summary>
-    internal static byte[] BuildMultipart(string boundary, byte[] fileBytes, string fileName, string contentType)
+    internal static MultipartFormDataContent BuildMultipartContent(byte[] fileBytes, string fileName, string contentType)
     {
         var safeContentType = contentType.Replace("\"", string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
         var safeFileName = fileName.Replace("\"", string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty);
-        var header =
-            $"--{boundary}\r\n" +
-            $"Content-Disposition: form-data; name=\"media\"; filename=\"{safeFileName}\"\r\n" +
-            $"Content-Type: {safeContentType}\r\n\r\n";
-        var footer = $"\r\n--{boundary}--\r\n";
 
-        var headerBytes = Encoding.UTF8.GetBytes(header);
-        var footerBytes = Encoding.UTF8.GetBytes(footer);
+        var fileContent = new ByteArrayContent(fileBytes);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue(safeContentType);
 
-        var result = new byte[headerBytes.Length + fileBytes.Length + footerBytes.Length];
-        Buffer.BlockCopy(headerBytes, 0, result, 0, headerBytes.Length);
-        Buffer.BlockCopy(fileBytes, 0, result, headerBytes.Length, fileBytes.Length);
-        Buffer.BlockCopy(footerBytes, 0, result, headerBytes.Length + fileBytes.Length, footerBytes.Length);
-        return result;
+        var multipart = new MultipartFormDataContent();
+        multipart.Add(fileContent, "media", safeFileName);
+        return multipart;
     }
 
     /// <summary>

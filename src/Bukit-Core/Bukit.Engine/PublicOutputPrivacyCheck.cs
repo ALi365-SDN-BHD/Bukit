@@ -79,8 +79,7 @@ internal static partial class PublicOutputPrivacyCheck
             var contentLeak = false;
             if (s_textExtensions.Contains(Path.GetExtension(path)))
             {
-                var text = File.ReadAllText(path);
-                contentLeak = ContainsSensitiveToken(text, sensitiveTokens) || ContainsProviderMarker(text, Path.GetExtension(path));
+                contentLeak = ScanFileForLeaks(path, sensitiveTokens);
             }
 
             if (pathLeak || contentLeak)
@@ -130,17 +129,38 @@ internal static partial class PublicOutputPrivacyCheck
         }
     }
 
-    private static bool ContainsSensitiveToken(string value, IReadOnlySet<string> sensitiveTokens)
-        => sensitiveTokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
-
-    private static bool ContainsProviderMarker(string value, string extension)
+    /// <summary>
+    /// Streams a file line-by-line, checking each line for sensitive tokens
+    /// and provider markers. Returns <c>true</c> as soon as a leak is found
+    /// (early exit), avoiding full-file reads on large outputs.
+    /// Falls back to full JSON parse for .json/.jsonld to catch Unicode escapes.
+    /// </summary>
+    private static bool ScanFileForLeaks(string path, IReadOnlySet<string> sensitiveTokens)
     {
+        var extension = Path.GetExtension(path);
+        using var reader = new StreamReader(path);
+        while (reader.ReadLine() is { } line)
+        {
+            if (ContainsSensitiveToken(line, sensitiveTokens))
+            {
+                return true;
+            }
+
+            if (LineProviderMarkerRegex().IsMatch(line) || JsonProviderMarkerRegex().IsMatch(line))
+            {
+                return true;
+            }
+        }
+
+        // JSON fallback: parse full document to catch Unicode-escaped values
+        // (e.g. "not\u0069on") that streaming regex cannot detect.
         if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase) ||
             extension.Equals(".jsonld", StringComparison.OrdinalIgnoreCase))
         {
             try
             {
-                using var document = System.Text.Json.JsonDocument.Parse(value);
+                var fullText = File.ReadAllText(path);
+                using var document = System.Text.Json.JsonDocument.Parse(fullText);
                 if (ContainsJsonProviderMarker(document.RootElement))
                 {
                     return true;
@@ -148,11 +168,11 @@ internal static partial class PublicOutputPrivacyCheck
             }
             catch (System.Text.Json.JsonException)
             {
-                // Fall through to the text checks for incomplete generated output.
+                // Invalid JSON — already checked via regex above.
             }
         }
 
-        return JsonProviderMarkerRegex().IsMatch(value) || LineProviderMarkerRegex().IsMatch(value);
+        return false;
     }
 
     private static bool ContainsJsonProviderMarker(System.Text.Json.JsonElement element)
@@ -188,6 +208,9 @@ internal static partial class PublicOutputPrivacyCheck
 
         return false;
     }
+
+    private static bool ContainsSensitiveToken(string value, IReadOnlySet<string> sensitiveTokens)
+        => sensitiveTokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
 
     private static string RedactPath(string relativePath, IReadOnlySet<string> sensitiveTokens)
     {

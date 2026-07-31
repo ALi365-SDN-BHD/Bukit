@@ -57,9 +57,8 @@ internal static class PageRenderDispatcher
         var renderReasons = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var stageMetrics = new BuildStageMetricsCollector();
 
-        if (maxDegreeOfParallelism <= 0) maxDegreeOfParallelism = Environment.ProcessorCount;
-        maxDegreeOfParallelism = Math.Clamp(maxDegreeOfParallelism, 1, Math.Max(1, Environment.ProcessorCount * 2));
-        var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism, CancellationToken = cancellationToken };
+        var effectiveParallelism = ComputeOptimalParallelism(entries.Count, maxDegreeOfParallelism);
+        var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = effectiveParallelism, CancellationToken = cancellationToken };
         var writeLocks = new ConcurrentDictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var entry in entries)
@@ -367,5 +366,42 @@ internal static class PageRenderDispatcher
         {
             gate.Release();
         }
+    }
+
+    // ── Adaptive parallelism ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Computes optimal parallelism based on workload size and user configuration.
+    /// <list type="bullet">
+    ///   <item>&lt;100 pages: min(2, CPU) — avoids thread pool overhead for small sites</item>
+    ///   <item>100–1000 pages: min(CPU, count) — standard CPU-bound scaling</item>
+    ///   <item>&gt;1000 pages: min(CPU×1.5, count) — exploits I/O-bound template rendering</item>
+    /// </list>
+    /// </summary>
+    internal static int ComputeOptimalParallelism(int itemCount, int requestedMaxDegreeOfParallelism)
+    {
+        var processorCount = Environment.ProcessorCount;
+
+        int workloadBased;
+        if (itemCount < 100)
+        {
+            workloadBased = Math.Min(2, processorCount);
+        }
+        else if (itemCount <= 1000)
+        {
+            workloadBased = Math.Min(processorCount, itemCount);
+        }
+        else
+        {
+            // I/O-bound rendering benefits from slight over-subscription
+            workloadBased = Math.Min((int)Math.Ceiling(processorCount * 1.5), itemCount);
+        }
+
+        if (requestedMaxDegreeOfParallelism > 0)
+        {
+            return Math.Clamp(requestedMaxDegreeOfParallelism, 1, Math.Max(1, processorCount * 2));
+        }
+
+        return Math.Clamp(workloadBased, 1, Math.Max(1, processorCount * 2));
     }
 }

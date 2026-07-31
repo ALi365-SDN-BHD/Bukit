@@ -107,6 +107,7 @@ public sealed record ContentDocument
     private static IReadOnlyList<string> MergeLists(params IReadOnlyList<string>?[] lists)
     {
         var values = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var list in lists)
         {
             if (list is null)
@@ -116,8 +117,7 @@ public sealed record ContentDocument
 
             foreach (var value in list)
             {
-                if (!string.IsNullOrWhiteSpace(value) &&
-                    !values.Any(x => string.Equals(x, value, StringComparison.OrdinalIgnoreCase)))
+                if (!string.IsNullOrWhiteSpace(value) && seen.Add(value))
                 {
                     values.Add(value);
                 }
