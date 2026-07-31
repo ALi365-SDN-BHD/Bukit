@@ -22,14 +22,15 @@ internal static class BuildReporter
     internal const string BuildManifestDigestSchema = "https://bukit.dev/schemas/build-manifest-digest.v1.json";
     internal const string PublishUrlSnapshotSchema = "https://bukit.dev/schemas/publish-url-snapshot.v1.json";
 
-    internal static void WriteIfEnabled(
+    internal static async Task WriteIfEnabledAsync(
         AppConfig config,
         string rootDir,
         string outputDir,
         BuildResult result,
         IReadOnlyList<BuildVariantResult> variants,
         ILogger logger,
-        SecurityReportData? securityData = null)
+        SecurityReportData? securityData = null,
+        CancellationToken cancellationToken = default)
     {
         var reportDir = Path.Combine(outputDir, ReportDirectoryName);
         Directory.CreateDirectory(reportDir);
@@ -44,7 +45,8 @@ internal static class BuildReporter
             config.Build.Report.Enabled);
         foreach (var writer in BuildReportWriterPlan.Create(config.Build.Report.Enabled))
         {
-            writer.Write(context);
+            cancellationToken.ThrowIfCancellationRequested();
+            await writer.WriteAsync(context, cancellationToken).ConfigureAwait(false);
         }
 
         logger.Debug(config.Build.Report.Enabled

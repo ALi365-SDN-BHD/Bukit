@@ -8,6 +8,11 @@ internal sealed class PublishUrlSnapshotReportWriter : IBuildReportWriter
 
     public void Write(BuildReportWriterContext context)
     {
+        // Use WriteAsync instead.
+    }
+
+    public async Task WriteAsync(BuildReportWriterContext context, CancellationToken cancellationToken = default)
+    {
         var snapshotPath = Path.Combine(context.ReportDir, "publish-url-snapshot.json");
         if (string.IsNullOrWhiteSpace(context.Config.Site.Url))
         {
@@ -15,7 +20,7 @@ internal sealed class PublishUrlSnapshotReportWriter : IBuildReportWriter
             return;
         }
 
-        var snapshot = PublishUrlSnapshotBuilder.Build(context.Config, context.Variants);
+        var snapshot = await PublishUrlSnapshotBuilder.BuildAsync(context.Config, context.Variants, cancellationToken).ConfigureAwait(false);
         using var stream = File.Create(snapshotPath);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         PublishUrlSnapshotJson.Write(writer, snapshot);

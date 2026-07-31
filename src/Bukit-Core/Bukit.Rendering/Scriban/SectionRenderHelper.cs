@@ -179,6 +179,8 @@ internal sealed class SectionRenderHelper
             try
             {
                 var task = plugin.ExecuteAsync(ctx);
+                // Scriban renders sections synchronously; bridge only when plugin is truly async.
+                // TODO(async-render): remove when SectionRenderHelper becomes fully async.
                 if (!task.IsCompleted) task.GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -286,6 +288,8 @@ internal sealed class SectionRenderHelper
             try
             {
                 var task = afterPlugin.ExecuteAsync(afterCtx);
+                // Scriban renders sections synchronously; bridge only when plugin is truly async.
+                // TODO(async-render): remove when SectionRenderHelper becomes fully async.
                 if (!task.IsCompleted) task.GetAwaiter().GetResult();
             }
             catch (Exception ex)

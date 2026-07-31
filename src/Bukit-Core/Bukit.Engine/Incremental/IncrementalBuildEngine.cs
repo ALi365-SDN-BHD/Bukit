@@ -12,7 +12,7 @@ internal static class IncrementalBuildEngine
 {
     private const string BodyFingerprintKey = "bodyFingerprint";
 
-    internal static string ComputeContentHash(ContentDocument document, IContentBodyStore bodyStore)
+    internal static async Task<string> ComputeContentHashAsync(ContentDocument document, IContentBodyStore bodyStore, CancellationToken cancellationToken = default)
     {
         var metadataHash = ComputeMetadataHash(document);
         if (TryComputeStableContentHash(document, bodyStore, metadataHash, out var stableContentHash))
@@ -20,9 +20,8 @@ internal static class IncrementalBuildEngine
             return stableContentHash;
         }
 
-#pragma warning disable CS0618
-        return ComputeContentHash(document, metadataHash, ContentBodyResolver.GetHtml(document, bodyStore));
-#pragma warning restore CS0618
+        var html = await ContentBodyResolver.GetHtmlAsync(document, bodyStore, cancellationToken).ConfigureAwait(false);
+        return ComputeContentHash(document, metadataHash, html);
     }
 
     internal static string ComputeMetadataHash(ContentDocument document)
@@ -225,9 +224,9 @@ internal static class IncrementalBuildEngine
                 return stableContentHash;
             }
 
-#pragma warning disable CS0618
-            return ComputeContentHash(document, metadataHash, ContentBodyResolver.GetHtml(document, bodyStore));
-#pragma warning restore CS0618
+            // Fallback: use inline HTML if available to avoid blocking
+            var html = !string.IsNullOrEmpty(document.Body.Html) ? document.Body.Html : string.Empty;
+            return ComputeContentHash(document, metadataHash, html);
         }
 
         return metadataHash;

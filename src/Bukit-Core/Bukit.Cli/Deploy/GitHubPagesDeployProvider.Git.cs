@@ -1,11 +1,12 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Bukit.Shared;
 
 namespace Bukit.Cli.Deploy;
 
 public sealed partial class GitHubPagesDeployProvider
 {
-    private static async Task EnsureGitIdentityAsync(string gitPath, string tempDir, TimeSpan gitCommandTimeout, CancellationToken ct)
+    private static async Task EnsureGitIdentityAsync(string gitPath, string tempDir, TimeSpan gitCommandTimeout, CancellationToken ct, ILogger? logger = null)
     {
         var hasName = false;
         var hasEmail = false;
@@ -15,8 +16,9 @@ public sealed partial class GitHubPagesDeployProvider
             var name = await RunGitAndCaptureAsync(gitPath, tempDir, gitCommandTimeout, ct, "config", "--local", "user.name");
             hasName = !string.IsNullOrWhiteSpace(name);
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.Debug($"event=git.config.read.failed key=user.name scope=local reason={ex.Message}");
         }
 
         try
@@ -27,8 +29,9 @@ public sealed partial class GitHubPagesDeployProvider
                 hasName = !string.IsNullOrWhiteSpace(globalName);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.Debug($"event=git.config.read.failed key=user.name scope=global reason={ex.Message}");
         }
 
         try
@@ -36,8 +39,9 @@ public sealed partial class GitHubPagesDeployProvider
             var email = await RunGitAndCaptureAsync(gitPath, tempDir, gitCommandTimeout, ct, "config", "--local", "user.email");
             hasEmail = !string.IsNullOrWhiteSpace(email);
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.Debug($"event=git.config.read.failed key=user.email scope=local reason={ex.Message}");
         }
 
         try
@@ -48,8 +52,9 @@ public sealed partial class GitHubPagesDeployProvider
                 hasEmail = !string.IsNullOrWhiteSpace(globalEmail);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.Debug($"event=git.config.read.failed key=user.email scope=global reason={ex.Message}");
         }
 
         if (!hasName)
@@ -63,7 +68,7 @@ public sealed partial class GitHubPagesDeployProvider
         }
     }
 
-    private static string? ResolveGit()
+    private static string? ResolveGit(ILogger? logger = null)
     {
         var paths = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
         var names = OperatingSystem.IsWindows() ? new[] { "git.exe", "git.cmd" } : new[] { "git" };
@@ -98,8 +103,9 @@ public sealed partial class GitHubPagesDeployProvider
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+            logger?.Debug($"event=git.resolve.failed method=which reason={ex.Message}");
         }
 
         return null;
@@ -346,8 +352,9 @@ public sealed partial class GitHubPagesDeployProvider
                 proc.Kill(entireProcessTree: true);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.Error.WriteLine($"Deploy: failed to kill git process tree pid={proc.Id} reason={ex.GetType().Name}: {ex.Message}");
         }
     }
 

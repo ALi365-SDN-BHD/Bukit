@@ -79,7 +79,7 @@ internal static class ImageOptimizer
 
     private static async Task ConvertToWebp(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
     {
-        var toolPath = FindImageTool();
+        var toolPath = await FindImageToolAsync(cancellationToken);
         if (toolPath is null)
         {
             logger.Warn("event=image_optimize.skip reason=no_tool message=Install cwebp (libwebp) or ImageMagick for WebP conversion.");
@@ -119,7 +119,7 @@ internal static class ImageOptimizer
 
     private static async Task ConvertToAvif(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
     {
-        var toolPath = FindImageTool();
+        var toolPath = await FindImageToolAsync(cancellationToken);
         if (toolPath is null)
         {
             logger.Warn("event=image_optimize.skip reason=no_tool message=Install ImageMagick (magick) for AVIF conversion.");
@@ -144,10 +144,15 @@ internal static class ImageOptimizer
         await RunTool(startInfo, logger, inputFile, linkedCts.Token);
     }
 
-    private static string? FindImageTool()
+    private static async Task<string?> FindImageToolAsync(CancellationToken cancellationToken = default)
     {
         foreach (var name in new[] { "cwebp", "magick", "convert" })
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
             try
             {
                 using var process = Process.Start(new ProcessStartInfo
@@ -162,7 +167,8 @@ internal static class ImageOptimizer
                 if (process is not null)
                 {
                     using var cts = new CancellationTokenSource(3000);
-                    process.WaitForExitAsync(cts.Token).GetAwaiter().GetResult();
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+                    await process.WaitForExitAsync(linkedCts.Token);
                     if (process.ExitCode == 0)
                     {
                         return name;

@@ -10,7 +10,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
     {
         var logger = context.Logger;
 
-        var gitPath = ResolveGit();
+        var gitPath = ResolveGit(logger);
         if (gitPath is null)
         {
             return new DeployResult { Success = false, Error = "git command not found. Please install git and ensure it is in PATH." };
@@ -140,7 +140,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
                 };
             }
 
-            await EnsureGitIdentityAsync(gitPath, tempDir, gitCommandTimeout, ct);
+            await EnsureGitIdentityAsync(gitPath, tempDir, gitCommandTimeout, ct, logger);
 
             await RunGitAsync(gitPath, tempDir, gitCommandTimeout, ct, "add", "-A");
             await RunGitAsync(gitPath, tempDir, gitCommandTimeout, ct, "commit", "-m", message, "--allow-empty");

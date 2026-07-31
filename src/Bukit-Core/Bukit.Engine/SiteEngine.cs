@@ -171,7 +171,7 @@ public sealed class SiteEngine
                     warningCount: buildLogger.WarningCount,
                     errorCount: buildLogger.ErrorCount);
                 var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
-                BuildReporter.WriteIfEnabled(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData);
+                await BuildReporter.WriteIfEnabledAsync(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData, cancellationToken).ConfigureAwait(false);
                 BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI);
                 WriteOutputMarker(plan.OutputDir);
                 BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
@@ -312,7 +312,7 @@ public sealed class SiteEngine
             warningCount: buildLogger.WarningCount,
             errorCount: buildLogger.ErrorCount);
         var securityData = BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults);
-        BuildReporter.WriteIfEnabled(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData);
+        await BuildReporter.WriteIfEnabledAsync(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData, cancellationToken).ConfigureAwait(false);
         BuildReporter.EnforceSecurityGate(config, securityData, overrides.IsCI);
         WriteOutputMarker(outputDir);
         BuildRecoveryTracker.MarkCompleted(outputDir);

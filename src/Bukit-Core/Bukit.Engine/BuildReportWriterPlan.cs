@@ -7,6 +7,12 @@ internal interface IBuildReportWriter
     string Name { get; }
 
     void Write(BuildReportWriterContext context);
+
+    Task WriteAsync(BuildReportWriterContext context, CancellationToken cancellationToken = default)
+    {
+        Write(context);
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed record BuildReportWriterContext(

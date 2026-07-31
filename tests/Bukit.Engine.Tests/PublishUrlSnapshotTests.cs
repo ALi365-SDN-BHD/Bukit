@@ -13,7 +13,7 @@ namespace Bukit.Engine.Tests;
 public sealed class PublishUrlSnapshotTests
 {
     [Fact]
-    public void Writer_EmitsCandidateSnapshotWithStableContract()
+    public async Task Writer_EmitsCandidateSnapshotWithStableContract()
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outputDir);
@@ -79,7 +79,7 @@ public sealed class PublishUrlSnapshotTests
                 1000,
                 [variant]);
 
-            BuildReporter.WriteIfEnabled(config, outputDir, outputDir, result, [variant], new ConsoleLogger(LogLevel.Error));
+            await BuildReporter.WriteIfEnabledAsync(config, outputDir, outputDir, result, [variant], new ConsoleLogger(LogLevel.Error));
 
             var snapshotPath = Path.Combine(outputDir, ".bukit", "publish-url-snapshot.json");
             Assert.True(File.Exists(snapshotPath));
@@ -102,14 +102,14 @@ public sealed class PublishUrlSnapshotTests
     }
 
     [Fact]
-    public void Writer_MissingSiteUrl_DoesNotFailForRelativeCanonicalRoutes()
+    public async Task Writer_MissingSiteUrl_DoesNotFailForRelativeCanonicalRoutes()
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(outputDir);
 
         try
         {
-            var exception = Record.Exception(() => WriteReportsWithoutSiteUrl(outputDir));
+            var exception = await Record.ExceptionAsync(() => WriteReportsWithoutSiteUrl(outputDir));
 
             Assert.Null(exception);
             Assert.False(File.Exists(Path.Combine(outputDir, ".bukit", "publish-url-snapshot.json")));
@@ -121,7 +121,7 @@ public sealed class PublishUrlSnapshotTests
     }
 
     [Fact]
-    public void Writer_MissingSiteUrl_DeletesExistingSnapshot()
+    public async Task Writer_MissingSiteUrl_DeletesExistingSnapshot()
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         var reportDir = Path.Combine(outputDir, ".bukit");
@@ -131,7 +131,7 @@ public sealed class PublishUrlSnapshotTests
 
         try
         {
-            var exception = Record.Exception(() => WriteReportsWithoutSiteUrl(outputDir));
+            var exception = await Record.ExceptionAsync(() => WriteReportsWithoutSiteUrl(outputDir));
 
             Assert.Null(exception);
             Assert.False(File.Exists(snapshotPath));
@@ -143,14 +143,14 @@ public sealed class PublishUrlSnapshotTests
     }
 
     [Fact]
-    public void Snapshot_BuildsStableCanonicalUrlOrderAndExcludesBuildMetadata()
+    public async Task Snapshot_BuildsStableCanonicalUrlOrderAndExcludesBuildMetadata()
     {
         var config = CreateConfig();
         var later = CreateVariant(config, "https://silushangxun.com/insights/zeta/", "<p>Zeta</p>");
         var earlier = CreateVariant(config, "https://silushangxun.com/insights/alpha/", "<p>Alpha</p>");
 
-        var first = PublishUrlSnapshotBuilder.Build(config, [later, earlier]);
-        var second = PublishUrlSnapshotBuilder.Build(config, [earlier, later]);
+        var first = await PublishUrlSnapshotBuilder.BuildAsync(config, [later, earlier]);
+        var second = await PublishUrlSnapshotBuilder.BuildAsync(config, [earlier, later]);
         var firstJson = PublishUrlSnapshotJson.Serialize(first);
         var secondJson = PublishUrlSnapshotJson.Serialize(second);
 
@@ -212,13 +212,13 @@ public sealed class PublishUrlSnapshotTests
     }
 
     [Fact]
-    public void Snapshot_UsesBodyStoreForBodyKeyOnlyDocuments()
+    public async Task Snapshot_UsesBodyStoreForBodyKeyOnlyDocuments()
     {
         var config = CreateConfig();
         const string canonical = "https://silushangxun.com/insights/body-store/";
 
-        var first = PublishUrlSnapshotBuilder.Build(config, [CreateBodyStoreVariant(config, canonical, "<p>First body</p>")]);
-        var second = PublishUrlSnapshotBuilder.Build(config, [CreateBodyStoreVariant(config, canonical, "<p>Changed body</p>")]);
+        var first = await PublishUrlSnapshotBuilder.BuildAsync(config, [CreateBodyStoreVariant(config, canonical, "<p>First body</p>")]);
+        var second = await PublishUrlSnapshotBuilder.BuildAsync(config, [CreateBodyStoreVariant(config, canonical, "<p>Changed body</p>")]);
 
         Assert.NotEqual(Assert.Single(first.Routes).SemanticHash, Assert.Single(second.Routes).SemanticHash);
     }
@@ -239,7 +239,7 @@ public sealed class PublishUrlSnapshotTests
     }
 
     [Fact]
-    public void Diff_UsesOnlyExplicitBaselineAndCurrentSnapshots()
+    public async Task Diff_UsesOnlyExplicitBaselineAndCurrentSnapshots()
     {
         var baseline = Snapshot(
             new PublishUrlSnapshotRoute("https://silushangxun.com/insights/deleted/", true, "sha256:deleted"),
@@ -298,7 +298,7 @@ public sealed class PublishUrlSnapshotTests
             Build = new BuildConfig { Report = new BuildReportConfig { Enabled = true } }
         };
 
-    private static void WriteReportsWithoutSiteUrl(string outputDir)
+    private static async Task WriteReportsWithoutSiteUrl(string outputDir)
     {
         var baseConfig = CreateConfig();
         var config = baseConfig with { Site = baseConfig.Site with { Url = null } };
@@ -338,7 +338,7 @@ public sealed class PublishUrlSnapshotTests
             1000,
             [variant]);
 
-        BuildReporter.WriteIfEnabled(config, outputDir, outputDir, result, [variant], new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, outputDir, outputDir, result, [variant], new ConsoleLogger(LogLevel.Error));
     }
 
     private static BuildVariantResult CreateVariant(AppConfig config, string canonical, string body)

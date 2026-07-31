@@ -16,18 +16,20 @@ namespace Bukit.Engine;
 
 internal sealed partial class VariantBuildPipeline
 {
-    internal DataModuleResult PrepareDataModules(
+    internal Task<DataModuleResult> PrepareDataModulesAsync(
         IReadOnlyList<ContentDocument> documents,
         string language,
         IContentBodyStore bodyStore,
         IReadOnlyList<ContentSourceConfig>? sources = null,
-        RouteMetadataConfig? routeMetadata = null)
-        => VariantDataSitePlanner.PrepareDataModules(
+        RouteMetadataConfig? routeMetadata = null,
+        CancellationToken cancellationToken = default)
+        => VariantDataSitePlanner.PrepareDataModulesAsync(
             documents,
             language,
             bodyStore,
             sources,
-            routeMetadata);
+            routeMetadata,
+            cancellationToken);
 
     internal RoutePipelineResult GenerateRoutes(
         AppConfig config,

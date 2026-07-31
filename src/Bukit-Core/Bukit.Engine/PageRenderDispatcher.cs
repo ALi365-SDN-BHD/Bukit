@@ -125,7 +125,7 @@ internal static class PageRenderDispatcher
                             if (IncrementalBuildEngine.TryComputeStableContentHash(document, bodyStore, mh, out var sch))
                                 contentHash = sch;
                             else
-                                contentHash = IncrementalBuildEngine.ComputeContentHash(document, bodyStore);
+                                contentHash = await IncrementalBuildEngine.ComputeContentHashAsync(document, bodyStore, ct).ConfigureAwait(false);
                         }
 
                         var canSkip = canEvaluateSkip && existing!.ContentHash == contentHash;

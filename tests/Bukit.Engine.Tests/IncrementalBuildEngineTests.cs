@@ -196,7 +196,7 @@ public sealed class IncrementalBuildEngineTests
     }
 
     [Fact]
-    public void ComputeContentHash_WithBodyFingerprint_UsesStableHash()
+    public async Task ComputeContentHash_WithBodyFingerprint_UsesStableHash()
     {
         var item = CreateItem(fieldValues: new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
@@ -204,7 +204,7 @@ public sealed class IncrementalBuildEngineTests
         });
         var bodyStore = NullContentBodyStore.Instance;
 
-        var hash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
+        var hash = await IncrementalBuildEngine.ComputeContentHashAsync(item, bodyStore);
 
         var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
         var expected = HashUtil.Sha256Hex(string.Join("\n", metadataHash, "abc123def456"));
@@ -213,13 +213,13 @@ public sealed class IncrementalBuildEngineTests
     }
 
     [Fact]
-    public void ComputeContentHash_WithContentHtml_NoBodyFingerprint_FallsBackToContentHash()
+    public async Task ComputeContentHash_WithContentHtml_NoBodyFingerprint_FallsBackToContentHash()
     {
         var html = "<p>Hello World</p>";
         var item = CreateItem(contentHtml: html);
         var bodyStore = NullContentBodyStore.Instance;
 
-        var hash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
+        var hash = await IncrementalBuildEngine.ComputeContentHashAsync(item, bodyStore);
 
         var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
         var bodyFingerprint = HashUtil.Sha256Hex(html);
@@ -229,7 +229,7 @@ public sealed class IncrementalBuildEngineTests
     }
 
     [Fact]
-    public void ComputeContentHash_WithBothBodyFingerprintAndContentHtml_UsesBodyFingerprint()
+    public async Task ComputeContentHash_WithBothBodyFingerprintAndContentHtml_UsesBodyFingerprint()
     {
         var item = CreateItem(
             contentHtml: "<p>Should not be used</p>",
@@ -239,7 +239,7 @@ public sealed class IncrementalBuildEngineTests
             });
         var bodyStore = NullContentBodyStore.Instance;
 
-        var hash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
+        var hash = await IncrementalBuildEngine.ComputeContentHashAsync(item, bodyStore);
 
         var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
         var expected = HashUtil.Sha256Hex(string.Join("\n", metadataHash, "fingerprint-from-fieldValues"));
@@ -663,7 +663,7 @@ public sealed class IncrementalBuildEngineTests
     }
 
     [Fact]
-    public void ComputeContentHash_2Args_WithLocalizedBodyStore_FallsBackToContentHash()
+    public async Task ComputeContentHash_2Args_WithLocalizedBodyStore_FallsBackToContentHash()
     {
         var html = "<p>Fallback</p>";
         var item = CreateItem(
@@ -674,7 +674,7 @@ public sealed class IncrementalBuildEngineTests
             });
         var bodyStore = new LocalizedContentBodyStore(NullContentBodyStore.Instance, null!);
 
-        var hash = IncrementalBuildEngine.ComputeContentHash(item, bodyStore);
+        var hash = await IncrementalBuildEngine.ComputeContentHashAsync(item, bodyStore);
 
         var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(item);
         var expected = HashUtil.Sha256Hex(string.Join("\n", metadataHash, html));

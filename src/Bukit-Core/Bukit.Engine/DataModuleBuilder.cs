@@ -10,7 +10,7 @@ namespace Bukit.Engine;
 
 internal static class DataModuleBuilder
 {
-    internal static IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>? BuildModules(IReadOnlyList<ContentDocument> dataDocuments, string language, IContentBodyStore bodyStore)
+    internal static async Task<IReadOnlyDictionary<string, IReadOnlyList<ModuleInfo>>?> BuildModulesAsync(IReadOnlyList<ContentDocument> dataDocuments, string language, IContentBodyStore bodyStore, CancellationToken cancellationToken = default)
     {
         if (dataDocuments.Count == 0)
         {
@@ -21,6 +21,7 @@ internal static class DataModuleBuilder
 
         foreach (var document in dataDocuments)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var enabled = ContentFieldReader.GetBool(document.CustomFields, "enabled");
             if (enabled is false)
             {
@@ -44,14 +45,13 @@ internal static class DataModuleBuilder
                 map[type] = list;
             }
 
+            var html = await ContentBodyResolver.GetHtmlAsync(document, bodyStore, cancellationToken).ConfigureAwait(false);
             list.Add(new ModuleInfo
             {
                 Id = document.Id,
                 Title = document.Title,
                 Slug = document.Slug,
-#pragma warning disable CS0618
-                Content = ContentBodyResolver.GetHtml(document, bodyStore),
-#pragma warning restore CS0618
+                Content = html,
                 Fields = document.CustomFields
             });
         }
@@ -70,7 +70,7 @@ internal static class DataModuleBuilder
         return result;
     }
 
-    internal static IReadOnlyDictionary<string, object>? BuildDataBySource(IReadOnlyList<ContentDocument> dataDocuments, IContentBodyStore bodyStore)
+    internal static async Task<IReadOnlyDictionary<string, object>?> BuildDataBySourceAsync(IReadOnlyList<ContentDocument> dataDocuments, IContentBodyStore bodyStore, CancellationToken cancellationToken = default)
     {
         if (dataDocuments.Count == 0)
         {
@@ -80,6 +80,7 @@ internal static class DataModuleBuilder
         var map = new Dictionary<string, List<ModuleInfo>>(StringComparer.OrdinalIgnoreCase);
         foreach (var document in dataDocuments)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var sourceKey = ContentFieldReader.GetText(document.CustomFields, "sourceKey") ?? string.Empty;
             if (string.IsNullOrWhiteSpace(sourceKey))
             {
@@ -98,14 +99,13 @@ internal static class DataModuleBuilder
                 map[sourceKey] = list;
             }
 
+            var html = await ContentBodyResolver.GetHtmlAsync(document, bodyStore, cancellationToken).ConfigureAwait(false);
             list.Add(new ModuleInfo
             {
                 Id = document.Id,
                 Title = document.Title,
                 Slug = document.Slug,
-#pragma warning disable CS0618
-                Content = ContentBodyResolver.GetHtml(document, bodyStore),
-#pragma warning restore CS0618
+                Content = html,
                 Fields = document.CustomFields
             });
         }

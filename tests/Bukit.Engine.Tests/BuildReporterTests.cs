@@ -83,7 +83,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void OutputInventories_DoNotIncludeFilesThroughDirectorySymlink()
+    public async Task OutputInventories_DoNotIncludeFilesThroughDirectorySymlink()
     {
         var tempDir = CreateTempDir();
         var assetsDir = Path.Combine(tempDir, "assets");
@@ -105,7 +105,7 @@ public sealed class BuildReporterTests
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         Assert.Equal(1, result.Summary.AssetCount);
         using var assets = JsonDocument.Parse(File.ReadAllText(Path.Combine(tempDir, ".bukit", "assets.json")));
@@ -119,14 +119,14 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WritesBuildReportWithCoreFields()
+    public async Task WriteIfEnabled_WritesBuildReportWithCoreFields()
     {
         var tempDir = CreateTempDir();
         var config = CreateConfig(enabled: true);
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         var reportPath = Path.Combine(tempDir, ".bukit", "build-report.json");
         Assert.True(File.Exists(reportPath));
@@ -154,14 +154,14 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WritesRoutesInStableOrder()
+    public async Task WriteIfEnabled_WritesRoutesInStableOrder()
     {
         var tempDir = CreateTempDir();
         var config = CreateConfig(enabled: true);
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         var routesPath = Path.Combine(tempDir, ".bukit", "routes.json");
         Assert.True(File.Exists(routesPath));
@@ -178,14 +178,14 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_IncludesDerivedRoutes()
+    public async Task WriteIfEnabled_IncludesDerivedRoutes()
     {
         var tempDir = CreateTempDir();
         var config = CreateConfig(enabled: true);
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         var routesPath = Path.Combine(tempDir, ".bukit", "routes.json");
         using var doc = JsonDocument.Parse(File.ReadAllText(routesPath));
@@ -198,7 +198,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WritesAssetsWithHashAndSize()
+    public async Task WriteIfEnabled_WritesAssetsWithHashAndSize()
     {
         var tempDir = CreateTempDir();
         var assetsDir = Path.Combine(tempDir, "assets", "css");
@@ -208,7 +208,7 @@ public sealed class BuildReporterTests
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         var assetsPath = Path.Combine(tempDir, ".bukit", "assets.json");
         Assert.True(File.Exists(assetsPath));
@@ -222,14 +222,14 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WritesIncrementalManifest()
+    public async Task WriteIfEnabled_WritesIncrementalManifest()
     {
         var tempDir = CreateTempDir();
         var config = CreateConfig(enabled: true);
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         var manifestPath = Path.Combine(tempDir, ".bukit", "incremental-manifest.json");
         Assert.True(File.Exists(manifestPath));
@@ -245,7 +245,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WritesArtifactManifestWithHashes()
+    public async Task WriteIfEnabled_WritesArtifactManifestWithHashes()
     {
         var tempDir = CreateTempDir();
         File.WriteAllText(Path.Combine(tempDir, "index.html"), "<html>home</html>");
@@ -253,7 +253,7 @@ public sealed class BuildReporterTests
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         var manifestPath = Path.Combine(tempDir, ".bukit", "artifact-manifest.json");
         Assert.True(File.Exists(manifestPath));
@@ -281,7 +281,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_IncludesSingleVariantAnalyticsReportInArtifactManifest()
+    public async Task WriteIfEnabled_IncludesSingleVariantAnalyticsReportInArtifactManifest()
     {
         var tempDir = CreateTempDir();
         var reportDir = Path.Combine(tempDir, ".bukit");
@@ -291,7 +291,7 @@ public sealed class BuildReporterTests
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, [variant], new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, [variant], new ConsoleLogger(LogLevel.Error));
 
         using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(reportDir, "artifact-manifest.json")));
         Assert.Contains(
@@ -300,7 +300,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_IncludesMultiVariantAnalyticsReportsWithoutChangingTopLevelPaths()
+    public async Task WriteIfEnabled_IncludesMultiVariantAnalyticsReportsWithoutChangingTopLevelPaths()
     {
         var tempDir = CreateTempDir();
         var enDir = Path.Combine(tempDir, "en");
@@ -314,7 +314,7 @@ public sealed class BuildReporterTests
         var zh = CreateVariant(zhDir) with { Language = "zh" };
         var result = CreateResult(config, tempDir, en);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, [en, zh], new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, [en, zh], new ConsoleLogger(LogLevel.Error));
 
         using var document = JsonDocument.Parse(File.ReadAllText(
             Path.Combine(tempDir, ".bukit", "artifact-manifest.json")));
@@ -327,7 +327,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_DoesNotFollowVariantAnalyticsReportSymlinkOutsideOutputRoot()
+    public async Task WriteIfEnabled_DoesNotFollowVariantAnalyticsReportSymlinkOutsideOutputRoot()
     {
         var tempDir = CreateTempDir();
         var outsideDir = CreateTempDir();
@@ -342,7 +342,7 @@ public sealed class BuildReporterTests
         var variant = CreateVariant(variantDir) with { Language = "en" };
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, [variant], new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, [variant], new ConsoleLogger(LogLevel.Error));
 
         using var document = JsonDocument.Parse(File.ReadAllText(
             Path.Combine(tempDir, ".bukit", "artifact-manifest.json")));
@@ -352,7 +352,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WritesBuildManifestDigest()
+    public async Task WriteIfEnabled_WritesBuildManifestDigest()
     {
         var tempDir = CreateTempDir();
         File.WriteAllText(Path.Combine(tempDir, "index.html"), "<html>home</html>");
@@ -360,7 +360,7 @@ public sealed class BuildReporterTests
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         var digestPath = Path.Combine(tempDir, ".bukit", "build-manifest-digest.json");
         Assert.True(File.Exists(digestPath));
@@ -376,7 +376,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WritesReleaseBundleChecksums()
+    public async Task WriteIfEnabled_WritesReleaseBundleChecksums()
     {
         var tempDir = CreateTempDir();
         Directory.CreateDirectory(Path.Combine(tempDir, "assets", "css"));
@@ -386,7 +386,7 @@ public sealed class BuildReporterTests
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         var checksumsPath = Path.Combine(tempDir, ".bukit", "release-bundle-checksums.json");
         Assert.True(File.Exists(checksumsPath));
@@ -402,14 +402,14 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WritesSecurityReport()
+    public async Task WriteIfEnabled_WritesSecurityReport()
     {
         var tempDir = CreateTempDir();
         var config = CreateConfig(enabled: true);
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         var securityPath = Path.Combine(tempDir, ".bukit", "security-report.json");
         Assert.True(File.Exists(securityPath));
@@ -426,7 +426,7 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WithSecurityData_WritesRealCheckResults()
+    public async Task WriteIfEnabled_WithSecurityData_WritesRealCheckResults()
     {
         var tempDir = CreateTempDir();
         var config = CreateConfig(enabled: true);
@@ -434,7 +434,7 @@ public sealed class BuildReporterTests
         var result = CreateResult(config, tempDir, variant);
         var securityData = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, new[] { variant });
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error), securityData);
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error), securityData);
 
         var securityPath = Path.Combine(tempDir, ".bukit", "security-report.json");
         using var doc = JsonDocument.Parse(File.ReadAllText(securityPath));
@@ -552,14 +552,14 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
-    public void WriteIfEnabled_WhenDisabled_PreservesIntegrityReportSet()
+    public async Task WriteIfEnabled_WhenDisabled_PreservesIntegrityReportSet()
     {
         var tempDir = CreateTempDir();
         var config = CreateConfig(enabled: false);
         var variant = CreateVariant(tempDir);
         var result = CreateResult(config, tempDir, variant);
 
-        BuildReporter.WriteIfEnabled(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
+        await BuildReporter.WriteIfEnabledAsync(config, tempDir, tempDir, result, new[] { variant }, new ConsoleLogger(LogLevel.Error));
 
         Assert.Equal(
             new[]

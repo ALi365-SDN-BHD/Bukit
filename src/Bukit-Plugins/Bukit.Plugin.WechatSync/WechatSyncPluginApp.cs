@@ -7,9 +7,6 @@ namespace Bukit.Plugin.WechatSync;
 
 public static class WechatSyncPluginApp
 {
-    public static string Handle(string input)
-        => HandleAsync(input).GetAwaiter().GetResult();
-
     public static async Task<string> HandleAsync(string input)
     {
         using JsonDocument document = JsonDocument.Parse(input);

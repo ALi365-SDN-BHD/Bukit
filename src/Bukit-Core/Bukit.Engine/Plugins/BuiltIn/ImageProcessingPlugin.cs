@@ -45,7 +45,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildPlugin
         var sizes = config.Sizes ?? new[] { 480, 768, 1200 };
         var quality = config.Quality > 0 ? config.Quality : 80;
 
-        var tool = FindResizeTool();
+        var tool = FindResizeTool(context.Logger);
         if (tool is null)
         {
             context.Logger.Warn("event=image_processing.skip reason=no_tool message=Install ImageMagick (magick) for image resizing.");
@@ -137,7 +137,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildPlugin
         }
     }
 
-    private static string? FindResizeTool()
+    private static string? FindResizeTool(ILogger? logger = null)
     {
         foreach (var name in new[] { "magick", "convert" })
         {
@@ -161,8 +161,9 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildPlugin
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                logger?.Warn($"event=image_processing.tool.probe.failed tool={name} reason={ex.Message}");
             }
         }
 

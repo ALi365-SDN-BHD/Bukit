@@ -77,9 +77,6 @@ public static class SeoCommand
         return 2;
     }
 
-    internal static int Audit(string reportPath, bool strict)
-        => AuditAsync(reportPath, Path.GetDirectoryName(Path.GetFullPath(reportPath)) ?? ".", strict, external: false, label: "SEO").GetAwaiter().GetResult();
-
     internal static async Task<int> AuditAsync(
         string reportPath,
         string outputDir,

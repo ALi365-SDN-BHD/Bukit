@@ -9,16 +9,16 @@ namespace Bukit.Engine.Tests;
 public sealed class DataModuleBuilderTests
 {
     [Fact]
-    public void BuildModules_WithEmptyItems_ReturnsNull()
+    public async Task BuildModules_WithEmptyItems_ReturnsNull()
     {
-        var result = DataModuleBuilder.BuildModules(
+        var result = await DataModuleBuilder.BuildModulesAsync(
             Array.Empty<ContentDocument>(), "zh-CN", new StubBodyStore());
 
         Assert.Null(result);
     }
 
     [Fact]
-    public void BuildModules_WithDataItems_GroupsByType()
+    public async Task BuildModules_WithDataItems_GroupsByType()
     {
         var items = new[]
         {
@@ -30,7 +30,7 @@ public sealed class DataModuleBuilderTests
                 ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "hero" })),
         };
 
-        var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
+        var result = await DataModuleBuilder.BuildModulesAsync(items, "zh-CN", new StubBodyStore());
 
         Assert.NotNull(result);
         Assert.Equal(2, result!.Count);
@@ -41,7 +41,7 @@ public sealed class DataModuleBuilderTests
     }
 
     [Fact]
-    public void BuildModules_WithoutType_UsesModuleAsDefault()
+    public async Task BuildModules_WithoutType_UsesModuleAsDefault()
     {
         var items = new[]
         {
@@ -52,14 +52,14 @@ public sealed class DataModuleBuilderTests
                 })),
         };
 
-        var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
+        var result = await DataModuleBuilder.BuildModulesAsync(items, "zh-CN", new StubBodyStore());
 
         Assert.NotNull(result);
         Assert.True(result!.ContainsKey("module"));
     }
 
     [Fact]
-    public void BuildModules_OrdersByOrderFieldThenTitle()
+    public async Task BuildModules_OrdersByOrderFieldThenTitle()
     {
         var items = new[]
         {
@@ -81,7 +81,7 @@ public sealed class DataModuleBuilderTests
                     new Dictionary<string, object> { ["type"] = "widget" })),
         };
 
-        var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
+        var result = await DataModuleBuilder.BuildModulesAsync(items, "zh-CN", new StubBodyStore());
 
         Assert.NotNull(result);
         var widgets = result!["widget"];
@@ -93,7 +93,7 @@ public sealed class DataModuleBuilderTests
     }
 
     [Fact]
-    public void BuildModules_ItemsWithEnabledFalse_AreSkipped()
+    public async Task BuildModules_ItemsWithEnabledFalse_AreSkipped()
     {
         var items = new[]
         {
@@ -105,7 +105,7 @@ public sealed class DataModuleBuilderTests
                     new Dictionary<string, object> { ["type"] = "widget" })),
         };
 
-        var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
+        var result = await DataModuleBuilder.BuildModulesAsync(items, "zh-CN", new StubBodyStore());
 
         Assert.NotNull(result);
         Assert.Single(result!["widget"]);
@@ -113,7 +113,7 @@ public sealed class DataModuleBuilderTests
     }
 
     [Fact]
-    public void BuildModules_PopulatesModuleInfoCorrectly()
+    public async Task BuildModules_PopulatesModuleInfoCorrectly()
     {
         var fields = new Dictionary<string, ContentField>
         {
@@ -125,7 +125,7 @@ public sealed class DataModuleBuilderTests
                 ContentFieldReader.WithValues(fields, new Dictionary<string, object> { ["type"] = "banner" })),
         };
 
-        var result = DataModuleBuilder.BuildModules(items, "zh-CN", new StubBodyStore());
+        var result = await DataModuleBuilder.BuildModulesAsync(items, "zh-CN", new StubBodyStore());
 
         Assert.NotNull(result);
         var module = result!["banner"][0];
@@ -138,7 +138,7 @@ public sealed class DataModuleBuilderTests
     }
 
     [Fact]
-    public void BuildModules_UsesBodyStoreWhenContentHtmlIsNull()
+    public async Task BuildModules_UsesBodyStoreWhenContentHtmlIsNull()
     {
         var items = new[]
         {
@@ -147,7 +147,7 @@ public sealed class DataModuleBuilderTests
         };
         var bodyStore = new StubBodyStore(html: "<p>stored content</p>");
 
-        var result = DataModuleBuilder.BuildModules(items, "zh-CN", bodyStore);
+        var result = await DataModuleBuilder.BuildModulesAsync(items, "zh-CN", bodyStore);
 
         Assert.NotNull(result);
         Assert.Equal("<p>stored content</p>", result!["widget"][0].Content);

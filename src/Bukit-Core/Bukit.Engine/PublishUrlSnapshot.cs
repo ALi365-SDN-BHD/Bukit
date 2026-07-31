@@ -25,23 +25,31 @@ internal sealed record PublishUrlChange(string Type, string Url, string? Semanti
 
 internal static class PublishUrlSnapshotBuilder
 {
-    internal static PublishUrlSnapshot Build(AppConfig config, IReadOnlyList<BuildVariantResult> variants)
+    internal static async Task<PublishUrlSnapshot> BuildAsync(AppConfig config, IReadOnlyList<BuildVariantResult> variants, CancellationToken cancellationToken = default)
     {
-        var routes = variants
-            .SelectMany(BuildRoutes)
-            .GroupBy(route => route.Url, StringComparer.Ordinal)
-            .Select(ResolveDuplicate)
+        var routes = new List<(string Url, PublishUrlSnapshotRoute Route)>();
+        foreach (var variant in variants)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var variantRoutes = await BuildRoutesAsync(variant, cancellationToken).ConfigureAwait(false);
+            routes.AddRange(variantRoutes);
+        }
+
+        var deduped = routes
+            .GroupBy(r => r.Url, StringComparer.Ordinal)
+            .Select(g => ResolveDuplicate(g.Key, g.Select(r => r.Route)))
             .OrderBy(route => route.Url, StringComparer.Ordinal)
             .ToArray();
 
         return new PublishUrlSnapshot(
             BuildReporter.PublishUrlSnapshotSchema,
-            ResolveSiteUrl(config.Site.Url, routes),
-            routes);
+            ResolveSiteUrl(config.Site.Url, deduped),
+            deduped);
     }
 
-    private static IEnumerable<PublishUrlSnapshotRoute> BuildRoutes(BuildVariantResult variant)
+    private static async Task<List<(string Url, PublishUrlSnapshotRoute Route)>> BuildRoutesAsync(BuildVariantResult variant, CancellationToken cancellationToken)
     {
+        var routes = new List<(string Url, PublishUrlSnapshotRoute Route)>();
         var documents = variant.RoutedDocuments
             .Concat(variant.DerivedDocuments)
             .GroupBy(item => item.Route.OutputPath, StringComparer.Ordinal)
@@ -49,6 +57,7 @@ internal static class PublishUrlSnapshotBuilder
 
         foreach (var pair in variant.SeoIndex)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var entry = pair.Value;
             if (!entry.Indexable)
             {
@@ -62,14 +71,17 @@ internal static class PublishUrlSnapshotBuilder
 
             documents.TryGetValue(entry.Route.OutputPath, out var document);
             var url = NormalizeAbsoluteUrl(entry.Canonical);
-            yield return new PublishUrlSnapshotRoute(
+            var body = await ResolveBodyAsync(variant.BodyStore, document, cancellationToken).ConfigureAwait(false);
+            routes.Add((url, new PublishUrlSnapshotRoute(
                 url,
                 true,
-                PublishUrlSemanticHasher.Compute(ResolveBody(variant.BodyStore, document), entry with { Canonical = url }, model));
+                PublishUrlSemanticHasher.Compute(body, entry with { Canonical = url }, model))));
         }
+
+        return routes;
     }
 
-    private static string ResolveBody(IContentBodyStore bodyStore, ContentDocument? document)
+    private static async Task<string> ResolveBodyAsync(IContentBodyStore bodyStore, ContentDocument? document, CancellationToken cancellationToken)
     {
         if (document is null)
         {
@@ -96,13 +108,10 @@ internal static class PublishUrlSnapshotBuilder
             return document.Record.Presentation.Body;
         }
 
-        // Safe in build pipeline: no SynchronizationContext, yield-return iterator cannot be async.
-#pragma warning disable CS0618
-        return ContentBodyResolver.GetHtml(document, bodyStore);
-#pragma warning restore CS0618
+        return await ContentBodyResolver.GetHtmlAsync(document, bodyStore, cancellationToken).ConfigureAwait(false);
     }
 
-    private static PublishUrlSnapshotRoute ResolveDuplicate(IGrouping<string, PublishUrlSnapshotRoute> duplicates)
+    private static PublishUrlSnapshotRoute ResolveDuplicate(string canonicalUrl, IEnumerable<PublishUrlSnapshotRoute> duplicates)
     {
         var routes = duplicates
             .OrderBy(route => route.SemanticHash, StringComparer.Ordinal)
@@ -110,7 +119,7 @@ internal static class PublishUrlSnapshotBuilder
             .ToArray();
         if (routes.Length > 1 && routes.Any(route => !string.Equals(route.SemanticHash, routes[0].SemanticHash, StringComparison.Ordinal)))
         {
-            throw new InvalidOperationException($"Conflicting publish URL snapshot routes share canonical URL '{duplicates.Key}'.");
+            throw new InvalidOperationException($"Conflicting publish URL snapshot routes share canonical URL '{canonicalUrl}'.");
         }
 
         return routes[0];

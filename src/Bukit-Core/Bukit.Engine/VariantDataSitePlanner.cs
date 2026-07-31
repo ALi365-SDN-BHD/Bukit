@@ -15,17 +15,18 @@ internal sealed record DataModuleResult(
 
 internal static class VariantDataSitePlanner
 {
-    internal static DataModuleResult PrepareDataModules(
+    internal static async Task<DataModuleResult> PrepareDataModulesAsync(
         IReadOnlyList<ContentDocument> documents,
         string language,
         IContentBodyStore bodyStore,
         IReadOnlyList<ContentSourceConfig>? sources = null,
-        RouteMetadataConfig? routeMetadata = null)
+        RouteMetadataConfig? routeMetadata = null,
+        CancellationToken cancellationToken = default)
     {
         var dataDocuments = documents.Where(ContentFieldReader.IsDataItem).ToList();
         var templateDataDocuments = ExcludeRouteMetadataDocuments(dataDocuments, routeMetadata?.Source);
-        var modules = DataModuleBuilder.BuildModules(templateDataDocuments, language, bodyStore);
-        var sourceData = DataModuleBuilder.BuildDataBySource(dataDocuments, bodyStore);
+        var modules = await DataModuleBuilder.BuildModulesAsync(templateDataDocuments, language, bodyStore, cancellationToken).ConfigureAwait(false);
+        var sourceData = await DataModuleBuilder.BuildDataBySourceAsync(dataDocuments, bodyStore, cancellationToken).ConfigureAwait(false);
         var dataIndex = DataModuleBuilder.BuildDataIndex(templateDataDocuments, sources);
         var routeMetadataIndex = routeMetadata is null
             ? null
@@ -33,20 +34,20 @@ internal static class VariantDataSitePlanner
         return new DataModuleResult(dataDocuments, modules, sourceData, dataIndex, routeMetadataIndex);
     }
 
-    internal static Task<DataModuleResult> PrepareDataModulesStageAsync(
+    internal static async Task<DataModuleResult> PrepareDataModulesStageAsync(
         BuildVariantContext context,
         BuildStageMetricsCollector metrics)
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var result = PrepareDataModules(
+        var result = await PrepareDataModulesAsync(
             context.Documents,
             context.Config.Site.Language,
             context.BodyStore,
             context.Config.Content.Sources,
-            context.Config.Content.RouteMetadata);
+            context.Config.Content.RouteMetadata).ConfigureAwait(false);
         stopwatch.Stop();
         metrics.AddDuration("prepareContent", stopwatch.ElapsedMilliseconds);
-        return Task.FromResult(result);
+        return result;
     }
 
     internal static SiteModel BuildSiteModel(

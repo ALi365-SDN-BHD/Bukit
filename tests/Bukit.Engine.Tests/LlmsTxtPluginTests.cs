@@ -36,28 +36,28 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_WithGeoDisabled_DoesNotGenerateLlmsTxt()
+    public async Task AfterBuild_WithGeoDisabled_DoesNotGenerateLlmsTxt()
     {
         var outputDir = Path.Combine(_root, "dist-disabled");
         Directory.CreateDirectory(outputDir);
         var (context, config) = CreateContext(outputDir, geoEnabled: false);
 
         var plugin = new LlmsTxtPlugin(config);
-        plugin.AfterBuild(context);
+        await plugin.AfterBuildAsync(context);
 
         Assert.False(File.Exists(Path.Combine(outputDir, "llms.txt")));
         Assert.False(File.Exists(Path.Combine(outputDir, "llms-full.txt")));
     }
 
     [Fact]
-    public void AfterBuild_WithLlmsTxtEnabled_GeneratesLlmsTxt()
+    public async Task AfterBuild_WithLlmsTxtEnabled_GeneratesLlmsTxt()
     {
         var outputDir = Path.Combine(_root, "dist-llmstxt");
         Directory.CreateDirectory(outputDir);
         var (context, config) = CreateContext(outputDir, geoEnabled: true, llmsTxt: true);
 
         var plugin = new LlmsTxtPlugin(config);
-        plugin.AfterBuild(context);
+        await plugin.AfterBuildAsync(context);
 
         var path = Path.Combine(outputDir, "llms.txt");
         Assert.True(File.Exists(path));
@@ -68,7 +68,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_WithLlmsTxtEnabled_ShouldUseCanonicalSummaryForLinkDescription()
+    public async Task AfterBuild_WithLlmsTxtEnabled_ShouldUseCanonicalSummaryForLinkDescription()
     {
         var outputDir = Path.Combine(_root, "dist-llmstxt-summary");
         Directory.CreateDirectory(outputDir);
@@ -76,21 +76,21 @@ public sealed class LlmsTxtPluginTests : IDisposable
             itemSummary: "Canonical llms summary");
 
         var plugin = new LlmsTxtPlugin(config);
-        plugin.AfterBuild(context);
+        await plugin.AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
         Assert.Contains("- [Test Page](https://example.com/page-1/): Canonical llms summary", content, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AfterBuild_WithLlmsFullTxtEnabled_GeneratesLlmsFullTxt()
+    public async Task AfterBuild_WithLlmsFullTxtEnabled_GeneratesLlmsFullTxt()
     {
         var outputDir = Path.Combine(_root, "dist-full");
         Directory.CreateDirectory(outputDir);
         var (context, config) = CreateContext(outputDir, geoEnabled: true, llmsFullTxt: true);
 
         var plugin = new LlmsTxtPlugin(config);
-        plugin.AfterBuild(context);
+        await plugin.AfterBuildAsync(context);
 
         var path = Path.Combine(outputDir, "llms-full.txt");
         Assert.True(File.Exists(path));
@@ -101,14 +101,14 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_WithAbsoluteSiteUrl_WritesAbsoluteLlmsLinks()
+    public async Task AfterBuild_WithAbsoluteSiteUrl_WritesAbsoluteLlmsLinks()
     {
         var outputDir = Path.Combine(_root, "dist-absolute-url");
         Directory.CreateDirectory(outputDir);
         var (context, config) = CreateContext(outputDir, geoEnabled: true, llmsTxt: true);
 
         var plugin = new LlmsTxtPlugin(config);
-        plugin.AfterBuild(context);
+        await plugin.AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
         Assert.Contains("- [Test Page](https://example.com/page-1/)", content, StringComparison.Ordinal);
@@ -116,7 +116,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_WithOptionalLinks_IncludesOptionalSection()
+    public async Task AfterBuild_WithOptionalLinks_IncludesOptionalSection()
     {
         var outputDir = Path.Combine(_root, "dist-optional");
         Directory.CreateDirectory(outputDir);
@@ -127,7 +127,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             });
 
         var plugin = new LlmsTxtPlugin(config);
-        plugin.AfterBuild(context);
+        await plugin.AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
         Assert.Contains("## Optional", content, StringComparison.Ordinal);
@@ -135,7 +135,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_WithDescriptionFallbackInFullTxt_UsesFallbackChain()
+    public async Task AfterBuild_WithDescriptionFallbackInFullTxt_UsesFallbackChain()
     {
         var outputDir = Path.Combine(_root, "dist-fallback");
         Directory.CreateDirectory(outputDir);
@@ -144,14 +144,14 @@ public sealed class LlmsTxtPluginTests : IDisposable
             itemSeoDesc: null, itemSummary: null);
 
         var plugin = new LlmsTxtPlugin(config);
-        plugin.AfterBuild(context);
+        await plugin.AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
         Assert.Contains("Item-specific description", content, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AfterBuild_WithCanonicalTrustMetadataInFullTxt_IncludesCanonicalFields()
+    public async Task AfterBuild_WithCanonicalTrustMetadataInFullTxt_IncludesCanonicalFields()
     {
         const string relatedNotionId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
         var outputDir = Path.Combine(_root, "dist-canonical");
@@ -160,7 +160,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             itemSummary: "Canonical summary");
 
         var plugin = new LlmsTxtPlugin(config);
-        plugin.AfterBuild(context);
+        await plugin.AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
         Assert.Contains("Author: Ali", content, StringComparison.Ordinal);
@@ -171,7 +171,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_WithOnlySummaryInFullTxt_UsesSummary()
+    public async Task AfterBuild_WithOnlySummaryInFullTxt_UsesSummary()
     {
         var outputDir = Path.Combine(_root, "dist-summary");
         Directory.CreateDirectory(outputDir);
@@ -180,20 +180,20 @@ public sealed class LlmsTxtPluginTests : IDisposable
             itemSeoDesc: null, itemDescription: null);
 
         var plugin = new LlmsTxtPlugin(config);
-        plugin.AfterBuild(context);
+        await plugin.AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
         Assert.Contains("Summary description", content, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AfterBuild_WithPositiveLimit_CapsCollectionAtConfiguredCount()
+    public async Task AfterBuild_WithPositiveLimit_CapsCollectionAtConfiguredCount()
     {
         var outputDir = Path.Combine(_root, "dist-positive-limit");
         var articles = CreateArticles("posts", 21);
         var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 20);
 
-        new LlmsTxtPlugin(config).AfterBuild(context);
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
         var urls = ReadSectionUrls(content, "Posts");
@@ -206,7 +206,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_WithZeroLimit_IncludesAllArticlesInEveryCollection()
+    public async Task AfterBuild_WithZeroLimit_IncludesAllArticlesInEveryCollection()
     {
         var outputDir = Path.Combine(_root, "dist-unlimited-collections");
         var articles = CreateArticles("posts", 21)
@@ -214,7 +214,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             .ToArray();
         var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0);
 
-        new LlmsTxtPlugin(config).AfterBuild(context);
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
         var postUrls = ReadSectionUrls(content, "Posts");
@@ -236,7 +236,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_CollectionArticles_AreOrderedByPublishedDescending()
+    public async Task AfterBuild_CollectionArticles_AreOrderedByPublishedDescending()
     {
         var outputDir = Path.Combine(_root, "dist-published-order");
         var articles = new[]
@@ -247,7 +247,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
         };
         var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0);
 
-        new LlmsTxtPlugin(config).AfterBuild(context);
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
         Assert.Equal(
@@ -260,7 +260,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_Unlimited_DeduplicatesEntriesAndPreservesCanonicalUrls()
+    public async Task AfterBuild_Unlimited_DeduplicatesEntriesAndPreservesCanonicalUrls()
     {
         var outputDir = Path.Combine(_root, "dist-unlimited-deduplicated");
         var articles = new[]
@@ -274,7 +274,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             maxArticles: 0,
             duplicateFirstInDerived: true);
 
-        new LlmsTxtPlugin(config).AfterBuild(context);
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
 
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
         var urls = ReadSectionUrls(content, "Posts");
@@ -285,7 +285,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
-    public void AfterBuild_EmptyConfiguredCollection_WritesLlmsTxtWithoutError()
+    public async Task AfterBuild_EmptyConfiguredCollection_WritesLlmsTxtWithoutError()
     {
         var outputDir = Path.Combine(_root, "dist-empty-collection");
         var (context, config) = CreateArticleContext(
@@ -294,7 +294,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
             maxArticles: 0,
             configuredCollections: ["empty"]);
 
-        var exception = Record.Exception(() => new LlmsTxtPlugin(config).AfterBuild(context));
+        var exception = await Record.ExceptionAsync(() => new LlmsTxtPlugin(config).AfterBuildAsync(context));
 
         Assert.Null(exception);
         var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);

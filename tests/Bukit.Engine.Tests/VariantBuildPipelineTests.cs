@@ -46,20 +46,20 @@ public sealed class VariantBuildPipelineTests : IDisposable
     }
 
     [Fact]
-    public void PrepareDataModules_EmptyItems_ReturnsEmptyResult()
+    public async Task PrepareDataModules_EmptyItems_ReturnsEmptyResult()
     {
         var pipeline = new VariantBuildPipeline();
         var documents = new List<ContentDocument>();
         var bodyStore = new NoOpBodyStore();
 
-        var result = pipeline.PrepareDataModules(documents, "en", bodyStore);
+        var result = await pipeline.PrepareDataModulesAsync(documents, "en", bodyStore);
 
         Assert.Empty(result.DataDocuments);
         Assert.Null(result.RouteMetadata);
     }
 
     [Fact]
-    public void PrepareDataModules_AttachesRouteMetadataWithoutExposingReservedRowsAsModules()
+    public async Task PrepareDataModules_AttachesRouteMetadataWithoutExposingReservedRowsAsModules()
     {
         var pipeline = new VariantBuildPipeline();
         var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
@@ -75,7 +75,7 @@ public sealed class VariantBuildPipelineTests : IDisposable
         var source = new ContentSourceConfig { Type = "notion", Name = "page_meta", Mode = "data" };
         var routeMetadata = new RouteMetadataConfig { Source = "page_meta", RequiredRoutes = ["/"] };
 
-        var result = pipeline.PrepareDataModules(
+        var result = await pipeline.PrepareDataModulesAsync(
             [document], "en", new NoOpBodyStore(), [source], routeMetadata);
 
         Assert.Equal("Home", result.RouteMetadata!["/"].Title);

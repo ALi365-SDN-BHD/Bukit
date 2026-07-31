@@ -21,7 +21,7 @@ internal interface INotionPageFetcher
     Task<NotionFetchedPage?> FetchAsync(NotionApiClient client, string pageId, CancellationToken cancellationToken);
 }
 
-internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
+internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
 {
     private readonly AppConfig _config;
     private readonly INotionPageFetcher _notionFetcher;
@@ -42,11 +42,11 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesPlugin
         _notionFetcher = notionFetcher;
     }
 
-    public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
+    public async Task<IReadOnlyList<RoutedContentDocument>> DerivePagesAsync(BuildContext context, CancellationToken cancellationToken = default)
     {
         var index = GetOrCreateIndex(context);
         AddRoutedToIndex(context, index);
-        ResolveNotionRelationsIfConfiguredAsync(context, index).GetAwaiter().GetResult();
+        await ResolveNotionRelationsIfConfiguredAsync(context, index).ConfigureAwait(false);
         if (index.Count > 0)
         {
             context.Data["pages_by_id"] = index;

@@ -19,7 +19,7 @@ internal static class ScssCompiler
             return;
         }
 
-        var sassCli = FindSassCli();
+        var sassCli = await FindSassCliAsync(cancellationToken, logger);
         if (sassCli is null)
         {
             logger.Warn("event=scss.skip reason=sass_cli_not_found message=Install Dart Sass (npm install -g sass) for SCSS compilation. SCSS files will be ignored.");
@@ -78,15 +78,20 @@ internal static class ScssCompiler
         }
     }
 
-    private static string? FindSassCli()
+    private static async Task<string?> FindSassCliAsync(CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var names = new[] { "sass", "dart-sass" };
 
         foreach (var name in names)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
             try
             {
-                var process = Process.Start(new ProcessStartInfo
+                using var process = Process.Start(new ProcessStartInfo
                 {
                     FileName = name,
                     Arguments = "--version",
@@ -98,15 +103,17 @@ internal static class ScssCompiler
                 if (process is not null)
                 {
                     using var cts = new CancellationTokenSource(3000);
-                    process.WaitForExitAsync(cts.Token).GetAwaiter().GetResult();
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+                    await process.WaitForExitAsync(linkedCts.Token);
                     if (process.ExitCode == 0)
                     {
                         return name;
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                logger?.Debug($"event=scss.tool.probe.failed tool={name} reason={ex.Message}");
             }
         }
 

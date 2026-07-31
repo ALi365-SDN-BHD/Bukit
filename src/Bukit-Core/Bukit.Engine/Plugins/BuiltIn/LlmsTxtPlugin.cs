@@ -7,7 +7,7 @@ using Bukit.Engine.Abstractions.Plugins;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
+internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 {
     private readonly AppConfig _config;
 
@@ -36,7 +36,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         "OAI-SearchBot"
     };
 
-    public void AfterBuild(BuildContext context)
+    public async Task AfterBuildAsync(BuildContext context, CancellationToken cancellationToken = default)
     {
         var geo = _config.Site.Seo.Geo;
         if (!geo.Enabled)
@@ -51,7 +51,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
 
         if (geo.LlmsFullTxt)
         {
-            WriteLlmsFullTxt(context, _config);
+            await WriteLlmsFullTxtAsync(context, _config, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -220,8 +220,11 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
         File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
     }
 
-    internal static void WriteLlmsFullTxt(BuildContext context, AppConfig config)
-        => WriteLlmsFullTxt(
+    internal static async Task WriteLlmsFullTxtAsync(
+        BuildContext context,
+        AppConfig config,
+        CancellationToken cancellationToken = default)
+        => await WriteLlmsFullTxtAsync(
             config,
             context.OutputDir,
             context.BaseUrl,
@@ -229,8 +232,108 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildPlugin
             context.DerivedDocuments,
             context.ContentGraph,
             context.SeoIndex,
-            context.BodyStore);
+            context.BodyStore,
+            cancellationToken).ConfigureAwait(false);
 
+    internal static async Task WriteLlmsFullTxtAsync(
+        AppConfig config,
+        string outputDir,
+        string baseUrl,
+        IReadOnlyList<RoutedContentDocument> routedDocuments,
+        IReadOnlyList<RoutedContentDocument> derivedDocuments,
+        CanonicalContentGraph contentGraph,
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
+        IContentBodyStore bodyStore,
+        CancellationToken cancellationToken = default)
+    {
+        var sb = new StringBuilder();
+        var title = config.Site.Title;
+        var description = config.Site.Description;
+        var canonicalBase = BuildBase(config, baseUrl);
+        var recordsById = contentGraph.Records
+            .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+        sb.AppendLine($"# {title}");
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            sb.AppendLine($"> {description}");
+            sb.AppendLine();
+        }
+
+        var routed = routedDocuments.Concat(derivedDocuments);
+        var documentsByPath = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
+        foreach (var routedDocument in routed)
+        {
+            documentsByPath[BuildPathUtils.NormalizeRelPath(routedDocument.Route.OutputPath)] = routedDocument.Document;
+        }
+
+        foreach (var (key, entry) in seoIndex
+                     .Where(x => x.Value.Indexable)
+                     .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!documentsByPath.TryGetValue(key, out var document))
+            {
+                continue;
+            }
+
+            var record = recordsById.TryGetValue(document.Id, out var canonicalRecord)
+                ? canonicalRecord
+                : document.Record;
+
+            var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
+            sb.AppendLine($"# {record.Presentation.Title ?? document.Title}");
+            sb.AppendLine();
+            sb.AppendLine($"URL: {url}");
+            sb.AppendLine();
+
+            var itemDescription = ResolveDescription(document, record, config.Site.Description);
+            if (!string.IsNullOrWhiteSpace(itemDescription))
+            {
+                sb.AppendLine(itemDescription);
+                sb.AppendLine();
+            }
+
+            if (!string.IsNullOrWhiteSpace(record.Ownership.Author))
+            {
+                sb.AppendLine($"Author: {record.Ownership.Author}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(record.Trust.ReviewStatus))
+            {
+                sb.AppendLine($"Review Status: {record.Trust.ReviewStatus}");
+            }
+
+            var publicEntities = PublicContentProjectionPolicy.SanitizeEntities(record);
+            if (publicEntities.Count > 0)
+            {
+                sb.AppendLine($"Entities: {string.Join(", ", publicEntities.Select(x => x.Name))}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(record.Ownership.Author) ||
+                !string.IsNullOrWhiteSpace(record.Trust.ReviewStatus) ||
+                publicEntities.Count > 0)
+            {
+                sb.AppendLine();
+            }
+
+            var html = await ContentBodyResolver.GetHtmlAsync(document, bodyStore, cancellationToken).ConfigureAwait(false);
+            var text = SearchIndexBuilder.StripHtmlToText(html);
+            sb.AppendLine(text);
+            sb.AppendLine();
+            sb.AppendLine("---");
+            sb.AppendLine();
+        }
+
+        var path = Path.Combine(outputDir, "llms-full.txt");
+        Directory.CreateDirectory(outputDir);
+        await File.WriteAllTextAsync(path, sb.ToString(), Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Synchronous facade for the projection pipeline. Calls <see cref="GetHtml"/> internally.
+    /// Prefer <see cref="WriteLlmsFullTxtAsync"/> in async contexts.
+    /// </summary>
     internal static void WriteLlmsFullTxt(
         AppConfig config,
         string outputDir,

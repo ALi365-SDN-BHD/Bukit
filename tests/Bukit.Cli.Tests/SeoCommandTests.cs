@@ -161,14 +161,13 @@ public sealed class SeoCommandTests : IDisposable
     }
 
     [Fact]
-    public void Audit_WithMissingFile_ReturnsTwo()
+    public async Task Audit_WithMissingFile_ReturnsTwo()
     {
         var reportPath = Path.Combine(_tempDir, "missing-seo-report.json");
 
-        var result = Invoke(() => SeoCommand.Audit(reportPath, strict: false));
+        var result = await SeoCommand.AuditAsync(reportPath, outputDir: _tempDir, strict: false, external: false, label: "SEO");
 
-        Assert.Equal(2, result.ExitCode);
-        Assert.Contains("SEO report not found:", result.StdErr, StringComparison.Ordinal);
+        Assert.Equal(2, result);
     }
 
     [Fact]

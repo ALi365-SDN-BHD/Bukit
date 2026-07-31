@@ -82,7 +82,7 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         }
         catch (WechatApiException ex) when (IsTokenInvalid(ex.ErrCode))
         {
-            InvalidateToken();
+            await InvalidateTokenAsync();
             token = await GetAccessTokenAsync(cancellationToken);
             return await operation(token, cancellationToken);
         }
@@ -556,10 +556,18 @@ internal sealed class WechatDraftGateway : IWechatDraftGateway, IDisposable
         }
     }
 
-    private void InvalidateToken()
+    private async Task InvalidateTokenAsync()
     {
-        _cachedAccessToken = null;
-        _tokenExpireAt = DateTimeOffset.MinValue;
+        await _tokenLock.WaitAsync();
+        try
+        {
+            _cachedAccessToken = null;
+            _tokenExpireAt = DateTimeOffset.MinValue;
+        }
+        finally
+        {
+            _tokenLock.Release();
+        }
     }
 
     private static bool IsTokenInvalid(int errcode)

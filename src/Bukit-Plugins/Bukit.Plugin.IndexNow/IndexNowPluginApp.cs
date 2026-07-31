@@ -7,9 +7,6 @@ namespace Bukit.Plugin.IndexNow;
 
 public static class IndexNowPluginApp
 {
-    public static string Handle(string input)
-        => HandleAsync(input).GetAwaiter().GetResult();
-
     public static async Task<string> HandleAsync(string input)
     {
         using var document = JsonDocument.Parse(input);

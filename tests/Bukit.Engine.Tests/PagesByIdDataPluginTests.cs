@@ -95,7 +95,7 @@ public sealed class PagesByIdDataPluginTests
     }
 
     [Fact]
-    public void DerivePages_ShouldUseFirstCanonicalRecord_WhenGraphContainsDuplicateI18nIds()
+    public async Task DerivePages_ShouldUseFirstCanonicalRecord_WhenGraphContainsDuplicateI18nIds()
     {
         var item = ContentDocument.Create(
             id: "greeting",
@@ -125,7 +125,7 @@ public sealed class PagesByIdDataPluginTests
         };
 
         var plugin = new PagesIndexPlugin(config);
-        plugin.DerivePages(ctx);
+        await plugin.DerivePagesAsync(ctx);
 
         var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
         var page = Assert.IsType<Dictionary<string, object>>(index["greeting"]);
@@ -187,7 +187,7 @@ public sealed class PagesByIdDataPluginTests
         };
 
         var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(config);
-        plugin.DerivePages(ctx);
+        await plugin.DerivePagesAsync(ctx);
 
         var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
         var page = Assert.IsType<Dictionary<string, object>>(index["hello"]);
@@ -209,7 +209,7 @@ public sealed class PagesByIdDataPluginTests
             []);
 
     [Fact]
-    public void DerivePages_WhenConfigured_ResolvesNotionRelationIdsIntoIndex()
+    public async Task DerivePages_WhenConfigured_ResolvesNotionRelationIdsIntoIndex()
     {
         var oldToken = Environment.GetEnvironmentVariable("NOTION_TOKEN");
         Environment.SetEnvironmentVariable("NOTION_TOKEN", "secret_dummy");
@@ -272,7 +272,7 @@ public sealed class PagesByIdDataPluginTests
             };
 
             var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(config, new FakeFetcher());
-            plugin.DerivePages(ctx);
+            await plugin.DerivePagesAsync(ctx);
 
             var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
             var resolved = Assert.IsType<Dictionary<string, object>>(index["missing-1"]);
@@ -291,7 +291,7 @@ public sealed class PagesByIdDataPluginTests
     }
 
     [Fact]
-    public void DerivePages_WhenCacheReadonly_UsesCacheAndDoesNotCallFetcher()
+    public async Task DerivePages_WhenCacheReadonly_UsesCacheAndDoesNotCallFetcher()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -360,7 +360,7 @@ public sealed class PagesByIdDataPluginTests
         };
 
         var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(config, new ThrowingFetcher());
-        plugin.DerivePages(ctx);
+        await plugin.DerivePagesAsync(ctx);
 
         var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
         var resolved = Assert.IsType<Dictionary<string, object>>(index["missing-1"]);

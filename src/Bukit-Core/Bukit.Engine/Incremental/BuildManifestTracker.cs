@@ -72,7 +72,7 @@ internal static class BuildManifestTracker
             var fullPath = outputFileSystem.GetSafeFullPath(stale);
             if (File.Exists(fullPath))
             {
-                outputFileSystem.DeleteFileAsync(stale, cancellationToken).GetAwaiter().GetResult();
+                File.Delete(fullPath);
                 DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
             }
         }
@@ -298,7 +298,7 @@ internal static class BuildManifestTracker
                 var fullPath = outputFileSystem.GetSafeFullPath(stale);
                 if (File.Exists(fullPath))
                 {
-                    outputFileSystem.DeleteFileAsync(stale, CancellationToken.None).GetAwaiter().GetResult();
+                    File.Delete(fullPath);
                     DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
                 }
             }
