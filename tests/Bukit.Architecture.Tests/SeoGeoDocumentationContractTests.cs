@@ -338,6 +338,54 @@ public sealed class SeoGeoDocumentationContractTests
     }
 
     [Fact]
+    public void ActiveGuide_DocumentsOfflineSeoObservabilityContract()
+    {
+        var guide = ReadText("guide", "user", "21-seo-insights.md");
+        var index = ReadText("guide", "user", "README.md");
+        var outputs = ReadText("guide", "user", "10-built-in-outputs.md");
+        var cli = ReadText("guide", "user", "12-cli-reference.md");
+
+        Assert.True(File.Exists(Path.Combine(RepoRoot, "guide", "user", "21-seo-insights.md")));
+        Assert.Contains("[21 SEO Insights](21-seo-insights.md)", index, StringComparison.Ordinal);
+        Assert.Contains(".bukit/seo-route-map.json", outputs, StringComparison.Ordinal);
+        Assert.Contains(".bukit/seo-insights-report.json", outputs, StringComparison.Ordinal);
+
+        Assert.Contains("seo-route-map.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("seo-observation.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("seo-insights-rules.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("seo-insights-report.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("https://developers.google.com/webmaster-tools/v1/searchanalytics/query", guide, StringComparison.Ordinal);
+        Assert.Contains("build -> route map -> external collector/plugin -> observations -> insights", guide, StringComparison.Ordinal);
+        Assert.Contains("offline", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not authenticate to Google", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not access the network", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not prove causation", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ranking guarantee", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("automatic edit", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unmatched", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ambiguous", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("never chooses a winner", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("`keyEvents` may exceed `sessions`", guide, StringComparison.Ordinal);
+        Assert.Contains("`keyEventRate` may exceed 1", guide, StringComparison.Ordinal);
+        Assert.Contains("not Core defaults", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("write", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("before returning exit code 1", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not publishable", guide, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("\"provider\": \"google-search-console\"", guide, StringComparison.Ordinal);
+        Assert.Contains("\"provider\": \"google-analytics-4\"", guide, StringComparison.Ordinal);
+        Assert.Contains("\"scope\": \"google-organic\"", guide, StringComparison.Ordinal);
+        Assert.Contains("\"schema\": \"https://bukit.dev/schemas/seo-insights-rules.v1.json\"", guide, StringComparison.Ordinal);
+
+        foreach (var option in new[] { "--dir", "--routes", "--observations", "--rules", "--out", "--strict-join" })
+        {
+            Assert.Contains(option, cli, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("bukit seo insights", cli, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProtectedReferenceTrees_AreNotActiveInputs()
     {
         var protectedNames = new[]

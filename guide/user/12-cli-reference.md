@@ -19,6 +19,7 @@ This table is derived from `BukitCliSpecs.cs`.
 | `seo` | Parent command for SEO reports. | `--dir`, `--report`, `--strict`, `--external` |
 | `seo audit` | Validate `.bukit/seo-report.json`. | `--dir`, `--report`, `--strict`, `--external` |
 | `seo diff` | Compare SEO reports. | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
+| `seo insights` | Join local SEO observations with the route map and write an offline insights report. | `--dir`, `--routes`, `--observations`, `--rules`, `--out`, `--strict-join` |
 | `geo` | Parent command for GEO reports. | `--dir` |
 | `geo audit` | Validate `.bukit/geo-report.json`. | `--dir` |
 | `publish` | Parent command for publish audit reports. | `--dir`, `--report`, `--strict`, `--external` |
@@ -42,6 +43,7 @@ bukit build --config site.yaml --clean --metrics .bukit/metrics.json
 bukit dev --config site.yaml --port 35729
 bukit preview --dir dist --port 4173
 bukit seo audit --dir dist --strict
+bukit seo insights --dir dist --observations incoming/gsc.json,incoming/ga4.json --rules seo-insights-rules.json
 bukit publish audit --dir dist --strict
 bukit deploy --dry-run
 ```
@@ -54,6 +56,13 @@ bukit deploy --dry-run
 | 1 | General runtime failure. |
 | 2 | Command argument, config, or content setup error. |
 | 3 | Render error. |
+
+`seo insights` refines the generic table: it returns `0` after writing the
+report when joins are complete or gaps are allowed, `1` only when
+`--strict-join` finds unmatched/ambiguous rows (after writing the report), and
+`2` for input, local-path, schema, or read/write failures. See
+[21 SEO Insights](21-seo-insights.md) for required options, defaults, and the
+offline collector boundary.
 
 ## Dynamic Plugin Commands
 
