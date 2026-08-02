@@ -8,14 +8,20 @@ internal sealed class AssetSourceWorkspace : IDisposable
     private readonly string? _workspaceRoot;
     private readonly ILogger _logger;
 
-    private AssetSourceWorkspace(string assetsDir, string? workspaceRoot, ILogger logger)
+    private AssetSourceWorkspace(
+        string assetsDir,
+        string? scssOutputDir,
+        string? workspaceRoot,
+        ILogger logger)
     {
         AssetsDir = assetsDir;
+        ScssOutputDir = scssOutputDir;
         _workspaceRoot = workspaceRoot;
         _logger = logger;
     }
 
     internal string AssetsDir { get; }
+    internal string? ScssOutputDir { get; }
 
     internal static async Task<AssetSourceWorkspace> PrepareAsync(
         string sourceAssetsDir,
@@ -29,9 +35,20 @@ internal sealed class AssetSourceWorkspace : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var requiresWorkspace = scssConfig is { Enabled: true } || imageConfig is { Enabled: true };
+        if (scssConfig is { Enabled: true, EntryPoint: not null } && !Directory.Exists(sourceAssetsDir))
+        {
+            throw new ConfigException(
+                $"theme.scss.entryPoint '{scssConfig.EntryPoint}' does not exist in the theme assets directory.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
         if (!requiresWorkspace || !Directory.Exists(sourceAssetsDir))
         {
-            return new AssetSourceWorkspace(sourceAssetsDir, workspaceRoot: null, logger);
+            return new AssetSourceWorkspace(
+                sourceAssetsDir,
+                scssOutputDir: null,
+                workspaceRoot: null,
+                logger);
         }
 
         var workspaceRoot = Path.Combine(
@@ -39,6 +56,9 @@ internal sealed class AssetSourceWorkspace : IDisposable
             "bukit-asset-workspaces",
             Guid.NewGuid().ToString("N"));
         var workspaceAssetsDir = Path.Combine(workspaceRoot, "assets");
+        var scssOutputDir = scssConfig is { Enabled: true }
+            ? Path.Combine(workspaceRoot, "scss-output")
+            : null;
 
         try
         {
@@ -56,14 +76,15 @@ internal sealed class AssetSourceWorkspace : IDisposable
                 workspaceAssetsDir,
                 scssConfig,
                 logger,
-                cancellationToken);
+                cancellationToken,
+                scssOutputDir);
             await ImageOptimizer.OptimizeIfEnabled(
                 workspaceAssetsDir,
                 imageConfig,
                 logger,
                 cancellationToken);
 
-            return new AssetSourceWorkspace(workspaceAssetsDir, workspaceRoot, logger);
+            return new AssetSourceWorkspace(workspaceAssetsDir, scssOutputDir, workspaceRoot, logger);
         }
         catch
         {

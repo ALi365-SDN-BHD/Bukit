@@ -1713,9 +1713,14 @@ public sealed class SiteEngineIntegrationTests
             Directory.CreateDirectory(pagesDir);
             Directory.CreateDirectory(toolsDir);
 
+            var stylesDir = Path.Combine(assetsDir, "styles");
+            Directory.CreateDirectory(stylesDir);
             const string source = "$color: red;\nbody { color: $color; }\n";
-            var scssPath = Path.Combine(assetsDir, "main.scss");
+            const string ignoredSource = "$color: blue;\nbody { color: $color; }\n";
+            var scssPath = Path.Combine(stylesDir, "main.scss");
+            var ignoredScssPath = Path.Combine(assetsDir, "ignored.scss");
             File.WriteAllText(scssPath, source);
+            File.WriteAllText(ignoredScssPath, ignoredSource);
             File.WriteAllText(Path.Combine(pagesDir, "post.html"), "<html><body>{{ page.content }}</body></html>");
             File.WriteAllText(Path.Combine(pagesDir, "page.html"), "<html><body>{{ page.content }}</body></html>");
             File.WriteAllText(Path.Combine(pagesDir, "index.html"), "<html><body>Index</body></html>");
@@ -1764,7 +1769,12 @@ public sealed class SiteEngineIntegrationTests
                 {
                     Layouts = "layouts",
                     Assets = "assets",
-                    Scss = new ScssConfig { Enabled = true }
+                    Scss = new ScssConfig
+                    {
+                        Enabled = true,
+                        EntryPoint = "styles\\main.scss",
+                        OutputDir = "stylesheets"
+                    }
                 }
             };
 
@@ -1777,12 +1787,15 @@ public sealed class SiteEngineIntegrationTests
             Assert.True(logger.Errors.Count == 0, string.Join(Environment.NewLine, logger.Errors));
             Assert.True(File.Exists(scssPath));
             Assert.Equal(source, File.ReadAllText(scssPath));
+            Assert.Equal(ignoredSource, File.ReadAllText(ignoredScssPath));
             Assert.Equal(["compile"], File.ReadAllLines(sassLogPath));
             foreach (var language in new[] { "en", "fr", "de" })
             {
                 Assert.Equal(
                     "body{color:red}",
-                    File.ReadAllText(Path.Combine(root, "dist", language, "assets", "main.css")));
+                    File.ReadAllText(Path.Combine(root, "dist", language, "stylesheets", "styles", "main.css")));
+                Assert.False(File.Exists(Path.Combine(root, "dist", language, "assets", "ignored.scss")));
+                Assert.False(File.Exists(Path.Combine(root, "dist", language, "assets", "ignored.css")));
             }
         }
         finally

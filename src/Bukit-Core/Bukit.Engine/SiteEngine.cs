@@ -157,7 +157,7 @@ public sealed class SiteEngine
             {
                 var result = await BuildSingleLanguageVariantAsync(
                     effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
-                    plan.LayoutsDir, assetWorkspace.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
+                    plan.LayoutsDir, assetWorkspace.AssetsDir, assetWorkspace.ScssOutputDir, plan.StaticDir, plan.MediaCacheDir,
                     plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
                     templateHashCache, plan.StartedAt, buildLogger, cancellationToken);
 
@@ -188,7 +188,7 @@ public sealed class SiteEngine
 
             return await BuildMultiLanguageAsync(
                 effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
-                plan.LayoutsDir, assetWorkspace.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
+                plan.LayoutsDir, assetWorkspace.AssetsDir, assetWorkspace.ScssOutputDir, plan.StaticDir, plan.MediaCacheDir,
                 plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
                 templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
                 bodyCacheMetrics,
@@ -215,7 +215,7 @@ public sealed class SiteEngine
     private async Task<BuildVariantResult> BuildSingleLanguageVariantAsync(
         AppConfig config, string rootDir, ConfigOverrides overrides,
         IReadOnlyList<ContentDocument> documents, CanonicalContentGraph contentGraph, IContentBodyStore bodyStore,
-        string outputDir, string layoutsDir, string assetsDir, string staticDir,
+        string outputDir, string layoutsDir, string assetsDir, string? scssOutputDir, string staticDir,
         string mediaCacheDir,
         string? parentLayoutsDir, string? parentAssetsDir, string? parentStaticDir,
         string? userLayoutsDir,
@@ -233,14 +233,14 @@ public sealed class SiteEngine
             RootBaseUrl: null, ManifestSuffix: null, DefaultLanguage: null,
             BuildStartedAt: buildStartedAt,
             ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
-            UserLayoutsDir: userLayoutsDir);
+            UserLayoutsDir: userLayoutsDir, ScssOutputDir: scssOutputDir);
         return await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken, logger);
     }
 
     private async Task<BuildResult> BuildMultiLanguageAsync(
         AppConfig config, string rootDir, ConfigOverrides overrides,
         IReadOnlyList<ContentDocument> documents, CanonicalContentGraph contentGraph, IContentBodyStore bodyStore,
-        string outputDir, string layoutsDir, string assetsDir, string staticDir,
+        string outputDir, string layoutsDir, string assetsDir, string? scssOutputDir, string staticDir,
         string mediaCacheDir,
         string? parentLayoutsDir, string? parentAssetsDir, string? parentStaticDir,
         string? userLayoutsDir,
@@ -293,7 +293,7 @@ public sealed class SiteEngine
                     RootBaseUrl: rootBaseUrl, ManifestSuffix: lang, DefaultLanguage: defaultLanguage,
                     BuildStartedAt: buildStartedAt,
                     ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
-                    UserLayoutsDir: userLayoutsDir);
+                    UserLayoutsDir: userLayoutsDir, ScssOutputDir: scssOutputDir);
                 results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
                 variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
             });

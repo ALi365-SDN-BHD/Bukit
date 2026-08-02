@@ -26,4 +26,5 @@ internal sealed record BuildVariantContext(
     string? ParentLayoutsDir = null,
     string? ParentAssetsDir = null,
     string? ParentStaticDir = null,
-    string? UserLayoutsDir = null);
+    string? UserLayoutsDir = null,
+    string? ScssOutputDir = null);

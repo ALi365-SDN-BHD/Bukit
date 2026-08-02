@@ -6,14 +6,19 @@ namespace Bukit.Engine;
 
 internal static class ScssCompiler
 {
-    internal static async Task CompileIfEnabled(string assetsDir, ScssConfig? scssConfig, ILogger logger, CancellationToken cancellationToken = default)
+    internal static async Task CompileIfEnabled(
+        string assetsDir,
+        ScssConfig? scssConfig,
+        ILogger logger,
+        CancellationToken cancellationToken = default,
+        string? generatedOutputDir = null)
     {
         if (scssConfig is not { Enabled: true })
         {
             return;
         }
 
-        var scssFiles = SafeFileEnumerator.EnumerateFiles(assetsDir, "*.scss").ToArray();
+        var scssFiles = ResolveScssFiles(assetsDir, scssConfig);
         if (scssFiles.Length == 0)
         {
             return;
@@ -26,13 +31,17 @@ internal static class ScssCompiler
             return;
         }
 
+        var outputRoot = generatedOutputDir ?? Path.Combine(assetsDir, ".bukit-scss-output");
+
         foreach (var scssFile in scssFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             try
             {
-                var cssFile = Path.ChangeExtension(scssFile, ".css");
+                var relativeScssPath = Path.GetRelativePath(assetsDir, scssFile);
+                var cssFile = Path.ChangeExtension(Path.Combine(outputRoot, relativeScssPath), ".css");
+                Directory.CreateDirectory(Path.GetDirectoryName(cssFile)!);
                 var temporaryCssFile = Path.Combine(
                     Path.GetDirectoryName(cssFile)!,
                     $".{Path.GetFileNameWithoutExtension(cssFile)}.bukit-{Guid.NewGuid():N}.css");
@@ -58,7 +67,6 @@ internal static class ScssCompiler
                     {
                         File.Move(temporaryCssFile, cssFile, overwrite: true);
                         logger.Info($"event=scss.compiled file={Path.GetFileName(scssFile)}");
-                        File.Delete(scssFile);
                     }
                     else
                     {
@@ -80,6 +88,42 @@ internal static class ScssCompiler
                 logger.Warn($"event=scss.error file={Path.GetFileName(scssFile)} reason={ex.Message}");
             }
         }
+    }
+
+    private static string[] ResolveScssFiles(string assetsDir, ScssConfig scssConfig)
+    {
+        if (scssConfig.EntryPoint is null)
+        {
+            return SafeFileEnumerator.EnumerateFiles(assetsDir)
+                .Where(path => string.Equals(
+                    Path.GetExtension(path),
+                    ".scss",
+                    StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+        }
+
+        var assetsRoot = Path.GetFullPath(assetsDir)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedEntryPoint = scssConfig.EntryPoint
+            .Replace('\\', Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar);
+        var entryPoint = Path.GetFullPath(Path.Combine(assetsRoot, normalizedEntryPoint));
+        var rootPrefix = assetsRoot + Path.DirectorySeparatorChar;
+        if (!entryPoint.StartsWith(rootPrefix, PlatformPathHelper.PathComparison))
+        {
+            throw new ConfigException(
+                "theme.scss.entryPoint must resolve within the theme assets directory.",
+                DiagnosticCode.ConfigPathTraversal);
+        }
+
+        if (!File.Exists(entryPoint))
+        {
+            throw new ConfigException(
+                $"theme.scss.entryPoint '{scssConfig.EntryPoint}' does not exist in the theme assets directory.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return [entryPoint];
     }
 
     private static async Task<string?> FindSassCliAsync(CancellationToken cancellationToken = default, ILogger? logger = null)

@@ -213,6 +213,64 @@ public sealed class ConfigValidatorTests
         Assert.Null(ex);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("../main.scss")]
+    [InlineData("/tmp/main.scss")]
+    [InlineData("C:main.scss")]
+    [InlineData("styles/main.css")]
+    public void Validate_ScssEntryPointInvalid_Throws(string entryPoint)
+    {
+        var config = ConfigWithTheme(theme => theme with
+        {
+            Scss = new ScssConfig
+            {
+                Enabled = true,
+                EntryPoint = entryPoint
+            }
+        });
+
+        Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("../styles")]
+    [InlineData("/tmp/styles")]
+    [InlineData("C:styles")]
+    public void Validate_ScssOutputDirInvalid_Throws(string outputDir)
+    {
+        var config = ConfigWithTheme(theme => theme with
+        {
+            Scss = new ScssConfig
+            {
+                Enabled = true,
+                EntryPoint = "styles/main.scss",
+                OutputDir = outputDir
+            }
+        });
+
+        Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+    }
+
+    [Fact]
+    public void Validate_ScssPathsValid_Passes()
+    {
+        var config = ConfigWithTheme(theme => theme with
+        {
+            Scss = new ScssConfig
+            {
+                Enabled = true,
+                EntryPoint = "styles/main.scss",
+                OutputDir = "public/css"
+            }
+        });
+
+        var exception = Record.Exception(() => ConfigValidator.Validate(config));
+
+        Assert.Null(exception);
+    }
+
     [Fact]
     public void Validate_LanguagesEmpty_Throws()
     {

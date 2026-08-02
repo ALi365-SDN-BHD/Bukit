@@ -26,7 +26,8 @@ internal sealed record AssetPipelineContext(
     bool FollowSymlinks,
     string? FingerprintMode = null,
     IReadOnlyList<RenderEntry>? RenderEntries = null,
-    ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries = null);
+    ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries = null,
+    string? ScssOutputDir = null);
 
 internal sealed record AssetPipelineResult(
     BuildStageMetrics StageMetrics);

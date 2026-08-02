@@ -114,6 +114,95 @@ public sealed class ExternalToolProcessRunnerTests
         }
     }
 
+    [Fact]
+    public async Task ScssCompiler_ConfiguredEntryPointMissing_Throws()
+    {
+        var root = CreateTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(root, "assets");
+            Directory.CreateDirectory(assetsDir);
+
+            var exception = await Assert.ThrowsAsync<ConfigException>(() =>
+                ScssCompiler.CompileIfEnabled(
+                    assetsDir,
+                    new ScssConfig { Enabled = true, EntryPoint = "styles/main.scss" },
+                    new ConsoleLogger(LogLevel.Error)));
+
+            Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+            Assert.Contains("styles/main.scss", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task AssetSourceWorkspace_ConfiguredEntryPointWithMissingAssetsDir_Throws()
+    {
+        var root = CreateTempDir();
+        try
+        {
+            var exception = await Assert.ThrowsAsync<ConfigException>(() =>
+                AssetSourceWorkspace.PrepareAsync(
+                    Path.Combine(root, "missing-assets"),
+                    new ScssConfig { Enabled = true, EntryPoint = "styles/main.scss" },
+                    imageConfig: null,
+                    new ConsoleLogger(LogLevel.Error),
+                    publishDotFiles: false,
+                    followSymlinks: false));
+
+            Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+            Assert.Contains("styles/main.scss", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ScssCompiler_EntryPointUnset_CompilesAllFilesToStagingTree()
+    {
+        RequireUnix();
+        var root = CreateTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(root, "assets");
+            var nestedDir = Path.Combine(assetsDir, "nested");
+            var toolsDir = Path.Combine(root, "tools");
+            var outputDir = Path.Combine(root, "scss-output");
+            Directory.CreateDirectory(nestedDir);
+            File.WriteAllText(Path.Combine(assetsDir, "main.scss"), "body { color: red; }");
+            File.WriteAllText(Path.Combine(assetsDir, "UPPER.SCSS"), "body { color: green; }");
+            File.WriteAllText(Path.Combine(nestedDir, "theme.scss"), "body { color: blue; }");
+            WriteTool(toolsDir, "sass", """
+                if [ "$1" = "--version" ]; then
+                  exit 0
+                fi
+                printf 'compiled' > "$2"
+                """);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolsDir, originalPath));
+
+            await ScssCompiler.CompileIfEnabled(
+                assetsDir,
+                new ScssConfig { Enabled = true },
+                new ConsoleLogger(LogLevel.Error),
+                generatedOutputDir: outputDir);
+
+            Assert.Equal("compiled", File.ReadAllText(Path.Combine(outputDir, "main.css")));
+            Assert.Equal("compiled", File.ReadAllText(Path.Combine(outputDir, "UPPER.css")));
+            Assert.Equal("compiled", File.ReadAllText(Path.Combine(outputDir, "nested", "theme.css")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static ProcessStartInfo StartInfo(string tool) => new()
     {
         FileName = tool,

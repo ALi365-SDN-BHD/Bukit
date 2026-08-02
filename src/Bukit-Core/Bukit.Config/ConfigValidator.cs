@@ -119,6 +119,8 @@ public static class ConfigValidator
             ProviderValidators.RejectPathTraversal("theme.name", config.Theme.Name);
         }
 
+        ValidateScss(config.Theme.Scss);
+
         var componentValidation = (config.Theme.ComponentValidation ?? "off").Trim().ToLowerInvariant();
         if (componentValidation is not ("off" or "warn" or "strict"))
         {
@@ -188,6 +190,53 @@ public static class ConfigValidator
             {
                 ValidateTaxonomyKindConfig($"taxonomy.kinds[{i}]", kinds[i]);
             }
+        }
+    }
+
+    private static void ValidateScss(ScssConfig? scss)
+    {
+        if (scss is null)
+        {
+            return;
+        }
+
+        if (scss.EntryPoint is not null)
+        {
+            if (string.IsNullOrWhiteSpace(scss.EntryPoint))
+            {
+                throw new ConfigException(
+                    "theme.scss.entryPoint must be a non-empty relative .scss path when set.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            ProviderValidators.RejectPathTraversal("theme.scss.entryPoint", scss.EntryPoint);
+            RejectDriveRelativePath("theme.scss.entryPoint", scss.EntryPoint);
+            if (!string.Equals(Path.GetExtension(scss.EntryPoint), ".scss", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ConfigException(
+                    "theme.scss.entryPoint must reference a .scss file.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(scss.OutputDir))
+        {
+            throw new ConfigException(
+                "theme.scss.outputDir must be a non-empty relative path.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        ProviderValidators.RejectPathTraversal("theme.scss.outputDir", scss.OutputDir);
+        RejectDriveRelativePath("theme.scss.outputDir", scss.OutputDir);
+    }
+
+    private static void RejectDriveRelativePath(string fieldName, string value)
+    {
+        if (value.Length >= 2 && char.IsLetter(value[0]) && value[1] == ':')
+        {
+            throw new ConfigException(
+                $"{fieldName} must be a relative path without a drive prefix.",
+                DiagnosticCode.ConfigPathTraversal);
         }
     }
 

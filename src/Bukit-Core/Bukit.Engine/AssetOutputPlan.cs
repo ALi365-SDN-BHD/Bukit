@@ -66,7 +66,26 @@ internal sealed class AssetOutputPlan
             cancellationToken,
             renderedStaticCopyDestinations);
         AddDirectoryItems(effectiveItems, context.ParentAssetsDir, "assets", AssetOutputCategory.Assets, copyOptions, cancellationToken);
-        AddDirectoryItems(effectiveItems, context.AssetsDir, "assets", AssetOutputCategory.Assets, copyOptions, cancellationToken);
+        AddDirectoryItems(
+            effectiveItems,
+            context.AssetsDir,
+            "assets",
+            AssetOutputCategory.Assets,
+            copyOptions,
+            cancellationToken,
+            include: context.ScssConfig is { Enabled: true }
+                ? static candidate => !string.Equals(
+                    Path.GetExtension(candidate.RelativePath),
+                    ".scss",
+                    StringComparison.OrdinalIgnoreCase)
+                : null);
+        AddDirectoryItems(
+            effectiveItems,
+            context.ScssOutputDir,
+            NormalizeOutputPrefix(context.ScssConfig?.OutputDir ?? "assets"),
+            AssetOutputCategory.Assets,
+            copyOptions,
+            cancellationToken);
 
         var mediaOptions = new DirectoryCopyOptions
         {
@@ -123,7 +142,8 @@ internal sealed class AssetOutputPlan
         AssetOutputCategory category,
         DirectoryCopyOptions options,
         CancellationToken cancellationToken,
-        IReadOnlySet<string>? excludedDestinations = null)
+        IReadOnlySet<string>? excludedDestinations = null,
+        Func<DirectoryCopyItem, bool>? include = null)
     {
         if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
         {
@@ -132,6 +152,11 @@ internal sealed class AssetOutputPlan
 
         foreach (var candidate in DirectoryCopy.EnumerateFilesForSync(sourceDir, options, cancellationToken))
         {
+            if (include is not null && !include(candidate))
+            {
+                continue;
+            }
+
             var destination = BuildPathUtils.NormalizeRelPath(Path.Combine(destinationPrefix, candidate.RelativePath));
             if (excludedDestinations?.Contains(destination) == true)
             {
@@ -145,6 +170,12 @@ internal sealed class AssetOutputPlan
                 candidate.PhysicalSourceRoot,
                 options);
         }
+    }
+
+    private static string NormalizeOutputPrefix(string outputDir)
+    {
+        var normalized = BuildPathUtils.NormalizeRelPath(outputDir).Trim('/');
+        return normalized == "." ? string.Empty : normalized;
     }
 
     private static IReadOnlySet<string>? BuildRenderedStaticCopyDestinations(

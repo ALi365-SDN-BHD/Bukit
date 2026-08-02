@@ -55,7 +55,8 @@ internal static class VariantRenderAssetPlanner
             PublishDotFiles: context.Config.Build.PublishDotFiles,
             FollowSymlinks: context.Config.Build.FollowSymlinks,
             RenderEntries: renderEntries,
-            ManifestEntries: manifestSetup.ManifestEntries);
+            ManifestEntries: manifestSetup.ManifestEntries,
+            ScssOutputDir: context.ScssOutputDir);
 
         return new VariantRenderAssetPlan(
             renderDocuments,
