@@ -149,6 +149,23 @@ internal static class IncrementalBuildEngine
         IContentBodyStore bodyStore,
         bool includeContent,
         CancellationToken cancellationToken)
+        => await ComputeListContentHashAsync(
+            templateHash,
+            template,
+            source,
+            manifest.Entries,
+            bodyStore,
+            includeContent,
+            cancellationToken).ConfigureAwait(false);
+
+    internal static async Task<string> ComputeListContentHashAsync(
+        string templateHash,
+        string template,
+        IReadOnlyList<RoutedContentDocument> source,
+        IReadOnlyDictionary<string, BuildManifestEntry> manifestEntries,
+        IContentBodyStore bodyStore,
+        bool includeContent,
+        CancellationToken cancellationToken)
     {
         using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var newline = new byte[] { (byte)'\n' };
@@ -171,7 +188,7 @@ internal static class IncrementalBuildEngine
             AppendUtf8(hasher, k);
             hasher.AppendData(newline);
 
-            if (manifest.Entries.TryGetValue(k, out var entry) && entry is not null)
+            if (manifestEntries.TryGetValue(k, out var entry) && entry is not null)
             {
                 AppendUtf8(hasher, entry.ContentHash);
                 hasher.AppendData(newline);

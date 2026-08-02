@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Routing;
@@ -140,6 +141,199 @@ public sealed class SpecialListRendererNestedParallelTests
         Assert.Equal("Canonical list summary", infos[0].Summary);
     }
 
+    [Fact]
+    public async Task RenderSpecialListsAsync_Incremental_DoesNotExposeUpdatesUntilBatchCompletes()
+    {
+        string root = CreateListFixture();
+        var renderer = new FirstCompletesThenBlocksRenderer();
+        var manifest = new BuildManifest();
+        var renderReasons = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        Task<PageRenderDispatcher.SpecialListRenderResult>? renderTask = null;
+
+        try
+        {
+            renderTask = PageRenderDispatcher.RenderSpecialListsAsync(
+                CreateSource(8).ToRoutedDocuments(),
+                EmptyContentBodyStore.Instance,
+                renderer,
+                CreateSiteModel(),
+                CreateCollections(8),
+                Path.Combine(root, "layouts"),
+                "never",
+                "none",
+                Path.Combine(root, "output"),
+                "template-hash",
+                "dependency-hash",
+                incrementalEnabled: true,
+                manifest,
+                new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+                renderReasons,
+                maxDegreeOfParallelism: 4,
+                CancellationToken.None);
+
+            await renderer.Blocked.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitForRenderedListAsync(renderReasons);
+            await Task.Delay(50);
+
+            Assert.Empty(manifest.Entries);
+        }
+        finally
+        {
+            renderer.Release();
+            if (renderTask is not null)
+            {
+                await renderTask.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+
+            TestCleanup.DeleteDirectory(root, true);
+        }
+
+        Assert.Equal(9, manifest.Entries.Count);
+    }
+
+    [Fact]
+    public async Task RenderSpecialListsAsync_Incremental_CancellationDoesNotMergePartialUpdates()
+    {
+        string root = CreateListFixture();
+        var renderer = new BlockingRenderer();
+        var manifest = new BuildManifest();
+        using var cancellation = new CancellationTokenSource();
+
+        Task<PageRenderDispatcher.SpecialListRenderResult> renderTask =
+            PageRenderDispatcher.RenderSpecialListsAsync(
+                CreateSource(8).ToRoutedDocuments(),
+                EmptyContentBodyStore.Instance,
+                renderer,
+                CreateSiteModel(),
+                CreateCollections(8),
+                Path.Combine(root, "layouts"),
+                "never",
+                "none",
+                Path.Combine(root, "output"),
+                "template-hash",
+                "dependency-hash",
+                incrementalEnabled: true,
+                manifest,
+                new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+                new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                maxDegreeOfParallelism: 4,
+                cancellation.Token);
+
+        try
+        {
+            await renderer.Entered.WaitAsync(TimeSpan.FromSeconds(5));
+            cancellation.Cancel();
+            renderer.Release();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => renderTask.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Empty(manifest.Entries);
+        }
+        finally
+        {
+            renderer.Release();
+            TestCleanup.DeleteDirectory(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task RenderSpecialListsAsync_Incremental_ProducesDeterministicManifestAcrossOneHundredRuns()
+    {
+        string root = CreateListFixture();
+        string? expectedManifest = null;
+
+        try
+        {
+            for (var iteration = 0; iteration < 100; iteration++)
+            {
+                var manifest = new BuildManifest();
+                string outputDir = Path.Combine(root, "output", iteration.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+                await PageRenderDispatcher.RenderSpecialListsAsync(
+                    CreateSource(8).ToRoutedDocuments(),
+                    EmptyContentBodyStore.Instance,
+                    new DeterministicRenderer(),
+                    CreateSiteModel(),
+                    CreateCollections(8),
+                    Path.Combine(root, "layouts"),
+                    "never",
+                    "none",
+                    outputDir,
+                    "template-hash",
+                    "dependency-hash",
+                    incrementalEnabled: true,
+                    manifest,
+                    new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+                    new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                    maxDegreeOfParallelism: 4,
+                    CancellationToken.None);
+
+                string manifestPath = Path.Combine(root, $"manifest-{iteration}.json");
+                manifest.Save(manifestPath);
+                string serialized = await File.ReadAllTextAsync(manifestPath);
+                expectedManifest ??= serialized;
+                Assert.Equal(expectedManifest, serialized);
+                Assert.Equal(9, manifest.Entries.Count);
+            }
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, true);
+        }
+    }
+
+    private static async Task WaitForRenderedListAsync(
+        ConcurrentDictionary<string, int> renderReasons)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (renderReasons.TryGetValue("list_render", out int count) && count > 0)
+            {
+                return;
+            }
+
+            await Task.Delay(10);
+        }
+
+        throw new TimeoutException("No special list completed within the test deadline.");
+    }
+
+    private static string CreateListFixture()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "bukit-special-list-manifest", Guid.NewGuid().ToString("N"));
+        string pages = Path.Combine(root, "layouts", "pages");
+        Directory.CreateDirectory(pages);
+        File.WriteAllText(Path.Combine(pages, "index.html"), "home");
+        File.WriteAllText(Path.Combine(pages, "list.html"), "list");
+        return root;
+    }
+
+    private static IReadOnlyDictionary<string, CollectionConfig> CreateCollections(int count)
+    {
+        var collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < count; i++)
+        {
+            collections[$"collection-{i}"] = new CollectionConfig
+            {
+                Permalink = $"/collection-{i}/{{slug}}/",
+                ListRoute = $"/collection-{i}/",
+                ListTemplate = "pages/list.html"
+            };
+        }
+
+        return collections;
+    }
+
+    private static SiteModel CreateSiteModel()
+        => new()
+        {
+            Name = "site",
+            Title = "site",
+            BaseUrl = "/",
+            Language = "en"
+        };
+
     private static IReadOnlyList<(ContentDocument Item, RouteInfo Route)> CreateSource(int count)
     {
         var list = new List<(ContentDocument Item, RouteInfo Route)>(count);
@@ -206,5 +400,58 @@ public sealed class SpecialListRendererNestedParallelTests
             }
             while (Interlocked.CompareExchange(ref _peak, observed, current) != current);
         }
+    }
+
+    private sealed class FirstCompletesThenBlocksRenderer : ITemplateRenderer
+    {
+        private readonly ManualResetEventSlim _release = new(initialState: false);
+        private int _calls;
+
+        public Task Blocked => _blocked.Task;
+
+        private readonly TaskCompletionSource _blocked =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public string RenderPage(string templateRelativePath, PageModel model) => string.Empty;
+
+        public string RenderList(string templateRelativePath, ListPageModel model)
+        {
+            if (Interlocked.Increment(ref _calls) == 1)
+            {
+                return model.Page?.Url ?? string.Empty;
+            }
+
+            _blocked.TrySetResult();
+            _release.Wait(TimeSpan.FromSeconds(10));
+            return model.Page?.Url ?? string.Empty;
+        }
+
+        public void Release() => _release.Set();
+    }
+
+    private sealed class BlockingRenderer : ITemplateRenderer
+    {
+        private readonly ManualResetEventSlim _release = new(initialState: false);
+        private readonly TaskCompletionSource _entered =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Entered => _entered.Task;
+
+        public string RenderPage(string templateRelativePath, PageModel model) => string.Empty;
+
+        public string RenderList(string templateRelativePath, ListPageModel model)
+        {
+            _entered.TrySetResult();
+            _release.Wait(TimeSpan.FromSeconds(10));
+            return model.Page?.Url ?? string.Empty;
+        }
+
+        public void Release() => _release.Set();
+    }
+
+    private sealed class DeterministicRenderer : ITemplateRenderer
+    {
+        public string RenderPage(string templateRelativePath, PageModel model) => model.Page.Url;
+        public string RenderList(string templateRelativePath, ListPageModel model) => model.Page?.Url ?? string.Empty;
     }
 }

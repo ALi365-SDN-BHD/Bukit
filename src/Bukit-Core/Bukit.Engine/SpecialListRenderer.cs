@@ -77,7 +77,8 @@ internal static class SpecialListRenderer
         string outputDir,
         string templateHash,
         string renderDependencyHash,
-        BuildManifest manifest,
+        IReadOnlyDictionary<string, BuildManifestEntry> baselineEntries,
+        ConcurrentDictionary<string, BuildManifestEntry> updates,
         ConcurrentDictionary<string, int> renderReasons,
         int maxDegreeOfParallelism,
         int outerCount,
@@ -94,13 +95,13 @@ internal static class SpecialListRenderer
         var key = BuildPathUtils.NormalizeRelPath(listRoute.OutputPath);
         var routeHash = IncrementalBuildEngine.ComputeRouteHash(listRoute);
         var listHashStopwatch = Stopwatch.StartNew();
-        var contentHash = await IncrementalBuildEngine.ComputeListContentHashAsync(templateHash, listRoute.Template, source, manifest, bodyStore, includeContent, cancellationToken);
+        var contentHash = await IncrementalBuildEngine.ComputeListContentHashAsync(templateHash, listRoute.Template, source, baselineEntries, bodyStore, includeContent, cancellationToken);
         listHashStopwatch.Stop();
         stageMetrics.Increment("listHash");
         stageMetrics.AddDuration("listHash", listHashStopwatch.ElapsedMilliseconds);
         var outputPath = Path.Combine(outputDir, listRoute.OutputPath);
         var outputExists = File.Exists(outputPath);
-        var hasExisting = manifest.Entries.TryGetValue(key, out var existing) && existing is not null;
+        var hasExisting = baselineEntries.TryGetValue(key, out var existing) && existing is not null;
 
         var canSkip = hasExisting &&
             outputExists &&
@@ -144,19 +145,16 @@ internal static class SpecialListRenderer
         FileWriter.WriteUtf8(outputDir, listRoute.OutputPath, html);
         renderReasons.AddOrUpdate("list_render", 1, (_, v) => v + 1);
 
-        lock (manifest)
+        updates[key] = new BuildManifestEntry
         {
-            manifest.Entries[key] = new BuildManifestEntry
-            {
-                OutputPath = key,
-                Url = listRoute.Url,
-                Template = listRoute.Template,
-                ContentHash = contentHash,
-                RouteHash = routeHash,
-                TemplateHash = templateHash,
-                RenderDependencyHash = renderDependencyHash
-            };
-        }
+            OutputPath = key,
+            Url = listRoute.Url,
+            Template = listRoute.Template,
+            ContentHash = contentHash,
+            RouteHash = routeHash,
+            TemplateHash = templateHash,
+            RenderDependencyHash = renderDependencyHash
+        };
 
         return new PageRenderDispatcher.SpecialListRenderResult(1, 0, stageMetrics.Snapshot());
     }

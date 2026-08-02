@@ -328,13 +328,31 @@ internal static class PageRenderDispatcher
         {
             var rendered = 0;
             var skipped = 0;
+            Dictionary<string, BuildManifestEntry> baselineEntries;
+            lock (manifest)
+            {
+                baselineEntries = manifest.Entries.ToDictionary(
+                    static entry => entry.Key,
+                    static entry => entry.Value,
+                    StringComparer.Ordinal);
+            }
+
+            var updates = new ConcurrentDictionary<string, BuildManifestEntry>(StringComparer.Ordinal);
             await Parallel.ForEachAsync(specialLists, parallelOptions, async (x, ct) =>
             {
-                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, manifest, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, transformLogger, seoBuilder, listSeoBuilder, htmlTransformPipeline);
+                var result = await SpecialListRenderer.RenderSpecialListIfNeededAsync(x.Route, x.Items, bodyStore, renderer, siteModel, outputDir, templateHash, renderDependencyHash, baselineEntries, updates, renderReasons, maxDegreeOfParallelism, specialLists.Count, x.IncludeContent, x.PageFields, x.PageContext, ct, transformLogger, seoBuilder, listSeoBuilder, htmlTransformPipeline);
                 Interlocked.Add(ref rendered, result.RenderedCount);
                 Interlocked.Add(ref skipped, result.SkippedCount);
                 stageMetrics.Merge(result.StageMetrics);
             });
+
+            lock (manifest)
+            {
+                foreach (var update in updates.OrderBy(static entry => entry.Key, StringComparer.Ordinal))
+                {
+                    manifest.Entries[update.Key] = update.Value;
+                }
+            }
 
             return new SpecialListRenderResult(rendered, skipped, stageMetrics.Snapshot());
         }
