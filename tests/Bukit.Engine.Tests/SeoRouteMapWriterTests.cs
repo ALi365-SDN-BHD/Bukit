@@ -32,6 +32,50 @@ public sealed class SeoRouteMapWriterTests : IDisposable
         Assert.Equal(["/B/", "/a/"], map.Routes.Select(route => route.Canonical));
     }
 
+    [Theory]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData(" \t ", "")]
+    [InlineData("  HTTPS://example.com/root  ", "HTTPS://example.com/root")]
+    public void Build_NormalizesBlankSiteUrlAndTrimsPresentValues(string? siteUrl, string expected)
+    {
+        var map = new SeoRouteMapBuilder(siteUrl, "/")
+            .Build(DateTimeOffset.Parse("2026-08-03T00:00:00Z"));
+
+        Assert.Equal(expected, map.SiteUrl);
+    }
+
+    [Fact]
+    public void Build_EmitsUppercaseHttpSchemeValuesAcceptedBySchema()
+    {
+        const string siteUrl = "HTTPS://example.com";
+        const string canonical = "HTTP://example.com/article/";
+        var builder = new SeoRouteMapBuilder(siteUrl, "/");
+        builder.Add(Entry("/article/", canonical), Model(canonical), null);
+        var map = builder.Build(DateTimeOffset.Parse("2026-08-03T00:00:00Z"));
+
+        using var schema = JsonDocument.Parse(File.ReadAllText(Path.Combine(
+            FindRepoRoot(),
+            "docs",
+            "schemas",
+            "seo-route-map.v1.schema.json")));
+        var properties = schema.RootElement.GetProperty("properties");
+        var sitePattern = properties.GetProperty("siteUrl").GetProperty("oneOf")[1].GetProperty("pattern").GetString()!;
+        var canonicalPattern = properties
+            .GetProperty("routes")
+            .GetProperty("items")
+            .GetProperty("properties")
+            .GetProperty("canonical")
+            .GetProperty("oneOf")[0]
+            .GetProperty("pattern")
+            .GetString()!;
+
+        Assert.True(Uri.TryCreate(map.SiteUrl, UriKind.Absolute, out _));
+        Assert.Matches(sitePattern, map.SiteUrl);
+        Assert.True(Uri.TryCreate(map.Routes[0].Canonical, UriKind.Absolute, out _));
+        Assert.Matches(canonicalPattern, map.Routes[0].Canonical);
+    }
+
     [Fact]
     public void Write_PreservesDuplicateCanonicalsAndSerializesOnlyPrivacySafeIdentities()
     {
@@ -160,4 +204,21 @@ public sealed class SeoRouteMapWriterTests : IDisposable
             },
             Content = TestContent.Markdown()
         };
+
+    private static string FindRepoRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "Directory.Build.props")) &&
+                File.Exists(Path.Combine(current.FullName, "bukit-core.slnx")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root.");
+    }
 }

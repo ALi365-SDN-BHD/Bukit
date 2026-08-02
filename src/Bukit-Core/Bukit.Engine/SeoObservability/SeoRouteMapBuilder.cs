@@ -15,7 +15,7 @@ internal sealed class SeoRouteMapBuilder
 
     internal SeoRouteMapBuilder(string? siteUrl, string baseUrl)
     {
-        _siteUrl = siteUrl ?? string.Empty;
+        _siteUrl = string.IsNullOrWhiteSpace(siteUrl) ? string.Empty : siteUrl.Trim();
         _baseUrl = baseUrl;
     }
 
