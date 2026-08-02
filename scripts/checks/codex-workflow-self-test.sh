@@ -364,6 +364,35 @@ assert_closure_mapping \
   tests/PluginProcessProbe/Program.cs \
   '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
   false
+expect_exit 0 "${tool[@]}" closure \
+  --repo "$closure_fixture" \
+  --policy scripts/checks/codex-workflow-policy.v1.json \
+  --changed docs/schemas/seo-route-map.v1.schema.json \
+  --changed docs/schemas/seo-observation.v1.schema.json \
+  --changed docs/schemas/seo-insights-rules.v1.schema.json \
+  --changed guide/user/21-seo-insights.md
+seo_observability_closure_output="$command_output"
+
+python3 - "$seo_observability_closure_output" <<'PY'
+import json
+import sys
+
+result = json.loads(sys.argv[1])
+expected_command = (
+    "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+)
+if result["unmappedFiles"] != []:
+    raise SystemExit(
+        "expected SEO observability paths to be mapped, got unmapped: "
+        f"{result['unmappedFiles']}"
+    )
+if result["specialtyTests"] != [expected_command]:
+    raise SystemExit(
+        "unexpected SEO observability specialty tests: "
+        f"{result['specialtyTests']}"
+    )
+PY
+
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs \

@@ -249,6 +249,27 @@
       ]
     },
     {
+      "contractConsumerGlobs": [
+        "tests/Bukit.Architecture.Tests/SeoGeoDocumentationContractTests.cs"
+      ],
+      "id": "seo-observability-contract",
+      "matches": [
+        "docs/schemas/seo-route-map.v1.schema.json",
+        "docs/schemas/seo-observation.v1.schema.json",
+        "docs/schemas/seo-insights-rules.v1.schema.json",
+        "docs/schemas/seo-insights-report.v1.schema.json",
+        "guide/user/10-built-in-outputs.md",
+        "guide/user/12-cli-reference.md",
+        "guide/user/21-seo-insights.md",
+        "guide/user/README.md"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ]
+    },
+    {
       "contractConsumerGlobs": [],
       "id": "built-in-plugin-guide",
       "matches": [
