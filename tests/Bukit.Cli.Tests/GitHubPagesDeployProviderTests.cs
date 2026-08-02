@@ -294,6 +294,49 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
+    public async Task DeployAsync_PushFloodsStdoutAndStderr_CompletesWithoutFalseTimeout()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "flood-success";
+        scope.SetGithubToken("secret-token");
+        scope.SetDeployTimeoutSeconds("2");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(),
+            CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal("https://ali.github.io/docs", result.DeployedUrl);
+        AssertDeploymentCleanupSucceeded(scope);
+    }
+
+    [Fact]
+    public async Task DeployAsync_PushFloodThenFailure_ReturnsReadableSanitizedError()
+    {
+        const string token = "ghp_FLOOD_SECRET_TOKEN_123";
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "flood-failure";
+        scope.SetGithubToken(token);
+        scope.SetDeployTimeoutSeconds("2");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(),
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("FLOOD_FAILURE", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(token, result.Error, StringComparison.Ordinal);
+        Assert.Contains("***", result.Error, StringComparison.Ordinal);
+        AssertDeploymentCleanupSucceeded(scope);
+    }
+
+    [Fact]
     public async Task Deploy_AskpassScript_DoesNotLeakInError()
     {
         using var scope = new GitHubPagesDeployTestScope();
@@ -1123,6 +1166,8 @@ public sealed class GitHubPagesDeployProviderTests
                 if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="sleep" goto push_sleep
                 if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="forbidden" goto push_forbidden
                 if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="askpass-leak" goto push_askpass_leak
+                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="flood-success" goto push_flood_success
+                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="flood-failure" goto push_flood_failure
                 if exist ".nojekyll" echo SNAPSHOT nojekyll>>"%BUKIT_FAKE_GIT_LOG%"
                 if exist "CNAME" (
                   set /p cname=<CNAME
@@ -1143,6 +1188,21 @@ public sealed class GitHubPagesDeployProviderTests
 
                 :push_askpass_leak
                 1>&2 echo fatal: cannot run %GIT_ASKPASS% for token %GITHUB_TOKEN%
+                exit /b 1
+
+                :push_flood_success
+                for /l %%I in (1,1,4096) do (
+                  echo stdout-flood-%%I-abcdefghijklmnopqrstuvwxyz0123456789
+                  1>&2 echo stderr-flood-%%I-abcdefghijklmnopqrstuvwxyz0123456789
+                )
+                exit /b 0
+
+                :push_flood_failure
+                for /l %%I in (1,1,4096) do (
+                  echo stdout-flood-%%I-abcdefghijklmnopqrstuvwxyz0123456789
+                  1>&2 echo stderr-flood-%%I-abcdefghijklmnopqrstuvwxyz0123456789
+                )
+                1>&2 echo FLOOD_FAILURE token=%GITHUB_TOKEN%
                 exit /b 1
 
                 :push_sleep
@@ -1206,6 +1266,19 @@ public sealed class GitHubPagesDeployProviderTests
               if [ "$mode" = "askpass-leak" ]; then
                 printf 'fatal: cannot run %s for token %s\n' "${GIT_ASKPASS:-missing}" "${GITHUB_TOKEN:-missing}" >&2
                 exit 1
+              fi
+              if [ "$mode" = "flood-success" ] || [ "$mode" = "flood-failure" ]; then
+                flood_index=0
+                while [ "$flood_index" -lt 4096 ]; do
+                  printf 'stdout-flood-%s-abcdefghijklmnopqrstuvwxyz0123456789\n' "$flood_index"
+                  printf 'stderr-flood-%s-abcdefghijklmnopqrstuvwxyz0123456789\n' "$flood_index" >&2
+                  flood_index=$((flood_index + 1))
+                done
+                if [ "$mode" = "flood-failure" ]; then
+                  printf 'FLOOD_FAILURE token=%s\n' "${GITHUB_TOKEN:-missing}" >&2
+                  exit 1
+                fi
+                exit 0
               fi
               [ -f ".nojekyll" ] && printf 'SNAPSHOT nojekyll\n' >> "$BUKIT_FAKE_GIT_LOG"
               [ -f "CNAME" ] && printf 'SNAPSHOT cname=%s\n' "$(cat CNAME)" >> "$BUKIT_FAKE_GIT_LOG"

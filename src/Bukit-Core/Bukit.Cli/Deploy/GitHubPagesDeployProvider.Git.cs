@@ -211,12 +211,11 @@ public sealed partial class GitHubPagesDeployProvider
         psi.Environment[AskpassTokenEnvironmentVariable] = token;
 
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
-        await WaitForGitProcessAsync(proc, gitCommandTimeout, ct, commandLine);
+        var output = await WaitForGitProcessAndDrainAsync(proc, gitCommandTimeout, ct, commandLine);
 
         if (proc.ExitCode != 0)
         {
-            var error = await proc.StandardError.ReadToEndAsync();
-            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {error.Trim()}");
+            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {output.Stderr.Trim()}");
         }
     }
 
@@ -234,15 +233,13 @@ public sealed partial class GitHubPagesDeployProvider
             return string.Empty;
         }
 
-        await WaitForGitProcessAsync(proc, gitCommandTimeout, ct, commandLine);
-        var output = await proc.StandardOutput.ReadToEndAsync();
-        var error = await proc.StandardError.ReadToEndAsync();
+        var output = await WaitForGitProcessAndDrainAsync(proc, gitCommandTimeout, ct, commandLine);
         if (proc.ExitCode != 0)
         {
-            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {error.Trim()}");
+            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {output.Stderr.Trim()}");
         }
 
-        return output.Trim();
+        return output.Stdout.Trim();
     }
 
     private static async Task RunGitAsync(string gitPath, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
@@ -251,12 +248,11 @@ public sealed partial class GitHubPagesDeployProvider
         var psi = CreateGitProcess(gitPath, workingDir, args);
 
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
-        await WaitForGitProcessAsync(proc, gitCommandTimeout, ct, commandLine);
+        var output = await WaitForGitProcessAndDrainAsync(proc, gitCommandTimeout, ct, commandLine);
 
         if (proc.ExitCode != 0)
         {
-            var error = await proc.StandardError.ReadToEndAsync();
-            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {error.Trim()}");
+            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {output.Stderr.Trim()}");
         }
     }
 
@@ -271,15 +267,49 @@ public sealed partial class GitHubPagesDeployProvider
             return string.Empty;
         }
 
-        await WaitForGitProcessAsync(proc, gitCommandTimeout, ct, commandLine);
-        var output = await proc.StandardOutput.ReadToEndAsync();
-        var error = await proc.StandardError.ReadToEndAsync();
+        var output = await WaitForGitProcessAndDrainAsync(proc, gitCommandTimeout, ct, commandLine);
         if (proc.ExitCode != 0)
         {
-            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {error.Trim()}");
+            throw new GitException($"git {commandLine} failed (exit {proc.ExitCode}): {output.Stderr.Trim()}");
         }
 
-        return output.Trim();
+        return output.Stdout.Trim();
+    }
+
+    private static async Task<GitProcessOutput> WaitForGitProcessAndDrainAsync(
+        Process process,
+        TimeSpan timeout,
+        CancellationToken cancellationToken,
+        string commandLine)
+    {
+        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+        Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+
+        try
+        {
+            await WaitForGitProcessAsync(process, timeout, cancellationToken, commandLine);
+        }
+        catch
+        {
+            await ObserveGitOutputTasksAsync(stdoutTask, stderrTask);
+            throw;
+        }
+
+        string[] output = await Task.WhenAll(stdoutTask, stderrTask);
+        return new GitProcessOutput(output[0], output[1]);
+    }
+
+    private static async Task ObserveGitOutputTasksAsync(
+        Task<string> stdoutTask,
+        Task<string> stderrTask)
+    {
+        try
+        {
+            await Task.WhenAll(stdoutTask, stderrTask);
+        }
+        catch
+        {
+        }
     }
 
     private static async Task WaitForGitProcessAsync(Process proc, TimeSpan timeout, CancellationToken ct, string commandLine)
@@ -385,6 +415,8 @@ public sealed partial class GitHubPagesDeployProvider
     private sealed class GitException(string message) : Exception(message)
     {
     }
+
+    private sealed record GitProcessOutput(string Stdout, string Stderr);
 
     private sealed class GitTimeoutException(string message, string commandLine, TimeSpan timeout) : Exception(message)
     {
