@@ -437,6 +437,7 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
     private readonly TaskCompletionSource<bool> _disposeCompletion =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private TaskCompletionSource<bool>? _schedulersDrained;
+    private ExceptionDispatchInfo? _completedRequestFailure;
     private int _activeSchedulers;
     private int _resourcesDisposed;
     private bool _stopping;
@@ -484,7 +485,7 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
                     throw new OperationCanceledException(_shutdown.Token);
                 }
 
-                _requests.RemoveWhere(task => task.IsCompleted);
+                PruneCompletedRequestsLocked();
                 var request = Task.Run(
                     () => RunRequestAsync(dispatchAsync),
                     CancellationToken.None);
@@ -553,21 +554,30 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
 
     private async Task DisposeCoreAsync(Task schedulersDrained)
     {
-        Exception? failure = null;
+        ExceptionDispatchInfo? failure = null;
         try
         {
             await schedulersDrained.ConfigureAwait(false);
             Task[] requests;
             lock (_sync)
             {
+                PruneCompletedRequestsLocked();
+                failure = _completedRequestFailure;
                 requests = _requests.ToArray();
             }
 
-            await Task.WhenAll(requests).ConfigureAwait(false);
+            try
+            {
+                await Task.WhenAll(requests).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                failure ??= ExceptionDispatchInfo.Capture(ex);
+            }
         }
         catch (Exception ex)
         {
-            failure = ex;
+            failure ??= ExceptionDispatchInfo.Capture(ex);
         }
         finally
         {
@@ -580,7 +590,7 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                failure ??= ex;
+                failure ??= ExceptionDispatchInfo.Capture(ex);
             }
 
             try
@@ -590,7 +600,7 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                failure ??= ex;
+                failure ??= ExceptionDispatchInfo.Capture(ex);
             }
 
             if (requestGateDisposed && shutdownDisposed)
@@ -604,13 +614,38 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
             }
             else
             {
-                _disposeCompletion.TrySetException(failure);
+                _disposeCompletion.TrySetException(failure.SourceException);
             }
         }
 
         if (failure is not null)
         {
-            ExceptionDispatchInfo.Capture(failure).Throw();
+            failure.Throw();
+        }
+    }
+
+    private void PruneCompletedRequestsLocked()
+    {
+        foreach (var request in _requests.Where(static task => task.IsCompleted).ToArray())
+        {
+            if (request.Exception is { } aggregate)
+            {
+                if (_completedRequestFailure is null)
+                {
+                    var flattened = aggregate.Flatten();
+                    var exception = flattened.InnerExceptions.Count == 1
+                        ? flattened.InnerExceptions[0]
+                        : flattened;
+                    _completedRequestFailure = ExceptionDispatchInfo.Capture(exception);
+                }
+            }
+            else if (request.IsCanceled && _completedRequestFailure is null)
+            {
+                _completedRequestFailure = ExceptionDispatchInfo.Capture(
+                    new TaskCanceledException(request));
+            }
+
+            _requests.Remove(request);
         }
     }
 }

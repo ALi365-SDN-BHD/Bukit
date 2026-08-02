@@ -160,6 +160,29 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         Assert.True(dispatcher.ResourcesDisposed);
     }
 
+    [Fact]
+    public async Task PreviewRequestDispatcher_FaultedCompletedRequest_RemainsObservableAfterPruning()
+    {
+        var dispatcher = new PreviewRequestDispatcher(1);
+        var expected = new InvalidOperationException("completed request failed");
+
+        await dispatcher.ScheduleAsync(
+            _ => Task.FromException(expected),
+            CancellationToken.None);
+        await dispatcher.ScheduleAsync(
+            _ => Task.CompletedTask,
+            CancellationToken.None);
+        await dispatcher.ScheduleAsync(
+            _ => Task.CompletedTask,
+            CancellationToken.None);
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => dispatcher.DisposeAsync().AsTask());
+
+        Assert.Same(expected, actual);
+        Assert.True(dispatcher.ResourcesDisposed);
+    }
+
     private static void UpdatePeak(ref int peak, int current)
     {
         var observed = Volatile.Read(ref peak);
