@@ -75,6 +75,36 @@ public sealed class NotionClientTests
         Assert.False(http.DefaultRequestHeaders.Contains("Notion-Version"));
     }
 
+    [Theory]
+    [InlineData("v1/databases/db")]
+    [InlineData("http://api.notion.com/v1/databases/db")]
+    [InlineData("https://example.com/v1/databases/db")]
+    [InlineData("https://api.notion.com:444/v1/databases/db")]
+    public async Task SendAsync_RejectsUntrustedTargetBeforeAuthenticationOrNetwork(string target)
+    {
+        const string secret = "target-validation-secret";
+        var handler = new SequenceHandler(Response(HttpStatusCode.OK, "{}"));
+        using var http = new HttpClient(handler);
+        using var client = CreateClient(secret, http);
+        using var request = new HttpRequestMessage(HttpMethod.Get, target);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.SendAsync(request, NotionRequestSemantics.IdempotentRead));
+
+        Assert.Equal(0, handler.RequestCount);
+        Assert.Null(request.Headers.Authorization);
+        Assert.DoesNotContain(secret, exception.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(target, exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DefaultHandler_DisablesAutomaticRedirects()
+    {
+        using var handler = Assert.IsType<SocketsHttpHandler>(NotionClient.CreateDefaultHandler());
+
+        Assert.False(handler.AllowAutoRedirect);
+    }
+
     [Fact]
     public async Task Dispose_DoesNotDisposeInjectedHttpClient()
     {

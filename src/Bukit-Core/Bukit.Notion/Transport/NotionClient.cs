@@ -86,6 +86,8 @@ public sealed class NotionClient : IDisposable
             throw new ArgumentException("Notion request URI is required.", nameof(request));
         }
 
+        ValidateRequestTarget(request.RequestUri);
+
         var bufferedRequest = await BufferedRequest.CreateAsync(request, cancellationToken);
         var maxRetries = semantics == NotionRequestSemantics.IdempotentRead
             ? Math.Max(0, _options.MaxRetries)
@@ -206,11 +208,27 @@ public sealed class NotionClient : IDisposable
         }
         else
         {
-            handler = new SocketsHttpHandler();
+            handler = CreateDefaultHandler();
         }
 
         var timeout = options.Timeout > TimeSpan.Zero ? options.Timeout : Timeout.InfiniteTimeSpan;
         return new HttpClient(handler, disposeHandler: true) { Timeout = timeout };
+    }
+
+    internal static HttpMessageHandler CreateDefaultHandler()
+        => new SocketsHttpHandler { AllowAutoRedirect = false };
+
+    private static void ValidateRequestTarget(Uri requestUri)
+    {
+        if (!requestUri.IsAbsoluteUri ||
+            !string.Equals(requestUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(requestUri.Host, "api.notion.com", StringComparison.OrdinalIgnoreCase) ||
+            requestUri.Port != 443)
+        {
+            throw new ArgumentException(
+                "Notion request URI must be an absolute HTTPS URL for api.notion.com on port 443.",
+                nameof(requestUri));
+        }
     }
 
     private void ApplyNotionHeaders(HttpRequestMessage request)
