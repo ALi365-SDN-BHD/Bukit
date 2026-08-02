@@ -19,6 +19,18 @@ Additional aggregate writers such as sitemap, feed, search, and llms output are
 implemented as built-in plugin classes and projection writers, but the current
 registry determines which plugins run through `PluginRunner`.
 
+## Data Files
+
+The `data-files` plugin loads only `.json`, `.yaml`, and `.yml` files below the
+site's `data/` directory. TOML data files are not supported and stop the build
+with a relative-path configuration error. Malformed JSON or YAML also stops the
+build instead of being silently skipped.
+
+Files and subdirectories are loaded in ordinal name order so generated data is
+deterministic across filesystems. Two entries that produce the same
+case-insensitive logical key, including files with different supported
+extensions or a file/directory collision, are rejected rather than overwritten.
+
 ## Search Output Safety
 
 The default search UI treats indexed title/snippet values as untrusted text.
