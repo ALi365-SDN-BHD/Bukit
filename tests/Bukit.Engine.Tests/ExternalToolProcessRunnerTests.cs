@@ -203,6 +203,60 @@ public sealed class ExternalToolProcessRunnerTests
         }
     }
 
+    [Fact]
+    public async Task RunAsync_OutputBeyondLimit_TerminatesAndThrowsBoundedDiagnostic()
+    {
+        RequireUnix();
+        var root = CreateTempDir();
+        try
+        {
+            var tool = WriteTool(root, "flood-beyond-limit", """
+                head -c 5242880 /dev/zero
+                """);
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                ExternalToolProcessRunner.RunAsync(
+                    StartInfo(tool),
+                    TimeSpan.FromSeconds(30),
+                    CancellationToken.None));
+
+            Assert.Contains("produced more than", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("stdout", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_Timeout_WithInheritedPipes_ReturnsWithinDrainDeadline()
+    {
+        RequireUnix();
+        var root = CreateTempDir();
+        try
+        {
+            var tool = WriteTool(root, "long-sleep", """
+                sleep 30
+                """);
+
+            var stopwatch = Stopwatch.StartNew();
+            await Assert.ThrowsAsync<TimeoutException>(() =>
+                ExternalToolProcessRunner.RunAsync(
+                    StartInfo(tool),
+                    TimeSpan.FromMilliseconds(200),
+                    CancellationToken.None));
+            stopwatch.Stop();
+
+            Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(8),
+                $"Timeout + drain took {stopwatch.Elapsed.TotalSeconds:F1}s, expected < 8s");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static ProcessStartInfo StartInfo(string tool) => new()
     {
         FileName = tool,

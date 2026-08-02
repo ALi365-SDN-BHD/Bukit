@@ -7,6 +7,8 @@ namespace Bukit.Cli.Deploy;
 public sealed partial class GitHubPagesDeployProvider
 {
     private static readonly TimeSpan GitTerminationGracePeriod = TimeSpan.FromSeconds(2);
+    private const int GitStreamByteCap = 4 * 1024 * 1024;
+    private static readonly System.Text.Encoding GitUtf8NoBom = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     private static async Task EnsureGitIdentityAsync(string gitPath, string tempDir, TimeSpan gitCommandTimeout, CancellationToken ct, ILogger? logger = null)
     {
@@ -97,7 +99,12 @@ public sealed partial class GitHubPagesDeployProvider
             });
             if (proc is not null)
             {
-                proc.WaitForExit(3000);
+                bool exited = proc.WaitForExit(3000);
+                if (!exited)
+                {
+                    TryKillProcessTree(proc);
+                    return null;
+                }
                 var output = proc.StandardOutput.ReadToEnd().Trim();
                 if (!string.IsNullOrWhiteSpace(output) && File.Exists(output))
                 {
@@ -269,8 +276,10 @@ public sealed partial class GitHubPagesDeployProvider
         CancellationToken cancellationToken,
         string commandLine)
     {
-        Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+        var stdoutCollector = new BoundedGitCollector(GitStreamByteCap);
+        var stderrCollector = new BoundedGitCollector(GitStreamByteCap);
+        Task stdoutTask = stdoutCollector.ReadAsync(process.StandardOutput.BaseStream, process);
+        Task stderrTask = stderrCollector.ReadAsync(process.StandardError.BaseStream, process);
 
         try
         {
@@ -282,13 +291,22 @@ public sealed partial class GitHubPagesDeployProvider
             throw;
         }
 
-        string[] output = await Task.WhenAll(stdoutTask, stderrTask);
-        return new GitProcessOutput(output[0], output[1]);
+        await Task.WhenAll(stdoutTask, stderrTask);
+
+        if (stdoutCollector.Exceeded || stderrCollector.Exceeded)
+        {
+            TryKillProcessTree(process);
+            string stream = stdoutCollector.Exceeded ? "stdout" : "stderr";
+            throw new GitException(
+                $"git {commandLine} produced more than {GitStreamByteCap} bytes on {stream}.");
+        }
+
+        return new GitProcessOutput(stdoutCollector.GetText(), stderrCollector.GetText());
     }
 
     private static async Task ObserveGitOutputTasksAsync(
-        Task<string> stdoutTask,
-        Task<string> stderrTask)
+        Task stdoutTask,
+        Task stderrTask)
     {
         var completed = await WaitForTerminationGraceAsync(
             ObserveGitOutputTasksIgnoringFailureAsync(stdoutTask, stderrTask),
@@ -301,8 +319,8 @@ public sealed partial class GitHubPagesDeployProvider
     }
 
     private static async Task ObserveGitOutputTasksIgnoringFailureAsync(
-        Task<string> stdoutTask,
-        Task<string> stderrTask)
+        Task stdoutTask,
+        Task stderrTask)
     {
         try
         {
@@ -459,6 +477,50 @@ public sealed partial class GitHubPagesDeployProvider
     }
 
     private sealed record GitProcessOutput(string Stdout, string Stderr);
+
+    private sealed class BoundedGitCollector : IDisposable
+    {
+        private readonly int _maxBytes;
+        private readonly MemoryStream _buffer;
+        private long _totalBytesRead;
+
+        public BoundedGitCollector(int maxBytes)
+        {
+            _maxBytes = maxBytes;
+            _buffer = new MemoryStream(capacity: Math.Min(maxBytes, 4096));
+        }
+
+        public bool Exceeded { get; private set; }
+
+        public void Dispose() => _buffer.Dispose();
+
+        public async Task ReadAsync(Stream stream, Process process)
+        {
+            var readBuffer = new byte[4096];
+            while (true)
+            {
+                int bytesRead = await stream.ReadAsync(readBuffer, CancellationToken.None);
+                if (bytesRead == 0) break;
+
+                _totalBytesRead += bytesRead;
+                int space = _maxBytes - (int)_buffer.Length;
+                if (space > 0)
+                {
+                    int toWrite = Math.Min(bytesRead, space);
+                    _buffer.Write(readBuffer, 0, toWrite);
+                }
+
+                if (_totalBytesRead > _maxBytes)
+                {
+                    Exceeded = true;
+                    TryKillProcessTree(process);
+                    return;
+                }
+            }
+        }
+
+        public string GetText() => GitUtf8NoBom.GetString(_buffer.ToArray());
+    }
 
     private sealed class GitTimeoutException(string message, string commandLine, TimeSpan timeout) : Exception(message)
     {
