@@ -152,6 +152,14 @@ public sealed class SeoInsightsRuleProfileReaderTests
     [InlineData("example.com#fragment")]
     [InlineData("bad_host.example.com")]
     [InlineData("192.0.2.1")]
+    [InlineData("127.1")]
+    [InlineData("2130706433")]
+    [InlineData("2130706433.")]
+    [InlineData("0x7f000001")]
+    [InlineData("999999999999999999999")]
+    [InlineData("0xFFFFFFFFFFFFFFFF")]
+    [InlineData("::1")]
+    [InlineData("[::1]")]
     public void Read_RejectsNonDnsSiteHosts(string host)
     {
         var json = ValidProfileJson.Replace("Example.COM.", host, StringComparison.Ordinal);
@@ -175,6 +183,67 @@ public sealed class SeoInsightsRuleProfileReaderTests
     }
 
     [Theory]
+    [InlineData("127.1")]
+    [InlineData("2130706433")]
+    [InlineData("2130706433.")]
+    [InlineData("0x7f000001")]
+    [InlineData("999999999999999999999")]
+    [InlineData("0xFFFFFFFFFFFFFFFF")]
+    [InlineData("192.0.2.1")]
+    [InlineData("::1")]
+    [InlineData("[::1]")]
+    public void Read_RejectsIpAndIpLikeNumericFormsInAliases(string alias)
+    {
+        var json = ValidProfileJson.Replace(
+            "[\"z.example.com\", \"A.example.com\"]",
+            $"[\"{alias}\"]",
+            StringComparison.Ordinal);
+
+        var exception = Assert.Throws<InvalidDataException>(() => Read(json));
+
+        Assert.StartsWith("rules.host_invalid", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("xn--bcher-kva.example", "xn--bcher-kva.example")]
+    [InlineData("xn--bcher-kva.example.", "xn--bcher-kva.example")]
+    public void Read_AcceptedPunycodeAndRootDotMatchTask2Normalization(string configuredHost, string expectedHost)
+    {
+        var profile = Read(ValidProfileJson.Replace("Example.COM.", configuredHost, StringComparison.Ordinal));
+        var normalization = SeoObservationUrlNormalizer.Normalize(
+            $"https://{configuredHost}/article/",
+            new SeoObservationUrlOptions(
+                profile.SiteHost,
+                new HashSet<string>(profile.HostAliases, StringComparer.OrdinalIgnoreCase),
+                new HashSet<string>(profile.IgnoredQueryParameters, StringComparer.OrdinalIgnoreCase)));
+
+        Assert.Equal(expectedHost, profile.SiteHost);
+        Assert.True(normalization.Success);
+        Assert.Equal(expectedHost, new Uri(normalization.NormalizedUrl!).Host);
+        Assert.Equal("/article/", normalization.MatchKey);
+    }
+
+    [Fact]
+    public void Read_EnforcesNormalizedDnsHostLengthWithOneOptionalRootDot()
+    {
+        var maximum = MaximumDnsHost();
+        var overlong = maximum + "a";
+
+        Assert.Equal(maximum, Read(ValidProfileJson.Replace("Example.COM.", maximum, StringComparison.Ordinal)).SiteHost);
+        Assert.Equal(maximum, Read(ValidProfileJson.Replace("Example.COM.", maximum + ".", StringComparison.Ordinal)).SiteHost);
+        Assert.StartsWith(
+            "rules.host_invalid",
+            Assert.Throws<InvalidDataException>(
+                () => Read(ValidProfileJson.Replace("Example.COM.", overlong, StringComparison.Ordinal))).Message,
+            StringComparison.Ordinal);
+        Assert.StartsWith(
+            "rules.host_invalid",
+            Assert.Throws<InvalidDataException>(
+                () => Read(ValidProfileJson.Replace("Example.COM.", overlong + ".", StringComparison.Ordinal))).Message,
+            StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("[\"utm_source\", \"UTM_SOURCE\"]", "rules.parameter_duplicate")]
     [InlineData("[\"utm source\"]", "rules.parameter_invalid")]
     [InlineData("[\"utm[source]\"]", "rules.parameter_invalid")]
@@ -188,12 +257,53 @@ public sealed class SeoInsightsRuleProfileReaderTests
         Assert.StartsWith(code, exception.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void Read_RejectsRemotePaths()
+    [Theory]
+    [InlineData("https://example.com/rules.json")]
+    [InlineData("file:///tmp/rules.json")]
+    [InlineData("//server/share/rules.json")]
+    [InlineData("\\\\server\\share\\rules.json")]
+    public void Read_RejectsUriAndNetworkPathForms(string path)
     {
-        var exception = Assert.Throws<InvalidDataException>(() => SeoInsightsRuleProfileReader.Read("https://example.com/rules.json"));
+        var exception = Assert.Throws<InvalidDataException>(() => SeoInsightsRuleProfileReader.Read(path));
 
         Assert.StartsWith("rules.path_invalid", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(path, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_NonexistentPathUsesStableNonLeakingUnavailableCode()
+    {
+        var secretPath = Path.Combine(Path.GetTempPath(), $"secret-token-{Guid.NewGuid():N}.json");
+
+        var exception = Assert.Throws<InvalidDataException>(() => SeoInsightsRuleProfileReader.Read(secretPath));
+
+        Assert.StartsWith("rules.file_unavailable", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(secretPath, exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-token", exception.Message, StringComparison.Ordinal);
+        Assert.Null(exception.InnerException);
+    }
+
+    [Fact]
+    public void Read_MalformedPathUsesStableNonLeakingPathCode()
+    {
+        var malformed = "secret\0rules.json";
+
+        var exception = Assert.Throws<InvalidDataException>(() => SeoInsightsRuleProfileReader.Read(malformed));
+
+        Assert.StartsWith("rules.path_invalid", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret", exception.Message, StringComparison.Ordinal);
+        Assert.Null(exception.InnerException);
+    }
+
+    [Fact]
+    public void Read_WindowsDrivePathIsNotMisclassifiedAsUri()
+    {
+        var windowsPath = $@"Z:\secret-token-{Guid.NewGuid():N}\rules.json";
+
+        var exception = Assert.Throws<InvalidDataException>(() => SeoInsightsRuleProfileReader.Read(windowsPath));
+
+        Assert.StartsWith("rules.file_unavailable", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(windowsPath, exception.Message, StringComparison.Ordinal);
     }
 
     private static SeoInsightsRuleProfile Read(string json)
@@ -209,4 +319,7 @@ public sealed class SeoInsightsRuleProfileReaderTests
             File.Delete(path);
         }
     }
+
+    private static string MaximumDnsHost()
+        => $"{new string('a', 63)}.{new string('b', 63)}.{new string('c', 63)}.{new string('d', 61)}";
 }

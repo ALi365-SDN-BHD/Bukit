@@ -184,9 +184,8 @@ public sealed class SeoGeoDocumentationContractTests
         var hostAliases = rulesRoot.GetProperty("properties").GetProperty("hostAliases");
         Assert.True(hostAliases.GetProperty("uniqueItems").GetBoolean());
         Assert.Equal("#/$defs/dnsHost", hostAliases.GetProperty("items").GetProperty("$ref").GetString());
-        var dnsHostPattern = rulesRoot.GetProperty("$defs").GetProperty("dnsHost").GetProperty("pattern").GetString()!;
-        Assert.Matches(dnsHostPattern, "example.com");
-        Assert.DoesNotMatch(dnsHostPattern, "192.0.2.1");
+        var dnsHost = rulesRoot.GetProperty("$defs").GetProperty("dnsHost");
+        Assert.Equal(2, dnsHost.GetProperty("oneOf").GetArrayLength());
         var ignoredParameters = rulesRoot.GetProperty("properties").GetProperty("ignoredQueryParameters");
         Assert.True(ignoredParameters.GetProperty("uniqueItems").GetBoolean());
         Assert.Equal("^[A-Za-z0-9_.-]+$", ignoredParameters.GetProperty("items").GetProperty("pattern").GetString());
@@ -220,6 +219,37 @@ public sealed class SeoGeoDocumentationContractTests
             property => Assert.Equal(
                 ["P0", "P1", "P2"],
                 property.Value.GetProperty("enum").EnumerateArray().Select(value => value.GetString())));
+        var semanticLayer = rulesRoot.GetProperty("$comment").GetString()!;
+        Assert.Contains("SeoInsightsRuleProfileReader", semanticLayer, StringComparison.Ordinal);
+        Assert.Contains("opportunityPositionMinimum <= opportunityPositionMaximum", semanticLayer, StringComparison.Ordinal);
+        Assert.Contains("case-insensitive", semanticLayer, StringComparison.Ordinal);
+        Assert.Contains("root-dot-normalized", semanticLayer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SeoInsightsRulesSchema_EnforcesExpressibleDnsHostBoundaryCorpus()
+    {
+        using var rulesSchema = ReadJson("docs", "schemas", "seo-insights-rules.v1.schema.json");
+        var dnsHost = rulesSchema.RootElement.GetProperty("$defs").GetProperty("dnsHost");
+        var maximum = MaximumDnsHost();
+        var overlong = maximum + "a";
+
+        Assert.True(DnsHostSchemaAccepts(dnsHost, "example.com"));
+        Assert.True(DnsHostSchemaAccepts(dnsHost, "xn--bcher-kva.example"));
+        Assert.True(DnsHostSchemaAccepts(dnsHost, "xn--bcher-kva.example."));
+        Assert.True(DnsHostSchemaAccepts(dnsHost, maximum));
+        Assert.True(DnsHostSchemaAccepts(dnsHost, maximum + "."));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, overlong));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, overlong + "."));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "127.1"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "2130706433"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "2130706433."));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "0x7f000001"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "999999999999999999999"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "0xFFFFFFFFFFFFFFFF"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "192.0.2.1"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "::1"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "[::1]"));
     }
 
     [Fact]
@@ -428,9 +458,20 @@ public sealed class SeoGeoDocumentationContractTests
             return false;
         }
 
+        if (schema.TryGetProperty("maxLength", out var maxLength) && value.Length > maxLength.GetInt32())
+        {
+            return false;
+        }
+
         return !schema.TryGetProperty("pattern", out var pattern) ||
                Regex.IsMatch(value, pattern.GetString()!, RegexOptions.CultureInvariant);
     }
+
+    private static bool DnsHostSchemaAccepts(JsonElement schema, string value)
+        => schema.GetProperty("oneOf").EnumerateArray().Count(branch => StringSchemaAccepts(branch, value)) == 1;
+
+    private static string MaximumDnsHost()
+        => $"{new string('a', 63)}.{new string('b', 63)}.{new string('c', 63)}.{new string('d', 61)}";
 
     private static void AssertIntegerSchemaAccepts(JsonElement schema, string valid, string invalid)
     {

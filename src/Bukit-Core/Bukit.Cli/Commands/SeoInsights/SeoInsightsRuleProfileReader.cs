@@ -1,3 +1,5 @@
+using System.Net;
+using System.Security;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -20,14 +22,24 @@ internal static class SeoInsightsRuleProfileReader
 
     internal static SeoInsightsRuleProfile Read(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || IsRemoteUri(path))
+        if (string.IsNullOrWhiteSpace(path) || IsUriOrNetworkPath(path))
         {
             throw Invalid("rules.path_invalid", "A local SEO insight rule file path is required.");
         }
 
+        string fullPath;
         try
         {
-            using var stream = new FileStream(Path.GetFullPath(path), FileMode.Open, FileAccess.Read, FileShare.Read);
+            fullPath = Path.GetFullPath(path);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException or SecurityException or IOException)
+        {
+            throw Invalid("rules.path_invalid", "The local SEO insight rule path is invalid.");
+        }
+
+        try
+        {
+            using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var document = JsonDocument.Parse(stream);
             return ReadDocument(document.RootElement);
         }
@@ -38,6 +50,10 @@ internal static class SeoInsightsRuleProfileReader
         catch (JsonException exception)
         {
             throw Invalid("rules.json_invalid", "SEO insight rules are not valid JSON.", exception);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException or SecurityException or NotSupportedException)
+        {
+            throw Invalid("rules.file_unavailable", "The local SEO insight rule file is unavailable.");
         }
     }
 
@@ -245,7 +261,7 @@ internal static class SeoInsightsRuleProfileReader
 
         var host = value.EndsWith(".", StringComparison.Ordinal) ? value[..^1] : value;
         if (host.Length == 0 || host.Length > 253 || host.Any(character => character > 127) ||
-            Regex.IsMatch(host, "^[0-9]+(?:\\.[0-9]+){3}$", RegexOptions.CultureInvariant))
+            IsIpOrIpLikeHost(host))
         {
             throw Invalid("rules.host_invalid", "SEO insight host must be a valid DNS host.");
         }
@@ -310,8 +326,35 @@ internal static class SeoInsightsRuleProfileReader
         return element.GetString()!;
     }
 
-    private static bool IsRemoteUri(string path)
-        => Uri.TryCreate(path, UriKind.Absolute, out var uri) && uri.Scheme is not "file";
+    private static bool IsIpOrIpLikeHost(string host)
+    {
+        if (Regex.IsMatch(
+                host,
+                "^(?:(?:0[xX][0-9A-Fa-f]+|[0-9]+)\\.){0,3}(?:0[xX][0-9A-Fa-f]+|[0-9]+)$",
+                RegexOptions.CultureInvariant) ||
+            IPAddress.TryParse(host, out _))
+        {
+            return true;
+        }
+
+        return Uri.TryCreate($"http://{host}/", UriKind.Absolute, out var uri) &&
+               uri.HostNameType is UriHostNameType.IPv4 or UriHostNameType.IPv6;
+    }
+
+    private static bool IsUriOrNetworkPath(string path)
+    {
+        if (path.StartsWith("//", StringComparison.Ordinal) || path.StartsWith("\\\\", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] is '/' or '\\')
+        {
+            return false;
+        }
+
+        return Regex.IsMatch(path, "^[A-Za-z][A-Za-z0-9+.-]*:", RegexOptions.CultureInvariant);
+    }
 
     private static InvalidDataException Invalid(string code, string detail, Exception? inner = null)
         => new($"{code}: {detail}", inner);

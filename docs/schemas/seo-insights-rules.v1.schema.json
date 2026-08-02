@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://bukit.dev/schemas/seo-insights-rules.v1.json",
   "title": "Bukit SEO Insights Rules v1",
+  "$comment": "Structural validation is only the first layer. SeoInsightsRuleProfileReader is the required semantic layer for opportunityPositionMinimum <= opportunityPositionMaximum, case-insensitive ignored-query duplicates, and case-insensitive root-dot-normalized siteHost/hostAliases duplicates.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "schemaVersion", "siteHost", "hostAliases", "ignoredQueryParameters", "thresholds", "priorities"],
@@ -11,11 +12,13 @@
     "siteHost": { "$ref": "#/$defs/dnsHost" },
     "hostAliases": {
       "type": "array",
+      "description": "Host aliases are structurally checked here; SeoInsightsRuleProfileReader rejects case-insensitive and root-dot-normalized duplicates, including aliases equal to siteHost.",
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/dnsHost" }
     },
     "ignoredQueryParameters": {
       "type": "array",
+      "description": "Parameter names are structurally checked here; SeoInsightsRuleProfileReader rejects case-insensitive duplicates.",
       "uniqueItems": true,
       "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" }
     },
@@ -24,8 +27,21 @@
   },
   "$defs": {
     "dnsHost": {
-      "type": "string",
-      "pattern": "^(?![0-9]+(?:\\.[0-9]+){3}\\.?$)(?=.{1,254}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.?$"
+      "$comment": "The reader additionally rejects every host representation classified by the platform as IPv4 or IPv6.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "^(?!(?:(?:0[xX][0-9A-Fa-f]+|[0-9]+)\\.){0,3}(?:0[xX][0-9A-Fa-f]+|[0-9]+)$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$"
+        },
+        {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 254,
+          "pattern": "^(?!(?:(?:0[xX][0-9A-Fa-f]+|[0-9]+)\\.){0,3}(?:0[xX][0-9A-Fa-f]+|[0-9]+)\\.$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.$"
+        }
+      ]
     },
     "count": {
       "type": "integer",
@@ -44,6 +60,7 @@
     },
     "thresholds": {
       "type": "object",
+      "$comment": "SeoInsightsRuleProfileReader is required to enforce opportunityPositionMinimum <= opportunityPositionMaximum because standard JSON Schema cannot compare sibling numeric values.",
       "additionalProperties": false,
       "required": [
         "minimumSearchImpressions",
