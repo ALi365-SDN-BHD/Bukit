@@ -227,6 +227,7 @@ assert_contains "$command_output" "fingerprintInputs"
 # Priority 2: verification closure generation.
 closure_fixture="$scratch/closure-fixture"
 mkdir -p \
+  "$closure_fixture/guide/dev" \
   "$closure_fixture/src/Bukit-Core/Bukit.Config" \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content" \
@@ -276,6 +277,8 @@ printf 'public sealed class NotionClient {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport/NotionClient.cs"
 printf 'internal sealed class SystemProcessRunner {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs"
+printf '# Built-in plugins\n' >"$closure_fixture/guide/dev/built-in-plugins.md"
+printf '# Content\n' >"$closure_fixture/guide/dev/content.md"
 printf 'public sealed class ContentBoundaryTests {}\n' \
   >"$closure_fixture/tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs"
 printf 'public sealed class GitProcessRunnerTests {}\n' \
@@ -370,6 +373,16 @@ assert_closure_mapping \
   "$closure_fixture" \
   tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs \
   '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  guide/dev/built-in-plugins.md \
+  '["dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  guide/dev/content.md \
+  '["dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
   false
 
 # Priority 3: delta-only final review scope.

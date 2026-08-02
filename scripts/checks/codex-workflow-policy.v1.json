@@ -232,6 +232,30 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "built-in-plugin-guide",
+      "matches": [
+        "guide/dev/built-in-plugins.md"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "content-guide",
+      "matches": [
+        "guide/dev/content.md"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "owner-routing",
       "matches": [
         "scripts/checks/post-change-focused-owner-checks.sh",
