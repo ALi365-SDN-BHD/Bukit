@@ -51,6 +51,7 @@
       "matches": [
         "src/Bukit-Core/Bukit.Config/*.cs",
         "src/Bukit-Core/Bukit.Config/**/*.cs",
+        "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj",
         "tests/Bukit.Config.Tests/*.cs",
         "tests/Bukit.Config.Tests/**/*.cs"
       ],
@@ -69,6 +70,7 @@
       "matches": [
         "src/Bukit-Core/Bukit.Engine/*.cs",
         "src/Bukit-Core/Bukit.Engine/**/*.cs",
+        "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj",
         "tests/Bukit.Engine.Tests/*.cs",
         "tests/Bukit.Engine.Tests/**/*.cs"
       ],
@@ -86,7 +88,8 @@
       "id": "bukit-plugin-host-source",
       "matches": [
         "src/Bukit-Core/Bukit.PluginHost/*.cs",
-        "src/Bukit-Core/Bukit.PluginHost/**/*.cs"
+        "src/Bukit-Core/Bukit.PluginHost/**/*.cs",
+        "src/Bukit-Core/Bukit.PluginHost/Bukit.PluginHost.csproj"
       ],
       "publicContract": true,
       "resource": "dotnet-serial",
@@ -117,7 +120,8 @@
       "id": "bukit-content-source",
       "matches": [
         "src/Bukit-Core/Bukit.Content/*.cs",
-        "src/Bukit-Core/Bukit.Content/**/*.cs"
+        "src/Bukit-Core/Bukit.Content/**/*.cs",
+        "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj"
       ],
       "publicContract": true,
       "resource": "dotnet-serial",
@@ -148,7 +152,8 @@
       "id": "bukit-content-notion-source",
       "matches": [
         "src/Bukit-Core/Bukit.Content.Notion/*.cs",
-        "src/Bukit-Core/Bukit.Content.Notion/**/*.cs"
+        "src/Bukit-Core/Bukit.Content.Notion/**/*.cs",
+        "src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj"
       ],
       "publicContract": true,
       "resource": "dotnet-serial",
@@ -178,7 +183,8 @@
       "id": "bukit-cli-source",
       "matches": [
         "src/Bukit-Core/Bukit.Cli/*.cs",
-        "src/Bukit-Core/Bukit.Cli/**/*.cs"
+        "src/Bukit-Core/Bukit.Cli/**/*.cs",
+        "src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj"
       ],
       "publicContract": true,
       "resource": "dotnet-serial",
@@ -207,7 +213,8 @@
       "id": "bukit-notion-source",
       "matches": [
         "src/Bukit-Core/Bukit.Notion/*.cs",
-        "src/Bukit-Core/Bukit.Notion/**/*.cs"
+        "src/Bukit-Core/Bukit.Notion/**/*.cs",
+        "src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj"
       ],
       "publicContract": true,
       "resource": "dotnet-serial",
@@ -277,6 +284,48 @@
       "resource": "static-parallel",
       "specialtyTests": [
         "bash scripts/checks/post-change-focused-owner-checks-self-test.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
+        "tests/Bukit.PluginHost.Tests/*.cs",
+        "tests/Bukit.PluginHost.Tests/**/*.cs"
+      ],
+      "id": "bukit-plugin-abstractions-csproj",
+      "matches": [
+        "src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
+        "tests/Bukit.Config.Tests/*.cs",
+        "tests/Bukit.Config.Tests/**/*.cs",
+        "tests/Bukit.Engine.Tests/*.cs",
+        "tests/Bukit.Engine.Tests/**/*.cs",
+        "tests/Bukit.Content.Tests/*.cs",
+        "tests/Bukit.Content.Tests/**/*.cs",
+        "tests/Bukit.Cli.Tests/*.cs",
+        "tests/Bukit.Cli.Tests/**/*.cs",
+        "tests/Bukit.Architecture.Tests/*.cs",
+        "tests/Bukit.Architecture.Tests/**/*.cs"
+      ],
+      "id": "central-package-management",
+      "matches": [
+        "Directory.Packages.props"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
+        "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj",
+        "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
       ]
     }
   ],

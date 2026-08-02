@@ -235,6 +235,7 @@ mkdir -p \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine" \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine/obj/Debug" \
   "$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions" \
   "$closure_fixture/src/Bukit-Core/Bukit.PluginHost" \
   "$closure_fixture/tests/Bukit.Architecture.Tests" \
   "$closure_fixture/tests/Bukit.Cli.Tests" \
@@ -242,6 +243,7 @@ mkdir -p \
   "$closure_fixture/tests/Bukit.Config.Tests/obj/Debug" \
   "$closure_fixture/tests/Bukit.Content.Notion.Tests" \
   "$closure_fixture/tests/Bukit.Content.Tests" \
+  "$closure_fixture/tests/Bukit.Engine.Tests" \
   "$closure_fixture/tests/Bukit.Notion.Tests" \
   "$closure_fixture/tests/Bukit.PluginHost.Tests" \
   "$closure_fixture/tests/PluginProcessProbe"
@@ -291,6 +293,19 @@ printf 'public sealed class NotionClientTests {}\n' \
   >"$closure_fixture/tests/Bukit.Notion.Tests/NotionClientTests.cs"
 printf 'public sealed class SystemProcessRunnerTests {}\n' \
   >"$closure_fixture/tests/Bukit.PluginHost.Tests/SystemProcessRunnerTests.cs"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Content/Bukit.Content.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Config/Bukit.Config.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj"
+printf 'public sealed class EngineFeatureTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Engine.Tests/EngineFeatureTests.cs"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' >"$closure_fixture/Directory.Packages.props"
 printf 'return 0;\n' >"$closure_fixture/tests/PluginProcessProbe/Program.cs"
 printf 'unmapped\n' >"$closure_fixture/README.unknown"
 git -C "$closure_fixture" add .
@@ -389,6 +404,51 @@ assert_closure_mapping \
   guide/dev/content.md \
   '["dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
   false
+
+# Verify .csproj closure mapping (I-01).
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Content/Bukit.Content.csproj \
+  '["dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
+  true
+
+# Verify Directory.Packages.props central-package closure mapping.
+expect_exit 0 "${tool[@]}" closure \
+  --repo "$closure_fixture" \
+  --policy scripts/checks/codex-workflow-policy.v1.json \
+  --changed Directory.Packages.props
+python3 - "$command_output" <<'PY'
+import json
+import sys
+
+result = json.loads(sys.argv[1])
+if "Directory.Packages.props" in result["unmappedFiles"]:
+    raise SystemExit("Directory.Packages.props must not be unmapped")
+expected_tests = [
+    "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+    "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
+    "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj",
+    "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj",
+    "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj",
+]
+if result["specialtyTests"] != expected_tests:
+    raise SystemExit(
+        f"unexpected specialty tests for Directory.Packages.props: "
+        f"{result['specialtyTests']}"
+    )
+expected_consumers = sorted([
+    "tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs",
+    "tests/Bukit.Cli.Tests/GitProcessRunnerTests.cs",
+    "tests/Bukit.Config.Tests/ConfigLoaderTests.cs",
+    "tests/Bukit.Content.Tests/BodyCacheDecoratorTests.cs",
+    "tests/Bukit.Engine.Tests/EngineFeatureTests.cs",
+])
+if result["contractConsumers"] != expected_consumers:
+    raise SystemExit(
+        f"unexpected contract consumers for Directory.Packages.props: "
+        f"{result['contractConsumers']}"
+    )
+PY
 
 # Priority 3: delta-only final review scope.
 evidence_a="$scratch/evidence-a.json"
