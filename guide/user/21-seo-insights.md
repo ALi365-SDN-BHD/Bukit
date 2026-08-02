@@ -165,12 +165,13 @@ the local report.
 ## URL Joining And Join Quality
 
 The rules profile supplies the host allowlist: `siteHost` plus `hostAliases`.
-Observation URLs may be relative or absolute; absolute URLs must be on that
-allowlist and are canonicalized to their route form. Normalization removes a
-fragment and a default HTTP/HTTPS port. It ignores only the explicit tracking
-parameter names in `ignoredQueryParameters`; all other query parameters are
-retained and sorted. Malformed percent encoding is rejected rather than
-silently repaired.
+Observation-row `url` values must be absolute HTTP(S) URLs whose host is
+`siteHost` or `hostAliases`; relative observation values are `invalid_url` and remain `unmatched`.
+Route-map `canonical` values may be a leading-slash relative path or an absolute HTTP(S) URL. Accepted observation URLs are
+canonicalized to their route form. Normalization removes a fragment and a
+default HTTP/HTTPS port. It ignores only the explicit tracking parameter names
+in `ignoredQueryParameters`; all other query parameters are retained and
+sorted. Malformed percent encoding is rejected rather than silently repaired.
 
 An observation without a matching canonical remains `unmatched`. Duplicate
 canonical entries remain `ambiguous`; ambiguity never chooses a winner. Both
@@ -186,7 +187,7 @@ diagnosis with threshold evidence and a suggested action, never a root cause.
 
 | Code | Evidence pattern | Suggested review action |
 |---|---|---|
-| `seo.insights.snippet_mismatch` | Sufficient impressions with CTR below the configured low-CTR threshold. | Compare title, description, query intent, and SERP presentation. |
+| `seo.insights.snippet_mismatch` | All four conditions: `impressions` >= `minimumSearchImpressions`; `ctr` < `lowCtr`; sessions >= `minimumAnalyticsSessions`; engagement rate >= `highEngagementRate`. | Compare title, description, query intent, and SERP presentation. |
 | `seo.insights.landing_quality` | Sufficient sessions with engagement rate below the configured low-engagement threshold. | Inspect landing-page relevance, clarity, speed, and conversion path. |
 | `seo.insights.discoverability` | Low impressions with sufficient sessions and high engagement. | Check discoverability, internal linking, index coverage, and measurement scope. |
 | `seo.insights.position_opportunity` | Sufficient impressions with average position inside the configured opportunity range. | Review intent coverage, content quality, and competing search results. |

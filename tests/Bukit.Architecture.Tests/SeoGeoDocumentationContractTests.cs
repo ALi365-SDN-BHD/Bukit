@@ -365,8 +365,14 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Contains("unmatched", guide, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("ambiguous", guide, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("never chooses a winner", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Observation-row `url` values must be absolute HTTP(S) URLs", guide, StringComparison.Ordinal);
+        Assert.Contains("`siteHost` or `hostAliases`", guide, StringComparison.Ordinal);
+        Assert.Contains("relative observation values are `invalid_url` and remain `unmatched`", guide, StringComparison.Ordinal);
+        Assert.Contains("Route-map `canonical` values may be a leading-slash relative path or an absolute HTTP(S) URL", guide, StringComparison.Ordinal);
         Assert.Contains("`keyEvents` may exceed `sessions`", guide, StringComparison.Ordinal);
         Assert.Contains("`keyEventRate` may exceed 1", guide, StringComparison.Ordinal);
+        Assert.Contains("sessions >= `minimumAnalyticsSessions`", guide, StringComparison.Ordinal);
+        Assert.Contains("engagement rate >= `highEngagementRate`", guide, StringComparison.Ordinal);
         Assert.Contains("not Core defaults", guide, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("write", guide, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("before returning exit code 1", guide, StringComparison.OrdinalIgnoreCase);
