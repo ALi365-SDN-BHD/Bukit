@@ -197,6 +197,71 @@ internal static class DirectoryCopy
         SyncFileToPath(validatedSource, destinationFile, hashMode, outputRoot, pathPolicy);
     }
 
+    internal static async Task CopyPlannedFileAsync(
+        string sourceFile,
+        string destinationFile,
+        string expectedPhysicalSourceRoot,
+        DirectoryCopyOptions options,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var capturedSourceRoot = Path.GetFullPath(expectedPhysicalSourceRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var currentSourceRoot = ResolvePhysicalPath(capturedSourceRoot);
+        if (currentSourceRoot is null || !PathComparer.Equals(capturedSourceRoot, currentSourceRoot))
+        {
+            throw new IOException($"Planned asset source root changed after validation: '{expectedPhysicalSourceRoot}'.");
+        }
+
+        if (!TryResolveSafeTarget(sourceFile, capturedSourceRoot, options, out var validatedSource) ||
+            !options.FollowSymlinks && !PathComparer.Equals(Path.GetFullPath(sourceFile), validatedSource))
+        {
+            throw new IOException($"Planned asset source changed after validation: '{sourceFile}'.");
+        }
+
+        var destinationDir = Path.GetDirectoryName(destinationFile)!;
+        Directory.CreateDirectory(destinationDir);
+        try
+        {
+            var sourceInfo = new FileInfo(validatedSource);
+            await using (var input = new FileStream(
+                             validatedSource,
+                             FileMode.Open,
+                             FileAccess.Read,
+                             FileShare.Read,
+                             bufferSize: 81920,
+                             FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (var output = new FileStream(
+                             destinationFile,
+                             FileMode.Create,
+                             FileAccess.Write,
+                             FileShare.None,
+                             bufferSize: 81920,
+                             FileOptions.Asynchronous | FileOptions.SequentialScan))
+            {
+                await input.CopyToAsync(output, 81920, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+            }
+
+            File.SetLastWriteTimeUtc(destinationFile, sourceInfo.LastWriteTimeUtc);
+        }
+        catch
+        {
+            try
+            {
+                File.Delete(destinationFile);
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+
+            throw;
+        }
+    }
+
     public static void SyncFiles(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))

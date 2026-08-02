@@ -1807,6 +1807,49 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task AssetSourceWorkspace_CancellationDuringCopy_CleansPartialWorkspace()
+    {
+        var sourceAssetsDir = Path.Combine(
+            Path.GetTempPath(),
+            "bukit-asset-workspace-cancellation",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(sourceAssetsDir);
+        File.WriteAllText(Path.Combine(sourceAssetsDir, "large.bin"), "content");
+
+        using var cancellation = new CancellationTokenSource();
+        var copyStarted = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        try
+        {
+            var prepareTask = AssetSourceWorkspace.PrepareAsync(
+                sourceAssetsDir,
+                scssConfig: null,
+                imageConfig: new ImageOptimizationConfig { Enabled = true },
+                logger: new TestLogger(),
+                publishDotFiles: false,
+                followSymlinks: false,
+                cancellation.Token,
+                copyFileAsync: async (_, destinationFile, token) =>
+                {
+                    copyStarted.TrySetResult(destinationFile);
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                });
+
+            var destinationFile = await copyStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var workspaceRoot = Directory.GetParent(Path.GetDirectoryName(destinationFile)!)!.FullName;
+
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => prepareTask);
+            Assert.False(Directory.Exists(workspaceRoot));
+        }
+        finally
+        {
+            if (Directory.Exists(sourceAssetsDir)) Directory.Delete(sourceAssetsDir, true);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_SeoInjectMode_I18nPagesEmitMutualHreflang()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-seo-i18n-test", Guid.NewGuid().ToString("N"));

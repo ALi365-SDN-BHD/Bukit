@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -8,6 +9,8 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Config;
 using Bukit.Shared;
+using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
@@ -174,29 +177,35 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             try
             {
                 var content = traversal.ReadDataFile(dataRoot, file);
-                var documentTraversal = new DocumentTraversalState(
-                    _maxDocumentNodes,
-                    _maxDocumentDepth,
-                    relativePath);
 
                 if (ext is ".json")
                 {
-                    data = ConvertJsonNode(JsonNode.Parse(content), documentTraversal, depth: 0);
+                    PreflightJsonDocument(content, relativePath, traversal.CancellationToken);
+                    data = ConvertJsonNode(
+                        JsonNode.Parse(
+                            content,
+                            documentOptions: new JsonDocumentOptions
+                            {
+                                MaxDepth = GetParserMaxDepth(_maxDocumentDepth)
+                            }),
+                        CreateDocumentTraversal(relativePath, traversal.CancellationToken),
+                        depth: 0);
                 }
                 else
                 {
+                    PreflightYamlDocument(content, relativePath, traversal.CancellationToken);
                     var stream = new YamlStream();
                     stream.Load(new StringReader(content));
                     if (stream.Documents.Count > 0)
                     {
                         data = ConvertYamlNode(
                             stream.Documents[0].RootNode,
-                            documentTraversal,
+                            CreateDocumentTraversal(relativePath, traversal.CancellationToken),
                             depth: 0);
                     }
                 }
             }
-            catch (Exception ex) when (ex is not ConfigException)
+            catch (Exception ex) when (ex is not ConfigException and not OperationCanceledException)
             {
                 throw new ConfigException(
                     $"Failed to parse data file {relativePath}.",
@@ -245,6 +254,8 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         private int _entryCount;
         private long _totalSizeBytes;
+
+        internal CancellationToken CancellationToken => _cancellationToken;
 
         internal TraversalState(
             int maxEntries,
@@ -379,17 +390,24 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         private readonly int _maxNodes;
         private readonly int _maxDepth;
         private readonly string _relativePath;
+        private readonly CancellationToken _cancellationToken;
         private int _nodeCount;
 
-        internal DocumentTraversalState(int maxNodes, int maxDepth, string relativePath)
+        internal DocumentTraversalState(
+            int maxNodes,
+            int maxDepth,
+            string relativePath,
+            CancellationToken cancellationToken)
         {
             _maxNodes = maxNodes;
             _maxDepth = maxDepth;
             _relativePath = relativePath;
+            _cancellationToken = cancellationToken;
         }
 
         internal void Visit(int depth)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (depth > _maxDepth)
             {
                 throw new ConfigException(
@@ -406,6 +424,76 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             }
         }
     }
+
+    private DocumentTraversalState CreateDocumentTraversal(
+        string relativePath,
+        CancellationToken cancellationToken)
+        => new(
+            _maxDocumentNodes,
+            _maxDocumentDepth,
+            relativePath,
+            cancellationToken);
+
+    private void PreflightJsonDocument(
+        string content,
+        string relativePath,
+        CancellationToken cancellationToken)
+    {
+        var traversal = CreateDocumentTraversal(relativePath, cancellationToken);
+        var reader = new Utf8JsonReader(
+            Encoding.UTF8.GetBytes(content),
+            new JsonReaderOptions
+            {
+                MaxDepth = GetParserMaxDepth(_maxDocumentDepth)
+            });
+        while (reader.Read())
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.StartObject:
+                case JsonTokenType.StartArray:
+                case JsonTokenType.String:
+                case JsonTokenType.Number:
+                case JsonTokenType.True:
+                case JsonTokenType.False:
+                case JsonTokenType.Null:
+                    traversal.Visit(reader.CurrentDepth);
+                    break;
+            }
+        }
+    }
+
+    private void PreflightYamlDocument(
+        string content,
+        string relativePath,
+        CancellationToken cancellationToken)
+    {
+        var traversal = CreateDocumentTraversal(relativePath, cancellationToken);
+        var parser = new Parser(new StringReader(content));
+        var depth = 0;
+        while (parser.MoveNext())
+        {
+            switch (parser.Current)
+            {
+                case MappingStart:
+                case SequenceStart:
+                    traversal.Visit(depth);
+                    depth++;
+                    break;
+                case MappingEnd:
+                case SequenceEnd:
+                    depth--;
+                    break;
+                case Scalar:
+                case AnchorAlias:
+                    traversal.Visit(depth);
+                    break;
+            }
+        }
+    }
+
+    private static int GetParserMaxDepth(int maxDocumentDepth)
+        => maxDocumentDepth < int.MaxValue ? maxDocumentDepth + 1 : int.MaxValue;
 
     private static object? ConvertJsonNode(
         JsonNode? node,

@@ -30,7 +30,8 @@ internal sealed class AssetSourceWorkspace : IDisposable
         ILogger logger,
         bool publishDotFiles,
         bool followSymlinks,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Func<DirectoryCopyItem, string, CancellationToken, Task>? copyFileAsync = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -62,15 +63,32 @@ internal sealed class AssetSourceWorkspace : IDisposable
 
         try
         {
-            DirectoryCopy.Sync(
-                sourceAssetsDir,
-                workspaceAssetsDir,
-                new DirectoryCopyOptions
+            var copyOptions = new DirectoryCopyOptions
+            {
+                IgnoreDotPrefixedFiles = !publishDotFiles,
+                FollowSymlinks = followSymlinks
+            };
+            foreach (var item in DirectoryCopy.EnumerateFilesForSync(
+                         sourceAssetsDir,
+                         copyOptions,
+                         cancellationToken))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var destinationFile = Path.Combine(workspaceAssetsDir, item.RelativePath);
+                if (copyFileAsync is not null)
                 {
-                    IgnoreDotPrefixedFiles = !publishDotFiles,
-                    FollowSymlinks = followSymlinks
-                });
-            cancellationToken.ThrowIfCancellationRequested();
+                    await copyFileAsync(item, destinationFile, cancellationToken);
+                }
+                else
+                {
+                    await DirectoryCopy.CopyPlannedFileAsync(
+                        item.SourcePath,
+                        destinationFile,
+                        item.PhysicalSourceRoot,
+                        copyOptions,
+                        cancellationToken);
+                }
+            }
 
             await ScssCompiler.CompileIfEnabled(
                 workspaceAssetsDir,

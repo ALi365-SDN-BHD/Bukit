@@ -329,6 +329,35 @@ public sealed class DataFilesPluginTests
         }
     }
 
+    [Theory]
+    [InlineData("nodes.json", "[1,2,3,")]
+    [InlineData("nodes.yaml", "- 1\n- 2\n- [\n")]
+    public void DerivePages_DocumentNodeLimit_PreemptsLaterSyntaxError(
+        string fileName,
+        string content)
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, fileName), content);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxDocumentNodes: 2)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("more than 2 nodes", exception.Message, StringComparison.Ordinal);
+            Assert.Contains($"data/{fileName}", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("Failed to parse", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
     [Fact]
     public void DerivePages_NoDataDir_ReturnsEmpty()
     {
