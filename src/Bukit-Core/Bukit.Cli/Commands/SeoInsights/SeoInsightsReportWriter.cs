@@ -318,6 +318,11 @@ internal static class SeoInsightsReportWriter
                 totalImpressions = checked(totalImpressions + sample.Impressions);
             }
 
+            if (!CanUseDecimalAverage(samples))
+            {
+                return ScaledDoubleAverage(samples, totalImpressions);
+            }
+
             try
             {
                 return DecimalAverage(samples, totalImpressions);
@@ -326,6 +331,28 @@ internal static class SeoInsightsReportWriter
             {
                 return ScaledDoubleAverage(samples, totalImpressions);
             }
+        }
+
+        private static bool CanUseDecimalAverage(IReadOnlyList<PositionSample> samples)
+        {
+            foreach (var sample in samples)
+            {
+                try
+                {
+                    var decimalPosition = (decimal)sample.Position;
+                    if ((sample.Position != 0 && decimalPosition == 0)
+                        || (double)decimalPosition != sample.Position)
+                    {
+                        return false;
+                    }
+                }
+                catch (OverflowException)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static double DecimalAverage(IReadOnlyList<PositionSample> samples, long totalImpressions)

@@ -170,6 +170,36 @@ public sealed class SeoInsightsReportWriterTests
     }
 
     [Fact]
+    public void Assemble_PreservesDoubleEpsilonPositionExactly()
+    {
+        var window = new SeoObservationWindow(new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 2), "UTC");
+        var dataset = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "google-organic",
+            DateTimeOffset.Parse("2026-08-03T00:00:00Z"), window,
+            [new SeoObservationRow("https://example.com/article/", 1, 0, double.Epsilon, null, null, null)]);
+
+        var report = SeoInsightsReportWriter.Assemble(CreateMatcher(), [dataset]);
+
+        var article = Assert.Single(report.Routes, route => route.RouteKey == "route:article");
+        Assert.Equal(double.Epsilon, article.Metrics.AveragePosition);
+    }
+
+    [Fact]
+    public void Assemble_PreservesPiPositionExactly()
+    {
+        var window = new SeoObservationWindow(new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 2), "UTC");
+        var dataset = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "google-organic",
+            DateTimeOffset.Parse("2026-08-03T00:00:00Z"), window,
+            [new SeoObservationRow("https://example.com/article/", 1, 0, Math.PI, null, null, null)]);
+
+        var report = SeoInsightsReportWriter.Assemble(CreateMatcher(), [dataset]);
+
+        var article = Assert.Single(report.Routes, route => route.RouteKey == "route:article");
+        Assert.Equal(Math.PI, article.Metrics.AveragePosition);
+    }
+
+    [Fact]
     public void Assemble_MismatchedWindowsAreRejected()
     {
         var datasets = Datasets().ToArray();
