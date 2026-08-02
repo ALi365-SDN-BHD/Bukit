@@ -217,20 +217,45 @@ internal sealed class MediaIndexManager
             {
                 Directory.CreateDirectory(root);
                 var path = Path.Combine(root, IndexFileName);
-                using var fs = File.Create(path);
-                using var writer = new Utf8JsonWriter(fs,
-                    new JsonWriterOptions { Indented = false });
-                writer.WriteStartObject();
-                writer.WriteNumber("version", CurrentIndexVersion);
-                writer.WritePropertyName("entries");
-                writer.WriteStartObject();
-                foreach (var kv in _diskIndex.OrderBy(x => x.Key, StringComparer.Ordinal))
+                var tempPath = Path.Combine(root, $".{IndexFileName}.{Guid.NewGuid():N}.tmp");
+
+                // Write to temp file first, then atomic replace
+                try
                 {
-                    writer.WriteString(kv.Key, kv.Value);
+                    using (var fs = new FileStream(
+                        tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                        bufferSize: 4096, FileOptions.SequentialScan))
+                    {
+                        using var writer = new Utf8JsonWriter(fs,
+                            new JsonWriterOptions { Indented = false });
+                        writer.WriteStartObject();
+                        writer.WriteNumber("version", CurrentIndexVersion);
+                        writer.WritePropertyName("entries");
+                        writer.WriteStartObject();
+                        foreach (var kv in _diskIndex.OrderBy(x => x.Key, StringComparer.Ordinal))
+                        {
+                            writer.WriteString(kv.Key, kv.Value);
+                        }
+                        writer.WriteEndObject();
+                        writer.WriteEndObject();
+                        writer.Flush();
+                        fs.Flush(flushToDisk: true);
+                    }
+
+                    if (File.Exists(path))
+                    {
+                        File.Replace(tempPath, path, destinationBackupFileName: null);
+                    }
+                    else
+                    {
+                        File.Move(tempPath, path);
+                    }
                 }
-                writer.WriteEndObject();
-                writer.WriteEndObject();
-                writer.Flush();
+                catch
+                {
+                    try { File.Delete(tempPath); } catch { /* best effort */ }
+                    throw;
+                }
                 _indexDirty = false;
                 _pendingIndexChanges = 0;
             }
