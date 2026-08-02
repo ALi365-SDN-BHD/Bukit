@@ -625,6 +625,60 @@ public sealed class DataFilesPluginTests
         }
     }
 
+    [Fact]
+    public void DerivePages_EntryLimitExceeded_ThrowsDeterministicDiagnostic()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            // Create more entries than the limit (maxEntries=3)
+            for (var i = 0; i < 10; i++)
+            {
+                File.WriteAllText(Path.Combine(dataDir, $"item-{i:D2}.json"), "{}");
+            }
+
+            var context = CreateContext(root);
+            var plugin = new DataFilesPlugin(CreateConfig(), maxEntries: 3);
+
+            var ex = Assert.Throws<ConfigException>(() => plugin.DerivePages(context));
+            Assert.Contains("more than 3 entries", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_EntryLimit_RespectsDeterministicOrder()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            // Create entries in reverse order
+            for (var i = 9; i >= 0; i--)
+            {
+                File.WriteAllText(Path.Combine(dataDir, $"item-{i:D2}.json"), $"{{\"v\":{i}}}");
+            }
+
+            var context = CreateContext(root);
+            // maxEntries=10 should succeed since we have exactly 10 files
+            var plugin = new DataFilesPlugin(CreateConfig(), maxEntries: 10);
+            plugin.DerivePages(context);
+
+            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            Assert.Equal(10, data.Count);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
     private static string GetTempDir() => Path.Combine(Path.GetTempPath(), "bukit_data_test_" + Guid.NewGuid().ToString("N"));
 
     private static BuildContext CreateContext(string root) => new()

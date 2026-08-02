@@ -153,8 +153,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             ReturnSpecialDirectories = false
         };
 
-        foreach (var file in Directory.EnumerateFiles(dir, "*", options)
-                     .OrderBy(static path => Path.GetFileName(path), StringComparer.Ordinal))
+        foreach (var file in BoundedEnumerateFiles(dir, dataRoot, traversal))
         {
             traversal.VisitEntry(dataRoot, file);
             var ext = Path.GetExtension(file).ToLowerInvariant();
@@ -219,14 +218,8 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             }
         }
 
-        foreach (var subDir in Directory.EnumerateDirectories(dir, "*", options)
-                     .OrderBy(static path => Path.GetFileName(path), StringComparer.Ordinal))
+        foreach (var subDir in BoundedEnumerateDirectories(dir, dataRoot, traversal, excludedDirectories))
         {
-            if (excludedDirectories?.Contains(Path.GetFullPath(subDir)) == true)
-            {
-                continue;
-            }
-
             traversal.VisitEntry(dataRoot, subDir);
             var subName = Path.GetFileName(subDir);
             var subData = LoadDataDirectory(
@@ -243,6 +236,44 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         return result;
     }
 
+    private static IEnumerable<string> BoundedEnumerateFiles(
+        string dir, string dataRoot, TraversalState traversal)
+    {
+        var options = new EnumerationOptions
+        {
+            AttributesToSkip = FileAttributes.ReparsePoint,
+            IgnoreInaccessible = false,
+            RecurseSubdirectories = false,
+            ReturnSpecialDirectories = false
+        };
+
+        var sorted = Directory.EnumerateFiles(dir, "*", options)
+            .OrderBy(static path => Path.GetFileName(path), StringComparer.Ordinal)
+            .Take(traversal.RemainingEntries + 1)
+            .ToList();
+
+        foreach (var file in sorted)
+        {
+            yield return file;
+        }
+    }
+
+    private static IEnumerable<string> BoundedEnumerateDirectories(
+        string dir, string dataRoot, TraversalState traversal, IReadOnlySet<string>? excludedDirectories)
+    {
+        var options = new EnumerationOptions
+        {
+            AttributesToSkip = FileAttributes.ReparsePoint,
+            IgnoreInaccessible = false,
+            RecurseSubdirectories = false,
+            ReturnSpecialDirectories = false
+        };
+
+        return Directory.EnumerateDirectories(dir, "*", options)
+            .Where(d => excludedDirectories?.Contains(Path.GetFullPath(d)) != true)
+            .OrderBy(static path => Path.GetFileName(path), StringComparer.Ordinal);
+    }
+
     private sealed class TraversalState
     {
         private readonly int _maxEntries;
@@ -256,6 +287,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         private long _totalSizeBytes;
 
         internal CancellationToken CancellationToken => _cancellationToken;
+        internal int RemainingEntries => Math.Max(0, _maxEntries - _entryCount);
 
         internal TraversalState(
             int maxEntries,
