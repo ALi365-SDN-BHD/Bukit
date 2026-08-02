@@ -39,6 +39,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
 
         var files = SafeFileEnumerator.EnumerateFiles(_options.ContentDir, "*.md")
             .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p, StringComparer.Ordinal)
             .ToArray();
 
         if (_options.IncludePaths is { Count: > 0 })

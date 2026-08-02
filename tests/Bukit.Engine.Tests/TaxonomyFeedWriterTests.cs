@@ -82,6 +82,23 @@ public sealed class TaxonomyFeedWriterTests : IDisposable
     }
 
     [Fact]
+    public void WriteFeeds_RootBaseUrl_DoesNotProduceDoubleSlash()
+    {
+        var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["news"] = new TaxonomyTerm("News", "news")
+        };
+        terms["news"].Pages.Add(new TaxonomyPage("post-1", "Post One", "/blog/one/", DateTimeOffset.UtcNow, "Summary", null, false, null));
+
+        TaxonomyFeedWriter.WriteFeeds(_tempDir, "https://example.test", "/", "My Site", terms, "tags");
+
+        var feedPath = Path.Combine(_tempDir, "tags", "news", "feed.xml");
+        var content = File.ReadAllText(feedPath);
+        Assert.DoesNotContain("https://example.test//", content, StringComparison.Ordinal);
+        Assert.Contains("https://example.test/blog/one/", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void WriteFeeds_EmptyTerms_DoesNotThrow()
     {
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase);

@@ -94,7 +94,7 @@ internal static class TaxonomyFeedWriter
 
         foreach (var post in posts)
         {
-            var absoluteUrl = $"{siteUrl}{baseUrl}{post.Url}";
+            var absoluteUrl = BuildAbsoluteUrl(siteUrl, baseUrl, post.Url);
             sb.AppendLine("  <item>");
             sb.Append("    <title>").Append(EscapeXml(post.Title)).AppendLine("</title>");
             sb.Append("    <link>").Append(EscapeXml(absoluteUrl)).AppendLine("</link>");

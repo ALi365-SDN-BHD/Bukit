@@ -34,7 +34,7 @@ internal static class AtomFeedGenerator
         }
         sb.AppendLine($"  <link href=\"{EscapeXml(homeUrl)}\" />");
         sb.AppendLine($"  <link href=\"{EscapeXml(feedUrl)}\" rel=\"self\" />");
-        sb.AppendLine($"  <updated>{updated:yyyy-MM-ddTHH:mm:ssZ}</updated>");
+        sb.AppendLine($"  <updated>{updated.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}</updated>");
         sb.AppendLine($"  <id>{EscapeXml(homeUrl)}</id>");
         sb.AppendLine("  <generator>bukit</generator>");
 
@@ -44,8 +44,8 @@ internal static class AtomFeedGenerator
             sb.AppendLine($"    <title>{EscapeXml(post.Title)}</title>");
             sb.AppendLine($"    <link href=\"{EscapeXml(post.AbsoluteUrl)}\" />");
             sb.AppendLine($"    <id>{EscapeXml(post.AbsoluteUrl)}</id>");
-            sb.AppendLine($"    <published>{post.PublishAt:yyyy-MM-ddTHH:mm:ssZ}</published>");
-            sb.AppendLine($"    <updated>{post.PublishAt:yyyy-MM-ddTHH:mm:ssZ}</updated>");
+            sb.AppendLine($"    <published>{post.PublishAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}</published>");
+            sb.AppendLine($"    <updated>{post.PublishAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}</updated>");
 
             if (post.Categories is { Count: > 0 } cats)
             {

@@ -845,4 +845,35 @@ public sealed class MarkdownFolderProviderTests
         Assert.Equal("text", fields["summary"].Type);
         Assert.Equal("A short summary.", fields["summary"].Value);
     }
+
+    [Fact]
+    public async Task MaxItems_CaseInsensitiveCollision_ProducesDeterministicOrder()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), $"bukit-md-order-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "PostA.md"), "---\ntitle: Upper\n---\nupper");
+            File.WriteAllText(Path.Combine(root, "posta.md"), "---\ntitle: Lower\n---\nlower");
+
+            var options = new MarkdownFolderProviderOptions(root, MaxItems: 1);
+            var provider = new MarkdownFolderProvider(options);
+
+            var first = await provider.LoadRawAsync(CancellationToken.None);
+            var second = await provider.LoadRawAsync(CancellationToken.None);
+
+            Assert.Single(first.Documents);
+            Assert.Single(second.Documents);
+            Assert.Equal(first.Documents[0].Title, second.Documents[0].Title);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
 }

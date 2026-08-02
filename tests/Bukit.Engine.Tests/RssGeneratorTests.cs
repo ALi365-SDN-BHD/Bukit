@@ -493,6 +493,34 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
+    public void AtomFeed_NonZeroOffset_ConvertsToUtcBeforeFormatting()
+    {
+        var outDir = Path.Combine(Path.GetTempPath(), $"bukit-atom-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outDir);
+        try
+        {
+            // 2026-08-03T08:00:00+08:00 = 2026-08-03T00:00:00Z
+            var offset = new TimeSpan(8, 0, 0);
+            var publishAt = new DateTimeOffset(2026, 8, 3, 8, 0, 0, offset);
+
+            var posts = new List<RssGenerator.Post>
+            {
+                new("Post", "/blog/post/", publishAt, "desc", null, "<p>content</p>")
+            };
+
+            AtomFeedGenerator.Generate(outDir, "https://example.test", "/", "Site", posts, "atom.xml");
+
+            var atom = File.ReadAllText(Path.Combine(outDir, "atom.xml"));
+            Assert.Contains("<published>2026-08-03T00:00:00Z</published>", atom, StringComparison.Ordinal);
+            Assert.Contains("<updated>2026-08-03T00:00:00Z</updated>", atom, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
     public void BuildAbsoluteUrl_CombinesCorrectly()
     {
         var url = RssGenerator.BuildAbsoluteUrl("https://example.com", "/", "/blog/hello/");
