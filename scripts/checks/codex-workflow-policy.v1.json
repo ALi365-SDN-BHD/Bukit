@@ -207,6 +207,20 @@
     },
     {
       "contractConsumerGlobs": [
+        "tests/Bukit.Cli.Tests/HelpPrinterTests.cs"
+      ],
+      "id": "bukit-cli-shared-help-renderer",
+      "matches": [
+        "src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering/CliHelpRenderer.cs"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
         "tests/Bukit.Notion.Tests/*.cs",
         "tests/Bukit.Notion.Tests/**/*.cs"
       ],

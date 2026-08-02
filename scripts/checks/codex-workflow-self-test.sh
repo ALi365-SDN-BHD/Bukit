@@ -230,6 +230,7 @@ mkdir -p \
   "$closure_fixture/guide/dev" \
   "$closure_fixture/src/Bukit-Core/Bukit.Config" \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content.Notion" \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine" \
@@ -271,6 +272,8 @@ printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj"
 printf 'internal sealed class GitProcessRunner {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy/GitProcessRunner.cs"
+printf 'internal sealed class CliHelpRenderer {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering/CliHelpRenderer.cs"
 printf 'public sealed class BodyCacheDecorator {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs"
 printf 'internal sealed class NotionBodyStore {}\n' \
@@ -285,6 +288,8 @@ printf 'public sealed class ContentBoundaryTests {}\n' \
   >"$closure_fixture/tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs"
 printf 'public sealed class GitProcessRunnerTests {}\n' \
   >"$closure_fixture/tests/Bukit.Cli.Tests/GitProcessRunnerTests.cs"
+printf 'public sealed class HelpPrinterTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Cli.Tests/HelpPrinterTests.cs"
 printf 'public sealed class NotionContentSourceTests {}\n' \
   >"$closure_fixture/tests/Bukit.Content.Notion.Tests/NotionContentSourceTests.cs"
 printf 'public sealed class BodyCacheDecoratorTests {}\n' \
@@ -406,6 +411,11 @@ assert_closure_mapping \
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Cli/Deploy/GitProcessRunner.cs \
+  '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering/CliHelpRenderer.cs \
   '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
   true
 assert_closure_mapping \
