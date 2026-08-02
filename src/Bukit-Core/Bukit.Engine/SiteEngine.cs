@@ -143,13 +143,21 @@ public sealed class SiteEngine
         try
         {
             var templateHashCache = new DirectoryHashCache();
+            using var assetWorkspace = await AssetSourceWorkspace.PrepareAsync(
+                plan.AssetsDir,
+                effectiveConfig.Theme.Scss,
+                effectiveConfig.Theme.Images,
+                buildLogger,
+                effectiveConfig.Build.PublishDotFiles,
+                effectiveConfig.Build.FollowSymlinks,
+                cancellationToken);
 
             var languages = I18nOutputMerger.GetLanguages(effectiveConfig.Site);
             if (languages.Count == 0)
             {
                 var result = await BuildSingleLanguageVariantAsync(
                     effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
-                    plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
+                    plan.LayoutsDir, assetWorkspace.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
                     plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
                     templateHashCache, plan.StartedAt, buildLogger, cancellationToken);
 
@@ -180,7 +188,7 @@ public sealed class SiteEngine
 
             return await BuildMultiLanguageAsync(
                 effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
-                plan.LayoutsDir, plan.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
+                plan.LayoutsDir, assetWorkspace.AssetsDir, plan.StaticDir, plan.MediaCacheDir,
                 plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
                 templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
                 bodyCacheMetrics,

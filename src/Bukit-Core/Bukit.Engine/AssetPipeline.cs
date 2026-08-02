@@ -46,14 +46,12 @@ internal sealed class AssetPipeline
         return await ExecutePreparedAsync(ctx, preparation, cancellationToken);
     }
 
-    internal static async Task<AssetPipelinePreparation> PrepareAsync(
+    internal static Task<AssetPipelinePreparation> PrepareAsync(
         AssetPipelineContext ctx,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var copyOptions = BuildCopyOptions(ctx);
-        var hasAssetsDir = ctx.AssetsDir is not null && Directory.Exists(ctx.AssetsDir);
-        await PrepareAssetSourcesAsync(ctx, hasAssetsDir, cancellationToken);
         var tokens = ctx.ThemeRoot is null
             ? null
             : new ThemeTokensLoader().LoadWithInheritance(ctx.ThemeRoot, ctx.ParentThemeRoot);
@@ -67,7 +65,7 @@ internal sealed class AssetPipeline
             cancellationToken,
             manifestEntries: ctx.ManifestEntries);
 
-        return new AssetPipelinePreparation(outputPlan, copyOptions, tokens);
+        return Task.FromResult(new AssetPipelinePreparation(outputPlan, copyOptions, tokens));
     }
 
     internal static async Task<AssetPipelineResult> ExecutePreparedAsync(
@@ -206,24 +204,4 @@ internal sealed class AssetPipeline
         };
     }
 
-    private static async Task PrepareAssetSourcesAsync(
-        AssetPipelineContext ctx,
-        bool hasAssetsDir,
-        CancellationToken cancellationToken)
-    {
-        if (!hasAssetsDir)
-        {
-            return;
-        }
-
-        if (ctx.ScssConfig is not null)
-        {
-            await ScssCompiler.CompileIfEnabled(ctx.AssetsDir!, ctx.ScssConfig, ctx.Logger, cancellationToken);
-        }
-
-        if (ctx.ImageConfig is not null)
-        {
-            await ImageOptimizer.OptimizeIfEnabled(ctx.AssetsDir!, ctx.ImageConfig, ctx.Logger, cancellationToken);
-        }
-    }
 }

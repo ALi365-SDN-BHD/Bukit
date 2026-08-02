@@ -1693,6 +1693,107 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
+    public async Task BuildAsync_ScssEnabled_PreservesSourceAndCompilesOnceAcrossLanguages()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw SkipException.ForSkip("This probe uses a temporary Unix executable to isolate Sass discovery.");
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), "bukit-scss-workspace", Guid.NewGuid().ToString("N"));
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        var originalLogPath = Environment.GetEnvironmentVariable("BUKIT_TEST_SASS_LOG");
+
+        try
+        {
+            var assetsDir = Path.Combine(root, "assets");
+            var pagesDir = Path.Combine(root, "layouts", "pages");
+            var toolsDir = Path.Combine(root, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(pagesDir);
+            Directory.CreateDirectory(toolsDir);
+
+            const string source = "$color: red;\nbody { color: $color; }\n";
+            var scssPath = Path.Combine(assetsDir, "main.scss");
+            File.WriteAllText(scssPath, source);
+            File.WriteAllText(Path.Combine(pagesDir, "post.html"), "<html><body>{{ page.content }}</body></html>");
+            File.WriteAllText(Path.Combine(pagesDir, "page.html"), "<html><body>{{ page.content }}</body></html>");
+            File.WriteAllText(Path.Combine(pagesDir, "index.html"), "<html><body>Index</body></html>");
+            File.WriteAllText(Path.Combine(pagesDir, "list.html"), "<html><body>List</body></html>");
+            WriteTestThemeTemplates(root);
+
+            var sassPath = Path.Combine(toolsDir, "sass");
+            File.WriteAllText(sassPath, """
+                #!/bin/sh
+                if [ "$1" = "--version" ]; then
+                  echo "test-sass 1.0"
+                  exit 0
+                fi
+                printf 'compile\n' >> "$BUKIT_TEST_SASS_LOG"
+                printf 'body{color:red}' > "$2"
+                """);
+            File.SetUnixFileMode(
+                sassPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+            var sassLogPath = Path.Combine(root, "sass.log");
+            Environment.SetEnvironmentVariable("PATH", $"{toolsDir}{Path.PathSeparator}{originalPath}");
+            Environment.SetEnvironmentVariable("BUKIT_TEST_SASS_LOG", sassLogPath);
+
+            var logger = new TestLogger();
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "scss-workspace",
+                    Title = "SCSS workspace",
+                    BaseUrl = "/",
+                    Language = "en",
+                    DefaultLanguage = "en",
+                    Languages = ["en", "fr", "de"],
+                    Collections = TestCollections(),
+                    Seo = new SeoConfig { Enabled = false },
+                    Analytics = new AnalyticsConfig { Enabled = false }
+                },
+                Content = TestContent.Markdown() with
+                {
+                    Media = new MediaConfig { DownloadToLocal = false }
+                },
+                Build = new BuildConfig { Output = "dist", Clean = true, LanguageJobs = 3 },
+                Theme = new ThemeConfig
+                {
+                    Layouts = "layouts",
+                    Assets = "assets",
+                    Scss = new ScssConfig { Enabled = true }
+                }
+            };
+
+            await CreateEmptySiteEngine(logger).BuildAsync(
+                config,
+                root,
+                new ConfigOverrides(),
+                CancellationToken.None);
+
+            Assert.True(logger.Errors.Count == 0, string.Join(Environment.NewLine, logger.Errors));
+            Assert.True(File.Exists(scssPath));
+            Assert.Equal(source, File.ReadAllText(scssPath));
+            Assert.Equal(["compile"], File.ReadAllLines(sassLogPath));
+            foreach (var language in new[] { "en", "fr", "de" })
+            {
+                Assert.Equal(
+                    "body{color:red}",
+                    File.ReadAllText(Path.Combine(root, "dist", language, "assets", "main.css")));
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            Environment.SetEnvironmentVariable("BUKIT_TEST_SASS_LOG", originalLogPath);
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
     public async Task BuildAsync_SeoInjectMode_I18nPagesEmitMutualHreflang()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-seo-i18n-test", Guid.NewGuid().ToString("N"));
