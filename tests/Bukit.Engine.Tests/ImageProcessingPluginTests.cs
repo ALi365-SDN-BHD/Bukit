@@ -284,6 +284,96 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
+    [Fact]
+    public async Task AfterBuildAsync_SourceImageChanged_RegeneratesVariant()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            WriteTool(toolDir, "magick", """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                cat "$1" > "$last"
+                """);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+
+            // Round 1: create source and generate variant
+            var sourceFile = Path.Combine(assetsDir, "photo.jpg");
+            File.WriteAllText(sourceFile, "original-content");
+            var plugin = new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }));
+            await plugin.AfterBuildAsync(CreateContext(outDir));
+
+            var variantFile = Path.Combine(assetsDir, "photo-480w.jpg");
+            Assert.True(File.Exists(variantFile));
+            var v1Content = File.ReadAllText(variantFile);
+
+            // Round 2: update source (ensure newer mtime)
+            await Task.Delay(50);
+            File.WriteAllText(sourceFile, "updated-content");
+            var plugin2 = new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }));
+            await plugin2.AfterBuildAsync(CreateContext(outDir));
+
+            var v2Content = File.ReadAllText(variantFile);
+            Assert.NotEqual(v1Content, v2Content);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuildAsync_SizeConfigReduced_DeletesStaleVariants()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            WriteTool(toolDir, "magick", """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                printf resized > "$last"
+                """);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+
+            // Round 1: generate with sizes [480, 768]
+            File.WriteAllText(Path.Combine(assetsDir, "photo.jpg"), "original");
+            var plugin1 = new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } }));
+            await plugin1.AfterBuildAsync(CreateContext(outDir));
+
+            Assert.True(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
+            Assert.True(File.Exists(Path.Combine(assetsDir, "photo-768w.jpg")));
+
+            // Round 2: reduce sizes to [480] only
+            var plugin2 = new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }));
+            await plugin2.AfterBuildAsync(CreateContext(outDir));
+
+            Assert.True(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-768w.jpg")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
     private static string GetTempDir() => Path.Combine(Path.GetTempPath(), "bukit_img_test_" + Guid.NewGuid().ToString("N"));
 
     private static BuildContext CreateContext(string outDir) => new()

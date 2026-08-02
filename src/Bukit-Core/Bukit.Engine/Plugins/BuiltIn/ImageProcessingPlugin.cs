@@ -53,17 +53,28 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             return;
         }
 
+        var generatedOutputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var imageFile in imageFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // Delete variants that no longer match configured sizes
+            CleanupStaleVariants(imageFile, sizes);
+
+            var sourceLastWrite = File.GetLastWriteTimeUtc(imageFile);
+
             foreach (var size in sizes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var baseName = Path.GetFileNameWithoutExtension(imageFile);
                 var ext = Path.GetExtension(imageFile);
                 var sizedFile = Path.Combine(Path.GetDirectoryName(imageFile)!, $"{baseName}-{size}w{ext}");
-                if (File.Exists(sizedFile))
+
+                // Skip if variant exists and source hasn't changed since it was generated
+                if (File.Exists(sizedFile) && File.GetLastWriteTimeUtc(sizedFile) >= sourceLastWrite)
                 {
+                    generatedOutputs.Add(sizedFile);
                     continue;
                 }
 
@@ -95,6 +106,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
                         if (result.ExitCode == 0 && File.Exists(temporarySizedFile))
                         {
                             File.Move(temporarySizedFile, sizedFile, overwrite: true);
+                            generatedOutputs.Add(sizedFile);
                             context.Logger.Info($"event=image_resize.ok file={Path.GetFileName(sizedFile)}");
                         }
                         else
@@ -161,6 +173,14 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         {
             context.Data["__image_srcsets"] = data;
         }
+
+        if (generatedOutputs.Count > 0)
+        {
+            context.Data["__plugin_outputs"] = generatedOutputs
+                .Select(f => Path.GetRelativePath(context.OutputDir, f).Replace("\\", "/", StringComparison.Ordinal))
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
     }
 
     private static async Task<string?> FindResizeToolAsync(
@@ -202,6 +222,27 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
     {
         var stem = Path.GetFileNameWithoutExtension(path);
         return sizes.Any(size => stem.EndsWith($"-{size}w", StringComparison.Ordinal));
+    }
+
+    private static void CleanupStaleVariants(string sourceFile, IReadOnlyList<int> currentSizes)
+    {
+        var dir = Path.GetDirectoryName(sourceFile)!;
+        var baseName = Path.GetFileNameWithoutExtension(sourceFile);
+        var ext = Path.GetExtension(sourceFile);
+        var currentSizeSet = new HashSet<int>(currentSizes);
+
+        foreach (var existingFile in SafeFileEnumerator.EnumerateFiles(dir, $"{baseName}-*w{ext}"))
+        {
+            var stem = Path.GetFileNameWithoutExtension(existingFile);
+            var suffix = stem.Substring(baseName.Length);
+            // Parse -NNNw pattern
+            if (suffix.Length > 2 && suffix[^1] == 'w'
+                && int.TryParse(suffix.AsSpan(1, suffix.Length - 2), out var parsedSize)
+                && !currentSizeSet.Contains(parsedSize))
+            {
+                TryDelete(existingFile);
+            }
+        }
     }
 
     private static void TryDelete(string path)
