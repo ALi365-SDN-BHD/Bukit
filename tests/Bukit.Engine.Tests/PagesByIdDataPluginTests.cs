@@ -367,6 +367,85 @@ public sealed class PagesByIdDataPluginTests
         Assert.Equal("Cached", resolved["title"]);
     }
 
+    [Fact]
+    public async Task DerivePages_WhenCallerCancels_StopsFetcherAndDoesNotWriteCache()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var oldToken = Environment.GetEnvironmentVariable("NOTION_TOKEN");
+        Directory.CreateDirectory(root);
+        try
+        {
+            Environment.SetEnvironmentVariable("NOTION_TOKEN", "test-token");
+            var cachePath = Path.Combine(root, ".cache", "notion", "pages-index.json");
+            var item = ContentDocument.Create(
+                id: "page-1",
+                title: "Hello",
+                slug: "hello",
+                publishAt: new DateTimeOffset(2026, 02, 08, 0, 0, 0, TimeSpan.Zero),
+                contentHtml: "<p>hi</p>",
+                fields: ContentFieldReader.WithValues(
+                    new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["related_posts"] = new ContentField("list", new List<string> { "missing-1" })
+                    },
+                    new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["type"] = "post",
+                        ["collection"] = "post"
+                    }));
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "t", Title = "t" },
+                Content = TestContent.Notion() with { Media = new MediaConfig { DownloadToLocal = false } },
+                Theme = new ThemeConfig
+                {
+                    Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["pages_index"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["resolve_notion"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                ["enabled"] = true,
+                                ["field_keys"] = new List<object> { "related_posts" },
+                                ["cache_mode"] = "readwrite",
+                                ["cache_path"] = cachePath,
+                                ["concurrency"] = 1
+                            }
+                        }
+                    }
+                }
+            };
+            var context = new BuildContext
+            {
+                RootDir = root,
+                OutputDir = Path.Combine(root, "out"),
+                BaseUrl = "/",
+                LayoutsDir = Path.Combine(root, "layouts"),
+                RoutedDocuments = new List<(ContentDocument Item, RouteInfo Route)>
+                {
+                    (item, new RouteInfo("/blog/hello/", "blog/hello/index.html", "pages/post.html"))
+                }.ToRoutedDocuments(),
+                Logger = new ConsoleLogger(LogLevel.Error)
+            };
+            var fetcher = new BlockingFetcher();
+            var plugin = new PagesIndexPlugin(config, fetcher);
+            using var cancellation = new CancellationTokenSource();
+
+            var deriveTask = plugin.DerivePagesAsync(context, cancellation.Token);
+            await fetcher.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                deriveTask.WaitAsync(TimeSpan.FromSeconds(1)));
+            Assert.False(File.Exists(cachePath));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NOTION_TOKEN", oldToken);
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private sealed class FakeFetcher : Bukit.Engine.Plugins.BuiltIn.INotionPageFetcher
     {
         public Task<Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage?> FetchAsync(
@@ -395,6 +474,21 @@ public sealed class PagesByIdDataPluginTests
             CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("Fetcher should not be called when cache_mode=readonly");
+        }
+    }
+
+    private sealed class BlockingFetcher : Bukit.Engine.Plugins.BuiltIn.INotionPageFetcher
+    {
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage?> FetchAsync(
+            Bukit.Content.Notion.NotionApiClient client,
+            string pageId,
+            CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return null;
         }
     }
 }

@@ -183,7 +183,7 @@ public static class PluginRunner
             PluginExecutionSession.CreateCompatibility().Registrations,
             cancellationToken);
 
-    private static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
+    internal static async Task<IReadOnlyList<RoutedContentDocument>> RunDerivePagesAsync(
         BuildContext context,
         PluginExecutionPolicy policy,
         IEnumerable<(IBukitPlugin Plugin, string Source)> plugins,
@@ -243,6 +243,10 @@ public static class PluginRunner
                 sw.Stop();
                 context.PluginExecutions.Add(new PluginExecutionInfo(plugin.Name, "derive-pages", sw.ElapsedMilliseconds, true, null));
                 context.Logger.Info($"plugin {plugin.Name} derive-pages {sw.ElapsedMilliseconds}ms");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -428,7 +432,7 @@ public static class PluginRunner
             PluginExecutionSession.CreateCompatibility().Registrations,
             cancellationToken);
 
-    private static async Task RunAfterBuildAsync(
+    internal static async Task RunAfterBuildAsync(
         BuildContext context,
         PluginExecutionPolicy policy,
         IEnumerable<(IBukitPlugin Plugin, string Source)> plugins,
@@ -466,6 +470,10 @@ public static class PluginRunner
                 sw.Stop();
                 context.PluginExecutions.Add(new PluginExecutionInfo(plugin.Name, "after-build", sw.ElapsedMilliseconds, true, null));
                 context.Logger.Info($"plugin {plugin.Name} after-build {sw.ElapsedMilliseconds}ms");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

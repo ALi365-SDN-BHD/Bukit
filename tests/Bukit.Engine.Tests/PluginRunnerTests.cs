@@ -253,6 +253,44 @@ public sealed class PluginRunnerTests
     }
 
     [Fact]
+    public async Task RunDerivePages_WarnMode_PropagatesCallerCancellation()
+    {
+        var plugin = new BlockingDerivePlugin();
+        var (context, config) = CreateContext(pluginFailMode: "warn");
+        using var cancellation = new CancellationTokenSource();
+        var runTask = PluginRunner.RunDerivePagesAsync(
+            context,
+            PluginExecutionPolicy.From(config.Site),
+            [((IBukitPlugin)plugin, "test")],
+            cancellation.Token);
+        await plugin.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            runTask.WaitAsync(TimeSpan.FromSeconds(1)));
+    }
+
+    [Fact]
+    public async Task RunAfterBuild_WarnMode_PropagatesCallerCancellation()
+    {
+        var plugin = new BlockingAfterBuildPlugin();
+        var (context, config) = CreateContext(pluginFailMode: "warn");
+        using var cancellation = new CancellationTokenSource();
+        var runTask = PluginRunner.RunAfterBuildAsync(
+            context,
+            PluginExecutionPolicy.From(config.Site),
+            [((IBukitPlugin)plugin, "test")],
+            cancellation.Token);
+        await plugin.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            runTask.WaitAsync(TimeSpan.FromSeconds(1)));
+    }
+
+    [Fact]
     public async Task Plugins_OrderedByOrderThenNameThenVersion()
     {
         var (ctx, config) = CreateContext(plugins: DisableAfterBuildPlugins());
@@ -448,6 +486,35 @@ public sealed class PluginRunnerTests
         {
             var call = Interlocked.Increment(ref _calls);
             return call % 7 == 0 ? throw new InvalidOperationException($"boom {call}") : html + "|ok";
+        }
+    }
+
+    private sealed class BlockingDerivePlugin : IBukitPlugin, IDerivePagesAsyncPlugin
+    {
+        public string Name => "blocking-derive";
+        public string Version => "1.0.0";
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<IReadOnlyList<RoutedContentDocument>> DerivePagesAsync(
+            BuildContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return Array.Empty<RoutedContentDocument>();
+        }
+    }
+
+    private sealed class BlockingAfterBuildPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
+    {
+        public string Name => "blocking-after";
+        public string Version => "1.0.0";
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task AfterBuildAsync(BuildContext context, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         }
     }
 

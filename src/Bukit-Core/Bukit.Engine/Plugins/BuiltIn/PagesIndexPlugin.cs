@@ -44,9 +44,11 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
 
     public async Task<IReadOnlyList<RoutedContentDocument>> DerivePagesAsync(BuildContext context, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var index = GetOrCreateIndex(context);
         AddRoutedToIndex(context, index);
-        await ResolveNotionRelationsIfConfiguredAsync(context, index).ConfigureAwait(false);
+        await ResolveNotionRelationsIfConfiguredAsync(context, index, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (index.Count > 0)
         {
             context.Data["pages_by_id"] = index;
@@ -130,8 +132,12 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
         return obj;
     }
 
-    private async Task ResolveNotionRelationsIfConfiguredAsync(BuildContext context, Dictionary<string, object> index)
+    private async Task ResolveNotionRelationsIfConfiguredAsync(
+        BuildContext context,
+        Dictionary<string, object> index,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!PagesIndexConfigHelper.HasNotionContent(_config))
         {
             return;
@@ -206,6 +212,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
                 {
                     if (cacheMode == "readwrite")
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         PagesIndexCacheHelper.TrySaveCache(cachePath, index);
                     }
                     return;
@@ -257,6 +264,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
         }
 
         await Task.WhenAll(tasks);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var resolvedPages = new NotionFetchedPage?[tasks.Length];
         for (var i = 0; i < tasks.Length; i++)
@@ -264,10 +272,15 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
             resolvedPages[i] = await tasks[i];
         }
 
-        await LocalizeResolvedPageFieldsAsync(resolvedPages, context, _config.Content.Media);
+        await LocalizeResolvedPageFieldsAsync(
+            resolvedPages,
+            context,
+            _config.Content.Media,
+            cancellationToken);
 
         for (var i = 0; i < resolvedPages.Length; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var p = resolvedPages[i];
             if (p is null)
             {
@@ -296,15 +309,16 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
 
         if (cacheMode == "readwrite")
         {
+            cancellationToken.ThrowIfCancellationRequested();
             PagesIndexCacheHelper.TrySaveCache(cachePath, index);
         }
 
         async Task<NotionFetchedPage?> ResolveOneAsync(string pageId)
         {
-            await sem.WaitAsync(CancellationToken.None);
+            await sem.WaitAsync(cancellationToken);
             try
             {
-                return await _notionFetcher.FetchAsync(client, pageId, CancellationToken.None);
+                return await _notionFetcher.FetchAsync(client, pageId, cancellationToken);
             }
             finally
             {
@@ -328,8 +342,10 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
     private static async Task LocalizeResolvedPageFieldsAsync(
         NotionFetchedPage?[] pages,
         BuildContext context,
-        MediaConfig media)
+        MediaConfig media,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!media.DownloadToLocal)
         {
             return;
@@ -358,6 +374,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
 
         for (var i = 0; i < pages.Length; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var p = pages[i];
             if (p is null)
             {
@@ -375,6 +392,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
 
             foreach (var kv in fields)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var isFileType = string.Equals(kv.Value.Type, "file", StringComparison.OrdinalIgnoreCase)
                                  || string.Equals(kv.Value.Type, "files", StringComparison.OrdinalIgnoreCase);
 
@@ -385,7 +403,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
 
                 if (kv.Value.Value is string url && !string.IsNullOrWhiteSpace(url))
                 {
-                    var localized = await localizer.LocalizeAsync(url, CancellationToken.None);
+                    var localized = await localizer.LocalizeAsync(url, cancellationToken);
                     if (!string.Equals(localized, url, StringComparison.Ordinal))
                     {
                         mutable ??= new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase);
