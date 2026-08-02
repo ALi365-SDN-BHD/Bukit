@@ -1,4 +1,7 @@
+using System.Globalization;
+using System.Numerics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Bukit.Config;
 using Xunit;
@@ -142,6 +145,62 @@ public sealed class SeoGeoDocumentationContractTests
     }
 
     [Fact]
+    public void SeoObservationSchemas_RejectWhitespaceOnlyStrings()
+    {
+        using var observationSchema = ReadJson("docs", "schemas", "seo-observation.v1.schema.json");
+        var observationDefs = observationSchema.RootElement.GetProperty("$defs");
+        AssertStringSchemaAccepts(
+            observationDefs.GetProperty("window").GetProperty("properties").GetProperty("timeZone"),
+            "Asia/Kuala_Lumpur",
+            " \t");
+        AssertStringSchemaAccepts(
+            observationDefs.GetProperty("gscRow").GetProperty("properties").GetProperty("url"),
+            "https://example.com/a/",
+            "   ");
+
+        using var reportSchema = ReadJson("docs", "schemas", "seo-insights-report.v1.schema.json");
+        var reportDefs = reportSchema.RootElement.GetProperty("$defs");
+        AssertStringSchemaAccepts(
+            reportDefs.GetProperty("window").GetProperty("properties").GetProperty("timeZone"),
+            "UTC",
+            " ");
+        AssertStringSchemaAccepts(
+            reportDefs.GetProperty("unmatched").GetProperty("properties").GetProperty("originalUrl"),
+            "https://example.com/missing/",
+            "\n");
+        AssertStringSchemaAccepts(
+            reportDefs.GetProperty("ambiguous").GetProperty("properties").GetProperty("originalUrl"),
+            "https://example.com/shared/",
+            "\t ");
+    }
+
+    [Fact]
+    public void SeoObservationSchemas_RejectNumericOverflow()
+    {
+        using var observationSchema = ReadJson("docs", "schemas", "seo-observation.v1.schema.json");
+        var observationDefs = observationSchema.RootElement.GetProperty("$defs");
+        AssertIntegerSchemaAccepts(
+            observationDefs.GetProperty("gscRow").GetProperty("properties").GetProperty("impressions"),
+            "9223372036854775807",
+            "9223372036854775808");
+        AssertNumberSchemaAccepts(
+            observationDefs.GetProperty("gscRow").GetProperty("properties").GetProperty("averagePosition"),
+            "1.7976931348623157e308",
+            "1.7976931348623159e308");
+
+        using var reportSchema = ReadJson("docs", "schemas", "seo-insights-report.v1.schema.json");
+        var reportDefs = reportSchema.RootElement.GetProperty("$defs");
+        AssertIntegerSchemaAccepts(
+            reportDefs.GetProperty("joinCounts").GetProperty("properties").GetProperty("total"),
+            "9223372036854775807",
+            "9223372036854775808");
+        AssertNumberSchemaAccepts(
+            reportDefs.GetProperty("nullableNumber"),
+            "1.7976931348623157e308",
+            "1e309");
+    }
+
+    [Fact]
     public void ActiveGuide_DocumentsSeoGeoAndIndexNowContracts()
     {
         var siteConfig = ReadText("guide", "user", "04-site-yaml-config.md");
@@ -277,6 +336,106 @@ public sealed class SeoGeoDocumentationContractTests
 
     private static JsonDocument ReadJson(params string[] segments)
         => JsonDocument.Parse(ReadText(segments));
+
+    private static void AssertStringSchemaAccepts(JsonElement schema, string valid, string invalid)
+    {
+        Assert.True(StringSchemaAccepts(schema, valid));
+        Assert.False(StringSchemaAccepts(schema, invalid));
+    }
+
+    private static bool StringSchemaAccepts(JsonElement schema, string value)
+    {
+        if (schema.TryGetProperty("minLength", out var minLength) && value.Length < minLength.GetInt32())
+        {
+            return false;
+        }
+
+        return !schema.TryGetProperty("pattern", out var pattern) ||
+               Regex.IsMatch(value, pattern.GetString()!, RegexOptions.CultureInvariant);
+    }
+
+    private static void AssertIntegerSchemaAccepts(JsonElement schema, string valid, string invalid)
+    {
+        Assert.True(IntegerSchemaAccepts(schema, valid));
+        Assert.False(IntegerSchemaAccepts(schema, invalid));
+    }
+
+    private static bool IntegerSchemaAccepts(JsonElement schema, string value)
+    {
+        var number = BigInteger.Parse(value, CultureInfo.InvariantCulture);
+        if (schema.TryGetProperty("minimum", out var minimum) &&
+            number < BigInteger.Parse(minimum.GetRawText(), CultureInfo.InvariantCulture))
+        {
+            return false;
+        }
+
+        return !schema.TryGetProperty("maximum", out var maximum) ||
+               number <= BigInteger.Parse(maximum.GetRawText(), CultureInfo.InvariantCulture);
+    }
+
+    private static void AssertNumberSchemaAccepts(JsonElement schema, string valid, string invalid)
+    {
+        Assert.True(NumberSchemaAccepts(schema, valid));
+        Assert.False(NumberSchemaAccepts(schema, invalid));
+    }
+
+    private static bool NumberSchemaAccepts(JsonElement schema, string value)
+    {
+        var number = ParsePositiveNumber(value);
+
+        if (schema.TryGetProperty("minimum", out var minimum) &&
+            Compare(number, ParsePositiveNumber(minimum.GetRawText())) < 0)
+        {
+            return false;
+        }
+
+        return !schema.TryGetProperty("maximum", out var maximum) ||
+               Compare(number, ParsePositiveNumber(maximum.GetRawText())) <= 0;
+    }
+
+    private static PositiveNumber ParsePositiveNumber(string value)
+    {
+        var exponentIndex = value.IndexOf('e');
+        if (exponentIndex < 0)
+        {
+            exponentIndex = value.IndexOf('E');
+        }
+
+        var mantissa = exponentIndex < 0 ? value : value[..exponentIndex];
+        var exponent = exponentIndex < 0
+            ? 0
+            : int.Parse(value[(exponentIndex + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture);
+        var decimalIndex = mantissa.IndexOf('.');
+        if (decimalIndex >= 0)
+        {
+            exponent -= mantissa.Length - decimalIndex - 1;
+            mantissa = mantissa.Remove(decimalIndex, 1);
+        }
+
+        mantissa = mantissa.TrimStart('0');
+        if (mantissa.Length == 0)
+        {
+            return new PositiveNumber(BigInteger.Zero, 0);
+        }
+
+        while (mantissa.EndsWith('0'))
+        {
+            mantissa = mantissa[..^1];
+            exponent++;
+        }
+
+        return new PositiveNumber(BigInteger.Parse(mantissa, CultureInfo.InvariantCulture), exponent);
+    }
+
+    private static int Compare(PositiveNumber left, PositiveNumber right)
+    {
+        var commonExponent = Math.Min(left.Exponent, right.Exponent);
+        var scaledLeft = left.Significand * BigInteger.Pow(10, left.Exponent - commonExponent);
+        var scaledRight = right.Significand * BigInteger.Pow(10, right.Exponent - commonExponent);
+        return scaledLeft.CompareTo(scaledRight);
+    }
+
+    private readonly record struct PositiveNumber(BigInteger Significand, int Exponent);
 
     private static string ReadText(params string[] segments)
         => File.ReadAllText(Path.Combine([RepoRoot, .. segments]));

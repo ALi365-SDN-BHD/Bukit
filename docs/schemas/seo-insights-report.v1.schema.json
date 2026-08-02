@@ -26,7 +26,7 @@
   },
   "$defs": {
     "nullableInteger": { "type": ["integer", "null"], "minimum": 0, "maximum": 9223372036854775807 },
-    "nullableNumber": { "type": ["number", "null"], "minimum": 0 },
+    "nullableNumber": { "type": ["number", "null"], "minimum": 0, "maximum": 1.7976931348623157e308 },
     "nullableRatio": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
     "nullableContentKey": {
       "oneOf": [
@@ -41,7 +41,7 @@
       "properties": {
         "startDate": { "type": "string", "format": "date" },
         "endDate": { "type": "string", "format": "date" },
-        "timeZone": { "type": "string", "minLength": 1 }
+        "timeZone": { "type": "string", "minLength": 1, "pattern": "\\S" }
       }
     },
     "source": {
@@ -60,10 +60,10 @@
       "additionalProperties": false,
       "required": ["total", "matched", "unmatched", "ambiguous"],
       "properties": {
-        "total": { "type": "integer", "minimum": 0 },
-        "matched": { "type": "integer", "minimum": 0 },
-        "unmatched": { "type": "integer", "minimum": 0 },
-        "ambiguous": { "type": "integer", "minimum": 0 }
+        "total": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "matched": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "unmatched": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "ambiguous": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 }
       }
     },
     "providerJoinQuality": {
@@ -131,9 +131,9 @@
       "properties": {
         "provider": { "enum": ["google-search-console", "google-analytics-4"] },
         "scope": { "const": "google-organic" },
-        "originalUrl": { "type": "string", "minLength": 1 },
-        "normalizedUrl": { "type": ["string", "null"] },
-        "errorCode": { "type": ["string", "null"] },
+        "originalUrl": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "normalizedUrl": { "type": ["string", "null"], "minLength": 1, "pattern": "\\S" },
+        "errorCode": { "type": ["string", "null"], "minLength": 1, "pattern": "\\S" },
         "metrics": { "$ref": "#/$defs/metrics" }
       }
     },
@@ -144,8 +144,8 @@
       "properties": {
         "provider": { "enum": ["google-search-console", "google-analytics-4"] },
         "scope": { "const": "google-organic" },
-        "originalUrl": { "type": "string", "minLength": 1 },
-        "normalizedUrl": { "type": "string", "minLength": 1 },
+        "originalUrl": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "normalizedUrl": { "type": "string", "minLength": 1, "pattern": "\\S" },
         "metrics": { "$ref": "#/$defs/metrics" },
         "candidates": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/candidate" } }
       }

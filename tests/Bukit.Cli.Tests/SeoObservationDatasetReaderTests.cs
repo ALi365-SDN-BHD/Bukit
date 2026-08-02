@@ -74,6 +74,82 @@ public sealed class SeoObservationDatasetReaderTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Read_DuplicateRootProviderIsRejectedBeforeProviderSemantics(bool conflicting)
+    {
+        var original = "\"provider\": \"google-search-console\",";
+        var duplicate = conflicting ? "google-analytics-4" : "google-search-console";
+        var json = Dataset("google-search-console").Replace(
+            original,
+            $"{original} \"provider\": \"{duplicate}\",",
+            StringComparison.Ordinal);
+
+        AssertDuplicate(json, "provider");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Read_DuplicateRootRowsIsRejectedBeforeRowsAreDiscarded(bool conflicting)
+    {
+        var row = Row("google-search-console");
+        var original = $"\"rows\": [{row}]";
+        var duplicate = conflicting ? "[]" : $"[{row}]";
+        var json = Dataset("google-search-console").Replace(
+            original,
+            $"{original}, \"rows\": {duplicate}",
+            StringComparison.Ordinal);
+
+        AssertDuplicate(json, "rows");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Read_DuplicateWindowFieldIsRejectedBeforeWindowSemantics(bool conflicting)
+    {
+        var original = "\"timeZone\": \"Asia/Kuala_Lumpur\"";
+        var duplicate = conflicting ? "UTC" : "Asia/Kuala_Lumpur";
+        var json = Dataset("google-search-console").Replace(
+            original,
+            $"{original}, \"timeZone\": \"{duplicate}\"",
+            StringComparison.Ordinal);
+
+        AssertDuplicate(json, "timeZone");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Read_DuplicateRowUrlIsRejectedBeforeUrlSemantics(bool conflicting)
+    {
+        var original = "\"url\": \"https://example.com/a/\"";
+        var duplicate = conflicting ? "https://example.com/b/" : "https://example.com/a/";
+        var json = Dataset("google-search-console").Replace(
+            original,
+            $"{original}, \"url\": \"{duplicate}\"",
+            StringComparison.Ordinal);
+
+        AssertDuplicate(json, "url");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Read_DuplicateRowMetricIsRejectedBeforeMetricSemantics(bool conflicting)
+    {
+        var original = "\"impressions\": 10";
+        var duplicate = conflicting ? "11" : "10";
+        var json = Dataset("google-search-console").Replace(
+            original,
+            $"{original}, \"impressions\": {duplicate}",
+            StringComparison.Ordinal);
+
+        AssertDuplicate(json, "impressions");
+    }
+
+    [Theory]
     [InlineData("google-search-console", "\"clicks\": 2,", "")]
     [InlineData("google-search-console", "\"averagePosition\": 3.5", "\"averagePositionOmitted\": 3.5")]
     [InlineData("google-analytics-4", "\"sessions\": 10,", "")]
@@ -110,6 +186,33 @@ public sealed class SeoObservationDatasetReaderTests
         var exception = Assert.Throws<InvalidDataException>(() => Read(json));
 
         Assert.StartsWith("observation.metric_invalid", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_IntegerMetricAboveInt64RangeIsRejectedAsMetricInvalid()
+    {
+        var json = Dataset("google-search-console").Replace(
+            "\"impressions\": 10",
+            "\"impressions\": 9223372036854775808",
+            StringComparison.Ordinal);
+
+        var exception = Assert.Throws<InvalidDataException>(() => Read(json));
+
+        Assert.StartsWith("observation.metric_invalid", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_DoubleAndIntegerMaximumsRemainValid()
+    {
+        var json = Dataset("google-search-console")
+            .Replace("\"impressions\": 10", "\"impressions\": 9223372036854775807", StringComparison.Ordinal)
+            .Replace("\"averagePosition\": 3.5", "\"averagePosition\": 1.7976931348623157e308", StringComparison.Ordinal);
+
+        var dataset = Read(json);
+
+        var row = Assert.Single(dataset.Rows);
+        Assert.Equal(long.MaxValue, row.Impressions);
+        Assert.Equal(double.MaxValue, row.AveragePosition);
     }
 
     [Fact]
@@ -165,6 +268,15 @@ public sealed class SeoObservationDatasetReaderTests
         {
             File.Delete(path);
         }
+    }
+
+    private static void AssertDuplicate(string json, string fieldName)
+    {
+        var exception = Assert.Throws<InvalidDataException>(() => Read(json));
+
+        Assert.StartsWith("observation.duplicate_field", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(fieldName, exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(json, exception.Message, StringComparison.Ordinal);
     }
 
     private static string Dataset(string provider)

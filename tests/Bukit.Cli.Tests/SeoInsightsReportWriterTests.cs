@@ -71,6 +71,35 @@ public sealed class SeoInsightsReportWriterTests
     }
 
     [Fact]
+    public void Assemble_InputPermutationProducesByteIdenticalUtcSourceEvidence()
+    {
+        var window = new SeoObservationWindow(
+            new DateOnly(2026, 8, 1),
+            new DateOnly(2026, 8, 2),
+            "Asia/Kuala_Lumpur");
+        var row = new SeoObservationRow("https://example.com/article/", 1, 0, 1, null, null, null);
+        var twoRows = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "google-organic",
+            DateTimeOffset.Parse("2026-08-03T08:00:00+08:00"), window, [row, row]);
+        var oneRowUtc = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "google-organic",
+            DateTimeOffset.Parse("2026-08-03T00:00:00Z"), window, [row]);
+        var oneRowOffset = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "google-organic",
+            DateTimeOffset.Parse("2026-08-02T20:00:00-04:00"), window, [row]);
+
+        var first = SeoInsightsReportWriter.Assemble(CreateMatcher(), [twoRows, oneRowUtc, oneRowOffset]);
+        var second = SeoInsightsReportWriter.Assemble(CreateMatcher(), [oneRowOffset, twoRows, oneRowUtc]);
+        var firstBytes = JsonSerializer.SerializeToUtf8Bytes(first, SeoInsightsJsonContext.Default.SeoInsightsReport);
+        var secondBytes = JsonSerializer.SerializeToUtf8Bytes(second, SeoInsightsJsonContext.Default.SeoInsightsReport);
+
+        Assert.Equal(firstBytes, secondBytes);
+        Assert.Equal(TimeSpan.Zero, first.GeneratedAt.Offset);
+        Assert.All(first.Sources, source => Assert.Equal(TimeSpan.Zero, source.CollectedAt.Offset));
+        Assert.Equal([1L, 1L, 2L], first.Sources.Select(source => source.RowCount));
+    }
+
+    [Fact]
     public void Assemble_MismatchedWindowsAreRejected()
     {
         var datasets = Datasets().ToArray();

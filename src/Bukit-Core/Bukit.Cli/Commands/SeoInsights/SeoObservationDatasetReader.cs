@@ -172,9 +172,23 @@ internal static class SeoObservationDatasetReader
             throw Invalid("observation.provider_metrics_invalid", "Observation row metrics do not match its provider.");
         }
 
-        if (provider == GoogleSearchConsole && row.GetProperty("averagePosition").ValueKind == JsonValueKind.Number)
+        foreach (var metric in provider == GoogleSearchConsole
+                     ? new[] { "impressions", "clicks" }
+                     : new[] { "sessions", "engagedSessions", "keyEvents" })
         {
-            if (!row.GetProperty("averagePosition").TryGetDouble(out var position) || !double.IsFinite(position))
+            var value = row.GetProperty(metric);
+            if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out _))
+            {
+                throw Invalid("observation.metric_invalid", "Observation integer metric is out of range.");
+            }
+        }
+
+        if (provider == GoogleSearchConsole)
+        {
+            var averagePosition = row.GetProperty("averagePosition");
+            if (averagePosition.ValueKind != JsonValueKind.Number ||
+                !averagePosition.TryGetDouble(out var position) ||
+                !double.IsFinite(position))
             {
                 throw Invalid("observation.metric_invalid", "Observation metric must be finite.");
             }
@@ -220,8 +234,16 @@ internal static class SeoObservationDatasetReader
 
     private static void RejectUnknown(JsonElement value, IReadOnlySet<string> allowed)
     {
+        var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in value.EnumerateObject())
         {
+            if (!names.Add(property.Name))
+            {
+                throw Invalid(
+                    "observation.duplicate_field",
+                    "Observation object contains a duplicate field.");
+            }
+
             if (!allowed.Contains(property.Name))
             {
                 throw Invalid("observation.unknown_field", $"Unknown observation field '{property.Name}'.");

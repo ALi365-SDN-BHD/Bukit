@@ -85,11 +85,12 @@ internal static class SeoInsightsReportWriter
             .Select(dataset => new SeoInsightsSource(
                 dataset.Provider,
                 dataset.Scope,
-                dataset.CollectedAt,
+                dataset.CollectedAt.ToUniversalTime(),
                 dataset.Rows.Count))
             .OrderBy(source => source.Provider, StringComparer.Ordinal)
             .ThenBy(source => source.CollectedAt)
             .ThenBy(source => source.Scope, StringComparer.Ordinal)
+            .ThenBy(source => source.RowCount)
             .ToArray();
         var routes = accumulators.Values
             .Select(accumulator => accumulator.Build())
@@ -110,7 +111,7 @@ internal static class SeoInsightsReportWriter
         return new SeoInsightsReport(
             Schema,
             SchemaVersion,
-            datasets.Max(dataset => dataset.CollectedAt),
+            datasets.Max(dataset => dataset.CollectedAt).ToUniversalTime(),
             window,
             sources,
             new SeoJoinQuality(
