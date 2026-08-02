@@ -150,6 +150,39 @@ public sealed class SystemProcessRunnerTests
     }
 
     [Fact]
+    public async Task RunAsync_Timeout_KillsTreeAndBoundsStreamDrain()
+    {
+        var runner = new SystemProcessRunner();
+        var stopwatch = Stopwatch.StartNew();
+
+        ProcessRunResult result = await runner.RunAsync(
+            ProbeRequest(arguments: ["sleep", "30000"], timeoutMs: 200),
+            CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+
+        stopwatch.Stop();
+        Assert.True(result.TimedOut);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(8),
+            $"Timeout + drain took {stopwatch.Elapsed.TotalSeconds:F1}s, expected < 8s");
+    }
+
+    [Fact]
+    public async Task RunAsync_Cancellation_KillsTreeAndBoundsStreamDrain()
+    {
+        var runner = new SystemProcessRunner();
+        using var cts = new CancellationTokenSource(200);
+        var stopwatch = Stopwatch.StartNew();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => runner.RunAsync(
+                ProbeRequest(arguments: ["sleep", "30000"], timeoutMs: 30000),
+                cts.Token).WaitAsync(TimeSpan.FromSeconds(10)));
+
+        stopwatch.Stop();
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(8),
+            $"Cancellation + drain took {stopwatch.Elapsed.TotalSeconds:F1}s, expected < 8s");
+    }
+
+    [Fact]
     public async Task RunAsync_PropagatesCancellation()
     {
         var runner = new SystemProcessRunner();
@@ -245,7 +278,9 @@ public sealed class SystemProcessRunnerTests
         int stdoutMaxBytes = 4096,
         int stderrMaxBytes = 4096,
         IReadOnlyDictionary<string, string?>? environmentVariables = null,
-        string? workingDirectory = null)
+        string? workingDirectory = null,
+        TimeSpan? maxCpuTime = null,
+        long? maxMemoryBytes = null)
     {
         string? dotnet = Process.GetCurrentProcess().MainModule?.FileName;
         Assert.False(string.IsNullOrWhiteSpace(dotnet));
@@ -260,6 +295,8 @@ public sealed class SystemProcessRunnerTests
             Timeout: TimeSpan.FromMilliseconds(timeoutMs),
             StdoutMaxBytes: stdoutMaxBytes,
             StderrMaxBytes: stderrMaxBytes,
-            EnvironmentVariables: environmentVariables);
+            EnvironmentVariables: environmentVariables,
+            MaxCpuTime: maxCpuTime,
+            MaxMemoryBytes: maxMemoryBytes);
     }
 }

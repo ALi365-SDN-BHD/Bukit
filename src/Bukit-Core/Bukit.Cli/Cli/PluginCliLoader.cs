@@ -181,7 +181,8 @@ public sealed class PluginCliLoader
             Output: entry.Output,
             GrantedPermissions: entry.Permissions,
             EnvironmentVariables: CreateAllowedEnvironment(entry.Permissions.Environment.Read),
-            Sha256Verified: hash.Success);
+            Sha256Verified: hash.Success,
+            Resources: entry.Resources);
 
         PluginHandshakeResponse handshake = await _protocolClient.HandshakeAsync(resolved, cancellationToken);
         ValidateHandshakeIdentity(pluginId, manifest.Id, handshake.Plugin);

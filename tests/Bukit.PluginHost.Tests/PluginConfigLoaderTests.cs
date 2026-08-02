@@ -339,4 +339,103 @@ public sealed class PluginConfigLoaderTests
 
         Assert.Contains("fileSystem.write permission path", exception.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task LoadAsync_Resources_MapsPositiveCpuAndMemoryLimits()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                permissions: {}
+                resources:
+                  maxCpuTimeMs: 5000
+                  maxMemoryBytes: 268435456
+            """);
+        var loader = new PluginConfigLoader();
+
+        PluginHostConfig config = await loader.LoadAsync(directory.Path, CancellationToken.None);
+
+        var echo = Assert.Single(config.Plugins).Value;
+        Assert.NotNull(echo.Resources);
+        Assert.Equal(5000, echo.Resources!.MaxCpuTimeMs);
+        Assert.Equal(268435456L, echo.Resources.MaxMemoryBytes);
+    }
+
+    [Fact]
+    public async Task LoadAsync_Resources_NullWhenNotConfigured()
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            """
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                permissions: {}
+            """);
+        var loader = new PluginConfigLoader();
+
+        PluginHostConfig config = await loader.LoadAsync(directory.Path, CancellationToken.None);
+
+        var echo = Assert.Single(config.Plugins).Value;
+        Assert.Null(echo.Resources);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(-1000)]
+    public async Task LoadAsync_Resources_RejectsNonPositiveCpuTime(int value)
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            $$"""
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                permissions: {}
+                resources:
+                  maxCpuTimeMs: {{value}}
+            """);
+        var loader = new PluginConfigLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(directory.Path, CancellationToken.None));
+
+        Assert.Contains("resources.maxCpuTimeMs must be positive", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(-1048576)]
+    public async Task LoadAsync_Resources_RejectsNonPositiveMemory(long value)
+    {
+        using var directory = TestDirectory.Create();
+        directory.Write(".bukit/plugins.yaml",
+            $$"""
+            version: 1
+            plugins:
+              echo:
+                enabled: true
+                source: plugins/echo
+                permissions: {}
+                resources:
+                  maxMemoryBytes: {{value}}
+            """);
+        var loader = new PluginConfigLoader();
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(directory.Path, CancellationToken.None));
+
+        Assert.Contains("resources.maxMemoryBytes must be positive", exception.Message, StringComparison.Ordinal);
+    }
 }

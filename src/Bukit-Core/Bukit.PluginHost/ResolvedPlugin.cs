@@ -17,7 +17,8 @@ public sealed record ResolvedPlugin(
     PluginOutputLimitOptions? Output = null,
     PluginPermissionSet? GrantedPermissions = null,
     IReadOnlyDictionary<string, string?>? EnvironmentVariables = null,
-    bool? Sha256Verified = null)
+    bool? Sha256Verified = null,
+    PluginResourceLimitOptions? Resources = null)
 {
     public IReadOnlyList<string> Arguments { get; init; } = Arguments ?? [];
     public PluginTimeoutOptions Timeout { get; init; } = Timeout ?? new PluginTimeoutOptions();

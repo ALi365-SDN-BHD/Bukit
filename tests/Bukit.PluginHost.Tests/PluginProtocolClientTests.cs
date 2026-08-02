@@ -1,3 +1,4 @@
+using Bukit.Plugin.Abstractions.Config;
 using Bukit.Plugin.Abstractions.Manifest;
 using Bukit.Plugin.Abstractions.Protocol;
 using Bukit.Plugin.Abstractions.Runtime;
@@ -307,6 +308,40 @@ public sealed class PluginProtocolClientTests
             "Plugin artifact path must be a project-relative safe path.");
     }
 
+    [Fact]
+    public async Task InvokeAsync_ForwardsConfiguredResourceLimits()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"invokeResponse","protocol":"bukit-plugin-v1","requestId":"req-3","success":true,"exitCode":0}
+            """);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+        var plugin = CreatePlugin(resources: new PluginResourceLimitOptions(
+            MaxCpuTimeMs: 10000, MaxMemoryBytes: 536870912L));
+
+        await client.InvokeAsync(plugin, CreateInvokeRequest(), CancellationToken.None);
+
+        Assert.NotNull(invoker.Request);
+        Assert.Equal(TimeSpan.FromMilliseconds(10000), invoker.Request!.MaxCpuTime);
+        Assert.Equal(536870912L, invoker.Request.MaxMemoryBytes);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_NullResources_ForwardsNoLimits()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"invokeResponse","protocol":"bukit-plugin-v1","requestId":"req-3","success":true,"exitCode":0}
+            """);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        await client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None);
+
+        Assert.NotNull(invoker.Request);
+        Assert.Null(invoker.Request!.MaxCpuTime);
+        Assert.Null(invoker.Request.MaxMemoryBytes);
+    }
+
     private static void AssertProtocolFailure(
         ConfigException exception,
         string code,
@@ -316,7 +351,9 @@ public sealed class PluginProtocolClientTests
         Assert.Equal($"{code}: {detail}", exception.Message);
     }
 
-    private static ResolvedPlugin CreatePlugin(string? projectRoot = null)
+    private static ResolvedPlugin CreatePlugin(
+        string? projectRoot = null,
+        PluginResourceLimitOptions? resources = null)
     {
         string executablePath = projectRoot is null
             ? "/site/plugins/echo/bin/osx-arm64/bukit-plugin-echo"
@@ -331,7 +368,8 @@ public sealed class PluginProtocolClientTests
             ExecutablePath: executablePath,
             WorkingDirectory: workingDirectory,
             Host: new PluginHostInfo("Bukit", "1.0.0", "osx-arm64"),
-            ProjectRoot: projectRoot);
+            ProjectRoot: projectRoot,
+            Resources: resources);
     }
 
     private static PluginInvokeRequest CreateInvokeRequest(

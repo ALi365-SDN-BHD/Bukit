@@ -35,4 +35,38 @@ public sealed class PluginConfigDtoTests
         Assert.Equal(2000, entry.Timeout.InvokeMs);
         Assert.Equal(1024, entry.Output.ResponseMaxBytes);
     }
+
+    [Fact]
+    public void PluginConfigEntry_Resources_DefaultsToNull()
+    {
+        var entry = new PluginConfigEntry(
+            Enabled: true,
+            Source: "plugins/echo");
+
+        Assert.Null(entry.Resources);
+    }
+
+    [Fact]
+    public void PluginConfigEntry_Resources_CarriesConfiguredLimits()
+    {
+        var entry = new PluginConfigEntry(
+            Enabled: true,
+            Source: "plugins/echo",
+            Resources: new PluginResourceLimitOptions(
+                MaxCpuTimeMs: 5000,
+                MaxMemoryBytes: 268435456L));
+
+        Assert.NotNull(entry.Resources);
+        Assert.Equal(5000, entry.Resources!.MaxCpuTimeMs);
+        Assert.Equal(268435456L, entry.Resources.MaxMemoryBytes);
+    }
+
+    [Fact]
+    public void PluginResourceLimitOptions_NullFieldsRemainNull()
+    {
+        var options = new PluginResourceLimitOptions();
+
+        Assert.Null(options.MaxCpuTimeMs);
+        Assert.Null(options.MaxMemoryBytes);
+    }
 }

@@ -126,6 +126,7 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
         bool permissionsExplicit = true;
         var timeout = ReadTimeout(PluginYaml.GetOptionalMapping(node, "timeout"));
         var output = ReadOutput(PluginYaml.GetOptionalMapping(node, "output"));
+        var resources = ReadResources(PluginYaml.GetOptionalMapping(node, "resources"));
 
         return new PluginConfigEntry(
             enabled,
@@ -139,7 +140,8 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
             description,
             permissionsExplicit,
             exposeCommandsDeclared,
-            manifestPolicy);
+            manifestPolicy,
+            resources);
     }
 
     private static PluginPermissionSet ReadPermissions(string pluginId, YamlMappingNode? node)
@@ -196,5 +198,32 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
             StdoutMaxBytes: PluginYaml.GetOptionalInt(node, "stdoutMaxBytes") ?? 4194304,
             StderrMaxBytes: PluginYaml.GetOptionalInt(node, "stderrMaxBytes") ?? 4194304,
             ResponseMaxBytes: PluginYaml.GetOptionalInt(node, "responseMaxBytes") ?? 4194304);
+    }
+
+    private static PluginResourceLimitOptions? ReadResources(YamlMappingNode? node)
+    {
+        if (node is null)
+        {
+            return null;
+        }
+
+        int? maxCpuTimeMs = PluginYaml.GetOptionalInt(node, "maxCpuTimeMs");
+        long? maxMemoryBytes = PluginYaml.GetOptionalLong(node, "maxMemoryBytes");
+
+        if (maxCpuTimeMs is not null && maxCpuTimeMs.Value <= 0)
+        {
+            throw new ConfigException(
+                "resources.maxCpuTimeMs must be positive.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        if (maxMemoryBytes is not null && maxMemoryBytes.Value <= 0)
+        {
+            throw new ConfigException(
+                "resources.maxMemoryBytes must be positive.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return new PluginResourceLimitOptions(maxCpuTimeMs, maxMemoryBytes);
     }
 }

@@ -105,6 +105,22 @@ internal static class PluginYaml
         throw new ConfigException($"{key} must be an integer.", DiagnosticCode.ConfigInvalidValue);
     }
 
+    internal static long? GetOptionalLong(YamlMappingNode? node, string key)
+    {
+        string? value = GetOptionalString(node, key);
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed))
+        {
+            return parsed;
+        }
+
+        throw new ConfigException($"{key} must be an integer.", DiagnosticCode.ConfigInvalidValue);
+    }
+
     internal static IReadOnlyList<string> ReadStringList(YamlMappingNode? node, string key)
     {
         (bool present, IReadOnlyList<string> values) = ReadStringListWithPresence(node, key);

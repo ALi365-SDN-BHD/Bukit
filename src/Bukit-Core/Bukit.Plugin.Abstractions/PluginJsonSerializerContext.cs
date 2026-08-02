@@ -11,6 +11,7 @@ namespace Bukit.Plugin.Abstractions;
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(PluginHostConfig))]
 [JsonSerializable(typeof(PluginConfigEntry))]
+[JsonSerializable(typeof(PluginResourceLimitOptions))]
 [JsonSerializable(typeof(PluginManifest))]
 [JsonSerializable(typeof(PluginPlatformEntry))]
 [JsonSerializable(typeof(PluginCommandSpec))]
