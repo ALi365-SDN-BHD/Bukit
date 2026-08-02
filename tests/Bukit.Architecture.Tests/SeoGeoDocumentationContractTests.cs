@@ -70,6 +70,36 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal(
             "^https?://",
             change.GetProperty("properties").GetProperty("url").GetProperty("pattern").GetString());
+
+        using var routeMapSchema = ReadJson("docs", "schemas", "seo-route-map.v1.schema.json");
+        var routeMapRoot = routeMapSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", routeMapRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-route-map.v1.json", routeMapRoot.GetProperty("$id").GetString());
+        Assert.False(routeMapRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "generatedAt", "siteUrl", "baseUrl", "routes"],
+            routeMapRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var routeMapSiteUrl = routeMapRoot.GetProperty("properties").GetProperty("siteUrl");
+        Assert.Equal(string.Empty, routeMapSiteUrl.GetProperty("oneOf")[0].GetProperty("const").GetString());
+        Assert.Equal("^https?://", routeMapSiteUrl.GetProperty("oneOf")[1].GetProperty("pattern").GetString());
+
+        var routeMapRoutes = routeMapRoot.GetProperty("properties").GetProperty("routes");
+        Assert.False(routeMapRoutes.TryGetProperty("uniqueItems", out _));
+        var routeMapEntry = routeMapRoutes.GetProperty("items");
+        Assert.False(routeMapEntry.GetProperty("additionalProperties").GetBoolean());
+        Assert.DoesNotContain(
+            "contentKey",
+            routeMapEntry.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            "^route:sha256:[0-9a-f]{64}$",
+            routeMapEntry.GetProperty("properties").GetProperty("routeKey").GetProperty("pattern").GetString());
+        Assert.Equal("^/", routeMapEntry.GetProperty("properties").GetProperty("route").GetProperty("pattern").GetString());
+        var canonical = routeMapEntry.GetProperty("properties").GetProperty("canonical");
+        Assert.Equal("^https?://", canonical.GetProperty("oneOf")[0].GetProperty("pattern").GetString());
+        Assert.Equal("^/", canonical.GetProperty("oneOf")[1].GetProperty("pattern").GetString());
+        var contentKey = routeMapEntry.GetProperty("properties").GetProperty("contentKey").GetProperty("oneOf");
+        Assert.Equal("^content:sha256:[0-9a-f]{64}$", contentKey[0].GetProperty("pattern").GetString());
+        Assert.Equal("null", contentKey[1].GetProperty("type").GetString());
     }
 
     [Fact]

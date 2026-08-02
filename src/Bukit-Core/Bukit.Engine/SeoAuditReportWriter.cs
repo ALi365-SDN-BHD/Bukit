@@ -77,6 +77,7 @@ internal static partial class SeoAuditReportWriter
         var json = JsonSerializer.Serialize(report, SeoAuditReportJsonContext.Default.SeoAuditReport);
         FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "seo-report.json"), json + Environment.NewLine);
         PublishAuditReportWriter.Write(outputDir, result.PublishReport);
+        SeoRouteMapWriter.Write(outputDir, result.RouteMap);
 
         WriteGeoReport(outputDir, report, logger);
 
