@@ -445,7 +445,21 @@ public static class DoctorCommand
             var factory = new DefaultContentProviderFactory();
             var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Error));
             var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
-            PrintDataModuleSummary(contentResult.Documents);
+            try
+            {
+                PrintDataModuleSummary(contentResult.Documents);
+            }
+            finally
+            {
+                if (contentResult.BodyStore is IAsyncDisposable asyncDisposable)
+                {
+                    await asyncDisposable.DisposeAsync();
+                }
+                else if (contentResult.BodyStore is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
         }
         catch (Exception ex)
         {

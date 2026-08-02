@@ -460,6 +460,37 @@ public sealed class BodyCacheDecoratorTests
     }
 
     [Fact]
+    public async Task FailedFactoryConcurrentWithTrim_LeavesNoOrphanLruNode()
+    {
+        var inner = new DelegatingBodyStore((doc, _) =>
+            Task.FromException<ContentBody>(new InvalidOperationException("factory-fail")));
+        var decorator = new BodyCacheDecorator(inner, maxEntries: 2);
+
+        // Fill cache to capacity with successful first call
+        var callCount = 0;
+        var controlledInner = new DelegatingBodyStore((doc, _) =>
+        {
+            var count = Interlocked.Increment(ref callCount);
+            return count <= 2
+                ? Task.FromResult(new ContentBody($"<p>ok-{count}</p>"))
+                : Task.FromException<ContentBody>(new InvalidOperationException("factory-fail"));
+        });
+        var controlled = new BodyCacheDecorator(controlledInner, maxEntries: 2);
+
+        await controlled.GetAsync(CreateItem("a").ToDocument());
+        await controlled.GetAsync(CreateItem("b").ToDocument());
+
+        // Third entry triggers failed factory + trim
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => controlled.GetAsync(CreateItem("c").ToDocument()));
+
+        // Cache should still be consistent - verify by adding more entries
+        await controlled.GetAsync(CreateItem("d").ToDocument()).ContinueWith(_ => { });
+        var metrics = controlled.Metrics;
+        Assert.True(metrics.UniqueBodies <= 2, $"Expected <= 2 unique bodies, got {metrics.UniqueBodies}");
+    }
+
+    [Fact]
     public async Task GetAsync_AfterDispose_ThrowsObjectDisposedBeforeInlineBypass()
     {
         var decorator = new BodyCacheDecorator(new CountingBodyStore());

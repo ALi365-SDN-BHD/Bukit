@@ -65,33 +65,46 @@ public sealed class ContentPipeline
         var currentDocuments = input.Documents;
         var currentBodyStore = input.BodyStore;
         BodyCacheDecorator? bodyCache = null;
+        var ownsBodyCache = false;
         List<ContentValidationIssue>? allSchemaErrors = null;
 
-        foreach (var stage in _stages)
+        try
         {
-            var stageInput = input with { Documents = currentDocuments, BodyStore = currentBodyStore };
-            var sw = Stopwatch.StartNew();
-
-            var output = await stage.ExecuteAsync(stageInput, cancellationToken);
-
-            sw.Stop();
-            var actualDuration = output.DurationMs > 0 ? output.DurationMs : sw.ElapsedMilliseconds;
-            _logger.Info($"event=content.stage stage={stage.Name} duration_ms={actualDuration}");
-
-            currentDocuments = output.Documents;
-            currentBodyStore = output.BodyStore;
-
-            if (stage.Name == "ImageLocalize")
+            foreach (var stage in _stages)
             {
-                bodyCache = new BodyCacheDecorator(currentBodyStore, 10000, cancellationToken);
-                currentBodyStore = bodyCache;
-            }
+                var stageInput = input with { Documents = currentDocuments, BodyStore = currentBodyStore };
+                var sw = Stopwatch.StartNew();
 
-            if (output.SchemaErrors is { Count: > 0 } errors)
-            {
-                allSchemaErrors ??= new List<ContentValidationIssue>();
-                allSchemaErrors.AddRange(errors);
+                var output = await stage.ExecuteAsync(stageInput, cancellationToken);
+
+                sw.Stop();
+                var actualDuration = output.DurationMs > 0 ? output.DurationMs : sw.ElapsedMilliseconds;
+                _logger.Info($"event=content.stage stage={stage.Name} duration_ms={actualDuration}");
+
+                currentDocuments = output.Documents;
+                currentBodyStore = output.BodyStore;
+
+                if (stage.Name == "ImageLocalize")
+                {
+                    bodyCache = new BodyCacheDecorator(currentBodyStore, 10000, cancellationToken);
+                    currentBodyStore = bodyCache;
+                    ownsBodyCache = true;
+                }
+
+                if (output.SchemaErrors is { Count: > 0 } errors)
+                {
+                    allSchemaErrors ??= new List<ContentValidationIssue>();
+                    allSchemaErrors.AddRange(errors);
+                }
             }
+        }
+        catch
+        {
+            if (ownsBodyCache && bodyCache is not null)
+            {
+                await bodyCache.DisposeAsync();
+            }
+            throw;
         }
 
         var contentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(currentDocuments);

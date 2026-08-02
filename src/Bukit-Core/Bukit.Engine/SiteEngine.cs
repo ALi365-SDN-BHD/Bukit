@@ -162,7 +162,8 @@ public sealed class SiteEngine
                     templateHashCache, plan.StartedAt, buildLogger, cancellationToken);
 
                 buildLogger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
-                MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, contentResult.BodyCacheMetrics);
+                bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
+                MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, bodyCacheMetrics);
                 var generatedFiles = BuildOutputInventory.Create(plan.OutputDir);
                 plan.Stopwatch.Stop();
                 var singleLanguageBuildResult = BuildResultFactory.Create(
@@ -186,6 +187,7 @@ public sealed class SiteEngine
                 return singleLanguageBuildResult;
             }
 
+            bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
             return await BuildMultiLanguageAsync(
                 effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
                 plan.LayoutsDir, assetWorkspace.AssetsDir, assetWorkspace.ScssOutputDir, plan.StaticDir, plan.MediaCacheDir,
@@ -199,6 +201,9 @@ public sealed class SiteEngine
             await DisposeBodyStoreAsync(bodyStore);
         }
     }
+
+    private static BodyCacheMetrics? RefreshBodyCacheMetrics(IContentBodyStore bodyStore)
+        => bodyStore is BodyCacheDecorator cache ? cache.Metrics : null;
 
     private static async ValueTask DisposeBodyStoreAsync(IContentBodyStore bodyStore)
     {

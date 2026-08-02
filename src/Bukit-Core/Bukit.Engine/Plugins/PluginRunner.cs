@@ -215,6 +215,7 @@ public static class PluginRunner
             var sw = Stopwatch.StartNew();
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var pages = plugin switch
                 {
                     IDerivePagesAsyncPlugin deriveAsync => await deriveAsync.DerivePagesAsync(context, cancellationToken),
@@ -458,6 +459,7 @@ public static class PluginRunner
             var sw = Stopwatch.StartNew();
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 switch (plugin)
                 {
                     case IAfterBuildAsyncPlugin afterAsync:

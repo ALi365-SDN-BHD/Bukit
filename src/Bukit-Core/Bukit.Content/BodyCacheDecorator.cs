@@ -147,19 +147,17 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
         var removeCount = Math.Max(_maxEntries / 10, 1);
         for (var i = 0; i < removeCount; i++)
         {
-            string? keyToRemove;
             lock (_lruLock)
             {
                 if (_lruList.First is null)
                 {
                     break;
                 }
-                keyToRemove = _lruList.First.Value;
+                var keyToRemove = _lruList.First.Value;
                 _lruList.RemoveFirst();
                 _lruNodes.TryRemove(keyToRemove, out _);
+                _cache.TryRemove(keyToRemove, out _);
             }
-
-            _cache.TryRemove(keyToRemove, out _);
             Interlocked.Increment(ref _cacheSkips);
         }
     }

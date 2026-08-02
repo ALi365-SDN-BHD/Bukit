@@ -217,6 +217,42 @@ public sealed class PluginRunnerTests
     }
 
     [Fact]
+    public async Task RunDerivePages_AlreadyCancelled_ThrowsBeforePluginExecution()
+    {
+        var plugin = new BlockingDerivePlugin();
+        var (context, config) = CreateContext(pluginFailMode: "warn");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            PluginRunner.RunDerivePagesAsync(
+                context,
+                PluginExecutionPolicy.From(config.Site),
+                [((IBukitPlugin)plugin, "test")],
+                cts.Token));
+
+        Assert.DoesNotContain(context.PluginExecutions, e => e.Name == "blocking-derive");
+    }
+
+    [Fact]
+    public async Task RunAfterBuild_AlreadyCancelled_ThrowsBeforePluginExecution()
+    {
+        var plugin = new BlockingAfterBuildPlugin();
+        var (context, config) = CreateContext(pluginFailMode: "warn");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            PluginRunner.RunAfterBuildAsync(
+                context,
+                PluginExecutionPolicy.From(config.Site),
+                [((IBukitPlugin)plugin, "test")],
+                cts.Token));
+
+        Assert.DoesNotContain(context.PluginExecutions, e => e.Name == "blocking-after");
+    }
+
+    [Fact]
     public async Task RunDerivePages_RecordsPluginExecutionInfo()
     {
         var (ctx, config) = CreateContext(plugins: DisableAfterBuildPlugins());
