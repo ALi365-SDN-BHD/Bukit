@@ -20,9 +20,12 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             ["image/png"] = ".png",
             ["image/gif"] = ".gif",
             ["image/webp"] = ".webp",
-            ["image/svg+xml"] = ".svg",
             ["image/avif"] = ".avif",
-            ["image/bmp"] = ".bmp"
+            ["image/bmp"] = ".bmp",
+            ["image/x-icon"] = ".ico",
+            ["image/vnd.microsoft.icon"] = ".ico",
+            ["image/ico"] = ".ico",
+            ["image/tiff"] = ".tiff"
         };
 
     internal static readonly HashSet<string> AllowedExtensions =
@@ -261,6 +264,30 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     continue;
                 }
 
+                bool signatureMatches;
+                try
+                {
+                    signatureMatches = await ImageContentSignature.MatchesFileAsync(
+                        tempPath,
+                        contentType!,
+                        cts.Token);
+                }
+                catch
+                {
+                    DeleteFileBestEffort(tempPath);
+                    throw;
+                }
+
+                if (!signatureMatches)
+                {
+                    DeleteFileBestEffort(tempPath);
+                    _logger?.Warn(
+                        $"event=media.signature_rejected type={contentType} source={UrlRedactor.Redact(source)}");
+                    return RecordFailure(
+                        source,
+                        "Image content signature does not match Content-Type.");
+                }
+
                 MoveTempFileIntoPlace(tempPath, localPath);
 
                 var publicUrl = _indexManager.CombineUrl(fileName);
@@ -405,14 +432,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
     private static bool IsAllowedContentType(string? contentType)
     {
-        if (string.IsNullOrWhiteSpace(contentType))
-        {
-            return true;
-        }
-
-        var ct = contentType.Trim();
-        return ct.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(ct, "application/octet-stream", StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(contentType) &&
+               ContentTypeToExt.ContainsKey(contentType.Trim());
     }
 
     private static async Task DelayBeforeRetryAsync(

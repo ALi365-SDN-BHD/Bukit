@@ -140,7 +140,7 @@ public sealed class ImageAssetLocalizerTests
 
             var stream = new DirectoryObservingReadStream(
                 dir,
-                Encoding.UTF8.GetBytes("fake-image-streaming-payload"),
+                CreateImagePayload("image/jpeg", "fake-image-streaming-payload"),
                 chunkSize: 4);
             var handler = new StreamingHandler("image/jpeg", stream);
             using var http = new HttpClient(handler);
@@ -601,7 +601,7 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
-    public async Task LocalizeAsync_ApplicationOctetStream_IsAllowed()
+    public async Task LocalizeAsync_ApplicationOctetStream_IsRejected()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dir);
@@ -620,7 +620,8 @@ public sealed class ImageAssetLocalizerTests
             using var localizer = new ImageAssetLocalizer(cfg, http);
             var result = await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
 
-            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
+            Assert.Equal("/assets/images/noneimg-news.jpg", result);
+            Assert.Empty(Directory.GetFiles(dir));
         }
         finally
         {
@@ -632,7 +633,7 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
-    public async Task LocalizeAsync_MissingContentType_IsAllowedAndFallsBackToUrlExtension()
+    public async Task LocalizeAsync_MissingContentType_IsRejected()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dir);
@@ -651,8 +652,9 @@ public sealed class ImageAssetLocalizerTests
             using var localizer = new ImageAssetLocalizer(cfg, http);
             var result = await localizer.LocalizeAsync("https://img.example/a.webp", CancellationToken.None);
 
-            Assert.EndsWith(".webp", result, StringComparison.Ordinal);
+            Assert.Equal("/assets/images/noneimg-news.jpg", result);
             Assert.Equal(1, handler.RequestCount);
+            Assert.Empty(Directory.GetFiles(dir));
         }
         finally
         {
@@ -661,6 +663,98 @@ public sealed class ImageAssetLocalizerTests
                 Directory.Delete(dir, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_SvgContentType_IsRejected()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/svg+xml", "<svg></svg>");
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+
+            var result = await localizer.LocalizeAsync(
+                "https://img.example/a.svg",
+                CancellationToken.None);
+
+            Assert.Equal("/assets/images/noneimg-news.jpg", result);
+            Assert.Empty(Directory.GetFiles(dir));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_ContentTypeSignatureMismatch_DeletesTempAndDoesNotIndex()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+            var handler = new ByteArrayHandler(
+                "image/png",
+                CreateImagePayload("image/jpeg", "not-a-png"));
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+
+            var result = await localizer.LocalizeAsync(
+                "https://img.example/a.png",
+                CancellationToken.None);
+
+            Assert.Equal("/assets/images/noneimg-news.jpg", result);
+            var failure = Assert.Single(localizer.Failures);
+            Assert.Equal("Image content signature does not match Content-Type.", failure.Reason);
+            localizer.Dispose();
+            Assert.Empty(Directory.GetFiles(dir));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    public static TheoryData<string, byte[]> SupportedImageSignatures => new()
+    {
+        { "image/jpeg", [0xFF, 0xD8, 0xFF, 0x00] },
+        { "image/png", [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] },
+        { "image/gif", Encoding.ASCII.GetBytes("GIF89a") },
+        { "image/webp", [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50] },
+        { "image/avif", [0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66, 0, 0, 0, 0] },
+        { "image/bmp", [0x42, 0x4D] },
+        { "image/x-icon", [0, 0, 1, 0] },
+        { "image/tiff", [0x49, 0x49, 0x2A, 0] }
+    };
+
+    [Theory]
+    [MemberData(nameof(SupportedImageSignatures))]
+    public void ImageContentSignature_MatchesSupportedFormats(string contentType, byte[] payload)
+    {
+        Assert.True(ImageContentSignature.Matches(contentType, payload));
     }
 
     [Fact]
@@ -846,7 +940,7 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
-    public async Task LocalizeAsync_UnsafeExtensionNoContentType_UsesImgExtension()
+    public async Task LocalizeAsync_UnsafeExtensionWithOctetStream_IsRejected()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dir);
@@ -860,15 +954,13 @@ public sealed class ImageAssetLocalizerTests
                 DefaultImageUrl = "/assets/images/noneimg-news.jpg"
             };
 
-            // URL ends with .exe and no recognized content-type
             var handler = new CountingHandler(HttpStatusCode.OK, "application/octet-stream", "fake-image");
             using var http = new HttpClient(handler);
             using var localizer = new ImageAssetLocalizer(cfg, http);
             var result = await localizer.LocalizeAsync("https://img.example/a.exe", CancellationToken.None);
 
-            Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
-            // .exe is not in AllowedExtensions, so it should fall back to .img
-            Assert.EndsWith(".img", result, StringComparison.Ordinal);
+            Assert.Equal("/assets/images/noneimg-news.jpg", result);
+            Assert.Empty(Directory.GetFiles(dir));
         }
         finally
         {
@@ -1220,7 +1312,7 @@ public sealed class ImageAssetLocalizerTests
             RequestedUrls.Add(request.RequestUri?.ToString() ?? string.Empty);
             var response = new HttpResponseMessage(_statusCode)
             {
-                Content = new StringContent(_payload, Encoding.UTF8)
+                Content = new ByteArrayContent(CreateImagePayload(_contentType, _payload))
             };
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
             return Task.FromResult(response);
@@ -1283,7 +1375,7 @@ public sealed class ImageAssetLocalizerTests
 
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(_payload, Encoding.UTF8)
+                Content = new ByteArrayContent(CreateImagePayload(_contentType, _payload))
             };
             response.Content.Headers.ContentType =
                 new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
@@ -1333,7 +1425,7 @@ public sealed class ImageAssetLocalizerTests
 
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(_payload, Encoding.UTF8)
+                Content = new ByteArrayContent(CreateImagePayload(_contentType, _payload))
             };
             response.Content.Headers.ContentType =
                 new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
@@ -1482,6 +1574,24 @@ public sealed class ImageAssetLocalizerTests
         }
     }
 
+    private sealed class ByteArrayHandler(string contentType, byte[] payload) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            _ = request;
+            _ = cancellationToken;
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(payload)
+            };
+            response.Content.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+            return Task.FromResult(response);
+        }
+    }
+
     private sealed class SequenceHandler : HttpMessageHandler
     {
         private readonly Queue<Func<HttpRequestMessage, HttpResponseMessage>> _responses;
@@ -1556,7 +1666,7 @@ public sealed class ImageAssetLocalizerTests
             RequestCount++;
             var response = new HttpResponseMessage(_statusCode)
             {
-                Content = new StringContent(_payload, Encoding.UTF8)
+                Content = new ByteArrayContent(CreateImagePayload(_contentType, _payload))
             };
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(_contentType);
             return Task.FromResult(response);
@@ -1578,10 +1688,34 @@ public sealed class ImageAssetLocalizerTests
     {
         var response = new HttpResponseMessage(statusCode)
         {
-            Content = new StringContent(payload, Encoding.UTF8)
+            Content = new ByteArrayContent(CreateImagePayload(contentType, payload))
         };
         response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
         return response;
+    }
+
+    private static byte[] CreateImagePayload(string contentType, string payload)
+    {
+        var body = Encoding.UTF8.GetBytes(payload);
+        if (body.Length == 0)
+        {
+            return body;
+        }
+
+        byte[] signature = contentType.ToLowerInvariant() switch
+        {
+            "image/jpeg" or "image/jpg" => [0xFF, 0xD8, 0xFF],
+            "image/png" => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+            "image/gif" => Encoding.ASCII.GetBytes("GIF89a"),
+            "image/webp" => [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50],
+            "image/avif" => [0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66, 0, 0, 0, 0],
+            "image/bmp" => [0x42, 0x4D],
+            "image/x-icon" or "image/vnd.microsoft.icon" or "image/ico" => [0, 0, 1, 0],
+            "image/tiff" => [0x49, 0x49, 0x2A, 0],
+            _ => []
+        };
+
+        return [.. signature, .. body];
     }
 
     private static string BuildHashPrefix(string normalizedKey)

@@ -51,6 +51,12 @@ Body stores avoid rendering every body up front. Markdown uses
 media through `ImageAssetLocalizer`, applies SSRF protections, and writes an
 index through `MediaIndexManager`.
 
+Remote media requires an explicit supported image Content-Type and matching
+file signature. JPEG, PNG, GIF, WebP, AVIF, BMP, ICO, and TIFF are accepted;
+missing Content-Type, `application/octet-stream`, SVG, and header/body format
+mismatches are rejected. A rejected download is removed before it can be moved
+into place, cached, or added to the media index.
+
 Each rewrite operation creates a download-level gate shared by documents, HTML,
 and media fields. `LocalizedContentBodyStore` uses one lazy store-level gate for
 concurrent reads. `content.media.maxConcurrency` therefore limits active
