@@ -51,6 +51,64 @@ public sealed class SystemProcessRunnerTests
     }
 
     [Fact]
+    public async Task RunAsync_TimeoutBoundsBlockedStdinWriteAndKillsProcess()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string markerPath = System.IO.Path.Combine(directory.Path, "timeout-completed.txt");
+        string largeInput = new('x', 8 * 1024 * 1024);
+        var runner = new SystemProcessRunner();
+        var stopwatch = Stopwatch.StartNew();
+
+        ProcessRunResult result = await runner.RunAsync(
+            ProbeRequest(
+                arguments: ["ignore-stdin-then-mark", "30000", markerPath],
+                stdin: largeInput,
+                timeoutMs: 150),
+            CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
+
+        stopwatch.Stop();
+        Assert.True(result.TimedOut);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5));
+        Assert.False(File.Exists(markerPath));
+    }
+
+    [Fact]
+    public async Task RunAsync_CancellationDuringBlockedStdinWriteKillsProcess()
+    {
+        using TestDirectory directory = TestDirectory.Create();
+        string markerPath = System.IO.Path.Combine(directory.Path, "cancel-completed.txt");
+        string largeInput = new('x', 8 * 1024 * 1024);
+        var runner = new SystemProcessRunner();
+        using var cts = new CancellationTokenSource(150);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => runner.RunAsync(
+                ProbeRequest(
+                    arguments: ["ignore-stdin-then-mark", "1000", markerPath],
+                    stdin: largeInput,
+                    timeoutMs: 10000),
+                cts.Token).WaitAsync(TimeSpan.FromSeconds(5)));
+
+        await Task.Delay(1200);
+        Assert.False(File.Exists(markerPath));
+    }
+
+    [Fact]
+    public async Task RunAsync_ChildExitDuringStdinWriteReturnsExitCode()
+    {
+        var runner = new SystemProcessRunner();
+
+        ProcessRunResult result = await runner.RunAsync(
+            ProbeRequest(
+                arguments: ["exit-without-reading-stdin", "7"],
+                stdin: new string('x', 8 * 1024 * 1024)),
+            CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(7, result.ExitCode);
+        Assert.False(result.TimedOut);
+    }
+
+    [Fact]
     public async Task RunAsync_EnforcesStdoutLimit()
     {
         var runner = new SystemProcessRunner();

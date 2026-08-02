@@ -40,6 +40,19 @@ switch (command)
             return 0;
         }
 
+    case "ignore-stdin-then-mark":
+        {
+            int milliseconds = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
+            await Task.Delay(milliseconds);
+            await File.WriteAllTextAsync(args[2], "completed");
+            return 0;
+        }
+
+    case "exit-without-reading-stdin":
+        return args.Length > 1 && int.TryParse(args[1], out int noReadExitCode)
+            ? noReadExitCode
+            : 1;
+
     case "utf8":
         {
             await Console.OpenStandardOutput().WriteAsync(Encoding.UTF8.GetBytes("你好"));

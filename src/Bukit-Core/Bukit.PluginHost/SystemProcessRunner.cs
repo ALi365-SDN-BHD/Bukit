@@ -51,23 +51,43 @@ public sealed class SystemProcessRunner : IProcessRunner
                 process, request.MaxCpuTime, request.MaxMemoryBytes, linkedCts.Token);
         }
 
-        await WriteStandardInputAsync(process, request.StandardInput, cancellationToken);
-
         bool timedOut = false;
         try
         {
+            await WriteStandardInputAsync(process, request.StandardInput, linkedCts.Token);
+            CloseStandardInputBestEffort(process);
             await process.WaitForExitAsync(linkedCts.Token);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
             timedOut = true;
-            KillProcess(process);
-            await process.WaitForExitAsync(CancellationToken.None);
+            await TerminateProcessAsync(process);
         }
         catch (OperationCanceledException)
         {
-            KillProcess(process);
+            await TerminateProcessAsync(process);
+            await ObserveOutputTasksAsync(stdoutTask, stderrTask);
+            if (resourceMonitorTask is not null)
+            {
+                await ObserveTaskAsync(resourceMonitorTask);
+            }
+
             throw;
+        }
+        catch
+        {
+            await TerminateProcessAsync(process);
+            await ObserveOutputTasksAsync(stdoutTask, stderrTask);
+            if (resourceMonitorTask is not null)
+            {
+                await ObserveTaskAsync(resourceMonitorTask);
+            }
+
+            throw;
+        }
+        finally
+        {
+            CloseStandardInputBestEffort(process);
         }
 
         // Check if resource monitor killed the process
@@ -169,12 +189,56 @@ public sealed class SystemProcessRunner : IProcessRunner
             await process.StandardInput.WriteAsync(standardInput.AsMemory(), cancellationToken);
             await process.StandardInput.FlushAsync(cancellationToken);
         }
-        catch (IOException) when (process.HasExited)
+        catch (IOException)
         {
         }
-        finally
+    }
+
+    private static void CloseStandardInputBestEffort(Process process)
+    {
+        try
         {
             process.StandardInput.Close();
+        }
+        catch (IOException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private static async Task TerminateProcessAsync(Process process)
+    {
+        KillProcess(process);
+        try
+        {
+            await process.WaitForExitAsync(CancellationToken.None);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    private static async Task ObserveOutputTasksAsync(
+        Task<LimitedOutput> stdoutTask,
+        Task<LimitedOutput> stderrTask)
+    {
+        await ObserveTaskAsync(stdoutTask);
+        await ObserveTaskAsync(stderrTask);
+    }
+
+    private static async Task ObserveTaskAsync(Task task)
+    {
+        try
+        {
+            await task;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (IOException)
+        {
         }
     }
 
