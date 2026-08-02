@@ -46,6 +46,22 @@ public sealed class SeoObservationUrlNormalizerTests
     }
 
     [Fact]
+    public void Normalize_PreservesValidPercentAndQueryPairIdentities()
+    {
+        var result = SeoObservationUrlNormalizer.Normalize(
+            "https://example.com/search?percent=%25&encodedPlus=%2B&literalPlus=+&space=%20&dup=2&dup=1&dup=1&blank=&blank",
+            Options());
+
+        Assert.True(result.Success);
+        Assert.Equal(
+            "https://example.com/search/?blank&blank=&dup=1&dup=1&dup=2&encodedPlus=%2B&literalPlus=%2B&percent=%25&space=%20",
+            result.NormalizedUrl);
+        Assert.Equal(
+            "/search/?blank&blank=&dup=1&dup=1&dup=2&encodedPlus=%2B&literalPlus=%2B&percent=%25&space=%20",
+            result.MatchKey);
+    }
+
+    [Fact]
     public void Normalize_NormalizesSchemeUnicodeHostAndDefaultPort()
     {
         var options = new SeoObservationUrlOptions(
@@ -91,6 +107,9 @@ public sealed class SeoObservationUrlNormalizerTests
 
     [Theory]
     [InlineData("not-an-absolute-url", "invalid_url")]
+    [InlineData("https://example.com/bad%", "invalid_url")]
+    [InlineData("https://example.com/search?na%2=value", "invalid_url")]
+    [InlineData("https://example.com/search?name=%ZZ", "invalid_url")]
     [InlineData("ftp://example.com/file", "unsupported_scheme")]
     [InlineData("https://user:secret@example.com/page", "credentials_not_allowed")]
     [InlineData("https://undeclared.example/page", "host_not_allowed")]

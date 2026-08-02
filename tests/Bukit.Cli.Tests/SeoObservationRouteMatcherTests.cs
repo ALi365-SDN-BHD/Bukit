@@ -112,12 +112,26 @@ public sealed class SeoObservationRouteMatcherTests
             new RouteDefinition("route:z", null, "/z/", "/z/"),
             new RouteDefinition("route:a", "content:a", "/a/", "/a/")
         };
-        var (_, routeMap) = CreateMatcher(definitions);
+        var routeMap = CreateRouteMap(definitions);
         var before = ReadRouteMapEntries(routeMap);
 
         _ = CreateMatcherFromMap(routeMap);
 
         Assert.Equal(before, ReadRouteMapEntries(routeMap));
+    }
+
+    [Theory]
+    [InlineData("/bad%ZZ/")]
+    [InlineData("https://canonical.example/bad%ZZ/")]
+    public void Construction_MalformedCanonicalFailsAsInvalidRouteMapData(string canonical)
+    {
+        var routeMap = CreateRouteMap([
+            new RouteDefinition("route:bad", null, "/bad/", canonical)
+        ]);
+
+        var exception = Assert.Throws<TargetInvocationException>(() => CreateMatcherFromMap(routeMap));
+
+        Assert.IsType<InvalidDataException>(exception.InnerException);
     }
 
     private static (SeoObservationRouteMatcher Matcher, object RouteMap) CreateMatcher(

@@ -25,6 +25,7 @@ internal static class SeoObservationUrlNormalizer
         SeoObservationUrlOptions options)
     {
         if (string.IsNullOrWhiteSpace(value) ||
+            !HasValidPercentEscapes(value) ||
             !Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
             string.IsNullOrWhiteSpace(uri.Host))
         {
@@ -62,6 +63,28 @@ internal static class SeoObservationUrlNormalizer
         var normalizedUrl = builder.Uri.AbsoluteUri;
         var matchKey = path + (query.Length == 0 ? string.Empty : "?" + query);
         return new SeoObservationUrlNormalizationResult(true, normalizedUrl, matchKey, null);
+    }
+
+    private static bool HasValidPercentEscapes(string value)
+    {
+        for (var index = 0; index < value.Length; index++)
+        {
+            if (value[index] != '%')
+            {
+                continue;
+            }
+
+            if (index + 2 >= value.Length ||
+                !char.IsAsciiHexDigit(value[index + 1]) ||
+                !char.IsAsciiHexDigit(value[index + 2]))
+            {
+                return false;
+            }
+
+            index += 2;
+        }
+
+        return true;
     }
 
     private static HashSet<string> AllowedHosts(SeoObservationUrlOptions options)
