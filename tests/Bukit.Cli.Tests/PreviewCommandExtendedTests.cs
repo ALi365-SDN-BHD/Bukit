@@ -100,6 +100,90 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     }
 
     [Fact]
+    public async Task PreviewRequestDispatcher_Bounds64BlockingRequestsAt32AndCancelsAllActiveWork()
+    {
+        var dispatcherType = typeof(PreviewCommand).Assembly.GetType("Bukit.Cli.Commands.PreviewRequestDispatcher");
+        Assert.NotNull(dispatcherType);
+        var dispatcher = Activator.CreateInstance(dispatcherType, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public, null, [32], null);
+        Assert.NotNull(dispatcher);
+        var schedule = dispatcherType.GetMethod("ScheduleAsync", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        var dispose = dispatcherType.GetMethod("DisposeAsync", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        Assert.NotNull(schedule);
+        Assert.NotNull(dispose);
+
+        var entered = 0;
+        var active = 0;
+        var peak = 0;
+        Func<CancellationToken, Task> blockingHandler = async cancellationToken =>
+        {
+            var current = Interlocked.Increment(ref active);
+            UpdatePeak(ref peak, current);
+            Interlocked.Increment(ref entered);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            finally
+            {
+                Interlocked.Decrement(ref active);
+            }
+        };
+
+        var schedules = Enumerable.Range(0, 64)
+            .Select(_ => Assert.IsAssignableFrom<Task>(schedule.Invoke(dispatcher, [blockingHandler, CancellationToken.None])))
+            .ToArray();
+
+        await WaitUntilAsync(() => Volatile.Read(ref entered) == 32, TimeSpan.FromSeconds(5));
+        Assert.Equal(32, Volatile.Read(ref peak));
+
+        var disposal = Assert.IsType<ValueTask>(dispose.Invoke(dispatcher, null));
+        await disposal;
+        await Task.WhenAll(schedules.Select(IgnoreCancellationAsync));
+
+        Assert.Equal(32, Volatile.Read(ref entered));
+        Assert.Equal(0, Volatile.Read(ref active));
+        Assert.All(schedules, task => Assert.True(task.IsCompleted));
+    }
+
+    private static void UpdatePeak(ref int peak, int current)
+    {
+        var observed = Volatile.Read(ref peak);
+        while (current > observed)
+        {
+            var prior = Interlocked.CompareExchange(ref peak, current, observed);
+            if (prior == observed)
+            {
+                return;
+            }
+
+            observed = prior;
+        }
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        using var cts = new CancellationTokenSource(timeout);
+        while (!condition())
+        {
+            await Task.Delay(10, cts.Token);
+        }
+    }
+
+    private static async Task IgnoreCancellationAsync(Task task)
+    {
+        try
+        {
+            await task;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    [Fact]
     public void ApplyPreviewAnalyticsPolicy_NullHtml_ReturnsNull()
     {
         var filtered = PreviewCommand.ApplyPreviewAnalyticsPolicy(null!, removeManagedAnalytics: true);

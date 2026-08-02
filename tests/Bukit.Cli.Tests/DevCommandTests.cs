@@ -795,6 +795,66 @@ public sealed class DevCommandTests
     }
 
     [Fact]
+    public async Task DevServerHost_RunAcceptLoopAsync_CancellationWaitsForActiveDispatch()
+    {
+        using var logger = new BufferingLogger();
+        using var host = DevServerHost.Start("localhost", 0, logger);
+        using var cts = new CancellationTokenSource();
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var loopTask = host.RunAcceptLoopAsync(async context =>
+        {
+            entered.TrySetResult(true);
+            await release.Task;
+            context.Response.StatusCode = 204;
+            context.Response.Close();
+        }, cts.Token);
+
+        using var client = new HttpClient();
+        var responseTask = client.GetAsync(host.Prefix);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        cts.Cancel();
+        Assert.NotSame(loopTask, await Task.WhenAny(loopTask, Task.Delay(100)));
+
+        release.TrySetResult(true);
+        await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
+        using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DevServerHost_Dispose_WaitsForDispatchBeforeDisposingRequestGate()
+    {
+        using var logger = new BufferingLogger();
+        var host = DevServerHost.Start("localhost", 0, logger);
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var loopTask = host.RunAcceptLoopAsync(async context =>
+        {
+            entered.TrySetResult(true);
+            await release.Task;
+            context.Response.StatusCode = 204;
+            context.Response.Close();
+        }, CancellationToken.None);
+
+        using var client = new HttpClient();
+        var responseTask = client.GetAsync(host.Prefix);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var disposeTask = Task.Run(host.Dispose);
+        Assert.NotSame(disposeTask, await Task.WhenAny(disposeTask, Task.Delay(100)));
+
+        release.TrySetResult(true);
+        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
+        await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
+        using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(response.IsSuccessStatusCode);
+    }
+
+    [Fact]
     public async Task DevWebSocketHub_HandleUpgradeAsync_RejectsWhenConnectionLimitReached()
     {
         using var listener = StartListener(out var prefix, out var port);

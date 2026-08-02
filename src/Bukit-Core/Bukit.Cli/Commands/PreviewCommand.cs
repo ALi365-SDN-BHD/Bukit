@@ -11,6 +11,8 @@ namespace Bukit.Cli.Commands;
 
 public static class PreviewCommand
 {
+    private const int MaxConcurrentRequests = 32;
+
     public static async Task<int> RunAsync(CliBoundCommand command)
         => await RunAsync(command, CancellationToken.None);
 
@@ -90,6 +92,7 @@ public static class PreviewCommand
         var (listener, prefix) = CreateAndStartListener(host, port, strictPort);
         using var startedListener = listener;
         using var cancellationRegistration = cancellationToken.Register(listener.Stop);
+        await using var dispatcher = new PreviewRequestDispatcher(MaxConcurrentRequests);
 
         Console.WriteLine($"Preview: {prefix}");
         Console.WriteLine($"Serving: {dir}");
@@ -102,9 +105,21 @@ public static class PreviewCommand
             try
             {
                 var context = await listener.GetContextAsync();
-                _ = Task.Run(
-                    () => HandleRequest(dir, context, removeManagedAnalytics),
-                    CancellationToken.None);
+                try
+                {
+                    await dispatcher.ScheduleAsync(
+                        requestCancellationToken => HandleRequestAsync(
+                            dir,
+                            context,
+                            removeManagedAnalytics,
+                            requestCancellationToken),
+                        cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    CloseResponseBestEffort(context);
+                    return 0;
+                }
             }
             catch (HttpListenerException) when (cancellationToken.IsCancellationRequested || !listener.IsListening)
             {
@@ -260,9 +275,17 @@ public static class PreviewCommand
     }
 
     private static void HandleRequest(string rootDir, HttpListenerContext context, bool removeManagedAnalytics)
+        => HandleRequestAsync(rootDir, context, removeManagedAnalytics, CancellationToken.None).GetAwaiter().GetResult();
+
+    private static async Task HandleRequestAsync(
+        string rootDir,
+        HttpListenerContext context,
+        bool removeManagedAnalytics,
+        CancellationToken cancellationToken)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var path = GetRawPath(context.Request);
             var candidate = DevPathGuard.TryResolveWithinRoot(rootDir, path);
             if (candidate is null)
@@ -294,24 +317,27 @@ public static class PreviewCommand
                 {
                     using var fs = File.OpenRead(candidate);
                     context.Response.ContentLength64 = fs.Length;
-                    fs.CopyTo(context.Response.OutputStream);
+                    await fs.CopyToAsync(context.Response.OutputStream, cancellationToken);
                 }
                 else
                 {
-                    var source = File.ReadAllBytes(candidate);
+                    var source = await File.ReadAllBytesAsync(candidate, cancellationToken);
                     var bytes = HtmlResponseByteTransformer.RewriteUtf8(
                         source,
                         html => ApplyPreviewAnalyticsPolicy(html, removeManagedAnalytics: true));
                     context.Response.ContentLength64 = bytes.Length;
-                    context.Response.OutputStream.Write(bytes, 0, bytes.Length);
+                    await context.Response.OutputStream.WriteAsync(bytes, cancellationToken);
                 }
             }
             else
             {
                 using var fs = File.OpenRead(candidate);
                 context.Response.ContentLength64 = fs.Length;
-                fs.CopyTo(context.Response.OutputStream);
+                await fs.CopyToAsync(context.Response.OutputStream, cancellationToken);
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         catch (Exception ex)
         {
@@ -332,6 +358,20 @@ public static class PreviewCommand
         var raw = request.RawUrl ?? request.Url?.AbsolutePath ?? "/";
         var queryIndex = raw.IndexOf('?', StringComparison.Ordinal);
         return queryIndex >= 0 ? raw[..queryIndex] : raw;
+    }
+
+    private static void CloseResponseBestEffort(HttpListenerContext context)
+    {
+        try
+        {
+            context.Response.Close();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     internal static PreviewAnalyticsPolicyResolution ResolveAnalyticsPolicyInPreview(string previewDir)
@@ -386,3 +426,147 @@ internal sealed record PreviewAnalyticsPolicyResolution(
     string Source,
     bool ConfigFound,
     Exception? Error);
+
+internal sealed class PreviewRequestDispatcher : IAsyncDisposable
+{
+    private readonly object _sync = new();
+    private readonly SemaphoreSlim _requestGate;
+    private readonly CancellationTokenSource _shutdown = new();
+    private readonly HashSet<Task> _requests = [];
+    private readonly TaskCompletionSource<bool> _disposeCompletion =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource<bool>? _schedulersDrained;
+    private int _activeSchedulers;
+    private bool _stopping;
+
+    internal PreviewRequestDispatcher(int maxConcurrentRequests)
+    {
+        if (maxConcurrentRequests <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxConcurrentRequests));
+        }
+
+        _requestGate = new SemaphoreSlim(maxConcurrentRequests, maxConcurrentRequests);
+    }
+
+    internal async Task ScheduleAsync(
+        Func<CancellationToken, Task> dispatchAsync,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(dispatchAsync);
+        lock (_sync)
+        {
+            if (_stopping)
+            {
+                throw new OperationCanceledException(_shutdown.Token);
+            }
+
+            _activeSchedulers++;
+        }
+
+        var permitOwned = false;
+        try
+        {
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                _shutdown.Token);
+            await _requestGate.WaitAsync(linkedCancellation.Token).ConfigureAwait(false);
+            permitOwned = true;
+
+            lock (_sync)
+            {
+                if (_stopping)
+                {
+                    throw new OperationCanceledException(_shutdown.Token);
+                }
+
+                _requests.RemoveWhere(task => task.IsCompleted);
+                var request = Task.Run(
+                    () => RunRequestAsync(dispatchAsync),
+                    CancellationToken.None);
+                _requests.Add(request);
+                permitOwned = false;
+            }
+        }
+        finally
+        {
+            if (permitOwned)
+            {
+                _requestGate.Release();
+            }
+
+            lock (_sync)
+            {
+                _activeSchedulers--;
+                if (_stopping && _activeSchedulers == 0)
+                {
+                    _schedulersDrained?.TrySetResult(true);
+                }
+            }
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Task schedulersDrained;
+        lock (_sync)
+        {
+            if (_stopping)
+            {
+                return new ValueTask(_disposeCompletion.Task);
+            }
+
+            _stopping = true;
+            if (_activeSchedulers == 0)
+            {
+                schedulersDrained = Task.CompletedTask;
+            }
+            else
+            {
+                _schedulersDrained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                schedulersDrained = _schedulersDrained.Task;
+            }
+        }
+
+        _shutdown.Cancel();
+        return new ValueTask(DisposeCoreAsync(schedulersDrained));
+    }
+
+    private async Task RunRequestAsync(Func<CancellationToken, Task> dispatchAsync)
+    {
+        try
+        {
+            await dispatchAsync(_shutdown.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            _requestGate.Release();
+        }
+    }
+
+    private async Task DisposeCoreAsync(Task schedulersDrained)
+    {
+        try
+        {
+            await schedulersDrained.ConfigureAwait(false);
+            Task[] requests;
+            lock (_sync)
+            {
+                requests = _requests.ToArray();
+            }
+
+            await Task.WhenAll(requests).ConfigureAwait(false);
+            _requestGate.Dispose();
+            _shutdown.Dispose();
+            _disposeCompletion.TrySetResult(true);
+        }
+        catch (Exception ex)
+        {
+            _disposeCompletion.TrySetException(ex);
+            throw;
+        }
+    }
+}

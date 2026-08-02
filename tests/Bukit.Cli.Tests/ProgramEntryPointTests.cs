@@ -122,6 +122,42 @@ public sealed class ProgramEntryPointTests : IDisposable
     }
 
     [Fact]
+    public void UnhandledError_WithJsonLogFormat_WritesOneJsonObjectAndDoesNotLeakInnerMessage()
+    {
+        var programType = typeof(VersionCommand).Assembly.EntryPoint?.DeclaringType
+            ?? throw new InvalidOperationException("Missing Bukit.Cli entry point type.");
+        var render = programType
+            .GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+            .FirstOrDefault(method => method.Name.Contains("PrintUnhandledError", StringComparison.Ordinal));
+        Assert.NotNull(render);
+        using var stderr = new StringWriter();
+        var originalErr = Console.Error;
+
+        try
+        {
+            Console.SetError(stderr);
+            var exitCode = Assert.IsType<int>(render.Invoke(null,
+            [
+                "build",
+                new InvalidOperationException("build failed", new Exception("token=do-not-leak")),
+                true
+            ]));
+
+            Assert.Equal(1, exitCode);
+        }
+        finally
+        {
+            Console.SetError(originalErr);
+        }
+
+        var envelope = stderr.ToString().TrimEnd('\r', '\n');
+        using var payload = System.Text.Json.JsonDocument.Parse(envelope);
+        Assert.Equal("build failed", payload.RootElement.GetProperty("errors")[0].GetProperty("message").GetString());
+        Assert.DoesNotContain("do-not-leak", stderr.ToString(), StringComparison.Ordinal);
+        Assert.Equal(envelope + Environment.NewLine, stderr.ToString());
+    }
+
+    [Fact]
     public async Task Main_BuildWithInvalidIntegerOption_ReturnsTwoAndPrintsUsage()
     {
         var result = await InvokeEntryPointAsync(["build", "--jobs", "NaN"]);

@@ -76,12 +76,7 @@ catch (RenderException ex)
 }
 catch (Exception ex)
 {
-    PrintError(command, 1, ex, isJsonErrorMode);
-    if (ex.InnerException is not null)
-    {
-        Console.Error.WriteLine(ex.InnerException.Message);
-    }
-    return 1;
+    return PrintUnhandledError(command, ex, isJsonErrorMode);
 }
 
 static int UnknownCommand(string command, bool isJsonErrorMode)
@@ -184,4 +179,10 @@ static void PrintError(string? command, int exitCode, Exception ex, bool isJsonE
     };
 
     _ = PrintDiagnostics(command, exitCode, diagnostics, usage: null, isJsonErrorMode);
+}
+
+static int PrintUnhandledError(string? command, Exception ex, bool isJsonErrorMode)
+{
+    PrintError(command, 1, ex, isJsonErrorMode);
+    return 1;
 }

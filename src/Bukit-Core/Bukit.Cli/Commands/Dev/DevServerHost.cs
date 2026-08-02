@@ -12,6 +12,11 @@ internal sealed class DevServerHost : IDevServerHost
     private readonly HttpListener _listener;
     private readonly ILogger _logger;
     private readonly SemaphoreSlim _requestGate = new(MaxConcurrentRequests, MaxConcurrentRequests);
+    private readonly object _lifecycleLock = new();
+    private readonly TaskCompletionSource<bool> _acceptLoopCompleted =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private bool _acceptLoopStarted;
+    private bool _requestGateDisposed;
     private bool _disposed;
 
     private DevServerHost(HttpListener listener, string host, int port, ILogger logger)
@@ -61,62 +66,77 @@ internal sealed class DevServerHost : IDevServerHost
 
     public async Task RunAcceptLoopAsync(Func<HttpListenerContext, Task> dispatchAsync, CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        lock (_lifecycleLock)
         {
-            HttpListenerContext context;
-            try
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_acceptLoopStarted)
             {
-                context = await _listener.GetContextAsync().WaitAsync(ct);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (HttpListenerException) when (ct.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (ObjectDisposedException)
-            {
-                break;
+                throw new InvalidOperationException("The dev server accept loop is already running.");
             }
 
-            try
-            {
-                await _requestGate.WaitAsync(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                CloseResponseBestEffort(context);
-                break;
-            }
+            _acceptLoopStarted = true;
+        }
 
-            _ = Task.Run(async () =>
+        var activeRequests = new HashSet<Task>();
+        try
+        {
+            while (!ct.IsCancellationRequested)
             {
+                HttpListenerContext context;
                 try
                 {
-                    await dispatchAsync(context).ConfigureAwait(false);
+                    context = await _listener.GetContextAsync().WaitAsync(ct);
                 }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                catch (OperationCanceledException)
                 {
+                    break;
                 }
-                catch (Exception ex)
+                catch (HttpListenerException) when (ct.IsCancellationRequested || IsDisposed())
                 {
-                    _logger.Error($"dev.request.dispatch: {ex.Message}");
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+
+                try
+                {
+                    await _requestGate.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
                     CloseResponseBestEffort(context);
+                    break;
                 }
-                finally
-                {
-                    _requestGate.Release();
-                }
-            }, CancellationToken.None);
+
+                activeRequests.RemoveWhere(task => task.IsCompleted);
+                activeRequests.Add(Task.Run(
+                    () => DispatchRequestAsync(dispatchAsync, context, ct),
+                    CancellationToken.None));
+            }
+        }
+        finally
+        {
+            await Task.WhenAll(activeRequests).ConfigureAwait(false);
+            DisposeRequestGate();
+            _acceptLoopCompleted.TrySetResult(true);
         }
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        Task? acceptLoopCompletion = null;
+        lock (_lifecycleLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            if (_acceptLoopStarted)
+            {
+                acceptLoopCompletion = _acceptLoopCompleted.Task;
+            }
+        }
+
         try
         {
             _listener.Stop();
@@ -125,7 +145,61 @@ internal sealed class DevServerHost : IDevServerHost
         {
         }
 
-        _requestGate.Dispose();
+        if (acceptLoopCompletion is not null)
+        {
+            acceptLoopCompletion.GetAwaiter().GetResult();
+        }
+        else
+        {
+            DisposeRequestGate();
+        }
+
+        _listener.Close();
+    }
+
+    private async Task DispatchRequestAsync(
+        Func<HttpListenerContext, Task> dispatchAsync,
+        HttpListenerContext context,
+        CancellationToken ct)
+    {
+        try
+        {
+            await dispatchAsync(context).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"dev.request.dispatch: {ex.Message}");
+            CloseResponseBestEffort(context);
+        }
+        finally
+        {
+            _requestGate.Release();
+        }
+    }
+
+    private bool IsDisposed()
+    {
+        lock (_lifecycleLock)
+        {
+            return _disposed;
+        }
+    }
+
+    private void DisposeRequestGate()
+    {
+        lock (_lifecycleLock)
+        {
+            if (_requestGateDisposed)
+            {
+                return;
+            }
+
+            _requestGate.Dispose();
+            _requestGateDisposed = true;
+        }
     }
 
     private static int PickFreePort()
