@@ -229,6 +229,29 @@ public sealed class ConfigValidatorTests
         Assert.Equal("site.languages has duplicate language: zh", ex.Message);
     }
 
+    [Theory]
+    [InlineData("../outside")]
+    [InlineData("en/us")]
+    [InlineData("en\\us")]
+    [InlineData("/tmp")]
+    [InlineData("C:\\temp")]
+    [InlineData(".")]
+    [InlineData("..")]
+    [InlineData("en_US")]
+    [InlineData("en\nadmin")]
+    public void Validate_LanguageIsNotSafePortableSegment_Throws(string language)
+    {
+        var config = ConfigWithSite(s => s with
+        {
+            Languages = new[] { "en", language },
+            DefaultLanguage = "en"
+        });
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigValidator.Validate(config));
+
+        Assert.Equal("site.languages must use safe alphanumeric subtags separated by hyphens.", ex.Message);
+    }
+
     [Fact]
     public void Validate_DefaultLanguageNotInLanguages_Throws()
     {
@@ -246,8 +269,8 @@ public sealed class ConfigValidatorTests
     {
         var config = ConfigWithSite(s => s with
         {
-            Languages = new[] { "zh", "en" },
-            DefaultLanguage = "zh"
+            Languages = new[] { "zh-Hans", "pt-BR", "en" },
+            DefaultLanguage = "zh-Hans"
         });
         var ex = Record.Exception(() => ConfigValidator.Validate(config));
         Assert.Null(ex);

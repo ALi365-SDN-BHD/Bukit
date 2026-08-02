@@ -55,6 +55,14 @@ internal static class I18nValidator
                 throw new ConfigException("site.languages must contain at least one language.");
             }
 
+            if (cleaned.Any(language => !Regex.IsMatch(
+                    language,
+                    "^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$",
+                    RegexOptions.CultureInvariant)))
+            {
+                throw new ConfigException("site.languages must use safe alphanumeric subtags separated by hyphens.");
+            }
+
             var dup = cleaned.GroupBy(x => x, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
             if (dup is not null)
             {
