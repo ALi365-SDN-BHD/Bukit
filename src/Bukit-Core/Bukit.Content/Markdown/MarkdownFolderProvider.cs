@@ -146,20 +146,21 @@ public sealed class MarkdownFolderProvider : IContentProvider
 
             frontMatterValues["bodyFingerprint"] = ComputeBodyFingerprint(bodyMarkdown);
 
-            var publishAt = File.GetLastWriteTimeUtc(file);
+            DateTimeOffset? publishAt = null;
             if (frontMatterValues.TryGetValue("publishAt", out var publishObj) && publishObj is string publishText && MarkdownFieldBuilder.TryParseDateTimeOffset(publishText, out var dto))
             {
-                publishAt = dto.UtcDateTime;
+                publishAt = dto.ToUniversalTime();
             }
 
             var fields = MarkdownFieldBuilder.BuildFields(frontMatterValues);
             fields = ContentFieldReader.WithValues(fields, BuildCanonicalFields(frontMatterValues, title, slug, publishAt));
 
             items.Add(new RawContentDocument(
-                Id: slug,
+                SourceId: slug,
+                SourceKind: "markdown",
                 Title: title,
                 Slug: slug,
-                PublishAt: publishAt,
+                PublishedAt: publishAt,
                 Body: new RawBody(BodyKey: file),
                 Properties: RawContentValue.FromFields(fields),
                 Source: new ContentSourceInfo("markdown", SourcePath: file),
@@ -180,14 +181,18 @@ public sealed class MarkdownFolderProvider : IContentProvider
         IReadOnlyDictionary<string, object> frontMatterValues,
         string title,
         string slug,
-        DateTimeOffset publishAt)
+        DateTimeOffset? publishAt)
     {
         var values = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
         {
             ["title"] = title,
-            ["slug"] = slug,
-            ["publishAt"] = publishAt
+            ["slug"] = slug
         };
+
+        if (publishAt is not null)
+        {
+            values["publishAt"] = publishAt.Value;
+        }
 
         AddIfPresent(frontMatterValues, values, "type");
         AddIfPresent(frontMatterValues, values, "collection");

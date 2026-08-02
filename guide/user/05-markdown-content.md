@@ -37,7 +37,7 @@ Common fields:
 | `slug` | URL segment used by route patterns. |
 | `type` | Document kind; independent from collection and defaults to `page`. |
 | `collection` | Selects `site.collections.<key>`. |
-| `publishAt` | Publish timestamp used by routes and feeds. |
+| `publishAt` | Explicit publish timestamp used by routes and feeds. Required for date-based permalinks and chronological feed ordering. |
 | `language` | Variant selection for i18n. |
 | `summary` | Feed, list, and SEO summary. |
 | `draft` | Excluded unless `--draft` is passed. |
@@ -71,3 +71,15 @@ for its target collections; it is not implicit multi-membership.
 - When `site.autoSummary` is true, missing summaries can be generated from the
   rendered text.
 - Media URLs in body HTML can be localized through `content.media`.
+
+## Publish Date Migration
+
+Markdown file modification times are not content metadata and no longer supply
+a missing `publishAt`. An undated Markdown document keeps `PublishedAt` unset,
+emits the stable warning `content.publish_at.missing`, and uses the Unix epoch
+only as the deterministic canonical fallback.
+
+Add an explicit `publishAt` before relying on `{year}`, `{month}`, or `{day}` in
+a permalink, or before relying on chronological feed and archive ordering.
+Changing a Markdown file's modification time alone does not change canonical
+content, routes, hashes, or feed output.

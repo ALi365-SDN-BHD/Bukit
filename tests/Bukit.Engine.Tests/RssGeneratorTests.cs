@@ -1,6 +1,8 @@
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Content.Markdown;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Incremental;
 using Bukit.Engine.Output;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
@@ -256,6 +258,82 @@ public sealed class RssGeneratorTests
 
         RssGenerator.GenerateMerged(outDir, "https://example.com", "/", "Site", posts, maxItems: 0);
         Assert.Contains("https://example.com/c/", File.ReadAllText(Path.Combine(outDir, "rss.xml")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AtomFeed_EmptyInput_IsByteStableAndUsesUnixEpoch()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var firstDir = Path.Combine(root, "first");
+        var secondDir = Path.Combine(root, "second");
+        Directory.CreateDirectory(firstDir);
+        Directory.CreateDirectory(secondDir);
+
+        AtomFeedGenerator.Generate(firstDir, "https://example.com", "/", "Site", [], "atom.xml");
+        AtomFeedGenerator.Generate(secondDir, "https://example.com", "/", "Site", [], "atom.xml");
+
+        var first = File.ReadAllBytes(Path.Combine(firstDir, "atom.xml"));
+        var second = File.ReadAllBytes(Path.Combine(secondDir, "atom.xml"));
+        Assert.Equal(first, second);
+        Assert.Contains("<updated>1970-01-01T00:00:00Z</updated>", System.Text.Encoding.UTF8.GetString(first), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MarkdownFileTimestamp_DoesNotChangeCanonicalDocumentRouteHashOrFeed()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var contentDir = Path.Combine(root, "content");
+        Directory.CreateDirectory(contentDir);
+        var markdownPath = Path.Combine(contentDir, "stable.md");
+        await File.WriteAllTextAsync(markdownPath, """
+        ---
+        title: Stable
+        type: article
+        collection: news
+        ---
+        Body
+        """);
+
+        File.SetLastWriteTimeUtc(markdownPath, new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc));
+        var first = await CaptureMarkdownProjectionAsync(contentDir, Path.Combine(root, "feed-first"));
+
+        File.SetLastWriteTimeUtc(markdownPath, new DateTime(2026, 7, 8, 9, 10, 11, DateTimeKind.Utc));
+        var second = await CaptureMarkdownProjectionAsync(contentDir, Path.Combine(root, "feed-second"));
+
+        Assert.Equal(first.CanonicalRecord, second.CanonicalRecord);
+        Assert.Equal(first.RouteHash, second.RouteHash);
+        Assert.Equal(first.Feed, second.Feed);
+    }
+
+    private static async Task<(string CanonicalRecord, string RouteHash, byte[] Feed)> CaptureMarkdownProjectionAsync(
+        string contentDir,
+        string outputDir)
+    {
+        var raw = Assert.Single((await new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir)).LoadRawAsync()).Documents);
+        var document = ContentDocumentNormalizer.ToDocument(raw);
+        var route = RouteGenerator.Generate(
+            document,
+            collections: new Dictionary<string, RouteGenerator.CollectionRouteRule>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["news"] = new("/{year}/{month}/{day}/{slug}/", "pages/article.html")
+            });
+        Directory.CreateDirectory(outputDir);
+        RssGenerator.Generate(
+            outputDir,
+            "https://example.com",
+            "/",
+            "Site",
+            new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["news"] = new() { Permalink = "/{year}/{month}/{day}/{slug}/", Output = new() { Rss = true } }
+            },
+            [new RoutedContentDocument(document, route)],
+            new InMemoryBodyStore());
+
+        return (
+            JsonSerializer.Serialize(document.Record),
+            IncrementalBuildEngine.ComputeRouteHash(route),
+            File.ReadAllBytes(Path.Combine(outputDir, "rss.xml")));
     }
 
     [Fact]

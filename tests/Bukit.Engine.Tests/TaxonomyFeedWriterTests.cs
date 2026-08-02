@@ -1,3 +1,4 @@
+using System.Reflection;
 using Bukit.Engine.Plugins.BuiltIn;
 using Xunit;
 
@@ -87,5 +88,28 @@ public sealed class TaxonomyFeedWriterTests : IDisposable
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase);
 
         TaxonomyFeedWriter.WriteFeeds(_tempDir, "https://example.com", "/", "My Site", terms, "tags");
+    }
+
+    [Fact]
+    public void RenderFeed_EmptyPosts_IsByteStableAndUsesUnixEpoch()
+    {
+        var method = typeof(TaxonomyFeedWriter).GetMethod("RenderFeed", BindingFlags.NonPublic | BindingFlags.Static)
+            ?? throw new InvalidOperationException("Taxonomy feed renderer was not found.");
+        object?[] args =
+        [
+            "My Site: Empty",
+            null,
+            "https://example.com/tags/empty/",
+            "https://example.com/tags/empty/feed.xml",
+            Array.Empty<TaxonomyPage>(),
+            "https://example.com",
+            "/"
+        ];
+
+        var first = Assert.IsType<string>(method.Invoke(null, args));
+        var second = Assert.IsType<string>(method.Invoke(null, args));
+
+        Assert.Equal(first, second);
+        Assert.Contains("<lastBuildDate>Thu, 01 Jan 1970 00:00:00 GMT</lastBuildDate>", first, StringComparison.Ordinal);
     }
 }

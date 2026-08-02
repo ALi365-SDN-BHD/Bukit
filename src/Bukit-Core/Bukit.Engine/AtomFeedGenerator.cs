@@ -21,7 +21,7 @@ internal static class AtomFeedGenerator
 
         var feedUrl = RssGenerator.BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/" + feedFileName);
         var homeUrl = RssGenerator.BuildAbsoluteUrl(normalizedSiteUrl, normalizedBaseUrl, "/");
-        var updated = sorted.Count > 0 ? sorted[0].PublishAt : DateTimeOffset.UtcNow;
+        var updated = sorted.Count > 0 ? sorted[0].PublishAt : DateTimeOffset.UnixEpoch;
         var channelDescription = string.IsNullOrWhiteSpace(siteDescription) ? siteTitle : siteDescription.Trim();
 
         var sb = new StringBuilder();

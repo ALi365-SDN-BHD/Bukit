@@ -294,6 +294,61 @@ public sealed class MarkdownFolderProviderTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_WithoutPublishAt_DoesNotUseFileTimestamp()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-date-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            var path = Path.Combine(root, "undated.md");
+            await File.WriteAllTextAsync(path, "# Undated");
+            File.SetLastWriteTimeUtc(path, new DateTime(2026, 7, 8, 9, 10, 11, DateTimeKind.Utc));
+
+            var item = Assert.Single((await new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root)).LoadRawAsync()).Documents);
+
+            Assert.Null(item.PublishedAt);
+            Assert.Equal(DateTimeOffset.UnixEpoch, item.PublishAt);
+            Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "publishAt", out _));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_WithExplicitPublishAt_PreservesValue()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-explicit-date-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            await File.WriteAllTextAsync(Path.Combine(root, "dated.md"), """
+            ---
+            publishAt: 2025-02-03T04:05:06+08:00
+            ---
+            # Dated
+            """);
+
+            var item = Assert.Single((await new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root)).LoadRawAsync()).Documents);
+
+            Assert.Equal(DateTimeOffset.Parse("2025-02-02T20:05:06Z"), item.PublishedAt);
+            Assert.Equal(TimeSpan.Zero, item.PublishedAt!.Value.Offset);
+            Assert.Equal(item.PublishedAt, ContentFieldReader.GetDate(item.CustomFields, "publishAt"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void ExtractSummaryFromMarkdown_StripsHtmlDecodesEntitiesAndTruncates()
     {
         var summary = MarkdownTextHelper.ExtractSummaryFromMarkdown("""

@@ -246,7 +246,8 @@
       "contractConsumerGlobs": [],
       "id": "content-guide",
       "matches": [
-        "guide/dev/content.md"
+        "guide/dev/content.md",
+        "guide/user/05-markdown-content.md"
       ],
       "publicContract": false,
       "resource": "dotnet-serial",

@@ -395,6 +395,30 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public void ContentDocumentNormalizer_MarkdownWithoutPublishAt_UsesEpochAndAddsStableWarning()
+    {
+        var raw = new RawContentDocument(
+            SourceId: "undated",
+            SourceKind: "markdown",
+            Title: "Undated",
+            Slug: "undated",
+            PublishedAt: null,
+            Body: new RawBody(Markdown: "# Undated"),
+            Source: new ContentSourceInfo("markdown", SourcePath: "content/undated.md"));
+
+        var first = ContentDocumentNormalizer.ToDocument(raw);
+        var second = ContentDocumentNormalizer.ToDocument(raw);
+
+        Assert.Equal(DateTimeOffset.UnixEpoch, first.Record.Lifecycle.PublishedAt);
+        var warning = Assert.Single(first.Diagnostics);
+        Assert.Equal("content.publish_at.missing", warning.Code);
+        Assert.Equal("warning", warning.Severity);
+        Assert.Equal("publishAt", warning.Field);
+        Assert.Equal("undated", warning.SourceId);
+        Assert.Equal(first.Diagnostics, second.Diagnostics);
+    }
+
+    [Fact]
     public void ContentDocumentNormalizer_ProjectsCanonicalMappingsIntoContentRecord()
     {
         var raw = new RawContentDocument(

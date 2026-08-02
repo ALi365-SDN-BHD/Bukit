@@ -205,12 +205,24 @@ internal sealed class DefaultContentNormalizer : IContentNormalizer
         IReadOnlyDictionary<string, ContentField>? fields,
         ContentModelSchema? schema)
     {
-        if (schema is null)
+        var diagnostics = new List<ContentDiagnostic>();
+        if (raw.PublishedAt is null &&
+            (string.Equals(raw.SourceKind, "markdown", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(raw.Source.Provider, "markdown", StringComparison.OrdinalIgnoreCase)))
         {
-            return Array.Empty<ContentDiagnostic>();
+            diagnostics.Add(new ContentDiagnostic(
+                "content.publish_at.missing",
+                "warning",
+                "Markdown content is missing explicit 'publishAt'; Unix epoch is used for canonical date semantics.",
+                "publishAt",
+                raw.Id));
         }
 
-        var diagnostics = new List<ContentDiagnostic>();
+        if (schema is null)
+        {
+            return diagnostics;
+        }
+
         foreach (var mapping in schema.CanonicalMappings?.Values ?? Array.Empty<CanonicalFieldMapping>())
         {
             if (mapping.Required && !ContentFieldReader.TryGetField(fields, mapping.CanonicalField, out _))
