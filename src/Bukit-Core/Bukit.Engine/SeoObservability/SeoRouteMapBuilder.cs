@@ -21,9 +21,12 @@ internal sealed class SeoRouteMapBuilder
 
     internal void Add(SeoIndexEntry entry, SeoModel? model, ContentRecord? record)
     {
-        var canonical = string.IsNullOrWhiteSpace(model?.Canonical)
+        var requestedCanonical = string.IsNullOrWhiteSpace(model?.Canonical)
             ? entry.Canonical
             : model.Canonical;
+        var canonical = IsValidObservabilityCanonical(requestedCanonical)
+            ? requestedCanonical
+            : SafeRelativeCanonical(entry.Route.Url);
         var language = record?.Presentation.Language;
         _routes.Add(new SeoRouteMapEntry(
             SeoObservationIdentity.CreateRouteKey(entry.Route.Url, canonical),
@@ -49,4 +52,16 @@ internal sealed class SeoRouteMapBuilder
                 .OrderBy(route => route.Canonical, StringComparer.Ordinal)
                 .ThenBy(route => route.RouteKey, StringComparer.Ordinal)
                 .ToArray());
+
+    private static bool IsValidObservabilityCanonical(string value)
+        => value.StartsWith("/", StringComparison.Ordinal) && !value.StartsWith("//", StringComparison.Ordinal) ||
+           Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+           uri.Scheme is "http" or "https" &&
+           !string.IsNullOrWhiteSpace(uri.Host) &&
+           string.IsNullOrEmpty(uri.UserInfo);
+
+    private static string SafeRelativeCanonical(string route)
+        => route.StartsWith("/", StringComparison.Ordinal) && !route.StartsWith("//", StringComparison.Ordinal)
+            ? route
+            : "/";
 }

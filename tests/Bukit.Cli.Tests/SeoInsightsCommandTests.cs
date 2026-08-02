@@ -247,6 +247,48 @@ public sealed class SeoInsightsCommandTests : IDisposable
         Assert.Equal(2, document.RootElement.GetProperty("ambiguous")[0].GetProperty("candidates").GetArrayLength());
     }
 
+    [Theory]
+    [InlineData("//other.example/article/")]
+    [InlineData("https://user@example.com/article/")]
+    public async Task RunAsync_InvalidCanonicalFailsBeforeReadingLaterInputs(string canonical)
+    {
+        var routeMapJson = ValidRouteMapJson().Replace(
+            "\"canonical\": \"/article/\"",
+            $"\"canonical\": \"{canonical}\"",
+            StringComparison.Ordinal);
+        var inputs = WriteValidInputs(routeMapJson: routeMapJson);
+        File.Delete(inputs.Rules);
+
+        var result = await InvokeAsync(() => SeoCommand.RunAsync(Command(
+            inputs.RouteMap,
+            inputs.Gsc,
+            inputs.Rules,
+            Path.Combine(_tempDir, "invalid-canonical.json"))));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Equal($"SEO insights failed: route_map_invalid.{Environment.NewLine}", result.StdErr);
+        Assert.Empty(result.StdOut);
+    }
+
+    [Fact]
+    public async Task RunAsync_UppercaseHttpCanonicalIsAccepted()
+    {
+        var routeMapJson = ValidRouteMapJson().Replace(
+            "\"canonical\": \"/article/\"",
+            "\"canonical\": \"HTTPS://example.com/article/\"",
+            StringComparison.Ordinal);
+        var inputs = WriteValidInputs(routeMapJson: routeMapJson);
+
+        var result = await InvokeAsync(() => SeoCommand.RunAsync(Command(
+            inputs.RouteMap,
+            inputs.Gsc,
+            inputs.Rules,
+            Path.Combine(_tempDir, "uppercase-canonical.json"))));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Empty(result.StdErr);
+    }
+
     [Fact]
     public async Task RunAsync_MismatchedWindowsAndInvalidRules_ReturnTwoWithoutSuccessOutput()
     {

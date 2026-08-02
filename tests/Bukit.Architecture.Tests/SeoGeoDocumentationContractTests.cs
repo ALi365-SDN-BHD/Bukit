@@ -102,11 +102,13 @@ public sealed class SeoGeoDocumentationContractTests
             routeMapEntry.GetProperty("properties").GetProperty("routeKey").GetProperty("pattern").GetString());
         Assert.Equal("^/", routeMapEntry.GetProperty("properties").GetProperty("route").GetProperty("pattern").GetString());
         var canonical = routeMapEntry.GetProperty("properties").GetProperty("canonical");
-        Assert.Equal(absoluteHttpPattern, canonical.GetProperty("oneOf")[0].GetProperty("pattern").GetString());
+        Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", canonical.GetProperty("oneOf")[0].GetProperty("pattern").GetString());
         Assert.Equal("uri", canonical.GetProperty("oneOf")[0].GetProperty("format").GetString());
-        Assert.Matches(absoluteHttpPattern!, "HTTP://example.com/article/");
-        Assert.Equal("^/", canonical.GetProperty("oneOf")[1].GetProperty("pattern").GetString());
+        Assert.Matches(canonical.GetProperty("oneOf")[0].GetProperty("pattern").GetString()!, "HTTP://example.com/article/");
+        Assert.DoesNotMatch(canonical.GetProperty("oneOf")[0].GetProperty("pattern").GetString()!, "https://user@example.com/article/");
+        Assert.Equal("^/(?!/)", canonical.GetProperty("oneOf")[1].GetProperty("pattern").GetString());
         Assert.Matches(canonical.GetProperty("oneOf")[1].GetProperty("pattern").GetString()!, "/article/");
+        Assert.DoesNotMatch(canonical.GetProperty("oneOf")[1].GetProperty("pattern").GetString()!, "//other.example/article/");
         var contentKey = routeMapEntry.GetProperty("properties").GetProperty("contentKey").GetProperty("oneOf");
         Assert.Equal("^content:sha256:[0-9a-f]{64}$", contentKey[0].GetProperty("pattern").GetString());
         Assert.Equal("null", contentKey[1].GetProperty("type").GetString());

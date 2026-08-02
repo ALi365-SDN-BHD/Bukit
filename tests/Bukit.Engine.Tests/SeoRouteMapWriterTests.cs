@@ -76,6 +76,25 @@ public sealed class SeoRouteMapWriterTests : IDisposable
         Assert.Matches(canonicalPattern, map.Routes[0].Canonical);
     }
 
+    [Theory]
+    [InlineData("//other.example/article/")]
+    [InlineData("https://user@example.com/article/")]
+    public void Build_InvalidObservabilityCanonicalFallsBackToSafeRouteAndHashesEmittedValue(string canonical)
+    {
+        var builder = new SeoRouteMapBuilder("https://example.com", "/");
+        builder.Add(Entry("/article/", canonical), Model(canonical), null);
+
+        var map = builder.Build(DateTimeOffset.Parse("2026-08-03T00:00:00Z"));
+        var route = Assert.Single(map.Routes);
+        var json = JsonSerializer.Serialize(map, SeoRouteMapJsonContext.Default.SeoRouteMap);
+
+        Assert.Equal("/article/", route.Canonical);
+        Assert.Equal(SeoObservationIdentity.CreateRouteKey("/article/", "/article/"), route.RouteKey);
+        Assert.DoesNotContain(canonical, json, StringComparison.Ordinal);
+        Assert.DoesNotContain("user@", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("//other.example", json, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Write_PreservesDuplicateCanonicalsAndSerializesOnlyPrivacySafeIdentities()
     {

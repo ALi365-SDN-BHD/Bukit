@@ -526,7 +526,8 @@ internal static partial class SeoInsightsCommand
     private static bool IsAbsoluteHttpUrl(string value)
         => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
            uri.Scheme is "http" or "https" &&
-           !string.IsNullOrWhiteSpace(uri.Host);
+           !string.IsNullOrWhiteSpace(uri.Host) &&
+           string.IsNullOrEmpty(uri.UserInfo);
 
     private static string StableDataCode(InvalidDataException exception)
     {

@@ -112,15 +112,13 @@ internal static class SeoInsightsReportWriter
             .OrderBy(route => route.Canonical, StringComparer.Ordinal)
             .ThenBy(route => route.RouteKey, StringComparer.Ordinal)
             .ToArray();
+        // These comparers cover every serialized discriminator, including
+        // metrics and candidates, so evidence has a total input-independent order.
         var unmatchedEvidence = unmatched
-            .OrderBy(value => value.Provider, StringComparer.Ordinal)
-            .ThenBy(value => value.NormalizedUrl, StringComparer.Ordinal)
-            .ThenBy(value => value.OriginalUrl, StringComparer.Ordinal)
+            .OrderBy(value => value, UnmatchedEvidenceComparer.Instance)
             .ToArray();
         var ambiguousEvidence = ambiguous
-            .OrderBy(value => value.Provider, StringComparer.Ordinal)
-            .ThenBy(value => value.NormalizedUrl, StringComparer.Ordinal)
-            .ThenBy(value => value.OriginalUrl, StringComparer.Ordinal)
+            .OrderBy(value => value, AmbiguousEvidenceComparer.Instance)
             .ToArray();
 
         return new SeoInsightsReport(
@@ -232,8 +230,7 @@ internal static class SeoInsightsReportWriter
         private long? _sessions;
         private long? _engagedSessions;
         private long? _keyEvents;
-        private long _positionImpressions;
-        private double? _weightedPosition;
+        private readonly List<PositionSample> _positionSamples = [];
 
         internal RouteAccumulator(SeoObservationRouteCandidate candidate) => _candidate = candidate;
 
@@ -256,6 +253,16 @@ internal static class SeoInsightsReportWriter
 
         internal SeoInsightsRoute Build(SeoInsightsRuleProfile? ruleProfile)
         {
+            double? averagePosition;
+            try
+            {
+                averagePosition = AveragePosition();
+            }
+            catch (OverflowException exception)
+            {
+                throw Invalid("report.numeric_overflow", "Route metric aggregation overflowed.", exception);
+            }
+
             var route = new SeoInsightsRoute(
                 _candidate.RouteKey,
                 _candidate.ContentKey,
@@ -264,7 +271,7 @@ internal static class SeoInsightsReportWriter
                 new SeoObservationMetrics(
                     _impressions,
                     _clicks,
-                    _weightedPosition,
+                    averagePosition,
                     Divide(_clicks, _impressions),
                     _sessions,
                     _engagedSessions,
@@ -284,21 +291,149 @@ internal static class SeoInsightsReportWriter
                 return;
             }
 
-            var previousImpressions = _positionImpressions;
-            var totalImpressions = checked(previousImpressions + impressions.Value);
-            _weightedPosition = _weightedPosition is null
-                ? position.Value
-                : (_weightedPosition.Value * ((double)previousImpressions / totalImpressions)) +
-                  (position.Value * ((double)impressions.Value / totalImpressions));
-            if (!double.IsFinite(_weightedPosition.Value))
+            if (!double.IsFinite(position.Value))
             {
-                throw new OverflowException("Weighted position is not finite.");
+                throw new OverflowException("Position sample is not finite.");
             }
 
-            _positionImpressions = totalImpressions;
+            _positionSamples.Add(new PositionSample(position.Value, impressions.Value));
+        }
+
+        private double? AveragePosition()
+        {
+            if (_positionSamples.Count == 0)
+            {
+                return null;
+            }
+
+            long totalImpressions = 0;
+            decimal weightedPositions = 0;
+            // This is a total order over every serialized position discriminator,
+            // so aggregation and threshold evidence do not depend on input order.
+            foreach (var sample in _positionSamples
+                         .OrderBy(sample => BitConverter.DoubleToInt64Bits(sample.Position))
+                         .ThenBy(sample => sample.Impressions))
+            {
+                totalImpressions = checked(totalImpressions + sample.Impressions);
+                var contribution = checked((decimal)sample.Position * sample.Impressions);
+                weightedPositions = checked(weightedPositions + contribution);
+            }
+
+            var average = (double)(weightedPositions / totalImpressions);
+            if (!double.IsFinite(average))
+            {
+                throw new OverflowException("Weighted position average is not finite.");
+            }
+
+            return average;
         }
 
         private static long? AddNullable(long? total, long? value)
             => value is null ? total : checked((total ?? 0) + value.Value);
+
+        private readonly record struct PositionSample(double Position, long Impressions);
     }
+
+    private sealed class UnmatchedEvidenceComparer : IComparer<SeoUnmatchedObservation>
+    {
+        internal static readonly UnmatchedEvidenceComparer Instance = new();
+
+        public int Compare(SeoUnmatchedObservation? left, SeoUnmatchedObservation? right)
+        {
+            if (ReferenceEquals(left, right)) return 0;
+            if (left is null) return -1;
+            if (right is null) return 1;
+            return CompareUnmatched(left, right);
+        }
+    }
+
+    private sealed class AmbiguousEvidenceComparer : IComparer<SeoAmbiguousObservation>
+    {
+        internal static readonly AmbiguousEvidenceComparer Instance = new();
+
+        public int Compare(SeoAmbiguousObservation? left, SeoAmbiguousObservation? right)
+        {
+            if (ReferenceEquals(left, right)) return 0;
+            if (left is null) return -1;
+            if (right is null) return 1;
+            return CompareAmbiguous(left, right);
+        }
+    }
+
+    private static int CompareUnmatched(SeoUnmatchedObservation left, SeoUnmatchedObservation right)
+    {
+        var comparison = CompareEvidencePrefix(left.Provider, left.Scope, left.NormalizedUrl, left.OriginalUrl, left.ErrorCode,
+            right.Provider, right.Scope, right.NormalizedUrl, right.OriginalUrl, right.ErrorCode);
+        return comparison != 0 ? comparison : CompareMetrics(left.Metrics, right.Metrics);
+    }
+
+    private static int CompareAmbiguous(SeoAmbiguousObservation left, SeoAmbiguousObservation right)
+    {
+        var comparison = CompareEvidencePrefix(left.Provider, left.Scope, left.NormalizedUrl, left.OriginalUrl, null,
+            right.Provider, right.Scope, right.NormalizedUrl, right.OriginalUrl, null);
+        if (comparison != 0) return comparison;
+        comparison = CompareMetrics(left.Metrics, right.Metrics);
+        return comparison != 0 ? comparison : CompareCandidates(left.Candidates, right.Candidates);
+    }
+
+    private static int CompareEvidencePrefix(string provider, string scope, string? normalizedUrl, string originalUrl, string? errorCode,
+        string otherProvider, string otherScope, string? otherNormalizedUrl, string otherOriginalUrl, string? otherErrorCode)
+    {
+        var comparison = StringComparer.Ordinal.Compare(provider, otherProvider);
+        if (comparison != 0) return comparison;
+        comparison = StringComparer.Ordinal.Compare(scope, otherScope);
+        if (comparison != 0) return comparison;
+        comparison = CompareNullableString(normalizedUrl, otherNormalizedUrl);
+        if (comparison != 0) return comparison;
+        comparison = StringComparer.Ordinal.Compare(originalUrl, otherOriginalUrl);
+        if (comparison != 0) return comparison;
+        return CompareNullableString(errorCode, otherErrorCode);
+    }
+
+    private static int CompareMetrics(SeoObservationMetrics left, SeoObservationMetrics right)
+    {
+        var comparison = CompareNullableLong(left.Impressions, right.Impressions);
+        if (comparison != 0) return comparison;
+        comparison = CompareNullableLong(left.Clicks, right.Clicks);
+        if (comparison != 0) return comparison;
+        comparison = CompareNullableDouble(left.AveragePosition, right.AveragePosition);
+        if (comparison != 0) return comparison;
+        comparison = CompareNullableDouble(left.Ctr, right.Ctr);
+        if (comparison != 0) return comparison;
+        comparison = CompareNullableLong(left.Sessions, right.Sessions);
+        if (comparison != 0) return comparison;
+        comparison = CompareNullableLong(left.EngagedSessions, right.EngagedSessions);
+        if (comparison != 0) return comparison;
+        comparison = CompareNullableLong(left.KeyEvents, right.KeyEvents);
+        if (comparison != 0) return comparison;
+        comparison = CompareNullableDouble(left.EngagementRate, right.EngagementRate);
+        return comparison != 0 ? comparison : CompareNullableDouble(left.KeyEventRate, right.KeyEventRate);
+    }
+
+    private static int CompareCandidates(IReadOnlyList<SeoObservationRouteCandidate> left, IReadOnlyList<SeoObservationRouteCandidate> right)
+    {
+        for (var index = 0; index < Math.Min(left.Count, right.Count); index++)
+        {
+            var comparison = StringComparer.Ordinal.Compare(left[index].RouteKey, right[index].RouteKey);
+            if (comparison != 0) return comparison;
+            comparison = CompareNullableString(left[index].ContentKey, right[index].ContentKey);
+            if (comparison != 0) return comparison;
+            comparison = StringComparer.Ordinal.Compare(left[index].Route, right[index].Route);
+            if (comparison != 0) return comparison;
+            comparison = StringComparer.Ordinal.Compare(left[index].Canonical, right[index].Canonical);
+            if (comparison != 0) return comparison;
+        }
+
+        return left.Count.CompareTo(right.Count);
+    }
+
+    private static int CompareNullableString(string? left, string? right)
+        => left is null ? right is null ? 0 : -1 : right is null ? 1 : StringComparer.Ordinal.Compare(left, right);
+
+    private static int CompareNullableLong(long? left, long? right)
+        => left is null ? right is null ? 0 : -1 : right is null ? 1 : left.Value.CompareTo(right.Value);
+
+    private static int CompareNullableDouble(double? left, double? right)
+        => left is null ? right is null ? 0 : -1 : right is null ? 1 :
+            BitConverter.DoubleToInt64Bits(left.Value).CompareTo(BitConverter.DoubleToInt64Bits(right.Value));
 }

@@ -100,6 +100,48 @@ public sealed class SeoInsightsReportWriterTests
     }
 
     [Fact]
+    public void Assemble_PermutationsProduceByteIdenticalPositionBoundaryAndCompleteEvidenceOrder()
+    {
+        var window = new SeoObservationWindow(new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 2), "UTC");
+        var firstDataset = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "scope-a",
+            DateTimeOffset.Parse("2026-08-03T01:00:00Z"), window,
+            [
+                new SeoObservationRow("https://example.com/article/", 3, 0, 9.4, null, null, null),
+                new SeoObservationRow("https://example.com/article/", 1, 0, 1.1, null, null, null),
+                new SeoObservationRow("https://example.com/missing/", 1, 0, 1, null, null, null),
+                new SeoObservationRow("https://example.com/shared/", 5, 0, 1, null, null, null)
+            ]);
+        var secondDataset = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "scope-b",
+            DateTimeOffset.Parse("2026-08-03T02:00:00Z"), window,
+            [
+                new SeoObservationRow("https://example.com/article/", 1, 0, 0.1, null, null, null),
+                new SeoObservationRow("https://example.com/missing/", 2, 0, 2, null, null, null),
+                new SeoObservationRow("https://example.com/shared/", 6, 0, 2, null, null, null)
+            ]);
+        var profile = new SeoInsightsRuleProfile(
+            "schema", "1.0", "example.com", [], ["utm_source"],
+            new SeoInsightsThresholds(1, 0, 1, 0, 0, 0, 5.88, 5.88),
+            new SeoInsightsPriorities("P2", "P2", "P2", "P1"));
+
+        var first = SeoInsightsReportWriter.Assemble(CreateMatcher(), [firstDataset, secondDataset], profile);
+        var second = SeoInsightsReportWriter.Assemble(
+            CreateMatcher(),
+            [secondDataset with { Rows = secondDataset.Rows.Reverse().ToArray() }, firstDataset with { Rows = firstDataset.Rows.Reverse().ToArray() }],
+            profile);
+        var firstBytes = JsonSerializer.SerializeToUtf8Bytes(first, SeoInsightsJsonContext.Default.SeoInsightsReport);
+        var secondBytes = JsonSerializer.SerializeToUtf8Bytes(second, SeoInsightsJsonContext.Default.SeoInsightsReport);
+
+        Assert.Equal(firstBytes, secondBytes);
+        var article = Assert.Single(first.Routes, route => route.RouteKey == "route:article");
+        Assert.Equal(5.88, article.Metrics.AveragePosition!.Value, 12);
+        Assert.Contains(article.Findings, finding => finding.Code == "seo.insights.position_opportunity");
+        Assert.Equal(["scope-a", "scope-b"], first.Unmatched.Select(value => value.Scope));
+        Assert.Equal([5L, 6L], first.Ambiguous.Select(value => value.Metrics.Impressions));
+    }
+
+    [Fact]
     public void Assemble_MismatchedWindowsAreRejected()
     {
         var datasets = Datasets().ToArray();
