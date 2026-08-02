@@ -107,6 +107,38 @@ public sealed class SeoGeoDocumentationContractTests
         var contentKey = routeMapEntry.GetProperty("properties").GetProperty("contentKey").GetProperty("oneOf");
         Assert.Equal("^content:sha256:[0-9a-f]{64}$", contentKey[0].GetProperty("pattern").GetString());
         Assert.Equal("null", contentKey[1].GetProperty("type").GetString());
+
+        using var observationSchema = ReadJson("docs", "schemas", "seo-observation.v1.schema.json");
+        var observationRoot = observationSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", observationRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-observation.v1.json", observationRoot.GetProperty("$id").GetString());
+        Assert.False(observationRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "provider", "scope", "collectedAt", "window", "rows"],
+            observationRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            ["google-search-console", "google-analytics-4"],
+            observationRoot.GetProperty("properties").GetProperty("provider").GetProperty("enum")
+                .EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(2, observationRoot.GetProperty("properties").GetProperty("rows").GetProperty("items").GetProperty("oneOf").GetArrayLength());
+
+        using var insightsSchema = ReadJson("docs", "schemas", "seo-insights-report.v1.schema.json");
+        var insightsRoot = insightsSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", insightsRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-insights-report.v1.json", insightsRoot.GetProperty("$id").GetString());
+        Assert.False(insightsRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "generatedAt", "window", "sources", "joinQuality", "routes", "unmatched", "ambiguous"],
+            insightsRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var joinQuality = insightsRoot.GetProperty("properties").GetProperty("joinQuality");
+        Assert.Equal(["overall", "providers"], joinQuality.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var counts = insightsRoot.GetProperty("$defs").GetProperty("joinCounts");
+        Assert.Equal(["total", "matched", "unmatched", "ambiguous"], counts.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("^route:sha256:[0-9a-f]{64}$", insightsRoot.GetProperty("$defs").GetProperty("candidate").GetProperty("properties").GetProperty("routeKey").GetProperty("pattern").GetString());
+        var metrics = insightsRoot.GetProperty("$defs").GetProperty("metrics").GetProperty("properties");
+        Assert.Equal("#/$defs/nullableRatio", metrics.GetProperty("ctr").GetProperty("$ref").GetString());
+        Assert.Equal("#/$defs/nullableRatio", metrics.GetProperty("engagementRate").GetProperty("$ref").GetString());
+        Assert.Equal("#/$defs/nullableNumber", metrics.GetProperty("keyEventRate").GetProperty("$ref").GetString());
     }
 
     [Fact]
