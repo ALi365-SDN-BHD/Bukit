@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Test-only use of obsolete injected-HttpClient constructor
 using System.Net;
 using System.Reflection;
 using System.Text;

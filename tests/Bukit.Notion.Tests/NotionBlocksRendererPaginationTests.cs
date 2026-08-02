@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Test-only use of obsolete injected-HttpClient constructor
 using System.Net;
 using System.Text;
 using Bukit.Notion.Rendering;
@@ -34,14 +35,13 @@ public sealed class NotionBlocksRendererPaginationTests
             })
         });
 
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -100,14 +100,13 @@ public sealed class NotionBlocksRendererPaginationTests
             })
         });
 
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -139,14 +138,13 @@ public sealed class NotionBlocksRendererPaginationTests
             })
         });
 
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -189,14 +187,13 @@ public sealed class NotionBlocksRendererPaginationTests
             })
         });
 
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -259,14 +256,13 @@ public sealed class NotionBlocksRendererPaginationTests
             })
         });
 
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -307,14 +303,13 @@ public sealed class NotionBlocksRendererPaginationTests
             })
         });
 
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -355,14 +350,13 @@ public sealed class NotionBlocksRendererPaginationTests
             })
         });
 
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();

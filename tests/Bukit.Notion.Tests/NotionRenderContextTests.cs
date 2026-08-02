@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Test-only use of obsolete injected-HttpClient constructor
 using System.Net;
 using System.Text;
 using Bukit.Notion.Rendering;
@@ -12,14 +13,13 @@ public sealed class NotionRenderContextTests
     public async Task RenderChildrenAsync_DelegatesToRenderer()
     {
         var handler = new RenderContextHttpHandler();
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
         var renderer = new NotionBlocksRenderer(client);
         var context = new NotionRenderContext(renderer, client);
 
@@ -33,14 +33,13 @@ public sealed class NotionRenderContextTests
     public async Task RenderChildrenAsync_EmptyChildren_ReturnsEmptyString()
     {
         var handler = new EmptyChildrenHandler();
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
         var renderer = new NotionBlocksRenderer(client);
         var context = new NotionRenderContext(renderer, client);
 
@@ -52,7 +51,7 @@ public sealed class NotionRenderContextTests
     [Fact]
     public void Constructor_ExposesClient()
     {
-        using var http = new HttpClient(new EmptyChildrenHandler());
+        using var http = new EmptyChildrenHandler();
         var options = new NotionClientOptions
         {
             Token = "token",
@@ -71,14 +70,13 @@ public sealed class NotionRenderContextTests
     public async Task RenderChildrenAsync_WithNestedListItems_RendersRecursively()
     {
         var handler = new NestedListHandler();
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = new NotionClient(options, handler);
         var renderer = new NotionBlocksRenderer(client);
         var context = new NotionRenderContext(renderer, client);
 

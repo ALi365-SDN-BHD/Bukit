@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Test-only use of obsolete injected-HttpClient constructor
 using System.Net;
 using Bukit.Notion.Rendering;
 using Bukit.Notion.Transport;
@@ -38,10 +39,9 @@ public sealed class NotionRenderingTests
                   ]
                 }
                 """));
-        using var http = new HttpClient(handler);
         using var transport = new NotionClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var renderer = new NotionBlocksRenderer(transport);
 
         var html = await renderer.RenderPageAsync("page", CancellationToken.None);
@@ -67,10 +67,9 @@ public sealed class NotionRenderingTests
               ]
             }
             """));
-        using var http = new HttpClient(handler);
         using var transport = new NotionClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var registry = NotionBlockRendererRegistry.CreateDefault()
             .SetCustomTransformer("paragraph", (_, _, _) =>
                 Task.FromResult<string?>("<p>Custom</p>"));
@@ -85,10 +84,9 @@ public sealed class NotionRenderingTests
     public async Task MissingResults_UsesRenderingExceptionWithoutContentDependency()
     {
         var handler = new SequenceHandler(Json("{}"));
-        using var http = new HttpClient(handler);
         using var transport = new NotionClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var renderer = new NotionBlocksRenderer(transport);
 
         var exception = await Assert.ThrowsAsync<NotionRenderingException>(() =>
@@ -100,10 +98,10 @@ public sealed class NotionRenderingTests
     [Fact]
     public async Task RenderPageAsync_PropagatesCallerCancellationUnchanged()
     {
-        using var http = new HttpClient(new CancelingHandler());
+        var handler = new CancelingHandler();
         using var transport = new NotionClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var renderer = new NotionBlocksRenderer(transport);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();

@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Test-only use of obsolete injected-HttpClient constructor
 using System.Net;
 using System.Text;
 using Bukit.Notion.Diagnostics;
@@ -17,10 +18,9 @@ public sealed class NotionHealthClientTests
             captured = request;
             return Response(HttpStatusCode.OK, "{}");
         });
-        using var http = new HttpClient(handler);
         using var transport = new NotionClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionHealthClient(transport);
 
         var result = await client.CheckConnectivityAsync();
@@ -39,10 +39,9 @@ public sealed class NotionHealthClientTests
     public async Task CheckDatabaseAsync_ReturnsStructuredHttpFailure()
     {
         var handler = new CallbackHandler(_ => Response(HttpStatusCode.Unauthorized, "{\"secret\":\"body\"}"));
-        using var http = new HttpClient(handler);
         using var transport = new NotionClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionHealthClient(transport);
 
         var result = await client.CheckDatabaseAsync("db");
@@ -57,10 +56,9 @@ public sealed class NotionHealthClientTests
     public async Task CheckConnectivityAsync_TreatsSuccessfulNonJsonResponseAsReachable()
     {
         var handler = new CallbackHandler(_ => Response(HttpStatusCode.NoContent, string.Empty));
-        using var http = new HttpClient(handler);
         using var transport = new NotionClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionHealthClient(transport);
 
         var result = await client.CheckConnectivityAsync();
@@ -81,10 +79,9 @@ public sealed class NotionHealthClientTests
             }
             """;
         var handler = new CallbackHandler(_ => Response(HttpStatusCode.OK, response));
-        using var http = new HttpClient(handler);
         using var transport = new NotionClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionHealthClient(transport);
 
         var result = await client.InspectDatabaseSchemaAsync("db");
@@ -99,10 +96,9 @@ public sealed class NotionHealthClientTests
     public async Task CheckConnectivityAsync_DoesNotSwallowCallerCancellation()
     {
         var handler = new CancelingHandler();
-        using var http = new HttpClient(handler);
         using var transport = new NotionClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionHealthClient(transport);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();

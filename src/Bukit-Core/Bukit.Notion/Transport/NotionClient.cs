@@ -13,6 +13,7 @@ public sealed class NotionClient : IDisposable
     private readonly Func<int, CancellationToken, Task> _delayAsync;
     private readonly Func<DateTimeOffset> _utcNow;
     private readonly bool _ownsHttpClient;
+    private readonly bool _injectedTransport;
     private readonly object _throttleLock = new();
     private DateTimeOffset _nextPermitAt = DateTimeOffset.MinValue;
     private long _requestCount;
@@ -26,17 +27,32 @@ public sealed class NotionClient : IDisposable
             CreateHttpClient(options),
             static (milliseconds, cancellationToken) => Task.Delay(milliseconds, cancellationToken),
             static () => DateTimeOffset.UtcNow,
-            ownsHttpClient: true)
+            ownsHttpClient: true,
+            injectedTransport: false)
     {
     }
 
+    public NotionClient(NotionClientOptions options, HttpMessageHandler handler)
+        : this(
+            options,
+            CreateHttpClient(options, handler),
+            static (milliseconds, cancellationToken) => Task.Delay(milliseconds, cancellationToken),
+            static () => DateTimeOffset.UtcNow,
+            ownsHttpClient: true,
+            injectedTransport: false)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+    }
+
+    [Obsolete("Use NotionClient(NotionClientOptions, HttpMessageHandler) instead. Injected HttpClient instances cannot reliably disable redirect following.")]
     public NotionClient(NotionClientOptions options, HttpClient httpClient)
         : this(
             options,
             httpClient,
             static (milliseconds, cancellationToken) => Task.Delay(milliseconds, cancellationToken),
             static () => DateTimeOffset.UtcNow,
-            ownsHttpClient: false)
+            ownsHttpClient: false,
+            injectedTransport: true)
     {
     }
 
@@ -45,7 +61,8 @@ public sealed class NotionClient : IDisposable
         HttpClient httpClient,
         Func<int, CancellationToken, Task> delayAsync,
         Func<DateTimeOffset> utcNow,
-        bool ownsHttpClient)
+        bool ownsHttpClient,
+        bool injectedTransport = false)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(httpClient);
@@ -66,6 +83,7 @@ public sealed class NotionClient : IDisposable
         _delayAsync = delayAsync;
         _utcNow = utcNow;
         _ownsHttpClient = ownsHttpClient;
+        _injectedTransport = injectedTransport;
     }
 
     public async Task<JsonDocument> GetAsync(string url, CancellationToken cancellationToken = default)
@@ -210,6 +228,26 @@ public sealed class NotionClient : IDisposable
         {
             handler = CreateDefaultHandler();
         }
+
+        var timeout = options.Timeout > TimeSpan.Zero ? options.Timeout : Timeout.InfiniteTimeSpan;
+        return new HttpClient(handler, disposeHandler: true) { Timeout = timeout };
+    }
+
+    private static HttpClient CreateHttpClient(NotionClientOptions options, HttpMessageHandler handler)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(handler);
+
+        // Enforce no-redirect for known handler types
+        if (handler is SocketsHttpHandler socketsHandler)
+        {
+            socketsHandler.AllowAutoRedirect = false;
+        }
+        else if (handler is HttpClientHandler clientHandler)
+        {
+            clientHandler.AllowAutoRedirect = false;
+        }
+        // Custom handler types are the caller's responsibility (trusted transport)
 
         var timeout = options.Timeout > TimeSpan.Zero ? options.Timeout : Timeout.InfiniteTimeSpan;
         return new HttpClient(handler, disposeHandler: true) { Timeout = timeout };

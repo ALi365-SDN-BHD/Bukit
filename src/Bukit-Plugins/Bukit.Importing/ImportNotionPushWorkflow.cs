@@ -492,6 +492,7 @@ public static class ImportNotionPushWorkflow
             : null;
     }
 
+#pragma warning disable CS0618 // Pending transport refactor
     private static NotionClient CreateTransport(string token, HttpClient http)
         => new(
             new NotionClientOptions
@@ -500,6 +501,7 @@ public static class ImportNotionPushWorkflow
                 MaxRetries = 0
             },
             http);
+#pragma warning restore CS0618
 
     private static string BuildCreateDatabasePayload(
         string parentPageId,

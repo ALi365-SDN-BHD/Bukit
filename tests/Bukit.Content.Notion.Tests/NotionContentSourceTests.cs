@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Test-only use of obsolete injected-HttpClient constructor
 using System.Net;
 using System.Text;
 using Bukit.Content.Notion;
@@ -73,7 +74,7 @@ public sealed class NotionContentSourceTests
     [Fact]
     public async Task PageQuery_PreservesEngineTitleFragmentSpacing()
     {
-        using var http = new HttpClient(new SingleResponseHandler("""
+        var singleHandler = new SingleResponseHandler("""
             {
               "id": "page-1",
               "url": "https://www.notion.so/page-1",
@@ -87,10 +88,10 @@ public sealed class NotionContentSourceTests
                 }
               }
             }
-            """));
+            """);
         using var client = new Bukit.Notion.Transport.NotionClient(
             new Bukit.Notion.Transport.NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            singleHandler);
 
         var page = await NotionPageQuery.FetchAsync(client, "page-1", CancellationToken.None);
 

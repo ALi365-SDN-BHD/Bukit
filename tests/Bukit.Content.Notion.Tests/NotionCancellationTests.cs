@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Test-only use of obsolete injected-HttpClient constructor
 using System.Net;
 using System.Text;
 using Bukit.Engine.Abstractions.Content;
@@ -65,10 +66,10 @@ public sealed class NotionCancellationTests
             "{\"version\":1,\"lastEditedTime\":\"v1\",\"html\":\"<p>cached</p>\"}");
         try
         {
-            using var http = new HttpClient(new StaticJsonHandler());
+            var staticHandler = new StaticJsonHandler();
             using var transport = new NotionClient(
                 new NotionClientOptions { Token = "token", MaxRetries = 0 },
-                http);
+                staticHandler);
             var renderer = new NotionBlocksRenderer(transport);
             var cache = new NotionCacheManager.PageHtmlCache("readonly", root, pages);
             using var cancellation = new CancellationTokenSource();
