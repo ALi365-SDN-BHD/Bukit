@@ -83,7 +83,7 @@ public sealed class ContentPipeline
 
             if (stage.Name == "ImageLocalize")
             {
-                bodyCache = new BodyCacheDecorator(currentBodyStore);
+                bodyCache = new BodyCacheDecorator(currentBodyStore, 10000, cancellationToken);
                 currentBodyStore = bodyCache;
             }
 

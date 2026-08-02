@@ -17,6 +17,7 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
     private readonly object _lruLock = new();
     private readonly LinkedList<string> _lruList = new();
     private readonly ConcurrentDictionary<string, LinkedListNode<string>> _lruNodes = new(StringComparer.Ordinal);
+    private readonly CancellationTokenSource _lifetimeCts;
 
     private long _totalRequests;
     private long _cacheHits;
@@ -26,9 +27,19 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
     private int _disposeState;
 
     public BodyCacheDecorator(IContentBodyStore inner, int maxEntries = 10000)
+        : this(inner, maxEntries, CancellationToken.None)
     {
+    }
+
+    public BodyCacheDecorator(
+        IContentBodyStore inner,
+        int maxEntries,
+        CancellationToken lifetimeToken)
+    {
+        ArgumentNullException.ThrowIfNull(inner);
         _inner = inner;
         _maxEntries = maxEntries > 0 ? maxEntries : 10000;
+        _lifetimeCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken);
     }
 
     public BodyCacheMetrics Metrics => new(
@@ -42,6 +53,7 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
     public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _totalRequests);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!string.IsNullOrWhiteSpace(document.Body.Html))
         {
@@ -61,11 +73,11 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
                     _lruList.AddLast(node);
                 }
             }
-            return await lazy.Value;
+            return await AwaitSharedBodyAsync(key, lazy, cancellationToken);
         }
 
         var newLazy = new Lazy<Task<ContentBody>>(
-            async () => new ContentBody((await _inner.GetAsync(document, cancellationToken)).Html),
+            async () => new ContentBody((await _inner.GetAsync(document, _lifetimeCts.Token)).Html),
             LazyThreadSafetyMode.ExecutionAndPublication);
         lazy = _cache.GetOrAdd(key, newLazy);
         if (ReferenceEquals(lazy, newLazy))
@@ -83,7 +95,45 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
             Interlocked.Increment(ref _cacheHits);
         }
 
-        return await lazy.Value;
+        return await AwaitSharedBodyAsync(key, lazy, cancellationToken);
+    }
+
+    private async Task<ContentBody> AwaitSharedBodyAsync(
+        string key,
+        Lazy<Task<ContentBody>> lazy,
+        CancellationToken cancellationToken)
+    {
+        Task<ContentBody> sharedTask = lazy.Value;
+        try
+        {
+            return await sharedTask.WaitAsync(cancellationToken);
+        }
+        catch
+        {
+            if (sharedTask.IsFaulted || sharedTask.IsCanceled)
+            {
+                RemoveCacheEntry(key, lazy);
+            }
+
+            throw;
+        }
+    }
+
+    private void RemoveCacheEntry(string key, Lazy<Task<ContentBody>> lazy)
+    {
+        lock (_lruLock)
+        {
+            if (!((ICollection<KeyValuePair<string, Lazy<Task<ContentBody>>>>)_cache)
+                    .Remove(new KeyValuePair<string, Lazy<Task<ContentBody>>>(key, lazy)))
+            {
+                return;
+            }
+
+            if (_lruNodes.TryRemove(key, out var node))
+            {
+                _lruList.Remove(node);
+            }
+        }
     }
 
     private void TrimExcess()
@@ -120,13 +170,45 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
             return;
         }
 
-        if (_inner is IAsyncDisposable asyncDisposable)
+        _lifetimeCts.Cancel();
+        Task[] activeTasks = _cache.Values
+            .Where(static lazy => lazy.IsValueCreated)
+            .Select(static lazy => (Task)lazy.Value)
+            .ToArray();
+        await ObserveTasksAsync(activeTasks);
+
+        _cache.Clear();
+        lock (_lruLock)
         {
-            await asyncDisposable.DisposeAsync();
+            _lruList.Clear();
+            _lruNodes.Clear();
         }
-        else if (_inner is IDisposable disposable)
+
+        try
         {
-            disposable.Dispose();
+            if (_inner is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync();
+            }
+            else if (_inner is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        }
+        finally
+        {
+            _lifetimeCts.Dispose();
+        }
+    }
+
+    private static async Task ObserveTasksAsync(IReadOnlyList<Task> tasks)
+    {
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch
+        {
         }
     }
 }

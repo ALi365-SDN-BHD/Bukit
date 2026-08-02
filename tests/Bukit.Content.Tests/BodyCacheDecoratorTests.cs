@@ -36,6 +36,28 @@ public sealed class BodyCacheDecoratorTests
         }
     }
 
+    private sealed class DelegatingBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        private readonly Func<ContentDocument, CancellationToken, Task<ContentBody>> _getAsync;
+        private int _disposeCount;
+
+        public DelegatingBodyStore(Func<ContentDocument, CancellationToken, Task<ContentBody>> getAsync)
+        {
+            _getAsync = getAsync;
+        }
+
+        public int DisposeCount => Volatile.Read(ref _disposeCount);
+
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
+            => _getAsync(item, cancellationToken);
+
+        public ValueTask DisposeAsync()
+        {
+            Interlocked.Increment(ref _disposeCount);
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private static ContentDocument CreateItem(string id, string? bodyKey = null, string? contentHtml = null)
     {
         return ContentDocument.Create(
@@ -142,6 +164,106 @@ public sealed class BodyCacheDecoratorTests
         await Task.WhenAll(tasks);
 
         Assert.Equal(1, inner.CallCount);
+    }
+
+    [Fact]
+    public async Task FailedSharedLoad_IsEvictedAndLaterRequestCanRetry()
+    {
+        var callCount = 0;
+        var inner = new DelegatingBodyStore((_, _) =>
+            Interlocked.Increment(ref callCount) == 1
+                ? Task.FromException<ContentBody>(new InvalidOperationException("transient"))
+                : Task.FromResult(new ContentBody("<p>recovered</p>")));
+        var decorator = new BodyCacheDecorator(inner);
+        var item = CreateItem("retry-after-fault");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => decorator.GetAsync(item.ToDocument()));
+        Assert.Equal(0, decorator.Metrics.UniqueBodies);
+
+        ContentBody recovered = await decorator.GetAsync(item.ToDocument());
+
+        Assert.Equal("<p>recovered</p>", recovered.Html);
+        Assert.Equal(2, callCount);
+    }
+
+    [Fact]
+    public async Task FirstCallerCancellation_DoesNotCancelSharedLoadForOtherWaiters()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callCount = 0;
+        var inner = new DelegatingBodyStore(async (_, cancellationToken) =>
+        {
+            Interlocked.Increment(ref callCount);
+            started.TrySetResult();
+            await release.Task.WaitAsync(cancellationToken);
+            return new ContentBody("<p>shared</p>");
+        });
+        var decorator = new BodyCacheDecorator(inner);
+        var item = CreateItem("independent-waiters");
+        using var firstCancellation = new CancellationTokenSource();
+
+        Task<ContentBody> first = decorator.GetAsync(item.ToDocument(), firstCancellation.Token);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Task<ContentBody> second = decorator.GetAsync(item.ToDocument());
+
+        firstCancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
+        release.TrySetResult();
+
+        ContentBody body = await second.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("<p>shared</p>", body.Html);
+        Assert.Equal(1, callCount);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_CancelsAndObservesActiveSharedLoadBeforeDisposingInner()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var inner = new DelegatingBodyStore(async (_, cancellationToken) =>
+        {
+            started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new ContentBody("<p>unreachable</p>");
+        });
+        var decorator = new BodyCacheDecorator(inner);
+        Task<ContentBody> activeLoad = decorator.GetAsync(CreateItem("dispose-active").ToDocument());
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await decorator.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => activeLoad.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(1, inner.DisposeCount);
+        Assert.Equal(0, decorator.Metrics.UniqueBodies);
+    }
+
+    [Fact]
+    public async Task LifetimeTokenCancellation_StopsSharedLoad()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var inner = new DelegatingBodyStore(async (_, cancellationToken) =>
+        {
+            started.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new ContentBody("<p>unreachable</p>");
+        });
+        using var lifetimeCancellation = new CancellationTokenSource();
+        var decorator = new BodyCacheDecorator(inner, 10000, lifetimeCancellation.Token);
+        Task<ContentBody> activeLoad = decorator.GetAsync(CreateItem("lifetime-cancel").ToDocument());
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        try
+        {
+            lifetimeCancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => activeLoad.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Equal(0, decorator.Metrics.UniqueBodies);
+        }
+        finally
+        {
+            await decorator.DisposeAsync();
+        }
     }
 
     [Fact]

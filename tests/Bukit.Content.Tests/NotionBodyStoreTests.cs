@@ -63,18 +63,16 @@ public sealed class NotionBodyStoreTests
     }
 
     [Fact]
-    public async Task GetAsync_CanceledRender_DoesNotPoisonLaterRequest()
+    public async Task GetAsync_FirstCallerCancellation_DoesNotCancelSharedRender()
     {
         var renderStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRender = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var renderCount = 0;
         var store = new NotionBodyStore(async (_, cancellationToken) =>
         {
-            if (Interlocked.Increment(ref renderCount) == 1)
-            {
-                renderStarted.TrySetResult();
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            }
-
+            Interlocked.Increment(ref renderCount);
+            renderStarted.TrySetResult();
+            await releaseRender.Task.WaitAsync(cancellationToken);
             return "<p>success</p>";
         });
         var item = ContentDocument.Create(
@@ -89,12 +87,42 @@ public sealed class NotionBodyStoreTests
 
         var firstRequest = store.GetAsync(item.ToDocument(), cancellation.Token);
         await renderStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var secondRequest = store.GetAsync(item.ToDocument());
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => firstRequest);
+        releaseRender.TrySetResult();
 
-        var second = await store.GetAsync(item.ToDocument());
+        var second = await secondRequest.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal("<p>success</p>", second.Html);
-        Assert.Equal(2, renderCount);
+        Assert.Equal(1, renderCount);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_CancelsActiveSharedRender()
+    {
+        var renderStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = new NotionBodyStore(async (_, cancellationToken) =>
+        {
+            renderStarted.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return "<p>unreachable</p>";
+        });
+        var item = ContentDocument.Create(
+            id: "dispose-page",
+            title: "Page",
+            slug: "dispose-page",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: null,
+            bodyKey: "dispose-page");
+        Task<ContentBody> activeRender = store.GetAsync(item.ToDocument());
+        await renderStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var disposable = Assert.IsAssignableFrom<IAsyncDisposable>(store);
+        await disposable.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => activeRender.WaitAsync(TimeSpan.FromSeconds(5)));
     }
 }
