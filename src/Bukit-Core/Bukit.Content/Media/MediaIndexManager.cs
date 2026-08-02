@@ -6,7 +6,7 @@ namespace Bukit.Content.Media;
 internal sealed class MediaIndexManager
 {
     private const string IndexFileName = ".media-index.json";
-    private const int CurrentIndexVersion = 2;
+    private const int CurrentIndexVersion = 3;
     private const int IndexPersistThreshold = 20;
 
     private readonly object _indexLock = new();
@@ -101,11 +101,11 @@ internal sealed class MediaIndexManager
         }
     }
 
-    internal string? FindExistingFileByHash(string directory, string hashPrefix)
+    internal string? FindExistingFileByIdentity(string directory, string fileIdentity)
     {
         try
         {
-            foreach (var file in Directory.EnumerateFiles(directory, $"{hashPrefix}.*"))
+            foreach (var file in Directory.EnumerateFiles(directory, $"{fileIdentity}.*"))
             {
                 var name = Path.GetFileName(file);
                 if (!name.StartsWith('.') &&

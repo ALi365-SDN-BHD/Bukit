@@ -156,8 +156,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             }
         }
 
-        var hashPrefix = BuildHashPrefix(normalizedKey);
-        var existingName = _indexManager.FindExistingFileByHash(root, hashPrefix);
+        var fileIdentity = BuildFileIdentity(normalizedKey);
+        var existingName = _indexManager.FindExistingFileByIdentity(root, fileIdentity);
         if (existingName is not null)
         {
             if (await IsTrustedCachedFileAsync(root, existingName, cancellationToken))
@@ -552,36 +552,22 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
     private static string BuildStableFileName(string normalizedKey, string ext)
     {
-        return $"{BuildHashPrefix(normalizedKey)}{ext}";
+        return $"{BuildFileIdentity(normalizedKey)}{ext}";
     }
 
-    private static string BuildHashPrefix(string normalizedKey)
+    private static string BuildFileIdentity(string normalizedKey)
     {
         var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalizedKey));
-        return Convert.ToHexString(hash).ToLowerInvariant()[..16];
+        return Convert.ToHexStringLower(hash);
     }
 
     private static string NormalizeSourceUrlForKey(Uri uri)
     {
-        var scheme = uri.Scheme.ToLowerInvariant();
-        var host = uri.Host.ToLowerInvariant();
-        var port = uri.IsDefaultPort ? string.Empty : $":{uri.Port}";
-
-        var path = Uri.UnescapeDataString(uri.AbsolutePath);
-        path = path.Replace('\\', '/');
-        while (path.Contains("//", StringComparison.Ordinal))
-        {
-            path = path.Replace("//", "/", StringComparison.Ordinal);
-        }
-
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            path = "/";
-        }
-
-        var canonicalUrl = $"{scheme}://{host}{port}{path}{uri.Query}";
-        var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonicalUrl));
-        return $"v2:{Convert.ToHexString(hash).ToLowerInvariant()}";
+        var requestTarget = uri.GetComponents(
+            UriComponents.HttpRequestUrl,
+            UriFormat.UriEscaped);
+        var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(requestTarget));
+        return $"v3:{Convert.ToHexStringLower(hash)}";
     }
 
     public void Dispose()
