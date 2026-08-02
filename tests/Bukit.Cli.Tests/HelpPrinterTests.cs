@@ -1,4 +1,5 @@
 using Bukit.Cli.Commands;
+using Bukit.Cli.Shared.Cli.Rendering;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -83,5 +84,41 @@ public sealed class HelpPrinterTests
         {
             Console.SetOut(originalOut);
         }
+    }
+
+    [Fact]
+    public void Print_ExposesSeoInsightsAlongsideExistingSubcommands()
+    {
+        var originalOut = Console.Out;
+        var writer = new StringWriter();
+        try
+        {
+            Console.SetOut(writer);
+            HelpPrinter.Print();
+            var output = writer.ToString();
+
+            Assert.Contains("(audit, diff, insights)", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+    }
+
+    [Fact]
+    public void SeoInsightsHelp_ExposesAllOfflineOptions()
+    {
+        var registry = BukitCliSpecs.CreateRegistry();
+        var seo = registry.Resolve("seo")!;
+        var insights = registry.ResolveSubcommand(seo, "insights")!;
+
+        var output = CliHelpRenderer.Render(insights, "bukit seo insights");
+
+        Assert.Contains("--dir", output, StringComparison.Ordinal);
+        Assert.Contains("--routes", output, StringComparison.Ordinal);
+        Assert.Contains("--observations", output, StringComparison.Ordinal);
+        Assert.Contains("--rules", output, StringComparison.Ordinal);
+        Assert.Contains("--out", output, StringComparison.Ordinal);
+        Assert.Contains("--strict-join", output, StringComparison.Ordinal);
     }
 }
