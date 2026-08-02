@@ -123,12 +123,7 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--dir", "构建输出目录"),
                 new CliOptionSpec("--report", "SEO 报告路径"),
                 new CliOptionSpec("--strict", "将 warning 视为失败", CliOptionType.Flag),
-                new CliOptionSpec("--external", "检查外部链接和媒体 URL", CliOptionType.Flag),
-                new CliOptionSpec("--routes", "SEO route map 本地路径"),
-                new CliOptionSpec("--observations", "逗号分隔的本地 observation JSON 路径"),
-                new CliOptionSpec("--rules", "SEO insights 规则本地路径"),
-                new CliOptionSpec("--out", "SEO insights 报告输出路径"),
-                new CliOptionSpec("--strict-join", "join 缺口时返回失败", CliOptionType.Flag)
+                new CliOptionSpec("--external", "检查外部链接和媒体 URL", CliOptionType.Flag)
             },
             Subcommands: new[]
             {

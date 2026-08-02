@@ -12,6 +12,10 @@ internal static partial class SeoInsightsCommand
     private const int MaximumObservationFiles = 10;
     private const string RouteMapSchema = "https://bukit.dev/schemas/seo-route-map.v1.json";
     private const string RouteMapSchemaVersion = "1.0";
+    private static readonly StringComparer PathIdentityComparer =
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
 
     private static readonly HashSet<string> RouteMapProperties =
         ["schema", "schemaVersion", "generatedAt", "siteUrl", "baseUrl", "routes"];
@@ -30,6 +34,11 @@ internal static partial class SeoInsightsCommand
     {
         try
         {
+            if (command.GetArgument(1) is not null)
+            {
+                throw Failure("usage_invalid");
+            }
+
             var outputDirectory = ResolveLocalPath(command.GetString("--dir") ?? "dist", "dir_invalid");
             var routeMapPath = ResolveLocalPath(
                 command.GetString("--routes") ?? Path.Combine(outputDirectory, ".bukit", "seo-route-map.json"),
@@ -48,7 +57,7 @@ internal static partial class SeoInsightsCommand
             var matcher = CreateMatcher(routeMap, ruleProfile);
             var report = AssembleReport(matcher, datasets, ruleProfile);
 
-            WriteReport(outputPath, report);
+            WriteReport(outputPath, report, routeMapPath, rulePath, observationPaths);
 
             var counts = report.JoinQuality.Overall;
             var findingCount = report.Routes.Sum(route => (long)route.Findings.Count);
@@ -94,10 +103,7 @@ internal static partial class SeoInsightsCommand
             throw Failure("observations_count_invalid");
         }
 
-        var comparer = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparer.OrdinalIgnoreCase
-            : StringComparer.Ordinal;
-        var unique = new HashSet<string>(comparer);
+        var unique = new HashSet<string>(PathIdentityComparer);
         var paths = new List<string>(entries.Length);
         foreach (var entry in entries)
         {
@@ -108,7 +114,7 @@ internal static partial class SeoInsightsCommand
             }
 
             var path = ResolveLocalPath(trimmed, "observations_path_invalid");
-            var semanticPath = ResolveSemanticPath(path);
+            var semanticPath = ResolveCanonicalPathIdentity(path);
             if (!unique.Add(semanticPath))
             {
                 throw Failure("observations_duplicate");
@@ -147,16 +153,72 @@ internal static partial class SeoInsightsCommand
         }
     }
 
-    private static string ResolveSemanticPath(string path)
+    private static string ResolveCanonicalPathIdentity(string path)
     {
         try
         {
-            return new FileInfo(path).ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? path;
+            var fullPath = Path.GetFullPath(path);
+            var root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                throw Failure("path_identity_unavailable");
+            }
+
+            var components = fullPath[root.Length..].Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries);
+            var current = root;
+            for (var index = 0; index < components.Length; index++)
+            {
+                var candidate = Path.Combine(current, components[index]);
+                var existing = ExistingFileSystemInfo(candidate);
+                if (existing is null)
+                {
+                    for (; index < components.Length; index++)
+                    {
+                        current = Path.Combine(current, components[index]);
+                    }
+
+                    return Path.GetFullPath(current);
+                }
+
+                var resolved = existing.ResolveLinkTarget(returnFinalTarget: true);
+                current = resolved is null
+                    ? candidate
+                    : ResolveCanonicalPathIdentity(resolved.FullName);
+            }
+
+            return Path.GetFullPath(current);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
+        catch (SeoInsightsCommandException)
         {
-            return path;
+            throw;
         }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        {
+            throw Failure("path_identity_unavailable");
+        }
+    }
+
+    private static FileSystemInfo? ExistingFileSystemInfo(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            return new DirectoryInfo(path);
+        }
+
+        if (File.Exists(path))
+        {
+            return new FileInfo(path);
+        }
+
+        var probe = new FileInfo(path);
+        if (probe.LinkTarget is not null)
+        {
+            throw Failure("path_identity_unavailable");
+        }
+
+        return null;
     }
 
     private static bool IsUriOrNetworkPath(string path)
@@ -180,13 +242,10 @@ internal static partial class SeoInsightsCommand
         string rulePath,
         IReadOnlyList<string> observationPaths)
     {
-        var comparer = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
-            ? StringComparer.OrdinalIgnoreCase
-            : StringComparer.Ordinal;
-        var outputSemanticPath = ResolveSemanticPath(outputPath);
-        if (comparer.Equals(outputSemanticPath, ResolveSemanticPath(routeMapPath)) ||
-            comparer.Equals(outputSemanticPath, ResolveSemanticPath(rulePath)) ||
-            observationPaths.Any(path => comparer.Equals(outputSemanticPath, ResolveSemanticPath(path))))
+        var outputSemanticPath = ResolveCanonicalPathIdentity(outputPath);
+        if (PathIdentityComparer.Equals(outputSemanticPath, ResolveCanonicalPathIdentity(routeMapPath)) ||
+            PathIdentityComparer.Equals(outputSemanticPath, ResolveCanonicalPathIdentity(rulePath)) ||
+            observationPaths.Any(path => PathIdentityComparer.Equals(outputSemanticPath, ResolveCanonicalPathIdentity(path))))
         {
             throw Failure("output_conflict");
         }
@@ -352,7 +411,12 @@ internal static partial class SeoInsightsCommand
         }
     }
 
-    private static void WriteReport(string outputPath, SeoInsightsReport report)
+    private static void WriteReport(
+        string outputPath,
+        SeoInsightsReport report,
+        string routeMapPath,
+        string rulePath,
+        IReadOnlyList<string> observationPaths)
     {
         var parent = Path.GetDirectoryName(outputPath);
         if (string.IsNullOrWhiteSpace(parent))
@@ -366,6 +430,7 @@ internal static partial class SeoInsightsCommand
             Directory.CreateDirectory(parent);
             SeoInsightsReportWriter.Write(stagingRoot, report);
             var stagedReport = Path.Combine(stagingRoot, ".bukit", SeoInsightsReportWriter.FileName);
+            RejectOutputConflict(outputPath, routeMapPath, rulePath, observationPaths);
             File.Move(stagedReport, outputPath, overwrite: true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException)

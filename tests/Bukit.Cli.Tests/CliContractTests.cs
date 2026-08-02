@@ -50,6 +50,9 @@ public sealed class CliContractTests
 
         Assert.Equal(["audit", "diff", "insights"], seo.Subcommands!.Select(command => command.Name));
         Assert.Equal(
+            ["--dir", "--report", "--strict", "--external"],
+            seo.Options!.Select(option => option.Name));
+        Assert.Equal(
             ["--dir", "--routes", "--observations", "--rules", "--out", "--strict-join"],
             options.Select(option => option.Name));
         Assert.True(options.Single(option => option.Name == "--observations").Required);

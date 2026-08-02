@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Shared.Cli.Binding;
+using Bukit.Cli.Shared.Cli.Parsing;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Cli.Tests;
 
@@ -98,6 +100,68 @@ public sealed class SeoInsightsCommandTests : IDisposable
         Assert.Equal($"SEO insights failed: observations_duplicate.{Environment.NewLine}", result.StdErr);
         Assert.Empty(result.StdOut);
         Assert.DoesNotContain(_tempDir, result.StdErr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_ParentDirectorySymlinkDuplicateObservations_ReturnsTwoWithoutChangingSource()
+    {
+        var inputs = WriteValidInputs();
+        var alias = Path.Combine(_tempDir, "source-alias");
+        CreateDirectorySymlinkOrSkip(alias, _tempDir);
+        var sourceBytes = File.ReadAllBytes(inputs.Gsc);
+        try
+        {
+            var result = await InvokeAsync(() => SeoCommand.RunAsync(Command(
+                inputs.RouteMap,
+                $"{inputs.Gsc},{Path.Combine(alias, Path.GetFileName(inputs.Gsc))}",
+                inputs.Rules,
+                Path.Combine(_tempDir, "duplicate-parent-alias.json"))));
+
+            Assert.Equal(2, result.ExitCode);
+            Assert.Equal($"SEO insights failed: observations_duplicate.{Environment.NewLine}", result.StdErr);
+            Assert.Empty(result.StdOut);
+            Assert.Equal(sourceBytes, File.ReadAllBytes(inputs.Gsc));
+        }
+        finally
+        {
+            DeleteDirectoryLinkIfExists(alias);
+        }
+    }
+
+    [Theory]
+    [InlineData("routes")]
+    [InlineData("rules")]
+    [InlineData("observations")]
+    public async Task RunAsync_ParentDirectorySymlinkOutputCollision_PreservesEverySourceType(string sourceType)
+    {
+        var inputs = WriteValidInputs();
+        var alias = Path.Combine(_tempDir, "output-alias");
+        CreateDirectorySymlinkOrSkip(alias, _tempDir);
+        var sourcePath = sourceType switch
+        {
+            "routes" => inputs.RouteMap,
+            "rules" => inputs.Rules,
+            "observations" => inputs.Gsc,
+            _ => throw new InvalidOperationException("Unexpected source kind.")
+        };
+        var sourceBytes = File.ReadAllBytes(sourcePath);
+        try
+        {
+            var result = await InvokeAsync(() => SeoCommand.RunAsync(Command(
+                inputs.RouteMap,
+                inputs.Gsc,
+                inputs.Rules,
+                Path.Combine(alias, Path.GetFileName(sourcePath)))));
+
+            Assert.Equal(2, result.ExitCode);
+            Assert.Equal($"SEO insights failed: output_conflict.{Environment.NewLine}", result.StdErr);
+            Assert.Empty(result.StdOut);
+            Assert.Equal(sourceBytes, File.ReadAllBytes(sourcePath));
+        }
+        finally
+        {
+            DeleteDirectoryLinkIfExists(alias);
+        }
     }
 
     [Theory]
@@ -232,6 +296,30 @@ public sealed class SeoInsightsCommandTests : IDisposable
         Assert.Equal(2, outputFailure.ExitCode);
         Assert.Equal($"SEO insights failed: output_unavailable.{Environment.NewLine}", outputFailure.StdErr);
         Assert.Empty(outputFailure.StdOut);
+    }
+
+    [Fact]
+    public async Task Dispatch_ExtraPositionalArgument_ReturnsUsageFailureBeforeReadsOrWrites()
+    {
+        var outputPath = Path.Combine(_tempDir, "must-not-exist.json");
+        var descriptor = BukitCliDescriptors.CreateDescriptors().Single(value => value.Spec.Name == "seo");
+        var parsed = CliParser.Parse(descriptor.Spec,
+        [
+            "insights",
+            "--routes", Path.Combine(_tempDir, "missing-routes.json"),
+            "--observations", Path.Combine(_tempDir, "missing-observations.json"),
+            "--rules", Path.Combine(_tempDir, "missing-rules.json"),
+            "--out", outputPath,
+            "stray-input"
+        ]);
+        Assert.True(parsed.IsSuccess);
+
+        var result = await InvokeAsync(() => descriptor.DispatchAsync(parsed));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Equal($"SEO insights failed: usage_invalid.{Environment.NewLine}", result.StdErr);
+        Assert.Empty(result.StdOut);
+        Assert.False(File.Exists(outputPath));
     }
 
     private CliBoundCommand Command(
@@ -399,6 +487,29 @@ public sealed class SeoInsightsCommandTests : IDisposable
           }
         }
         """;
+
+    private static void CreateDirectorySymlinkOrSkip(string linkPath, string targetPath)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(linkPath, targetPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"Directory symlinks are unavailable: {exception.GetType().Name}");
+        }
+    }
+
+    private static void DeleteDirectoryLinkIfExists(string linkPath)
+    {
+        try
+        {
+            Directory.Delete(linkPath);
+        }
+        catch (DirectoryNotFoundException)
+        {
+        }
+    }
 
     private static async Task<(int ExitCode, string StdOut, string StdErr)> InvokeAsync(Func<Task<int>> action)
     {
