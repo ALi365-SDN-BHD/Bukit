@@ -142,6 +142,34 @@ public sealed class SeoInsightsReportWriterTests
     }
 
     [Fact]
+    public void Assemble_ExtremeFinitePositionsRemainFiniteSerializableAndPermutationDeterministic()
+    {
+        var window = new SeoObservationWindow(new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 2), "UTC");
+        var dataset = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "google-organic",
+            DateTimeOffset.Parse("2026-08-03T00:00:00Z"), window,
+            [
+                new SeoObservationRow("https://example.com/article/", 1, 0, double.MaxValue, null, null, null),
+                new SeoObservationRow("https://example.com/article/", 2, 0, double.MaxValue, null, null, null)
+            ]);
+
+        var first = SeoInsightsReportWriter.Assemble(CreateMatcher(), [dataset]);
+        var second = SeoInsightsReportWriter.Assemble(
+            CreateMatcher(),
+            [dataset with { Rows = dataset.Rows.Reverse().ToArray() }]);
+        var firstBytes = JsonSerializer.SerializeToUtf8Bytes(first, SeoInsightsJsonContext.Default.SeoInsightsReport);
+        var secondBytes = JsonSerializer.SerializeToUtf8Bytes(second, SeoInsightsJsonContext.Default.SeoInsightsReport);
+
+        var article = Assert.Single(first.Routes, route => route.RouteKey == "route:article");
+        Assert.Equal(double.MaxValue, article.Metrics.AveragePosition);
+        Assert.True(double.IsFinite(article.Metrics.AveragePosition!.Value));
+        Assert.Equal(firstBytes, secondBytes);
+        using var document = JsonDocument.Parse(firstBytes);
+        Assert.Equal(double.MaxValue, document.RootElement.GetProperty("routes")[0]
+            .GetProperty("metrics").GetProperty("averagePosition").GetDouble());
+    }
+
+    [Fact]
     public void Assemble_MismatchedWindowsAreRejected()
     {
         var datasets = Datasets().ToArray();

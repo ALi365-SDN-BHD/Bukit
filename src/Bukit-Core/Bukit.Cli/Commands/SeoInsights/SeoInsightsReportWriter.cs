@@ -306,23 +306,75 @@ internal static class SeoInsightsReportWriter
                 return null;
             }
 
-            long totalImpressions = 0;
-            decimal weightedPositions = 0;
             // This is a total order over every serialized position discriminator,
             // so aggregation and threshold evidence do not depend on input order.
-            foreach (var sample in _positionSamples
-                         .OrderBy(sample => BitConverter.DoubleToInt64Bits(sample.Position))
-                         .ThenBy(sample => sample.Impressions))
+            var samples = _positionSamples
+                .OrderBy(sample => BitConverter.DoubleToInt64Bits(sample.Position))
+                .ThenBy(sample => sample.Impressions)
+                .ToArray();
+            var totalImpressions = 0L;
+            foreach (var sample in samples)
             {
                 totalImpressions = checked(totalImpressions + sample.Impressions);
-                var contribution = checked((decimal)sample.Position * sample.Impressions);
-                weightedPositions = checked(weightedPositions + contribution);
+            }
+
+            try
+            {
+                return DecimalAverage(samples, totalImpressions);
+            }
+            catch (OverflowException)
+            {
+                return ScaledDoubleAverage(samples, totalImpressions);
+            }
+        }
+
+        private static double DecimalAverage(IReadOnlyList<PositionSample> samples, long totalImpressions)
+        {
+            decimal weightedPositions = 0;
+            foreach (var sample in samples)
+            {
+                weightedPositions = checked(weightedPositions + checked((decimal)sample.Position * sample.Impressions));
             }
 
             var average = (double)(weightedPositions / totalImpressions);
             if (!double.IsFinite(average))
             {
                 throw new OverflowException("Weighted position average is not finite.");
+            }
+
+            return average;
+        }
+
+        private static double ScaledDoubleAverage(IReadOnlyList<PositionSample> samples, long totalImpressions)
+        {
+            var maximumPosition = samples.Max(sample => sample.Position);
+            if (maximumPosition == 0)
+            {
+                return 0;
+            }
+
+            var normalizedWeightedPositions = 0d;
+            foreach (var sample in samples)
+            {
+                var normalizedContribution =
+                    (sample.Position / maximumPosition) * ((double)sample.Impressions / totalImpressions);
+                if (!double.IsFinite(normalizedContribution))
+                {
+                    throw new OverflowException("Scaled weighted position contribution is not finite.");
+                }
+
+                normalizedWeightedPositions += normalizedContribution;
+                if (!double.IsFinite(normalizedWeightedPositions))
+                {
+                    throw new OverflowException("Scaled weighted position is not finite.");
+                }
+            }
+
+            // Round-off can put a mathematical unit weight infinitesimally above one.
+            var average = maximumPosition * Math.Min(1d, normalizedWeightedPositions);
+            if (!double.IsFinite(average))
+            {
+                throw new OverflowException("Scaled weighted position average is not finite.");
             }
 
             return average;
