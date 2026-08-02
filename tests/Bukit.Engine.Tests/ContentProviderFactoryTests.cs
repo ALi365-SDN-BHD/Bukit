@@ -285,7 +285,8 @@ public sealed class ContentProviderFactoryTests
 
         try
         {
-            using var server = new LoopbackImageServer(Encoding.UTF8.GetBytes("body-image"));
+            using var server = new LoopbackImageServer(
+                [0xFF, 0xD8, 0xFF, .. Encoding.UTF8.GetBytes("body-image")]);
             var fieldImageUrl = server.BaseUrl + "field.jpg";
             var bodyImageUrl = server.BaseUrl + "body.jpg";
             var cachedFieldImageName = BuildCachedImageName(fieldImageUrl);
