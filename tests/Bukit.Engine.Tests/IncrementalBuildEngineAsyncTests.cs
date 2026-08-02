@@ -40,6 +40,59 @@ public sealed class IncrementalBuildEngineAsyncTests
         return new RouteInfo(url, outputPath, template);
     }
 
+    [Fact]
+    public async Task ComputeListContentHashAsync_PageContentChange_InvalidatesImmediately()
+    {
+        var bodyStoreV1 = new StubBodyStore("<p>version-1</p>");
+        var bodyStoreV2 = new StubBodyStore("<p>version-2</p>");
+        var item = CreateItem(id: "post", slug: "post", contentHtml: "<p>version-1</p>");
+        var route = CreateRoute(url: "/post/", outputPath: "post/index.html");
+        var source = new[] { new RoutedContentDocument(item, route) };
+
+        // Round 1: initial hash
+        var hash1 = await IncrementalBuildEngine.ComputeListContentHashAsync(
+            "tpl", "list.html", source, new BuildManifest(), bodyStoreV1,
+            includeContent: true, CancellationToken.None);
+
+        // Round 2: page content changes, list hash must change immediately
+        var updatedItem = CreateItem(id: "post", slug: "post", contentHtml: "<p>version-2</p>");
+        var updatedSource = new[] { new RoutedContentDocument(updatedItem, route) };
+        var hash2 = await IncrementalBuildEngine.ComputeListContentHashAsync(
+            "tpl", "list.html", updatedSource, new BuildManifest(), bodyStoreV2,
+            includeContent: true, CancellationToken.None);
+
+        Assert.NotEqual(hash1, hash2);
+
+        // Round 3: no changes, list hash stays the same
+        var hash3 = await IncrementalBuildEngine.ComputeListContentHashAsync(
+            "tpl", "list.html", updatedSource, new BuildManifest(), bodyStoreV2,
+            includeContent: true, CancellationToken.None);
+
+        Assert.Equal(hash2, hash3);
+    }
+
+    [Fact]
+    public async Task ComputeListContentHashAsync_PageMetadataChange_InvalidatesImmediately()
+    {
+        var item = CreateItem(id: "post", title: "Old Title", slug: "post");
+        var route = CreateRoute(url: "/post/", outputPath: "post/index.html");
+        var source = new[] { new RoutedContentDocument(item, route) };
+        var bodyStore = NullContentBodyStore.Instance;
+
+        var hash1 = await IncrementalBuildEngine.ComputeListContentHashAsync(
+            "tpl", "list.html", source, new BuildManifest(), bodyStore,
+            includeContent: false, CancellationToken.None);
+
+        // Change title only
+        var updatedItem = CreateItem(id: "post", title: "New Title", slug: "post");
+        var updatedSource = new[] { new RoutedContentDocument(updatedItem, route) };
+        var hash2 = await IncrementalBuildEngine.ComputeListContentHashAsync(
+            "tpl", "list.html", updatedSource, new BuildManifest(), bodyStore,
+            includeContent: false, CancellationToken.None);
+
+        Assert.NotEqual(hash1, hash2);
+    }
+
     private sealed class StubBodyStore : IContentBodyStore
     {
         private readonly string _html;

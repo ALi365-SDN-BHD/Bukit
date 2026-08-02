@@ -123,18 +123,10 @@ internal static class IncrementalBuildEngine
             AppendUtf8(hasher, key);
             hasher.AppendData(newline);
 
-            if (manifest.Entries.TryGetValue(key, out var entry) && entry is not null)
-            {
-                AppendUtf8(hasher, entry.ContentHash);
-                hasher.AppendData(newline);
-                AppendUtf8(hasher, entry.RouteHash);
-            }
-            else
-            {
-                AppendUtf8(hasher, ComputeListDocumentHash(document, bodyStore, includeContent));
-                hasher.AppendData(newline);
-                AppendUtf8(hasher, ComputeRouteHash(route));
-            }
+            // Always compute from current inputs, never backfill from prior manifest
+            AppendUtf8(hasher, ComputeListDocumentHash(document, bodyStore, includeContent));
+            hasher.AppendData(newline);
+            AppendUtf8(hasher, ComputeRouteHash(route));
         }
 
         var digest = hasher.GetHashAndReset();
@@ -188,19 +180,11 @@ internal static class IncrementalBuildEngine
             AppendUtf8(hasher, k);
             hasher.AppendData(newline);
 
-            if (manifestEntries.TryGetValue(k, out var entry) && entry is not null)
-            {
-                AppendUtf8(hasher, entry.ContentHash);
-                hasher.AppendData(newline);
-                AppendUtf8(hasher, entry.RouteHash);
-            }
-            else
-            {
-                var itemHash = await ComputeListDocumentHashAsync(document, bodyStore, includeContent, cancellationToken).ConfigureAwait(false);
-                AppendUtf8(hasher, itemHash);
-                hasher.AppendData(newline);
-                AppendUtf8(hasher, ComputeRouteHash(route));
-            }
+            // Always compute from current inputs, never backfill from prior manifest
+            var itemHash = await ComputeListDocumentHashAsync(document, bodyStore, includeContent, cancellationToken).ConfigureAwait(false);
+            AppendUtf8(hasher, itemHash);
+            hasher.AppendData(newline);
+            AppendUtf8(hasher, ComputeRouteHash(route));
         }
 
         var digest = hasher.GetHashAndReset();
