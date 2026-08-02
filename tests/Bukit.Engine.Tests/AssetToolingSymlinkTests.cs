@@ -34,7 +34,7 @@ public sealed class AssetToolingSymlinkTests
     }
 
     [Fact]
-    public void ImageProcessingPlugin_DoesNotIndexImagesThroughDirectorySymlink()
+    public async Task ImageProcessingPlugin_DoesNotIndexImagesThroughDirectorySymlink()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -77,7 +77,7 @@ public sealed class AssetToolingSymlinkTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin(config).AfterBuild(context);
+            await new ImageProcessingPlugin(config).AfterBuildAsync(context);
 
             var srcsets = Assert.IsType<Dictionary<string, object>>(context.Data["__image_srcsets"]);
             Assert.Contains("local.jpg", srcsets.Keys);

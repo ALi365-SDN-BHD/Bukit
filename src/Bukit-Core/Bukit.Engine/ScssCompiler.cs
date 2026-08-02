@@ -33,6 +33,9 @@ internal static class ScssCompiler
             try
             {
                 var cssFile = Path.ChangeExtension(scssFile, ".css");
+                var temporaryCssFile = Path.Combine(
+                    Path.GetDirectoryName(cssFile)!,
+                    $".{Path.GetFileNameWithoutExtension(cssFile)}.bukit-{Guid.NewGuid():N}.css");
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = sassCli,
@@ -42,34 +45,35 @@ internal static class ScssCompiler
                     CreateNoWindow = true
                 };
                 startInfo.ArgumentList.Add(scssFile);
-                startInfo.ArgumentList.Add(cssFile);
+                startInfo.ArgumentList.Add(temporaryCssFile);
                 startInfo.ArgumentList.Add("--no-source-map");
                 startInfo.ArgumentList.Add("--style=compressed");
-                var process = Process.Start(startInfo);
-
-                if (process is null)
+                try
                 {
-                    logger.Warn($"event=scss.error file={Path.GetFileName(scssFile)} reason=process_failed");
-                    continue;
-                }
-
-                using var cts = new CancellationTokenSource(5000);
-                var stderrTask = process.StandardError.ReadToEndAsync(cts.Token);
-                await process.WaitForExitAsync(cts.Token);
-                if (process.ExitCode == 0)
-                {
-                    logger.Info($"event=scss.compiled file={Path.GetFileName(scssFile)}");
-
-                    if (File.Exists(scssFile))
+                    var result = await ExternalToolProcessRunner.RunAsync(
+                        startInfo,
+                        TimeSpan.FromSeconds(5),
+                        cancellationToken);
+                    if (result.ExitCode == 0 && IsReadableFile(temporaryCssFile))
                     {
+                        File.Move(temporaryCssFile, cssFile, overwrite: true);
+                        logger.Info($"event=scss.compiled file={Path.GetFileName(scssFile)}");
                         File.Delete(scssFile);
                     }
+                    else
+                    {
+                        var reason = result.ExitCode == 0 ? "output_missing" : "compile_failed";
+                        logger.Warn($"event=scss.error file={Path.GetFileName(scssFile)} reason={reason} detail={result.StandardError}");
+                    }
                 }
-                else
+                finally
                 {
-                    var stderr = await stderrTask;
-                    logger.Warn($"event=scss.error file={Path.GetFileName(scssFile)} reason=compile_failed detail={stderr}");
+                    TryDelete(temporaryCssFile);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -91,25 +95,23 @@ internal static class ScssCompiler
 
             try
             {
-                using var process = Process.Start(new ProcessStartInfo
+                var result = await ExternalToolProcessRunner.RunAsync(new ProcessStartInfo
                 {
                     FileName = name,
                     Arguments = "--version",
                     RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
-                });
-
-                if (process is not null)
+                }, TimeSpan.FromSeconds(3), cancellationToken);
+                if (result.ExitCode == 0)
                 {
-                    using var cts = new CancellationTokenSource(3000);
-                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
-                    await process.WaitForExitAsync(linkedCts.Token);
-                    if (process.ExitCode == 0)
-                    {
-                        return name;
-                    }
+                    return name;
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -118,5 +120,36 @@ internal static class ScssCompiler
         }
 
         return null;
+    }
+
+    private static bool IsReadableFile(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 }

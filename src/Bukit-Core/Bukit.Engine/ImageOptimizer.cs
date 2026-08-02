@@ -39,6 +39,7 @@ internal static class ImageOptimizer
 
             foreach (var imageFile in imageFiles)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     var outputFile = Path.ChangeExtension(imageFile, $".{format}");
@@ -55,6 +56,10 @@ internal static class ImageOptimizer
                     {
                         await ConvertToAvif(imageFile, outputFile, quality, logger, cancellationToken);
                     }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -112,9 +117,7 @@ internal static class ImageOptimizer
             startInfo.ArgumentList.Add(outputFile);
         }
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-        await RunTool(startInfo, logger, inputFile, linkedCts.Token);
+        await RunTool(startInfo, logger, inputFile, outputFile, cancellationToken);
     }
 
     private static async Task ConvertToAvif(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
@@ -139,9 +142,7 @@ internal static class ImageOptimizer
         startInfo.ArgumentList.Add("-quality");
         startInfo.ArgumentList.Add(quality.ToString());
         startInfo.ArgumentList.Add(outputFile);
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-        await RunTool(startInfo, logger, inputFile, linkedCts.Token);
+        await RunTool(startInfo, logger, inputFile, outputFile, cancellationToken);
     }
 
     private static async Task<string?> FindImageToolAsync(CancellationToken cancellationToken = default)
@@ -155,25 +156,23 @@ internal static class ImageOptimizer
 
             try
             {
-                using var process = Process.Start(new ProcessStartInfo
+                var result = await ExternalToolProcessRunner.RunAsync(new ProcessStartInfo
                 {
                     FileName = name,
                     Arguments = name == "cwebp" ? "-version" : "--version",
                     RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
-                });
-
-                if (process is not null)
+                }, TimeSpan.FromSeconds(3), cancellationToken);
+                if (result.ExitCode == 0)
                 {
-                    using var cts = new CancellationTokenSource(3000);
-                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
-                    await process.WaitForExitAsync(linkedCts.Token);
-                    if (process.ExitCode == 0)
-                    {
-                        return name;
-                    }
+                    return name;
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {
@@ -183,26 +182,50 @@ internal static class ImageOptimizer
         return null;
     }
 
-    private static async Task RunTool(ProcessStartInfo startInfo, ILogger logger, string inputFile, CancellationToken cancellationToken)
+    private static async Task RunTool(
+        ProcessStartInfo startInfo,
+        ILogger logger,
+        string inputFile,
+        string outputFile,
+        CancellationToken cancellationToken)
     {
-        using var process = Process.Start(startInfo);
-
-        if (process is null)
+        var temporaryOutput = Path.Combine(
+            Path.GetDirectoryName(outputFile)!,
+            $".{Path.GetFileNameWithoutExtension(outputFile)}.bukit-{Guid.NewGuid():N}{Path.GetExtension(outputFile)}");
+        startInfo.ArgumentList[^1] = temporaryOutput;
+        try
         {
-            logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason=process_start_failed");
-            return;
+            var result = await ExternalToolProcessRunner.RunAsync(
+                startInfo,
+                TimeSpan.FromSeconds(10),
+                cancellationToken);
+            if (result.ExitCode == 0 && File.Exists(temporaryOutput))
+            {
+                File.Move(temporaryOutput, outputFile, overwrite: true);
+                logger.Info($"event=image_optimize.ok file={Path.GetFileName(inputFile)}");
+            }
+            else
+            {
+                logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason={result.StandardError}");
+            }
         }
-
-        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        if (process.ExitCode == 0)
+        finally
         {
-            logger.Info($"event=image_optimize.ok file={Path.GetFileName(inputFile)}");
+            TryDelete(temporaryOutput);
         }
-        else
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
         {
-            var err = await stderrTask;
-            logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason={err}");
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
         }
     }
 }

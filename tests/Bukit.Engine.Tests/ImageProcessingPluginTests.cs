@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -9,13 +8,14 @@ using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class ImageProcessingPluginTests
 {
     [Fact]
-    public void AfterBuild_NotEnabled_DoesNothing()
+    public async Task AfterBuild_NotEnabled_DoesNothing()
     {
         var outDir = GetTempDir();
         try
@@ -33,7 +33,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin(config).AfterBuild(ctx);
+            await new ImageProcessingPlugin(config).AfterBuildAsync(ctx);
             Assert.False(ctx.Data.ContainsKey("__image_srcsets"));
         }
         finally
@@ -43,7 +43,7 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public void AfterBuild_NoAssetsDir_DoesNothing()
+    public async Task AfterBuild_NoAssetsDir_DoesNothing()
     {
         var outDir = GetTempDir();
         try
@@ -59,7 +59,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin(config).AfterBuild(ctx);
+            await new ImageProcessingPlugin(config).AfterBuildAsync(ctx);
             Assert.False(ctx.Data.ContainsKey("__image_srcsets"));
         }
         finally
@@ -69,7 +69,7 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public void AfterBuild_NoImageTool_LogsWarningGracefully()
+    public async Task AfterBuild_NoImageTool_LogsWarningGracefully()
     {
         var outDir = GetTempDir();
         try
@@ -90,7 +90,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin(config).AfterBuild(ctx);
+            await new ImageProcessingPlugin(config).AfterBuildAsync(ctx);
         }
         finally
         {
@@ -99,7 +99,7 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public void AfterBuild_OnlyProcessesImageExtensions()
+    public async Task AfterBuild_OnlyProcessesImageExtensions()
     {
         var outDir = GetTempDir();
         try
@@ -120,7 +120,7 @@ public sealed class ImageProcessingPluginTests
                 Logger = new ConsoleLogger(LogLevel.Error)
             };
 
-            new ImageProcessingPlugin(config).AfterBuild(ctx);
+            await new ImageProcessingPlugin(config).AfterBuildAsync(ctx);
         }
         finally
         {
@@ -128,7 +128,139 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
+    [Fact]
+    public async Task AfterBuildAsync_CancellationKillsChildAndRemovesPartialOutput()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        var originalMarker = Environment.GetEnvironmentVariable("BUKIT_IMAGE_TEST_MARKER");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            File.WriteAllText(Path.Combine(assetsDir, "test.jpg"), "fake-jpeg");
+            var marker = Path.Combine(outDir, "late-marker");
+            WriteTool(toolDir, "magick", """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                printf partial > "$last"
+                ( sleep 1; printf late > "$BUKIT_IMAGE_TEST_MARKER" ) &
+                sleep 5
+                """);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+            Environment.SetEnvironmentVariable("BUKIT_IMAGE_TEST_MARKER", marker);
+            var context = CreateContext(outDir);
+            var plugin = new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }));
+            using var cancellation = new CancellationTokenSource();
+            var buildTask = plugin.AfterBuildAsync(context, cancellation.Token);
+            await WaitUntilAsync(
+                () => Directory.EnumerateFiles(assetsDir, ".test-480w.bukit-*.jpg").Any(),
+                TimeSpan.FromSeconds(2));
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                buildTask);
+
+            await Task.Delay(1200);
+            Assert.False(File.Exists(Path.Combine(assetsDir, "test-480w.jpg")));
+            Assert.False(File.Exists(marker));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            Environment.SetEnvironmentVariable("BUKIT_IMAGE_TEST_MARKER", originalMarker);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuildAsync_DoesNotProcessGeneratedSizedImageAsSource()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            File.WriteAllText(Path.Combine(assetsDir, "photo.jpg"), "original");
+            File.WriteAllText(Path.Combine(assetsDir, "photo-480w.jpg"), "existing-sized");
+            WriteTool(toolDir, "magick", """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                printf resized > "$last"
+                """);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+
+            await new ImageProcessingPlugin(CreateConfig(
+                    new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
+                .AfterBuildAsync(CreateContext(outDir));
+
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w-480w.jpg")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
     private static string GetTempDir() => Path.Combine(Path.GetTempPath(), "bukit_img_test_" + Guid.NewGuid().ToString("N"));
+
+    private static BuildContext CreateContext(string outDir) => new()
+    {
+        RootDir = outDir,
+        OutputDir = outDir,
+        BaseUrl = "/",
+        LayoutsDir = outDir,
+        RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+        Logger = new ConsoleLogger(LogLevel.Error)
+    };
+
+    private static void WriteTool(string directory, string name, string body)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        var path = Path.Combine(directory, name);
+        File.WriteAllText(path, "#!/bin/sh\n" + body + "\n");
+        File.SetUnixFileMode(
+            path,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    }
+
+    private static void RequireUnix()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw SkipException.ForSkip("This process-tree probe uses temporary Unix executables.");
+        }
+    }
+
+    private static string PrependPath(string directory, string? originalPath) =>
+        string.IsNullOrEmpty(originalPath) ? directory : directory + Path.PathSeparator + originalPath;
+
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!condition())
+        {
+            if (DateTime.UtcNow >= deadline)
+            {
+                throw new TimeoutException("Timed out waiting for the fake image tool to create its partial output.");
+            }
+
+            await Task.Delay(20);
+        }
+    }
 
     private static AppConfig CreateConfig(ImageOptimizationConfig images) => new()
     {
