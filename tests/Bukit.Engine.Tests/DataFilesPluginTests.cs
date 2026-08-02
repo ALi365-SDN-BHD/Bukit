@@ -194,6 +194,142 @@ public sealed class DataFilesPluginTests
     }
 
     [Fact]
+    public void DerivePages_FileSizeLimitExceeded_FailsClosedBeforeParsing()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, "large.json"), "12345");
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxFileSizeBytes: 4)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("maximum file size of 4 bytes", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/large.json", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_TotalSizeLimitAcrossLanguages_FailsClosed()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(Path.Combine(dataDir, "en"));
+            Directory.CreateDirectory(Path.Combine(dataDir, "fr"));
+            File.WriteAllText(Path.Combine(dataDir, "en", "a.json"), "{}");
+            File.WriteAllText(Path.Combine(dataDir, "fr", "b.json"), "{}");
+            var config = CreateConfig() with
+            {
+                Site = CreateConfig().Site with { Languages = ["en", "fr"] }
+            };
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(config, maxTotalSizeBytes: 3)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("total size limit of 3 bytes", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/fr/b.json", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_LanguageFilesCountOnceAgainstTotalSizeLimit()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(Path.Combine(dataDir, "en"));
+            Directory.CreateDirectory(Path.Combine(dataDir, "fr"));
+            File.WriteAllText(Path.Combine(dataDir, "en", "a.json"), "{}");
+            File.WriteAllText(Path.Combine(dataDir, "fr", "b.json"), "{}");
+            var config = CreateConfig() with
+            {
+                Site = CreateConfig().Site with { Languages = ["en", "fr"] }
+            };
+            var context = CreateContext(root);
+
+            new DataFilesPlugin(config, maxTotalSizeBytes: 4).DerivePages(context);
+
+            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            Assert.Equal(["en", "fr"], data.Keys);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("nested.json", "{\"a\":{\"b\":1}}")]
+    [InlineData("nested.yaml", "a:\n  b:\n    c: 1\n")]
+    public void DerivePages_DocumentDepthLimitExceeded_FailsClosed(
+        string fileName,
+        string content)
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, fileName), content);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxDocumentDepth: 1)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("document depth exceeds the maximum of 1", exception.Message, StringComparison.Ordinal);
+            Assert.Contains($"data/{fileName}", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("[1,2]")]
+    [InlineData("[null,null]")]
+    public void DerivePages_DocumentNodeLimitExceeded_FailsClosed(string content)
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, "nodes.json"), content);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxDocumentNodes: 2)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("more than 2 nodes", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/nodes.json", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void DerivePages_NoDataDir_ReturnsEmpty()
     {
         var config = CreateConfig();

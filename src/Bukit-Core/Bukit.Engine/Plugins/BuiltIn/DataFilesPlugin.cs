@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json.Nodes;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -15,22 +16,42 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
 {
     private const int DefaultMaxEntries = 10_000;
     private const int DefaultMaxDepth = 64;
+    private const long DefaultMaxFileSizeBytes = 16 * 1024 * 1024;
+    private const long DefaultMaxTotalSizeBytes = 64 * 1024 * 1024;
+    private const int DefaultMaxDocumentNodes = 250_000;
+    private const int DefaultMaxDocumentDepth = 64;
 
     private readonly AppConfig _config;
     private readonly int _maxEntries;
     private readonly int _maxDepth;
+    private readonly long _maxFileSizeBytes;
+    private readonly long _maxTotalSizeBytes;
+    private readonly int _maxDocumentNodes;
+    private readonly int _maxDocumentDepth;
 
     internal DataFilesPlugin(
         AppConfig config,
         int maxEntries = DefaultMaxEntries,
-        int maxDepth = DefaultMaxDepth)
+        int maxDepth = DefaultMaxDepth,
+        long maxFileSizeBytes = DefaultMaxFileSizeBytes,
+        long maxTotalSizeBytes = DefaultMaxTotalSizeBytes,
+        int maxDocumentNodes = DefaultMaxDocumentNodes,
+        int maxDocumentDepth = DefaultMaxDocumentDepth)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntries);
         ArgumentOutOfRangeException.ThrowIfNegative(maxDepth);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFileSizeBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxTotalSizeBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxDocumentNodes);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxDocumentDepth);
         _config = config;
         _maxEntries = maxEntries;
         _maxDepth = maxDepth;
+        _maxFileSizeBytes = maxFileSizeBytes;
+        _maxTotalSizeBytes = maxTotalSizeBytes;
+        _maxDocumentNodes = maxDocumentNodes;
+        _maxDocumentDepth = maxDocumentDepth;
     }
 
     public string Name => "data-files";
@@ -56,6 +77,14 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         }
 
         var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var traversal = new TraversalState(
+            _maxEntries,
+            _maxDepth,
+            _maxFileSizeBytes,
+            _maxTotalSizeBytes,
+            cancellationToken);
+        var languageDirectories = new HashSet<string>(
+            OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
         var languages = _config.Site.Languages;
         if (languages is { Count: > 0 })
@@ -65,12 +94,26 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
                 var langDir = Path.Combine(dataDir, lang);
                 if (Directory.Exists(langDir) && !IsReparsePoint(langDir))
                 {
-                    result[lang] = LoadDataDirectory(langDir, dataDir, cancellationToken);
+                    var normalizedLanguageDirectory = Path.GetFullPath(langDir);
+                    if (languageDirectories.Add(normalizedLanguageDirectory))
+                    {
+                        traversal.VisitEntry(dataDir, langDir);
+                        result[lang] = LoadDataDirectory(
+                            langDir,
+                            dataDir,
+                            traversal,
+                            depth: 0);
+                    }
                 }
             }
         }
 
-        var defaultData = LoadDataDirectory(dataDir, dataDir, cancellationToken);
+        var defaultData = LoadDataDirectory(
+            dataDir,
+            dataDir,
+            traversal,
+            depth: 0,
+            excludedDirectories: languageDirectories);
         foreach (var (key, value) in defaultData)
         {
             if (!result.ContainsKey(key))
@@ -93,18 +136,9 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
     private Dictionary<string, object> LoadDataDirectory(
         string dir,
         string dataRoot,
-        CancellationToken cancellationToken)
-        => LoadDataDirectory(
-            dir,
-            dataRoot,
-            new TraversalState(_maxEntries, _maxDepth, cancellationToken),
-            depth: 0);
-
-    private static Dictionary<string, object> LoadDataDirectory(
-        string dir,
-        string dataRoot,
         TraversalState traversal,
-        int depth)
+        int depth,
+        IReadOnlySet<string>? excludedDirectories = null)
     {
         traversal.EnterDirectory(dir, dataRoot, depth);
         var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -135,14 +169,19 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
 
             var key = Path.GetFileNameWithoutExtension(file);
             object? data = null;
+            var relativePath = GetRelativeDataPath(dataRoot, file);
 
             try
             {
-                var content = File.ReadAllText(file);
+                var content = traversal.ReadDataFile(dataRoot, file);
+                var documentTraversal = new DocumentTraversalState(
+                    _maxDocumentNodes,
+                    _maxDocumentDepth,
+                    relativePath);
 
                 if (ext is ".json")
                 {
-                    data = ConvertJsonNode(JsonNode.Parse(content));
+                    data = ConvertJsonNode(JsonNode.Parse(content), documentTraversal, depth: 0);
                 }
                 else
                 {
@@ -150,30 +189,42 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
                     stream.Load(new StringReader(content));
                     if (stream.Documents.Count > 0)
                     {
-                        data = ConvertYamlNode(stream.Documents[0].RootNode);
+                        data = ConvertYamlNode(
+                            stream.Documents[0].RootNode,
+                            documentTraversal,
+                            depth: 0);
                     }
                 }
             }
             catch (Exception ex) when (ex is not ConfigException)
             {
                 throw new ConfigException(
-                    $"Failed to parse data file {GetRelativeDataPath(dataRoot, file)}.",
+                    $"Failed to parse data file {relativePath}.",
                     ex,
                     DiagnosticCode.ConfigInvalidValue);
             }
 
             if (data is not null)
             {
-                AddUnique(result, key, data, GetRelativeDataPath(dataRoot, file));
+                AddUnique(result, key, data, relativePath);
             }
         }
 
         foreach (var subDir in Directory.EnumerateDirectories(dir, "*", options)
                      .OrderBy(static path => Path.GetFileName(path), StringComparer.Ordinal))
         {
+            if (excludedDirectories?.Contains(Path.GetFullPath(subDir)) == true)
+            {
+                continue;
+            }
+
             traversal.VisitEntry(dataRoot, subDir);
             var subName = Path.GetFileName(subDir);
-            var subData = LoadDataDirectory(subDir, dataRoot, traversal, depth + 1);
+            var subData = LoadDataDirectory(
+                subDir,
+                dataRoot,
+                traversal,
+                depth + 1);
             if (subData.Count > 0)
             {
                 AddUnique(result, subName, subData, GetRelativeDataPath(dataRoot, subDir));
@@ -187,18 +238,25 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
     {
         private readonly int _maxEntries;
         private readonly int _maxDepth;
+        private readonly long _maxFileSizeBytes;
+        private readonly long _maxTotalSizeBytes;
         private readonly CancellationToken _cancellationToken;
         private readonly HashSet<string> _visitedDirectories = new(
             OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         private int _entryCount;
+        private long _totalSizeBytes;
 
         internal TraversalState(
             int maxEntries,
             int maxDepth,
+            long maxFileSizeBytes,
+            long maxTotalSizeBytes,
             CancellationToken cancellationToken)
         {
             _maxEntries = maxEntries;
             _maxDepth = maxDepth;
+            _maxFileSizeBytes = maxFileSizeBytes;
+            _maxTotalSizeBytes = maxTotalSizeBytes;
             _cancellationToken = cancellationToken;
         }
 
@@ -232,6 +290,68 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
                     DiagnosticCode.ConfigInvalidValue);
             }
         }
+
+        internal string ReadDataFile(string dataRoot, string path)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            var relativePath = GetRelativeDataPath(dataRoot, path);
+            using var input = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 8192,
+                FileOptions.SequentialScan);
+            if (input.Length > _maxFileSizeBytes)
+            {
+                ThrowFileSizeLimit(relativePath);
+            }
+
+            using var content = new MemoryStream(
+                capacity: (int)Math.Min(input.Length, 8192));
+            var buffer = new byte[8192];
+            long fileSizeBytes = 0;
+            while (true)
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
+                var read = input.Read(buffer, 0, buffer.Length);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                fileSizeBytes += read;
+                if (fileSizeBytes > _maxFileSizeBytes)
+                {
+                    ThrowFileSizeLimit(relativePath);
+                }
+
+                content.Write(buffer, 0, read);
+            }
+
+            if (_totalSizeBytes > _maxTotalSizeBytes - fileSizeBytes)
+            {
+                throw new ConfigException(
+                    $"Data files exceed the total size limit of {_maxTotalSizeBytes} bytes at {relativePath}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            _totalSizeBytes += fileSizeBytes;
+            content.Position = 0;
+            using var reader = new StreamReader(
+                content,
+                Encoding.UTF8,
+                detectEncodingFromByteOrderMarks: true,
+                leaveOpen: false);
+            return reader.ReadToEnd();
+        }
+
+        private void ThrowFileSizeLimit(string relativePath)
+        {
+            throw new ConfigException(
+                $"Data file exceeds the maximum file size of {_maxFileSizeBytes} bytes at {relativePath}.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
     }
 
     private static void AddUnique(
@@ -254,18 +374,63 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         return relative == "." ? "data" : $"data/{relative}";
     }
 
-    private static object? ConvertJsonNode(JsonNode? node)
-        => node switch
+    private sealed class DocumentTraversalState
+    {
+        private readonly int _maxNodes;
+        private readonly int _maxDepth;
+        private readonly string _relativePath;
+        private int _nodeCount;
+
+        internal DocumentTraversalState(int maxNodes, int maxDepth, string relativePath)
         {
-            null => null,
+            _maxNodes = maxNodes;
+            _maxDepth = maxDepth;
+            _relativePath = relativePath;
+        }
+
+        internal void Visit(int depth)
+        {
+            if (depth > _maxDepth)
+            {
+                throw new ConfigException(
+                    $"Data document depth exceeds the maximum of {_maxDepth} at {_relativePath}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            _nodeCount++;
+            if (_nodeCount > _maxNodes)
+            {
+                throw new ConfigException(
+                    $"Data document contains more than {_maxNodes} nodes at {_relativePath}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+    }
+
+    private static object? ConvertJsonNode(
+        JsonNode? node,
+        DocumentTraversalState traversal,
+        int depth)
+    {
+        traversal.Visit(depth);
+        if (node is null)
+        {
+            return null;
+        }
+
+        return node switch
+        {
             JsonObject obj => obj.ToDictionary(
                 property => property.Key,
-                property => ConvertJsonNode(property.Value) ?? string.Empty,
+                property => ConvertJsonNode(property.Value, traversal, depth + 1) ?? string.Empty,
                 StringComparer.OrdinalIgnoreCase),
-            JsonArray array => array.Select(item => ConvertJsonNode(item) ?? string.Empty).ToList(),
+            JsonArray array => array
+                .Select(item => ConvertJsonNode(item, traversal, depth + 1) ?? string.Empty)
+                .ToList(),
             JsonValue value => ConvertJsonValue(value),
             _ => node.ToJsonString()
         };
+    }
 
     private static object ConvertJsonValue(JsonValue value)
     {
@@ -276,17 +441,25 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         return value.ToJsonString();
     }
 
-    private static object? ConvertYamlNode(YamlNode node)
-        => node switch
+    private static object? ConvertYamlNode(
+        YamlNode node,
+        DocumentTraversalState traversal,
+        int depth)
+    {
+        traversal.Visit(depth);
+        return node switch
         {
             YamlMappingNode map => map.Children.ToDictionary(
                 pair => GetYamlKey(pair.Key),
-                pair => ConvertYamlNode(pair.Value) ?? string.Empty,
+                pair => ConvertYamlNode(pair.Value, traversal, depth + 1) ?? string.Empty,
                 StringComparer.OrdinalIgnoreCase),
-            YamlSequenceNode sequence => sequence.Children.Select(item => ConvertYamlNode(item) ?? string.Empty).ToList(),
+            YamlSequenceNode sequence => sequence.Children
+                .Select(item => ConvertYamlNode(item, traversal, depth + 1) ?? string.Empty)
+                .ToList(),
             YamlScalarNode scalar => ConvertYamlScalar(scalar),
             _ => node.ToString()
         };
+    }
 
     private static string GetYamlKey(YamlNode key)
         => key is YamlScalarNode scalar && scalar.Value is not null
