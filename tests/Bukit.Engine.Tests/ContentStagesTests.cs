@@ -419,6 +419,28 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public void ContentModelSchemaProjection_ExcludesWarningsAndPreservesErrors()
+    {
+        var document = Document("diagnostics", "diagnostics", new Dictionary<string, object>
+        {
+            ["type"] = "page",
+            ["collection"] = "page"
+        }) with
+        {
+            Diagnostics =
+            [
+                new ContentDiagnostic("content.publish_at.missing", "warning", "Missing date.", "publishAt", "diagnostics"),
+                new ContentDiagnostic("content.required_field.missing", "error", "Missing field.", "required", "diagnostics")
+            ]
+        };
+
+        var issues = ContentModelSchemaProjection.ValidateDocuments(Config(), [document]);
+
+        Assert.DoesNotContain(issues, issue => issue.Code == "content.publish_at.missing");
+        Assert.Contains(issues, issue => issue.Code == "content.required_field.missing");
+    }
+
+    [Fact]
     public void ContentDocumentNormalizer_ProjectsCanonicalMappingsIntoContentRecord()
     {
         var raw = new RawContentDocument(

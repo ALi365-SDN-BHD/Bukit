@@ -49,7 +49,8 @@ public static class ContentModelSchemaProjection
 
     private static IEnumerable<ContentValidationIssue> ToSchemaErrors(ContentDocument document)
     {
-        foreach (var diagnostic in document.Diagnostics)
+        foreach (var diagnostic in document.Diagnostics.Where(diagnostic =>
+                     string.Equals(diagnostic.Severity, "error", StringComparison.OrdinalIgnoreCase)))
         {
             yield return new ContentValidationIssue(
                 diagnostic.Field ?? string.Empty,
