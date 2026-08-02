@@ -102,7 +102,11 @@ internal sealed class DevServerHost : IDevServerHost
 
                 try
                 {
-                    await _requestGate.WaitAsync(ct).ConfigureAwait(false);
+                    // WebSocket upgrades bypass the request gate (hub has its own capacity)
+                    if (!context.Request.IsWebSocketRequest)
+                    {
+                        await _requestGate.WaitAsync(ct).ConfigureAwait(false);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -111,16 +115,29 @@ internal sealed class DevServerHost : IDevServerHost
                 }
 
                 activeRequests.RemoveWhere(task => task.IsCompleted);
+                var isWebSocket = context.Request.IsWebSocketRequest;
                 activeRequests.Add(Task.Run(
-                    () => DispatchRequestAsync(dispatchAsync, context, ct),
+                    () => isWebSocket
+                        ? DispatchRequestAsync(dispatchAsync, context, ct)
+                        : DispatchGatedRequestAsync(dispatchAsync, context, ct),
                     CancellationToken.None));
             }
         }
         finally
         {
-            await Task.WhenAll(activeRequests).ConfigureAwait(false);
-            DisposeRequestGate();
-            _acceptLoopCompleted.TrySetResult(true);
+            try
+            {
+                await Task.WhenAll(activeRequests).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Observe all faults; completion is reported below
+            }
+            finally
+            {
+                DisposeRequestGate();
+                _acceptLoopCompleted.TrySetResult(true);
+            }
         }
     }
 
@@ -157,6 +174,21 @@ internal sealed class DevServerHost : IDevServerHost
         _listener.Close();
     }
 
+    private async Task DispatchGatedRequestAsync(
+        Func<HttpListenerContext, Task> dispatchAsync,
+        HttpListenerContext context,
+        CancellationToken ct)
+    {
+        try
+        {
+            await DispatchRequestAsync(dispatchAsync, context, ct);
+        }
+        finally
+        {
+            _requestGate.Release();
+        }
+    }
+
     private async Task DispatchRequestAsync(
         Func<HttpListenerContext, Task> dispatchAsync,
         HttpListenerContext context,
@@ -173,10 +205,6 @@ internal sealed class DevServerHost : IDevServerHost
         {
             _logger.Error($"dev.request.dispatch: {ex.Message}");
             CloseResponseBestEffort(context);
-        }
-        finally
-        {
-            _requestGate.Release();
         }
     }
 
