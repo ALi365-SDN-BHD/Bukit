@@ -64,13 +64,7 @@ public sealed class G04D3AContentBodyGraphTests
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(
-            [
-                "Bukit.Content.Tests",
-                "Bukit.Engine",
-                "Bukit.Engine.Tests"
-            ],
-            friendAssemblies);
+        Assert.Equal(ContentBoundaryExpectations.FriendAssemblies, friendAssemblies);
     }
 
     [Fact]

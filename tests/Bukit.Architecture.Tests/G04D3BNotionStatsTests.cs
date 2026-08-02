@@ -107,11 +107,7 @@ public sealed class G04D3BNotionStatsTests
     public void ExistingFriendAssemblyBoundariesRemainExact()
     {
         Assert.Equal(
-            [
-                "Bukit.Content.Tests",
-                "Bukit.Engine",
-                "Bukit.Engine.Tests"
-            ],
+            ContentBoundaryExpectations.FriendAssemblies,
             GetFriendAssemblies(
                 typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly));
         Assert.Equal(

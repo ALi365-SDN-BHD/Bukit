@@ -53,11 +53,7 @@ public sealed class Ad03C4ContentNotionBridgeInternalizationTests
         Assert.DoesNotContain("Bukit.Engine.Tests", adapterFriends);
 
         Assert.Equal(
-            [
-                "Bukit.Content.Tests",
-                "Bukit.Engine",
-                "Bukit.Engine.Tests"
-            ],
+            ContentBoundaryExpectations.FriendAssemblies,
             GetFriendAssemblies(contentAssembly));
     }
 

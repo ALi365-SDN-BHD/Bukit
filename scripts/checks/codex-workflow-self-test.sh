@@ -37,6 +37,41 @@ expect_exit() {
     fail "expected exit $expected, got $command_status: $command_output"
 }
 
+assert_closure_mapping() {
+  local repo="$1"
+  local changed="$2"
+  local expected_commands_json="$3"
+  local expected_public_contract="$4"
+
+  expect_exit 0 "${tool[@]}" closure \
+    --repo "$repo" \
+    --policy scripts/checks/codex-workflow-policy.v1.json \
+    --changed "$changed"
+
+  python3 - "$command_output" "$changed" "$expected_commands_json" "$expected_public_contract" <<'PY'
+import json
+import sys
+
+result = json.loads(sys.argv[1])
+changed = sys.argv[2]
+expected_commands = json.loads(sys.argv[3])
+expected_public_contract = sys.argv[4] == "true"
+
+if changed in result["unmappedFiles"]:
+    raise SystemExit(f"expected mapped closure path, got unmapped: {changed}")
+if result["specialtyTests"] != expected_commands:
+    raise SystemExit(
+        f"unexpected specialty tests for {changed}: {result['specialtyTests']}"
+    )
+expected_contract_files = [changed] if expected_public_contract else []
+if result["publicContractFiles"] != expected_contract_files:
+    raise SystemExit(
+        f"unexpected public contract files for {changed}: "
+        f"{result['publicContractFiles']}"
+    )
+PY
+}
+
 fixture="$scratch/cache-fixture"
 record="$scratch/cache-evidence.json"
 mkdir -p "$fixture/src"
@@ -193,10 +228,22 @@ assert_contains "$command_output" "fingerprintInputs"
 closure_fixture="$scratch/closure-fixture"
 mkdir -p \
   "$closure_fixture/src/Bukit-Core/Bukit.Config" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Content" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Content.Notion" \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine" \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine/obj/Debug" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport" \
+  "$closure_fixture/src/Bukit-Core/Bukit.PluginHost" \
+  "$closure_fixture/tests/Bukit.Architecture.Tests" \
+  "$closure_fixture/tests/Bukit.Cli.Tests" \
   "$closure_fixture/tests/Bukit.Config.Tests" \
-  "$closure_fixture/tests/Bukit.Config.Tests/obj/Debug"
+  "$closure_fixture/tests/Bukit.Config.Tests/obj/Debug" \
+  "$closure_fixture/tests/Bukit.Content.Notion.Tests" \
+  "$closure_fixture/tests/Bukit.Content.Tests" \
+  "$closure_fixture/tests/Bukit.Notion.Tests" \
+  "$closure_fixture/tests/Bukit.PluginHost.Tests" \
+  "$closure_fixture/tests/PluginProcessProbe"
 git -C "$closure_fixture" init -q
 git -C "$closure_fixture" config user.email codex-workflow@example.invalid
 git -C "$closure_fixture" config user.name "Codex Workflow Self Test"
@@ -219,6 +266,29 @@ printf 'internal sealed class GeneratedContract { private AppConfig? _config; }\
   >"$closure_fixture/tests/Bukit.Config.Tests/obj/Debug/GeneratedTests.cs"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj"
+printf 'internal sealed class GitProcessRunner {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy/GitProcessRunner.cs"
+printf 'public sealed class BodyCacheDecorator {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs"
+printf 'internal sealed class NotionBodyStore {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Content.Notion/NotionBodyStore.cs"
+printf 'public sealed class NotionClient {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport/NotionClient.cs"
+printf 'internal sealed class SystemProcessRunner {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs"
+printf 'public sealed class ContentBoundaryTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs"
+printf 'public sealed class GitProcessRunnerTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Cli.Tests/GitProcessRunnerTests.cs"
+printf 'public sealed class NotionContentSourceTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Content.Notion.Tests/NotionContentSourceTests.cs"
+printf 'public sealed class BodyCacheDecoratorTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Content.Tests/BodyCacheDecoratorTests.cs"
+printf 'public sealed class NotionClientTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Notion.Tests/NotionClientTests.cs"
+printf 'public sealed class SystemProcessRunnerTests {}\n' \
+  >"$closure_fixture/tests/Bukit.PluginHost.Tests/SystemProcessRunnerTests.cs"
+printf 'return 0;\n' >"$closure_fixture/tests/PluginProcessProbe/Program.cs"
 printf 'unmapped\n' >"$closure_fixture/README.unknown"
 git -C "$closure_fixture" add .
 git -C "$closure_fixture" commit -qm initial
@@ -265,6 +335,42 @@ expected_closure = sorted(
 if result["closureFiles"] != expected_closure:
     raise SystemExit(f"unexpected closure: {result['closureFiles']}")
 PY
+
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs \
+  '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/PluginProcessProbe/Program.cs \
+  '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs \
+  '["dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Content.Notion/NotionBodyStore.cs \
+  '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Cli/Deploy/GitProcessRunner.cs \
+  '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Notion/Transport/NotionClient.cs \
+  '["dotnet test tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' \
+  false
 
 # Priority 3: delta-only final review scope.
 evidence_a="$scratch/evidence-a.json"
