@@ -175,10 +175,21 @@
         "tests/Bukit.Cli.Tests/*.cs",
         "tests/Bukit.Cli.Tests/**/*.cs"
       ],
-      "id": "bukit-cli",
+      "id": "bukit-cli-source",
       "matches": [
         "src/Bukit-Core/Bukit.Cli/*.cs",
-        "src/Bukit-Core/Bukit.Cli/**/*.cs",
+        "src/Bukit-Core/Bukit.Cli/**/*.cs"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "bukit-cli-tests",
+      "matches": [
         "tests/Bukit.Cli.Tests/*.cs",
         "tests/Bukit.Cli.Tests/**/*.cs"
       ],

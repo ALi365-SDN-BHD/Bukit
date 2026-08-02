@@ -458,4 +458,16 @@ public sealed class BodyCacheDecoratorTests
 
         Assert.Equal(1, inner.DisposeCount);
     }
+
+    [Fact]
+    public async Task GetAsync_AfterDispose_ThrowsObjectDisposedBeforeInlineBypass()
+    {
+        var decorator = new BodyCacheDecorator(new CountingBodyStore());
+        await decorator.DisposeAsync();
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+            decorator.GetAsync(CreateItem("disposed", contentHtml: "<p>inline</p>").ToDocument()));
+
+        Assert.Equal(0, decorator.Metrics.TotalRequests);
+    }
 }

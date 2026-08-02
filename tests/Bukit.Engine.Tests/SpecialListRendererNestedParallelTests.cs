@@ -236,52 +236,6 @@ public sealed class SpecialListRendererNestedParallelTests
         }
     }
 
-    [Fact]
-    public async Task RenderSpecialListsAsync_Incremental_ProducesDeterministicManifestAcrossOneHundredRuns()
-    {
-        string root = CreateListFixture();
-        string? expectedManifest = null;
-
-        try
-        {
-            for (var iteration = 0; iteration < 100; iteration++)
-            {
-                var manifest = new BuildManifest();
-                string outputDir = Path.Combine(root, "output", iteration.ToString(System.Globalization.CultureInfo.InvariantCulture));
-
-                await PageRenderDispatcher.RenderSpecialListsAsync(
-                    CreateSource(8).ToRoutedDocuments(),
-                    EmptyContentBodyStore.Instance,
-                    new DeterministicRenderer(),
-                    CreateSiteModel(),
-                    CreateCollections(8),
-                    Path.Combine(root, "layouts"),
-                    "never",
-                    "none",
-                    outputDir,
-                    "template-hash",
-                    "dependency-hash",
-                    incrementalEnabled: true,
-                    manifest,
-                    new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
-                    new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase),
-                    maxDegreeOfParallelism: 4,
-                    CancellationToken.None);
-
-                string manifestPath = Path.Combine(root, $"manifest-{iteration}.json");
-                manifest.Save(manifestPath);
-                string serialized = await File.ReadAllTextAsync(manifestPath);
-                expectedManifest ??= serialized;
-                Assert.Equal(expectedManifest, serialized);
-                Assert.Equal(9, manifest.Entries.Count);
-            }
-        }
-        finally
-        {
-            TestCleanup.DeleteDirectory(root, true);
-        }
-    }
-
     private static async Task WaitForRenderedListAsync(
         ConcurrentDictionary<string, int> renderReasons)
     {

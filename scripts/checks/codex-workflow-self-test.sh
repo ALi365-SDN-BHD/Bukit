@@ -363,6 +363,11 @@ assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Cli/Deploy/GitProcessRunner.cs \
   '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Cli.Tests/GitProcessRunnerTests.cs \
+  '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
   false
 assert_closure_mapping \
   "$closure_fixture" \

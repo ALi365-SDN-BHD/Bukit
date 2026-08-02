@@ -10,6 +10,21 @@ namespace Bukit.Cli.Tests;
 public sealed class GitHubPagesDeployProviderTests
 {
     [Fact]
+    public async Task WaitForTerminationGraceAsync_IncompleteCleanup_ReturnsFalseWithinGrace()
+    {
+        var never = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopwatch = Stopwatch.StartNew();
+
+        var wait = GitHubPagesDeployProvider.WaitForTerminationGraceAsync(
+            never.Task,
+            TimeSpan.FromMilliseconds(50));
+        var completed = await wait.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.False(completed);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
     public async Task DeployAsync_UserPagesRepoWithDotRemoteUrl_DeploysToRootGithubIoUrl()
     {
         using var scope = new GitHubPagesDeployTestScope();
@@ -45,6 +60,29 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.Contains("SNAPSHOT cname=docs.example.com", log, StringComparison.Ordinal);
         Assert.Contains("SNAPSHOT index", log, StringComparison.Ordinal);
         Assert.DoesNotContain("SNAPSHOT old", log, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DeployAsync_LsRemoteFailure_FailsClosedWithoutInitializingOrPushing()
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.LsRemoteMode = "forbidden";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(force: true),
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("ls-remote", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-token", result.Error, StringComparison.Ordinal);
+        var log = scope.FakeGit.ReadLog();
+        Assert.Contains("ls-remote --heads", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("|init", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("|push", log, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -1104,6 +1142,12 @@ public sealed class GitHubPagesDeployProviderTests
             set => Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_PUSH_MODE", value);
         }
 
+        public string? LsRemoteMode
+        {
+            get => Environment.GetEnvironmentVariable("BUKIT_FAKE_GIT_LS_REMOTE_MODE");
+            set => Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_LS_REMOTE_MODE", value);
+        }
+
         public string PushSleepStartedPath => Path.Combine(StateDir, "push-sleep-started.marker");
 
         public string PushSleepCompletedPath => Path.Combine(StateDir, "push-sleep-completed.marker");
@@ -1129,6 +1173,7 @@ public sealed class GitHubPagesDeployProviderTests
             Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_REMOTE_URL", null);
             Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_REMOTE_HEADS", null);
             Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_PUSH_MODE", null);
+            Environment.SetEnvironmentVariable("BUKIT_FAKE_GIT_LS_REMOTE_MODE", null);
             Environment.SetEnvironmentVariable("BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS", null);
         }
 
@@ -1153,6 +1198,10 @@ public sealed class GitHubPagesDeployProviderTests
                 exit /b 0
 
                 :ls_remote
+                if "%BUKIT_FAKE_GIT_LS_REMOTE_MODE%"=="forbidden" (
+                  1>&2 echo remote: 403 Forbidden %GITHUB_TOKEN%
+                  exit /b 1
+                )
                 if not "%BUKIT_FAKE_GIT_REMOTE_HEADS%"=="" echo %BUKIT_FAKE_GIT_REMOTE_HEADS%
                 exit /b 0
 
@@ -1236,6 +1285,10 @@ public sealed class GitHubPagesDeployProviderTests
               exit 0
             fi
             if [ "${1:-}" = "ls-remote" ]; then
+              if [ "${BUKIT_FAKE_GIT_LS_REMOTE_MODE:-}" = "forbidden" ]; then
+                printf 'remote: 403 Forbidden %s\n' "${GITHUB_TOKEN:-missing}" >&2
+                exit 1
+              fi
               if [ -n "${BUKIT_FAKE_GIT_REMOTE_HEADS:-}" ]; then
                 printf '%s\n' "$BUKIT_FAKE_GIT_REMOTE_HEADS"
               fi

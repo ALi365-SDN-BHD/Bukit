@@ -26,6 +26,7 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
 
     public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) != 0, this);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!string.IsNullOrWhiteSpace(document.Body.Html))

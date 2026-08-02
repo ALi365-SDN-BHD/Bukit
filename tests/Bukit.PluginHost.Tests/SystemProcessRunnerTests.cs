@@ -8,6 +8,21 @@ namespace Bukit.PluginHost.Tests;
 public sealed class SystemProcessRunnerTests
 {
     [Fact]
+    public async Task WaitForTerminationGraceAsync_IncompleteCleanup_ReturnsFalseWithinGrace()
+    {
+        var never = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopwatch = Stopwatch.StartNew();
+
+        var wait = SystemProcessRunner.WaitForTerminationGraceAsync(
+            never.Task,
+            TimeSpan.FromMilliseconds(50));
+        var completed = await wait.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.False(completed);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
     public async Task RunAsync_WritesStdinAndCapturesStdoutAndStderr()
     {
         var runner = new SystemProcessRunner();

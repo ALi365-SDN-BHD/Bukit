@@ -14,6 +14,186 @@ namespace Bukit.Engine.Tests;
 public sealed class DataFilesPluginTests
 {
     [Fact]
+    public void DerivePages_DirectorySymlinkOutsideDataRoot_IsIgnored()
+    {
+        var root = GetTempDir();
+        var externalRoot = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            Directory.CreateDirectory(externalRoot);
+            File.WriteAllText(Path.Combine(dataDir, "safe.json"), "{}");
+            File.WriteAllText(Path.Combine(externalRoot, "secret.json"), "{}");
+            try
+            {
+                Directory.CreateSymbolicLink(Path.Combine(dataDir, "linked"), externalRoot);
+            }
+            catch (Exception ex) when (ex is PlatformNotSupportedException or UnauthorizedAccessException or IOException)
+            {
+                return;
+            }
+
+            var context = CreateContext(root);
+            new DataFilesPlugin(CreateConfig()).DerivePages(context);
+
+            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            Assert.Contains("safe", data.Keys);
+            Assert.DoesNotContain("linked", data.Keys);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+            if (Directory.Exists(externalRoot)) Directory.Delete(externalRoot, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_ConfiguredLanguageSymlinkOutsideDataRoot_IsIgnored()
+    {
+        var root = GetTempDir();
+        var externalRoot = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            Directory.CreateDirectory(externalRoot);
+            File.WriteAllText(Path.Combine(dataDir, "safe.json"), "{}");
+            File.WriteAllText(Path.Combine(externalRoot, "secret.json"), "{}");
+            try
+            {
+                Directory.CreateSymbolicLink(Path.Combine(dataDir, "en"), externalRoot);
+            }
+            catch (Exception ex) when (ex is PlatformNotSupportedException or UnauthorizedAccessException or IOException)
+            {
+                return;
+            }
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "t",
+                    Title = "t",
+                    Languages = new[] { "en" }
+                },
+                Content = TestContent.Markdown()
+            };
+            var context = CreateContext(root);
+
+            new DataFilesPlugin(config).DerivePages(context);
+
+            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            Assert.Contains("safe", data.Keys);
+            Assert.DoesNotContain("en", data.Keys);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+            if (Directory.Exists(externalRoot)) Directory.Delete(externalRoot, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_DataRootSymlink_IsIgnored()
+    {
+        var root = GetTempDir();
+        var externalRoot = GetTempDir();
+        try
+        {
+            Directory.CreateDirectory(externalRoot);
+            File.WriteAllText(Path.Combine(externalRoot, "secret.json"), "{}");
+            try
+            {
+                Directory.CreateSymbolicLink(Path.Combine(root, "data"), externalRoot);
+            }
+            catch (Exception ex) when (ex is PlatformNotSupportedException or UnauthorizedAccessException or IOException)
+            {
+                return;
+            }
+
+            var context = CreateContext(root);
+
+            new DataFilesPlugin(CreateConfig()).DerivePages(context);
+
+            Assert.DoesNotContain("__data_files", context.Data.Keys);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+            if (Directory.Exists(externalRoot)) Directory.Delete(externalRoot, true);
+        }
+    }
+
+    [Fact]
+    public async Task DerivePagesAsync_PreCanceled_StopsBeforeEnumeration()
+    {
+        var root = GetTempDir();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "data"));
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                new DataFilesPlugin(CreateConfig()).DerivePagesAsync(
+                    CreateContext(root),
+                    cancellation.Token));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_EntryLimitExceeded_FailsClosedWithRelativePath()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, "a.json"), "{}");
+            File.WriteAllText(Path.Combine(dataDir, "b.json"), "{}");
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxEntries: 1).DerivePages(CreateContext(root)));
+
+            Assert.Contains("more than 1 entries", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/b.json", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_DepthLimitExceeded_FailsClosedWithRelativePath()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var nested = Path.Combine(root, "data", "nested");
+            Directory.CreateDirectory(nested);
+            File.WriteAllText(Path.Combine(nested, "value.json"), "{}");
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxDepth: 0).DerivePages(CreateContext(root)));
+
+            Assert.Contains("depth exceeds the maximum of 0", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/nested", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void DerivePages_NoDataDir_ReturnsEmpty()
     {
         var config = CreateConfig();

@@ -6,6 +6,7 @@ namespace Bukit.Content.Media;
 internal sealed class MediaIndexManager
 {
     private const string IndexFileName = ".media-index.json";
+    private const int CurrentIndexVersion = 2;
     private const int IndexPersistThreshold = 20;
 
     private readonly object _indexLock = new();
@@ -33,26 +34,26 @@ internal sealed class MediaIndexManager
                && !Path.IsPathRooted(fileName);
     }
 
-    internal bool TryGetUrlFromIndex(string root, string normalizedKey, out string url)
+    internal bool TryGetFileNameFromIndex(string root, string normalizedKey, out string fileName)
     {
-        url = string.Empty;
+        fileName = string.Empty;
         lock (_indexLock)
         {
-            if (!_diskIndex.TryGetValue(normalizedKey, out var fileName))
+            if (!_diskIndex.TryGetValue(normalizedKey, out var indexedFileName))
             {
                 return false;
             }
 
-            if (!IsSafeFileName(fileName))
+            if (!IsSafeFileName(indexedFileName))
             {
                 _logger?.Warn(
-                    $"event=media.index_path_traversal key={normalizedKey} fileName={fileName}");
+                    $"event=media.index_path_traversal key={normalizedKey} fileName={indexedFileName}");
                 _diskIndex.Remove(normalizedKey);
                 _indexDirty = true;
                 return false;
             }
 
-            var fullPath = Path.Combine(root, fileName);
+            var fullPath = Path.Combine(root, indexedFileName);
             if (!File.Exists(fullPath))
             {
                 _diskIndex.Remove(normalizedKey);
@@ -60,8 +61,20 @@ internal sealed class MediaIndexManager
                 return false;
             }
 
-            url = CombineUrl(fileName);
+            fileName = indexedFileName;
             return true;
+        }
+    }
+
+    internal void ForgetIndex(string normalizedKey)
+    {
+        lock (_indexLock)
+        {
+            if (_diskIndex.Remove(normalizedKey))
+            {
+                _indexDirty = true;
+                _pendingIndexChanges++;
+            }
         }
     }
 
@@ -135,21 +148,15 @@ internal sealed class MediaIndexManager
                 using var stream = File.OpenRead(path);
                 using var doc = JsonDocument.Parse(stream);
                 var rootEl = doc.RootElement;
-                JsonElement entries;
-
-                if (rootEl.ValueKind == JsonValueKind.Object &&
-                    rootEl.TryGetProperty("entries", out var e) &&
-                    e.ValueKind == JsonValueKind.Object)
+                if (rootEl.ValueKind != JsonValueKind.Object ||
+                    !rootEl.TryGetProperty("version", out var versionElement) ||
+                    !versionElement.TryGetInt32(out var version) ||
+                    version != CurrentIndexVersion ||
+                    !rootEl.TryGetProperty("entries", out var entries) ||
+                    entries.ValueKind != JsonValueKind.Object)
                 {
-                    entries = e;
-                }
-                else if (rootEl.ValueKind == JsonValueKind.Object)
-                {
-                    entries = rootEl;
-                }
-                else
-                {
-                    _indexLoaded = true;
+                    _diskIndex.Clear();
+                    _indexDirty = true;
                     return;
                 }
 
@@ -171,6 +178,7 @@ internal sealed class MediaIndexManager
                     {
                         _logger?.Warn(
                             $"event=media.index_unsafe_entry key={prop.Name} value={trimmed}");
+                        _indexDirty = true;
                         continue;
                     }
 
@@ -213,7 +221,7 @@ internal sealed class MediaIndexManager
                 using var writer = new Utf8JsonWriter(fs,
                     new JsonWriterOptions { Indented = false });
                 writer.WriteStartObject();
-                writer.WriteNumber("version", 1);
+                writer.WriteNumber("version", CurrentIndexVersion);
                 writer.WritePropertyName("entries");
                 writer.WriteStartObject();
                 foreach (var kv in _diskIndex.OrderBy(x => x.Key, StringComparer.Ordinal))

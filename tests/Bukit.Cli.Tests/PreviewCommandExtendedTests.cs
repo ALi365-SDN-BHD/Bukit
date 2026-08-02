@@ -102,14 +102,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     [Fact]
     public async Task PreviewRequestDispatcher_Bounds64BlockingRequestsAt32AndCancelsAllActiveWork()
     {
-        var dispatcherType = typeof(PreviewCommand).Assembly.GetType("Bukit.Cli.Commands.PreviewRequestDispatcher");
-        Assert.NotNull(dispatcherType);
-        var dispatcher = Activator.CreateInstance(dispatcherType, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public, null, [32], null);
-        Assert.NotNull(dispatcher);
-        var schedule = dispatcherType.GetMethod("ScheduleAsync", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-        var dispose = dispatcherType.GetMethod("DisposeAsync", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-        Assert.NotNull(schedule);
-        Assert.NotNull(dispose);
+        var dispatcher = new PreviewRequestDispatcher(32);
 
         var entered = 0;
         var active = 0;
@@ -133,19 +126,38 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         };
 
         var schedules = Enumerable.Range(0, 64)
-            .Select(_ => Assert.IsAssignableFrom<Task>(schedule.Invoke(dispatcher, [blockingHandler, CancellationToken.None])))
+            .Select(_ => dispatcher.ScheduleAsync(blockingHandler, CancellationToken.None))
             .ToArray();
 
         await WaitUntilAsync(() => Volatile.Read(ref entered) == 32, TimeSpan.FromSeconds(5));
         Assert.Equal(32, Volatile.Read(ref peak));
 
-        var disposal = Assert.IsType<ValueTask>(dispose.Invoke(dispatcher, null));
-        await disposal;
+        await dispatcher.DisposeAsync();
         await Task.WhenAll(schedules.Select(IgnoreCancellationAsync));
 
         Assert.Equal(32, Volatile.Read(ref entered));
         Assert.Equal(0, Volatile.Read(ref active));
         Assert.All(schedules, task => Assert.True(task.IsCompleted));
+    }
+
+    [Fact]
+    public async Task PreviewRequestDispatcher_FaultedRequest_DisposesResourcesAndPreservesFailure()
+    {
+        var dispatcher = new PreviewRequestDispatcher(1);
+        var expected = new InvalidOperationException("request failed");
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await dispatcher.ScheduleAsync(_ =>
+        {
+            entered.TrySetResult();
+            return Task.FromException(expected);
+        }, CancellationToken.None);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => dispatcher.DisposeAsync().AsTask());
+
+        Assert.Same(expected, actual);
+        Assert.True(dispatcher.ResourcesDisposed);
     }
 
     private static void UpdatePeak(ref int peak, int current)

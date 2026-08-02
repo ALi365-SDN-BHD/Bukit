@@ -52,6 +52,7 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
 
     public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) != 0, this);
         Interlocked.Increment(ref _totalRequests);
         cancellationToken.ThrowIfCancellationRequested();
 

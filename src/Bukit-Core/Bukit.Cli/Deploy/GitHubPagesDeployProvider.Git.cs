@@ -6,6 +6,8 @@ namespace Bukit.Cli.Deploy;
 
 public sealed partial class GitHubPagesDeployProvider
 {
+    private static readonly TimeSpan GitTerminationGracePeriod = TimeSpan.FromSeconds(2);
+
     private static async Task EnsureGitIdentityAsync(string gitPath, string tempDir, TimeSpan gitCommandTimeout, CancellationToken ct, ILogger? logger = null)
     {
         var hasName = false;
@@ -187,19 +189,8 @@ public sealed partial class GitHubPagesDeployProvider
 
     private static async Task<bool> RemoteBranchExistsAsync(string gitPath, string token, string askpassScript, string remoteUrl, string branch, TimeSpan gitCommandTimeout, CancellationToken ct)
     {
-        try
-        {
-            var output = await RunGitAuthAndCaptureAsync(gitPath, token, askpassScript, null, gitCommandTimeout, ct, "ls-remote", "--heads", remoteUrl, $"refs/heads/{branch}");
-            return !string.IsNullOrWhiteSpace(output);
-        }
-        catch (GitTimeoutException)
-        {
-            throw;
-        }
-        catch
-        {
-            return false;
-        }
+        var output = await RunGitAuthAndCaptureAsync(gitPath, token, askpassScript, null, gitCommandTimeout, ct, "ls-remote", "--heads", remoteUrl, $"refs/heads/{branch}");
+        return !string.IsNullOrWhiteSpace(output);
     }
 
     private static async Task RunGitAuthAsync(string gitPath, string token, string askpassScript, string? workingDir, TimeSpan gitCommandTimeout, CancellationToken ct, params string[] args)
@@ -227,11 +218,7 @@ public sealed partial class GitHubPagesDeployProvider
         psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
         psi.Environment[AskpassTokenEnvironmentVariable] = token;
 
-        using var proc = Process.Start(psi);
-        if (proc is null)
-        {
-            return string.Empty;
-        }
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
 
         var output = await WaitForGitProcessAndDrainAsync(proc, gitCommandTimeout, ct, commandLine);
         if (proc.ExitCode != 0)
@@ -303,6 +290,20 @@ public sealed partial class GitHubPagesDeployProvider
         Task<string> stdoutTask,
         Task<string> stderrTask)
     {
+        var completed = await WaitForTerminationGraceAsync(
+            ObserveGitOutputTasksIgnoringFailureAsync(stdoutTask, stderrTask),
+            GitTerminationGracePeriod);
+        if (!completed)
+        {
+            Console.Error.WriteLine(
+                $"Deploy: git output drain did not complete within {GitTerminationGracePeriod.TotalSeconds:0} seconds.");
+        }
+    }
+
+    private static async Task ObserveGitOutputTasksIgnoringFailureAsync(
+        Task<string> stdoutTask,
+        Task<string> stderrTask)
+    {
         try
         {
             await Task.WhenAll(stdoutTask, stderrTask);
@@ -323,13 +324,13 @@ public sealed partial class GitHubPagesDeployProvider
             catch (OperationCanceledException)
             {
                 TryKillProcessTree(proc);
-
-                try
+                var terminationCompleted = await WaitForTerminationGraceAsync(
+                    WaitForGitExitIgnoringFailureAsync(proc),
+                    GitTerminationGracePeriod);
+                if (!terminationCompleted)
                 {
-                    await proc.WaitForExitAsync(CancellationToken.None);
-                }
-                catch
-                {
+                    Console.Error.WriteLine(
+                        $"Deploy: git process termination did not complete within {GitTerminationGracePeriod.TotalSeconds:0} seconds.");
                 }
 
                 throw new OperationCanceledException(ct);
@@ -349,20 +350,23 @@ public sealed partial class GitHubPagesDeployProvider
         {
             var isTimeout = timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested;
             TryKillProcessTree(proc);
-
-            try
+            var terminationCompleted = await WaitForTerminationGraceAsync(
+                WaitForGitExitIgnoringFailureAsync(proc),
+                GitTerminationGracePeriod);
+            if (!terminationCompleted)
             {
-                await proc.WaitForExitAsync(CancellationToken.None);
-            }
-            catch
-            {
+                Console.Error.WriteLine(
+                    $"Deploy: git process termination did not complete within {GitTerminationGracePeriod.TotalSeconds:0} seconds.");
             }
 
             if (isTimeout)
             {
                 throw new GitTimeoutException(
                     $"Git command timed out during GitHub Pages deployment after {timeout.TotalSeconds:0} seconds. " +
-                    "Check network connectivity and GitHub availability, or set BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS to a larger value.",
+                    "Check network connectivity and GitHub availability, or set BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS to a larger value." +
+                    (terminationCompleted
+                        ? string.Empty
+                        : $" Process termination did not complete within {GitTerminationGracePeriod.TotalSeconds:0} seconds."),
                     commandLine,
                     timeout);
             }
@@ -370,6 +374,44 @@ public sealed partial class GitHubPagesDeployProvider
             ct.ThrowIfCancellationRequested();
 
             throw;
+        }
+    }
+
+    private static async Task WaitForGitExitIgnoringFailureAsync(Process process)
+    {
+        try
+        {
+            await process.WaitForExitAsync(CancellationToken.None);
+        }
+        catch
+        {
+        }
+    }
+
+    internal static async Task<bool> WaitForTerminationGraceAsync(
+        Task completion,
+        TimeSpan gracePeriod)
+    {
+        try
+        {
+            await completion.WaitAsync(gracePeriod);
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            _ = ObserveGitTaskEventuallyAsync(completion);
+            return false;
+        }
+    }
+
+    private static async Task ObserveGitTaskEventuallyAsync(Task task)
+    {
+        try
+        {
+            await task;
+        }
+        catch
+        {
         }
     }
 

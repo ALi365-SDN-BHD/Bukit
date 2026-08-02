@@ -11,6 +11,21 @@ namespace Bukit.Cli.Tests;
 public sealed class DevCommandTests
 {
     [Fact]
+    public async Task WaitForShutdownOrAcceptLoopAsync_AcceptLoopFaults_PropagatesBeforeCancellation()
+    {
+        using var cts = new CancellationTokenSource();
+        var expected = new InvalidOperationException("accept loop failed");
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            DevCommand.WaitForShutdownOrAcceptLoopAsync(
+                Task.FromException(expected),
+                cts.Token));
+
+        Assert.Same(expected, actual);
+        Assert.False(cts.IsCancellationRequested);
+    }
+
+    [Fact]
     public void DevPathGuard_OnNonWindows_RejectsCaseDifferentSiblingEscape()
     {
         if (OperatingSystem.IsWindows())

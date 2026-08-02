@@ -211,6 +211,79 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
+    [Fact]
+    public async Task AfterBuildAsync_WhenOnlyOneResizeSucceeds_ProjectsOnlyExistingVariant()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            File.WriteAllText(Path.Combine(assetsDir, "photo.jpg"), "original");
+            WriteTool(toolDir, "magick", """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                case "$*" in *-768w*) exit 1;; esac
+                for last in "$@"; do :; done
+                printf resized > "$last"
+                """);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+            var context = CreateContext(outDir);
+
+            await new ImageProcessingPlugin(CreateConfig(
+                    new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } }))
+                .AfterBuildAsync(context);
+
+            var images = Assert.IsType<Dictionary<string, object>>(context.Data["__image_srcsets"]);
+            var photo = Assert.IsType<Dictionary<string, object>>(images["photo.jpg"]);
+            Assert.Equal("/assets/photo-480w.jpg 480w", photo["srcset"]);
+            Assert.Equal(new[] { 480 }, Assert.IsType<int[]>(photo["sizes"]));
+            Assert.True(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-768w.jpg")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuildAsync_WhenNoResizeSucceeds_OmitsImageSrcsetProjection()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            File.WriteAllText(Path.Combine(assetsDir, "photo.jpg"), "original");
+            WriteTool(toolDir, "magick", """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                exit 1
+                """);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+            var context = CreateContext(outDir);
+
+            await new ImageProcessingPlugin(CreateConfig(
+                    new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
+                .AfterBuildAsync(context);
+
+            Assert.False(context.Data.ContainsKey("__image_srcsets"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
     private static string GetTempDir() => Path.Combine(Path.GetTempPath(), "bukit_img_test_" + Guid.NewGuid().ToString("N"));
 
     private static BuildContext CreateContext(string outDir) => new()

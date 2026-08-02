@@ -11,23 +11,46 @@ using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
+internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDerivePagesAsyncPlugin
 {
-    private readonly AppConfig _config;
+    private const int DefaultMaxEntries = 10_000;
+    private const int DefaultMaxDepth = 64;
 
-    internal DataFilesPlugin(AppConfig config)
+    private readonly AppConfig _config;
+    private readonly int _maxEntries;
+    private readonly int _maxDepth;
+
+    internal DataFilesPlugin(
+        AppConfig config,
+        int maxEntries = DefaultMaxEntries,
+        int maxDepth = DefaultMaxDepth)
     {
         ArgumentNullException.ThrowIfNull(config);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntries);
+        ArgumentOutOfRangeException.ThrowIfNegative(maxDepth);
         _config = config;
+        _maxEntries = maxEntries;
+        _maxDepth = maxDepth;
     }
 
     public string Name => "data-files";
     public string Version => "1.0.0";
 
     public IReadOnlyList<RoutedContentDocument> DerivePages(BuildContext context)
+        => DerivePagesCore(context, CancellationToken.None);
+
+    public Task<IReadOnlyList<RoutedContentDocument>> DerivePagesAsync(
+        BuildContext context,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(DerivePagesCore(context, cancellationToken));
+
+    private IReadOnlyList<RoutedContentDocument> DerivePagesCore(
+        BuildContext context,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var dataDir = Path.Combine(context.RootDir, "data");
-        if (!Directory.Exists(dataDir))
+        if (!Directory.Exists(dataDir) || IsReparsePoint(dataDir))
         {
             return Array.Empty<RoutedContentDocument>();
         }
@@ -40,14 +63,14 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
             foreach (var lang in languages)
             {
                 var langDir = Path.Combine(dataDir, lang);
-                if (Directory.Exists(langDir))
+                if (Directory.Exists(langDir) && !IsReparsePoint(langDir))
                 {
-                    result[lang] = LoadDataDirectory(langDir, dataDir);
+                    result[lang] = LoadDataDirectory(langDir, dataDir, cancellationToken);
                 }
             }
         }
 
-        var defaultData = LoadDataDirectory(dataDir, dataDir);
+        var defaultData = LoadDataDirectory(dataDir, dataDir, cancellationToken);
         foreach (var (key, value) in defaultData)
         {
             if (!result.ContainsKey(key))
@@ -64,13 +87,39 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
         return Array.Empty<RoutedContentDocument>();
     }
 
-    private static Dictionary<string, object> LoadDataDirectory(string dir, string dataRoot)
-    {
-        var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+    private static bool IsReparsePoint(string path)
+        => (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
-        foreach (var file in Directory.EnumerateFiles(dir)
+    private Dictionary<string, object> LoadDataDirectory(
+        string dir,
+        string dataRoot,
+        CancellationToken cancellationToken)
+        => LoadDataDirectory(
+            dir,
+            dataRoot,
+            new TraversalState(_maxEntries, _maxDepth, cancellationToken),
+            depth: 0);
+
+    private static Dictionary<string, object> LoadDataDirectory(
+        string dir,
+        string dataRoot,
+        TraversalState traversal,
+        int depth)
+    {
+        traversal.EnterDirectory(dir, dataRoot, depth);
+        var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var options = new EnumerationOptions
+        {
+            AttributesToSkip = FileAttributes.ReparsePoint,
+            IgnoreInaccessible = false,
+            RecurseSubdirectories = false,
+            ReturnSpecialDirectories = false
+        };
+
+        foreach (var file in Directory.EnumerateFiles(dir, "*", options)
                      .OrderBy(static path => Path.GetFileName(path), StringComparer.Ordinal))
         {
+            traversal.VisitEntry(dataRoot, file);
             var ext = Path.GetExtension(file).ToLowerInvariant();
             if (ext is ".toml")
             {
@@ -119,11 +168,12 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
             }
         }
 
-        foreach (var subDir in Directory.EnumerateDirectories(dir)
+        foreach (var subDir in Directory.EnumerateDirectories(dir, "*", options)
                      .OrderBy(static path => Path.GetFileName(path), StringComparer.Ordinal))
         {
+            traversal.VisitEntry(dataRoot, subDir);
             var subName = Path.GetFileName(subDir);
-            var subData = LoadDataDirectory(subDir, dataRoot);
+            var subData = LoadDataDirectory(subDir, dataRoot, traversal, depth + 1);
             if (subData.Count > 0)
             {
                 AddUnique(result, subName, subData, GetRelativeDataPath(dataRoot, subDir));
@@ -131,6 +181,57 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin
         }
 
         return result;
+    }
+
+    private sealed class TraversalState
+    {
+        private readonly int _maxEntries;
+        private readonly int _maxDepth;
+        private readonly CancellationToken _cancellationToken;
+        private readonly HashSet<string> _visitedDirectories = new(
+            OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        private int _entryCount;
+
+        internal TraversalState(
+            int maxEntries,
+            int maxDepth,
+            CancellationToken cancellationToken)
+        {
+            _maxEntries = maxEntries;
+            _maxDepth = maxDepth;
+            _cancellationToken = cancellationToken;
+        }
+
+        internal void EnterDirectory(string directory, string dataRoot, int depth)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            if (depth > _maxDepth)
+            {
+                throw new ConfigException(
+                    $"Data directory depth exceeds the maximum of {_maxDepth} at {GetRelativeDataPath(dataRoot, directory)}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            var normalized = Path.GetFullPath(directory);
+            if (!_visitedDirectories.Add(normalized))
+            {
+                throw new ConfigException(
+                    $"Data directory cycle detected at {GetRelativeDataPath(dataRoot, directory)}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        internal void VisitEntry(string dataRoot, string path)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            _entryCount++;
+            if (_entryCount > _maxEntries)
+            {
+                throw new ConfigException(
+                    $"Data directory contains more than {_maxEntries} entries at {GetRelativeDataPath(dataRoot, path)}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
     }
 
     private static void AddUnique(

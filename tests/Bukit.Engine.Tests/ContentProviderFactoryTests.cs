@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text;
 using Bukit.Config;
 using Bukit.Content;
@@ -285,12 +284,27 @@ public sealed class ContentProviderFactoryTests
 
         try
         {
-            using var server = new LoopbackImageServer(
+            using var fieldServer = new LoopbackImageServer(
                 [0xFF, 0xD8, 0xFF, .. Encoding.UTF8.GetBytes("body-image")]);
-            var fieldImageUrl = server.BaseUrl + "field.jpg";
-            var bodyImageUrl = server.BaseUrl + "body.jpg";
-            var cachedFieldImageName = BuildCachedImageName(fieldImageUrl);
-            await File.WriteAllTextAsync(Path.Combine(cacheDir, cachedFieldImageName), "field-image");
+            using var bodyServer = new LoopbackImageServer(
+                [0xFF, 0xD8, 0xFF, .. Encoding.UTF8.GetBytes("body-image")]);
+            var fieldImageUrl = fieldServer.BaseUrl + "field.jpg";
+            var bodyImageUrl = bodyServer.BaseUrl + "body.jpg";
+            var media = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = cacheDir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/default.jpg",
+                BlockPrivateNetworks = false,
+                MaxRetries = 0,
+                RetryBaseDelayMs = 0
+            };
+            using (var preloader = new ImageAssetLocalizer(media))
+            {
+                var preloaded = await preloader.LocalizeAsync(fieldImageUrl, CancellationToken.None);
+                Assert.StartsWith("/assets/uploads/", preloaded, StringComparison.Ordinal);
+            }
 
             var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
             {
@@ -306,17 +320,6 @@ public sealed class ContentProviderFactoryTests
                 CustomFields: fields);
             var inner = new DelayedBodyStore($"<p><img src=\"{bodyImageUrl}\"></p>");
             var result = new RawContentLoadResult([document], inner);
-            var media = new MediaConfig
-            {
-                DownloadToLocal = true,
-                DownloadDir = cacheDir,
-                UrlBase = "/assets/uploads",
-                DefaultImageUrl = "/assets/images/default.jpg",
-                BlockPrivateNetworks = false,
-                MaxRetries = 0,
-                RetryBaseDelayMs = 0
-            };
-
             var localized = await ContentProviderFactory.LocalizeContentImagesAsync(
                 result, media, tempDir, cacheDir, new ConsoleLogger(LogLevel.Debug), CancellationToken.None);
             await using var ownedBodyStore = Assert.IsAssignableFrom<IAsyncDisposable>(localized.BodyStore);
@@ -328,7 +331,8 @@ public sealed class ContentProviderFactoryTests
 
             Assert.Contains("/assets/uploads/", body.Html, StringComparison.Ordinal);
             Assert.DoesNotContain(media.DefaultImageUrl, body.Html, StringComparison.Ordinal);
-            Assert.Equal(1, server.RequestCount);
+            Assert.Equal(1, fieldServer.RequestCount);
+            Assert.Equal(1, bodyServer.RequestCount);
         }
         finally
         {
@@ -386,14 +390,6 @@ public sealed class ContentProviderFactoryTests
             PublishAt: DateTimeOffset.UtcNow,
             Body: new RawBody("<img src=\"https://img.example/image.jpg\">", null));
         return new RawContentLoadResult([document], NullContentBodyStore.Instance);
-    }
-
-    private static string BuildCachedImageName(string sourceUrl)
-    {
-        var uri = new Uri(sourceUrl);
-        var normalized = $"{uri.Scheme.ToLowerInvariant()}://{uri.Host.ToLowerInvariant()}:{uri.Port}{uri.AbsolutePath}";
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalized));
-        return Convert.ToHexString(hash).ToLowerInvariant()[..16] + ".jpg";
     }
 
     private static IReadOnlyList<RawContentDocument> ToRawDocuments(IEnumerable<ContentDocument> items)

@@ -125,4 +125,21 @@ public sealed class NotionBodyStoreTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => activeRender.WaitAsync(TimeSpan.FromSeconds(5)));
     }
+
+    [Fact]
+    public async Task GetAsync_AfterDispose_ThrowsObjectDisposedBeforeInlineBypass()
+    {
+        var store = new NotionBodyStore((_, _) => Task.FromResult("<p>factory</p>"));
+        await store.DisposeAsync();
+        var item = ContentDocument.Create(
+            id: "disposed-page",
+            title: "Page",
+            slug: "disposed-page",
+            publishAt: DateTimeOffset.UnixEpoch,
+            contentHtml: "<p>inline</p>",
+            fields: null,
+            bodyKey: "disposed-page");
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => store.GetAsync(item.ToDocument()));
+    }
 }

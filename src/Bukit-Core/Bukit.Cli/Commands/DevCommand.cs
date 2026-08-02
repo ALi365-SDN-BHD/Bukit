@@ -104,7 +104,7 @@ public static class DevCommand
         }
         Console.WriteLine("  Press Ctrl+C to stop.\n");
 
-        _ = serverHost.RunAcceptLoopAsync(async ctx =>
+        var acceptLoopTask = serverHost.RunAcceptLoopAsync(async ctx =>
         {
             if (ctx.Request.Url?.AbsolutePath == "/__ws__")
                 await hub.HandleUpgradeAsync(ctx, cts.Token);
@@ -114,15 +114,35 @@ public static class DevCommand
 
         try
         {
-            await Task.Delay(Timeout.Infinite, cts.Token);
+            await WaitForShutdownOrAcceptLoopAsync(acceptLoopTask, cts.Token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
+        }
+        finally
+        {
+            cts.Cancel();
+            watcher?.Dispose();
+
+            try
+            {
+                await acceptLoopTask;
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+            }
         }
 
         Console.WriteLine("\ndev server stopped.");
-        watcher?.Dispose();
         return 0;
+    }
+
+    internal static async Task WaitForShutdownOrAcceptLoopAsync(
+        Task acceptLoopTask,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(acceptLoopTask);
+        await acceptLoopTask.WaitAsync(cancellationToken);
     }
 
     internal static ConfigOverrides CreateBuildOverrides(bool clean, string? outputOverride, string cacheDir)

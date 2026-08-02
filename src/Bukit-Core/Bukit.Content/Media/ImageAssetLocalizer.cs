@@ -31,8 +31,8 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     internal static readonly HashSet<string> AllowedExtensions =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif", ".bmp",
-            ".ico", ".tiff", ".tif", ".img"
+            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".bmp",
+            ".ico", ".tiff", ".tif"
         };
 
     private readonly MediaConfig _config;
@@ -122,29 +122,55 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             return _config.DefaultImageUrl;
         }
 
-        if (_cache.TryGetValue(normalizedKey, out var cached))
-        {
-            return cached;
-        }
-
         var root = _config.DownloadDir.Trim();
         Directory.CreateDirectory(root);
         _indexManager.EnsureIndexLoaded(root);
 
-        if (_indexManager.TryGetUrlFromIndex(root, normalizedKey, out var indexedUrl))
+        if (_cache.TryGetValue(normalizedKey, out var cachedFileName))
         {
-            _cache.TryAdd(normalizedKey, indexedUrl);
-            return indexedUrl;
+            if (await IsTrustedCachedFileAsync(root, cachedFileName, cancellationToken))
+            {
+                return _indexManager.CombineUrl(cachedFileName);
+            }
+
+            _cache.TryRemove(normalizedKey, out _);
+            _indexManager.ForgetIndex(normalizedKey);
+            if (!DeleteUntrustedCachedFile(root, cachedFileName))
+            {
+                return RecordFailure(source, "Unsafe cached media could not be removed.");
+            }
+        }
+
+        if (_indexManager.TryGetFileNameFromIndex(root, normalizedKey, out var indexedFileName))
+        {
+            if (await IsTrustedCachedFileAsync(root, indexedFileName, cancellationToken))
+            {
+                _cache.TryAdd(normalizedKey, indexedFileName);
+                return _indexManager.CombineUrl(indexedFileName);
+            }
+
+            _indexManager.ForgetIndex(normalizedKey);
+            if (!DeleteUntrustedCachedFile(root, indexedFileName))
+            {
+                return RecordFailure(source, "Unsafe cached media could not be removed.");
+            }
         }
 
         var hashPrefix = BuildHashPrefix(normalizedKey);
         var existingName = _indexManager.FindExistingFileByHash(root, hashPrefix);
         if (existingName is not null)
         {
-            _indexManager.RememberIndex(normalizedKey, existingName);
-            var existingUrl = _indexManager.CombineUrl(existingName);
-            _cache.TryAdd(normalizedKey, existingUrl);
-            return existingUrl;
+            if (await IsTrustedCachedFileAsync(root, existingName, cancellationToken))
+            {
+                _indexManager.RememberIndex(normalizedKey, existingName);
+                _cache.TryAdd(normalizedKey, existingName);
+                return _indexManager.CombineUrl(existingName);
+            }
+
+            if (!DeleteUntrustedCachedFile(root, existingName))
+            {
+                return RecordFailure(source, "Unsafe cached media could not be removed.");
+            }
         }
 
         var newDownload = new Lazy<Task<string>>(
@@ -292,7 +318,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
                 var publicUrl = _indexManager.CombineUrl(fileName);
                 _indexManager.RememberIndex(normalizedKey, fileName);
-                _cache.TryAdd(normalizedKey, publicUrl);
+                _cache.TryAdd(normalizedKey, fileName);
                 return publicUrl;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -436,6 +462,65 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                ContentTypeToExt.ContainsKey(contentType.Trim());
     }
 
+    private async Task<bool> IsTrustedCachedFileAsync(
+        string root,
+        string fileName,
+        CancellationToken cancellationToken)
+    {
+        if (!MediaIndexManager.IsSafeFileName(fileName) ||
+            !TryGetContentTypeForExtension(Path.GetExtension(fileName), out var contentType))
+        {
+            return false;
+        }
+
+        try
+        {
+            return await ImageContentSignature.MatchesFileAsync(
+                Path.Combine(root, fileName),
+                contentType,
+                cancellationToken);
+        }
+        catch (IOException ex)
+        {
+            _logger?.Warn($"event=media.cache_read_failed fileName={fileName} error={ex.GetType().Name}");
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger?.Warn($"event=media.cache_read_failed fileName={fileName} error={ex.GetType().Name}");
+            return false;
+        }
+    }
+
+    private static bool TryGetContentTypeForExtension(string extension, out string contentType)
+    {
+        contentType = extension.ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".avif" => "image/avif",
+            ".bmp" => "image/bmp",
+            ".ico" => "image/x-icon",
+            ".tif" or ".tiff" => "image/tiff",
+            _ => string.Empty
+        };
+        return contentType.Length > 0;
+    }
+
+    private static bool DeleteUntrustedCachedFile(string root, string fileName)
+    {
+        if (!MediaIndexManager.IsSafeFileName(fileName))
+        {
+            return false;
+        }
+
+        var path = Path.Combine(root, fileName);
+        DeleteFileBestEffort(path);
+        return !File.Exists(path);
+    }
+
     private static async Task DelayBeforeRetryAsync(
         int attempt, int baseDelayMs, CancellationToken cancellationToken)
     {
@@ -494,7 +579,9 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             path = "/";
         }
 
-        return $"{scheme}://{host}{port}{path}";
+        var canonicalUrl = $"{scheme}://{host}{port}{path}{uri.Query}";
+        var hash = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonicalUrl));
+        return $"v2:{Convert.ToHexString(hash).ToLowerInvariant()}";
     }
 
     public void Dispose()

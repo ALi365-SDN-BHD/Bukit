@@ -51,7 +51,12 @@ public sealed class AssetToolingSymlinkTests
             var toolDir = Path.Combine(root, "tools");
             Directory.CreateDirectory(toolDir);
             var toolPath = Path.Combine(toolDir, "magick");
-            File.WriteAllText(toolPath, "#!/bin/sh\nexit 0\n");
+            File.WriteAllText(toolPath, """
+                #!/bin/sh
+                if [ "$1" = "--version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                printf resized > "$last"
+                """);
             File.SetUnixFileMode(
                 toolPath,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
@@ -64,7 +69,7 @@ public sealed class AssetToolingSymlinkTests
                 Content = TestContent.Markdown(),
                 Theme = new ThemeConfig
                 {
-                    Images = new ImageOptimizationConfig { Enabled = true, Sizes = Array.Empty<int>() }
+                    Images = new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }
                 }
             };
             var context = new BuildContext

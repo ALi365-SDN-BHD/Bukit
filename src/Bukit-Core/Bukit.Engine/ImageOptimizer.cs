@@ -84,8 +84,8 @@ internal static class ImageOptimizer
 
     private static async Task ConvertToWebp(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
     {
-        var toolPath = await FindImageToolAsync(cancellationToken);
-        if (toolPath is null)
+        var tool = await FindImageToolAsync("webp", cancellationToken);
+        if (tool is null)
         {
             logger.Warn("event=image_optimize.skip reason=no_tool message=Install cwebp (libwebp) or ImageMagick for WebP conversion.");
             return;
@@ -93,14 +93,14 @@ internal static class ImageOptimizer
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = toolPath,
+            FileName = tool.Path,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
-        if (toolPath.EndsWith("cwebp", StringComparison.OrdinalIgnoreCase))
+        if (tool.Kind == ImageToolKind.Cwebp)
         {
             startInfo.ArgumentList.Add("-q");
             startInfo.ArgumentList.Add(quality.ToString());
@@ -110,7 +110,6 @@ internal static class ImageOptimizer
         }
         else
         {
-            startInfo.ArgumentList.Add("magick");
             startInfo.ArgumentList.Add(inputFile);
             startInfo.ArgumentList.Add("-quality");
             startInfo.ArgumentList.Add(quality.ToString());
@@ -122,8 +121,8 @@ internal static class ImageOptimizer
 
     private static async Task ConvertToAvif(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
     {
-        var toolPath = await FindImageToolAsync(cancellationToken);
-        if (toolPath is null)
+        var tool = await FindImageToolAsync("avif", cancellationToken);
+        if (tool is null)
         {
             logger.Warn("event=image_optimize.skip reason=no_tool message=Install ImageMagick (magick) for AVIF conversion.");
             return;
@@ -131,13 +130,12 @@ internal static class ImageOptimizer
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = toolPath,
+            FileName = tool.Path,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        startInfo.ArgumentList.Add("magick");
         startInfo.ArgumentList.Add(inputFile);
         startInfo.ArgumentList.Add("-quality");
         startInfo.ArgumentList.Add(quality.ToString());
@@ -145,9 +143,24 @@ internal static class ImageOptimizer
         await RunTool(startInfo, logger, inputFile, outputFile, cancellationToken);
     }
 
-    private static async Task<string?> FindImageToolAsync(CancellationToken cancellationToken = default)
+    private static async Task<ImageTool?> FindImageToolAsync(
+        string format,
+        CancellationToken cancellationToken = default)
     {
-        foreach (var name in new[] { "cwebp", "magick", "convert" })
+        ImageTool[] candidates = string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase)
+            ?
+            [
+                new ImageTool("cwebp", ImageToolKind.Cwebp),
+                new ImageTool("magick", ImageToolKind.Magick),
+                new ImageTool("convert", ImageToolKind.Convert)
+            ]
+            :
+            [
+                new ImageTool("magick", ImageToolKind.Magick),
+                new ImageTool("convert", ImageToolKind.Convert)
+            ];
+
+        foreach (var candidate in candidates)
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -158,8 +171,8 @@ internal static class ImageOptimizer
             {
                 var result = await ExternalToolProcessRunner.RunAsync(new ProcessStartInfo
                 {
-                    FileName = name,
-                    Arguments = name == "cwebp" ? "-version" : "--version",
+                    FileName = candidate.Path,
+                    Arguments = candidate.Kind == ImageToolKind.Cwebp ? "-version" : "--version",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -167,7 +180,7 @@ internal static class ImageOptimizer
                 }, TimeSpan.FromSeconds(3), cancellationToken);
                 if (result.ExitCode == 0)
                 {
-                    return name;
+                    return candidate;
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -228,4 +241,13 @@ internal static class ImageOptimizer
         {
         }
     }
+
+    private enum ImageToolKind
+    {
+        Cwebp,
+        Magick,
+        Convert
+    }
+
+    private sealed record ImageTool(string Path, ImageToolKind Kind);
 }

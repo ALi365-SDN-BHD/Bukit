@@ -6,6 +6,7 @@ namespace Bukit.PluginHost;
 public sealed class SystemProcessRunner : IProcessRunner
 {
     private static readonly Encoding Utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+    private static readonly TimeSpan TerminationGracePeriod = TimeSpan.FromSeconds(2);
 
     public async Task<ProcessRunResult> RunAsync(
         ProcessRunRequest request,
@@ -52,6 +53,7 @@ public sealed class SystemProcessRunner : IProcessRunner
         }
 
         bool timedOut = false;
+        bool terminationCompleted = true;
         try
         {
             await WriteStandardInputAsync(process, request.StandardInput, linkedCts.Token);
@@ -61,33 +63,38 @@ public sealed class SystemProcessRunner : IProcessRunner
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
             timedOut = true;
-            await TerminateProcessAsync(process);
+            terminationCompleted = await TerminateProcessAsync(
+                process,
+                stdoutTask,
+                stderrTask,
+                resourceMonitorTask);
         }
         catch (OperationCanceledException)
         {
-            await TerminateProcessAsync(process);
-            await ObserveOutputTasksAsync(stdoutTask, stderrTask);
-            if (resourceMonitorTask is not null)
-            {
-                await ObserveTaskAsync(resourceMonitorTask);
-            }
+            await TerminateProcessAsync(process, stdoutTask, stderrTask, resourceMonitorTask);
 
             throw;
         }
         catch
         {
-            await TerminateProcessAsync(process);
-            await ObserveOutputTasksAsync(stdoutTask, stderrTask);
-            if (resourceMonitorTask is not null)
-            {
-                await ObserveTaskAsync(resourceMonitorTask);
-            }
+            await TerminateProcessAsync(process, stdoutTask, stderrTask, resourceMonitorTask);
 
             throw;
         }
         finally
         {
             CloseStandardInputBestEffort(process);
+        }
+
+        if (timedOut && !terminationCompleted)
+        {
+            return new ProcessRunResult(
+                -1,
+                string.Empty,
+                $"Process termination did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds.",
+                TimedOut: true,
+                OutputLimitExceeded: false,
+                OutputLimitStream: null);
         }
 
         // Check if resource monitor killed the process
@@ -208,9 +215,38 @@ public sealed class SystemProcessRunner : IProcessRunner
         }
     }
 
-    private static async Task TerminateProcessAsync(Process process)
+    private static async Task<bool> TerminateProcessAsync(
+        Process process,
+        Task<LimitedOutput> stdoutTask,
+        Task<LimitedOutput> stderrTask,
+        Task? resourceMonitorTask)
     {
         KillProcess(process);
+        var tasks = new List<Task>
+        {
+            WaitForExitIgnoringFailureAsync(process),
+            ObserveTerminationTaskAsync(stdoutTask),
+            ObserveTerminationTaskAsync(stderrTask)
+        };
+        if (resourceMonitorTask is not null)
+        {
+            tasks.Add(ObserveTerminationTaskAsync(resourceMonitorTask));
+        }
+
+        var completed = await WaitForTerminationGraceAsync(
+            Task.WhenAll(tasks),
+            TerminationGracePeriod);
+        if (!completed)
+        {
+            Console.Error.WriteLine(
+                $"Plugin process termination did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds.");
+        }
+
+        return completed;
+    }
+
+    private static async Task WaitForExitIgnoringFailureAsync(Process process)
+    {
         try
         {
             await process.WaitForExitAsync(CancellationToken.None);
@@ -220,25 +256,30 @@ public sealed class SystemProcessRunner : IProcessRunner
         }
     }
 
-    private static async Task ObserveOutputTasksAsync(
-        Task<LimitedOutput> stdoutTask,
-        Task<LimitedOutput> stderrTask)
-    {
-        await ObserveTaskAsync(stdoutTask);
-        await ObserveTaskAsync(stderrTask);
-    }
-
-    private static async Task ObserveTaskAsync(Task task)
+    private static async Task ObserveTerminationTaskAsync(Task task)
     {
         try
         {
             await task;
         }
-        catch (OperationCanceledException)
+        catch
         {
         }
-        catch (IOException)
+    }
+
+    internal static async Task<bool> WaitForTerminationGraceAsync(
+        Task completion,
+        TimeSpan gracePeriod)
+    {
+        try
         {
+            await completion.WaitAsync(gracePeriod);
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            _ = ObserveTerminationTaskAsync(completion);
+            return false;
         }
     }
 
@@ -286,6 +327,9 @@ public sealed class SystemProcessRunner : IProcessRunner
             }
         }
         catch (InvalidOperationException)
+        {
+        }
+        catch (System.ComponentModel.Win32Exception)
         {
         }
     }

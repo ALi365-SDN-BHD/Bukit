@@ -161,6 +161,75 @@ public sealed class RenderPipelineTests
         Assert.True(manifest.Entries.ContainsKey("index.html"));
     }
 
+    [Fact]
+    public async Task ExecuteAsync_Incremental_ProducesDeterministicManifestAcrossConcurrentRuns()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-render-pipeline-manifest", Guid.NewGuid().ToString("N"));
+        var layoutsDir = Path.Combine(root, "layouts");
+        Directory.CreateDirectory(layoutsDir);
+        var routedDocuments = Enumerable.Range(0, 24)
+            .Select(index =>
+            {
+                var item = ContentDocument.Create(
+                    id: $"post-{index}",
+                    title: $"Post {index}",
+                    slug: $"post-{index}",
+                    publishAt: DateTimeOffset.UnixEpoch.AddMinutes(index),
+                    contentHtml: $"<p>Post {index}</p>",
+                    bodyKey: null);
+                return (item, new RouteInfo(
+                    $"/blog/post-{index}/",
+                    $"blog/post-{index}/index.html",
+                    "pages/post.html"));
+            })
+            .ToRoutedDocuments();
+        var graph = ListRouteGraphBuilder.Build(routedDocuments, CreateCollections(), "pretty");
+        string? expectedManifest = null;
+
+        try
+        {
+            for (var iteration = 0; iteration < 25; iteration++)
+            {
+                var outputDir = Path.Combine(root, "output", iteration.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                var manifest = new BuildManifest();
+                var manifestEntries = new ConcurrentDictionary<string, BuildManifestEntry>(StringComparer.Ordinal);
+
+                var result = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
+                    BodyStore: EmptyContentBodyStore.Instance,
+                    Renderer: new ConcurrentDeterministicRenderer(),
+                    SiteModel: new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "en" },
+                    Collections: CreateCollections(),
+                    LayoutsDir: layoutsDir,
+                    ListPageContentMode: "auto",
+                    OutputPathEncoding: "pretty",
+                    OutputDir: outputDir,
+                    TemplateHash: "template-v1",
+                    RenderDependencyHash: "dependency-v1",
+                    IncrementalEnabled: true,
+                    Manifest: manifest,
+                    ManifestEntries: manifestEntries,
+                    MaxDegreeOfParallelism: 8,
+                    Logger: new ConsoleLogger(LogLevel.Error),
+                    ListRouteGraph: graph,
+                    RenderDocuments: routedDocuments,
+                    RoutedDocuments: routedDocuments), CancellationToken.None);
+
+                var manifestPath = Path.Combine(root, $"manifest-{iteration}.json");
+                manifest.Save(manifestPath);
+                var serialized = await File.ReadAllTextAsync(manifestPath);
+                expectedManifest ??= serialized;
+
+                Assert.Equal(expectedManifest, serialized);
+                Assert.Equal(result.RenderedCount, manifest.Entries.Count);
+                Assert.Equal(manifestEntries.Count, manifest.Entries.Count);
+            }
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, true);
+        }
+    }
+
     private static IReadOnlyDictionary<string, CollectionConfig> CreateCollections()
         => new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
         {
@@ -232,5 +301,14 @@ public sealed class RenderPipelineTests
             ListRenderCount++;
             return string.Join('\n', model.Pages.Select(page => page.Title));
         }
+    }
+
+    private sealed class ConcurrentDeterministicRenderer : ITemplateRenderer
+    {
+        public string RenderPage(string templateRelativePath, PageModel model)
+            => $"page:{model.Page.Url}";
+
+        public string RenderList(string templateRelativePath, ListPageModel model)
+            => $"list:{model.Page?.Url ?? string.Empty}:{string.Join(',', model.Pages.Select(page => page.Url))}";
     }
 }

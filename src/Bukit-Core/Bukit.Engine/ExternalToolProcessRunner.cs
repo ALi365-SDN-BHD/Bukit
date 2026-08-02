@@ -9,6 +9,8 @@ internal sealed record ExternalToolProcessResult(
 
 internal static class ExternalToolProcessRunner
 {
+    private static readonly TimeSpan TerminationGracePeriod = TimeSpan.FromSeconds(2);
+
     internal static async Task<ExternalToolProcessResult> RunAsync(
         ProcessStartInfo startInfo,
         TimeSpan timeout,
@@ -40,8 +42,14 @@ internal static class ExternalToolProcessRunner
         catch (OperationCanceledException) when (linkedSource.IsCancellationRequested)
         {
             TryKillProcessTree(process);
-            await WaitForExitAfterKillAsync(process);
-            await ObserveAsync(stdoutTask, stderrTask);
+            var terminationCompleted = await WaitForTerminationGraceAsync(
+                CompleteTerminationAsync(process, stdoutTask, stderrTask),
+                TerminationGracePeriod);
+            if (!terminationCompleted)
+            {
+                Console.Error.WriteLine(
+                    $"External tool termination did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds: {startInfo.FileName}");
+            }
 
             if (cancellationToken.IsCancellationRequested)
             {
@@ -49,7 +57,10 @@ internal static class ExternalToolProcessRunner
             }
 
             throw new TimeoutException(
-                $"External tool '{startInfo.FileName}' timed out after {timeout.TotalMilliseconds:0}ms.");
+                $"External tool '{startInfo.FileName}' timed out after {timeout.TotalMilliseconds:0}ms." +
+                (terminationCompleted
+                    ? string.Empty
+                    : $" Process termination did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds."));
         }
 
         await Task.WhenAll(stdoutTask, stderrTask);
@@ -76,7 +87,10 @@ internal static class ExternalToolProcessRunner
         }
     }
 
-    private static async Task WaitForExitAfterKillAsync(Process process)
+    private static async Task CompleteTerminationAsync(
+        Process process,
+        Task<string> stdoutTask,
+        Task<string> stderrTask)
     {
         try
         {
@@ -85,6 +99,8 @@ internal static class ExternalToolProcessRunner
         catch (InvalidOperationException)
         {
         }
+
+        await ObserveAsync(stdoutTask, stderrTask);
     }
 
     private static async Task ObserveAsync(params Task<string>[] tasks)
@@ -92,6 +108,33 @@ internal static class ExternalToolProcessRunner
         try
         {
             await Task.WhenAll(tasks);
+        }
+        catch
+        {
+        }
+    }
+
+    internal static async Task<bool> WaitForTerminationGraceAsync(
+        Task completion,
+        TimeSpan gracePeriod)
+    {
+        try
+        {
+            await completion.WaitAsync(gracePeriod);
+            return true;
+        }
+        catch (TimeoutException)
+        {
+            _ = ObserveEventuallyAsync(completion);
+            return false;
+        }
+    }
+
+    private static async Task ObserveEventuallyAsync(Task task)
+    {
+        try
+        {
+            await task;
         }
         catch
         {

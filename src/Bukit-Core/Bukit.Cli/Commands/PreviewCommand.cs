@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using Bukit.Cli.Commands.Dev;
 using Bukit.Cli.Shared;
@@ -437,6 +438,7 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private TaskCompletionSource<bool>? _schedulersDrained;
     private int _activeSchedulers;
+    private int _resourcesDisposed;
     private bool _stopping;
 
     internal PreviewRequestDispatcher(int maxConcurrentRequests)
@@ -448,6 +450,8 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
 
         _requestGate = new SemaphoreSlim(maxConcurrentRequests, maxConcurrentRequests);
     }
+
+    internal bool ResourcesDisposed => Volatile.Read(ref _resourcesDisposed) != 0;
 
     internal async Task ScheduleAsync(
         Func<CancellationToken, Task> dispatchAsync,
@@ -549,6 +553,7 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
 
     private async Task DisposeCoreAsync(Task schedulersDrained)
     {
+        Exception? failure = null;
         try
         {
             await schedulersDrained.ConfigureAwait(false);
@@ -559,14 +564,53 @@ internal sealed class PreviewRequestDispatcher : IAsyncDisposable
             }
 
             await Task.WhenAll(requests).ConfigureAwait(false);
-            _requestGate.Dispose();
-            _shutdown.Dispose();
-            _disposeCompletion.TrySetResult(true);
         }
         catch (Exception ex)
         {
-            _disposeCompletion.TrySetException(ex);
-            throw;
+            failure = ex;
+        }
+        finally
+        {
+            var requestGateDisposed = false;
+            var shutdownDisposed = false;
+            try
+            {
+                _requestGate.Dispose();
+                requestGateDisposed = true;
+            }
+            catch (Exception ex)
+            {
+                failure ??= ex;
+            }
+
+            try
+            {
+                _shutdown.Dispose();
+                shutdownDisposed = true;
+            }
+            catch (Exception ex)
+            {
+                failure ??= ex;
+            }
+
+            if (requestGateDisposed && shutdownDisposed)
+            {
+                Volatile.Write(ref _resourcesDisposed, 1);
+            }
+
+            if (failure is null)
+            {
+                _disposeCompletion.TrySetResult(true);
+            }
+            else
+            {
+                _disposeCompletion.TrySetException(failure);
+            }
+        }
+
+        if (failure is not null)
+        {
+            ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 }

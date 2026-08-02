@@ -3,6 +3,7 @@ using System.Net;
 using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Bukit.Content.Media;
 using Bukit.Shared;
 using Bukit.Config;
@@ -256,7 +257,7 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
-    public async Task LocalizeAsync_SamePathDifferentQuery_UsesSameStoredFile()
+    public async Task LocalizeAsync_SamePathDifferentQuery_UsesDistinctStoredFilesWithoutPersistingSecrets()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dir);
@@ -278,11 +279,15 @@ public sealed class ImageAssetLocalizerTests
             {
                 a = await localizer.LocalizeAsync("https://img.example/path/a.jpg?X-Amz-Expires=100", CancellationToken.None);
                 b = await localizer.LocalizeAsync("https://img.example/path/a.jpg?X-Amz-Expires=200", CancellationToken.None);
-                Assert.Equal(a, b);
-                Assert.Equal(1, handler.RequestCount);
+                Assert.NotEqual(a, b);
+                Assert.Equal(2, handler.RequestCount);
             }
 
-            Assert.Equal(2, Directory.GetFiles(dir).Length); // image + .media-index.json
+            Assert.Equal(3, Directory.GetFiles(dir).Length); // two images + .media-index.json
+            var index = File.ReadAllText(Path.Combine(dir, ".media-index.json"));
+            Assert.DoesNotContain("X-Amz-Expires", index, StringComparison.Ordinal);
+            Assert.DoesNotContain("X-Amz-Expires=100", index, StringComparison.Ordinal);
+            Assert.DoesNotContain("X-Amz-Expires=200", index, StringComparison.Ordinal);
         }
         finally
         {
@@ -516,13 +521,205 @@ public sealed class ImageAssetLocalizerTests
             using (var secondHttp = new HttpClient(secondHandler))
             using (var second = new ImageAssetLocalizer(cfg, secondHttp))
             {
-                var b = await second.LocalizeAsync("https://img.example/path/a?token=two", CancellationToken.None);
+                var b = await second.LocalizeAsync("https://img.example/path/a?token=one", CancellationToken.None);
                 Assert.StartsWith("/assets/uploads/", b, StringComparison.Ordinal);
             }
 
             Assert.Equal(1, firstHandler.RequestCount);
             Assert.Equal(0, secondHandler.RequestCount);
             Assert.Equal(2, Directory.GetFiles(dir).Length); // image + .media-index.json
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_WhenIndexedFileSignatureIsInvalid_RedownloadsBeforeReturning()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+            const string source = "https://img.example/path/indexed.jpg";
+            string firstUrl;
+            using (var firstHttp = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "first")))
+            using (var first = new ImageAssetLocalizer(cfg, firstHttp))
+            {
+                firstUrl = await first.LocalizeAsync(source, CancellationToken.None);
+            }
+
+            var storedPath = Path.Combine(dir, Path.GetFileName(firstUrl));
+            File.WriteAllText(storedPath, "not-an-image");
+
+            var secondHandler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "replacement");
+            using var secondHttp = new HttpClient(secondHandler);
+            using var second = new ImageAssetLocalizer(cfg, secondHttp);
+
+            var secondUrl = await second.LocalizeAsync(source, CancellationToken.None);
+
+            Assert.Equal(firstUrl, secondUrl);
+            Assert.Equal(1, secondHandler.RequestCount);
+            Assert.True(await ImageContentSignature.MatchesFileAsync(
+                storedPath,
+                "image/jpeg",
+                CancellationToken.None));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_WhenMemoryCachedFileIsModified_RedownloadsBeforeReturning()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+            const string source = "https://img.example/path/memory-cache.jpg";
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "replacement");
+            using var http = new HttpClient(handler);
+            using var localizer = new ImageAssetLocalizer(cfg, http);
+
+            var firstUrl = await localizer.LocalizeAsync(source, CancellationToken.None);
+            var storedPath = Path.Combine(dir, Path.GetFileName(firstUrl));
+            File.WriteAllText(storedPath, "not-an-image");
+
+            var secondUrl = await localizer.LocalizeAsync(source, CancellationToken.None);
+
+            Assert.Equal(firstUrl, secondUrl);
+            Assert.Equal(2, handler.RequestCount);
+            Assert.True(await ImageContentSignature.MatchesFileAsync(
+                storedPath,
+                "image/jpeg",
+                CancellationToken.None));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_WhenOrphanHashFileSignatureIsInvalid_RedownloadsBeforeReturning()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+            const string source = "https://img.example/path/orphan.jpg";
+            string firstUrl;
+            using (var firstHttp = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "first")))
+            using (var first = new ImageAssetLocalizer(cfg, firstHttp))
+            {
+                firstUrl = await first.LocalizeAsync(source, CancellationToken.None);
+            }
+
+            File.Delete(Path.Combine(dir, ".media-index.json"));
+            var storedPath = Path.Combine(dir, Path.GetFileName(firstUrl));
+            File.WriteAllText(storedPath, "not-an-image");
+
+            var secondHandler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "replacement");
+            using var secondHttp = new HttpClient(secondHandler);
+            using var second = new ImageAssetLocalizer(cfg, secondHttp);
+
+            var secondUrl = await second.LocalizeAsync(source, CancellationToken.None);
+
+            Assert.Equal(firstUrl, secondUrl);
+            Assert.Equal(1, secondHandler.RequestCount);
+            Assert.True(await ImageContentSignature.MatchesFileAsync(
+                storedPath,
+                "image/jpeg",
+                CancellationToken.None));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_WhenVersionedIndexReferencesUnsafeExtension_RedownloadsSafeAsset()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+            const string source = "https://img.example/path/unsafe.jpg";
+            string firstUrl;
+            using (var firstHttp = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "first")))
+            using (var first = new ImageAssetLocalizer(cfg, firstHttp))
+            {
+                firstUrl = await first.LocalizeAsync(source, CancellationToken.None);
+            }
+
+            string indexKey;
+            using (var index = JsonDocument.Parse(File.ReadAllText(Path.Combine(dir, ".media-index.json"))))
+            {
+                indexKey = Assert.Single(index.RootElement.GetProperty("entries").EnumerateObject()).Name;
+            }
+
+            File.Delete(Path.Combine(dir, Path.GetFileName(firstUrl)));
+            File.WriteAllText(Path.Combine(dir, "legacy.svg"), "<svg><script>alert(1)</script></svg>");
+            File.WriteAllText(
+                Path.Combine(dir, ".media-index.json"),
+                JsonSerializer.Serialize(new
+                {
+                    version = 2,
+                    entries = new Dictionary<string, string> { [indexKey] = "legacy.svg" }
+                }));
+
+            var secondHandler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "replacement");
+            using var secondHttp = new HttpClient(secondHandler);
+            using var second = new ImageAssetLocalizer(cfg, secondHttp);
+
+            var secondUrl = await second.LocalizeAsync(source, CancellationToken.None);
+
+            Assert.DoesNotContain(".svg", secondUrl, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(1, secondHandler.RequestCount);
         }
         finally
         {
@@ -1050,15 +1247,12 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
-    public async Task LocalizeAsync_WhenHashNamedFileAlreadyExists_ReusesFileAndWritesIndex()
+    public async Task LocalizeAsync_WhenValidHashNamedFileAlreadyExists_ReusesFileAndWritesIndex()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dir);
         try
         {
-            var normalizedKey = "https://img.example/path/a.jpg";
-            var existingName = BuildHashPrefix(normalizedKey) + ".jpg";
-            File.WriteAllText(Path.Combine(dir, existingName), "existing");
             var cfg = new MediaConfig
             {
                 DownloadToLocal = true,
@@ -1067,17 +1261,25 @@ public sealed class ImageAssetLocalizerTests
                 DefaultImageUrl = "/assets/images/noneimg-news.jpg"
             };
 
-            var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "should-not-download");
-            using var http = new HttpClient(handler);
+            const string source = "https://img.example/path/a.jpg";
             string result;
-            using (var localizer = new ImageAssetLocalizer(cfg, http))
+            using (var firstHttp = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "existing")))
+            using (var first = new ImageAssetLocalizer(cfg, firstHttp))
             {
-                result = await localizer.LocalizeAsync(normalizedKey, CancellationToken.None);
+                result = await first.LocalizeAsync(source, CancellationToken.None);
             }
 
-            Assert.Equal("/assets/uploads/" + existingName, result);
+            File.Delete(Path.Combine(dir, ".media-index.json"));
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "should-not-download");
+            using var http = new HttpClient(handler);
+            using (var localizer = new ImageAssetLocalizer(cfg, http))
+            {
+                var reused = await localizer.LocalizeAsync(source, CancellationToken.None);
+                Assert.Equal(result, reused);
+            }
+
             Assert.Equal(0, handler.RequestCount);
-            Assert.Contains(normalizedKey, File.ReadAllText(Path.Combine(dir, ".media-index.json")), StringComparison.Ordinal);
+            Assert.DoesNotContain(source, File.ReadAllText(Path.Combine(dir, ".media-index.json")), StringComparison.Ordinal);
         }
         finally
         {
@@ -1222,7 +1424,7 @@ public sealed class ImageAssetLocalizerTests
     }
 
     [Fact]
-    public async Task LocalizeAsync_LegacyIndexRootObject_HitsExistingFile()
+    public async Task LocalizeAsync_LegacyIndexRootObject_IsInvalidatedAndRedownloaded()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
         Directory.CreateDirectory(dir);
@@ -1243,9 +1445,13 @@ public sealed class ImageAssetLocalizerTests
             using var localizer = new ImageAssetLocalizer(cfg, http);
 
             var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
+            localizer.Dispose();
 
-            Assert.Equal("/assets/uploads/stored.jpg", result);
-            Assert.Equal(0, handler.RequestCount);
+            Assert.NotEqual("/assets/uploads/stored.jpg", result);
+            Assert.Equal(1, handler.RequestCount);
+            var migratedIndex = File.ReadAllText(Path.Combine(dir, ".media-index.json"));
+            Assert.Contains("\"version\":2", migratedIndex, StringComparison.Ordinal);
+            Assert.DoesNotContain("https://img.example/a.jpg", migratedIndex, StringComparison.Ordinal);
         }
         finally
         {

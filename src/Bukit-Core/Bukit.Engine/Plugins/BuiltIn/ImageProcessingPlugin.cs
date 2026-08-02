@@ -126,18 +126,33 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
             var ext = Path.GetExtension(imageFile);
 
             var srcsetParts = new List<string>();
+            var existingSizes = new List<int>();
             foreach (var size in sizes)
             {
+                var sizedFile = Path.Combine(
+                    Path.GetDirectoryName(imageFile)!,
+                    $"{baseName}-{size}w{ext}");
+                if (!File.Exists(sizedFile))
+                {
+                    continue;
+                }
+
                 var sizedRel = Path.Combine(Path.GetDirectoryName(relPath) ?? "", $"{baseName}-{size}w{ext}")
                     .Replace("\\", "/", StringComparison.Ordinal);
                 srcsetParts.Add($"/assets/{sizedRel} {size}w");
+                existingSizes.Add(size);
+            }
+
+            if (srcsetParts.Count == 0)
+            {
+                continue;
             }
 
             var rel = relPath.Replace("\\", "/", StringComparison.Ordinal);
             data[rel] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["srcset"] = string.Join(", ", srcsetParts),
-                ["sizes"] = sizes,
+                ["sizes"] = existingSizes.ToArray(),
                 ["url"] = $"/assets/{rel}"
             };
         }
