@@ -20,6 +20,10 @@ namespace Bukit.Cli.Commands.SeoInsights;
 [JsonSerializable(typeof(SeoInsightsReport))]
 internal sealed partial class SeoInsightsJsonContext : JsonSerializerContext;
 
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(SeoInsightsRuleProfile))]
+internal sealed partial class SeoInsightsRuleJsonContext : JsonSerializerContext;
+
 internal sealed record SeoObservationWindow(
     DateOnly StartDate,
     DateOnly EndDate,
@@ -54,6 +58,45 @@ internal sealed record SeoObservationMetrics(
     double? EngagementRate,
     double? KeyEventRate);
 
+internal sealed record SeoInsightsThresholds(
+    long MinimumSearchImpressions,
+    long MaximumLowImpressions,
+    long MinimumAnalyticsSessions,
+    double LowCtr,
+    double LowEngagementRate,
+    double HighEngagementRate,
+    double OpportunityPositionMinimum,
+    double OpportunityPositionMaximum);
+
+internal sealed record SeoInsightsPriorities(
+    string SnippetMismatch,
+    string LandingQuality,
+    string Discoverability,
+    string PositionOpportunity);
+
+internal sealed record SeoInsightsRuleProfile(
+    string Schema,
+    string SchemaVersion,
+    string SiteHost,
+    IReadOnlyList<string> HostAliases,
+    IReadOnlyList<string> IgnoredQueryParameters,
+    SeoInsightsThresholds Thresholds,
+    SeoInsightsPriorities Priorities);
+
+internal sealed record SeoInsightsEvidence(
+    string Metric,
+    double Actual,
+    string Operator,
+    double Threshold);
+
+internal sealed record SeoInsightsFinding(
+    string Code,
+    string Priority,
+    string RouteKey,
+    IReadOnlyList<SeoInsightsEvidence> Evidence,
+    string Hypothesis,
+    string SuggestedAction);
+
 internal sealed record SeoInsightsSource(
     string Provider,
     string Scope,
@@ -79,7 +122,8 @@ internal sealed record SeoInsightsRoute(
     string? ContentKey,
     string Route,
     string Canonical,
-    SeoObservationMetrics Metrics);
+    SeoObservationMetrics Metrics,
+    IReadOnlyList<SeoInsightsFinding> Findings);
 
 internal sealed record SeoUnmatchedObservation(
     string Provider,

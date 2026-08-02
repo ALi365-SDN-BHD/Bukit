@@ -12,6 +12,21 @@ internal static class SeoInsightsReportWriter
     internal static SeoInsightsReport Assemble(
         SeoObservationRouteMatcher matcher,
         IReadOnlyList<SeoObservationDataset> datasets)
+        => AssembleCore(matcher, datasets, ruleProfile: null);
+
+    internal static SeoInsightsReport Assemble(
+        SeoObservationRouteMatcher matcher,
+        IReadOnlyList<SeoObservationDataset> datasets,
+        SeoInsightsRuleProfile ruleProfile)
+    {
+        ArgumentNullException.ThrowIfNull(ruleProfile);
+        return AssembleCore(matcher, datasets, ruleProfile);
+    }
+
+    private static SeoInsightsReport AssembleCore(
+        SeoObservationRouteMatcher matcher,
+        IReadOnlyList<SeoObservationDataset> datasets,
+        SeoInsightsRuleProfile? ruleProfile)
     {
         if (datasets.Count == 0)
         {
@@ -93,7 +108,7 @@ internal static class SeoInsightsReportWriter
             .ThenBy(source => source.RowCount)
             .ToArray();
         var routes = accumulators.Values
-            .Select(accumulator => accumulator.Build())
+            .Select(accumulator => accumulator.Build(ruleProfile))
             .OrderBy(route => route.Canonical, StringComparer.Ordinal)
             .ThenBy(route => route.RouteKey, StringComparer.Ordinal)
             .ToArray();
@@ -239,8 +254,9 @@ internal static class SeoInsightsReportWriter
             }
         }
 
-        internal SeoInsightsRoute Build()
-            => new(
+        internal SeoInsightsRoute Build(SeoInsightsRuleProfile? ruleProfile)
+        {
+            var route = new SeoInsightsRoute(
                 _candidate.RouteKey,
                 _candidate.ContentKey,
                 _candidate.Route,
@@ -254,7 +270,12 @@ internal static class SeoInsightsReportWriter
                     _engagedSessions,
                     _keyEvents,
                     Divide(_engagedSessions, _sessions),
-                    Divide(_keyEvents, _sessions)));
+                    Divide(_keyEvents, _sessions)),
+                Array.Empty<SeoInsightsFinding>());
+            return ruleProfile is null
+                ? route
+                : route with { Findings = SeoInsightsRuleEvaluator.Evaluate(route, ruleProfile) };
+        }
 
         private void AddPosition(double? position, long? impressions)
         {

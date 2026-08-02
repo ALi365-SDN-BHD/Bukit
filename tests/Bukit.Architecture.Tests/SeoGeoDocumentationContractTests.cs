@@ -142,6 +142,84 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal("#/$defs/nullableRatio", metrics.GetProperty("ctr").GetProperty("$ref").GetString());
         Assert.Equal("#/$defs/nullableRatio", metrics.GetProperty("engagementRate").GetProperty("$ref").GetString());
         Assert.Equal("#/$defs/nullableNumber", metrics.GetProperty("keyEventRate").GetProperty("$ref").GetString());
+
+        var reportRoute = insightsRoot.GetProperty("$defs").GetProperty("route");
+        Assert.Equal(
+            ["routeKey", "contentKey", "route", "canonical", "metrics", "findings"],
+            reportRoute.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("#/$defs/finding", reportRoute.GetProperty("properties").GetProperty("findings")
+            .GetProperty("items").GetProperty("$ref").GetString());
+        var finding = insightsRoot.GetProperty("$defs").GetProperty("finding");
+        Assert.False(finding.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["code", "priority", "routeKey", "evidence", "hypothesis", "suggestedAction"],
+            finding.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            [
+                "seo.insights.snippet_mismatch",
+                "seo.insights.landing_quality",
+                "seo.insights.discoverability",
+                "seo.insights.position_opportunity"
+            ],
+            finding.GetProperty("properties").GetProperty("code").GetProperty("enum")
+                .EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            ["P0", "P1", "P2"],
+            finding.GetProperty("properties").GetProperty("priority").GetProperty("enum")
+                .EnumerateArray().Select(value => value.GetString()));
+        var evidence = insightsRoot.GetProperty("$defs").GetProperty("evidence");
+        Assert.False(evidence.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["metric", "actual", "operator", "threshold"],
+            evidence.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+
+        using var rulesSchema = ReadJson("docs", "schemas", "seo-insights-rules.v1.schema.json");
+        var rulesRoot = rulesSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", rulesRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-insights-rules.v1.json", rulesRoot.GetProperty("$id").GetString());
+        Assert.False(rulesRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "siteHost", "hostAliases", "ignoredQueryParameters", "thresholds", "priorities"],
+            rulesRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var hostAliases = rulesRoot.GetProperty("properties").GetProperty("hostAliases");
+        Assert.True(hostAliases.GetProperty("uniqueItems").GetBoolean());
+        Assert.Equal("#/$defs/dnsHost", hostAliases.GetProperty("items").GetProperty("$ref").GetString());
+        var dnsHostPattern = rulesRoot.GetProperty("$defs").GetProperty("dnsHost").GetProperty("pattern").GetString()!;
+        Assert.Matches(dnsHostPattern, "example.com");
+        Assert.DoesNotMatch(dnsHostPattern, "192.0.2.1");
+        var ignoredParameters = rulesRoot.GetProperty("properties").GetProperty("ignoredQueryParameters");
+        Assert.True(ignoredParameters.GetProperty("uniqueItems").GetBoolean());
+        Assert.Equal("^[A-Za-z0-9_.-]+$", ignoredParameters.GetProperty("items").GetProperty("pattern").GetString());
+        var thresholds = rulesRoot.GetProperty("$defs").GetProperty("thresholds");
+        Assert.False(thresholds.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            [
+                "minimumSearchImpressions", "maximumLowImpressions", "minimumAnalyticsSessions", "lowCtr",
+                "lowEngagementRate", "highEngagementRate", "opportunityPositionMinimum", "opportunityPositionMaximum"
+            ],
+            thresholds.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            "#/$defs/count",
+            thresholds.GetProperty("properties").GetProperty("minimumSearchImpressions").GetProperty("$ref").GetString());
+        Assert.Equal(9223372036854775807, rulesRoot.GetProperty("$defs").GetProperty("count").GetProperty("maximum").GetInt64());
+        Assert.Equal("#/$defs/ratio", thresholds.GetProperty("properties").GetProperty("lowCtr").GetProperty("$ref").GetString());
+        Assert.Equal(1, rulesRoot.GetProperty("$defs").GetProperty("ratio").GetProperty("maximum").GetDouble());
+        Assert.Equal(
+            "#/$defs/positiveFiniteNumber",
+            thresholds.GetProperty("properties").GetProperty("opportunityPositionMinimum").GetProperty("$ref").GetString());
+        Assert.Equal(
+            0,
+            rulesRoot.GetProperty("$defs").GetProperty("positiveFiniteNumber").GetProperty("exclusiveMinimum").GetDouble());
+        var priorities = rulesRoot.GetProperty("$defs").GetProperty("priorities");
+        Assert.False(priorities.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["snippetMismatch", "landingQuality", "discoverability", "positionOpportunity"],
+            priorities.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.All(
+            priorities.GetProperty("properties").EnumerateObject(),
+            property => Assert.Equal(
+                ["P0", "P1", "P2"],
+                property.Value.GetProperty("enum").EnumerateArray().Select(value => value.GetString())));
     }
 
     [Fact]

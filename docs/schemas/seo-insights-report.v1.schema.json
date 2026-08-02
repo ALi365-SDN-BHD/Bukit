@@ -110,7 +110,7 @@
     "route": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["routeKey", "contentKey", "route", "canonical", "metrics"],
+      "required": ["routeKey", "contentKey", "route", "canonical", "metrics", "findings"],
       "properties": {
         "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
         "contentKey": { "$ref": "#/$defs/nullableContentKey" },
@@ -121,7 +121,50 @@
             { "type": "string", "pattern": "^/" }
           ]
         },
-        "metrics": { "$ref": "#/$defs/metrics" }
+        "metrics": { "$ref": "#/$defs/metrics" },
+        "findings": {
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/finding" }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "actual", "operator", "threshold"],
+      "properties": {
+        "metric": { "enum": ["impressions", "ctr", "sessions", "engagementRate", "averagePosition"] },
+        "actual": { "type": "number", "minimum": 0, "maximum": 1.7976931348623157e308 },
+        "operator": { "enum": [">=", "<", "<="] },
+        "threshold": { "type": "number", "minimum": 0, "maximum": 1.7976931348623157e308 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "priority", "routeKey", "evidence", "hypothesis", "suggestedAction"],
+      "properties": {
+        "code": {
+          "enum": [
+            "seo.insights.snippet_mismatch",
+            "seo.insights.landing_quality",
+            "seo.insights.discoverability",
+            "seo.insights.position_opportunity"
+          ]
+        },
+        "priority": { "enum": ["P0", "P1", "P2"] },
+        "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
+        "evidence": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/evidence" }
+        },
+        "hypothesis": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "suggestedAction": { "type": "string", "minLength": 1, "pattern": "\\S" }
       }
     },
     "unmatched": {
