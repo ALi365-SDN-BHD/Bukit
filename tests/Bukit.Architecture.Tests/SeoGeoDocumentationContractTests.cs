@@ -86,9 +86,10 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal(string.Empty, routeMapSiteUrl.GetProperty("oneOf")[0].GetProperty("const").GetString());
         Assert.Equal("uri", routeMapSiteUrl.GetProperty("oneOf")[1].GetProperty("format").GetString());
         var absoluteHttpPattern = routeMapSiteUrl.GetProperty("oneOf")[1].GetProperty("pattern").GetString();
-        Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://", absoluteHttpPattern);
+        Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", absoluteHttpPattern);
         Assert.Matches(absoluteHttpPattern!, "HTTPS://example.com");
         Assert.Matches(absoluteHttpPattern!, "http://example.com");
+        Assert.DoesNotMatch(absoluteHttpPattern!, "https://user:secret@example.com");
 
         var routeMapRoutes = routeMapRoot.GetProperty("properties").GetProperty("routes");
         Assert.False(routeMapRoutes.TryGetProperty("uniqueItems", out _));
@@ -138,8 +139,24 @@ public sealed class SeoGeoDocumentationContractTests
         var joinQuality = insightsRoot.GetProperty("properties").GetProperty("joinQuality");
         Assert.Equal(["overall", "providers"], joinQuality.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
         var counts = insightsRoot.GetProperty("$defs").GetProperty("joinCounts");
-        Assert.Equal(["total", "matched", "unmatched", "ambiguous"], counts.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+            counts.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
         Assert.Equal("^route:sha256:[0-9a-f]{64}$", insightsRoot.GetProperty("$defs").GetProperty("candidate").GetProperty("properties").GetProperty("routeKey").GetProperty("pattern").GetString());
+        foreach (var definitionName in new[] { "candidate", "route" })
+        {
+            var reportCanonical = insightsRoot.GetProperty("$defs").GetProperty(definitionName)
+                .GetProperty("properties").GetProperty("canonical").GetProperty("oneOf");
+            var absolutePattern = reportCanonical[0].GetProperty("pattern").GetString()!;
+            var relativePattern = reportCanonical[1].GetProperty("pattern").GetString()!;
+            Assert.Equal("uri", reportCanonical[0].GetProperty("format").GetString());
+            Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", absolutePattern);
+            Assert.Matches(absolutePattern, "HTTPS://example.com/article/");
+            Assert.DoesNotMatch(absolutePattern, "https://user:secret@example.com/article/");
+            Assert.Equal("^/(?!/)", relativePattern);
+            Assert.Matches(relativePattern, "/article/");
+            Assert.DoesNotMatch(relativePattern, "//other.example/article/");
+        }
         var metrics = insightsRoot.GetProperty("$defs").GetProperty("metrics").GetProperty("properties");
         Assert.Equal("#/$defs/nullableRatio", metrics.GetProperty("ctr").GetProperty("$ref").GetString());
         Assert.Equal("#/$defs/nullableRatio", metrics.GetProperty("engagementRate").GetProperty("$ref").GetString());
@@ -255,6 +272,34 @@ public sealed class SeoGeoDocumentationContractTests
     }
 
     [Fact]
+    public void SeoInsightsReportSchema_UnmatchedRequiresErrorCodeAndAllowsOnlyFixedNormalizerCodesOrNull()
+    {
+        using var reportSchema = ReadJson("docs", "schemas", "seo-insights-report.v1.schema.json");
+        var unmatched = reportSchema.RootElement.GetProperty("$defs").GetProperty("unmatched");
+        Assert.Contains(
+            "errorCode",
+            unmatched.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+
+        var errorCode = unmatched.GetProperty("properties").GetProperty("errorCode");
+
+        Assert.True(errorCode.TryGetProperty("enum", out var enumValues), "errorCode must declare a fixed enum.");
+        var actual = enumValues.EnumerateArray()
+            .Select(value => value.ValueKind == JsonValueKind.Null ? null : value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        var expected = new HashSet<string?>(StringComparer.Ordinal)
+        {
+            null,
+            "invalid_url",
+            "unsupported_scheme",
+            "credentials_not_allowed",
+            "host_not_allowed"
+        };
+
+        Assert.Equal(expected.Count, actual.Count);
+        Assert.True(expected.SetEquals(actual));
+    }
+
+    [Fact]
     public void SeoObservationSchemas_RejectWhitespaceOnlyStrings()
     {
         using var observationSchema = ReadJson("docs", "schemas", "seo-observation.v1.schema.json");
@@ -301,7 +346,7 @@ public sealed class SeoGeoDocumentationContractTests
         using var reportSchema = ReadJson("docs", "schemas", "seo-insights-report.v1.schema.json");
         var reportDefs = reportSchema.RootElement.GetProperty("$defs");
         AssertIntegerSchemaAccepts(
-            reportDefs.GetProperty("joinCounts").GetProperty("properties").GetProperty("total"),
+            reportDefs.GetProperty("joinCounts").GetProperty("properties").GetProperty("sourceRows"),
             "9223372036854775807",
             "9223372036854775808");
         AssertNumberSchemaAccepts(

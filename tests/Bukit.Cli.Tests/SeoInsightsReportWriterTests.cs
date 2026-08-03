@@ -60,6 +60,44 @@ public sealed class SeoInsightsReportWriterTests
     }
 
     [Fact]
+    public void Assemble_RedactsCredentialsFromUnmatchedEvidence()
+    {
+        var window = new SeoObservationWindow(new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 2), "UTC");
+        var dataset = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "google-organic",
+            DateTimeOffset.Parse("2026-08-03T00:00:00Z"), window,
+            [new SeoObservationRow("https://report-user:report-secret@example.com/private/", 1, 0, 1, null, null, null)]);
+
+        var report = SeoInsightsReportWriter.Assemble(CreateMatcher(), [dataset]);
+        var evidence = Assert.Single(report.Unmatched);
+        var json = JsonSerializer.Serialize(report, SeoInsightsJsonContext.Default.SeoInsightsReport);
+
+        Assert.Equal("credentials_not_allowed", evidence.ErrorCode);
+        Assert.Equal("https://example.com/private/", evidence.OriginalUrl);
+        Assert.DoesNotContain("report-user", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("report-secret", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Assemble_RedactsCredentialAuthorityWhenOtherUrlValidationFailsFirst()
+    {
+        var window = new SeoObservationWindow(new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 2), "UTC");
+        var dataset = new SeoObservationDataset(
+            "https://bukit.dev/schemas/seo-observation.v1.json", "1.0", "google-search-console", "google-organic",
+            DateTimeOffset.Parse("2026-08-03T00:00:00Z"), window,
+            [new SeoObservationRow("https://fallback-user:fallback-secret@example.com/%ZZ", 1, 0, 1, null, null, null)]);
+
+        var report = SeoInsightsReportWriter.Assemble(CreateMatcher(), [dataset]);
+        var evidence = Assert.Single(report.Unmatched);
+        var json = JsonSerializer.Serialize(report, SeoInsightsJsonContext.Default.SeoInsightsReport);
+
+        Assert.Equal("invalid_url", evidence.ErrorCode);
+        Assert.Equal("https://example.com/%25ZZ", evidence.OriginalUrl);
+        Assert.DoesNotContain("fallback-user", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("fallback-secret", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Assemble_UsesLatestCollectionTimeExactWindowAndDeterministicRouteOrder()
     {
         var report = SeoInsightsReportWriter.Assemble(CreateMatcher(), Datasets());
@@ -253,6 +291,20 @@ public sealed class SeoInsightsReportWriterTests
             Assert.Equal(
                 ["schema", "schemaVersion", "generatedAt", "window", "sources", "joinQuality", "routes", "unmatched", "ambiguous"],
                 json.RootElement.EnumerateObject().Select(property => property.Name));
+            var overall = json.RootElement.GetProperty("joinQuality").GetProperty("overall");
+            Assert.Equal(
+                ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+                overall.EnumerateObject().Select(property => property.Name));
+            Assert.Equal(7, overall.GetProperty("sourceRows").GetInt64());
+            var providerCounts = json.RootElement.GetProperty("joinQuality").GetProperty("providers")[0]
+                .GetProperty("counts");
+            Assert.Equal(
+                ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+                providerCounts.EnumerateObject().Select(property => property.Name));
+            Assert.Equal(3, providerCounts.GetProperty("sourceRows").GetInt64());
+            Assert.Equal(2, providerCounts.GetProperty("matchedRows").GetInt64());
+            Assert.Equal(1, providerCounts.GetProperty("unmatchedRows").GetInt64());
+            Assert.Equal(0, providerCounts.GetProperty("ambiguousRows").GetInt64());
             Assert.False(first.Contains("NaN", StringComparison.Ordinal));
             Assert.False(first.Contains("Infinity", StringComparison.Ordinal));
         }

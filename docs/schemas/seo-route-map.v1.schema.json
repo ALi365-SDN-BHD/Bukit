@@ -31,7 +31,7 @@
         {
           "type": "string",
           "format": "uri",
-          "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://"
+          "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)"
         }
       ]
     },

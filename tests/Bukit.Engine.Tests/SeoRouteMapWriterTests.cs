@@ -46,6 +46,18 @@ public sealed class SeoRouteMapWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_CredentialBearingSiteUrlFallsBackToEmptyWithoutSerializingCredentials()
+    {
+        var map = new SeoRouteMapBuilder("https://site-user:site-secret@example.com/root", "/")
+            .Build(DateTimeOffset.Parse("2026-08-03T00:00:00Z"));
+        var json = JsonSerializer.Serialize(map, SeoRouteMapJsonContext.Default.SeoRouteMap);
+
+        Assert.Equal(string.Empty, map.SiteUrl);
+        Assert.DoesNotContain("site-user", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("site-secret", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Build_EmitsUppercaseHttpSchemeValuesAcceptedBySchema()
     {
         const string siteUrl = "HTTPS://example.com";

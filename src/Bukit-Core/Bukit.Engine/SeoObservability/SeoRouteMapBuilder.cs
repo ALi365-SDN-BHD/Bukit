@@ -15,7 +15,10 @@ internal sealed class SeoRouteMapBuilder
 
     internal SeoRouteMapBuilder(string? siteUrl, string baseUrl)
     {
-        _siteUrl = string.IsNullOrWhiteSpace(siteUrl) ? string.Empty : siteUrl.Trim();
+        var normalizedSiteUrl = string.IsNullOrWhiteSpace(siteUrl) ? string.Empty : siteUrl.Trim();
+        _siteUrl = normalizedSiteUrl.Length == 0 || IsAbsoluteHttpUrlWithoutCredentials(normalizedSiteUrl)
+            ? normalizedSiteUrl
+            : string.Empty;
         _baseUrl = baseUrl;
     }
 
@@ -55,7 +58,10 @@ internal sealed class SeoRouteMapBuilder
 
     private static bool IsValidObservabilityCanonical(string value)
         => value.StartsWith("/", StringComparison.Ordinal) && !value.StartsWith("//", StringComparison.Ordinal) ||
-           Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+           IsAbsoluteHttpUrlWithoutCredentials(value);
+
+    private static bool IsAbsoluteHttpUrlWithoutCredentials(string value)
+        => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
            uri.Scheme is "http" or "https" &&
            !string.IsNullOrWhiteSpace(uri.Host) &&
            string.IsNullOrEmpty(uri.UserInfo);

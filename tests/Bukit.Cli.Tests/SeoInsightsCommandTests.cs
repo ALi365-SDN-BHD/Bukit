@@ -81,7 +81,7 @@ public sealed class SeoInsightsCommandTests : IDisposable
         Assert.Empty(result.StdErr);
         Assert.True(File.Exists(outputPath));
         using var document = JsonDocument.Parse(File.ReadAllText(outputPath));
-        Assert.Equal(1, document.RootElement.GetProperty("joinQuality").GetProperty("overall").GetProperty("unmatched").GetInt64());
+        Assert.Equal(1, document.RootElement.GetProperty("joinQuality").GetProperty("overall").GetProperty("unmatchedRows").GetInt64());
     }
 
     [Fact]
@@ -243,7 +243,7 @@ public sealed class SeoInsightsCommandTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("sourceRows=2 matched=1 unmatched=0 ambiguous=1", result.StdOut, StringComparison.Ordinal);
         using var document = JsonDocument.Parse(File.ReadAllText(outputPath));
-        Assert.Equal(2, document.RootElement.GetProperty("joinQuality").GetProperty("overall").GetProperty("total").GetInt64());
+        Assert.Equal(2, document.RootElement.GetProperty("joinQuality").GetProperty("overall").GetProperty("sourceRows").GetInt64());
         Assert.Equal(2, document.RootElement.GetProperty("ambiguous")[0].GetProperty("candidates").GetArrayLength());
     }
 

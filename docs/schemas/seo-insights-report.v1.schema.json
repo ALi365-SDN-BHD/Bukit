@@ -58,12 +58,12 @@
     "joinCounts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["total", "matched", "unmatched", "ambiguous"],
+      "required": ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
       "properties": {
-        "total": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
-        "matched": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
-        "unmatched": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
-        "ambiguous": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 }
+        "sourceRows": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "matchedRows": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "unmatchedRows": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "ambiguousRows": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 }
       }
     },
     "providerJoinQuality": {
@@ -101,8 +101,8 @@
         "route": { "type": "string", "pattern": "^/" },
         "canonical": {
           "oneOf": [
-            { "type": "string", "format": "uri", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
-            { "type": "string", "pattern": "^/" }
+            { "type": "string", "format": "uri", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)" },
+            { "type": "string", "pattern": "^/(?!/)" }
           ]
         }
       }
@@ -117,8 +117,8 @@
         "route": { "type": "string", "pattern": "^/" },
         "canonical": {
           "oneOf": [
-            { "type": "string", "format": "uri", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://" },
-            { "type": "string", "pattern": "^/" }
+            { "type": "string", "format": "uri", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)" },
+            { "type": "string", "pattern": "^/(?!/)" }
           ]
         },
         "metrics": { "$ref": "#/$defs/metrics" },
@@ -176,7 +176,15 @@
         "scope": { "const": "google-organic" },
         "originalUrl": { "type": "string", "minLength": 1, "pattern": "\\S" },
         "normalizedUrl": { "type": ["string", "null"], "minLength": 1, "pattern": "\\S" },
-        "errorCode": { "type": ["string", "null"], "minLength": 1, "pattern": "\\S" },
+        "errorCode": {
+          "enum": [
+            null,
+            "invalid_url",
+            "unsupported_scheme",
+            "credentials_not_allowed",
+            "host_not_allowed"
+          ]
+        },
         "metrics": { "$ref": "#/$defs/metrics" }
       }
     },

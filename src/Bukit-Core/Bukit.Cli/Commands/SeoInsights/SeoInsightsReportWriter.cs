@@ -75,7 +75,7 @@ internal static class SeoInsightsReportWriter
                         unmatched.Add(new SeoUnmatchedObservation(
                             dataset.Provider,
                             dataset.Scope,
-                            row.Url,
+                            SafeEvidenceOriginalUrl(row.Url),
                             match.NormalizedUrl,
                             match.ErrorCode,
                             EvidenceMetrics(row)));
@@ -168,6 +168,44 @@ internal static class SeoInsightsReportWriter
             row.KeyEvents,
             Divide(row.EngagedSessions, row.Sessions),
             Divide(row.KeyEvents, row.Sessions));
+
+    private static string SafeEvidenceOriginalUrl(string value)
+    {
+        if (!HasCredentialAuthority(value))
+        {
+            return value;
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.UserInfo))
+        {
+            return "[redacted:unsafe_url]";
+        }
+
+        var builder = new UriBuilder(uri)
+        {
+            UserName = string.Empty,
+            Password = string.Empty
+        };
+        return builder.Uri.AbsoluteUri;
+    }
+
+    private static bool HasCredentialAuthority(string value)
+    {
+        var schemeSeparator = value.IndexOf("://", StringComparison.Ordinal);
+        if (schemeSeparator < 0)
+        {
+            return false;
+        }
+
+        var authority = value.AsSpan(schemeSeparator + 3);
+        var authorityEnd = authority.IndexOfAny('/', '?', '#');
+        if (authorityEnd >= 0)
+        {
+            authority = authority[..authorityEnd];
+        }
+
+        return authority.Contains('@');
+    }
 
     private static double? Divide(long? numerator, long? denominator)
         => numerator is null || denominator is null || denominator == 0

@@ -104,10 +104,10 @@ internal sealed record SeoInsightsSource(
     long RowCount);
 
 internal sealed record SeoJoinCounts(
-    long Total,
-    long Matched,
-    long Unmatched,
-    long Ambiguous);
+    [property: JsonPropertyName("sourceRows")] long Total,
+    [property: JsonPropertyName("matchedRows")] long Matched,
+    [property: JsonPropertyName("unmatchedRows")] long Unmatched,
+    [property: JsonPropertyName("ambiguousRows")] long Ambiguous);
 
 internal sealed record SeoProviderJoinQuality(
     string Provider,
