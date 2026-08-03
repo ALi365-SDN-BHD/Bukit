@@ -478,6 +478,7 @@ if result["specialtyTests"] != expected_tests:
 expected_consumers = sorted([
     "tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs",
     "tests/Bukit.Cli.Tests/GitProcessRunnerTests.cs",
+    "tests/Bukit.Cli.Tests/HelpPrinterTests.cs",
     "tests/Bukit.Config.Tests/ConfigLoaderTests.cs",
     "tests/Bukit.Content.Tests/BodyCacheDecoratorTests.cs",
     "tests/Bukit.Engine.Tests/EngineFeatureTests.cs",
