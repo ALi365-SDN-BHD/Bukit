@@ -540,8 +540,7 @@ public sealed class SystemProcessRunnerTests
         TimeSpan? maxCpuTime = null,
         long? maxMemoryBytes = null)
     {
-        string? dotnet = Process.GetCurrentProcess().MainModule?.FileName;
-        Assert.False(string.IsNullOrWhiteSpace(dotnet));
+        string dotnet = ResolveDotnetHost();
 
         string probeAssembly = typeof(ProbeMarker).Assembly.Location;
         return new ProcessRunRequest(
@@ -556,5 +555,43 @@ public sealed class SystemProcessRunnerTests
             EnvironmentVariables: environmentVariables,
             MaxCpuTime: maxCpuTime,
             MaxMemoryBytes: maxMemoryBytes);
+    }
+
+    private static string ResolveDotnetHost()
+    {
+        string hostName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
+        var candidates = new List<string?>
+        {
+            Environment.GetEnvironmentVariable("DOTNET_HOST_PATH")
+        };
+
+        string? dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+        if (!string.IsNullOrWhiteSpace(dotnetRoot))
+        {
+            candidates.Add(System.IO.Path.Combine(dotnetRoot, hostName));
+        }
+
+        string? currentHost = Process.GetCurrentProcess().MainModule?.FileName;
+        if (string.Equals(
+                System.IO.Path.GetFileName(currentHost),
+                hostName,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            candidates.Add(currentHost);
+        }
+
+        string? searchPath = Environment.GetEnvironmentVariable("PATH");
+        if (!string.IsNullOrWhiteSpace(searchPath))
+        {
+            candidates.AddRange(searchPath
+                .Split(System.IO.Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(directory => System.IO.Path.Combine(directory, hostName)));
+        }
+
+        string? resolved = candidates.FirstOrDefault(candidate =>
+            !string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate));
+        return resolved is null
+            ? throw new InvalidOperationException("The dotnet host executable could not be resolved for the process probe.")
+            : System.IO.Path.GetFullPath(resolved);
     }
 }
