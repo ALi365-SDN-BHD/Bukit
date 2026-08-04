@@ -120,4 +120,21 @@ public sealed class CompositeContentBodyStoreTests
         Assert.Equal(1, shared.DisposeCount);
         Assert.Equal(1, other.DisposeCount);
     }
+
+    [Fact]
+    public async Task DisposeAsync_DuplicateSourceKeys_DisposesEveryOrderedStoreExactlyOnce()
+    {
+        var first = new CountingDisposeStore();
+        var second = new CountingDisposeStore();
+        var store = new CompositeContentBodyStore(
+        [
+            ("duplicate", first),
+            ("DUPLICATE", second)
+        ]);
+
+        await store.DisposeAsync();
+
+        Assert.Equal(1, first.DisposeCount);
+        Assert.Equal(1, second.DisposeCount);
+    }
 }

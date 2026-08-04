@@ -30,11 +30,6 @@ internal static class ConfigYamlHelpers
             return mapping;
         }
 
-        if (IsEmptyScalar(child))
-        {
-            return null;
-        }
-
         throw KindMismatch(ComposePath(parentPath, key), "mapping", child);
     }
 
@@ -270,16 +265,8 @@ internal static class ConfigYamlHelpers
             return sequence;
         }
 
-        if (IsEmptyScalar(child))
-        {
-            return null;
-        }
-
         throw KindMismatch(ComposePath(parentPath, key), "sequence", child);
     }
-
-    private static bool IsEmptyScalar(YamlNode node)
-        => node is YamlScalarNode scalar && string.IsNullOrEmpty(scalar.Value);
 
     private static string ComposePath(string? parentPath, string key)
         => string.IsNullOrEmpty(parentPath) ? key : $"{parentPath}.{key}";

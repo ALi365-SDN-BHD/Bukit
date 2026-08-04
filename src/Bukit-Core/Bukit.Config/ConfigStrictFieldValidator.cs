@@ -457,14 +457,16 @@ internal static class ConfigStrictFieldValidator
         var index = 0;
         foreach (var child in items.Children)
         {
-            if (child is YamlMappingNode item)
+            var itemPath = $"{path}[{index}]";
+            if (child is not YamlMappingNode item)
             {
-                var itemPath = $"{path}[{index}]";
-                RequireOnly(item, Set("identifier", "name", "url", "weight", "children"), itemPath);
-                if (Seq(item, "children") is { } children)
-                {
-                    ValidateMenuItems(children, $"{itemPath}.children");
-                }
+                throw KindMismatch(itemPath, "mapping", child);
+            }
+
+            RequireOnly(item, Set("identifier", "name", "url", "weight", "children"), itemPath);
+            if (Seq(item, "children") is { } children)
+            {
+                ValidateMenuItems(children, $"{itemPath}.children");
             }
 
             index++;
@@ -476,12 +478,14 @@ internal static class ConfigStrictFieldValidator
         var index = 0;
         foreach (var child in sequence.Children)
         {
-            if (child is YamlMappingNode map)
+            var itemPath = $"{path}[{index}]";
+            if (child is not YamlMappingNode map)
             {
-                var itemPath = $"{path}[{index}]";
-                RequireOnly(map, allowedKeys, itemPath);
-                after?.Invoke(map, itemPath);
+                throw KindMismatch(itemPath, "mapping", child);
             }
+
+            RequireOnly(map, allowedKeys, itemPath);
+            after?.Invoke(map, itemPath);
 
             index++;
         }
@@ -495,7 +499,10 @@ internal static class ConfigStrictFieldValidator
             if (child.Value is YamlMappingNode map)
             {
                 yield return (name, map);
+                continue;
             }
+
+            throw KindMismatch($"{path}.{name}", "mapping", child.Value);
         }
     }
 
@@ -507,7 +514,10 @@ internal static class ConfigStrictFieldValidator
             if (child.Value is YamlSequenceNode sequence)
             {
                 yield return (name, sequence);
+                continue;
             }
+
+            throw KindMismatch($"{path}.{name}", "sequence", child.Value);
         }
     }
 
@@ -535,11 +545,6 @@ internal static class ConfigStrictFieldValidator
             return mapping;
         }
 
-        if (child is YamlScalarNode emptyScalar && string.IsNullOrEmpty(emptyScalar.Value))
-        {
-            return null;
-        }
-
         throw KindMismatch(path ?? key, "mapping", child);
     }
 
@@ -553,11 +558,6 @@ internal static class ConfigStrictFieldValidator
         if (child is YamlSequenceNode sequence)
         {
             return sequence;
-        }
-
-        if (child is YamlScalarNode emptyScalar && string.IsNullOrEmpty(emptyScalar.Value))
-        {
-            return null;
         }
 
         throw KindMismatch(path ?? key, "sequence", child);

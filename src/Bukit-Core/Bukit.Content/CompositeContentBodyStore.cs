@@ -7,11 +7,13 @@ internal sealed class CompositeContentBodyStore : IContentBodyStore, IAsyncDispo
 
     private readonly IReadOnlyDictionary<string, IContentBodyStore> _stores;
     private readonly IReadOnlyDictionary<string, IContentBodyStore>? _storesByToken;
+    private readonly IReadOnlyList<IContentBodyStore> _allStores;
 
     public CompositeContentBodyStore(IReadOnlyDictionary<string, IContentBodyStore> stores)
     {
         _stores = stores;
         _storesByToken = null;
+        _allStores = stores.Values.ToArray();
     }
 
     /// <summary>
@@ -31,6 +33,7 @@ internal sealed class CompositeContentBodyStore : IContentBodyStore, IAsyncDispo
 
         _stores = bySource;
         _storesByToken = byToken;
+        _allStores = orderedStores.Select(entry => entry.Store).ToArray();
     }
 
     internal static string MakeToken(int providerIndex) => $"{TokenPrefix}{providerIndex}]";
@@ -115,7 +118,7 @@ internal sealed class CompositeContentBodyStore : IContentBodyStore, IAsyncDispo
     public async ValueTask DisposeAsync()
     {
         var disposed = new HashSet<IContentBodyStore>(ReferenceEqualityComparer.Instance);
-        foreach (var store in _stores.Values)
+        foreach (var store in _allStores)
         {
             if (!disposed.Add(store))
             {

@@ -1435,4 +1435,101 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
         Assert.Contains(actual, exception.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Load_SequenceElementWrongKind_ThrowsStableIndexedPath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            taxonomy:
+              kinds:
+                - invalid
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("taxonomy.kinds[0]", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_MappingChildWrongKind_ThrowsStableNamedPath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            theme:
+              components:
+                hero: invalid
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("theme.components.hero", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_SequenceChildWrongKind_ThrowsStableNamedPath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+              menus:
+                main: invalid
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("site.menus.main", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("sequence", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_PresentEmptySection_ThrowsStableNodeKindFailure()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            build:
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("build", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+    }
 }
