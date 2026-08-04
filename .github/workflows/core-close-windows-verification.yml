@@ -1,0 +1,77 @@
+name: Core close Windows verification
+
+on:
+  push:
+    branches:
+      - codex/core-close-1-9
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-close-windows-verification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pluginhost-windows-runtime:
+    name: PluginHost Windows runtime proof
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Assert Windows runner
+        run: |
+          if ($env:RUNNER_OS -ne "Windows") {
+            throw "Expected a real GitHub-hosted Windows runner."
+          }
+          Write-Host "Windows runtime: $([System.Environment]::OSVersion.VersionString)"
+
+      - name: Restore PluginHost tests
+        run: dotnet restore tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj
+
+      - name: Run PluginHost tests on Windows
+        run: >-
+          dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj
+          -c Release --no-restore --verbosity minimal
+          --logger "trx;LogFileName=pluginhost-windows.trx"
+          --results-directory artifacts/test-results
+
+      - name: Verify Windows Job Object evidence
+        run: |
+          [xml]$document = Get-Content "artifacts/test-results/pluginhost-windows.trx"
+          $results = @($document.SelectNodes("//*[local-name()='UnitTestResult']"))
+          if ($results.Count -eq 0) {
+            throw "The PluginHost TRX contains no executed tests."
+          }
+
+          $requiredTests = @(
+            "RunAsync_ChildMemoryExceedsTreeLimit_ReturnsResourceLimitExceeded",
+            "RunAsync_CombinedChildMemoryExceedsTreeLimit_ReturnsResourceLimitExceeded",
+            "RunAsync_NormalParentExitWithInheritedPipe_TerminatesTreeAndFailsRun"
+          )
+          foreach ($requiredTest in $requiredTests) {
+            $matches = @($results | Where-Object { $_.testName -like "*$requiredTest*" })
+            if ($matches.Count -eq 0) {
+              throw "Required Windows runtime test did not execute: $requiredTest"
+            }
+            if (@($matches | Where-Object { $_.outcome -ne "Passed" }).Count -ne 0) {
+              throw "Required Windows runtime test did not pass: $requiredTest"
+            }
+          }
+
+          Write-Host "Windows Job Object runtime proof OK: $($results.Count) PluginHost tests passed."
+
+      - name: Upload Windows test evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bukit-core-close-windows-pluginhost-trx
+          path: artifacts/test-results/pluginhost-windows.trx
+          if-no-files-found: error
