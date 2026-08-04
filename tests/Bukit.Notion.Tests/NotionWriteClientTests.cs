@@ -23,10 +23,9 @@ public sealed class NotionWriteClientTests
                 request.Content is null ? null : await request.Content.ReadAsStringAsync()));
             return Json("{}");
         });
-        using var http = new HttpClient(handler);
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "wire-token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionWriteClient(transport);
 
         await client.QueryDatabaseAsync("db", "{\"query\":1}");
@@ -58,10 +57,9 @@ public sealed class NotionWriteClientTests
         var handler = new SequenceHandler(
             Json("{}", HttpStatusCode.TooManyRequests),
             Json("{\"results\":[]}"));
-        using var http = new HttpClient(handler);
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 1 },
-            http);
+            handler);
         var client = new NotionWriteClient(transport);
 
         var result = await client.QueryDatabaseAsync("db", "{}");
@@ -74,10 +72,9 @@ public sealed class NotionWriteClientTests
     public async Task Mutations_DoNotReplay429()
     {
         var handler = new RepeatingHandler(HttpStatusCode.TooManyRequests);
-        using var http = new HttpClient(handler);
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 5 },
-            http);
+            handler);
         var client = new NotionWriteClient(transport);
 
         Assert.False((await client.CreateDatabaseAsync("{}")).IsSuccess);
@@ -94,10 +91,9 @@ public sealed class NotionWriteClientTests
     {
         const string secret = "secret-response-detail";
         var handler = new ThrowingHandler(new HttpRequestException(secret));
-        using var http = new HttpClient(handler);
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 5 },
-            http);
+            handler);
         var client = new NotionWriteClient(transport);
 
         var result = await client.CreatePageAsync("{}");
@@ -112,10 +108,9 @@ public sealed class NotionWriteClientTests
     {
         const string secret = "secret-response-body";
         var handler = new SequenceHandler(Json($"{{\"message\":\"{secret}\"}}", HttpStatusCode.BadRequest));
-        using var http = new HttpClient(handler);
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionWriteClient(transport);
 
         var result = await client.CreatePageAsync("{}");
@@ -129,10 +124,9 @@ public sealed class NotionWriteClientTests
     public async Task CallerCancellation_PropagatesUnchanged()
     {
         var handler = new CancelingHandler();
-        using var http = new HttpClient(handler);
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionWriteClient(transport);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();

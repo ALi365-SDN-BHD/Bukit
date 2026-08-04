@@ -6,20 +6,27 @@ using Bukit.Shared;
 
 namespace Bukit.Cli.Commands.Dev;
 
-internal sealed class DevWebSocketHub : IDevWebSocketHub
+internal sealed class DevWebSocketHub : IDevWebSocketHub, IDisposable
 {
     private const int DefaultMaxConnections = 64;
 
     private readonly ConcurrentDictionary<string, WebSocket> _clients = new();
     private readonly ILogger _logger;
     private readonly DevWebSocketAccessPolicy _accessPolicy;
-    private readonly int _maxConnections;
+    private readonly SemaphoreSlim _connectionGate;
+    private readonly object _lifecycleLock = new();
+    private int _activeHandlers;
+    private bool _disposed;
 
     public DevWebSocketHub(ILogger logger, DevWebSocketAccessPolicy? accessPolicy = null, int maxConnections = DefaultMaxConnections)
     {
         _logger = logger;
         _accessPolicy = accessPolicy ?? DevWebSocketAccessPolicy.Loopback(port: null);
-        _maxConnections = maxConnections;
+        // SemaphoreSlim requires a positive maximum. A non-positive connection
+        // limit means "reject every client", modelled as a gate with zero seats.
+        _connectionGate = maxConnections > 0
+            ? new SemaphoreSlim(maxConnections, maxConnections)
+            : new SemaphoreSlim(0, 1);
     }
 
     public int ClientCount => _clients.Count;
@@ -32,19 +39,27 @@ internal sealed class DevWebSocketHub : IDevWebSocketHub
             return;
         }
 
-        if (_clients.Count >= _maxConnections)
+        if (!TryAcquireConnectionSeat(out var disposed))
         {
-            Reject(context, 429, "too many dev WebSocket clients");
+            Reject(
+                context,
+                disposed ? 503 : 429,
+                disposed ? "dev WebSocket hub is stopping" : "too many dev WebSocket clients");
             return;
         }
 
         var clientId = Guid.NewGuid().ToString("N");
         WebSocket? ws = null;
+        var registered = false;
         try
         {
             var wsCtx = await context.AcceptWebSocketAsync(null);
             ws = wsCtx.WebSocket;
-            _clients[clientId] = ws;
+            registered = TryRegisterClient(clientId, ws);
+            if (!registered)
+            {
+                return;
+            }
 
             var buffer = new byte[256];
             while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
@@ -74,7 +89,99 @@ internal sealed class DevWebSocketHub : IDevWebSocketHub
         }
         finally
         {
-            _clients.TryRemove(clientId, out _);
+            if (registered)
+            {
+                RemoveAndDisposeClient(clientId);
+            }
+            else
+            {
+                DisposeSocket(ws);
+            }
+
+            ReleaseConnectionSeat();
+        }
+    }
+
+    public void Dispose()
+    {
+        lock (_lifecycleLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            if (_activeHandlers == 0)
+            {
+                _connectionGate.Dispose();
+            }
+        }
+
+        foreach (var clientId in _clients.Keys)
+        {
+            RemoveAndDisposeClient(clientId);
+        }
+    }
+
+    private bool TryAcquireConnectionSeat(out bool disposed)
+    {
+        lock (_lifecycleLock)
+        {
+            disposed = _disposed;
+            if (disposed || !_connectionGate.Wait(0, CancellationToken.None))
+            {
+                return false;
+            }
+
+            _activeHandlers++;
+            return true;
+        }
+    }
+
+    private bool TryRegisterClient(string clientId, WebSocket socket)
+    {
+        lock (_lifecycleLock)
+        {
+            if (_disposed)
+            {
+                return false;
+            }
+
+            _clients[clientId] = socket;
+            return true;
+        }
+    }
+
+    private void ReleaseConnectionSeat()
+    {
+        lock (_lifecycleLock)
+        {
+            _connectionGate.Release();
+            _activeHandlers--;
+            if (_disposed && _activeHandlers == 0)
+            {
+                _connectionGate.Dispose();
+            }
+        }
+    }
+
+    private void RemoveAndDisposeClient(string clientId)
+    {
+        if (_clients.TryRemove(clientId, out var socket))
+        {
+            DisposeSocket(socket);
+        }
+    }
+
+    private static void DisposeSocket(WebSocket? socket)
+    {
+        try
+        {
+            socket?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
         }
     }
 
@@ -125,7 +232,7 @@ internal sealed class DevWebSocketHub : IDevWebSocketHub
 
         foreach (var id in deadClients)
         {
-            _clients.TryRemove(id, out _);
+            RemoveAndDisposeClient(id);
         }
     }
 }

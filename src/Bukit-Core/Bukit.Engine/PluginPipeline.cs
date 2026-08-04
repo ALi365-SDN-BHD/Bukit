@@ -36,6 +36,19 @@ internal sealed class PluginPipeline
             BuildManifestTracker.DeleteStaleManifestOutputs(ctx.OutputDir, ctx.Manifest, ctx.CurrentKeys, ctx.Logger);
         }
 
+        ctx.PluginContext.Data[BuildContextDataKeys.PriorPluginOutputs] = ctx.Manifest.PluginOutputs
+            .Select(entry =>
+            {
+                var path = string.IsNullOrWhiteSpace(entry.Value.Path)
+                    ? entry.Key
+                    : entry.Value.Path;
+                return new PluginOutputTrackingInfo(
+                    entry.Value.Plugin,
+                    entry.Value.Hook,
+                    BuildPathUtils.NormalizeRelPath(path));
+            })
+            .ToHashSet();
+
         var afterBuildStopwatch = Stopwatch.StartNew();
         await PluginRunner.RunAfterBuildAsync(
             ctx.PluginContext,

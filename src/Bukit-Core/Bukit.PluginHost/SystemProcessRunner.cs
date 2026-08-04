@@ -107,8 +107,19 @@ public sealed class SystemProcessRunner : IProcessRunner
             }
         }
 
-        LimitedOutput stdout = await stdoutTask;
-        LimitedOutput stderr = await stderrTask;
+        // Bounded drain: stdout/stderr pump must complete within grace period
+        // even on normal exit, a grandchild process may hold the pipe
+        var drainCompleted = await WaitForTerminationGraceAsync(
+            DrainOutputTasksAsync(stdoutTask, stderrTask),
+            TerminationGracePeriod);
+        if (!drainCompleted)
+        {
+            Console.Error.WriteLine(
+                $"Plugin process output drain did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds.");
+        }
+
+        LimitedOutput stdout = stdoutTask.IsCompleted ? await stdoutTask : new LimitedOutput(string.Empty, Exceeded: false);
+        LimitedOutput stderr = stderrTask.IsCompleted ? await stderrTask : new LimitedOutput(string.Empty, Exceeded: false);
         bool outputLimitExceeded = stdout.Exceeded || stderr.Exceeded;
         ProcessOutputStream? outputLimitStream = stdout.Exceeded
             ? ProcessOutputStream.Stdout
@@ -254,6 +265,13 @@ public sealed class SystemProcessRunner : IProcessRunner
         catch (InvalidOperationException)
         {
         }
+    }
+
+    private static async Task DrainOutputTasksAsync(
+        Task<LimitedOutput> stdoutTask,
+        Task<LimitedOutput> stderrTask)
+    {
+        await Task.WhenAll(stdoutTask, stderrTask);
     }
 
     private static async Task ObserveTerminationTaskAsync(Task task)

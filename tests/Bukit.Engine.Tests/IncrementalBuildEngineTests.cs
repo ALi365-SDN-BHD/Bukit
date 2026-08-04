@@ -172,6 +172,71 @@ public sealed class IncrementalBuildEngineTests
     }
 
     [Fact]
+    public void ComputeListContentHash_StructuralFieldEncoding_PreventsAmbiguousCollisions()
+    {
+        static ContentDocument WithField(object? value, string type = "value")
+            => CreateItem(fields: new Dictionary<string, ContentField>(StringComparer.Ordinal)
+            {
+                ["custom"] = new(type, value)
+            });
+
+        static string Hash(ContentDocument item)
+        {
+            var route = CreateRoute();
+            return IncrementalBuildEngine.ComputeListContentHash(
+                "template-hash",
+                "pages/list.html",
+                [new RoutedContentDocument(item, route)],
+                new BuildManifest(),
+                NullContentBodyStore.Instance,
+                includeContent: false);
+        }
+
+        Assert.NotEqual(Hash(WithField(null)), Hash(WithField(string.Empty)));
+        Assert.NotEqual(Hash(WithField(new object?[] { "a,b" })), Hash(WithField(new object?[] { "a", "b" })));
+        Assert.NotEqual(Hash(WithField("1")), Hash(WithField(1)));
+        Assert.NotEqual(Hash(WithField("True")), Hash(WithField(true)));
+        Assert.NotEqual(
+            Hash(WithField(new Dictionary<string, object?> { ["nested"] = "first" })),
+            Hash(WithField(new Dictionary<string, object?> { ["nested"] = "second" })));
+
+        var delimitedA = CreateItem(fields: new Dictionary<string, ContentField>(StringComparer.Ordinal)
+        {
+            ["a\nb"] = new("c", "d")
+        });
+        var delimitedB = CreateItem(fields: new Dictionary<string, ContentField>(StringComparer.Ordinal)
+        {
+            ["a"] = new("b", "c\nd")
+        });
+        Assert.NotEqual(Hash(delimitedA), Hash(delimitedB));
+
+        var orderedMap = new Dictionary<string, object?> { ["a"] = 1, ["b"] = 2 };
+        var reverseInsertedMap = new Dictionary<string, object?> { ["b"] = 2, ["a"] = 1 };
+        Assert.Equal(Hash(WithField(orderedMap)), Hash(WithField(reverseInsertedMap)));
+        Assert.NotEqual(Hash(WithField(new object?[] { "a", "b" })), Hash(WithField(new object?[] { "b", "a" })));
+    }
+
+    [Fact]
+    public void ComputeListContentHash_UnsupportedCompoundField_FailsClosedWithStableDiagnostic()
+    {
+        var item = CreateItem(fields: new Dictionary<string, ContentField>(StringComparer.Ordinal)
+        {
+            ["custom"] = new("object", new Version(1, 2))
+        });
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            IncrementalBuildEngine.ComputeListContentHash(
+                "template-hash",
+                "pages/list.html",
+                [new RoutedContentDocument(item, CreateRoute())],
+                new BuildManifest(),
+                NullContentBodyStore.Instance,
+                includeContent: false));
+
+        Assert.Equal("Unsupported content field value in incremental fingerprint.", exception.Message);
+    }
+
+    [Fact]
     public void ComputeMetadataHash_Deterministic_AcrossMultipleCalls()
     {
         var item = CreateItem();

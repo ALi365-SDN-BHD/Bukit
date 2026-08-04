@@ -14,13 +14,12 @@ public sealed class CanonicalClientMigrationContractTests
     [Fact]
     public async Task PublicRendererConsumer_ContextExposesCanonicalNotionClient()
     {
-        using var http = new HttpClient(new SequenceHandler(Json("""
+        using var client = CreateClient(new SequenceHandler(Json("""
             {
               "has_more": false,
               "results": [{ "type": "client_probe", "client_probe": {} }]
             }
             """)));
-        using var client = CreateClient(http);
         var consumer = new CanonicalRendererConsumer();
         var renderer = new NotionBlocksRenderer(
             client,
@@ -36,8 +35,7 @@ public sealed class CanonicalClientMigrationContractTests
     [Fact]
     public async Task MissingResults_ExposesNotionRenderingExceptionDirectly()
     {
-        using var http = new HttpClient(new SequenceHandler(Json("{}")));
-        using var client = CreateClient(http);
+        using var client = CreateClient(new SequenceHandler(Json("{}")));
         var renderer = new NotionBlocksRenderer(client);
 
         var exception = await Assert.ThrowsAsync<NotionRenderingException>(() =>
@@ -56,8 +54,7 @@ public sealed class CanonicalClientMigrationContractTests
         FailureKind failure,
         NotionApiErrorKind expectedKind)
     {
-        using var http = new HttpClient(new FailureHandler(failure));
-        using var client = CreateClient(http);
+        using var client = CreateClient(new FailureHandler(failure));
         var renderer = new NotionBlocksRenderer(client);
 
         var exception = await Assert.ThrowsAsync<NotionApiException>(() =>
@@ -77,13 +74,12 @@ public sealed class CanonicalClientMigrationContractTests
         CallbackEntryPoint entryPoint,
         CallbackFailureKind failureKind)
     {
-        using var http = new HttpClient(new SequenceHandler(Json("""
+        using var client = CreateClient(new SequenceHandler(Json("""
             {
               "has_more": false,
               "results": [{ "type": "callback_failure", "callback_failure": {} }]
             }
             """)));
-        using var client = CreateClient(http);
         var expected = CreateCallbackException(failureKind);
         var registry = new NotionBlockRendererRegistry();
         if (entryPoint == CallbackEntryPoint.Renderer)
@@ -108,8 +104,7 @@ public sealed class CanonicalClientMigrationContractTests
     [Fact]
     public async Task CallerCancellation_PropagatesWithOriginalToken()
     {
-        using var http = new HttpClient(new CancelingHandler());
-        using var client = CreateClient(http);
+        using var client = CreateClient(new CancelingHandler());
         var renderer = new NotionBlocksRenderer(client);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
@@ -124,7 +119,6 @@ public sealed class CanonicalClientMigrationContractTests
     public async Task PublicOptionsAndExplicitRequestSemantics_PreserveMigrationMappingAndHeaders()
     {
         var handler = new HeaderCaptureHandler();
-        using var http = new HttpClient(handler);
         var options = new NotionClientOptions
         {
             Token = "migration-token",
@@ -133,7 +127,7 @@ public sealed class CanonicalClientMigrationContractTests
             MaxRetries = 4,
             MaxRps = 3
         };
-        using var client = new NotionClient(options, http);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             "https://api.notion.com/v1/databases/database-id/query")
@@ -157,8 +151,7 @@ public sealed class CanonicalClientMigrationContractTests
         var handler = new SequenceHandler(
             RateLimited(),
             Json("{\"ok\":true}"));
-        using var http = new HttpClient(handler);
-        using var client = CreateClient(http, maxRetries: 1);
+        using var client = CreateClient(handler, maxRetries: 1);
         using var request = DatabaseQueryRequest();
 
         using var response = await client.SendAsync(request, NotionRequestSemantics.IdempotentRead);
@@ -171,8 +164,7 @@ public sealed class CanonicalClientMigrationContractTests
     public async Task WriteRequest_AsNonReplayableWrite_DoesNotReplayAfter429()
     {
         var handler = new SequenceHandler(RateLimited());
-        using var http = new HttpClient(handler);
-        using var client = CreateClient(http, maxRetries: 3);
+        using var client = CreateClient(handler, maxRetries: 3);
         using var request = new HttpRequestMessage(
             HttpMethod.Patch,
             "https://api.notion.com/v1/pages/page-id")
@@ -193,8 +185,7 @@ public sealed class CanonicalClientMigrationContractTests
         var handler = new SequenceHandler(
             Json("{\"has_more\":false,\"results\":[]}"),
             Json("{\"ok\":true}"));
-        using var http = new HttpClient(handler);
-        using var client = CreateClient(http);
+        using var client = CreateClient(handler);
         var renderer = new NotionBlocksRenderer(client);
 
         var html = await renderer.RenderPageAsync("page", CancellationToken.None);
@@ -206,17 +197,21 @@ public sealed class CanonicalClientMigrationContractTests
     }
 
     [Fact]
-    public async Task DisposingClientWithInjectedHttpClient_LeavesHttpClientUsable()
+    public async Task DisposingClientWithInjectedHttpClient_ThrowsNotSupportedExceptionOnSend()
     {
         var handler = new SequenceHandler(Json("{}"));
         using var http = new HttpClient(handler);
         var client = new NotionClient(new NotionClientOptions { Token = "token" }, http);
 
+        await Assert.ThrowsAsync<NotSupportedException>(() =>
+            client.SendAsync(
+                new HttpRequestMessage(HttpMethod.Get, "https://api.notion.com/v1/databases/db"),
+                NotionRequestSemantics.IdempotentRead));
+
+        // HttpClient should still be usable after NotionClient disposal
         client.Dispose();
         using var response = await http.GetAsync("https://example.com/");
-
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(1, handler.RequestCount);
     }
 
     [Fact]
@@ -250,7 +245,7 @@ public sealed class CanonicalClientMigrationContractTests
     public void OwnedDisposalBranch_DisposesHandlerExactlyOnceWhenDisposeIsRepeated()
     {
         var handler = new TrackingDisposeHandler();
-        var http = new HttpClient(handler);
+        using var http = new HttpClient(handler);
         var client = new NotionClient(
             new NotionClientOptions { Token = "token" },
             http,
@@ -265,7 +260,7 @@ public sealed class CanonicalClientMigrationContractTests
     }
 
     private static NotionClient CreateClient(
-        HttpClient http,
+        HttpMessageHandler handler,
         int maxRetries = 0)
         => new(
             new NotionClientOptions
@@ -273,7 +268,9 @@ public sealed class CanonicalClientMigrationContractTests
                 Token = "token",
                 MaxRetries = maxRetries
             },
-            http);
+            handler,
+            (_, _) => Task.CompletedTask,
+            () => DateTimeOffset.UtcNow);
 
     private static HttpRequestMessage DatabaseQueryRequest()
         => new(HttpMethod.Post, "https://api.notion.com/v1/databases/database-id/query")

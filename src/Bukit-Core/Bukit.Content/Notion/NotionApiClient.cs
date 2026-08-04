@@ -16,6 +16,27 @@ internal sealed class NotionApiClient : IDisposable
 
     internal NotionApiClient(
         NotionProviderOptions options,
+        HttpMessageHandler handler,
+        Func<int, CancellationToken, Task> delayAsync)
+        : this(options, handler, delayAsync, static () => DateTimeOffset.UtcNow)
+    {
+    }
+
+    internal NotionApiClient(
+        NotionProviderOptions options,
+        HttpMessageHandler handler,
+        Func<int, CancellationToken, Task> delayAsync,
+        Func<DateTimeOffset> utcNow)
+    {
+        _client = new NotionClient(
+            MapOptions(options),
+            handler,
+            delayAsync,
+            utcNow);
+    }
+
+    internal NotionApiClient(
+        NotionProviderOptions options,
         HttpClient http,
         Func<int, CancellationToken, Task> delayAsync)
         : this(options, http, delayAsync, static () => DateTimeOffset.UtcNow)
@@ -33,7 +54,8 @@ internal sealed class NotionApiClient : IDisposable
             http,
             delayAsync,
             utcNow,
-            ownsHttpClient: false);
+            ownsHttpClient: false,
+            injectedTransport: true);
     }
 
     public async Task<JsonDocument> PostAsync(

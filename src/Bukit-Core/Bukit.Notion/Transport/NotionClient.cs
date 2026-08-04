@@ -8,6 +8,9 @@ public sealed class NotionClient : IDisposable
 {
     private const int MaxRetryDelayMs = 60_000;
     private const int BaseRetryDelayMs = 1_000;
+    private static readonly TimeSpan MaxHttpClientTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
+    private const string UnsupportedHandlerMessage =
+        "NotionClient requires a handler chain ending in SocketsHttpHandler or HttpClientHandler so automatic redirects can be disabled.";
     private readonly NotionClientOptions _options;
     private readonly HttpClient _httpClient;
     private readonly Func<int, CancellationToken, Task> _delayAsync;
@@ -44,7 +47,23 @@ public sealed class NotionClient : IDisposable
         ArgumentNullException.ThrowIfNull(handler);
     }
 
-    [Obsolete("Use NotionClient(NotionClientOptions, HttpMessageHandler) instead. Injected HttpClient instances cannot reliably disable redirect following.")]
+    internal NotionClient(
+        NotionClientOptions options,
+        HttpMessageHandler handler,
+        Func<int, CancellationToken, Task> delayAsync,
+        Func<DateTimeOffset> utcNow)
+        : this(
+            options,
+            CreateTrustedSingleHopHttpClient(options, handler),
+            delayAsync,
+            utcNow,
+            ownsHttpClient: true,
+            injectedTransport: false)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+    }
+
+    [Obsolete("Use NotionClient(NotionClientOptions) or a public constructor with a supported no-redirect handler chain. Injected HttpClient instances cannot reliably disable redirect following.")]
     public NotionClient(NotionClientOptions options, HttpClient httpClient)
         : this(
             options,
@@ -68,6 +87,18 @@ public sealed class NotionClient : IDisposable
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(delayAsync);
         ArgumentNullException.ThrowIfNull(utcNow);
+        ValidateOptions(options);
+
+        _options = options;
+        _httpClient = httpClient;
+        _delayAsync = delayAsync;
+        _utcNow = utcNow;
+        _ownsHttpClient = ownsHttpClient;
+        _injectedTransport = injectedTransport;
+    }
+
+    private static void ValidateOptions(NotionClientOptions options)
+    {
         if (string.IsNullOrWhiteSpace(options.Token))
         {
             throw new ArgumentException("Notion token is required.", nameof(options));
@@ -77,13 +108,6 @@ public sealed class NotionClient : IDisposable
         {
             throw new ArgumentException("Notion API version is required.", nameof(options));
         }
-
-        _options = options;
-        _httpClient = httpClient;
-        _delayAsync = delayAsync;
-        _utcNow = utcNow;
-        _ownsHttpClient = ownsHttpClient;
-        _injectedTransport = injectedTransport;
     }
 
     public async Task<JsonDocument> GetAsync(string url, CancellationToken cancellationToken = default)
@@ -98,13 +122,20 @@ public sealed class NotionClient : IDisposable
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        if (_injectedTransport)
+        {
+            throw new NotSupportedException(
+                "NotionClient instances constructed with an arbitrary HttpClient cannot send requests " +
+                "because redirect following cannot be reliably disabled. " +
+                "Use NotionClient(NotionClientOptions) or a supported no-redirect handler chain instead.");
+        }
         ArgumentNullException.ThrowIfNull(request);
         if (request.RequestUri is null)
         {
             throw new ArgumentException("Notion request URI is required.", nameof(request));
         }
 
-        ValidateRequestTarget(request.RequestUri);
+        ValidateRequestTarget(request);
 
         var bufferedRequest = await BufferedRequest.CreateAsync(request, cancellationToken);
         var maxRetries = semantics == NotionRequestSemantics.IdempotentRead
@@ -218,8 +249,9 @@ public sealed class NotionClient : IDisposable
     private static HttpClient CreateHttpClient(NotionClientOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ValidateOptions(options);
 
-        HttpMessageHandler handler;
+        HttpMessageHandler? handler;
         if (options.HttpHandlerFactory is not null)
         {
             handler = options.HttpHandlerFactory();
@@ -229,35 +261,136 @@ public sealed class NotionClient : IDisposable
             handler = CreateDefaultHandler();
         }
 
-        var timeout = options.Timeout > TimeSpan.Zero ? options.Timeout : Timeout.InfiniteTimeSpan;
-        return new HttpClient(handler, disposeHandler: true) { Timeout = timeout };
+        try
+        {
+            ConfigureNoRedirect(handler);
+            return CreateOwnedHttpClient(options, handler!);
+        }
+        catch
+        {
+            if (handler is not null)
+            {
+                DisposeOwnedHandlerGraph(handler);
+            }
+
+            throw;
+        }
     }
 
     private static HttpClient CreateHttpClient(NotionClientOptions options, HttpMessageHandler handler)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ValidateOptions(options);
+        ConfigureNoRedirect(handler);
+
+        return CreateOwnedHttpClient(options, handler);
+    }
+
+    private static HttpClient CreateTrustedSingleHopHttpClient(
+        NotionClientOptions options,
+        HttpMessageHandler handler)
+    {
+        ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(handler);
+        ValidateOptions(options);
 
-        // Enforce no-redirect for known handler types
-        if (handler is SocketsHttpHandler socketsHandler)
-        {
-            socketsHandler.AllowAutoRedirect = false;
-        }
-        else if (handler is HttpClientHandler clientHandler)
-        {
-            clientHandler.AllowAutoRedirect = false;
-        }
-        // Custom handler types are the caller's responsibility (trusted transport)
+        return CreateOwnedHttpClient(options, handler);
+    }
 
+    private static HttpClient CreateOwnedHttpClient(
+        NotionClientOptions options,
+        HttpMessageHandler handler)
+    {
         var timeout = options.Timeout > TimeSpan.Zero ? options.Timeout : Timeout.InfiniteTimeSpan;
+        if (timeout > MaxHttpClientTimeout)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options),
+                "Notion client timeout exceeds the maximum supported HttpClient timeout.");
+        }
+
         return new HttpClient(handler, disposeHandler: true) { Timeout = timeout };
+    }
+
+    private static void DisposeOwnedHandlerGraph(HttpMessageHandler handler)
+    {
+        var handlers = new List<HttpMessageHandler>();
+        var visited = new HashSet<HttpMessageHandler>(ReferenceEqualityComparer.Instance);
+        var current = handler;
+        while (visited.Add(current))
+        {
+            handlers.Add(current);
+            if (current is not DelegatingHandler delegatingHandler ||
+                delegatingHandler.InnerHandler is not { } innerHandler)
+            {
+                break;
+            }
+
+            current = innerHandler;
+        }
+
+        using var detachedHandler = new DetachedHandler();
+        foreach (var delegatingHandler in handlers.OfType<DelegatingHandler>())
+        {
+            delegatingHandler.InnerHandler = detachedHandler;
+        }
+
+        foreach (var graphHandler in handlers)
+        {
+            graphHandler.Dispose();
+        }
+    }
+
+    private static void ConfigureNoRedirect(HttpMessageHandler? handler)
+    {
+        if (handler is null)
+        {
+            throw new NotSupportedException(UnsupportedHandlerMessage);
+        }
+
+        var visited = new HashSet<HttpMessageHandler>(ReferenceEqualityComparer.Instance);
+        var current = handler;
+        while (visited.Add(current))
+        {
+            if (current is DelegatingHandler delegatingHandler)
+            {
+                current = delegatingHandler.InnerHandler
+                    ?? throw new NotSupportedException(UnsupportedHandlerMessage);
+                continue;
+            }
+
+            if (current is SocketsHttpHandler socketsHandler)
+            {
+                socketsHandler.AllowAutoRedirect = false;
+                return;
+            }
+
+            if (current is HttpClientHandler clientHandler)
+            {
+                clientHandler.AllowAutoRedirect = false;
+                return;
+            }
+
+            throw new NotSupportedException(UnsupportedHandlerMessage);
+        }
+
+        throw new NotSupportedException(UnsupportedHandlerMessage);
     }
 
     internal static HttpMessageHandler CreateDefaultHandler()
         => new SocketsHttpHandler { AllowAutoRedirect = false };
 
-    private static void ValidateRequestTarget(Uri requestUri)
+    private sealed class DetachedHandler : HttpMessageHandler
     {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+    }
+
+    private static void ValidateRequestTarget(HttpRequestMessage request)
+    {
+        var requestUri = request.RequestUri!;
         if (!requestUri.IsAbsoluteUri ||
             !string.Equals(requestUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(requestUri.Host, "api.notion.com", StringComparison.OrdinalIgnoreCase) ||
@@ -266,6 +399,17 @@ public sealed class NotionClient : IDisposable
             throw new ArgumentException(
                 "Notion request URI must be an absolute HTTPS URL for api.notion.com on port 443.",
                 nameof(requestUri));
+        }
+
+        var explicitHost = request.Headers.Host;
+        if (!string.IsNullOrWhiteSpace(explicitHost) &&
+            (!Uri.TryCreate($"https://{explicitHost}/", UriKind.Absolute, out var hostUri) ||
+             !string.Equals(hostUri.Host, "api.notion.com", StringComparison.OrdinalIgnoreCase) ||
+             hostUri.Port != 443))
+        {
+            throw new ArgumentException(
+                "Notion request Host header must match api.notion.com on port 443.",
+                nameof(request));
         }
     }
 

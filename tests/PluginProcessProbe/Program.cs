@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 
 string command = args.Length == 0 ? "echo" : args[0];
@@ -34,6 +35,43 @@ switch (command)
         }
 
     case "sleep":
+        {
+            int milliseconds = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
+            await Task.Delay(milliseconds);
+            return 0;
+        }
+
+    case "spawn-inherited-pipe":
+        {
+            int milliseconds = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
+            string processPath = Environment.ProcessPath
+                ?? throw new InvalidOperationException("Unable to resolve the current process path.");
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = processPath,
+                UseShellExecute = false,
+                RedirectStandardOutput = false,
+                RedirectStandardError = false,
+                RedirectStandardInput = false,
+                CreateNoWindow = true
+            };
+            if (string.Equals(
+                    Path.GetFileNameWithoutExtension(processPath),
+                    "dotnet",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                startInfo.ArgumentList.Add(typeof(Bukit.PluginProcessProbe.ProbeMarker).Assembly.Location);
+            }
+            startInfo.ArgumentList.Add("hold-inherited-pipe");
+            startInfo.ArgumentList.Add(milliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+            using Process child = Process.Start(startInfo)
+                ?? throw new InvalidOperationException("Unable to start inherited-pipe child process.");
+            await Task.Delay(milliseconds);
+            return 0;
+        }
+
+    case "hold-inherited-pipe":
         {
             int milliseconds = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
             await Task.Delay(milliseconds);

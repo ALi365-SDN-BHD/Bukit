@@ -23,7 +23,7 @@ public sealed class NotionSchemaDrivenMappingTests
         };
 
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
 
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 

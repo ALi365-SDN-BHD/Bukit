@@ -4,6 +4,8 @@ using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Config;
 using Bukit.Shared;
 using System.Net;
+using System.Net.WebSockets;
+using System.Text;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -870,11 +872,247 @@ public sealed class DevCommandTests
     }
 
     [Fact]
+    public async Task DevServerHost_RunAcceptLoopAsync_CompletedDispatchFaultPrunedByLaterRequest_StillPropagates()
+    {
+        var expected = new InvalidOperationException("dispatch failure must remain observable");
+        var logger = new ThrowingErrorLogger(expected);
+        var firstTrackedRequest = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var host = DevServerHost.Start(
+            "localhost",
+            0,
+            logger,
+            request => firstTrackedRequest.TrySetResult(request));
+        using var cts = new CancellationTokenSource();
+        var dispatchCount = 0;
+
+        var loopTask = host.RunAcceptLoopAsync(context =>
+        {
+            if (Interlocked.Increment(ref dispatchCount) == 1)
+            {
+                throw new InvalidOperationException("request failed");
+            }
+
+            context.Response.StatusCode = 204;
+            context.Response.Close();
+            return Task.CompletedTask;
+        }, cts.Token);
+
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        var failedResponseTask = client.GetAsync(host.Prefix + "fault");
+        var completedRequest = await firstTrackedRequest.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var dispatchError = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => completedRequest.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Same(expected, dispatchError);
+        Assert.True(completedRequest.IsCompleted);
+
+        using var laterResponse = await client.GetAsync(host.Prefix + "later");
+        Assert.Equal(HttpStatusCode.NoContent, laterResponse.StatusCode);
+
+        cts.Cancel();
+        var loopError = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => loopTask.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Same(expected, loopError);
+
+        var disposeError = Assert.Throws<InvalidOperationException>(host.Dispose);
+        Assert.Same(expected, disposeError);
+
+        try
+        {
+            using var ignored = await failedResponseTask.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch (HttpRequestException)
+        {
+        }
+    }
+
+    [Fact]
+    public async Task DevServerHost_With64LiveWebSockets_Rejects65thAndServesStaticRequest()
+    {
+        using var logger = new BufferingLogger();
+        using var host = DevServerHost.Start("localhost", 0, logger);
+        using var hub = new DevWebSocketHub(
+            logger,
+            DevWebSocketAccessPolicy.Loopback(host.Port));
+        using var cts = new CancellationTokenSource();
+        var loopTask = host.RunAcceptLoopAsync(context =>
+        {
+            if (context.Request.Url?.AbsolutePath == "/__ws__")
+            {
+                return hub.HandleUpgradeAsync(context, cts.Token);
+            }
+
+            context.Response.StatusCode = 204;
+            context.Response.Close();
+            return Task.CompletedTask;
+        }, cts.Token);
+        var sockets = new List<ClientWebSocket>();
+
+        try
+        {
+            var webSocketUri = new Uri($"ws://localhost:{host.Port}/__ws__");
+            var origin = $"http://localhost:{host.Port}";
+            for (var index = 0; index < 64; index++)
+            {
+                var socket = new ClientWebSocket();
+                socket.Options.SetRequestHeader("Origin", origin);
+                await socket.ConnectAsync(webSocketUri, CancellationToken.None)
+                    .WaitAsync(TimeSpan.FromSeconds(5));
+                sockets.Add(socket);
+            }
+
+            Assert.Equal(64, hub.ClientCount);
+
+            var rejection = await SendRawWebSocketUpgradeAsync(webSocketUri, origin)
+                .WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.StartsWith("HTTP/1.1 429", rejection, StringComparison.Ordinal);
+            Assert.Contains(
+                logger.Warnings,
+                warning => warning.Contains("too many dev WebSocket clients", StringComparison.Ordinal));
+
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            using var staticResponse = await client.GetAsync(host.Prefix + "index.html");
+            Assert.Equal(HttpStatusCode.NoContent, staticResponse.StatusCode);
+        }
+        finally
+        {
+            cts.Cancel();
+            await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
+            foreach (var socket in sockets)
+            {
+                socket.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public async Task DevServerHost_NonHubWebSocketRequest_WaitsForOrdinaryRequestGate()
+    {
+        using var logger = new BufferingLogger();
+        using var host = DevServerHost.Start("localhost", 0, logger);
+        using var cts = new CancellationTokenSource();
+        using var ordinaryRelease = new SemaphoreSlim(0, 64);
+        var allOrdinaryRequestsEntered = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var nonHubWebSocketDispatched = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var ordinaryRequestsEntered = 0;
+
+        var loopTask = host.RunAcceptLoopAsync(async context =>
+        {
+            if (context.Request.IsWebSocketRequest)
+            {
+                nonHubWebSocketDispatched.TrySetResult(true);
+            }
+            else
+            {
+                if (Interlocked.Increment(ref ordinaryRequestsEntered) == 64)
+                {
+                    allOrdinaryRequestsEntered.TrySetResult(true);
+                }
+
+                await ordinaryRelease.WaitAsync(cts.Token);
+            }
+
+            context.Response.StatusCode = 204;
+            context.Response.Close();
+        }, cts.Token);
+
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        var ordinaryResponses = Enumerable.Range(0, 64)
+            .Select(index => client.GetAsync(host.Prefix + $"held/{index}"))
+            .ToArray();
+
+        try
+        {
+            await allOrdinaryRequestsEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            var nonHubUpgrade = SendRawWebSocketUpgradeAsync(
+                new Uri($"ws://localhost:{host.Port}/index.html"),
+                $"http://localhost:{host.Port}");
+
+            Assert.NotSame(
+                nonHubWebSocketDispatched.Task,
+                await Task.WhenAny(
+                    nonHubWebSocketDispatched.Task,
+                    Task.Delay(TimeSpan.FromMilliseconds(250))));
+
+            ordinaryRelease.Release();
+            await nonHubWebSocketDispatched.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var nonHubResponse = await nonHubUpgrade.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.StartsWith("HTTP/1.1 204", nonHubResponse, StringComparison.Ordinal);
+        }
+        finally
+        {
+            ordinaryRelease.Release(64);
+            await Task.WhenAll(ordinaryResponses).WaitAsync(TimeSpan.FromSeconds(5));
+            cts.Cancel();
+            await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Fact]
+    public async Task DevWebSocketHub_Dispose_ClosesConnectedClient()
+    {
+        using var logger = new BufferingLogger();
+        using var host = DevServerHost.Start("localhost", 0, logger);
+        var hub = new DevWebSocketHub(
+            logger,
+            DevWebSocketAccessPolicy.Loopback(host.Port));
+        using var cts = new CancellationTokenSource();
+        var loopTask = host.RunAcceptLoopAsync(
+            context => hub.HandleUpgradeAsync(context, cts.Token),
+            cts.Token);
+        using var socket = new ClientWebSocket();
+
+        try
+        {
+            socket.Options.SetRequestHeader("Origin", $"http://localhost:{host.Port}");
+            await socket.ConnectAsync(
+                    new Uri($"ws://localhost:{host.Port}/__ws__"),
+                    CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(1, hub.ClientCount);
+
+            hub.Dispose();
+            hub.Dispose();
+            Assert.Equal(0, hub.ClientCount);
+
+            var receiveTask = socket.ReceiveAsync(
+                new ArraySegment<byte>(new byte[1]),
+                CancellationToken.None);
+            var completed = await Task.WhenAny(
+                receiveTask,
+                Task.Delay(TimeSpan.FromSeconds(5)));
+            Assert.Same(receiveTask, completed);
+
+            try
+            {
+                var result = await receiveTask;
+                Assert.Equal(WebSocketMessageType.Close, result.MessageType);
+            }
+            catch (WebSocketException)
+            {
+                // Disposing the server socket may terminate without a close handshake.
+            }
+        }
+        finally
+        {
+            socket.Dispose();
+            cts.Cancel();
+            await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
+            hub.Dispose();
+        }
+    }
+
+    [Fact]
     public async Task DevWebSocketHub_HandleUpgradeAsync_RejectsWhenConnectionLimitReached()
     {
         using var listener = StartListener(out var prefix, out var port);
         using var logger = new BufferingLogger();
-        var hub = new DevWebSocketHub(logger, DevWebSocketAccessPolicy.Loopback(port), maxConnections: 0);
+        using var hub = new DevWebSocketHub(
+            logger,
+            DevWebSocketAccessPolicy.Loopback(port),
+            maxConnections: 0);
 
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         var contextTask = listener.GetContextAsync();
@@ -895,7 +1133,10 @@ public sealed class DevCommandTests
     {
         using var listener = StartListener(out var prefix, out var port);
         using var logger = new BufferingLogger();
-        var hub = new DevWebSocketHub(logger, DevWebSocketAccessPolicy.Loopback(port), maxConnections: 1);
+        using var hub = new DevWebSocketHub(
+            logger,
+            DevWebSocketAccessPolicy.Loopback(port),
+            maxConnections: 1);
 
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         var contextTask = listener.GetContextAsync();
@@ -1007,6 +1248,27 @@ public sealed class DevCommandTests
         return listener;
     }
 
+    private static async Task<string> SendRawWebSocketUpgradeAsync(Uri uri, string origin)
+    {
+        using var tcp = new System.Net.Sockets.TcpClient();
+        await tcp.ConnectAsync(uri.Host, uri.Port);
+        await using var stream = tcp.GetStream();
+        var key = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+        var request =
+            $"GET {uri.PathAndQuery} HTTP/1.1\r\n" +
+            $"Host: {uri.Host}:{uri.Port}\r\n" +
+            $"Origin: {origin}\r\n" +
+            "Connection: Upgrade\r\n" +
+            "Upgrade: websocket\r\n" +
+            "Sec-WebSocket-Version: 13\r\n" +
+            $"Sec-WebSocket-Key: {key}\r\n\r\n";
+        await stream.WriteAsync(Encoding.ASCII.GetBytes(request));
+
+        var response = new byte[1024];
+        var length = await stream.ReadAsync(response);
+        return Encoding.ASCII.GetString(response, 0, length);
+    }
+
     private class TestLogger : ILogger
     {
         public void Debug(string message) { }
@@ -1027,6 +1289,30 @@ public sealed class DevCommandTests
 
         public void Dispose()
         {
+        }
+    }
+
+    private sealed class ThrowingErrorLogger(params Exception[] errors) : ILogger
+    {
+        private readonly TaskCompletionSource<bool> _errorCalled =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _errorCount;
+
+        public Task ErrorCalled => _errorCalled.Task;
+
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) { }
+
+        public void Error(string message)
+        {
+            var index = Interlocked.Increment(ref _errorCount) - 1;
+            if (index + 1 == errors.Length)
+            {
+                _errorCalled.TrySetResult(true);
+            }
+
+            throw errors[index];
         }
     }
 }

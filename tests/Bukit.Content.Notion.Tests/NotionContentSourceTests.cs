@@ -23,7 +23,7 @@ public sealed class NotionContentSourceTests
         var handler = new SourceHandler();
         NotionContentClient CreateClient() => new(
             options,
-            new HttpClient(handler),
+            handler,
             static (_, _) => Task.CompletedTask);
         var source = new NotionContentSource(options, logger: null, CreateClient);
 
@@ -61,7 +61,7 @@ public sealed class NotionContentSourceTests
         cancellation.Cancel();
         NotionContentClient CreateClient() => new(
             options,
-            new HttpClient(new CancelingHandler()),
+            new CancelingHandler(),
             static (_, _) => Task.CompletedTask);
         var source = new NotionContentSource(options, logger: null, CreateClient);
 
@@ -91,7 +91,9 @@ public sealed class NotionContentSourceTests
             """);
         using var client = new Bukit.Notion.Transport.NotionClient(
             new Bukit.Notion.Transport.NotionClientOptions { Token = "token", MaxRetries = 0 },
-            singleHandler);
+            singleHandler,
+            static (_, _) => Task.CompletedTask,
+            static () => DateTimeOffset.UtcNow);
 
         var page = await NotionPageQuery.FetchAsync(client, "page-1", CancellationToken.None);
 

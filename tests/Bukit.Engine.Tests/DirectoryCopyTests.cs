@@ -1,3 +1,6 @@
+using Bukit.Engine.IO;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Xunit;
 using Xunit.Sdk;
 
@@ -709,4 +712,196 @@ public sealed class DirectoryCopyTests : IDisposable
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "asset.txt")));
     }
+
+    [Fact]
+    public void SyncPlannedFile_WhenPathChangesAfterVerifiedOpen_CopiesFromVerifiedHandle()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        var sourceFile = Path.Combine(sourceDir, "asset.txt");
+        var destinationFile = Path.Combine(destinationDir, "asset.txt");
+        File.WriteAllText(sourceFile, "safe");
+        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions()).Single();
+        var opener = new ReplacingSourceOpener("safe", "evil");
+
+        DirectoryCopy.SyncPlannedFile(
+            planned.SourcePath,
+            destinationFile,
+            "size-time",
+            destinationDir,
+            planned.PhysicalSourceRoot,
+            new DirectoryCopyOptions(),
+            opener: opener);
+
+        Assert.Equal("safe", File.ReadAllText(destinationFile));
+    }
+
+    [Fact]
+    public void SyncPlannedFile_WhenVerifiedOpenIsRejected_PreservesExistingDestination()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        Directory.CreateDirectory(sourceDir);
+        Directory.CreateDirectory(destinationDir);
+        File.WriteAllText(Path.Combine(sourceDir, "asset.txt"), "source");
+        var destinationFile = Path.Combine(destinationDir, "asset.txt");
+        File.WriteAllText(destinationFile, "existing");
+        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions()).Single();
+
+        Assert.Throws<IOException>(() => DirectoryCopy.SyncPlannedFile(
+            planned.SourcePath,
+            destinationFile,
+            "size-time",
+            destinationDir,
+            planned.PhysicalSourceRoot,
+            new DirectoryCopyOptions(),
+            opener: new RejectingSourceOpener()));
+
+        Assert.Equal("existing", File.ReadAllText(destinationFile));
+    }
+
+    [Fact]
+    public async Task PlatformSafeSourceFileOpener_WhenTargetIsFifo_FailsClosedWithoutBlocking()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw SkipException.ForSkip("POSIX FIFO proof does not apply on Windows.");
+        }
+
+        var root = OperatingSystem.IsMacOS()
+            ? Path.Combine("/private/tmp", "bukit-dircopy-tests", Guid.NewGuid().ToString("N"))
+            : CreateTempRoot();
+        if (OperatingSystem.IsMacOS())
+        {
+            Directory.CreateDirectory(root);
+            _tempRoots.Add(root);
+        }
+        var fifo = Path.Combine(root, "media.pipe");
+        const string mkfifoPath = "/usr/bin/mkfifo";
+        if (!File.Exists(mkfifoPath))
+        {
+            throw SkipException.ForSkip("/usr/bin/mkfifo is unavailable.");
+        }
+
+        using (var process = Process.Start(new ProcessStartInfo
+               {
+                   FileName = mkfifoPath,
+                   UseShellExecute = false,
+                   ArgumentList = { fifo }
+               }) ?? throw new InvalidOperationException("Could not start mkfifo."))
+        {
+            await process.WaitForExitAsync();
+            if (process.ExitCode != 0)
+            {
+                throw SkipException.ForSkip($"mkfifo failed with exit code {process.ExitCode}.");
+            }
+        }
+
+        var openTask = Task.Run(() => Record.Exception(() =>
+        {
+            using var verified = new PlatformSafeSourceFileOpener().Open(fifo, root);
+        }));
+        var completed = await Task.WhenAny(openTask, Task.Delay(TimeSpan.FromMilliseconds(500)));
+        if (completed != openTask)
+        {
+            var writerTask = Task.Run(() =>
+            {
+                using var writer = new FileStream(fifo, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+                writer.WriteByte(1);
+            });
+            await openTask.WaitAsync(TimeSpan.FromSeconds(2));
+            await writerTask.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Fail("Opening a FIFO blocked instead of failing closed from final-handle metadata.");
+        }
+
+        var exception = Assert.IsType<IOException>(await openTask);
+        Assert.Contains("regular file", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PlatformSafeSourceFileOpener_SelectsDistinctMacOsFStatAbis()
+    {
+        var x64Abi = PlatformSafeSourceFileOpener.SelectPosixStatAbi(
+            isMacOs: true,
+            isLinux: false,
+            Architecture.X64);
+        var arm64Abi = PlatformSafeSourceFileOpener.SelectPosixStatAbi(
+            isMacOs: true,
+            isLinux: false,
+            Architecture.Arm64);
+
+        Assert.Equal(PosixStatAbi.MacOsX64Inode64, x64Abi);
+        Assert.Equal(PosixStatAbi.MacOsArm64, arm64Abi);
+        Assert.NotEqual(x64Abi, arm64Abi);
+        Assert.Equal(4, PlatformSafeSourceFileOpener.GetPosixStatModeOffset(x64Abi));
+        Assert.Equal(4, PlatformSafeSourceFileOpener.GetPosixStatModeOffset(arm64Abi));
+    }
+
+    [Fact]
+    public void PlatformSafeSourceFileOpener_SelectsDistinctLinuxFStatAbis()
+    {
+        var x64Abi = PlatformSafeSourceFileOpener.SelectPosixStatAbi(
+            isMacOs: false,
+            isLinux: true,
+            Architecture.X64);
+        var arm64Abi = PlatformSafeSourceFileOpener.SelectPosixStatAbi(
+            isMacOs: false,
+            isLinux: true,
+            Architecture.Arm64);
+
+        Assert.NotEqual(x64Abi, arm64Abi);
+        Assert.Equal(24, PlatformSafeSourceFileOpener.GetPosixStatModeOffset(x64Abi));
+        Assert.Equal(16, PlatformSafeSourceFileOpener.GetPosixStatModeOffset(arm64Abi));
+    }
+
+    [Fact]
+    public void PlatformSafeSourceFileOpener_SelectsArchitectureSpecificLinuxOpenFlags()
+    {
+        var x64Flags = PlatformSafeSourceFileOpener.SelectPosixOpenFlags(
+            isMacOs: false,
+            isLinux: true,
+            Architecture.X64);
+        var arm64Flags = PlatformSafeSourceFileOpener.SelectPosixOpenFlags(
+            isMacOs: false,
+            isLinux: true,
+            Architecture.Arm64);
+
+        Assert.Equal(0xA0800, x64Flags);
+        Assert.Equal(0x88800, arm64Flags);
+    }
+
+    private sealed class ReplacingSourceOpener : ISafeSourceFileOpener
+    {
+        private readonly string _verifiedContent;
+        private readonly string _replacementContent;
+
+        public ReplacingSourceOpener(string verifiedContent, string replacementContent)
+        {
+            _verifiedContent = verifiedContent;
+            _replacementContent = replacementContent;
+        }
+
+        public VerifiedSourceFile Open(string path, string sourceRoot)
+        {
+            Assert.Equal(_verifiedContent, File.ReadAllText(path));
+            var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var displacedPath = path + ".displaced";
+            File.Move(path, displacedPath);
+            File.WriteAllText(path, _replacementContent);
+            return new VerifiedSourceFile(
+                stream.SafeFileHandle,
+                stream,
+                displacedPath);
+        }
+    }
+
+    private sealed class RejectingSourceOpener : ISafeSourceFileOpener
+    {
+        public VerifiedSourceFile Open(string path, string sourceRoot)
+            => throw new IOException("rejected");
+    }
+
 }

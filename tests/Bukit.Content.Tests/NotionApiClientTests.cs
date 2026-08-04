@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Bukit.Content.Notion;
+using Bukit.Notion.Transport;
 using Bukit.Shared;
 using Xunit;
 
@@ -11,6 +12,93 @@ namespace Bukit.Content.Tests;
 
 public sealed class NotionApiClientTests
 {
+    [Fact]
+    public async Task Constructor_WithArbitraryHttpClient_FailsClosedBeforeSending()
+    {
+        var handler = new SequenceHandler(new Queue<HttpResponseMessage>());
+        using var http = new HttpClient(handler);
+        using var client = new NotionApiClient(
+            new NotionProviderOptions
+            {
+                DatabaseId = "db",
+                Token = "token",
+                MaxRetries = 0
+            },
+            http,
+            static (_, _) => Task.CompletedTask);
+
+        await Assert.ThrowsAsync<NotSupportedException>(() => client.GetAsync(
+            "https://api.notion.com/v1/databases/db",
+            CancellationToken.None));
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task HandlerSeam_WhenResponseIsRedirect_DoesNotFollowRedirect()
+    {
+        var redirect = new HttpResponseMessage(HttpStatusCode.Redirect)
+        {
+            Content = new StringContent("{}", Encoding.UTF8, "application/json")
+        };
+        redirect.Headers.Location = new Uri("https://example.com/steal");
+        var handler = new SequenceHandler(new Queue<HttpResponseMessage>([redirect]));
+        using var client = CreateHandlerClient(handler);
+
+        await Assert.ThrowsAsync<ContentException>(() => client.GetAsync(
+            "https://api.notion.com/v1/databases/db",
+            CancellationToken.None));
+
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Theory]
+    [InlineData("http://api.notion.com/v1/databases/db")]
+    [InlineData("https://example.com/v1/databases/db")]
+    public async Task HandlerSeam_WhenUriIsNonCanonical_RejectsBeforeHandler(string url)
+    {
+        var handler = new SequenceHandler(new Queue<HttpResponseMessage>());
+        using var client = CreateHandlerClient(handler);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => client.GetAsync(url, CancellationToken.None));
+
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task HandlerSeam_WhenHostHeaderMismatches_RejectsBeforeHandler()
+    {
+        var handler = new SequenceHandler(new Queue<HttpResponseMessage>());
+        using var client = CreateHandlerClient(handler);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "https://api.notion.com/v1/databases/db");
+        request.Headers.Host = "example.com";
+
+        await Assert.ThrowsAsync<ArgumentException>(() => client.Transport.SendAsync(
+            request,
+            NotionRequestSemantics.IdempotentRead,
+            CancellationToken.None));
+
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task HandlerSeam_WhenUriIsCanonical_SendsAuthorizedRequest()
+    {
+        var handler = new CaptureHandler();
+        using var client = CreateHandlerClient(handler);
+
+        using var document = await client.PostAsync(
+            "https://api.notion.com/v1/databases/db/query",
+            "{\"page_size\":1}",
+            CancellationToken.None);
+
+        Assert.Equal("Bearer", handler.AuthorizationScheme);
+        Assert.Equal("token", handler.AuthorizationParameter);
+        Assert.Equal("{\"page_size\":1}", handler.Body);
+        Assert.True(document.RootElement.GetProperty("ok").GetBoolean());
+    }
+
     [Fact]
     public async Task GetAsync_WhenMaxRpsIsOne_ThrottlesSecondRequest()
     {
@@ -25,7 +113,6 @@ public sealed class NotionApiClientTests
         });
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var now = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var delays = new List<int>();
@@ -38,7 +125,7 @@ public sealed class NotionApiClientTests
             MaxRps = 1
         };
 
-        using var client = new NotionApiClient(options, http, (ms, _) =>
+        using var client = new NotionApiClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             now = now.AddMilliseconds(ms);
@@ -74,7 +161,6 @@ public sealed class NotionApiClientTests
         responses.Enqueue(r2);
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var delays = new List<int>();
         var options = new NotionProviderOptions
@@ -84,7 +170,7 @@ public sealed class NotionApiClientTests
             RequestDelayMs = 0
         };
 
-        using var client = new NotionApiClient(options, http, (ms, _) =>
+        using var client = new NotionApiClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             return Task.CompletedTask;
@@ -115,7 +201,6 @@ public sealed class NotionApiClientTests
         }
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var options = new NotionProviderOptions
         {
@@ -125,7 +210,7 @@ public sealed class NotionApiClientTests
             MaxRetries = 2
         };
 
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionApiClient(options, handler, (_, _) => Task.CompletedTask);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() =>
             client.GetAsync("https://api.notion.com/v1/databases/db", CancellationToken.None));
@@ -156,6 +241,42 @@ public sealed class NotionApiClientTests
             }
 
             return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    private static NotionApiClient CreateHandlerClient(HttpMessageHandler handler)
+        => new(
+            new NotionProviderOptions
+            {
+                DatabaseId = "db",
+                Token = "token",
+                RequestDelayMs = 0,
+                MaxRetries = 0
+            },
+            handler,
+            static (_, _) => Task.CompletedTask);
+
+    private sealed class CaptureHandler : HttpMessageHandler
+    {
+        public string? AuthorizationScheme { get; private set; }
+
+        public string? AuthorizationParameter { get; private set; }
+
+        public string? Body { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            AuthorizationScheme = request.Headers.Authorization?.Scheme;
+            AuthorizationParameter = request.Headers.Authorization?.Parameter;
+            Body = request.Content is null
+                ? null
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+            };
         }
     }
 }

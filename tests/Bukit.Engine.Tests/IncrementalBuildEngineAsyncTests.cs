@@ -93,6 +93,71 @@ public sealed class IncrementalBuildEngineAsyncTests
         Assert.NotEqual(hash1, hash2);
     }
 
+    [Fact]
+    public async Task ComputeListContentHashAsync_PublicContentRecordChanges_InvalidateWithoutCustomFieldChanges()
+    {
+        var item = CreateItem(id: "post", slug: "post");
+        var route = CreateRoute(url: "/post/", outputPath: "post/index.html");
+        var baseline = await ComputeMetadataOnlyListHashAsync(item, route);
+        var record = item.Record;
+        var variants = new[]
+        {
+            item with { Record = record with { Lifecycle = record.Lifecycle with { UpdatedAt = s_testPublishAt.AddHours(1) } } },
+            item with { Record = record with { Provenance = record.Provenance with { Source = "changed-source" } } },
+            item with { Record = record with { Trust = record.Trust with { ReviewStatus = "reviewed" } } },
+            item with { Record = record with { Entities = [new EntityRecord("company", "Bukit")] } },
+            item with { Record = record with { Ownership = record.Ownership with { Reviewer = "reviewer" } } }
+        };
+
+        foreach (var variant in variants)
+        {
+            Assert.NotEqual(baseline, await ComputeMetadataOnlyListHashAsync(variant, route));
+        }
+    }
+
+    [Fact]
+    public async Task ComputeListContentHashAsync_ComplexStructuralFields_AreDeterministicAndMatchSyncVersion()
+    {
+        var item = CreateItem(
+            id: "structural",
+            slug: "structural",
+            fields: new Dictionary<string, ContentField>(StringComparer.Ordinal)
+            {
+                ["custom"] = new("object", new Dictionary<string, object?>
+                {
+                    ["values"] = new object?[] { null, string.Empty, 1, true, "a,b" },
+                    ["nested"] = new Dictionary<string, object?> { ["line\nbreak"] = "value\nline" }
+                }),
+                ["tableOfContents"] = new("list", new[] { new TableOfContentsEntry(2, "Heading", "heading") })
+            });
+        var route = CreateRoute(url: "/structural/", outputPath: "structural/index.html");
+        var source = new[] { new RoutedContentDocument(item, route) };
+
+#pragma warning disable CS0618
+        var syncHash = IncrementalBuildEngine.ComputeListContentHash(
+            "th", "pages/list.html", source, new BuildManifest(), NullContentBodyStore.Instance, includeContent: false);
+#pragma warning restore CS0618
+        var asyncHash1 = await IncrementalBuildEngine.ComputeListContentHashAsync(
+            "th", "pages/list.html", source, new BuildManifest(), NullContentBodyStore.Instance,
+            includeContent: false, CancellationToken.None);
+        var asyncHash2 = await IncrementalBuildEngine.ComputeListContentHashAsync(
+            "th", "pages/list.html", source, new BuildManifest(), NullContentBodyStore.Instance,
+            includeContent: false, CancellationToken.None);
+
+        Assert.Equal(syncHash, asyncHash1);
+        Assert.Equal(asyncHash1, asyncHash2);
+    }
+
+    private static Task<string> ComputeMetadataOnlyListHashAsync(ContentDocument item, RouteInfo route)
+        => IncrementalBuildEngine.ComputeListContentHashAsync(
+            "template-hash",
+            "pages/list.html",
+            [new RoutedContentDocument(item, route)],
+            new BuildManifest(),
+            NullContentBodyStore.Instance,
+            includeContent: false,
+            CancellationToken.None);
+
     private sealed class StubBodyStore : IContentBodyStore
     {
         private readonly string _html;

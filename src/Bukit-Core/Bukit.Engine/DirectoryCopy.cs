@@ -176,7 +176,8 @@ internal static class DirectoryCopy
         string outputRoot,
         string expectedPhysicalSourceRoot,
         DirectoryCopyOptions options,
-        IOutputPathPolicy? pathPolicy = null)
+        IOutputPathPolicy? pathPolicy = null,
+        IO.ISafeSourceFileOpener? opener = null)
     {
         var capturedSourceRoot = Path.GetFullPath(expectedPhysicalSourceRoot)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -194,7 +195,9 @@ internal static class DirectoryCopy
 
         var destinationDir = Path.GetDirectoryName(destinationFile)!;
         Directory.CreateDirectory(destinationDir);
-        SyncFileToPath(validatedSource, destinationFile, hashMode, outputRoot, pathPolicy);
+        var safeOpener = opener ?? new IO.PlatformSafeSourceFileOpener();
+        using var verified = safeOpener.Open(validatedSource, capturedSourceRoot);
+        SyncVerifiedFileToPath(verified, destinationFile, hashMode, outputRoot, pathPolicy);
     }
 
     internal static async Task CopyPlannedFileAsync(
@@ -202,7 +205,8 @@ internal static class DirectoryCopy
         string destinationFile,
         string expectedPhysicalSourceRoot,
         DirectoryCopyOptions options,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IO.ISafeSourceFileOpener? opener = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var capturedSourceRoot = Path.GetFullPath(expectedPhysicalSourceRoot)
@@ -223,14 +227,10 @@ internal static class DirectoryCopy
         Directory.CreateDirectory(destinationDir);
         try
         {
-            var sourceInfo = new FileInfo(validatedSource);
-            await using (var input = new FileStream(
-                             validatedSource,
-                             FileMode.Open,
-                             FileAccess.Read,
-                             FileShare.Read,
-                             bufferSize: 81920,
-                             FileOptions.Asynchronous | FileOptions.SequentialScan))
+            var safeOpener = opener ?? new IO.PlatformSafeSourceFileOpener();
+            using var verified = safeOpener.Open(validatedSource, capturedSourceRoot);
+            var sourceLastWriteTimeUtc = verified.LastWriteTimeUtc;
+            await using (var input = verified.Stream)
             await using (var output = new FileStream(
                              destinationFile,
                              FileMode.Create,
@@ -243,7 +243,7 @@ internal static class DirectoryCopy
                 await output.FlushAsync(cancellationToken);
             }
 
-            File.SetLastWriteTimeUtc(destinationFile, sourceInfo.LastWriteTimeUtc);
+            File.SetLastWriteTimeUtc(destinationFile, sourceLastWriteTimeUtc);
         }
         catch
         {
@@ -641,6 +641,58 @@ internal static class DirectoryCopy
 
         File.Copy(sourceFile, destinationFile, overwrite: true);
         File.SetLastWriteTimeUtc(destinationFile, sourceInfo.LastWriteTimeUtc);
+    }
+
+    private static void SyncVerifiedFileToPath(
+        IO.VerifiedSourceFile source,
+        string destinationFile,
+        string hashMode,
+        string? outputRoot = null,
+        IOutputPathPolicy? pathPolicy = null)
+    {
+        if (outputRoot is not null)
+        {
+            FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, destinationFile), pathPolicy);
+        }
+
+        var destinationInfo = new FileInfo(destinationFile);
+        var sourceLength = source.Length;
+        var sourceLastWriteTimeUtc = source.LastWriteTimeUtc;
+        if (destinationInfo.Exists &&
+            destinationInfo.Length == sourceLength &&
+            destinationInfo.LastWriteTimeUtc == sourceLastWriteTimeUtc &&
+            (!string.Equals(hashMode, "sha256", StringComparison.OrdinalIgnoreCase) ||
+             VerifiedStreamHasSameHash(source.Stream, destinationFile)))
+        {
+            return;
+        }
+
+        source.Stream.Position = 0;
+        using (var output = new FileStream(
+                   destinationFile,
+                   FileMode.Create,
+                   FileAccess.Write,
+                   FileShare.None,
+                   bufferSize: 81920,
+                   FileOptions.SequentialScan))
+        {
+            source.Stream.CopyTo(output, 81920);
+            output.Flush(flushToDisk: true);
+        }
+
+        File.SetLastWriteTimeUtc(destinationFile, sourceLastWriteTimeUtc);
+    }
+
+    private static bool VerifiedStreamHasSameHash(Stream source, string destinationFile)
+    {
+        source.Position = 0;
+        using var destination = File.OpenRead(destinationFile);
+        Span<byte> sourceHash = stackalloc byte[32];
+        Span<byte> destinationHash = stackalloc byte[32];
+        SHA256.HashData(source, sourceHash);
+        SHA256.HashData(destination, destinationHash);
+        source.Position = 0;
+        return sourceHash.SequenceEqual(destinationHash);
     }
 
     private static StringComparer PathComparer

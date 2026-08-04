@@ -154,21 +154,23 @@ public sealed class DoctorNotionCheckerTests
         {
             Content = new StringContent(body)
         }));
-        var http = new HttpClient(handler);
         var transport = new NotionClient(
             new NotionClientOptions { Token = "test-token", MaxRetries = 0 },
-            http);
-        return new NotionHealthClientLease(new NotionHealthClient(transport), transport, http);
+            handler,
+            static (_, _) => Task.CompletedTask,
+            static () => DateTimeOffset.UtcNow);
+        return new NotionHealthClientLease(new NotionHealthClient(transport), transport);
     }
 
     private static NotionHealthClientLease CreateHealthClient(Exception exception)
     {
         var handler = new StubHandler((_, _) => Task.FromException<HttpResponseMessage>(exception));
-        var http = new HttpClient(handler);
         var transport = new NotionClient(
             new NotionClientOptions { Token = "test-token", MaxRetries = 0 },
-            http);
-        return new NotionHealthClientLease(new NotionHealthClient(transport), transport, http);
+            handler,
+            static (_, _) => Task.CompletedTask,
+            static () => DateTimeOffset.UtcNow);
+        return new NotionHealthClientLease(new NotionHealthClient(transport), transport);
     }
 
     private static async Task<(bool Result, string Output)> CaptureAsync(Func<Task<bool>> action)
@@ -206,16 +208,13 @@ public sealed class DoctorNotionCheckerTests
     private sealed class NotionHealthClientLease : IDisposable
     {
         private readonly NotionClient _transport;
-        private readonly HttpClient _http;
 
         public NotionHealthClientLease(
             NotionHealthClient client,
-            NotionClient transport,
-            HttpClient http)
+            NotionClient transport)
         {
             Client = client;
             _transport = transport;
-            _http = http;
         }
 
         public NotionHealthClient Client { get; }
@@ -225,7 +224,6 @@ public sealed class DoctorNotionCheckerTests
         public void Dispose()
         {
             _transport.Dispose();
-            _http.Dispose();
         }
     }
 

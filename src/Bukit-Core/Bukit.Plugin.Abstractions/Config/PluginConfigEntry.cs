@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Bukit.Plugin.Abstractions.Security;
 
 namespace Bukit.Plugin.Abstractions.Config;
@@ -14,12 +15,12 @@ public sealed record PluginConfigEntry(
     string? Description = null,
     bool PermissionsExplicit = false,
     bool ExposeCommandsDeclared = false,
-    string ManifestPolicy = "static",
-    PluginResourceLimitOptions? Resources = null)
+    string ManifestPolicy = "static")
 {
     public IReadOnlyList<string> ExposeCommands { get; init; } = ExposeCommands ?? [];
     public PluginPermissionSet Permissions { get; init; } = Permissions ?? new PluginPermissionSet();
     public PluginTimeoutOptions Timeout { get; init; } = Timeout ?? new PluginTimeoutOptions();
     public PluginOutputLimitOptions Output { get; init; } = Output ?? new PluginOutputLimitOptions();
-    public PluginResourceLimitOptions? Resources { get; init; } = Resources;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PluginResourceLimitOptions? Resources { get; init; }
 }

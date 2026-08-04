@@ -14,13 +14,17 @@ internal static class CanonicalBlockRendererTestSupport
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        return new NotionClient(
-            options,
-            new HttpClient(handler),
-            (_, _) => Task.CompletedTask,
-            () => DateTimeOffset.UtcNow,
-            ownsHttpClient: true);
+        return CreateClient(options, handler);
     }
+
+    internal static NotionClient CreateClient(
+        NotionClientOptions options,
+        HttpMessageHandler handler)
+        => new(
+            options,
+            handler,
+            (_, _) => Task.CompletedTask,
+            () => DateTimeOffset.UtcNow);
 
     internal sealed class JsonHandler(Func<HttpRequestMessage, string> response) : HttpMessageHandler
     {

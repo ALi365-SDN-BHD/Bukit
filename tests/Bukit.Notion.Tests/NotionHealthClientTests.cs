@@ -18,7 +18,7 @@ public sealed class NotionHealthClientTests
             captured = request;
             return Response(HttpStatusCode.OK, "{}");
         });
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
             handler);
         var client = new NotionHealthClient(transport);
@@ -39,7 +39,7 @@ public sealed class NotionHealthClientTests
     public async Task CheckDatabaseAsync_ReturnsStructuredHttpFailure()
     {
         var handler = new CallbackHandler(_ => Response(HttpStatusCode.Unauthorized, "{\"secret\":\"body\"}"));
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
             handler);
         var client = new NotionHealthClient(transport);
@@ -56,7 +56,7 @@ public sealed class NotionHealthClientTests
     public async Task CheckConnectivityAsync_TreatsSuccessfulNonJsonResponseAsReachable()
     {
         var handler = new CallbackHandler(_ => Response(HttpStatusCode.NoContent, string.Empty));
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
             handler);
         var client = new NotionHealthClient(transport);
@@ -79,7 +79,7 @@ public sealed class NotionHealthClientTests
             }
             """;
         var handler = new CallbackHandler(_ => Response(HttpStatusCode.OK, response));
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
             handler);
         var client = new NotionHealthClient(transport);
@@ -96,7 +96,7 @@ public sealed class NotionHealthClientTests
     public async Task CheckConnectivityAsync_DoesNotSwallowCallerCancellation()
     {
         var handler = new CancelingHandler();
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
             handler);
         var client = new NotionHealthClient(transport);

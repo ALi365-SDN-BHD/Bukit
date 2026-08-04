@@ -140,8 +140,10 @@ public sealed class PluginConfigLoader : IPluginConfigLoader
             description,
             permissionsExplicit,
             exposeCommandsDeclared,
-            manifestPolicy,
-            resources);
+            manifestPolicy)
+        {
+            Resources = resources
+        };
     }
 
     private static PluginPermissionSet ReadPermissions(string pluginId, YamlMappingNode? node)

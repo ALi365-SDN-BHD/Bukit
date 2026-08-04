@@ -41,7 +41,7 @@ public sealed class NotionBlocksRendererPaginationTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -106,7 +106,7 @@ public sealed class NotionBlocksRendererPaginationTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -144,7 +144,7 @@ public sealed class NotionBlocksRendererPaginationTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -193,7 +193,7 @@ public sealed class NotionBlocksRendererPaginationTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -262,7 +262,7 @@ public sealed class NotionBlocksRendererPaginationTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -309,7 +309,7 @@ public sealed class NotionBlocksRendererPaginationTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
@@ -356,7 +356,7 @@ public sealed class NotionBlocksRendererPaginationTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
 
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();

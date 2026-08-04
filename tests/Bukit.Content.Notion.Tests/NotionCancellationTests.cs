@@ -4,12 +4,94 @@ using System.Text;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Notion.Rendering;
 using Bukit.Notion.Transport;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Content.Notion.Tests;
 
 public sealed class NotionCancellationTests
 {
+    [Fact]
+    public async Task NotionContentClient_WithArbitraryHttpClient_FailsClosedBeforeSending()
+    {
+        var handler = new StaticJsonHandler();
+        using var http = new HttpClient(handler);
+        using var client = new NotionContentClient(
+            new NotionContentSourceOptions
+            {
+                DatabaseId = "db",
+                Token = "token",
+                MaxRetries = 0
+            },
+            http,
+            static (_, _) => Task.CompletedTask);
+
+        await Assert.ThrowsAsync<NotSupportedException>(() => client.GetAsync(
+            "https://api.notion.com/v1/databases/db",
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task NotionContentClient_HandlerSeam_DoesNotFollowRedirect()
+    {
+        var handler = new RecordingHandler(HttpStatusCode.Redirect);
+        using var client = CreateHandlerClient(handler);
+
+        await Assert.ThrowsAsync<ContentException>(() => client.GetAsync(
+            "https://api.notion.com/v1/databases/db",
+            CancellationToken.None));
+
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Theory]
+    [InlineData("http://api.notion.com/v1/databases/db")]
+    [InlineData("https://example.com/v1/databases/db")]
+    public async Task NotionContentClient_HandlerSeam_RejectsNonCanonicalUriBeforeHandler(string url)
+    {
+        var handler = new RecordingHandler(HttpStatusCode.OK);
+        using var client = CreateHandlerClient(handler);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => client.GetAsync(url, CancellationToken.None));
+
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task NotionContentClient_HandlerSeam_RejectsMismatchedHostBeforeHandler()
+    {
+        var handler = new RecordingHandler(HttpStatusCode.OK);
+        using var client = CreateHandlerClient(handler);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "https://api.notion.com/v1/databases/db");
+        request.Headers.Host = "example.com";
+
+        await Assert.ThrowsAsync<ArgumentException>(() => client.Transport.SendAsync(
+            request,
+            NotionRequestSemantics.IdempotentRead,
+            CancellationToken.None));
+
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task NotionContentClient_HandlerSeam_SendsCanonicalAuthorizedRequest()
+    {
+        var handler = new RecordingHandler(HttpStatusCode.OK);
+        using var client = CreateHandlerClient(handler);
+
+        using var document = await client.PostAsync(
+            "https://api.notion.com/v1/databases/db/query",
+            "{\"page_size\":1}",
+            CancellationToken.None);
+
+        Assert.Equal("Bearer", handler.AuthorizationScheme);
+        Assert.Equal("token", handler.AuthorizationParameter);
+        Assert.Equal("{\"page_size\":1}", handler.Body);
+        Assert.True(document.RootElement.GetProperty("ok").GetBoolean());
+    }
+
     [Fact]
     public async Task RelationResolver_PropagatesCancellationDuringRequest()
     {
@@ -20,8 +102,10 @@ public sealed class NotionCancellationTests
             Token = "token",
             MaxRetries = 0
         };
-        using var http = new HttpClient(new BlockingHandler(requestStarted));
-        using var client = new NotionContentClient(options, http, static (_, _) => Task.CompletedTask);
+        using var client = new NotionContentClient(
+            options,
+            new BlockingHandler(requestStarted),
+            static (_, _) => Task.CompletedTask);
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
             ["tags"] = new("relation", new[] { "related-page" })
@@ -69,7 +153,9 @@ public sealed class NotionCancellationTests
             var staticHandler = new StaticJsonHandler();
             using var transport = new NotionClient(
                 new NotionClientOptions { Token = "token", MaxRetries = 0 },
-                staticHandler);
+                staticHandler,
+                static (_, _) => Task.CompletedTask,
+                static () => DateTimeOffset.UtcNow);
             var renderer = new NotionBlocksRenderer(transport);
             var cache = new NotionCacheManager.PageHtmlCache("readonly", root, pages);
             using var cancellation = new CancellationTokenSource();
@@ -139,5 +225,49 @@ public sealed class NotionCancellationTests
             {
                 Content = new StringContent("{}", Encoding.UTF8, "application/json")
             });
+    }
+
+    private static NotionContentClient CreateHandlerClient(HttpMessageHandler handler)
+        => new(
+            new NotionContentSourceOptions
+            {
+                DatabaseId = "db",
+                Token = "token",
+                MaxRetries = 0
+            },
+            handler,
+            static (_, _) => Task.CompletedTask);
+
+    private sealed class RecordingHandler(HttpStatusCode responseStatus) : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        public string? AuthorizationScheme { get; private set; }
+
+        public string? AuthorizationParameter { get; private set; }
+
+        public string? Body { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            AuthorizationScheme = request.Headers.Authorization?.Scheme;
+            AuthorizationParameter = request.Headers.Authorization?.Parameter;
+            Body = request.Content is null
+                ? null
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+            var response = new HttpResponseMessage(responseStatus)
+            {
+                Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
+            };
+            if ((int)responseStatus is >= 300 and < 400)
+            {
+                response.Headers.Location = new Uri("https://example.com/steal");
+            }
+
+            return response;
+        }
     }
 }

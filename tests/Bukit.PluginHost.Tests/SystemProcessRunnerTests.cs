@@ -166,6 +166,22 @@ public sealed class SystemProcessRunnerTests
     }
 
     [Fact]
+    public async Task RunAsync_Timeout_KillsDescendantHoldingInheritedPipes()
+    {
+        var runner = new SystemProcessRunner();
+        var stopwatch = Stopwatch.StartNew();
+
+        ProcessRunResult result = await runner.RunAsync(
+            ProbeRequest(arguments: ["spawn-inherited-pipe", "30000"], timeoutMs: 200),
+            CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+
+        stopwatch.Stop();
+        Assert.True(result.TimedOut);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(8),
+            $"Timeout + inherited-pipe drain took {stopwatch.Elapsed.TotalSeconds:F1}s, expected < 8s");
+    }
+
+    [Fact]
     public async Task RunAsync_Cancellation_KillsTreeAndBoundsStreamDrain()
     {
         var runner = new SystemProcessRunner();
@@ -180,6 +196,23 @@ public sealed class SystemProcessRunnerTests
         stopwatch.Stop();
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(8),
             $"Cancellation + drain took {stopwatch.Elapsed.TotalSeconds:F1}s, expected < 8s");
+    }
+
+    [Fact]
+    public async Task RunAsync_Cancellation_KillsDescendantHoldingInheritedPipes()
+    {
+        var runner = new SystemProcessRunner();
+        using var cts = new CancellationTokenSource(200);
+        var stopwatch = Stopwatch.StartNew();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => runner.RunAsync(
+                ProbeRequest(arguments: ["spawn-inherited-pipe", "30000"], timeoutMs: 30000),
+                cts.Token).WaitAsync(TimeSpan.FromSeconds(10)));
+
+        stopwatch.Stop();
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(8),
+            $"Cancellation + inherited-pipe drain took {stopwatch.Elapsed.TotalSeconds:F1}s, expected < 8s");
     }
 
     [Fact]

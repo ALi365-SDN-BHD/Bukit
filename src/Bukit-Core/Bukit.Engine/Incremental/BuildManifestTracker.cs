@@ -118,20 +118,42 @@ internal static class BuildManifestTracker
         manifest.Media = currentMedia;
     }
 
-    internal static void SyncMediaOutputs(string mediaDownloadDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null)
+    internal static void SyncMediaOutputs(
+        string mediaDownloadDir,
+        string outputDir,
+        BuildManifest manifest,
+        bool incrementalEnabled,
+        ILogger logger,
+        string? fingerprintMode = null,
+        IOutputPathPolicy? pathPolicy = null,
+        Bukit.Engine.IO.ISafeSourceFileOpener? opener = null)
     {
         var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
-        DirectoryCopy.SyncFilesRecursive(mediaDownloadDir, mediaOutputDir, ignoreDotPrefixedFiles: true, outputRoot: outputDir, pathPolicy: pathPolicy);
-
-        var currentMedia = SafeFileEnumerator.EnumerateFiles(mediaDownloadDir)
-            .Where(file => !Path.GetFileName(file).StartsWith('.') && !IsSymlink(file))
-            .Select(file =>
-            {
-                var relativePath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(mediaDownloadDir, file));
-                var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine("assets", "uploads", relativePath));
-                return new KeyValuePair<string, string>(outputPath, ComputeFileFingerprint(file, fingerprintMode));
-            })
-            .ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+        var copyOptions = new DirectoryCopyOptions
+        {
+            HashMode = fingerprintMode ?? "size-time",
+            IgnoreDotPrefixedFiles = true,
+            FollowSymlinks = false
+        };
+        var currentMedia = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var item in DirectoryCopy.EnumerateFilesForSync(mediaDownloadDir, copyOptions))
+        {
+            var relativePath = BuildPathUtils.NormalizeRelPath(item.RelativePath);
+            var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine("assets", "uploads", relativePath));
+            var destinationFile = Path.Combine(
+                mediaOutputDir,
+                item.RelativePath);
+            DirectoryCopy.SyncPlannedFile(
+                item.SourcePath,
+                destinationFile,
+                copyOptions.HashMode,
+                outputDir,
+                item.PhysicalSourceRoot,
+                copyOptions,
+                pathPolicy,
+                opener);
+            currentMedia[outputPath] = ComputeFileFingerprint(destinationFile, fingerprintMode);
+        }
 
         DeleteStaleTrackedFiles(outputDir, manifest.Media, currentMedia, incrementalEnabled, logger, "media", pathPolicy);
         manifest.Media = currentMedia;

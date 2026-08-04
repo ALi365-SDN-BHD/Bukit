@@ -39,7 +39,7 @@ public sealed class NotionRenderingTests
                   ]
                 }
                 """));
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
             handler);
         var renderer = new NotionBlocksRenderer(transport);
@@ -67,7 +67,7 @@ public sealed class NotionRenderingTests
               ]
             }
             """));
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
             handler);
         var registry = NotionBlockRendererRegistry.CreateDefault()
@@ -84,7 +84,7 @@ public sealed class NotionRenderingTests
     public async Task MissingResults_UsesRenderingExceptionWithoutContentDependency()
     {
         var handler = new SequenceHandler(Json("{}"));
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
             handler);
         var renderer = new NotionBlocksRenderer(transport);
@@ -99,7 +99,7 @@ public sealed class NotionRenderingTests
     public async Task RenderPageAsync_PropagatesCallerCancellationUnchanged()
     {
         var handler = new CancelingHandler();
-        using var transport = new NotionClient(
+        using var transport = CanonicalBlockRendererTestSupport.CreateClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
             handler);
         var renderer = new NotionBlocksRenderer(transport);

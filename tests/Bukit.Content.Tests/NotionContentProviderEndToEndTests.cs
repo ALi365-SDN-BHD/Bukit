@@ -27,7 +27,7 @@ public sealed class NotionContentProviderEndToEndTests
         };
 
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
 
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
@@ -95,7 +95,7 @@ public sealed class NotionContentProviderEndToEndTests
         };
 
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
 
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
@@ -135,7 +135,7 @@ public sealed class NotionContentProviderEndToEndTests
         };
 
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
 
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
@@ -171,7 +171,7 @@ public sealed class NotionContentProviderEndToEndTests
             };
 
             NotionApiClient CreateClient() =>
-                new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+                new(options, handler, (_, _) => Task.CompletedTask);
 
             var firstProvider = new NotionContentProvider(options, logger: null, CreateClient);
             var firstResult = await firstProvider.LoadRawAsync();
@@ -213,7 +213,7 @@ public sealed class NotionContentProviderEndToEndTests
         };
 
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
 
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
@@ -269,7 +269,7 @@ public sealed class NotionContentProviderEndToEndTests
             RequestDelayMs = 0
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
@@ -291,7 +291,7 @@ public sealed class NotionContentProviderEndToEndTests
             RequestDelayMs = 0
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
@@ -318,7 +318,7 @@ public sealed class NotionContentProviderEndToEndTests
                 CacheDir = cacheDir
             };
             NotionApiClient CreateClient() =>
-                new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+                new(options, handler, (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger: null, CreateClient);
             var result = await provider.LoadRawAsync();
             var item = Assert.Single(result.Documents);
@@ -359,7 +359,7 @@ public sealed class NotionContentProviderEndToEndTests
                 CacheDir = cacheDir
             };
             NotionApiClient CreateClient() =>
-                new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+                new(options, handler, (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger: null, CreateClient);
             var result = await provider.LoadRawAsync();
             var item = Assert.Single(result.Documents);
@@ -392,7 +392,7 @@ public sealed class NotionContentProviderEndToEndTests
             RequestDelayMs = 0
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
@@ -420,7 +420,7 @@ public sealed class NotionContentProviderEndToEndTests
             RequestDelayMs = 0
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
@@ -450,7 +450,7 @@ public sealed class NotionContentProviderEndToEndTests
             RequestDelayMs = 0
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
@@ -472,7 +472,7 @@ public sealed class NotionContentProviderEndToEndTests
             RequestDelayMs = 0
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
@@ -496,7 +496,7 @@ public sealed class NotionContentProviderEndToEndTests
             RequestDelayMs = 0
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
@@ -520,7 +520,7 @@ public sealed class NotionContentProviderEndToEndTests
             AutoSummaryMaxLength = 42
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
         var result = await provider.LoadRawAsync();
         var item = Assert.Single(result.Documents);
@@ -553,7 +553,7 @@ public sealed class NotionContentProviderEndToEndTests
             FieldPolicyMode = "all"
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
@@ -598,7 +598,7 @@ public sealed class NotionContentProviderEndToEndTests
             FieldPolicyMode = "all"
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
@@ -691,7 +691,7 @@ public sealed class NotionContentProviderEndToEndTests
             RenderContent = false
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         return new NotionContentProvider(options, logger: null, CreateClient);
     }
 

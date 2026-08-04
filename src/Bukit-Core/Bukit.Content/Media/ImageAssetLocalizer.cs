@@ -1,5 +1,6 @@
 using Bukit.Engine.Abstractions.Content;
 using System.Collections.Concurrent;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Bukit.Config;
@@ -11,6 +12,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 {
     private const string UserAgentValue = "Bukit/1.0";
     private const long DefaultMaxFileSize = 50L * 1024 * 1024;
+    private const int MaxRedirects = 5;
 
     private static readonly IReadOnlyDictionary<string, string> ContentTypeToExt =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -37,14 +39,15 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
     private readonly MediaConfig _config;
     private readonly HttpClient _httpClient;
+    private readonly Func<string, CancellationToken, Task<IPAddress[]>> _resolveHostAddresses;
     private readonly ILogger? _logger;
-    private readonly bool _ownsHttpClient;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly CancellationToken _lifetimeToken;
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Lazy<Task<string>>> _inflight = new(StringComparer.Ordinal);
     private readonly ConcurrentBag<MediaFailure> _failures = new();
     private readonly MediaIndexManager _indexManager;
+    private readonly ImageContentValidator _imageValidator = new();
     private int _disposeState;
 
     public IReadOnlyList<MediaFailure> Failures => _failures.ToArray();
@@ -53,31 +56,49 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
     {
         _config = config;
         _logger = logger;
+        _resolveHostAddresses = ResolveHostAddressesAsync;
         _lifetimeToken = _lifetimeCancellation.Token;
         _indexManager = new MediaIndexManager(
             config.DownloadDir ?? string.Empty, config.UrlBase ?? string.Empty, logger);
 
-        var handler = new SocketsHttpHandler();
+        var handler = CreateDefaultHandler(config);
+        _httpClient = new HttpClient(handler);
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgentValue);
+    }
+
+    internal static SocketsHttpHandler CreateDefaultHandler(MediaConfig config)
+    {
+        var handler = new SocketsHttpHandler { AllowAutoRedirect = false };
         if (config.BlockPrivateNetworks)
         {
             handler.ConnectCallback = SsrfGuard.SsrfSafeConnectAsync;
         }
 
-        _httpClient = new HttpClient(handler);
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgentValue);
-        _ownsHttpClient = true;
+        return handler;
     }
 
-    internal ImageAssetLocalizer(MediaConfig config, HttpClient httpClient, ILogger? logger = null)
+    internal ImageAssetLocalizer(
+        MediaConfig config,
+        HttpMessageHandler handler,
+        Func<string, CancellationToken, Task<IPAddress[]>> resolveHostAddresses,
+        ILogger? logger = null)
     {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(handler);
+        ArgumentNullException.ThrowIfNull(resolveHostAddresses);
         _config = config;
-        _httpClient = httpClient;
+        _httpClient = new HttpClient(handler, disposeHandler: true);
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgentValue);
+        _resolveHostAddresses = resolveHostAddresses;
         _logger = logger;
         _lifetimeToken = _lifetimeCancellation.Token;
         _indexManager = new MediaIndexManager(
             config.DownloadDir ?? string.Empty, config.UrlBase ?? string.Empty, logger);
-        _ownsHttpClient = false;
     }
+
+    internal ImageAssetLocalizer(MediaConfig config, HttpClient httpClient, ILogger? logger = null)
+        => throw new NotSupportedException(
+            "Injected HttpClient is not supported because redirect and connection policy cannot be enforced. Inject a single-hop HttpMessageHandler instead.");
 
     public async Task<string> LocalizeAsync(string? sourceUrl, CancellationToken cancellationToken)
     {
@@ -219,13 +240,6 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         string normalizedKey, Uri uri, string source, string root,
         CancellationToken cancellationToken)
     {
-        if (_config.BlockPrivateNetworks && !_ownsHttpClient &&
-            await SsrfGuard.IsPrivateHostAsync(uri.Host, cancellationToken))
-        {
-            _logger?.Warn($"event=media.ssrf_blocked source={UrlRedactor.Redact(source)}");
-            return RecordFailure(source, "SSRF blocked (private/reserved address)");
-        }
-
         var maxRetries = _config.MaxRetries is >= 0 ? _config.MaxRetries.Value : 0;
         var maxFileSize = _config.MaxFileSizeBytes is > 0
             ? _config.MaxFileSizeBytes.Value
@@ -236,15 +250,14 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, uri);
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 if (_config.TimeoutMs is > 0)
                 {
                     cts.CancelAfter(_config.TimeoutMs.Value);
                 }
 
-                using var response = await _httpClient.SendAsync(
-                    request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                var sendResult = await SendWithRedirectsAsync(uri, cts.Token);
+                using var response = sendResult.Response;
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -266,7 +279,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                     return RecordFailure(source, $"Content-Type rejected: {contentType ?? "(null)"}");
                 }
 
-                var ext = ResolveExtension(uri, contentType);
+                var ext = ResolveExtension(sendResult.FinalUri, contentType);
                 var fileName = BuildStableFileName(normalizedKey, ext);
                 var localPath = Path.Combine(root, fileName);
                 var tempPath = BuildTempFilePath(root, fileName);
@@ -293,7 +306,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                 bool signatureMatches;
                 try
                 {
-                    signatureMatches = await ImageContentSignature.MatchesFileAsync(
+                    signatureMatches = await _imageValidator.ValidateAsync(
                         tempPath,
                         contentType!,
                         cts.Token);
@@ -311,15 +324,96 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
                         $"event=media.signature_rejected type={contentType} source={UrlRedactor.Redact(source)}");
                     return RecordFailure(
                         source,
-                        "Image content signature does not match Content-Type.");
+                        "Image content signature does not match Content-Type or is not decodable.");
                 }
 
-                MoveTempFileIntoPlace(tempPath, localPath);
+                FileContentIdentity expectedIdentity;
+                try
+                {
+                    expectedIdentity = await ReadFileContentIdentityAsync(tempPath, cts.Token);
+                }
+                catch
+                {
+                    DeleteFileBestEffort(tempPath);
+                    throw;
+                }
+
+                // Move winner: on collision, re-open and fully re-validate the file that
+                // actually won the race before treating it as our cached result.
+                if (!MoveTempFileIntoPlace(tempPath, localPath, out var winnerIsTrusted))
+                {
+                    DeleteFileBestEffort(tempPath);
+                    _logger?.Warn(
+                        $"event=media.move_conflict_unverified source={UrlRedactor.Redact(source)}");
+                    return RecordFailure(source, "Media file move conflicted with an unverifiable winner.");
+                }
+
+                if (!winnerIsTrusted)
+                {
+                    // Another writer won the race; verify MIME/signature/decode,
+                    // then require the exact downloaded content identity.
+                    bool winnerValid;
+                    try
+                    {
+                        winnerValid = await _imageValidator.ValidateAsync(
+                            localPath,
+                            contentType!,
+                            cts.Token);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                        winnerValid = false;
+                    }
+
+                    if (!winnerValid)
+                    {
+                        _logger?.Warn(
+                            $"event=media.winner_rejected type={contentType} source={UrlRedactor.Redact(source)}");
+                        return RecordFailure(source, "Media winner file failed content validation.");
+                    }
+
+                    bool winnerIdentityMatches;
+                    try
+                    {
+                        var winnerIdentity = await ReadFileContentIdentityAsync(localPath, cts.Token);
+                        winnerIdentityMatches = winnerIdentity.Length == expectedIdentity.Length &&
+                            CryptographicOperations.FixedTimeEquals(
+                                winnerIdentity.Sha256,
+                                expectedIdentity.Sha256);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                        winnerIdentityMatches = false;
+                    }
+
+                    if (!winnerIdentityMatches)
+                    {
+                        _logger?.Warn(
+                            $"event=media.winner_identity_rejected source={UrlRedactor.Redact(source)}");
+                        return RecordFailure(
+                            source,
+                            "Media winner file did not match downloaded content identity.");
+                    }
+                }
 
                 var publicUrl = _indexManager.CombineUrl(fileName);
                 _indexManager.RememberIndex(normalizedKey, fileName);
                 _cache.TryAdd(normalizedKey, fileName);
                 return publicUrl;
+            }
+            catch (UnsafeMediaTargetException ex)
+            {
+                _logger?.Warn(
+                    $"event=media.ssrf_blocked source={UrlRedactor.Redact(source)} error={ex.GetType().Name}");
+                return RecordFailure(source, "SSRF blocked (unsafe or unverifiable target)");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -338,6 +432,88 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
             }
         }
     }
+
+    private async Task<MediaSendResult> SendWithRedirectsAsync(
+        Uri initialUri,
+        CancellationToken cancellationToken)
+    {
+        var currentUri = initialUri;
+        for (var redirectCount = 0; ; redirectCount++)
+        {
+            if (!await IsRequestTargetAllowedAsync(currentUri, cancellationToken))
+            {
+                throw new UnsafeMediaTargetException("Media request target failed SSRF validation.");
+            }
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
+            var response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+            if (!IsRedirectStatus(response.StatusCode) || response.Headers.Location is null)
+            {
+                return new MediaSendResult(response, currentUri);
+            }
+
+            if (redirectCount >= MaxRedirects)
+            {
+                response.Dispose();
+                throw new UnsafeMediaTargetException($"Media request exceeded {MaxRedirects} redirects.");
+            }
+
+            var location = response.Headers.Location;
+            response.Dispose();
+            if (!Uri.TryCreate(currentUri, location, out var redirectUri))
+            {
+                throw new UnsafeMediaTargetException("Media redirect target is invalid.");
+            }
+
+            currentUri = redirectUri;
+        }
+    }
+
+    private async Task<bool> IsRequestTargetAllowedAsync(
+        Uri uri,
+        CancellationToken cancellationToken)
+    {
+        if (!uri.IsAbsoluteUri ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return false;
+        }
+
+        if (!_config.BlockPrivateNetworks)
+        {
+            return true;
+        }
+
+        if (IPAddress.TryParse(uri.DnsSafeHost, out var literalAddress))
+        {
+            return !SsrfGuard.IsPrivateAddress(literalAddress);
+        }
+
+        try
+        {
+            var addresses = await _resolveHostAddresses(uri.DnsSafeHost, cancellationToken);
+            return addresses.Length > 0 && addresses.All(static address => !SsrfGuard.IsPrivateAddress(address));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return false;
+        }
+    }
+
+    private static Task<IPAddress[]> ResolveHostAddressesAsync(
+        string host,
+        CancellationToken cancellationToken)
+        => Dns.GetHostAddressesAsync(host, cancellationToken);
+
+    private static bool IsRedirectStatus(HttpStatusCode statusCode)
+        => statusCode is HttpStatusCode.MovedPermanently
+            or HttpStatusCode.Found
+            or HttpStatusCode.SeeOther
+            or HttpStatusCode.TemporaryRedirect
+            or HttpStatusCode.PermanentRedirect;
 
     private static string BuildDownloadErrorDiagnostic(Exception exception)
     {
@@ -425,20 +601,41 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
         return Path.Combine(root, $".{fileName}.{Guid.NewGuid():N}.tmp");
     }
 
-    private static void MoveTempFileIntoPlace(string tempPath, string localPath)
+    private static async Task<FileContentIdentity> ReadFileContentIdentityAsync(
+        string path,
+        CancellationToken cancellationToken)
     {
+        await using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 8192,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+        var length = stream.Length;
+        var sha256 = await SHA256.HashDataAsync(stream, cancellationToken);
+        return new FileContentIdentity(length, sha256);
+    }
+
+    private static bool MoveTempFileIntoPlace(string tempPath, string localPath, out bool winnerIsTrusted)
+    {
+        winnerIsTrusted = true;
         try
         {
             File.Move(tempPath, localPath);
+            return true;
         }
         catch (IOException) when (File.Exists(localPath))
         {
+            // Another writer won the race; the winner needs re-validation
+            winnerIsTrusted = false;
             DeleteFileBestEffort(tempPath);
+            return true;
         }
         catch
         {
             DeleteFileBestEffort(tempPath);
-            throw;
+            return false;
         }
     }
 
@@ -475,7 +672,7 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
         try
         {
-            return await ImageContentSignature.MatchesFileAsync(
+            return await _imageValidator.ValidateAsync(
                 Path.Combine(root, fileName),
                 contentType,
                 cancellationToken);
@@ -579,11 +776,14 @@ public sealed class ImageAssetLocalizer : IImageAssetLocalizer, IDisposable
 
         _lifetimeCancellation.Cancel();
         _indexManager.PersistIndex();
-        if (_ownsHttpClient)
-        {
-            _httpClient.Dispose();
-        }
+        _httpClient.Dispose();
 
         _lifetimeCancellation.Dispose();
     }
+
+    private sealed record MediaSendResult(HttpResponseMessage Response, Uri FinalUri);
+
+    private readonly record struct FileContentIdentity(long Length, byte[] Sha256);
+
+    private sealed class UnsafeMediaTargetException(string message) : Exception(message);
 }

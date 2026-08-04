@@ -223,6 +223,8 @@ public static class PluginRunner
                     _ => Array.Empty<RoutedContentDocument>()
                 };
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (pages.Count > 0)
                 {
                     var acceptedPages = ApplyDeriveConflictPolicy(
@@ -469,6 +471,7 @@ public static class PluginRunner
                         after.AfterBuild(context);
                         break;
                 }
+                cancellationToken.ThrowIfCancellationRequested();
                 sw.Stop();
                 context.PluginExecutions.Add(new PluginExecutionInfo(plugin.Name, "after-build", sw.ElapsedMilliseconds, true, null));
                 context.Logger.Info($"plugin {plugin.Name} after-build {sw.ElapsedMilliseconds}ms");

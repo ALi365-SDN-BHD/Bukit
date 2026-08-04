@@ -33,8 +33,8 @@ internal static class ExternalToolProcessRunner
             throw new InvalidOperationException($"Unable to start external tool '{startInfo.FileName}'.");
         }
 
-        var stdoutCollector = new BoundedOutputCollector(StreamByteCap);
-        var stderrCollector = new BoundedOutputCollector(StreamByteCap);
+        using var stdoutCollector = new BoundedOutputCollector(StreamByteCap);
+        using var stderrCollector = new BoundedOutputCollector(StreamByteCap);
         Task stdoutTask = stdoutCollector.ReadAsync(process.StandardOutput.BaseStream, process, CancellationToken.None);
         Task stderrTask = stderrCollector.ReadAsync(process.StandardError.BaseStream, process, CancellationToken.None);
 
@@ -71,20 +71,30 @@ internal static class ExternalToolProcessRunner
                     : $" Process termination did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds."));
         }
 
-        await Task.WhenAll(stdoutTask, stderrTask);
+        // Bounded drain: even on normal exit, a grandchild may hold the pipe
+        var drainCompleted = await WaitForTerminationGraceAsync(
+            Task.WhenAll(stdoutTask, stderrTask),
+            TerminationGracePeriod);
+        if (!drainCompleted)
+        {
+            Console.Error.WriteLine(
+                $"External tool output drain did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds: {startInfo.FileName}");
+        }
 
-        if (stdoutCollector.Exceeded || stderrCollector.Exceeded)
+        var stdout = stdoutCollector.Seal();
+        var stderr = stderrCollector.Seal();
+        if (stdout.Exceeded || stderr.Exceeded)
         {
             TryKillProcessTree(process);
-            string stream = stdoutCollector.Exceeded ? "stdout" : "stderr";
+            string stream = stdout.Exceeded ? "stdout" : "stderr";
             throw new InvalidOperationException(
                 $"External tool '{startInfo.FileName}' produced more than {StreamByteCap} bytes on {stream}.");
         }
 
         return new ExternalToolProcessResult(
             process.ExitCode,
-            stdoutCollector.GetText(),
-            stderrCollector.GetText());
+            stdout.GetText(),
+            stderrCollector.GetDiagnosticText());
     }
 
     private static void TryKillProcessTree(Process process)
@@ -162,8 +172,11 @@ internal static class ExternalToolProcessRunner
     {
         private readonly int _maxBytes;
         private readonly MemoryStream _buffer;
+        private readonly object _gate = new();
         private long _totalBytesRead;
         private bool _exceeded;
+        private bool _sealed;
+        private bool _disposed;
 
         public BoundedOutputCollector(int maxBytes)
         {
@@ -171,9 +184,27 @@ internal static class ExternalToolProcessRunner
             _buffer = new MemoryStream(capacity: Math.Min(maxBytes, 4096));
         }
 
-        public bool Exceeded => _exceeded;
+        public bool Exceeded
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _exceeded;
+                }
+            }
+        }
 
-        public void Dispose() => _buffer.Dispose();
+        public void Dispose()
+        {
+            lock (_gate)
+            {
+                if (_disposed) return;
+                _sealed = true;
+                _disposed = true;
+                _buffer.Dispose();
+            }
+        }
 
         public async Task ReadAsync(Stream stream, Process process, CancellationToken cancellationToken)
         {
@@ -183,17 +214,29 @@ internal static class ExternalToolProcessRunner
                 int bytesRead = await stream.ReadAsync(readBuffer, cancellationToken);
                 if (bytesRead == 0) break;
 
-                _totalBytesRead += bytesRead;
-                int space = _maxBytes - (int)_buffer.Length;
-                if (space > 0)
+                var exceeded = false;
+                lock (_gate)
                 {
-                    int toWrite = Math.Min(bytesRead, space);
-                    _buffer.Write(readBuffer, 0, toWrite);
+                    if (_sealed) return;
+
+                    _totalBytesRead += bytesRead;
+                    int space = _maxBytes - (int)_buffer.Length;
+                    if (space > 0)
+                    {
+                        int toWrite = Math.Min(bytesRead, space);
+                        _buffer.Write(readBuffer, 0, toWrite);
+                    }
+
+                    if (_totalBytesRead > _maxBytes)
+                    {
+                        _exceeded = true;
+                        _sealed = true;
+                        exceeded = true;
+                    }
                 }
 
-                if (_totalBytesRead > _maxBytes)
+                if (exceeded)
                 {
-                    _exceeded = true;
                     TryKillProcess(process);
                     return;
                 }
@@ -213,22 +256,87 @@ internal static class ExternalToolProcessRunner
             catch (System.ComponentModel.Win32Exception) { }
         }
 
-        public string GetText()
+        internal OutputSnapshot Seal()
         {
-            return Utf8NoBom.GetString(_buffer.ToArray());
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                _sealed = true;
+                return new OutputSnapshot(_buffer.GetBuffer(), checked((int)_buffer.Length), _totalBytesRead, _exceeded);
+            }
         }
+
+        public string GetText() => Seal().GetText();
 
         public string GetDiagnosticText()
         {
-            byte[] data = _buffer.ToArray();
-            if (data.Length <= DiagnosticHeadBytes + DiagnosticTailBytes)
+            var snapshot = Seal();
+            byte[] buffer = snapshot.Buffer;
+            if (snapshot.Length <= DiagnosticHeadBytes + DiagnosticTailBytes)
             {
-                return Utf8NoBom.GetString(data);
+                return Utf8NoBom.GetString(buffer, 0, snapshot.Length);
             }
 
-            var head = Utf8NoBom.GetString(data, 0, DiagnosticHeadBytes);
-            var tail = Utf8NoBom.GetString(data, data.Length - DiagnosticTailBytes, DiagnosticTailBytes);
-            return $"{head}\n... [truncated {_totalBytesRead - DiagnosticHeadBytes - DiagnosticTailBytes} bytes] ...\n{tail}";
+            var head = DecodeUtf8PrefixWithinByteLimit(buffer, 0, DiagnosticHeadBytes, DiagnosticHeadBytes);
+            var tail = DecodeUtf8SuffixWithinByteLimit(buffer, snapshot.Length - DiagnosticTailBytes, DiagnosticTailBytes, DiagnosticTailBytes);
+            return $"{head}\n... [truncated {snapshot.TotalBytesRead - DiagnosticHeadBytes - DiagnosticTailBytes} bytes] ...\n{tail}";
+        }
+
+        private static string DecodeUtf8PrefixWithinByteLimit(byte[] buffer, int offset, int length, int maxEmittedBytes)
+        {
+            var text = Utf8NoBom.GetString(buffer, offset, length);
+            if (Utf8NoBom.GetByteCount(text) <= maxEmittedBytes)
+            {
+                return text;
+            }
+
+            var low = 0;
+            var high = text.Length;
+            while (low < high)
+            {
+                var middle = low + ((high - low + 1) / 2);
+                if (Utf8NoBom.GetByteCount(text.AsSpan(0, middle)) <= maxEmittedBytes)
+                {
+                    low = middle;
+                }
+                else
+                {
+                    high = middle - 1;
+                }
+            }
+
+            return text[..low];
+        }
+
+        private static string DecodeUtf8SuffixWithinByteLimit(byte[] buffer, int offset, int length, int maxEmittedBytes)
+        {
+            var text = Utf8NoBom.GetString(buffer, offset, length);
+            if (Utf8NoBom.GetByteCount(text) <= maxEmittedBytes)
+            {
+                return text;
+            }
+
+            var low = 0;
+            var high = text.Length;
+            while (low < high)
+            {
+                var middle = low + ((high - low) / 2);
+                if (Utf8NoBom.GetByteCount(text.AsSpan(middle)) <= maxEmittedBytes)
+                {
+                    high = middle;
+                }
+                else
+                {
+                    low = middle + 1;
+                }
+            }
+
+            return text[high..];
+        }
+
+        internal sealed record OutputSnapshot(byte[] Buffer, int Length, long TotalBytesRead, bool Exceeded)
+        {
+            internal string GetText() => Utf8NoBom.GetString(Buffer, 0, Length);
         }
     }
 }

@@ -3,6 +3,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Shared;
+using SixLabors.ImageSharp;
 using Xunit;
 using Xunit.Sdk;
 
@@ -45,17 +46,19 @@ public sealed class AssetToolingSymlinkTests
         var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
         {
-            File.WriteAllText(Path.Combine(assetsDir, "local.jpg"), "local");
+            WriteValidImage(Path.Combine(assetsDir, "local.jpg"), "local");
             File.WriteAllText(Path.Combine(externalDir, "secret.jpg"), "secret");
             CreateDirectorySymlinkOrSkip(Path.Combine(assetsDir, "linked-external"), externalDir);
             var toolDir = Path.Combine(root, "tools");
             Directory.CreateDirectory(toolDir);
+            var validImage = Path.Combine(toolDir, "valid.jpg");
+            WriteValidImage(validImage, "resized");
             var toolPath = Path.Combine(toolDir, "magick");
-            File.WriteAllText(toolPath, """
+            File.WriteAllText(toolPath, $"""
                 #!/bin/sh
                 if [ "$1" = "--version" ]; then exit 0; fi
                 for last in "$@"; do :; done
-                printf resized > "$last"
+                cp '{EscapeSingleQuoted(validImage)}' "$last"
                 """);
             File.SetUnixFileMode(
                 toolPath,
@@ -94,6 +97,23 @@ public sealed class AssetToolingSymlinkTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    private static void WriteValidImage(string path, string seed)
+    {
+        var hash = 0;
+        foreach (var character in seed)
+        {
+            hash = unchecked(hash * 31 + character);
+        }
+
+        using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(2, 2);
+        image[0, 0] = new SixLabors.ImageSharp.PixelFormats.Rgba32(
+            (byte)(hash & 0xFF), (byte)((hash >> 8) & 0xFF), (byte)((hash >> 16) & 0xFF));
+        image[1, 1] = new SixLabors.ImageSharp.PixelFormats.Rgba32(255, 255, 255);
+        image.SaveAsJpeg(path);
+    }
+
+    private static string EscapeSingleQuoted(string value) => value.Replace("'", "'\\''", StringComparison.Ordinal);
 
     private static string CreateFixture(out string assetsDir, out string externalDir)
     {

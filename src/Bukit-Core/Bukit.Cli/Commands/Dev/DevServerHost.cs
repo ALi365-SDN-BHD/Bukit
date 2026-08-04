@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.ExceptionServices;
 using Bukit.Shared;
 
 namespace Bukit.Cli.Commands.Dev;
@@ -11,6 +12,7 @@ internal sealed class DevServerHost : IDevServerHost
 
     private readonly HttpListener _listener;
     private readonly ILogger _logger;
+    private readonly Action<Task>? _onRequestTracked;
     private readonly SemaphoreSlim _requestGate = new(MaxConcurrentRequests, MaxConcurrentRequests);
     private readonly object _lifecycleLock = new();
     private readonly TaskCompletionSource<bool> _acceptLoopCompleted =
@@ -19,10 +21,16 @@ internal sealed class DevServerHost : IDevServerHost
     private bool _requestGateDisposed;
     private bool _disposed;
 
-    private DevServerHost(HttpListener listener, string host, int port, ILogger logger)
+    private DevServerHost(
+        HttpListener listener,
+        string host,
+        int port,
+        ILogger logger,
+        Action<Task>? onRequestTracked)
     {
         _listener = listener;
         _logger = logger;
+        _onRequestTracked = onRequestTracked;
         Port = port;
         Prefix = $"http://{host}:{port}/";
     }
@@ -32,6 +40,13 @@ internal sealed class DevServerHost : IDevServerHost
     public string Prefix { get; }
 
     public static DevServerHost Start(string host, int requestedPort, ILogger logger)
+        => Start(host, requestedPort, logger, onRequestTracked: null);
+
+    internal static DevServerHost Start(
+        string host,
+        int requestedPort,
+        ILogger logger,
+        Action<Task>? onRequestTracked)
     {
         var chosen = requestedPort == 0 ? PickFreePort() : requestedPort;
 
@@ -49,7 +64,7 @@ internal sealed class DevServerHost : IDevServerHost
                 {
                     logger.Info($"Port {chosen} unavailable, using {candidate}.");
                 }
-                return new DevServerHost(listener, host, candidate, logger);
+                return new DevServerHost(listener, host, candidate, logger, onRequestTracked);
             }
             catch (HttpListenerException)
             {
@@ -78,6 +93,8 @@ internal sealed class DevServerHost : IDevServerHost
         }
 
         var activeRequests = new HashSet<Task>();
+        Exception? requestFailure = null;
+        Exception? completionFailure = null;
         try
         {
             while (!ct.IsCancellationRequested)
@@ -100,10 +117,14 @@ internal sealed class DevServerHost : IDevServerHost
                     break;
                 }
 
+                var bypassRequestGate =
+                    context.Request.IsWebSocketRequest &&
+                    context.Request.Url?.AbsolutePath == "/__ws__";
                 try
                 {
-                    // WebSocket upgrades bypass the request gate (hub has its own capacity)
-                    if (!context.Request.IsWebSocketRequest)
+                    // The WebSocket hub has its own capacity; every other route
+                    // remains bounded by the ordinary request gate.
+                    if (!bypassRequestGate)
                     {
                         await _requestGate.WaitAsync(ct).ConfigureAwait(false);
                     }
@@ -114,13 +135,14 @@ internal sealed class DevServerHost : IDevServerHost
                     break;
                 }
 
-                activeRequests.RemoveWhere(task => task.IsCompleted);
-                var isWebSocket = context.Request.IsWebSocketRequest;
-                activeRequests.Add(Task.Run(
-                    () => isWebSocket
+                ObserveCompletedRequests(activeRequests, ref requestFailure);
+                var requestTask = Task.Run(
+                    () => bypassRequestGate
                         ? DispatchRequestAsync(dispatchAsync, context, ct)
                         : DispatchGatedRequestAsync(dispatchAsync, context, ct),
-                    CancellationToken.None));
+                    CancellationToken.None);
+                activeRequests.Add(requestTask);
+                _onRequestTracked?.Invoke(requestTask);
             }
         }
         finally
@@ -131,13 +153,28 @@ internal sealed class DevServerHost : IDevServerHost
             }
             catch
             {
-                // Observe all faults; completion is reported below
+                // Observe every remaining request task below while retaining
+                // only the first failure for bounded completion semantics.
             }
             finally
             {
+                ObserveRequestFailures(activeRequests, ref requestFailure);
+                completionFailure = requestFailure;
                 DisposeRequestGate();
-                _acceptLoopCompleted.TrySetResult(true);
+                if (completionFailure is not null)
+                {
+                    _acceptLoopCompleted.TrySetException(completionFailure);
+                }
+                else
+                {
+                    _acceptLoopCompleted.TrySetResult(true);
+                }
             }
+        }
+
+        if (completionFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(completionFailure).Throw();
         }
     }
 
@@ -162,16 +199,31 @@ internal sealed class DevServerHost : IDevServerHost
         {
         }
 
-        if (acceptLoopCompletion is not null)
+        Exception? completionFailure = null;
+        try
         {
-            acceptLoopCompletion.GetAwaiter().GetResult();
+            if (acceptLoopCompletion is not null)
+            {
+                acceptLoopCompletion.GetAwaiter().GetResult();
+            }
+            else
+            {
+                DisposeRequestGate();
+            }
         }
-        else
+        catch (Exception ex)
         {
-            DisposeRequestGate();
+            completionFailure = ex;
+        }
+        finally
+        {
+            _listener.Close();
         }
 
-        _listener.Close();
+        if (completionFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(completionFailure).Throw();
+        }
     }
 
     private async Task DispatchGatedRequestAsync(
@@ -213,6 +265,35 @@ internal sealed class DevServerHost : IDevServerHost
         lock (_lifecycleLock)
         {
             return _disposed;
+        }
+    }
+
+    private static void ObserveCompletedRequests(
+        HashSet<Task> activeRequests,
+        ref Exception? requestFailure)
+    {
+        foreach (var task in activeRequests.Where(task => task.IsCompleted).ToArray())
+        {
+            activeRequests.Remove(task);
+            ObserveRequestFailure(task, ref requestFailure);
+        }
+    }
+
+    private static void ObserveRequestFailures(
+        IEnumerable<Task> requests,
+        ref Exception? requestFailure)
+    {
+        foreach (var task in requests)
+        {
+            ObserveRequestFailure(task, ref requestFailure);
+        }
+    }
+
+    private static void ObserveRequestFailure(Task request, ref Exception? requestFailure)
+    {
+        if (request.Exception is { } failure && requestFailure is null)
+        {
+            requestFailure = failure.Flatten().InnerExceptions[0];
         }
     }
 

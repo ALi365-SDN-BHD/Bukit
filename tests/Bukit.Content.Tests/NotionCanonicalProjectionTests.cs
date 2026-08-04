@@ -125,7 +125,7 @@ public sealed class NotionCanonicalProjectionTests
             }
         };
         var handler = new CanonicalPageHandler(extraProperties);
-        NotionApiClient CreateClient() => new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+        NotionApiClient CreateClient() => new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();

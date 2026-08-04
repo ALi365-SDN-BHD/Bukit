@@ -18,6 +18,7 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
     private readonly LinkedList<string> _lruList = new();
     private readonly ConcurrentDictionary<string, LinkedListNode<string>> _lruNodes = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _lifetimeCts;
+    private readonly Action? _onCacheEntryPublishedBeforeLru;
 
     private long _totalRequests;
     private long _cacheHits;
@@ -35,11 +36,21 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
         IContentBodyStore inner,
         int maxEntries,
         CancellationToken lifetimeToken)
+        : this(inner, maxEntries, lifetimeToken, onCacheEntryPublishedBeforeLru: null)
+    {
+    }
+
+    internal BodyCacheDecorator(
+        IContentBodyStore inner,
+        int maxEntries,
+        CancellationToken lifetimeToken,
+        Action? onCacheEntryPublishedBeforeLru)
     {
         ArgumentNullException.ThrowIfNull(inner);
         _inner = inner;
         _maxEntries = maxEntries > 0 ? maxEntries : 10000;
         _lifetimeCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken);
+        _onCacheEntryPublishedBeforeLru = onCacheEntryPublishedBeforeLru;
     }
 
     public BodyCacheMetrics Metrics => new(
@@ -84,10 +95,15 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
         if (ReferenceEquals(lazy, newLazy))
         {
             Interlocked.Increment(ref _cacheMisses);
+            _onCacheEntryPublishedBeforeLru?.Invoke();
             lock (_lruLock)
             {
-                var node = _lruList.AddLast(key);
-                _lruNodes[key] = node;
+                if (_cache.TryGetValue(key, out var publishedLazy)
+                    && ReferenceEquals(publishedLazy, lazy))
+                {
+                    var node = _lruList.AddLast(key);
+                    _lruNodes[key] = node;
+                }
             }
             TrimExcess();
         }

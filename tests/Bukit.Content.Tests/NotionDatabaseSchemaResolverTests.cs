@@ -106,7 +106,7 @@ public sealed class NotionDatabaseSchemaResolverTests
 
     private static NotionContentClient CreateClient(NotionContentSourceOptions options, HttpMessageHandler handler)
     {
-        return new NotionContentClient(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+        return new NotionContentClient(options, handler, (_, _) => Task.CompletedTask);
     }
 
     private sealed class JsonHandler : HttpMessageHandler

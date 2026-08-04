@@ -9,6 +9,281 @@ namespace Bukit.Notion.Tests;
 public sealed class NotionClientTests
 {
     [Fact]
+    public void HandlerBoundary_PublicUnknownPrimaryHandlerIsRejectedAtConstruction()
+    {
+        var handler = new SequenceHandler(Response(HttpStatusCode.OK, "{}"));
+
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(
+                new NotionClientOptions { Token = "token" },
+                handler));
+
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public void HandlerBoundary_FactoryUnknownPrimaryHandlerIsRejectedAtConstruction()
+    {
+        var handler = new SequenceHandler(Response(HttpStatusCode.OK, "{}"));
+
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(new NotionClientOptions
+            {
+                Token = "token",
+                HttpHandlerFactory = () => handler
+            }));
+
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public void HandlerBoundary_PublicNullHandlerIsRejectedWithStableExceptionType()
+    {
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(
+                new NotionClientOptions { Token = "token" },
+                handler: null!));
+    }
+
+    [Fact]
+    public void HandlerBoundary_FactoryNullHandlerIsRejectedWithStableExceptionType()
+    {
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(new NotionClientOptions
+            {
+                Token = "token",
+                HttpHandlerFactory = static () => null!
+            }));
+    }
+
+    [Fact]
+    public void HandlerBoundary_PublicSocketsHttpHandlerDisablesAutomaticRedirects()
+    {
+        var handler = new SocketsHttpHandler { AllowAutoRedirect = true };
+        using var client = new NotionClient(
+            new NotionClientOptions { Token = "token" },
+            handler);
+
+        Assert.False(handler.AllowAutoRedirect);
+    }
+
+    [Fact]
+    public void HandlerBoundary_PublicHttpClientHandlerDisablesAutomaticRedirects()
+    {
+        var handler = new HttpClientHandler { AllowAutoRedirect = true };
+        using var client = new NotionClient(
+            new NotionClientOptions { Token = "token" },
+            handler);
+
+        Assert.False(handler.AllowAutoRedirect);
+    }
+
+    [Fact]
+    public void HandlerBoundary_DelegatingChainDisablesAutomaticRedirectsOnKnownTerminalHandler()
+    {
+        var terminal = new SocketsHttpHandler { AllowAutoRedirect = true };
+        var handler = new PassthroughHandler(new PassthroughHandler(terminal));
+        using var client = new NotionClient(
+            new NotionClientOptions { Token = "token" },
+            handler);
+
+        Assert.False(terminal.AllowAutoRedirect);
+    }
+
+    [Fact]
+    public void HandlerBoundary_DelegatingHandlerWithoutInnerHandlerIsRejectedAtConstruction()
+    {
+        var handler = new PassthroughHandler();
+
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(
+                new NotionClientOptions { Token = "token" },
+                handler));
+    }
+
+    [Fact]
+    public void HandlerBoundary_DelegatingChainWithUnknownTerminalHandlerIsRejectedAtConstruction()
+    {
+        var terminal = new SequenceHandler(Response(HttpStatusCode.OK, "{}"));
+        var handler = new PassthroughHandler(terminal);
+
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(
+                new NotionClientOptions { Token = "token" },
+                handler));
+
+        Assert.Equal(0, terminal.RequestCount);
+    }
+
+    [Fact]
+    public void HandlerBoundary_DelegatingChainWithoutTerminalHandlerIsRejectedAtConstruction()
+    {
+        var first = new PassthroughHandler();
+        var second = new PassthroughHandler(first);
+        first.InnerHandler = second;
+
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(
+                new NotionClientOptions { Token = "token" },
+                first));
+    }
+
+    [Fact]
+    public void HandlerOwnership_FactoryUnknownPrimaryHandlerIsDisposedExactlyOnceOnRejection()
+    {
+        var handler = new TrackingDisposeHandler();
+
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(new NotionClientOptions
+            {
+                Token = "token",
+                HttpHandlerFactory = () => handler
+            }));
+
+        Assert.Equal(1, handler.DisposeCount);
+    }
+
+    [Fact]
+    public void HandlerOwnership_FactoryMissingInnerHandlerIsDisposedExactlyOnceOnRejection()
+    {
+        var handler = new TrackingDelegatingHandler();
+
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(new NotionClientOptions
+            {
+                Token = "token",
+                HttpHandlerFactory = () => handler
+            }));
+
+        Assert.Equal(1, handler.DisposeCount);
+    }
+
+    [Fact]
+    public void HandlerOwnership_FactoryCycleIsBrokenAndEachHandlerIsDisposedExactlyOnce()
+    {
+        var first = new TrackingDelegatingHandler();
+        var second = new TrackingDelegatingHandler(first);
+        first.InnerHandler = second;
+
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(new NotionClientOptions
+            {
+                Token = "token",
+                HttpHandlerFactory = () => first
+            }));
+
+        Assert.Equal(1, first.DisposeCount);
+        Assert.Equal(1, second.DisposeCount);
+    }
+
+    [Fact]
+    public void HandlerOwnership_FactorySupportedGraphIsDisposedWhenLaterTimeoutValidationFails()
+    {
+        var handler = new TrackingDelegatingHandler(new SocketsHttpHandler());
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new NotionClient(new NotionClientOptions
+            {
+                Token = "token",
+                Timeout = TimeSpan.MaxValue,
+                HttpHandlerFactory = () => handler
+            }));
+
+        Assert.Equal(1, handler.DisposeCount);
+    }
+
+    [Fact]
+    public void HandlerOwnership_PublicUnknownHandlerRemainsCallerOwnedOnRejection()
+    {
+        var handler = new TrackingDisposeHandler();
+
+        Assert.Throws<NotSupportedException>(() =>
+            new NotionClient(
+                new NotionClientOptions { Token = "token" },
+                handler));
+
+        Assert.Equal(0, handler.DisposeCount);
+        handler.Dispose();
+        Assert.Equal(1, handler.DisposeCount);
+    }
+
+    [Fact]
+    public void HandlerOwnership_PublicSupportedGraphRemainsCallerOwnedWhenLaterTimeoutValidationFails()
+    {
+        var handler = new TrackingDelegatingHandler(new SocketsHttpHandler());
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new NotionClient(
+                new NotionClientOptions
+                {
+                    Token = "token",
+                    Timeout = TimeSpan.MaxValue
+                },
+                handler));
+
+        Assert.Equal(0, handler.DisposeCount);
+        handler.Dispose();
+        Assert.Equal(1, handler.DisposeCount);
+    }
+
+    [Theory]
+    [InlineData("", "2022-06-28")]
+    [InlineData("token", "")]
+    public void HandlerOwnership_InvalidOptionsAreRejectedBeforeFactoryInvocation(
+        string token,
+        string apiVersion)
+    {
+        var factoryCalls = 0;
+        using var handler = new SocketsHttpHandler();
+
+        Assert.Throws<ArgumentException>(() =>
+            new NotionClient(new NotionClientOptions
+            {
+                Token = token,
+                ApiVersion = apiVersion,
+                HttpHandlerFactory = () =>
+                {
+                    factoryCalls++;
+                    return handler;
+                }
+            }));
+
+        Assert.Equal(0, factoryCalls);
+    }
+
+    [Fact]
+    public void OptionsHandlerFactory_DisablesAutomaticRedirectsForKnownHandler()
+    {
+        var handler = new SocketsHttpHandler { AllowAutoRedirect = true };
+        using var client = new NotionClient(new NotionClientOptions
+        {
+            Token = "token",
+            HttpHandlerFactory = () => handler
+        });
+
+        Assert.False(handler.AllowAutoRedirect);
+    }
+
+    [Fact]
+    public async Task SendAsync_RejectsMismatchedExplicitHostBeforeAuthenticationOrNetwork()
+    {
+        var handler = new SequenceHandler(Response(HttpStatusCode.OK, "{}"));
+        using var client = new NotionClient(
+            new NotionClientOptions { Token = "host-secret" },
+            handler,
+            (_, _) => Task.CompletedTask,
+            () => DateTimeOffset.UtcNow);
+        using var request = new HttpRequestMessage(HttpMethod.Get, NotionApiUrls.Database("db"));
+        request.Headers.Host = "example.com";
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            client.SendAsync(request, NotionRequestSemantics.IdempotentRead));
+
+        Assert.Equal(0, handler.RequestCount);
+        Assert.Null(request.Headers.Authorization);
+    }
+
+    [Fact]
     public async Task GetAsync_RetriesRateLimitForIdempotentRead()
     {
         var handler = new SequenceHandler(
@@ -338,6 +613,42 @@ public sealed class NotionClientTests
             HttpRequestMessage request,
             CancellationToken cancellationToken)
             => Task.FromResult(Response(HttpStatusCode.OK, "{}"));
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                DisposeCount++;
+            }
+
+            base.Dispose(disposing);
+        }
+    }
+
+    private sealed class PassthroughHandler : DelegatingHandler
+    {
+        internal PassthroughHandler()
+        {
+        }
+
+        internal PassthroughHandler(HttpMessageHandler innerHandler)
+            : base(innerHandler)
+        {
+        }
+    }
+
+    private sealed class TrackingDelegatingHandler : DelegatingHandler
+    {
+        internal TrackingDelegatingHandler()
+        {
+        }
+
+        internal TrackingDelegatingHandler(HttpMessageHandler innerHandler)
+            : base(innerHandler)
+        {
+        }
+
+        internal int DisposeCount { get; private set; }
 
         protected override void Dispose(bool disposing)
         {

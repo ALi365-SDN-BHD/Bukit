@@ -18,18 +18,27 @@ internal sealed class ImageLocalizeStage : IContentStage
 
     public async Task<ContentStageOutput> ExecuteAsync(ContentStageInput input, CancellationToken cancellationToken)
     {
-        var loadResult = new RawContentLoadResult(ToRawDocuments(input.Documents), input.BodyStore);
+        var ownedBodyStore = input.BodyStore;
+        try
+        {
+            var loadResult = new RawContentLoadResult(ToRawDocuments(input.Documents), ownedBodyStore);
+            var sw = Stopwatch.StartNew();
+            loadResult = await _factory.LocalizeContentImagesAsync(
+                loadResult, input.Config.Content.Media, input.RootDir,
+                input.MediaCacheDir, input.Logger, cancellationToken);
+            ownedBodyStore = loadResult.BodyStore;
+            sw.Stop();
 
-        var sw = Stopwatch.StartNew();
-        loadResult = await _factory.LocalizeContentImagesAsync(
-            loadResult, input.Config.Content.Media, input.RootDir,
-            input.MediaCacheDir, input.Logger, cancellationToken);
-        sw.Stop();
+            var schema = ContentModelSchemaFactory.FromConfig(input.Config);
+            var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents, schema);
 
-        var schema = ContentModelSchemaFactory.FromConfig(input.Config);
-        var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents, schema);
-
-        return new ContentStageOutput(documents, loadResult.BodyStore, Name, sw.ElapsedMilliseconds, null);
+            return new ContentStageOutput(documents, loadResult.BodyStore, Name, sw.ElapsedMilliseconds, null);
+        }
+        catch
+        {
+            await DisposeBodyStoreAsync(ownedBodyStore);
+            throw;
+        }
     }
 
     private static IReadOnlyList<RawContentDocument> ToRawDocuments(IReadOnlyList<ContentDocument> documents)
@@ -44,4 +53,16 @@ internal sealed class ImageLocalizeStage : IContentStage
                 Source: document.Source,
                 CustomFields: document.CustomFields))
             .ToArray();
+
+    private static async ValueTask DisposeBodyStoreAsync(IContentBodyStore bodyStore)
+    {
+        if (bodyStore is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+        }
+        else if (bodyStore is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+    }
 }

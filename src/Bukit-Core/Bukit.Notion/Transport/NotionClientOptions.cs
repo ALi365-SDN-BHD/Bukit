@@ -10,9 +10,11 @@ public sealed class NotionClientOptions
     public int? MaxRps { get; init; }
 
     /// <summary>
-    /// Optional factory that creates the <see cref="HttpMessageHandler"/> for the internal
-    /// <see cref="HttpClient"/>. Callers use this to inject SSRF protection, custom proxies,
-    /// or certificate pinning. When <c>null</c>, a plain <see cref="SocketsHttpHandler"/> is used.
+    /// Optional factory that creates the handler chain for the internal <see cref="HttpClient"/>.
+    /// The chain must end in a <see cref="SocketsHttpHandler"/> or <see cref="HttpClientHandler"/>;
+    /// the client disables automatic redirects on that terminal handler. Other terminal handlers,
+    /// missing inner handlers, and null factory results are rejected during construction. When
+    /// <c>null</c>, an owned <see cref="SocketsHttpHandler"/> is used.
     /// </summary>
     public Func<HttpMessageHandler>? HttpHandlerFactory { get; init; }
 

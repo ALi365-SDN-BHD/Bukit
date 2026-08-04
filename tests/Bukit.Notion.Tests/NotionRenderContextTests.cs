@@ -19,7 +19,7 @@ public sealed class NotionRenderContextTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
         var renderer = new NotionBlocksRenderer(client);
         var context = new NotionRenderContext(renderer, client);
 
@@ -39,7 +39,7 @@ public sealed class NotionRenderContextTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
         var renderer = new NotionBlocksRenderer(client);
         var context = new NotionRenderContext(renderer, client);
 
@@ -51,14 +51,14 @@ public sealed class NotionRenderContextTests
     [Fact]
     public void Constructor_ExposesClient()
     {
-        using var http = new EmptyChildrenHandler();
+        var handler = new EmptyChildrenHandler();
         var options = new NotionClientOptions
         {
             Token = "token",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
         var renderer = new NotionBlocksRenderer(client);
 
         var context = new NotionRenderContext(renderer, client);
@@ -76,7 +76,7 @@ public sealed class NotionRenderContextTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, handler);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
         var renderer = new NotionBlocksRenderer(client);
         var context = new NotionRenderContext(renderer, client);
 

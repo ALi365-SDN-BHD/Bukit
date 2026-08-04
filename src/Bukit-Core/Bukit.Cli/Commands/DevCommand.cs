@@ -73,7 +73,7 @@ public static class DevCommand
         Console.WriteLine($"[build] done in {sw.ElapsedMilliseconds}ms, serving {outputDir}\n");
 
         using var serverHost = DevServerHost.Start(host, port, logger);
-        var hub = new DevWebSocketHub(logger, new DevWebSocketAccessPolicy(host, serverHost.Port, allowLan));
+        using var hub = new DevWebSocketHub(logger, new DevWebSocketAccessPolicy(host, serverHost.Port, allowLan));
         var handler = new DevRequestHandler(
             outputDir,
             PreviewCommand.ShouldRemoveManagedAnalytics(config.Site),

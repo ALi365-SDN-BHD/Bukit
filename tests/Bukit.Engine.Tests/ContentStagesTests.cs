@@ -251,6 +251,35 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public async Task ContentLoadStage_WhenValidationFails_DisposesLoadedBodyStoreOnce()
+    {
+        var store = new TrackingBodyStore();
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["sourceMode"] = "content",
+            ["sourceKey"] = "markdown"
+        });
+        var loadResult = new RawContentLoadResult(
+        [
+            new RawContentDocument(
+                Id: "article-1",
+                Title: "Article",
+                Slug: "article-1",
+                PublishAt: DateTimeOffset.UnixEpoch,
+                Body: new RawBody(InlineHtml: "<p>article</p>"),
+                Properties: RawContentValue.FromFields(fields),
+                CustomFields: fields)
+        ], store);
+        var stage = new ContentLoadStage(new StubContentProviderFactory(loadResult));
+        var input = new ContentStageInput(Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, Config(), NoOverrides, "/root", "/cache", new NoOpLogger());
+
+        await Assert.ThrowsAsync<ConfigException>(() =>
+            stage.ExecuteAsync(input, CancellationToken.None));
+
+        Assert.Equal(1, store.DisposeCount);
+    }
+
+    [Fact]
     public async Task ContentLoadStage_PassesContentModelSchemaToNormalizer()
     {
         var loadResult = new RawContentLoadResult(
@@ -1241,6 +1270,20 @@ public sealed class ContentStagesTests
     }
 
     private static RawContentLoadResult ToRawResult(RawContentLoadResult result) => result;
+
+    private sealed class TrackingBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        public int DisposeCount { get; private set; }
+
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(string.Empty));
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
 
     private static string WriteFieldScopeDefaultConfig(string yamlDefault)
     {

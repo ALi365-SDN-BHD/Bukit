@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using Bukit.Engine.Abstractions.Content;
 using Xunit;
 
@@ -68,6 +69,14 @@ public sealed class BodyCacheDecoratorTests
             contentHtml: contentHtml,
             fields: null,
             bodyKey: bodyKey);
+    }
+
+    private static int GetPrivateCollectionCount(BodyCacheDecorator decorator, string fieldName)
+    {
+        var field = typeof(BodyCacheDecorator).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        var collection = Assert.IsAssignableFrom<object>(field?.GetValue(decorator));
+        var count = collection.GetType().GetProperty("Count", BindingFlags.Instance | BindingFlags.Public);
+        return Assert.IsType<int>(count?.GetValue(collection));
     }
 
     [Fact]
@@ -462,32 +471,95 @@ public sealed class BodyCacheDecoratorTests
     [Fact]
     public async Task FailedFactoryConcurrentWithTrim_LeavesNoOrphanLruNode()
     {
-        var inner = new DelegatingBodyStore((doc, _) =>
-            Task.FromException<ContentBody>(new InvalidOperationException("factory-fail")));
-        var decorator = new BodyCacheDecorator(inner, maxEntries: 2);
-
-        // Fill cache to capacity with successful first call
+        // Barrier-controlled interleaving: the failing factory blocks until the
+        // trim has removed the oldest entries, then fails; afterwards the cache
+        // must remain internally consistent (no orphan LRU nodes).
+        var factoryEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFactory = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var callCount = 0;
-        var controlledInner = new DelegatingBodyStore((doc, _) =>
+        var failCount = 0;
+        var inner = new DelegatingBodyStore(async (doc, _) =>
         {
             var count = Interlocked.Increment(ref callCount);
-            return count <= 2
-                ? Task.FromResult(new ContentBody($"<p>ok-{count}</p>"))
-                : Task.FromException<ContentBody>(new InvalidOperationException("factory-fail"));
+            if (count <= 2)
+            {
+                return new ContentBody($"<p>ok-{count}</p>");
+            }
+
+            // c, d, e are the first three failing factories; f succeeds afterwards
+            var failIndex = Interlocked.Increment(ref failCount);
+            if (failIndex <= 3)
+            {
+                factoryEntered.TrySetResult();
+                await releaseFactory.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                throw new InvalidOperationException("factory-fail");
+            }
+
+            return new ContentBody($"<p>ok-{count}</p>");
         });
-        var controlled = new BodyCacheDecorator(controlledInner, maxEntries: 2);
+        var decorator = new BodyCacheDecorator(inner, maxEntries: 2);
 
-        await controlled.GetAsync(CreateItem("a").ToDocument());
-        await controlled.GetAsync(CreateItem("b").ToDocument());
+        await decorator.GetAsync(CreateItem("a").ToDocument());
+        await decorator.GetAsync(CreateItem("b").ToDocument());
 
-        // Third entry triggers failed factory + trim
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => controlled.GetAsync(CreateItem("c").ToDocument()));
+        // The failing factory for "c" blocks inside the inner store
+        var failingLoad = decorator.GetAsync(CreateItem("c").ToDocument());
+        await factoryEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
-        // Cache should still be consistent - verify by adding more entries
-        await controlled.GetAsync(CreateItem("d").ToDocument()).ContinueWith(_ => { });
-        var metrics = controlled.Metrics;
-        Assert.True(metrics.UniqueBodies <= 2, $"Expected <= 2 unique bodies, got {metrics.UniqueBodies}");
+        // Concurrently, insert more entries to force trim of the LRU list.
+        // These also block in the failing factory; do not await them yet.
+        var trimLoadD = decorator.GetAsync(CreateItem("d").ToDocument());
+        var trimLoadE = decorator.GetAsync(CreateItem("e").ToDocument());
+
+        // Release the failing factory, which removes its entry
+        releaseFactory.TrySetResult();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => failingLoad);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => trimLoadD);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => trimLoadE);
+
+        // Cache must be bounded and still usable
+        Assert.True(decorator.Metrics.UniqueBodies <= 2,
+            $"Expected <= 2 unique bodies, got {decorator.Metrics.UniqueBodies}");
+        await decorator.GetAsync(CreateItem("f").ToDocument());
+        Assert.True(decorator.Metrics.UniqueBodies <= 2,
+            $"Cache grew beyond capacity after failure: {decorator.Metrics.UniqueBodies}");
+    }
+
+    [Fact]
+    public async Task FailedSharedFactory_RemovedBeforeLruPublication_LeavesNoOrphanLruState()
+    {
+        using var cachePublished = new ManualResetEventSlim();
+        using var releasePublication = new ManualResetEventSlim();
+        var inner = new DelegatingBodyStore((_, _) =>
+            Task.FromException<ContentBody>(new InvalidOperationException("factory-fail")));
+        var decorator = new BodyCacheDecorator(
+            inner,
+            maxEntries: 2,
+            CancellationToken.None,
+            () =>
+            {
+                cachePublished.Set();
+                Assert.True(releasePublication.Wait(TimeSpan.FromSeconds(10)), "Timed out releasing LRU publication.");
+            });
+        var document = CreateItem("publication-race").ToDocument();
+
+        var publishingLoad = Task.Run(() => decorator.GetAsync(document));
+        Assert.True(cachePublished.Wait(TimeSpan.FromSeconds(10)), "Cache entry was not published.");
+
+        try
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => decorator.GetAsync(document));
+        }
+        finally
+        {
+            releasePublication.Set();
+        }
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => publishingLoad);
+
+        Assert.Equal(0, decorator.Metrics.UniqueBodies);
+        Assert.Equal(0, GetPrivateCollectionCount(decorator, "_lruList"));
+        Assert.Equal(0, GetPrivateCollectionCount(decorator, "_lruNodes"));
     }
 
     [Fact]

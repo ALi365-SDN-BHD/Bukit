@@ -33,7 +33,6 @@ public sealed class NotionApiClientExtendedTests
                 """, Encoding.UTF8, "application/json")
             };
         });
-        using var http = new HttpClient(handler);
         using var client = new NotionApiClient(
             new NotionProviderOptions
             {
@@ -41,7 +40,7 @@ public sealed class NotionApiClientExtendedTests
                 Token = "token",
                 RequestDelayMs = 0
             },
-            http,
+            handler,
             (_, _) => Task.CompletedTask);
 
         var page = await NotionCompatibilityQueries.FetchPageAsync(
@@ -81,7 +80,6 @@ public sealed class NotionApiClientExtendedTests
             }
             """, Encoding.UTF8, "application/json")
         });
-        using var http = new HttpClient(handler);
         using var client = new NotionApiClient(
             new NotionProviderOptions
             {
@@ -89,7 +87,7 @@ public sealed class NotionApiClientExtendedTests
                 Token = "token",
                 RequestDelayMs = 0
             },
-            http,
+            handler,
             (_, _) => Task.CompletedTask);
 
         var options = await NotionCompatibilityQueries.ReadDatabaseOptionsAsync(
@@ -132,7 +130,6 @@ public sealed class NotionApiClientExtendedTests
             };
         });
 
-        using var http = new HttpClient(handler);
         var options = new NotionProviderOptions
         {
             DatabaseId = "db",
@@ -140,7 +137,7 @@ public sealed class NotionApiClientExtendedTests
             RequestDelayMs = 0
         };
 
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionApiClient(options, handler, (_, _) => Task.CompletedTask);
         using var doc = await client.PostAsync("https://api.notion.com/v1/databases/db/query", "{\"page_size\":10}", CancellationToken.None);
 
         Assert.NotNull(capturedBody);
@@ -161,14 +158,13 @@ public sealed class NotionApiClientExtendedTests
             Content = new StringContent("{\"ok\":true}", Encoding.UTF8, "application/json")
         });
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
         var options = new NotionProviderOptions
         {
             DatabaseId = "db",
             Token = "token",
             MaxRetries = 1
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionApiClient(options, handler, (_, _) => Task.CompletedTask);
 
         using var document = await client.PostAsync(
             "https://api.notion.com/v1/databases/db/query",
@@ -192,14 +188,13 @@ public sealed class NotionApiClientExtendedTests
             Content = new StringContent("{\"id\":\"duplicate-page\"}", Encoding.UTF8, "application/json")
         });
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
         var options = new NotionProviderOptions
         {
             DatabaseId = "db",
             Token = "token",
             MaxRetries = 5
         };
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionApiClient(options, handler, (_, _) => Task.CompletedTask);
 
         await Assert.ThrowsAsync<ContentException>(() => client.PostAsync(
             "https://api.notion.com/v1/pages",
@@ -224,7 +219,6 @@ public sealed class NotionApiClientExtendedTests
         responses.Enqueue(r2);
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var delays = new List<int>();
         var now = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -236,7 +230,7 @@ public sealed class NotionApiClientExtendedTests
             RequestDelayMs = 0
         };
 
-        using var client = new NotionApiClient(options, http, (ms, _) =>
+        using var client = new NotionApiClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             now = now.AddMilliseconds(ms);
@@ -265,7 +259,6 @@ public sealed class NotionApiClientExtendedTests
         responses.Enqueue(r2);
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var delays = new List<int>();
         var options = new NotionProviderOptions
@@ -275,7 +268,7 @@ public sealed class NotionApiClientExtendedTests
             RequestDelayMs = 0
         };
 
-        using var client = new NotionApiClient(options, http, (ms, _) =>
+        using var client = new NotionApiClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             return Task.CompletedTask;
@@ -301,7 +294,6 @@ public sealed class NotionApiClientExtendedTests
         responses.Enqueue(r2);
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var delays = new List<int>();
         var options = new NotionProviderOptions
@@ -311,7 +303,7 @@ public sealed class NotionApiClientExtendedTests
             RequestDelayMs = 0
         };
 
-        using var client = new NotionApiClient(options, http, (ms, _) =>
+        using var client = new NotionApiClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             return Task.CompletedTask;
@@ -338,7 +330,6 @@ public sealed class NotionApiClientExtendedTests
         });
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var delays = new List<int>();
         var options = new NotionProviderOptions
@@ -349,7 +340,7 @@ public sealed class NotionApiClientExtendedTests
             MaxRps = null
         };
 
-        using var client = new NotionApiClient(options, http, (ms, _) =>
+        using var client = new NotionApiClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             return Task.CompletedTask;
@@ -373,7 +364,6 @@ public sealed class NotionApiClientExtendedTests
         });
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var delays = new List<int>();
         var options = new NotionProviderOptions
@@ -383,7 +373,7 @@ public sealed class NotionApiClientExtendedTests
             RequestDelayMs = 150
         };
 
-        using var client = new NotionApiClient(options, http, (ms, _) =>
+        using var client = new NotionApiClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             return Task.CompletedTask;
@@ -406,7 +396,6 @@ public sealed class NotionApiClientExtendedTests
         });
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var options = new NotionProviderOptions
         {
@@ -416,7 +405,7 @@ public sealed class NotionApiClientExtendedTests
             MaxRetries = 0
         };
 
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionApiClient(options, handler, (_, _) => Task.CompletedTask);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() =>
             client.GetAsync("https://api.notion.com/v1/databases/db", CancellationToken.None));
@@ -434,7 +423,6 @@ public sealed class NotionApiClientExtendedTests
         });
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var options = new NotionProviderOptions
         {
@@ -444,7 +432,7 @@ public sealed class NotionApiClientExtendedTests
             MaxRetries = 0
         };
 
-        using var client = new NotionApiClient(options, http, (_, _) => Task.CompletedTask);
+        using var client = new NotionApiClient(options, handler, (_, _) => Task.CompletedTask);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() =>
             client.GetAsync("https://api.notion.com/v1/databases/db", CancellationToken.None));
@@ -461,7 +449,6 @@ public sealed class NotionApiClientExtendedTests
         });
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var delays = new List<int>();
         var options = new NotionProviderOptions
@@ -472,7 +459,7 @@ public sealed class NotionApiClientExtendedTests
             MaxRps = 0
         };
 
-        using var client = new NotionApiClient(options, http, (ms, _) =>
+        using var client = new NotionApiClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             return Task.CompletedTask;
@@ -494,7 +481,6 @@ public sealed class NotionApiClientExtendedTests
         });
 
         var handler = new SequenceHandler(responses);
-        using var http = new HttpClient(handler);
 
         var delays = new List<int>();
         var options = new NotionProviderOptions
@@ -504,7 +490,7 @@ public sealed class NotionApiClientExtendedTests
             RequestDelayMs = 0
         };
 
-        using var client = new NotionApiClient(options, http, (ms, _) =>
+        using var client = new NotionApiClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             return Task.CompletedTask;

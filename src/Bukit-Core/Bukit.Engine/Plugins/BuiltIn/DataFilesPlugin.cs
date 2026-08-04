@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Routing;
@@ -11,7 +10,6 @@ using Bukit.Config;
 using Bukit.Shared;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
-using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -23,6 +21,8 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
     private const long DefaultMaxTotalSizeBytes = 64 * 1024 * 1024;
     private const int DefaultMaxDocumentNodes = 250_000;
     private const int DefaultMaxDocumentDepth = 64;
+    private const long DefaultMaxProjectedChars = 64L * 1024 * 1024;
+    private const int DefaultMaxProjectedEntries = 250_000;
 
     private readonly AppConfig _config;
     private readonly int _maxEntries;
@@ -31,6 +31,11 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
     private readonly long _maxTotalSizeBytes;
     private readonly int _maxDocumentNodes;
     private readonly int _maxDocumentDepth;
+    private readonly long _maxScalarChars;
+    private readonly long _maxProjectedChars;
+    private readonly int _maxProjectedEntries;
+    private readonly long _maxDecodedChars;
+    private readonly Func<string, Stream> _openDataFile;
 
     internal DataFilesPlugin(
         AppConfig config,
@@ -39,7 +44,12 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         long maxFileSizeBytes = DefaultMaxFileSizeBytes,
         long maxTotalSizeBytes = DefaultMaxTotalSizeBytes,
         int maxDocumentNodes = DefaultMaxDocumentNodes,
-        int maxDocumentDepth = DefaultMaxDocumentDepth)
+        int maxDocumentDepth = DefaultMaxDocumentDepth,
+        long maxProjectedChars = DefaultMaxProjectedChars,
+        int maxProjectedEntries = DefaultMaxProjectedEntries,
+        long? maxDecodedChars = null,
+        long? maxScalarChars = null,
+        Func<string, Stream>? openDataFile = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntries);
@@ -48,6 +58,20 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxTotalSizeBytes);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxDocumentNodes);
         ArgumentOutOfRangeException.ThrowIfNegative(maxDocumentDepth);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxProjectedChars);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxProjectedEntries);
+        var resolvedMaxDecodedChars = maxDecodedChars
+            ?? Math.Min(maxFileSizeBytes, int.MaxValue);
+        var resolvedMaxScalarChars = maxScalarChars ?? resolvedMaxDecodedChars;
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(resolvedMaxDecodedChars);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(resolvedMaxScalarChars);
+        if (resolvedMaxScalarChars > resolvedMaxDecodedChars)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxScalarChars),
+                "The scalar character limit cannot exceed the decoded character limit.");
+        }
+
         _config = config;
         _maxEntries = maxEntries;
         _maxDepth = maxDepth;
@@ -55,6 +79,11 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         _maxTotalSizeBytes = maxTotalSizeBytes;
         _maxDocumentNodes = maxDocumentNodes;
         _maxDocumentDepth = maxDocumentDepth;
+        _maxDecodedChars = resolvedMaxDecodedChars;
+        _maxScalarChars = resolvedMaxScalarChars;
+        _maxProjectedChars = maxProjectedChars;
+        _maxProjectedEntries = maxProjectedEntries;
+        _openDataFile = openDataFile ?? OpenFileForSequentialRead;
     }
 
     public string Name => "data-files";
@@ -85,6 +114,12 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             _maxDepth,
             _maxFileSizeBytes,
             _maxTotalSizeBytes,
+            _maxDecodedChars,
+            _openDataFile,
+            cancellationToken);
+        var projectionBudget = new ProjectionBudgetState(
+            _maxProjectedChars,
+            _maxProjectedEntries,
             cancellationToken);
         var languageDirectories = new HashSet<string>(
             OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
@@ -101,10 +136,12 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
                     if (languageDirectories.Add(normalizedLanguageDirectory))
                     {
                         traversal.VisitEntry(dataDir, langDir);
+                        projectionBudget.VisitMapEntry(lang, GetRelativeDataPath(dataDir, langDir));
                         result[lang] = LoadDataDirectory(
                             langDir,
                             dataDir,
                             traversal,
+                            projectionBudget,
                             depth: 0);
                     }
                 }
@@ -115,6 +152,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             dataDir,
             dataDir,
             traversal,
+            projectionBudget,
             depth: 0,
             excludedDirectories: languageDirectories);
         foreach (var (key, value) in defaultData)
@@ -136,24 +174,26 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
     private static bool IsReparsePoint(string path)
         => (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
+    private static Stream OpenFileForSequentialRead(string path)
+        => new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            bufferSize: 8192,
+            FileOptions.SequentialScan);
+
     private Dictionary<string, object> LoadDataDirectory(
         string dir,
         string dataRoot,
         TraversalState traversal,
+        ProjectionBudgetState projectionBudget,
         int depth,
         IReadOnlySet<string>? excludedDirectories = null)
     {
         traversal.EnterDirectory(dir, dataRoot, depth);
         var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        var options = new EnumerationOptions
-        {
-            AttributesToSkip = FileAttributes.ReparsePoint,
-            IgnoreInaccessible = false,
-            RecurseSubdirectories = false,
-            ReturnSpecialDirectories = false
-        };
-
-        foreach (var file in BoundedEnumerateFiles(dir, dataRoot, traversal))
+        foreach (var file in BoundedEnumerateFiles(dir, traversal))
         {
             traversal.VisitEntry(dataRoot, file);
             var ext = Path.GetExtension(file).ToLowerInvariant();
@@ -175,34 +215,27 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
 
             try
             {
-                var content = traversal.ReadDataFile(dataRoot, file);
+                using var content = traversal.OpenDataFileReader(dataRoot, file);
+                var documentTraversal = CreateDocumentTraversal(
+                    relativePath,
+                    traversal.CancellationToken,
+                    projectionBudget);
 
                 if (ext is ".json")
                 {
-                    PreflightJsonDocument(content, relativePath, traversal.CancellationToken);
-                    data = ConvertJsonNode(
-                        JsonNode.Parse(
-                            content,
-                            documentOptions: new JsonDocumentOptions
-                            {
-                                MaxDepth = GetParserMaxDepth(_maxDocumentDepth)
-                            }),
-                        CreateDocumentTraversal(relativePath, traversal.CancellationToken),
-                        depth: 0);
+                    data = ParseJsonDocument(content, documentTraversal);
                 }
                 else
                 {
-                    PreflightYamlDocument(content, relativePath, traversal.CancellationToken);
-                    var stream = new YamlStream();
-                    stream.Load(new StringReader(content));
-                    if (stream.Documents.Count > 0)
-                    {
-                        data = ConvertYamlNode(
-                            stream.Documents[0].RootNode,
-                            CreateDocumentTraversal(relativePath, traversal.CancellationToken),
-                            depth: 0);
-                    }
+                    data = ParseYamlDocument(content, documentTraversal);
                 }
+            }
+            catch (DecoderFallbackException ex)
+            {
+                throw new ConfigException(
+                    $"Malformed data file encoding at {relativePath}.",
+                    ex,
+                    DiagnosticCode.ConfigInvalidValue);
             }
             catch (Exception ex) when (ex is not ConfigException and not OperationCanceledException)
             {
@@ -214,6 +247,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
 
             if (data is not null)
             {
+                projectionBudget.VisitMapEntry(key, relativePath);
                 AddUnique(result, key, data, relativePath);
             }
         }
@@ -226,10 +260,13 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
                 subDir,
                 dataRoot,
                 traversal,
+                projectionBudget,
                 depth + 1);
             if (subData.Count > 0)
             {
-                AddUnique(result, subName, subData, GetRelativeDataPath(dataRoot, subDir));
+                var relativePath = GetRelativeDataPath(dataRoot, subDir);
+                projectionBudget.VisitMapEntry(subName, relativePath);
+                AddUnique(result, subName, subData, relativePath);
             }
         }
 
@@ -237,7 +274,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
     }
 
     private static IEnumerable<string> BoundedEnumerateFiles(
-        string dir, string dataRoot, TraversalState traversal)
+        string dir, TraversalState traversal)
     {
         var options = new EnumerationOptions
         {
@@ -247,15 +284,10 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             ReturnSpecialDirectories = false
         };
 
-        var sorted = Directory.EnumerateFiles(dir, "*", options)
-            .OrderBy(static path => Path.GetFileName(path), StringComparer.Ordinal)
-            .Take(traversal.RemainingEntries + 1)
-            .ToList();
-
-        foreach (var file in sorted)
-        {
-            yield return file;
-        }
+        return TakeBoundedSortedWithinEntryBudget(
+            Directory.EnumerateFiles(dir, "*", options),
+            traversal.RemainingEntries,
+            traversal.MaxEntries);
     }
 
     private static IEnumerable<string> BoundedEnumerateDirectories(
@@ -269,9 +301,55 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             ReturnSpecialDirectories = false
         };
 
-        return Directory.EnumerateDirectories(dir, "*", options)
-            .Where(d => excludedDirectories?.Contains(Path.GetFullPath(d)) != true)
-            .OrderBy(static path => Path.GetFileName(path), StringComparer.Ordinal);
+        var directories = Directory.EnumerateDirectories(dir, "*", options)
+            .Where(subDir => excludedDirectories?.Contains(Path.GetFullPath(subDir)) != true);
+        return TakeBoundedSortedWithinEntryBudget(
+            directories,
+            traversal.RemainingEntries,
+            traversal.MaxEntries);
+    }
+
+    internal static IReadOnlyList<string> TakeBoundedSortedWithinEntryBudget(
+        IEnumerable<string> entries,
+        int remainingEntries,
+        int maxEntries)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(remainingEntries);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxEntries);
+        var probeLimit = remainingEntries == int.MaxValue
+            ? int.MaxValue
+            : remainingEntries + 1;
+        var bounded = TakeBoundedSorted(entries, probeLimit);
+        if (bounded.Count > remainingEntries)
+        {
+            throw new ConfigException(
+                $"Data directory contains more than {maxEntries} entries.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return bounded;
+    }
+
+    internal static IReadOnlyList<string> TakeBoundedSorted(
+        IEnumerable<string> entries,
+        int limit)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+        var bounded = new List<string>(Math.Min(limit, 64));
+        foreach (var entry in entries)
+        {
+            bounded.Add(entry);
+            if (bounded.Count == limit)
+            {
+                break;
+            }
+        }
+
+        bounded.Sort(static (left, right) => string.Compare(
+            Path.GetFileName(left),
+            Path.GetFileName(right),
+            StringComparison.Ordinal));
+        return bounded;
     }
 
     private sealed class TraversalState
@@ -280,6 +358,8 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         private readonly int _maxDepth;
         private readonly long _maxFileSizeBytes;
         private readonly long _maxTotalSizeBytes;
+        private readonly long _maxDecodedChars;
+        private readonly Func<string, Stream> _openDataFile;
         private readonly CancellationToken _cancellationToken;
         private readonly HashSet<string> _visitedDirectories = new(
             OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
@@ -287,6 +367,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         private long _totalSizeBytes;
 
         internal CancellationToken CancellationToken => _cancellationToken;
+        internal int MaxEntries => _maxEntries;
         internal int RemainingEntries => Math.Max(0, _maxEntries - _entryCount);
 
         internal TraversalState(
@@ -294,12 +375,16 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             int maxDepth,
             long maxFileSizeBytes,
             long maxTotalSizeBytes,
+            long maxDecodedChars,
+            Func<string, Stream> openDataFile,
             CancellationToken cancellationToken)
         {
             _maxEntries = maxEntries;
             _maxDepth = maxDepth;
             _maxFileSizeBytes = maxFileSizeBytes;
             _maxTotalSizeBytes = maxTotalSizeBytes;
+            _maxDecodedChars = maxDecodedChars;
+            _openDataFile = openDataFile;
             _cancellationToken = cancellationToken;
         }
 
@@ -334,66 +419,281 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             }
         }
 
-        internal string ReadDataFile(string dataRoot, string path)
+        internal TextReader OpenDataFileReader(string dataRoot, string path)
         {
             _cancellationToken.ThrowIfCancellationRequested();
             var relativePath = GetRelativeDataPath(dataRoot, path);
-            using var input = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                bufferSize: 8192,
-                FileOptions.SequentialScan);
-            if (input.Length > _maxFileSizeBytes)
+            var input = _openDataFile(path);
+            try
             {
-                ThrowFileSizeLimit(relativePath);
-            }
+                if (input.CanSeek && input.Length > _maxFileSizeBytes)
+                {
+                    ThrowFileSizeLimit(relativePath);
+                }
 
-            using var content = new MemoryStream(
-                capacity: (int)Math.Min(input.Length, 8192));
-            var buffer = new byte[8192];
-            long fileSizeBytes = 0;
-            while (true)
+                long fileSizeBytes = 0;
+                var boundedInput = new BudgetedReadStream(
+                    input,
+                    bytesRead =>
+                    {
+                        _cancellationToken.ThrowIfCancellationRequested();
+                        if (fileSizeBytes > _maxFileSizeBytes - bytesRead)
+                        {
+                            ThrowFileSizeLimit(relativePath);
+                        }
+
+                        if (_totalSizeBytes > _maxTotalSizeBytes - bytesRead)
+                        {
+                            throw new ConfigException(
+                                $"Data files exceed the total size limit of {_maxTotalSizeBytes} bytes at {relativePath}.",
+                                DiagnosticCode.ConfigInvalidValue);
+                        }
+
+                        fileSizeBytes += bytesRead;
+                        _totalSizeBytes += bytesRead;
+                    });
+                return CreateStrictTextReader(
+                    boundedInput,
+                    _maxDecodedChars,
+                    relativePath,
+                    _cancellationToken);
+            }
+            catch
             {
-                _cancellationToken.ThrowIfCancellationRequested();
-                var read = input.Read(buffer, 0, buffer.Length);
+                input.Dispose();
+                throw;
+            }
+        }
+
+        private static TextReader CreateStrictTextReader(
+            Stream input,
+            long maxDecodedChars,
+            string relativePath,
+            CancellationToken cancellationToken)
+        {
+            var prefix = new byte[5];
+            var prefixLength = 0;
+            while (prefixLength < prefix.Length)
+            {
+                var read = input.Read(prefix, prefixLength, prefix.Length - prefixLength);
                 if (read == 0)
                 {
                     break;
                 }
 
-                fileSizeBytes += read;
-                if (fileSizeBytes > _maxFileSizeBytes)
-                {
-                    ThrowFileSizeLimit(relativePath);
-                }
-
-                content.Write(buffer, 0, read);
+                prefixLength += read;
             }
 
-            if (_totalSizeBytes > _maxTotalSizeBytes - fileSizeBytes)
+            Encoding encoding;
+            var bomLength = 0;
+            if (StartsWith(prefix, prefixLength, [0xFF, 0xFE, 0x00, 0x00])
+                || StartsWith(prefix, prefixLength, [0x00, 0x00, 0xFE, 0xFF])
+                || IsUtf7Bom(prefix, prefixLength))
             {
                 throw new ConfigException(
-                    $"Data files exceed the total size limit of {_maxTotalSizeBytes} bytes at {relativePath}.",
+                    $"Unsupported data file encoding at {relativePath}.",
                     DiagnosticCode.ConfigInvalidValue);
             }
+            else if (StartsWith(prefix, prefixLength, [0xEF, 0xBB, 0xBF]))
+            {
+                encoding = new UTF8Encoding(false, true);
+                bomLength = 3;
+            }
+            else if (StartsWith(prefix, prefixLength, [0xFF, 0xFE]))
+            {
+                encoding = new UnicodeEncoding(false, false, true);
+                bomLength = 2;
+            }
+            else if (StartsWith(prefix, prefixLength, [0xFE, 0xFF]))
+            {
+                encoding = new UnicodeEncoding(true, false, true);
+                bomLength = 2;
+            }
+            else
+            {
+                encoding = new UTF8Encoding(false, true);
+            }
 
-            _totalSizeBytes += fileSizeBytes;
-            content.Position = 0;
-            using var reader = new StreamReader(
-                content,
-                Encoding.UTF8,
-                detectEncodingFromByteOrderMarks: true,
+            var prefixedInput = new PrefixReadStream(
+                input,
+                prefix,
+                bomLength,
+                prefixLength - bomLength);
+            var streamReader = new StreamReader(
+                prefixedInput,
+                encoding,
+                detectEncodingFromByteOrderMarks: false,
+                bufferSize: 4096,
                 leaveOpen: false);
-            return reader.ReadToEnd();
+            return new StrictBoundedTextReader(
+                streamReader,
+                maxDecodedChars,
+                relativePath,
+                cancellationToken);
         }
+
+        private static bool StartsWith(byte[] value, int valueLength, byte[] prefix)
+            => valueLength >= prefix.Length
+                && value.AsSpan(0, prefix.Length).SequenceEqual(prefix);
+
+        private static bool IsUtf7Bom(byte[] value, int valueLength)
+            => valueLength >= 5
+                && value[0] == 0x2B
+                && value[1] == 0x2F
+                && value[2] == 0x76
+                && value[3] is 0x38 or 0x39 or 0x2B or 0x2F
+                && value[4] == 0x2D;
 
         private void ThrowFileSizeLimit(string relativePath)
         {
             throw new ConfigException(
                 $"Data file exceeds the maximum file size of {_maxFileSizeBytes} bytes at {relativePath}.",
                 DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private sealed class BudgetedReadStream(Stream inner, Action<int> recordRead) : Stream
+    {
+        public override bool CanRead => inner.CanRead;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => inner.Length;
+        public override long Position
+        {
+            get => inner.Position;
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = inner.Read(buffer, offset, count);
+            recordRead(read);
+            return read;
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            var read = inner.Read(buffer);
+            recordRead(read);
+            return read;
+        }
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) inner.Dispose();
+            base.Dispose(disposing);
+        }
+    }
+
+    private sealed class PrefixReadStream(
+        Stream inner,
+        byte[] prefix,
+        int prefixOffset,
+        int prefixCount) : Stream
+    {
+        private int _prefixOffset = prefixOffset;
+        private readonly int _prefixEnd = prefixOffset + prefixCount;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+            => Read(buffer.AsSpan(offset, count));
+
+        public override int Read(Span<byte> buffer)
+        {
+            var copied = Math.Min(buffer.Length, _prefixEnd - _prefixOffset);
+            if (copied > 0)
+            {
+                prefix.AsSpan(_prefixOffset, copied).CopyTo(buffer);
+                _prefixOffset += copied;
+                if (copied == buffer.Length)
+                {
+                    return copied;
+                }
+            }
+
+            return copied + inner.Read(buffer[copied..]);
+        }
+
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) inner.Dispose();
+            base.Dispose(disposing);
+        }
+    }
+
+    private sealed class StrictBoundedTextReader(
+        TextReader inner,
+        long maxChars,
+        string relativePath,
+        CancellationToken cancellationToken) : TextReader
+    {
+        private long _chars;
+
+        public override int Peek()
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return inner.Peek();
+        }
+
+        public override int Read()
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var value = inner.Read();
+            if (value >= 0) Record(1);
+            return value;
+        }
+
+        public override int Read(char[] buffer, int index, int count)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var read = inner.Read(buffer, index, count);
+            Record(read);
+            return read;
+        }
+
+        public override int Read(Span<char> buffer)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var read = inner.Read(buffer);
+            Record(read);
+            return read;
+        }
+
+        private void Record(int read)
+        {
+            if (_chars > maxChars - read)
+            {
+                throw new ConfigException(
+                    $"Data file decodes to more than {maxChars} characters at {relativePath}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            _chars += read;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) inner.Dispose();
+            base.Dispose(disposing);
         }
     }
 
@@ -421,6 +721,8 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
     {
         private readonly int _maxNodes;
         private readonly int _maxDepth;
+        private readonly long _maxScalarChars;
+        private readonly ProjectionBudgetState _projectionBudget;
         private readonly string _relativePath;
         private readonly CancellationToken _cancellationToken;
         private int _nodeCount;
@@ -428,11 +730,15 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         internal DocumentTraversalState(
             int maxNodes,
             int maxDepth,
+            long maxScalarChars,
+            ProjectionBudgetState projectionBudget,
             string relativePath,
             CancellationToken cancellationToken)
         {
             _maxNodes = maxNodes;
             _maxDepth = maxDepth;
+            _maxScalarChars = maxScalarChars;
+            _projectionBudget = projectionBudget;
             _relativePath = relativePath;
             _cancellationToken = cancellationToken;
         }
@@ -455,159 +761,640 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
                     DiagnosticCode.ConfigInvalidValue);
             }
         }
+
+        internal void VisitScalar(long length)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            if (length > _maxScalarChars)
+            {
+                throw new ConfigException(
+                    $"Data document contains a scalar longer than {_maxScalarChars} characters at {_relativePath}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        internal void VisitResultString(int length)
+            => _projectionBudget.VisitString(length, _relativePath);
+
+        internal void VisitResultEntry()
+            => _projectionBudget.VisitEntry(_relativePath);
+    }
+
+    private sealed class ProjectionBudgetState
+    {
+        private readonly long _maxChars;
+        private readonly int _maxEntries;
+        private readonly CancellationToken _cancellationToken;
+        private long _chars;
+        private int _entries;
+
+        internal ProjectionBudgetState(
+            long maxChars,
+            int maxEntries,
+            CancellationToken cancellationToken)
+        {
+            _maxChars = maxChars;
+            _maxEntries = maxEntries;
+            _cancellationToken = cancellationToken;
+        }
+
+        internal void VisitString(int length, string relativePath)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            if (_chars > _maxChars - length)
+            {
+                throw new ConfigException(
+                    $"Data document projects to more than {_maxChars} characters at {relativePath}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            _chars += length;
+        }
+
+        internal void VisitEntry(string relativePath)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            if (_entries >= _maxEntries)
+            {
+                throw new ConfigException(
+                    $"Data document projects to more than {_maxEntries} collection entries at {relativePath}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            _entries++;
+        }
+
+        internal void VisitMapEntry(string key, string relativePath)
+        {
+            VisitEntry(relativePath);
+            VisitString(key.Length, relativePath);
+        }
     }
 
     private DocumentTraversalState CreateDocumentTraversal(
         string relativePath,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ProjectionBudgetState projectionBudget)
         => new(
             _maxDocumentNodes,
             _maxDocumentDepth,
+            _maxScalarChars,
+            projectionBudget,
             relativePath,
             cancellationToken);
-
-    private void PreflightJsonDocument(
-        string content,
-        string relativePath,
-        CancellationToken cancellationToken)
-    {
-        var traversal = CreateDocumentTraversal(relativePath, cancellationToken);
-        var reader = new Utf8JsonReader(
-            Encoding.UTF8.GetBytes(content),
-            new JsonReaderOptions
-            {
-                MaxDepth = GetParserMaxDepth(_maxDocumentDepth)
-            });
-        while (reader.Read())
-        {
-            switch (reader.TokenType)
-            {
-                case JsonTokenType.StartObject:
-                case JsonTokenType.StartArray:
-                case JsonTokenType.String:
-                case JsonTokenType.Number:
-                case JsonTokenType.True:
-                case JsonTokenType.False:
-                case JsonTokenType.Null:
-                    traversal.Visit(reader.CurrentDepth);
-                    break;
-            }
-        }
-    }
-
-    private void PreflightYamlDocument(
-        string content,
-        string relativePath,
-        CancellationToken cancellationToken)
-    {
-        var traversal = CreateDocumentTraversal(relativePath, cancellationToken);
-        var parser = new Parser(new StringReader(content));
-        var depth = 0;
-        while (parser.MoveNext())
-        {
-            switch (parser.Current)
-            {
-                case MappingStart:
-                case SequenceStart:
-                    traversal.Visit(depth);
-                    depth++;
-                    break;
-                case MappingEnd:
-                case SequenceEnd:
-                    depth--;
-                    break;
-                case Scalar:
-                case AnchorAlias:
-                    traversal.Visit(depth);
-                    break;
-            }
-        }
-    }
 
     private static int GetParserMaxDepth(int maxDocumentDepth)
         => maxDocumentDepth < int.MaxValue ? maxDocumentDepth + 1 : int.MaxValue;
 
-    private static object? ConvertJsonNode(
-        JsonNode? node,
-        DocumentTraversalState traversal,
-        int depth)
+    private object? ParseJsonDocument(
+        TextReader content,
+        DocumentTraversalState traversal)
     {
-        traversal.Visit(depth);
-        if (node is null)
+        var builder = new JsonProjectionBuilder(traversal);
+        var state = new JsonReaderState(new JsonReaderOptions
+        {
+            MaxDepth = GetParserMaxDepth(_maxDocumentDepth)
+        });
+        var chars = new char[4096];
+        var bytes = new byte[16384];
+        var bufferedBytes = 0;
+        var isFinalBlock = false;
+        var utf8 = new UTF8Encoding(false, true);
+        var encoder = utf8.GetEncoder();
+
+        while (true)
+        {
+            if (!isFinalBlock)
+            {
+                var charsRead = content.Read(chars, 0, chars.Length);
+                isFinalBlock = charsRead == 0;
+                EnsureCapacity(
+                    ref bytes,
+                    bufferedBytes + utf8.GetMaxByteCount(charsRead));
+                encoder.Convert(
+                    chars.AsSpan(0, charsRead),
+                    bytes.AsSpan(bufferedBytes),
+                    isFinalBlock,
+                    out var charsUsed,
+                    out var bytesUsed,
+                    out _);
+                if (charsUsed != charsRead)
+                {
+                    throw new InvalidDataException("Unable to transcode the JSON data file.");
+                }
+
+                bufferedBytes += bytesUsed;
+            }
+
+            var reader = new Utf8JsonReader(
+                bytes.AsSpan(0, bufferedBytes),
+                isFinalBlock,
+                state);
+            while (reader.Read())
+            {
+                builder.Accept(ref reader);
+            }
+
+            var consumed = checked((int)reader.BytesConsumed);
+            state = reader.CurrentState;
+            bufferedBytes -= consumed;
+            if (bufferedBytes > 0 && consumed > 0)
+            {
+                bytes.AsSpan(consumed, bufferedBytes).CopyTo(bytes);
+            }
+
+            if (isFinalBlock)
+            {
+                break;
+            }
+
+            if (consumed == 0 && bufferedBytes == bytes.Length)
+            {
+                EnsureCapacity(ref bytes, checked(bytes.Length * 2));
+            }
+        }
+
+        return builder.Complete();
+    }
+
+    private static void EnsureCapacity(ref byte[] buffer, int required)
+    {
+        if (required <= buffer.Length) return;
+        Array.Resize(ref buffer, Math.Max(required, checked(buffer.Length * 2)));
+    }
+
+    private sealed class JsonProjectionBuilder(DocumentTraversalState traversal)
+    {
+        private readonly Stack<JsonContainerFrame> _containers = new();
+        private bool _hasRoot;
+        private object? _root;
+
+        internal void Accept(ref Utf8JsonReader reader)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.StartObject:
+                    traversal.Visit(reader.CurrentDepth);
+                    var map = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                    AttachValue(map);
+                    _containers.Push(new JsonContainerFrame(map));
+                    break;
+                case JsonTokenType.EndObject:
+                case JsonTokenType.EndArray:
+                    if (_containers.Count == 0) throw new JsonException();
+                    _containers.Pop();
+                    break;
+                case JsonTokenType.StartArray:
+                    traversal.Visit(reader.CurrentDepth);
+                    var list = new List<object>();
+                    AttachValue(list);
+                    _containers.Push(new JsonContainerFrame(list));
+                    break;
+                case JsonTokenType.PropertyName:
+                    var property = reader.GetString() ?? string.Empty;
+                    if (_containers.Count == 0 || !_containers.Peek().IsMap)
+                    {
+                        throw new JsonException();
+                    }
+
+                    traversal.VisitScalar(property.Length);
+                    traversal.VisitResultEntry();
+                    traversal.VisitResultString(property.Length);
+                    _containers.Peek().PendingProperty = property;
+                    break;
+                case JsonTokenType.String:
+                    traversal.Visit(reader.CurrentDepth);
+                    var text = reader.GetString() ?? string.Empty;
+                    traversal.VisitScalar(text.Length);
+                    AttachValue(TrackResultString(text, traversal));
+                    break;
+                case JsonTokenType.Number:
+                    traversal.Visit(reader.CurrentDepth);
+                    traversal.VisitScalar(
+                        reader.HasValueSequence ? reader.ValueSequence.Length : reader.ValueSpan.Length);
+                    AttachValue(ConvertJsonNumber(ref reader, traversal));
+                    break;
+                case JsonTokenType.True:
+                    traversal.Visit(reader.CurrentDepth);
+                    AttachValue(true);
+                    break;
+                case JsonTokenType.False:
+                    traversal.Visit(reader.CurrentDepth);
+                    AttachValue(false);
+                    break;
+                case JsonTokenType.Null:
+                    traversal.Visit(reader.CurrentDepth);
+                    AttachValue(null);
+                    break;
+            }
+        }
+
+        internal object? Complete()
+        {
+            if (!_hasRoot || _containers.Count != 0)
+            {
+                throw new JsonException();
+            }
+
+            return _root;
+        }
+
+        private void AttachValue(object? value)
+        {
+            if (_containers.Count == 0)
+            {
+                if (_hasRoot) throw new JsonException();
+                _hasRoot = true;
+                _root = value;
+                return;
+            }
+
+            var parent = _containers.Peek();
+            if (parent.Map is not null)
+            {
+                var property = parent.PendingProperty ?? throw new JsonException();
+                parent.Map.Add(property, value ?? string.Empty);
+                parent.PendingProperty = null;
+            }
+            else
+            {
+                traversal.VisitResultEntry();
+                parent.List!.Add(value ?? string.Empty);
+            }
+        }
+    }
+
+    private sealed class JsonContainerFrame
+    {
+        internal JsonContainerFrame(Dictionary<string, object> map) => Map = map;
+        internal JsonContainerFrame(List<object> list) => List = list;
+
+        internal Dictionary<string, object>? Map { get; }
+        internal List<object>? List { get; }
+        internal bool IsMap => Map is not null;
+        internal string? PendingProperty { get; set; }
+    }
+
+    private static object ConvertJsonNumber(
+        ref Utf8JsonReader reader,
+        DocumentTraversalState traversal)
+    {
+        if (reader.TryGetInt64(out var integer)) return integer;
+        if (reader.TryGetDouble(out var number)) return number;
+        return TrackResultString(Encoding.UTF8.GetString(reader.ValueSpan), traversal);
+    }
+
+    private static string TrackResultString(string text, DocumentTraversalState traversal)
+    {
+        traversal.VisitResultString(text.Length);
+        return text;
+    }
+
+    private static object? ParseYamlDocument(
+        TextReader content,
+        DocumentTraversalState traversal)
+    {
+        var parser = new Parser(content);
+        if (!parser.MoveNext() || parser.Current is not StreamStart)
+        {
+            throw new InvalidDataException("YAML stream start was not found.");
+        }
+
+        if (!parser.MoveNext()) throw new InvalidDataException("Unexpected end of YAML stream.");
+        object? firstDocument = null;
+        var hasDocument = false;
+        while (parser.Current is not StreamEnd)
+        {
+            if (parser.Current is not DocumentStart)
+            {
+                throw new InvalidDataException("YAML document start was not found.");
+            }
+
+            MoveNextYaml(parser);
+            var anchors = new Dictionary<string, object?>(StringComparer.Ordinal);
+            var document = ParseYamlNode(
+                parser,
+                traversal,
+                depth: 0,
+                project: !hasDocument,
+                anchors);
+            if (parser.Current is not DocumentEnd)
+            {
+                throw new InvalidDataException("YAML document end was not found.");
+            }
+
+            if (!hasDocument)
+            {
+                firstDocument = document;
+                hasDocument = true;
+            }
+
+            MoveNextYaml(parser);
+        }
+
+        return firstDocument;
+    }
+
+    private static object? ParseYamlNode(
+        Parser parser,
+        DocumentTraversalState traversal,
+        int depth,
+        bool project,
+        Dictionary<string, object?> anchors)
+    {
+        switch (parser.Current)
+        {
+            case MappingStart mappingStart:
+                {
+                    traversal.Visit(depth);
+                    var result = project
+                        ? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        : null;
+                    MoveNextYaml(parser);
+                    while (parser.Current is not MappingEnd)
+                    {
+                        var key = ParseYamlKey(parser, traversal, depth + 1, anchors);
+                        if (project)
+                        {
+                            traversal.VisitResultEntry();
+                            traversal.VisitResultString(key.Length);
+                        }
+
+                        var value = ParseYamlNode(parser, traversal, depth + 1, project, anchors);
+                        result?.Add(key, value ?? string.Empty);
+                    }
+
+                    MoveNextYaml(parser);
+                    RegisterYamlAnchor(mappingStart, result, anchors);
+                    return result;
+                }
+            case SequenceStart sequenceStart:
+                {
+                    traversal.Visit(depth);
+                    var result = project ? new List<object>() : null;
+                    MoveNextYaml(parser);
+                    while (parser.Current is not SequenceEnd)
+                    {
+                        if (project) traversal.VisitResultEntry();
+                        var value = ParseYamlNode(parser, traversal, depth + 1, project, anchors);
+                        result?.Add(value ?? string.Empty);
+                    }
+
+                    MoveNextYaml(parser);
+                    RegisterYamlAnchor(sequenceStart, result, anchors);
+                    return result;
+                }
+            case Scalar scalar:
+                {
+                    traversal.Visit(depth);
+                    traversal.VisitScalar(scalar.Value?.Length ?? 0);
+                    var value = project ? ConvertYamlScalar(scalar.Value, traversal) : null;
+                    RegisterYamlAnchor(scalar, value, anchors);
+                    MoveNextYaml(parser);
+                    return value;
+                }
+            case AnchorAlias alias:
+                {
+                    traversal.Visit(depth);
+                    var anchor = alias.Value.Value;
+                    if (!anchors.TryGetValue(anchor, out var value))
+                    {
+                        throw new AnchorNotFoundException($"Anchor '{anchor}' was not found.");
+                    }
+
+                    MoveNextYaml(parser);
+                    return project ? CloneYamlProjection(value, traversal) : null;
+                }
+            default:
+                throw new InvalidDataException($"Unexpected YAML event {parser.Current?.GetType().Name}.");
+        }
+    }
+
+    private static string ParseYamlKey(
+        Parser parser,
+        DocumentTraversalState traversal,
+        int depth,
+        Dictionary<string, object?> anchors)
+    {
+        if (parser.Current is Scalar scalar)
+        {
+            traversal.Visit(depth);
+            var key = scalar.Value ?? string.Empty;
+            traversal.VisitScalar(key.Length);
+            RegisterYamlAnchor(scalar, key, anchors);
+            MoveNextYaml(parser);
+            return key;
+        }
+
+        if (parser.Current is AnchorAlias alias)
+        {
+            traversal.Visit(depth);
+            var anchor = alias.Value.Value;
+            if (!anchors.TryGetValue(anchor, out var value))
+            {
+                throw new AnchorNotFoundException($"Anchor '{anchor}' was not found.");
+            }
+
+            MoveNextYaml(parser);
+            return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+
+        return ParseYamlComplexKey(parser, traversal, depth, anchors);
+    }
+
+    private static string ParseYamlComplexKey(
+        Parser parser,
+        DocumentTraversalState traversal,
+        int depth,
+        Dictionary<string, object?> anchors)
+    {
+        var result = new StringBuilder();
+        AppendYamlDisplayNode(result, parser, traversal, depth, anchors);
+        return result.ToString();
+    }
+
+    private static void AppendYamlDisplayNode(
+        StringBuilder result,
+        Parser parser,
+        DocumentTraversalState traversal,
+        int depth,
+        Dictionary<string, object?> anchors)
+    {
+        switch (parser.Current)
+        {
+            case Scalar scalar:
+                traversal.Visit(depth);
+                var scalarText = scalar.Value ?? string.Empty;
+                traversal.VisitScalar(scalarText.Length);
+                result.Append(scalarText);
+                RegisterYamlAnchor(scalar, scalarText, anchors);
+                MoveNextYaml(parser);
+                return;
+            case SequenceStart sequenceStart:
+                traversal.Visit(depth);
+                result.Append("[ ");
+                MoveNextYaml(parser);
+                var firstItem = true;
+                while (parser.Current is not SequenceEnd)
+                {
+                    if (!firstItem) result.Append(", ");
+                    AppendYamlDisplayNode(result, parser, traversal, depth + 1, anchors);
+                    firstItem = false;
+                }
+
+                result.Append(" ]");
+                MoveNextYaml(parser);
+                if (!sequenceStart.Anchor.IsEmpty)
+                {
+                    anchors.Add(sequenceStart.Anchor.Value, result.ToString());
+                }
+
+                return;
+            case MappingStart mappingStart:
+                traversal.Visit(depth);
+                result.Append("{ ");
+                MoveNextYaml(parser);
+                var firstPair = true;
+                while (parser.Current is not MappingEnd)
+                {
+                    if (!firstPair) result.Append(", ");
+                    result.Append("{ ");
+                    AppendYamlDisplayNode(result, parser, traversal, depth + 1, anchors);
+                    result.Append(", ");
+                    AppendYamlDisplayNode(result, parser, traversal, depth + 1, anchors);
+                    result.Append(" }");
+                    firstPair = false;
+                }
+
+                result.Append(" }");
+                MoveNextYaml(parser);
+                if (!mappingStart.Anchor.IsEmpty)
+                {
+                    anchors.Add(mappingStart.Anchor.Value, result.ToString());
+                }
+
+                return;
+            case AnchorAlias alias:
+                traversal.Visit(depth);
+                if (!anchors.TryGetValue(alias.Value.Value, out var value))
+                {
+                    throw new AnchorNotFoundException($"Anchor '{alias.Value.Value}' was not found.");
+                }
+
+                AppendYamlDisplayValue(result, value);
+                MoveNextYaml(parser);
+                return;
+            default:
+                throw new InvalidDataException($"Unexpected YAML event {parser.Current?.GetType().Name}.");
+        }
+    }
+
+    private static void AppendYamlDisplayValue(StringBuilder result, object? value)
+    {
+        switch (value)
+        {
+            case Dictionary<string, object> map:
+                result.Append("{ ");
+                var firstPair = true;
+                foreach (var (key, item) in map)
+                {
+                    if (!firstPair) result.Append(", ");
+                    result.Append("{ ").Append(key).Append(", ");
+                    AppendYamlDisplayValue(result, item);
+                    result.Append(" }");
+                    firstPair = false;
+                }
+
+                result.Append(" }");
+                break;
+            case List<object> list:
+                result.Append("[ ");
+                for (var index = 0; index < list.Count; index++)
+                {
+                    if (index > 0) result.Append(", ");
+                    AppendYamlDisplayValue(result, list[index]);
+                }
+
+                result.Append(" ]");
+                break;
+            default:
+                result.Append(Convert.ToString(value, CultureInfo.InvariantCulture));
+                break;
+        }
+    }
+
+    private static void RegisterYamlAnchor(
+        NodeEvent node,
+        object? value,
+        Dictionary<string, object?> anchors)
+    {
+        if (!node.Anchor.IsEmpty) anchors.Add(node.Anchor.Value, value);
+    }
+
+    private static object? CloneYamlProjection(
+        object? value,
+        DocumentTraversalState traversal)
+    {
+        switch (value)
+        {
+            case Dictionary<string, object> map:
+                var mapClone = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                foreach (var (key, item) in map)
+                {
+                    traversal.VisitResultEntry();
+                    traversal.VisitResultString(key.Length);
+                    mapClone.Add(key, CloneYamlProjection(item, traversal) ?? string.Empty);
+                }
+
+                return mapClone;
+            case List<object> list:
+                var listClone = new List<object>(list.Count);
+                foreach (var item in list)
+                {
+                    traversal.VisitResultEntry();
+                    listClone.Add(CloneYamlProjection(item, traversal) ?? string.Empty);
+                }
+
+                return listClone;
+            case string text:
+                return TrackResultString(text, traversal);
+            default:
+                return value;
+        }
+    }
+
+    private static void MoveNextYaml(Parser parser)
+    {
+        if (!parser.MoveNext())
+        {
+            throw new InvalidDataException("Unexpected end of YAML stream.");
+        }
+    }
+
+    private static object? ConvertYamlScalar(
+        string? value,
+        DocumentTraversalState traversal)
+    {
+        if (value is null)
         {
             return null;
         }
 
-        return node switch
-        {
-            JsonObject obj => obj.ToDictionary(
-                property => property.Key,
-                property => ConvertJsonNode(property.Value, traversal, depth + 1) ?? string.Empty,
-                StringComparer.OrdinalIgnoreCase),
-            JsonArray array => array
-                .Select(item => ConvertJsonNode(item, traversal, depth + 1) ?? string.Empty)
-                .ToList(),
-            JsonValue value => ConvertJsonValue(value),
-            _ => node.ToJsonString()
-        };
-    }
-
-    private static object ConvertJsonValue(JsonValue value)
-    {
-        if (value.TryGetValue<string>(out var text)) return text;
-        if (value.TryGetValue<bool>(out var boolean)) return boolean;
-        if (value.TryGetValue<long>(out var integer)) return integer;
-        if (value.TryGetValue<double>(out var number)) return number;
-        return value.ToJsonString();
-    }
-
-    private static object? ConvertYamlNode(
-        YamlNode node,
-        DocumentTraversalState traversal,
-        int depth)
-    {
-        traversal.Visit(depth);
-        return node switch
-        {
-            YamlMappingNode map => map.Children.ToDictionary(
-                pair => GetYamlKey(pair.Key),
-                pair => ConvertYamlNode(pair.Value, traversal, depth + 1) ?? string.Empty,
-                StringComparer.OrdinalIgnoreCase),
-            YamlSequenceNode sequence => sequence.Children
-                .Select(item => ConvertYamlNode(item, traversal, depth + 1) ?? string.Empty)
-                .ToList(),
-            YamlScalarNode scalar => ConvertYamlScalar(scalar),
-            _ => node.ToString()
-        };
-    }
-
-    private static string GetYamlKey(YamlNode key)
-        => key is YamlScalarNode scalar && scalar.Value is not null
-            ? scalar.Value
-            : key.ToString();
-
-    private static object? ConvertYamlScalar(YamlScalarNode scalar)
-    {
-        if (scalar.Value is null)
-        {
-            return null;
-        }
-
-        if (bool.TryParse(scalar.Value, out var boolean))
+        if (bool.TryParse(value, out var boolean))
         {
             return boolean;
         }
 
-        if (long.TryParse(scalar.Value, CultureInfo.InvariantCulture, out var integer))
+        if (long.TryParse(value, CultureInfo.InvariantCulture, out var integer))
         {
             return integer;
         }
 
-        if (double.TryParse(scalar.Value, CultureInfo.InvariantCulture, out var number))
+        if (double.TryParse(value, CultureInfo.InvariantCulture, out var number))
         {
             return number;
         }
 
-        return scalar.Value;
+        return TrackResultString(value, traversal);
     }
 }

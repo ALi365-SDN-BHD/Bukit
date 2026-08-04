@@ -65,7 +65,7 @@ public sealed class ContentPipeline
         var currentDocuments = input.Documents;
         var currentBodyStore = input.BodyStore;
         BodyCacheDecorator? bodyCache = null;
-        var ownsBodyCache = false;
+        IContentBodyStore? ownedBodyStore = null;
         List<ContentValidationIssue>? allSchemaErrors = null;
 
         try
@@ -74,22 +74,36 @@ public sealed class ContentPipeline
             {
                 var stageInput = input with { Documents = currentDocuments, BodyStore = currentBodyStore };
                 var sw = Stopwatch.StartNew();
+                var isContentLoadStage = stage is ContentLoadStage;
+                var isImageLocalizeStage = stage is ImageLocalizeStage;
+
+                if (isImageLocalizeStage)
+                {
+                    // ImageLocalize takes ownership while it constructs the replacement store.
+                    ownedBodyStore = null;
+                }
 
                 var output = await stage.ExecuteAsync(stageInput, cancellationToken);
+
+                if (isContentLoadStage || isImageLocalizeStage)
+                {
+                    ownedBodyStore = output.BodyStore;
+                }
+
+                BodyCacheDecorator? stageBodyCache = null;
+                if (isImageLocalizeStage)
+                {
+                    stageBodyCache = new BodyCacheDecorator(output.BodyStore, 10000, cancellationToken);
+                    bodyCache = stageBodyCache;
+                    ownedBodyStore = stageBodyCache;
+                }
 
                 sw.Stop();
                 var actualDuration = output.DurationMs > 0 ? output.DurationMs : sw.ElapsedMilliseconds;
                 _logger.Info($"event=content.stage stage={stage.Name} duration_ms={actualDuration}");
 
                 currentDocuments = output.Documents;
-                currentBodyStore = output.BodyStore;
-
-                if (stage.Name == "ImageLocalize")
-                {
-                    bodyCache = new BodyCacheDecorator(currentBodyStore, 10000, cancellationToken);
-                    currentBodyStore = bodyCache;
-                    ownsBodyCache = true;
-                }
+                currentBodyStore = stageBodyCache ?? output.BodyStore;
 
                 if (output.SchemaErrors is { Count: > 0 } errors)
                 {
@@ -97,23 +111,31 @@ public sealed class ContentPipeline
                     allSchemaErrors.AddRange(errors);
                 }
             }
+            var contentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(currentDocuments);
+
+            return new ContentPipelineResult(
+                currentDocuments,
+                currentBodyStore,
+                (IReadOnlyList<ContentValidationIssue>?)allSchemaErrors ?? Array.Empty<ContentValidationIssue>(),
+                bodyCache?.Metrics,
+                contentGraph);
         }
         catch
         {
-            if (ownsBodyCache && bodyCache is not null)
-            {
-                await bodyCache.DisposeAsync();
-            }
+            await DisposeBodyStoreAsync(ownedBodyStore);
             throw;
         }
+    }
 
-        var contentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(currentDocuments);
-
-        return new ContentPipelineResult(
-            currentDocuments,
-            currentBodyStore,
-            (IReadOnlyList<ContentValidationIssue>?)allSchemaErrors ?? Array.Empty<ContentValidationIssue>(),
-            bodyCache?.Metrics,
-            contentGraph);
+    private static async ValueTask DisposeBodyStoreAsync(IContentBodyStore? bodyStore)
+    {
+        if (bodyStore is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+        }
+        else if (bodyStore is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
     }
 }

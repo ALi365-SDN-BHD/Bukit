@@ -112,9 +112,13 @@ public sealed class G04D3BNotionStatsTests
                 typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly));
         Assert.Equal(
             [
+                "Bukit.Cli.Tests",
                 "Bukit.Content",
                 "Bukit.Content.Notion",
-                "Bukit.Notion.Tests"
+                "Bukit.Content.Notion.Tests",
+                "Bukit.Importing.Tests",
+                "Bukit.Notion.Tests",
+                "Bukit.Plugin.Import.Tests"
             ],
             GetFriendAssemblies(
                 typeof(Bukit.Notion.Transport.NotionClientStats).Assembly));

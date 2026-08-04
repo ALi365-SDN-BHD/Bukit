@@ -308,6 +308,8 @@ public sealed class SiteEngine
         var projectionResults = I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder);
         SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, buildLogger, projectionResults);
         buildLogger.Info("event=build.done");
+        // Refresh metrics after all language variants finished rendering
+        bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, documents.Count, variantResults, bodyCacheMetrics);
         var generatedFiles = BuildOutputInventory.Create(outputDir);
         buildStopwatch.Stop();

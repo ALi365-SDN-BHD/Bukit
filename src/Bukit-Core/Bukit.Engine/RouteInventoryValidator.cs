@@ -25,32 +25,68 @@ public static class RouteInventoryValidator
         CancellationToken cancellationToken = default)
     {
         var provider = ContentProviderFactory.Create(config, rootDir, isCi, logger);
+        return await BuildContentRoutesAsync(
+            config,
+            rootDir,
+            logger,
+            provider,
+            templateResolver,
+            cancellationToken);
+    }
+
+    internal static async Task<IReadOnlyList<RoutedContentDocument>> BuildContentRoutesAsync(
+        AppConfig config,
+        string rootDir,
+        ILogger logger,
+        IContentProvider provider,
+        ThemeTemplateResolver? templateResolver = null,
+        CancellationToken cancellationToken = default)
+    {
         var loadResult = await provider.LoadRawAsync(cancellationToken);
-        ContentCollectionContractValidator.Validate(loadResult.Documents);
-        var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents);
-        if (!config.Build.Draft)
+        try
         {
-            documents = documents.Where(i => ContentFieldReader.GetBool(i.CustomFields, "draft") is not true).ToList();
-        }
+            ContentCollectionContractValidator.Validate(loadResult.Documents);
+            var documents = ContentDocumentNormalizer.ToDocuments(loadResult.Documents);
+            if (!config.Build.Draft)
+            {
+                documents = documents.Where(i => ContentFieldReader.GetBool(i.CustomFields, "draft") is not true).ToList();
+            }
 
-        var siteLanguages = config.Site.Languages;
-        if (siteLanguages is null or { Count: 0 })
-        {
-            var siteLanguage = config.Site.Language;
-            documents = I18nOutputMerger.FilterDocumentsByLanguage(documents, siteLanguage, siteLanguage);
-        }
-        else
-        {
-            var defaultLang = I18nOutputMerger.GetDefaultLanguage(config.Site, siteLanguages);
-            documents = I18nOutputMerger.FilterDocumentsByLanguage(documents, defaultLang, defaultLang);
-        }
+            var siteLanguages = config.Site.Languages;
+            if (siteLanguages is null or { Count: 0 })
+            {
+                var siteLanguage = config.Site.Language;
+                documents = I18nOutputMerger.FilterDocumentsByLanguage(documents, siteLanguage, siteLanguage);
+            }
+            else
+            {
+                var defaultLang = I18nOutputMerger.GetDefaultLanguage(config.Site, siteLanguages);
+                documents = I18nOutputMerger.FilterDocumentsByLanguage(documents, defaultLang, defaultLang);
+            }
 
-        var contentDocuments = documents.Where(i => !ContentFieldReader.IsDataItem(i)).ToList();
-        var collectionRules = BuildCollectionRules(config.Site);
-        return contentDocuments
-            .Select(i => new RoutedContentDocument(i, RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
-            .Select(x => x with { Route = ResolveRouteTemplate(x.Document, x.Route, templateResolver) })
-            .ToList();
+            var contentDocuments = documents.Where(i => !ContentFieldReader.IsDataItem(i)).ToList();
+            var collectionRules = BuildCollectionRules(config.Site);
+            return contentDocuments
+                .Select(i => new RoutedContentDocument(i, RouteGenerator.Generate(i, config.Site.OutputPathEncoding, config.Site.Permalinks, collectionRules)))
+                .Select(x => x with { Route = ResolveRouteTemplate(x.Document, x.Route, templateResolver) })
+                .ToList();
+        }
+        finally
+        {
+            await DisposeBodyStoreAsync(loadResult.BodyStore);
+        }
+    }
+
+    private static async ValueTask DisposeBodyStoreAsync(IContentBodyStore bodyStore)
+    {
+        if (bodyStore is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+        }
+        else if (bodyStore is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
     }
 
     public static void ValidateContentRoutes(IReadOnlyList<RoutedContentDocument> routed, string scope = "content")

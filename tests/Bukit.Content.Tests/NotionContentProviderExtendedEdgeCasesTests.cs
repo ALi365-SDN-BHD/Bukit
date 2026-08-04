@@ -23,7 +23,7 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
             RenderContent = false
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
@@ -56,7 +56,7 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
                 CacheDir = cacheDir
             };
             NotionApiClient CreateClient() =>
-                new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+                new(options, handler, (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger, CreateClient);
 
             var result = await provider.LoadRawAsync();
@@ -93,7 +93,7 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
                 CacheDir = cacheDir
             };
             NotionApiClient CreateClient() =>
-                new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+                new(options, handler, (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
             var result = await provider.LoadRawAsync();
@@ -129,7 +129,7 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
             FieldPolicyMode = "all"
         };
         NotionApiClient CreateClient() =>
-            new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+            new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger, CreateClient);
 
         var result = await provider.LoadRawAsync();
@@ -164,7 +164,7 @@ public sealed class NotionContentProviderExtendedEdgeCasesTests
                 CacheDir = cacheDir
             };
             NotionApiClient CreateClient() =>
-                new(options, new HttpClient(handler), (_, _) => Task.CompletedTask);
+                new(options, handler, (_, _) => Task.CompletedTask);
             var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
             var result = await provider.LoadRawAsync();

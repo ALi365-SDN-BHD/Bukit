@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Text;
 using Bukit.Cli.Deploy;
 using Bukit.Shared;
 using Xunit;
@@ -22,6 +23,68 @@ public sealed class GitHubPagesDeployProviderTests
 
         Assert.False(completed);
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task BoundedGitCollector_GetText_SealsSnapshotAgainstLatePumpWrites()
+    {
+        using var process = new Process();
+        using var stream = new TwoPhaseReadStream("before", "after");
+        using var collector = new GitHubPagesDeployProvider.BoundedGitCollector(1024);
+        Task readTask = collector.ReadAsync(stream, process);
+        await stream.SecondReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.Equal("before", collector.GetText());
+
+        stream.ReleaseSecondRead();
+        await readTask.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.Equal("before", collector.GetText());
+    }
+
+    [Fact]
+    public async Task BoundedGitCollector_GetDiagnosticText_MalformedUtf8_EmitsByteBoundedHeadAndTail()
+    {
+        var bytes = Enumerable.Repeat((byte)0xff, 96 * 1024).ToArray();
+        using var process = new Process();
+        using var stream = new MemoryStream(bytes);
+        using var collector = new GitHubPagesDeployProvider.BoundedGitCollector(128 * 1024);
+
+        await collector.ReadAsync(stream, process);
+
+        var diagnostic = collector.GetDiagnosticText();
+        AssertDiagnosticSlicesAreUtf8ByteBounded(diagnostic);
+    }
+
+    [Fact]
+    public async Task ResolveGit_ProbeChildInheritsStdout_ReturnsWithinDrainDeadline()
+    {
+        if (OperatingSystem.IsWindows()) return;
+
+        var root = Path.Combine(Path.GetTempPath(), "bukit-resolve-git-" + Guid.NewGuid().ToString("N"));
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        Directory.CreateDirectory(root);
+        try
+        {
+            WriteExecutable(root, "which", "( /bin/sleep 12 ) &\nexit 0");
+            Environment.SetEnvironmentVariable("PATH", root);
+
+            var stopwatch = Stopwatch.StartNew();
+            var resolveTask = Task.Run(() => InvokePrivateStatic<string?>(
+                nameof(GitHubPagesDeployProvider),
+                "ResolveGit",
+                [null]));
+            var result = await resolveTask.WaitAsync(TimeSpan.FromSeconds(7));
+            stopwatch.Stop();
+
+            Assert.Null(result);
+            Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(7),
+                $"ResolveGit took {stopwatch.Elapsed.TotalSeconds:F1}s with an inherited stdout pipe.");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     [Fact]
@@ -332,6 +395,32 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
+    public async Task DeployAsync_GitCommandTimeout_WithInheritedPipe_ReturnsWithinDrainDeadline()
+    {
+        if (OperatingSystem.IsWindows()) return;
+
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "sleep-with-inherited-pipe";
+        scope.SetGithubToken("secret-token");
+        scope.SetDeployTimeoutSeconds("1");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+        var stopwatch = Stopwatch.StartNew();
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(),
+            CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+
+        stopwatch.Stop();
+        Assert.False(result.Success);
+        Assert.Contains("Git command timed out during GitHub Pages deployment", result.Error, StringComparison.Ordinal);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(8),
+            $"Git timeout + inherited-pipe drain took {stopwatch.Elapsed.TotalSeconds:F1}s, expected < 8s");
+        AssertDeploymentCleanupSucceeded(scope);
+    }
+
+    [Fact]
     public async Task DeployAsync_PushFloodsStdoutAndStderr_CompletesWithoutFalseTimeout()
     {
         using var scope = new GitHubPagesDeployTestScope();
@@ -352,6 +441,58 @@ public sealed class GitHubPagesDeployProviderTests
     }
 
     [Fact]
+    public async Task DeployAsync_PushOutputBeyondStreamCap_FailsWithoutUnboundedCapture()
+    {
+        if (OperatingSystem.IsWindows()) return;
+
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "flood-over-limit";
+        scope.SetGithubToken("secret-token");
+        scope.SetDeployTimeoutSeconds("10");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(),
+            CancellationToken.None);
+
+        var error = Assert.IsType<string>(result.Error);
+        Assert.False(result.Success);
+        Assert.Contains("produced more than 4194304 bytes on stdout", error, StringComparison.Ordinal);
+        Assert.True(Encoding.UTF8.GetByteCount(error) < 4096,
+            $"Git overflow error was {Encoding.UTF8.GetByteCount(error)} UTF-8 bytes.");
+        Assert.False(File.Exists(scope.FakeGit.PushFloodOverflowCompletedPath),
+            "Git overflow should terminate the process tree before its child can finish.");
+        AssertDeploymentCleanupSucceeded(scope);
+    }
+
+    [Fact]
+    public async Task DeployAsync_PushParentExitsWithInheritedPipe_ReturnsWithinDrainDeadline()
+    {
+        if (OperatingSystem.IsWindows()) return;
+
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.FakeGit.PushMode = "child-inherits-pipe";
+        scope.SetGithubToken("secret-token");
+        scope.SetDeployTimeoutSeconds("10");
+        scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var stopwatch = Stopwatch.StartNew();
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(),
+            CancellationToken.None);
+        stopwatch.Stop();
+
+        Assert.True(result.Success, result.Error);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5),
+            $"Git drain took {stopwatch.Elapsed.TotalSeconds:F1}s with an inherited pipe.");
+        AssertDeploymentCleanupSucceeded(scope);
+    }
+
+    [Fact]
     public async Task DeployAsync_PushFloodThenFailure_ReturnsReadableSanitizedError()
     {
         const string token = "ghp_FLOOD_SECRET_TOKEN_123";
@@ -368,9 +509,14 @@ public sealed class GitHubPagesDeployProviderTests
             CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Contains("FLOOD_FAILURE", result.Error, StringComparison.Ordinal);
-        Assert.DoesNotContain(token, result.Error, StringComparison.Ordinal);
-        Assert.Contains("***", result.Error, StringComparison.Ordinal);
+        var error = Assert.IsType<string>(result.Error);
+        Assert.Contains("FLOOD_FAILURE", error, StringComparison.Ordinal);
+        Assert.DoesNotContain(token, error, StringComparison.Ordinal);
+        Assert.Contains("***", error, StringComparison.Ordinal);
+        Assert.Contains("stderr-flood-0", error, StringComparison.Ordinal);
+        Assert.Contains("[truncated", error, StringComparison.Ordinal);
+        Assert.True(Encoding.UTF8.GetByteCount(error) <= 68 * 1024,
+            $"Git failure diagnostic was {Encoding.UTF8.GetByteCount(error)} UTF-8 bytes.");
         AssertDeploymentCleanupSucceeded(scope);
     }
 
@@ -999,6 +1145,32 @@ public sealed class GitHubPagesDeployProviderTests
         return result is null ? default! : (T)result;
     }
 
+    private static void AssertDiagnosticSlicesAreUtf8ByteBounded(string diagnostic)
+    {
+        const string markerStart = "\n... [truncated ";
+        var markerIndex = diagnostic.IndexOf(markerStart, StringComparison.Ordinal);
+        Assert.True(markerIndex >= 0, "Expected a diagnostic truncation marker.");
+        var tailStart = diagnostic.IndexOf("] ...\n", markerIndex, StringComparison.Ordinal);
+        Assert.True(tailStart >= 0, "Expected a complete diagnostic truncation marker.");
+
+        var head = diagnostic[..markerIndex];
+        var tail = diagnostic[(tailStart + "] ...\n".Length)..];
+        Assert.True(Encoding.UTF8.GetByteCount(head) <= 32 * 1024);
+        Assert.True(Encoding.UTF8.GetByteCount(tail) <= 32 * 1024);
+    }
+
+    private static string WriteExecutable(string directory, string name, string body)
+    {
+        var path = Path.Combine(directory, name);
+        File.WriteAllText(path, "#!/bin/sh\n" + body + "\n");
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(path,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+        return path;
+    }
+
     private static async Task AssertGitHubRemoteUrlDeploysAsync(string remoteUrl, string expectedUrl)
     {
         using var scope = new GitHubPagesDeployTestScope();
@@ -1151,6 +1323,8 @@ public sealed class GitHubPagesDeployProviderTests
         public string PushSleepStartedPath => Path.Combine(StateDir, "push-sleep-started.marker");
 
         public string PushSleepCompletedPath => Path.Combine(StateDir, "push-sleep-completed.marker");
+
+        public string PushFloodOverflowCompletedPath => Path.Combine(StateDir, "push-flood-overflow-completed.marker");
 
         public string PrependPath(string? existingPath)
             => string.IsNullOrWhiteSpace(existingPath)
@@ -1312,6 +1486,10 @@ public sealed class GitHubPagesDeployProviderTests
                 sleep 30
                 printf 'completed\n' > "$BUKIT_FAKE_GIT_STATE/push-sleep-completed.marker"
               fi
+              if [ "$mode" = "sleep-with-inherited-pipe" ]; then
+                ( /bin/sleep 30 ) &
+                wait
+              fi
               if [ "$mode" = "forbidden" ]; then
                 printf 'remote: 403 Forbidden %s\n' "${GITHUB_TOKEN:-missing}" >&2
                 exit 1
@@ -1319,6 +1497,15 @@ public sealed class GitHubPagesDeployProviderTests
               if [ "$mode" = "askpass-leak" ]; then
                 printf 'fatal: cannot run %s for token %s\n' "${GIT_ASKPASS:-missing}" "${GITHUB_TOKEN:-missing}" >&2
                 exit 1
+              fi
+              if [ "$mode" = "flood-over-limit" ]; then
+                head -c 5242880 /dev/zero
+                printf 'completed\n' > "$BUKIT_FAKE_GIT_STATE/push-flood-overflow-completed.marker"
+                exit 0
+              fi
+              if [ "$mode" = "child-inherits-pipe" ]; then
+                ( /bin/sleep 3 ) &
+                exit 0
               fi
               if [ "$mode" = "flood-success" ] || [ "$mode" = "flood-failure" ]; then
                 flood_index=0
@@ -1360,5 +1547,52 @@ public sealed class GitHubPagesDeployProviderTests
         public void Warn(string message) => Warnings.Add(message);
 
         public void Error(string message) => Errors.Add(message);
+    }
+
+    private sealed class TwoPhaseReadStream(string first, string second) : Stream
+    {
+        private readonly byte[] _first = Encoding.UTF8.GetBytes(first);
+        private readonly byte[] _second = Encoding.UTF8.GetBytes(second);
+        private readonly TaskCompletionSource _secondReadStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseSecondRead =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _readCount;
+
+        internal Task SecondReadStarted => _secondReadStarted.Task;
+        internal void ReleaseSecondRead() => _releaseSecondRead.TrySetResult();
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            var readCount = Interlocked.Increment(ref _readCount);
+            if (readCount == 1)
+            {
+                _first.AsSpan().CopyTo(buffer.Span);
+                return _first.Length;
+            }
+
+            if (readCount == 2)
+            {
+                _secondReadStarted.TrySetResult();
+                await _releaseSecondRead.Task.WaitAsync(cancellationToken);
+                _second.AsSpan().CopyTo(buffer.Span);
+                return _second.Length;
+            }
+
+            return 0;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Bukit.Shared;
 
@@ -9,20 +10,38 @@ internal sealed class MediaIndexManager
     private const int CurrentIndexVersion = 3;
     private const int IndexPersistThreshold = 20;
 
+    // In-process coordination keyed by the physical index path so that two
+    // instances writing the same directory serialize their merge-and-persist.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, object> s_indexPathLocks =
+        new(StringComparer.Ordinal);
+
     private readonly object _indexLock = new();
     private Dictionary<string, string> _diskIndex;
+    private readonly Dictionary<string, string> _upsertedIndexEntries = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _deletedIndexKeys = new(StringComparer.Ordinal);
     private volatile bool _indexLoaded;
     private bool _indexDirty;
     private int _pendingIndexChanges;
     private readonly string _downloadDir;
     private readonly string _urlBase;
     private readonly ILogger? _logger;
+    private readonly Action? _beforeIndexReplace;
 
     internal MediaIndexManager(string downloadDir, string urlBase, ILogger? logger)
+        : this(downloadDir, urlBase, logger, beforeIndexReplace: null)
+    {
+    }
+
+    internal MediaIndexManager(
+        string downloadDir,
+        string urlBase,
+        ILogger? logger,
+        Action? beforeIndexReplace)
     {
         _downloadDir = downloadDir;
         _urlBase = urlBase;
         _logger = logger;
+        _beforeIndexReplace = beforeIndexReplace;
         _diskIndex = new(StringComparer.Ordinal);
     }
 
@@ -48,16 +67,14 @@ internal sealed class MediaIndexManager
             {
                 _logger?.Warn(
                     $"event=media.index_path_traversal key={normalizedKey} fileName={indexedFileName}");
-                _diskIndex.Remove(normalizedKey);
-                _indexDirty = true;
+                MarkIndexDeleted(normalizedKey);
                 return false;
             }
 
             var fullPath = Path.Combine(root, indexedFileName);
             if (!File.Exists(fullPath))
             {
-                _diskIndex.Remove(normalizedKey);
-                _indexDirty = true;
+                MarkIndexDeleted(normalizedKey);
                 return false;
             }
 
@@ -70,10 +87,9 @@ internal sealed class MediaIndexManager
     {
         lock (_indexLock)
         {
-            if (_diskIndex.Remove(normalizedKey))
+            if (_diskIndex.ContainsKey(normalizedKey))
             {
-                _indexDirty = true;
-                _pendingIndexChanges++;
+                MarkIndexDeleted(normalizedKey);
             }
         }
     }
@@ -83,13 +99,9 @@ internal sealed class MediaIndexManager
         bool shouldPersist;
         lock (_indexLock)
         {
-            if (_diskIndex.TryGetValue(normalizedKey, out var existing) &&
-                string.Equals(existing, fileName, StringComparison.Ordinal))
-            {
-                return;
-            }
-
             _diskIndex[normalizedKey] = fileName;
+            _upsertedIndexEntries[normalizedKey] = fileName;
+            _deletedIndexKeys.Remove(normalizedKey);
             _indexDirty = true;
             _pendingIndexChanges++;
             shouldPersist = _pendingIndexChanges >= IndexPersistThreshold;
@@ -217,45 +229,74 @@ internal sealed class MediaIndexManager
             {
                 Directory.CreateDirectory(root);
                 var path = Path.Combine(root, IndexFileName);
-                var tempPath = Path.Combine(root, $".{IndexFileName}.{Guid.NewGuid():N}.tmp");
+                var pathKey = Path.GetFullPath(path);
+                var pathGate = s_indexPathLocks.GetOrAdd(pathKey, static _ => new object());
 
-                // Write to temp file first, then atomic replace
-                try
+                lock (pathGate)
                 {
-                    using (var fs = new FileStream(
-                        tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                        bufferSize: 4096, FileOptions.SequentialScan))
+                    // Cross-process coordination: hold an exclusive lock file while
+                    // re-reading, merging, and atomically replacing the index.
+                    var lockPath = path + ".lock";
+                    using (OpenLockFileWithRetry(lockPath))
                     {
-                        using var writer = new Utf8JsonWriter(fs,
-                            new JsonWriterOptions { Indented = false });
-                        writer.WriteStartObject();
-                        writer.WriteNumber("version", CurrentIndexVersion);
-                        writer.WritePropertyName("entries");
-                        writer.WriteStartObject();
-                        foreach (var kv in _diskIndex.OrderBy(x => x.Key, StringComparer.Ordinal))
+                        // Merge entries committed by other instances/processes
+                        var merged = ReadDiskIndex(path);
+                        foreach (var deletedKey in _deletedIndexKeys)
                         {
-                            writer.WriteString(kv.Key, kv.Value);
+                            merged.Remove(deletedKey);
                         }
-                        writer.WriteEndObject();
-                        writer.WriteEndObject();
-                        writer.Flush();
-                        fs.Flush(flushToDisk: true);
-                    }
 
-                    if (File.Exists(path))
-                    {
-                        File.Replace(tempPath, path, destinationBackupFileName: null);
-                    }
-                    else
-                    {
-                        File.Move(tempPath, path);
+                        foreach (var kv in _upsertedIndexEntries)
+                        {
+                            merged[kv.Key] = kv.Value;
+                        }
+
+                        var tempPath = Path.Combine(root, $".{IndexFileName}.{Guid.NewGuid():N}.tmp");
+                        try
+                        {
+                            using (var fs = new FileStream(
+                                tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                                bufferSize: 4096, FileOptions.SequentialScan))
+                            {
+                                using var writer = new Utf8JsonWriter(fs,
+                                    new JsonWriterOptions { Indented = false });
+                                writer.WriteStartObject();
+                                writer.WriteNumber("version", CurrentIndexVersion);
+                                writer.WritePropertyName("entries");
+                                writer.WriteStartObject();
+                                foreach (var kv in merged.OrderBy(x => x.Key, StringComparer.Ordinal))
+                                {
+                                    writer.WriteString(kv.Key, kv.Value);
+                                }
+                                writer.WriteEndObject();
+                                writer.WriteEndObject();
+                                writer.Flush();
+                                fs.Flush(flushToDisk: true);
+                            }
+
+                            _beforeIndexReplace?.Invoke();
+                            if (File.Exists(path))
+                            {
+                                File.Replace(tempPath, path, destinationBackupFileName: null);
+                            }
+                            else
+                            {
+                                File.Move(tempPath, path);
+                            }
+                        }
+                        catch
+                        {
+                            try { File.Delete(tempPath); } catch { /* best effort */ }
+                            throw;
+                        }
+
+                        // Reconcile this instance's in-memory map with what was committed
+                        _diskIndex = merged;
+                        _upsertedIndexEntries.Clear();
+                        _deletedIndexKeys.Clear();
                     }
                 }
-                catch
-                {
-                    try { File.Delete(tempPath); } catch { /* best effort */ }
-                    throw;
-                }
+
                 _indexDirty = false;
                 _pendingIndexChanges = 0;
             }
@@ -263,6 +304,89 @@ internal sealed class MediaIndexManager
             {
                 _logger?.Warn(
                     $"event=media.index_write_failed error={ex.GetType().Name}");
+            }
+        }
+    }
+
+    private void MarkIndexDeleted(string normalizedKey)
+    {
+        _diskIndex.Remove(normalizedKey);
+        _upsertedIndexEntries.Remove(normalizedKey);
+        _deletedIndexKeys.Add(normalizedKey);
+        _indexDirty = true;
+        _pendingIndexChanges++;
+    }
+
+    private static Dictionary<string, string> ReadDiskIndex(string path)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!File.Exists(path))
+        {
+            return result;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(path);
+            using var doc = JsonDocument.Parse(stream);
+            var rootEl = doc.RootElement;
+            if (rootEl.ValueKind != JsonValueKind.Object ||
+                !rootEl.TryGetProperty("version", out var versionElement) ||
+                !versionElement.TryGetInt32(out var version) ||
+                version != CurrentIndexVersion ||
+                !rootEl.TryGetProperty("entries", out var entries) ||
+                entries.ValueKind != JsonValueKind.Object)
+            {
+                return result;
+            }
+
+            foreach (var prop in entries.EnumerateObject())
+            {
+                if (prop.Value.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+
+                var v = prop.Value.GetString();
+                if (string.IsNullOrWhiteSpace(v))
+                {
+                    continue;
+                }
+
+                var trimmed = v.Trim();
+                if (IsSafeFileName(trimmed))
+                {
+                    result[prop.Name] = trimmed;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // Corrupt or unreadable index: start from this instance's map only
+        }
+
+        return result;
+    }
+
+    private static FileStream OpenLockFileWithRetry(string lockPath)
+    {
+        var deadline = TimeSpan.FromSeconds(5);
+        var stopwatch = Stopwatch.StartNew();
+        while (true)
+        {
+            try
+            {
+                return new FileStream(
+                    lockPath,
+                    FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite,
+                    FileShare.None,
+                    bufferSize: 1,
+                    FileOptions.DeleteOnClose);
+            }
+            catch (IOException) when (stopwatch.Elapsed < deadline)
+            {
+                Thread.Sleep(25);
             }
         }
     }

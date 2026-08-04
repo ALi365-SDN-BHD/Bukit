@@ -10,7 +10,11 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Bukit.Content" />
     <InternalsVisibleTo Include="Bukit.Content.Notion" />
+    <InternalsVisibleTo Include="Bukit.Content.Notion.Tests" />
+    <InternalsVisibleTo Include="Bukit.Cli.Tests" />
+    <InternalsVisibleTo Include="Bukit.Importing.Tests" />
     <InternalsVisibleTo Include="Bukit.Notion.Tests" />
+    <InternalsVisibleTo Include="Bukit.Plugin.Import.Tests" />
   </ItemGroup>
 
 </Project>

@@ -7,6 +7,7 @@ using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using System.Text;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -160,8 +161,7 @@ public sealed class DataFilesPluginTests
             var exception = Assert.Throws<ConfigException>(() =>
                 new DataFilesPlugin(CreateConfig(), maxEntries: 1).DerivePages(CreateContext(root)));
 
-            Assert.Contains("more than 1 entries", exception.Message, StringComparison.Ordinal);
-            Assert.Contains("data/b.json", exception.Message, StringComparison.Ordinal);
+            Assert.Equal("Data directory contains more than 1 entries.", exception.Message);
             Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
         }
         finally
@@ -240,6 +240,315 @@ public sealed class DataFilesPluginTests
             Assert.Contains("total size limit of 3 bytes", exception.Message, StringComparison.Ordinal);
             Assert.Contains("data/fr/b.json", exception.Message, StringComparison.Ordinal);
             Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_SupportedBomEncodings_PreserveUtf8MultibyteText()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            const string json = "{\"value\":\"雪山\"}";
+            var encodings = new (string Name, Encoding Encoding)[]
+            {
+                ("utf8", new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true)),
+                ("utf8-bom", new UTF8Encoding(encoderShouldEmitUTF8Identifier: true, throwOnInvalidBytes: true)),
+                ("utf16-le", new UnicodeEncoding(bigEndian: false, byteOrderMark: true, throwOnInvalidBytes: true)),
+                ("utf16-be", new UnicodeEncoding(bigEndian: true, byteOrderMark: true, throwOnInvalidBytes: true))
+            };
+            foreach (var (name, encoding) in encodings)
+            {
+                File.WriteAllBytes(
+                    Path.Combine(dataDir, $"{name}.json"),
+                    [.. encoding.GetPreamble(), .. encoding.GetBytes(json)]);
+            }
+
+            var context = CreateContext(root);
+            new DataFilesPlugin(CreateConfig()).DerivePages(context);
+
+            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            foreach (var (name, _) in encodings)
+            {
+                var document = Assert.IsType<Dictionary<string, object>>(data[name]);
+                Assert.Equal("雪山", document["value"]);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("malformed-utf8.yaml", new byte[] { 0x76, 0x3A, 0x20, 0x22, 0xC3, 0x28, 0x22 })]
+    [InlineData("malformed-utf16-le.yaml", new byte[] { 0xFF, 0xFE, 0x76, 0x00, 0x3A, 0x00, 0x20, 0x00, 0x22, 0x00, 0x00, 0xD8, 0x22, 0x00 })]
+    [InlineData("malformed-utf16-be.yaml", new byte[] { 0xFE, 0xFF, 0x00, 0x76, 0x00, 0x3A, 0x00, 0x20, 0x00, 0x22, 0xD8, 0x00, 0x00, 0x22 })]
+    public void DerivePages_MalformedEncoding_FailsClosedWithRelativePath(
+        string fileName,
+        byte[] content)
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllBytes(Path.Combine(dataDir, fileName), content);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig()).DerivePages(CreateContext(root)));
+
+            Assert.Contains("Malformed data file encoding", exception.Message, StringComparison.Ordinal);
+            Assert.Contains($"data/{fileName}", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_UnsupportedUtf32Bom_FailsClosedWithRelativePath()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            var encoding = new UTF32Encoding(bigEndian: false, byteOrderMark: true, throwOnInvalidCharacters: true);
+            File.WriteAllBytes(
+                Path.Combine(dataDir, "unsupported.yaml"),
+                [.. encoding.GetPreamble(), .. encoding.GetBytes("value: safe\n")]);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig()).DerivePages(CreateContext(root)));
+
+            Assert.Contains("Unsupported data file encoding", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/unsupported.yaml", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Theory]
+    [InlineData(0x38)]
+    [InlineData(0x39)]
+    [InlineData(0x2B)]
+    [InlineData(0x2F)]
+    public void DerivePages_UnsupportedUtf7Bom_FailsClosedWithRelativePath(int variant)
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllBytes(
+                Path.Combine(dataDir, "unsupported-utf7.yaml"),
+                [0x2B, 0x2F, 0x76, checked((byte)variant), 0x2D, .. Encoding.UTF8.GetBytes("value: safe\n")]);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig()).DerivePages(CreateContext(root)));
+
+            Assert.Contains("Unsupported data file encoding", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/unsupported-utf7.yaml", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_DecodedCharacterLimit_PreemptsLaterSyntaxError()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, "decoded.yaml"), "value: abcdef\ninvalid: [\n");
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(
+                    CreateConfig(),
+                    maxFileSizeBytes: 128,
+                    maxDecodedChars: 8)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("decodes to more than 8 characters", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/decoded.yaml", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("Failed to parse", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("scalar.json", "{\"value\":\"abcdef\"}")]
+    [InlineData("scalar.yaml", "value: abcdef\n")]
+    public void DerivePages_ScalarLimit_FailsDuringParsing(
+        string fileName,
+        string content)
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, fileName), content);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(
+                    CreateConfig(),
+                    maxFileSizeBytes: 128,
+                    maxDecodedChars: 128,
+                    maxScalarChars: 5)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("scalar longer than 5 characters", exception.Message, StringComparison.Ordinal);
+            Assert.Contains($"data/{fileName}", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_JsonPropertyNameScalarLimit_FailsWithRelativePath()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(
+                Path.Combine(dataDir, "property.json"),
+                "{\"\\u0061\\u0062\\u0063\\u0064\\u0065\\u0066\":1}");
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(
+                    CreateConfig(),
+                    maxFileSizeBytes: 128,
+                    maxDecodedChars: 128,
+                    maxScalarChars: 5)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("scalar longer than 5 characters", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/property.json", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_JsonPropertyNameScalarLimit_CountsDecodedCharacters()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, "property.json"), "{\"\\u0061\":1}");
+
+            var context = CreateContext(root);
+            new DataFilesPlugin(
+                CreateConfig(),
+                maxFileSizeBytes: 128,
+                maxDecodedChars: 128,
+                maxScalarChars: 1)
+                .DerivePages(context);
+
+            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            var document = Assert.IsType<Dictionary<string, object>>(data["property"]);
+            Assert.Equal(1L, document["a"]);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_JsonNumberScalarLimit_SpansReaderChunksAndFailsWithRelativePath()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            var content = $"{{\"number\":{new string('1', 5000)}}}";
+            File.WriteAllText(Path.Combine(dataDir, "number.json"), content);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(
+                    CreateConfig(),
+                    maxFileSizeBytes: content.Length + 16L,
+                    maxDecodedChars: content.Length + 16L,
+                    maxScalarChars: 4096)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("scalar longer than 4096 characters", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/number.json", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(root, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_ScalarLimit_StopsControlledInputBeforeTrailingPayload()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            var path = Path.Combine(dataDir, "controlled.yaml");
+            File.WriteAllText(path, "placeholder");
+            var payload = Encoding.UTF8.GetBytes(
+                $"value: {new string('a', 32)}\ntrailing: {new string('b', 1024 * 1024)}\n");
+            var controlled = new ControlledReadStream(payload);
+            var openCount = 0;
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(
+                    CreateConfig(),
+                    maxFileSizeBytes: payload.Length + 1L,
+                    maxTotalSizeBytes: payload.Length + 1L,
+                    maxDecodedChars: payload.Length + 1L,
+                    maxScalarChars: 16,
+                    openDataFile: _ =>
+                    {
+                        openCount++;
+                        return controlled;
+                    })
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("scalar longer than 16 characters", exception.Message, StringComparison.Ordinal);
+            Assert.Equal(1, openCount);
+            Assert.InRange(controlled.BytesRead, 1, payload.Length - 1);
+            Assert.Equal(0, controlled.SeekCount);
         }
         finally
         {
@@ -406,6 +715,29 @@ public sealed class DataFilesPluginTests
             var john = Assert.IsType<Dictionary<string, object>>(authors["john"]);
             Assert.Equal("John Doe", john["name"]);
             Assert.Equal("john@example.com", john["email"]);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_YamlComplexMappingKey_PreservesLegacyTextProjection()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, "complex.yaml"), "? [a, b]\n: value\n");
+            var context = CreateContext(root);
+
+            new DataFilesPlugin(CreateConfig()).DerivePages(context);
+
+            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            var complex = Assert.IsType<Dictionary<string, object>>(data["complex"]);
+            Assert.Equal("value", complex["[ a, b ]"]);
         }
         finally
         {
@@ -679,6 +1011,140 @@ public sealed class DataFilesPluginTests
         }
     }
 
+    [Fact]
+    public void TakeBoundedSorted_StopsAfterLimitItems()
+    {
+        static IEnumerable<string> Entries()
+        {
+            yield return "/data/b.json";
+            yield return "/data/a.json";
+            throw new InvalidOperationException("enumerated beyond the bound");
+        }
+
+        var result = DataFilesPlugin.TakeBoundedSorted(Entries(), limit: 2);
+
+        Assert.Equal(["/data/a.json", "/data/b.json"], result);
+    }
+
+    [Fact]
+    public void TakeBoundedSortedWithinEntryBudget_OverflowDiagnosticIsEnumerationOrderIndependent()
+    {
+        static ConfigException Overflow(params string[] entries)
+            => Assert.Throws<ConfigException>(() =>
+                DataFilesPlugin.TakeBoundedSortedWithinEntryBudget(
+                    entries,
+                    remainingEntries: 1,
+                    maxEntries: 1));
+
+        var reverseOrder = Overflow("/data/z.json", "/data/a.json");
+        var forwardOrder = Overflow("/data/a.json", "/data/z.json");
+
+        Assert.Equal("Data directory contains more than 1 entries.", reverseOrder.Message);
+        Assert.Equal(reverseOrder.Message, forwardOrder.Message);
+    }
+
+    [Theory]
+    [InlineData("values.json", "{\"a\":1,\"b\":2}")]
+    [InlineData("values.yaml", "a: 1\nb: 2\n")]
+    public void DerivePages_ProjectedEntryLimit_CountsMapEntries(
+        string fileName,
+        string content)
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, fileName), content);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxProjectedEntries: 1)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("more than 1 collection entries", exception.Message, StringComparison.Ordinal);
+            Assert.Contains($"data/{fileName}", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("json", "{\"k\":\"ab\"}")]
+    [InlineData("yaml", "k: ab\n")]
+    public void DerivePages_ProjectedCharacterLimit_IsCumulativeAcrossFiles(
+        string extension,
+        string content)
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, $"a.{extension}"), content);
+            File.WriteAllText(Path.Combine(dataDir, $"b.{extension}"), content);
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxProjectedChars: 5)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("more than 5 characters", exception.Message, StringComparison.Ordinal);
+            Assert.Contains($"data/b.{extension}", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_ProjectedEntryLimit_CountsFileMapEntries()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, "a.json"), "{}");
+            File.WriteAllText(Path.Combine(dataDir, "b.json"), "{}");
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxProjectedEntries: 1)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("more than 1 collection entries", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/b.json", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_ProjectedCharacterLimit_CountsFileMapKeys()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, "long-name.json"), "{}");
+
+            var exception = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(CreateConfig(), maxProjectedChars: 4)
+                    .DerivePages(CreateContext(root)));
+
+            Assert.Contains("more than 4 characters", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("data/long-name.json", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
     private static string GetTempDir() => Path.Combine(Path.GetTempPath(), "bukit_data_test_" + Guid.NewGuid().ToString("N"));
 
     private static BuildContext CreateContext(string root) => new()
@@ -714,4 +1180,56 @@ public sealed class DataFilesPluginTests
         Site = new SiteConfig { Name = "t", Title = "t" },
         Content = TestContent.Markdown()
     };
+
+    private sealed class ControlledReadStream(byte[] content) : Stream
+    {
+        private readonly MemoryStream _inner = new(content, writable: false);
+
+        internal int BytesRead { get; private set; }
+        internal int SeekCount { get; private set; }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = _inner.Read(buffer, offset, count);
+            BytesRead += read;
+            return read;
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            var read = _inner.Read(buffer);
+            BytesRead += read;
+            return read;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            SeekCount++;
+            throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _inner.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+    }
 }

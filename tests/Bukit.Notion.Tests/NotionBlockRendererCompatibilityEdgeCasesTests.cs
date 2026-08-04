@@ -13,14 +13,14 @@ public sealed class NotionBlockRendererCompatibilityEdgeCasesTests
     [Fact]
     public void NotionBlocksRenderer_Registry_ReturnsRegistry()
     {
-        using var http = new HttpClient(new HttpMessageHandlerStub());
+        var handler = new HttpMessageHandlerStub();
         var options = new NotionClientOptions
         {
             Token = "t",
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        using var client = new NotionClient(options, http);
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
         var renderer = new NotionBlocksRenderer(client);
 
         var registry = renderer.Registry;
@@ -180,7 +180,7 @@ public sealed class NotionBlockRendererCompatibilityEdgeCasesTests
             RequestDelayMs = 0,
             MaxRetries = 0
         };
-        return new NotionClient(options, new HttpClient(handler));
+        return CanonicalBlockRendererTestSupport.CreateClient(options, handler);
     }
 
     private sealed class JsonHandler : HttpMessageHandler

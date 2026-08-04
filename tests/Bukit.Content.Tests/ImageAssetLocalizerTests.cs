@@ -1,6 +1,9 @@
 using Bukit.Engine.Abstractions.Content;
+using SixLabors.ImageSharp;
 using System.Net;
+using System.Net.Sockets;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Bukit.Content.Media;
@@ -13,6 +16,26 @@ namespace Bukit.Content.Tests;
 public sealed class ImageAssetLocalizerTests
 {
     [Fact]
+    public void CreateDefaultHandler_DisablesAutomaticRedirects()
+    {
+        using var handler = ImageAssetLocalizer.CreateDefaultHandler(new MediaConfig());
+
+        Assert.False(handler.AllowAutoRedirect);
+    }
+
+    [Fact]
+    public void Constructor_InjectedHttpClient_FailsClosed()
+    {
+        using var httpClient = new HttpClient(new CountingHandler(
+            HttpStatusCode.OK,
+            "image/jpeg",
+            "unexpected"));
+
+        Assert.Throws<NotSupportedException>(() =>
+            new ImageAssetLocalizer(new MediaConfig(), httpClient));
+    }
+
+    [Fact]
     public async Task LocalizeAsync_WhenTokenAlreadyCanceled_ThrowsBeforeRemoteSideEffects()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
@@ -24,8 +47,7 @@ public sealed class ImageAssetLocalizerTests
             DefaultImageUrl = "/assets/images/noneimg-news.jpg"
         };
         var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-        using var http = new HttpClient(handler);
-        using var localizer = new ImageAssetLocalizer(cfg, http);
+        using var localizer = CreateLocalizer(cfg, handler);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
@@ -103,9 +125,8 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
             string result;
-            using (var localizer = new ImageAssetLocalizer(cfg, http))
+            using (var localizer = CreateLocalizer(cfg, handler))
             {
                 result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
                 Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
@@ -143,8 +164,7 @@ public sealed class ImageAssetLocalizerTests
                 CreateImagePayload("image/jpeg", "fake-image-streaming-payload"),
                 chunkSize: 4);
             var handler = new StreamingHandler("image/jpeg", stream);
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
 
             var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
 
@@ -173,8 +193,9 @@ public sealed class ImageAssetLocalizerTests
             RetryBaseDelayMs = 0 // no delay to keep test fast
         };
 
-        using var http = new HttpClient(new CountingHandler(HttpStatusCode.InternalServerError, "text/plain", "error"));
-        using var localizer = new ImageAssetLocalizer(cfg, http);
+        using var localizer = CreateLocalizer(
+            cfg,
+            new CountingHandler(HttpStatusCode.InternalServerError, "text/plain", "error"));
         var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
 
         Assert.Equal("/assets/images/noneimg-news.jpg", result);
@@ -271,10 +292,9 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
             string a;
             string b;
-            using (var localizer = new ImageAssetLocalizer(cfg, http))
+            using (var localizer = CreateLocalizer(cfg, handler))
             {
                 a = await localizer.LocalizeAsync("https://img.example/path/a.jpg?X-Amz-Expires=100", CancellationToken.None);
                 b = await localizer.LocalizeAsync("https://img.example/path/a.jpg?X-Amz-Expires=200", CancellationToken.None);
@@ -317,8 +337,7 @@ public sealed class ImageAssetLocalizerTests
                 DefaultImageUrl = "/assets/images/noneimg-news.jpg"
             };
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
 
             var first = await localizer.LocalizeAsync(firstSource, CancellationToken.None);
             var second = await localizer.LocalizeAsync(secondSource, CancellationToken.None);
@@ -350,8 +369,7 @@ public sealed class ImageAssetLocalizerTests
                 DefaultImageUrl = "/assets/images/noneimg-news.jpg"
             };
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
 
             var first = await localizer.LocalizeAsync(
                 "https://img.example/a.jpg#first",
@@ -386,9 +404,9 @@ public sealed class ImageAssetLocalizerTests
                 UrlBase = "/assets/uploads",
                 DefaultImageUrl = "/assets/images/noneimg-news.jpg"
             };
-            using var http = new HttpClient(
+            using var localizer = CreateLocalizer(
+                cfg,
                 new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image"));
-            using var localizer = new ImageAssetLocalizer(cfg, http);
 
             var localized = await localizer.LocalizeAsync(
                 "https://img.example/a.jpg",
@@ -425,8 +443,7 @@ public sealed class ImageAssetLocalizerTests
 
             using var startGate = new ManualResetEventSlim();
             using var handler = new ConcurrentStartHandler("image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var tasks = Enumerable.Range(0, 16)
                 .Select(_ => Task.Factory.StartNew(
                     async () =>
@@ -474,8 +491,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new ControlledResponseHandler("image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             using var ownerCancellation = new CancellationTokenSource();
             var owner = localizer.LocalizeAsync(
                 "https://img.example/path/a.jpg",
@@ -518,8 +534,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new ControlledResponseHandler("image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var owner = localizer.LocalizeAsync(
                 "https://img.example/path/a.jpg",
                 CancellationToken.None);
@@ -558,10 +573,9 @@ public sealed class ImageAssetLocalizerTests
             UrlBase = "/assets/uploads",
             DefaultImageUrl = "/assets/images/noneimg-news.jpg"
         };
-        var stream = new CancellableBlockingReadStream(Encoding.UTF8.GetBytes("fake-image"));
+        var stream = new CancellableBlockingReadStream(CreateImagePayload("image/jpeg", "fake-image"));
         var handler = new StreamingHandler("image/jpeg", stream);
-        using var http = new HttpClient(handler);
-        var localizer = new ImageAssetLocalizer(cfg, http);
+        var localizer = CreateLocalizer(cfg, handler);
         Task<string>? localization = null;
         try
         {
@@ -620,16 +634,14 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var firstHandler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-            using (var firstHttp = new HttpClient(firstHandler))
-            using (var first = new ImageAssetLocalizer(cfg, firstHttp))
+            using (var first = CreateLocalizer(cfg, firstHandler))
             {
                 var a = await first.LocalizeAsync("https://img.example/path/a?token=one", CancellationToken.None);
                 Assert.StartsWith("/assets/uploads/", a, StringComparison.Ordinal);
             }
 
             var secondHandler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-            using (var secondHttp = new HttpClient(secondHandler))
-            using (var second = new ImageAssetLocalizer(cfg, secondHttp))
+            using (var second = CreateLocalizer(cfg, secondHandler))
             {
                 var b = await second.LocalizeAsync("https://img.example/path/a?token=one", CancellationToken.None);
                 Assert.StartsWith("/assets/uploads/", b, StringComparison.Ordinal);
@@ -664,8 +676,9 @@ public sealed class ImageAssetLocalizerTests
             };
             const string source = "https://img.example/path/indexed.jpg";
             string firstUrl;
-            using (var firstHttp = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "first")))
-            using (var first = new ImageAssetLocalizer(cfg, firstHttp))
+            using (var first = CreateLocalizer(
+                cfg,
+                new CountingHandler(HttpStatusCode.OK, "image/jpeg", "first")))
             {
                 firstUrl = await first.LocalizeAsync(source, CancellationToken.None);
             }
@@ -674,8 +687,7 @@ public sealed class ImageAssetLocalizerTests
             File.WriteAllText(storedPath, "not-an-image");
 
             var secondHandler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "replacement");
-            using var secondHttp = new HttpClient(secondHandler);
-            using var second = new ImageAssetLocalizer(cfg, secondHttp);
+            using var second = CreateLocalizer(cfg, secondHandler);
 
             var secondUrl = await second.LocalizeAsync(source, CancellationToken.None);
 
@@ -711,8 +723,7 @@ public sealed class ImageAssetLocalizerTests
             };
             const string source = "https://img.example/path/memory-cache.jpg";
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "replacement");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
 
             var firstUrl = await localizer.LocalizeAsync(source, CancellationToken.None);
             var storedPath = Path.Combine(dir, Path.GetFileName(firstUrl));
@@ -752,8 +763,9 @@ public sealed class ImageAssetLocalizerTests
             };
             const string source = "https://img.example/path/orphan.jpg";
             string firstUrl;
-            using (var firstHttp = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "first")))
-            using (var first = new ImageAssetLocalizer(cfg, firstHttp))
+            using (var first = CreateLocalizer(
+                cfg,
+                new CountingHandler(HttpStatusCode.OK, "image/jpeg", "first")))
             {
                 firstUrl = await first.LocalizeAsync(source, CancellationToken.None);
             }
@@ -763,8 +775,7 @@ public sealed class ImageAssetLocalizerTests
             File.WriteAllText(storedPath, "not-an-image");
 
             var secondHandler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "replacement");
-            using var secondHttp = new HttpClient(secondHandler);
-            using var second = new ImageAssetLocalizer(cfg, secondHttp);
+            using var second = CreateLocalizer(cfg, secondHandler);
 
             var secondUrl = await second.LocalizeAsync(source, CancellationToken.None);
 
@@ -800,8 +811,9 @@ public sealed class ImageAssetLocalizerTests
             };
             const string source = "https://img.example/path/unsafe.jpg";
             string firstUrl;
-            using (var firstHttp = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "first")))
-            using (var first = new ImageAssetLocalizer(cfg, firstHttp))
+            using (var first = CreateLocalizer(
+                cfg,
+                new CountingHandler(HttpStatusCode.OK, "image/jpeg", "first")))
             {
                 firstUrl = await first.LocalizeAsync(source, CancellationToken.None);
             }
@@ -823,8 +835,7 @@ public sealed class ImageAssetLocalizerTests
                 }));
 
             var secondHandler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "replacement");
-            using var secondHttp = new HttpClient(secondHandler);
-            using var second = new ImageAssetLocalizer(cfg, secondHttp);
+            using var second = CreateLocalizer(cfg, secondHandler);
 
             var secondUrl = await second.LocalizeAsync(source, CancellationToken.None);
 
@@ -857,8 +868,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync("https://img.example/path/a.jpg?token=one", CancellationToken.None);
 
             Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
@@ -891,8 +901,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new CountingHandler(HttpStatusCode.OK, "text/html", "<html>evil</html>");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
 
             Assert.Equal("/assets/images/noneimg-news.jpg", result);
@@ -923,8 +932,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new CountingHandler(HttpStatusCode.OK, "application/octet-stream", "binary-image-data");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync("https://img.example/a.png", CancellationToken.None);
 
             Assert.Equal("/assets/images/noneimg-news.jpg", result);
@@ -955,8 +963,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new NullContentTypeHandler("image-bytes");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync("https://img.example/a.webp", CancellationToken.None);
 
             Assert.Equal("/assets/images/noneimg-news.jpg", result);
@@ -987,8 +994,7 @@ public sealed class ImageAssetLocalizerTests
                 DefaultImageUrl = "/assets/images/noneimg-news.jpg"
             };
             var handler = new CountingHandler(HttpStatusCode.OK, "image/svg+xml", "<svg></svg>");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
 
             var result = await localizer.LocalizeAsync(
                 "https://img.example/a.svg",
@@ -1023,8 +1029,7 @@ public sealed class ImageAssetLocalizerTests
             var handler = new ByteArrayHandler(
                 "image/png",
                 CreateImagePayload("image/jpeg", "not-a-png"));
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
 
             var result = await localizer.LocalizeAsync(
                 "https://img.example/a.png",
@@ -1032,7 +1037,7 @@ public sealed class ImageAssetLocalizerTests
 
             Assert.Equal("/assets/images/noneimg-news.jpg", result);
             var failure = Assert.Single(localizer.Failures);
-            Assert.Equal("Image content signature does not match Content-Type.", failure.Reason);
+            Assert.Equal("Image content signature does not match Content-Type or is not decodable.", failure.Reason);
             localizer.Dispose();
             Assert.Empty(Directory.GetFiles(dir));
         }
@@ -1082,8 +1087,7 @@ public sealed class ImageAssetLocalizerTests
 
             // Payload exceeds 10 bytes
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "this-is-definitely-more-than-10-bytes");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
 
             Assert.Equal("/assets/images/noneimg-news.jpg", result);
@@ -1110,13 +1114,312 @@ public sealed class ImageAssetLocalizerTests
             BlockPrivateNetworks = true
         };
 
-        // The injected HttpClient path uses pre-flight DNS check.
-        // 127.0.0.1 parses directly as private.
-        using var http = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image"));
-        using var localizer = new ImageAssetLocalizer(cfg, http);
+        using var localizer = CreateLocalizer(
+            cfg,
+            new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image"));
         var result = await localizer.LocalizeAsync("http://127.0.0.1:8080/secret.jpg", CancellationToken.None);
 
         Assert.Equal("/assets/images/noneimg-news.jpg", result);
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_InjectedClient_DnsFailureFailsClosedBeforeSend()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                BlockPrivateNetworks = true
+            };
+            var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "must-not-send");
+            using var localizer = CreateLocalizer(
+                cfg,
+                handler,
+                resolveHostAddresses: static (_, _) =>
+                    Task.FromException<IPAddress[]>(new SocketException()));
+
+            var result = await localizer.LocalizeAsync(
+                "https://dns-failure.invalid/image.jpg",
+                CancellationToken.None);
+
+            Assert.Equal(cfg.DefaultImageUrl, result);
+            Assert.Equal(0, handler.RequestCount);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_RedirectToPrivateTarget_FailsBeforeSecondSend()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                BlockPrivateNetworks = true
+            };
+            var handler = new SequenceHandler(
+                _ => new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers = { Location = new Uri("http://127.0.0.1/private.jpg") }
+                },
+                _ => Response(HttpStatusCode.OK, "image/jpeg", "must-not-send"));
+            using var localizer = CreateLocalizer(cfg, handler);
+
+            var result = await localizer.LocalizeAsync(
+                "https://img.example/image.jpg",
+                CancellationToken.None);
+
+            Assert.Equal(cfg.DefaultImageUrl, result);
+            Assert.Equal(1, handler.RequestCount);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_RedirectToValidatedPublicTarget_UsesSingleHopRequests()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg",
+                BlockPrivateNetworks = true
+            };
+            var handler = new SequenceHandler(
+                _ => new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers = { Location = new Uri("https://cdn.example/image.jpg") }
+                },
+                _ => Response(HttpStatusCode.OK, "image/jpeg", "redirected"));
+            using var localizer = CreateLocalizer(cfg, handler);
+
+            var result = await localizer.LocalizeAsync(
+                "https://img.example/image.jpg",
+                CancellationToken.None);
+
+            Assert.StartsWith(cfg.UrlBase, result, StringComparison.Ordinal);
+            Assert.Equal(2, handler.RequestCount);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_MoveCollisionWithInvalidWinner_FailsClosed()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+            const string source = "https://img.example/collision.jpg";
+            var handler = new ControlledResponseHandler("image/jpeg", "downloaded");
+            using var localizer = CreateLocalizer(cfg, handler);
+            var localization = localizer.LocalizeAsync(source, CancellationToken.None);
+            await handler.RequestStarted.WaitAsync(TimeSpan.FromSeconds(1));
+            var winnerPath = Path.Combine(dir, BuildExpectedMediaFileName(source, ".jpg"));
+            File.WriteAllText(winnerPath, "not-an-image");
+            handler.ReleaseResponse();
+
+            var result = await localization;
+
+            Assert.Equal(cfg.DefaultImageUrl, result);
+            Assert.Equal("Media winner file failed content validation.", Assert.Single(localizer.Failures).Reason);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_MoveCollisionWithDifferentValidWinner_FailsIdentityClosed()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+            const string source = "https://img.example/valid-collision.jpg";
+            var handler = new ControlledResponseHandler("image/jpeg", "downloaded");
+            using var localizer = CreateLocalizer(cfg, handler);
+            var localization = localizer.LocalizeAsync(source, CancellationToken.None);
+            await handler.RequestStarted.WaitAsync(TimeSpan.FromSeconds(1));
+            var winnerPath = Path.Combine(dir, BuildExpectedMediaFileName(source, ".jpg"));
+            var winnerBytes = CreateImagePayload("image/jpeg", "different-winner");
+            await File.WriteAllBytesAsync(winnerPath, winnerBytes);
+            handler.ReleaseResponse();
+
+            var result = await localization;
+
+            Assert.Equal(cfg.DefaultImageUrl, result);
+            Assert.Equal(
+                "Media winner file did not match downloaded content identity.",
+                Assert.Single(localizer.Failures).Reason);
+            Assert.Equal(winnerBytes, await File.ReadAllBytesAsync(winnerPath));
+            Assert.DoesNotContain(
+                Directory.EnumerateFiles(dir),
+                static path => Path.GetFileName(path).EndsWith(".tmp", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LocalizeAsync_MoveCollisionWithIdenticalValidWinner_PublishesWinnerAndIndex()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var cfg = new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            };
+            const string source = "https://img.example/identical-collision.jpg";
+            const string payload = "identical-winner";
+            var handler = new ControlledResponseHandler("image/jpeg", payload);
+            using var localizer = CreateLocalizer(cfg, handler);
+            var localization = localizer.LocalizeAsync(source, CancellationToken.None);
+            await handler.RequestStarted.WaitAsync(TimeSpan.FromSeconds(1));
+            var winnerPath = Path.Combine(dir, BuildExpectedMediaFileName(source, ".jpg"));
+            var winnerBytes = CreateImagePayload("image/jpeg", payload);
+            await File.WriteAllBytesAsync(winnerPath, winnerBytes);
+            handler.ReleaseResponse();
+
+            var result = await localization;
+
+            Assert.Equal($"{cfg.UrlBase}/{Path.GetFileName(winnerPath)}", result);
+            Assert.Empty(localizer.Failures);
+            Assert.Equal(winnerBytes, await File.ReadAllBytesAsync(winnerPath));
+            localizer.Dispose();
+            using var index = JsonDocument.Parse(
+                await File.ReadAllTextAsync(Path.Combine(dir, ".media-index.json")));
+            var indexEntry = Assert.Single(index.RootElement.GetProperty("entries").EnumerateObject());
+            Assert.Equal(Path.GetFileName(winnerPath), indexEntry.Value.GetString());
+            Assert.DoesNotContain(
+                Directory.EnumerateFiles(dir),
+                static path => Path.GetFileName(path).EndsWith(".tmp", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Dispose_DuringCollisionWinnerVerification_PropagatesCancellationWithoutIndexSuccess()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-media-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        var downloadedBytes = CreateImagePayload("image/jpeg", "downloaded");
+        var stream = new CancellableBlockingReadStream(downloadedBytes);
+        var localizer = CreateLocalizer(
+            new MediaConfig
+            {
+                DownloadToLocal = true,
+                DownloadDir = dir,
+                UrlBase = "/assets/uploads",
+                DefaultImageUrl = "/assets/images/noneimg-news.jpg"
+            },
+            new StreamingHandler("image/jpeg", stream));
+        Task<string>? localization = null;
+        try
+        {
+            const string source = "https://img.example/cancel-collision.jpg";
+            localization = localizer.LocalizeAsync(source, CancellationToken.None);
+            await stream.ReadStarted.WaitAsync(TimeSpan.FromSeconds(1));
+            var tempPath = Assert.Single(
+                Directory.EnumerateFiles(dir),
+                static path => Path.GetFileName(path).EndsWith(".tmp", StringComparison.Ordinal));
+            var winnerPath = Path.Combine(dir, BuildExpectedMediaFileName(source, ".jpg"));
+            await using (var winner = new FileStream(
+                winnerPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.Read))
+            {
+                await winner.WriteAsync(CreateImagePayload("image/jpeg", "different-winner"));
+                winner.SetLength(128L * 1024 * 1024);
+            }
+
+            stream.ReleaseRead();
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+            while (File.Exists(tempPath) && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(1);
+            }
+
+            Assert.False(File.Exists(tempPath));
+            localizer.Dispose();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                async () => await localization.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.Empty(localizer.Failures);
+            Assert.False(File.Exists(Path.Combine(dir, ".media-index.json")));
+            Assert.DoesNotContain(
+                Directory.EnumerateFiles(dir),
+                static path => Path.GetFileName(path).EndsWith(".tmp", StringComparison.Ordinal));
+        }
+        finally
+        {
+            stream.ReleaseRead();
+            localizer.Dispose();
+            if (localization is not null)
+            {
+                try
+                {
+                    await localization;
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+
+            Directory.Delete(dir, recursive: true);
+        }
     }
 
     [Fact]
@@ -1131,8 +1434,9 @@ public sealed class ImageAssetLocalizerTests
             BlockPrivateNetworks = true
         };
 
-        using var http = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image"));
-        using var localizer = new ImageAssetLocalizer(cfg, http);
+        using var localizer = CreateLocalizer(
+            cfg,
+            new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image"));
         var result = await localizer.LocalizeAsync("http://10.0.0.1/image.jpg", CancellationToken.None);
 
         Assert.Equal("/assets/images/noneimg-news.jpg", result);
@@ -1150,8 +1454,9 @@ public sealed class ImageAssetLocalizerTests
             BlockPrivateNetworks = true
         };
 
-        using var http = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "metadata"));
-        using var localizer = new ImageAssetLocalizer(cfg, http);
+        using var localizer = CreateLocalizer(
+            cfg,
+            new CountingHandler(HttpStatusCode.OK, "image/jpeg", "metadata"));
         var result = await localizer.LocalizeAsync("http://169.254.169.254/latest/meta-data/", CancellationToken.None);
 
         Assert.Equal("/assets/images/noneimg-news.jpg", result);
@@ -1174,8 +1479,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync("http://127.0.0.1:8080/image.jpg", CancellationToken.None);
 
             Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
@@ -1229,8 +1533,7 @@ public sealed class ImageAssetLocalizerTests
 
             // URL ends with .exe but Content-Type is image; extension from content-type takes precedence
             var handler = new CountingHandler(HttpStatusCode.OK, "image/png", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync("https://img.example/a.exe", CancellationToken.None);
 
             Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
@@ -1262,8 +1565,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new CountingHandler(HttpStatusCode.OK, "application/octet-stream", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync("https://img.example/a.exe", CancellationToken.None);
 
             Assert.Equal("/assets/images/noneimg-news.jpg", result);
@@ -1300,8 +1602,7 @@ public sealed class ImageAssetLocalizerTests
 
             // The localizer should reject the malicious entry and proceed to download
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "safe-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
 
             Assert.StartsWith("/assets/uploads/", result, StringComparison.Ordinal);
@@ -1333,8 +1634,7 @@ public sealed class ImageAssetLocalizerTests
 
             // URL with &amp; (HTML-encoded &) simulating Notion S3 signed URL leak
             var handler = new UrlRecordingHandler(HttpStatusCode.OK, "image/jpeg", "fake-image");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
             var result = await localizer.LocalizeAsync(
                 "https://s3.example/image.png?X-Amz-Algorithm=AWS4&amp;X-Amz-Date=20260212&amp;X-Amz-Expires=3600",
                 CancellationToken.None);
@@ -1373,16 +1673,16 @@ public sealed class ImageAssetLocalizerTests
 
             const string source = "https://img.example/path/a.jpg";
             string result;
-            using (var firstHttp = new HttpClient(new CountingHandler(HttpStatusCode.OK, "image/jpeg", "existing")))
-            using (var first = new ImageAssetLocalizer(cfg, firstHttp))
+            using (var first = CreateLocalizer(
+                cfg,
+                new CountingHandler(HttpStatusCode.OK, "image/jpeg", "existing")))
             {
                 result = await first.LocalizeAsync(source, CancellationToken.None);
             }
 
             File.Delete(Path.Combine(dir, ".media-index.json"));
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "should-not-download");
-            using var http = new HttpClient(handler);
-            using (var localizer = new ImageAssetLocalizer(cfg, http))
+            using (var localizer = CreateLocalizer(cfg, handler))
             {
                 var reused = await localizer.LocalizeAsync(source, CancellationToken.None);
                 Assert.Equal(result, reused);
@@ -1420,8 +1720,7 @@ public sealed class ImageAssetLocalizerTests
             var handler = new SequenceHandler(
                 _ => Response(HttpStatusCode.OK, "image/jpeg", ""),
                 _ => Response(HttpStatusCode.OK, "image/jpeg", "image-bytes"));
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
 
             var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
 
@@ -1454,8 +1753,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var logger = new RecordingLogger();
-            using var http = new HttpClient(new ThrowingHandler());
-            using var localizer = new ImageAssetLocalizer(cfg, http, logger);
+            using var localizer = CreateLocalizer(cfg, new ThrowingHandler(), logger);
             var source = "https://img.example/a.jpg?token=secret#fragment";
 
             var result = await localizer.LocalizeAsync(source, CancellationToken.None);
@@ -1495,8 +1793,7 @@ public sealed class ImageAssetLocalizerTests
                 MaxRetries = 0
             };
             var logger = new RecordingLogger();
-            using var http = new HttpClient(new NestedTlsFailureHandler());
-            using var localizer = new ImageAssetLocalizer(cfg, http, logger);
+            using var localizer = CreateLocalizer(cfg, new NestedTlsFailureHandler(), logger);
             var source = "https://img.example/a.jpg?token=secret#fragment";
 
             var result = await localizer.LocalizeAsync(source, CancellationToken.None);
@@ -1551,8 +1848,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "should-not-download");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
 
             var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
             localizer.Dispose();
@@ -1589,8 +1885,7 @@ public sealed class ImageAssetLocalizerTests
             };
 
             var handler = new CountingHandler(HttpStatusCode.OK, "image/jpeg", "downloaded");
-            using var http = new HttpClient(handler);
-            using var localizer = new ImageAssetLocalizer(cfg, http);
+            using var localizer = CreateLocalizer(cfg, handler);
 
             var result = await localizer.LocalizeAsync("https://img.example/a.jpg", CancellationToken.None);
 
@@ -1604,6 +1899,37 @@ public sealed class ImageAssetLocalizerTests
                 Directory.Delete(dir, recursive: true);
             }
         }
+    }
+
+    private static ImageAssetLocalizer CreateLocalizer(
+        MediaConfig config,
+        HttpMessageHandler handler,
+        ILogger? logger = null,
+        Func<string, CancellationToken, Task<IPAddress[]>>? resolveHostAddresses = null)
+        => new(
+            config,
+            handler,
+            resolveHostAddresses ?? ResolvePublicHostAsync,
+            logger);
+
+    private static Task<IPAddress[]> ResolvePublicHostAsync(
+        string host,
+        CancellationToken cancellationToken)
+    {
+        _ = host;
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(new[] { IPAddress.Parse("93.184.216.34") });
+    }
+
+    private static string BuildExpectedMediaFileName(string source, string extension)
+    {
+        var uri = new Uri(source);
+        var requestTarget = uri.GetComponents(
+            UriComponents.HttpRequestUrl,
+            UriFormat.UriEscaped);
+        var normalizedKey = $"v3:{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(requestTarget)))}";
+        var identity = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedKey)));
+        return identity + extension;
     }
 
     private sealed class UrlRecordingHandler : HttpMessageHandler
@@ -2012,26 +2338,56 @@ public sealed class ImageAssetLocalizerTests
 
     private static byte[] CreateImagePayload(string contentType, string payload)
     {
-        var body = Encoding.UTF8.GetBytes(payload);
-        if (body.Length == 0)
+        if (string.IsNullOrEmpty(payload))
         {
-            return body;
+            return [];
         }
 
-        byte[] signature = contentType.ToLowerInvariant() switch
+        // Encode a real decodable 1x1 image. The payload seeds the pixel color so
+        // distinct payloads produce distinct file bytes while remaining valid.
+        var seed = 0;
+        foreach (var character in payload)
         {
-            "image/jpeg" or "image/jpg" => [0xFF, 0xD8, 0xFF],
-            "image/png" => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
-            "image/gif" => Encoding.ASCII.GetBytes("GIF89a"),
-            "image/webp" => [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50],
-            "image/avif" => [0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66, 0, 0, 0, 0],
-            "image/bmp" => [0x42, 0x4D],
-            "image/x-icon" or "image/vnd.microsoft.icon" or "image/ico" => [0, 0, 1, 0],
-            "image/tiff" => [0x49, 0x49, 0x2A, 0],
-            _ => []
-        };
+            seed = unchecked(seed * 31 + character);
+        }
 
-        return [.. signature, .. body];
+        using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1, 1);
+        image[0, 0] = new SixLabors.ImageSharp.PixelFormats.Rgba32(
+            (byte)(seed & 0xFF),
+            (byte)((seed >> 8) & 0xFF),
+            (byte)((seed >> 16) & 0xFF));
+
+        using var stream = new MemoryStream();
+        switch (contentType.ToLowerInvariant())
+        {
+            case "image/jpeg" or "image/jpg":
+                image.SaveAsJpeg(stream);
+                break;
+            case "image/png":
+                image.SaveAsPng(stream);
+                break;
+            case "image/gif":
+                image.SaveAsGif(stream);
+                break;
+            case "image/webp":
+                image.SaveAsWebp(stream);
+                break;
+            case "image/bmp":
+                image.SaveAsBmp(stream);
+                break;
+            default:
+                // AVIF/ICO have no approved decoder: return a magic-only payload
+                // so signature-level tests still observe the declared behavior
+                return contentType.ToLowerInvariant() switch
+                {
+                    "image/avif" => [0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66, 0, 0, 0, 0],
+                    "image/x-icon" or "image/vnd.microsoft.icon" or "image/ico" => [0, 0, 1, 0],
+                    "image/tiff" => [0x49, 0x49, 0x2A, 0],
+                    _ => []
+                };
+        }
+
+        return stream.ToArray();
     }
 
 }

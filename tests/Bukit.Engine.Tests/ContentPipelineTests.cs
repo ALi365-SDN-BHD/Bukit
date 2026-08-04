@@ -1,6 +1,7 @@
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Stages;
 using Bukit.Shared;
 using Xunit;
 
@@ -8,6 +9,175 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ContentPipelineTests
 {
+    [Fact]
+    public async Task ExecuteAsync_WhenArbitraryImageLocalizeStageThrows_DisposesPriorBuiltInStoreExactlyOnce()
+    {
+        var ownedStore = new TrackingBodyStore();
+        var factory = new RecordingContentProviderFactory(
+            new RawContentLoadResult(Array.Empty<RawContentDocument>(), ownedStore));
+        var stages = new IContentStage[]
+        {
+            new ContentLoadStage(factory),
+            new ThrowingContentStage("ImageLocalize")
+        };
+        var pipeline = new ContentPipeline(stages, new RecordingLogger());
+        var input = new ContentStageInput(
+            Array.Empty<ContentDocument>(),
+            EmptyContentBodyStore.Instance,
+            Config(draft: true, schemaFailMode: "warn"),
+            new ConfigOverrides(),
+            "/tmp/site",
+            "/tmp/site/.cache/media",
+            new RecordingLogger());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            pipeline.ExecuteAsync(input, CancellationToken.None));
+
+        Assert.Equal(1, ownedStore.DisposeCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCustomContentLoadStageStoreFails_DoesNotDisposeCallerOwnedStore()
+    {
+        var externalStore = new TrackingBodyStore();
+        var stages = new IContentStage[]
+        {
+            new BodyStoreStage("ContentLoad", externalStore),
+            new ThrowingContentStage()
+        };
+        var pipeline = new ContentPipeline(stages, new RecordingLogger());
+        var input = new ContentStageInput(
+            Array.Empty<ContentDocument>(),
+            EmptyContentBodyStore.Instance,
+            Config(draft: true, schemaFailMode: "warn"),
+            new ConfigOverrides(),
+            "/tmp/site",
+            "/tmp/site/.cache/media",
+            new RecordingLogger());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            pipeline.ExecuteAsync(input, CancellationToken.None));
+
+        Assert.Equal(0, externalStore.DisposeCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenImageLocalizeStageLoggingThrows_DisposesReturnedStoreChainExactlyOnce()
+    {
+        var inner = new TrackingBodyStore();
+        var localized = new ForwardingBodyStore(inner);
+        var factory = new RecordingContentProviderFactory(
+            new RawContentLoadResult(Array.Empty<RawContentDocument>(), inner),
+            result => Task.FromResult(new RawContentLoadResult(result.Documents, localized)));
+        var stages = new IContentStage[]
+        {
+            new ContentLoadStage(factory),
+            new ImageLocalizeStage(factory)
+        };
+        var pipeline = new ContentPipeline(
+            stages,
+            new ThrowingInfoLogger(message =>
+                message.StartsWith("event=content.stage stage=ImageLocalize ", StringComparison.Ordinal)));
+        var input = new ContentStageInput(
+            Array.Empty<ContentDocument>(),
+            EmptyContentBodyStore.Instance,
+            Config(draft: true, schemaFailMode: "warn"),
+            new ConfigOverrides(),
+            "/tmp/site",
+            "/tmp/site/.cache/media",
+            new RecordingLogger());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            pipeline.ExecuteAsync(input, CancellationToken.None));
+
+        Assert.Equal(1, localized.DisposeCount);
+        Assert.Equal(1, inner.DisposeCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenImageLocalizeStageFails_DisposesInputStoreExactlyOnce()
+    {
+        var ownedStore = new TrackingBodyStore();
+        var factory = new RecordingContentProviderFactory(
+            new RawContentLoadResult(Array.Empty<RawContentDocument>(), ownedStore),
+            _ => Task.FromException<RawContentLoadResult>(new InvalidOperationException("localization failed")));
+        var stages = new IContentStage[]
+        {
+            new ContentLoadStage(factory),
+            new ImageLocalizeStage(factory)
+        };
+        var pipeline = new ContentPipeline(stages, new RecordingLogger());
+        var input = new ContentStageInput(
+            Array.Empty<ContentDocument>(),
+            EmptyContentBodyStore.Instance,
+            Config(draft: true, schemaFailMode: "warn"),
+            new ConfigOverrides(),
+            "/tmp/site",
+            "/tmp/site/.cache/media",
+            new RecordingLogger());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            pipeline.ExecuteAsync(input, CancellationToken.None));
+
+        Assert.Equal(1, ownedStore.DisposeCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenImageLocalizeInputConversionFails_DisposesLoaderStoreExactlyOnce()
+    {
+        var ownedStore = new TrackingBodyStore();
+        var factory = new RecordingContentProviderFactory(
+            new RawContentLoadResult(Array.Empty<RawContentDocument>(), ownedStore));
+        var stages = new IContentStage[]
+        {
+            new ContentLoadStage(factory),
+            new BodyStoreStage("Malformed", ownedStore, [(ContentDocument)null!]),
+            new ImageLocalizeStage(factory)
+        };
+        var pipeline = new ContentPipeline(stages, new RecordingLogger());
+        var input = new ContentStageInput(
+            Array.Empty<ContentDocument>(),
+            EmptyContentBodyStore.Instance,
+            Config(draft: true, schemaFailMode: "warn"),
+            new ConfigOverrides(),
+            "/tmp/site",
+            "/tmp/site/.cache/media",
+            new RecordingLogger());
+
+        await Assert.ThrowsAsync<NullReferenceException>(() =>
+            pipeline.ExecuteAsync(input, CancellationToken.None));
+
+        Assert.False(factory.LocalizeCalled);
+        Assert.Equal(1, ownedStore.DisposeCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenGraphConstructionThrows_DisposesPipelineOwnedStoreExactlyOnce()
+    {
+        var ownedStore = new TrackingBodyStore();
+        var factory = new RecordingContentProviderFactory(
+            new RawContentLoadResult(Array.Empty<RawContentDocument>(), ownedStore));
+        var stages = new IContentStage[]
+        {
+            new ContentLoadStage(factory),
+            new BodyStoreStage("External", ownedStore, [(ContentDocument)null!])
+        };
+        var pipeline = new ContentPipeline(stages, new RecordingLogger());
+        var input = new ContentStageInput(
+            Array.Empty<ContentDocument>(),
+            EmptyContentBodyStore.Instance,
+            Config(draft: true, schemaFailMode: "warn"),
+            new ConfigOverrides(),
+            "/tmp/site",
+            "/tmp/site/.cache/media",
+            new RecordingLogger());
+
+        await Assert.ThrowsAsync<NullReferenceException>(() =>
+            pipeline.ExecuteAsync(input, CancellationToken.None));
+
+        Assert.Equal(1, ownedStore.DisposeCount);
+    }
+
     [Fact]
     public async Task ExecuteAsync_ContentModeTypeOnly_ThrowsConfigException()
     {
@@ -276,10 +446,14 @@ public sealed class ContentPipelineTests
     private sealed class RecordingContentProviderFactory : IContentProviderFactory
     {
         private readonly RawContentLoadResult _loadResult;
+        private readonly Func<RawContentLoadResult, Task<RawContentLoadResult>>? _localizeAsync;
 
-        public RecordingContentProviderFactory(RawContentLoadResult loadResult)
+        public RecordingContentProviderFactory(
+            RawContentLoadResult loadResult,
+            Func<RawContentLoadResult, Task<RawContentLoadResult>>? localizeAsync = null)
         {
             _loadResult = loadResult;
+            _localizeAsync = localizeAsync;
         }
 
         public bool CreateCalled { get; private set; }
@@ -299,7 +473,7 @@ public sealed class ContentPipelineTests
         {
             LocalizeCalled = true;
             RootDirObserved = rootDir;
-            return Task.FromResult(result);
+            return _localizeAsync?.Invoke(result) ?? Task.FromResult(result);
         }
     }
 
@@ -341,6 +515,94 @@ public sealed class ContentPipelineTests
 
         public void Error(string message)
         {
+        }
+    }
+
+    private sealed class BodyStoreStage : IContentStage
+    {
+        private readonly IContentBodyStore _bodyStore;
+
+        public BodyStoreStage(
+            string name,
+            IContentBodyStore bodyStore,
+            IReadOnlyList<ContentDocument>? documents = null)
+        {
+            Name = name;
+            _bodyStore = bodyStore;
+            _documents = documents;
+        }
+
+        public string Name { get; }
+        private readonly IReadOnlyList<ContentDocument>? _documents;
+
+        public Task<ContentStageOutput> ExecuteAsync(ContentStageInput input, CancellationToken cancellationToken)
+            => Task.FromResult(new ContentStageOutput(_documents ?? input.Documents, _bodyStore, Name, 0, null));
+    }
+
+    private sealed class ThrowingContentStage : IContentStage
+    {
+        public ThrowingContentStage(string name = "Throwing")
+        {
+            Name = name;
+        }
+
+        public string Name { get; }
+
+        public Task<ContentStageOutput> ExecuteAsync(ContentStageInput input, CancellationToken cancellationToken)
+            => Task.FromException<ContentStageOutput>(new InvalidOperationException("stage failed"));
+    }
+
+    private sealed class ThrowingInfoLogger(Func<string, bool> shouldThrow) : ILogger
+    {
+        public void Debug(string message) { }
+
+        public void Info(string message)
+        {
+            if (shouldThrow(message))
+            {
+                throw new InvalidOperationException("stage logging failed");
+            }
+        }
+
+        public void Warn(string message) { }
+        public void Error(string message) { }
+    }
+
+    private sealed class ForwardingBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        private readonly IContentBodyStore _inner;
+
+        public ForwardingBodyStore(IContentBodyStore inner)
+        {
+            _inner = inner;
+        }
+
+        public int DisposeCount { get; private set; }
+
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => _inner.GetAsync(document, cancellationToken);
+
+        public async ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            if (_inner is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync();
+            }
+        }
+    }
+
+    private sealed class TrackingBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        public int DisposeCount { get; private set; }
+
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(string.Empty));
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            return ValueTask.CompletedTask;
         }
     }
 }

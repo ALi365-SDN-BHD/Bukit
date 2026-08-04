@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Bukit.Importing;
+using Bukit.Notion.Transport;
 using Bukit.Plugin.Abstractions.Protocol;
 using Bukit.Plugin.Abstractions.Runtime;
 using Bukit.Plugin.Abstractions.Security;
@@ -12,6 +13,21 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
 {
     private readonly string _rootDir;
 
+    private static Func<HttpMessageHandler?> TestHttpMessageHandlerFactory
+    {
+        set => ImportNotionPushWorkflow.CreateNotionClient = options =>
+        {
+            var handler = value();
+            return handler is null
+                ? null
+                : new NotionClient(
+                    options,
+                    handler,
+                    static (_, _) => Task.CompletedTask,
+                    static () => DateTimeOffset.UtcNow);
+        };
+    }
+
     public ImportPluginInvokeCompatibilityTests()
     {
         _rootDir = Path.Combine(Path.GetTempPath(), "bukit-plugin-import-invoke-" + Guid.NewGuid().ToString("N"));
@@ -20,7 +36,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
 
     public void Dispose()
     {
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient();
+        TestHttpMessageHandlerFactory = static () => null;
         if (Directory.Exists(_rootDir))
             Directory.Delete(_rootDir, recursive: true);
     }
@@ -250,7 +266,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
     [Fact]
     public async Task Invoke_NotionValidateSchemaSuccessWritesReportArtifact()
     {
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("""
@@ -267,7 +283,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
   }
 }
 """)
-            }));
+            });
         using var token = new EnvironmentVariableScope("NOTION_TOKEN", "secret");
 
         var response = await ImportPluginInvoker.InvokeAsync(Request(

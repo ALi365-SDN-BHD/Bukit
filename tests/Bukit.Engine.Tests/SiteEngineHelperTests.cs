@@ -13,6 +13,40 @@ namespace Bukit.Engine.Tests;
 public sealed class SiteEngineHelperTests
 {
     [Fact]
+    public async Task BuildContentRoutesAsync_WhenProviderStoreSucceeds_DisposesOwnedStoreExactlyOnce()
+    {
+        var bodyStore = new TrackingBodyStore();
+        var provider = new StaticContentProvider(new RawContentLoadResult(
+        [
+            RawDocument("post-1", "post", "article")
+        ],
+        bodyStore));
+
+        var routes = await RouteInventoryValidator.BuildContentRoutesAsync(
+            RouteConfig(), "/tmp/site", new NoOpLogger(), provider);
+
+        Assert.Single(routes);
+        Assert.Equal(1, bodyStore.DisposeCount);
+    }
+
+    [Fact]
+    public async Task BuildContentRoutesAsync_WhenCollectionValidationFails_DisposesOwnedStoreExactlyOnce()
+    {
+        var bodyStore = new TrackingBodyStore();
+        var provider = new StaticContentProvider(new RawContentLoadResult(
+        [
+            RawDocument("post-1", null, "article")
+        ],
+        bodyStore));
+
+        await Assert.ThrowsAsync<ConfigException>(() =>
+            RouteInventoryValidator.BuildContentRoutesAsync(
+                RouteConfig(), "/tmp/site", new NoOpLogger(), provider));
+
+        Assert.Equal(1, bodyStore.DisposeCount);
+    }
+
+    [Fact]
     public async Task BuildContentRoutesAsync_MissingCollection_ThrowsContentCollectionDiagnostic()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-route-inventory", Guid.NewGuid().ToString("N"));
@@ -69,6 +103,70 @@ public sealed class SiteEngineHelperTests
         public void Info(string message) { }
         public void Warn(string message) { }
         public void Error(string message) { }
+    }
+
+    private static AppConfig RouteConfig() => new()
+    {
+        Site = new SiteConfig
+        {
+            Name = "test",
+            Title = "Test",
+            Collections = new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["post"] = new CollectionConfig { Permalink = "/posts/:slug/" }
+            }
+        },
+        Content = TestContent.Markdown(),
+        Build = new BuildConfig { Draft = true }
+    };
+
+    private static RawContentDocument RawDocument(string id, string? collection, string type)
+    {
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["type"] = new("text", type)
+        };
+        if (collection is not null)
+        {
+            fields["collection"] = new ContentField("text", collection);
+        }
+
+        return new RawContentDocument(
+            id,
+            id,
+            id,
+            DateTimeOffset.UnixEpoch,
+            new RawBody("<p>body</p>"),
+            RawContentValue.FromFields(fields),
+            new ContentSourceInfo("test", "test"),
+            fields);
+    }
+
+    private sealed class StaticContentProvider : IContentProvider
+    {
+        private readonly RawContentLoadResult _result;
+
+        public StaticContentProvider(RawContentLoadResult result)
+        {
+            _result = result;
+        }
+
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(_result);
+    }
+
+    private sealed class TrackingBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        public int DisposeCount { get; private set; }
+
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(string.Empty));
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            return ValueTask.CompletedTask;
+        }
     }
 
     [Fact]
