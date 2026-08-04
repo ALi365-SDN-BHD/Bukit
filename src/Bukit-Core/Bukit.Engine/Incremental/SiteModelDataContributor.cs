@@ -38,7 +38,14 @@ internal sealed class SiteModelDataContributor : IRenderDependencyContributor
             foreach (var item in module.Value.OrderBy(x => x.Id, StringComparer.Ordinal))
             {
                 writer.AppendNewline();
-                writer.AppendUtf8(item.Id);
+                writer.AppendCanonicalValue(new Dictionary<string, object?>
+                {
+                    ["id"] = item.Id,
+                    ["title"] = item.Title,
+                    ["slug"] = item.Slug,
+                    ["content"] = item.Content,
+                    ["fields"] = item.Fields
+                });
             }
         }
     }
@@ -60,8 +67,18 @@ internal sealed class SiteModelDataContributor : IRenderDependencyContributor
                 continue;
             }
 
+            // Engine-internal context keys (double-underscore convention) carry live
+            // pipeline objects, not template-visible site data; they are owned by their
+            // own stages and must not enter the canonical value encoder.
+            if (entry.Key.StartsWith("__", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             writer.AppendNewline();
             writer.AppendUtf8(entry.Key);
+            writer.AppendNewline();
+            writer.AppendCanonicalValue(entry.Value);
         }
     }
 

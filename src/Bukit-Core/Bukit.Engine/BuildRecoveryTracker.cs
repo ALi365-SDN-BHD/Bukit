@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace Bukit.Engine;
@@ -17,25 +18,59 @@ internal static class BuildRecoveryTracker
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
-            return doc.RootElement.TryGetProperty("status", out var status) &&
-                   string.Equals(status.GetString(), "started", StringComparison.OrdinalIgnoreCase);
+            if (!doc.RootElement.TryGetProperty("status", out var status))
+            {
+                return true;
+            }
+
+            // Only an explicit completed state proves the previous build finished;
+            // unknown statuses fail closed and trigger a clean recovery.
+            return !string.Equals(status.GetString(), "completed", StringComparison.OrdinalIgnoreCase);
         }
         catch
         {
-            return false;
+            // Malformed or unreadable state is treated as an interrupted build.
+            return true;
         }
     }
 
-    public static void MarkStarted(string outputDir)
-    {
-        Directory.CreateDirectory(outputDir);
-        File.WriteAllText(StatePath(outputDir), $$"""{"status":"started","ts":"{{DateTimeOffset.UtcNow:O}}"}""");
-    }
+    public static void MarkStarted(string outputDir) => WriteStateAtomic(outputDir, "started");
 
-    public static void MarkCompleted(string outputDir)
+    public static void MarkCompleted(string outputDir) => WriteStateAtomic(outputDir, "completed");
+
+    private static void WriteStateAtomic(string outputDir, string status)
     {
         Directory.CreateDirectory(outputDir);
-        File.WriteAllText(StatePath(outputDir), $$"""{"status":"completed","ts":"{{DateTimeOffset.UtcNow:O}}"}""");
+        var path = StatePath(outputDir);
+        var tempPath = $"{path}.tmp-{Guid.NewGuid():N}";
+        try
+        {
+            using (var stream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(stream, Encoding.UTF8))
+            {
+                writer.Write($$"""{"status":"{{status}}","ts":"{{DateTimeOffset.UtcNow:O}}"}""");
+                writer.Flush();
+                stream.Flush(flushToDisk: true);
+            }
+
+            File.Move(tempPath, path, overwrite: true);
+        }
+        catch
+        {
+            try
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+            catch
+            {
+                // Cleanup is best effort; the original state file is untouched.
+            }
+
+            throw;
+        }
     }
 
     private static string StatePath(string outputDir) => Path.Combine(outputDir, StateFileName);

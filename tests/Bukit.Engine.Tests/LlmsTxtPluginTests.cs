@@ -302,6 +302,31 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Assert.DoesNotContain("## Empty", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task LlmsTxt_EqualPublishAtLimit_IsInputOrderIndependent()
+    {
+        var published = DateTimeOffset.Parse("2026-02-02T00:00:00Z");
+        var articles = new[]
+        {
+            new ArticleFixture("alpha", "posts", published, "/posts/alpha/"),
+            new ArticleFixture("beta", "posts", published, "/posts/beta/"),
+            new ArticleFixture("gamma", "posts", published, "/posts/gamma/")
+        };
+
+        async Task<string> RenderAsync(IReadOnlyList<ArticleFixture> order)
+        {
+            var outputDir = Path.Combine(_root, $"dist-llms-order-{Guid.NewGuid():N}");
+            var (context, config) = CreateArticleContext(outputDir, order, maxArticles: 2);
+            await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+            return File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        }
+
+        var forward = await RenderAsync(articles);
+        var reversed = await RenderAsync(articles.Reverse().ToArray());
+
+        Assert.Equal(forward, reversed);
+    }
+
     private sealed record ArticleFixture(
         string Id,
         string Collection,

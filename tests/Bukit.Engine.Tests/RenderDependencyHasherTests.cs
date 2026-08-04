@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Incremental;
@@ -291,8 +292,9 @@ public sealed class RenderDependencyHasherTests
     [Fact]
     public void Compute_RepresentativeConfiguration_MatchesGoldenHash()
     {
+        // Golden hash for the canonical framed/type-tagged render dependency encoding.
         Assert.Equal(
-            "97390da25c57eadd059a54100ec70af1876abd24d7cc2eea634e97ad5dcfec8c",
+            "8358a536194c50101e7d121da7606458d83ca32f2d62072c74868fe38cadddf2",
             RenderDependencyHasher.Compute(
                 CreateRepresentativeGoldenConfig(),
                 CreateRepresentativeGoldenSiteModel(),
@@ -1238,5 +1240,101 @@ public sealed class RenderDependencyHasherTests
             }
         };
         Assert.NotEqual(RenderDependencyHasher.Compute(baseConfig, s_emptySiteModel), RenderDependencyHasher.Compute(config2, s_emptySiteModel));
+    }
+
+    private static SiteModel SiteModelWithData(params (string Key, object Value)[] entries)
+    {
+        var data = new Dictionary<string, object>();
+        foreach (var (key, value) in entries)
+        {
+            data[key] = value;
+        }
+
+        return s_emptySiteModel with { Data = data };
+    }
+
+    [Fact]
+    public void Compute_DifferentSiteDataValue_ProducesDifferentHash()
+    {
+        var config = CreateBaseConfig();
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(config, SiteModelWithData(("banner", "alpha"))),
+            RenderDependencyHasher.Compute(config, SiteModelWithData(("banner", "beta"))));
+    }
+
+    [Fact]
+    public void Compute_DifferentModuleField_ProducesDifferentHash()
+    {
+        var config = CreateBaseConfig();
+
+        SiteModel WithModuleContent(string content) => s_emptySiteModel with
+        {
+            Modules = new Dictionary<string, IReadOnlyList<ModuleInfo>>
+            {
+                ["team"] =
+                [
+                    new ModuleInfo { Id = "m1", Title = "Team", Slug = "team", Content = content }
+                ]
+            }
+        };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(config, WithModuleContent("first body")),
+            RenderDependencyHasher.Compute(config, WithModuleContent("second body")));
+    }
+
+    [Fact]
+    public void Compute_DifferentSequenceElements_ProducesDifferentHash()
+    {
+        var config = CreateBaseConfig();
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(config, SiteModelWithData(("items", new List<object> { "a", "b" }))),
+            RenderDependencyHasher.Compute(config, SiteModelWithData(("items", new List<object> { "a", "c" }))));
+    }
+
+    [Fact]
+    public void Compute_StringAndNumberWithSameText_ProducesDifferentHash()
+    {
+        var config = CreateBaseConfig();
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(config, SiteModelWithData(("value", "1"))),
+            RenderDependencyHasher.Compute(config, SiteModelWithData(("value", 1))));
+    }
+
+    [Fact]
+    public void Compute_NumericValue_IsCultureInvariant()
+    {
+        var config = CreateBaseConfig();
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            var invariantHash = RenderDependencyHasher.Compute(config, SiteModelWithData(("value", 1234.56)));
+
+            CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+            var germanHash = RenderDependencyHasher.Compute(config, SiteModelWithData(("value", 1234.56)));
+
+            Assert.Equal(invariantHash, germanHash);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
+    public void Compute_CyclicValue_FailsWithStableDiagnostic()
+    {
+        var config = CreateBaseConfig();
+        var cyclic = new Dictionary<string, object?>();
+        cyclic["self"] = cyclic;
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => RenderDependencyHasher.Compute(config, SiteModelWithData(("cycle", cyclic))));
+
+        Assert.Contains("render dependency value cycle", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -29,6 +29,11 @@ public static class RouteSecurityValidator
             Fail("URL must not be protocol-relative", value, source, DiagnosticCode.RouteInvalidInternalUrl);
         }
 
+        if (value.Contains('?') || value.Contains('#'))
+        {
+            Fail("URL must not contain query or fragment components", value, source, DiagnosticCode.RouteInvalidInternalUrl);
+        }
+
         if (!value.StartsWith("/", StringComparison.Ordinal) && Uri.TryCreate(value, UriKind.Absolute, out var absolute) && !string.IsNullOrWhiteSpace(absolute.Scheme))
         {
             Fail("URL must be an internal path", value, source, DiagnosticCode.RouteInvalidInternalUrl);
@@ -39,20 +44,7 @@ public static class RouteSecurityValidator
 
     private static void ValidateUrlPathSegments(string url, string? source)
     {
-        var pathPart = url;
-        var queryIndex = pathPart.IndexOf('?');
-        if (queryIndex >= 0)
-        {
-            pathPart = pathPart[..queryIndex];
-        }
-
-        var fragmentIndex = pathPart.IndexOf('#');
-        if (fragmentIndex >= 0)
-        {
-            pathPart = pathPart[..fragmentIndex];
-        }
-
-        foreach (var segment in pathPart.Split('/'))
+        foreach (var segment in url.Split('/'))
         {
             if (segment.Length == 0)
             {
@@ -83,6 +75,18 @@ public static class RouteSecurityValidator
             if (decoded.Contains('/') || decoded.Contains('\\'))
             {
                 Fail("Path segment must not contain encoded slashes", url, source, DiagnosticCode.RouteEncodedSlashInPath);
+            }
+
+            if (decoded.EndsWith('.') || decoded.EndsWith(' '))
+            {
+                Fail("Path segment must not end with a dot or space", url, source, DiagnosticCode.RouteInvalidInternalUrl);
+            }
+
+            var dotIndex = decoded.IndexOf('.');
+            var reservedCandidate = dotIndex < 0 ? decoded : decoded[..dotIndex];
+            if (ReservedWindowsNames.Contains(reservedCandidate))
+            {
+                Fail("Path segment uses a reserved device name", url, source, DiagnosticCode.RouteReservedWindowsPath);
             }
         }
     }

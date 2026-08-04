@@ -521,6 +521,52 @@ public sealed class RssGeneratorTests
     }
 
     [Fact]
+    public void Generate_AtomTimestamps_AreInvariantUnderNonGregorianCulture()
+    {
+        var outDir = Path.Combine(Path.GetTempPath(), $"bukit-atom-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outDir);
+        var original = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            // Buddhist calendar renders Gregorian 2026 as year 2569 under the current culture.
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("th-TH");
+            var publishAt = new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero);
+            var posts = new List<RssGenerator.Post>
+            {
+                new("Post", "/blog/post/", publishAt, "desc", null, "<p>content</p>")
+            };
+
+            AtomFeedGenerator.Generate(outDir, "https://example.test", "/", "Site", posts, "atom.xml");
+
+            var atom = File.ReadAllText(Path.Combine(outDir, "atom.xml"));
+            Assert.Contains("<published>2026-01-02T03:04:05Z</published>", atom, StringComparison.Ordinal);
+            Assert.Contains("<updated>2026-01-02T03:04:05Z</updated>", atom, StringComparison.Ordinal);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = original;
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public void Select_CaseCollisionWinner_IsInputOrderIndependent()
+    {
+        var publishAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var upper = new RssGenerator.Post("Upper", "/Blog/A/", publishAt, null, null, null);
+        var lower = new RssGenerator.Post("Lower", "/blog/a/", publishAt, null, null, null);
+
+        var forward = FeedWindowSelector.Select(
+            new[] { upper, lower }, post => post.PublishAt, post => post.AbsoluteUrl, 20);
+        var reversed = FeedWindowSelector.Select(
+            new[] { lower, upper }, post => post.PublishAt, post => post.AbsoluteUrl, 20);
+
+        Assert.Equal(forward.Select(post => post.AbsoluteUrl), reversed.Select(post => post.AbsoluteUrl));
+        var winner = Assert.Single(forward);
+        Assert.Equal("/Blog/A/", winner.AbsoluteUrl, StringComparer.Ordinal);
+    }
+
+    [Fact]
     public void BuildAbsoluteUrl_CombinesCorrectly()
     {
         var url = RssGenerator.BuildAbsoluteUrl("https://example.com", "/", "/blog/hello/");

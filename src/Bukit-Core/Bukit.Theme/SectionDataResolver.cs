@@ -130,14 +130,14 @@ public static class SectionDataResolver
         return field switch
         {
             "publishAt" or "publish_at" or "date" => desc
-                ? [.. items.OrderByDescending(x => x.Item1.PublishAt)]
-                : [.. items.OrderBy(x => x.Item1.PublishAt)],
+                ? [.. items.OrderByDescending(x => x.Item1.PublishAt).ThenBy(x => x.Item1.Id, StringComparer.Ordinal)]
+                : [.. items.OrderBy(x => x.Item1.PublishAt).ThenBy(x => x.Item1.Id, StringComparer.Ordinal)],
             "title" => desc
-                ? [.. items.OrderByDescending(x => x.Item1.Title, StringComparer.OrdinalIgnoreCase)]
-                : [.. items.OrderBy(x => x.Item1.Title, StringComparer.OrdinalIgnoreCase)],
+                ? [.. items.OrderByDescending(x => x.Item1.Title, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Item1.Id, StringComparer.Ordinal)]
+                : [.. items.OrderBy(x => x.Item1.Title, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Item1.Id, StringComparer.Ordinal)],
             _ => desc
-                ? [.. items.OrderByDescending(x => x.Item1.PublishAt)]
-                : [.. items.OrderBy(x => x.Item1.PublishAt)]
+                ? [.. items.OrderByDescending(x => x.Item1.PublishAt).ThenBy(x => x.Item1.Id, StringComparer.Ordinal)]
+                : [.. items.OrderBy(x => x.Item1.PublishAt).ThenBy(x => x.Item1.Id, StringComparer.Ordinal)]
         };
     }
 }

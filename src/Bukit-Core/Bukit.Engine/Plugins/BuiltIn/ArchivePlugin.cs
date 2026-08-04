@@ -144,7 +144,10 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         }
         sb.AppendLine("</ul>");
 
-        var publishAt = yearPosts.OrderByDescending(x => x.Document.PublishAt).First().Document.PublishAt;
+        var publishAt = yearPosts
+            .OrderByDescending(x => x.Document.PublishAt)
+            .ThenBy(x => x.Document.Id, StringComparer.Ordinal)
+            .First().Document.PublishAt;
         var url = $"{archiveBaseUrl}{year}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var route = new RouteInfo(url, outputPath, template);
@@ -176,7 +179,7 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
     {
         var sb = new StringBuilder();
         sb.AppendLine("<ul>");
-        foreach (var routedDocument in monthPosts.OrderByDescending(x => x.Document.PublishAt))
+        foreach (var routedDocument in monthPosts.OrderByDescending(x => x.Document.PublishAt).ThenBy(x => x.Document.Id, StringComparer.Ordinal))
         {
             var item = routedDocument.Document;
             var route = routedDocument.Route;
@@ -185,7 +188,10 @@ internal sealed class ArchivePlugin : IBukitPlugin, IDerivePagesPlugin, ITemplat
         }
         sb.AppendLine("</ul>");
 
-        var publishAt = monthPosts.OrderByDescending(x => x.Document.PublishAt).First().Document.PublishAt;
+        var publishAt = monthPosts
+            .OrderByDescending(x => x.Document.PublishAt)
+            .ThenBy(x => x.Document.Id, StringComparer.Ordinal)
+            .First().Document.PublishAt;
         var url = $"{archiveBaseUrl}{year}/{month:D2}/";
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
         var routeInfo = new RouteInfo(url, outputPath, template);

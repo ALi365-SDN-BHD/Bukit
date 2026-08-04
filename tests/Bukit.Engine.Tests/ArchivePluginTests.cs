@@ -13,6 +13,27 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ArchivePluginTests
 {
+    [Fact]
+    public void Archive_EqualPublishAt_IsInputOrderIndependent()
+    {
+        var publishAt = new DateTimeOffset(2024, 3, 15, 0, 0, 0, TimeSpan.Zero);
+        var alpha = (CreateItem("alpha", "Alpha", "alpha", publishAt), new RouteInfo("/blog/alpha/", "blog/alpha/index.html", "pages/post.html"));
+        var beta = (CreateItem("beta", "Beta", "beta", publishAt), new RouteInfo("/blog/beta/", "blog/beta/index.html", "pages/post.html"));
+
+        string MonthPageHtml(List<(ContentDocument Item, RouteInfo Route)> routed)
+        {
+            var (ctx, config) = CreateContext(routed);
+            var derived = new ArchivePlugin(config).DerivePages(ctx);
+            var monthPage = Assert.Single(derived, item => item.Route.Url == "/blog/archive/2024/03/");
+            return monthPage.Document.Body.Html ?? string.Empty;
+        }
+
+        var forward = MonthPageHtml([alpha, beta]);
+        var reversed = MonthPageHtml([beta, alpha]);
+
+        Assert.Equal(forward, reversed);
+    }
+
     private static ContentDocument CreateItem(string id, string title, string slug, DateTimeOffset publishAt, string? collection = null)
     {
         var meta = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);

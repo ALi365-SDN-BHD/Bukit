@@ -51,4 +51,21 @@ public sealed class RouteSecurityValidatorTests
             RouteSecurityValidator.ValidateInternalUrl("/../bad", "test-collection"));
         Assert.Contains("test-collection", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Theory]
+    [InlineData("/docs/?view=all")]
+    [InlineData("/docs/#intro")]
+    public void Validate_RouteWithQueryOrFragment_Throws(string route)
+    {
+        Assert.Throws<ConfigException>(() => RouteSecurityValidator.ValidateInternalUrl(route));
+    }
+
+    [Theory]
+    [InlineData("/con./")]
+    [InlineData("/name. /")]
+    [InlineData("/CON.foo.bar/")]
+    public void Validate_WindowsAlias_ThrowsOnEveryPlatform(string route)
+    {
+        Assert.Throws<ConfigException>(() => RouteSecurityValidator.ValidateInternalUrl(route));
+    }
 }

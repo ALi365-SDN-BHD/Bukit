@@ -72,6 +72,29 @@ public sealed class SectionDataResolverTests
     }
 
     [Fact]
+    public void Resolve_EqualPrimaryKeys_UsesCanonicalIdentityTieBreak()
+    {
+        var publishAt = new DateTimeOffset(2024, 1, 5, 0, 0, 0, TimeSpan.Zero);
+        var alpha = (MakeItem("alpha", "Alpha", "post", publishAt), "/alpha/");
+        var beta = (MakeItem("beta", "Beta", "post", publishAt), "/beta/");
+
+        var sectionDef = new PageSectionDefinition
+        {
+            Type = "hero",
+            Source = "post",
+            Sort = "publishAt desc",
+            Limit = 1
+        };
+
+        IReadOnlyList<string> Winners(params (ContentDocument, string)[] order)
+            => SectionDataResolver.Resolve(sectionDef, MakePages(order))
+                .Select(resolved => resolved.Document.Id)
+                .ToList();
+
+        Assert.Equal(Winners(alpha, beta), Winners(beta, alpha));
+    }
+
+    [Fact]
     public void Resolve_SortByTitleAscending()
     {
         var items = MakePages(

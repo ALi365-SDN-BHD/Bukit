@@ -13,7 +13,7 @@ internal static class FeedWindowSelector
         var limit = configuredLimit > 0 ? configuredLimit : DefaultLimit;
         return candidates
             .OrderByDescending(publishedAt)
-            .ThenBy(canonicalUrl, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(canonicalUrl, StringComparer.Ordinal)
             .GroupBy(canonicalUrl, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .Take(limit)

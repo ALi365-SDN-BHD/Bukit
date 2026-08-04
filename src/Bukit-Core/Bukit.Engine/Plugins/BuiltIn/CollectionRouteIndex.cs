@@ -39,6 +39,8 @@ internal sealed class CollectionRouteIndex
         var ordered = routed
             .Where(x => !string.IsNullOrWhiteSpace(GetCollection(x.Document)))
             .OrderByDescending(x => x.Document.PublishAt)
+            .ThenBy(x => x.Route.Url, StringComparer.Ordinal)
+            .ThenBy(x => x.Document.Id, StringComparer.Ordinal)
             .ToList();
 
         var byCollection = ordered

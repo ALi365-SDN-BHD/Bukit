@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace Bukit.Engine;
@@ -34,7 +35,7 @@ internal static class AtomFeedGenerator
         }
         sb.AppendLine($"  <link href=\"{EscapeXml(homeUrl)}\" />");
         sb.AppendLine($"  <link href=\"{EscapeXml(feedUrl)}\" rel=\"self\" />");
-        sb.AppendLine($"  <updated>{updated.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}</updated>");
+        sb.AppendLine($"  <updated>{FormatAtomTimestamp(updated)}</updated>");
         sb.AppendLine($"  <id>{EscapeXml(homeUrl)}</id>");
         sb.AppendLine("  <generator>bukit</generator>");
 
@@ -44,8 +45,8 @@ internal static class AtomFeedGenerator
             sb.AppendLine($"    <title>{EscapeXml(post.Title)}</title>");
             sb.AppendLine($"    <link href=\"{EscapeXml(post.AbsoluteUrl)}\" />");
             sb.AppendLine($"    <id>{EscapeXml(post.AbsoluteUrl)}</id>");
-            sb.AppendLine($"    <published>{post.PublishAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}</published>");
-            sb.AppendLine($"    <updated>{post.PublishAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ssZ}</updated>");
+            sb.AppendLine($"    <published>{FormatAtomTimestamp(post.PublishAt)}</published>");
+            sb.AppendLine($"    <updated>{FormatAtomTimestamp(post.PublishAt)}</updated>");
 
             if (post.Categories is { Count: > 0 } cats)
             {
@@ -71,6 +72,9 @@ internal static class AtomFeedGenerator
         sb.AppendLine("</feed>");
         FileWriter.WriteUtf8(outputDir, feedFileName, sb.ToString());
     }
+
+    private static string FormatAtomTimestamp(DateTimeOffset value)
+        => value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
 
     private static string ToCData(string value)
     {

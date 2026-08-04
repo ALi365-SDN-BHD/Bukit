@@ -30,6 +30,7 @@ internal static class TaxonomyFeedWriter
 
             var posts = term.Pages
                 .OrderByDescending(p => p.PublishAt)
+                .ThenBy(p => p.Url, StringComparer.Ordinal)
                 .Take(20)
                 .ToList();
 

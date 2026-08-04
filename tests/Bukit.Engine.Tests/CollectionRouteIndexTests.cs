@@ -62,6 +62,30 @@ public sealed class CollectionRouteIndexTests
         Assert.Empty(index.GetByCollection("module"));
     }
 
+    [Fact]
+    public void CollectionRouteIndex_EqualPublishAt_IsInputOrderIndependent()
+    {
+        var alpha = CreateItem("alpha", "post", 5);
+        var beta = CreateItem("beta", "post", 5);
+        var forward = CollectionRouteIndex.Create(
+        [
+            new RoutedContentDocument(alpha, new RouteInfo("/post/alpha/", "post/alpha/index.html", "post.html")),
+            new RoutedContentDocument(beta, new RouteInfo("/post/beta/", "post/beta/index.html", "post.html"))
+        ]);
+        var reversed = CollectionRouteIndex.Create(
+        [
+            new RoutedContentDocument(beta, new RouteInfo("/post/beta/", "post/beta/index.html", "post.html")),
+            new RoutedContentDocument(alpha, new RouteInfo("/post/alpha/", "post/alpha/index.html", "post.html"))
+        ]);
+
+        Assert.Equal(
+            forward.AllOrdered.Select(item => item.Document.Id),
+            reversed.AllOrdered.Select(item => item.Document.Id));
+        Assert.Equal(
+            forward.GetByCollection("post").Select(item => item.Document.Id),
+            reversed.GetByCollection("post").Select(item => item.Document.Id));
+    }
+
     private static ContentDocument CreateItem(string id, string collection, int day)
         => CreateItem(id, collection, collection, day);
 

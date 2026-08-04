@@ -171,7 +171,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
         foreach (var (groupKey, items) in groups.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var sorted = items.OrderByDescending(a => a.Published);
+            var sorted = items.OrderByDescending(a => a.Published).ThenBy(a => a.Url, StringComparer.Ordinal);
             var selected = geo.LlmsTxtMaxArticles == 0
                 ? sorted.ToList()
                 : sorted.Take(geo.LlmsTxtMaxArticles).ToList();

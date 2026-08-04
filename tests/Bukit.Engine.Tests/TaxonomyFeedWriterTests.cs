@@ -106,4 +106,49 @@ public sealed class TaxonomyFeedWriterTests : IDisposable
         TaxonomyFeedWriter.WriteFeeds(_tempDir, "https://example.com", "/", "My Site", terms, "tags");
     }
 
+    [Fact]
+    public void WriteFeeds_EqualTimestampWindow_IsInputOrderIndependent()
+    {
+        var timestamp = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        List<TaxonomyPage> BuildPages(bool reversed)
+        {
+            var pages = Enumerable.Range(0, 21)
+                .Select(index => new TaxonomyPage(
+                    $"post-{index:D2}",
+                    $"Post {index:D2}",
+                    $"/blog/post-{index:D2}/",
+                    timestamp,
+                    $"Summary {index:D2}",
+                    null,
+                    false,
+                    null))
+                .ToList();
+            if (reversed)
+            {
+                pages.Reverse();
+            }
+
+            return pages;
+        }
+
+        string Render(IEnumerable<TaxonomyPage> pages)
+        {
+            var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["tech"] = new TaxonomyTerm("Tech", "tech")
+            };
+            foreach (var page in pages)
+            {
+                terms["tech"].Pages.Add(page);
+            }
+
+            var dir = Path.Combine(_tempDir, Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            TaxonomyFeedWriter.WriteFeeds(dir, "https://example.com", "/", "My Site", terms, "tags");
+            return File.ReadAllText(Path.Combine(dir, "tags", "tech", "feed.xml"));
+        }
+
+        Assert.Equal(Render(BuildPages(reversed: false)), Render(BuildPages(reversed: true)));
+    }
 }
