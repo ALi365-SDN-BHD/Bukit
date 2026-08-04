@@ -484,7 +484,7 @@ public sealed class NotionContentProviderEndToEndTests
     }
 
     [Fact]
-    public async Task LoadAsync_WhenHasMoreWithoutCursor_StopsAfterFirstPage()
+    public async Task LoadAsync_WhenHasMoreWithoutCursor_ThrowsStablePaginationException()
     {
         var handler = new HasMoreWithoutCursorHandler();
         var options = new NotionProviderOptions
@@ -499,11 +499,10 @@ public sealed class NotionContentProviderEndToEndTests
             new(options, handler, (_, _) => Task.CompletedTask);
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
-        var result = await provider.LoadRawAsync();
-
-        var item = Assert.Single(result.Documents);
-        Assert.Equal("page-1", item.Id);
-        Assert.Equal(1, handler.RequestCount);
+        // CI-08 contract: has_more=true with a missing cursor fails closed.
+        var exception = await Assert.ThrowsAsync<Bukit.Notion.Rendering.NotionPaginationException>(
+            () => provider.LoadRawAsync());
+        Assert.Equal(Bukit.Notion.Rendering.NotionPaginationGuard.ReasonMissingCursor, exception.Reason);
     }
 
     [Fact]
@@ -525,17 +524,17 @@ public sealed class NotionContentProviderEndToEndTests
         var result = await provider.LoadRawAsync();
         var item = Assert.Single(result.Documents);
 
-        Assert.False(ContentFieldReader.TryGetField(item.CustomFields, "summary", out _));
+        // I-12 contract: the summary is derived during load (bounded prefetch) so the
+        // published field snapshot is immutable afterwards.
+        Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "summary", out var summaryField));
+        var summary = Assert.IsType<string>(summaryField.Value);
+        Assert.StartsWith("Alpha beta & gamma text that should stop", summary);
+        Assert.True(summary.Length <= 42);
 
         var body = await result.BodyStore.GetAsync(item);
 
         Assert.Contains("<p>Alpha", body.Html);
-        Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "summary", out var summaryField));
-        var summary = Assert.IsType<string>(summaryField.Value);
-        Assert.NotNull(item.CustomFields);
-        Assert.StartsWith("Alpha beta & gamma text that should stop", summary);
-        Assert.True(summary.Length <= 42);
-        Assert.True(item.CustomFields!.ContainsKey("summary"));
+        Assert.Same(summaryField, item.CustomFields!["summary"]);
         Assert.Equal(summary, item.CustomFields["summary"].Value);
     }
 

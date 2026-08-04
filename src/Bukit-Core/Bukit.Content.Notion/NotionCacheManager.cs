@@ -103,7 +103,7 @@ internal static class NotionCacheManager
                 writer.WriteEndObject();
             }
 
-            await File.WriteAllBytesAsync(cachePath, buffer.WrittenMemory.ToArray(), cancellationToken);
+            await AtomicNotionCacheWriter.WriteJsonAsync(cachePath, buffer.WrittenMemory.ToArray(), cancellationToken);
         }
 
         return html;

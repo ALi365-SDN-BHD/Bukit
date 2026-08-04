@@ -38,6 +38,19 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
         _onCacheEntryPublished = onCacheEntryPublished;
     }
 
+    /// <summary>
+    /// Seeds a completed body result for a key (used by bounded summary prefetch so the
+    /// prerendered HTML is fetched exactly once and later reads share the same value).
+    /// </summary>
+    internal void Seed(string key, ContentBody body)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(body);
+        _cache.TryAdd(
+            key,
+            new Lazy<Task<ContentBody>>(() => Task.FromResult(body), LazyThreadSafetyMode.None));
+    }
+
     public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
         EnterOperation();

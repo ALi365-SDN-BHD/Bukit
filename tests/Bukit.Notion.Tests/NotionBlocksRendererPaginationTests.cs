@@ -367,6 +367,143 @@ public sealed class NotionBlocksRendererPaginationTests
         Assert.Contains("Normal", html);
     }
 
+    [Fact]
+    public async Task BlocksRenderer_RepeatedCursor_ThrowsStablePaginationException()
+    {
+        // The API keeps returning the same cursor with has_more=true; the guard must
+        // fail closed instead of looping forever (baseline hung until the WaitAsync cap).
+        var handler = new RepeatingCursorHandler();
+        var options = new NotionClientOptions { Token = "token", RequestDelayMs = 0, MaxRetries = 0 };
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
+        var renderer = new NotionBlocksRenderer(client);
+        var sb = new StringBuilder();
+
+        var exception = await Assert.ThrowsAsync<NotionPaginationException>(
+            () => renderer.RenderChildrenToBuilderAsync("parent-id", sb, CancellationToken.None))
+            .WaitAsync(TimeSpan.FromSeconds(15));
+
+        Assert.Equal(NotionPaginationGuard.ReasonRepeatedCursor, exception.Reason);
+        Assert.Equal(2, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task TableRenderer_RepeatedCursor_ThrowsStablePaginationException()
+    {
+        var handler = new TableRepeatingCursorHandler();
+        var options = new NotionClientOptions { Token = "token", RequestDelayMs = 0, MaxRetries = 0 };
+        using var client = CanonicalBlockRendererTestSupport.CreateClient(options, handler);
+        var renderer = new NotionBlocksRenderer(client);
+
+        var exception = await Assert.ThrowsAsync<NotionPaginationException>(
+            () => renderer.RenderPageAsync("page-id", CancellationToken.None))
+            .WaitAsync(TimeSpan.FromSeconds(15));
+
+        Assert.Equal(NotionPaginationGuard.ReasonRepeatedCursor, exception.Reason);
+    }
+
+    [Fact]
+    public void Pagination_MoreThan10000Requests_ThrowsBudgetException()
+    {
+        var guard = new NotionPaginationGuard();
+        NotionPaginationException? caught = null;
+        var iterations = 0;
+        try
+        {
+            for (var i = 0; i < NotionPaginationGuard.MaxRequests + 1; i++)
+            {
+                iterations++;
+                guard.CountRequest();
+            }
+        }
+        catch (NotionPaginationException ex)
+        {
+            caught = ex;
+        }
+
+        Assert.NotNull(caught);
+        Assert.Equal(NotionPaginationGuard.ReasonRequestBudgetExceeded, caught!.Reason);
+        Assert.Equal(NotionPaginationGuard.MaxRequests + 1, iterations);
+    }
+
+    [Fact]
+    public void Pagination_Advance_MissingOrRepeatedCursor_ThrowsStableReasons()
+    {
+        var guard = new NotionPaginationGuard();
+
+        var missing = Assert.Throws<NotionPaginationException>(() => guard.Advance(null));
+        Assert.Equal(NotionPaginationGuard.ReasonMissingCursor, missing.Reason);
+
+        guard.Advance("cursor-1");
+        var repeated = Assert.Throws<NotionPaginationException>(() => guard.Advance("cursor-1"));
+        Assert.Equal(NotionPaginationGuard.ReasonRepeatedCursor, repeated.Reason);
+    }
+
+    private sealed class RepeatingCursorHandler : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            var json = """
+            {
+              "has_more": true,
+              "next_cursor": "cursor-loop",
+              "results": [
+                {
+                  "type": "paragraph",
+                  "paragraph": { "rich_text": [{ "plain_text": "Loop" }] }
+                }
+              ]
+            }
+            """;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
+    private sealed class TableRepeatingCursorHandler : HttpMessageHandler
+    {
+        private int _requestCount;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            _requestCount++;
+            var json = _requestCount == 1
+                ? """
+                  {
+                    "has_more": false,
+                    "results": [
+                      {
+                        "type": "table",
+                        "id": "table-1",
+                        "has_children": true,
+                        "table": { "has_column_header": false, "has_row_header": false }
+                      }
+                    ]
+                  }
+                  """
+                : """
+                  {
+                    "has_more": true,
+                    "next_cursor": "row-cursor-loop",
+                    "results": [
+                      {
+                        "type": "table_row",
+                        "table_row": { "cells": [[{ "plain_text": "cell" }]] }
+                      }
+                    ]
+                  }
+                  """;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
     private sealed class JsonSequenceHandler : HttpMessageHandler
     {
         private readonly IReadOnlyList<JsonSequenceEntry> _entries;

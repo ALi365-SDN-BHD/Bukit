@@ -44,11 +44,13 @@ public sealed class NotionBlocksRenderer
     /// </summary>
     internal async Task RenderChildrenToBuilderAsync(string blockId, StringBuilder sb, CancellationToken cancellationToken)
     {
+        var pagination = new NotionPaginationGuard();
         string? startCursor = null;
         string? openList = null;
 
         while (true)
         {
+            pagination.CountRequest();
             var url = NotionApiUrls.BlockChildren(blockId);
             if (!string.IsNullOrWhiteSpace(startCursor))
             {
@@ -108,11 +110,7 @@ public sealed class NotionBlocksRenderer
             if (root.TryGetProperty("has_more", out var hasMoreEl) && hasMoreEl.ValueKind == JsonValueKind.True)
             {
                 startCursor = GetString(root, "next_cursor");
-                if (string.IsNullOrWhiteSpace(startCursor))
-                {
-                    break;
-                }
-
+                pagination.Advance(startCursor);
                 continue;
             }
 

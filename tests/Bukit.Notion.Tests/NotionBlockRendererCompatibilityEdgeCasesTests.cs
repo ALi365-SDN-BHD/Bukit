@@ -132,7 +132,7 @@ public sealed class NotionBlockRendererCompatibilityEdgeCasesTests
     }
 
     [Fact]
-    public async Task NotionBlocksRenderer_HasMoreNoCursor_StopsPagination()
+    public async Task NotionBlocksRenderer_HasMoreNoCursor_ThrowsMissingCursor()
     {
         var handler = new SequenceHandler(
             """
@@ -163,11 +163,13 @@ public sealed class NotionBlockRendererCompatibilityEdgeCasesTests
         using var client = CreateClient(handler);
         var renderer = new NotionBlocksRenderer(client);
         var sb = new StringBuilder();
-        await renderer.RenderChildrenToBuilderAsync("parent-id", sb, CancellationToken.None);
 
-        var html = sb.ToString();
-        Assert.Contains("Only page", html);
-        Assert.DoesNotContain("Should not appear", html);
+        // CI-08 contract: has_more without a cursor is a fail-closed pagination error
+        // instead of silently stopping (which could hide truncated pages).
+        var exception = await Assert.ThrowsAsync<NotionPaginationException>(
+            () => renderer.RenderChildrenToBuilderAsync("parent-id", sb, CancellationToken.None));
+        Assert.Equal(NotionPaginationGuard.ReasonMissingCursor, exception.Reason);
+        Assert.Contains("Only page", sb.ToString());
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

@@ -51,6 +51,7 @@ public sealed class NotionContentSource
         var allowed = policyMode == "whitelist" ? NotionFieldProjectionHelper.BuildAllowedSet(_options.AllowedFields) : null;
         var resolvedProperties = await NotionDatabaseSchemaResolver.ResolveAsync(client, _options, cancellationToken);
         string? startCursor = null;
+        var pagination = new NotionPaginationGuard();
         var pageHtmlCache = NotionCacheManager.CreatePageHtmlCache(_options);
         var relationTargetCache = NotionRelationTargetCache.Create(_options.CacheMode, _options.CacheDir);
 
@@ -58,6 +59,7 @@ public sealed class NotionContentSource
         {
             while (true)
             {
+                pagination.CountRequest();
                 var query = NotionDatabaseQueryBuilder.Build(
                     _options,
                     startCursor,
@@ -149,11 +151,7 @@ public sealed class NotionContentSource
                 if (root.TryGetProperty("has_more", out var hasMoreEl) && hasMoreEl.ValueKind == JsonValueKind.True)
                 {
                     startCursor = GetString(root, "next_cursor");
-                    if (string.IsNullOrWhiteSpace(startCursor))
-                    {
-                        break;
-                    }
-
+                    pagination.Advance(startCursor);
                     continue;
                 }
 
@@ -175,6 +173,41 @@ public sealed class NotionContentSource
         var draftIndex = NotionDraftIndex<PageDraft>.From(drafts, static d => d.PageId);
         var pageIndex = NotionRelationLinkBuilder.BuildIndex(targets);
         pageIndex = await NotionRelationResolver.ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, relationTargetCache, _options.RenderConcurrency ?? 0, _logger, cancellationToken);
+        // I-12: when rendering with AutoSummary, derive summaries for pages that lack one
+        // BEFORE the raw/canonical documents are built, so the shared field dictionaries
+        // are never mutated after publication. Prefetched HTML seeds the body store so it
+        // is fetched exactly once.
+        var prefetchedSummaries = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var prefetchedBodies = new System.Collections.Concurrent.ConcurrentDictionary<string, ContentBody>(StringComparer.OrdinalIgnoreCase);
+        if (_options.RenderContent && _options.AutoSummary)
+        {
+            var missingSummary = drafts
+                .Where(d => string.IsNullOrWhiteSpace(ContentFieldReader.GetText(d.Fields, "summary")))
+                .ToArray();
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = _options.RenderConcurrency is > 0 ? _options.RenderConcurrency.Value : 4,
+                CancellationToken = cancellationToken
+            };
+            await Parallel.ForEachAsync(missingSummary, parallelOptions, async (draft, token) =>
+            {
+                using var bodyClient = _clientFactory();
+                var renderer = new NotionBlocksRenderer(bodyClient.Transport);
+                var html = await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, pageHtmlCache, draft.PageId, draft.LastEditedTime, token, _logger);
+                if (string.IsNullOrWhiteSpace(html))
+                {
+                    return;
+                }
+
+                prefetchedBodies[draft.PageId] = new ContentBody(html);
+                var extracted = NotionAutoSummary.ExtractFromHtml(html, _options.AutoSummaryMaxLength);
+                if (!string.IsNullOrWhiteSpace(extracted))
+                {
+                    prefetchedSummaries[draft.PageId] = extracted;
+                }
+            });
+        }
+
         var items = new List<RawContentDocument>(drafts.Count);
         var summaryTargets = new Dictionary<string, Dictionary<string, ContentField>>(StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < drafts.Count; i++)
@@ -190,6 +223,16 @@ public sealed class NotionContentSource
             NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(taxonomyValues, fields, "tags");
             NotionTaxonomyPromoter.ProjectRelationTaxonomyTerms(taxonomyValues, fields, "categories");
             fields = ContentFieldReader.WithValues(fields, taxonomyValues);
+
+            if (prefetchedSummaries.TryGetValue(d.PageId, out var prefetchedSummary))
+            {
+                // New OrdinalIgnoreCase snapshot: the published draft fields stay untouched.
+                var summarized = new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase)
+                {
+                    ["summary"] = new ContentField("text", prefetchedSummary)
+                };
+                fields = summarized;
+            }
 
             items.Add(new RawContentDocument(
                 Id: d.PageId,
@@ -207,7 +250,7 @@ public sealed class NotionContentSource
             }
         }
 
-        return new RawContentLoadResult(items, new NotionBodyStore(async (item, ct) =>
+        var bodyStore = new NotionBodyStore(async (item, ct) =>
         {
             if (!_options.RenderContent)
             {
@@ -241,7 +284,13 @@ public sealed class NotionContentSource
             }
 
             return html;
-        }));
+        });
+        foreach (var (pageId, body) in prefetchedBodies)
+        {
+            bodyStore.Seed(pageId, body);
+        }
+
+        return new RawContentLoadResult(items, bodyStore);
     }
 
     private static DateTimeOffset ResolvePublishAt(

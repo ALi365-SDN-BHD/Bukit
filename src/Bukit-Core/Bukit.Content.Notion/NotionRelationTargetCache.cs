@@ -89,39 +89,43 @@ internal sealed class NotionRelationTargetCache
         }
 
         var path = GetCachePath(target.PageId);
-        await using var stream = File.Create(path);
-        await using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false });
-        writer.WriteStartObject();
-        writer.WriteNumber("version", 2);
-        writer.WriteString("pageId", target.PageId);
-        writer.WriteString("title", target.Title);
-        writer.WriteString("slug", target.Slug);
-        writer.WriteString("type", target.Type);
-        if (target.Url is null)
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = false }))
         {
-            writer.WriteNull("url");
+            writer.WriteStartObject();
+            writer.WriteNumber("version", 2);
+            writer.WriteString("pageId", target.PageId);
+            writer.WriteString("title", target.Title);
+            writer.WriteString("slug", target.Slug);
+            writer.WriteString("type", target.Type);
+            if (target.Url is null)
+            {
+                writer.WriteNull("url");
+            }
+            else
+            {
+                writer.WriteString("url", target.Url);
+            }
+            if (target.Image is null)
+            {
+                writer.WriteNull("image");
+            }
+            else
+            {
+                writer.WriteString("image", target.Image);
+            }
+            writer.WritePropertyName("sameAs");
+            writer.WriteStartArray();
+            foreach (var sameAs in target.SameAs ?? Array.Empty<string>())
+            {
+                writer.WriteStringValue(sameAs);
+            }
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+            writer.Flush();
         }
-        else
-        {
-            writer.WriteString("url", target.Url);
-        }
-        if (target.Image is null)
-        {
-            writer.WriteNull("image");
-        }
-        else
-        {
-            writer.WriteString("image", target.Image);
-        }
-        writer.WritePropertyName("sameAs");
-        writer.WriteStartArray();
-        foreach (var sameAs in target.SameAs ?? Array.Empty<string>())
-        {
-            writer.WriteStringValue(sameAs);
-        }
-        writer.WriteEndArray();
-        writer.WriteEndObject();
-        await writer.FlushAsync(cancellationToken);
+
+        await AtomicNotionCacheWriter.WriteJsonAsync(path, buffer.WrittenMemory.ToArray(), cancellationToken);
     }
 
     private string GetCachePath(string pageId)

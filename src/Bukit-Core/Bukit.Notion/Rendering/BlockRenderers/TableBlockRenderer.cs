@@ -32,9 +32,11 @@ public sealed class TableBlockRenderer : INotionBlockRenderer
 
         // Fetch table rows
         var rows = new List<List<string>>();
+        var pagination = new NotionPaginationGuard();
         string? cursor = null;
         while (true)
         {
+            pagination.CountRequest();
             var fetchUrl = NotionApiUrls.BlockChildren(id);
             if (!string.IsNullOrWhiteSpace(cursor))
             {
@@ -77,11 +79,7 @@ public sealed class TableBlockRenderer : INotionBlockRenderer
             if (root.TryGetProperty("has_more", out var hasMore) && hasMore.ValueKind == JsonValueKind.True)
             {
                 cursor = GetString(root, "next_cursor");
-                if (string.IsNullOrWhiteSpace(cursor))
-                {
-                    break;
-                }
-
+                pagination.Advance(cursor);
                 continue;
             }
 
