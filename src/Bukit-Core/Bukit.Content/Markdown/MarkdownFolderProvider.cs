@@ -1,5 +1,6 @@
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
+using Bukit.Shared.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,10 +20,19 @@ public sealed record MarkdownFolderProviderOptions(
 public sealed class MarkdownFolderProvider : IContentProvider
 {
     private readonly MarkdownFolderProviderOptions _options;
+    private readonly ISafeSourceFileOpener _opener;
 
     public MarkdownFolderProvider(MarkdownFolderProviderOptions options)
+        : this(options, new PlatformSafeSourceFileOpener())
+    {
+    }
+
+    internal MarkdownFolderProvider(
+        MarkdownFolderProviderOptions options,
+        ISafeSourceFileOpener opener)
     {
         _options = options;
+        _opener = opener;
     }
 
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
@@ -37,7 +47,9 @@ public sealed class MarkdownFolderProvider : IContentProvider
             throw new ContentException($"ContentDir not found: {_options.ContentDir}");
         }
 
-        var files = SafeFileEnumerator.EnumerateFiles(_options.ContentDir, "*.md")
+        var sourceRoot = Path.GetFullPath(_options.ContentDir);
+
+        var files = SafeFileEnumerator.EnumerateFiles(sourceRoot, "*.md")
             .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
             .ThenBy(p => p, StringComparer.Ordinal)
             .ToArray();
@@ -58,7 +70,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
                     rel += ".md";
                 }
 
-                var full = Path.GetFullPath(Path.Combine(_options.ContentDir, rel));
+                var full = Path.GetFullPath(Path.Combine(sourceRoot, rel));
                 allowed.Add(full);
             }
 
@@ -75,7 +87,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
             {
                 files = files.Where(f =>
                 {
-                    var rel = Path.GetRelativePath(_options.ContentDir, f).Replace('\\', '/');
+                    var rel = Path.GetRelativePath(sourceRoot, f).Replace('\\', '/');
                     return regexes.Any(r => r.IsMatch(rel));
                 }).ToArray();
             }
@@ -91,7 +103,17 @@ public sealed class MarkdownFolderProvider : IContentProvider
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var markdown = await File.ReadAllTextAsync(file, cancellationToken);
+            using var verified = _opener.Open(file, sourceRoot);
+            string markdown;
+            using (var reader = new StreamReader(
+                       verified.Stream,
+                       Encoding.UTF8,
+                       detectEncodingFromByteOrderMarks: true,
+                       bufferSize: 4096,
+                       leaveOpen: true))
+            {
+                markdown = await reader.ReadToEndAsync(cancellationToken);
+            }
             var slug = Path.GetFileNameWithoutExtension(file);
 
             var frontMatterValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
@@ -169,7 +191,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
             ));
         }
 
-        return new RawContentLoadResult(items, new MarkdownBodyStore(_options.ContentDir));
+        return new RawContentLoadResult(items, new MarkdownBodyStore(sourceRoot, _opener));
     }
 
     private static string ComputeBodyFingerprint(string markdown)

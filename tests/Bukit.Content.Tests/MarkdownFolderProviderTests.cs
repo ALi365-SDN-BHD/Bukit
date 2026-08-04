@@ -4,6 +4,7 @@ using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Markdown;
 using Bukit.Shared;
+using Bukit.Shared.IO;
 using Xunit;
 using Xunit.Sdk;
 
@@ -142,6 +143,47 @@ public sealed class MarkdownFolderProviderTests
             var document = Assert.Single(result.Documents);
             Assert.Equal("inside", document.Slug);
             Assert.DoesNotContain(result.Documents, item => item.Title.Contains("External Secret", StringComparison.Ordinal));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_FileReplacedBeforeMetadataOpen_FailsClosed()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-metadata-swap-" + Guid.NewGuid().ToString("N"));
+        var contentDir = Path.Combine(root, "content");
+        var externalPath = Path.Combine(root, "secret.md");
+        var candidatePath = Path.Combine(contentDir, "page.md");
+        try
+        {
+            Directory.CreateDirectory(contentDir);
+            await File.WriteAllTextAsync(candidatePath, "# Safe");
+            await File.WriteAllTextAsync(externalPath, "# External Secret");
+
+            var probePath = Path.Combine(contentDir, "symlink-probe");
+            try
+            {
+                File.CreateSymbolicLink(probePath, externalPath);
+                File.Delete(probePath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
+            }
+
+            var opener = new ReplacingSafeSourceFileOpener(candidatePath, externalPath);
+            var provider = new MarkdownFolderProvider(
+                new MarkdownFolderProviderOptions(contentDir),
+                opener);
+
+            await Assert.ThrowsAsync<IOException>(() => provider.LoadRawAsync());
+            Assert.True(opener.ReplacementOccurred);
         }
         finally
         {
@@ -438,6 +480,34 @@ public sealed class MarkdownFolderProviderTests
         var ok = (bool)InvokeFromType(FmType, "TryExtractFrontMatter", args);
 
         Assert.False(ok);
+    }
+
+    private sealed class ReplacingSafeSourceFileOpener : ISafeSourceFileOpener
+    {
+        private readonly string _candidatePath;
+        private readonly string _externalPath;
+        private readonly PlatformSafeSourceFileOpener _inner = new();
+
+        public ReplacingSafeSourceFileOpener(string candidatePath, string externalPath)
+        {
+            _candidatePath = Path.GetFullPath(candidatePath);
+            _externalPath = Path.GetFullPath(externalPath);
+        }
+
+        public bool ReplacementOccurred { get; private set; }
+
+        public VerifiedSourceFile Open(string path, string sourceRoot)
+        {
+            if (!ReplacementOccurred &&
+                string.Equals(Path.GetFullPath(path), _candidatePath, StringComparison.Ordinal))
+            {
+                File.Delete(_candidatePath);
+                File.CreateSymbolicLink(_candidatePath, _externalPath);
+                ReplacementOccurred = true;
+            }
+
+            return _inner.Open(path, sourceRoot);
+        }
     }
 
     [Fact]
