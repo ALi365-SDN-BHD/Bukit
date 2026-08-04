@@ -29,19 +29,6 @@
     },
     {
       "contractConsumerGlobs": [],
-      "id": "temporary-core-close-windows-verification",
-      "matches": [
-        ".github/workflows/core-close-windows-verification.yml"
-      ],
-      "publicContract": false,
-      "resource": "static-parallel",
-      "specialtyTests": [
-        "bash scripts/checks/active-workflow-boundary-self-test.sh",
-        "bash scripts/checks/active-workflow-boundary.sh"
-      ]
-    },
-    {
-      "contractConsumerGlobs": [],
       "id": "agent-governance",
       "matches": [
         "AGENTS.md",
