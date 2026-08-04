@@ -37,11 +37,53 @@ jobs:
         run: dotnet restore tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj
 
       - name: Run PluginHost tests on Windows
+        id: pluginhost-tests
+        continue-on-error: true
         run: >-
           dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj
           -c Release --no-restore --verbosity minimal
           --logger "trx;LogFileName=pluginhost-windows.trx"
           --results-directory artifacts/test-results
+
+      - name: Project Windows test diagnostics
+        if: always()
+        run: |
+          $trxPath = "artifacts/test-results/pluginhost-windows.trx"
+          if (-not (Test-Path $trxPath)) {
+            throw "The PluginHost test run did not produce its TRX evidence."
+          }
+
+          [xml]$document = Get-Content $trxPath
+          $results = @($document.SelectNodes("//*[local-name()='UnitTestResult']"))
+          $failed = @($results | Where-Object { $_.outcome -eq "Failed" })
+
+          "## Windows PluginHost test diagnostics" | Out-File $env:GITHUB_STEP_SUMMARY
+          "" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "Executed: $($results.Count); failed: $($failed.Count)." | Add-Content $env:GITHUB_STEP_SUMMARY
+
+          foreach ($failure in $failed) {
+            $messageNode = $failure.SelectSingleNode("./*[local-name()='Output']/*[local-name()='ErrorInfo']/*[local-name()='Message']")
+            $stackNode = $failure.SelectSingleNode("./*[local-name()='Output']/*[local-name()='ErrorInfo']/*[local-name()='StackTrace']")
+            $message = if ($null -eq $messageNode) { "No failure message recorded." } else { $messageNode.InnerText.Trim() }
+            $stack = if ($null -eq $stackNode) { "No stack trace recorded." } else { $stackNode.InnerText.Trim() }
+            $diagnostic = "$($failure.testName)`n$message`n$stack"
+            if ($diagnostic.Length -gt 6000) {
+              $diagnostic = $diagnostic.Substring(0, 6000) + "`n[truncated]"
+            }
+            $annotation = $diagnostic.Replace("%", "%25").Replace("`r", "%0D").Replace("`n", "%0A")
+            Write-Host "::error title=Windows PluginHost test failure::$annotation"
+
+            "" | Add-Content $env:GITHUB_STEP_SUMMARY
+            "### $($failure.testName)" | Add-Content $env:GITHUB_STEP_SUMMARY
+            '```text' | Add-Content $env:GITHUB_STEP_SUMMARY
+            $message | Add-Content $env:GITHUB_STEP_SUMMARY
+            $stack | Add-Content $env:GITHUB_STEP_SUMMARY
+            '```' | Add-Content $env:GITHUB_STEP_SUMMARY
+          }
+
+          if ("${{ steps.pluginhost-tests.outcome }}" -ne "success") {
+            throw "PluginHost tests failed on Windows; diagnostics were projected above."
+          }
 
       - name: Verify Windows Job Object evidence
         run: |
