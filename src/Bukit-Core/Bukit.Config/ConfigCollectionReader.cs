@@ -138,7 +138,7 @@ internal static class ConfigCollectionReader
 
     internal static IReadOnlyList<ContentSourceConfig>? ReadSources(YamlMappingNode contentNode)
     {
-        var sourcesNode = ConfigYamlHelpers.GetOptionalSequence(contentNode, "sources");
+        var sourcesNode = ConfigYamlHelpers.GetOptionalSequence(contentNode, "sources", "content");
         if (sourcesNode is null)
         {
             return null;

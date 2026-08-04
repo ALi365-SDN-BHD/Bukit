@@ -30,9 +30,9 @@ internal static class ConfigStrictFieldValidator
     {
         RequireOnly(root, RootKeys, "root");
 
-        if (Map(root, "site") is { } site) ValidateSite(site);
-        if (Map(root, "content") is { } content) ValidateContent(content);
-        if (Map(root, "build") is { } build) ValidateBuild(build);
+        if (Map(root, "site", "site") is { } site) ValidateSite(site);
+        if (Map(root, "content", "content") is { } content) ValidateContent(content);
+        if (Map(root, "build", "build") is { } build) ValidateBuild(build);
         if (Map(root, "theme") is { } theme) ValidateTheme(theme);
         if (Map(root, "taxonomy") is { } taxonomy) ValidateTaxonomy(taxonomy);
         if (Map(root, "logging") is { } logging) RequireOnly(logging, LoggingKeys, "logging");
@@ -304,7 +304,7 @@ internal static class ConfigStrictFieldValidator
     private static void ValidateContent(YamlMappingNode content)
     {
         RequireOnly(content, ContentKeys, "content");
-        if (Seq(content, "sources") is { } sources)
+        if (Seq(content, "sources", "content.sources") is { } sources)
         {
             var index = 0;
             foreach (var source in sources.Children)
@@ -523,11 +523,59 @@ internal static class ConfigStrictFieldValidator
         }
     }
 
-    private static YamlMappingNode? Map(YamlMappingNode node, string key)
-        => node.Children.TryGetValue(new YamlScalarNode(key), out var child) ? child as YamlMappingNode : null;
+    private static YamlMappingNode? Map(YamlMappingNode node, string key, string? path = null)
+    {
+        if (!node.Children.TryGetValue(new YamlScalarNode(key), out var child))
+        {
+            return null;
+        }
 
-    private static YamlSequenceNode? Seq(YamlMappingNode node, string key)
-        => node.Children.TryGetValue(new YamlScalarNode(key), out var child) ? child as YamlSequenceNode : null;
+        if (child is YamlMappingNode mapping)
+        {
+            return mapping;
+        }
+
+        if (child is YamlScalarNode emptyScalar && string.IsNullOrEmpty(emptyScalar.Value))
+        {
+            return null;
+        }
+
+        throw KindMismatch(path ?? key, "mapping", child);
+    }
+
+    private static YamlSequenceNode? Seq(YamlMappingNode node, string key, string? path = null)
+    {
+        if (!node.Children.TryGetValue(new YamlScalarNode(key), out var child))
+        {
+            return null;
+        }
+
+        if (child is YamlSequenceNode sequence)
+        {
+            return sequence;
+        }
+
+        if (child is YamlScalarNode emptyScalar && string.IsNullOrEmpty(emptyScalar.Value))
+        {
+            return null;
+        }
+
+        throw KindMismatch(path ?? key, "sequence", child);
+    }
+
+    private static ConfigException KindMismatch(string path, string expectedKind, YamlNode actual)
+    {
+        var actualKind = actual switch
+        {
+            YamlMappingNode => "mapping",
+            YamlSequenceNode => "sequence",
+            YamlScalarNode => "scalar",
+            _ => actual.NodeType.ToString()
+        };
+        return new ConfigException(
+            $"Invalid config value: {path} expected {expectedKind} node kind, got {actualKind} node kind.",
+            DiagnosticCode.ConfigInvalidValue);
+    }
 
     private static string KeyName(YamlNode key, string path)
         => key is YamlScalarNode scalar && !string.IsNullOrWhiteSpace(scalar.Value)

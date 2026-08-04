@@ -176,6 +176,7 @@ public sealed class NotionContentSource
         var pageIndex = NotionRelationLinkBuilder.BuildIndex(targets);
         pageIndex = await NotionRelationResolver.ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, relationTargetCache, _options.RenderConcurrency ?? 0, _logger, cancellationToken);
         var items = new List<RawContentDocument>(drafts.Count);
+        var summaryTargets = new Dictionary<string, Dictionary<string, ContentField>>(StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < drafts.Count; i++)
         {
             var d = drafts[i];
@@ -200,6 +201,10 @@ public sealed class NotionContentSource
                 Source: new ContentSourceInfo("notion", SourcePath: d.PageId, ExternalId: d.PageId, SyncStatus: "loaded"),
                 CustomFields: fields
             ));
+            if (fields is Dictionary<string, ContentField> mutableSummaryTarget)
+            {
+                summaryTargets[d.PageId] = mutableSummaryTarget;
+            }
         }
 
         return new RawContentLoadResult(items, new NotionBodyStore(async (item, ct) =>
@@ -222,7 +227,13 @@ public sealed class NotionContentSource
                 var extracted = NotionAutoSummary.ExtractFromHtml(html, _options.AutoSummaryMaxLength);
                 if (!string.IsNullOrWhiteSpace(extracted))
                 {
-                    if (item.CustomFields is Dictionary<string, ContentField> mutableFields)
+                    // Write the extracted summary back to the raw fields dictionary shared
+                    // with the RawContentDocument; converted snapshots are not aliased.
+                    if (summaryTargets.TryGetValue(item.Body.BodyKey ?? item.Id, out var rawFields))
+                    {
+                        rawFields["summary"] = new ContentField("text", extracted);
+                    }
+                    else if (item.CustomFields is Dictionary<string, ContentField> mutableFields)
                     {
                         mutableFields["summary"] = new ContentField("text", extracted);
                     }

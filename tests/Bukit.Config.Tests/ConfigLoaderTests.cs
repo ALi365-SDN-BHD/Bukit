@@ -1402,4 +1402,37 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal(expectedCode, ex.Code);
         Assert.Contains(expectedPath, ex.Message, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("build: []", "build", "mapping", "sequence")]
+    [InlineData("build: { clean: [] }", "build.clean", "scalar", "sequence")]
+    [InlineData("content: { sources: {} }", "content.sources", "sequence", "mapping")]
+    public void Load_WrongYamlNodeKind_ThrowsStableConfigInvalidValue(
+        string yamlFragment, string path, string expected, string actual)
+    {
+        var yaml = yamlFragment.StartsWith("content:", StringComparison.Ordinal)
+            ? """
+              site:
+                name: myblog
+                title: My Blog
+              """ + "\n" + yamlFragment
+            : """
+              site:
+                name: myblog
+                title: My Blog
+              content:
+                sources:
+                  - type: markdown
+                    markdown:
+                      dir: content
+              """ + "\n" + yamlFragment;
+        var configPath = WriteTempYaml(yaml);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(Bukit.Shared.DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains(path, exception.Message, StringComparison.Ordinal);
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
+        Assert.Contains(actual, exception.Message, StringComparison.Ordinal);
+    }
 }

@@ -8,41 +8,30 @@ namespace Bukit.Engine.Abstractions.Content;
 public static class ContentDocumentFactory
 {
     /// <summary>
-    /// Merges raw properties into custom fields. Properties that already
-    /// exist in <paramref name="customFields"/> (case-insensitive) are
-    /// skipped so that explicit custom field values take precedence.
+    /// Merges raw properties into custom fields. The result is always a fresh
+    /// case-insensitive dictionary: raw properties are imported first and explicit
+    /// custom fields overwrite them, so custom field values take precedence
+    /// case-insensitively. The caller's dictionaries are never mutated.
     /// </summary>
     public static IReadOnlyDictionary<string, ContentField>? MergeFields(
         IReadOnlyDictionary<string, RawContentValue>? properties,
         IReadOnlyDictionary<string, ContentField>? customFields)
     {
+        if ((properties is null || properties.Count == 0) && customFields is null)
+        {
+            return null;
+        }
+
         if (properties is null || properties.Count == 0)
         {
             return customFields;
         }
 
-        if (customFields is IDictionary<string, ContentField> mutableCustomFields &&
-            !mutableCustomFields.IsReadOnly)
-        {
-            foreach (var (key, value) in properties)
-            {
-                if (!mutableCustomFields.ContainsKey(key))
-                {
-                    mutableCustomFields[key] = new ContentField(value.Kind, value.Value);
-                }
-            }
-
-            return customFields;
-        }
-
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
 
-        if (properties is not null)
+        foreach (var (key, value) in properties)
         {
-            foreach (var (key, value) in properties)
-            {
-                fields[key] = new ContentField(value.Kind, value.Value);
-            }
+            fields[key] = new ContentField(value.Kind, value.Value);
         }
 
         if (customFields is not null)

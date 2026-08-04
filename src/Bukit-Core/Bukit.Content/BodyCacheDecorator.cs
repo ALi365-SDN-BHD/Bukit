@@ -20,6 +20,11 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
     private readonly CancellationTokenSource _lifetimeCts;
     private readonly Action? _onCacheEntryPublishedBeforeLru;
 
+    private readonly object _admissionLock = new();
+    private int _activeOperations;
+    private bool _admissionClosed;
+    private TaskCompletionSource<bool>? _drainTcs;
+
     private long _totalRequests;
     private long _cacheHits;
     private long _cacheMisses;
@@ -63,7 +68,19 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
 
     public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposeState) != 0, this);
+        EnterOperation();
+        try
+        {
+            return await GetAsyncCore(document, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            ExitOperation();
+        }
+    }
+
+    private async Task<ContentBody> GetAsyncCore(ContentDocument document, CancellationToken cancellationToken)
+    {
         Interlocked.Increment(ref _totalRequests);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -155,26 +172,49 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
 
     private void TrimExcess()
     {
-        if (_cache.Count <= _maxEntries)
-        {
-            return;
-        }
-
-        var removeCount = Math.Max(_maxEntries / 10, 1);
-        for (var i = 0; i < removeCount; i++)
+        // Remove exactly the current excess; the count is re-checked under the LRU lock
+        // on every iteration so concurrent insertions never trigger bulk eviction.
+        while (true)
         {
             lock (_lruLock)
             {
-                if (_lruList.First is null)
+                if (_cache.Count <= _maxEntries || _lruList.First is null)
                 {
-                    break;
+                    return;
                 }
+
                 var keyToRemove = _lruList.First.Value;
                 _lruList.RemoveFirst();
                 _lruNodes.TryRemove(keyToRemove, out _);
                 _cache.TryRemove(keyToRemove, out _);
             }
+
             Interlocked.Increment(ref _cacheSkips);
+        }
+    }
+
+    private void EnterOperation()
+    {
+        lock (_admissionLock)
+        {
+            if (_admissionClosed || Volatile.Read(ref _disposeState) != 0)
+            {
+                throw new ObjectDisposedException(GetType().FullName);
+            }
+
+            _activeOperations++;
+        }
+    }
+
+    private void ExitOperation()
+    {
+        lock (_admissionLock)
+        {
+            _activeOperations--;
+            if (_activeOperations == 0 && _admissionClosed)
+            {
+                _drainTcs?.TrySetResult(true);
+            }
         }
     }
 
@@ -183,6 +223,28 @@ public sealed class BodyCacheDecorator : IContentBodyStore, IAsyncDisposable
         if (Interlocked.Exchange(ref _disposeState, 1) != 0)
         {
             return;
+        }
+
+        Task? drainTask;
+        lock (_admissionLock)
+        {
+            _admissionClosed = true;
+            if (_activeOperations > 0)
+            {
+                _drainTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                drainTask = _drainTcs.Task;
+            }
+            else
+            {
+                drainTask = null;
+            }
+        }
+
+        // Disposal must not reach the inner store while an accepted GetAsync is still
+        // running; admitted operations complete against a live store.
+        if (drainTask is not null)
+        {
+            await drainTask.ConfigureAwait(false);
         }
 
         _lifetimeCts.Cancel();

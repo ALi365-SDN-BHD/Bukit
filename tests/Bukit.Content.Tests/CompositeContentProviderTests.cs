@@ -259,7 +259,10 @@ public sealed class CompositeContentProviderTests
         Assert.Equal("markdown", raw.Source.Provider);
         var properties = Assert.IsAssignableFrom<IReadOnlyDictionary<string, RawContentValue>>(raw.Properties);
         Assert.Equal("posts", properties["collection"].Value);
-        Assert.Equal("markdown:item-1.md", raw.Body.BodyKey);
+        // The internal route token prefixes the BodyKey; the original key is preserved.
+        Assert.NotNull(raw.Body.BodyKey);
+        Assert.StartsWith(CompositeContentBodyStore.TokenPrefix, raw.Body.BodyKey, StringComparison.Ordinal);
+        Assert.EndsWith(":markdown:item-1.md", raw.Body.BodyKey, StringComparison.Ordinal);
     }
 
     private sealed class TestProvider : IContentProvider
@@ -325,5 +328,110 @@ public sealed class CompositeContentProviderTests
         {
             return Task.FromResult(new ContentBody(string.Empty));
         }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_DuplicateSourceKeys_RoutesEachBodyToItsOwnStore()
+    {
+        var storeA = new FixedHtmlBodyStore("bodyA");
+        var storeB = new FixedHtmlBodyStore("bodyB");
+        var providerA = new TestProvider(new RawContentLoadResult(
+            new[] { Document("a", "Doc A", "a") }, storeA));
+        var providerB = new TestProvider(new RawContentLoadResult(
+            new[] { Document("b", "Doc B", "b") }, storeB));
+
+        var composite = new CompositeContentProvider(new[]
+        {
+            ("notion", "content", (IContentProvider)providerA),
+            ("notion", "content", (IContentProvider)providerB)
+        });
+
+        var result = await composite.LoadRawAsync();
+
+        Assert.Equal(new[] { "notion:a", "notion:b" }, result.Documents.Select(d => d.SourceId));
+        var bodyA = await result.BodyStore.GetAsync(ToContentDocument(result.Documents[0]));
+        var bodyB = await result.BodyStore.GetAsync(ToContentDocument(result.Documents[1]));
+        Assert.Equal("bodyA", bodyA.Html);
+        Assert.Equal("bodyB", bodyB.Html);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_SecondProviderFails_DisposesFirstSuccessfulStore()
+    {
+        var store = new FixedHtmlBodyStore("body");
+        var good = new TestProvider(new RawContentLoadResult(
+            new[] { Document("good-1", "Good", "good") }, store));
+        var failing = new FailingProvider(new ContentException("provider failed"));
+
+        var composite = new CompositeContentProvider(new[]
+        {
+            ("src1", "content", (IContentProvider)good),
+            ("src2", "content", (IContentProvider)failing)
+        });
+
+        await Assert.ThrowsAsync<ContentException>(() => composite.LoadRawAsync());
+
+        Assert.Equal(1, store.DisposeCount);
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_RelationProjectionFails_DisposesAllStores()
+    {
+        var storeA = new FixedHtmlBodyStore("bodyA");
+        var storeB = new FixedHtmlBodyStore("bodyB");
+        var providerA = new TokenIgnoringProvider(new RawContentLoadResult(
+            new[] { Document("a", "Doc A", "a") }, storeA));
+        var providerB = new TokenIgnoringProvider(new RawContentLoadResult(
+            new[] { Document("b", "Doc B", "b") }, storeB));
+
+        var composite = new CompositeContentProvider(new[]
+        {
+            ("src1", "content", (IContentProvider)providerA),
+            ("src2", "content", (IContentProvider)providerB)
+        });
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => composite.LoadRawAsync(cts.Token));
+
+        Assert.Equal(1, storeA.DisposeCount);
+        Assert.Equal(1, storeB.DisposeCount);
+    }
+
+    private static ContentDocument ToContentDocument(RawContentDocument raw)
+        => ContentDocumentFactory.CreateDocument(raw, raw.CustomFields);
+
+    private sealed class FixedHtmlBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        private readonly string _html;
+
+        public FixedHtmlBodyStore(string html)
+        {
+            _html = html;
+        }
+
+        public int DisposeCount { get; private set; }
+
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(_html));
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class TokenIgnoringProvider : IContentProvider
+    {
+        private readonly RawContentLoadResult _result;
+
+        public TokenIgnoringProvider(RawContentLoadResult result)
+        {
+            _result = result;
+        }
+
+        public Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(_result);
     }
 }

@@ -45,7 +45,15 @@ public sealed class CompositeContentProvider : IContentProvider
             tasks[i] = LoadProviderRawAsync(_providers[i].Provider, cancellationToken);
         }
 
-        await Task.WhenAll(tasks);
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch
+        {
+            await DisposeCompletedStoresAsync(tasks).ConfigureAwait(false);
+            throw;
+        }
 
         var relationSources = new NotionRelationProjectionSource[_providers.Count];
         for (var i = 0; i < _providers.Count; i++)
@@ -55,82 +63,139 @@ public sealed class CompositeContentProvider : IContentProvider
                 : null;
             relationSources[i] = new NotionRelationProjectionSource(_providers[i].SourceKey, (await tasks[i]).Documents, resolver);
         }
-        var projectedSources = await NotionCrossSourceRelationProjector.ProjectAsync(relationSources, _schema, cancellationToken);
+
+        IReadOnlyList<NotionRelationProjectionSource> projectedSources;
+        try
+        {
+            projectedSources = await NotionCrossSourceRelationProjector.ProjectAsync(relationSources, _schema, cancellationToken);
+        }
+        catch
+        {
+            await DisposeCompletedStoresAsync(tasks).ConfigureAwait(false);
+            throw;
+        }
 
         var all = new List<RawContentDocument>();
-        var stores = new Dictionary<string, IContentBodyStore>(StringComparer.OrdinalIgnoreCase);
-        for (var i = 0; i < _providers.Count; i++)
+        var orderedStores = new List<(string SourceKey, IContentBodyStore Store)>(_providers.Count);
+        try
         {
-            var (sourceKey, sourceMode, collection, addToCollections, _) = _providers[i];
-            var result = await tasks[i];
-            var items = projectedSources[i].Documents;
-            stores[sourceKey] = result.BodyStore;
-
-            foreach (var item in items)
+            for (var i = 0; i < _providers.Count; i++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                var (sourceKey, sourceMode, collection, addToCollections, _) = _providers[i];
+                var result = await tasks[i];
+                var items = projectedSources[i].Documents;
+                orderedStores.Add((sourceKey, result.BodyStore));
 
-                var fields = item.CustomFields is null
-                    ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
-                    : new Dictionary<string, ContentField>(item.CustomFields, StringComparer.OrdinalIgnoreCase);
-
-                fields["sourceKey"] = new ContentField("text", sourceKey);
-                fields["sourceMode"] = new ContentField("text", sourceMode);
-                fields["sourceId"] = new ContentField("text", item.Id);
-                if (!string.IsNullOrWhiteSpace(collection))
+                foreach (var item in items)
                 {
-                    fields["collection"] = new ContentField("text", collection.Trim());
-                }
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                all.Add(item with
-                {
-                    SourceId = $"{sourceKey}:{item.Id}",
-                    Body = item.Body with
+                    var fields = item.CustomFields is null
+                        ? new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+                        : new Dictionary<string, ContentField>(item.CustomFields, StringComparer.OrdinalIgnoreCase);
+
+                    fields["sourceKey"] = new ContentField("text", sourceKey);
+                    fields["sourceMode"] = new ContentField("text", sourceMode);
+                    fields["sourceId"] = new ContentField("text", item.Id);
+                    if (!string.IsNullOrWhiteSpace(collection))
                     {
-                        BodyKey = item.Body.BodyKey is null
-                            ? $"{sourceKey}:{item.Id}"
-                            : $"{sourceKey}:{item.Body.BodyKey}"
-                    },
-                    CustomFields = fields,
-                    Properties = RawContentValue.FromFields(fields),
-                    Source = item.Source with { SourceKey = sourceKey }
-                });
+                        fields["collection"] = new ContentField("text", collection.Trim());
+                    }
 
-                if (addToCollections is null)
-                {
-                    continue;
-                }
+                    // The opaque provider token keeps duplicate source keys routed to
+                    // their own body stores; public document identity stays unchanged.
+                    var internalBodyKey = item.Body.BodyKey is null
+                        ? $"{sourceKey}:{item.Id}"
+                        : $"{sourceKey}:{item.Body.BodyKey}";
+                    var routedBodyKey = CompositeContentBodyStore.PrefixBodyKey(i, internalBodyKey);
 
-                foreach (var extraCollection in addToCollections)
-                {
-                    if (string.IsNullOrWhiteSpace(extraCollection))
+                    all.Add(item with
+                    {
+                        SourceId = $"{sourceKey}:{item.Id}",
+                        Body = item.Body with { BodyKey = routedBodyKey },
+                        CustomFields = fields,
+                        Properties = RawContentValue.FromFields(fields),
+                        Source = item.Source with { SourceKey = sourceKey }
+                    });
+
+                    if (addToCollections is null)
                     {
                         continue;
                     }
 
-                    var extraFields = new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase)
+                    foreach (var extraCollection in addToCollections)
                     {
-                        ["collection"] = new ContentField("text", extraCollection.Trim())
-                    };
-
-                    all.Add(item with
-                    {
-                        SourceId = $"{sourceKey}:{item.Id}:{extraCollection.Trim()}",
-                        Body = item.Body with
+                        if (string.IsNullOrWhiteSpace(extraCollection))
                         {
-                            BodyKey = item.Body.BodyKey is null
-                                ? $"{sourceKey}:{item.Id}"
-                                : $"{sourceKey}:{item.Body.BodyKey}"
-                        },
-                        CustomFields = extraFields,
-                        Properties = RawContentValue.FromFields(extraFields),
-                        Source = item.Source with { SourceKey = sourceKey }
-                    });
+                            continue;
+                        }
+
+                        var extraFields = new Dictionary<string, ContentField>(fields, StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["collection"] = new ContentField("text", extraCollection.Trim())
+                        };
+
+                        all.Add(item with
+                        {
+                            SourceId = $"{sourceKey}:{item.Id}:{extraCollection.Trim()}",
+                            Body = item.Body with { BodyKey = routedBodyKey },
+                            CustomFields = extraFields,
+                            Properties = RawContentValue.FromFields(extraFields),
+                            Source = item.Source with { SourceKey = sourceKey }
+                        });
+                    }
                 }
             }
         }
+        catch
+        {
+            await DisposeCompletedStoresAsync(tasks).ConfigureAwait(false);
+            throw;
+        }
 
-        return new RawContentLoadResult(all, new CompositeContentBodyStore(stores));
+        return new RawContentLoadResult(all, new CompositeContentBodyStore(orderedStores));
+    }
+
+    private static async Task DisposeCompletedStoresAsync(Task<RawContentLoadResult>[] tasks)
+    {
+        var stores = new List<IContentBodyStore>();
+        foreach (var task in tasks)
+        {
+            if (task.IsCompletedSuccessfully)
+            {
+                stores.Add(task.Result.BodyStore);
+            }
+        }
+
+        await DisposeStoresAsync(stores).ConfigureAwait(false);
+    }
+
+    private static async Task DisposeStoresAsync(IEnumerable<IContentBodyStore> stores)
+    {
+        var disposed = new HashSet<IContentBodyStore>(ReferenceEqualityComparer.Instance);
+        foreach (var store in stores)
+        {
+            if (!disposed.Add(store))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (store is IAsyncDisposable asyncDisposable)
+                {
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                }
+                else if (store is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+            catch
+            {
+                // Failure cleanup must surface the original exception, not a dispose fault.
+            }
+        }
     }
 
     private static async Task<RawContentLoadResult> LoadProviderRawAsync(

@@ -99,14 +99,15 @@ public sealed class NotionBodyStoreTests
     }
 
     [Fact]
-    public async Task DisposeAsync_CancelsActiveSharedRender()
+    public async Task DisposeAsync_WaitsForAdmittedSharedRenderBeforeCancellation()
     {
         var renderStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var store = new NotionBodyStore(async (_, cancellationToken) =>
         {
             renderStarted.TrySetResult();
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            return "<p>unreachable</p>";
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            return "<p>admitted</p>";
         });
         var item = ContentDocument.Create(
             id: "dispose-page",
@@ -119,11 +120,18 @@ public sealed class NotionBodyStoreTests
         Task<ContentBody> activeRender = store.GetAsync(item.ToDocument());
         await renderStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Admission-gate contract: disposal drains the accepted render before the
+        // lifetime token is cancelled.
         var disposable = Assert.IsAssignableFrom<IAsyncDisposable>(store);
-        await disposable.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        var disposeTask = disposable.DisposeAsync().AsTask();
+        var winner = await Task.WhenAny(disposeTask, Task.Delay(250));
+        Assert.NotSame(disposeTask, winner);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => activeRender.WaitAsync(TimeSpan.FromSeconds(5)));
+        release.SetResult();
+        var body = await activeRender.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("<p>admitted</p>", body.Html);
+
+        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
     [Fact]
@@ -141,5 +149,47 @@ public sealed class NotionBodyStoreTests
             bodyKey: "disposed-page");
 
         await Assert.ThrowsAsync<ObjectDisposedException>(() => store.GetAsync(item.ToDocument()));
+    }
+
+    [Fact]
+    public async Task NotionGetAsync_AdmittedBeforeDispose_CompletesBeforeCtsDisposal()
+    {
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var store = new NotionBodyStore(
+            async (item, cancellationToken) =>
+            {
+                entered.TrySetResult(true);
+                await release.Task;
+                // An accepted render must finish: disposal may not cancel the lifetime
+                // before the admitted operation completes.
+                cancellationToken.ThrowIfCancellationRequested();
+                return $"<p>{item.Id}</p>";
+            },
+            CancellationToken.None,
+            onCacheEntryPublished: null);
+
+        var item = ContentDocument.Create(
+            id: "admitted-page",
+            title: "Page",
+            slug: "page",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: null,
+            bodyKey: "admitted-page");
+
+        var getTask = store.GetAsync(item.ToDocument());
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var disposeTask = store.DisposeAsync().AsTask();
+        var winner = await Task.WhenAny(disposeTask, Task.Delay(250));
+        Assert.NotSame(disposeTask, winner);
+
+        release.SetResult(true);
+        var body = await getTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("<p>admitted-page</p>", body.Html);
+
+        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
     }
 }

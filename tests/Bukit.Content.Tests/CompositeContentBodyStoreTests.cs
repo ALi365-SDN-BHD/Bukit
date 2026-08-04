@@ -88,4 +88,36 @@ public sealed class CompositeContentBodyStoreTests
 
         Assert.Contains("No content body store registered", ex.Message);
     }
+
+    private sealed class CountingDisposeStore : IContentBodyStore, IAsyncDisposable
+    {
+        public int DisposeCount { get; private set; }
+
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody("<p>counting</p>"));
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task DisposeAsync_DisposesEachDistinctChildStoreExactlyOnce()
+    {
+        var shared = new CountingDisposeStore();
+        var other = new CountingDisposeStore();
+        var store = new CompositeContentBodyStore(new Dictionary<string, IContentBodyStore>
+        {
+            ["a"] = shared,
+            ["b"] = other,
+            ["c"] = shared
+        });
+
+        await ((IAsyncDisposable)(object)store).DisposeAsync();
+
+        Assert.Equal(1, shared.DisposeCount);
+        Assert.Equal(1, other.DisposeCount);
+    }
 }

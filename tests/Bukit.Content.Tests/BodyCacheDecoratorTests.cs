@@ -226,23 +226,31 @@ public sealed class BodyCacheDecoratorTests
     }
 
     [Fact]
-    public async Task DisposeAsync_CancelsAndObservesActiveSharedLoadBeforeDisposingInner()
+    public async Task DisposeAsync_WaitsForAdmittedSharedLoadBeforeDisposingInner()
     {
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var inner = new DelegatingBodyStore(async (_, cancellationToken) =>
         {
             started.TrySetResult();
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            return new ContentBody("<p>unreachable</p>");
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            return new ContentBody("<p>admitted</p>");
         });
         var decorator = new BodyCacheDecorator(inner);
         Task<ContentBody> activeLoad = decorator.GetAsync(CreateItem("dispose-active").ToDocument());
         await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await decorator.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        // Admission-gate contract: disposal waits for the accepted load instead of
+        // cancelling it out from under the caller.
+        var disposeTask = decorator.DisposeAsync().AsTask();
+        var winner = await Task.WhenAny(disposeTask, Task.Delay(250));
+        Assert.NotSame(disposeTask, winner);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => activeLoad.WaitAsync(TimeSpan.FromSeconds(5)));
+        release.SetResult();
+        var body = await activeLoad.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("<p>admitted</p>", body.Html);
+
+        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(1, inner.DisposeCount);
         Assert.Equal(0, decorator.Metrics.UniqueBodies);
     }
@@ -572,5 +580,78 @@ public sealed class BodyCacheDecoratorTests
             decorator.GetAsync(CreateItem("disposed", contentHtml: "<p>inline</p>").ToDocument()));
 
         Assert.Equal(0, decorator.Metrics.TotalRequests);
+    }
+
+    [Fact]
+    public async Task GetAsync_AdmittedBeforeDispose_IsAwaitedBeforeInnerDisposal()
+    {
+        var inner = new GatedDisposeTrackingStore();
+        Task? disposeTask = null;
+        // Disposal starts from the deterministic seam between cache publication and the
+        // lazy value being started: the admitted GetAsync must still complete against a
+        // live inner store.
+        BodyCacheDecorator decorator = null!;
+        decorator = new BodyCacheDecorator(
+            inner,
+            maxEntries: 10,
+            lifetimeToken: CancellationToken.None,
+            onCacheEntryPublishedBeforeLru: () => disposeTask = decorator.DisposeAsync().AsTask());
+
+        var getTask = decorator.GetAsync(CreateItem("key-1", bodyKey: "body-key-1"));
+        await inner.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        inner.Release.SetResult(true);
+        var body = await getTask.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("<p>inner</p>", body.Html);
+        Assert.False(inner.DisposedBeforeCompletion);
+
+        Assert.NotNull(disposeTask);
+        await disposeTask!.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(1, inner.DisposeCount);
+    }
+
+    [Fact]
+    public async Task Trim_OneOverCapacity_RemovesExactlyOneEntry()
+    {
+        await using var decorator = new BodyCacheDecorator(new StaticBodyStore(), maxEntries: 100);
+
+        for (var i = 0; i < 101; i++)
+        {
+            await decorator.GetAsync(CreateItem($"doc-{i}", bodyKey: $"body-key-{i}"));
+        }
+
+        Assert.Equal(100, decorator.Metrics.UniqueBodies);
+    }
+
+    private sealed class GatedDisposeTrackingStore : IContentBodyStore, IAsyncDisposable
+    {
+        public TaskCompletionSource<bool> Entered { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> Release { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int DisposeCount { get; private set; }
+        public bool DisposedBeforeCompletion { get; private set; }
+        private int _disposed;
+
+        public async Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
+        {
+            Entered.TrySetResult(true);
+            await Release.Task;
+            DisposedBeforeCompletion = Volatile.Read(ref _disposed) == 1;
+            return new ContentBody("<p>inner</p>");
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            Interlocked.Exchange(ref _disposed, 1);
+            DisposeCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class StaticBodyStore : IContentBodyStore
+    {
+        public Task<ContentBody> GetAsync(ContentDocument item, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody("<p>static</p>"));
     }
 }

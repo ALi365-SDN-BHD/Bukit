@@ -7,9 +7,9 @@ namespace Bukit.Config;
 
 internal static class ConfigYamlHelpers
 {
-    internal static YamlMappingNode GetMapping(YamlMappingNode node, string key)
+    internal static YamlMappingNode GetMapping(YamlMappingNode node, string key, string? parentPath = null)
     {
-        var result = GetOptionalMapping(node, key);
+        var result = GetOptionalMapping(node, key, parentPath);
         if (result is null)
         {
             throw new ConfigException($"{key} section is required.", DiagnosticCode.ConfigRequiredFieldMissing);
@@ -18,34 +18,44 @@ internal static class ConfigYamlHelpers
         return result;
     }
 
-    internal static YamlMappingNode? GetOptionalMapping(YamlMappingNode node, string key)
+    internal static YamlMappingNode? GetOptionalMapping(YamlMappingNode node, string key, string? parentPath = null)
     {
         if (!node.Children.TryGetValue(new YamlScalarNode(key), out var child))
         {
             return null;
         }
 
-        return child as YamlMappingNode;
+        if (child is YamlMappingNode mapping)
+        {
+            return mapping;
+        }
+
+        if (IsEmptyScalar(child))
+        {
+            return null;
+        }
+
+        throw KindMismatch(ComposePath(parentPath, key), "mapping", child);
     }
 
-    internal static string? GetOptionalString(YamlMappingNode node, string key)
+    internal static string? GetOptionalString(YamlMappingNode node, string key, string? parentPath = null)
     {
         if (!node.Children.TryGetValue(new YamlScalarNode(key), out var child))
         {
             return null;
         }
 
-        if (child is not YamlScalarNode scalar)
+        if (child is YamlScalarNode scalar)
         {
-            return null;
+            return scalar.Value;
         }
 
-        return scalar.Value;
+        throw KindMismatch(ComposePath(parentPath, key), "scalar", child);
     }
 
-    internal static string GetRequiredString(YamlMappingNode node, string key)
+    internal static string GetRequiredString(YamlMappingNode node, string key, string? parentPath = null)
     {
-        var value = GetOptionalString(node, key);
+        var value = GetOptionalString(node, key, parentPath);
         if (string.IsNullOrWhiteSpace(value))
         {
             throw new ConfigException($"{key} is required.", DiagnosticCode.ConfigRequiredFieldMissing);
@@ -54,9 +64,9 @@ internal static class ConfigYamlHelpers
         return value;
     }
 
-    internal static bool? GetOptionalBool(YamlMappingNode node, string key)
+    internal static bool? GetOptionalBool(YamlMappingNode node, string key, string? parentPath = null)
     {
-        var value = GetOptionalString(node, key);
+        var value = GetOptionalString(node, key, parentPath);
         if (value is null)
         {
             return null;
@@ -64,17 +74,17 @@ internal static class ConfigYamlHelpers
 
         if (bool.TryParse(value, out var b)) return b;
 
-        throw new ConfigException($"Invalid config value: {key} expected boolean true|false, got '{value}'", DiagnosticCode.ConfigInvalidValue);
+        throw new ConfigException($"Invalid config value: {ComposePath(parentPath, key)} expected boolean true|false, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
-    internal static bool? GetOptionalBoolStrict(YamlMappingNode node, string key)
+    internal static bool? GetOptionalBoolStrict(YamlMappingNode node, string key, string? parentPath = null)
     {
-        var value = GetOptionalString(node, key);
+        var value = GetOptionalString(node, key, parentPath);
         if (value is null) return null;
 
         if (bool.TryParse(value, out var b)) return b;
 
-        throw new ConfigException($"Invalid config value: {key} expected boolean true|false, got '{value}'", DiagnosticCode.ConfigInvalidValue);
+        throw new ConfigException($"Invalid config value: {ComposePath(parentPath, key)} expected boolean true|false, got '{value}'", DiagnosticCode.ConfigInvalidValue);
     }
 
     internal static int? GetOptionalInt(YamlMappingNode node, string key)
@@ -248,13 +258,43 @@ internal static class ConfigYamlHelpers
         return value;
     }
 
-    internal static YamlSequenceNode? GetOptionalSequence(YamlMappingNode node, string key)
+    internal static YamlSequenceNode? GetOptionalSequence(YamlMappingNode node, string key, string? parentPath = null)
     {
         if (!node.Children.TryGetValue(new YamlScalarNode(key), out var child))
         {
             return null;
         }
 
-        return child as YamlSequenceNode;
+        if (child is YamlSequenceNode sequence)
+        {
+            return sequence;
+        }
+
+        if (IsEmptyScalar(child))
+        {
+            return null;
+        }
+
+        throw KindMismatch(ComposePath(parentPath, key), "sequence", child);
+    }
+
+    private static bool IsEmptyScalar(YamlNode node)
+        => node is YamlScalarNode scalar && string.IsNullOrEmpty(scalar.Value);
+
+    private static string ComposePath(string? parentPath, string key)
+        => string.IsNullOrEmpty(parentPath) ? key : $"{parentPath}.{key}";
+
+    private static ConfigException KindMismatch(string path, string expectedKind, YamlNode actual)
+    {
+        var actualKind = actual switch
+        {
+            YamlMappingNode => "mapping",
+            YamlSequenceNode => "sequence",
+            YamlScalarNode => "scalar",
+            _ => actual.NodeType.ToString()
+        };
+        return new ConfigException(
+            $"Invalid config value: {path} expected {expectedKind} node kind, got {actualKind} node kind.",
+            DiagnosticCode.ConfigInvalidValue);
     }
 }

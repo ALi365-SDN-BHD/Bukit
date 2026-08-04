@@ -98,7 +98,7 @@ public sealed class ContentBodyStoreAdapterTests
     }
 
     [Fact]
-    public async Task GetAsync_RawMutableCustomFields_PreservesReferenceAndAddsMissingProperties()
+    public async Task GetAsync_RawMutableCustomFields_MergesWithoutMutatingCallerAndCustomWins()
     {
         var properties = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
         {
@@ -123,10 +123,14 @@ public sealed class ContentBodyStoreAdapterTests
         await ((IContentBodyStore)store).GetAsync(raw);
 
         Assert.NotNull(store.Document);
-        Assert.Same(customFields, store.Document.CustomFields);
-        Assert.Equal("article", ContentFieldReader.GetText(customFields, "type"));
-        Assert.Equal("briefings", ContentFieldReader.GetText(customFields, "collection"));
-        Assert.Equal("Property summary", ContentFieldReader.GetText(customFields, "summary"));
+        // I-13 contract: the merge returns a fresh case-insensitive dictionary, never
+        // mutates the caller's fields, and custom fields win case-insensitively.
+        Assert.NotSame(customFields, store.Document.CustomFields);
+        Assert.Equal("article", ContentFieldReader.GetText(store.Document.CustomFields, "type"));
+        Assert.Equal("briefings", ContentFieldReader.GetText(store.Document.CustomFields, "collection"));
+        Assert.Equal("Property summary", ContentFieldReader.GetText(store.Document.CustomFields, "summary"));
+        Assert.Single(customFields);
+        Assert.False(customFields.ContainsKey("type"));
     }
 
     [Fact]

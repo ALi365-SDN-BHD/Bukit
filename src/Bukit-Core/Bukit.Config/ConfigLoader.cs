@@ -104,7 +104,7 @@ public static class ConfigLoader
         var build = new BuildConfig
         {
             Output = buildNode is null ? "dist" : ConfigYamlHelpers.GetOptionalString(buildNode, "output") ?? "dist",
-            Clean = buildNode is null ? true : ConfigYamlHelpers.GetOptionalBoolStrict(buildNode, "clean") ?? true,
+            Clean = buildNode is null ? true : ConfigYamlHelpers.GetOptionalBoolStrict(buildNode, "clean", "build") ?? true,
             Draft = buildNode is null ? false : ConfigYamlHelpers.GetOptionalBool(buildNode, "draft") ?? false,
             ListPageContentMode = buildNode is null ? "auto" : ConfigYamlHelpers.GetOptionalString(buildNode, "listPageContentMode") ?? "auto",
             SchemaFailMode = buildNode is null ? "warn" : ConfigYamlHelpers.GetOptionalString(buildNode, "schemaFailMode") ?? "warn",
