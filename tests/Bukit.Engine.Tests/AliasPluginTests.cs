@@ -124,6 +124,25 @@ public sealed class AliasPluginTests
         Assert.Equal("redirect", ContentFieldReader.GetText(derived[0].Document.CustomFields, "type"));
     }
 
+    [Theory]
+    [InlineData("/old/?view=all")]
+    [InlineData("/old/#intro")]
+    public void DerivePages_AliasWithQueryOrFragment_Throws(string alias)
+    {
+        var fieldValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["aliases"] = new[] { alias }
+        };
+        var (ctx, config) = CreateContext(new List<(ContentDocument, RouteInfo)>
+        {
+            (Item("p1", "Post", "post", fieldValues), Route("/post/"))
+        });
+
+        var exception = Assert.Throws<ConfigException>(() => new AliasPlugin(config).DerivePages(ctx));
+
+        Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, exception.Code);
+    }
+
     private static (BuildContext Context, AppConfig Config) CreateContext(
         List<(ContentDocument, RouteInfo)> routed)
     {
