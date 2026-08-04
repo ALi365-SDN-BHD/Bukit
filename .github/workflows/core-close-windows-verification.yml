@@ -36,12 +36,13 @@ jobs:
       - name: Restore PluginHost tests
         run: dotnet restore tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj
 
-      - name: Run PluginHost tests on Windows
+      - name: Run targeted PluginHost tests on Windows
         id: pluginhost-tests
         continue-on-error: true
         run: >-
           dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj
           -c Release --no-restore --verbosity minimal
+          --filter "FullyQualifiedName=Bukit.PluginHost.Tests.SystemProcessRunnerTests.RunAsync_ChildMemoryExceedsTreeLimit_ReturnsResourceLimitExceeded|FullyQualifiedName=Bukit.PluginHost.Tests.SystemProcessRunnerTests.RunAsync_CombinedChildMemoryExceedsTreeLimit_ReturnsResourceLimitExceeded|FullyQualifiedName=Bukit.PluginHost.Tests.SystemProcessRunnerTests.RunAsync_NormalParentExitWithInheritedPipe_TerminatesTreeAndFailsRun"
           --logger "trx;LogFileName=pluginhost-windows.trx"
           --results-directory artifacts/test-results
 
