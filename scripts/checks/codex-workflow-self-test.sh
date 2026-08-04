@@ -233,19 +233,23 @@ mkdir -p \
   "$closure_fixture/src/Bukit-Core/Bukit.Content" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content.Notion" \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Engine.Abstractions" \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine/obj/Debug" \
   "$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport" \
   "$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions" \
   "$closure_fixture/src/Bukit-Core/Bukit.PluginHost" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Routing" \
   "$closure_fixture/tests/Bukit.Architecture.Tests" \
   "$closure_fixture/tests/Bukit.Cli.Tests" \
   "$closure_fixture/tests/Bukit.Config.Tests" \
   "$closure_fixture/tests/Bukit.Config.Tests/obj/Debug" \
   "$closure_fixture/tests/Bukit.Content.Notion.Tests" \
   "$closure_fixture/tests/Bukit.Content.Tests" \
+  "$closure_fixture/tests/Bukit.Engine.Abstractions.Tests" \
   "$closure_fixture/tests/Bukit.Engine.Tests" \
   "$closure_fixture/tests/Bukit.Notion.Tests" \
   "$closure_fixture/tests/Bukit.PluginHost.Tests" \
+  "$closure_fixture/tests/Bukit.Routing.Tests" \
   "$closure_fixture/tests/PluginProcessProbe"
 git -C "$closure_fixture" init -q
 git -C "$closure_fixture" config user.email codex-workflow@example.invalid
@@ -279,6 +283,10 @@ printf 'public sealed class NotionClient {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport/NotionClient.cs"
 printf 'internal sealed class SystemProcessRunner {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs"
+printf 'public static class ContentDocumentFactory {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Engine.Abstractions/ContentDocumentFactory.cs"
+printf 'public static class RoutePathBuilder {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Routing/RoutePathBuilder.cs"
 printf '# Built-in plugins\n' >"$closure_fixture/guide/dev/built-in-plugins.md"
 printf '# Content\n' >"$closure_fixture/guide/dev/content.md"
 printf 'public sealed class ContentBoundaryTests {}\n' \
@@ -293,6 +301,10 @@ printf 'public sealed class NotionClientTests {}\n' \
   >"$closure_fixture/tests/Bukit.Notion.Tests/NotionClientTests.cs"
 printf 'public sealed class SystemProcessRunnerTests {}\n' \
   >"$closure_fixture/tests/Bukit.PluginHost.Tests/SystemProcessRunnerTests.cs"
+printf 'public sealed class ContentDocumentFactoryTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Engine.Abstractions.Tests/ContentDocumentFactoryTests.cs"
+printf 'public sealed class RoutePathBuilderTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Routing.Tests/RoutePathBuilderTests.cs"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Content/Bukit.Content.csproj"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
@@ -300,11 +312,19 @@ printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Config/Bukit.Config.csproj"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj"
 printf 'public sealed class EngineFeatureTests {}\n' \
   >"$closure_fixture/tests/Bukit.Engine.Tests/EngineFeatureTests.cs"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' >"$closure_fixture/Directory.Packages.props"
 printf 'return 0;\n' >"$closure_fixture/tests/PluginProcessProbe/Program.cs"
 printf 'unmapped\n' >"$closure_fixture/README.unknown"
@@ -359,6 +379,26 @@ assert_closure_mapping \
   src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs \
   '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
   true
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Engine.Abstractions/ContentDocumentFactory.cs \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Engine.Abstractions.Tests/ContentDocumentFactoryTests.cs \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Routing/RoutePathBuilder.cs \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj", "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Routing.Tests/RoutePathBuilderTests.cs \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"]' \
+  false
 assert_closure_mapping \
   "$closure_fixture" \
   tests/PluginProcessProbe/Program.cs \
