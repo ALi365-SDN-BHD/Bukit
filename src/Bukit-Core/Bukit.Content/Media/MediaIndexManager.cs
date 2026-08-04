@@ -12,8 +12,47 @@ internal sealed class MediaIndexManager
 
     // In-process coordination keyed by the physical index path so that two
     // instances writing the same directory serialize their merge-and-persist.
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, object> s_indexPathLocks =
+    // Gates are reference-counted leases: the last holder removes the entry
+    // conditionally on key/value identity so a later lease is never dropped.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, PathGate> s_indexPathLocks =
         new(StringComparer.Ordinal);
+
+    internal sealed class PathGate
+    {
+        internal int References;
+    }
+
+    internal static PathGate AcquirePathGate(string pathKey)
+    {
+        while (true)
+        {
+            var gate = s_indexPathLocks.GetOrAdd(pathKey, static _ => new PathGate());
+            lock (gate)
+            {
+                if (ReferenceEquals(s_indexPathLocks.GetValueOrDefault(pathKey), gate))
+                {
+                    gate.References++;
+                    return gate;
+                }
+            }
+        }
+    }
+
+    internal static void ReleasePathGate(string pathKey, PathGate gate)
+    {
+        lock (gate)
+        {
+            gate.References--;
+            if (gate.References <= 0)
+            {
+                // Conditional key/value removal: never delete a different gate instance
+                // that a later acquirer installed for the same key.
+                s_indexPathLocks.TryRemove(new KeyValuePair<string, PathGate>(pathKey, gate));
+            }
+        }
+    }
+
+    internal static bool HasPathGate(string pathKey) => s_indexPathLocks.ContainsKey(pathKey);
 
     private readonly object _indexLock = new();
     private Dictionary<string, string> _diskIndex;
@@ -230,71 +269,78 @@ internal sealed class MediaIndexManager
                 Directory.CreateDirectory(root);
                 var path = Path.Combine(root, IndexFileName);
                 var pathKey = Path.GetFullPath(path);
-                var pathGate = s_indexPathLocks.GetOrAdd(pathKey, static _ => new object());
+                var pathGate = AcquirePathGate(pathKey);
 
-                lock (pathGate)
+                try
                 {
-                    // Cross-process coordination: hold an exclusive lock file while
-                    // re-reading, merging, and atomically replacing the index.
-                    var lockPath = path + ".lock";
-                    using (OpenLockFileWithRetry(lockPath))
+                    lock (pathGate)
                     {
-                        // Merge entries committed by other instances/processes
-                        var merged = ReadDiskIndex(path);
-                        foreach (var deletedKey in _deletedIndexKeys)
+                        // Cross-process coordination: hold an exclusive lock file while
+                        // re-reading, merging, and atomically replacing the index.
+                        var lockPath = path + ".lock";
+                        using (OpenLockFileWithRetry(lockPath))
                         {
-                            merged.Remove(deletedKey);
-                        }
-
-                        foreach (var kv in _upsertedIndexEntries)
-                        {
-                            merged[kv.Key] = kv.Value;
-                        }
-
-                        var tempPath = Path.Combine(root, $".{IndexFileName}.{Guid.NewGuid():N}.tmp");
-                        try
-                        {
-                            using (var fs = new FileStream(
-                                tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                                bufferSize: 4096, FileOptions.SequentialScan))
+                            // Merge entries committed by other instances/processes
+                            var merged = ReadDiskIndex(path);
+                            foreach (var deletedKey in _deletedIndexKeys)
                             {
-                                using var writer = new Utf8JsonWriter(fs,
-                                    new JsonWriterOptions { Indented = false });
-                                writer.WriteStartObject();
-                                writer.WriteNumber("version", CurrentIndexVersion);
-                                writer.WritePropertyName("entries");
-                                writer.WriteStartObject();
-                                foreach (var kv in merged.OrderBy(x => x.Key, StringComparer.Ordinal))
+                                merged.Remove(deletedKey);
+                            }
+
+                            foreach (var kv in _upsertedIndexEntries)
+                            {
+                                merged[kv.Key] = kv.Value;
+                            }
+
+                            var tempPath = Path.Combine(root, $".{IndexFileName}.{Guid.NewGuid():N}.tmp");
+                            try
+                            {
+                                using (var fs = new FileStream(
+                                    tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                                    bufferSize: 4096, FileOptions.SequentialScan))
                                 {
-                                    writer.WriteString(kv.Key, kv.Value);
+                                    using var writer = new Utf8JsonWriter(fs,
+                                        new JsonWriterOptions { Indented = false });
+                                    writer.WriteStartObject();
+                                    writer.WriteNumber("version", CurrentIndexVersion);
+                                    writer.WritePropertyName("entries");
+                                    writer.WriteStartObject();
+                                    foreach (var kv in merged.OrderBy(x => x.Key, StringComparer.Ordinal))
+                                    {
+                                        writer.WriteString(kv.Key, kv.Value);
+                                    }
+                                    writer.WriteEndObject();
+                                    writer.WriteEndObject();
+                                    writer.Flush();
+                                    fs.Flush(flushToDisk: true);
                                 }
-                                writer.WriteEndObject();
-                                writer.WriteEndObject();
-                                writer.Flush();
-                                fs.Flush(flushToDisk: true);
+
+                                _beforeIndexReplace?.Invoke();
+                                if (File.Exists(path))
+                                {
+                                    File.Replace(tempPath, path, destinationBackupFileName: null);
+                                }
+                                else
+                                {
+                                    File.Move(tempPath, path);
+                                }
+                            }
+                            catch
+                            {
+                                try { File.Delete(tempPath); } catch { /* best effort */ }
+                                throw;
                             }
 
-                            _beforeIndexReplace?.Invoke();
-                            if (File.Exists(path))
-                            {
-                                File.Replace(tempPath, path, destinationBackupFileName: null);
-                            }
-                            else
-                            {
-                                File.Move(tempPath, path);
-                            }
+                            // Reconcile this instance's in-memory map with what was committed
+                            _diskIndex = merged;
+                            _upsertedIndexEntries.Clear();
+                            _deletedIndexKeys.Clear();
                         }
-                        catch
-                        {
-                            try { File.Delete(tempPath); } catch { /* best effort */ }
-                            throw;
-                        }
-
-                        // Reconcile this instance's in-memory map with what was committed
-                        _diskIndex = merged;
-                        _upsertedIndexEntries.Clear();
-                        _deletedIndexKeys.Clear();
                     }
+                }
+                finally
+                {
+                    ReleasePathGate(pathKey, pathGate);
                 }
 
                 _indexDirty = false;

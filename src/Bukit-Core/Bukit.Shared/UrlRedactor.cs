@@ -1,10 +1,14 @@
+using System.Globalization;
+
 namespace Bukit.Shared;
 
 public static class UrlRedactor
 {
     /// <summary>
-    /// Strips query string and fragment from a URL to avoid logging sensitive tokens.
-    /// Returns the original string if it cannot be parsed as a URI.
+    /// Reduces a URL to a log-safe identity: normalized scheme, host and optional port
+    /// followed by a fixed redacted path marker. Userinfo, path, query and fragment are
+    /// never logged because any of them may carry credentials or tokens. Unparseable
+    /// values are replaced by a fixed marker instead of being echoed.
     /// </summary>
     public static string Redact(string url)
     {
@@ -13,22 +17,16 @@ public static class UrlRedactor
             return url;
         }
 
-        var qIdx = url.IndexOf('?');
-        var fIdx = url.IndexOf('#');
-
-        if (qIdx < 0 && fIdx < 0)
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            string.IsNullOrEmpty(uri.Scheme) ||
+            string.IsNullOrEmpty(uri.Host))
         {
-            return url;
+            return "<redacted-url>";
         }
 
-        var cutoff = (qIdx >= 0, fIdx >= 0) switch
-        {
-            (true, true) => Math.Min(qIdx, fIdx),
-            (true, false) => qIdx,
-            (false, true) => fIdx,
-            _ => url.Length
-        };
-
-        return url[..cutoff] + "?[REDACTED]";
+        var port = uri.IsDefaultPort
+            ? string.Empty
+            : ":" + uri.Port.ToString(CultureInfo.InvariantCulture);
+        return $"{uri.Scheme}://{uri.Host}{port}/<redacted-path>";
     }
 }

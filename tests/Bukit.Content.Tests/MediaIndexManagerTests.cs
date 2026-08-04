@@ -209,4 +209,45 @@ public sealed class MediaIndexManagerTests
             Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void PathGate_LastLeaseReleased_RemovesOnlySameGate()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-media-index-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var pathKey = Path.GetFullPath(Path.Combine(root, ".media-index.json"));
+
+            var manager = new MediaIndexManager(root, "/media", logger: null);
+            manager.EnsureIndexLoaded(root);
+            manager.RememberIndex("https://example.com/gate.jpg", "gate.jpg");
+            manager.PersistIndex();
+
+            // After the last holder finishes, the static path gate must be reclaimed.
+            Assert.False(MediaIndexManager.HasPathGate(pathKey));
+
+            var first = MediaIndexManager.AcquirePathGate(pathKey);
+            var second = MediaIndexManager.AcquirePathGate(pathKey);
+            Assert.Same(first, second);
+            Assert.True(MediaIndexManager.HasPathGate(pathKey));
+
+            MediaIndexManager.ReleasePathGate(pathKey, first);
+            Assert.True(MediaIndexManager.HasPathGate(pathKey));
+
+            MediaIndexManager.ReleasePathGate(pathKey, second);
+            Assert.False(MediaIndexManager.HasPathGate(pathKey));
+
+            // A stale release must never remove a gate installed by a later acquirer.
+            var later = MediaIndexManager.AcquirePathGate(pathKey);
+            MediaIndexManager.ReleasePathGate(pathKey, second);
+            Assert.True(MediaIndexManager.HasPathGate(pathKey));
+            MediaIndexManager.ReleasePathGate(pathKey, later);
+            Assert.False(MediaIndexManager.HasPathGate(pathKey));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

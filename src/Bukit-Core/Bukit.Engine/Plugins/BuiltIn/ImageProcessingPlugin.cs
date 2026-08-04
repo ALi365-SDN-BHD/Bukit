@@ -48,7 +48,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         var sizes = config.Sizes ?? new[] { 480, 768, 1200 };
         var imageFiles = SafeFileEnumerator.EnumerateFiles(assetsDir, "*.*")
             .Where(f => exts.Contains(Path.GetExtension(f).ToLowerInvariant()))
-            .Where(f => !IsGeneratedSizedImage(f))
+            .Where(f => !IsOwnedGeneratedVariant(context.OutputDir, f, priorPluginOutputs))
             .ToList();
 
         if (imageFiles.Count == 0)
@@ -633,8 +633,8 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
     private static bool IsGeneratedSizedImage(string path)
     {
-        // Exclude any managed variant regardless of the currently configured sizes,
-        // including historical sizes from prior builds
+        // Filename shape only. Generated identity itself must be proven by the
+        // ownership/freshness manifest, see IsOwnedGeneratedVariant.
         var stem = Path.GetFileNameWithoutExtension(path);
         var suffixStart = stem.LastIndexOf('-');
         if (suffixStart <= 0 || suffixStart == stem.Length - 2)
@@ -646,6 +646,40 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         return suffix.EndsWith('w')
                && suffix.Length > 1
                && int.TryParse(suffix.AsSpan(0, suffix.Length - 1), out _);
+    }
+
+    private static bool IsOwnedGeneratedVariant(
+        string outputDir,
+        string path,
+        HashSet<PluginOutputTrackingInfo> priorOutputs)
+    {
+        // A *-<digits>w file is only a generated variant when the ownership manifest
+        // proves it. User source files with the same name shape remain inputs.
+        if (!IsGeneratedSizedImage(path))
+        {
+            return false;
+        }
+
+        var sidecarFile = path + FreshnessSuffix;
+        if (!HasPriorOwnership(outputDir, priorOutputs, path, sidecarFile) ||
+            !TryReadFreshnessRecord(sidecarFile, out var freshness) ||
+            !IsExpectedVariantPath(path, freshness.Size, freshness.Format) ||
+            !MatchesVariantIdentity(freshness, path))
+        {
+            return false;
+        }
+
+        try
+        {
+            return string.Equals(
+                freshness.VariantPath,
+                GetRelativeIdentity(outputDir, path),
+                StringComparison.Ordinal);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 
     private static void CleanupOrphanedOwnedVariants(

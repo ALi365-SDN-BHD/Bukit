@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Threading;
 using Bukit.Config;
+using Bukit.Content.Media;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -116,7 +117,7 @@ internal static class ImageOptimizer
             startInfo.ArgumentList.Add(outputFile);
         }
 
-        await RunTool(startInfo, logger, inputFile, outputFile, cancellationToken);
+        await RunTool(startInfo, logger, inputFile, outputFile, expectedOutputMime: "image/webp", cancellationToken);
     }
 
     private static async Task ConvertToAvif(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
@@ -140,7 +141,9 @@ internal static class ImageOptimizer
         startInfo.ArgumentList.Add("-quality");
         startInfo.ArgumentList.Add(quality.ToString());
         startInfo.ArgumentList.Add(outputFile);
-        await RunTool(startInfo, logger, inputFile, outputFile, cancellationToken);
+        // The pinned decoder set has no approved AVIF decoder, so AVIF converter
+        // output cannot be proven valid: fail closed instead of publishing it.
+        await RunTool(startInfo, logger, inputFile, outputFile, expectedOutputMime: null, cancellationToken);
     }
 
     private static async Task<ImageTool?> FindImageToolAsync(
@@ -200,6 +203,7 @@ internal static class ImageOptimizer
         ILogger logger,
         string inputFile,
         string outputFile,
+        string? expectedOutputMime,
         CancellationToken cancellationToken)
     {
         var temporaryOutput = Path.Combine(
@@ -212,7 +216,8 @@ internal static class ImageOptimizer
                 startInfo,
                 TimeSpan.FromSeconds(10),
                 cancellationToken);
-            if (result.ExitCode == 0 && File.Exists(temporaryOutput))
+            if (result.ExitCode == 0 && File.Exists(temporaryOutput) &&
+                await ValidateConverterOutputAsync(temporaryOutput, expectedOutputMime, logger, inputFile, cancellationToken))
             {
                 File.Move(temporaryOutput, outputFile, overwrite: true);
                 logger.Info($"event=image_optimize.ok file={Path.GetFileName(inputFile)}");
@@ -225,6 +230,36 @@ internal static class ImageOptimizer
         finally
         {
             TryDelete(temporaryOutput);
+        }
+    }
+
+    private static async Task<bool> ValidateConverterOutputAsync(
+        string outputPath,
+        string? expectedOutputMime,
+        ILogger logger,
+        string inputFile,
+        CancellationToken cancellationToken)
+    {
+        if (expectedOutputMime is null)
+        {
+            logger.Warn(
+                $"event=image_optimize.unverifiable file={Path.GetFileName(inputFile)} reason=no_approved_decoder");
+            return false;
+        }
+
+        try
+        {
+            return await new ImageContentValidator().ValidateAsync(outputPath, expectedOutputMime, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.Warn(
+                $"event=image_optimize.validation_failed file={Path.GetFileName(inputFile)} reason={ex.GetType().Name}");
+            return false;
         }
     }
 

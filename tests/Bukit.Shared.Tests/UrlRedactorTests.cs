@@ -23,50 +23,55 @@ public sealed class UrlRedactorTests
     }
 
     [Fact]
-    public void Redact_SimpleUrl_ReturnsUnchanged()
+    public void Redact_SimpleUrl_KeepsOnlySchemeAndHost()
     {
-        Assert.Equal("https://example.com/page", UrlRedactor.Redact("https://example.com/page"));
+        Assert.Equal("https://example.com/<redacted-path>", UrlRedactor.Redact("https://example.com/page"));
     }
 
     [Fact]
-    public void Redact_UrlWithQueryString_StripsQuery()
+    public void Redact_UrlWithQueryString_RemovesQueryAndPath()
     {
-        var result = UrlRedactor.Redact("https://example.com/page?token=secret&user=admin");
-        Assert.Equal("https://example.com/page?[REDACTED]", result);
+        Assert.Equal(
+            "https://example.com/<redacted-path>",
+            UrlRedactor.Redact("https://example.com/page?token=secret&user=admin"));
     }
 
     [Fact]
-    public void Redact_UrlWithFragment_StripsFragment()
+    public void Redact_UrlWithFragment_RemovesFragmentAndPath()
     {
-        var result = UrlRedactor.Redact("https://example.com/page#section");
-        Assert.Equal("https://example.com/page?[REDACTED]", result);
+        Assert.Equal(
+            "https://example.com/<redacted-path>",
+            UrlRedactor.Redact("https://example.com/page#section"));
     }
 
     [Fact]
-    public void Redact_UrlWithBothQueryAndFragment_QueryFirst_PrefersQuery()
+    public void Redact_NonDefaultPort_PreservesPort()
     {
-        var result = UrlRedactor.Redact("https://example.com/page?x=1#section");
-        Assert.Equal("https://example.com/page?[REDACTED]", result);
+        Assert.Equal(
+            "https://example.com:8443/<redacted-path>",
+            UrlRedactor.Redact("https://example.com:8443/media/a.png"));
     }
 
     [Fact]
-    public void Redact_UrlWithBothQueryAndFragment_FragmentFirst_PrefersFragment()
+    public void Redact_UnparseableValue_ReturnsFixedMarker()
     {
-        var result = UrlRedactor.Redact("https://example.com/page#section?x=1");
-        Assert.Equal("https://example.com/page?[REDACTED]", result);
+        Assert.Equal("<redacted-url>", UrlRedactor.Redact("not a url"));
     }
 
-    [Fact]
-    public void Redact_UrlWithOnlyQuestionMark_IsRedacted()
+    [Theory]
+    [InlineData("https://user:pass@example.test/secret/token.png?key=x")]
+    [InlineData("https://token@api.example.test/v1/items/42#anchor")]
+    public void Redact_RemovesUserInfoPathQueryAndFragment(string value)
     {
-        var result = UrlRedactor.Redact("https://example.com/page?");
-        Assert.Equal("https://example.com/page?[REDACTED]", result);
-    }
+        var result = UrlRedactor.Redact(value);
 
-    [Fact]
-    public void Redact_PlainStringWithoutQueryOrFragment_ReturnsSame()
-    {
-        var result = UrlRedactor.Redact("just-a-string");
-        Assert.Equal("just-a-string", result);
+        Assert.DoesNotContain("user", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("pass", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("token", result, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", result, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/v1/", result, StringComparison.Ordinal);
+        Assert.Equal(
+            new Uri(value).Scheme + "://" + new Uri(value).Host + "/<redacted-path>",
+            result);
     }
 }

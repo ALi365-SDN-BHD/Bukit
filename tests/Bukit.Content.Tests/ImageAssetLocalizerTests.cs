@@ -1760,11 +1760,11 @@ public sealed class ImageAssetLocalizerTests
 
             Assert.Equal("/assets/images/noneimg-news.jpg", result);
             var failure = Assert.Single(localizer.Failures);
-            Assert.Equal("https://img.example/a.jpg?[REDACTED]", failure.SourceUrl);
+            Assert.Equal("https://img.example/<redacted-path>", failure.SourceUrl);
             Assert.Contains("HttpRequestException", failure.Reason, StringComparison.Ordinal);
             var warnings = string.Join('\n', logger.Warnings);
             Assert.Contains("event=media.download_error", warnings, StringComparison.Ordinal);
-            Assert.Contains("https://img.example/a.jpg?[REDACTED]", warnings, StringComparison.Ordinal);
+            Assert.Contains("https://img.example/<redacted-path>", warnings, StringComparison.Ordinal);
             Assert.DoesNotContain("token=secret", warnings, StringComparison.Ordinal);
             Assert.DoesNotContain("fragment", warnings, StringComparison.Ordinal);
         }
@@ -1800,7 +1800,7 @@ public sealed class ImageAssetLocalizerTests
 
             Assert.Equal("/assets/images/noneimg-news.jpg", result);
             var failure = Assert.Single(localizer.Failures);
-            Assert.Equal("https://img.example/a.jpg?[REDACTED]", failure.SourceUrl);
+            Assert.Equal("https://img.example/<redacted-path>", failure.SourceUrl);
             Assert.Equal(
                 "HttpRequestException: SSL connection could not be established.",
                 failure.Reason);
@@ -2388,6 +2388,151 @@ public sealed class ImageAssetLocalizerTests
         }
 
         return stream.ToArray();
+    }
+
+    [Fact]
+    public async Task ValidateAsync_ValidHeaderWithTruncatedPixels_ReturnsFalse()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bukit-validator-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            byte[] full;
+            using (var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(128, 128))
+            {
+                for (var y = 0; y < 128; y++)
+                {
+                    for (var x = 0; x < 128; x++)
+                    {
+                        image[x, y] = new SixLabors.ImageSharp.PixelFormats.Rgba32((byte)x, (byte)y, 0);
+                    }
+                }
+
+                using var stream = new MemoryStream();
+                image.SaveAsJpeg(stream);
+                full = stream.ToArray();
+            }
+
+            // Header stays intact but the scan data is cut off: only a full decode
+            // can prove the payload is unusable.
+            var path = Path.Combine(dir, "truncated.jpg");
+            File.WriteAllBytes(path, full.AsSpan(0, full.Length / 5).ToArray());
+
+            Assert.False(await new ImageContentValidator().ValidateAsync(path, "image/jpeg", CancellationToken.None));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ValidateAsync_TotalDecodedPixelsOverBudget_ReturnsFalse()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bukit-validator-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            // 20000 x 20000 declares 400,000,000 pixels, above the 100,000,000 budget.
+            var path = Path.Combine(dir, "huge.png");
+            File.WriteAllBytes(path, CreatePngHeaderWithDimensions(20000, 20000));
+
+            Assert.False(await new ImageContentValidator().ValidateAsync(path, "image/png", CancellationToken.None));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ValidateAsync_MoreThan256Frames_ReturnsFalse()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bukit-validator-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1, 1);
+            for (var i = 0; i < 256; i++)
+            {
+                image.Frames.AddFrame(image.Frames.RootFrame);
+            }
+
+            var path = Path.Combine(dir, "frames.gif");
+            using (var stream = File.Create(path))
+            {
+                image.SaveAsGif(stream);
+            }
+
+            Assert.False(await new ImageContentValidator().ValidateAsync(path, "image/gif", CancellationToken.None));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    private static byte[] CreatePngHeaderWithDimensions(int width, int height)
+    {
+        using var stream = new MemoryStream();
+        stream.Write([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+
+        var ihdr = new byte[13];
+        WriteBigEndian(ihdr, 0, width);
+        WriteBigEndian(ihdr, 4, height);
+        ihdr[8] = 8;  // bit depth
+        ihdr[9] = 6;  // RGBA color type
+        WritePngChunk(stream, "IHDR", ihdr);
+        WritePngChunk(stream, "IEND", []);
+        return stream.ToArray();
+    }
+
+    private static void WriteBigEndian(byte[] buffer, int offset, int value)
+    {
+        buffer[offset] = (byte)(value >> 24);
+        buffer[offset + 1] = (byte)(value >> 16);
+        buffer[offset + 2] = (byte)(value >> 8);
+        buffer[offset + 3] = (byte)value;
+    }
+
+    private static void WritePngChunk(Stream stream, string type, byte[] data)
+    {
+        var typeBytes = System.Text.Encoding.ASCII.GetBytes(type);
+        var lengthBytes = new byte[4];
+        WriteBigEndian(lengthBytes, 0, data.Length);
+        stream.Write(lengthBytes);
+        stream.Write(typeBytes);
+        stream.Write(data);
+
+        var crcInput = new byte[typeBytes.Length + data.Length];
+        typeBytes.CopyTo(crcInput, 0);
+        data.CopyTo(crcInput, typeBytes.Length);
+        var crcBytes = new byte[4];
+        WriteBigEndian(crcBytes, 0, unchecked((int)Crc32(crcInput)));
+        stream.Write(crcBytes);
+    }
+
+    private static uint Crc32(byte[] input)
+    {
+        var table = new uint[256];
+        for (uint n = 0; n < 256; n++)
+        {
+            var c = n;
+            for (var k = 0; k < 8; k++)
+            {
+                c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
+            }
+
+            table[n] = c;
+        }
+
+        var crc = 0xFFFFFFFFu;
+        foreach (var b in input)
+        {
+            crc = table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+        }
+
+        return crc ^ 0xFFFFFFFFu;
     }
 
 }

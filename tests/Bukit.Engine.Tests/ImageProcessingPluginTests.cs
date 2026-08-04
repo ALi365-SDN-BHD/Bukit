@@ -556,8 +556,9 @@ public sealed class ImageProcessingPluginTests
 
             Assert.Equal(userOwnedBytes, await File.ReadAllBytesAsync(userOwnedVariant));
             Assert.Equal(userOwnedSidecarContent, await File.ReadAllTextAsync(userOwnedSidecar));
-            Assert.False(context.Data.ContainsKey("__image_srcsets"));
-            Assert.False(context.Data.ContainsKey("__plugin_outputs"));
+            // The user-owned lookalike is now processed as an ordinary source (M-05),
+            // but it must never be claimed as a managed plugin output itself.
+            AssertNotTracked(context, outDir, userOwnedVariant, userOwnedSidecar);
         }
         finally
         {
@@ -737,8 +738,9 @@ public sealed class ImageProcessingPluginTests
 
             Assert.Equal(userBytes, await File.ReadAllBytesAsync(variant));
             Assert.Equal(sidecarBytes, await File.ReadAllBytesAsync(sidecar));
-            Assert.False(context.Data.ContainsKey("__plugin_outputs"));
-            Assert.False(context.Data.ContainsKey("__image_srcsets"));
+            // User-replaced bytes remain untouched; the file may be resized as a user
+            // source but is never tracked as a managed output of this plugin.
+            AssertNotTracked(context, outDir, variant, sidecar);
         }
         finally
         {
@@ -906,8 +908,9 @@ public sealed class ImageProcessingPluginTests
 
             Assert.Equal(spoofBytes, await File.ReadAllBytesAsync(variant));
             Assert.Equal(spoofSidecar, await File.ReadAllBytesAsync(sidecar));
-            Assert.False(context.Data.ContainsKey("__plugin_outputs"));
-            Assert.False(context.Data.ContainsKey("__image_srcsets"));
+            // Without prior manifest ownership the spoofed file stays user data: it is
+            // never overwritten and never claimed as a managed plugin output.
+            AssertNotTracked(context, outDir, variant, sidecar);
         }
         finally
         {
@@ -1001,6 +1004,90 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
+    [Fact]
+    public async Task Process_UserOwnedWidthSuffixSource_IsNotSkipped()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            // User source whose filename happens to look like a generated variant.
+            // Without ownership proof it must be treated as an ordinary input.
+            WriteValidImage(Path.Combine(assetsDir, "banner-480w.jpg"), "user-owned");
+            WriteCopyTool(toolDir);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+
+            await new ImageProcessingPlugin(CreateConfig(
+                    new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
+                .AfterBuildAsync(CreateContext(outDir));
+
+            Assert.True(File.Exists(Path.Combine(assetsDir, "banner-480w-480w.jpg")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task Resize_InvalidTempOutput_IsNotTrackedOrPublished()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            WriteValidImage(Path.Combine(assetsDir, "hero.jpg"), "hero");
+            WriteTool(toolDir, "magick", """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                printf not-an-image > "$last"
+                """);
+            Environment.SetEnvironmentVariable("PATH", PrependPath(toolDir, originalPath));
+            var context = CreateContext(outDir);
+
+            await new ImageProcessingPlugin(CreateConfig(
+                    new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
+                .AfterBuildAsync(context);
+
+            Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg.bukit-freshness.json")));
+            Assert.False(context.Data.ContainsKey("__image_srcsets"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    private static void AssertNotTracked(BuildContext context, string outDir, params string[] paths)
+    {
+        if (!context.Data.TryGetValue("__plugin_outputs", out var value) ||
+            value is not HashSet<PluginOutputTrackingInfo> outputs)
+        {
+            return;
+        }
+
+        foreach (var path in paths)
+        {
+            var relative = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(outDir, path));
+            Assert.DoesNotContain(
+                outputs,
+                output => string.Equals(output.Path, relative, StringComparison.Ordinal));
+        }
+    }
+
     private static void WriteValidImage(string path, string seed)
     {
         var hash = 0;
@@ -1082,7 +1169,7 @@ public sealed class ImageProcessingPluginTests
         }
 
         var path = Path.Combine(directory, name);
-        File.WriteAllText(path, "#!/bin/sh\n" + body + "\n");
+        File.WriteAllText(path, "#!/bin/bash\n" + body + "\n");
         File.SetUnixFileMode(
             path,
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);

@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Shared;
+using SixLabors.ImageSharp;
 using Xunit;
 using Xunit.Sdk;
 
@@ -21,6 +22,7 @@ public sealed class ImageOptimizerTests
         var root = CreateRoot();
         var originalPath = Environment.GetEnvironmentVariable("PATH");
         var originalLog = Environment.GetEnvironmentVariable("BUKIT_IMAGE_TOOL_LOG");
+        var originalPayload = Environment.GetEnvironmentVariable("BUKIT_IMAGE_TOOL_PAYLOAD");
         try
         {
             var assetsDir = Path.Combine(root, "assets");
@@ -30,14 +32,38 @@ public sealed class ImageOptimizerTests
             Directory.CreateDirectory(toolDir);
             var input = Path.Combine(assetsDir, "photo.jpg");
             File.WriteAllText(input, "input");
+            // Converter output is now validated before publication: webp outputs must
+            // be real decodable WebP payloads; AVIF output cannot be proven valid by
+            // the pinned decoder set and is rejected (fail closed).
+            var realWebp = Path.Combine(toolDir, "payload.webp");
+            using (var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(2, 2))
+            {
+                image.SaveAsWebp(realWebp);
+            }
+
+            // The published artifact must now survive bounded decode validation, so the
+            // fake tool copies a genuinely valid WebP payload prepared by the test.
+            // PATH is prepended (not replaced) so the script may use coreutils; stub
+            // higher-preference tools to keep the requested tool selected.
+            if (toolName != "cwebp")
+            {
+                WriteTool(toolDir, "cwebp", "exit 1");
+            }
+
+            if (toolName == "convert")
+            {
+                WriteTool(toolDir, "magick", "exit 1");
+            }
+
             WriteTool(toolDir, toolName, """
                 if [ "$1" = "-version" ] || [ "$1" = "--version" ]; then exit 0; fi
                 printf '%s\n' "$*" >> "$BUKIT_IMAGE_TOOL_LOG"
                 for last in "$@"; do :; done
-                printf converted > "$last"
+                cp "$BUKIT_IMAGE_TOOL_PAYLOAD" "$last"
                 """);
-            Environment.SetEnvironmentVariable("PATH", toolDir);
+            Environment.SetEnvironmentVariable("PATH", string.IsNullOrEmpty(originalPath) ? toolDir : toolDir + Path.PathSeparator + originalPath);
             Environment.SetEnvironmentVariable("BUKIT_IMAGE_TOOL_LOG", logPath);
+            Environment.SetEnvironmentVariable("BUKIT_IMAGE_TOOL_PAYLOAD", realWebp);
 
             await ImageOptimizer.OptimizeIfEnabled(
                 assetsDir,
@@ -49,7 +75,16 @@ public sealed class ImageOptimizerTests
                 },
                 new ConsoleLogger(LogLevel.Error));
 
-            Assert.True(File.Exists(Path.ChangeExtension(input, $".{format}")));
+            var output = Path.ChangeExtension(input, $".{format}");
+            if (format == "webp")
+            {
+                Assert.True(File.Exists(output));
+            }
+            else
+            {
+                Assert.False(File.Exists(output));
+            }
+
             var args = Assert.Single(File.ReadAllLines(logPath));
             if (toolName == "cwebp")
             {
@@ -67,6 +102,7 @@ public sealed class ImageOptimizerTests
         {
             Environment.SetEnvironmentVariable("PATH", originalPath);
             Environment.SetEnvironmentVariable("BUKIT_IMAGE_TOOL_LOG", originalLog);
+            Environment.SetEnvironmentVariable("BUKIT_IMAGE_TOOL_PAYLOAD", originalPayload);
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
@@ -111,6 +147,51 @@ public sealed class ImageOptimizerTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task OptimizeAsync_ExitZeroWithInvalidOutput_FailsWithoutPublishing()
+    {
+        RequireUnix();
+        var root = CreateRoot();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(root, "assets");
+            var toolDir = Path.Combine(root, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            var input = Path.Combine(assetsDir, "photo.jpg");
+            File.WriteAllText(input, "input");
+            WriteTool(toolDir, "cwebp", """
+                if [ "$1" = "-version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                printf not-a-webp-image > "$last"
+                """);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
+
+            await ImageOptimizer.OptimizeIfEnabled(
+                assetsDir,
+                new ImageOptimizationConfig
+                {
+                    Enabled = true,
+                    Formats = new[] { "webp" },
+                    Quality = 80
+                },
+                new ConsoleLogger(LogLevel.Error));
+
+            Assert.False(File.Exists(Path.ChangeExtension(input, ".webp")));
+            Assert.All(
+                Directory.EnumerateFiles(assetsDir),
+                file => Assert.DoesNotContain(".bukit-", Path.GetFileName(file), StringComparison.Ordinal));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+
 
     private static string CreateRoot()
         => Path.Combine(Path.GetTempPath(), "bukit-image-optimizer-" + Guid.NewGuid().ToString("N"));

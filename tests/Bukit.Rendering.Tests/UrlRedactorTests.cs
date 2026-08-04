@@ -13,36 +13,38 @@ public sealed class UrlRedactorTests
     }
 
     [Fact]
-    public void Redact_SimpleUrl_ReturnsUnchanged()
+    public void Redact_SimpleUrl_KeepsOnlySchemeAndHost()
     {
-        Assert.Equal("https://example.com/page", Bukit.Shared.UrlRedactor.Redact("https://example.com/page"));
+        Assert.Equal(
+            "https://example.com/<redacted-path>",
+            Bukit.Shared.UrlRedactor.Redact("https://example.com/page"));
     }
 
     [Fact]
-    public void Redact_RemovesQueryString()
+    public void Redact_RemovesQueryStringAndPath()
     {
         var result = Bukit.Shared.UrlRedactor.Redact("https://example.com/page?token=secret&user=admin");
-        Assert.Equal("https://example.com/page?[REDACTED]", result);
+        Assert.Equal("https://example.com/<redacted-path>", result);
     }
 
     [Fact]
-    public void Redact_RemovesFragment()
+    public void Redact_RemovesFragmentAndPath()
     {
         var result = Bukit.Shared.UrlRedactor.Redact("https://example.com/page#section");
-        Assert.Equal("https://example.com/page?[REDACTED]", result);
+        Assert.Equal("https://example.com/<redacted-path>", result);
     }
 
     [Fact]
-    public void Redact_RemovesBothQueryAndFragment_PreferFirst()
+    public void Redact_RemovesBothQueryAndFragment()
     {
         var result = Bukit.Shared.UrlRedactor.Redact("https://example.com/page?x=1#section");
-        Assert.Equal("https://example.com/page?[REDACTED]", result);
+        Assert.Equal("https://example.com/<redacted-path>", result);
     }
 
     [Fact]
-    public void Redact_FragmentBeforeQuery_PreferFragment()
+    public void Redact_UserInfoIsNeverLogged()
     {
-        var result = Bukit.Shared.UrlRedactor.Redact("https://example.com/page#section?x=1");
-        Assert.Equal("https://example.com/page?[REDACTED]", result);
+        var result = Bukit.Shared.UrlRedactor.Redact("https://user:pass@example.test/a.png");
+        Assert.Equal("https://example.test/<redacted-path>", result);
     }
 }
