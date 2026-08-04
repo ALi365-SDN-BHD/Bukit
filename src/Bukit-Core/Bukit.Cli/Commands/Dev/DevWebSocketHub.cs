@@ -9,6 +9,7 @@ namespace Bukit.Cli.Commands.Dev;
 internal sealed class DevWebSocketHub : IDevWebSocketHub, IDisposable
 {
     private const int DefaultMaxConnections = 64;
+    internal static readonly TimeSpan BroadcastSendTimeout = TimeSpan.FromSeconds(2);
 
     private readonly ConcurrentDictionary<string, WebSocket> _clients = new();
     private readonly ILogger _logger;
@@ -153,6 +154,9 @@ internal sealed class DevWebSocketHub : IDevWebSocketHub, IDisposable
         }
     }
 
+    internal bool TryRegisterClientForTest(string clientId, WebSocket socket)
+        => TryRegisterClient(clientId, socket);
+
     private void ReleaseConnectionSeat()
     {
         lock (_lifecycleLock)
@@ -204,35 +208,63 @@ internal sealed class DevWebSocketHub : IDevWebSocketHub, IDisposable
     public async Task BroadcastReloadAsync()
     {
         var payload = Encoding.UTF8.GetBytes("reload");
-        var deadClients = new List<string>();
-
-        foreach (var (id, ws) in _clients)
+        var snapshot = _clients.ToArray();
+        if (snapshot.Length == 0)
         {
-            try
-            {
-                if (ws.State == WebSocketState.Open)
-                {
-                    await ws.SendAsync(
-                        new ArraySegment<byte>(payload),
-                        WebSocketMessageType.Text,
-                        endOfMessage: true,
-                        CancellationToken.None);
-                }
-                else
-                {
-                    deadClients.Add(id);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Warn($"dev.ws.broadcast: {ex.Message}");
-                deadClients.Add(id);
-            }
+            return;
         }
 
-        foreach (var id in deadClients)
+        // Each send gets a linked shutdown token with a bounded timeout so one
+        // stalled client cannot block the reload of every other client.
+        using var shutdown = new CancellationTokenSource();
+        var sendTasks = new Task<(string Id, bool Dead)>[snapshot.Length];
+        for (var i = 0; i < snapshot.Length; i++)
         {
-            RemoveAndDisposeClient(id);
+            var (id, ws) = snapshot[i];
+            sendTasks[i] = SendReloadAsync(id, ws, payload, shutdown.Token);
+        }
+
+        var results = await Task.WhenAll(sendTasks);
+        foreach (var (id, dead) in results)
+        {
+            if (dead)
+            {
+                RemoveAndDisposeClient(id);
+            }
+        }
+    }
+
+    private async Task<(string Id, bool Dead)> SendReloadAsync(
+        string id,
+        WebSocket socket,
+        byte[] payload,
+        CancellationToken shutdownToken)
+    {
+        try
+        {
+            if (socket.State != WebSocketState.Open)
+            {
+                return (id, true);
+            }
+
+            using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(shutdownToken);
+            sendTimeout.CancelAfter(BroadcastSendTimeout);
+            await socket.SendAsync(
+                new ArraySegment<byte>(payload),
+                WebSocketMessageType.Text,
+                endOfMessage: true,
+                sendTimeout.Token);
+            return (id, false);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.Warn("dev.ws.broadcast: client send timed out; dropping client");
+            return (id, true);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"dev.ws.broadcast: {ex.Message}");
+            return (id, true);
         }
     }
 }

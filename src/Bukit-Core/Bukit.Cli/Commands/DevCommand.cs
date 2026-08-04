@@ -122,7 +122,10 @@ public static class DevCommand
         finally
         {
             cts.Cancel();
-            watcher?.Dispose();
+            if (watcher is not null)
+            {
+                await watcher.DisposeAsync();
+            }
 
             try
             {

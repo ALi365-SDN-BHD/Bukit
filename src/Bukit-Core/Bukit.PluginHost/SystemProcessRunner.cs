@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Text;
+using Bukit.PluginHost.ProcessTree;
+using Bukit.Shared;
 
 namespace Bukit.PluginHost;
 
@@ -15,20 +17,62 @@ public sealed class SystemProcessRunner : IProcessRunner
         ArgumentNullException.ThrowIfNull(request);
         ValidateRequest(request);
 
+        var limitsConfigured = request.MaxCpuTime is not null || request.MaxMemoryBytes is not null;
+        IProcessTreeLimiter? treeLimiter = null;
+        if (limitsConfigured)
+        {
+            if (!PlatformProcessTreeLimiter.IsSupported)
+            {
+                throw new ConfigException(
+                    $"{PluginHostErrorCodes.ResourceLimitUnsupported}: Resource limits are configured but process-tree limits cannot be proven on this platform.",
+                    DiagnosticCode.PluginExecutionFailed);
+            }
+
+            treeLimiter = PlatformProcessTreeLimiter.Create();
+        }
+
         using var process = new Process
         {
             StartInfo = CreateStartInfo(request),
             EnableRaisingEvents = true
         };
 
+        if (treeLimiter is not null)
+        {
+            // Runs the child as its own process-group/job leader before start.
+            PlatformProcessTreeLimiter.PrepareStartInfo(process.StartInfo);
+        }
+
+        try
+        {
+            return await RunCoreAsync(process, request, treeLimiter, limitsConfigured, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (treeLimiter is not null)
+            {
+                await treeLimiter.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task<ProcessRunResult> RunCoreAsync(
+        Process process,
+        ProcessRunRequest request,
+        IProcessTreeLimiter? treeLimiter,
+        bool limitsConfigured,
+        CancellationToken cancellationToken)
+    {
         if (!process.Start())
         {
             throw new InvalidOperationException($"Failed to start plugin process: {request.ExecutablePath}");
         }
 
+        treeLimiter?.Attach(process);
+
         using var timeoutCts = new CancellationTokenSource(request.Timeout);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-        var limitState = new OutputLimitState(process);
+        var limitState = new OutputLimitState(process, treeLimiter);
         string? resourceLimitExceeded = null;
 
         Task<LimitedOutput> stdoutTask = ReadLimitedAsync(
@@ -44,12 +88,12 @@ public sealed class SystemProcessRunner : IProcessRunner
             limitState,
             cancellationToken);
 
-        // Start resource monitoring if limits are configured
-        Task? resourceMonitorTask = null;
-        if (request.MaxCpuTime is not null || request.MaxMemoryBytes is not null)
+        // Start process-tree resource monitoring if limits are configured
+        Task<string?>? resourceMonitorTask = null;
+        if (limitsConfigured)
         {
-            resourceMonitorTask = MonitorResourceLimitsAsync(
-                process, request.MaxCpuTime, request.MaxMemoryBytes, linkedCts.Token);
+            resourceMonitorTask = MonitorTreeLimitsAsync(
+                process, treeLimiter, request.MaxCpuTime, request.MaxMemoryBytes, linkedCts.Token);
         }
 
         bool timedOut = false;
@@ -65,19 +109,20 @@ public sealed class SystemProcessRunner : IProcessRunner
             timedOut = true;
             terminationCompleted = await TerminateProcessAsync(
                 process,
+                treeLimiter,
                 stdoutTask,
                 stderrTask,
                 resourceMonitorTask);
         }
         catch (OperationCanceledException)
         {
-            await TerminateProcessAsync(process, stdoutTask, stderrTask, resourceMonitorTask);
+            await TerminateProcessAsync(process, treeLimiter, stdoutTask, stderrTask, resourceMonitorTask);
 
             throw;
         }
         catch
         {
-            await TerminateProcessAsync(process, stdoutTask, stderrTask, resourceMonitorTask);
+            await TerminateProcessAsync(process, treeLimiter, stdoutTask, stderrTask, resourceMonitorTask);
 
             throw;
         }
@@ -97,14 +142,10 @@ public sealed class SystemProcessRunner : IProcessRunner
                 OutputLimitStream: null);
         }
 
-        // Check if resource monitor killed the process
+        // Check whether the tree monitor killed the process for a resource violation
         if (resourceMonitorTask is not null)
         {
-            try { await resourceMonitorTask; } catch { /* swallow — already killed process */ }
-            if (process.HasExited && !timedOut && !limitState.WasExceeded)
-            {
-                resourceLimitExceeded = DetectResourceLimitViolation(process, request);
-            }
+            try { resourceLimitExceeded = await resourceMonitorTask; } catch { /* monitor already terminated the tree */ }
         }
 
         // Bounded drain: stdout/stderr pump must complete within grace period
@@ -228,11 +269,12 @@ public sealed class SystemProcessRunner : IProcessRunner
 
     private static async Task<bool> TerminateProcessAsync(
         Process process,
+        IProcessTreeLimiter? treeLimiter,
         Task<LimitedOutput> stdoutTask,
         Task<LimitedOutput> stderrTask,
-        Task? resourceMonitorTask)
+        Task<string?>? resourceMonitorTask)
     {
-        KillProcess(process);
+        KillProcess(process, treeLimiter);
         var tasks = new List<Task>
         {
             WaitForExitIgnoringFailureAsync(process),
@@ -335,7 +377,7 @@ public sealed class SystemProcessRunner : IProcessRunner
         }
     }
 
-    private static void KillProcess(Process process)
+    private static void KillProcess(Process process, IProcessTreeLimiter? treeLimiter)
     {
         try
         {
@@ -350,16 +392,29 @@ public sealed class SystemProcessRunner : IProcessRunner
         catch (System.ComponentModel.Win32Exception)
         {
         }
+
+        try
+        {
+            treeLimiter?.Terminate();
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+        }
     }
 
     private sealed class OutputLimitState
     {
         private readonly Process _process;
+        private readonly IProcessTreeLimiter? _treeLimiter;
         private int _exceeded;
 
-        public OutputLimitState(Process process)
+        public OutputLimitState(Process process, IProcessTreeLimiter? treeLimiter)
         {
             _process = process;
+            _treeLimiter = treeLimiter;
         }
 
         public bool WasExceeded => Volatile.Read(ref _exceeded) == 1;
@@ -368,17 +423,17 @@ public sealed class SystemProcessRunner : IProcessRunner
         {
             if (Interlocked.Exchange(ref _exceeded, 1) == 0)
             {
-                KillProcess(_process);
+                KillProcess(_process, _treeLimiter);
             }
         }
     }
 
     private sealed record LimitedOutput(string Text, bool Exceeded);
+    // ── Process-tree resource monitoring ─────────────────────────────────
 
-    // ── Resource monitoring ──────────────────────────────────────────────
-
-    private static async Task MonitorResourceLimitsAsync(
+    private static async Task<string?> MonitorTreeLimitsAsync(
         Process process,
+        IProcessTreeLimiter? treeLimiter,
         TimeSpan? maxCpuTime,
         long? maxMemoryBytes,
         CancellationToken cancellationToken)
@@ -387,23 +442,32 @@ public sealed class SystemProcessRunner : IProcessRunner
         {
             while (!cancellationToken.IsCancellationRequested && !process.HasExited)
             {
-                await Task.Delay(500, cancellationToken);
+                await Task.Delay(250, cancellationToken);
                 if (process.HasExited) break;
 
                 try
                 {
-                    process.Refresh();
-
-                    if (maxCpuTime is not null && process.TotalProcessorTime > maxCpuTime.Value)
+                    ProcessTreeUsage usage;
+                    if (treeLimiter is not null)
                     {
-                        KillProcess(process);
-                        return;
+                        usage = await treeLimiter.SampleAsync(cancellationToken);
+                    }
+                    else
+                    {
+                        process.Refresh();
+                        usage = new ProcessTreeUsage(process.TotalProcessorTime, process.PeakWorkingSet64);
                     }
 
-                    if (maxMemoryBytes is not null && process.PeakWorkingSet64 > maxMemoryBytes.Value)
+                    if (maxCpuTime is not null && usage.CpuTime > maxCpuTime.Value)
                     {
-                        KillProcess(process);
-                        return;
+                        KillProcess(process, treeLimiter);
+                        return $"CPU time {usage.CpuTime.TotalSeconds:F1}s exceeded limit {maxCpuTime.Value.TotalSeconds:F1}s";
+                    }
+
+                    if (maxMemoryBytes is not null && usage.PeakMemoryBytes > maxMemoryBytes.Value)
+                    {
+                        KillProcess(process, treeLimiter);
+                        return $"Peak memory {usage.PeakMemoryBytes / (1024 * 1024)}MB exceeded limit {maxMemoryBytes.Value / (1024 * 1024)}MB";
                     }
                 }
                 catch (InvalidOperationException) { break; }
@@ -411,31 +475,6 @@ public sealed class SystemProcessRunner : IProcessRunner
             }
         }
         catch (OperationCanceledException) { }
-    }
-
-    private static string? DetectResourceLimitViolation(Process process, ProcessRunRequest request)
-    {
-        try
-        {
-            if (request.MaxCpuTime is not null)
-            {
-                var cpuTime = process.TotalProcessorTime;
-                if (cpuTime > request.MaxCpuTime.Value)
-                {
-                    return $"CPU time {cpuTime.TotalSeconds:F1}s exceeded limit {request.MaxCpuTime.Value.TotalSeconds:F1}s";
-                }
-            }
-
-            if (request.MaxMemoryBytes is not null)
-            {
-                var peakMem = process.PeakWorkingSet64;
-                if (peakMem > request.MaxMemoryBytes.Value)
-                {
-                    return $"Peak memory {peakMem / (1024 * 1024)}MB exceeded limit {request.MaxMemoryBytes.Value / (1024 * 1024)}MB";
-                }
-            }
-        }
-        catch (InvalidOperationException) { }
 
         return null;
     }

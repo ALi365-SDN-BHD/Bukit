@@ -1203,6 +1203,177 @@ public sealed class DevCommandTests
         return (response.StatusCode, body, response.Content.Headers.ContentLength);
     }
 
+    [Fact]
+    public async Task BroadcastReloadAsync_StalledClient_TimesOutAndOthersComplete()
+    {
+        using var hub = new DevWebSocketHub(new BufferingLogger());
+        var stalled = new ControllableWebSocket(stallSends: true);
+        var normal = new ControllableWebSocket(stallSends: false);
+        Assert.True(hub.TryRegisterClientForTest("stalled", stalled));
+        Assert.True(hub.TryRegisterClientForTest("normal", normal));
+
+        var broadcast = hub.BroadcastReloadAsync();
+        await broadcast.WaitAsync(TimeSpan.FromSeconds(15));
+
+        // The healthy client received the reload; the stalled client was bounded by
+        // its per-send timeout and removed instead of blocking the broadcast.
+        Assert.Equal(1, normal.SendCount);
+        Assert.True(stalled.WasDisposed);
+        Assert.Equal(1, hub.ClientCount);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WaitsForAcceptedRebuildBeforeDisposingGate()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-dispose-rebuild-" + Guid.NewGuid().ToString("N"));
+        var watchDir = Path.Combine(root, "watch");
+        Directory.CreateDirectory(watchDir);
+        var watchedFile = Path.Combine(watchDir, "page.md");
+
+        var rebuildEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRebuild = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var rebuildCompleted = false;
+
+        var watcher = new DevFileWatcher(
+            new[] { watchDir },
+            root,
+            new BufferingLogger(),
+            async (_, _) =>
+            {
+                rebuildEntered.TrySetResult(true);
+                await releaseRebuild.Task;
+                rebuildCompleted = true;
+            },
+            debounceMs: 5);
+        try
+        {
+            watcher.Start(CancellationToken.None);
+            watcher.RaiseChangeForTest(watchedFile);
+            await rebuildEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            var disposeTask = watcher.DisposeAsync().AsTask();
+            // The accepted rebuild is still running, so disposal must not finish.
+            var winner = await Task.WhenAny(disposeTask, Task.Delay(250));
+            Assert.NotSame(disposeTask, winner);
+            Assert.False(rebuildCompleted);
+
+            releaseRebuild.SetResult(true);
+            await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(rebuildCompleted);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    [Fact]
+    public async Task DisposeAsync_CancelsDebounceWithoutUnobservedFault()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-dispose-debounce-" + Guid.NewGuid().ToString("N"));
+        var watchDir = Path.Combine(root, "watch");
+        Directory.CreateDirectory(watchDir);
+        var watchedFile = Path.Combine(watchDir, "page.md");
+
+        var unobserved = new List<Exception>();
+        EventHandler<System.Threading.Tasks.UnobservedTaskExceptionEventArgs> handler =
+            (_, e) => unobserved.AddRange(e.Exception.InnerExceptions);
+        TaskScheduler.UnobservedTaskException += handler;
+
+        var watcher = new DevFileWatcher(
+            new[] { watchDir },
+            root,
+            new BufferingLogger(),
+            (_, _) => Task.CompletedTask,
+            debounceMs: 60000);
+        try
+        {
+            watcher.Start(CancellationToken.None);
+            // A debounce is now pending; async disposal must cancel it and drain it.
+            watcher.RaiseChangeForTest(watchedFile);
+
+            await watcher.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            // A canceled debounce must never surface as an unobserved cancellation
+            // fault; unrelated listener noise from concurrent fixtures is ignored.
+            Assert.DoesNotContain(
+                unobserved,
+                ex => ex is OperationCanceledException or TaskCanceledException);
+        }
+        finally
+        {
+            TaskScheduler.UnobservedTaskException -= handler;
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    private sealed class ControllableWebSocket : WebSocket
+    {
+        private readonly bool _stallSends;
+        private int _sendCount;
+        private int _disposed;
+
+        public ControllableWebSocket(bool stallSends)
+        {
+            _stallSends = stallSends;
+        }
+
+        public int SendCount => Volatile.Read(ref _sendCount);
+
+        public bool WasDisposed => Volatile.Read(ref _disposed) == 1;
+
+        public override WebSocketCloseStatus? CloseStatus => null;
+
+        public override string? CloseStatusDescription => null;
+
+        public override WebSocketState State =>
+            WasDisposed ? WebSocketState.Closed : WebSocketState.Open;
+
+        public override string? SubProtocol => null;
+
+        public override void Abort()
+        {
+        }
+
+        public override Task CloseAsync(
+            WebSocketCloseStatus closeStatus,
+            string? statusDescription,
+            CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public override Task CloseOutputAsync(
+            WebSocketCloseStatus closeStatus,
+            string? statusDescription,
+            CancellationToken cancellationToken)
+            => Task.CompletedTask;
+
+        public override async Task SendAsync(
+            ArraySegment<byte> buffer,
+            WebSocketMessageType messageType,
+            bool endOfMessage,
+            CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _sendCount);
+            if (_stallSends)
+            {
+                // Completes only when the caller's bounded token cancels.
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+        }
+
+        public override Task<WebSocketReceiveResult> ReceiveAsync(
+            ArraySegment<byte> buffer,
+            CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+
+        public override void Dispose()
+        {
+            Interlocked.Exchange(ref _disposed, 1);
+        }
+    }
+
     private static Task InvokeScheduleRebuildAsync(DevFileWatcher watcher, string file)
     {
         var method = typeof(DevFileWatcher).GetMethod(

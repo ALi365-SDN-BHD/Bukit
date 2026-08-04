@@ -1,8 +1,9 @@
+using System.Collections.Concurrent;
 using Bukit.Shared;
 
 namespace Bukit.Cli.Commands.Dev;
 
-internal sealed class DevFileWatcher : IDisposable
+internal sealed class DevFileWatcher : IDisposable, IAsyncDisposable
 {
     private readonly List<FileSystemWatcher> _watchers = new();
     private readonly string _rootDir;
@@ -11,9 +12,11 @@ internal sealed class DevFileWatcher : IDisposable
     private readonly Func<string, CancellationToken, Task> _onRebuildAsync;
     private readonly int _debounceMs;
     private readonly SemaphoreSlim _rebuildLock = new(1, 1);
+    private readonly ConcurrentDictionary<Task, byte> _scheduledTasks = new();
 
     private int _pending;
     private CancellationToken _ct;
+    private CancellationTokenSource? _lifetimeCts;
     private bool _disposed;
 
     public DevFileWatcher(
@@ -50,7 +53,8 @@ internal sealed class DevFileWatcher : IDisposable
 
     public void Start(CancellationToken ct)
     {
-        _ct = ct;
+        _lifetimeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _ct = _lifetimeCts.Token;
 
         foreach (var watcher in _watchers)
         {
@@ -61,7 +65,7 @@ internal sealed class DevFileWatcher : IDisposable
             {
                 if (!ShouldIgnore(e.FullPath, e.Name))
                 {
-                    _ = ScheduleRebuildAsync(e.FullPath);
+                    TrackRebuild(ScheduleRebuildAsync(e.FullPath));
                 }
             };
             watcher.Error += (_, e) => _logger.Warn($"dev.filewatcher: {e.GetException().Message}");
@@ -82,7 +86,91 @@ internal sealed class DevFileWatcher : IDisposable
         }
 
         _watchers.Clear();
+        try
+        {
+            _lifetimeCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        _lifetimeCts?.Dispose();
         _rebuildLock.Dispose();
+    }
+
+    /// <summary>
+    /// Asynchronous shutdown: stop events, cancel the lifetime token, await every
+    /// tracked rebuild/debounce task, and only then dispose the rebuild gate.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        foreach (var watcher in _watchers)
+        {
+            watcher.EnableRaisingEvents = false;
+        }
+
+        try
+        {
+            _lifetimeCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        // Drain tracked tasks until the set converges; cancellation makes pending
+        // debounces return promptly and no new events can be admitted.
+        while (!_scheduledTasks.IsEmpty)
+        {
+            var snapshot = _scheduledTasks.Keys.ToArray();
+            foreach (var task in snapshot)
+            {
+                try
+                {
+                    await task.ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Tracked failures are already observed by their owner task.
+                }
+            }
+        }
+
+        foreach (var watcher in _watchers)
+        {
+            watcher.Dispose();
+        }
+
+        _watchers.Clear();
+        _lifetimeCts?.Dispose();
+        _rebuildLock.Dispose();
+    }
+
+    private void TrackRebuild(Task task)
+    {
+        if (!_scheduledTasks.TryAdd(task, 0))
+        {
+            return;
+        }
+
+        _ = ObserveTrackedAsync(task);
+    }
+
+    private async Task ObserveTrackedAsync(Task task)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        catch
+        {
+            // Observed here so a canceled debounce never surfaces as an unobserved fault.
+        }
+        finally
+        {
+            _scheduledTasks.TryRemove(task, out _);
+        }
     }
 
     private void OnChange(object sender, FileSystemEventArgs e)
@@ -92,7 +180,18 @@ internal sealed class DevFileWatcher : IDisposable
             return;
         }
 
-        _ = ScheduleRebuildAsync(e.FullPath);
+        TrackRebuild(ScheduleRebuildAsync(e.FullPath));
+    }
+
+    /// <summary>Deterministic change injection for tests; follows the tracked rebuild path.</summary>
+    internal void RaiseChangeForTest(string fullPath)
+    {
+        if (ShouldIgnore(fullPath, Path.GetFileName(fullPath)))
+        {
+            return;
+        }
+
+        TrackRebuild(ScheduleRebuildAsync(fullPath));
     }
 
     internal bool ShouldIgnore(string fullPath, string? eventName)

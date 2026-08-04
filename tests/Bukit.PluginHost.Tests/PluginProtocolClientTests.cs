@@ -390,17 +390,20 @@ public sealed class PluginProtocolClientTests
         private readonly int _exitCode;
         private readonly bool _timedOut;
         private readonly bool _outputLimitExceeded;
+        private readonly string? _resourceLimitExceeded;
 
         public StubPluginProcessInvoker(
             string stdout,
             int exitCode = 0,
             bool timedOut = false,
-            bool outputLimitExceeded = false)
+            bool outputLimitExceeded = false,
+            string? resourceLimitExceeded = null)
         {
             _stdout = stdout;
             _exitCode = exitCode;
             _timedOut = timedOut;
             _outputLimitExceeded = outputLimitExceeded;
+            _resourceLimitExceeded = resourceLimitExceeded;
         }
 
         public PluginProcessRequest? Request { get; private set; }
@@ -413,8 +416,33 @@ public sealed class PluginProtocolClientTests
                 StdoutJson: _stdout,
                 Stderr: "stderr",
                 TimedOut: _timedOut,
-                OutputLimitExceeded: _outputLimitExceeded));
+                OutputLimitExceeded: _outputLimitExceeded,
+                OutputLimitStream: null,
+                ResourceLimitExceeded: _resourceLimitExceeded));
         }
+    }
+
+    [Fact]
+    public async Task InvokeAsync_ValidSuccessJsonAfterResourceLimit_ThrowsResourceLimitExceeded()
+    {
+        // The plugin emitted a valid success response before its process tree was
+        // killed for exceeding the configured CPU limit; the terminal-state gate must
+        // reject the invoke instead of trusting the success JSON.
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"invokeResponse","protocol":"bukit-plugin-v1","requestId":"req-3","success":true,"exitCode":0,"artifacts":[]}
+            """,
+            exitCode: 137,
+            resourceLimitExceeded: "CPU time exceeded");
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.InvokeAsync(CreatePlugin(), CreateInvokeRequest(), CancellationToken.None));
+
+        AssertProtocolFailure(
+            exception,
+            "plugin.resourceLimitExceeded",
+            "CPU time exceeded");
     }
 
     private sealed class FixedRequestIdFactory : IPluginRequestIdFactory

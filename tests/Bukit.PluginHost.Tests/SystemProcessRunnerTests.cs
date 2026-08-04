@@ -304,6 +304,103 @@ public sealed class SystemProcessRunnerTests
         }
     }
 
+    [Fact]
+    public async Task RunAsync_ChildCpuExceedsTreeLimit_ReturnsResourceLimitExceeded()
+    {
+        var workingDirectory = CreateWorkingDirectory();
+        var markerPath = Path.Combine(workingDirectory, "cpu-child.pid");
+        try
+        {
+            var runner = new SystemProcessRunner();
+            ProcessRunResult result = await runner.RunAsync(
+                ProbeRequest(
+                    arguments: ["spawn-cpu-child", markerPath, "15000"],
+                    timeoutMs: 30000,
+                    maxCpuTime: TimeSpan.FromSeconds(1)),
+                CancellationToken.None);
+
+            Assert.NotNull(result.ResourceLimitExceeded);
+            Assert.NotEqual(0, result.ExitCode);
+
+            // The burning child (grandchild of the runner) must be gone: limits apply
+            // to the whole process tree, not only the plugin parent.
+            var childPid = int.Parse(await File.ReadAllTextAsync(markerPath));
+            await WaitForProcessExitAsync(childPid, TimeSpan.FromSeconds(5));
+            Assert.False(IsProcessAlive(childPid));
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_ChildMemoryExceedsTreeLimit_ReturnsResourceLimitExceeded()
+    {
+        var workingDirectory = CreateWorkingDirectory();
+        var markerPath = Path.Combine(workingDirectory, "memory-child.pid");
+        try
+        {
+            var runner = new SystemProcessRunner();
+            ProcessRunResult result = await runner.RunAsync(
+                ProbeRequest(
+                    arguments: ["spawn-memory-child", markerPath, "384", "10000"],
+                    timeoutMs: 30000,
+                    maxMemoryBytes: 256L * 1024 * 1024),
+                CancellationToken.None);
+
+            Assert.NotNull(result.ResourceLimitExceeded);
+            Assert.NotEqual(0, result.ExitCode);
+
+            var childPid = int.Parse(await File.ReadAllTextAsync(markerPath));
+            await WaitForProcessExitAsync(childPid, TimeSpan.FromSeconds(5));
+            Assert.False(IsProcessAlive(childPid));
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    private static string CreateWorkingDirectory()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bukit-tree-limits-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
+    private static bool IsProcessAlive(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static async Task WaitForProcessExitAsync(int pid, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (IsProcessAlive(pid) && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+        }
+    }
+
     private static ProcessRunRequest ProbeRequest(
         IReadOnlyList<string> arguments,
         string stdin = "",

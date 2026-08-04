@@ -150,4 +150,10 @@ public sealed class PluginProtocolCompatibilityTests
     {
         Assert.Equal("plugin.resourceLimitExceeded", PluginHostErrorCodes.ResourceLimitExceeded);
     }
+
+    [Fact]
+    public void PluginHostErrorCodes_ResourceLimitUnsupported_Defined()
+    {
+        Assert.Equal("plugin.resourceLimitUnsupported", PluginHostErrorCodes.ResourceLimitUnsupported);
+    }
 }

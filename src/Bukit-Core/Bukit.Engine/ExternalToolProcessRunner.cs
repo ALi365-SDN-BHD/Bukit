@@ -28,10 +28,33 @@ internal static class ExternalToolProcessRunner
         }
 
         using var process = new Process { StartInfo = startInfo };
+        var pgidPath = ExternalToolProcessTree.PrepareStartInfo(process.StartInfo);
         if (!process.Start())
         {
+            ExternalToolProcessTree.RemovePgidFile(pgidPath);
             throw new InvalidOperationException($"Unable to start external tool '{startInfo.FileName}'.");
         }
+
+        try
+        {
+            return await RunCoreAsync(process, startInfo, timeout, cancellationToken, pgidPath).ConfigureAwait(false);
+        }
+        finally
+        {
+            ExternalToolProcessTree.RemovePgidFile(pgidPath);
+        }
+    }
+
+    private static async Task<ExternalToolProcessResult> RunCoreAsync(
+        Process process,
+        ProcessStartInfo startInfo,
+        TimeSpan timeout,
+        CancellationToken cancellationToken,
+        string? pgidPath)
+    {
+        // Capture the tool job group id while the wrapper is alive so leftover
+        // descendants can be terminated after the wrapper itself has exited.
+        var groupLeaderPid = ExternalToolProcessTree.ResolveGroupLeader(process, pgidPath);
 
         using var stdoutCollector = new BoundedOutputCollector(StreamByteCap);
         using var stderrCollector = new BoundedOutputCollector(StreamByteCap);
@@ -49,7 +72,7 @@ internal static class ExternalToolProcessRunner
         }
         catch (OperationCanceledException) when (linkedSource.IsCancellationRequested)
         {
-            TryKillProcessTree(process);
+            ExternalToolProcessTree.Terminate(process, groupLeaderPid);
             var terminationCompleted = await WaitForTerminationGraceAsync(
                 CompleteTerminationAsync(process, stdoutTask, stderrTask),
                 TerminationGracePeriod);
@@ -71,21 +94,30 @@ internal static class ExternalToolProcessRunner
                     : $" Process termination did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds."));
         }
 
-        // Bounded drain: even on normal exit, a grandchild may hold the pipe
+        // Bounded drain: even on normal exit, a grandchild may hold the pipe. When the
+        // drain window expires, terminate the whole process tree, await reader closure,
+        // and fail instead of leaving background descendants attached to our pipes.
         var drainCompleted = await WaitForTerminationGraceAsync(
             Task.WhenAll(stdoutTask, stderrTask),
             TerminationGracePeriod);
         if (!drainCompleted)
         {
-            Console.Error.WriteLine(
-                $"External tool output drain did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds: {startInfo.FileName}");
+            ExternalToolProcessTree.Terminate(process, groupLeaderPid);
+            var readersClosed = await WaitForTerminationGraceAsync(
+                Task.WhenAll(stdoutTask, stderrTask),
+                TerminationGracePeriod);
+            throw new InvalidOperationException(
+                $"External tool '{startInfo.FileName}' left descendant processes holding output pipes" +
+                (readersClosed
+                    ? "; the process tree was terminated."
+                    : "; the process tree was terminated but output readers did not close."));
         }
 
         var stdout = stdoutCollector.Seal();
         var stderr = stderrCollector.Seal();
         if (stdout.Exceeded || stderr.Exceeded)
         {
-            TryKillProcessTree(process);
+            ExternalToolProcessTree.Terminate(process, groupLeaderPid);
             string stream = stdout.Exceeded ? "stdout" : "stderr";
             throw new InvalidOperationException(
                 $"External tool '{startInfo.FileName}' produced more than {StreamByteCap} bytes on {stream}.");
@@ -95,23 +127,6 @@ internal static class ExternalToolProcessRunner
             process.ExitCode,
             stdout.GetText(),
             stderrCollector.GetDiagnosticText());
-    }
-
-    private static void TryKillProcessTree(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-        }
-        catch (InvalidOperationException)
-        {
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-        }
     }
 
     private static async Task CompleteTerminationAsync(

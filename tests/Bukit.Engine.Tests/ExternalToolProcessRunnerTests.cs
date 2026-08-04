@@ -10,6 +10,71 @@ namespace Bukit.Engine.Tests;
 public sealed class ExternalToolProcessRunnerTests
 {
     [Fact]
+    public async Task RunAsync_ParentExitWithPipeChild_TerminatesTreeAndReaders()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            throw SkipException.ForSkip("This process-tree probe uses temporary Unix executables.");
+        }
+
+        var root = Path.Combine(Path.GetTempPath(), "bukit-exttool-tree-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var markerPath = Path.Combine(root, "child.pid");
+        try
+        {
+            // Parent exits immediately after backgrounding a child that inherits the
+            // stdout pipe and sleeps; the runner must terminate the leftover process
+            // tree so its output readers close instead of draining forever.
+            var startInfo = new ProcessStartInfo("/bin/sh")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            };
+            startInfo.ArgumentList.Add("-c");
+            startInfo.ArgumentList.Add($"sleep 60 & echo $! > '{markerPath}'; exit 0");
+
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => ExternalToolProcessRunner.RunAsync(startInfo, TimeSpan.FromSeconds(30)));
+            Assert.Contains("process tree", exception.Message, StringComparison.OrdinalIgnoreCase);
+
+            var childPidText = await File.ReadAllTextAsync(markerPath);
+            var childPid = int.Parse(childPidText.Trim(), System.Globalization.CultureInfo.InvariantCulture);
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+            while (IsProcessAlive(childPid) && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(50);
+            }
+
+            Assert.False(IsProcessAlive(childPid));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    private static bool IsProcessAlive(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    [Fact]
     public async Task WaitForTerminationGraceAsync_IncompleteCleanup_ReturnsFalseWithinGrace()
     {
         var never = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -333,20 +398,24 @@ public sealed class ExternalToolProcessRunnerTests
         try
         {
             var tool = WriteTool(root, "parent-exits", """
-                ( /bin/sleep 3 ) &
+                ( /bin/sleep 30 ) &
                 exit 0
                 """);
 
             var stopwatch = Stopwatch.StartNew();
-            var result = await ExternalToolProcessRunner.RunAsync(
-                StartInfo(tool),
-                TimeSpan.FromSeconds(10),
-                CancellationToken.None);
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => ExternalToolProcessRunner.RunAsync(
+                    StartInfo(tool),
+                    TimeSpan.FromSeconds(30),
+                    CancellationToken.None));
             stopwatch.Stop();
 
-            Assert.Equal(0, result.ExitCode);
-            Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5),
-                $"External-tool drain took {stopwatch.Elapsed.TotalSeconds:F1}s with an inherited pipe.");
+            // The leftover descendant holding the pipe is a stable failure (CI-02):
+            // bounded drain, terminate the tree, and report instead of returning a
+            // result while a background process stays attached to our pipes.
+            Assert.Contains("process tree", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10),
+                $"Drain + tree termination took {stopwatch.Elapsed.TotalSeconds:F1}s, expected < 10s");
         }
         finally
         {

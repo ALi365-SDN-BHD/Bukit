@@ -141,7 +141,7 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
         PluginInvokeResponse? response = null;
         try
         {
-            EnsureInvokeProcessReadable(processResult);
+            EnsureInvokeTerminalState(processResult);
             response = Deserialize(
                 processResult.StdoutJson,
                 PluginJsonSerializerContext.Default.PluginInvokeResponse);
@@ -349,8 +349,12 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
         }
     }
 
-    private static void EnsureInvokeProcessReadable(PluginProcessResult result)
+    private static void EnsureInvokeTerminalState(PluginProcessResult result)
     {
+        // One shared terminal-state gate: cancellation-safety terminal states (timeout,
+        // output limit, resource limit) always fail before any response JSON is trusted.
+        // The documented nonzero-exit/valid-response compatibility only applies when no
+        // safety terminal state exists.
         if (result.TimedOut)
         {
             throw ProtocolError(PluginHostErrorCodes.Timeout, "Plugin process timed out.");
@@ -359,6 +363,11 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
         if (result.OutputLimitExceeded)
         {
             throw ProtocolError(PluginHostErrorCodes.OutputTooLarge, "Plugin process output exceeded configured limits.");
+        }
+
+        if (result.ResourceLimitExceeded is not null)
+        {
+            throw ProtocolError(PluginHostErrorCodes.ResourceLimitExceeded, result.ResourceLimitExceeded);
         }
     }
 

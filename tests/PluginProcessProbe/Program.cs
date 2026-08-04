@@ -78,6 +78,71 @@ switch (command)
             return 0;
         }
 
+    case "burn-cpu":
+        {
+            int milliseconds = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            double accumulator = 1;
+            while (stopwatch.ElapsedMilliseconds < milliseconds)
+            {
+                accumulator = Math.Sqrt(accumulator * 1.0000001 + 1);
+            }
+            Console.Out.Write(accumulator > 0 ? "burned" : "burned");
+            return 0;
+        }
+
+    case "allocate-memory":
+        {
+            int megabytes = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
+            int holdMilliseconds = int.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
+            var buffer = new byte[(long)megabytes * 1024 * 1024];
+            for (var i = 0; i < buffer.Length; i += 4096)
+            {
+                buffer[i] = 1;
+            }
+            Console.Out.Write("allocated");
+            await Task.Delay(holdMilliseconds);
+            GC.KeepAlive(buffer);
+            return 0;
+        }
+
+    case "spawn-cpu-child":
+        {
+            string markerPath = args[1];
+            int milliseconds = int.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
+            using Process child = StartProbeChild(["burn-cpu", milliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+            await File.WriteAllTextAsync(markerPath, child.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            await child.WaitForExitAsync();
+            return child.ExitCode;
+        }
+
+    case "spawn-memory-child":
+        {
+            string markerPath = args[1];
+            int megabytes = int.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
+            int holdMilliseconds = int.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture);
+            using Process child = StartProbeChild([
+                "allocate-memory",
+                megabytes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                holdMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+            await File.WriteAllTextAsync(markerPath, child.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            await child.WaitForExitAsync();
+            return child.ExitCode;
+        }
+
+    case "exit-parent-keep-pipe-child":
+        {
+            string markerPath = args[1];
+            int holdMilliseconds = int.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
+            // The child inherits our stdout pipe; the parent exits immediately so the
+            // runner must terminate the leftover process tree to close its readers.
+            using Process child = StartProbeChild([
+                "hold-inherited-pipe",
+                holdMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+            await File.WriteAllTextAsync(markerPath, child.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            return 0;
+        }
+
     case "ignore-stdin-then-mark":
         {
             int milliseconds = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
@@ -107,4 +172,33 @@ switch (command)
     default:
         Console.Error.Write("unknown command");
         return 2;
+}
+
+static Process StartProbeChild(IReadOnlyList<string> arguments)
+{
+    string processPath = Environment.ProcessPath
+        ?? throw new InvalidOperationException("Unable to resolve the current process path.");
+    var startInfo = new ProcessStartInfo
+    {
+        FileName = processPath,
+        UseShellExecute = false,
+        RedirectStandardOutput = false,
+        RedirectStandardError = false,
+        RedirectStandardInput = false,
+        CreateNoWindow = true
+    };
+    if (string.Equals(
+            Path.GetFileNameWithoutExtension(processPath),
+            "dotnet",
+            StringComparison.OrdinalIgnoreCase))
+    {
+        startInfo.ArgumentList.Add(typeof(Bukit.PluginProcessProbe.ProbeMarker).Assembly.Location);
+    }
+    foreach (var argument in arguments)
+    {
+        startInfo.ArgumentList.Add(argument);
+    }
+
+    return Process.Start(startInfo)
+        ?? throw new InvalidOperationException("Unable to start probe child process.");
 }
