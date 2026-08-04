@@ -1,6 +1,6 @@
 using Microsoft.Win32.SafeHandles;
 
-namespace Bukit.Engine.IO;
+namespace Bukit.Shared.IO;
 
 /// <summary>
 /// A source file whose already-open handle has been verified: it was opened

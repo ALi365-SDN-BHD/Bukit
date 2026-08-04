@@ -169,7 +169,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
             ));
         }
 
-        return new RawContentLoadResult(items, new MarkdownBodyStore());
+        return new RawContentLoadResult(items, new MarkdownBodyStore(_options.ContentDir));
     }
 
     private static string ComputeBodyFingerprint(string markdown)

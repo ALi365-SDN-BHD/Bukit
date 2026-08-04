@@ -1,7 +1,9 @@
+using Bukit.Shared.IO;
 using Scriban;
 using Scriban.Parsing;
 using Scriban.Runtime;
 using System.Collections.Concurrent;
+using System.Text;
 
 namespace Bukit.Rendering.Scriban;
 
@@ -11,6 +13,7 @@ internal sealed class FileTemplateLoader : ITemplateLoader
     private readonly string _rootDir;
     private readonly string? _fallbackDir;
     private readonly ConcurrentDictionary<string, CachedText> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ISafeSourceFileOpener _opener = new PlatformSafeSourceFileOpener();
 
     public FileTemplateLoader(string rootDir, string? fallbackDir = null, string? overrideDir = null)
     {
@@ -83,30 +86,39 @@ internal sealed class FileTemplateLoader : ITemplateLoader
 
     public string Load(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
-        return LoadCached(EnsurePathInsideAnyRoot(templatePath));
+        var (fullPath, root) = ResolvePathInsideAnyRoot(templatePath);
+        return LoadCached(fullPath, root);
     }
 
     public async ValueTask<string?> LoadAsync(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
-        templatePath = EnsurePathInsideAnyRoot(templatePath);
-        var fileInfo = new FileInfo(templatePath);
+        var (fullPath, root) = ResolvePathInsideAnyRoot(templatePath);
+        var fileInfo = new FileInfo(fullPath);
         if (!fileInfo.Exists)
         {
             return string.Empty;
         }
 
-        var signature = new FileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length);
-        if (_cache.TryGetValue(templatePath, out var existing) && existing.Signature.Equals(signature))
+        // Read from the already-open verified handle; the final resolved path
+        // must still stay inside the containing layouts root.
+        using var verified = _opener.Open(fullPath, root);
+        var signature = new FileSignature(verified.LastWriteTimeUtc, verified.Length);
+        if (_cache.TryGetValue(fullPath, out var existing) && existing.Signature.Equals(signature))
         {
             return existing.Text;
         }
 
-        var text = await File.ReadAllTextAsync(templatePath);
-        _cache[templatePath] = new CachedText(signature, text);
+        string text;
+        using (var reader = new StreamReader(verified.Stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true))
+        {
+            text = await reader.ReadToEndAsync();
+        }
+
+        _cache[fullPath] = new CachedText(signature, text);
         return text;
     }
 
-    private string EnsurePathInsideAnyRoot(string templatePath)
+    private (string FullPath, string Root) ResolvePathInsideAnyRoot(string templatePath)
     {
         var fullPath = Path.GetFullPath(templatePath);
 
@@ -115,14 +127,14 @@ internal sealed class FileTemplateLoader : ITemplateLoader
             var safeOverride = EnsureSafeRoot(_overrideDir);
             if (fullPath.StartsWith(safeOverride, StringComparison.OrdinalIgnoreCase))
             {
-                return fullPath;
+                return (fullPath, Path.GetFullPath(_overrideDir));
             }
         }
 
         var safeRoot = EnsureSafeRoot(_rootDir);
         if (fullPath.StartsWith(safeRoot, StringComparison.OrdinalIgnoreCase))
         {
-            return fullPath;
+            return (fullPath, Path.GetFullPath(_rootDir));
         }
 
         if (_fallbackDir is not null)
@@ -130,7 +142,7 @@ internal sealed class FileTemplateLoader : ITemplateLoader
             var safeFallback = EnsureSafeRoot(_fallbackDir);
             if (fullPath.StartsWith(safeFallback, StringComparison.OrdinalIgnoreCase))
             {
-                return fullPath;
+                return (fullPath, Path.GetFullPath(_fallbackDir));
             }
         }
 
@@ -138,7 +150,7 @@ internal sealed class FileTemplateLoader : ITemplateLoader
             $"Template path '{templatePath}' resolves outside the layouts directory.");
     }
 
-    private string LoadCached(string templatePath)
+    private string LoadCached(string templatePath, string root)
     {
         var fileInfo = new FileInfo(templatePath);
         if (!fileInfo.Exists)
@@ -146,13 +158,21 @@ internal sealed class FileTemplateLoader : ITemplateLoader
             return string.Empty;
         }
 
-        var signature = new FileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length);
+        // Read from the already-open verified handle; the final resolved path
+        // must still stay inside the containing layouts root.
+        using var verified = _opener.Open(templatePath, root);
+        var signature = new FileSignature(verified.LastWriteTimeUtc, verified.Length);
         if (_cache.TryGetValue(templatePath, out var existing) && existing.Signature.Equals(signature))
         {
             return existing.Text;
         }
 
-        var text = File.ReadAllText(templatePath);
+        string text;
+        using (var reader = new StreamReader(verified.Stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true))
+        {
+            text = reader.ReadToEnd();
+        }
+
         _cache[templatePath] = new CachedText(signature, text);
         return text;
     }

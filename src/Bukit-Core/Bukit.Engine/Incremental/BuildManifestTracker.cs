@@ -126,7 +126,7 @@ internal static class BuildManifestTracker
         ILogger logger,
         string? fingerprintMode = null,
         IOutputPathPolicy? pathPolicy = null,
-        Bukit.Engine.IO.ISafeSourceFileOpener? opener = null)
+        Bukit.Shared.IO.ISafeSourceFileOpener? opener = null)
     {
         var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
         var copyOptions = new DirectoryCopyOptions

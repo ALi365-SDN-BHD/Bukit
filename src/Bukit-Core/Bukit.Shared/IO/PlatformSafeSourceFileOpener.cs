@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace Bukit.Engine.IO;
+namespace Bukit.Shared.IO;
 
 internal enum PosixStatAbi
 {
@@ -116,7 +116,7 @@ internal sealed partial class PlatformSafeSourceFileOpener : ISafeSourceFileOpen
         try
         {
             var openedRoot = ResolvePosixHandlePath(currentDirFd);
-            if (!PathComparer.Equals(Path.GetFullPath(sourceRoot), openedRoot))
+            if (!PathComparer.Equals(ResolvePhysicalRoot(sourceRoot), openedRoot))
             {
                 throw new IOException($"Already-open source root '{openedRoot}' no longer matches captured root '{sourceRoot}'.");
             }
@@ -211,7 +211,7 @@ internal sealed partial class PlatformSafeSourceFileOpener : ISafeSourceFileOpen
             }
 
             var finalPath = ResolveWindowsHandlePath(handle, path);
-            if (!IsSameOrSubPathOf(sourceRoot, finalPath))
+            if (!IsSameOrSubPathOf(ResolvePhysicalRoot(sourceRoot), finalPath))
             {
                 throw new IOException($"Already-open target '{finalPath}' escapes source root '{sourceRoot}'.");
             }
@@ -378,6 +378,88 @@ internal sealed partial class PlatformSafeSourceFileOpener : ISafeSourceFileOpen
 
     private static StringComparer PathComparer
         => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+    /// <summary>
+    /// Resolves reparse points along <paramref name="path"/> component-wise so a
+    /// captured root such as macOS /var/folders can be compared against the
+    /// already-open handle's physical path. Falls back to the lexical full path
+    /// when resolution is unavailable; the handle comparison stays authoritative.
+    /// </summary>
+    private static string ResolvePhysicalRoot(string path)
+        => ResolvePhysicalRoot(path, new HashSet<string>(PathComparer), remainingHops: 64) ?? Path.GetFullPath(path);
+
+    private static string? ResolvePhysicalRoot(string path, HashSet<string> visitedLinks, int remainingHops)
+    {
+        try
+        {
+            if (remainingHops <= 0)
+            {
+                return null;
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            var root = Path.GetPathRoot(fullPath);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                return null;
+            }
+
+            var segments = fullPath[root.Length..].Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries);
+            var current = root;
+            for (var index = 0; index < segments.Length; index++)
+            {
+                current = Path.Combine(current, segments[index]);
+                var target = GetImmediateLinkTarget(current);
+                if (target is null)
+                {
+                    continue;
+                }
+
+                var fullLink = Path.GetFullPath(current);
+                var remainingPath = index + 1 < segments.Length
+                    ? Path.Combine(segments[(index + 1)..])
+                    : string.Empty;
+                var resolutionState = fullLink + "\0" + remainingPath;
+                if (!visitedLinks.Add(resolutionState))
+                {
+                    return null;
+                }
+
+                var targetPath = Path.IsPathRooted(target)
+                    ? target
+                    : Path.Combine(Path.GetDirectoryName(fullLink)!, target);
+                if (remainingPath.Length > 0)
+                {
+                    targetPath = Path.Combine(targetPath, remainingPath);
+                }
+
+                return ResolvePhysicalRoot(targetPath, visitedLinks, remainingHops - 1);
+            }
+
+            return Path.GetFullPath(current);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? GetImmediateLinkTarget(string path)
+    {
+        try
+        {
+            FileSystemInfo info = Directory.Exists(path)
+                ? new DirectoryInfo(path)
+                : new FileInfo(path);
+            return info.LinkTarget;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     private static class MacOs
     {

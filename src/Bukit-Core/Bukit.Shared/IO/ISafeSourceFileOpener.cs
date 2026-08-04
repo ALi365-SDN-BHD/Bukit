@@ -1,4 +1,4 @@
-namespace Bukit.Engine.IO;
+namespace Bukit.Shared.IO;
 
 /// <summary>
 /// Opens a source file with a no-follow handle so the path validated during

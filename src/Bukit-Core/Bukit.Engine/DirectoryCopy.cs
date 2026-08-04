@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Bukit.Engine.Output;
 using Bukit.Shared;
+using Bukit.Shared.IO;
 
 namespace Bukit.Engine;
 
@@ -177,7 +178,7 @@ internal static class DirectoryCopy
         string expectedPhysicalSourceRoot,
         DirectoryCopyOptions options,
         IOutputPathPolicy? pathPolicy = null,
-        IO.ISafeSourceFileOpener? opener = null)
+        ISafeSourceFileOpener? opener = null)
     {
         var capturedSourceRoot = Path.GetFullPath(expectedPhysicalSourceRoot)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -195,7 +196,7 @@ internal static class DirectoryCopy
 
         var destinationDir = Path.GetDirectoryName(destinationFile)!;
         Directory.CreateDirectory(destinationDir);
-        var safeOpener = opener ?? new IO.PlatformSafeSourceFileOpener();
+        var safeOpener = opener ?? new PlatformSafeSourceFileOpener();
         using var verified = safeOpener.Open(validatedSource, capturedSourceRoot);
         SyncVerifiedFileToPath(verified, destinationFile, hashMode, outputRoot, pathPolicy);
     }
@@ -206,7 +207,7 @@ internal static class DirectoryCopy
         string expectedPhysicalSourceRoot,
         DirectoryCopyOptions options,
         CancellationToken cancellationToken,
-        IO.ISafeSourceFileOpener? opener = null)
+        ISafeSourceFileOpener? opener = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var capturedSourceRoot = Path.GetFullPath(expectedPhysicalSourceRoot)
@@ -227,7 +228,7 @@ internal static class DirectoryCopy
         Directory.CreateDirectory(destinationDir);
         try
         {
-            var safeOpener = opener ?? new IO.PlatformSafeSourceFileOpener();
+            var safeOpener = opener ?? new PlatformSafeSourceFileOpener();
             using var verified = safeOpener.Open(validatedSource, capturedSourceRoot);
             var sourceLastWriteTimeUtc = verified.LastWriteTimeUtc;
             await using (var input = verified.Stream)
@@ -644,7 +645,7 @@ internal static class DirectoryCopy
     }
 
     private static void SyncVerifiedFileToPath(
-        IO.VerifiedSourceFile source,
+        VerifiedSourceFile source,
         string destinationFile,
         string hashMode,
         string? outputRoot = null,

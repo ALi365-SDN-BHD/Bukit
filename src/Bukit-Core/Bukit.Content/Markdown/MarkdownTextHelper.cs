@@ -13,6 +13,11 @@ internal static class MarkdownTextHelper
     internal static async Task<string> RenderHtmlFromFileAsync(string filePath, CancellationToken cancellationToken)
     {
         var markdown = await File.ReadAllTextAsync(filePath, cancellationToken);
+        return RenderHtml(markdown);
+    }
+
+    internal static string RenderHtml(string markdown)
+    {
         var bodyMarkdown = markdown;
         if (MarkdownFrontMatterParser.TryExtractFrontMatter(markdown, out _, out var body))
         {

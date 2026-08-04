@@ -101,6 +101,22 @@ internal static class MarkdownFieldBuilder
         }
 
         var text = value.ToString() ?? string.Empty;
+
+        // Number parsing is explicitly invariant and runs before any date
+        // heuristic so numeric-looking text never depends on the thread culture
+        // or on culture-dependent date inference such as "1.25".
+        if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedLong))
+        {
+            field = new ContentField("number", parsedLong);
+            return true;
+        }
+
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedDouble))
+        {
+            field = new ContentField("number", parsedDouble);
+            return true;
+        }
+
         if (TryParseDateTimeOffset(text, out var parsed))
         {
             field = new ContentField("date", parsed);
@@ -110,18 +126,6 @@ internal static class MarkdownFieldBuilder
         if (bool.TryParse(text, out var parsedBool))
         {
             field = new ContentField("bool", parsedBool);
-            return true;
-        }
-
-        if (long.TryParse(text, out var parsedLong))
-        {
-            field = new ContentField("number", parsedLong);
-            return true;
-        }
-
-        if (double.TryParse(text, out var parsedDouble))
-        {
-            field = new ContentField("number", parsedDouble);
             return true;
         }
 

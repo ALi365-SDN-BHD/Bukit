@@ -1,4 +1,5 @@
 using Bukit.Content.Markdown;
+using System.Globalization;
 using Xunit;
 
 namespace Bukit.Content.Tests;
@@ -213,5 +214,46 @@ public sealed class MarkdownFieldBuilderTests
     public void TryParseDateTimeOffset_InvalidDate_ReturnsFalse()
     {
         Assert.False(MarkdownFieldBuilder.TryParseDateTimeOffset("not-a-date", out _));
+    }
+
+    [Theory]
+    [InlineData("1,25", "fr-FR")]
+    [InlineData("1.25", "en-US")]
+    [InlineData("1.234", "de-DE")]
+    public void Build_NumberParsing_IsInvariant(string input, string culture)
+    {
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            var baseline = MarkdownFieldBuilder.BuildFields(
+                new Dictionary<string, object> { ["amount"] = input });
+
+            CultureInfo.CurrentCulture = new CultureInfo(culture);
+            var result = MarkdownFieldBuilder.BuildFields(
+                new Dictionary<string, object> { ["amount"] = input });
+
+            // Field projection must be identical regardless of thread culture.
+            Assert.Equal(baseline["amount"].Type, result["amount"].Type);
+            Assert.Equal(baseline["amount"].Value, result["amount"].Value);
+
+            if (input == "1.25")
+            {
+                Assert.Equal("number", result["amount"].Type);
+                Assert.Equal(1.25, result["amount"].Value);
+            }
+
+            if (input == "1.234")
+            {
+                // Invariant parsing must not follow de-DE thousands grouping
+                // (which would produce 1234).
+                Assert.Equal("number", result["amount"].Type);
+                Assert.Equal(1.234, result["amount"].Value);
+            }
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 }

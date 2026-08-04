@@ -1,5 +1,6 @@
 using Bukit.Rendering.Scriban;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Rendering.Tests;
 
@@ -243,5 +244,64 @@ public sealed class FileTemplateLoaderTests : IDisposable
         var result = loader.GetPath(null!, default, "pages/sub/page.html");
         Assert.Contains("pages", result);
         Assert.Contains("page.html", result);
+    }
+
+    [Fact]
+    public void Load_LayoutSymlinkOutsideRoot_Throws()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-layout-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        var outsideFile = Path.Combine(outsideDir, "secret.html");
+        File.WriteAllText(outsideFile, "secret");
+        var linkPath = Path.Combine(_rootDir, "layout.html");
+        try
+        {
+            File.CreateSymbolicLink(linkPath, outsideFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        try
+        {
+            var loader = new FileTemplateLoader(_rootDir);
+            Assert.Throws<IOException>(() => loader.Load(null!, default, linkPath));
+        }
+        finally
+        {
+            File.Delete(outsideFile);
+            Directory.Delete(outsideDir);
+        }
+    }
+
+    [Fact]
+    public async Task LoadAsync_LayoutSymlinkOutsideRoot_Throws()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-layout-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        var outsideFile = Path.Combine(outsideDir, "secret-async.html");
+        await File.WriteAllTextAsync(outsideFile, "secret");
+        var linkPath = Path.Combine(_rootDir, "layout-async.html");
+        try
+        {
+            File.CreateSymbolicLink(linkPath, outsideFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        try
+        {
+            var loader = new FileTemplateLoader(_rootDir);
+            await Assert.ThrowsAsync<IOException>(async () =>
+                await loader.LoadAsync(null!, default, linkPath));
+        }
+        finally
+        {
+            File.Delete(outsideFile);
+            Directory.Delete(outsideDir);
+        }
     }
 }

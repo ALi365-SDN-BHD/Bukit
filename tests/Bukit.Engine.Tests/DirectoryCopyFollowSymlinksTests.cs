@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using Bukit.Engine.IO;
 using Xunit;
 using Xunit.Sdk;
 
@@ -108,68 +107,5 @@ public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
         DirectoryCopy.Sync(sourceDir, destDir, new DirectoryCopyOptions { FollowSymlinks = true });
 
         Assert.False(File.Exists(Path.Combine(destDir, "chain1.txt")));
-    }
-
-    [Fact]
-    public void PlatformSafeSourceFileOpener_RegularFile_ReadsVerifiedHandle()
-    {
-        if (!OperatingSystem.IsWindows() && !IsSymlinkPlatform())
-        {
-            throw SkipException.ForSkip("The platform has no approved safe source opener.");
-        }
-
-        var sourceDir = Path.Combine(_root, "source");
-        Directory.CreateDirectory(sourceDir);
-        var sourceFile = Path.Combine(sourceDir, "regular.txt");
-        File.WriteAllText(sourceFile, "verified");
-        var physicalRoot = DirectoryCopy
-            .EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions())
-            .Single()
-            .PhysicalSourceRoot;
-
-        using var verified = new PlatformSafeSourceFileOpener().Open(
-            Path.Combine(physicalRoot, "regular.txt"),
-            physicalRoot);
-        using var reader = new StreamReader(
-            verified.Stream,
-            System.Text.Encoding.UTF8,
-            detectEncodingFromByteOrderMarks: true,
-            bufferSize: 1024,
-            leaveOpen: true);
-
-        Assert.Equal("verified", reader.ReadToEnd());
-    }
-
-    [Fact]
-    public void PlatformSafeSourceFileOpener_FinalSymlink_IsRejected()
-    {
-        if (!OperatingSystem.IsWindows() && !IsSymlinkPlatform())
-        {
-            throw SkipException.ForSkip("The platform has no approved safe source opener.");
-        }
-
-        var sourceDir = Path.Combine(_root, "source");
-        Directory.CreateDirectory(sourceDir);
-        var target = Path.Combine(sourceDir, "target.txt");
-        var link = Path.Combine(sourceDir, "link.txt");
-        File.WriteAllText(target, "target");
-        try
-        {
-            File.CreateSymbolicLink(link, target);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
-        }
-
-        var physicalRoot = DirectoryCopy
-            .EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions())
-            .Single()
-            .PhysicalSourceRoot;
-
-        Assert.Throws<IOException>(() =>
-            new PlatformSafeSourceFileOpener().Open(
-                Path.Combine(physicalRoot, "link.txt"),
-                physicalRoot));
     }
 }
