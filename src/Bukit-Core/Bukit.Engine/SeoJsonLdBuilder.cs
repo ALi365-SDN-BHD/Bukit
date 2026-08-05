@@ -225,9 +225,7 @@ internal static class SeoJsonLdBuilder
             article["inLanguage"] = contentLanguage;
         }
 
-        if (organizationNode is not null &&
-            (string.Equals(schemaType, "Article", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(schemaType, "BlogPosting", StringComparison.OrdinalIgnoreCase)))
+        if (organizationNode is not null && IsArticleFamilyType(schemaType))
         {
             article["publisher"] = organizationNode;
         }
@@ -258,6 +256,11 @@ internal static class SeoJsonLdBuilder
         result.Add(ToJson(article));
         return resolvedAuthors.SuppressStandaloneGeoAuthor;
     }
+
+    private static bool IsArticleFamilyType(string schemaType)
+        => string.Equals(schemaType, "Article", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(schemaType, "BlogPosting", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(schemaType, "NewsArticle", StringComparison.OrdinalIgnoreCase);
 
     private static Dictionary<string, object?> BuildAuthorNode(
         ResolvedSeoAuthor author,

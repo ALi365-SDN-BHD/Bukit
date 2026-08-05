@@ -12,6 +12,7 @@ public sealed class SeoPublisherJsonLdTests
     [Theory]
     [InlineData("BlogPosting")]
     [InlineData("Article")]
+    [InlineData("NewsArticle")]
     public void BuildForContent_ArticlePublisherMatchesNormalizedSiteOrganization(string schemaType)
     {
         var organization = new SeoOrganizationConfig

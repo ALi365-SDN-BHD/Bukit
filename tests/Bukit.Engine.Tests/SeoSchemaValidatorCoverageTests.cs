@@ -394,4 +394,45 @@ public sealed class SeoSchemaValidatorCoverageTests
         SeoSchemaValidator.ValidateSchemaObject(doc.RootElement, "/test/", issues);
         Assert.Contains(issues, i => i.Code == "seo.schema_itemlist_elements_missing");
     }
+
+    // ── NewsArticle publisher audit ────────────────────────────
+
+    [Fact]
+    public void ExtractSchemaTypes_NewsArticleWithoutPublisher_Warns()
+    {
+        var issues = new List<SeoAuditIssue>();
+        SeoSchemaValidator.ExtractSchemaTypes(
+            ["""{"@type":"NewsArticle","headline":"News","datePublished":"2026-08-05T00:00:00Z","author":{"@type":"Person","name":"Desk"},"image":"https://example.com/news.jpg"}"""],
+            "/news/",
+            issues);
+
+        Assert.Contains(issues, issue =>
+            issue.Code == "seo.schema_newsarticle_publisher_missing" &&
+            issue.Severity == "warning");
+    }
+
+    [Theory]
+    [InlineData("Organization")]
+    [InlineData("NewsMediaOrganization")]
+    public void ExtractSchemaTypes_NewsArticleWithSupportedPublisher_DoesNotWarn(string publisherType)
+    {
+        var json = $$$"""{"@type":"NewsArticle","headline":"News","datePublished":"2026-08-05T00:00:00Z","author":{"@type":"Person","name":"Desk"},"image":"https://example.com/news.jpg","publisher":{"@type":"{{{publisherType}}}","name":"Example News"}}""";
+        var issues = new List<SeoAuditIssue>();
+        SeoSchemaValidator.ExtractSchemaTypes([json], "/news/", issues);
+
+        Assert.DoesNotContain(issues,
+            issue => issue.Code.Contains("publisher", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ExtractSchemaTypes_NewsArticleWithPersonPublisher_WarnsTypeInvalid()
+    {
+        var json = """{"@type":"NewsArticle","headline":"News","datePublished":"2026-08-05T00:00:00Z","author":{"@type":"Person","name":"Desk"},"image":"https://example.com/news.jpg","publisher":{"@type":"Person","name":"Desk"}}""";
+        var issues = new List<SeoAuditIssue>();
+        SeoSchemaValidator.ExtractSchemaTypes([json], "/news/", issues);
+
+        Assert.Contains(issues, issue =>
+            issue.Code == "seo.schema_newsarticle_publisher_type_invalid" &&
+            issue.Severity == "warning");
+    }
 }
