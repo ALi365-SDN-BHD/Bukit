@@ -90,6 +90,26 @@ internal sealed class FileTemplateLoader : ITemplateLoader
         return LoadCached(fullPath, root);
     }
 
+    internal VerifiedTemplateSource LoadVerifiedSource(string templatePath)
+    {
+        var (fullPath, root) = ResolvePathInsideAnyRoot(templatePath);
+        using var verified = _opener.Open(fullPath, root);
+        var lastWriteTimeUtc = verified.LastWriteTimeUtc;
+        var length = verified.Length;
+        string text;
+        using (var reader = new StreamReader(
+                   verified.Stream,
+                   Encoding.UTF8,
+                   detectEncodingFromByteOrderMarks: true,
+                   bufferSize: 4096,
+                   leaveOpen: true))
+        {
+            text = reader.ReadToEnd();
+        }
+
+        return new VerifiedTemplateSource(text, lastWriteTimeUtc, length);
+    }
+
     public async ValueTask<string?> LoadAsync(TemplateContext context, SourceSpan callerSpan, string templatePath)
     {
         var (fullPath, root) = ResolvePathInsideAnyRoot(templatePath);
@@ -181,6 +201,11 @@ internal sealed class FileTemplateLoader : ITemplateLoader
         => Path.GetFullPath(dir) + Path.DirectorySeparatorChar;
 
     private readonly record struct FileSignature(DateTime LastWriteTimeUtc, long Length);
+
+    internal readonly record struct VerifiedTemplateSource(
+        string Text,
+        DateTime LastWriteTimeUtc,
+        long Length);
 
     private sealed record CachedText(FileSignature Signature, string Text);
 }

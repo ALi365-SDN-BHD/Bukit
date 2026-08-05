@@ -1,4 +1,5 @@
 using Bukit.Shared;
+using System.Globalization;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Config;
@@ -227,6 +228,11 @@ internal static class ConfigStrictFieldValidator
                     throw new ConfigException($"{path}.options must be a mapping.", DiagnosticCode.ConfigInvalidValue);
                 }
 
+                if (options is YamlMappingNode optionsMap)
+                {
+                    ValidateObjectMap(optionsMap, $"{path}.options");
+                }
+
                 continue;
             }
 
@@ -415,9 +421,32 @@ internal static class ConfigStrictFieldValidator
     private static void ValidateTheme(YamlMappingNode theme)
     {
         RequireOnly(theme, ThemeKeys, "theme");
+        if (Map(theme, "params") is { } parameters) ValidateObjectMap(parameters, "theme.params");
         if (Map(theme, "components") is { } components) ValidateComponents(components);
         if (Map(theme, "scss") is { } scss) RequireOnly(scss, Set("enabled", "entryPoint", "outputDir"), "theme.scss");
-        if (Map(theme, "images") is { } images) RequireOnly(images, Set("enabled", "formats", "sizes", "quality"), "theme.images");
+        if (Map(theme, "images") is { } images)
+        {
+            RequireOnly(images, Set("enabled", "formats", "sizes", "quality"), "theme.images");
+            if (Seq(images, "sizes", "theme.images.sizes") is { } sizes)
+            {
+                for (var index = 0; index < sizes.Children.Count; index++)
+                {
+                    var child = sizes.Children[index];
+                    var path = $"theme.images.sizes[{index}]";
+                    if (child is not YamlScalarNode scalar)
+                    {
+                        throw KindMismatch(path, "scalar", child);
+                    }
+
+                    if (!int.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+                    {
+                        throw new ConfigException(
+                            $"Invalid config value: {path} expected integer, got '{scalar.Value}'.",
+                            DiagnosticCode.ConfigInvalidValue);
+                    }
+                }
+            }
+        }
     }
 
     private static void ValidateTaxonomy(YamlMappingNode taxonomy)
@@ -446,9 +475,48 @@ internal static class ConfigStrictFieldValidator
             {
                 foreach (var child in props.Children)
                 {
-                    KeyName(child.Key, $"theme.components.{name}.props");
+                    var property = KeyName(child.Key, $"theme.components.{name}.props");
+                    if (child.Value is not YamlScalarNode)
+                    {
+                        throw KindMismatch(
+                            $"theme.components.{name}.props.{property}",
+                            "scalar",
+                            child.Value);
+                    }
                 }
             }
+        }
+    }
+
+    private static void ValidateObjectMap(YamlMappingNode map, string path)
+    {
+        foreach (var child in map.Children)
+        {
+            var key = KeyName(child.Key, path);
+            ValidateObjectNode(child.Value, $"{path}.{key}");
+        }
+    }
+
+    private static void ValidateObjectNode(YamlNode node, string path)
+    {
+        switch (node)
+        {
+            case YamlScalarNode:
+                return;
+            case YamlMappingNode map:
+                ValidateObjectMap(map, path);
+                return;
+            case YamlSequenceNode sequence:
+                for (var index = 0; index < sequence.Children.Count; index++)
+                {
+                    ValidateObjectNode(sequence.Children[index], $"{path}[{index}]");
+                }
+
+                return;
+            default:
+                throw new ConfigException(
+                    $"Invalid config value: {path} has unsupported YAML node kind '{node.NodeType}'.",
+                    DiagnosticCode.ConfigInvalidValue);
         }
     }
 

@@ -40,6 +40,12 @@ internal sealed class RenderDependencyHashWriter
         }
     }
 
+    internal void AppendLabeledCanonicalValue(string label, object? value)
+    {
+        AppendFramedValue("canonical.label", label);
+        AppendCanonicalValue(value);
+    }
+
     internal void AppendDictionary(IReadOnlyDictionary<string, object>? dictionary)
     {
         if (dictionary is null || dictionary.Count == 0)
@@ -49,10 +55,7 @@ internal sealed class RenderDependencyHashWriter
 
         foreach (var entry in dictionary.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
-            AppendNewline();
-            AppendUtf8(entry.Key);
-            AppendNewline();
-            AppendCanonicalValue(entry.Value);
+            AppendLabeledCanonicalValue(entry.Key, entry.Value);
         }
     }
 
@@ -165,6 +168,19 @@ internal sealed class RenderDependencyHashWriter
                     contentFields,
                     contentFields.Count,
                     contentFields.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => (x.Key, (object?)x.Value)));
+                return;
+            case IDictionary dictionary:
+                var entries = new List<(string Key, object? Value)>();
+                foreach (DictionaryEntry entry in dictionary)
+                {
+                    if (entry.Key is string key && !string.IsNullOrWhiteSpace(key))
+                    {
+                        entries.Add((key, entry.Value));
+                    }
+                }
+
+                entries.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Key, right.Key));
+                AppendCanonicalStringMap(dictionary, entries.Count, entries);
                 return;
             case IEnumerable sequence:
                 AppendUtf8("seq;");

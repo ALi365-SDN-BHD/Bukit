@@ -45,7 +45,7 @@ internal sealed class SectionRenderHelper
         _getCachedTemplate = getCachedTemplate ?? DefaultGetCachedTemplate;
     }
 
-    private static bool DefaultGetCachedTemplate(string templatePath, out Template template)
+    private bool DefaultGetCachedTemplate(string templatePath, out Template template)
     {
         if (!File.Exists(templatePath))
         {
@@ -53,8 +53,8 @@ internal sealed class SectionRenderHelper
             return false;
         }
 
-        var templateText = File.ReadAllText(templatePath);
-        template = Template.Parse(templateText, templatePath);
+        var source = _templateLoader.LoadVerifiedSource(templatePath);
+        template = Template.Parse(source.Text, templatePath);
         return true;
     }
 

@@ -285,7 +285,7 @@ public sealed class RenderDependencyHasherTests
     public void Compute_BaseConfiguration_MatchesGoldenHash()
     {
         Assert.Equal(
-            "364a700bfde3ca7844620b94e3c3f9e13a372b406a981f669833978344dc2744",
+            "e25173b0b583e16fd78dc3703e1b8546b196b9b5a90e514e2788c9961d72028a",
             RenderDependencyHasher.Compute(CreateBaseConfig(), s_emptySiteModel));
     }
 
@@ -294,7 +294,7 @@ public sealed class RenderDependencyHasherTests
     {
         // Golden hash for the canonical framed/type-tagged render dependency encoding.
         Assert.Equal(
-            "8358a536194c50101e7d121da7606458d83ca32f2d62072c74868fe38cadddf2",
+            "41f7841c85b48100795ccf012fdf0bdff401ccc815b5d4c90c4f6ecefe4730bc",
             RenderDependencyHasher.Compute(
                 CreateRepresentativeGoldenConfig(),
                 CreateRepresentativeGoldenSiteModel(),
@@ -1261,6 +1261,135 @@ public sealed class RenderDependencyHasherTests
         Assert.NotEqual(
             RenderDependencyHasher.Compute(config, SiteModelWithData(("banner", "alpha"))),
             RenderDependencyHasher.Compute(config, SiteModelWithData(("banner", "beta"))));
+    }
+
+    [Fact]
+    public void Compute_DifferentSiteName_ProducesDifferentHash()
+    {
+        var config = CreateBaseConfig();
+        var renamedSiteModel = s_emptySiteModel with { Name = "renamed-site" };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(config, s_emptySiteModel),
+            RenderDependencyHasher.Compute(config, renamedSiteModel));
+    }
+
+    [Fact]
+    public void Compute_FieldScopesWithoutCollections_ProducesDifferentHash()
+    {
+        var before = CreateBaseConfig();
+        var after = before with
+        {
+            Content = before.Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>
+                    {
+                        ["posts"] = [new CustomFieldDefinitionConfig { Name = "rating", Min = 1.5 }]
+                    }
+                }
+            }
+        };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(before, s_emptySiteModel),
+            RenderDependencyHasher.Compute(after, s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_MultilineCollectionValues_DoNotCollideAcrossFieldBoundaries()
+    {
+        AppConfig WithCollection(string title, string description)
+        {
+            var config = CreateBaseConfig();
+            return config with
+            {
+                Site = config.Site with
+                {
+                    Collections = new Dictionary<string, CollectionConfig>
+                    {
+                        ["posts"] = new CollectionConfig
+                        {
+                            Permalink = "/posts/{slug}/",
+                            ListTitle = title,
+                            ListDescription = description
+                        }
+                    }
+                }
+            };
+        }
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(WithCollection("A\nB", "C"), s_emptySiteModel),
+            RenderDependencyHasher.Compute(WithCollection("A", "B\nC"), s_emptySiteModel));
+    }
+
+    [Fact]
+    public void Compute_FieldScopeNumbers_AreCultureInvariant()
+    {
+        var config = CreateBaseConfig() with
+        {
+            Site = CreateBaseConfig().Site with
+            {
+                Collections = new Dictionary<string, CollectionConfig>
+                {
+                    ["posts"] = new CollectionConfig { Permalink = "/posts/{slug}/" }
+                }
+            },
+            Content = CreateBaseConfig().Content with
+            {
+                ModelSchema = new ContentModelSchemaConfig
+                {
+                    FieldScopes = new Dictionary<string, IReadOnlyList<CustomFieldDefinitionConfig>>
+                    {
+                        ["posts"] =
+                        [
+                            new CustomFieldDefinitionConfig
+                            {
+                                Name = "rating",
+                                Min = 1234.5,
+                                Max = 2345.6,
+                                Default = 3456.7
+                            }
+                        ]
+                    }
+                }
+            }
+        };
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            var invariantHash = RenderDependencyHasher.Compute(config, s_emptySiteModel);
+
+            CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+            var germanHash = RenderDependencyHasher.Compute(config, s_emptySiteModel);
+
+            Assert.Equal(invariantHash, germanHash);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Theory]
+    [InlineData("__data_files")]
+    [InlineData("__related_pages")]
+    public void Compute_PublicPluginProjectionChange_ProducesDifferentHash(string internalKey)
+    {
+        var config = CreateBaseConfig();
+        object Projected(string title) => internalKey == "__related_pages"
+            ? new Dictionary<string, List<object>>
+            {
+                ["post"] = [new Dictionary<string, object> { ["title"] = title }]
+            }
+            : new Dictionary<string, object> { ["catalog"] = title };
+
+        Assert.NotEqual(
+            RenderDependencyHasher.Compute(config, SiteModelWithData((internalKey, Projected("alpha")))),
+            RenderDependencyHasher.Compute(config, SiteModelWithData((internalKey, Projected("beta")))));
     }
 
     [Fact]

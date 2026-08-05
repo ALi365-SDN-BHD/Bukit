@@ -7,19 +7,12 @@ internal sealed class SeoContributor : IRenderDependencyContributor
     public void Contribute(RenderDependencyContext context, RenderDependencyHashWriter writer)
     {
         var seo = context.Config.Site.Seo;
-        writer.AppendUtf8(seo.Enabled.ToString());
-        writer.AppendNewline();
-        writer.AppendUtf8(seo.RenderMode);
-        writer.AppendNewline();
-        writer.AppendUtf8(seo.HomeTitleTemplate);
-        writer.AppendNewline();
-        writer.AppendUtf8(seo.PageTitleTemplate);
-        writer.AppendNewline();
-        writer.AppendUtf8(seo.TitleSeparator);
-        writer.AppendNewline();
-        writer.AppendUtf8(seo.DefaultImage);
-        writer.AppendNewline();
-        writer.AppendUtf8(seo.TwitterSite);
-        writer.AppendNewline();
+        writer.AppendLabeledCanonicalValue("seo.enabled", seo.Enabled);
+        writer.AppendLabeledCanonicalValue("seo.renderMode", seo.RenderMode);
+        writer.AppendLabeledCanonicalValue("seo.homeTitleTemplate", seo.HomeTitleTemplate);
+        writer.AppendLabeledCanonicalValue("seo.pageTitleTemplate", seo.PageTitleTemplate);
+        writer.AppendLabeledCanonicalValue("seo.titleSeparator", seo.TitleSeparator);
+        writer.AppendLabeledCanonicalValue("seo.defaultImage", seo.DefaultImage);
+        writer.AppendLabeledCanonicalValue("seo.twitterSite", seo.TwitterSite);
     }
 }

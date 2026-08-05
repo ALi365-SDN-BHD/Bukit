@@ -231,36 +231,94 @@ internal static class ConfigYamlHelpers
         return list.Count == 0 ? null : list;
     }
 
-    internal static IReadOnlyDictionary<string, object>? ReadObjectMap(YamlMappingNode mapNode)
+    internal static IReadOnlyList<int>? ReadIntList(
+        YamlMappingNode node,
+        string key,
+        string? parentPath = null)
     {
-        var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in mapNode.Children)
+        var sequence = GetOptionalSequence(node, key, parentPath);
+        if (sequence is null)
         {
-            if (kv.Key is not YamlScalarNode keyNode || string.IsNullOrWhiteSpace(keyNode.Value))
+            return null;
+        }
+
+        var path = ComposePath(parentPath, key);
+        var values = new List<int>(sequence.Children.Count);
+        for (var index = 0; index < sequence.Children.Count; index++)
+        {
+            var child = sequence.Children[index];
+            if (child is not YamlScalarNode scalar)
             {
-                continue;
+                throw KindMismatch($"{path}[{index}]", "scalar", child);
             }
 
-            dict[keyNode.Value.Trim()] = ToObject(kv.Value);
+            if (!int.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            {
+                throw new ConfigException(
+                    $"Invalid config value: {path}[{index}] expected integer, got '{scalar.Value}'.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            values.Add(value);
+        }
+
+        return values.Count == 0 ? null : values;
+    }
+
+    internal static IReadOnlyDictionary<string, object>? ReadObjectMap(
+        YamlMappingNode mapNode,
+        string path = "value")
+    {
+        var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var index = 0;
+        foreach (var kv in mapNode.Children)
+        {
+            var key = GetRequiredMapKey(kv.Key, path, index);
+
+            dict[key] = ToObject(kv.Value, $"{path}.{key}");
+            index++;
         }
 
         return dict.Count == 0 ? null : dict;
     }
 
-    internal static object ToObject(YamlNode node)
+    internal static object ToObject(YamlNode node, string path = "value")
     {
         return node switch
         {
             YamlScalarNode s => ToScalarObject(s),
-            YamlSequenceNode seq => seq.Children.Select(ToObject).ToList(),
-            YamlMappingNode map => map.Children
-                .Where(p => p.Key is YamlScalarNode ks && !string.IsNullOrWhiteSpace(ks.Value))
-                .ToDictionary(
-                    p => ((YamlScalarNode)p.Key).Value!,
-                    p => ToObject(p.Value),
-                    StringComparer.OrdinalIgnoreCase),
-            _ => node.ToString()
+            YamlSequenceNode seq => seq.Children
+                .Select((child, index) => ToObject(child, $"{path}[{index}]"))
+                .ToList(),
+            YamlMappingNode map => ReadRequiredObjectMap(map, path),
+            _ => throw new ConfigException(
+                $"Invalid config value: {path} has unsupported YAML node kind '{node.NodeType}'.",
+                DiagnosticCode.ConfigInvalidValue)
         };
+    }
+
+    internal static string GetRequiredMapKey(YamlNode node, string path, int index)
+        => node is YamlScalarNode scalar && !string.IsNullOrWhiteSpace(scalar.Value)
+            ? scalar.Value.Trim()
+            : throw new ConfigException(
+                $"Config key under {path} at index {index} must be a non-empty scalar.",
+                DiagnosticCode.ConfigInvalidValue);
+
+    internal static ConfigException NodeKindMismatch(string path, string expectedKind, YamlNode actual)
+        => KindMismatch(path, expectedKind, actual);
+
+    private static Dictionary<string, object> ReadRequiredObjectMap(YamlMappingNode map, string path)
+    {
+        var result = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var index = 0;
+        foreach (var pair in map.Children)
+        {
+            var key = GetRequiredMapKey(pair.Key, path, index);
+            result[key] = ToObject(pair.Value, $"{path}.{key}");
+            index++;
+        }
+
+        return result;
     }
 
     private static object ToScalarObject(YamlScalarNode scalar)

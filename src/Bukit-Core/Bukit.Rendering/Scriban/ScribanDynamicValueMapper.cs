@@ -1,5 +1,6 @@
 using Bukit.Engine.Abstractions.Content;
 using Scriban.Runtime;
+using System.Collections;
 
 namespace Bukit.Rendering.Scriban;
 
@@ -84,7 +85,23 @@ internal static class ScribanDynamicValueMapper
             return ToScriptObject(new Dictionary<string, object>(dictionary));
         }
 
-        if (value is IEnumerable<object> sequence)
+        if (value is IDictionary nonGenericDictionary)
+        {
+            var obj = new ScriptObject();
+            foreach (DictionaryEntry entry in nonGenericDictionary)
+            {
+                if (entry.Key is not string key || string.IsNullOrWhiteSpace(key))
+                {
+                    continue;
+                }
+
+                obj.SetValue(key, ToScribanValue(entry.Value), readOnly: true);
+            }
+
+            return obj;
+        }
+
+        if (value is IEnumerable sequence)
         {
             var arr = new ScriptArray();
             foreach (var item in sequence)

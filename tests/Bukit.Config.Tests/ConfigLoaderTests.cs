@@ -1632,4 +1632,164 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
         Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Load_ComponentPropValueWrongKind_ThrowsStablePath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            theme:
+              components:
+                card:
+                  template: components/card.html
+                  props:
+                    tone:
+                      nested: invalid
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("theme.components.card.props.tone", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_ImageSizeWrongKind_ThrowsStableIndexedPath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            theme:
+              images:
+                sizes:
+                  - 480
+                  - nested: invalid
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("theme.images.sizes[1]", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_ImageSizeInvalidInteger_ThrowsStableIndexedPath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            theme:
+              images:
+                sizes:
+                  - 480
+                  - wide
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("theme.images.sizes[1]", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("integer", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("wide", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_ThemeParamsComplexKey_ThrowsStablePath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            theme:
+              params:
+                ? [complex]
+                : value
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("theme.params", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("non-empty scalar", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_PluginOptionsBlankKey_ThrowsStablePath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+              plugins:
+                search:
+                  options:
+                    "": value
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("site.plugins.search.options", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("non-empty scalar", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_PluginOptionsNestedComplexKey_ThrowsStablePath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+              plugins:
+                search:
+                  options:
+                    ranking:
+                      ? [complex]
+                      : value
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("site.plugins.search.options.ranking", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("non-empty scalar", exception.Message, StringComparison.Ordinal);
+    }
 }

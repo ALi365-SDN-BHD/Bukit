@@ -2,6 +2,7 @@ using Xunit;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Shared;
+using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
@@ -72,6 +73,38 @@ public sealed class TemplateRendererBaseTests : IDisposable
         var result = renderer.CallRenderWithLayout("simple.html", new object());
 
         Assert.Equal("hello", result);
+    }
+
+    [Fact]
+    public void RenderWithLayout_TemplateSymlinkOutsideRoot_DoesNotReadTarget()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-trb-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        var outsideFile = Path.Combine(outsideDir, "secret.html");
+        File.WriteAllText(outsideFile, "EXTERNAL_SECRET");
+        var linkPath = Path.Combine(_layoutsDir, "linked.html");
+        try
+        {
+            File.CreateSymbolicLink(linkPath, outsideFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        try
+        {
+            var exception = Record.Exception(() =>
+                new TestRenderer(_layoutsDir).CallRenderWithLayout("linked.html", new object()));
+
+            Assert.NotNull(exception);
+            Assert.DoesNotContain("EXTERNAL_SECRET", exception.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(outsideFile);
+            Directory.Delete(outsideDir);
+        }
     }
 
     [Fact]

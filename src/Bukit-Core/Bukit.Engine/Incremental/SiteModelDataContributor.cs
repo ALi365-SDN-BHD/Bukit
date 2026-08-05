@@ -31,14 +31,11 @@ internal sealed class SiteModelDataContributor : IRenderDependencyContributor
                 continue;
             }
 
-            writer.AppendNewline();
-            writer.AppendUtf8(module.Key);
-            writer.AppendNewline();
-            writer.AppendUtf8(module.Value.Count.ToString());
+            writer.AppendLabeledCanonicalValue("site.modules.key", module.Key);
+            writer.AppendLabeledCanonicalValue("site.modules.count", module.Value.Count);
             foreach (var item in module.Value.OrderBy(x => x.Id, StringComparer.Ordinal))
             {
-                writer.AppendNewline();
-                writer.AppendCanonicalValue(new Dictionary<string, object?>
+                writer.AppendLabeledCanonicalValue("site.modules.item", new Dictionary<string, object?>
                 {
                     ["id"] = item.Id,
                     ["title"] = item.Title,
@@ -67,18 +64,23 @@ internal sealed class SiteModelDataContributor : IRenderDependencyContributor
                 continue;
             }
 
-            // Engine-internal context keys (double-underscore convention) carry live
-            // pipeline objects, not template-visible site data; they are owned by their
-            // own stages and must not enter the canonical value encoder.
             if (entry.Key.StartsWith("__", StringComparison.Ordinal))
             {
+                var publicAlias = entry.Key switch
+                {
+                    "__data_files" => "data_files",
+                    "__related_pages" => "related_pages",
+                    _ => null
+                };
+                if (publicAlias is not null)
+                {
+                    writer.AppendLabeledCanonicalValue($"site.{publicAlias}", entry.Value);
+                }
+
                 continue;
             }
 
-            writer.AppendNewline();
-            writer.AppendUtf8(entry.Key);
-            writer.AppendNewline();
-            writer.AppendCanonicalValue(entry.Value);
+            writer.AppendLabeledCanonicalValue($"site.data.{entry.Key}", entry.Value);
         }
     }
 
@@ -99,10 +101,7 @@ internal sealed class SiteModelDataContributor : IRenderDependencyContributor
                 continue;
             }
 
-            writer.AppendNewline();
-            writer.AppendUtf8(entry.Key);
-            writer.AppendNewline();
-            writer.AppendObjectValue(entry.Value);
+            writer.AppendLabeledCanonicalValue($"site.data_index.{entry.Key}", entry.Value);
         }
     }
 }

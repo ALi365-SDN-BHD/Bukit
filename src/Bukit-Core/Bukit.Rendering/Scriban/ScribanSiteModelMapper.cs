@@ -45,7 +45,16 @@ internal static class ScribanSiteModelMapper
 
         if (model.Data is not null && model.Data.Count > 0)
         {
-            obj.SetValue("data", ScribanDynamicValueMapper.ToScriptObject(model.Data), readOnly: true);
+            var publicData = model.Data
+                .Where(entry => !entry.Key.StartsWith("__", StringComparison.Ordinal))
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
+            if (publicData.Count > 0)
+            {
+                obj.SetValue("data", ScribanDynamicValueMapper.ToScriptObject(publicData), readOnly: true);
+            }
+
+            SetInternalProjectionAlias(obj, model.Data, "__data_files", "data_files");
+            SetInternalProjectionAlias(obj, model.Data, "__related_pages", "related_pages");
         }
 
         if (model.DataIndex is not null && model.DataIndex.Count > 0)
@@ -54,5 +63,17 @@ internal static class ScribanSiteModelMapper
         }
 
         return obj;
+    }
+
+    private static void SetInternalProjectionAlias(
+        ScriptObject target,
+        IReadOnlyDictionary<string, object> data,
+        string internalKey,
+        string publicAlias)
+    {
+        if (data.TryGetValue(internalKey, out var value))
+        {
+            target.SetValue(publicAlias, ScribanDynamicValueMapper.ToScribanValue(value), readOnly: true);
+        }
     }
 }

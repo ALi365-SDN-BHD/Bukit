@@ -7,16 +7,14 @@ internal sealed class ThemeAndTemplateModelContributor : IRenderDependencyContri
     public void Contribute(RenderDependencyContext context, RenderDependencyHashWriter writer)
     {
         var theme = context.Config.Theme;
-        writer.AppendDictionary(theme.Params);
+        writer.AppendLabeledCanonicalValue("theme.params", theme.Params);
 
         if (theme.Shortcodes is { Count: > 0 })
         {
             foreach (var shortcode in theme.Shortcodes.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
-                writer.AppendNewline();
-                writer.AppendUtf8(shortcode.Key);
-                writer.AppendNewline();
-                writer.AppendUtf8(shortcode.Value);
+                writer.AppendLabeledCanonicalValue("theme.shortcode.key", shortcode.Key);
+                writer.AppendLabeledCanonicalValue("theme.shortcode.value", shortcode.Value);
             }
         }
 
@@ -24,26 +22,20 @@ internal sealed class ThemeAndTemplateModelContributor : IRenderDependencyContri
         {
             foreach (var component in theme.Components.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
-                writer.AppendNewline();
-                writer.AppendUtf8(component.Key);
-                writer.AppendNewline();
-                writer.AppendUtf8(component.Value.Template);
+                writer.AppendLabeledCanonicalValue("theme.component.key", component.Key);
+                writer.AppendLabeledCanonicalValue("theme.component.template", component.Value.Template);
                 if (component.Value.Props is { Count: > 0 })
                 {
                     foreach (var property in component.Value.Props.OrderBy(x => x.Key, StringComparer.Ordinal))
                     {
-                        writer.AppendNewline();
-                        writer.AppendUtf8(property.Key);
-                        writer.AppendNewline();
-                        writer.AppendUtf8(property.Value);
+                        writer.AppendLabeledCanonicalValue("theme.component.property.key", property.Key);
+                        writer.AppendLabeledCanonicalValue("theme.component.property.value", property.Value);
                     }
                 }
             }
         }
 
-        writer.AppendUtf8(theme.ComponentValidation);
-        writer.AppendNewline();
-        writer.AppendUtf8(context.Config.Build.ListPageContentMode);
-        writer.AppendNewline();
+        writer.AppendLabeledCanonicalValue("theme.componentValidation", theme.ComponentValidation);
+        writer.AppendLabeledCanonicalValue("build.listPageContentMode", context.Config.Build.ListPageContentMode);
     }
 }

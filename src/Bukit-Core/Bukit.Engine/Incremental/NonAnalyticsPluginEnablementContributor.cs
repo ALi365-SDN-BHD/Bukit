@@ -18,10 +18,8 @@ internal sealed class NonAnalyticsPluginEnablementContributor : IRenderDependenc
                 continue;
             }
 
-            writer.AppendNewline();
-            writer.AppendUtf8(plugin.Key);
-            writer.AppendNewline();
-            writer.AppendUtf8(plugin.Value.Enabled.ToString());
+            writer.AppendLabeledCanonicalValue("plugin.name", plugin.Key);
+            writer.AppendLabeledCanonicalValue("plugin.enabled", plugin.Value.Enabled);
         }
     }
 }
