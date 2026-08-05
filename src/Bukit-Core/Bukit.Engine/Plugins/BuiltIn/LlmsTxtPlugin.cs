@@ -108,15 +108,26 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         return new LlmsSelection(primary, optional, excluded);
     }
 
-    internal static bool ShouldIncludeInLlms(ContentDocument document, SeoIndexEntry entry)
+    private static LlmsSelection BuildFullLlmsSelection(
+        IReadOnlyDictionary<string, ContentDocument> documentsByPath,
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
+        IReadOnlyDictionary<string, ContentRecord> recordsById)
     {
-        if (!entry.Indexable)
+        var candidates = new List<(ContentDocument Document, ContentRecord Record, SeoIndexEntry Entry, SeoModel? Model)>();
+        foreach (var (key, entry) in seoIndex)
         {
-            return false;
+            if (!documentsByPath.TryGetValue(key, out var document))
+            {
+                continue;
+            }
+
+            var record = recordsById.TryGetValue(document.Id, out var canonicalRecord)
+                ? canonicalRecord
+                : document.Record;
+            candidates.Add((document, record, entry, null));
         }
 
-        var parse = LlmsCurationPolicyParser.Parse(document);
-        return parse.Valid && parse.Policy.Visibility != LlmsVisibility.Exclude;
+        return BuildLlmsSelection(candidates);
     }
 
     private static IReadOnlyList<LlmsCandidate> SelectCollectionItems(
@@ -382,18 +393,14 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             documentsByPath[BuildPathUtils.NormalizeRelPath(routedDocument.Route.OutputPath)] = routedDocument.Document;
         }
 
-        foreach (var (key, entry) in seoIndex
-                     .Where(x => documentsByPath.TryGetValue(x.Key, out var document) && ShouldIncludeInLlms(document, x.Value))
-                     .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
+        var selection = BuildFullLlmsSelection(documentsByPath, seoIndex, recordsById);
+        foreach (var candidate in selection.Primary
+                     .Concat(selection.Optional)
+                     .OrderBy(candidate => candidate.Entry.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
-            if (!documentsByPath.TryGetValue(key, out var document))
-            {
-                continue;
-            }
-
-            var record = recordsById.TryGetValue(document.Id, out var canonicalRecord)
-                ? canonicalRecord
-                : document.Record;
+            var document = candidate.Document;
+            var entry = candidate.Entry;
+            var record = candidate.Record;
 
             var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
             sb.AppendLine($"# {record.Presentation.Title ?? document.Title}");
@@ -480,18 +487,14 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             documentsByPath[BuildPathUtils.NormalizeRelPath(routedDocument.Route.OutputPath)] = routedDocument.Document;
         }
 
-        foreach (var (key, entry) in seoIndex
-                     .Where(x => documentsByPath.TryGetValue(x.Key, out var document) && ShouldIncludeInLlms(document, x.Value))
-                     .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
+        var selection = BuildFullLlmsSelection(documentsByPath, seoIndex, recordsById);
+        foreach (var candidate in selection.Primary
+                     .Concat(selection.Optional)
+                     .OrderBy(candidate => candidate.Entry.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
-            if (!documentsByPath.TryGetValue(key, out var document))
-            {
-                continue;
-            }
-
-            var record = recordsById.TryGetValue(document.Id, out var canonicalRecord)
-                ? canonicalRecord
-                : document.Record;
+            var document = candidate.Document;
+            var entry = candidate.Entry;
+            var record = candidate.Record;
 
             var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
             sb.AppendLine($"# {record.Presentation.Title ?? document.Title}");
