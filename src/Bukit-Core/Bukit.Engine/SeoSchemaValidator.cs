@@ -277,6 +277,58 @@ internal static class SeoSchemaValidator
             issues.Add(Warning($"{prefix}_publisher_type_invalid", routeUrl,
                 $"{type} publisher should be an Organization or NewsMediaOrganization with a non-empty name."));
         }
+
+        if (!node.TryGetProperty("mainEntityOfPage", out var mainEntity) || IsEmptySchemaValue(mainEntity))
+        {
+            issues.Add(Warning($"{prefix}_main_entity_of_page_missing", routeUrl,
+                $"{type} JSON-LD should include mainEntityOfPage."));
+        }
+
+        ValidateCitationEntries(node, "citation", $"{prefix}_citation_invalid", type, routeUrl, issues);
+        ValidateCitationEntries(node, "isBasedOn", $"{prefix}_isbasedon_invalid", type, routeUrl, issues);
+    }
+
+    private static void ValidateCitationEntries(
+        JsonElement node,
+        string property,
+        string code,
+        string type,
+        string routeUrl,
+        List<SeoAuditIssue> issues)
+    {
+        if (!node.TryGetProperty(property, out var value) || IsEmptySchemaValue(value))
+        {
+            return;
+        }
+
+        if (value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var entry in value.EnumerateArray())
+            {
+                ValidateCitationEntry(entry, code, type, routeUrl, issues);
+            }
+
+            return;
+        }
+
+        ValidateCitationEntry(value, code, type, routeUrl, issues);
+    }
+
+    private static void ValidateCitationEntry(
+        JsonElement entry,
+        string code,
+        string type,
+        string routeUrl,
+        List<SeoAuditIssue> issues)
+    {
+        if (entry.ValueKind != JsonValueKind.Object ||
+            !IsSchemaType(entry, "WebPage") ||
+            !HasNonEmptyString(entry, "name") ||
+            !HasAbsoluteUrl(entry, "url"))
+        {
+            issues.Add(Warning(code, routeUrl,
+                $"{type} citation entries should be WebPage objects with a non-empty name and an absolute HTTP(S) url."));
+        }
     }
 
     private static bool HasSupportedPublisherType(JsonElement publisher)

@@ -158,6 +158,11 @@ internal static partial class SeoDiagnostics
                     {
                         Report(config, logger, $"geo.citation_url_invalid route={key} url={citation.Url}");
                     }
+
+                    if (citation.Relation is not ("citation" or "based-on"))
+                    {
+                        Report(config, logger, $"geo.citation_relation_invalid route={key} relation={citation.Relation}");
+                    }
                 }
             }
 

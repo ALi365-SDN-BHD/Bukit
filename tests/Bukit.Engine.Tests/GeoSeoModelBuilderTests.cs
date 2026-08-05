@@ -373,6 +373,142 @@ public sealed class GeoSeoModelBuilderTests
     }
 
     [Fact]
+    public void BuildForContent_WithGeoCitationRelation_ParsesRelationAndDefaultsToCitation()
+    {
+        var config = CreateGeoConfig();
+        var item = ContentDocument.Create(
+            id: "page-2",
+            title: "Provenance",
+            slug: "provenance",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>provenance</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["geo"] = new Dictionary<string, object>
+                {
+                    ["citations"] = new List<object>
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["title"] = "Primary report",
+                            ["url"] = "https://source.example/report",
+                            ["relation"] = "based-on"
+                        },
+                        new Dictionary<string, object>
+                        {
+                            ["title"] = "Supporting doc",
+                            ["url"] = "https://source.example/support"
+                        },
+                    }
+                }
+            }));
+        var route = new RouteInfo("/provenance/", "provenance/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.NotNull(model.Citations);
+        Assert.Equal(2, model.Citations.Count);
+        Assert.Equal("based-on", model.Citations[0].Relation);
+        Assert.Equal("citation", model.Citations[1].Relation);
+    }
+
+    [Theory]
+    [InlineData("Article")]
+    [InlineData("BlogPosting")]
+    [InlineData("NewsArticle")]
+    public void BuildForContent_ArticleFamily_EmitsMainEntityOfPageAndProvenance(string schemaType)
+    {
+        var config = CreateGeoConfig();
+        var item = ContentDocument.Create(
+            id: $"trust-{schemaType.ToLowerInvariant()}",
+            title: "Trust Graph",
+            slug: $"trust-{schemaType.ToLowerInvariant()}",
+            publishAt: new DateTimeOffset(2026, 8, 5, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>trust graph</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["schema_type"] = schemaType,
+                ["geo"] = new Dictionary<string, object>
+                {
+                    ["citations"] = new List<object>
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["title"] = "Supporting doc",
+                            ["url"] = "https://source.example/support"
+                        },
+                        new Dictionary<string, object>
+                        {
+                            ["title"] = "Primary report",
+                            ["url"] = "https://source.example/report",
+                            ["relation"] = "based-on"
+                        },
+                    }
+                }
+            }));
+        var route = new RouteInfo("/news/item/", "news/item/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        var articleJson = model.JsonLd.Single(j => j.Contains($"\"@type\":\"{schemaType}\"", StringComparison.Ordinal));
+        using var articleDoc = JsonDocument.Parse(articleJson);
+        var article = articleDoc.RootElement;
+
+        var mainEntity = article.GetProperty("mainEntityOfPage");
+        Assert.Equal("WebPage", mainEntity.GetProperty("@type").GetString());
+        Assert.Equal(model.Canonical, mainEntity.GetProperty("@id").GetString());
+
+        var citations = article.GetProperty("citation").EnumerateArray().ToArray();
+        Assert.Equal(2, citations.Length);
+        Assert.Contains(citations, c => c.GetProperty("name").GetString() == "Supporting doc");
+        Assert.Contains(citations, c => c.GetProperty("name").GetString() == "Primary report");
+
+        var basedOn = article.GetProperty("isBasedOn").EnumerateArray().ToArray();
+        var single = Assert.Single(basedOn);
+        Assert.Equal("Primary report", single.GetProperty("name").GetString());
+
+        var mentionsJson = model.JsonLd.Single(j => j.Contains("\"mentions\"", StringComparison.Ordinal));
+        using var mentionsDoc = JsonDocument.Parse(mentionsJson);
+        var mentions = mentionsDoc.RootElement.GetProperty("mentions").EnumerateArray().ToArray();
+        Assert.Equal(2, mentions.Length);
+        Assert.Contains(mentions, m => m.GetProperty("name").GetString() == "Supporting doc");
+        Assert.Contains(mentions, m => m.GetProperty("name").GetString() == "Primary report");
+    }
+
+    [Theory]
+    [InlineData("Article")]
+    [InlineData("BlogPosting")]
+    [InlineData("NewsArticle")]
+    public void BuildForContent_ArticleFamilyWithoutCitations_StillEmitsMainEntityOfPage(string schemaType)
+    {
+        var config = CreateGeoConfig();
+        var item = ContentDocument.Create(
+            id: $"trust-empty-{schemaType.ToLowerInvariant()}",
+            title: "Trust Graph Empty",
+            slug: $"trust-empty-{schemaType.ToLowerInvariant()}",
+            publishAt: new DateTimeOffset(2026, 8, 5, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>trust graph</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "post",
+                ["schema_type"] = schemaType
+            }));
+        var route = new RouteInfo("/news/empty/", "news/empty/index.html", "pages/post.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        var articleJson = model.JsonLd.Single(j => j.Contains($"\"@type\":\"{schemaType}\"", StringComparison.Ordinal));
+        using var articleDoc = JsonDocument.Parse(articleJson);
+        var article = articleDoc.RootElement;
+
+        Assert.Equal(model.Canonical, article.GetProperty("mainEntityOfPage").GetProperty("@id").GetString());
+        Assert.False(article.TryGetProperty("citation", out _));
+        Assert.False(article.TryGetProperty("isBasedOn", out _));
+    }
+
+    [Fact]
     public void BuildForContent_WithGeoSameAs_AddsToArticleJsonLd()
     {
         var config = CreateGeoConfig();

@@ -435,4 +435,58 @@ public sealed class SeoSchemaValidatorCoverageTests
             issue.Code == "seo.schema_newsarticle_publisher_type_invalid" &&
             issue.Severity == "warning");
     }
+
+    // ── Article trust graph audit ─────────────────────────────
+
+    [Fact]
+    public void ExtractSchemaTypes_ArticleWithoutMainEntityOfPage_Warns()
+    {
+        var json = """{"@type":"Article","headline":"News","datePublished":"2026-08-05T00:00:00Z","author":{"@type":"Person","name":"Desk"},"image":"https://example.com/news.jpg","publisher":{"@type":"Organization","name":"Example"}}""";
+        var issues = new List<SeoAuditIssue>();
+        SeoSchemaValidator.ExtractSchemaTypes([json], "/news/", issues);
+
+        Assert.Contains(issues, issue =>
+            issue.Code == "seo.schema_article_main_entity_of_page_missing" &&
+            issue.Severity == "warning");
+    }
+
+    [Fact]
+    public void ExtractSchemaTypes_ArticleWithMalformedCitationEntry_WarnsNotError()
+    {
+        var json = """{"@type":"Article","headline":"News","datePublished":"2026-08-05T00:00:00Z","author":{"@type":"Person","name":"Desk"},"image":"https://example.com/news.jpg","publisher":{"@type":"Organization","name":"Example"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://example.com/news/"},"citation":["just-a-string"]}""";
+        var issues = new List<SeoAuditIssue>();
+        SeoSchemaValidator.ExtractSchemaTypes([json], "/news/", issues);
+
+        Assert.Contains(issues, issue =>
+            issue.Code == "seo.schema_article_citation_invalid" &&
+            issue.Severity == "warning");
+        Assert.DoesNotContain(issues, issue =>
+            issue.Code == "seo.schema_article_citation_invalid" &&
+            issue.Severity == "error");
+    }
+
+    [Fact]
+    public void ExtractSchemaTypes_ArticleWithBasedOnEntryMissingName_Warns()
+    {
+        var json = """{"@type":"Article","headline":"News","datePublished":"2026-08-05T00:00:00Z","author":{"@type":"Person","name":"Desk"},"image":"https://example.com/news.jpg","publisher":{"@type":"Organization","name":"Example"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://example.com/news/"},"isBasedOn":[{"@type":"WebPage","url":"https://source.example/report"}]}""";
+        var issues = new List<SeoAuditIssue>();
+        SeoSchemaValidator.ExtractSchemaTypes([json], "/news/", issues);
+
+        Assert.Contains(issues, issue =>
+            issue.Code == "seo.schema_article_isbasedon_invalid" &&
+            issue.Severity == "warning");
+    }
+
+    [Fact]
+    public void ExtractSchemaTypes_ArticleWithValidTrustGraph_DoesNotWarn()
+    {
+        var json = """{"@type":"Article","headline":"News","datePublished":"2026-08-05T00:00:00Z","author":{"@type":"Person","name":"Desk"},"image":"https://example.com/news.jpg","publisher":{"@type":"Organization","name":"Example"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://example.com/news/"},"citation":[{"@type":"WebPage","name":"Ref","url":"https://source.example/report"}],"isBasedOn":[{"@type":"WebPage","name":"Ref","url":"https://source.example/report"}]}""";
+        var issues = new List<SeoAuditIssue>();
+        SeoSchemaValidator.ExtractSchemaTypes([json], "/news/", issues);
+
+        Assert.DoesNotContain(issues, issue =>
+            issue.Code.Contains("main_entity_of_page", StringComparison.Ordinal) ||
+            issue.Code.Contains("citation_invalid", StringComparison.Ordinal) ||
+            issue.Code.Contains("isbasedon_invalid", StringComparison.Ordinal));
+    }
 }
