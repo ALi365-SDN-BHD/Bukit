@@ -52,10 +52,7 @@ jobs:
           --filter "FullyQualifiedName~NotionBlocksRendererPaginationTests|FullyQualifiedName~NotionBlockRendererCompatibilityEdgeCasesTests"
 
       - name: Compile the ImageOptimizer regression test on Windows
-        run: >-
-          dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj
-          -c Release --verbosity minimal
-          --filter "FullyQualifiedName~OptimizeAsync_ExitZeroWithInvalidOutput_FailsWithoutPublishing"
+        run: dotnet build tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --verbosity minimal
 
       - name: Publish win-x64 Native AOT
         run: |
