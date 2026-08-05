@@ -33,22 +33,30 @@ jobs:
           }
           Write-Host "Windows runtime: $([System.Environment]::OSVersion.VersionString)"
 
-      - name: Run affected owner tests serially
-        run: |
-          $projects = @(
-            "tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
-            "tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj",
-            "tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj",
-            "tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
-          )
-          foreach ($project in $projects) {
-            dotnet test $project -c Release --verbosity minimal
-            if ($LASTEXITCODE -ne 0) {
-              throw "Owner tests failed: $project"
-            }
-          }
+      - name: Run Architecture owner tests
+        id: architecture-tests
+        continue-on-error: true
+        run: dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release --verbosity minimal
+
+      - name: Run Content owner tests
+        id: content-tests
+        continue-on-error: true
+        run: dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj -c Release --verbosity minimal
+
+      - name: Run Notion owner tests
+        id: notion-tests
+        continue-on-error: true
+        run: dotnet test tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj -c Release --verbosity minimal
+
+      - name: Run Engine owner tests
+        id: engine-tests
+        continue-on-error: true
+        run: dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --verbosity minimal
 
       - name: Publish win-x64 Native AOT
+        id: aot-publish
+        if: always()
+        continue-on-error: true
         run: |
           dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj `
             -c Release -r win-x64 --self-contained true `
@@ -58,6 +66,9 @@ jobs:
           }
 
       - name: Smoke win-x64 Native AOT
+        id: aot-smoke
+        if: always() && steps.aot-publish.outcome == 'success'
+        continue-on-error: true
         run: |
           $version = & artifacts/win-x64/bukit.exe version | Out-String
           if ($LASTEXITCODE -ne 0 -or $version -notmatch "runtime:\s*native-aot") {
@@ -66,4 +77,23 @@ jobs:
           & artifacts/win-x64/bukit.exe --help
           if ($LASTEXITCODE -ne 0) {
             throw "Native AOT help smoke failed."
+          }
+
+      - name: Project verification outcomes
+        if: always()
+        run: |
+          $outcomes = @{
+            architecture = "${{ steps.architecture-tests.outcome }}"
+            content = "${{ steps.content-tests.outcome }}"
+            notion = "${{ steps.notion-tests.outcome }}"
+            engine = "${{ steps.engine-tests.outcome }}"
+            aot_publish = "${{ steps.aot-publish.outcome }}"
+            aot_smoke = "${{ steps.aot-smoke.outcome }}"
+          }
+          foreach ($entry in $outcomes.GetEnumerator() | Sort-Object Name) {
+            Write-Host "$($entry.Name)=$($entry.Value)"
+          }
+          $failed = @($outcomes.GetEnumerator() | Where-Object { $_.Value -ne "success" })
+          if ($failed.Count -ne 0) {
+            throw "Windows verification failed: $($failed.Name -join ', ')"
           }
