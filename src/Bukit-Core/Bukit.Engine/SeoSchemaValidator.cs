@@ -264,7 +264,24 @@ internal static class SeoSchemaValidator
         {
             issues.Add(Warning($"{prefix}_image_missing", routeUrl, $"{type} JSON-LD should include image."));
         }
+
+        if (!node.TryGetProperty("publisher", out var publisher) || IsEmptySchemaValue(publisher))
+        {
+            issues.Add(Warning($"{prefix}_publisher_missing", routeUrl,
+                $"{type} JSON-LD should include publisher when publisher identity is available."));
+        }
+        else if (publisher.ValueKind != JsonValueKind.Object ||
+                 !HasSupportedPublisherType(publisher) ||
+                 !HasNonEmptyString(publisher, "name"))
+        {
+            issues.Add(Warning($"{prefix}_publisher_type_invalid", routeUrl,
+                $"{type} publisher should be an Organization or NewsMediaOrganization with a non-empty name."));
+        }
     }
+
+    private static bool HasSupportedPublisherType(JsonElement publisher)
+        => ReadTypes(publisher).Any(publisherType =>
+            publisherType is "Organization" or "NewsMediaOrganization");
 
     private static void ValidateArticleAuthor(
         JsonElement author,
