@@ -473,6 +473,26 @@ public sealed class SeoGeoDocumentationContractTests
     }
 
     [Fact]
+    public void ActiveGuide_DocumentsMinimumCollectionIndexPolicyContract()
+    {
+        var siteConfig = ReadText("guide", "user", "04-site-yaml-config.md");
+        var seo = ReadText("docs", "seo.md");
+
+        Assert.Contains("indexPolicy", siteConfig, StringComparison.Ordinal);
+        Assert.Contains("minimumItems", siteConfig, StringComparison.Ordinal);
+        Assert.Contains("belowMinimum", siteConfig, StringComparison.Ordinal);
+        Assert.Contains("noindex-follow", siteConfig, StringComparison.Ordinal);
+        Assert.Contains("strictly below", siteConfig, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("minimumItems: 1", siteConfig, StringComparison.Ordinal);
+        Assert.Contains("fails configuration validation", siteConfig, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("indexPolicy", seo, StringComparison.Ordinal);
+        Assert.Contains("strictly below", seo, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("indexable: false", seo, StringComparison.Ordinal);
+        Assert.Contains("feeds", seo, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ProtectedReferenceTrees_AreNotActiveInputs()
     {
         var protectedNames = new[]

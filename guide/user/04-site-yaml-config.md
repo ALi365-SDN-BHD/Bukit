@@ -171,6 +171,8 @@ SearchAction and does not perform the final-route check.
 | `site.collections.<name>.listTemplate` | none | List route template. |
 | `site.collections.<name>.schemaFailMode` | none | `off`, `warn`, or `strict`. |
 | `site.collections.<name>.noindexWhenEmpty` | `false` | When true, an empty list route uses `noindex,follow` and is excluded from sitemap, search, `llms.txt`, and `llms-full.txt`. |
+| `site.collections.<name>.indexPolicy.minimumItems` | `0` | Minimum content threshold; must be an integer >= 0. |
+| `site.collections.<name>.indexPolicy.belowMinimum` | `index` | `index` or `noindex-follow`. |
 | `site.collections.<name>.pagination.enabled` | `false` | Enables collection pagination. |
 | `site.collections.<name>.pagination.pageSize` | `10` | Positive page size. |
 | `site.collections.<name>.pagination.urlPattern` | `page/:num/` | Relative pattern with `:num`, `{num}`, or `{page}`. |
@@ -184,6 +186,17 @@ SearchAction and does not perform the final-route check.
 | `site.collections.<name>.output.archiveDetail.depth` | `monthly` | Archive grouping depth. |
 | `site.collections.<name>.output.archiveDetail.template` | none | Archive template. |
 | `site.collections.<name>.output.archiveDetail.routePrefix` | none | Archive route prefix. |
+
+### Minimum Collection Index Policy
+
+`indexPolicy` noindexes thin collection list routes. When the collection item
+count is strictly below `minimumItems`, `belowMinimum: noindex-follow` applies
+`noindex,follow` to the collection list, pagination, and filtered list pages;
+reaching the threshold restores indexability. The legacy `noindexWhenEmpty`
+flag remains supported and equals `minimumItems: 1` with `belowMinimum:
+noindex-follow`; declaring both fields on the same collection fails
+configuration validation. Thin list routes stay in the route map with
+indexable false, and feeds keep emitting eligible content items.
 
 ## Filtered Lists
 

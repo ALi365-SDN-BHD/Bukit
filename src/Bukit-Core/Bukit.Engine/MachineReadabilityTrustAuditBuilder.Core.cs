@@ -80,7 +80,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var rssExpected = IsFeedFormatEnabled(config, "rss") && feedWindowRoutes.Contains(entry.Route.Url);
             var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
                 ? projectedSitemap
-                : entry.Indexable && ContainsInvariant(sitemapText, entry.Canonical);
+                : entry.Indexable && ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>");
             var searchIncluded = TryGetProjectionIncluded(projectionLookup, "search", entry, out var projectedSearch)
                 ? projectedSearch
                 : entry.Indexable && ContainsInvariant(searchText, entry.Route.Url);
@@ -151,7 +151,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 seoIssues.Add(Warning("seo.sitemap_missing_url", entry.Route.Url, $"Indexable route is missing from sitemap: {entry.Canonical}."));
             }
 
-            if (!entry.Indexable && sitemapText is not null && ContainsInvariant(sitemapText, entry.Canonical))
+            if (!entry.Indexable && sitemapText is not null && ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>"))
             {
                 seoIssues.Add(Error("seo.noindex_in_sitemap", entry.Route.Url, $"Noindex route appears in sitemap: {entry.Canonical}."));
             }

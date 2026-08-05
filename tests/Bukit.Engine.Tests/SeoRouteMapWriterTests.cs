@@ -46,6 +46,31 @@ public sealed class SeoRouteMapWriterTests : IDisposable
     }
 
     [Fact]
+    public void Build_RetainsNonIndexableRouteWithIndexableFalse()
+    {
+        var builder = new SeoRouteMapBuilder("https://example.com", "/");
+        var nonIndexableEntry = new SeoIndexEntry(
+            new RouteInfo("/thin/", "thin/index.html", "pages/list.html"),
+            "https://example.com/thin/",
+            Robots: "noindex,follow",
+            Indexable: false,
+            DateTimeOffset.Parse("2026-08-03T00:00:00Z"),
+            SourceItemId: null,
+            ContentType: "list",
+            IsDerived: true,
+            Collection: "thin");
+        builder.Add(nonIndexableEntry, Model("https://example.com/thin/"), null);
+
+        var map = builder.Build(DateTimeOffset.Parse("2026-08-03T00:00:00Z"));
+        var json = JsonSerializer.Serialize(map, SeoRouteMapJsonContext.Default.SeoRouteMap);
+
+        var route = Assert.Single(map.Routes);
+        Assert.Equal("/thin/", route.Route);
+        Assert.False(route.Indexable);
+        Assert.Contains("\"indexable\": false", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Build_CredentialBearingSiteUrlFallsBackToEmptyWithoutSerializingCredentials()
     {
         var map = new SeoRouteMapBuilder("https://site-user:site-secret@example.com/root", "/")

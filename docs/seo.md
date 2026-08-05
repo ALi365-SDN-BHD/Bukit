@@ -288,3 +288,19 @@ plugin is the only supported Analytics output owner.
 ## robots.txt
 
 `site.seo.robotsTxt.enabled: true` generates a basic `robots.txt` with a sitemap URL. Bukit does not overwrite an existing static `robots.txt`.
+
+## Minimum Collection Index Policy
+
+`indexPolicy` under a collection controls thin-collection indexability.
+`minimumItems` (default `0`) sets the content threshold and `belowMinimum`
+accepts `index` (default) or `noindex-follow`. When the collection item count
+is strictly below `minimumItems`, `noindex-follow` applies `noindex,follow` to
+the collection list, pagination, and filtered list pages; reaching the
+threshold restores indexability. `noindexWhenEmpty: true` remains supported as
+the legacy equivalent of `minimumItems: 1` with `belowMinimum:
+noindex-follow`; declaring both on the same collection fails configuration
+validation. The policy flows only through the shared indexability state:
+thinned routes are excluded from sitemap, search, `llms.txt`, and
+`llms-full.txt`, while the route map retains them with `indexable: false`.
+Feeds are decoupled from list-page thickness and keep emitting eligible
+content items.

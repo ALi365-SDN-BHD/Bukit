@@ -47,9 +47,48 @@ internal static class ConfigCollectionReader
             ListTemplate = ConfigYamlHelpers.GetOptionalString(collectionNode, "listTemplate"),
             SchemaFailMode = ConfigYamlHelpers.GetOptionalString(collectionNode, "schemaFailMode"),
             NoindexWhenEmpty = ConfigYamlHelpers.GetOptionalBool(collectionNode, "noindexWhenEmpty") ?? false,
+            IndexPolicy = ReadCollectionIndexPolicy(collectionName, collectionNode),
             Pagination = ReadCollectionPagination(paginationNode),
             Output = ReadCollectionOutput(outputNode),
             FilteredLists = ReadFilteredLists(collectionNode)
+        };
+    }
+
+    private static CollectionIndexPolicyConfig ReadCollectionIndexPolicy(string collectionName, YamlMappingNode collectionNode)
+    {
+        var policyNode = ConfigYamlHelpers.GetOptionalMapping(collectionNode, "indexPolicy");
+        if (policyNode is null)
+        {
+            return new CollectionIndexPolicyConfig();
+        }
+
+        if (ConfigYamlHelpers.GetOptionalBool(collectionNode, "noindexWhenEmpty") is not null)
+        {
+            throw new ConfigException(
+                $"site.collections.{collectionName} declares both noindexWhenEmpty and indexPolicy; use only indexPolicy.",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        var minimumItems = ConfigYamlHelpers.GetOptionalIntStrict(policyNode, "minimumItems") ?? 0;
+        if (minimumItems < 0)
+        {
+            throw new ConfigException(
+                $"Invalid config value: site.collections.{collectionName}.indexPolicy.minimumItems must be >= 0, got {minimumItems}",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        var belowMinimum = ConfigYamlHelpers.GetOptionalString(policyNode, "belowMinimum") ?? "index";
+        if (belowMinimum is not ("index" or "noindex-follow"))
+        {
+            throw new ConfigException(
+                $"Invalid config value: site.collections.{collectionName}.indexPolicy.belowMinimum must be 'index' or 'noindex-follow', got '{belowMinimum}'",
+                DiagnosticCode.ConfigInvalidValue);
+        }
+
+        return new CollectionIndexPolicyConfig
+        {
+            MinimumItems = minimumItems,
+            BelowMinimum = belowMinimum
         };
     }
 

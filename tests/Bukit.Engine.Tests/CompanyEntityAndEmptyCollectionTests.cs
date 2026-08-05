@@ -364,6 +364,104 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
     }
 
     [Fact]
+    public void Build_ThinCollectionBelowMinimum_ExcludesListFromProjectionsButKeepsContent()
+    {
+        var config = CreateConfig(indexPolicy: new CollectionIndexPolicyConfig
+        {
+            MinimumItems = 3,
+            BelowMinimum = "noindex-follow"
+        });
+        var acme = CompanyDocument("Organization");
+        var beta = ContentDocument.Create(
+            "beta",
+            "Beta Malaysia",
+            "beta",
+            new DateTimeOffset(2026, 7, 26, 9, 30, 0, TimeSpan.Zero),
+            "<p>Beta</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["collection"] = "companies",
+                ["type"] = "company"
+            }));
+        var routed = new[]
+        {
+            new RoutedContentDocument(acme, CompanyRoute()),
+            new RoutedContentDocument(beta, new RouteInfo("/companies/beta/", "companies/beta/index.html", "pages/company.html"))
+        };
+        var graph = CollectionGraph(totalItems: 2);
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            routed,
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+
+        var listEntry = result.Entries["companies/index.html"];
+        Assert.Equal("noindex,follow", result.Models["companies/index.html"].Robots);
+        Assert.False(listEntry.Indexable);
+        Assert.True(result.Entries["companies/acme/index.html"].Indexable);
+        Assert.True(result.Entries["companies/beta/index.html"].Indexable);
+
+        var outputDir = CreateTempDirectory();
+        var context = new PublishProjectionContext(
+            config,
+            outputDir,
+            CanonicalContentGraphBuilder.BuildFromDocuments([acme, beta]),
+            result.Entries,
+            result.Models,
+            routed,
+            NullContentBodyStore.Instance,
+            ListRouteGraph: graph);
+        foreach (var kind in new[] { "sitemap", "search", "llms", "llms-full" })
+        {
+            PublishRepresentationRegistry.AggregateProjectionAdapters()
+                .Single(adapter => adapter.Representation.Kind == kind)
+                .Project(context);
+        }
+
+        var sitemap = File.ReadAllText(Path.Combine(outputDir, "sitemap.xml"));
+        Assert.DoesNotContain("<loc>https://example.com/companies/</loc>", sitemap, StringComparison.Ordinal);
+        Assert.Contains("https://example.com/companies/acme/", sitemap, StringComparison.Ordinal);
+        Assert.Contains("https://example.com/companies/beta/", sitemap, StringComparison.Ordinal);
+
+        using (var search = JsonDocument.Parse(File.ReadAllText(Path.Combine(outputDir, "search.json"))))
+        {
+            Assert.DoesNotContain(search.RootElement.EnumerateArray(), item => item.GetProperty("url").GetString() == "/companies/");
+            Assert.Contains(search.RootElement.EnumerateArray(), item => item.GetProperty("url").GetString() == "/companies/acme/");
+        }
+
+        var llmsText = File.ReadAllText(Path.Combine(outputDir, "llms.txt"));
+        Assert.DoesNotContain("](https://example.com/companies/)", llmsText, StringComparison.Ordinal);
+        Assert.Contains("https://example.com/companies/acme/", llmsText, StringComparison.Ordinal);
+
+        var llmsFullPath = Path.Combine(outputDir, "llms-full.txt");
+        var llmsFull = File.Exists(llmsFullPath) ? File.ReadAllText(llmsFullPath) : string.Empty;
+        Assert.DoesNotContain("URL: https://example.com/companies/" + "\n", llmsFull, StringComparison.Ordinal);
+        if (llmsFull.Length > 0)
+        {
+            Assert.Contains("https://example.com/companies/acme/", llmsFull, StringComparison.Ordinal);
+            Assert.Contains("https://example.com/companies/beta/", llmsFull, StringComparison.Ordinal);
+        }
+
+        var audit = MachineReadabilityTrustAuditBuilder.Build(
+            config,
+            outputDir,
+            result.Entries,
+            result.Models,
+            CanonicalContentGraphBuilder.BuildFromDocuments([acme, beta]),
+            requireHreflangTargets: false);
+        var listRoute = audit.SeoReport.Routes.Single(route => route.Url == "/companies/");
+        Assert.False(listRoute.Indexable);
+        Assert.Equal("noindex,follow", listRoute.Robots);
+        Assert.False(listRoute.SearchIncluded);
+        Assert.DoesNotContain(audit.SeoReport.Issues, issue =>
+            issue.Route == "/companies/" &&
+            issue.Code is "seo.sitemap_missing_url" or "publish.llms_excluded_route_present");
+    }
+
+    [Fact]
     public void Build_EmptyListEpochSentinelIsNullInSeoAndPublishAuditModels()
     {
         var config = CreateConfig(noindexWhenEmpty: true);
@@ -418,6 +516,132 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
         Assert.Equal(publishedAt, entry.LastModified);
     }
 
+    [Theory]
+    [InlineData("CollectionList", 0)]
+    [InlineData("CollectionList", 1)]
+    [InlineData("CollectionList", 2)]
+    [InlineData("CollectionPage", 0)]
+    [InlineData("CollectionPage", 1)]
+    [InlineData("CollectionPage", 2)]
+    [InlineData("FilteredListPage", 0)]
+    [InlineData("FilteredListPage", 1)]
+    [InlineData("FilteredListPage", 2)]
+    public void Build_BelowMinimumItems_NoindexesCollectionListRoutes(string kindName, int totalItems)
+    {
+        var kind = Enum.Parse<ListRouteKind>(kindName);
+        var config = CreateConfig(indexPolicy: new CollectionIndexPolicyConfig
+        {
+            MinimumItems = 3,
+            BelowMinimum = "noindex-follow"
+        });
+        var graph = PolicyGraph(kind, totalItems);
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+
+        var key = PlanOutputPath(kind);
+        Assert.Equal("noindex,follow", result.Models[key].Robots);
+        Assert.False(result.Entries[key].Indexable);
+    }
+
+    [Theory]
+    [InlineData("CollectionList")]
+    [InlineData("CollectionPage")]
+    [InlineData("FilteredListPage")]
+    public void Build_AtMinimumItems_RestoresIndexability(string kindName)
+    {
+        var kind = Enum.Parse<ListRouteKind>(kindName);
+        var config = CreateConfig(indexPolicy: new CollectionIndexPolicyConfig
+        {
+            MinimumItems = 3,
+            BelowMinimum = "noindex-follow"
+        });
+        var graph = PolicyGraph(kind, totalItems: 3);
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+
+        var key = PlanOutputPath(kind);
+        Assert.Null(result.Models[key].Robots);
+        Assert.True(result.Entries[key].Indexable);
+    }
+
+    [Theory]
+    [InlineData("CollectionList")]
+    [InlineData("CollectionPage")]
+    [InlineData("FilteredListPage")]
+    public void Build_BelowMinimumWithIndexBehavior_StaysIndexable(string kindName)
+    {
+        var kind = Enum.Parse<ListRouteKind>(kindName);
+        var config = CreateConfig(indexPolicy: new CollectionIndexPolicyConfig
+        {
+            MinimumItems = 3,
+            BelowMinimum = "index"
+        });
+        var graph = PolicyGraph(kind, totalItems: 1);
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+
+        var key = PlanOutputPath(kind);
+        Assert.Null(result.Models[key].Robots);
+        Assert.True(result.Entries[key].Indexable);
+    }
+
+    [Fact]
+    public void Build_MinimumItemsPolicy_DoesNotTouchContentDetailOrHomeRoutes()
+    {
+        var config = CreateConfig(indexPolicy: new CollectionIndexPolicyConfig
+        {
+            MinimumItems = 3,
+            BelowMinimum = "noindex-follow"
+        });
+        var document = CompanyDocument("Organization");
+
+        var result = SeoIndexBuilder.Build(
+            config,
+            "/",
+            [new RoutedContentDocument(document, CompanyRoute())],
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>());
+
+        var detail = result.Entries["companies/acme/index.html"];
+        Assert.True(detail.Indexable);
+        Assert.Null(result.Models["companies/acme/index.html"].Robots);
+    }
+
+    [Fact]
+    public void Build_DefaultIndexPolicy_KeepsEmptyCollectionIndexable()
+    {
+        var graph = PolicyGraph(ListRouteKind.CollectionList, totalItems: 0);
+
+        var result = SeoIndexBuilder.Build(
+            CreateConfig(),
+            "/",
+            Array.Empty<RoutedContentDocument>(),
+            Array.Empty<RouteInfo>(),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            graph);
+
+        Assert.Null(result.Models["companies/index.html"].Robots);
+        Assert.True(result.Entries["companies/index.html"].Indexable);
+    }
+
     [Fact]
     public void SitemapSerializers_OmitNullAndEpochLastModified()
     {
@@ -464,7 +688,7 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
         }
     }
 
-    private static AppConfig CreateConfig(bool noindexWhenEmpty = false, SeoOrganizationConfig? organization = null)
+    private static AppConfig CreateConfig(bool noindexWhenEmpty = false, SeoOrganizationConfig? organization = null, CollectionIndexPolicyConfig? indexPolicy = null)
     {
         var collection = new CollectionConfig
         {
@@ -474,6 +698,10 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
         var property = typeof(CollectionConfig).GetProperty("NoindexWhenEmpty");
         Assert.NotNull(property);
         property.SetValue(collection, noindexWhenEmpty);
+        if (indexPolicy is not null)
+        {
+            collection = collection with { IndexPolicy = indexPolicy };
+        }
 
         return new AppConfig
         {
@@ -553,6 +781,57 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
                 }
             }
         ]);
+
+    private static ListRouteGraph PolicyGraph(ListRouteKind kind, int totalItems)
+    {
+        var plan = new ListRoutePlan
+        {
+            RouteId = $"policy:{kind}:{totalItems}",
+            Kind = kind,
+            Url = PlanUrl(kind),
+            OutputPath = PlanOutputPath(kind),
+            Template = "pages/list.html",
+            Collection = "companies",
+            TotalItems = totalItems,
+            CanonicalUrl = PlanUrl(kind)
+        };
+        if (kind is ListRouteKind.CollectionPage)
+        {
+            plan = plan with { PageNumber = 2, PageSize = 10 };
+        }
+
+        if (kind is ListRouteKind.FilteredListPage)
+        {
+            plan = plan with
+            {
+                PageNumber = 1,
+                PageSize = 10,
+                FilterContext = new ListRouteFilterContext
+                {
+                    Field = "country",
+                    Value = "Malaysia"
+                }
+            };
+        }
+
+        return ListRouteGraph.Create([plan]);
+    }
+
+    private static string PlanUrl(ListRouteKind kind)
+        => kind switch
+        {
+            ListRouteKind.CollectionPage => "/companies/page/2/",
+            ListRouteKind.FilteredListPage => "/companies/malaysia/",
+            _ => "/companies/"
+        };
+
+    private static string PlanOutputPath(ListRouteKind kind)
+        => kind switch
+        {
+            ListRouteKind.CollectionPage => "companies/page/2/index.html",
+            ListRouteKind.FilteredListPage => "companies/malaysia/index.html",
+            _ => "companies/index.html"
+        };
 
     private static ContentDocument NormalizedCompanyDocument(bool localOperationsVerified, bool nullableMaps = false)
     {

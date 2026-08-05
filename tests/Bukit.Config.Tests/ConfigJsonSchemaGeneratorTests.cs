@@ -251,6 +251,20 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.Equal(new[] { "render", "skip" }, filteredList.GetProperty("emptyBehavior").GetProperty("enum").EnumerateArray().Select(x => x.GetString()));
         Assert.Equal(1, filteredList.GetProperty("pageSize").GetProperty("minimum").GetInt32());
 
+        var collectionItemProperties = properties
+            .GetProperty("site")
+            .GetProperty("properties")
+            .GetProperty("collections")
+            .GetProperty("additionalProperties")
+            .GetProperty("properties");
+        Assert.True(collectionItemProperties.TryGetProperty("noindexWhenEmpty", out _));
+        var indexPolicyProperties = collectionItemProperties
+            .GetProperty("indexPolicy")
+            .GetProperty("properties");
+        Assert.True(indexPolicyProperties.TryGetProperty("minimumItems", out _));
+        Assert.True(indexPolicyProperties.TryGetProperty("belowMinimum", out _));
+        Assert.Equal(0, indexPolicyProperties.GetProperty("minimumItems").GetProperty("minimum").GetInt32());
+
         var scss = properties
             .GetProperty("theme")
             .GetProperty("properties")

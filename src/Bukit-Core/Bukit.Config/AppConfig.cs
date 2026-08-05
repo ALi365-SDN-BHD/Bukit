@@ -153,9 +153,16 @@ public sealed record CollectionConfig
     public string? ListTemplate { get; init; }
     public string? SchemaFailMode { get; init; }
     public bool NoindexWhenEmpty { get; init; }
+    public CollectionIndexPolicyConfig IndexPolicy { get; init; } = new();
     public CollectionPaginationConfig Pagination { get; init; } = new();
     public CollectionOutputConfig Output { get; init; } = new();
     public IReadOnlyList<FilteredListConfig>? FilteredLists { get; init; }
+}
+
+public sealed record CollectionIndexPolicyConfig
+{
+    public int MinimumItems { get; init; }
+    public string BelowMinimum { get; init; } = "index";
 }
 
 public sealed record CollectionPaginationConfig

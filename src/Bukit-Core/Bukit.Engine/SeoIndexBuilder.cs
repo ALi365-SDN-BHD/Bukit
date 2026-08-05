@@ -87,7 +87,7 @@ internal static class SeoIndexBuilder
                 alternates.TryGetValue(alternateKey, out var alts) ? alts : null,
                 searchAction,
                 breadcrumbs?.Find(route.Url),
-                IsEmptyPrimaryCollection(config, collection, ResolveListItems(config, route, routed).Count));
+                CollectionIndexabilityPolicy.ShouldNoIndex(config, ListRouteKind.CollectionList, collection, ResolveListItems(config, route, routed).Count));
             models[key] = model;
             entries[key] = new SeoIndexEntry(
                 route,
@@ -132,9 +132,7 @@ internal static class SeoIndexBuilder
             };
         }
         var alternateKey = SeoModelBuilder.BuildListAlternateKey(routeInfo);
-        var forceNoindexWhenEmpty = route.Kind is ListRouteKind.CollectionList or ListRouteKind.CollectionPage or ListRouteKind.FilteredListPage &&
-                                    route.TotalItems == 0 &&
-                                    IsEmptyPrimaryCollection(config, route.Collection, route.TotalItems);
+        var forceNoindexWhenEmpty = CollectionIndexabilityPolicy.ShouldNoIndex(config, route.Kind, route.Collection, route.TotalItems);
         var model = SeoModelBuilder.BuildForList(
             config,
             baseUrl,
@@ -438,13 +436,6 @@ internal static class SeoIndexBuilder
 
         return null;
     }
-
-    private static bool IsEmptyPrimaryCollection(AppConfig config, string? collectionKey, int itemCount)
-        => itemCount == 0 &&
-           !string.IsNullOrWhiteSpace(collectionKey) &&
-           config.Site.Collections is { Count: > 0 } collections &&
-           collections.TryGetValue(collectionKey, out var collection) &&
-           collection.NoindexWhenEmpty;
 
     private static bool IsDerived(ContentDocument document)
         => string.Equals(document.Record.Identity.ContentType, "derived", StringComparison.OrdinalIgnoreCase) ||
