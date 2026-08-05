@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Rendering;
 using Bukit.Routing;
@@ -199,6 +200,31 @@ internal static partial class SeoDiagnostics
         }
 
         logger.Warn(message);
+    }
+
+    internal static void AnalyzeLlmsCuration(
+        AppConfig config,
+        IReadOnlyDictionary<string, ContentDocument> documentsByOutputPath,
+        ILogger logger)
+    {
+        if (!IsEnabled(config))
+        {
+            return;
+        }
+
+        foreach (var (key, document) in documentsByOutputPath.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var result = LlmsCurationPolicyParser.Parse(document);
+            if (result.Valid)
+            {
+                continue;
+            }
+
+            foreach (var code in result.ErrorCodes)
+            {
+                Report(config, logger, $"{code} route={key}");
+            }
+        }
     }
 
     private static void AnalyzeDocumentTitle(

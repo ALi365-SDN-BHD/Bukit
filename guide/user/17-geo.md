@@ -70,6 +70,41 @@ be emitted for compatibility. Invalid relation values are reported by
 `site.seo.diagnostics` (warning in `warn` mode, build failure in `strict`
 mode) and are never silently rewritten.
 
+## LLMS curation
+
+Each page can opt into llms curation through content-level `geo.llms`
+metadata. The contract is limited to three fields:
+
+```yaml
+geo:
+  llms:
+    visibility: auto     # auto | include | exclude
+    tier: primary        # primary | optional
+    priority: 10         # integer from -100 to 100
+```
+
+Rules and precedence:
+
+- Non-indexable pages are always excluded; `visibility: include` cannot
+  override `noindex` or any other indexability boundary.
+- `visibility: exclude` removes the page from both `llms.txt` and
+  `llms-full.txt`.
+- `visibility: include` bypasses the `llmsTxtMaxArticles` auto limit; auto
+  pages fill the remaining slots. `llmsTxtMaxArticles: 0` keeps auto pages
+  unlimited.
+- `tier: optional` moves the page into the single `## Optional` section of
+  `llms.txt`; configured `llmsTxtOptionalLinks` follow in configured order.
+- `priority:` orders pages inside Bukit output only (higher first, then
+  publish date, then canonical URL). It is a stable internal sort key and
+  does not signal priority to external AI systems.
+- Unknown fields, unknown enum values, and out-of-range priority values are
+  reported by `site.seo.diagnostics` (warning in `warn` mode, build failure
+  in `strict` mode); invalid metadata is treated as excluded, never as
+  auto-included.
+
+Curation changes llms projections only. Sitemap, search, RSS, robots, and
+`SeoIndexEntry.Indexable` are not affected.
+
 ## Outputs
 
 | Output | Purpose |

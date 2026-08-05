@@ -1266,6 +1266,101 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         TestCleanup.DeleteDirectory(_outputDir, recursive: true);
     }
 
+    [Fact]
+    public void Build_ExcludedRoutePresentInLlmsOutput_ReportsLeakWarning()
+    {
+        WriteOutput("a/index.html");
+        File.WriteAllText(Path.Combine(_outputDir, "llms.txt"), "- [A](https://example.com/a/)\n");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Model("A", "https://example.com/a/")
+        };
+        var documents = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = DocumentWithLlms(new Dictionary<string, object> { ["visibility"] = "exclude" })
+        };
+
+        var result = MachineReadabilityTrustAuditBuilder.BuildPublishAuditCore(
+            Config(), _outputDir, index, models, documentsByOutputPath: documents);
+
+        Assert.Contains(result.SeoReport.Issues, issue =>
+            issue.Code == "publish.llms_excluded_route_present" &&
+            issue.Severity == "warning" &&
+            issue.Route == "/a/");
+    }
+
+    [Fact]
+    public void Build_ExcludedRouteAbsentFromLlmsOutput_DoesNotReportLeak()
+    {
+        WriteOutput("a/index.html");
+        File.WriteAllText(Path.Combine(_outputDir, "llms.txt"), "- [Other](https://example.com/other/)\n");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Model("A", "https://example.com/a/")
+        };
+        var documents = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = DocumentWithLlms(new Dictionary<string, object> { ["visibility"] = "exclude" })
+        };
+
+        var result = MachineReadabilityTrustAuditBuilder.BuildPublishAuditCore(
+            Config(), _outputDir, index, models, documentsByOutputPath: documents);
+
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.llms_excluded_route_present");
+    }
+
+    [Fact]
+    public void Build_IncludeOnNonIndexableRoute_WarnsAndRouteStaysAbsent()
+    {
+        WriteOutput("hidden/index.html");
+        File.WriteAllText(Path.Combine(_outputDir, "llms.txt"), "- [Other](https://example.com/other/)\n");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["hidden/index.html"] = new SeoIndexEntry(
+                new RouteInfo("/hidden/", "hidden/index.html", "pages/page.html"),
+                "https://example.com/hidden/", Robots: "noindex", Indexable: false,
+                DateTimeOffset.UtcNow, SourceItemId: null, ContentType: "page")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["hidden/index.html"] = Model("Hidden", "https://example.com/hidden/")
+        };
+        var documents = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["hidden/index.html"] = DocumentWithLlms(new Dictionary<string, object> { ["visibility"] = "include" })
+        };
+
+        var result = MachineReadabilityTrustAuditBuilder.BuildPublishAuditCore(
+            Config(), _outputDir, index, models, documentsByOutputPath: documents);
+
+        Assert.Contains(result.SeoReport.Issues, issue =>
+            issue.Code == "geo.llms_include_nonindexable" &&
+            issue.Severity == "warning" &&
+            issue.Route == "/hidden/");
+        Assert.DoesNotContain(result.SeoReport.Issues, issue => issue.Code == "publish.llms_excluded_route_present");
+    }
+
+    private static ContentDocument DocumentWithLlms(Dictionary<string, object> llms)
+        => ContentDocument.Create(
+            id: "llms-page",
+            title: "LLMS",
+            slug: "llms",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>llms</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["geo"] = new Dictionary<string, object> { ["llms"] = llms }
+            }));
+
     private void WriteOutput(string path)
     {
         var fullPath = Path.Combine(_outputDir, path);

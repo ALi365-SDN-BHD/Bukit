@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Rendering;
@@ -189,6 +190,81 @@ public sealed class GeoDiagnosticsTests
 
         Assert.Contains("geo.citation_relation_invalid", ex.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void AnalyzeLlmsCuration_WarnMode_ReportsInvalidCurationCodes()
+    {
+        var config = ConfigWithDiagnostics("warn");
+        var logger = new TestLogger();
+        var documents = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = DocumentWithLlms(new Dictionary<string, object>
+            {
+                ["visibility"] = "always",
+                ["tier"] = "featured",
+                ["priority"] = 999,
+                ["weight"] = 1
+            })
+        };
+
+        SeoDiagnostics.AnalyzeLlmsCuration(config, documents, logger);
+
+        Assert.Contains(logger.Warnings, x => x.Contains("geo.llms_visibility_invalid", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, x => x.Contains("geo.llms_tier_invalid", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, x => x.Contains("geo.llms_priority_invalid", StringComparison.Ordinal));
+        Assert.Contains(logger.Warnings, x => x.Contains("geo.llms_field_unknown", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnalyzeLlmsCuration_StrictMode_ThrowsOnInvalidCuration()
+    {
+        var config = ConfigWithDiagnostics("strict");
+        var logger = new TestLogger();
+        var documents = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = DocumentWithLlms(new Dictionary<string, object>
+            {
+                ["visibility"] = "always"
+            })
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => SeoDiagnostics.AnalyzeLlmsCuration(config, documents, logger));
+
+        Assert.Contains("geo.llms_visibility_invalid", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnalyzeLlmsCuration_ValidMetadata_DoesNotReport()
+    {
+        var config = ConfigWithDiagnostics("warn");
+        var logger = new TestLogger();
+        var documents = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = DocumentWithLlms(new Dictionary<string, object>
+            {
+                ["visibility"] = "include",
+                ["tier"] = "optional",
+                ["priority"] = 10
+            })
+        };
+
+        SeoDiagnostics.AnalyzeLlmsCuration(config, documents, logger);
+
+        Assert.Empty(logger.Warnings);
+    }
+
+    private static ContentDocument DocumentWithLlms(Dictionary<string, object> llms)
+        => ContentDocument.Create(
+            id: "llms-page",
+            title: "LLMS",
+            slug: "llms",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: "<p>llms</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["geo"] = new Dictionary<string, object> { ["llms"] = llms }
+            }));
 
     [Fact]
     public void AnalyzeIndex_WarnMode_ReportsAuthorNoSameAs()
