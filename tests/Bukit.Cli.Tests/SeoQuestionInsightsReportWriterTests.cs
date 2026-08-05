@@ -150,6 +150,35 @@ public sealed class SeoQuestionInsightsReportWriterTests
     }
 
     [Fact]
+    public void Assemble_IntegerMetricOverflow_IsRejectedWithStableCode()
+    {
+        var exception = Assert.Throws<InvalidDataException>(() => SeoQuestionInsightsAssembler.Assemble(
+            RouteMapPath(),
+            TargetMap([(QuestionKey, [RouteKeyA])]),
+            [("observations/gsc-questions.json", Dataset(
+                (QuestionKey, "https://example.com/a/", long.MaxValue, 0, 1.0),
+                (QuestionKey, "https://example.com/a/", 1, 0, 1.0)))],
+            Options(),
+            GeneratedAt));
+
+        Assert.StartsWith("question_insights.numeric_overflow", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Assemble_NonFiniteWeightedMetric_IsRejectedWithStableCode()
+    {
+        var exception = Assert.Throws<InvalidDataException>(() => SeoQuestionInsightsAssembler.Assemble(
+            RouteMapPath(),
+            TargetMap([(QuestionKey, [RouteKeyA])]),
+            [("observations/gsc-questions.json", Dataset(
+                (QuestionKey, "https://example.com/a/", long.MaxValue, 0, double.MaxValue)))],
+            Options(),
+            GeneratedAt));
+
+        Assert.StartsWith("question_insights.numeric_overflow", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Assemble_JoinQualityTotalsCoverTargetsAndObservations()
     {
         var report = SeoQuestionInsightsAssembler.Assemble(

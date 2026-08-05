@@ -108,11 +108,7 @@ internal static class SeoQuestionInsightsAssembler
                             aggregations[key] = aggregation;
                         }
 
-                        aggregation.Impressions += row.Impressions;
-                        aggregation.Clicks += row.Clicks;
-                        aggregation.PositionWeightedSum += row.AveragePosition * row.Impressions;
-                        aggregation.PositionSampleSum += row.AveragePosition;
-                        aggregation.PositionSamples++;
+                        aggregation.Add(row);
                         break;
                     case SeoObservationMatchKind.Ambiguous:
                         observationAmbiguousRows++;
@@ -170,8 +166,8 @@ internal static class SeoQuestionInsightsAssembler
                 target.Intent,
                 target.Locale,
                 target.Priority,
-                routes.Sum(route => route.Impressions),
-                routes.Sum(route => route.Clicks),
+                SumMetrics(routes, route => route.Impressions),
+                SumMetrics(routes, route => route.Clicks),
                 routes));
         }
 
@@ -221,8 +217,28 @@ internal static class SeoQuestionInsightsAssembler
                 .ToArray());
     }
 
-    private static InvalidDataException Invalid(string code, string detail)
-        => new($"{code}: {detail}");
+    private static long SumMetrics(
+        IReadOnlyList<SeoQuestionRouteCoverage> routes,
+        Func<SeoQuestionRouteCoverage, long> selector)
+    {
+        try
+        {
+            long total = 0;
+            foreach (var route in routes)
+            {
+                total = checked(total + selector(route));
+            }
+
+            return total;
+        }
+        catch (OverflowException exception)
+        {
+            throw Invalid("question_insights.numeric_overflow", "Question metric aggregation overflowed.", exception);
+        }
+    }
+
+    private static InvalidDataException Invalid(string code, string detail, Exception? inner = null)
+        => new($"{code}: {detail}", inner);
 
     private sealed class RouteAggregation
     {
@@ -231,5 +247,32 @@ internal static class SeoQuestionInsightsAssembler
         internal double PositionWeightedSum { get; set; }
         internal double PositionSampleSum { get; set; }
         internal long PositionSamples { get; set; }
+
+        internal void Add(SearchQuestionObservationRow row)
+        {
+            try
+            {
+                Impressions = checked(Impressions + row.Impressions);
+                Clicks = checked(Clicks + row.Clicks);
+
+                var weightedPosition = row.AveragePosition * row.Impressions;
+                var weightedTotal = PositionWeightedSum + weightedPosition;
+                var sampleTotal = PositionSampleSum + row.AveragePosition;
+                if (!double.IsFinite(weightedPosition) ||
+                    !double.IsFinite(weightedTotal) ||
+                    !double.IsFinite(sampleTotal))
+                {
+                    throw new OverflowException("Question position aggregation is not finite.");
+                }
+
+                PositionWeightedSum = weightedTotal;
+                PositionSampleSum = sampleTotal;
+                PositionSamples = checked(PositionSamples + 1);
+            }
+            catch (OverflowException exception)
+            {
+                throw Invalid("question_insights.numeric_overflow", "Question metric aggregation overflowed.", exception);
+            }
+        }
     }
 }
