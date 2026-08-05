@@ -124,10 +124,16 @@ public sealed class ExternalAuthorityReportWriterTests
             GeneratedAt);
 
         Assert.Equal(2, report.UnmatchedCitedUrls.Count);
-        Assert.Equal("https://example.com/unknown/", report.UnmatchedCitedUrls[0].Url);
-        Assert.Null(report.UnmatchedCitedUrls[0].ErrorCode);
-        Assert.Equal("https://user:pass@example.com/a/", report.UnmatchedCitedUrls[1].Url);
-        Assert.Equal("credentials_not_allowed", report.UnmatchedCitedUrls[1].ErrorCode);
+        var missing = Assert.Single(report.UnmatchedCitedUrls, item => item.ErrorCode is null);
+        Assert.Equal("https://example.com/unknown/", missing.Url);
+        var credential = Assert.Single(
+            report.UnmatchedCitedUrls,
+            item => item.ErrorCode == "credentials_not_allowed");
+        Assert.Equal("https://example.com/a/", credential.Url);
+
+        var json = Serialize(report);
+        Assert.DoesNotContain("user", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("pass", json, StringComparison.Ordinal);
 
         var ambiguous = Assert.Single(report.AmbiguousCitedUrls);
         Assert.Equal("https://example.com/dup/", ambiguous.Url);
@@ -137,6 +143,24 @@ public sealed class ExternalAuthorityReportWriterTests
         Assert.Equal(1, report.JoinQuality.MatchedRows);
         Assert.Equal(2, report.JoinQuality.UnmatchedRows);
         Assert.Equal(1, report.JoinQuality.AmbiguousRows);
+    }
+
+    [Fact]
+    public void Assemble_CredentialBearingSourceUrl_RedactsReportEvidence()
+    {
+        var report = ExternalAuthorityReportWriter.Assemble(
+            RouteMapPath(),
+            [("observations/source.json", Dataset("provider-a",
+                Row("https://source-user:source-secret@source.example/a", "forum", "active", [])))],
+            Options(),
+            GeneratedAt);
+
+        var source = Assert.Single(report.Sources);
+        var json = Serialize(report);
+
+        Assert.Equal("https://source.example/a", source.SourceUrl);
+        Assert.DoesNotContain("source-user", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("source-secret", json, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -39,7 +39,7 @@ internal static class ExternalAuthorityReportWriter
         var sourceTypes = new Dictionary<string, (long Total, long Active)>(StringComparer.Ordinal);
         var statuses = new Dictionary<string, long>(StringComparer.Ordinal);
         var routeCitations = new Dictionary<string, long>(StringComparer.Ordinal);
-        var urlJoins = new Dictionary<string, UrlJoin>(StringComparer.Ordinal);
+        var urlJoins = new Dictionary<(string Url, string? ErrorCode), UrlJoin>();
 
         foreach (var (_, dataset) in datasets)
         {
@@ -56,7 +56,8 @@ internal static class ExternalAuthorityReportWriter
                         continue;
                     }
 
-                    var joinKey = match.NormalizedUrl ?? citedUrl;
+                    var evidenceUrl = match.NormalizedUrl ?? SeoObservationUrlNormalizer.SanitizeEvidenceUrl(citedUrl);
+                    var joinKey = (evidenceUrl, match.ErrorCode);
                     if (!urlJoins.TryGetValue(joinKey, out var join))
                     {
                         join = JoinUrl(match);
@@ -74,7 +75,7 @@ internal static class ExternalAuthorityReportWriter
                     row.SourceType,
                     row.Status,
                     row.ObservedAt,
-                    row.SourceUrl,
+                    SeoObservationUrlNormalizer.SanitizeEvidenceUrl(row.SourceUrl),
                     row.ContextHash,
                     rowRouteKeys.ToArray()));
 
@@ -120,13 +121,13 @@ internal static class ExternalAuthorityReportWriter
 
         var unmatched = urlJoins
             .Where(entry => entry.Value.Kind == SeoObservationMatchKind.Unmatched)
-            .Select(entry => new ExternalAuthorityUnmatchedCitedUrl(entry.Key, entry.Value.ErrorCode))
+            .Select(entry => new ExternalAuthorityUnmatchedCitedUrl(entry.Key.Url, entry.Value.ErrorCode))
             .OrderBy(entry => entry.Url, StringComparer.Ordinal)
             .ToArray();
 
         var ambiguous = urlJoins
             .Where(entry => entry.Value.Kind == SeoObservationMatchKind.Ambiguous)
-            .Select(entry => new ExternalAuthorityAmbiguousCitedUrl(entry.Key, entry.Value.Candidates))
+            .Select(entry => new ExternalAuthorityAmbiguousCitedUrl(entry.Key.Url, entry.Value.Candidates))
             .OrderBy(entry => entry.Url, StringComparer.Ordinal)
             .ToArray();
 

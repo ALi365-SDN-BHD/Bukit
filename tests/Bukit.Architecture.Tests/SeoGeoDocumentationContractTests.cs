@@ -579,6 +579,10 @@ public sealed class SeoGeoDocumentationContractTests
             ["questionKey", "routeKey", "errorCode"],
             unmatchedTarget.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
         Assert.Equal("route_key_not_found", unmatchedTarget.GetProperty("properties").GetProperty("errorCode").GetProperty("const").GetString());
+        Assert.Equal(
+            "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$",
+            reportRoot.GetProperty("properties").GetProperty("unmatchedObservations").GetProperty("items")
+                .GetProperty("properties").GetProperty("url").GetProperty("pattern").GetString());
     }
 
     [Fact]
@@ -639,6 +643,9 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal(
             ["url", "errorCode"],
             unmatched.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$",
+            unmatched.GetProperty("properties").GetProperty("url").GetProperty("pattern").GetString());
         var ambiguous = reportRoot.GetProperty("properties").GetProperty("ambiguousCitedUrls").GetProperty("items");
         Assert.False(ambiguous.GetProperty("additionalProperties").GetBoolean());
         Assert.Equal(
@@ -677,7 +684,7 @@ public sealed class SeoGeoDocumentationContractTests
             row.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
         Assert.Equal(3, row.GetProperty("anyOf").GetArrayLength());
         var rowProperties = row.GetProperty("properties");
-        Assert.Equal("^https?://", rowProperties.GetProperty("sourceUrl").GetProperty("pattern").GetString());
+        Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", rowProperties.GetProperty("sourceUrl").GetProperty("pattern").GetString());
         Assert.Equal(
             ["official", "regulator", "research", "news", "association", "repository", "forum", "other"],
             rowProperties.GetProperty("sourceType").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
@@ -688,7 +695,7 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal("^topic:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("topicKey").GetProperty("pattern").GetString());
         Assert.Equal("^entity:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("entityKey").GetProperty("pattern").GetString());
         Assert.Equal("^context:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("contextHash").GetProperty("pattern").GetString());
-        Assert.Equal("^https?://", rowProperties.GetProperty("citedUrls").GetProperty("items").GetProperty("pattern").GetString());
+        Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", rowProperties.GetProperty("citedUrls").GetProperty("items").GetProperty("pattern").GetString());
 
         using var reportSchema = ReadJson("docs", "schemas", "external-authority-report.v1.schema.json");
         var reportRoot = reportSchema.RootElement;
@@ -708,6 +715,9 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal(
             ["provider", "sourceType", "status", "observedAt", "sourceUrl", "contextHash", "citedRouteKeys"],
             sourceRecord.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)",
+            sourceRecord.GetProperty("properties").GetProperty("sourceUrl").GetProperty("pattern").GetString());
         var joinQuality = reportRoot.GetProperty("properties").GetProperty("joinQuality");
         Assert.False(joinQuality.GetProperty("additionalProperties").GetBoolean());
         Assert.Equal(
@@ -718,6 +728,9 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal(
             ["url", "errorCode"],
             unmatched.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$",
+            unmatched.GetProperty("properties").GetProperty("url").GetProperty("pattern").GetString());
         var ambiguous = reportRoot.GetProperty("properties").GetProperty("ambiguousCitedUrls").GetProperty("items");
         Assert.False(ambiguous.GetProperty("additionalProperties").GetBoolean());
         Assert.Equal(

@@ -94,7 +94,7 @@
         "required": ["questionKey", "url", "errorCode"],
         "properties": {
           "questionKey": { "type": "string", "pattern": "^question:sha256:[0-9a-f]{64}$" },
-          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "url": { "type": "string", "minLength": 1, "pattern": "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$" },
           "errorCode": {
             "oneOf": [
               { "enum": ["invalid_url", "unsupported_scheme", "credentials_not_allowed", "host_not_allowed"] },
@@ -112,7 +112,7 @@
         "required": ["questionKey", "url", "candidateRouteKeys"],
         "properties": {
           "questionKey": { "type": "string", "pattern": "^question:sha256:[0-9a-f]{64}$" },
-          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "url": { "type": "string", "minLength": 1, "pattern": "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$" },
           "candidateRouteKeys": {
             "type": "array",
             "items": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" }

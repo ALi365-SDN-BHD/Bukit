@@ -124,6 +124,27 @@ public sealed class GenerativeCitationReportWriterTests
     }
 
     [Fact]
+    public void Assemble_CredentialBearingCitedUrl_RedactsReportEvidence()
+    {
+        var report = GenerativeCitationReportWriter.Assemble(
+            RouteMapPath(),
+            [("observations/runs.json", Dataset(
+                "engine-one",
+                "v1",
+                (QuestionKey, false, false, ["https://report-user:report-secret@example.com/private/"])))],
+            Options(),
+            GeneratedAt);
+
+        var unmatched = Assert.Single(report.UnmatchedCitedUrls);
+        var json = Serialize(report);
+
+        Assert.Equal("credentials_not_allowed", unmatched.ErrorCode);
+        Assert.Equal("https://example.com/private/", unmatched.Url);
+        Assert.DoesNotContain("report-user", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("report-secret", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Assemble_ContradictoryPromptSetVersionsRemainSeparateSources()
     {
         var report = GenerativeCitationReportWriter.Assemble(

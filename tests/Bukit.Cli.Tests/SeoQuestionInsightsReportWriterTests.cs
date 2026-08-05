@@ -92,6 +92,26 @@ public sealed class SeoQuestionInsightsReportWriterTests
     }
 
     [Fact]
+    public void Assemble_CredentialBearingObservation_RedactsReportEvidence()
+    {
+        var report = SeoQuestionInsightsAssembler.Assemble(
+            RouteMapPath(),
+            TargetMap([(QuestionKey, [RouteKeyA])]),
+            [("observations/gsc-questions.json", Dataset(
+                (QuestionKey, "https://report-user:report-secret@example.com/private/", 5, 1, 3.0)))],
+            Options(),
+            GeneratedAt);
+
+        var unmatched = Assert.Single(report.UnmatchedObservations);
+        var json = Serialize(report);
+
+        Assert.Equal("credentials_not_allowed", unmatched.ErrorCode);
+        Assert.Equal("https://example.com/private/", unmatched.Url);
+        Assert.DoesNotContain("report-user", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("report-secret", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Assemble_WindowMismatchAcrossDatasets_IsRejected()
     {
         var first = Dataset((QuestionKey, "https://example.com/a/", 1, 0, 1.0));

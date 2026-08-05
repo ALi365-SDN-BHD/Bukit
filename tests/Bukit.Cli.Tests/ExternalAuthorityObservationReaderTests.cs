@@ -146,6 +146,17 @@ public sealed class ExternalAuthorityObservationReaderTests : IDisposable
     }
 
     [Fact]
+    public void Read_CredentialBearingSourceUrl_ThrowsStableCode()
+    {
+        var path = WriteJson(DatasetJson(RowJson(
+            sourceUrl: "\"https://source-user:source-secret@source.example/discussion\"")));
+
+        var exception = Assert.Throws<InvalidDataException>(() => ExternalAuthorityObservationReader.Read(path));
+
+        Assert.StartsWith("external_authority_observation.source_url_invalid", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Read_InvalidContextHash_ThrowsStableCode()
     {
         var path = WriteJson(DatasetJson(RowJson(contextHash: "\"context:sha256:xyz\"")));
@@ -159,6 +170,17 @@ public sealed class ExternalAuthorityObservationReaderTests : IDisposable
     public void Read_NonHttpCitedUrl_ThrowsStableCode()
     {
         var path = WriteJson(DatasetJson(RowJson(citedUrls: "[\"ftp://example.com/file\"]")));
+
+        var exception = Assert.Throws<InvalidDataException>(() => ExternalAuthorityObservationReader.Read(path));
+
+        Assert.StartsWith("external_authority_observation.cited_urls_invalid", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_CredentialBearingCitedUrl_ThrowsStableCode()
+    {
+        var path = WriteJson(DatasetJson(RowJson(
+            citedUrls: "[\"https://citation-user:citation-secret@example.com/guide/\"]")));
 
         var exception = Assert.Throws<InvalidDataException>(() => ExternalAuthorityObservationReader.Read(path));
 

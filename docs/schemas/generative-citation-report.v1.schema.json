@@ -84,7 +84,7 @@
         "additionalProperties": false,
         "required": ["url", "errorCode"],
         "properties": {
-          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "url": { "type": "string", "minLength": 1, "pattern": "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$" },
           "errorCode": { "type": ["string", "null"], "minLength": 1 }
         }
       }
@@ -97,7 +97,7 @@
         "additionalProperties": false,
         "required": ["url", "candidateRouteKeys"],
         "properties": {
-          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "url": { "type": "string", "minLength": 1, "pattern": "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$" },
           "candidateRouteKeys": {
             "type": "array",
             "minItems": 2,
@@ -114,7 +114,7 @@
         "additionalProperties": false,
         "required": ["url", "citationRuns"],
         "properties": {
-          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "url": { "type": "string", "minLength": 1, "pattern": "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$" },
           "citationRuns": { "type": "integer", "minimum": 0 }
         }
       }

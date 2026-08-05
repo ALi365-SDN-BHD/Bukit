@@ -104,12 +104,15 @@ internal static class SeoQuestionInsightsAssembler
                         observationAmbiguousRows++;
                         ambiguousObservations.Add(new SeoQuestionAmbiguousObservation(
                             row.QuestionKey,
-                            row.Url,
+                            SeoObservationUrlNormalizer.SanitizeEvidenceUrl(row.Url),
                             match.Candidates.Select(candidate => candidate.RouteKey).ToArray()));
                         break;
                     default:
                         observationUnmatchedRows++;
-                        unmatchedObservations.Add(new SeoQuestionUnmatchedObservation(row.QuestionKey, row.Url, match.ErrorCode));
+                        unmatchedObservations.Add(new SeoQuestionUnmatchedObservation(
+                            row.QuestionKey,
+                            SeoObservationUrlNormalizer.SanitizeEvidenceUrl(row.Url),
+                            match.ErrorCode));
                         break;
                 }
             }

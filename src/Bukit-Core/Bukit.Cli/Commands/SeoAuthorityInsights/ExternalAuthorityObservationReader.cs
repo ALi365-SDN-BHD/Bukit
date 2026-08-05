@@ -122,7 +122,7 @@ internal static partial class ExternalAuthorityObservationReader
         Require(row, RowProperties);
 
         var sourceUrl = ReadNonBlankString(row, "sourceUrl", "external_authority_observation.source_url_invalid");
-        if (!HttpUrlRegex().IsMatch(sourceUrl))
+        if (!IsAbsoluteHttpUrlWithoutCredentials(sourceUrl))
         {
             throw Invalid("external_authority_observation.source_url_invalid", "Source URL must be an absolute HTTP(S) URL.");
         }
@@ -174,7 +174,7 @@ internal static partial class ExternalAuthorityObservationReader
         foreach (var citedUrl in citedUrls.EnumerateArray())
         {
             var value = citedUrl.ValueKind == JsonValueKind.String ? citedUrl.GetString() : null;
-            if (value is null || !HttpUrlRegex().IsMatch(value))
+            if (value is null || !IsAbsoluteHttpUrlWithoutCredentials(value))
             {
                 throw Invalid("external_authority_observation.cited_urls_invalid", "Each cited URL must be an absolute HTTP(S) URL.");
             }
@@ -284,11 +284,14 @@ internal static partial class ExternalAuthorityObservationReader
     private static bool IsRemoteUri(string path)
         => Uri.TryCreate(path, UriKind.Absolute, out var uri) && uri.Scheme is not "file";
 
+    private static bool IsAbsoluteHttpUrlWithoutCredentials(string value)
+        => Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+           uri.Scheme is "http" or "https" &&
+           !string.IsNullOrWhiteSpace(uri.Host) &&
+           string.IsNullOrEmpty(uri.UserInfo);
+
     private static InvalidDataException Invalid(string code, string detail, Exception? inner = null)
         => new($"{code}: {detail}", inner);
-
-    [GeneratedRegex("^https?://", RegexOptions.CultureInvariant)]
-    private static partial Regex HttpUrlRegex();
 
     [GeneratedRegex("^question:sha256:[0-9a-f]{64}$", RegexOptions.CultureInvariant)]
     private static partial Regex QuestionKeyRegex();

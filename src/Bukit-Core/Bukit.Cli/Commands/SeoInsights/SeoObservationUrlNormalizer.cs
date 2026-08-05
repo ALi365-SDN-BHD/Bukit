@@ -65,6 +65,26 @@ internal static class SeoObservationUrlNormalizer
         return new SeoObservationUrlNormalizationResult(true, normalizedUrl, matchKey, null);
     }
 
+    internal static string SanitizeEvidenceUrl(string value)
+    {
+        if (!HasCredentialAuthority(value))
+        {
+            return value;
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.UserInfo))
+        {
+            return "[redacted:unsafe_url]";
+        }
+
+        var builder = new UriBuilder(uri)
+        {
+            UserName = string.Empty,
+            Password = string.Empty
+        };
+        return builder.Uri.AbsoluteUri;
+    }
+
     private static bool HasValidPercentEscapes(string value)
     {
         for (var index = 0; index < value.Length; index++)
@@ -85,6 +105,24 @@ internal static class SeoObservationUrlNormalizer
         }
 
         return true;
+    }
+
+    private static bool HasCredentialAuthority(string value)
+    {
+        var schemeSeparator = value.IndexOf("://", StringComparison.Ordinal);
+        if (schemeSeparator < 0)
+        {
+            return false;
+        }
+
+        var authority = value.AsSpan(schemeSeparator + 3);
+        var authorityEnd = authority.IndexOfAny('/', '?', '#');
+        if (authorityEnd >= 0)
+        {
+            authority = authority[..authorityEnd];
+        }
+
+        return authority.Contains('@');
     }
 
     private static HashSet<string> AllowedHosts(SeoObservationUrlOptions options)

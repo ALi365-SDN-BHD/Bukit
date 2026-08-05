@@ -88,7 +88,9 @@ internal static class GenerativeCitationReportWriter
                             externalRuns[classification.Url] = externalRuns.GetValueOrDefault(classification.Url) + 1;
                             break;
                         default:
-                            invalidUrls.TryAdd(classification.Url, classification.ErrorCode ?? "invalid_url");
+                            invalidUrls.TryAdd(
+                                SeoObservationUrlNormalizer.SanitizeEvidenceUrl(classification.Url),
+                                classification.ErrorCode ?? "invalid_url");
                             break;
                     }
                 }
