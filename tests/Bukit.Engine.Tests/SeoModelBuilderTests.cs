@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
+using System.Reflection;
 using System.Text.Json;
 using Xunit;
 
@@ -693,6 +694,141 @@ public sealed class SeoModelBuilderTests
         var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
 
         Assert.Equal("https://example.com/covers/main.jpg", model.Og.Image);
+    }
+
+    [Fact]
+    public void BuildForContent_ImageSource_ExplicitFieldWinsOverMediaAndDefault()
+    {
+        var config = CreateConfig(defaultImage: "/images/default.jpg");
+        var item = ContentDocument.Create(
+            id: "img-src-1",
+            title: "Explicit",
+            slug: "explicit",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["seo_image"] = "/images/explicit.jpg"
+            }));
+        var route = new RouteInfo("/pages/explicit/", "pages/explicit/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("https://example.com/images/explicit.jpg", model.Og.Image);
+        Assert.Equal("ExplicitField", ImageSourceName(model));
+    }
+
+    [Fact]
+    public void BuildForContent_ImageSource_ContentMediaUsedWhenNoExplicitField()
+    {
+        var config = CreateConfig(defaultImage: "/images/default.jpg");
+        var item = ContentDocument.Create(
+            id: "img-src-2",
+            title: "Media",
+            slug: "media",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page"
+            }));
+        item = item with
+        {
+            Record = item.Record with
+            {
+                Media = [new MediaAsset("image", "/media/photo.jpg")]
+            }
+        };
+        var route = new RouteInfo("/pages/media/", "pages/media/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("https://example.com/media/photo.jpg", model.Og.Image);
+        Assert.Equal("ContentMedia", ImageSourceName(model));
+    }
+
+    [Fact]
+    public void BuildForContent_ImageSource_SiteDefaultUsedAsLastResort()
+    {
+        var config = CreateConfig(defaultImage: "/images/default.jpg");
+        var item = ContentDocument.Create(
+            id: "img-src-3",
+            title: "Default",
+            slug: "default",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page"
+            }));
+        var route = new RouteInfo("/pages/default/", "pages/default/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.Equal("https://example.com/images/default.jpg", model.Og.Image);
+        Assert.Equal("SiteDefault", ImageSourceName(model));
+    }
+
+    [Fact]
+    public void BuildForContent_ImageSource_NoneWhenNothingConfigured()
+    {
+        var config = CreateConfig(defaultImage: null);
+        var item = ContentDocument.Create(
+            id: "img-src-4",
+            title: "None",
+            slug: "none",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page"
+            }));
+        var route = new RouteInfo("/pages/none/", "pages/none/index.html", "pages/page.html");
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, route);
+
+        Assert.True(string.IsNullOrWhiteSpace(model.Og.Image));
+        Assert.Equal("None", ImageSourceName(model));
+    }
+
+    [Fact]
+    public void ResolveForContent_PreservesExistingPrecedenceOrder()
+    {
+        var config = CreateConfig(defaultImage: "/images/default.jpg");
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["type"] = "page",
+            ["og_image"] = "/images/og.jpg",
+            ["cover"] = "/images/cover.jpg",
+            ["image"] = "/images/plain.jpg"
+        });
+        var document = ContentDocument.Create(
+            id: "img-src-5",
+            title: "Precedence",
+            slug: "precedence",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: fields);
+        document = document with
+        {
+            Record = document.Record with
+            {
+                Media = [new MediaAsset("image", "/media/photo.jpg")]
+            }
+        };
+
+        var resolved = SeoImageResolver.ResolveForContent(config, "/", document);
+
+        Assert.Equal("https://example.com/images/og.jpg", resolved.Url);
+        Assert.Equal("ExplicitField", resolved.Source.ToString());
+    }
+
+    private static string ImageSourceName(SeoModel model)
+    {
+        var property = typeof(SeoModel).GetProperty("ImageSource", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(property);
+        return property.GetValue(model)!.ToString()!;
     }
 
     [Fact]
