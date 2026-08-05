@@ -170,6 +170,27 @@ public sealed class SeoQuestionInsightsReportWriterTests
     }
 
     [Fact]
+    public void Assemble_UnknownQuestionKey_IsPreservedAsUnmatchedObservation()
+    {
+        var report = SeoQuestionInsightsAssembler.Assemble(
+            RouteMapPath(),
+            TargetMap([(QuestionKey, [RouteKeyA])]),
+            [("observations/gsc-questions.json", Dataset(
+                (OtherQuestionKey, "https://example.com/a/", 10, 2, 4.0)))],
+            Options(),
+            GeneratedAt);
+
+        var unmatched = Assert.Single(report.UnmatchedObservations);
+        Assert.Equal(OtherQuestionKey, unmatched.QuestionKey);
+        Assert.Equal("https://example.com/a/", unmatched.Url);
+        Assert.Equal("question_key_not_found", unmatched.ErrorCode);
+        Assert.Equal(1, report.JoinQuality.Observations.SourceRows);
+        Assert.Equal(0, report.JoinQuality.Observations.MatchedRows);
+        Assert.Equal(1, report.JoinQuality.Observations.UnmatchedRows);
+        Assert.Empty(Assert.Single(report.Questions).Routes);
+    }
+
+    [Fact]
     public void Write_ProducesByteStableReportForFixedInputs()
     {
         var inputs = () => SeoQuestionInsightsAssembler.Assemble(

@@ -155,8 +155,10 @@ The join has two stages, both local and deterministic:
 1. **Targets.** Each `coveredRouteKeys` entry is looked up in the route map.
    A route key missing from the route map becomes an `unmatchedTargets` entry
    with the fixed error code `route_key_not_found`.
-2. **Observations.** Each row `url` is canonicalized and matched to a route
-   using the same host allowlist and URL normalization as `seo insights`. A
+2. **Observations.** Each row `questionKey` must first match a declared target;
+   an unknown key remains in `unmatchedObservations` with
+   `question_key_not_found`. The row `url` is then canonicalized and matched to
+   a route using the same host allowlist and URL normalization as `seo insights`. A
    row without a matching canonical remains in `unmatchedObservations`;
    duplicate canonical entries remain in `ambiguousObservations` and ambiguity
    never chooses a winner.

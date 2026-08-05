@@ -7,6 +7,7 @@ internal static class SeoQuestionInsightsAssembler
 {
     internal const string Schema = "https://bukit.dev/schemas/seo-question-insights-report.v1.json";
     internal const string SchemaVersion = "1.0";
+    internal const string QuestionKeyNotFoundErrorCode = "question_key_not_found";
 
     internal static SeoQuestionInsightsReport Assemble(
         string routeMapPath,
@@ -70,6 +71,9 @@ internal static class SeoQuestionInsightsAssembler
         }
 
         var aggregations = new Dictionary<(string QuestionKey, string RouteKey), RouteAggregation>();
+        var knownQuestionKeys = targets.Questions
+            .Select(target => target.QuestionKey)
+            .ToHashSet(StringComparer.Ordinal);
         var unmatchedObservations = new List<SeoQuestionUnmatchedObservation>();
         var ambiguousObservations = new List<SeoQuestionAmbiguousObservation>();
         long observationSourceRows = 0;
@@ -82,6 +86,16 @@ internal static class SeoQuestionInsightsAssembler
             foreach (var row in dataset.Rows)
             {
                 observationSourceRows++;
+                if (!knownQuestionKeys.Contains(row.QuestionKey))
+                {
+                    observationUnmatchedRows++;
+                    unmatchedObservations.Add(new SeoQuestionUnmatchedObservation(
+                        row.QuestionKey,
+                        SeoObservationUrlNormalizer.SanitizeEvidenceUrl(row.Url),
+                        QuestionKeyNotFoundErrorCode));
+                    continue;
+                }
+
                 var match = matcher.Match(row.Url);
                 switch (match.Kind)
                 {

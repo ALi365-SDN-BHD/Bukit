@@ -97,7 +97,7 @@
           "url": { "type": "string", "minLength": 1, "pattern": "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$" },
           "errorCode": {
             "oneOf": [
-              { "enum": ["invalid_url", "unsupported_scheme", "credentials_not_allowed", "host_not_allowed"] },
+              { "enum": ["invalid_url", "unsupported_scheme", "credentials_not_allowed", "host_not_allowed", "question_key_not_found"] },
               { "type": "null" }
             ]
           }

@@ -583,6 +583,11 @@ public sealed class SeoGeoDocumentationContractTests
             "^(?![Hh][Tt][Tt][Pp][Ss]?://[^/?#]*@)\\S+$",
             reportRoot.GetProperty("properties").GetProperty("unmatchedObservations").GetProperty("items")
                 .GetProperty("properties").GetProperty("url").GetProperty("pattern").GetString());
+        Assert.Equal(
+            ["invalid_url", "unsupported_scheme", "credentials_not_allowed", "host_not_allowed", "question_key_not_found"],
+            reportRoot.GetProperty("properties").GetProperty("unmatchedObservations").GetProperty("items")
+                .GetProperty("properties").GetProperty("errorCode").GetProperty("oneOf")[0]
+                .GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
     }
 
     [Fact]
