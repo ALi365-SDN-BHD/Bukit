@@ -493,6 +493,121 @@ public sealed class SeoGeoDocumentationContractTests
     }
 
     [Fact]
+    public void QuestionCoverageSchemas_MatchPublicContracts()
+    {
+        using var targetMapSchema = ReadJson("docs", "schemas", "seo-question-target-map.v1.schema.json");
+        var targetRoot = targetMapSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", targetRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-question-target-map.v1.json", targetRoot.GetProperty("$id").GetString());
+        Assert.False(targetRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "generatedAt", "questions"],
+            targetRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("1.0", targetRoot.GetProperty("properties").GetProperty("schemaVersion").GetProperty("const").GetString());
+        var questions = targetRoot.GetProperty("properties").GetProperty("questions");
+        Assert.Equal(100000, questions.GetProperty("maxItems").GetInt32());
+        var questionItem = questions.GetProperty("items");
+        Assert.False(questionItem.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["questionKey", "topicKey", "intent", "locale", "priority", "coveredRouteKeys"],
+            questionItem.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var questionProperties = questionItem.GetProperty("properties");
+        Assert.Equal("^question:sha256:[0-9a-f]{64}$", questionProperties.GetProperty("questionKey").GetProperty("pattern").GetString());
+        Assert.Equal("^topic:sha256:[0-9a-f]{64}$", questionProperties.GetProperty("topicKey").GetProperty("pattern").GetString());
+        Assert.Equal(
+            ["informational", "navigational", "commercial", "transactional", "other"],
+            questionProperties.GetProperty("intent").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            ["P0", "P1", "P2"],
+            questionProperties.GetProperty("priority").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            "^route:sha256:[0-9a-f]{64}$",
+            questionProperties.GetProperty("coveredRouteKeys").GetProperty("items").GetProperty("pattern").GetString());
+
+        using var observationSchema = ReadJson("docs", "schemas", "search-question-observation.v1.schema.json");
+        var observationRoot = observationSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", observationRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/search-question-observation.v1.json", observationRoot.GetProperty("$id").GetString());
+        Assert.False(observationRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "provider", "scope", "collectedAt", "collectionMethod", "window", "rows"],
+            observationRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var observationProperties = observationRoot.GetProperty("properties");
+        Assert.Equal("google-search-console", observationProperties.GetProperty("provider").GetProperty("const").GetString());
+        Assert.Equal("google-organic", observationProperties.GetProperty("scope").GetProperty("const").GetString());
+        Assert.Equal(
+            ["api", "export", "manual"],
+            observationProperties.GetProperty("collectionMethod").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
+        var observationRows = observationProperties.GetProperty("rows");
+        Assert.Equal(100000, observationRows.GetProperty("maxItems").GetInt32());
+        var observationRow = observationRows.GetProperty("items");
+        Assert.False(observationRow.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["questionKey", "topicKey", "url", "locale", "device", "impressions", "clicks", "averagePosition"],
+            observationRow.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var observationRowProperties = observationRow.GetProperty("properties");
+        Assert.Equal(
+            ["desktop", "mobile", "tablet", "unknown"],
+            observationRowProperties.GetProperty("device").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(0, observationRowProperties.GetProperty("impressions").GetProperty("minimum").GetInt32());
+        Assert.Equal(0, observationRowProperties.GetProperty("clicks").GetProperty("minimum").GetInt32());
+        Assert.Equal(0, observationRowProperties.GetProperty("averagePosition").GetProperty("minimum").GetInt32());
+        var observationWindow = observationRoot.GetProperty("$defs").GetProperty("window");
+        Assert.Equal(
+            ["startDate", "endDate", "timeZone"],
+            observationWindow.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+
+        using var reportSchema = ReadJson("docs", "schemas", "seo-question-insights-report.v1.schema.json");
+        var reportRoot = reportSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", reportRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-question-insights-report.v1.json", reportRoot.GetProperty("$id").GetString());
+        Assert.False(reportRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "generatedAt", "window", "sources", "joinQuality", "questions", "unmatchedTargets", "unmatchedObservations", "ambiguousObservations"],
+            reportRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var joinQuality = reportRoot.GetProperty("properties").GetProperty("joinQuality");
+        Assert.Equal(
+            ["overall", "targets", "observations"],
+            joinQuality.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var joinCounts = reportRoot.GetProperty("$defs").GetProperty("joinCounts");
+        Assert.Equal(
+            ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+            joinCounts.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var unmatchedTarget = reportRoot.GetProperty("properties").GetProperty("unmatchedTargets").GetProperty("items");
+        Assert.False(unmatchedTarget.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["questionKey", "routeKey", "errorCode"],
+            unmatchedTarget.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("route_key_not_found", unmatchedTarget.GetProperty("properties").GetProperty("errorCode").GetProperty("const").GetString());
+    }
+
+    [Fact]
+    public void ActiveGuide_DocumentsQuestionCoverageContract()
+    {
+        var guide = ReadText("guide", "user", "22-seo-question-insights.md");
+        var index = ReadText("guide", "user", "README.md");
+        var cli = ReadText("guide", "user", "12-cli-reference.md");
+
+        Assert.Contains("[22 SEO Question Insights](22-seo-question-insights.md)", index, StringComparison.Ordinal);
+
+        Assert.Contains("seo-question-target-map.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("search-question-observation.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("seo-question-insights-report.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("question:sha256:", guide, StringComparison.Ordinal);
+        Assert.Contains("topic:sha256:", guide, StringComparison.Ordinal);
+        Assert.Contains("route:sha256:", guide, StringComparison.Ordinal);
+        Assert.Contains("google-search-console", guide, StringComparison.Ordinal);
+        Assert.Contains("never receives raw", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("low-volume", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("human review", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not prove demand", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not prove causation", guide, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("bukit seo question-insights", cli, StringComparison.Ordinal);
+        Assert.Contains("--targets", cli, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProtectedReferenceTrees_AreNotActiveInputs()
     {
         var protectedNames = new[]

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/search-question-observation.v1.json",
+  "title": "Bukit Search Question Observation Dataset v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "provider", "scope", "collectedAt", "collectionMethod", "window", "rows"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/search-question-observation.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "provider": { "const": "google-search-console" },
+    "scope": { "const": "google-organic" },
+    "collectedAt": { "type": "string", "format": "date-time" },
+    "collectionMethod": { "enum": ["api", "export", "manual"] },
+    "window": { "$ref": "#/$defs/window" },
+    "rows": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questionKey", "topicKey", "url", "locale", "device", "impressions", "clicks", "averagePosition"],
+        "properties": {
+          "questionKey": { "type": "string", "pattern": "^question:sha256:[0-9a-f]{64}$" },
+          "topicKey": { "type": "string", "pattern": "^topic:sha256:[0-9a-f]{64}$" },
+          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "locale": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "device": { "enum": ["desktop", "mobile", "tablet", "unknown"] },
+          "impressions": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+          "clicks": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+          "averagePosition": { "type": "number", "minimum": 0, "maximum": 1.7976931348623157e308 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startDate", "endDate", "timeZone"],
+      "properties": {
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "timeZone": { "type": "string", "minLength": 1, "pattern": "\\S" }
+      }
+    }
+  }
+}

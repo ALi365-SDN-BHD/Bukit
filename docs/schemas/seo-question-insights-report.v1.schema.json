@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/seo-question-insights-report.v1.json",
+  "title": "Bukit SEO Question Insights Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "generatedAt", "window", "sources", "joinQuality", "questions", "unmatchedTargets", "unmatchedObservations", "ambiguousObservations"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/seo-question-insights-report.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "window": { "$ref": "#/$defs/window" },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider", "scope", "collectionMethod", "collectedAt", "path"],
+        "properties": {
+          "provider": { "const": "google-search-console" },
+          "scope": { "const": "google-organic" },
+          "collectionMethod": { "enum": ["api", "export", "manual"] },
+          "collectedAt": { "type": "string", "format": "date-time" },
+          "path": { "type": "string", "minLength": 1, "pattern": "\\S" }
+        }
+      }
+    },
+    "joinQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall", "targets", "observations"],
+      "properties": {
+        "overall": { "$ref": "#/$defs/joinCounts" },
+        "targets": { "$ref": "#/$defs/joinCounts" },
+        "observations": { "$ref": "#/$defs/joinCounts" }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questionKey", "topicKey", "intent", "locale", "priority", "totalImpressions", "totalClicks", "routes"],
+        "properties": {
+          "questionKey": { "type": "string", "pattern": "^question:sha256:[0-9a-f]{64}$" },
+          "topicKey": { "type": "string", "pattern": "^topic:sha256:[0-9a-f]{64}$" },
+          "intent": { "enum": ["informational", "navigational", "commercial", "transactional", "other"] },
+          "locale": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "priority": { "enum": ["P0", "P1", "P2"] },
+          "totalImpressions": { "type": "integer", "minimum": 0 },
+          "totalClicks": { "type": "integer", "minimum": 0 },
+          "routes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["routeKey", "canonical", "impressions", "clicks", "averagePosition"],
+              "properties": {
+                "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
+                "canonical": {
+                  "oneOf": [
+                    { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", "format": "uri" },
+                    { "type": "string", "pattern": "^/(?!/)" }
+                  ]
+                },
+                "impressions": { "type": "integer", "minimum": 0 },
+                "clicks": { "type": "integer", "minimum": 0 },
+                "ctr": { "$ref": "#/$defs/nullableRatio" },
+                "averagePosition": { "type": "number", "minimum": 0, "maximum": 1.7976931348623157e308 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "unmatchedTargets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questionKey", "routeKey", "errorCode"],
+        "properties": {
+          "questionKey": { "type": "string", "pattern": "^question:sha256:[0-9a-f]{64}$" },
+          "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
+          "errorCode": { "const": "route_key_not_found" }
+        }
+      }
+    },
+    "unmatchedObservations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questionKey", "url", "errorCode"],
+        "properties": {
+          "questionKey": { "type": "string", "pattern": "^question:sha256:[0-9a-f]{64}$" },
+          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "errorCode": {
+            "oneOf": [
+              { "enum": ["invalid_url", "unsupported_scheme", "credentials_not_allowed", "host_not_allowed"] },
+              { "type": "null" }
+            ]
+          }
+        }
+      }
+    },
+    "ambiguousObservations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questionKey", "url", "candidateRouteKeys"],
+        "properties": {
+          "questionKey": { "type": "string", "pattern": "^question:sha256:[0-9a-f]{64}$" },
+          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "candidateRouteKeys": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startDate", "endDate", "timeZone"],
+      "properties": {
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "timeZone": { "type": "string", "minLength": 1, "pattern": "\\S" }
+      }
+    },
+    "joinCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+      "properties": {
+        "sourceRows": { "type": "integer", "minimum": 0 },
+        "matchedRows": { "type": "integer", "minimum": 0 },
+        "unmatchedRows": { "type": "integer", "minimum": 0 },
+        "ambiguousRows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "nullableRatio": {
+      "oneOf": [
+        { "type": "number", "minimum": 0, "maximum": 1 },
+        { "type": "null" }
+      ]
+    }
+  }
+}

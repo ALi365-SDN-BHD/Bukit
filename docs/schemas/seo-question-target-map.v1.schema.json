@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/seo-question-target-map.v1.json",
+  "title": "Bukit SEO Question Target Map v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "generatedAt", "questions"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/seo-question-target-map.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "questions": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questionKey", "topicKey", "intent", "locale", "priority", "coveredRouteKeys"],
+        "properties": {
+          "questionKey": { "type": "string", "pattern": "^question:sha256:[0-9a-f]{64}$" },
+          "topicKey": { "type": "string", "pattern": "^topic:sha256:[0-9a-f]{64}$" },
+          "intent": { "enum": ["informational", "navigational", "commercial", "transactional", "other"] },
+          "locale": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "priority": { "enum": ["P0", "P1", "P2"] },
+          "coveredRouteKeys": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" }
+          }
+        }
+      }
+    }
+  }
+}

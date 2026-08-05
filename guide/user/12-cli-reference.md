@@ -20,6 +20,7 @@ This table is derived from `BukitCliSpecs.cs`.
 | `seo audit` | Validate `.bukit/seo-report.json`. | `--dir`, `--report`, `--strict`, `--external` |
 | `seo diff` | Compare SEO reports. | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
 | `seo insights` | Join local SEO observations with the route map and write an offline insights report. | `--dir`, `--routes`, `--observations`, `--rules`, `--out`, `--strict-join` |
+| `seo question-insights` | Join a local question target map with search question observations and write an offline coverage report. | `--dir`, `--routes`, `--targets`, `--observations`, `--rules`, `--out`, `--strict-join` |
 | `geo` | Parent command for GEO reports. | `--dir` |
 | `geo audit` | Validate `.bukit/geo-report.json`. | `--dir` |
 | `publish` | Parent command for publish audit reports. | `--dir`, `--report`, `--strict`, `--external` |
@@ -44,6 +45,7 @@ bukit dev --config site.yaml --port 35729
 bukit preview --dir dist --port 4173
 bukit seo audit --dir dist --strict
 bukit seo insights --dir dist --observations incoming/gsc.json,incoming/ga4.json --rules seo-insights-rules.json
+bukit seo question-insights --dir dist --targets observations/question-targets.json --observations observations/gsc-questions.json --rules seo-insights-rules.json
 bukit publish audit --dir dist --strict
 bukit deploy --dry-run
 ```
@@ -63,6 +65,11 @@ report when joins are complete or gaps are allowed, `1` only when
 `2` for input, local-path, schema, or read/write failures. See
 [21 SEO Insights](21-seo-insights.md) for required options, defaults, and the
 offline collector boundary.
+
+`seo question-insights` uses the same exit-code refinement for its two-stage
+join of question targets and search question observations. See
+[22 SEO Question Insights](22-seo-question-insights.md) for required options,
+defaults, and the privacy boundary.
 
 ## Dynamic Plugin Commands
 

@@ -29,7 +29,7 @@ public sealed class CliContractTests
                 "clean:",
                 "version:",
                 "completion:",
-                "seo:audit,diff,insights",
+                "seo:audit,diff,insights,question-insights",
                 "geo:audit",
                 "publish:audit,diff",
                 "deploy:",
@@ -48,7 +48,7 @@ public sealed class CliContractTests
         var insights = registry.ResolveSubcommand(seo, "insights")!;
         var options = insights.Options!;
 
-        Assert.Equal(["audit", "diff", "insights"], seo.Subcommands!.Select(command => command.Name));
+        Assert.Equal(["audit", "diff", "insights", "question-insights"], seo.Subcommands!.Select(command => command.Name));
         Assert.Equal(
             ["--dir", "--report", "--strict", "--external"],
             seo.Options!.Select(option => option.Name));
@@ -63,6 +63,25 @@ public sealed class CliContractTests
         Assert.Equal("<dir>/.bukit/seo-insights-report.json", options.Single(option => option.Name == "--out").DefaultValueHelp);
         Assert.NotNull(registry.ResolveSubcommand(seo, "audit"));
         Assert.NotNull(registry.ResolveSubcommand(seo, "diff"));
+    }
+
+    [Fact]
+    public void Registry_SeoQuestionInsights_ExposesRequiredOfflineOptionsWithoutChangingExistingSubcommands()
+    {
+        var registry = BukitCliSpecs.CreateRegistry();
+        var seo = registry.Resolve("seo")!;
+        var questionInsights = registry.ResolveSubcommand(seo, "question-insights")!;
+        var options = questionInsights.Options!;
+
+        Assert.Equal(
+            ["--dir", "--routes", "--targets", "--observations", "--rules", "--out", "--strict-join"],
+            options.Select(option => option.Name));
+        Assert.True(options.Single(option => option.Name == "--targets").Required);
+        Assert.True(options.Single(option => option.Name == "--observations").Required);
+        Assert.True(options.Single(option => option.Name == "--rules").Required);
+        Assert.False(options.Single(option => option.Name == "--routes").Required);
+        Assert.Equal("<dir>/.bukit/seo-route-map.json", options.Single(option => option.Name == "--routes").DefaultValueHelp);
+        Assert.Equal("<dir>/.bukit/seo-question-insights-report.json", options.Single(option => option.Name == "--out").DefaultValueHelp);
     }
 
     [Fact]

@@ -77,9 +77,15 @@ public static class SeoCommand
             return SeoInsightsCommand.Run(command);
         }
 
+        if (string.Equals(subcommand, "question-insights", StringComparison.OrdinalIgnoreCase))
+        {
+            return SeoQuestionInsightsCommand.Run(command);
+        }
+
         Console.Error.WriteLine($"Usage: bukit {commandName} audit [--dir dist] [--report seo-report.json] [--strict] [--external]");
         Console.Error.WriteLine($"       bukit {commandName} diff --baseline old-report.json --current new-report.json [--max-new-errors n] [--max-new-warnings n] [--max-new-issues n] [--fail-on-new-code code1,code2] [--fail-on-route-removed] [--fail-on-indexable-drop]");
         Console.Error.WriteLine($"       bukit {commandName} insights [--dir dist] [--routes seo-route-map.json] --observations gsc.json,ga4.json --rules seo-insights-rules.json [--out seo-insights-report.json] [--strict-join]");
+        Console.Error.WriteLine($"       bukit {commandName} question-insights [--dir dist] [--routes seo-route-map.json] --targets question-targets.json --observations gsc-questions.json --rules seo-insights-rules.json [--out seo-question-insights-report.json] [--strict-join]");
         return 2;
     }
 

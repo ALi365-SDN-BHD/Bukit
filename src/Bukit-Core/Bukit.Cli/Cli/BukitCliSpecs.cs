@@ -144,7 +144,11 @@ public static partial class BukitCliSpecs
                 new CliCommandSpec(
                     Name: "insights",
                     Description: "从本地 observation JSON 生成 SEO insights 报告",
-                    Options: InsightsOptions())
+                    Options: InsightsOptions()),
+                new CliCommandSpec(
+                    Name: "question-insights",
+                    Description: "从本地 question target map 与 search question observation 生成问题覆盖报告",
+                    Options: QuestionInsightsOptions())
             });
 
         var geo = new CliCommandSpec(
@@ -233,6 +237,17 @@ public static partial class BukitCliSpecs
         new CliOptionSpec("--observations", "逗号分隔的 1-10 个本地 observation JSON 路径", Required: true),
         new CliOptionSpec("--rules", "SEO insights 规则本地路径", Required: true),
         new CliOptionSpec("--out", "SEO insights 报告输出路径", DefaultValueHelp: "<dir>/.bukit/seo-insights-report.json"),
+        new CliOptionSpec("--strict-join", "unmatched 或 ambiguous 行存在时返回 1", CliOptionType.Flag)
+    ];
+
+    private static CliOptionSpec[] QuestionInsightsOptions() =>
+    [
+        new CliOptionSpec("--dir", "构建输出目录", DefaultValueHelp: "dist"),
+        new CliOptionSpec("--routes", "SEO route map 本地路径", DefaultValueHelp: "<dir>/.bukit/seo-route-map.json"),
+        new CliOptionSpec("--targets", "question target map 本地路径", Required: true),
+        new CliOptionSpec("--observations", "逗号分隔的 1-10 个本地 search question observation JSON 路径", Required: true),
+        new CliOptionSpec("--rules", "SEO insights 规则本地路径", Required: true),
+        new CliOptionSpec("--out", "问题覆盖报告输出路径", DefaultValueHelp: "<dir>/.bukit/seo-question-insights-report.json"),
         new CliOptionSpec("--strict-join", "unmatched 或 ambiguous 行存在时返回 1", CliOptionType.Flag)
     ];
 }

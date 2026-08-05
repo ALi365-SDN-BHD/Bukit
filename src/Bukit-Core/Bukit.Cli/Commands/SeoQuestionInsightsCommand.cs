@@ -1,13 +1,12 @@
 using System.Security;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bukit.Cli.Commands.SeoInsights;
+using Bukit.Cli.Commands.SeoQuestionInsights;
 using Bukit.Cli.Shared.Cli.Binding;
-using Bukit.Engine;
 
 namespace Bukit.Cli.Commands;
 
-internal static partial class SeoInsightsCommand
+internal static partial class SeoQuestionInsightsCommand
 {
     private const int MaximumObservationFiles = 10;
     private static readonly StringComparer PathIdentityComparer =
@@ -29,49 +28,96 @@ internal static partial class SeoInsightsCommand
                 command.GetString("--routes") ?? Path.Combine(outputDirectory, ".bukit", "seo-route-map.json"),
                 "routes_path_invalid");
             var rulePath = ResolveRequiredLocalPath(command.GetString("--rules"), "rules_required", "rules_path_invalid");
+            var targetPath = ResolveRequiredLocalPath(command.GetString("--targets"), "targets_required", "targets_path_invalid");
             var observationPaths = ResolveObservationPaths(command.GetString("--observations"));
             var outputPath = ResolveLocalPath(
-                command.GetString("--out") ?? Path.Combine(outputDirectory, ".bukit", SeoInsightsReportWriter.FileName),
+                command.GetString("--out") ?? Path.Combine(outputDirectory, ".bukit", SeoQuestionInsightsReportWriter.FileName),
                 "output_path_invalid");
 
-            RejectOutputConflict(outputPath, routeMapPath, rulePath, observationPaths);
+            RejectOutputConflict(outputPath, routeMapPath, rulePath, targetPath, observationPaths);
 
-            var routeMap = ReadRouteMap(routeMapPath);
             var ruleProfile = ReadRuleProfile(rulePath);
-            var datasets = observationPaths.Select(ReadObservationDataset).ToArray();
-            var matcher = CreateMatcher(routeMap, ruleProfile);
-            var report = AssembleReport(matcher, datasets, ruleProfile);
+            var targets = ReadTargetMap(targetPath);
+            var datasets = observationPaths
+                .Select(path => (path, SearchQuestionObservationReader.Read(path)))
+                .ToArray();
+            var options = new SeoObservationUrlOptions(
+                ruleProfile.SiteHost,
+                new HashSet<string>(ruleProfile.HostAliases, StringComparer.OrdinalIgnoreCase),
+                new HashSet<string>(ruleProfile.IgnoredQueryParameters, StringComparer.OrdinalIgnoreCase));
+            var report = SeoQuestionInsightsAssembler.Assemble(
+                routeMapPath,
+                targets,
+                datasets,
+                options,
+                DateTimeOffset.UtcNow);
 
-            WriteReport(outputPath, report, routeMapPath, rulePath, observationPaths);
+            WriteReport(outputPath, report, routeMapPath, rulePath, targetPath, observationPaths);
 
             var counts = report.JoinQuality.Overall;
-            var findingCount = report.Routes.Sum(route => (long)route.Findings.Count);
-            var hasJoinGaps = counts.Unmatched != 0 || counts.Ambiguous != 0;
+            var hasJoinGaps = counts.UnmatchedRows != 0 || counts.AmbiguousRows != 0;
             var strictJoinFailed = command.GetBool("--strict-join") && hasJoinGaps;
             var classification = strictJoinFailed
                 ? "strict-join-failed"
                 : hasJoinGaps ? "join-gaps-allowed" : "complete";
 
             Console.WriteLine(
-                $"SEO insights: sourceRows={counts.Total} matched={counts.Matched} unmatched={counts.Unmatched} ambiguous={counts.Ambiguous} findings={findingCount}");
-            Console.WriteLine($"SEO insights report: {outputPath}");
-            Console.WriteLine($"SEO insights classification: {classification}");
+                $"SEO question insights: sourceRows={counts.SourceRows} matched={counts.MatchedRows} unmatched={counts.UnmatchedRows} ambiguous={counts.AmbiguousRows}");
+            Console.WriteLine($"SEO question insights report: {outputPath}");
+            Console.WriteLine($"SEO question insights classification: {classification}");
             return strictJoinFailed ? 1 : 0;
         }
-        catch (SeoInsightsCommandException exception)
+        catch (SeoQuestionInsightsCommandException exception)
         {
-            Console.Error.WriteLine($"SEO insights failed: {exception.Code}.");
+            Console.Error.WriteLine($"SEO question insights failed: {exception.Code}.");
+            return 2;
+        }
+        catch (SeoRouteMapReader.RouteMapDataException exception)
+        {
+            Console.Error.WriteLine($"SEO question insights failed: {exception.Code}.");
             return 2;
         }
         catch (InvalidDataException exception)
         {
-            Console.Error.WriteLine($"SEO insights failed: {StableDataCode(exception)}.");
+            Console.Error.WriteLine($"SEO question insights failed: {StableDataCode(exception)}.");
             return 2;
         }
         catch (Exception)
         {
-            Console.Error.WriteLine("SEO insights failed: input_unavailable.");
+            Console.Error.WriteLine("SEO question insights failed: input_unavailable.");
             return 2;
+        }
+    }
+
+    private static SeoQuestionTargetMap ReadTargetMap(string path)
+    {
+        try
+        {
+            return SeoQuestionTargetMapReader.Read(path);
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            throw Failure("targets_unavailable");
+        }
+    }
+
+    private static SeoInsightsRuleProfile ReadRuleProfile(string path)
+    {
+        try
+        {
+            return SeoInsightsRuleProfileReader.Read(path);
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            throw Failure("rules_unavailable");
         }
     }
 
@@ -175,7 +221,7 @@ internal static partial class SeoInsightsCommand
 
             return Path.GetFullPath(current);
         }
-        catch (SeoInsightsCommandException)
+        catch (SeoQuestionInsightsCommandException)
         {
             throw;
         }
@@ -225,106 +271,25 @@ internal static partial class SeoInsightsCommand
         string outputPath,
         string routeMapPath,
         string rulePath,
+        string targetPath,
         IReadOnlyList<string> observationPaths)
     {
         var outputSemanticPath = ResolveCanonicalPathIdentity(outputPath);
         if (PathIdentityComparer.Equals(outputSemanticPath, ResolveCanonicalPathIdentity(routeMapPath)) ||
             PathIdentityComparer.Equals(outputSemanticPath, ResolveCanonicalPathIdentity(rulePath)) ||
+            PathIdentityComparer.Equals(outputSemanticPath, ResolveCanonicalPathIdentity(targetPath)) ||
             observationPaths.Any(path => PathIdentityComparer.Equals(outputSemanticPath, ResolveCanonicalPathIdentity(path))))
         {
             throw Failure("output_conflict");
         }
     }
 
-    private static SeoRouteMap ReadRouteMap(string path)
-    {
-        try
-        {
-            return SeoRouteMapReader.Read(path);
-        }
-        catch (SeoRouteMapReader.RouteMapDataException exception)
-        {
-            throw Failure(exception.Code);
-        }
-        catch (Exception)
-        {
-            throw Failure("route_map_unavailable");
-        }
-    }
-
-    private static SeoInsightsRuleProfile ReadRuleProfile(string path)
-    {
-        try
-        {
-            return SeoInsightsRuleProfileReader.Read(path);
-        }
-        catch (InvalidDataException)
-        {
-            throw;
-        }
-        catch (Exception)
-        {
-            throw Failure("rules_unavailable");
-        }
-    }
-
-    private static SeoObservationDataset ReadObservationDataset(string path)
-    {
-        try
-        {
-            return SeoObservationDatasetReader.Read(path);
-        }
-        catch (InvalidDataException)
-        {
-            throw;
-        }
-        catch (Exception)
-        {
-            throw Failure("observation_unavailable");
-        }
-    }
-
-    private static SeoObservationRouteMatcher CreateMatcher(SeoRouteMap routeMap, SeoInsightsRuleProfile profile)
-    {
-        try
-        {
-            return new SeoObservationRouteMatcher(
-                routeMap,
-                new SeoObservationUrlOptions(
-                    profile.SiteHost,
-                    new HashSet<string>(profile.HostAliases, StringComparer.OrdinalIgnoreCase),
-                    new HashSet<string>(profile.IgnoredQueryParameters, StringComparer.OrdinalIgnoreCase)));
-        }
-        catch (Exception)
-        {
-            throw Failure("route_map_invalid");
-        }
-    }
-
-    private static SeoInsightsReport AssembleReport(
-        SeoObservationRouteMatcher matcher,
-        IReadOnlyList<SeoObservationDataset> datasets,
-        SeoInsightsRuleProfile profile)
-    {
-        try
-        {
-            return SeoInsightsReportWriter.Assemble(matcher, datasets, profile);
-        }
-        catch (InvalidDataException)
-        {
-            throw;
-        }
-        catch (Exception)
-        {
-            throw Failure("report_invalid");
-        }
-    }
-
     private static void WriteReport(
         string outputPath,
-        SeoInsightsReport report,
+        SeoQuestionInsightsReport report,
         string routeMapPath,
         string rulePath,
+        string targetPath,
         IReadOnlyList<string> observationPaths)
     {
         var parent = Path.GetDirectoryName(outputPath);
@@ -333,13 +298,13 @@ internal static partial class SeoInsightsCommand
             throw Failure("output_path_invalid");
         }
 
-        var stagingRoot = Path.Combine(parent, $".seo-insights-{Guid.NewGuid():N}.tmp");
+        var stagingRoot = Path.Combine(parent, $".seo-question-insights-{Guid.NewGuid():N}.tmp");
         try
         {
             Directory.CreateDirectory(parent);
-            SeoInsightsReportWriter.Write(stagingRoot, report);
-            var stagedReport = Path.Combine(stagingRoot, ".bukit", SeoInsightsReportWriter.FileName);
-            RejectOutputConflict(outputPath, routeMapPath, rulePath, observationPaths);
+            SeoQuestionInsightsReportWriter.Write(stagingRoot, report);
+            var stagedReport = Path.Combine(stagingRoot, ".bukit", SeoQuestionInsightsReportWriter.FileName);
+            RejectOutputConflict(outputPath, routeMapPath, rulePath, targetPath, observationPaths);
             File.Move(stagedReport, outputPath, overwrite: true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException)
@@ -374,7 +339,7 @@ internal static partial class SeoInsightsCommand
         return code.Replace('.', '_').Replace('-', '_');
     }
 
-    private static SeoInsightsCommandException Failure(string code) => new(code);
+    private static SeoQuestionInsightsCommandException Failure(string code) => new(code);
 
     [GeneratedRegex("^[A-Za-z][A-Za-z0-9+.-]*:", RegexOptions.CultureInvariant)]
     private static partial Regex UriSchemeRegex();
@@ -382,7 +347,7 @@ internal static partial class SeoInsightsCommand
     [GeneratedRegex("^[a-z][a-z0-9_.-]{0,63}$", RegexOptions.CultureInvariant)]
     private static partial Regex DataCodeRegex();
 
-    private sealed class SeoInsightsCommandException(string code) : Exception
+    private sealed class SeoQuestionInsightsCommandException(string code) : Exception
     {
         internal string Code { get; } = code;
     }
