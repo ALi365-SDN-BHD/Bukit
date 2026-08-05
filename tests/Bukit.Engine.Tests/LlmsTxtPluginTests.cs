@@ -526,6 +526,27 @@ public sealed class LlmsTxtPluginTests : IDisposable
     }
 
     [Fact]
+    public async Task Curation_WrongShapedLlmsWarnMode_IsAbsentFromBothFiles()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-wrong-shape-warn");
+        var articles = new[]
+        {
+            new ArticleFixture("kept", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/kept/"),
+            new ArticleFixture("broken", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/broken/",
+                Llms: "invalid")
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0, llmsFullTxt: true);
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var compact = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        var full = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
+        Assert.Contains("https://example.com/posts/kept/", compact, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/posts/broken/", compact, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/posts/broken/", full, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Curation_InvalidMetadataStrictMode_FailsBuild()
     {
         var outputDir = Path.Combine(_root, "dist-curation-invalid-strict");
@@ -547,7 +568,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
         string Collection,
         DateTimeOffset Published,
         string RouteUrl,
-        Dictionary<string, object>? Llms = null,
+        object? Llms = null,
         bool Indexable = true)
     {
         public string Canonical => $"https://example.com{RouteUrl}";

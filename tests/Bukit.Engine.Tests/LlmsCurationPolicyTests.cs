@@ -24,6 +24,49 @@ public sealed class LlmsCurationPolicyTests
         Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
     }
 
+    [Fact]
+    public void Parse_DeclaredGeoWithWrongShape_IsInvalid()
+    {
+        var result = LlmsCurationPolicyParser.Parse(CreateDocumentWithGeo("invalid"));
+
+        Assert.False(result.Valid);
+        Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
+        Assert.Equal(["geo.llms_field_unknown"], result.ErrorCodes);
+    }
+
+    [Fact]
+    public void Parse_DeclaredLlmsWithWrongShape_IsInvalid()
+    {
+        var result = LlmsCurationPolicyParser.Parse(CreateDocumentWithGeo(new Dictionary<string, object>
+        {
+            ["llms"] = "invalid"
+        }));
+
+        Assert.False(result.Valid);
+        Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
+        Assert.Equal(["geo.llms_field_unknown"], result.ErrorCodes);
+    }
+
+    [Theory]
+    [InlineData("visibility", null, "geo.llms_visibility_invalid")]
+    [InlineData("visibility", "", "geo.llms_visibility_invalid")]
+    [InlineData("visibility", 1, "geo.llms_visibility_invalid")]
+    [InlineData("tier", null, "geo.llms_tier_invalid")]
+    [InlineData("tier", " ", "geo.llms_tier_invalid")]
+    [InlineData("tier", true, "geo.llms_tier_invalid")]
+    [InlineData("priority", null, "geo.llms_priority_invalid")]
+    public void Parse_DeclaredInvalidFieldValue_IsInvalid(string field, object? value, string errorCode)
+    {
+        var result = LlmsCurationPolicyParser.Parse(CreateDocument(new Dictionary<string, object>
+        {
+            [field] = value!
+        }));
+
+        Assert.False(result.Valid);
+        Assert.Equal(LlmsCurationPolicy.Default, result.Policy);
+        Assert.Contains(errorCode, result.ErrorCodes);
+    }
+
     [Theory]
     [InlineData("auto", "Auto")]
     [InlineData("include", "Include")]
@@ -173,4 +216,17 @@ public sealed class LlmsCurationPolicyTests
             contentHtml: "<p>llms</p>",
             fields: ContentFieldReader.ToFieldMap(fields));
     }
+
+    private static ContentDocument CreateDocumentWithGeo(object geo)
+        => ContentDocument.Create(
+            id: "llms-page",
+            title: "LLMS Curation",
+            slug: "llms-curation",
+            publishAt: new DateTimeOffset(2026, 8, 5, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>llms</p>",
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            {
+                ["type"] = "page",
+                ["geo"] = geo
+            }));
 }

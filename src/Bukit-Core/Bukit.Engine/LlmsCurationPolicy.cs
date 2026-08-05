@@ -41,12 +41,24 @@ internal static class LlmsCurationPolicyParser
 
     internal static LlmsCurationParseResult Parse(IReadOnlyDictionary<string, ContentField>? fields)
     {
-        if (!ContentFieldReader.TryGetField(fields, "geo", out var geoField) ||
-            geoField.Value is not IReadOnlyDictionary<string, object> geo ||
-            !geo.TryGetValue("llms", out var llmsValue) ||
-            llmsValue is not IReadOnlyDictionary<string, object> llms)
+        if (!ContentFieldReader.TryGetField(fields, "geo", out var geoField))
         {
             return new LlmsCurationParseResult(true, LlmsCurationPolicy.Default, Array.Empty<string>());
+        }
+
+        if (geoField.Value is not IReadOnlyDictionary<string, object> geo)
+        {
+            return InvalidShape();
+        }
+
+        if (!geo.TryGetValue("llms", out var llmsValue))
+        {
+            return new LlmsCurationParseResult(true, LlmsCurationPolicy.Default, Array.Empty<string>());
+        }
+
+        if (llmsValue is not IReadOnlyDictionary<string, object> llms)
+        {
+            return InvalidShape();
         }
 
         var errors = new List<string>();
@@ -60,42 +72,52 @@ internal static class LlmsCurationPolicyParser
         }
 
         var visibility = LlmsVisibility.Auto;
-        var visibilityValue = ReadString(llms, "visibility");
-        if (visibilityValue is not null)
+        if (llms.TryGetValue("visibility", out var rawVisibility))
         {
-            visibility = visibilityValue switch
-            {
-                "auto" => LlmsVisibility.Auto,
-                "include" => LlmsVisibility.Include,
-                "exclude" => LlmsVisibility.Exclude,
-                _ => LlmsVisibility.Auto
-            };
-            if (visibility == LlmsVisibility.Auto &&
-                !string.Equals(visibilityValue, "auto", StringComparison.OrdinalIgnoreCase))
+            if (!TryReadDeclaredString(rawVisibility, out var visibilityValue))
             {
                 errors.Add("geo.llms_visibility_invalid");
+            }
+            else
+            {
+                visibility = visibilityValue switch
+                {
+                    "auto" => LlmsVisibility.Auto,
+                    "include" => LlmsVisibility.Include,
+                    "exclude" => LlmsVisibility.Exclude,
+                    _ => LlmsVisibility.Auto
+                };
+                if (visibility == LlmsVisibility.Auto && visibilityValue != "auto")
+                {
+                    errors.Add("geo.llms_visibility_invalid");
+                }
             }
         }
 
         var tier = LlmsTier.Primary;
-        var tierValue = ReadString(llms, "tier");
-        if (tierValue is not null)
+        if (llms.TryGetValue("tier", out var rawTier))
         {
-            tier = tierValue switch
-            {
-                "primary" => LlmsTier.Primary,
-                "optional" => LlmsTier.Optional,
-                _ => LlmsTier.Primary
-            };
-            if (tier == LlmsTier.Primary &&
-                !string.Equals(tierValue, "primary", StringComparison.OrdinalIgnoreCase))
+            if (!TryReadDeclaredString(rawTier, out var tierValue))
             {
                 errors.Add("geo.llms_tier_invalid");
+            }
+            else
+            {
+                tier = tierValue switch
+                {
+                    "primary" => LlmsTier.Primary,
+                    "optional" => LlmsTier.Optional,
+                    _ => LlmsTier.Primary
+                };
+                if (tier == LlmsTier.Primary && tierValue != "primary")
+                {
+                    errors.Add("geo.llms_tier_invalid");
+                }
             }
         }
 
         var priority = 0;
-        if (llms.TryGetValue("priority", out var priorityValue) && priorityValue is not null)
+        if (llms.TryGetValue("priority", out var priorityValue))
         {
             if (TryReadPriority(priorityValue, out var parsed))
             {
@@ -122,6 +144,9 @@ internal static class LlmsCurationPolicyParser
         return new LlmsCurationParseResult(true, new LlmsCurationPolicy(visibility, tier, priority), Array.Empty<string>());
     }
 
+    private static LlmsCurationParseResult InvalidShape()
+        => new(false, LlmsCurationPolicy.Default, ["geo.llms_field_unknown"]);
+
     private static bool TryReadPriority(object value, out int priority)
     {
         switch (value)
@@ -141,19 +166,15 @@ internal static class LlmsCurationPolicyParser
         }
     }
 
-    private static string? ReadString(IReadOnlyDictionary<string, object> map, string key)
+    private static bool TryReadDeclaredString(object? value, out string normalized)
     {
-        if (!map.TryGetValue(key, out var value) || value is null)
+        if (value is not string text || string.IsNullOrWhiteSpace(text))
         {
-            return null;
+            normalized = string.Empty;
+            return false;
         }
 
-        var text = value.ToString()?.Trim();
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return null;
-        }
-
-        return text.ToLowerInvariant();
+        normalized = text.Trim().ToLowerInvariant();
+        return true;
     }
 }
