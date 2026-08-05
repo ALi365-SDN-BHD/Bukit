@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/seo-route-map.v1.json",
+  "title": "Bukit SEO Route Map v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "generatedAt",
+    "siteUrl",
+    "baseUrl",
+    "routes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "https://bukit.dev/schemas/seo-route-map.v1.json"
+    },
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "siteUrl": {
+      "oneOf": [
+        {
+          "const": ""
+        },
+        {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)"
+        }
+      ]
+    },
+    "baseUrl": {
+      "type": "string",
+      "pattern": "^/"
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "routeKey",
+          "route",
+          "canonical",
+          "language",
+          "contentType",
+          "collection",
+          "indexable",
+          "publishedAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "routeKey": {
+            "type": "string",
+            "pattern": "^route:sha256:[0-9a-f]{64}$"
+          },
+          "contentKey": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^content:sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "route": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "canonical": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)"
+              },
+              {
+                "type": "string",
+                "pattern": "^/(?!/)"
+              }
+            ]
+          },
+          "language": {
+            "type": ["string", "null"]
+          },
+          "contentType": {
+            "type": ["string", "null"]
+          },
+          "collection": {
+            "type": ["string", "null"]
+          },
+          "indexable": {
+            "type": "boolean"
+          },
+          "publishedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

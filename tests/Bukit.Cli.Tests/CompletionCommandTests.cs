@@ -26,6 +26,15 @@ public sealed class CompletionCommandTests
     }
 
     [Fact]
+    public void Render_Bash_IncludesAllSeoSubcommandsFromLiveRegistry()
+    {
+        var script = CompletionCommand.Render("bash");
+
+        Assert.Contains("seo)", script, StringComparison.Ordinal);
+        Assert.Contains("audit diff insights", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Render_Zsh_ProducesCompletion()
     {
         var script = CompletionCommand.Render("zsh");
@@ -36,12 +45,32 @@ public sealed class CompletionCommandTests
     }
 
     [Fact]
+    public void Render_Zsh_IncludesAllSeoSubcommandsFromLiveRegistry()
+    {
+        var script = CompletionCommand.Render("zsh");
+
+        Assert.Contains("seo)", script, StringComparison.Ordinal);
+        Assert.Contains("audit diff insights", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Render_Fish_ProducesCompletion()
     {
         var script = CompletionCommand.Render("fish");
 
         Assert.Contains("complete -c bukit", script, StringComparison.Ordinal);
         Assert.Contains("build", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Render_Fish_IncludesAllSeoSubcommandsFromLiveRegistry()
+    {
+        var script = CompletionCommand.Render("fish");
+
+        Assert.Contains("__fish_seen_subcommand_from seo", script, StringComparison.Ordinal);
+        Assert.Contains("-a audit", script, StringComparison.Ordinal);
+        Assert.Contains("-a diff", script, StringComparison.Ordinal);
+        Assert.Contains("-a insights", script, StringComparison.Ordinal);
     }
 
     [Fact]

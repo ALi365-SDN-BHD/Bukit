@@ -38,6 +38,7 @@ quality audits, and GitHub Pages deployment.
 | Migrate list routes | [18 Static List Routes Migration](18-static-list-routes-migration.md) |
 | Configure privacy-safe analytics providers | [19 Analytics](19-analytics.md) |
 | Understand Core safety and reliability guarantees | [20 Core Safety And Reliability](20-core-safety-reliability.md) |
+| Turn local SEO observations into review candidates | [21 SEO Insights](21-seo-insights.md) |
 
 ## Governed Core Commands
 
@@ -45,7 +46,7 @@ quality audits, and GitHub Pages deployment.
 `completion`, `seo`, `geo`, `publish`, and `deploy`.
 
 Stable subcommands are `config check`, `config schema`, `seo audit`,
-`seo diff`, `geo audit`, `publish audit`, and `publish diff`.
+`seo diff`, `seo insights`, `geo audit`, `publish audit`, and `publish diff`.
 
 ## Default Validation Loop
 

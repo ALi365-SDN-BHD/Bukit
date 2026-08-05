@@ -29,7 +29,7 @@ public sealed class CliContractTests
                 "clean:",
                 "version:",
                 "completion:",
-                "seo:audit,diff",
+                "seo:audit,diff,insights",
                 "geo:audit",
                 "publish:audit,diff",
                 "deploy:",
@@ -38,6 +38,31 @@ public sealed class CliContractTests
         Assert.Equal(
             registry.Commands.Select(command => command.Name).OrderBy(name => name, StringComparer.Ordinal),
             descriptorCommands.OrderBy(name => name, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void Registry_SeoInsights_ExposesRequiredOfflineOptionsWithoutChangingAuditOrDiff()
+    {
+        var registry = BukitCliSpecs.CreateRegistry();
+        var seo = registry.Resolve("seo")!;
+        var insights = registry.ResolveSubcommand(seo, "insights")!;
+        var options = insights.Options!;
+
+        Assert.Equal(["audit", "diff", "insights"], seo.Subcommands!.Select(command => command.Name));
+        Assert.Equal(
+            ["--dir", "--report", "--strict", "--external"],
+            seo.Options!.Select(option => option.Name));
+        Assert.Equal(
+            ["--dir", "--routes", "--observations", "--rules", "--out", "--strict-join"],
+            options.Select(option => option.Name));
+        Assert.True(options.Single(option => option.Name == "--observations").Required);
+        Assert.True(options.Single(option => option.Name == "--rules").Required);
+        Assert.False(options.Single(option => option.Name == "--routes").Required);
+        Assert.Equal("dist", options.Single(option => option.Name == "--dir").DefaultValueHelp);
+        Assert.Equal("<dir>/.bukit/seo-route-map.json", options.Single(option => option.Name == "--routes").DefaultValueHelp);
+        Assert.Equal("<dir>/.bukit/seo-insights-report.json", options.Single(option => option.Name == "--out").DefaultValueHelp);
+        Assert.NotNull(registry.ResolveSubcommand(seo, "audit"));
+        Assert.NotNull(registry.ResolveSubcommand(seo, "diff"));
     }
 
     [Fact]

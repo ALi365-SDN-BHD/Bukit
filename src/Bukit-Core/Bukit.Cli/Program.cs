@@ -37,7 +37,8 @@ try
     {
         if (commandArgs.Any(x => x is "--help" or "-h"))
         {
-            var usage = CliHelpRenderer.Render(descriptor.Spec, $"bukit {descriptor.Spec.Name}");
+            var help = ResolveHelpTarget(descriptor.Spec, commandArgs);
+            var usage = CliHelpRenderer.Render(help.Spec, help.CommandPath);
             Console.WriteLine(usage);
             return 0;
         }
@@ -77,6 +78,35 @@ catch (RenderException ex)
 catch (Exception ex)
 {
     return PrintUnhandledError(command, ex, isJsonErrorMode);
+}
+
+static (CliCommandSpec Spec, string CommandPath) ResolveHelpTarget(
+    CliCommandSpec root,
+    IReadOnlyList<string> args)
+{
+    var current = root;
+    var commandPath = $"bukit {root.Name}";
+    foreach (var token in args)
+    {
+        if (token is "--help" or "-h" || token.StartsWith("-", StringComparison.Ordinal))
+        {
+            break;
+        }
+
+        var child = current.Subcommands?.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name, token, StringComparison.OrdinalIgnoreCase) ||
+            candidate.Aliases is not null && candidate.Aliases.Any(alias =>
+                string.Equals(alias, token, StringComparison.OrdinalIgnoreCase)));
+        if (child is null)
+        {
+            break;
+        }
+
+        current = child;
+        commandPath += $" {child.Name}";
+    }
+
+    return (current, commandPath);
 }
 
 static int UnknownCommand(string command, bool isJsonErrorMode)

@@ -47,7 +47,18 @@ public static class CliHelpRenderer
             foreach (var option in spec.Options!)
             {
                 var suffix = option.Type == CliOptionType.Flag ? string.Empty : $" <{option.ValueName ?? "value"}>";
-                builder.Append("  ").Append(option.Name).Append(suffix).Append("  ").AppendLine(option.Description);
+                builder.Append("  ").Append(option.Name).Append(suffix).Append("  ").Append(option.Description);
+                if (option.Required)
+                {
+                    builder.Append(" [required]");
+                }
+
+                if (!string.IsNullOrWhiteSpace(option.DefaultValueHelp))
+                {
+                    builder.Append(" [default: ").Append(option.DefaultValueHelp).Append(']');
+                }
+
+                builder.AppendLine();
             }
         }
 

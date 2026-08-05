@@ -40,6 +40,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         var routes = new List<SeoAuditRoute>();
         var documentTitles = new List<DocumentTitleAuditEntry>();
         var publishDocuments = new List<PublishDocument>();
+        var routeMapBuilder = new SeoRouteMapBuilder(config.Site.Url, config.Site.BaseUrl);
         var modelByCanonical = new Dictionary<string, (SeoIndexEntry Entry, SeoModel Model)>(StringComparer.OrdinalIgnoreCase);
         var recordsById = contentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
@@ -54,6 +55,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         {
             seoModels.TryGetValue(key, out var model);
             var record = ResolveRecordForEntry(recordsById, entry, config.Site.Language);
+            routeMapBuilder.Add(entry, model, record);
             var schemaTypes = model is null
                 ? Array.Empty<string>()
                 : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, seoIssues, searchActionExpected);
@@ -296,7 +298,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             Summary: summary);
         return new MachineReadabilityTrustAuditResult(
             seoReport,
-            PublishAuditBuilder.Build(seoReport, publishDocuments, outputDir, sortedPublishIssues));
+            PublishAuditBuilder.Build(seoReport, publishDocuments, outputDir, sortedPublishIssues),
+            routeMapBuilder.Build(seoReport.GeneratedAt));
     }
 
 }

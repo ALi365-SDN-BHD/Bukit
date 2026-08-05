@@ -14,6 +14,8 @@ machine-readable projections.
 | `.bukit/build-report.json` | Build summary, timings, render counts, diagnostic counts, and public output inventory. |
 | `.bukit/routes.json` | Route inventory. |
 | `.bukit/seo-report.json` | SEO quality data consumed by `seo audit`. |
+| `.bukit/seo-route-map.json` | Privacy-safe route/canonical map consumed by an explicitly authorized SEO collector or `seo insights`. |
+| `.bukit/seo-insights-report.json` | Offline join-quality and candidate-insights report written by `seo insights`. |
 | `.bukit/publish-audit-report.json` | Publish-readiness data consumed by `publish audit`. |
 | `.bukit/security-report.json` | Output safety and publish security data. |
 | `sitemap.xml` | Sitemap output, controlled by `site.sitemapMode`. |
@@ -62,6 +64,12 @@ provider names, source item identifiers, and local build paths so that build,
 SEO, and publish diagnostics remain traceable. Do not upload or serve `.bukit/`
 as website content. `.bukit-build-state.json` and `.bukit-output-marker` are
 internal build files as well.
+
+The SEO route map and insights report use hashed route/content keys and do not
+carry raw CMS or Notion IDs or credentials. That SEO-specific output guarantee
+does not mean every `.bukit` artifact lacks trace IDs: `.bukit/` remains
+internal and is not publishable. See [21 SEO Insights](21-seo-insights.md) for
+the offline collector boundary and local observation contract.
 
 `build-report.json` reports actual build diagnostic counts. Its
 `generatedFiles` array is the sorted, root-relative public output inventory and

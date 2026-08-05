@@ -140,7 +140,11 @@ public static partial class BukitCliSpecs
                 new CliCommandSpec(
                     Name: "diff",
                     Description: "比较两份 SEO 报告",
-                    Options: DiffOptions())
+                    Options: DiffOptions()),
+                new CliCommandSpec(
+                    Name: "insights",
+                    Description: "从本地 observation JSON 生成 SEO insights 报告",
+                    Options: InsightsOptions())
             });
 
         var geo = new CliCommandSpec(
@@ -220,5 +224,15 @@ public static partial class BukitCliSpecs
         new CliOptionSpec("--fail-on-new-code", "指定新增 issue code 时失败"),
         new CliOptionSpec("--fail-on-route-removed", "路由移除时失败", CliOptionType.Flag),
         new CliOptionSpec("--fail-on-indexable-drop", "可索引页面变为不可索引时失败", CliOptionType.Flag)
+    ];
+
+    private static CliOptionSpec[] InsightsOptions() =>
+    [
+        new CliOptionSpec("--dir", "构建输出目录", DefaultValueHelp: "dist"),
+        new CliOptionSpec("--routes", "SEO route map 本地路径", DefaultValueHelp: "<dir>/.bukit/seo-route-map.json"),
+        new CliOptionSpec("--observations", "逗号分隔的 1-10 个本地 observation JSON 路径", Required: true),
+        new CliOptionSpec("--rules", "SEO insights 规则本地路径", Required: true),
+        new CliOptionSpec("--out", "SEO insights 报告输出路径", DefaultValueHelp: "<dir>/.bukit/seo-insights-report.json"),
+        new CliOptionSpec("--strict-join", "unmatched 或 ambiguous 行存在时返回 1", CliOptionType.Flag)
     ];
 }

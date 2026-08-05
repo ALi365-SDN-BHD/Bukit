@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/seo-insights-rules.v1.json",
+  "title": "Bukit SEO Insights Rules v1",
+  "$comment": "Structural validation is only the first layer. SeoInsightsRuleProfileReader is the required semantic layer for opportunityPositionMinimum <= opportunityPositionMaximum, case-insensitive ignored-query duplicates, and case-insensitive root-dot-normalized siteHost/hostAliases duplicates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "siteHost", "hostAliases", "ignoredQueryParameters", "thresholds", "priorities"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/seo-insights-rules.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "siteHost": { "$ref": "#/$defs/dnsHost" },
+    "hostAliases": {
+      "type": "array",
+      "description": "Host aliases are structurally checked here; SeoInsightsRuleProfileReader rejects case-insensitive and root-dot-normalized duplicates, including aliases equal to siteHost.",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/dnsHost" }
+    },
+    "ignoredQueryParameters": {
+      "type": "array",
+      "description": "Parameter names are structurally checked here; SeoInsightsRuleProfileReader rejects case-insensitive duplicates.",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" }
+    },
+    "thresholds": { "$ref": "#/$defs/thresholds" },
+    "priorities": { "$ref": "#/$defs/priorities" }
+  },
+  "$defs": {
+    "dnsHost": {
+      "$comment": "The reader additionally rejects every host representation classified by the platform as IPv4 or IPv6.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "^(?!(?:(?:0[xX][0-9A-Fa-f]+|[0-9]+)\\.){0,3}(?:0[xX][0-9A-Fa-f]+|[0-9]+)$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$"
+        },
+        {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 254,
+          "pattern": "^(?!(?:(?:0[xX][0-9A-Fa-f]+|[0-9]+)\\.){0,3}(?:0[xX][0-9A-Fa-f]+|[0-9]+)\\.$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.$"
+        }
+      ]
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "positiveFiniteNumber": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1.7976931348623157e308
+    },
+    "thresholds": {
+      "type": "object",
+      "$comment": "SeoInsightsRuleProfileReader is required to enforce opportunityPositionMinimum <= opportunityPositionMaximum because standard JSON Schema cannot compare sibling numeric values.",
+      "additionalProperties": false,
+      "required": [
+        "minimumSearchImpressions",
+        "maximumLowImpressions",
+        "minimumAnalyticsSessions",
+        "lowCtr",
+        "lowEngagementRate",
+        "highEngagementRate",
+        "opportunityPositionMinimum",
+        "opportunityPositionMaximum"
+      ],
+      "properties": {
+        "minimumSearchImpressions": { "$ref": "#/$defs/count" },
+        "maximumLowImpressions": { "$ref": "#/$defs/count" },
+        "minimumAnalyticsSessions": { "$ref": "#/$defs/count" },
+        "lowCtr": { "$ref": "#/$defs/ratio" },
+        "lowEngagementRate": { "$ref": "#/$defs/ratio" },
+        "highEngagementRate": { "$ref": "#/$defs/ratio" },
+        "opportunityPositionMinimum": { "$ref": "#/$defs/positiveFiniteNumber" },
+        "opportunityPositionMaximum": { "$ref": "#/$defs/positiveFiniteNumber" }
+      }
+    },
+    "priorities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snippetMismatch", "landingQuality", "discoverability", "positionOpportunity"],
+      "properties": {
+        "snippetMismatch": { "enum": ["P0", "P1", "P2"] },
+        "landingQuality": { "enum": ["P0", "P1", "P2"] },
+        "discoverability": { "enum": ["P0", "P1", "P2"] },
+        "positionOpportunity": { "enum": ["P0", "P1", "P2"] }
+      }
+    }
+  }
+}

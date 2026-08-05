@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/seo-insights-report.v1.json",
+  "title": "Bukit SEO Insights Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "generatedAt", "window", "sources", "joinQuality", "routes", "unmatched", "ambiguous"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/seo-insights-report.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "window": { "$ref": "#/$defs/window" },
+    "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+    "joinQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall", "providers"],
+      "properties": {
+        "overall": { "$ref": "#/$defs/joinCounts" },
+        "providers": { "type": "array", "items": { "$ref": "#/$defs/providerJoinQuality" } }
+      }
+    },
+    "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } },
+    "unmatched": { "type": "array", "items": { "$ref": "#/$defs/unmatched" } },
+    "ambiguous": { "type": "array", "items": { "$ref": "#/$defs/ambiguous" } }
+  },
+  "$defs": {
+    "nullableInteger": { "type": ["integer", "null"], "minimum": 0, "maximum": 9223372036854775807 },
+    "nullableNumber": { "type": ["number", "null"], "minimum": 0, "maximum": 1.7976931348623157e308 },
+    "nullableRatio": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "nullableContentKey": {
+      "oneOf": [
+        { "type": "string", "pattern": "^content:sha256:[0-9a-f]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startDate", "endDate", "timeZone"],
+      "properties": {
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "timeZone": { "type": "string", "minLength": 1, "pattern": "\\S" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "scope", "collectedAt", "rowCount"],
+      "properties": {
+        "provider": { "enum": ["google-search-console", "google-analytics-4"] },
+        "scope": { "const": "google-organic" },
+        "collectedAt": { "type": "string", "format": "date-time" },
+        "rowCount": { "type": "integer", "minimum": 0, "maximum": 100000 }
+      }
+    },
+    "joinCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+      "properties": {
+        "sourceRows": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "matchedRows": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "unmatchedRows": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 },
+        "ambiguousRows": { "type": "integer", "minimum": 0, "maximum": 9223372036854775807 }
+      }
+    },
+    "providerJoinQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "counts"],
+      "properties": {
+        "provider": { "enum": ["google-search-console", "google-analytics-4"] },
+        "counts": { "$ref": "#/$defs/joinCounts" }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["impressions", "clicks", "averagePosition", "ctr", "sessions", "engagedSessions", "keyEvents", "engagementRate", "keyEventRate"],
+      "properties": {
+        "impressions": { "$ref": "#/$defs/nullableInteger" },
+        "clicks": { "$ref": "#/$defs/nullableInteger" },
+        "averagePosition": { "$ref": "#/$defs/nullableNumber" },
+        "ctr": { "$ref": "#/$defs/nullableRatio" },
+        "sessions": { "$ref": "#/$defs/nullableInteger" },
+        "engagedSessions": { "$ref": "#/$defs/nullableInteger" },
+        "keyEvents": { "$ref": "#/$defs/nullableInteger" },
+        "engagementRate": { "$ref": "#/$defs/nullableRatio" },
+        "keyEventRate": { "$ref": "#/$defs/nullableNumber" }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeKey", "contentKey", "route", "canonical"],
+      "properties": {
+        "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
+        "contentKey": { "$ref": "#/$defs/nullableContentKey" },
+        "route": { "type": "string", "pattern": "^/" },
+        "canonical": {
+          "oneOf": [
+            { "type": "string", "format": "uri", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)" },
+            { "type": "string", "pattern": "^/(?!/)" }
+          ]
+        }
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeKey", "contentKey", "route", "canonical", "metrics", "findings"],
+      "properties": {
+        "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
+        "contentKey": { "$ref": "#/$defs/nullableContentKey" },
+        "route": { "type": "string", "pattern": "^/" },
+        "canonical": {
+          "oneOf": [
+            { "type": "string", "format": "uri", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)" },
+            { "type": "string", "pattern": "^/(?!/)" }
+          ]
+        },
+        "metrics": { "$ref": "#/$defs/metrics" },
+        "findings": {
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/finding" }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "actual", "operator", "threshold"],
+      "properties": {
+        "metric": { "enum": ["impressions", "ctr", "sessions", "engagementRate", "averagePosition"] },
+        "actual": { "type": "number", "minimum": 0, "maximum": 1.7976931348623157e308 },
+        "operator": { "enum": [">=", "<", "<="] },
+        "threshold": { "type": "number", "minimum": 0, "maximum": 1.7976931348623157e308 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "priority", "routeKey", "evidence", "hypothesis", "suggestedAction"],
+      "properties": {
+        "code": {
+          "enum": [
+            "seo.insights.snippet_mismatch",
+            "seo.insights.landing_quality",
+            "seo.insights.discoverability",
+            "seo.insights.position_opportunity"
+          ]
+        },
+        "priority": { "enum": ["P0", "P1", "P2"] },
+        "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
+        "evidence": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/evidence" }
+        },
+        "hypothesis": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "suggestedAction": { "type": "string", "minLength": 1, "pattern": "\\S" }
+      }
+    },
+    "unmatched": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "scope", "originalUrl", "normalizedUrl", "errorCode", "metrics"],
+      "properties": {
+        "provider": { "enum": ["google-search-console", "google-analytics-4"] },
+        "scope": { "const": "google-organic" },
+        "originalUrl": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "normalizedUrl": { "type": ["string", "null"], "minLength": 1, "pattern": "\\S" },
+        "errorCode": {
+          "enum": [
+            null,
+            "invalid_url",
+            "unsupported_scheme",
+            "credentials_not_allowed",
+            "host_not_allowed"
+          ]
+        },
+        "metrics": { "$ref": "#/$defs/metrics" }
+      }
+    },
+    "ambiguous": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "scope", "originalUrl", "normalizedUrl", "metrics", "candidates"],
+      "properties": {
+        "provider": { "enum": ["google-search-console", "google-analytics-4"] },
+        "scope": { "const": "google-organic" },
+        "originalUrl": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "normalizedUrl": { "type": "string", "minLength": 1, "pattern": "\\S" },
+        "metrics": { "$ref": "#/$defs/metrics" },
+        "candidates": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/candidate" } }
+      }
+    }
+  }
+}

@@ -1,4 +1,7 @@
+using System.Globalization;
+using System.Numerics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Bukit.Config;
 using Xunit;
@@ -70,6 +73,286 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal(
             "^https?://",
             change.GetProperty("properties").GetProperty("url").GetProperty("pattern").GetString());
+
+        using var routeMapSchema = ReadJson("docs", "schemas", "seo-route-map.v1.schema.json");
+        var routeMapRoot = routeMapSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", routeMapRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-route-map.v1.json", routeMapRoot.GetProperty("$id").GetString());
+        Assert.False(routeMapRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "generatedAt", "siteUrl", "baseUrl", "routes"],
+            routeMapRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var routeMapSiteUrl = routeMapRoot.GetProperty("properties").GetProperty("siteUrl");
+        Assert.Equal(string.Empty, routeMapSiteUrl.GetProperty("oneOf")[0].GetProperty("const").GetString());
+        Assert.Equal("uri", routeMapSiteUrl.GetProperty("oneOf")[1].GetProperty("format").GetString());
+        var absoluteHttpPattern = routeMapSiteUrl.GetProperty("oneOf")[1].GetProperty("pattern").GetString();
+        Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", absoluteHttpPattern);
+        Assert.Matches(absoluteHttpPattern!, "HTTPS://example.com");
+        Assert.Matches(absoluteHttpPattern!, "http://example.com");
+        Assert.DoesNotMatch(absoluteHttpPattern!, "https://user:secret@example.com");
+
+        var routeMapRoutes = routeMapRoot.GetProperty("properties").GetProperty("routes");
+        Assert.False(routeMapRoutes.TryGetProperty("uniqueItems", out _));
+        var routeMapEntry = routeMapRoutes.GetProperty("items");
+        Assert.False(routeMapEntry.GetProperty("additionalProperties").GetBoolean());
+        Assert.DoesNotContain(
+            "contentKey",
+            routeMapEntry.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            "^route:sha256:[0-9a-f]{64}$",
+            routeMapEntry.GetProperty("properties").GetProperty("routeKey").GetProperty("pattern").GetString());
+        Assert.Equal("^/", routeMapEntry.GetProperty("properties").GetProperty("route").GetProperty("pattern").GetString());
+        var canonical = routeMapEntry.GetProperty("properties").GetProperty("canonical");
+        Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", canonical.GetProperty("oneOf")[0].GetProperty("pattern").GetString());
+        Assert.Equal("uri", canonical.GetProperty("oneOf")[0].GetProperty("format").GetString());
+        Assert.Matches(canonical.GetProperty("oneOf")[0].GetProperty("pattern").GetString()!, "HTTP://example.com/article/");
+        Assert.DoesNotMatch(canonical.GetProperty("oneOf")[0].GetProperty("pattern").GetString()!, "https://user@example.com/article/");
+        Assert.Equal("^/(?!/)", canonical.GetProperty("oneOf")[1].GetProperty("pattern").GetString());
+        Assert.Matches(canonical.GetProperty("oneOf")[1].GetProperty("pattern").GetString()!, "/article/");
+        Assert.DoesNotMatch(canonical.GetProperty("oneOf")[1].GetProperty("pattern").GetString()!, "//other.example/article/");
+        var contentKey = routeMapEntry.GetProperty("properties").GetProperty("contentKey").GetProperty("oneOf");
+        Assert.Equal("^content:sha256:[0-9a-f]{64}$", contentKey[0].GetProperty("pattern").GetString());
+        Assert.Equal("null", contentKey[1].GetProperty("type").GetString());
+
+        using var observationSchema = ReadJson("docs", "schemas", "seo-observation.v1.schema.json");
+        var observationRoot = observationSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", observationRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-observation.v1.json", observationRoot.GetProperty("$id").GetString());
+        Assert.False(observationRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "provider", "scope", "collectedAt", "window", "rows"],
+            observationRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            ["google-search-console", "google-analytics-4"],
+            observationRoot.GetProperty("properties").GetProperty("provider").GetProperty("enum")
+                .EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(2, observationRoot.GetProperty("properties").GetProperty("rows").GetProperty("items").GetProperty("oneOf").GetArrayLength());
+
+        using var insightsSchema = ReadJson("docs", "schemas", "seo-insights-report.v1.schema.json");
+        var insightsRoot = insightsSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", insightsRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-insights-report.v1.json", insightsRoot.GetProperty("$id").GetString());
+        Assert.False(insightsRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "generatedAt", "window", "sources", "joinQuality", "routes", "unmatched", "ambiguous"],
+            insightsRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var joinQuality = insightsRoot.GetProperty("properties").GetProperty("joinQuality");
+        Assert.Equal(["overall", "providers"], joinQuality.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var counts = insightsRoot.GetProperty("$defs").GetProperty("joinCounts");
+        Assert.Equal(
+            ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+            counts.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("^route:sha256:[0-9a-f]{64}$", insightsRoot.GetProperty("$defs").GetProperty("candidate").GetProperty("properties").GetProperty("routeKey").GetProperty("pattern").GetString());
+        foreach (var definitionName in new[] { "candidate", "route" })
+        {
+            var reportCanonical = insightsRoot.GetProperty("$defs").GetProperty(definitionName)
+                .GetProperty("properties").GetProperty("canonical").GetProperty("oneOf");
+            var absolutePattern = reportCanonical[0].GetProperty("pattern").GetString()!;
+            var relativePattern = reportCanonical[1].GetProperty("pattern").GetString()!;
+            Assert.Equal("uri", reportCanonical[0].GetProperty("format").GetString());
+            Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", absolutePattern);
+            Assert.Matches(absolutePattern, "HTTPS://example.com/article/");
+            Assert.DoesNotMatch(absolutePattern, "https://user:secret@example.com/article/");
+            Assert.Equal("^/(?!/)", relativePattern);
+            Assert.Matches(relativePattern, "/article/");
+            Assert.DoesNotMatch(relativePattern, "//other.example/article/");
+        }
+        var metrics = insightsRoot.GetProperty("$defs").GetProperty("metrics").GetProperty("properties");
+        Assert.Equal("#/$defs/nullableRatio", metrics.GetProperty("ctr").GetProperty("$ref").GetString());
+        Assert.Equal("#/$defs/nullableRatio", metrics.GetProperty("engagementRate").GetProperty("$ref").GetString());
+        Assert.Equal("#/$defs/nullableNumber", metrics.GetProperty("keyEventRate").GetProperty("$ref").GetString());
+
+        var reportRoute = insightsRoot.GetProperty("$defs").GetProperty("route");
+        Assert.Equal(
+            ["routeKey", "contentKey", "route", "canonical", "metrics", "findings"],
+            reportRoute.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("#/$defs/finding", reportRoute.GetProperty("properties").GetProperty("findings")
+            .GetProperty("items").GetProperty("$ref").GetString());
+        var finding = insightsRoot.GetProperty("$defs").GetProperty("finding");
+        Assert.False(finding.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["code", "priority", "routeKey", "evidence", "hypothesis", "suggestedAction"],
+            finding.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            [
+                "seo.insights.snippet_mismatch",
+                "seo.insights.landing_quality",
+                "seo.insights.discoverability",
+                "seo.insights.position_opportunity"
+            ],
+            finding.GetProperty("properties").GetProperty("code").GetProperty("enum")
+                .EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            ["P0", "P1", "P2"],
+            finding.GetProperty("properties").GetProperty("priority").GetProperty("enum")
+                .EnumerateArray().Select(value => value.GetString()));
+        var evidence = insightsRoot.GetProperty("$defs").GetProperty("evidence");
+        Assert.False(evidence.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["metric", "actual", "operator", "threshold"],
+            evidence.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+
+        using var rulesSchema = ReadJson("docs", "schemas", "seo-insights-rules.v1.schema.json");
+        var rulesRoot = rulesSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", rulesRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/seo-insights-rules.v1.json", rulesRoot.GetProperty("$id").GetString());
+        Assert.False(rulesRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "siteHost", "hostAliases", "ignoredQueryParameters", "thresholds", "priorities"],
+            rulesRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var hostAliases = rulesRoot.GetProperty("properties").GetProperty("hostAliases");
+        Assert.True(hostAliases.GetProperty("uniqueItems").GetBoolean());
+        Assert.Equal("#/$defs/dnsHost", hostAliases.GetProperty("items").GetProperty("$ref").GetString());
+        var dnsHost = rulesRoot.GetProperty("$defs").GetProperty("dnsHost");
+        Assert.Equal(2, dnsHost.GetProperty("oneOf").GetArrayLength());
+        var ignoredParameters = rulesRoot.GetProperty("properties").GetProperty("ignoredQueryParameters");
+        Assert.True(ignoredParameters.GetProperty("uniqueItems").GetBoolean());
+        Assert.Equal("^[A-Za-z0-9_.-]+$", ignoredParameters.GetProperty("items").GetProperty("pattern").GetString());
+        var thresholds = rulesRoot.GetProperty("$defs").GetProperty("thresholds");
+        Assert.False(thresholds.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            [
+                "minimumSearchImpressions", "maximumLowImpressions", "minimumAnalyticsSessions", "lowCtr",
+                "lowEngagementRate", "highEngagementRate", "opportunityPositionMinimum", "opportunityPositionMaximum"
+            ],
+            thresholds.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            "#/$defs/count",
+            thresholds.GetProperty("properties").GetProperty("minimumSearchImpressions").GetProperty("$ref").GetString());
+        Assert.Equal(9223372036854775807, rulesRoot.GetProperty("$defs").GetProperty("count").GetProperty("maximum").GetInt64());
+        Assert.Equal("#/$defs/ratio", thresholds.GetProperty("properties").GetProperty("lowCtr").GetProperty("$ref").GetString());
+        Assert.Equal(1, rulesRoot.GetProperty("$defs").GetProperty("ratio").GetProperty("maximum").GetDouble());
+        Assert.Equal(
+            "#/$defs/positiveFiniteNumber",
+            thresholds.GetProperty("properties").GetProperty("opportunityPositionMinimum").GetProperty("$ref").GetString());
+        Assert.Equal(
+            0,
+            rulesRoot.GetProperty("$defs").GetProperty("positiveFiniteNumber").GetProperty("exclusiveMinimum").GetDouble());
+        var priorities = rulesRoot.GetProperty("$defs").GetProperty("priorities");
+        Assert.False(priorities.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["snippetMismatch", "landingQuality", "discoverability", "positionOpportunity"],
+            priorities.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.All(
+            priorities.GetProperty("properties").EnumerateObject(),
+            property => Assert.Equal(
+                ["P0", "P1", "P2"],
+                property.Value.GetProperty("enum").EnumerateArray().Select(value => value.GetString())));
+        var semanticLayer = rulesRoot.GetProperty("$comment").GetString()!;
+        Assert.Contains("SeoInsightsRuleProfileReader", semanticLayer, StringComparison.Ordinal);
+        Assert.Contains("opportunityPositionMinimum <= opportunityPositionMaximum", semanticLayer, StringComparison.Ordinal);
+        Assert.Contains("case-insensitive", semanticLayer, StringComparison.Ordinal);
+        Assert.Contains("root-dot-normalized", semanticLayer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SeoInsightsRulesSchema_EnforcesExpressibleDnsHostBoundaryCorpus()
+    {
+        using var rulesSchema = ReadJson("docs", "schemas", "seo-insights-rules.v1.schema.json");
+        var dnsHost = rulesSchema.RootElement.GetProperty("$defs").GetProperty("dnsHost");
+        var maximum = MaximumDnsHost();
+        var overlong = maximum + "a";
+
+        Assert.True(DnsHostSchemaAccepts(dnsHost, "example.com"));
+        Assert.True(DnsHostSchemaAccepts(dnsHost, "xn--bcher-kva.example"));
+        Assert.True(DnsHostSchemaAccepts(dnsHost, "xn--bcher-kva.example."));
+        Assert.True(DnsHostSchemaAccepts(dnsHost, maximum));
+        Assert.True(DnsHostSchemaAccepts(dnsHost, maximum + "."));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, overlong));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, overlong + "."));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "127.1"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "2130706433"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "2130706433."));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "0x7f000001"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "999999999999999999999"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "0xFFFFFFFFFFFFFFFF"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "192.0.2.1"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "::1"));
+        Assert.False(DnsHostSchemaAccepts(dnsHost, "[::1]"));
+    }
+
+    [Fact]
+    public void SeoInsightsReportSchema_UnmatchedRequiresErrorCodeAndAllowsOnlyFixedNormalizerCodesOrNull()
+    {
+        using var reportSchema = ReadJson("docs", "schemas", "seo-insights-report.v1.schema.json");
+        var unmatched = reportSchema.RootElement.GetProperty("$defs").GetProperty("unmatched");
+        Assert.Contains(
+            "errorCode",
+            unmatched.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+
+        var errorCode = unmatched.GetProperty("properties").GetProperty("errorCode");
+
+        Assert.True(errorCode.TryGetProperty("enum", out var enumValues), "errorCode must declare a fixed enum.");
+        var actual = enumValues.EnumerateArray()
+            .Select(value => value.ValueKind == JsonValueKind.Null ? null : value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        var expected = new HashSet<string?>(StringComparer.Ordinal)
+        {
+            null,
+            "invalid_url",
+            "unsupported_scheme",
+            "credentials_not_allowed",
+            "host_not_allowed"
+        };
+
+        Assert.Equal(expected.Count, actual.Count);
+        Assert.True(expected.SetEquals(actual));
+    }
+
+    [Fact]
+    public void SeoObservationSchemas_RejectWhitespaceOnlyStrings()
+    {
+        using var observationSchema = ReadJson("docs", "schemas", "seo-observation.v1.schema.json");
+        var observationDefs = observationSchema.RootElement.GetProperty("$defs");
+        AssertStringSchemaAccepts(
+            observationDefs.GetProperty("window").GetProperty("properties").GetProperty("timeZone"),
+            "Asia/Kuala_Lumpur",
+            " \t");
+        AssertStringSchemaAccepts(
+            observationDefs.GetProperty("gscRow").GetProperty("properties").GetProperty("url"),
+            "https://example.com/a/",
+            "   ");
+
+        using var reportSchema = ReadJson("docs", "schemas", "seo-insights-report.v1.schema.json");
+        var reportDefs = reportSchema.RootElement.GetProperty("$defs");
+        AssertStringSchemaAccepts(
+            reportDefs.GetProperty("window").GetProperty("properties").GetProperty("timeZone"),
+            "UTC",
+            " ");
+        AssertStringSchemaAccepts(
+            reportDefs.GetProperty("unmatched").GetProperty("properties").GetProperty("originalUrl"),
+            "https://example.com/missing/",
+            "\n");
+        AssertStringSchemaAccepts(
+            reportDefs.GetProperty("ambiguous").GetProperty("properties").GetProperty("originalUrl"),
+            "https://example.com/shared/",
+            "\t ");
+    }
+
+    [Fact]
+    public void SeoObservationSchemas_RejectNumericOverflow()
+    {
+        using var observationSchema = ReadJson("docs", "schemas", "seo-observation.v1.schema.json");
+        var observationDefs = observationSchema.RootElement.GetProperty("$defs");
+        AssertIntegerSchemaAccepts(
+            observationDefs.GetProperty("gscRow").GetProperty("properties").GetProperty("impressions"),
+            "9223372036854775807",
+            "9223372036854775808");
+        AssertNumberSchemaAccepts(
+            observationDefs.GetProperty("gscRow").GetProperty("properties").GetProperty("averagePosition"),
+            "1.7976931348623157e308",
+            "1.7976931348623159e308");
+
+        using var reportSchema = ReadJson("docs", "schemas", "seo-insights-report.v1.schema.json");
+        var reportDefs = reportSchema.RootElement.GetProperty("$defs");
+        AssertIntegerSchemaAccepts(
+            reportDefs.GetProperty("joinCounts").GetProperty("properties").GetProperty("sourceRows"),
+            "9223372036854775807",
+            "9223372036854775808");
+        AssertNumberSchemaAccepts(
+            reportDefs.GetProperty("nullableNumber"),
+            "1.7976931348623157e308",
+            "1e309");
     }
 
     [Fact]
@@ -99,6 +382,60 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Contains("HTTP 200", pluginGuide, StringComparison.Ordinal);
         Assert.Contains("response body exactly equals `INDEXNOW_KEY`", pluginGuide, StringComparison.Ordinal);
         Assert.Contains("only then", pluginGuide, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ActiveGuide_DocumentsOfflineSeoObservabilityContract()
+    {
+        var guide = ReadText("guide", "user", "21-seo-insights.md");
+        var index = ReadText("guide", "user", "README.md");
+        var outputs = ReadText("guide", "user", "10-built-in-outputs.md");
+        var cli = ReadText("guide", "user", "12-cli-reference.md");
+
+        Assert.True(File.Exists(Path.Combine(RepoRoot, "guide", "user", "21-seo-insights.md")));
+        Assert.Contains("[21 SEO Insights](21-seo-insights.md)", index, StringComparison.Ordinal);
+        Assert.Contains(".bukit/seo-route-map.json", outputs, StringComparison.Ordinal);
+        Assert.Contains(".bukit/seo-insights-report.json", outputs, StringComparison.Ordinal);
+
+        Assert.Contains("seo-route-map.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("seo-observation.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("seo-insights-rules.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("seo-insights-report.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("https://developers.google.com/webmaster-tools/v1/searchanalytics/query", guide, StringComparison.Ordinal);
+        Assert.Contains("build -> route map -> external collector/plugin -> observations -> insights", guide, StringComparison.Ordinal);
+        Assert.Contains("offline", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not authenticate to Google", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not access the network", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not prove causation", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ranking guarantee", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("automatic edit", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unmatched", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ambiguous", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("never chooses a winner", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Observation-row `url` values must be absolute HTTP(S) URLs", guide, StringComparison.Ordinal);
+        Assert.Contains("`siteHost` or `hostAliases`", guide, StringComparison.Ordinal);
+        Assert.Contains("relative observation values are `invalid_url` and remain `unmatched`", guide, StringComparison.Ordinal);
+        Assert.Contains("Route-map `canonical` values may be a leading-slash relative path or an absolute HTTP(S) URL", guide, StringComparison.Ordinal);
+        Assert.Contains("`keyEvents` may exceed `sessions`", guide, StringComparison.Ordinal);
+        Assert.Contains("`keyEventRate` may exceed 1", guide, StringComparison.Ordinal);
+        Assert.Contains("sessions >= `minimumAnalyticsSessions`", guide, StringComparison.Ordinal);
+        Assert.Contains("engagement rate >= `highEngagementRate`", guide, StringComparison.Ordinal);
+        Assert.Contains("not Core defaults", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("write", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("before returning exit code 1", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not publishable", guide, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("\"provider\": \"google-search-console\"", guide, StringComparison.Ordinal);
+        Assert.Contains("\"provider\": \"google-analytics-4\"", guide, StringComparison.Ordinal);
+        Assert.Contains("\"scope\": \"google-organic\"", guide, StringComparison.Ordinal);
+        Assert.Contains("\"schema\": \"https://bukit.dev/schemas/seo-insights-rules.v1.json\"", guide, StringComparison.Ordinal);
+
+        foreach (var option in new[] { "--dir", "--routes", "--observations", "--rules", "--out", "--strict-join" })
+        {
+            Assert.Contains(option, cli, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("bukit seo insights", cli, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -208,6 +545,117 @@ public sealed class SeoGeoDocumentationContractTests
 
     private static JsonDocument ReadJson(params string[] segments)
         => JsonDocument.Parse(ReadText(segments));
+
+    private static void AssertStringSchemaAccepts(JsonElement schema, string valid, string invalid)
+    {
+        Assert.True(StringSchemaAccepts(schema, valid));
+        Assert.False(StringSchemaAccepts(schema, invalid));
+    }
+
+    private static bool StringSchemaAccepts(JsonElement schema, string value)
+    {
+        if (schema.TryGetProperty("minLength", out var minLength) && value.Length < minLength.GetInt32())
+        {
+            return false;
+        }
+
+        if (schema.TryGetProperty("maxLength", out var maxLength) && value.Length > maxLength.GetInt32())
+        {
+            return false;
+        }
+
+        return !schema.TryGetProperty("pattern", out var pattern) ||
+               Regex.IsMatch(value, pattern.GetString()!, RegexOptions.CultureInvariant);
+    }
+
+    private static bool DnsHostSchemaAccepts(JsonElement schema, string value)
+        => schema.GetProperty("oneOf").EnumerateArray().Count(branch => StringSchemaAccepts(branch, value)) == 1;
+
+    private static string MaximumDnsHost()
+        => $"{new string('a', 63)}.{new string('b', 63)}.{new string('c', 63)}.{new string('d', 61)}";
+
+    private static void AssertIntegerSchemaAccepts(JsonElement schema, string valid, string invalid)
+    {
+        Assert.True(IntegerSchemaAccepts(schema, valid));
+        Assert.False(IntegerSchemaAccepts(schema, invalid));
+    }
+
+    private static bool IntegerSchemaAccepts(JsonElement schema, string value)
+    {
+        var number = BigInteger.Parse(value, CultureInfo.InvariantCulture);
+        if (schema.TryGetProperty("minimum", out var minimum) &&
+            number < BigInteger.Parse(minimum.GetRawText(), CultureInfo.InvariantCulture))
+        {
+            return false;
+        }
+
+        return !schema.TryGetProperty("maximum", out var maximum) ||
+               number <= BigInteger.Parse(maximum.GetRawText(), CultureInfo.InvariantCulture);
+    }
+
+    private static void AssertNumberSchemaAccepts(JsonElement schema, string valid, string invalid)
+    {
+        Assert.True(NumberSchemaAccepts(schema, valid));
+        Assert.False(NumberSchemaAccepts(schema, invalid));
+    }
+
+    private static bool NumberSchemaAccepts(JsonElement schema, string value)
+    {
+        var number = ParsePositiveNumber(value);
+
+        if (schema.TryGetProperty("minimum", out var minimum) &&
+            Compare(number, ParsePositiveNumber(minimum.GetRawText())) < 0)
+        {
+            return false;
+        }
+
+        return !schema.TryGetProperty("maximum", out var maximum) ||
+               Compare(number, ParsePositiveNumber(maximum.GetRawText())) <= 0;
+    }
+
+    private static PositiveNumber ParsePositiveNumber(string value)
+    {
+        var exponentIndex = value.IndexOf('e');
+        if (exponentIndex < 0)
+        {
+            exponentIndex = value.IndexOf('E');
+        }
+
+        var mantissa = exponentIndex < 0 ? value : value[..exponentIndex];
+        var exponent = exponentIndex < 0
+            ? 0
+            : int.Parse(value[(exponentIndex + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture);
+        var decimalIndex = mantissa.IndexOf('.');
+        if (decimalIndex >= 0)
+        {
+            exponent -= mantissa.Length - decimalIndex - 1;
+            mantissa = mantissa.Remove(decimalIndex, 1);
+        }
+
+        mantissa = mantissa.TrimStart('0');
+        if (mantissa.Length == 0)
+        {
+            return new PositiveNumber(BigInteger.Zero, 0);
+        }
+
+        while (mantissa.EndsWith('0'))
+        {
+            mantissa = mantissa[..^1];
+            exponent++;
+        }
+
+        return new PositiveNumber(BigInteger.Parse(mantissa, CultureInfo.InvariantCulture), exponent);
+    }
+
+    private static int Compare(PositiveNumber left, PositiveNumber right)
+    {
+        var commonExponent = Math.Min(left.Exponent, right.Exponent);
+        var scaledLeft = left.Significand * BigInteger.Pow(10, left.Exponent - commonExponent);
+        var scaledRight = right.Significand * BigInteger.Pow(10, right.Exponent - commonExponent);
+        return scaledLeft.CompareTo(scaledRight);
+    }
+
+    private readonly record struct PositiveNumber(BigInteger Significand, int Exponent);
 
     private static string ReadText(params string[] segments)
         => File.ReadAllText(Path.Combine([RepoRoot, .. segments]));

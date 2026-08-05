@@ -230,6 +230,7 @@ mkdir -p \
   "$closure_fixture/guide/dev" \
   "$closure_fixture/src/Bukit-Core/Bukit.Config" \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content.Notion" \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared" \
@@ -286,6 +287,8 @@ printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj"
 printf 'internal sealed class GitProcessRunner {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy/GitProcessRunner.cs"
+printf 'internal sealed class CliHelpRenderer {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering/CliHelpRenderer.cs"
 printf 'public sealed class BodyCacheDecorator {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs"
 printf 'internal sealed class NotionBodyStore {}\n' \
@@ -306,6 +309,8 @@ printf 'public sealed class ContentBoundaryTests {}\n' \
   >"$closure_fixture/tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs"
 printf 'public sealed class GitProcessRunnerTests {}\n' \
   >"$closure_fixture/tests/Bukit.Cli.Tests/GitProcessRunnerTests.cs"
+printf 'public sealed class HelpPrinterTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Cli.Tests/HelpPrinterTests.cs"
 printf 'public sealed class NotionContentSourceTests {}\n' \
   >"$closure_fixture/tests/Bukit.Content.Notion.Tests/NotionContentSourceTests.cs"
 printf 'public sealed class BodyCacheDecoratorTests {}\n' \
@@ -459,6 +464,35 @@ assert_closure_mapping \
   tests/PluginProcessProbe/Program.cs \
   '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
   false
+expect_exit 0 "${tool[@]}" closure \
+  --repo "$closure_fixture" \
+  --policy scripts/checks/codex-workflow-policy.v1.json \
+  --changed docs/schemas/seo-route-map.v1.schema.json \
+  --changed docs/schemas/seo-observation.v1.schema.json \
+  --changed docs/schemas/seo-insights-rules.v1.schema.json \
+  --changed guide/user/21-seo-insights.md
+seo_observability_closure_output="$command_output"
+
+python3 - "$seo_observability_closure_output" <<'PY'
+import json
+import sys
+
+result = json.loads(sys.argv[1])
+expected_command = (
+    "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+)
+if result["unmappedFiles"] != []:
+    raise SystemExit(
+        "expected SEO observability paths to be mapped, got unmapped: "
+        f"{result['unmappedFiles']}"
+    )
+if result["specialtyTests"] != [expected_command]:
+    raise SystemExit(
+        "unexpected SEO observability specialty tests: "
+        f"{result['specialtyTests']}"
+    )
+PY
+
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs \
@@ -472,6 +506,11 @@ assert_closure_mapping \
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Cli/Deploy/GitProcessRunner.cs \
+  '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering/CliHelpRenderer.cs \
   '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
   true
 assert_closure_mapping \
@@ -651,6 +690,7 @@ if result["specialtyTests"] != expected_tests:
 expected_consumers = sorted([
     "tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs",
     "tests/Bukit.Cli.Tests/GitProcessRunnerTests.cs",
+    "tests/Bukit.Cli.Tests/HelpPrinterTests.cs",
     "tests/Bukit.Config.Tests/ConfigLoaderTests.cs",
     "tests/Bukit.Content.Notion.Tests/NotionContentSourceTests.cs",
     "tests/Bukit.Content.Tests/BodyCacheDecoratorTests.cs",

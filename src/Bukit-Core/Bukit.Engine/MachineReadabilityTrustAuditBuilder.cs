@@ -7,7 +7,8 @@ namespace Bukit.Engine;
 
 internal sealed record MachineReadabilityTrustAuditResult(
     SeoAuditReport SeoReport,
-    PublishAuditReport PublishReport);
+    PublishAuditReport PublishReport,
+    SeoRouteMap RouteMap);
 
 internal static partial class MachineReadabilityTrustAuditBuilder
 {
