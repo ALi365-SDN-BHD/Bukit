@@ -110,11 +110,11 @@ or credentials.
 Every source row stays in the report `sources` evidence array with its
 provider, source type, status, last `observedAt`, source URL, context hash,
 and matched route keys. Only rows with `status` equal to `active` contribute
-to current citation totals: `overall.activeSources`, per-route
-`activeSources`, and `overall.activeCitedRoutes`. Rows with `deleted` or
-`unavailable` status keep their history so consumers can explain citation
-declines without erasing evidence. A route cited more than once by one
-source row is counted once for that source, and duplicate URLs that
+to current citation totals: the `activeSources` value in `overall`, per-route
+`activeSources`, and the `activeCitedRoutes` value in `overall`. Rows with
+`deleted` or `unavailable` status keep their history so consumers can explain
+citation declines without erasing evidence. A route cited more than once by
+one source row is counted once for that source, and duplicate URLs that
 normalize to the same canonical are joined once.
 
 Allowed-host cited URLs enter route matching with the same host allowlist
