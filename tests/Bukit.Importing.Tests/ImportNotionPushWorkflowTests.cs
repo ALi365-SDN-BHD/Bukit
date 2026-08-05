@@ -11,6 +11,15 @@ public sealed class ImportNotionPushWorkflowTests : IDisposable
 {
     private readonly string _rootDir;
 
+    private static Func<HttpMessageHandler?> TestHttpMessageHandlerFactory
+    {
+        set => ImportNotionPushWorkflow.CreateNotionClient = options =>
+        {
+            var handler = value();
+            return handler is null ? null : CreateTrustedClient(options, handler);
+        };
+    }
+
     public ImportNotionPushWorkflowTests()
     {
         _rootDir = Path.Combine(Path.GetTempPath(), "bukit-importing-notion-" + Guid.NewGuid().ToString("N"));
@@ -19,7 +28,7 @@ public sealed class ImportNotionPushWorkflowTests : IDisposable
 
     public void Dispose()
     {
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient();
+        TestHttpMessageHandlerFactory = () => null;
         if (Directory.Exists(_rootDir))
             Directory.Delete(_rootDir, recursive: true);
     }
@@ -194,7 +203,7 @@ databases:
 ]
 """);
 
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(request =>
         {
             var path = request.RequestUri?.AbsolutePath ?? "";
             if (request.Method == HttpMethod.Post && path.EndsWith("/databases", StringComparison.Ordinal))
@@ -216,7 +225,7 @@ databases:
             {
                 Content = new StringContent(path)
             };
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -261,7 +270,7 @@ databases:
 """);
 
         var createDatabasePayloads = new List<string>();
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(request =>
         {
             var path = request.RequestUri?.AbsolutePath ?? "";
             if (request.Method == HttpMethod.Post && path.EndsWith("/databases", StringComparison.Ordinal))
@@ -284,7 +293,7 @@ databases:
             {
                 Content = new StringContent(path)
             };
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -351,7 +360,7 @@ databases:
 
         string? databasePayload = null;
         string? pagePayload = null;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(request =>
         {
             var path = request.RequestUri?.AbsolutePath ?? "";
             if (request.Method == HttpMethod.Post && path.EndsWith("/databases", StringComparison.Ordinal))
@@ -365,7 +374,7 @@ databases:
                 return Json("""{ "id": "page-created" }""");
             }
             return new HttpResponseMessage(HttpStatusCode.NotFound);
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -414,7 +423,7 @@ databases:
 """);
 
         string? pagePayload = null;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(request =>
         {
             if (request.Method == HttpMethod.Post && request.RequestUri?.AbsolutePath.EndsWith("/pages", StringComparison.Ordinal) == true)
             {
@@ -422,7 +431,7 @@ databases:
                 return Json("""{ "id": "page-created" }""");
             }
             return new HttpResponseMessage(HttpStatusCode.NotFound);
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -452,7 +461,7 @@ databases:
         string? pagePayload = null;
         string? childrenPayload = null;
         var deletedBlockIds = new List<string>();
-        using var http = new HttpClient(new StubHttpMessageHandler(request =>
+        using var handler = new StubHttpMessageHandler(request =>
         {
             var path = request.RequestUri?.AbsolutePath ?? "";
             if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db-posts/query", StringComparison.Ordinal))
@@ -475,14 +484,14 @@ databases:
                 return Json("{}");
             }
             return new HttpResponseMessage(HttpStatusCode.NotFound);
-        }));
+        });
 
         var record = new ImportSeedRecord(
             "post", "Body update", "body-update", null, "<p>更新正文</p>",
             null, true, null, null);
-        using var transport = new NotionClient(
+        using var transport = CreateTrustedClient(
             new NotionClientOptions { Token = "secret", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionWriteClient(transport);
         var result = await NotionSeedPusher.PushAsync(client, [record],
             new NotionPushOptions("db-posts", Path.Combine(_rootDir, "update-report.json"),
@@ -502,14 +511,14 @@ databases:
     public async Task NotionSeedPusher_FailureDoesNotExposeRawNotionBody()
     {
         const string secret = "secret-from-notion-error-body";
-        using var http = new HttpClient(new StubHttpMessageHandler(_ =>
+        using var handler = new StubHttpMessageHandler(_ =>
             new HttpResponseMessage(HttpStatusCode.BadRequest)
             {
                 Content = new StringContent($"{{\"message\":\"{secret}\"}}")
-            }));
-        using var transport = new NotionClient(
+            });
+        using var transport = CreateTrustedClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionWriteClient(transport);
         var record = new ImportSeedRecord(
             "post", "Failure", "failure", null, null, null, true, null, null);
@@ -532,10 +541,9 @@ databases:
     {
         using var cancellation = new CancellationTokenSource();
         var handler = new CancelFirstRequestHandler(cancellation);
-        using var http = new HttpClient(handler);
-        using var transport = new NotionClient(
+        using var transport = CreateTrustedClient(
             new NotionClientOptions { Token = "token", MaxRetries = 0 },
-            http);
+            handler);
         var client = new NotionWriteClient(transport);
         var records = new[]
         {
@@ -577,11 +585,11 @@ databases:
       {schemaLine}
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -617,11 +625,11 @@ databases:
       Category: rich_text
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -662,11 +670,11 @@ databases:
       {schemaLine}
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -704,11 +712,11 @@ databases:
       PublishAt: date
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -748,11 +756,11 @@ databases:
       Value: {{type}}
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -787,11 +795,11 @@ databases:
       Category: select
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -837,7 +845,7 @@ databases:
     databaseId: db-posts
 """);
         string? pagePayload = null;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(request =>
         {
             if (request.Method == HttpMethod.Post && request.RequestUri?.AbsolutePath.EndsWith("/pages", StringComparison.Ordinal) == true)
             {
@@ -845,7 +853,7 @@ databases:
                 return Json("""{ "id": "page-created" }""");
             }
             return new HttpResponseMessage(HttpStatusCode.NotFound);
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -889,7 +897,7 @@ databases:
       Tags: multi_select
 """);
         string? pagePayload = null;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(request =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(request =>
         {
             if (request.Method == HttpMethod.Post && request.RequestUri?.AbsolutePath.EndsWith("/pages", StringComparison.Ordinal) == true)
             {
@@ -897,7 +905,7 @@ databases:
                 return Json("""{ "id": "page-created" }""");
             }
             return new HttpResponseMessage(HttpStatusCode.NotFound);
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -938,11 +946,11 @@ databases:
     databaseId: db-posts
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -975,11 +983,11 @@ databases:
 ]
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -1024,11 +1032,11 @@ databases:
       Priority: number
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -1069,11 +1077,11 @@ databases:
       Tags: multi_select
 """);
         var requestCount = 0;
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
         {
             requestCount++;
             return Json("{}");
-        }));
+        });
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var result = await ImportingCommandTestSupport.CaptureAsync(() =>
@@ -1128,7 +1136,7 @@ databases:
     [Fact]
     public async Task ValidateSchemaAsync_WithStubbedHttpClientWritesPassingReport()
     {
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
             Json("""
 {
   "properties": {
@@ -1142,7 +1150,7 @@ databases:
     "SeoDescription": { "type": "rich_text" }
   }
 }
-""")));
+"""));
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var reportPath = Path.Combine(_rootDir, "schema-report.json");
@@ -1164,14 +1172,14 @@ databases:
     [Fact]
     public async Task ValidateSchemaAsync_FieldMissingReturnsOneAndWritesReport()
     {
-        ImportNotionPushWorkflow.CreateHttpClient = () => new HttpClient(new StubHttpMessageHandler(_ =>
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
             Json("""
 {
   "properties": {
     "Title": { "type": "title" }
   }
 }
-""")));
+"""));
 
         using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
         var reportPath = Path.Combine(_rootDir, "schema-missing-report.json");
@@ -1191,11 +1199,46 @@ databases:
         Assert.Contains("\"success\": false", File.ReadAllText(reportPath), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ValidateSchemaAsync_RedirectResponseIsRejectedWithoutFollowing()
+    {
+        var requestCount = 0;
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            var response = new HttpResponseMessage(HttpStatusCode.Found);
+            response.Headers.Location = new Uri("https://example.com/redirected");
+            return response;
+        });
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope(
+            "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+            "secret");
+
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.ValidateSchemaAsync(new ImportNotionSchemaValidationOptions
+            {
+                DatabaseId = "db-schema",
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN"
+            }));
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal(1, requestCount);
+    }
+
     private ImportResult BuildImportResult()
         => new()
         {
             ThemePath = Path.Combine(_rootDir, "themes", "demo")
         };
+
+    private static NotionClient CreateTrustedClient(
+        NotionClientOptions options,
+        HttpMessageHandler handler)
+        => new(
+            options,
+            handler,
+            static (_, _) => Task.CompletedTask,
+            static () => DateTimeOffset.UtcNow);
 
     private static void AssertPropertyType(string payload, string propertyName, string expectedType)
     {

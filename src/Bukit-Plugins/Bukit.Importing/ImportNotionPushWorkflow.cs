@@ -2,23 +2,23 @@ using System.Text;
 using System.Text.Json;
 using Bukit.Notion.Transport;
 using Bukit.Notion.Write;
-using Bukit.Shared;
 
 namespace Bukit.Importing;
 
 public static class ImportNotionPushWorkflow
 {
-    private static Func<HttpClient> _createHttpClient = () => SsrfGuard.CreateSafeHttpClient();
+    private static Func<NotionClientOptions, NotionClient?> _createNotionClient = static _ => null;
 
     /// <summary>
-    /// Factory for creating HttpClient instances. Thread-safe setter for test seams.
+    /// Test seam for creating a trusted canonical client. A null result uses the
+    /// canonical Notion transport's owned production handler.
     /// </summary>
-    internal static Func<HttpClient> CreateHttpClient
+    internal static Func<NotionClientOptions, NotionClient?> CreateNotionClient
     {
 #pragma warning disable CS8601 // Possible null reference assignment.
-        get => Interlocked.CompareExchange(ref _createHttpClient, null, null);
+        get => Interlocked.CompareExchange(ref _createNotionClient, null, null);
 #pragma warning restore CS8601
-        set => Interlocked.Exchange(ref _createHttpClient, value);
+        set => Interlocked.Exchange(ref _createNotionClient, value);
     }
 
     public static Task<int> PushGeneratedSeedAsync(ImportGeneratedNotionPushOptions options)
@@ -121,8 +121,7 @@ public static class ImportNotionPushWorkflow
             ? null
             : Path.GetFullPath(options.ReportPath);
 
-        using var http = CreateHttpClient();
-        using var transport = CreateTransport(token, http);
+        using var transport = CreateTransport(token);
         var client = new NotionWriteClient(transport);
         var report = await NotionSchemaValidator.ValidateAsync(client, databaseId, reportPath);
 
@@ -247,9 +246,8 @@ public static class ImportNotionPushWorkflow
             return 2;
         }
 
-        using var http = CreateHttpClient();
         var token = Environment.GetEnvironmentVariable(options.TokenEnv) ?? "";
-        using var transport = CreateTransport(options.DryRun ? "dry-run" : token, http);
+        using var transport = CreateTransport(options.DryRun ? "dry-run" : token);
         var client = new NotionWriteClient(transport);
         var completedTargets = new List<NotionDatabaseTarget>();
         var pushResults = new List<(NotionDatabaseTarget Target, NotionPushResult Result)>();
@@ -381,9 +379,8 @@ public static class ImportNotionPushWorkflow
             Console.Error.WriteLine(ex.Message);
             return 2;
         }
-        using var http = CreateHttpClient();
         var token = Environment.GetEnvironmentVariable(tokenEnv) ?? "";
-        using var transport = CreateTransport(dryRun ? "dry-run" : token, http);
+        using var transport = CreateTransport(dryRun ? "dry-run" : token);
         var client = new NotionWriteClient(transport);
         if (!dryRun && validateSchema)
         {
@@ -492,16 +489,15 @@ public static class ImportNotionPushWorkflow
             : null;
     }
 
-#pragma warning disable CS0618 // Pending transport refactor
-    private static NotionClient CreateTransport(string token, HttpClient http)
-        => new(
-            new NotionClientOptions
-            {
-                Token = token,
-                MaxRetries = 0
-            },
-            http);
-#pragma warning restore CS0618
+    private static NotionClient CreateTransport(string token)
+    {
+        var options = new NotionClientOptions
+        {
+            Token = token,
+            MaxRetries = 0
+        };
+        return CreateNotionClient(options) ?? new NotionClient(options);
+    }
 
     private static string BuildCreateDatabasePayload(
         string parentPageId,

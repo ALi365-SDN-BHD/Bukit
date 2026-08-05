@@ -43,25 +43,16 @@ public sealed class ImageOptimizerTests
 
             // The published artifact must now survive bounded decode validation, so the
             // fake tool copies a genuinely valid WebP payload prepared by the test.
-            // PATH is prepended (not replaced) so the script may use coreutils; stub
-            // higher-preference tools to keep the requested tool selected.
-            if (toolName != "cwebp")
-            {
-                WriteTool(toolDir, "cwebp", "exit 1");
-            }
-
-            if (toolName == "convert")
-            {
-                WriteTool(toolDir, "magick", "exit 1");
-            }
-
+            // PATH points only at toolDir so candidate probing stays inside the fake
+            // set; the copy uses the shell builtin-free cp resolved through /usr/bin
+            // via the absolute fallback below.
             WriteTool(toolDir, toolName, """
                 if [ "$1" = "-version" ] || [ "$1" = "--version" ]; then exit 0; fi
                 printf '%s\n' "$*" >> "$BUKIT_IMAGE_TOOL_LOG"
                 for last in "$@"; do :; done
-                cp "$BUKIT_IMAGE_TOOL_PAYLOAD" "$last"
+                /bin/cat "$BUKIT_IMAGE_TOOL_PAYLOAD" > "$last"
                 """);
-            Environment.SetEnvironmentVariable("PATH", string.IsNullOrEmpty(originalPath) ? toolDir : toolDir + Path.PathSeparator + originalPath);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
             Environment.SetEnvironmentVariable("BUKIT_IMAGE_TOOL_LOG", logPath);
             Environment.SetEnvironmentVariable("BUKIT_IMAGE_TOOL_PAYLOAD", realWebp);
 
@@ -190,6 +181,7 @@ public sealed class ImageOptimizerTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
 
 
 

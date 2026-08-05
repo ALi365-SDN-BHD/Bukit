@@ -232,11 +232,18 @@ mkdir -p \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content.Notion" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared" \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Engine.Abstractions" \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine/obj/Debug" \
   "$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport" \
-  "$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions/Config" \
   "$closure_fixture/src/Bukit-Core/Bukit.PluginHost" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Rendering" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Routing" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Shared" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Theme" \
+  "$closure_fixture/src/Bukit-Plugins/Bukit.Importing" \
   "$closure_fixture/tests/Bukit.Architecture.Tests" \
   "$closure_fixture/tests/Bukit.Cli.Tests" \
   "$closure_fixture/tests/Bukit.Config.Tests" \
@@ -244,8 +251,16 @@ mkdir -p \
   "$closure_fixture/tests/Bukit.Content.Notion.Tests" \
   "$closure_fixture/tests/Bukit.Content.Tests" \
   "$closure_fixture/tests/Bukit.Engine.Tests" \
+  "$closure_fixture/tests/Bukit.Engine.Abstractions.Tests" \
+  "$closure_fixture/tests/Bukit.Importing.Tests" \
   "$closure_fixture/tests/Bukit.Notion.Tests" \
+  "$closure_fixture/tests/Bukit.Plugin.Abstractions.Tests" \
+  "$closure_fixture/tests/Bukit.Plugin.Import.Tests" \
   "$closure_fixture/tests/Bukit.PluginHost.Tests" \
+  "$closure_fixture/tests/Bukit.Rendering.Tests" \
+  "$closure_fixture/tests/Bukit.Routing.Tests" \
+  "$closure_fixture/tests/Bukit.Shared.Tests" \
+  "$closure_fixture/tests/Bukit.Theme.Tests" \
   "$closure_fixture/tests/PluginProcessProbe"
 git -C "$closure_fixture" init -q
 git -C "$closure_fixture" config user.email codex-workflow@example.invalid
@@ -279,6 +294,8 @@ printf 'public sealed class NotionClient {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport/NotionClient.cs"
 printf 'internal sealed class SystemProcessRunner {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs"
+printf 'public sealed record PluginConfigEntry(bool Enabled, string Source);\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions/Config/PluginConfigEntry.cs"
 printf '# Built-in plugins\n' >"$closure_fixture/guide/dev/built-in-plugins.md"
 printf '# Content\n' >"$closure_fixture/guide/dev/content.md"
 printf 'public sealed class ContentBoundaryTests {}\n' \
@@ -293,18 +310,63 @@ printf 'public sealed class NotionClientTests {}\n' \
   >"$closure_fixture/tests/Bukit.Notion.Tests/NotionClientTests.cs"
 printf 'public sealed class SystemProcessRunnerTests {}\n' \
   >"$closure_fixture/tests/Bukit.PluginHost.Tests/SystemProcessRunnerTests.cs"
+printf 'public sealed class PluginConfigDtoTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Plugin.Abstractions.Tests/PluginConfigDtoTests.cs"
+printf 'public sealed class ImportNotionPushWorkflowTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Importing.Tests/ImportNotionPushWorkflowTests.cs"
+printf 'public sealed class ImportPluginInvokeCompatibilityTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Plugin.Import.Tests/ImportPluginInvokeCompatibilityTests.cs"
+printf 'public sealed class RenderingPackageTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Rendering.Tests/RenderingPackageTests.cs"
+printf 'public sealed class RoutingPackageTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Routing.Tests/RoutingPackageTests.cs"
+printf 'public sealed class SharedPackageTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Shared.Tests/SharedPackageTests.cs"
+printf 'public sealed class ThemePackageTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Theme.Tests/ThemePackageTests.cs"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Content/Bukit.Content.csproj"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.PluginHost/Bukit.PluginHost.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Config/Bukit.Config.csproj"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Rendering/Bukit.Rendering.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Shared/Bukit.Shared.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Theme/Bukit.Theme.csproj"
+printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+  >"$closure_fixture/src/Bukit-Plugins/Bukit.Importing/Bukit.Importing.csproj"
 printf 'public sealed class EngineFeatureTests {}\n' \
   >"$closure_fixture/tests/Bukit.Engine.Tests/EngineFeatureTests.cs"
+for project in \
+  Bukit.Engine.Abstractions.Tests \
+  Bukit.Importing.Tests \
+  Bukit.Plugin.Import.Tests \
+  Bukit.Rendering.Tests \
+  Bukit.Routing.Tests \
+  Bukit.Shared.Tests \
+  Bukit.Theme.Tests; do
+  printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
+    >"$closure_fixture/tests/$project/$project.csproj"
+done
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' >"$closure_fixture/Directory.Packages.props"
 printf 'return 0;\n' >"$closure_fixture/tests/PluginProcessProbe/Program.cs"
 printf 'unmapped\n' >"$closure_fixture/README.unknown"
@@ -356,6 +418,11 @@ PY
 
 assert_closure_mapping \
   "$closure_fixture" \
+  src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj \
+  '["dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj", "dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
   src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs \
   '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
   true
@@ -391,6 +458,26 @@ assert_closure_mapping \
   true
 assert_closure_mapping \
   "$closure_fixture" \
+  src/Bukit-Plugins/Bukit.Importing/ImportNotionPushWorkflow.cs \
+  '["dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj", "dotnet test tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Importing.Tests/ImportNotionPushWorkflowTests.cs \
+  '["dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj \
+  '["dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Plugin.Import.Tests/ImportPluginInvokeCompatibilityTests.cs \
+  '["dotnet test tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
   tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs \
   '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' \
   false
@@ -406,11 +493,100 @@ assert_closure_mapping \
   false
 
 # Verify .csproj closure mapping (I-01).
+# Existing non-owner project mappings retain only their established owner test.
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Content/Bukit.Content.csproj \
   '["dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
   true
+
+# Each named Core owner project and its exact test project carries Architecture
+# plus its own specialty test; unrelated projects receive no generic fallback.
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Rendering/Bukit.Rendering.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Shared/Bukit.Shared.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Theme/Bukit.Theme.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Theme.Tests/Bukit.Theme.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Theme.Tests/Bukit.Theme.Tests.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Theme.Tests/Bukit.Theme.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj"]' \
+  false
+
+# The shared CLI project must include its owner command as well as Architecture.
+expect_exit 0 "${tool[@]}" closure \
+  --repo "$closure_fixture" \
+  --policy scripts/checks/codex-workflow-policy.v1.json \
+  --changed src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj
+python3 - "$command_output" <<'PY'
+import json
+import sys
+
+result = json.loads(sys.argv[1])
+if "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj" in result["unmappedFiles"]:
+    raise SystemExit("named shared CLI project must be mapped")
+expected_tests = [
+    "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+    "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
+]
+if result["specialtyTests"] != expected_tests:
+    raise SystemExit(f"unexpected shared CLI project tests: {result['specialtyTests']}")
+PY
 
 # Verify Directory.Packages.props central-package closure mapping.
 expect_exit 0 "${tool[@]}" closure \
@@ -428,8 +604,16 @@ expected_tests = [
     "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
     "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
     "dotnet test tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj",
+    "dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj",
     "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj",
     "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj",
+    "dotnet test tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj",
+    "dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj",
+    "dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj",
+    "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj",
+    "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj",
+    "dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj",
+    "dotnet test tests/Bukit.Theme.Tests/Bukit.Theme.Tests.csproj",
 ]
 if result["specialtyTests"] != expected_tests:
     raise SystemExit(
@@ -440,8 +624,16 @@ expected_consumers = sorted([
     "tests/Bukit.Architecture.Tests/ContentBoundaryTests.cs",
     "tests/Bukit.Cli.Tests/GitProcessRunnerTests.cs",
     "tests/Bukit.Config.Tests/ConfigLoaderTests.cs",
+    "tests/Bukit.Content.Notion.Tests/NotionContentSourceTests.cs",
     "tests/Bukit.Content.Tests/BodyCacheDecoratorTests.cs",
     "tests/Bukit.Engine.Tests/EngineFeatureTests.cs",
+    "tests/Bukit.Notion.Tests/NotionClientTests.cs",
+    "tests/Bukit.Plugin.Abstractions.Tests/PluginConfigDtoTests.cs",
+    "tests/Bukit.PluginHost.Tests/SystemProcessRunnerTests.cs",
+    "tests/Bukit.Rendering.Tests/RenderingPackageTests.cs",
+    "tests/Bukit.Routing.Tests/RoutingPackageTests.cs",
+    "tests/Bukit.Shared.Tests/SharedPackageTests.cs",
+    "tests/Bukit.Theme.Tests/ThemePackageTests.cs",
 ])
 if result["contractConsumers"] != expected_consumers:
     raise SystemExit(
