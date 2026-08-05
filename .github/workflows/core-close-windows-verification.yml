@@ -94,6 +94,9 @@ jobs:
             Write-Host "$($entry.Name)=$($entry.Value)"
           }
           $failed = @($outcomes.GetEnumerator() | Where-Object { $_.Value -ne "success" })
+          foreach ($entry in $failed) {
+            Write-Host "::error title=Windows verification outcome::$($entry.Name)=$($entry.Value)"
+          }
           if ($failed.Count -ne 0) {
             throw "Windows verification failed: $($failed.Name -join ', ')"
           }
