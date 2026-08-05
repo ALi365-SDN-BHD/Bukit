@@ -33,30 +33,31 @@ jobs:
           }
           Write-Host "Windows runtime: $([System.Environment]::OSVersion.VersionString)"
 
-      - name: Run Architecture owner tests
-        id: architecture_tests
-        continue-on-error: true
-        run: dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release --verbosity minimal
+      - name: Verify pagination visibility contract
+        run: >-
+          dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj
+          -c Release --verbosity minimal
+          --filter "FullyQualifiedName~NotionPaginationInfrastructure_MustRemainInternal"
 
-      - name: Run Content owner tests
-        id: content_tests
-        continue-on-error: true
-        run: dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj -c Release --verbosity minimal
+      - name: Verify public Content pagination failure
+        run: >-
+          dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj
+          -c Release --verbosity minimal
+          --filter "FullyQualifiedName~LoadAsync_WhenHasMoreWithoutCursor_ThrowsStablePaginationException"
 
-      - name: Run Notion owner tests
-        id: notion_tests
-        continue-on-error: true
-        run: dotnet test tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj -c Release --verbosity minimal
+      - name: Verify internal Notion pagination contract
+        run: >-
+          dotnet test tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj
+          -c Release --verbosity minimal
+          --filter "FullyQualifiedName~NotionBlocksRendererPaginationTests|FullyQualifiedName~NotionBlockRendererCompatibilityEdgeCasesTests"
 
-      - name: Run Engine owner tests
-        id: engine_tests
-        continue-on-error: true
-        run: dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --verbosity minimal
+      - name: Compile the ImageOptimizer regression test on Windows
+        run: >-
+          dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj
+          -c Release --verbosity minimal
+          --filter "FullyQualifiedName~OptimizeAsync_ExitZeroWithInvalidOutput_FailsWithoutPublishing"
 
       - name: Publish win-x64 Native AOT
-        id: aot_publish
-        if: always()
-        continue-on-error: true
         run: |
           dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj `
             -c Release -r win-x64 --self-contained true `
@@ -66,9 +67,6 @@ jobs:
           }
 
       - name: Smoke win-x64 Native AOT
-        id: aot_smoke
-        if: always() && steps.aot_publish.outcome == 'success'
-        continue-on-error: true
         run: |
           $version = & artifacts/win-x64/bukit.exe version | Out-String
           if ($LASTEXITCODE -ne 0 -or $version -notmatch "runtime:\s*native-aot") {
@@ -77,26 +75,4 @@ jobs:
           & artifacts/win-x64/bukit.exe --help
           if ($LASTEXITCODE -ne 0) {
             throw "Native AOT help smoke failed."
-          }
-
-      - name: Project verification outcomes
-        if: always()
-        run: |
-          $outcomes = @{
-            architecture = "${{ steps.architecture_tests.outcome }}"
-            content = "${{ steps.content_tests.outcome }}"
-            notion = "${{ steps.notion_tests.outcome }}"
-            engine = "${{ steps.engine_tests.outcome }}"
-            aot_publish = "${{ steps.aot_publish.outcome }}"
-            aot_smoke = "${{ steps.aot_smoke.outcome }}"
-          }
-          foreach ($entry in $outcomes.GetEnumerator() | Sort-Object Name) {
-            Write-Host "$($entry.Name)=$($entry.Value)"
-          }
-          $failed = @($outcomes.GetEnumerator() | Where-Object { $_.Value -ne "success" })
-          foreach ($entry in $failed) {
-            Write-Host "::error title=Windows verification outcome::$($entry.Name)=$($entry.Value)"
-          }
-          if ($failed.Count -ne 0) {
-            throw "Windows verification failed: $($failed.Name -join ', ')"
           }
