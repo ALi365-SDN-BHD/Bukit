@@ -689,7 +689,6 @@ public sealed class SeoGeoDocumentationContractTests
             row.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
         Assert.Equal(3, row.GetProperty("anyOf").GetArrayLength());
         var rowProperties = row.GetProperty("properties");
-        Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", rowProperties.GetProperty("sourceUrl").GetProperty("pattern").GetString());
         Assert.Equal(
             ["official", "regulator", "research", "news", "association", "repository", "forum", "other"],
             rowProperties.GetProperty("sourceType").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
@@ -700,7 +699,6 @@ public sealed class SeoGeoDocumentationContractTests
         Assert.Equal("^topic:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("topicKey").GetProperty("pattern").GetString());
         Assert.Equal("^entity:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("entityKey").GetProperty("pattern").GetString());
         Assert.Equal("^context:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("contextHash").GetProperty("pattern").GetString());
-        Assert.Equal("^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)", rowProperties.GetProperty("citedUrls").GetProperty("items").GetProperty("pattern").GetString());
 
         using var reportSchema = ReadJson("docs", "schemas", "external-authority-report.v1.schema.json");
         var reportRoot = reportSchema.RootElement;
@@ -742,6 +740,42 @@ public sealed class SeoGeoDocumentationContractTests
             ["url", "candidateRouteKeys"],
             ambiguous.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
         Assert.Equal(2, ambiguous.GetProperty("properties").GetProperty("candidateRouteKeys").GetProperty("minItems").GetInt32());
+    }
+
+    [Fact]
+    public void ExternalAuthorityReportSchema_CanonicalMatchesRouteMapContract()
+    {
+        using var reportSchema = ReadJson("docs", "schemas", "external-authority-report.v1.schema.json");
+        var canonical = reportSchema.RootElement.GetProperty("properties").GetProperty("routes")
+            .GetProperty("items").GetProperty("properties").GetProperty("canonical");
+        var branches = canonical.GetProperty("oneOf");
+
+        Assert.Equal(2, branches.GetArrayLength());
+        Assert.Equal("uri", branches[0].GetProperty("format").GetString());
+        Assert.True(StringSchemaAccepts(branches[0], "HTTPS://example.com/article/"));
+        Assert.False(StringSchemaAccepts(branches[0], "https://user:secret@example.com/article/"));
+        Assert.True(StringSchemaAccepts(branches[1], "/article/"));
+        Assert.False(StringSchemaAccepts(branches[1], "//other.example/article/"));
+    }
+
+    [Fact]
+    public void ExternalAuthorityObservationSchema_RequiresAbsoluteHttpUrlsWithHosts()
+    {
+        using var observationSchema = ReadJson("docs", "schemas", "external-authority-observation.v1.schema.json");
+        var rowProperties = observationSchema.RootElement.GetProperty("properties").GetProperty("rows")
+            .GetProperty("items").GetProperty("properties");
+        var sourceUrl = rowProperties.GetProperty("sourceUrl");
+        var citedUrl = rowProperties.GetProperty("citedUrls").GetProperty("items");
+
+        Assert.Equal("uri", sourceUrl.GetProperty("format").GetString());
+        Assert.True(StringSchemaAccepts(sourceUrl, "HTTPS://source.example/discussion/1"));
+        Assert.False(StringSchemaAccepts(sourceUrl, "https://"));
+        Assert.False(StringSchemaAccepts(sourceUrl, "https://user:secret@source.example/discussion/1"));
+
+        Assert.Equal("uri", citedUrl.GetProperty("format").GetString());
+        Assert.True(StringSchemaAccepts(citedUrl, "http://example.com/guide/"));
+        Assert.False(StringSchemaAccepts(citedUrl, "http://"));
+        Assert.False(StringSchemaAccepts(citedUrl, "https://user:secret@example.com/guide/"));
     }
 
     [Fact]

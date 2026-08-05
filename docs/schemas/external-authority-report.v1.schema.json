@@ -85,7 +85,19 @@
         "required": ["routeKey", "canonical", "activeSources"],
         "properties": {
           "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
-          "canonical": { "type": "string", "pattern": "^https?://" },
+          "canonical": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)"
+              },
+              {
+                "type": "string",
+                "pattern": "^/(?!/)"
+              }
+            ]
+          },
           "activeSources": { "type": "integer", "minimum": 0 }
         }
       }

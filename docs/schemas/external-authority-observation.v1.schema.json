@@ -24,7 +24,7 @@
           { "required": ["entityKey"], "properties": { "entityKey": { "type": "string" } } }
         ],
         "properties": {
-          "sourceUrl": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)" },
+          "sourceUrl": { "type": "string", "format": "uri", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)[^\\s/?#]+(?:[/?#]|$)" },
           "sourceType": { "enum": ["official", "regulator", "research", "news", "association", "repository", "forum", "other"] },
           "observedAt": { "type": "string", "format": "date-time" },
           "status": { "enum": ["active", "deleted", "unavailable"] },
@@ -35,7 +35,7 @@
           "citedUrls": {
             "type": "array",
             "maxItems": 100,
-            "items": { "type": "string", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)" }
+            "items": { "type": "string", "format": "uri", "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://(?![^/?#]*@)[^\\s/?#]+(?:[/?#]|$)" }
           }
         }
       }
