@@ -251,7 +251,7 @@ public static partial class BukitCliSpecs
     private static CliOptionSpec[] QuestionInsightsOptions() =>
     [
         new CliOptionSpec("--dir", "构建输出目录", DefaultValueHelp: "dist"),
-        new CliOptionSpec("--routes", "SEO route map 本地路径", DefaultValueHelp: "<dir>/.bukit/seo-route-map.json"),
+        new CliOptionSpec("--routes", "SEO route map 本地路径（兼容别名 --route-map）", ShortName: "--route-map", DefaultValueHelp: "<dir>/.bukit/seo-route-map.json"),
         new CliOptionSpec("--targets", "question target map 本地路径", Required: true),
         new CliOptionSpec("--observations", "逗号分隔的 1-10 个本地 search question observation JSON 路径", Required: true),
         new CliOptionSpec("--rules", "SEO insights 规则本地路径", Required: true),
@@ -262,7 +262,7 @@ public static partial class BukitCliSpecs
     private static CliOptionSpec[] GenerativeInsightsOptions() =>
     [
         new CliOptionSpec("--dir", "构建输出目录", DefaultValueHelp: "dist"),
-        new CliOptionSpec("--routes", "SEO route map 本地路径", DefaultValueHelp: "<dir>/.bukit/seo-route-map.json"),
+        new CliOptionSpec("--routes", "SEO route map 本地路径（兼容别名 --route-map）", ShortName: "--route-map", DefaultValueHelp: "<dir>/.bukit/seo-route-map.json"),
         new CliOptionSpec("--observations", "逗号分隔的 1-10 个本地 generative answer observation JSON 路径", Required: true),
         new CliOptionSpec("--rules", "SEO insights 规则本地路径", Required: true),
         new CliOptionSpec("--out", "生成式引用报告输出路径", DefaultValueHelp: "<dir>/.bukit/generative-citation-report.json"),
@@ -272,7 +272,7 @@ public static partial class BukitCliSpecs
     private static CliOptionSpec[] AuthorityInsightsOptions() =>
     [
         new CliOptionSpec("--dir", "构建输出目录", DefaultValueHelp: "dist"),
-        new CliOptionSpec("--routes", "SEO route map 本地路径", DefaultValueHelp: "<dir>/.bukit/seo-route-map.json"),
+        new CliOptionSpec("--routes", "SEO route map 本地路径（兼容别名 --route-map）", ShortName: "--route-map", DefaultValueHelp: "<dir>/.bukit/seo-route-map.json"),
         new CliOptionSpec("--observations", "逗号分隔的 1-10 个本地 external authority observation JSON 路径", Required: true),
         new CliOptionSpec("--rules", "SEO insights 规则本地路径", Required: true),
         new CliOptionSpec("--out", "外部引用证据报告输出路径", DefaultValueHelp: "<dir>/.bukit/external-authority-report.json"),

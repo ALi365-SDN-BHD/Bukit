@@ -1,5 +1,6 @@
 using Bukit.Cli.Shared.Cli.Metadata;
 using Bukit.Cli.Shared.Cli.Parsing;
+using Bukit.Cli.Shared.Cli.Rendering;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -80,6 +81,7 @@ public sealed class CliContractTests
         Assert.True(options.Single(option => option.Name == "--observations").Required);
         Assert.True(options.Single(option => option.Name == "--rules").Required);
         Assert.False(options.Single(option => option.Name == "--routes").Required);
+        Assert.Equal("--route-map", options.Single(option => option.Name == "--routes").ShortName);
         Assert.Equal("<dir>/.bukit/seo-route-map.json", options.Single(option => option.Name == "--routes").DefaultValueHelp);
         Assert.Equal("<dir>/.bukit/seo-question-insights-report.json", options.Single(option => option.Name == "--out").DefaultValueHelp);
     }
@@ -98,6 +100,7 @@ public sealed class CliContractTests
         Assert.True(options.Single(option => option.Name == "--observations").Required);
         Assert.True(options.Single(option => option.Name == "--rules").Required);
         Assert.False(options.Single(option => option.Name == "--routes").Required);
+        Assert.Equal("--route-map", options.Single(option => option.Name == "--routes").ShortName);
         Assert.Equal("<dir>/.bukit/seo-route-map.json", options.Single(option => option.Name == "--routes").DefaultValueHelp);
         Assert.Equal("<dir>/.bukit/generative-citation-report.json", options.Single(option => option.Name == "--out").DefaultValueHelp);
     }
@@ -116,8 +119,41 @@ public sealed class CliContractTests
         Assert.True(options.Single(option => option.Name == "--observations").Required);
         Assert.True(options.Single(option => option.Name == "--rules").Required);
         Assert.False(options.Single(option => option.Name == "--routes").Required);
+        Assert.Equal("--route-map", options.Single(option => option.Name == "--routes").ShortName);
         Assert.Equal("<dir>/.bukit/seo-route-map.json", options.Single(option => option.Name == "--routes").DefaultValueHelp);
         Assert.Equal("<dir>/.bukit/external-authority-report.json", options.Single(option => option.Name == "--out").DefaultValueHelp);
+    }
+
+    [Theory]
+    [InlineData("question-insights", true)]
+    [InlineData("generative-insights", false)]
+    [InlineData("authority-insights", false)]
+    public void Parse_SeoNextInsights_RouteMapAliasBindsToCanonicalRoutesOption(
+        string subcommand,
+        bool requiresTargets)
+    {
+        var registry = BukitCliSpecs.CreateRegistry();
+        var seo = registry.Resolve("seo")!;
+        var command = registry.ResolveSubcommand(seo, subcommand)!;
+        var arguments = new List<string>
+        {
+            "--route-map", "routes.json",
+            "--observations", "observations.json",
+            "--rules", "rules.json",
+        };
+        if (requiresTargets)
+        {
+            arguments.AddRange(["--targets", "targets.json"]);
+        }
+
+        var result = CliParser.Parse(command, arguments);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("routes.json", result.BoundCommand.GetString("--routes"));
+        Assert.Contains(
+            "--route-map",
+            CliHelpRenderer.Render(command, $"bukit seo {subcommand}"),
+            StringComparison.Ordinal);
     }
 
     [Fact]
