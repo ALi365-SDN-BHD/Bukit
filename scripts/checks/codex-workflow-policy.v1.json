@@ -16,19 +16,6 @@
     },
     {
       "contractConsumerGlobs": [],
-      "id": "temporary-core-close-windows-verification",
-      "matches": [
-        ".github/workflows/core-close-windows-verification.yml"
-      ],
-      "publicContract": false,
-      "resource": "static-parallel",
-      "specialtyTests": [
-        "bash scripts/checks/active-workflow-boundary-self-test.sh",
-        "bash scripts/checks/active-workflow-boundary.sh"
-      ]
-    },
-    {
-      "contractConsumerGlobs": [],
       "id": "codex-workflow-plans",
       "matches": [
         "docs/superpowers/plans/*codex*workflow*.md",

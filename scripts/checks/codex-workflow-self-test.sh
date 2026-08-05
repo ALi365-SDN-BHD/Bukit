@@ -227,7 +227,6 @@ assert_contains "$command_output" "fingerprintInputs"
 # Priority 2: verification closure generation.
 closure_fixture="$scratch/closure-fixture"
 mkdir -p \
-  "$closure_fixture/.github/workflows" \
   "$closure_fixture/guide/dev" \
   "$closure_fixture/src/Bukit-Core/Bukit.Config" \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy" \
@@ -288,8 +287,6 @@ printf 'public static class ContentDocumentFactory {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Engine.Abstractions/ContentDocumentFactory.cs"
 printf 'public static class RoutePathBuilder {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Routing/RoutePathBuilder.cs"
-printf 'name: Core minor Windows verification\n' \
-  >"$closure_fixture/.github/workflows/core-close-windows-verification.yml"
 printf '# Built-in plugins\n' >"$closure_fixture/guide/dev/built-in-plugins.md"
 printf '# Content\n' >"$closure_fixture/guide/dev/content.md"
 printf 'public sealed class ContentBoundaryTests {}\n' \
@@ -406,11 +403,6 @@ assert_closure_mapping \
   "$closure_fixture" \
   tests/PluginProcessProbe/Program.cs \
   '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
-  false
-assert_closure_mapping \
-  "$closure_fixture" \
-  .github/workflows/core-close-windows-verification.yml \
-  '["bash scripts/checks/active-workflow-boundary-self-test.sh", "bash scripts/checks/active-workflow-boundary.sh"]' \
   false
 assert_closure_mapping \
   "$closure_fixture" \
