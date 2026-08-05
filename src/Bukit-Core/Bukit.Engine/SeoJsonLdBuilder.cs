@@ -230,6 +230,29 @@ internal static class SeoJsonLdBuilder
             article["publisher"] = organizationNode;
         }
 
+        article["mainEntityOfPage"] = new Dictionary<string, object?>
+        {
+            ["@type"] = "WebPage",
+            ["@id"] = canonical
+        };
+
+        if (geo.Citations is { Count: > 0 })
+        {
+            var citationNodes = geo.Citations
+                .Select(BuildCitationNode)
+                .ToArray();
+            article["citation"] = citationNodes;
+
+            var basedOnNodes = geo.Citations
+                .Where(citation => string.Equals(citation.Relation, "based-on", StringComparison.Ordinal))
+                .Select(BuildCitationNode)
+                .ToArray();
+            if (basedOnNodes.Length > 0)
+            {
+                article["isBasedOn"] = basedOnNodes;
+            }
+        }
+
         if (resolvedAuthors.Authors.Count > 0)
         {
             var authorNodes = resolvedAuthors.Authors
@@ -593,12 +616,7 @@ internal static class SeoJsonLdBuilder
         var mentionList = new List<Dictionary<string, object?>>();
         foreach (var citation in citations)
         {
-            mentionList.Add(new Dictionary<string, object?>
-            {
-                ["@type"] = "WebPage",
-                ["name"] = citation.Title,
-                ["url"] = citation.Url
-            });
+            mentionList.Add(BuildCitationNode(citation));
         }
 
         result.Add(ToJson(new Dictionary<string, object?>
@@ -609,6 +627,14 @@ internal static class SeoJsonLdBuilder
             ["mentions"] = mentionList
         }));
     }
+
+    private static Dictionary<string, object?> BuildCitationNode(GeoCitationModel citation)
+        => new()
+        {
+            ["@type"] = "WebPage",
+            ["name"] = citation.Title,
+            ["url"] = citation.Url
+        };
 
     private static void BuildSpeakableJsonLd(List<string> result, string canonical, string xpath)
     {

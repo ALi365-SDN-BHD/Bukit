@@ -86,6 +86,7 @@ public sealed record GeoCitationModel
 {
     public required string Title { get; init; }
     public required string Url { get; init; }
+    public string Relation { get; init; } = "citation";
 }
 
 public sealed record GeoAuthorModel

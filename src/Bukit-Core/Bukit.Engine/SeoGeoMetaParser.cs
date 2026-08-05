@@ -164,12 +164,28 @@ internal static class SeoGeoMetaParser
                 var url = ReadGeoString(entry, "url");
                 if (!string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(url))
                 {
-                    result.Add(new GeoCitationModel { Title = title, Url = url });
+                    result.Add(new GeoCitationModel
+                    {
+                        Title = title,
+                        Url = url,
+                        Relation = ReadGeoCitationRelation(entry)
+                    });
                 }
             }
         }
 
         return result.Count == 0 ? null : result;
+    }
+
+    private static string ReadGeoCitationRelation(IReadOnlyDictionary<string, object> entry)
+    {
+        var relation = ReadGeoString(entry, "relation");
+        if (string.IsNullOrWhiteSpace(relation))
+        {
+            return "citation";
+        }
+
+        return relation.Trim().ToLowerInvariant();
     }
 
     private static GeoAuthorModel? ReadGeoAuthor(IReadOnlyDictionary<string, object> geo)

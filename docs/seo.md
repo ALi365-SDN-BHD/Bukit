@@ -241,6 +241,29 @@ not override the canonical name or type. An invalid explicit author type is
 reported by canonical validation and is omitted from article JSON-LD instead
 of being guessed as `Person`.
 
+Article-family types (`Article`, `BlogPosting`, `NewsArticle`) always emit
+`mainEntityOfPage` pointing at the canonical URL, and every configured
+`geo.citations[]` entry appears in the article's `citation` array. Entries
+with `relation: based-on` additionally appear in `isBasedOn`; no other value
+or heuristic produces `isBasedOn`. The existing standalone `WebPage` node
+with `mentions` remains for compatibility:
+
+```json
+{
+  "@type": "NewsArticle",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://example.com/news/item/"
+  },
+  "citation": [
+    { "@type": "WebPage", "name": "Primary report", "url": "https://source.example/report" }
+  ],
+  "isBasedOn": [
+    { "@type": "WebPage", "name": "Primary report", "url": "https://source.example/report" }
+  ]
+}
+```
+
 ## Theme SEO Partial
 
 Official themes can render the SEO model directly:

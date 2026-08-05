@@ -439,6 +439,21 @@ public sealed class SeoGeoDocumentationContractTests
     }
 
     [Fact]
+    public void ActiveGuide_DocumentsArticleTrustGraphContract()
+    {
+        var guide = ReadText("guide", "user", "17-geo.md");
+        var seo = ReadText("docs", "seo.md");
+
+        Assert.Contains("relation: citation", guide, StringComparison.Ordinal);
+        Assert.Contains("relation: based-on", guide, StringComparison.Ordinal);
+        Assert.Contains("mainEntityOfPage", guide, StringComparison.Ordinal);
+        Assert.Contains("does not prove authority or ranking", guide, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("mainEntityOfPage", seo, StringComparison.Ordinal);
+        Assert.Contains("isBasedOn", seo, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProtectedReferenceTrees_AreNotActiveInputs()
     {
         var protectedNames = new[]

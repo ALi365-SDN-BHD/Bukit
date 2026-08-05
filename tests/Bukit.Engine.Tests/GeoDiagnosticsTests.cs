@@ -143,6 +143,54 @@ public sealed class GeoDiagnosticsTests
     }
 
     [Fact]
+    public void AnalyzeIndex_WarnMode_ReportsCitationRelationInvalid()
+    {
+        var config = ConfigWithDiagnostics("warn");
+        var logger = new TestLogger();
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = new()
+            {
+                Title = "A",
+                Canonical = "https://example.com/a/",
+                Citations = new[] { new GeoCitationModel { Title = "Ref", Url = "https://example.com", Relation = "copied-from" } }
+            }
+        };
+
+        SeoDiagnostics.AnalyzeIndex(config, index, models, logger);
+
+        Assert.Contains(logger.Warnings, x => x.Contains("geo.citation_relation_invalid", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnalyzeIndex_StrictMode_ThrowsOnCitationRelationInvalid()
+    {
+        var config = ConfigWithDiagnostics("strict");
+        var logger = new TestLogger();
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a/index.html"] = new()
+            {
+                Title = "A",
+                Canonical = "https://example.com/a/",
+                Citations = new[] { new GeoCitationModel { Title = "Ref", Url = "https://example.com", Relation = "copied-from" } }
+            }
+        };
+
+        var ex = Assert.Throws<ConfigException>(() => SeoDiagnostics.AnalyzeIndex(config, index, models, logger));
+
+        Assert.Contains("geo.citation_relation_invalid", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AnalyzeIndex_WarnMode_ReportsAuthorNoSameAs()
     {
         var config = ConfigWithDiagnostics("warn");
