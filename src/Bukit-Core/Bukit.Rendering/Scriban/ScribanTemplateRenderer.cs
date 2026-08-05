@@ -163,9 +163,10 @@ public sealed class ScribanTemplateRenderer
             throw new RenderException($"Template not found: {templateRelativePath}", DiagnosticCode.RenderTemplateNotFound);
         }
 
-        var templateText = File.ReadAllText(templatePath);
+        var source = _templateLoader.LoadVerifiedSource(templatePath);
+        var templateText = source.Text;
         var contentHash = ComputeContentHash(templateText);
-        var signature = new TemplateFileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length, contentHash);
+        var signature = new TemplateFileSignature(source.LastWriteTimeUtc, source.Length, contentHash);
         if (_cache.TryGetValue(templatePath, out var existing) && existing.Signature.Equals(signature))
         {
             return existing;
@@ -232,9 +233,10 @@ public sealed class ScribanTemplateRenderer
             return false;
         }
 
-        var templateText = File.ReadAllText(templatePath);
+        var source = _templateLoader.LoadVerifiedSource(templatePath);
+        var templateText = source.Text;
         var contentHash = ComputeContentHash(templateText);
-        var signature = new TemplateFileSignature(fileInfo.LastWriteTimeUtc, fileInfo.Length, contentHash);
+        var signature = new TemplateFileSignature(source.LastWriteTimeUtc, source.Length, contentHash);
         if (_sectionTemplateCache.TryGetValue(templatePath, out var cached) && cached.Signature.Equals(signature))
         {
             template = cached.Template;

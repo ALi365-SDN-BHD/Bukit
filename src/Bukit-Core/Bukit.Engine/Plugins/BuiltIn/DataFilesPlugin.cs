@@ -8,6 +8,7 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Config;
 using Bukit.Shared;
+using Bukit.Shared.IO;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 
@@ -35,7 +36,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
     private readonly long _maxProjectedChars;
     private readonly int _maxProjectedEntries;
     private readonly long _maxDecodedChars;
-    private readonly Func<string, Stream> _openDataFile;
+    private readonly Func<string, string, Stream> _openDataFile;
 
     internal DataFilesPlugin(
         AppConfig config,
@@ -83,7 +84,9 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         _maxScalarChars = resolvedMaxScalarChars;
         _maxProjectedChars = maxProjectedChars;
         _maxProjectedEntries = maxProjectedEntries;
-        _openDataFile = openDataFile ?? OpenFileForSequentialRead;
+        _openDataFile = openDataFile is null
+            ? OpenVerifiedDataFile
+            : (path, _) => openDataFile(path);
     }
 
     public string Name => "data-files";
@@ -174,14 +177,11 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
     private static bool IsReparsePoint(string path)
         => (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
-    private static Stream OpenFileForSequentialRead(string path)
-        => new FileStream(
-            path,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            bufferSize: 8192,
-            FileOptions.SequentialScan);
+    internal static Stream OpenVerifiedDataFile(string path, string dataRoot)
+    {
+        var verified = new PlatformSafeSourceFileOpener().Open(path, dataRoot);
+        return new VerifiedDataFileStream(verified);
+    }
 
     private Dictionary<string, object> LoadDataDirectory(
         string dir,
@@ -359,7 +359,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         private readonly long _maxFileSizeBytes;
         private readonly long _maxTotalSizeBytes;
         private readonly long _maxDecodedChars;
-        private readonly Func<string, Stream> _openDataFile;
+        private readonly Func<string, string, Stream> _openDataFile;
         private readonly CancellationToken _cancellationToken;
         private readonly HashSet<string> _visitedDirectories = new(
             OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
@@ -376,7 +376,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             long maxFileSizeBytes,
             long maxTotalSizeBytes,
             long maxDecodedChars,
-            Func<string, Stream> openDataFile,
+            Func<string, string, Stream> openDataFile,
             CancellationToken cancellationToken)
         {
             _maxEntries = maxEntries;
@@ -423,7 +423,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
         {
             _cancellationToken.ThrowIfCancellationRequested();
             var relativePath = GetRelativeDataPath(dataRoot, path);
-            var input = _openDataFile(path);
+            var input = _openDataFile(path, dataRoot);
             try
             {
                 if (input.CanSeek && input.Length > _maxFileSizeBytes)
@@ -549,6 +549,38 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
             throw new ConfigException(
                 $"Data file exceeds the maximum file size of {_maxFileSizeBytes} bytes at {relativePath}.",
                 DiagnosticCode.ConfigInvalidValue);
+        }
+    }
+
+    private sealed class VerifiedDataFileStream(VerifiedSourceFile verified) : Stream
+    {
+        private Stream Inner => verified.Stream;
+
+        public override bool CanRead => Inner.CanRead;
+        public override bool CanSeek => Inner.CanSeek;
+        public override bool CanWrite => Inner.CanWrite;
+        public override long Length => Inner.Length;
+        public override long Position
+        {
+            get => Inner.Position;
+            set => Inner.Position = value;
+        }
+
+        public override void Flush() => Inner.Flush();
+        public override int Read(byte[] buffer, int offset, int count) => Inner.Read(buffer, offset, count);
+        public override int Read(Span<byte> buffer) => Inner.Read(buffer);
+        public override long Seek(long offset, SeekOrigin origin) => Inner.Seek(offset, origin);
+        public override void SetLength(long value) => Inner.SetLength(value);
+        public override void Write(byte[] buffer, int offset, int count) => Inner.Write(buffer, offset, count);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                verified.Dispose();
+            }
+
+            base.Dispose(disposing);
         }
     }
 

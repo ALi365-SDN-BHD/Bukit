@@ -296,6 +296,10 @@ printf 'internal sealed class SystemProcessRunner {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs"
 printf 'public sealed record PluginConfigEntry(bool Enabled, string Source);\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions/Config/PluginConfigEntry.cs"
+printf 'public static class ContentDocumentFactory {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Engine.Abstractions/ContentDocumentFactory.cs"
+printf 'public static class RoutePathBuilder {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Routing/RoutePathBuilder.cs"
 printf '# Built-in plugins\n' >"$closure_fixture/guide/dev/built-in-plugins.md"
 printf '# Content\n' >"$closure_fixture/guide/dev/content.md"
 printf 'public sealed class ContentBoundaryTests {}\n' \
@@ -324,6 +328,10 @@ printf 'public sealed class SharedPackageTests {}\n' \
   >"$closure_fixture/tests/Bukit.Shared.Tests/SharedPackageTests.cs"
 printf 'public sealed class ThemePackageTests {}\n' \
   >"$closure_fixture/tests/Bukit.Theme.Tests/ThemePackageTests.cs"
+printf 'public sealed class ContentDocumentFactoryTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Engine.Abstractions.Tests/ContentDocumentFactoryTests.cs"
+printf 'public sealed class RoutePathBuilderTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Routing.Tests/RoutePathBuilderTests.cs"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Content/Bukit.Content.csproj"
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' \
@@ -426,6 +434,26 @@ assert_closure_mapping \
   src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs \
   '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
   true
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Engine.Abstractions/ContentDocumentFactory.cs \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Engine.Abstractions.Tests/ContentDocumentFactoryTests.cs \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Routing/RoutePathBuilder.cs \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj", "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Routing.Tests/RoutePathBuilderTests.cs \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"]' \
+  false
 assert_closure_mapping \
   "$closure_fixture" \
   tests/PluginProcessProbe/Program.cs \
@@ -535,7 +563,7 @@ assert_closure_mapping \
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj \
-  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"]' \
+  '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj", "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"]' \
   true
 assert_closure_mapping \
   "$closure_fixture" \
@@ -631,6 +659,7 @@ expected_consumers = sorted([
     "tests/Bukit.Plugin.Abstractions.Tests/PluginConfigDtoTests.cs",
     "tests/Bukit.PluginHost.Tests/SystemProcessRunnerTests.cs",
     "tests/Bukit.Rendering.Tests/RenderingPackageTests.cs",
+    "tests/Bukit.Routing.Tests/RoutePathBuilderTests.cs",
     "tests/Bukit.Routing.Tests/RoutingPackageTests.cs",
     "tests/Bukit.Shared.Tests/SharedPackageTests.cs",
     "tests/Bukit.Theme.Tests/ThemePackageTests.cs",

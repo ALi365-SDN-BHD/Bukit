@@ -145,7 +145,7 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
         _getCachedTemplate = getCachedTemplate ?? DefaultGetCachedTemplate;
     }
 
-    private static bool DefaultGetCachedTemplate(string templatePath, out Template template)
+    private bool DefaultGetCachedTemplate(string templatePath, out Template template)
     {
         if (!File.Exists(templatePath))
         {
@@ -153,8 +153,8 @@ internal sealed class ThemeComponentRenderFunction : IScriptCustomFunction
             return false;
         }
 
-        var templateText = File.ReadAllText(templatePath);
-        template = Template.Parse(templateText, templatePath);
+        var source = _templateLoader.LoadVerifiedSource(templatePath);
+        template = Template.Parse(source.Text, templatePath);
         return true;
     }
 

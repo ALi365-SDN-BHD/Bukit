@@ -7,33 +7,21 @@ internal sealed class TaxonomyContributor : IRenderDependencyContributor
     public void Contribute(RenderDependencyContext context, RenderDependencyHashWriter writer)
     {
         var taxonomy = context.Config.Taxonomy;
-        writer.AppendNewline();
-        writer.AppendUtf8(taxonomy.OutputMode);
-        writer.AppendNewline();
-        writer.AppendUtf8(taxonomy.PageSize.ToString());
-        writer.AppendNewline();
-        writer.AppendUtf8(taxonomy.IndexEnabled.ToString());
-        writer.AppendNewline();
-        writer.AppendUtf8(taxonomy.PinField);
-        writer.AppendNewline();
-        writer.AppendUtf8(taxonomy.PinOrderField);
-        if (taxonomy.ItemFields is { Count: > 0 })
-        {
-            foreach (var field in taxonomy.ItemFields.OrderBy(x => x, StringComparer.Ordinal))
-            {
-                writer.AppendNewline();
-                writer.AppendUtf8(field);
-            }
-        }
+        writer.AppendLabeledCanonicalValue("taxonomy.outputMode", taxonomy.OutputMode);
+        writer.AppendLabeledCanonicalValue("taxonomy.pageSize", taxonomy.PageSize);
+        writer.AppendLabeledCanonicalValue("taxonomy.indexEnabled", taxonomy.IndexEnabled);
+        writer.AppendLabeledCanonicalValue("taxonomy.pinField", taxonomy.PinField);
+        writer.AppendLabeledCanonicalValue("taxonomy.pinOrderField", taxonomy.PinOrderField);
+        writer.AppendLabeledCanonicalValue(
+            "taxonomy.itemFields",
+            taxonomy.ItemFields?.OrderBy(x => x, StringComparer.Ordinal).ToList());
 
         if (taxonomy.PinFieldBySource is { Count: > 0 })
         {
             foreach (var entry in taxonomy.PinFieldBySource.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
-                writer.AppendNewline();
-                writer.AppendUtf8(entry.Key);
-                writer.AppendNewline();
-                writer.AppendUtf8(entry.Value);
+                writer.AppendLabeledCanonicalValue("taxonomy.pinFieldBySource.key", entry.Key);
+                writer.AppendLabeledCanonicalValue("taxonomy.pinFieldBySource.value", entry.Value);
             }
         }
 
@@ -41,10 +29,8 @@ internal sealed class TaxonomyContributor : IRenderDependencyContributor
         {
             foreach (var entry in taxonomy.PinOrderFieldBySource.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
-                writer.AppendNewline();
-                writer.AppendUtf8(entry.Key);
-                writer.AppendNewline();
-                writer.AppendUtf8(entry.Value);
+                writer.AppendLabeledCanonicalValue("taxonomy.pinOrderFieldBySource.key", entry.Key);
+                writer.AppendLabeledCanonicalValue("taxonomy.pinOrderFieldBySource.value", entry.Value);
             }
         }
 
@@ -55,28 +41,17 @@ internal sealed class TaxonomyContributor : IRenderDependencyContributor
 
         foreach (var kind in taxonomy.Kinds.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.Key);
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.Kind);
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.Title);
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.Description);
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.SingularTitlePrefix);
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.Template);
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.IndexTemplate);
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.TermTemplate);
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.IndexEnabled?.ToString());
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.Hierarchical.ToString());
-            writer.AppendNewline();
-            writer.AppendUtf8(kind.RoutePrefix);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.key", kind.Key);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.kind", kind.Kind);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.title", kind.Title);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.description", kind.Description);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.singularTitlePrefix", kind.SingularTitlePrefix);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.template", kind.Template);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.indexTemplate", kind.IndexTemplate);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.termTemplate", kind.TermTemplate);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.indexEnabled", kind.IndexEnabled);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.hierarchical", kind.Hierarchical);
+            writer.AppendLabeledCanonicalValue("taxonomy.kind.routePrefix", kind.RoutePrefix);
         }
     }
 }

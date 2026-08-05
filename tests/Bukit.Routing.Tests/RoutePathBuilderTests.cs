@@ -1,4 +1,5 @@
 using Bukit.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Routing.Tests;
@@ -31,6 +32,16 @@ public sealed class RoutePathBuilderTests
     {
         var result = RoutePathBuilder.BuildOutputPathFromUrl(url);
         Assert.EndsWith(expected, result);
+    }
+
+    [Theory]
+    [InlineData("/docs/?view=all")]
+    [InlineData("/docs/#intro")]
+    public void BuildOutputPathFromUrl_QueryOrFragment_Throws(string url)
+    {
+        var exception = Assert.Throws<ConfigException>(() => RoutePathBuilder.BuildOutputPathFromUrl(url));
+
+        Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, exception.Code);
     }
 
     [Theory]

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using Bukit.PluginProcessProbe;
 using Bukit.PluginHost;
 using Xunit;
@@ -368,6 +370,103 @@ public sealed class SystemProcessRunnerTests
         }
     }
 
+    [Fact]
+    public async Task RunAsync_CombinedChildMemoryExceedsTreeLimit_ReturnsResourceLimitExceeded()
+    {
+        var workingDirectory = CreateWorkingDirectory();
+        var markerPath = Path.Combine(workingDirectory, "memory-children.pid");
+        try
+        {
+            var runner = new SystemProcessRunner();
+            ProcessRunResult result = await runner.RunAsync(
+                ProbeRequest(
+                    arguments: ["spawn-memory-children", markerPath, "96", "3000", "2"],
+                    timeoutMs: 10000,
+                    maxMemoryBytes: 160L * 1024 * 1024),
+                CancellationToken.None);
+
+            Assert.NotNull(result.ResourceLimitExceeded);
+            Assert.NotEqual(0, result.ExitCode);
+
+            foreach (var line in await File.ReadAllLinesAsync(markerPath))
+            {
+                var childPid = int.Parse(line, System.Globalization.CultureInfo.InvariantCulture);
+                await WaitForProcessExitAsync(childPid, TimeSpan.FromSeconds(5));
+                Assert.False(IsProcessAlive(childPid));
+            }
+        }
+        finally
+        {
+            KillMarkedProcessesBestEffort(markerPath);
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_NormalParentExitWithInheritedPipe_TerminatesTreeAndFailsRun()
+    {
+        var workingDirectory = CreateWorkingDirectory();
+        var markerPath = Path.Combine(workingDirectory, "pipe-child.pid");
+        try
+        {
+            var runner = new SystemProcessRunner();
+            ProcessRunResult result = await runner.RunAsync(
+                ProbeRequest(
+                    arguments: ["exit-parent-keep-pipe-child", markerPath, "30000"],
+                    timeoutMs: 10000),
+                CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(8));
+
+            Assert.Equal(-1, result.ExitCode);
+            Assert.Contains("output drain", result.Stderr, StringComparison.OrdinalIgnoreCase);
+
+            var childPid = int.Parse(await File.ReadAllTextAsync(markerPath));
+            await WaitForProcessExitAsync(childPid, TimeSpan.FromSeconds(5));
+            Assert.False(IsProcessAlive(childPid));
+        }
+        finally
+        {
+            KillMarkedProcessesBestEffort(markerPath);
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void WindowsJobAccountingStructures_MatchDocumentedAbi()
+    {
+        Type limiterType = typeof(SystemProcessRunner).Assembly.GetType(
+            "Bukit.PluginHost.ProcessTree.WindowsJobProcessTreeLimiter",
+            throwOnError: true)!;
+        Type kernel32Type = limiterType.GetNestedType("Kernel32", BindingFlags.NonPublic)!;
+        Type accountingType = kernel32Type.GetNestedType(
+            "JOBOBJECT_BASIC_ACCOUNTING_INFORMATION",
+            BindingFlags.NonPublic)!;
+        Type extendedType = kernel32Type.GetNestedType(
+            "JOBOBJECT_EXTENDED_LIMIT_INFORMATION",
+            BindingFlags.NonPublic)!;
+
+        Assert.Equal(48, Marshal.SizeOf(accountingType));
+        Assert.Null(accountingType.GetField(
+            "PeakJobMemoryUsed",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
+        Assert.NotNull(extendedType.GetField(
+            "PeakJobMemoryUsed",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
+
+        MethodInfo[] queryMethods = kernel32Type.GetMethods(BindingFlags.Static | BindingFlags.NonPublic)
+            .Where(method => method.Name == "QueryInformationJobObject")
+            .ToArray();
+        Assert.Contains(queryMethods, method =>
+            method.GetParameters()[2].ParameterType.GetElementType() == accountingType);
+        Assert.Contains(queryMethods, method =>
+            method.GetParameters()[2].ParameterType.GetElementType() == extendedType);
+    }
+
     private static string CreateWorkingDirectory()
     {
         var dir = Path.Combine(Path.GetTempPath(), "bukit-tree-limits-" + Guid.NewGuid().ToString("N"));
@@ -401,6 +500,35 @@ public sealed class SystemProcessRunnerTests
         }
     }
 
+    private static void KillMarkedProcessesBestEffort(string markerPath)
+    {
+        if (!File.Exists(markerPath))
+        {
+            return;
+        }
+
+        foreach (var line in File.ReadAllLines(markerPath))
+        {
+            if (!int.TryParse(line, out var pid))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var process = Process.GetProcessById(pid);
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    process.WaitForExit(5000);
+                }
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+            }
+        }
+    }
+
     private static ProcessRunRequest ProbeRequest(
         IReadOnlyList<string> arguments,
         string stdin = "",
@@ -412,8 +540,7 @@ public sealed class SystemProcessRunnerTests
         TimeSpan? maxCpuTime = null,
         long? maxMemoryBytes = null)
     {
-        string? dotnet = Process.GetCurrentProcess().MainModule?.FileName;
-        Assert.False(string.IsNullOrWhiteSpace(dotnet));
+        string dotnet = ResolveDotnetHost();
 
         string probeAssembly = typeof(ProbeMarker).Assembly.Location;
         return new ProcessRunRequest(
@@ -428,5 +555,43 @@ public sealed class SystemProcessRunnerTests
             EnvironmentVariables: environmentVariables,
             MaxCpuTime: maxCpuTime,
             MaxMemoryBytes: maxMemoryBytes);
+    }
+
+    private static string ResolveDotnetHost()
+    {
+        string hostName = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
+        var candidates = new List<string?>
+        {
+            Environment.GetEnvironmentVariable("DOTNET_HOST_PATH")
+        };
+
+        string? dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+        if (!string.IsNullOrWhiteSpace(dotnetRoot))
+        {
+            candidates.Add(System.IO.Path.Combine(dotnetRoot, hostName));
+        }
+
+        string? currentHost = Process.GetCurrentProcess().MainModule?.FileName;
+        if (string.Equals(
+                System.IO.Path.GetFileName(currentHost),
+                hostName,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            candidates.Add(currentHost);
+        }
+
+        string? searchPath = Environment.GetEnvironmentVariable("PATH");
+        if (!string.IsNullOrWhiteSpace(searchPath))
+        {
+            candidates.AddRange(searchPath
+                .Split(System.IO.Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(directory => System.IO.Path.Combine(directory, hostName)));
+        }
+
+        string? resolved = candidates.FirstOrDefault(candidate =>
+            !string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate));
+        return resolved is null
+            ? throw new InvalidOperationException("The dotnet host executable could not be resolved for the process probe.")
+            : System.IO.Path.GetFullPath(resolved);
     }
 }

@@ -26,14 +26,17 @@ public sealed class DeployConfigLoaderTests
     }
 
     [Fact]
-    public void Load_DeploySectionEmpty_ReturnsNull()
+    public void Load_DeploySectionEmpty_ThrowsStableNodeKindFailure()
     {
         var siteYaml = MinimalSiteYaml + "deploy:\n";
         var path = WriteTempYaml(siteYaml);
         try
         {
-            var config = ConfigLoader.Load(path);
-            Assert.Null(config.Deploy);
+            var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(path));
+            Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+            Assert.Contains("deploy", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
         }
         finally
         {

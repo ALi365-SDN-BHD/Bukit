@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -68,6 +69,37 @@ public sealed class BuildRecoveryTrackerTests : IDisposable
         File.WriteAllText(Path.Combine(_dir, ".bukit-build-state.json"), """{"status":"paused"}""");
 
         Assert.True(BuildRecoveryTracker.HasIncompleteBuild(_dir));
+    }
+
+    [Fact]
+    public void HasIncompleteBuild_UnknownFutureVersionCompleted_ReturnsTrue()
+    {
+        File.WriteAllText(
+            Path.Combine(_dir, ".bukit-build-state.json"),
+            """{"version":999,"status":"completed"}""");
+
+        Assert.True(BuildRecoveryTracker.HasIncompleteBuild(_dir));
+    }
+
+    [Fact]
+    public void HasIncompleteBuild_UnversionedCompletedState_ReturnsTrue()
+    {
+        File.WriteAllText(
+            Path.Combine(_dir, ".bukit-build-state.json"),
+            """{"status":"completed"}""");
+
+        Assert.True(BuildRecoveryTracker.HasIncompleteBuild(_dir));
+    }
+
+    [Fact]
+    public void MarkCompleted_WritesSupportedVersion()
+    {
+        BuildRecoveryTracker.MarkCompleted(_dir);
+
+        using var document = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(_dir, ".bukit-build-state.json")));
+        Assert.Equal(1, document.RootElement.GetProperty("version").GetInt32());
+        Assert.Equal("completed", document.RootElement.GetProperty("status").GetString());
     }
 
     [Fact]

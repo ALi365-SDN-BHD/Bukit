@@ -7,6 +7,7 @@ using Bukit.Theme;
 using Bukit.Rendering.Scriban;
 using Scriban;
 using Scriban.Runtime;
+using Xunit.Sdk;
 
 namespace Bukit.Rendering.Tests;
 
@@ -360,6 +361,53 @@ public sealed class SectionRenderExtendedTests : IDisposable
         Assert.Contains("Direct Render", result);
     }
 
+    [Fact]
+    public void SectionRenderHelper_TemplateSymlinkOutsideRoot_DoesNotReadTarget()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-section-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        var outsideFile = Path.Combine(outsideDir, "secret.html");
+        File.WriteAllText(outsideFile, "EXTERNAL_SECRET");
+        var linkPath = Path.Combine(_layoutsDir, "sections", "hero", "linked.html");
+        try
+        {
+            File.CreateSymbolicLink(linkPath, outsideFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        try
+        {
+            var manifest = new ThemeManifestV2
+            {
+                Name = "test",
+                Version = "1.0.0",
+                Sections = new() { ["hero"] = new() { Template = "sections/hero/linked.html" } }
+            };
+            var helper = new SectionRenderHelper(
+                new ThemeComponentRegistry(_themeDir, manifest, null),
+                null,
+                "off",
+                new FileTemplateLoader(_layoutsDir, null),
+                new ScriptObject(),
+                null);
+
+            var result = helper.RenderScriptObjectSection(
+                new ScriptObject { ["type"] = "hero" },
+                new ScriptObject());
+
+            Assert.DoesNotContain("EXTERNAL_SECRET", result, StringComparison.Ordinal);
+            Assert.Contains("error", result, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(outsideFile);
+            Directory.Delete(outsideDir);
+        }
+    }
+
     // ── Empty JSON render_section ─────────────────────────────────────
 
     [Fact]
@@ -442,6 +490,51 @@ public sealed class SectionRenderExtendedTests : IDisposable
         finally
         {
             Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ThemeComponentRenderFunction_TemplateSymlinkOutsideRoot_DoesNotReadTarget()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), $"bukit-component-symlink-{Guid.NewGuid():N}");
+        var componentsDir = Path.Combine(dir, "components");
+        var outsideDir = Path.Combine(Path.GetTempPath(), $"bukit-component-outside-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(componentsDir);
+        Directory.CreateDirectory(outsideDir);
+        var outsideFile = Path.Combine(outsideDir, "secret.html");
+        File.WriteAllText(outsideFile, "EXTERNAL_SECRET");
+        var linkPath = Path.Combine(componentsDir, "linked.html");
+        try
+        {
+            File.CreateSymbolicLink(linkPath, outsideFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        try
+        {
+            var function = new ThemeComponentRenderFunction(
+                new Dictionary<string, ThemeComponentDefinition>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["linked"] = new() { Template = "components/linked.html" }
+                },
+                new FileTemplateLoader(dir, null),
+                new ScriptObject(),
+                dir,
+                "lenient");
+
+            var result = function.Render("linked", new ScriptObject());
+
+            Assert.DoesNotContain("EXTERNAL_SECRET", result, StringComparison.Ordinal);
+            Assert.Contains("error", result, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+            File.Delete(outsideFile);
+            Directory.Delete(outsideDir);
         }
     }
 

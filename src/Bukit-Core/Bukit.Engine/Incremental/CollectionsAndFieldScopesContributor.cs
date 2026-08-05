@@ -9,96 +9,58 @@ internal sealed class CollectionsAndFieldScopesContributor : IRenderDependencyCo
     public void Contribute(RenderDependencyContext context, RenderDependencyHashWriter writer)
     {
         var collections = context.Config.Site.Collections;
-        if (collections is null || collections.Count == 0)
+        if (collections is { Count: > 0 })
         {
-            return;
-        }
-
-        foreach (var collection in collections.OrderBy(x => x.Key, StringComparer.Ordinal))
-        {
-            writer.AppendNewline();
-            writer.AppendUtf8(collection.Key);
-            writer.AppendNewline();
-            writer.AppendUtf8(collection.Value.Permalink);
-            writer.AppendNewline();
-            writer.AppendUtf8(collection.Value.Template);
-            writer.AppendNewline();
-            writer.AppendUtf8(collection.Value.ListRoute);
-            writer.AppendNewline();
-            writer.AppendUtf8(collection.Value.ListTitle);
-            writer.AppendNewline();
-            writer.AppendUtf8(collection.Value.ListDescription);
-            writer.AppendNewline();
-            writer.AppendUtf8(collection.Value.ListTemplate);
-            writer.AppendNewline();
-            writer.AppendUtf8(collection.Value.SchemaFailMode);
-
-            var pagination = collection.Value.Pagination;
-            writer.AppendNewline();
-            writer.AppendUtf8(pagination.Enabled.ToString());
-            writer.AppendNewline();
-            writer.AppendUtf8(pagination.PageSize.ToString());
-            writer.AppendNewline();
-            writer.AppendUtf8(pagination.UrlPattern);
-            writer.AppendNewline();
-            writer.AppendUtf8(pagination.FirstPageUsesListRoute.ToString());
-
-            var output = collection.Value.Output;
-            writer.AppendNewline();
-            writer.AppendUtf8(output.Rss.ToString());
-            writer.AppendNewline();
-            writer.AppendUtf8(output.Sitemap.ToString());
-            writer.AppendNewline();
-            writer.AppendUtf8(output.Archive.ToString());
-            writer.AppendNewline();
-            writer.AppendUtf8(output.FeedPath);
-            writer.AppendNewline();
-            writer.AppendUtf8(output.FeedTitle);
-            writer.AppendNewline();
-            writer.AppendUtf8(output.FeedDescription);
-            if (output.ArchiveDetail is not null)
+            foreach (var collection in collections.OrderBy(x => x.Key, StringComparer.Ordinal))
             {
-                writer.AppendNewline();
-                writer.AppendUtf8(output.ArchiveDetail.Depth);
-                writer.AppendNewline();
-                writer.AppendUtf8(output.ArchiveDetail.Template);
-                writer.AppendNewline();
-                writer.AppendUtf8(output.ArchiveDetail.RoutePrefix);
-            }
+                writer.AppendLabeledCanonicalValue("collection.key", collection.Key);
+                writer.AppendLabeledCanonicalValue("collection.permalink", collection.Value.Permalink);
+                writer.AppendLabeledCanonicalValue("collection.template", collection.Value.Template);
+                writer.AppendLabeledCanonicalValue("collection.listRoute", collection.Value.ListRoute);
+                writer.AppendLabeledCanonicalValue("collection.listTitle", collection.Value.ListTitle);
+                writer.AppendLabeledCanonicalValue("collection.listDescription", collection.Value.ListDescription);
+                writer.AppendLabeledCanonicalValue("collection.listTemplate", collection.Value.ListTemplate);
+                writer.AppendLabeledCanonicalValue("collection.schemaFailMode", collection.Value.SchemaFailMode);
 
-            if (collection.Value.FilteredLists is { Count: > 0 })
-            {
-                foreach (var filteredList in collection.Value.FilteredLists.OrderBy(x => x.Field, StringComparer.Ordinal))
+                var pagination = collection.Value.Pagination;
+                writer.AppendLabeledCanonicalValue("collection.pagination.enabled", pagination.Enabled);
+                writer.AppendLabeledCanonicalValue("collection.pagination.pageSize", pagination.PageSize);
+                writer.AppendLabeledCanonicalValue("collection.pagination.urlPattern", pagination.UrlPattern);
+                writer.AppendLabeledCanonicalValue("collection.pagination.firstPageUsesListRoute", pagination.FirstPageUsesListRoute);
+
+                var output = collection.Value.Output;
+                writer.AppendLabeledCanonicalValue("collection.output.rss", output.Rss);
+                writer.AppendLabeledCanonicalValue("collection.output.sitemap", output.Sitemap);
+                writer.AppendLabeledCanonicalValue("collection.output.archive", output.Archive);
+                writer.AppendLabeledCanonicalValue("collection.output.feedPath", output.FeedPath);
+                writer.AppendLabeledCanonicalValue("collection.output.feedTitle", output.FeedTitle);
+                writer.AppendLabeledCanonicalValue("collection.output.feedDescription", output.FeedDescription);
+                writer.AppendLabeledCanonicalValue("collection.output.archiveDetail.present", output.ArchiveDetail is not null);
+                if (output.ArchiveDetail is not null)
                 {
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.Field);
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.Operator);
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.Value);
-                    if (filteredList.Values is { Count: > 0 })
-                    {
-                        foreach (var value in filteredList.Values.OrderBy(x => x, StringComparer.Ordinal))
-                        {
-                            writer.AppendNewline();
-                            writer.AppendUtf8(value);
-                        }
-                    }
+                    writer.AppendLabeledCanonicalValue("collection.output.archiveDetail.depth", output.ArchiveDetail.Depth);
+                    writer.AppendLabeledCanonicalValue("collection.output.archiveDetail.template", output.ArchiveDetail.Template);
+                    writer.AppendLabeledCanonicalValue("collection.output.archiveDetail.routePrefix", output.ArchiveDetail.RoutePrefix);
+                }
 
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.ListRoute);
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.Title);
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.Description);
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.ListTemplate);
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.PageSize?.ToString());
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.UrlPattern);
-                    writer.AppendNewline();
-                    writer.AppendUtf8(filteredList.EmptyBehavior);
+                if (collection.Value.FilteredLists is { Count: > 0 })
+                {
+                    foreach (var filteredList in collection.Value.FilteredLists.OrderBy(x => x.Field, StringComparer.Ordinal))
+                    {
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.field", filteredList.Field);
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.operator", filteredList.Operator);
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.value", filteredList.Value);
+                        writer.AppendLabeledCanonicalValue(
+                            "collection.filteredList.values",
+                            filteredList.Values?.OrderBy(x => x, StringComparer.Ordinal).ToList());
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.listRoute", filteredList.ListRoute);
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.title", filteredList.Title);
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.description", filteredList.Description);
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.listTemplate", filteredList.ListTemplate);
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.pageSize", filteredList.PageSize);
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.urlPattern", filteredList.UrlPattern);
+                        writer.AppendLabeledCanonicalValue("collection.filteredList.emptyBehavior", filteredList.EmptyBehavior);
+                    }
                 }
             }
         }
@@ -117,35 +79,20 @@ internal sealed class CollectionsAndFieldScopesContributor : IRenderDependencyCo
 
         foreach (var scope in fieldScopes.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
-            writer.AppendNewline();
-            writer.AppendUtf8(scope.Key);
+            writer.AppendLabeledCanonicalValue("fieldScope.key", scope.Key);
             foreach (var field in scope.Value.OrderBy(x => x.Name, StringComparer.Ordinal))
             {
-                writer.AppendNewline();
-                writer.AppendUtf8(field.Name);
-                writer.AppendNewline();
-                writer.AppendUtf8(field.FieldType);
-                writer.AppendNewline();
-                writer.AppendUtf8(field.Label);
-                writer.AppendNewline();
-                writer.AppendUtf8(field.Format);
-                if (field.Enum is { Count: > 0 })
-                {
-                    foreach (var value in field.Enum.OrderBy(x => x, StringComparer.Ordinal))
-                    {
-                        writer.AppendNewline();
-                        writer.AppendUtf8(value);
-                    }
-                }
-
-                writer.AppendNewline();
-                writer.AppendUtf8(field.Min?.ToString());
-                writer.AppendNewline();
-                writer.AppendUtf8(field.Max?.ToString());
-                writer.AppendNewline();
-                writer.AppendUtf8(field.Required.ToString());
-                writer.AppendNewline();
-                writer.AppendUtf8(field.Default?.ToString());
+                writer.AppendLabeledCanonicalValue("fieldScope.field.name", field.Name);
+                writer.AppendLabeledCanonicalValue("fieldScope.field.type", field.FieldType);
+                writer.AppendLabeledCanonicalValue("fieldScope.field.label", field.Label);
+                writer.AppendLabeledCanonicalValue("fieldScope.field.format", field.Format);
+                writer.AppendLabeledCanonicalValue(
+                    "fieldScope.field.enum",
+                    field.Enum?.OrderBy(x => x, StringComparer.Ordinal).ToList());
+                writer.AppendLabeledCanonicalValue("fieldScope.field.min", field.Min);
+                writer.AppendLabeledCanonicalValue("fieldScope.field.max", field.Max);
+                writer.AppendLabeledCanonicalValue("fieldScope.field.required", field.Required);
+                writer.AppendLabeledCanonicalValue("fieldScope.field.default", field.Default);
             }
         }
     }

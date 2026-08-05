@@ -22,16 +22,14 @@ public static class ContentDocumentFactory
             return null;
         }
 
-        if (properties is null || properties.Count == 0)
-        {
-            return customFields;
-        }
-
         var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (key, value) in properties)
+        if (properties is not null)
         {
-            fields[key] = new ContentField(value.Kind, value.Value);
+            foreach (var (key, value) in properties)
+            {
+                fields[key] = new ContentField(value.Kind, value.Value);
+            }
         }
 
         if (customFields is not null)

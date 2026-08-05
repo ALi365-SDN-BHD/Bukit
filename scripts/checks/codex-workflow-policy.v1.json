@@ -84,6 +84,75 @@
     },
     {
       "contractConsumerGlobs": [
+        "tests/Bukit.Engine.Abstractions.Tests/*.cs",
+        "tests/Bukit.Engine.Abstractions.Tests/**/*.cs"
+      ],
+      "id": "bukit-engine-abstractions-source",
+      "matches": [
+        "src/Bukit-Core/Bukit.Engine.Abstractions/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Abstractions/**/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "bukit-engine-abstractions-tests",
+      "matches": [
+        "tests/Bukit.Engine.Abstractions.Tests/*.cs",
+        "tests/Bukit.Engine.Abstractions.Tests/**/*.cs",
+        "tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
+        "tests/Bukit.Routing.Tests/*.cs",
+        "tests/Bukit.Routing.Tests/**/*.cs",
+        "tests/Bukit.Engine.Tests/*.cs",
+        "tests/Bukit.Engine.Tests/**/*.cs"
+      ],
+      "id": "bukit-routing-source",
+      "matches": [
+        "src/Bukit-Core/Bukit.Routing/*.cs",
+        "src/Bukit-Core/Bukit.Routing/**/*.cs",
+        "src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj",
+        "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "bukit-routing-tests",
+      "matches": [
+        "tests/Bukit.Routing.Tests/*.cs",
+        "tests/Bukit.Routing.Tests/**/*.cs",
+        "tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+        "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
         "tests/Bukit.PluginHost.Tests/*.cs",
         "tests/Bukit.PluginHost.Tests/**/*.cs"
       ],
@@ -238,36 +307,6 @@
       ]
     },
     {
-      "contractConsumerGlobs": [],
-      "id": "bukit-engine-abstractions-source",
-      "matches": [
-        "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj",
-        "src/Bukit-Core/Bukit.Engine.Abstractions/*.cs",
-        "src/Bukit-Core/Bukit.Engine.Abstractions/**/*.cs"
-      ],
-      "publicContract": true,
-      "resource": "dotnet-serial",
-      "specialtyTests": [
-        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
-        "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"
-      ]
-    },
-    {
-      "contractConsumerGlobs": [],
-      "id": "bukit-engine-abstractions-tests",
-      "matches": [
-        "tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj",
-        "tests/Bukit.Engine.Abstractions.Tests/*.cs",
-        "tests/Bukit.Engine.Abstractions.Tests/**/*.cs"
-      ],
-      "publicContract": false,
-      "resource": "dotnet-serial",
-      "specialtyTests": [
-        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
-        "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"
-      ]
-    },
-    {
       "contractConsumerGlobs": [
         "tests/Bukit.Notion.Tests/*.cs",
         "tests/Bukit.Notion.Tests/**/*.cs"
@@ -394,36 +433,6 @@
       "specialtyTests": [
         "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
         "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj"
-      ]
-    },
-    {
-      "contractConsumerGlobs": [],
-      "id": "bukit-routing-source",
-      "matches": [
-        "src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj",
-        "src/Bukit-Core/Bukit.Routing/*.cs",
-        "src/Bukit-Core/Bukit.Routing/**/*.cs"
-      ],
-      "publicContract": true,
-      "resource": "dotnet-serial",
-      "specialtyTests": [
-        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
-        "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"
-      ]
-    },
-    {
-      "contractConsumerGlobs": [],
-      "id": "bukit-routing-tests",
-      "matches": [
-        "tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj",
-        "tests/Bukit.Routing.Tests/*.cs",
-        "tests/Bukit.Routing.Tests/**/*.cs"
-      ],
-      "publicContract": false,
-      "resource": "dotnet-serial",
-      "specialtyTests": [
-        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
-        "dotnet test tests/Bukit.Routing.Tests/Bukit.Routing.Tests.csproj"
       ]
     },
     {

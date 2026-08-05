@@ -67,29 +67,33 @@ internal sealed class UnixProcessGroupTreeLimiter : IProcessTreeLimiter
 
     private Process? _wrapperProcess;
     private int _groupLeaderPid;
+    private long _peakAggregateMemoryBytes;
 
     public void Attach(Process process)
     {
         _wrapperProcess = process;
         _groupLeaderPid = 0;
+        _peakAggregateMemoryBytes = 0;
+        ResolveGroupLeaderAtStartup();
     }
 
     public ValueTask<ProcessTreeUsage> SampleAsync(CancellationToken cancellationToken)
     {
         var members = EnumerateGroupMembers();
         var cpuTicks = 0L;
-        var peakMemory = 0L;
+        var aggregateMemory = 0L;
         foreach (var pid in members)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (TryReadProcessUsage(pid, out var cpu, out var memory))
             {
                 cpuTicks += cpu;
-                peakMemory = Math.Max(peakMemory, memory);
+                aggregateMemory = SaturatingAdd(aggregateMemory, memory);
             }
         }
 
-        return ValueTask.FromResult(new ProcessTreeUsage(ToCpuTime(cpuTicks), peakMemory));
+        _peakAggregateMemoryBytes = Math.Max(_peakAggregateMemoryBytes, aggregateMemory);
+        return ValueTask.FromResult(new ProcessTreeUsage(ToCpuTime(cpuTicks), _peakAggregateMemoryBytes));
     }
 
     public void Terminate()
@@ -149,6 +153,28 @@ internal sealed class UnixProcessGroupTreeLimiter : IProcessTreeLimiter
         }
 
         return 0;
+    }
+
+    private void ResolveGroupLeaderAtStartup()
+    {
+        for (var attempt = 0; attempt < 100 && _groupLeaderPid <= 0; attempt++)
+        {
+            ResolveGroupLeader();
+            if (_groupLeaderPid <= 0)
+            {
+                Thread.Sleep(1);
+            }
+        }
+    }
+
+    private static long SaturatingAdd(long left, long right)
+    {
+        if (right <= 0)
+        {
+            return left;
+        }
+
+        return left > long.MaxValue - right ? long.MaxValue : left + right;
     }
 
     private List<int> EnumerateGroupMembers()
@@ -487,19 +513,45 @@ internal sealed class WindowsJobProcessTreeLimiter : IProcessTreeLimiter
 
     public ValueTask<ProcessTreeUsage> SampleAsync(CancellationToken cancellationToken)
     {
-        if (_jobHandle == IntPtr.Zero ||
-            !Kernel32.QueryInformationJobObject(
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_jobHandle == IntPtr.Zero)
+        {
+            throw new ObjectDisposedException(nameof(WindowsJobProcessTreeLimiter));
+        }
+
+        Kernel32.JOBOBJECT_BASIC_ACCOUNTING_INFORMATION accounting;
+        if (!Kernel32.QueryInformationJobObject(
                 _jobHandle,
                 Kernel32.JobObjectBasicAccountingInformation,
-                out var accounting,
+                out accounting,
                 Marshal.SizeOf<Kernel32.JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>(),
                 out _))
         {
-            return ValueTask.FromResult(new ProcessTreeUsage(TimeSpan.Zero, 0));
+            throw new System.ComponentModel.Win32Exception(
+                Marshal.GetLastWin32Error(),
+                "Unable to query Windows job CPU accounting.");
+        }
+
+        Kernel32.JOBOBJECT_EXTENDED_LIMIT_INFORMATION extended;
+        if (!Kernel32.QueryInformationJobObject(
+                _jobHandle,
+                Kernel32.JobObjectExtendedLimitInformation,
+                out extended,
+                Marshal.SizeOf<Kernel32.JOBOBJECT_EXTENDED_LIMIT_INFORMATION>(),
+                out _))
+        {
+            throw new System.ComponentModel.Win32Exception(
+                Marshal.GetLastWin32Error(),
+                "Unable to query Windows job memory accounting.");
         }
 
         var cpu = TimeSpan.FromTicks(accounting.TotalKernelTime + accounting.TotalUserTime);
-        return ValueTask.FromResult(new ProcessTreeUsage(cpu, accounting.PeakJobMemoryUsed));
+        var peakMemory = extended.PeakJobMemoryUsed.ToInt64();
+        if (peakMemory < 0)
+        {
+            peakMemory = long.MaxValue;
+        }
+        return ValueTask.FromResult(new ProcessTreeUsage(cpu, peakMemory));
     }
 
     public void Terminate()
@@ -572,8 +624,7 @@ internal sealed class WindowsJobProcessTreeLimiter : IProcessTreeLimiter
             public long ThisPeriodTotalKernelTime;
             public uint TotalProcessCount;
             public uint ActiveProcessCount;
-            public ulong TotalTerminatedProcessCount;
-            public long PeakJobMemoryUsed;
+            public uint TotalTerminatedProcessCount;
         }
 
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -594,6 +645,14 @@ internal sealed class WindowsJobProcessTreeLimiter : IProcessTreeLimiter
             IntPtr hJob,
             int jobObjectInformationClass,
             out JOBOBJECT_BASIC_ACCOUNTING_INFORMATION lpJobObjectInformation,
+            int cbJobObjectInformationLength,
+            out int lpReturnLength);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern bool QueryInformationJobObject(
+            IntPtr hJob,
+            int jobObjectInformationClass,
+            out JOBOBJECT_EXTENDED_LIMIT_INFORMATION lpJobObjectInformation,
             int cbJobObjectInformationLength,
             out int lpReturnLength);
 

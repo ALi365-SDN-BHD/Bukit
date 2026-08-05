@@ -3,6 +3,7 @@ using Bukit.Config;
 using Bukit.Shared;
 using Bukit.Theme;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Rendering.Tests;
 
@@ -80,6 +81,79 @@ public sealed class ScribanTemplateRendererTests : IDisposable
         var result = renderer.RenderPage("page.html", model);
         Assert.Contains("<title>Hello</title>", result);
         Assert.Contains("<p>World</p>", result);
+    }
+
+    [Fact]
+    public void RenderPage_ProjectsPublicPluginDataAliasesWithoutLeakingInternalKeys()
+    {
+        var templatePath = Path.Combine(_layoutsDir, "plugin-data.html");
+        File.WriteAllText(
+            templatePath,
+            "{{ site.data_files.catalog.title }}|{{ site.related_pages.post[0].title }}|{{ site.data.__secret }}|{{ site.data.__data_files }}");
+        var site = CreateSite() with
+        {
+            Data = new Dictionary<string, object>
+            {
+                ["__data_files"] = new Dictionary<string, object>
+                {
+                    ["catalog"] = new Dictionary<string, object> { ["title"] = "Catalog" }
+                },
+                ["__related_pages"] = new Dictionary<string, List<object>>
+                {
+                    ["post"] = [new Dictionary<string, object> { ["title"] = "Related" }]
+                },
+                ["__secret"] = "must-not-render"
+            }
+        };
+        var model = new PageModel
+        {
+            Site = site,
+            Page = new PageInfo { Title = "Test", Content = string.Empty, Url = "/test/" }
+        };
+
+        var result = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir)
+            .RenderPage("plugin-data.html", model);
+
+        Assert.Equal("Catalog|Related||", result);
+    }
+
+    [Fact]
+    public void RenderPage_TopLevelTemplateSymlinkOutsideRoot_DoesNotReadTarget()
+    {
+        var outsideDir = Path.Combine(Path.GetTempPath(), "bukit-render-outside-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outsideDir);
+        var outsideFile = Path.Combine(outsideDir, "secret.html");
+        File.WriteAllText(outsideFile, "EXTERNAL_SECRET");
+        var linkPath = Path.Combine(_layoutsDir, "linked.html");
+        try
+        {
+            File.CreateSymbolicLink(linkPath, outsideFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
+        }
+
+        try
+        {
+            var model = new PageModel
+            {
+                Site = CreateSite(),
+                Page = new PageInfo { Title = "Test", Content = string.Empty, Url = "/test/" }
+            };
+
+            var exception = Record.Exception(() =>
+                new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir)
+                    .RenderPage("linked.html", model));
+
+            Assert.NotNull(exception);
+            Assert.DoesNotContain("EXTERNAL_SECRET", exception.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(outsideFile);
+            Directory.Delete(outsideDir);
+        }
     }
 
     [Fact]

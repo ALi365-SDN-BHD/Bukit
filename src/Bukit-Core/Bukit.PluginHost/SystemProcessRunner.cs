@@ -19,16 +19,15 @@ public sealed class SystemProcessRunner : IProcessRunner
 
         var limitsConfigured = request.MaxCpuTime is not null || request.MaxMemoryBytes is not null;
         IProcessTreeLimiter? treeLimiter = null;
-        if (limitsConfigured)
+        if (PlatformProcessTreeLimiter.IsSupported)
         {
-            if (!PlatformProcessTreeLimiter.IsSupported)
-            {
-                throw new ConfigException(
-                    $"{PluginHostErrorCodes.ResourceLimitUnsupported}: Resource limits are configured but process-tree limits cannot be proven on this platform.",
-                    DiagnosticCode.PluginExecutionFailed);
-            }
-
             treeLimiter = PlatformProcessTreeLimiter.Create();
+        }
+        else if (limitsConfigured)
+        {
+            throw new ConfigException(
+                $"{PluginHostErrorCodes.ResourceLimitUnsupported}: Resource limits are configured but process-tree limits cannot be proven on this platform.",
+                DiagnosticCode.PluginExecutionFailed);
         }
 
         using var process = new Process
@@ -153,14 +152,25 @@ public sealed class SystemProcessRunner : IProcessRunner
         var drainCompleted = await WaitForTerminationGraceAsync(
             DrainOutputTasksAsync(stdoutTask, stderrTask),
             TerminationGracePeriod);
+        string? drainFailure = null;
         if (!drainCompleted)
         {
-            Console.Error.WriteLine(
-                $"Plugin process output drain did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds.");
+            drainFailure = $"Plugin process output drain did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds.";
+            await TerminateProcessAsync(
+                process,
+                treeLimiter,
+                stdoutTask,
+                stderrTask,
+                resourceMonitorTask);
         }
 
         LimitedOutput stdout = stdoutTask.IsCompleted ? await stdoutTask : new LimitedOutput(string.Empty, Exceeded: false);
         LimitedOutput stderr = stderrTask.IsCompleted ? await stderrTask : new LimitedOutput(string.Empty, Exceeded: false);
+        var stderrText = drainFailure is null
+            ? stderr.Text
+            : string.IsNullOrEmpty(stderr.Text)
+                ? drainFailure
+                : $"{stderr.Text}{Environment.NewLine}{drainFailure}";
         bool outputLimitExceeded = stdout.Exceeded || stderr.Exceeded;
         ProcessOutputStream? outputLimitStream = stdout.Exceeded
             ? ProcessOutputStream.Stdout
@@ -168,11 +178,13 @@ public sealed class SystemProcessRunner : IProcessRunner
                 ? ProcessOutputStream.Stderr
                 : null;
 
-        int exitCode = timedOut || outputLimitExceeded || resourceLimitExceeded is not null ? -1 : process.ExitCode;
+        int exitCode = timedOut || outputLimitExceeded || resourceLimitExceeded is not null || drainFailure is not null
+            ? -1
+            : process.ExitCode;
         return new ProcessRunResult(
             exitCode,
             stdout.Text,
-            stderr.Text,
+            stderrText,
             timedOut,
             outputLimitExceeded,
             outputLimitStream,

@@ -216,15 +216,24 @@ internal static class ImageOptimizer
                 startInfo,
                 TimeSpan.FromSeconds(10),
                 cancellationToken);
-            if (result.ExitCode == 0 && File.Exists(temporaryOutput) &&
-                await ValidateConverterOutputAsync(temporaryOutput, expectedOutputMime, logger, inputFile, cancellationToken))
+            var validationAttempted = result.ExitCode == 0 && File.Exists(temporaryOutput);
+            var outputIsValid = validationAttempted &&
+                await ValidateConverterOutputAsync(temporaryOutput, expectedOutputMime, logger, inputFile, cancellationToken);
+            if (outputIsValid)
             {
                 File.Move(temporaryOutput, outputFile, overwrite: true);
                 logger.Info($"event=image_optimize.ok file={Path.GetFileName(inputFile)}");
             }
             else
             {
-                logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason={result.StandardError}");
+                var reason = validationAttempted
+                    ? "output_validation_failed"
+                    : result.ExitCode == 0
+                        ? "output_missing"
+                        : string.IsNullOrWhiteSpace(result.StandardError)
+                            ? $"tool_failed_exit_{result.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+                            : result.StandardError;
+                logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason={reason}");
             }
         }
         finally

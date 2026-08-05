@@ -19,45 +19,57 @@ internal static partial class SiteDefaultsApplier
         }
 
         var dict = new Dictionary<string, ComponentDefinition>(StringComparer.OrdinalIgnoreCase);
+        var componentIndex = 0;
         foreach (var kv in componentsNode.Children)
         {
-            if (kv.Key is not YamlScalarNode k || string.IsNullOrWhiteSpace(k.Value))
-            {
-                continue;
-            }
+            var componentName = ConfigYamlHelpers.GetRequiredMapKey(
+                kv.Key,
+                "theme.components",
+                componentIndex);
 
             if (kv.Value is not YamlMappingNode compNode)
             {
-                continue;
+                throw ConfigYamlHelpers.NodeKindMismatch(
+                    $"theme.components.{componentName}",
+                    "mapping",
+                    kv.Value);
             }
 
-            var template = ConfigYamlHelpers.GetOptionalString(compNode, "template");
+            var componentPath = $"theme.components.{componentName}";
+            var template = ConfigYamlHelpers.GetOptionalString(compNode, "template", componentPath);
             if (string.IsNullOrWhiteSpace(template))
             {
+                componentIndex++;
                 continue;
             }
 
             var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var propsNode = ConfigYamlHelpers.GetOptionalMapping(compNode, "props");
+            var propsNode = ConfigYamlHelpers.GetOptionalMapping(compNode, "props", componentPath);
             if (propsNode is not null)
             {
+                var propertyIndex = 0;
                 foreach (var pkv in propsNode.Children)
                 {
-                    if (pkv.Key is not YamlScalarNode pk || string.IsNullOrWhiteSpace(pk.Value))
-                    {
-                        continue;
-                    }
+                    var propertyName = ConfigYamlHelpers.GetRequiredMapKey(
+                        pkv.Key,
+                        $"{componentPath}.props",
+                        propertyIndex);
 
                     if (pkv.Value is not YamlScalarNode pv)
                     {
-                        continue;
+                        throw ConfigYamlHelpers.NodeKindMismatch(
+                            $"{componentPath}.props.{propertyName}",
+                            "scalar",
+                            pkv.Value);
                     }
 
-                    props[pk.Value] = pv.Value ?? string.Empty;
+                    props[propertyName] = pv.Value ?? string.Empty;
+                    propertyIndex++;
                 }
             }
 
-            dict[k.Value] = new ComponentDefinition { Template = template, Props = props };
+            dict[componentName] = new ComponentDefinition { Template = template, Props = props };
+            componentIndex++;
         }
 
         return dict.Count == 0 ? null : dict;
@@ -101,12 +113,8 @@ internal static partial class SiteDefaultsApplier
         {
             Enabled = ConfigYamlHelpers.GetOptionalBool(imagesNode, "enabled") ?? false,
             Formats = ConfigYamlHelpers.ReadStringList(imagesNode, "formats") ?? new[] { "webp" },
-            Sizes = (ConfigYamlHelpers.GetOptionalSequence(imagesNode, "sizes")?.Children
-                .OfType<YamlScalarNode>()
-                .Select(x => int.TryParse(x.Value, out var v) ? v : (int?)null)
-                .Where(x => x.HasValue)
-                .Select(x => x!.Value)
-                .ToList() as IReadOnlyList<int>) ?? new[] { 480, 768, 1200 },
+            Sizes = ConfigYamlHelpers.ReadIntList(imagesNode, "sizes", "theme.images")
+                ?? new[] { 480, 768, 1200 },
             Quality = ConfigYamlHelpers.GetOptionalInt(imagesNode, "quality") ?? 80
         };
     }
@@ -124,18 +132,8 @@ internal static partial class SiteDefaultsApplier
             return null;
         }
 
-        var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kv in paramsNode.Children)
-        {
-            if (kv.Key is not YamlScalarNode k || string.IsNullOrWhiteSpace(k.Value))
-            {
-                continue;
-            }
-
-            dict[k.Value] = ConfigYamlHelpers.ToObject(kv.Value);
-        }
-
-        return dict;
+        return ConfigYamlHelpers.ReadObjectMap(paramsNode, "theme.params")
+            ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
     }
 
     internal static IReadOnlyDictionary<string, PluginToggleConfig>? ReadPluginToggles(YamlMappingNode siteNode)
@@ -180,7 +178,9 @@ internal static partial class SiteDefaultsApplier
                         throw new ConfigException($"site.plugins.{name}.options must be a mapping.", DiagnosticCode.ConfigRequiredFieldMissing);
                     }
 
-                    options = ConfigYamlHelpers.ReadObjectMap(optionsNode);
+                    options = ConfigYamlHelpers.ReadObjectMap(
+                        optionsNode,
+                        $"site.plugins.{name}.options");
                 }
 
                 plugins[name] = new PluginToggleConfig

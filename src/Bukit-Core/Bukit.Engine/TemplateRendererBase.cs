@@ -4,6 +4,7 @@ using System.Text;
 using Bukit.Rendering;
 using Bukit.Rendering.Scriban;
 using Bukit.Shared;
+using Bukit.Shared.IO;
 
 namespace Bukit.Engine;
 
@@ -28,6 +29,7 @@ public abstract class TemplateRendererBase : ITemplateRenderer
     internal IReadOnlyList<ITemplateContextContributor> ContextContributors { get; } = Array.Empty<ITemplateContextContributor>();
 
     private readonly ConcurrentDictionary<string, CachedTemplateInfo> _templateCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ISafeSourceFileOpener _templateOpener = new PlatformSafeSourceFileOpener();
 
     protected TemplateRendererBase(
         string layoutsDir,
@@ -79,10 +81,22 @@ public abstract class TemplateRendererBase : ITemplateRenderer
         if (!fileInfo.Exists)
             throw new RenderException($"Template not found: {templateRelativePath}", DiagnosticCode.RenderTemplateNotFound);
 
-        var templateText = File.ReadAllText(templatePath);
+        var templateRoot = ResolveContainingLayoutsRoot(templatePath);
+        using var verified = _templateOpener.Open(templatePath, templateRoot);
+        string templateText;
+        using (var reader = new StreamReader(
+                   verified.Stream,
+                   Encoding.UTF8,
+                   detectEncodingFromByteOrderMarks: true,
+                   bufferSize: 4096,
+                   leaveOpen: true))
+        {
+            templateText = reader.ReadToEnd();
+        }
+
         var contentHash = ComputeContentHash(templateText);
-        var lastWrite = fileInfo.LastWriteTimeUtc;
-        var length = fileInfo.Length;
+        var lastWrite = verified.LastWriteTimeUtc;
+        var length = verified.Length;
         if (_templateCache.TryGetValue(templatePath, out var existing) &&
             existing.LastWriteUtc == lastWrite && existing.Length == length && existing.ContentHash == contentHash)
             return existing;
@@ -92,6 +106,33 @@ public abstract class TemplateRendererBase : ITemplateRenderer
         var cached = new CachedTemplateInfo(lastWrite, length, contentHash, parsed, layoutPath);
         _templateCache[templatePath] = cached;
         return cached;
+    }
+
+    private string ResolveContainingLayoutsRoot(string templatePath)
+    {
+        var fullPath = Path.GetFullPath(templatePath);
+        foreach (var candidate in new[] { UserLayoutsDir, LayoutsDir, ParentLayoutsDir })
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
+            }
+
+            var root = Path.GetFullPath(candidate);
+            var relative = Path.GetRelativePath(root, fullPath);
+            if (relative == "." ||
+                (!Path.IsPathRooted(relative) &&
+                 !relative.Equals("..", StringComparison.Ordinal) &&
+                 !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
+                 !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal)))
+            {
+                return root;
+            }
+        }
+
+        throw new RenderException(
+            $"Template path is outside the configured layouts directories: {templatePath}",
+            DiagnosticCode.RenderTemplateNotFound);
     }
 
     protected virtual (string BodyTemplateText, string? LayoutTemplateRelativePath) ExtractLayoutDirective(string templateText)

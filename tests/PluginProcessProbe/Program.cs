@@ -130,6 +130,38 @@ switch (command)
             return child.ExitCode;
         }
 
+    case "spawn-memory-children":
+        {
+            string markerPath = args[1];
+            int megabytes = int.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
+            int holdMilliseconds = int.Parse(args[3], System.Globalization.CultureInfo.InvariantCulture);
+            int childCount = int.Parse(args[4], System.Globalization.CultureInfo.InvariantCulture);
+            var children = new List<Process>(childCount);
+            try
+            {
+                for (var index = 0; index < childCount; index++)
+                {
+                    children.Add(StartProbeChild([
+                        "allocate-memory",
+                        megabytes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        holdMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture)]));
+                }
+
+                await File.WriteAllLinesAsync(
+                    markerPath,
+                    children.Select(child => child.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                await Task.WhenAll(children.Select(child => child.WaitForExitAsync()));
+                return children.Any(child => child.ExitCode != 0) ? 1 : 0;
+            }
+            finally
+            {
+                foreach (var child in children)
+                {
+                    child.Dispose();
+                }
+            }
+        }
+
     case "exit-parent-keep-pipe-child":
         {
             string markerPath = args[1];

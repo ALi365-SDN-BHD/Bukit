@@ -6,6 +6,7 @@ namespace Bukit.Engine;
 internal static class BuildRecoveryTracker
 {
     private const string StateFileName = ".bukit-build-state.json";
+    private const int StateVersion = 1;
 
     public static bool HasIncompleteBuild(string outputDir)
     {
@@ -18,6 +19,14 @@ internal static class BuildRecoveryTracker
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("version", out var version) ||
+                version.ValueKind != JsonValueKind.Number ||
+                !version.TryGetInt32(out var versionNumber) ||
+                versionNumber != StateVersion)
+            {
+                return true;
+            }
+
             if (!doc.RootElement.TryGetProperty("status", out var status))
             {
                 return true;
@@ -48,7 +57,7 @@ internal static class BuildRecoveryTracker
             using (var stream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             using (var writer = new StreamWriter(stream, Encoding.UTF8))
             {
-                writer.Write($$"""{"status":"{{status}}","ts":"{{DateTimeOffset.UtcNow:O}}"}""");
+                writer.Write($$"""{"version":{{StateVersion}},"status":"{{status}}","ts":"{{DateTimeOffset.UtcNow:O}}"}""");
                 writer.Flush();
                 stream.Flush(flushToDisk: true);
             }

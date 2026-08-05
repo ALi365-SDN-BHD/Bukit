@@ -45,4 +45,22 @@ public sealed class ContentDocumentFactoryTests
         Assert.Equal("title", callerEntry.Key, StringComparer.Ordinal);
         Assert.False(customFields.ContainsKey("summary"));
     }
+
+    [Fact]
+    public void MergeFields_CustomFieldsOnly_ReturnsIndependentCaseInsensitiveCopy()
+    {
+        var customFields = new Dictionary<string, ContentField>(StringComparer.Ordinal)
+        {
+            ["Title"] = new ContentField("text", "original")
+        };
+
+        var merged = ContentDocumentFactory.MergeFields(null, customFields);
+
+        Assert.NotNull(merged);
+        Assert.NotSame(customFields, merged);
+        Assert.Equal("original", merged!["title"].Value);
+
+        customFields["Title"] = new ContentField("text", "mutated");
+        Assert.Equal("original", merged["TITLE"].Value);
+    }
 }

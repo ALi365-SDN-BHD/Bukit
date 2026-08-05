@@ -7,13 +7,70 @@ using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
+using System.Reflection;
 using System.Text;
 using Xunit;
+using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class DataFilesPluginTests
 {
+    [Fact]
+    public void DefaultDataFileOpener_UsesVerifiedNoFollowPath()
+    {
+        var plugin = new DataFilesPlugin(CreateConfig());
+        var field = typeof(DataFilesPlugin).GetField(
+            "_openDataFile",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+
+        var opener = Assert.IsAssignableFrom<Delegate>(field.GetValue(plugin));
+
+        Assert.Contains("OpenVerifiedDataFile", opener.Method.Name, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OpenVerifiedDataFile_FileReplacedByExternalSymlink_Throws()
+    {
+        var root = GetTempDir();
+        var externalRoot = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(dataDir);
+            Directory.CreateDirectory(externalRoot);
+            var path = Path.Combine(dataDir, "target.json");
+            var outsideFile = Path.Combine(externalRoot, "secret.json");
+            File.WriteAllText(path, "{\"safe\":true}");
+            File.WriteAllText(outsideFile, "{\"secret\":true}");
+            File.Delete(path);
+            try
+            {
+                File.CreateSymbolicLink(path, outsideFile);
+            }
+            catch (Exception ex) when (ex is PlatformNotSupportedException or UnauthorizedAccessException or IOException)
+            {
+                throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
+            }
+
+            var method = typeof(DataFilesPlugin).GetMethod(
+                "OpenVerifiedDataFile",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.NotNull(method);
+
+            var exception = Assert.Throws<TargetInvocationException>(() =>
+                method.Invoke(null, [path, dataDir]));
+
+            Assert.IsType<IOException>(exception.InnerException);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+            if (Directory.Exists(externalRoot)) Directory.Delete(externalRoot, true);
+        }
+    }
+
     [Fact]
     public void DerivePages_DirectorySymlinkOutsideDataRoot_IsIgnored()
     {

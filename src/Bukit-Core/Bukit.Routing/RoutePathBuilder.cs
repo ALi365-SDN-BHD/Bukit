@@ -35,6 +35,11 @@ public static class RoutePathBuilder
 
     public static string BuildOutputPathFromUrl(string url, string outputPathEncoding = "none")
     {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            RouteSecurityValidator.ValidateInternalUrl(url, "route URL");
+        }
+
         var normalizedUrl = NormalizeUrl(url);
         if (string.IsNullOrWhiteSpace(normalizedUrl) || normalizedUrl == "/")
         {
