@@ -131,6 +131,101 @@ public sealed class I18nMergedFeedProjectionTests
     }
 
     [Fact]
+    public async Task BuildAsync_ThinCollectionBelowMinimum_NoindexesListButKeepsFeedItems()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-thin-feed-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "layouts"));
+            Directory.CreateDirectory(Path.Combine(root, "layouts", "pages"));
+            File.WriteAllText(Path.Combine(root, "site.yaml"), """
+                site:
+                  name: thin-feeds
+                  title: Thin Feeds
+                  url: https://example.com
+                  baseUrl: /
+                  language: en
+                  feed:
+                    formats: [rss, atom, json]
+                  collections:
+                    post:
+                      permalink: /blog/{slug}/
+                      template: pages/post.html
+                      listRoute: /blog/
+                      listTemplate: pages/list.html
+                      indexPolicy:
+                        minimumItems: 3
+                        belowMinimum: noindex-follow
+                      output:
+                        rss: true
+                content:
+                  sources:
+                    - type: markdown
+                      name: post
+                      collection: post
+                      markdown:
+                        dir: content
+                build:
+                  output: dist
+                theme:
+                  layouts: layouts
+                """);
+            WritePost(root, "first.md", "First Post", "first", "en");
+            WritePost(root, "second.md", "Second Post", "second", "en");
+            File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
+                <!doctype html>
+                <html><head><title>{{ page.title }}</title></head><body>{{ content }}</body></html>
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), """
+                {% layout "layouts/base.html" %}
+                {{ page.content }}
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "index.html"), """
+                {% layout "layouts/base.html" %}
+                Index
+                """);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "list.html"), """
+                {% layout "layouts/base.html" %}
+                List
+                """);
+
+            var config = ConfigLoader.Load(Path.Combine(root, "site.yaml"));
+            var logger = new TestLogger();
+            var engine = new SiteEngine(logger);
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            var rss = File.ReadAllText(Path.Combine(root, "dist", "rss.xml"));
+            var atom = File.ReadAllText(Path.Combine(root, "dist", "feed", "atom.xml"));
+            var json = File.ReadAllText(Path.Combine(root, "dist", "feed", "feed.json"));
+            foreach (var feed in new[] { rss, atom, json })
+            {
+                Assert.Contains("https://example.com/blog/first/", feed, StringComparison.Ordinal);
+                Assert.Contains("https://example.com/blog/second/", feed, StringComparison.Ordinal);
+            }
+
+            var publishAudit = File.ReadAllText(Path.Combine(root, "dist", ".bukit", "publish-audit-report.json"));
+            Assert.DoesNotContain("publish.rss_missing_route", publishAudit, StringComparison.Ordinal);
+            Assert.DoesNotContain("publish.atom_feed_missing_route", publishAudit, StringComparison.Ordinal);
+            Assert.DoesNotContain("publish.json_feed_missing_route", publishAudit, StringComparison.Ordinal);
+            Assert.Empty(logger.Errors);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void BuiltInPluginSource_DoesNotDoubleOwnProjectionAggregateOutputs()
     {
         var plugins = new BuiltInPluginSource(new AppConfig

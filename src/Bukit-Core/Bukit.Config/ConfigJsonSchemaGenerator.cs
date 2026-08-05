@@ -537,11 +537,17 @@ public static class ConfigJsonSchemaGenerator
             ("listTemplate", StringSchema()),
             ("schemaFailMode", EnumSchema("off", "warn", "strict")),
             ("noindexWhenEmpty", BoolSchema()),
+            ("indexPolicy", CollectionIndexPolicySchema()),
             ("pagination", CollectionPaginationSchema()),
             ("output", CollectionOutputSchema()),
             ("filteredLists", Obj(("type", "array"), ("items", CollectionFilteredListItemSchema()))));
         return schema;
     }
+
+    private static JsonObject CollectionIndexPolicySchema()
+        => Obj(("type", "object"), ("properties", Obj(
+            ("minimumItems", IntSchema(0)),
+            ("belowMinimum", EnumSchema("index", "noindex-follow")))));
 
     private static JsonObject CollectionPaginationSchema()
         => Obj(("type", "object"), ("properties", Obj(

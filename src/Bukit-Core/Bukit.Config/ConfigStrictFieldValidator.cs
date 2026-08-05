@@ -47,7 +47,12 @@ internal static class ConfigStrictFieldValidator
         {
             foreach (var (name, collection) in MappingChildren(collections, "site.collections"))
             {
-                RequireOnly(collection, Set("permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "pagination", "output", "filteredLists"), $"site.collections.{name}");
+                RequireOnly(collection, Set("permalink", "template", "listRoute", "listTitle", "listDescription", "listTemplate", "schemaFailMode", "noindexWhenEmpty", "indexPolicy", "pagination", "output", "filteredLists"), $"site.collections.{name}");
+                if (Map(collection, "indexPolicy") is { } indexPolicy)
+                {
+                    RequireOnly(indexPolicy, Set("minimumItems", "belowMinimum"), $"site.collections.{name}.indexPolicy");
+                }
+
                 if (Map(collection, "pagination") is { } collectionPagination)
                 {
                     RequireOnly(collectionPagination, Set("enabled", "pageSize", "urlPattern", "firstPageUsesListRoute"), $"site.collections.{name}.pagination");
