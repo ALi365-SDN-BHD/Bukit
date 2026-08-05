@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/generative-citation-report.v1.json",
+  "title": "Bukit Generative Citation Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "generatedAt", "sources", "overall", "engines", "questions", "unmatchedCitedUrls", "ambiguousCitedUrls", "externalCitedUrls", "joinQuality"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/generative-citation-report.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "sources": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["engine", "promptSetVersion", "locale", "collectedAt", "collectionMethod", "path", "rowCount"],
+        "properties": {
+          "engine": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "promptSetVersion": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "locale": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "collectedAt": { "type": "string", "format": "date-time" },
+          "collectionMethod": { "enum": ["api", "browser-export", "manual"] },
+          "path": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "rowCount": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "overall": { "$ref": "#/$defs/stats" },
+    "engines": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["engine", "runs", "brandMentions", "brandMentionRate", "siteCitations", "siteCitationRate"],
+        "properties": {
+          "engine": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "runs": { "type": "integer", "minimum": 0 },
+          "brandMentions": { "type": "integer", "minimum": 0 },
+          "brandMentionRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "siteCitations": { "type": "integer", "minimum": 0 },
+          "siteCitationRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questionKey", "runs", "brandMentions", "brandMentionRate", "siteCitations", "siteCitationRate", "routes"],
+        "properties": {
+          "questionKey": { "type": "string", "pattern": "^question:sha256:[0-9a-f]{64}$" },
+          "runs": { "type": "integer", "minimum": 0 },
+          "brandMentions": { "type": "integer", "minimum": 0 },
+          "brandMentionRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "siteCitations": { "type": "integer", "minimum": 0 },
+          "siteCitationRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "routes": {
+            "type": "array",
+            "maxItems": 100000,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["routeKey", "canonical", "citationRuns"],
+              "properties": {
+                "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
+                "canonical": { "type": "string", "minLength": 1, "pattern": "\\S" },
+                "citationRuns": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "unmatchedCitedUrls": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "errorCode"],
+        "properties": {
+          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "errorCode": { "type": ["string", "null"], "minLength": 1 }
+        }
+      }
+    },
+    "ambiguousCitedUrls": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "candidateRouteKeys"],
+        "properties": {
+          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "candidateRouteKeys": {
+            "type": "array",
+            "minItems": 2,
+            "items": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" }
+          }
+        }
+      }
+    },
+    "externalCitedUrls": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "citationRuns"],
+        "properties": {
+          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "citationRuns": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "joinQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+      "properties": {
+        "sourceRows": { "type": "integer", "minimum": 0 },
+        "matchedRows": { "type": "integer", "minimum": 0 },
+        "unmatchedRows": { "type": "integer", "minimum": 0 },
+        "ambiguousRows": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runs", "brandMentions", "brandMentionRate", "siteCitations", "siteCitationRate"],
+      "properties": {
+        "runs": { "type": "integer", "minimum": 0 },
+        "brandMentions": { "type": "integer", "minimum": 0 },
+        "brandMentionRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "siteCitations": { "type": "integer", "minimum": 0 },
+        "siteCitationRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}

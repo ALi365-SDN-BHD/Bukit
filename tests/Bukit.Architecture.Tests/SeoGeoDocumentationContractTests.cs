@@ -582,6 +582,76 @@ public sealed class SeoGeoDocumentationContractTests
     }
 
     [Fact]
+    public void GenerativeCitationSchemas_MatchPublicContracts()
+    {
+        using var observationSchema = ReadJson("docs", "schemas", "generative-answer-observation.v1.schema.json");
+        var observationRoot = observationSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", observationRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/generative-answer-observation.v1.json", observationRoot.GetProperty("$id").GetString());
+        Assert.False(observationRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "engine", "promptSetVersion", "locale", "collectedAt", "collectionMethod", "rows"],
+            observationRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("1.0", observationRoot.GetProperty("properties").GetProperty("schemaVersion").GetProperty("const").GetString());
+        var observationProperties = observationRoot.GetProperty("properties");
+        Assert.Equal(1, observationProperties.GetProperty("engine").GetProperty("minLength").GetInt32());
+        Assert.Equal(1, observationProperties.GetProperty("promptSetVersion").GetProperty("minLength").GetInt32());
+        Assert.Equal(1, observationProperties.GetProperty("locale").GetProperty("minLength").GetInt32());
+        Assert.Equal(
+            ["api", "browser-export", "manual"],
+            observationProperties.GetProperty("collectionMethod").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
+        var rows = observationProperties.GetProperty("rows");
+        Assert.Equal(100000, rows.GetProperty("maxItems").GetInt32());
+        var row = rows.GetProperty("items");
+        Assert.False(row.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["questionKey", "promptVariant", "runIndex", "brandMentioned", "siteCited", "citedUrls", "citationPosition", "answerHash"],
+            row.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var rowProperties = row.GetProperty("properties");
+        Assert.Equal("^question:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("questionKey").GetProperty("pattern").GetString());
+        Assert.Equal(0, rowProperties.GetProperty("promptVariant").GetProperty("minimum").GetInt32());
+        Assert.Equal(9999, rowProperties.GetProperty("promptVariant").GetProperty("maximum").GetInt32());
+        Assert.Equal(0, rowProperties.GetProperty("runIndex").GetProperty("minimum").GetInt32());
+        Assert.Equal(9999, rowProperties.GetProperty("runIndex").GetProperty("maximum").GetInt32());
+        Assert.Equal("^answer:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("answerHash").GetProperty("pattern").GetString());
+        Assert.Equal(1, rowProperties.GetProperty("citationPosition").GetProperty("minimum").GetInt32());
+        Assert.Equal(100, rowProperties.GetProperty("citedUrls").GetProperty("maxItems").GetInt32());
+
+        using var reportSchema = ReadJson("docs", "schemas", "generative-citation-report.v1.schema.json");
+        var reportRoot = reportSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", reportRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/generative-citation-report.v1.json", reportRoot.GetProperty("$id").GetString());
+        Assert.False(reportRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "generatedAt", "sources", "overall", "engines", "questions", "unmatchedCitedUrls", "ambiguousCitedUrls", "externalCitedUrls", "joinQuality"],
+            reportRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var stats = reportRoot.GetProperty("$defs").GetProperty("stats");
+        Assert.Equal(
+            ["runs", "brandMentions", "brandMentionRate", "siteCitations", "siteCitationRate"],
+            stats.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var joinQuality = reportRoot.GetProperty("properties").GetProperty("joinQuality");
+        Assert.False(joinQuality.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+            joinQuality.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var unmatched = reportRoot.GetProperty("properties").GetProperty("unmatchedCitedUrls").GetProperty("items");
+        Assert.False(unmatched.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["url", "errorCode"],
+            unmatched.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var ambiguous = reportRoot.GetProperty("properties").GetProperty("ambiguousCitedUrls").GetProperty("items");
+        Assert.False(ambiguous.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["url", "candidateRouteKeys"],
+            ambiguous.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var external = reportRoot.GetProperty("properties").GetProperty("externalCitedUrls").GetProperty("items");
+        Assert.False(external.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["url", "citationRuns"],
+            external.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+    }
+
+    [Fact]
     public void ActiveGuide_DocumentsQuestionCoverageContract()
     {
         var guide = ReadText("guide", "user", "22-seo-question-insights.md");
@@ -605,6 +675,33 @@ public sealed class SeoGeoDocumentationContractTests
 
         Assert.Contains("bukit seo question-insights", cli, StringComparison.Ordinal);
         Assert.Contains("--targets", cli, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ActiveGuide_DocumentsGenerativeCitationContract()
+    {
+        var guide = ReadText("guide", "user", "23-generative-citation-insights.md");
+        var index = ReadText("guide", "user", "README.md");
+        var cli = ReadText("guide", "user", "12-cli-reference.md");
+
+        Assert.Contains("[23 Generative Citation Insights](23-generative-citation-insights.md)", index, StringComparison.Ordinal);
+
+        Assert.Contains("generative-answer-observation.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("generative-citation-report.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("question:sha256:", guide, StringComparison.Ordinal);
+        Assert.Contains("answer:sha256:", guide, StringComparison.Ordinal);
+        Assert.Contains("route:sha256:", guide, StringComparison.Ordinal);
+        Assert.Contains("promptSetVersion", guide, StringComparison.Ordinal);
+        Assert.Contains("browser-export", guide, StringComparison.Ordinal);
+        Assert.Contains("never receives raw", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("human review", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("fixed question set", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("versioned prompt set", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("repeated runs", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("observed changes do not prove causation", guide, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("bukit seo generative-insights", cli, StringComparison.Ordinal);
+        Assert.Contains("seo generative-insights", index, StringComparison.Ordinal);
     }
 
     [Fact]

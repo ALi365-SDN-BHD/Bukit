@@ -40,6 +40,7 @@ quality audits, and GitHub Pages deployment.
 | Understand Core safety and reliability guarantees | [20 Core Safety And Reliability](20-core-safety-reliability.md) |
 | Turn local SEO observations into review candidates | [21 SEO Insights](21-seo-insights.md) |
 | Turn question coverage observations into review candidates | [22 SEO Question Insights](22-seo-question-insights.md) |
+| Turn generative citation observations into review candidates | [23 Generative Citation Insights](23-generative-citation-insights.md) |
 
 ## Governed Core Commands
 
@@ -47,8 +48,8 @@ quality audits, and GitHub Pages deployment.
 `completion`, `seo`, `geo`, `publish`, and `deploy`.
 
 Stable subcommands are `config check`, `config schema`, `seo audit`,
-`seo diff`, `seo insights`, `seo question-insights`, `geo audit`,
-`publish audit`, and `publish diff`.
+`seo diff`, `seo insights`, `seo question-insights`, `seo generative-insights`,
+`geo audit`, `publish audit`, and `publish diff`.
 
 ## Default Validation Loop
 

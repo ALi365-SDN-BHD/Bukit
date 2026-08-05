@@ -96,7 +96,7 @@ public sealed class HelpPrinterTests
             HelpPrinter.Print();
             var output = writer.ToString();
 
-            Assert.Contains("(audit, diff, insights, question-insights)", output, StringComparison.Ordinal);
+            Assert.Contains("(audit, diff, insights, question-insights, generative-insights)", output, StringComparison.Ordinal);
         }
         finally
         {
