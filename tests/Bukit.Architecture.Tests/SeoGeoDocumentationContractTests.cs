@@ -454,6 +454,25 @@ public sealed class SeoGeoDocumentationContractTests
     }
 
     [Fact]
+    public void ActiveGuide_DocumentsLlmsCurationContract()
+    {
+        var guide = ReadText("guide", "user", "17-geo.md");
+
+        Assert.Contains("visibility: auto", guide, StringComparison.Ordinal);
+        Assert.Contains("visibility: include", guide, StringComparison.Ordinal);
+        Assert.Contains("visibility: exclude", guide, StringComparison.Ordinal);
+        Assert.Contains("tier: primary", guide, StringComparison.Ordinal);
+        Assert.Contains("tier: optional", guide, StringComparison.Ordinal);
+        Assert.Contains("priority:", guide, StringComparison.Ordinal);
+        Assert.Contains("-100", guide, StringComparison.Ordinal);
+        Assert.Contains("100", guide, StringComparison.Ordinal);
+        Assert.Contains("non-indexable pages are always excluded", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("include", guide, StringComparison.Ordinal);
+        Assert.Contains("noindex", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not signal priority to external AI", guide, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ProtectedReferenceTrees_AreNotActiveInputs()
     {
         var protectedNames = new[]

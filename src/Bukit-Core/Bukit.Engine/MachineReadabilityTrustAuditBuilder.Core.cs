@@ -18,7 +18,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         IReadOnlyDictionary<string, SeoModel> seoModels,
         CanonicalContentGraph? contentGraph = null,
         bool requireHreflangTargets = true,
-        IReadOnlyList<PublishProjectionResult>? projectionResults = null)
+        IReadOnlyList<PublishProjectionResult>? projectionResults = null,
+        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null)
     {
         contentGraph ??= CanonicalContentGraph.Empty;
         var projectionLookup = BuildProjectionLookup(projectionResults);
@@ -153,6 +154,25 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             if (!entry.Indexable && sitemapText is not null && ContainsInvariant(sitemapText, entry.Canonical))
             {
                 seoIssues.Add(Error("seo.noindex_in_sitemap", entry.Route.Url, $"Noindex route appears in sitemap: {entry.Canonical}."));
+            }
+
+            if (documentsByOutputPath is not null &&
+                documentsByOutputPath.TryGetValue(key, out var curationDocument))
+            {
+                var curation = LlmsCurationPolicyParser.Parse(curationDocument);
+                if (curation.Valid && curation.Policy.Visibility == LlmsVisibility.Include && !entry.Indexable)
+                {
+                    seoIssues.Add(Warning("geo.llms_include_nonindexable", entry.Route.Url,
+                        $"llms visibility include cannot override noindex; route stays excluded from llms output: {entry.Canonical}."));
+                }
+
+                if (curation.Valid &&
+                    curation.Policy.Visibility == LlmsVisibility.Exclude &&
+                    (llmsIncluded || llmsFullIncluded))
+                {
+                    publishIssues.Add(new PublishAuditIssue("warning", "publish.llms_excluded_route_present", entry.Route.Url,
+                        $"Route explicitly excluded from llms appears in llms output: {entry.Canonical}."));
+                }
             }
 
             if (model is not null)

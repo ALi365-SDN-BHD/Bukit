@@ -44,6 +44,18 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             return;
         }
 
+        var documentsByPath = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
+        foreach (var routedDocument in context.RoutedDocuments.Concat(context.DerivedDocuments))
+        {
+            var key = BuildPathUtils.NormalizeRelPath(routedDocument.Route.OutputPath);
+            if (key is not null)
+            {
+                documentsByPath[key] = routedDocument.Document;
+            }
+        }
+
+        SeoDiagnostics.AnalyzeLlmsCuration(_config, documentsByPath, context.Logger);
+
         if (geo.LlmsTxt)
         {
             WriteLlmsTxt(context, _config, geo);
@@ -54,6 +66,80 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             await WriteLlmsFullTxtAsync(context, _config, cancellationToken).ConfigureAwait(false);
         }
     }
+
+    internal sealed record LlmsCandidate(
+        ContentDocument Document,
+        ContentRecord Record,
+        SeoIndexEntry Entry,
+        SeoModel? Model,
+        LlmsCurationPolicy Policy);
+
+    internal sealed record LlmsSelection(
+        IReadOnlyList<LlmsCandidate> Primary,
+        IReadOnlyList<LlmsCandidate> Optional,
+        IReadOnlyList<LlmsCandidate> Excluded);
+
+    internal static LlmsSelection BuildLlmsSelection(
+        IEnumerable<(ContentDocument Document, ContentRecord Record, SeoIndexEntry Entry, SeoModel? Model)> candidates)
+    {
+        var primary = new List<LlmsCandidate>();
+        var optional = new List<LlmsCandidate>();
+        var excluded = new List<LlmsCandidate>();
+
+        foreach (var (document, record, entry, model) in candidates)
+        {
+            var parse = LlmsCurationPolicyParser.Parse(document);
+            var candidate = new LlmsCandidate(document, record, entry, model, parse.Policy);
+
+            if (!entry.Indexable || !parse.Valid || parse.Policy.Visibility == LlmsVisibility.Exclude)
+            {
+                excluded.Add(candidate);
+            }
+            else if (parse.Policy.Tier == LlmsTier.Optional)
+            {
+                optional.Add(candidate);
+            }
+            else
+            {
+                primary.Add(candidate);
+            }
+        }
+
+        return new LlmsSelection(primary, optional, excluded);
+    }
+
+    internal static bool ShouldIncludeInLlms(ContentDocument document, SeoIndexEntry entry)
+    {
+        if (!entry.Indexable)
+        {
+            return false;
+        }
+
+        var parse = LlmsCurationPolicyParser.Parse(document);
+        return parse.Valid && parse.Policy.Visibility != LlmsVisibility.Exclude;
+    }
+
+    private static IReadOnlyList<LlmsCandidate> SelectCollectionItems(
+        IEnumerable<LlmsCandidate> candidates,
+        int maxArticles)
+    {
+        var materialized = candidates.ToList();
+        var includes = materialized
+            .Where(candidate => candidate.Policy.Visibility == LlmsVisibility.Include)
+            .ToList();
+        var orderedAutos = OrderDeterministically(materialized
+            .Where(candidate => candidate.Policy.Visibility != LlmsVisibility.Include));
+        var selectedAutos = maxArticles == 0 ? orderedAutos : orderedAutos.Take(maxArticles).ToList();
+
+        return OrderDeterministically(includes.Concat(selectedAutos));
+    }
+
+    private static IReadOnlyList<LlmsCandidate> OrderDeterministically(IEnumerable<LlmsCandidate> candidates)
+        => candidates
+            .OrderByDescending(candidate => candidate.Policy.Priority)
+            .ThenByDescending(candidate => candidate.Document.PublishAt)
+            .ThenBy(candidate => candidate.Entry.Canonical, StringComparer.Ordinal)
+            .ToList();
 
     internal static void WriteLlmsTxt(
         BuildContext context,
@@ -108,7 +194,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
                 continue;
             }
 
-            if (seoIndex.TryGetValue(key, out var entry) && entry.Indexable)
+            if (seoIndex.TryGetValue(key, out var entry))
             {
                 var model = seoModels.TryGetValue(key, out var seoModel)
                     ? seoModel
@@ -117,44 +203,56 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             }
         }
 
-        var pages = new List<(string Url, string Title, string? Description)>();
-        var groups = new Dictionary<string, List<(string Url, string Title, string? Description, DateTimeOffset Published)>>(StringComparer.OrdinalIgnoreCase);
+        var selection = BuildLlmsSelection(keyed.Values);
 
-        foreach (var (_, (document, record, entry, model)) in keyed)
+        var pages = new List<(string Url, string Title, string? Description, DateTimeOffset Published, int Priority)>();
+        var groups = new Dictionary<string, List<LlmsCandidate>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var candidate in selection.Primary)
         {
-            var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
-            var pageTitle = record.Presentation.Title ?? model?.Title ?? document.Title;
-            var desc = record.Presentation.Summary ?? model?.Description ?? description;
-            var collection = record.Classification.Collection ?? ContentFieldReader.GetCollection(document);
+            var url = ResolveFullUrl(candidate.Entry.Route.Url, canonicalBase);
+            var pageTitle = candidate.Record.Presentation.Title ?? candidate.Model?.Title ?? candidate.Document.Title;
+            var desc = candidate.Record.Presentation.Summary ?? candidate.Model?.Description ?? description;
+            var collection = candidate.Record.Classification.Collection ?? ContentFieldReader.GetCollection(candidate.Document);
 
             if (!string.IsNullOrWhiteSpace(collection))
             {
                 if (!groups.TryGetValue(collection, out var group))
                 {
-                    group = new List<(string Url, string Title, string? Description, DateTimeOffset Published)>();
+                    group = new List<LlmsCandidate>();
                     groups[collection] = group;
                 }
 
-                group.Add((url, pageTitle, desc, document.PublishAt));
+                group.Add(candidate);
             }
             else
             {
-                pages.Add((url, pageTitle, desc));
+                pages.Add((url, pageTitle, desc, candidate.Document.PublishAt, candidate.Policy.Priority));
             }
+        }
+
+        var optionalPages = new List<(string Url, string Title, string? Description)>();
+        foreach (var candidate in OrderDeterministically(selection.Optional))
+        {
+            var url = ResolveFullUrl(candidate.Entry.Route.Url, canonicalBase);
+            var pageTitle = candidate.Record.Presentation.Title ?? candidate.Model?.Title ?? candidate.Document.Title;
+            var desc = candidate.Record.Presentation.Summary ?? candidate.Model?.Description ?? description;
+            optionalPages.Add((url, pageTitle, desc));
         }
 
         var linkCount = 0;
 
         if (pages.Count > 0)
         {
-            var section = pages.Count switch
-            {
-                _ when pages.Any(p => p.Url == "/" || p.Url == canonicalBase) => "Documentation",
-                _ => "Pages"
-            };
+            var orderedPages = pages
+                .OrderByDescending(page => page.Priority)
+                .ThenByDescending(page => page.Published)
+                .ThenBy(page => page.Url, StringComparer.Ordinal)
+                .ToList();
+            var section = orderedPages.Any(p => p.Url == "/" || p.Url == canonicalBase) ? "Documentation" : "Pages";
             sb.AppendLine($"## {section}");
             sb.AppendLine();
-            foreach (var page in pages)
+            foreach (var page in orderedPages)
             {
                 sb.Append(MarkdownLink(page.Title, page.Url));
                 if (!string.IsNullOrWhiteSpace(page.Description))
@@ -169,20 +267,20 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             sb.AppendLine();
         }
 
-        foreach (var (groupKey, items) in groups.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var (groupKey, group) in groups.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var sorted = items.OrderByDescending(a => a.Published).ThenBy(a => a.Url, StringComparer.Ordinal);
-            var selected = geo.LlmsTxtMaxArticles == 0
-                ? sorted.ToList()
-                : sorted.Take(geo.LlmsTxtMaxArticles).ToList();
+            var selected = SelectCollectionItems(group, geo.LlmsTxtMaxArticles);
             sb.AppendLine($"## {ToTitle(groupKey)}");
             sb.AppendLine();
-            foreach (var item in selected)
+            foreach (var candidate in selected)
             {
-                sb.Append(MarkdownLink(item.Title, item.Url));
-                if (!string.IsNullOrWhiteSpace(item.Description))
+                var url = ResolveFullUrl(candidate.Entry.Route.Url, canonicalBase);
+                var pageTitle = candidate.Record.Presentation.Title ?? candidate.Model?.Title ?? candidate.Document.Title;
+                var desc = candidate.Record.Presentation.Summary ?? candidate.Model?.Description ?? description;
+                sb.Append(MarkdownLink(pageTitle, url));
+                if (!string.IsNullOrWhiteSpace(desc))
                 {
-                    sb.Append($": {item.Description}");
+                    sb.Append($": {desc}");
                 }
 
                 sb.AppendLine();
@@ -192,19 +290,35 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             sb.AppendLine();
         }
 
-        if (geo.LlmsTxtOptionalLinks is { Count: > 0 })
+        if (optionalPages.Count > 0 || geo.LlmsTxtOptionalLinks is { Count: > 0 })
         {
             sb.AppendLine("## Optional");
             sb.AppendLine();
-            foreach (var link in geo.LlmsTxtOptionalLinks)
+            foreach (var page in optionalPages)
             {
-                sb.Append(MarkdownLink(link.Title, link.Url));
-                if (!string.IsNullOrWhiteSpace(link.Description))
+                sb.Append(MarkdownLink(page.Title, page.Url));
+                if (!string.IsNullOrWhiteSpace(page.Description))
                 {
-                    sb.Append($": {link.Description}");
+                    sb.Append($": {page.Description}");
                 }
 
                 sb.AppendLine();
+                linkCount++;
+            }
+
+            if (geo.LlmsTxtOptionalLinks is { Count: > 0 })
+            {
+                foreach (var link in geo.LlmsTxtOptionalLinks)
+                {
+                    sb.Append(MarkdownLink(link.Title, link.Url));
+                    if (!string.IsNullOrWhiteSpace(link.Description))
+                    {
+                        sb.Append($": {link.Description}");
+                    }
+
+                    sb.AppendLine();
+                    linkCount++;
+                }
             }
 
             sb.AppendLine();
@@ -269,7 +383,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         }
 
         foreach (var (key, entry) in seoIndex
-                     .Where(x => x.Value.Indexable)
+                     .Where(x => documentsByPath.TryGetValue(x.Key, out var document) && ShouldIncludeInLlms(document, x.Value))
                      .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             if (!documentsByPath.TryGetValue(key, out var document))
@@ -367,7 +481,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         }
 
         foreach (var (key, entry) in seoIndex
-                     .Where(x => x.Value.Indexable)
+                     .Where(x => documentsByPath.TryGetValue(x.Key, out var document) && ShouldIncludeInLlms(document, x.Value))
                      .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             if (!documentsByPath.TryGetValue(key, out var document))

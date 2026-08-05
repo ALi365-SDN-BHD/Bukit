@@ -327,11 +327,228 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Assert.Equal(forward, reversed);
     }
 
+    [Fact]
+    public async Task Curation_NonIndexableInclude_RemainsExcluded()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-nonindexable");
+        var articles = new[]
+        {
+            new ArticleFixture("visible", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/visible/"),
+            new ArticleFixture("hidden", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/hidden/",
+                Llms: new Dictionary<string, object> { ["visibility"] = "include" }, Indexable: false)
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0);
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Contains("https://example.com/posts/visible/", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/posts/hidden/", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Curation_ExplicitExclude_DisappearsFromBothFiles()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-exclude");
+        var articles = new[]
+        {
+            new ArticleFixture("kept", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/kept/"),
+            new ArticleFixture("dropped", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/dropped/",
+                Llms: new Dictionary<string, object> { ["visibility"] = "exclude" })
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0, llmsFullTxt: true);
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var compact = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        var full = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
+        Assert.Contains("https://example.com/posts/kept/", compact, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/posts/dropped/", compact, StringComparison.Ordinal);
+        Assert.Contains("https://example.com/posts/kept/", full, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/posts/dropped/", full, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Curation_ExplicitInclude_SurvivesCapAndAutoFillsRemainingSlots()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-include-cap");
+        var articles = new[]
+        {
+            new ArticleFixture("posts-00", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/posts-00/"),
+            new ArticleFixture("posts-01", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/posts-01/"),
+            new ArticleFixture("pinned", "posts", DateTimeOffset.Parse("2025-12-31T00:00:00Z"), "/posts/pinned/",
+                Llms: new Dictionary<string, object> { ["visibility"] = "include" })
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 1);
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        var urls = ReadSectionUrls(content, "Posts");
+        Assert.Equal(
+            ["https://example.com/posts/posts-01/", "https://example.com/posts/pinned/"],
+            urls);
+    }
+
+    [Fact]
+    public async Task Curation_Priority_SortsDescendingThenPublishedThenUrl()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-priority");
+        var articles = new[]
+        {
+            new ArticleFixture("low", "posts", DateTimeOffset.Parse("2026-03-03T00:00:00Z"), "/posts/low/",
+                Llms: new Dictionary<string, object> { ["priority"] = 0 }),
+            new ArticleFixture("high-b", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/high-b/",
+                Llms: new Dictionary<string, object> { ["priority"] = 5 }),
+            new ArticleFixture("high-a", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/high-a/",
+                Llms: new Dictionary<string, object> { ["priority"] = 5 }),
+            new ArticleFixture("high-c", "posts", DateTimeOffset.Parse("2026-02-02T00:00:00Z"), "/posts/high-c/",
+                Llms: new Dictionary<string, object> { ["priority"] = 5 })
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0);
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Equal(
+            [
+                "https://example.com/posts/high-c/",
+                "https://example.com/posts/high-a/",
+                "https://example.com/posts/high-b/",
+                "https://example.com/posts/low/"
+            ],
+            ReadSectionUrls(content, "Posts"));
+    }
+
+    [Fact]
+    public async Task Curation_OptionalPages_AppearOnlyInSingleOptionalSection()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-optional");
+        var articles = new[]
+        {
+            new ArticleFixture("main", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/main/"),
+            new ArticleFixture("extra", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/extra/",
+                Llms: new Dictionary<string, object> { ["tier"] = "optional" })
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0);
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Equal(["https://example.com/posts/main/"], ReadSectionUrls(content, "Posts"));
+        Assert.Equal(["https://example.com/posts/extra/"], ReadSectionUrls(content, "Optional"));
+        Assert.Equal(1, content.Split('\n').Count(line => line.Trim() == "## Optional"));
+    }
+
+    [Fact]
+    public async Task Curation_FullOutput_IncludesPrimaryAndOptionalButNotExcluded()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-full");
+        var articles = new[]
+        {
+            new ArticleFixture("main", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/main/"),
+            new ArticleFixture("extra", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/extra/",
+                Llms: new Dictionary<string, object> { ["tier"] = "optional" }),
+            new ArticleFixture("gone", "posts", DateTimeOffset.Parse("2026-01-03T00:00:00Z"), "/posts/gone/",
+                Llms: new Dictionary<string, object> { ["visibility"] = "exclude" })
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0, llmsFullTxt: true);
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var full = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
+        Assert.Contains("https://example.com/posts/main/", full, StringComparison.Ordinal);
+        Assert.Contains("https://example.com/posts/extra/", full, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/posts/gone/", full, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Curation_OmittedMetadata_PreservesCurrentOrdering()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-omitted");
+        var articles = CreateArticles("posts", 5);
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 3);
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var content = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        Assert.Equal(
+            [
+                "https://example.com/posts/posts-04/",
+                "https://example.com/posts/posts-03/",
+                "https://example.com/posts/posts-02/"
+            ],
+            ReadSectionUrls(content, "Posts"));
+    }
+
+    [Fact]
+    public async Task Curation_RepeatedGeneration_ProducesIdenticalBytes()
+    {
+        var articles = new[]
+        {
+            new ArticleFixture("main", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/main/",
+                Llms: new Dictionary<string, object> { ["priority"] = 3 }),
+            new ArticleFixture("extra", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/extra/",
+                Llms: new Dictionary<string, object> { ["tier"] = "optional" })
+        };
+
+        async Task<string> RenderAsync(string dir)
+        {
+            var outputDir = Path.Combine(_root, dir);
+            var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 1, llmsFullTxt: true);
+            await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+            return File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8) +
+                   File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
+        }
+
+        Assert.Equal(await RenderAsync("dist-curation-repeat-a"), await RenderAsync("dist-curation-repeat-b"));
+    }
+
+    [Fact]
+    public async Task Curation_InvalidMetadataWarnMode_IsAbsentFromBothFiles()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-invalid-warn");
+        var articles = new[]
+        {
+            new ArticleFixture("kept", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/kept/"),
+            new ArticleFixture("broken", "posts", DateTimeOffset.Parse("2026-01-02T00:00:00Z"), "/posts/broken/",
+                Llms: new Dictionary<string, object> { ["visibility"] = "always" })
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0, llmsFullTxt: true);
+
+        await new LlmsTxtPlugin(config).AfterBuildAsync(context);
+
+        var compact = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        var full = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
+        Assert.Contains("https://example.com/posts/kept/", compact, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/posts/broken/", compact, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://example.com/posts/broken/", full, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Curation_InvalidMetadataStrictMode_FailsBuild()
+    {
+        var outputDir = Path.Combine(_root, "dist-curation-invalid-strict");
+        var articles = new[]
+        {
+            new ArticleFixture("broken", "posts", DateTimeOffset.Parse("2026-01-01T00:00:00Z"), "/posts/broken/",
+                Llms: new Dictionary<string, object> { ["visibility"] = "always" })
+        };
+        var (context, config) = CreateArticleContext(outputDir, articles, maxArticles: 0, diagnostics: "strict");
+
+        var exception = await Assert.ThrowsAsync<ConfigException>(
+            () => new LlmsTxtPlugin(config).AfterBuildAsync(context));
+
+        Assert.Contains("geo.llms_visibility_invalid", exception.Message, StringComparison.Ordinal);
+    }
+
     private sealed record ArticleFixture(
         string Id,
         string Collection,
         DateTimeOffset Published,
-        string RouteUrl)
+        string RouteUrl,
+        Dictionary<string, object>? Llms = null,
+        bool Indexable = true)
     {
         public string Canonical => $"https://example.com{RouteUrl}";
     }
@@ -350,7 +567,9 @@ public sealed class LlmsTxtPluginTests : IDisposable
         IReadOnlyList<ArticleFixture> articles,
         int maxArticles,
         bool duplicateFirstInDerived = false,
-        IReadOnlyList<string>? configuredCollections = null)
+        IReadOnlyList<string>? configuredCollections = null,
+        bool llmsFullTxt = false,
+        string diagnostics = "warn")
     {
         var documents = new List<ContentDocument>();
         var routedDocuments = new List<RoutedContentDocument>();
@@ -358,13 +577,22 @@ public sealed class LlmsTxtPluginTests : IDisposable
 
         foreach (var article in articles)
         {
-            var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+            var fieldValues = new Dictionary<string, object>
             {
                 ["type"] = "post",
                 ["collection"] = article.Collection,
                 ["status"] = "published",
                 ["summary"] = $"Summary for {article.Id}"
-            });
+            };
+            if (article.Llms is not null)
+            {
+                fieldValues["geo"] = new Dictionary<string, object>
+                {
+                    ["llms"] = article.Llms
+                };
+            }
+
+            var fields = ContentFieldReader.ToFieldMap(fieldValues);
             var document = ContentDocument.Create(
                 id: article.Id,
                 title: $"Article {article.Id}",
@@ -381,7 +609,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
                 route,
                 article.Canonical,
                 Robots: null,
-                Indexable: true,
+                Indexable: article.Indexable,
                 LastModified: DateTimeOffset.UnixEpoch,
                 SourceItemId: article.Id,
                 ContentType: "post",
@@ -404,10 +632,12 @@ public sealed class LlmsTxtPluginTests : IDisposable
                 Collections = collections,
                 Seo = new SeoConfig
                 {
+                    Diagnostics = diagnostics,
                     Geo = new SeoGeoConfig
                     {
                         Enabled = true,
                         LlmsTxt = true,
+                        LlmsFullTxt = llmsFullTxt,
                         LlmsTxtMaxArticles = maxArticles
                     }
                 }
