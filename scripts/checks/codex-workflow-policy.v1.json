@@ -429,8 +429,10 @@
         "docs/schemas/seo-observation.v1.schema.json",
         "docs/schemas/seo-insights-rules.v1.schema.json",
         "docs/schemas/seo-insights-report.v1.schema.json",
+        "docs/seo.md",
         "guide/user/10-built-in-outputs.md",
         "guide/user/12-cli-reference.md",
+        "guide/user/17-geo.md",
         "guide/user/21-seo-insights.md",
         "guide/user/README.md"
       ],
