@@ -28,7 +28,8 @@ count grows over time, while monitoring the generated `llms.txt` file size.
 
 ## Citations and provenance
 
-Content-level `geo.citations[]` entries connect an article to the sources it
+Content-level `citations` entries under the frontmatter `geo` field connect an
+article to the sources it
 references. Each entry accepts an optional `relation` field; the only allowed
 values are `citation` and `based-on`:
 
@@ -72,8 +73,8 @@ mode) and are never silently rewritten.
 
 ## LLMS curation
 
-Each page can opt into llms curation through content-level `geo.llms`
-metadata. The contract is limited to three fields:
+Each page can opt into llms curation through content-level `llms` metadata
+under the frontmatter `geo` field. The contract is limited to three fields:
 
 ```yaml
 geo:

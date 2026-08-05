@@ -189,7 +189,7 @@ diagnosis with threshold evidence and a suggested action, never a root cause.
 |---|---|---|
 | `seo.insights.snippet_mismatch` | All four conditions: `impressions` >= `minimumSearchImpressions`; `ctr` < `lowCtr`; sessions >= `minimumAnalyticsSessions`; engagement rate >= `highEngagementRate`. | Compare title, description, query intent, and SERP presentation. |
 | `seo.insights.landing_quality` | Sufficient sessions with engagement rate below the configured low-engagement threshold. | Inspect landing-page relevance, clarity, speed, and conversion path. |
-| `seo.insights.discoverability` | Low impressions with sufficient sessions and high engagement. | Check discoverability, internal linking, index coverage, and measurement scope. |
+| `"seo.insights.discoverability"` | Low impressions with sufficient sessions and high engagement. | Check discoverability, internal linking, index coverage, and measurement scope. |
 | `seo.insights.position_opportunity` | Sufficient impressions with average position inside the configured opportunity range. | Review intent coverage, content quality, and competing search results. |
 
 Thresholds turn observations into repeatable hypotheses; they do not establish
