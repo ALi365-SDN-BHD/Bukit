@@ -434,6 +434,8 @@
         "docs/schemas/seo-question-target-map.v1.schema.json",
         "docs/schemas/generative-answer-observation.v1.schema.json",
         "docs/schemas/generative-citation-report.v1.schema.json",
+        "docs/schemas/external-authority-observation.v1.schema.json",
+        "docs/schemas/external-authority-report.v1.schema.json",
         "docs/seo.md",
         "guide/user/04-site-yaml-config.md",
         "guide/user/10-built-in-outputs.md",
@@ -442,6 +444,7 @@
         "guide/user/21-seo-insights.md",
         "guide/user/22-seo-question-insights.md",
         "guide/user/23-generative-citation-insights.md",
+        "guide/user/24-external-authority-insights.md",
         "guide/user/README.md"
       ],
       "publicContract": true,
