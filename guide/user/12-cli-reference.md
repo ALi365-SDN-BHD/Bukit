@@ -22,6 +22,7 @@ This table is derived from `BukitCliSpecs.cs`.
 | `seo insights` | Join local SEO observations with the route map and write an offline insights report. | `--dir`, `--routes`, `--observations`, `--rules`, `--out`, `--strict-join` |
 | `seo question-insights` | Join a local question target map with search question observations and write an offline coverage report. | `--dir`, `--routes`, `--targets`, `--observations`, `--rules`, `--out`, `--strict-join` |
 | `seo generative-insights` | Join local generative answer observations with the route map and write an offline citation report. | `--dir`, `--routes`, `--observations`, `--rules`, `--out`, `--strict-join` |
+| `seo authority-insights` | Join local external authority observations with the route map and write an offline citation evidence report. | `--dir`, `--routes`, `--observations`, `--rules`, `--out`, `--strict-join` |
 | `geo` | Parent command for GEO reports. | `--dir` |
 | `geo audit` | Validate `.bukit/geo-report.json`. | `--dir` |
 | `publish` | Parent command for publish audit reports. | `--dir`, `--report`, `--strict`, `--external` |
@@ -48,6 +49,7 @@ bukit seo audit --dir dist --strict
 bukit seo insights --dir dist --observations incoming/gsc.json,incoming/ga4.json --rules seo-insights-rules.json
 bukit seo question-insights --dir dist --targets observations/question-targets.json --observations observations/gsc-questions.json --rules seo-insights-rules.json
 bukit seo generative-insights --dir dist --observations observations/generative-runs.json --rules seo-insights-rules.json
+bukit seo authority-insights --dir dist --observations observations/external-authority.json --rules seo-insights-rules.json
 bukit publish audit --dir dist --strict
 bukit deploy --dry-run
 ```
@@ -76,6 +78,11 @@ defaults, and the privacy boundary.
 `seo generative-insights` uses the same exit-code refinement for its join of
 generative cited URLs with the route map. See
 [23 Generative Citation Insights](23-generative-citation-insights.md) for
+required options, defaults, and the privacy boundary.
+
+`seo authority-insights` uses the same exit-code refinement for its join of
+external cited URLs with the route map. See
+[24 External Authority Insights](24-external-authority-insights.md) for
 required options, defaults, and the privacy boundary.
 
 ## Dynamic Plugin Commands

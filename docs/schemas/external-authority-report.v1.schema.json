@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/external-authority-report.v1.json",
+  "title": "Bukit External Authority Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schemaVersion", "generatedAt", "sources", "overall", "providers", "sourceTypes", "statuses", "routes", "unmatchedCitedUrls", "ambiguousCitedUrls", "joinQuality"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/external-authority-report.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider", "sourceType", "status", "observedAt", "sourceUrl", "contextHash", "citedRouteKeys"],
+        "properties": {
+          "provider": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "sourceType": { "enum": ["official", "regulator", "research", "news", "association", "repository", "forum", "other"] },
+          "status": { "enum": ["active", "deleted", "unavailable"] },
+          "observedAt": { "type": "string", "format": "date-time" },
+          "sourceUrl": { "type": "string", "pattern": "^https?://" },
+          "contextHash": { "type": "string", "pattern": "^context:sha256:[0-9a-f]{64}$" },
+          "citedRouteKeys": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" }
+          }
+        }
+      }
+    },
+    "overall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sources", "activeSources", "activeCitedRoutes"],
+      "properties": {
+        "sources": { "type": "integer", "minimum": 0 },
+        "activeSources": { "type": "integer", "minimum": 0 },
+        "activeCitedRoutes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider", "sources", "activeSources"],
+        "properties": {
+          "provider": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "sources": { "type": "integer", "minimum": 0 },
+          "activeSources": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "sourceTypes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sourceType", "sources", "activeSources"],
+        "properties": {
+          "sourceType": { "enum": ["official", "regulator", "research", "news", "association", "repository", "forum", "other"] },
+          "sources": { "type": "integer", "minimum": 0 },
+          "activeSources": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "statuses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "sources"],
+        "properties": {
+          "status": { "enum": ["active", "deleted", "unavailable"] },
+          "sources": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["routeKey", "canonical", "activeSources"],
+        "properties": {
+          "routeKey": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" },
+          "canonical": { "type": "string", "pattern": "^https?://" },
+          "activeSources": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "unmatchedCitedUrls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "errorCode"],
+        "properties": {
+          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "errorCode": { "type": ["string", "null"], "minLength": 1 }
+        }
+      }
+    },
+    "ambiguousCitedUrls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["url", "candidateRouteKeys"],
+        "properties": {
+          "url": { "type": "string", "minLength": 1, "pattern": "\\S" },
+          "candidateRouteKeys": {
+            "type": "array",
+            "minItems": 2,
+            "items": { "type": "string", "pattern": "^route:sha256:[0-9a-f]{64}$" }
+          }
+        }
+      }
+    },
+    "joinQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+      "properties": {
+        "sourceRows": { "type": "integer", "minimum": 0 },
+        "matchedRows": { "type": "integer", "minimum": 0 },
+        "unmatchedRows": { "type": "integer", "minimum": 0 },
+        "ambiguousRows": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

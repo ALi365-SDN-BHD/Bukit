@@ -29,7 +29,7 @@ public sealed class CliContractTests
                 "clean:",
                 "version:",
                 "completion:",
-                "seo:audit,diff,insights,question-insights,generative-insights",
+                "seo:audit,diff,insights,question-insights,generative-insights,authority-insights",
                 "geo:audit",
                 "publish:audit,diff",
                 "deploy:",
@@ -48,7 +48,7 @@ public sealed class CliContractTests
         var insights = registry.ResolveSubcommand(seo, "insights")!;
         var options = insights.Options!;
 
-        Assert.Equal(["audit", "diff", "insights", "question-insights", "generative-insights"], seo.Subcommands!.Select(command => command.Name));
+        Assert.Equal(["audit", "diff", "insights", "question-insights", "generative-insights", "authority-insights"], seo.Subcommands!.Select(command => command.Name));
         Assert.Equal(
             ["--dir", "--report", "--strict", "--external"],
             seo.Options!.Select(option => option.Name));
@@ -100,6 +100,24 @@ public sealed class CliContractTests
         Assert.False(options.Single(option => option.Name == "--routes").Required);
         Assert.Equal("<dir>/.bukit/seo-route-map.json", options.Single(option => option.Name == "--routes").DefaultValueHelp);
         Assert.Equal("<dir>/.bukit/generative-citation-report.json", options.Single(option => option.Name == "--out").DefaultValueHelp);
+    }
+
+    [Fact]
+    public void Registry_SeoAuthorityInsights_ExposesRequiredOfflineOptionsWithoutChangingExistingSubcommands()
+    {
+        var registry = BukitCliSpecs.CreateRegistry();
+        var seo = registry.Resolve("seo")!;
+        var authorityInsights = registry.ResolveSubcommand(seo, "authority-insights")!;
+        var options = authorityInsights.Options!;
+
+        Assert.Equal(
+            ["--dir", "--routes", "--observations", "--rules", "--out", "--strict-join"],
+            options.Select(option => option.Name));
+        Assert.True(options.Single(option => option.Name == "--observations").Required);
+        Assert.True(options.Single(option => option.Name == "--rules").Required);
+        Assert.False(options.Single(option => option.Name == "--routes").Required);
+        Assert.Equal("<dir>/.bukit/seo-route-map.json", options.Single(option => option.Name == "--routes").DefaultValueHelp);
+        Assert.Equal("<dir>/.bukit/external-authority-report.json", options.Single(option => option.Name == "--out").DefaultValueHelp);
     }
 
     [Fact]

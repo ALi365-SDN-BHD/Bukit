@@ -652,6 +652,81 @@ public sealed class SeoGeoDocumentationContractTests
     }
 
     [Fact]
+    public void ExternalAuthoritySchemas_MatchPublicContracts()
+    {
+        using var observationSchema = ReadJson("docs", "schemas", "external-authority-observation.v1.schema.json");
+        var observationRoot = observationSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", observationRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/external-authority-observation.v1.json", observationRoot.GetProperty("$id").GetString());
+        Assert.False(observationRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "provider", "collectedAt", "collectionMethod", "rows"],
+            observationRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("1.0", observationRoot.GetProperty("properties").GetProperty("schemaVersion").GetProperty("const").GetString());
+        var observationProperties = observationRoot.GetProperty("properties");
+        Assert.Equal(1, observationProperties.GetProperty("provider").GetProperty("minLength").GetInt32());
+        Assert.Equal(
+            ["api", "export", "manual"],
+            observationProperties.GetProperty("collectionMethod").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
+        var rows = observationProperties.GetProperty("rows");
+        Assert.Equal(100000, rows.GetProperty("maxItems").GetInt32());
+        var row = rows.GetProperty("items");
+        Assert.False(row.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["sourceUrl", "sourceType", "observedAt", "status", "questionKey", "topicKey", "entityKey", "contextHash", "citedUrls"],
+            row.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(3, row.GetProperty("anyOf").GetArrayLength());
+        var rowProperties = row.GetProperty("properties");
+        Assert.Equal("^https?://", rowProperties.GetProperty("sourceUrl").GetProperty("pattern").GetString());
+        Assert.Equal(
+            ["official", "regulator", "research", "news", "association", "repository", "forum", "other"],
+            rowProperties.GetProperty("sourceType").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(
+            ["active", "deleted", "unavailable"],
+            rowProperties.GetProperty("status").GetProperty("enum").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("^question:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("questionKey").GetProperty("pattern").GetString());
+        Assert.Equal("^topic:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("topicKey").GetProperty("pattern").GetString());
+        Assert.Equal("^entity:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("entityKey").GetProperty("pattern").GetString());
+        Assert.Equal("^context:sha256:[0-9a-f]{64}$", rowProperties.GetProperty("contextHash").GetProperty("pattern").GetString());
+        Assert.Equal("^https?://", rowProperties.GetProperty("citedUrls").GetProperty("items").GetProperty("pattern").GetString());
+
+        using var reportSchema = ReadJson("docs", "schemas", "external-authority-report.v1.schema.json");
+        var reportRoot = reportSchema.RootElement;
+        Assert.Equal("https://json-schema.org/draft/2020-12/schema", reportRoot.GetProperty("$schema").GetString());
+        Assert.Equal("https://bukit.dev/schemas/external-authority-report.v1.json", reportRoot.GetProperty("$id").GetString());
+        Assert.False(reportRoot.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["schema", "schemaVersion", "generatedAt", "sources", "overall", "providers", "sourceTypes", "statuses", "routes", "unmatchedCitedUrls", "ambiguousCitedUrls", "joinQuality"],
+            reportRoot.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var overall = reportRoot.GetProperty("properties").GetProperty("overall");
+        Assert.False(overall.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["sources", "activeSources", "activeCitedRoutes"],
+            overall.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var sourceRecord = reportRoot.GetProperty("properties").GetProperty("sources").GetProperty("items");
+        Assert.False(sourceRecord.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["provider", "sourceType", "status", "observedAt", "sourceUrl", "contextHash", "citedRouteKeys"],
+            sourceRecord.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var joinQuality = reportRoot.GetProperty("properties").GetProperty("joinQuality");
+        Assert.False(joinQuality.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["sourceRows", "matchedRows", "unmatchedRows", "ambiguousRows"],
+            joinQuality.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var unmatched = reportRoot.GetProperty("properties").GetProperty("unmatchedCitedUrls").GetProperty("items");
+        Assert.False(unmatched.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["url", "errorCode"],
+            unmatched.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        var ambiguous = reportRoot.GetProperty("properties").GetProperty("ambiguousCitedUrls").GetProperty("items");
+        Assert.False(ambiguous.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(
+            ["url", "candidateRouteKeys"],
+            ambiguous.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(2, ambiguous.GetProperty("properties").GetProperty("candidateRouteKeys").GetProperty("minItems").GetInt32());
+    }
+
+    [Fact]
     public void ActiveGuide_DocumentsQuestionCoverageContract()
     {
         var guide = ReadText("guide", "user", "22-seo-question-insights.md");
@@ -702,6 +777,37 @@ public sealed class SeoGeoDocumentationContractTests
 
         Assert.Contains("bukit seo generative-insights", cli, StringComparison.Ordinal);
         Assert.Contains("seo generative-insights", index, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ActiveGuide_DocumentsExternalAuthorityContract()
+    {
+        var guide = ReadText("guide", "user", "24-external-authority-insights.md");
+        var index = ReadText("guide", "user", "README.md");
+        var cli = ReadText("guide", "user", "12-cli-reference.md");
+
+        Assert.Contains("[24 External Authority Insights](24-external-authority-insights.md)", index, StringComparison.Ordinal);
+
+        Assert.Contains("external-authority-observation.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("external-authority-report.v1", guide, StringComparison.Ordinal);
+        Assert.Contains("question:sha256:", guide, StringComparison.Ordinal);
+        Assert.Contains("context:sha256:", guide, StringComparison.Ordinal);
+        Assert.Contains("route:sha256:", guide, StringComparison.Ordinal);
+        Assert.Contains("official`, `regulator", guide, StringComparison.Ordinal);
+        Assert.Contains("deleted", guide, StringComparison.Ordinal);
+        Assert.Contains("unavailable", guide, StringComparison.Ordinal);
+        Assert.Contains("does not score authority", guide, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Automated posting, commenting, voting, messaging, and", guide, StringComparison.Ordinal);
+        Assert.Contains("1. approved API use case and credentials boundary;", guide, StringComparison.Ordinal);
+        Assert.Contains("2. measured incremental value over GSC/GA4/generative observations;", guide, StringComparison.Ordinal);
+        Assert.Contains("3. fixed subreddit/query scope, rate and retention policy;", guide, StringComparison.Ordinal);
+        Assert.Contains("4. deletion/unavailable synchronization;", guide, StringComparison.Ordinal);
+        Assert.Contains("5. read-only commands only;", guide, StringComparison.Ordinal);
+        Assert.Contains("6. output validates against external-authority-observation.v1.", guide, StringComparison.Ordinal);
+        Assert.Contains("Core never receives raw", guide, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("bukit seo authority-insights", cli, StringComparison.Ordinal);
+        Assert.Contains("seo authority-insights", index, StringComparison.Ordinal);
     }
 
     [Fact]

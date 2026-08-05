@@ -152,7 +152,11 @@ public static partial class BukitCliSpecs
                 new CliCommandSpec(
                     Name: "generative-insights",
                     Description: "从本地 generative answer observation 生成生成式引用报告",
-                    Options: GenerativeInsightsOptions())
+                    Options: GenerativeInsightsOptions()),
+                new CliCommandSpec(
+                    Name: "authority-insights",
+                    Description: "从本地 external authority observation 生成外部引用证据报告",
+                    Options: AuthorityInsightsOptions())
             });
 
         var geo = new CliCommandSpec(
@@ -262,6 +266,16 @@ public static partial class BukitCliSpecs
         new CliOptionSpec("--observations", "逗号分隔的 1-10 个本地 generative answer observation JSON 路径", Required: true),
         new CliOptionSpec("--rules", "SEO insights 规则本地路径", Required: true),
         new CliOptionSpec("--out", "生成式引用报告输出路径", DefaultValueHelp: "<dir>/.bukit/generative-citation-report.json"),
+        new CliOptionSpec("--strict-join", "unmatched 或 ambiguous 行存在时返回 1", CliOptionType.Flag)
+    ];
+
+    private static CliOptionSpec[] AuthorityInsightsOptions() =>
+    [
+        new CliOptionSpec("--dir", "构建输出目录", DefaultValueHelp: "dist"),
+        new CliOptionSpec("--routes", "SEO route map 本地路径", DefaultValueHelp: "<dir>/.bukit/seo-route-map.json"),
+        new CliOptionSpec("--observations", "逗号分隔的 1-10 个本地 external authority observation JSON 路径", Required: true),
+        new CliOptionSpec("--rules", "SEO insights 规则本地路径", Required: true),
+        new CliOptionSpec("--out", "外部引用证据报告输出路径", DefaultValueHelp: "<dir>/.bukit/external-authority-report.json"),
         new CliOptionSpec("--strict-join", "unmatched 或 ambiguous 行存在时返回 1", CliOptionType.Flag)
     ];
 }
