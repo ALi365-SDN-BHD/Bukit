@@ -5,7 +5,7 @@ namespace Bukit.Notion.Rendering;
 /// has_more without a cursor, rejects repeated cursors, and enforces a hard request
 /// budget so a pathological API cannot loop forever or accumulate unbounded pages.
 /// </summary>
-public sealed class NotionPaginationGuard
+internal sealed class NotionPaginationGuard
 {
     public const int MaxRequests = 10_000;
 

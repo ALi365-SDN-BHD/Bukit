@@ -4,7 +4,7 @@ namespace Bukit.Notion.Rendering;
 /// Stable failure for Notion pagination violations (missing cursor, repeated cursor,
 /// request budget exceeded). <see cref="Reason"/> carries the machine-readable cause.
 /// </summary>
-public sealed class NotionPaginationException : Exception
+internal sealed class NotionPaginationException : Exception
 {
     public NotionPaginationException(string reason, string message)
         : base(message)

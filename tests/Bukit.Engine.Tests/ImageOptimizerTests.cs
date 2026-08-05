@@ -168,6 +168,7 @@ public sealed class ImageOptimizerTests
                 printf not-a-webp-image > "$last"
                 """);
             Environment.SetEnvironmentVariable("PATH", toolDir);
+            var logger = new RecordingLogger();
 
             await ImageOptimizer.OptimizeIfEnabled(
                 assetsDir,
@@ -177,12 +178,16 @@ public sealed class ImageOptimizerTests
                     Formats = new[] { "webp" },
                     Quality = 80
                 },
-                new ConsoleLogger(LogLevel.Error));
+                logger);
 
             Assert.False(File.Exists(Path.ChangeExtension(input, ".webp")));
             Assert.All(
                 Directory.EnumerateFiles(assetsDir),
                 file => Assert.DoesNotContain(".bukit-", Path.GetFileName(file), StringComparison.Ordinal));
+            var warning = Assert.Single(
+                logger.Warnings,
+                message => message.StartsWith("event=image_optimize.error", StringComparison.Ordinal));
+            Assert.EndsWith("reason=output_validation_failed", warning, StringComparison.Ordinal);
         }
         finally
         {
@@ -216,5 +221,18 @@ public sealed class ImageOptimizerTests
         {
             throw SkipException.ForSkip("This command-matrix test uses temporary Unix executables.");
         }
+    }
+
+    private sealed class RecordingLogger : ILogger
+    {
+        public List<string> Warnings { get; } = [];
+
+        public void Debug(string message) { }
+
+        public void Info(string message) { }
+
+        public void Warn(string message) => Warnings.Add(message);
+
+        public void Error(string message) { }
     }
 }

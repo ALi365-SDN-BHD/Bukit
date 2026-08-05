@@ -500,9 +500,10 @@ public sealed class NotionContentProviderEndToEndTests
         var provider = new NotionContentProvider(options, logger: null, CreateClient);
 
         // CI-08 contract: has_more=true with a missing cursor fails closed.
-        var exception = await Assert.ThrowsAsync<Bukit.Notion.Rendering.NotionPaginationException>(
-            () => provider.LoadRawAsync());
-        Assert.Equal(Bukit.Notion.Rendering.NotionPaginationGuard.ReasonMissingCursor, exception.Reason);
+        var exception = await Record.ExceptionAsync(() => provider.LoadRawAsync());
+
+        Assert.NotNull(exception);
+        Assert.Contains("has_more without a next cursor", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

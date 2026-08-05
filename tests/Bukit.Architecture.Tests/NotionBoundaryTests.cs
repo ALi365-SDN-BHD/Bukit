@@ -25,6 +25,26 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
+    public void NotionPaginationInfrastructure_MustRemainInternal()
+    {
+        var assembly = typeof(Bukit.Notion.Rendering.NotionBlocksRenderer).Assembly;
+        var exportedTypes = assembly.GetExportedTypes();
+        string[] internalTypeNames =
+        [
+            "Bukit.Notion.Rendering.NotionPaginationGuard",
+            "Bukit.Notion.Rendering.NotionPaginationException"
+        ];
+
+        foreach (var typeName in internalTypeNames)
+        {
+            var type = assembly.GetType(typeName, throwOnError: true, ignoreCase: false)!;
+
+            Assert.True(type.IsNotPublic, $"{typeName} must remain internal.");
+            Assert.DoesNotContain(type, exportedTypes);
+        }
+    }
+
+    [Fact]
     public void CanonicalNotionProjects_MustRemainNonPackableMonorepoComponents()
     {
         var repoRoot = FindRepoRoot();
