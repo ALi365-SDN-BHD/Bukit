@@ -8,6 +8,9 @@ internal static class SemanticHtmlAuditRules
 {
     private static readonly Regex ImgTagRegex = new("<img\\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex AltAttributeRegex = new("\\balt\\s*=\\s*(?:\"[^\"]*\"|'[^']*')", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex EmptyAltAttributeRegex = new(
+        "\\balt\\s*=\\s*(?:\"\\s*\"|'\\s*')",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex TimeDatetimeRegex = new("<time\\b[^>]*\\bdatetime\\s*=\\s*(?:\"[^\"]+\"|'[^']+')", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex MainOrArticleRegex = new("<(main|article)\\b[^>]*>(?<content>[\\s\\S]*?)</\\1>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex FigureRegex = new("<figure\\b[^>]*>(?<content>[\\s\\S]*?)</figure>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -26,6 +29,8 @@ internal static class SemanticHtmlAuditRules
         {
             issues.Add(Warning("publish.semantic_main_missing", entry.Route.Url, "HTML output is missing a <main> landmark for primary page content."));
         }
+
+        ArticleImageAuditRules.Analyze(document, issues);
 
         if (!inspection.HasHeader)
         {
@@ -54,6 +59,21 @@ internal static class SemanticHtmlAuditRules
         if (missingAltCount > 0)
         {
             issues.Add(Warning("publish.image_alt_missing", entry.Route.Url, $"HTML output contains {missingAltCount} image element(s) without an alt attribute."));
+        }
+
+        var primaryContent = MainOrArticleRegex.Matches(html)
+            .Select(match => match.Groups["content"].Value)
+            .FirstOrDefault(content => !string.IsNullOrWhiteSpace(content));
+        if (!string.IsNullOrWhiteSpace(primaryContent))
+        {
+            var emptyAltCount = ImgTagRegex.Matches(primaryContent)
+                .Select(match => match.Value)
+                .Count(tag => EmptyAltAttributeRegex.IsMatch(tag));
+            if (emptyAltCount > 0)
+            {
+                issues.Add(Warning("publish.article_image_alt_empty_review", entry.Route.Url,
+                    $"Primary content contains {emptyAltCount} image element(s) with an empty alt attribute; review whether each image is decorative or needs descriptive text."));
+            }
         }
 
         var figureWithoutCaptionCount = FigureRegex.Matches(html)

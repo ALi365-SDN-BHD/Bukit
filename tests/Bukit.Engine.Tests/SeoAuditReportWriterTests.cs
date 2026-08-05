@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Reflection;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
@@ -772,6 +773,240 @@ public sealed class SeoAuditReportWriterTests : IDisposable
         var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
 
         Assert.Contains(report.Issues, x => x.Code == "publish.image_alt_missing" && x.Route == "/post/");
+    }
+
+    [Fact]
+    public void Build_EmptyAltInPrimaryContent_ReportsReviewWarningOnly()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body>
+              <main>
+                <article>
+                  <img src="/a.png" alt="">
+                  <img src="/b.png" alt=' '>
+                  <img src="/c.png" alt="Described">
+                </article>
+              </main>
+            </body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x =>
+            x.Code == "publish.article_image_alt_empty_review" &&
+            x.Severity == "warning" &&
+            x.Route == "/post/");
+        Assert.DoesNotContain(report.Issues, x => x.Code == "publish.image_alt_missing" && x.Route == "/post/");
+    }
+
+    [Fact]
+    public void Build_MissingAltOnly_DoesNotReportEmptyAltReview()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body>
+              <main>
+                <article>
+                  <img src="/a.png">
+                </article>
+              </main>
+            </body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x => x.Code == "publish.image_alt_missing" && x.Route == "/post/");
+        Assert.DoesNotContain(report.Issues, x => x.Code == "publish.article_image_alt_empty_review" && x.Route == "/post/");
+    }
+
+    [Fact]
+    public void Build_EmptyAltInHeaderIcon_DoesNotReportEmptyAltReview()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body>
+              <header><img src="/icon.png" alt=""></header>
+              <nav><ul><li>Home</li></ul></nav>
+              <main>
+                <article>
+                  <img src="/a.png" alt="Described">
+                  <p>Body</p>
+                </article>
+              </main>
+              <footer><p>Foot</p></footer>
+            </body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "publish.article_image_alt_empty_review" && x.Route == "/post/");
+    }
+
+    [Fact]
+    public void Build_MultipleEmptyAltBodyImages_ReportsSingleIssueWithCount()
+    {
+        WriteOutput("post/index.html", """
+            <!doctype html>
+            <html>
+            <head><title>Post</title><link rel="canonical" href="https://example.com/post/" /></head>
+            <body>
+              <main>
+                <article>
+                  <img src="/a.png" alt="">
+                  <img src="/b.png" alt="">
+                </article>
+              </main>
+            </body>
+            </html>
+            """);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        var issue = Assert.Single(report.Issues, x => x.Code == "publish.article_image_alt_empty_review" && x.Route == "/post/");
+        Assert.Contains("2", issue.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Article")]
+    [InlineData("BlogPosting")]
+    [InlineData("NewsArticle")]
+    public void Build_ArticleFamilyUsingSiteDefaultImage_ReportsReviewWarning(string schemaType)
+    {
+        WriteOutput("post/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = ArticleModelWithImage(schemaType, "SiteDefault")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.Contains(report.Issues, x =>
+            x.Code == "seo.article_image_uses_site_default" &&
+            x.Severity == "warning" &&
+            x.Route == "/post/");
+    }
+
+    [Theory]
+    [InlineData("ExplicitField")]
+    [InlineData("ContentMedia")]
+    [InlineData("None")]
+    public void Build_ArticleWithNonDefaultImageSource_DoesNotReportDefaultImageWarning(string sourceName)
+    {
+        WriteOutput("post/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = ArticleModelWithImage("BlogPosting", sourceName)
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.article_image_uses_site_default");
+    }
+
+    [Fact]
+    public void Build_FaqPageUsingSiteDefaultImage_DoesNotReportDefaultImageWarning()
+    {
+        WriteOutput("post/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = new(new RouteInfo("/post/", "post/index.html", "pages/post.html"), "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post-1", "post")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = ArticleModelWithImage("FAQPage", "SiteDefault")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.article_image_uses_site_default");
+    }
+
+    [Fact]
+    public void Build_DerivedListPageUsingSiteDefaultImage_DoesNotReportDefaultImageWarning()
+    {
+        WriteOutput("list/index.html");
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["list/index.html"] = new(new RouteInfo("/list/", "list/index.html", "pages/list.html"), "https://example.com/list/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), null, "list", IsDerived: true)
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["list/index.html"] = ArticleModelWithImage("BlogPosting", "SiteDefault")
+        };
+
+        var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models);
+
+        Assert.DoesNotContain(report.Issues, x => x.Code == "seo.article_image_uses_site_default");
+    }
+
+    private static SeoModel ArticleModelWithImage(string schemaType, string imageSourceName)
+    {
+        var model = new SeoModel
+        {
+            Title = "Post",
+            DocumentTitle = "Post",
+            Description = "Post description",
+            Canonical = "https://example.com/post/",
+            JsonLd =
+            [
+                $$$"""{"@context":"https://schema.org","@type":"{{{schemaType}}}","headline":"Post","datePublished":"2026-06-05T00:00:00Z","author":{"@type":"Person","name":"Desk"},"image":"https://example.com/images/default.jpg","mainEntityOfPage":{"@type":"WebPage","@id":"https://example.com/post/"}}"""
+            ]
+        };
+        var property = typeof(SeoModel).GetProperty("ImageSource", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(property);
+        var enumType = property.PropertyType;
+        property.SetValue(model, Enum.Parse(enumType, imageSourceName));
+        return model;
     }
 
     [Fact]

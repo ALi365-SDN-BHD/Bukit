@@ -54,6 +54,7 @@ public sealed record SeoModel
     public string? Prev { get; init; }
     public string? Next { get; init; }
     public string? Robots { get; init; }
+    internal SeoImageSource ImageSource { get; init; }
     public SeoOpenGraphModel Og { get; init; } = new();
     public SeoTwitterModel Twitter { get; init; } = new();
     public SeoArticleModel Article { get; init; } = new();
@@ -66,6 +67,14 @@ public sealed record SeoModel
     public GeoAuthorModel? GeoAuthor { get; init; }
     public string? SpeakableXPath { get; init; }
     public IReadOnlyList<string>? SameAs { get; init; }
+}
+
+internal enum SeoImageSource
+{
+    None,
+    ExplicitField,
+    ContentMedia,
+    SiteDefault
 }
 
 public sealed record GeoFaqModel
