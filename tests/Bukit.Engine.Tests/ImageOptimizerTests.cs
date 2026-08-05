@@ -196,6 +196,94 @@ public sealed class ImageOptimizerTests
         }
     }
 
+    [Fact]
+    public async Task OptimizeAsync_ExitZeroWithoutOutput_UsesStableMissingOutputReason()
+    {
+        RequireUnix();
+        var root = CreateRoot();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(root, "assets");
+            var toolDir = Path.Combine(root, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            var input = Path.Combine(assetsDir, "photo.jpg");
+            File.WriteAllText(input, "input");
+            WriteTool(toolDir, "cwebp", """
+                if [ "$1" = "-version" ]; then exit 0; fi
+                exit 0
+                """);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
+            var logger = new RecordingLogger();
+
+            await ImageOptimizer.OptimizeIfEnabled(
+                assetsDir,
+                new ImageOptimizationConfig
+                {
+                    Enabled = true,
+                    Formats = new[] { "webp" },
+                    Quality = 80
+                },
+                logger);
+
+            Assert.False(File.Exists(Path.ChangeExtension(input, ".webp")));
+            var warning = Assert.Single(
+                logger.Warnings,
+                message => message.StartsWith("event=image_optimize.error", StringComparison.Ordinal));
+            Assert.EndsWith("reason=output_missing", warning, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task OptimizeAsync_NonZeroWithoutStderr_UsesStableToolFailureReason()
+    {
+        RequireUnix();
+        var root = CreateRoot();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(root, "assets");
+            var toolDir = Path.Combine(root, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            var input = Path.Combine(assetsDir, "photo.jpg");
+            File.WriteAllText(input, "input");
+            WriteTool(toolDir, "cwebp", """
+                if [ "$1" = "-version" ]; then exit 0; fi
+                exit 7
+                """);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
+            var logger = new RecordingLogger();
+
+            await ImageOptimizer.OptimizeIfEnabled(
+                assetsDir,
+                new ImageOptimizationConfig
+                {
+                    Enabled = true,
+                    Formats = new[] { "webp" },
+                    Quality = 80
+                },
+                logger);
+
+            Assert.False(File.Exists(Path.ChangeExtension(input, ".webp")));
+            var warning = Assert.Single(
+                logger.Warnings,
+                message => message.StartsWith("event=image_optimize.error", StringComparison.Ordinal));
+            Assert.EndsWith("reason=tool_failed_exit_7", warning, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
 
 
     private static string CreateRoot()

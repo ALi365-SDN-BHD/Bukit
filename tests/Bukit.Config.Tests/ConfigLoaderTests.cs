@@ -1532,4 +1532,104 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
         Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Load_StringListElementWrongKind_ThrowsStableIndexedPath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+              languages:
+                - zh-CN
+                - nested: invalid
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("languages[1]", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_StringMapValueWrongKind_ThrowsStableEntryPath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+              permalinks:
+                post:
+                  nested: invalid
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("permalinks.post", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_StringMapKeyWrongKind_ThrowsStableEntryPath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+              permalinks:
+                ? [post]
+                : /posts/:slug/
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("permalinks[0].key", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("sequence", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_StringMapBlankKeyWithWrongKindValue_ThrowsStableIndexedValuePath()
+    {
+        var configPath = WriteTempYaml("""
+            site:
+              name: myblog
+              title: My Blog
+              permalinks:
+                "":
+                  nested: invalid
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
+
+        var exception = Assert.Throws<ConfigException>(() => ConfigLoader.Load(configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("permalinks[0].value", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("scalar", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
+    }
 }

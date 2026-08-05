@@ -228,7 +228,11 @@ internal static class ImageOptimizer
             {
                 var reason = validationAttempted
                     ? "output_validation_failed"
-                    : result.StandardError;
+                    : result.ExitCode == 0
+                        ? "output_missing"
+                        : string.IsNullOrWhiteSpace(result.StandardError)
+                            ? $"tool_failed_exit_{result.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture)}"
+                            : result.StandardError;
                 logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason={reason}");
             }
         }

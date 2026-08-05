@@ -168,19 +168,36 @@ internal static class ConfigYamlHelpers
         }
 
         var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var index = 0;
         foreach (var kv in map.Children)
         {
-            if (kv.Key is not YamlScalarNode k || string.IsNullOrWhiteSpace(k.Value))
+            if (kv.Key is not YamlScalarNode k)
             {
+                throw KindMismatch($"{key}[{index}].key", "scalar", kv.Key);
+            }
+
+            if (kv.Value is not YamlScalarNode v)
+            {
+                var valuePath = string.IsNullOrWhiteSpace(k.Value)
+                    ? $"{key}[{index}].value"
+                    : $"{key}.{k.Value.Trim()}";
+                throw KindMismatch(valuePath, "scalar", kv.Value);
+            }
+
+            if (string.IsNullOrWhiteSpace(k.Value))
+            {
+                index++;
                 continue;
             }
 
-            if (kv.Value is not YamlScalarNode v || string.IsNullOrWhiteSpace(v.Value))
+            if (string.IsNullOrWhiteSpace(v.Value))
             {
+                index++;
                 continue;
             }
 
             dict[k.Value.Trim()] = v.Value.Trim();
+            index++;
         }
 
         return dict.Count == 0 ? null : dict;
@@ -195,12 +212,20 @@ internal static class ConfigYamlHelpers
         }
 
         var list = new List<string>();
+        var index = 0;
         foreach (var n in seq.Children)
         {
-            if (n is YamlScalarNode s && !string.IsNullOrWhiteSpace(s.Value))
+            if (n is not YamlScalarNode s)
+            {
+                throw KindMismatch($"{key}[{index}]", "scalar", n);
+            }
+
+            if (!string.IsNullOrWhiteSpace(s.Value))
             {
                 list.Add(s.Value.Trim());
             }
+
+            index++;
         }
 
         return list.Count == 0 ? null : list;
