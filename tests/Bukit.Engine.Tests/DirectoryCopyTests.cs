@@ -1,3 +1,4 @@
+using Bukit.Engine.Output;
 using Bukit.Shared.IO;
 using Xunit;
 using Xunit.Sdk;
@@ -615,6 +616,47 @@ public sealed class DirectoryCopyTests : IDisposable
     }
 
     [Fact]
+    public void Copy_UsesPathReturnedByOutputPolicy()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        var redirectedDir = Path.Combine(root, "redirected");
+        Directory.CreateDirectory(sourceDir);
+        File.WriteAllText(Path.Combine(sourceDir, "asset.txt"), "content");
+
+        DirectoryCopy.Copy(
+            sourceDir,
+            destinationDir,
+            destinationDir,
+            new RedirectingOutputPathPolicy(redirectedDir));
+
+        Assert.Equal("content", File.ReadAllText(Path.Combine(redirectedDir, "asset.txt")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "asset.txt")));
+    }
+
+    [Fact]
+    public void SyncFiles_UsesPathReturnedByOutputPolicy()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        var redirectedDir = Path.Combine(root, "redirected");
+        Directory.CreateDirectory(sourceDir);
+        File.WriteAllText(Path.Combine(sourceDir, "asset.txt"), "content");
+
+        DirectoryCopy.SyncFiles(
+            sourceDir,
+            destinationDir,
+            ignoreDotPrefixedFiles: false,
+            outputRoot: destinationDir,
+            pathPolicy: new RedirectingOutputPathPolicy(redirectedDir));
+
+        Assert.Equal("content", File.ReadAllText(Path.Combine(redirectedDir, "asset.txt")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "asset.txt")));
+    }
+
+    [Fact]
     public void Sync_NonExistentSource_NoOps()
     {
         var root = CreateTempRoot();
@@ -712,6 +754,31 @@ public sealed class DirectoryCopyTests : IDisposable
     }
 
     [Fact]
+    public void SyncPlannedFile_UsesPathReturnedByOutputPolicy()
+    {
+        var root = CreateTempRoot();
+        var sourceDir = Path.Combine(root, "source");
+        var destinationDir = Path.Combine(root, "output");
+        var redirectedDir = Path.Combine(root, "redirected");
+        Directory.CreateDirectory(sourceDir);
+        File.WriteAllText(Path.Combine(sourceDir, "asset.txt"), "content");
+        var options = new DirectoryCopyOptions();
+        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, options).Single();
+
+        DirectoryCopy.SyncPlannedFile(
+            planned.SourcePath,
+            Path.Combine(destinationDir, "asset.txt"),
+            "size-time",
+            destinationDir,
+            planned.PhysicalSourceRoot,
+            options,
+            new RedirectingOutputPathPolicy(redirectedDir));
+
+        Assert.Equal("content", File.ReadAllText(Path.Combine(redirectedDir, "asset.txt")));
+        Assert.False(File.Exists(Path.Combine(destinationDir, "asset.txt")));
+    }
+
+    [Fact]
     public void SyncPlannedFile_WhenPathChangesAfterVerifiedOpen_CopiesFromVerifiedHandle()
     {
         var root = CreateTempRoot();
@@ -759,6 +826,12 @@ public sealed class DirectoryCopyTests : IDisposable
             opener: new RejectingSourceOpener()));
 
         Assert.Equal("existing", File.ReadAllText(destinationFile));
+    }
+
+    private sealed class RedirectingOutputPathPolicy(string redirectedRoot) : IOutputPathPolicy
+    {
+        public string ResolveSafePath(string outputRoot, string relativePath)
+            => Path.GetFullPath(Path.Combine(redirectedRoot, relativePath));
     }
 
     private sealed class ReplacingSourceOpener : ISafeSourceFileOpener

@@ -49,8 +49,13 @@ internal static class DirectoryCopy
             var dest = Path.Combine(destinationDir, name);
             if (outputRoot is not null)
             {
-                FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, dest), pathPolicy);
+                dest = FileWriter.GetSafeFullPath(
+                    outputRoot,
+                    Path.GetRelativePath(outputRoot, dest),
+                    pathPolicy);
             }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
             File.Copy(file, dest, overwrite: true);
         }
 
@@ -627,9 +632,13 @@ internal static class DirectoryCopy
 
         if (outputRoot is not null)
         {
-            FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, destinationFile), pathPolicy);
+            destinationFile = FileWriter.GetSafeFullPath(
+                outputRoot,
+                Path.GetRelativePath(outputRoot, destinationFile),
+                pathPolicy);
         }
 
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
         var sourceInfo = new FileInfo(sourceFile);
         var destinationInfo = new FileInfo(destinationFile);
         if (destinationInfo.Exists
@@ -653,9 +662,13 @@ internal static class DirectoryCopy
     {
         if (outputRoot is not null)
         {
-            FileWriter.GetSafeFullPath(outputRoot, Path.GetRelativePath(outputRoot, destinationFile), pathPolicy);
+            destinationFile = FileWriter.GetSafeFullPath(
+                outputRoot,
+                Path.GetRelativePath(outputRoot, destinationFile),
+                pathPolicy);
         }
 
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
         var destinationInfo = new FileInfo(destinationFile);
         var sourceLength = source.Length;
         var sourceLastWriteTimeUtc = source.LastWriteTimeUtc;
