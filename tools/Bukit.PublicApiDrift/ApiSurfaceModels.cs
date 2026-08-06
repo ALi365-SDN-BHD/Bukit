@@ -56,6 +56,7 @@ internal static class ApiPolicy
     public static readonly HashSet<string> Compatibility = new(StringComparer.Ordinal)
     {
         "1.x-do-not-narrow", "1.x-migration-safe", "1.x-shape-stable",
-        "2.0-candidate", "not-a-clr-contract"
+        "2.0-candidate", "2.x-do-not-narrow", "2.x-migration-safe",
+        "2.x-shape-stable", "not-a-clr-contract"
     };
 }

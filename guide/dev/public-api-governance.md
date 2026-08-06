@@ -171,7 +171,15 @@ Every governed type uses one classification and one compatibility value.
 | `1.x-migration-safe` | Change only with an approved 1.x migration. |
 | `1.x-shape-stable` | Preserve the serialized or protocol shape through 1.x. |
 | `2.0-candidate` | Consider narrowing only in a reviewed 2.0 change. |
+| `2.x-do-not-narrow` | Keep accessible through 2.x. |
+| `2.x-migration-safe` | Change only with an approved 2.x migration. |
+| `2.x-shape-stable` | Preserve the serialized or protocol shape through 2.x. |
 | `not-a-clr-contract` | CLR-visible implementation with no external CLR contract promise. |
+
+Migration horizons remain required, non-empty review metadata rather than a
+closed enum. Current 2.x decisions use `retain-2.x` when the surface remains
+through the 2.x line and `3.0-review` when narrowing requires a separately
+reviewed 3.0 change.
 
 ## Snapshot Safety Boundary
 

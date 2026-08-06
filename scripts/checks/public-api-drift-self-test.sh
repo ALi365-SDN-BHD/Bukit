@@ -43,6 +43,20 @@ trap 'rm -rf -- "$scratch"' EXIT
 bash scripts/checks/public-api-drift-self-test-formatter.sh "$scratch"
 bash scripts/checks/public-api-drift-self-test-policy.sh "$scratch"
 
+for compatibility in 2.x-do-not-narrow 2.x-migration-safe 2.x-shape-stable; do
+  output="$scratch/${compatibility}.json"
+  sed "s/\"compatibility\": \"2.0-candidate\"/\"compatibility\": \"${compatibility}\"/" \
+    "$fixtures/baseline.json" >"$output"
+  assert_exit 0 "$scratch/${compatibility}.txt" \
+    "${tool[@]}" "$output" "$output"
+done
+sed 's/"compatibility": "2.0-candidate"/"compatibility": "2.x-unknown"/' \
+  "$fixtures/baseline.json" >"$scratch/compatibility-unknown.json"
+assert_exit 2 "$scratch/compatibility-unknown.txt" \
+  "${tool[@]}" "$scratch/compatibility-unknown.json" "$fixtures/unchanged.json"
+grep -Fq 'gate-error:' "$scratch/compatibility-unknown.txt" || \
+  fail "unknown 2.x compatibility lacks gate-error"
+
 python3 - "$fixtures/baseline.json" "$scratch/utf8-bom.json" "$scratch/utf16.json" <<'PY'
 from pathlib import Path
 import sys
