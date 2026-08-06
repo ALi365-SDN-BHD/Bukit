@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using Bukit.Engine.Output;
@@ -92,16 +93,18 @@ internal static class BuildManifestTracker
         bool incrementalEnabled,
         ILogger logger,
         string? fingerprintMode = null,
-        IOutputPathPolicy? pathPolicy = null)
+        IOutputPathPolicy? pathPolicy = null,
+        CancellationToken cancellationToken = default)
     {
-        var currentStatic = CreateTrackedOutputs(items, outputDir, AssetOutputCategory.Static, fingerprintMode);
+        var currentStatic = CreateTrackedOutputs(items, outputDir, AssetOutputCategory.Static, fingerprintMode, cancellationToken);
         var currentAssets = CreateTrackedOutputs(
             items,
             outputDir,
             AssetOutputCategory.Assets,
             fingerprintMode,
+            cancellationToken,
             includeTokens: true);
-        var currentMedia = CreateTrackedOutputs(items, outputDir, AssetOutputCategory.Media, fingerprintMode);
+        var currentMedia = CreateTrackedOutputs(items, outputDir, AssetOutputCategory.Media, fingerprintMode, cancellationToken);
         var currentDestinations = items
             .Select(item => item.Destination)
             .ToHashSet(pathComparer);
@@ -126,7 +129,8 @@ internal static class BuildManifestTracker
         ILogger logger,
         string? fingerprintMode = null,
         IOutputPathPolicy? pathPolicy = null,
-        Bukit.Shared.IO.ISafeSourceFileOpener? opener = null)
+        Bukit.Shared.IO.ISafeSourceFileOpener? opener = null,
+        CancellationToken cancellationToken = default)
     {
         var mediaOutputDir = Path.Combine(outputDir, "assets", "uploads");
         var copyOptions = new DirectoryCopyOptions
@@ -136,8 +140,9 @@ internal static class BuildManifestTracker
             FollowSymlinks = false
         };
         var currentMedia = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var item in DirectoryCopy.EnumerateFilesForSync(mediaDownloadDir, copyOptions))
+        foreach (var item in DirectoryCopy.EnumerateFilesForSync(mediaDownloadDir, copyOptions, cancellationToken))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var relativePath = BuildPathUtils.NormalizeRelPath(item.RelativePath);
             var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine("assets", "uploads", relativePath));
             var destinationFile = Path.Combine(
@@ -152,14 +157,14 @@ internal static class BuildManifestTracker
                 copyOptions,
                 pathPolicy,
                 opener);
-            currentMedia[outputPath] = ComputeFileFingerprint(destinationFile, fingerprintMode);
+            currentMedia[outputPath] = ComputeFileFingerprint(destinationFile, fingerprintMode, cancellationToken);
         }
 
         DeleteStaleTrackedFiles(outputDir, manifest.Media, currentMedia, incrementalEnabled, logger, "media", pathPolicy);
         manifest.Media = currentMedia;
     }
 
-    internal static void TrackPluginOutputs(BuildContext pluginContext, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null)
+    internal static void TrackPluginOutputs(BuildContext pluginContext, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null, CancellationToken cancellationToken = default)
     {
         var currentOutputs = new Dictionary<string, PluginOutputManifestEntry>(StringComparer.Ordinal);
         if (pluginContext.Data.TryGetValue("__plugin_outputs", out var outputsObj) && outputsObj is HashSet<PluginOutputTrackingInfo> outputs)
@@ -174,7 +179,7 @@ internal static class BuildManifestTracker
                         Plugin = output.Plugin,
                         Hook = output.Hook,
                         Path = BuildPathUtils.NormalizeRelPath(output.Path),
-                        Hash = ComputeFileFingerprint(fullPath, fingerprintMode)
+                        Hash = ComputeFileFingerprint(fullPath, fingerprintMode, cancellationToken)
                     };
                 }
             }
@@ -184,21 +189,21 @@ internal static class BuildManifestTracker
         manifest.PluginOutputs = currentOutputs;
     }
 
-    internal static void TrackStaticOutputs(string? parentStaticDir, string? staticDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, bool renderHtmlStaticFiles, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null)
+    internal static void TrackStaticOutputs(string? parentStaticDir, string? staticDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, bool renderHtmlStaticFiles, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null, CancellationToken cancellationToken = default)
     {
         var currentStatic = new Dictionary<string, string>(StringComparer.Ordinal);
-        AddStaticSourceOutputs(parentStaticDir, currentStatic, renderHtmlStaticFiles: false, fingerprintMode);
-        AddStaticSourceOutputs(staticDir, currentStatic, renderHtmlStaticFiles, fingerprintMode);
+        AddStaticSourceOutputs(parentStaticDir, currentStatic, renderHtmlStaticFiles: false, fingerprintMode, cancellationToken);
+        AddStaticSourceOutputs(staticDir, currentStatic, renderHtmlStaticFiles, fingerprintMode, cancellationToken);
 
         DeleteStaleTrackedFiles(outputDir, manifest.Static, currentStatic, incrementalEnabled, logger, "static", pathPolicy);
         manifest.Static = currentStatic;
     }
 
-    internal static void TrackAssetOutputs(string? parentAssetsDir, string? assetsDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null)
+    internal static void TrackAssetOutputs(string? parentAssetsDir, string? assetsDir, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null, CancellationToken cancellationToken = default)
     {
         var currentAssets = new Dictionary<string, string>(StringComparer.Ordinal);
-        AddAssetSourceOutputs(parentAssetsDir, currentAssets, fingerprintMode);
-        AddAssetSourceOutputs(assetsDir, currentAssets, fingerprintMode);
+        AddAssetSourceOutputs(parentAssetsDir, currentAssets, fingerprintMode, cancellationToken);
+        AddAssetSourceOutputs(assetsDir, currentAssets, fingerprintMode, cancellationToken);
 
         DeleteStaleTrackedFiles(outputDir, manifest.Assets, currentAssets, incrementalEnabled, logger, "asset", pathPolicy);
         manifest.Assets = currentAssets;
@@ -231,7 +236,7 @@ internal static class BuildManifestTracker
         }
     }
 
-    private static void AddStaticSourceOutputs(string? sourceDir, Dictionary<string, string> outputs, bool renderHtmlStaticFiles, string? fingerprintMode = null)
+    private static void AddStaticSourceOutputs(string? sourceDir, Dictionary<string, string> outputs, bool renderHtmlStaticFiles, string? fingerprintMode = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
         {
@@ -251,11 +256,11 @@ internal static class BuildManifestTracker
             }
 
             var relativePath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(sourceDir, file));
-            outputs[relativePath] = ComputeFileFingerprint(file, fingerprintMode);
+            outputs[relativePath] = ComputeFileFingerprint(file, fingerprintMode, cancellationToken);
         }
     }
 
-    private static void AddAssetSourceOutputs(string? sourceDir, Dictionary<string, string> outputs, string? fingerprintMode = null)
+    private static void AddAssetSourceOutputs(string? sourceDir, Dictionary<string, string> outputs, string? fingerprintMode = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))
         {
@@ -271,7 +276,7 @@ internal static class BuildManifestTracker
 
             var relativePath = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(sourceDir, file));
             var outputPath = BuildPathUtils.NormalizeRelPath(Path.Combine("assets", relativePath));
-            outputs[outputPath] = ComputeFileFingerprint(file, fingerprintMode);
+            outputs[outputPath] = ComputeFileFingerprint(file, fingerprintMode, cancellationToken);
         }
     }
 
@@ -280,6 +285,7 @@ internal static class BuildManifestTracker
         string outputDir,
         AssetOutputCategory category,
         string? fingerprintMode,
+        CancellationToken cancellationToken,
         bool includeTokens = false)
     {
         var outputs = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -289,7 +295,7 @@ internal static class BuildManifestTracker
             var outputPath = Path.Combine(
                 outputDir,
                 item.Destination.Replace('/', Path.DirectorySeparatorChar));
-            outputs[item.Destination] = ComputeFileFingerprint(outputPath, fingerprintMode);
+            outputs[item.Destination] = ComputeFileFingerprint(outputPath, fingerprintMode, cancellationToken);
         }
 
         return outputs;
@@ -331,18 +337,53 @@ internal static class BuildManifestTracker
         }
     }
 
-    private static string ComputeFileFingerprint(string file, string? fingerprintMode = null)
+    private static string ComputeFileFingerprint(string file, string? fingerprintMode = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var mode = (fingerprintMode ?? "size-time").Trim().ToLowerInvariant();
 
         if (mode == "sha256")
         {
-            var bytes = File.ReadAllBytes(file);
-            return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            using var stream = new FileStream(
+                file,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 64 * 1024,
+                FileOptions.SequentialScan);
+            return ComputeSha256(stream, cancellationToken);
         }
 
         var info = new FileInfo(file);
         return $"{info.Length}:{info.LastWriteTimeUtc.Ticks}";
+    }
+
+    internal static string ComputeSha256(Stream stream, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var incrementalHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        try
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var read = stream.Read(buffer.AsSpan());
+                if (read == 0)
+                {
+                    break;
+                }
+
+                incrementalHash.AppendData(buffer.AsSpan(0, read));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return Convert.ToHexString(incrementalHash.GetHashAndReset()).ToLowerInvariant();
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
     }
 
     private static bool IsSymlink(string path)
