@@ -844,12 +844,53 @@ public sealed class AssetPipelineTests
         Assert.False(File.Exists(Path.Combine(outputDir, "robots.txt")));
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenCancellationArrivesBeforeFingerprinting_StopsTracking()
+    {
+        var root = CreateRoot();
+        var themeRoot = Path.Combine(root, "theme");
+        Directory.CreateDirectory(themeRoot);
+        File.WriteAllText(Path.Combine(themeRoot, "tokens.yaml"), "colors:\n  primary: '#000'\n");
+
+        try
+        {
+            using var cts = new CancellationTokenSource();
+            var context = CreateContext(root, new BuildManifest(), themeRoot: themeRoot) with
+            {
+                FingerprintMode = "sha256",
+                Logger = new CancelingLogger(cts)
+            };
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => new AssetPipeline().ExecuteAsync(context, cts.Token));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private sealed class RecordingLogger : ILogger
     {
         public List<string> Infos { get; } = new();
 
         public void Debug(string message) { }
         public void Info(string message) { Infos.Add(message); }
+        public void Warn(string message) { }
+        public void Error(string message) { }
+    }
+
+    private sealed class CancelingLogger(CancellationTokenSource cancellationSource) : ILogger
+    {
+        public void Debug(string message) { }
+        public void Info(string message)
+        {
+            if (message.StartsWith("event=tokens.generated", StringComparison.Ordinal))
+            {
+                cancellationSource.Cancel();
+            }
+        }
+
         public void Warn(string message) { }
         public void Error(string message) { }
     }

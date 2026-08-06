@@ -133,7 +133,8 @@ internal sealed class AssetPipeline
             ctx.Manifest,
             ctx.IncrementalEnabled,
             ctx.Logger,
-            ctx.FingerprintMode);
+            ctx.FingerprintMode,
+            cancellationToken: cancellationToken);
 
         return new AssetPipelineResult(metricsCollector.Snapshot());
     }

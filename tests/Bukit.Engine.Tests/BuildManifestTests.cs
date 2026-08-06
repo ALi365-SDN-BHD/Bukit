@@ -10,6 +10,73 @@ namespace Bukit.Engine.Tests;
 public sealed class BuildManifestTests
 {
     [Fact]
+    public void TrackAssetPlanOutputs_Sha256LargeFile_UsesBoundedAllocation()
+    {
+        const int largeFileSize = 16 * 1024 * 1024;
+        const long allocationLimit = largeFileSize / 4;
+        var root = Path.Combine(Path.GetTempPath(), "bukit-manifest-hash-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var warmupPath = Path.Combine(root, "warmup.bin");
+        var largePath = Path.Combine(root, "large.bin");
+        File.WriteAllText(warmupPath, "warmup");
+        using (var file = new FileStream(largePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+            file.SetLength(largeFileSize);
+        }
+
+        try
+        {
+            BuildManifestTracker.TrackAssetPlanOutputs(
+                [new AssetOutputItem("warmup", "warmup.bin", AssetOutputCategory.Static)],
+                root,
+                StringComparer.Ordinal,
+                new BuildManifest(),
+                incrementalEnabled: false,
+                new ConsoleLogger(LogLevel.Error),
+                fingerprintMode: "sha256");
+
+            var manifest = new BuildManifest();
+            var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            BuildManifestTracker.TrackAssetPlanOutputs(
+                [new AssetOutputItem("large", "large.bin", AssetOutputCategory.Static)],
+                root,
+                StringComparer.Ordinal,
+                manifest,
+                incrementalEnabled: false,
+                new ConsoleLogger(LogLevel.Error),
+                fingerprintMode: "sha256");
+            var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+
+            string expected;
+            using (var expectedStream = File.OpenRead(largePath))
+            {
+                expected = Convert.ToHexString(SHA256.HashData(expectedStream)).ToLowerInvariant();
+            }
+
+            Assert.Equal(expected, manifest.Static["large.bin"]);
+            Assert.True(
+                allocatedBytes < allocationLimit,
+                $"SHA-256 fingerprinting allocated {allocatedBytes:N0} bytes for a {largeFileSize:N0}-byte file.");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ComputeSha256_WhenCanceledAfterFirstChunk_StopsBeforeConsumingStream()
+    {
+        using var cts = new CancellationTokenSource();
+        using var stream = new CancelAfterFirstReadStream(256 * 1024, cts);
+
+        Assert.ThrowsAny<OperationCanceledException>(
+            () => BuildManifestTracker.ComputeSha256(stream, cts.Token));
+
+        Assert.InRange(stream.BytesRead, 1, stream.Length - 1);
+    }
+
+    [Fact]
     public void SyncMediaOutputs_WhenPathChangesAfterVerifiedOpen_UsesVerifiedBytesForCopyAndFingerprint()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-manifest-verified-" + Guid.NewGuid().ToString("N"));
@@ -215,5 +282,73 @@ public sealed class BuildManifestTests
     {
         public VerifiedSourceFile Open(string path, string sourceRoot)
             => throw new IOException("verified open rejected");
+    }
+
+    private sealed class CancelAfterFirstReadStream : Stream
+    {
+        private const int MaxChunkSize = 1024;
+        private readonly MemoryStream _inner;
+        private readonly CancellationTokenSource _cancellationSource;
+        private int _readCount;
+
+        public CancelAfterFirstReadStream(int length, CancellationTokenSource cancellationSource)
+        {
+            _inner = new MemoryStream(new byte[length], writable: false);
+            _cancellationSource = cancellationSource;
+        }
+
+        public long BytesRead { get; private set; }
+        public override bool CanRead => true;
+        public override bool CanSeek => _inner.CanSeek;
+        public override bool CanWrite => false;
+        public override long Length => _inner.Length;
+        public override long Position
+        {
+            get => _inner.Position;
+            set => _inner.Position = value;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = _inner.Read(buffer, offset, Math.Min(count, MaxChunkSize));
+            ObserveRead(read);
+            return read;
+        }
+
+        public override int Read(Span<byte> buffer)
+        {
+            var read = _inner.Read(buffer[..Math.Min(buffer.Length, MaxChunkSize)]);
+            ObserveRead(read);
+            return read;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
+        public override void Flush() { }
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _inner.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
+        private void ObserveRead(int read)
+        {
+            if (read <= 0)
+            {
+                return;
+            }
+
+            BytesRead += read;
+            if (Interlocked.Increment(ref _readCount) == 1)
+            {
+                _cancellationSource.Cancel();
+            }
+        }
     }
 }

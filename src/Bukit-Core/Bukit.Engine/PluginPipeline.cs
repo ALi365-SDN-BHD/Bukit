@@ -54,7 +54,14 @@ internal sealed class PluginPipeline
             ctx.PluginContext,
             ctx.PluginSession,
             cancellationToken);
-        BuildManifestTracker.TrackPluginOutputs(ctx.PluginContext, ctx.OutputDir, ctx.Manifest, ctx.IncrementalEnabled, ctx.Logger, ctx.Config.Build.FingerprintMode);
+        BuildManifestTracker.TrackPluginOutputs(
+            ctx.PluginContext,
+            ctx.OutputDir,
+            ctx.Manifest,
+            ctx.IncrementalEnabled,
+            ctx.Logger,
+            ctx.Config.Build.FingerprintMode,
+            cancellationToken: cancellationToken);
         afterBuildStopwatch.Stop();
         metricsCollector.AddDuration("afterBuildPlugins", afterBuildStopwatch.ElapsedMilliseconds);
 
