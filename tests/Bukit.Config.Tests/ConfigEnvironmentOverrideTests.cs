@@ -2,6 +2,13 @@ using Xunit;
 
 namespace Bukit.Config.Tests;
 
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class ConfigEnvironmentOverrideCollection
+{
+    public const string Name = "Config environment overrides serial";
+}
+
+[Collection(ConfigEnvironmentOverrideCollection.Name)]
 public sealed class ConfigEnvironmentOverrideTests : IDisposable
 {
     private readonly string _dir;
