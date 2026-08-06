@@ -60,7 +60,9 @@ stop_test_server() {
 
 cleanup() {
   local pid path record token state_pid safe=true
-  for pid in "${active_children[@]-}"; do [[ -n "$pid" ]] && stop_direct_child "$pid" || safe=false; done
+  for pid in "${active_children[@]-}"; do
+    [[ -n "$pid" ]] || continue; stop_direct_child "$pid" || safe=false
+  done
   for record in "${active_servers[@]-}"; do
     [[ -n "$record" ]] || continue; pid=${record%%:*}; token=${record#*:}
     stop_test_server "$pid" "$token" || safe=false

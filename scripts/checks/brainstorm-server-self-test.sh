@@ -191,4 +191,7 @@ kill -0 "$cleanup_pid" 2>/dev/null || fail "strict cleanup refusal killed carrie
 [[ -d "$cleanup_probe" ]] || fail "strict cleanup refusal deleted live directory"
 remove_server_record "$cleanup_pid:$cleanup_token"; stop_direct_child "$cleanup_pid" || fail "cleanup carrier could not be safely reaped"
 echo "brainstorm server self-test: strict cleanup refusal preserved live carrier and directory"
+cleanup
+[[ ! -e "$scratch" ]] || fail "successful run retained scratch directory"
+trap - EXIT
 echo "brainstorm server self-test: PASS"
