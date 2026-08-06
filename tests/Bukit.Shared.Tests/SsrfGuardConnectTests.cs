@@ -18,7 +18,6 @@ public sealed class SsrfGuardConnectTests
         var stream = await SsrfGuard.SsrfSafeConnectAsync(
             "example.com",
             443,
-            CancellationToken.None,
             (_, _) => Task.FromResult(new[] { first, second }),
             (address, _, _) =>
             {
@@ -27,7 +26,8 @@ public sealed class SsrfGuardConnectTests
                     ? ValueTask.FromException<Stream>(
                         new SocketException((int)SocketError.HostUnreachable))
                     : ValueTask.FromResult<Stream>(expected);
-            });
+            },
+            CancellationToken.None);
 
         Assert.Same(expected, stream);
         Assert.Equal(new[] { first, second }, attempted);
@@ -44,13 +44,13 @@ public sealed class SsrfGuardConnectTests
         var stream = await SsrfGuard.SsrfSafeConnectAsync(
             "example.com",
             443,
-            CancellationToken.None,
             (_, _) => Task.FromResult(new[] { privateAddress, publicAddress }),
             (address, _, _) =>
             {
                 attempted.Add(address);
                 return ValueTask.FromResult<Stream>(expected);
-            });
+            },
+            CancellationToken.None);
 
         Assert.Same(expected, stream);
         Assert.Equal(new[] { publicAddress }, attempted);
@@ -66,7 +66,6 @@ public sealed class SsrfGuardConnectTests
             await SsrfGuard.SsrfSafeConnectAsync(
                 "example.com",
                 443,
-                cancellation.Token,
                 (_, _) => Task.FromResult(new[]
                 {
                     IPAddress.Parse("8.8.8.8"),
@@ -77,7 +76,8 @@ public sealed class SsrfGuardConnectTests
                     attempts++;
                     cancellation.Cancel();
                     return ValueTask.FromException<Stream>(new OperationCanceledException(token));
-                }));
+                },
+                cancellation.Token));
 
         Assert.Equal(1, attempts);
     }
@@ -93,7 +93,6 @@ public sealed class SsrfGuardConnectTests
             await SsrfGuard.SsrfSafeConnectAsync(
                 "example.com",
                 443,
-                CancellationToken.None,
                 (_, _) => Task.FromResult(new[]
                 {
                     IPAddress.Parse("8.8.8.8"),
@@ -101,7 +100,8 @@ public sealed class SsrfGuardConnectTests
                 }),
                 (_, _, _) => ++attempts == 1
                     ? ValueTask.FromException<Stream>(firstFailure)
-                    : ValueTask.FromException<Stream>(lastFailure)));
+                    : ValueTask.FromException<Stream>(lastFailure),
+                CancellationToken.None));
 
         Assert.Equal(2, attempts);
         Assert.Same(lastFailure, exception.InnerException);

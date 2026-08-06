@@ -32,12 +32,12 @@ public sealed class SsrfGuardHostTests
     {
         var result = await SsrfGuard.IsPrivateHostAsync(
             "example.com",
-            CancellationToken.None,
             (_, _) => Task.FromResult(new[]
             {
                 IPAddress.Parse("8.8.8.8"),
                 IPAddress.Loopback
-            }));
+            }),
+            CancellationToken.None);
 
         Assert.True(result);
     }
@@ -47,9 +47,9 @@ public sealed class SsrfGuardHostTests
     {
         var result = await SsrfGuard.IsPrivateHostAsync(
             "unresolvable.example",
-            CancellationToken.None,
             (_, _) => Task.FromException<IPAddress[]>(
-                new SocketException((int)SocketError.HostNotFound)));
+                new SocketException((int)SocketError.HostNotFound)),
+            CancellationToken.None);
 
         Assert.True(result);
     }
@@ -59,8 +59,8 @@ public sealed class SsrfGuardHostTests
     {
         var result = await SsrfGuard.IsPrivateHostAsync(
             "empty.example",
-            CancellationToken.None,
-            (_, _) => Task.FromResult(Array.Empty<IPAddress>()));
+            (_, _) => Task.FromResult(Array.Empty<IPAddress>()),
+            CancellationToken.None);
 
         Assert.True(result);
     }
@@ -73,12 +73,12 @@ public sealed class SsrfGuardHostTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             SsrfGuard.IsPrivateHostAsync(
                 "example.com",
-                cancellation.Token,
                 (_, token) =>
                 {
                     cancellation.Cancel();
                     return Task.FromException<IPAddress[]>(new OperationCanceledException(token));
-                }));
+                },
+                cancellation.Token));
     }
 
     [Fact]
@@ -89,8 +89,8 @@ public sealed class SsrfGuardHostTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             SsrfGuard.IsPrivateHostAsync(
                 "example.com",
-                CancellationToken.None,
-                (_, _) => Task.FromException<IPAddress[]>(expected)));
+                (_, _) => Task.FromException<IPAddress[]>(expected),
+                CancellationToken.None));
 
         Assert.Same(expected, exception);
     }

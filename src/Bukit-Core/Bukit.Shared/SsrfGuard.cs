@@ -11,17 +11,17 @@ public static class SsrfGuard
         return await SsrfSafeConnectAsync(
             context.DnsEndPoint.Host,
             context.DnsEndPoint.Port,
-            cancellationToken,
             Dns.GetHostAddressesAsync,
-            ConnectSocketAsync).ConfigureAwait(false);
+            ConnectSocketAsync,
+            cancellationToken).ConfigureAwait(false);
     }
 
     internal static async ValueTask<Stream> SsrfSafeConnectAsync(
         string host,
         int port,
-        CancellationToken cancellationToken,
         Func<string, CancellationToken, Task<IPAddress[]>> resolveAddressesAsync,
-        Func<IPAddress, int, CancellationToken, ValueTask<Stream>> connectAsync)
+        Func<IPAddress, int, CancellationToken, ValueTask<Stream>> connectAsync,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(resolveAddressesAsync);
         ArgumentNullException.ThrowIfNull(connectAsync);
@@ -93,13 +93,13 @@ public static class SsrfGuard
         string host, CancellationToken cancellationToken)
         => await IsPrivateHostAsync(
             host,
-            cancellationToken,
-            Dns.GetHostAddressesAsync).ConfigureAwait(false);
+            Dns.GetHostAddressesAsync,
+            cancellationToken).ConfigureAwait(false);
 
     internal static async Task<bool> IsPrivateHostAsync(
         string host,
-        CancellationToken cancellationToken,
-        Func<string, CancellationToken, Task<IPAddress[]>> resolveAddressesAsync)
+        Func<string, CancellationToken, Task<IPAddress[]>> resolveAddressesAsync,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(resolveAddressesAsync);
         cancellationToken.ThrowIfCancellationRequested();
