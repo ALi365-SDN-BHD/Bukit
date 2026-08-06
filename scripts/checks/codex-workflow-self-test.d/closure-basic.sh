@@ -151,6 +151,11 @@ assert_closure_mapping \
   false
 assert_closure_mapping \
   "$closure_fixture" \
+  docs/superpowers/plans/2026-08-06-core-release-must-fix-closure.md \
+  '["bash scripts/checks/codex-workflow-self-test.sh"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
   src/Bukit-Plugins/Bukit.Importing/ImportNotionPushWorkflow.cs \
   '["dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj", "dotnet test tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj"]' \
   true

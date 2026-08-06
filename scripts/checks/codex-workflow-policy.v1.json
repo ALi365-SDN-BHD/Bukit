@@ -21,7 +21,9 @@
       "id": "codex-workflow-plans",
       "matches": [
         "docs/superpowers/plans/*codex*workflow*.md",
-        "docs/superpowers/plans/**/*codex*workflow*.md"
+        "docs/superpowers/plans/**/*codex*workflow*.md",
+        "docs/superpowers/plans/*core-release-must-fix*.md",
+        "docs/superpowers/plans/**/*core-release-must-fix*.md"
       ],
       "publicContract": false,
       "resource": "static-parallel",
