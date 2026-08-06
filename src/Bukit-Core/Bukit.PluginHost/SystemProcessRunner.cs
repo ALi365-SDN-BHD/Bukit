@@ -187,8 +187,10 @@ public sealed class SystemProcessRunner : IProcessRunner
             stderrText,
             timedOut,
             outputLimitExceeded,
-            outputLimitStream,
-            resourceLimitExceeded);
+            outputLimitStream)
+        {
+            ResourceLimitExceeded = resourceLimitExceeded
+        };
     }
 
     private static ProcessStartInfo CreateStartInfo(ProcessRunRequest request)

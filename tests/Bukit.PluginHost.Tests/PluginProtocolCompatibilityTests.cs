@@ -83,8 +83,10 @@ public sealed class PluginProtocolCompatibilityTests
             StdoutJson: "",
             Stderr: "",
             TimedOut: false,
-            OutputLimitExceeded: false,
-            ResourceLimitExceeded: "CPU time exceeded");
+            OutputLimitExceeded: false)
+        {
+            ResourceLimitExceeded = "CPU time exceeded"
+        };
         Assert.Equal("CPU time exceeded", result.ResourceLimitExceeded);
     }
 
@@ -113,9 +115,11 @@ public sealed class PluginProtocolCompatibilityTests
             WorkingDirectory: "/tmp",
             Timeout: TimeSpan.FromSeconds(10),
             StdoutMaxBytes: 1024,
-            StderrMaxBytes: 1024,
-            MaxCpuTime: TimeSpan.FromSeconds(5),
-            MaxMemoryBytes: 256 * 1024 * 1024);
+            StderrMaxBytes: 1024)
+        {
+            MaxCpuTime = TimeSpan.FromSeconds(5),
+            MaxMemoryBytes = 256 * 1024 * 1024
+        };
         Assert.Equal(TimeSpan.FromSeconds(5), request.MaxCpuTime);
         Assert.Equal(256 * 1024 * 1024, request.MaxMemoryBytes);
     }

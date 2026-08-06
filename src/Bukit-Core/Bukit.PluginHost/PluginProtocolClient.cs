@@ -195,11 +195,13 @@ public sealed partial class PluginProtocolClient : IPluginProtocolClient
                 timeout,
                 Math.Min(plugin.Output.StdoutMaxBytes, plugin.Output.ResponseMaxBytes),
                 plugin.Output.StderrMaxBytes,
-                plugin.EnvironmentVariables,
-                plugin.Resources?.MaxCpuTimeMs is not null
+                plugin.EnvironmentVariables)
+            {
+                MaxCpuTime = plugin.Resources?.MaxCpuTimeMs is not null
                     ? TimeSpan.FromMilliseconds(plugin.Resources.MaxCpuTimeMs.Value)
                     : null,
-                plugin.Resources?.MaxMemoryBytes),
+                MaxMemoryBytes = plugin.Resources?.MaxMemoryBytes
+            },
             cancellationToken);
 
     private Task<string> WriteExecutionReportAsync(

@@ -6,5 +6,7 @@ public sealed record PluginProcessResult(
     string Stderr,
     bool TimedOut,
     bool OutputLimitExceeded,
-    ProcessOutputStream? OutputLimitStream = null,
-    string? ResourceLimitExceeded = null);
+    ProcessOutputStream? OutputLimitStream = null)
+{
+    public string? ResourceLimitExceeded { get; init; }
+}

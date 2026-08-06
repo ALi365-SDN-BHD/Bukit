@@ -552,9 +552,11 @@ public sealed class SystemProcessRunnerTests
             Timeout: TimeSpan.FromMilliseconds(timeoutMs),
             StdoutMaxBytes: stdoutMaxBytes,
             StderrMaxBytes: stderrMaxBytes,
-            EnvironmentVariables: environmentVariables,
-            MaxCpuTime: maxCpuTime,
-            MaxMemoryBytes: maxMemoryBytes);
+            EnvironmentVariables: environmentVariables)
+        {
+            MaxCpuTime = maxCpuTime,
+            MaxMemoryBytes = maxMemoryBytes
+        };
     }
 
     private static string ResolveDotnetHost()

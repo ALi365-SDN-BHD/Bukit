@@ -24,9 +24,11 @@ public sealed class PluginProcessInvoker : IPluginProcessInvoker
                 request.Timeout,
                 request.StdoutMaxBytes,
                 request.StderrMaxBytes,
-                request.EnvironmentVariables,
-                request.MaxCpuTime,
-                request.MaxMemoryBytes),
+                request.EnvironmentVariables)
+            {
+                MaxCpuTime = request.MaxCpuTime,
+                MaxMemoryBytes = request.MaxMemoryBytes
+            },
             cancellationToken);
 
         return new PluginProcessResult(
@@ -35,7 +37,9 @@ public sealed class PluginProcessInvoker : IPluginProcessInvoker
             result.Stderr,
             result.TimedOut,
             result.OutputLimitExceeded,
-            result.OutputLimitStream,
-            result.ResourceLimitExceeded);
+            result.OutputLimitStream)
+        {
+            ResourceLimitExceeded = result.ResourceLimitExceeded
+        };
     }
 }

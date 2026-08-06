@@ -368,8 +368,10 @@ public sealed class PluginProtocolClientTests
             ExecutablePath: executablePath,
             WorkingDirectory: workingDirectory,
             Host: new PluginHostInfo("Bukit", "1.0.0", "osx-arm64"),
-            ProjectRoot: projectRoot,
-            Resources: resources);
+            ProjectRoot: projectRoot)
+        {
+            Resources = resources
+        };
     }
 
     private static PluginInvokeRequest CreateInvokeRequest(
@@ -417,8 +419,10 @@ public sealed class PluginProtocolClientTests
                 Stderr: "stderr",
                 TimedOut: _timedOut,
                 OutputLimitExceeded: _outputLimitExceeded,
-                OutputLimitStream: null,
-                ResourceLimitExceeded: _resourceLimitExceeded));
+                OutputLimitStream: null)
+            {
+                ResourceLimitExceeded = _resourceLimitExceeded
+            });
         }
     }
 
