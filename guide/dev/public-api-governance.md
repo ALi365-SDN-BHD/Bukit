@@ -97,6 +97,11 @@ maintainer-local governance tool, not a general CLR SDK declaration.
 Both `check` and `snapshot` require the exact policy-owned, ordered mapping of
 the fourteen Core assemblies to their projects before any assembly is captured.
 
+The focused owner-check workflow routes governed Core C# source changes to
+this check so drift is detected early. That routing reports drift only; it does
+not authorize replacing the governed baseline, which still requires the
+reviewed workflow below.
+
 ## Diagnostics And Exit Codes
 
 Diagnostics are sorted as `<category>: <assembly>::<type>: <detail>`.

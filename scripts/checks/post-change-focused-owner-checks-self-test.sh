@@ -83,6 +83,14 @@ assert_count "$out" "bash scripts/checks/coverage/project-list-self-test.sh" 1
 out="$(bash "$script" --dry-run -- scripts/checks/public-api-drift-self-test-policy.sh)"
 assert_count "$out" "bash scripts/checks/public-api-drift-self-test.sh" 1
 
+out="$(bash "$script" --dry-run -- \
+  src/Bukit-Core/Bukit.Config/AppConfig.cs \
+  src/Bukit-Core/Bukit.PluginHost/PluginProcessRequest.cs)"
+assert_count "$out" "bash scripts/checks/public-api-drift.sh check Release" 1
+
+out="$(bash "$script" --dry-run -- guide/README.md)"
+assert_not_contains "$out" "bash scripts/checks/public-api-drift.sh check Release"
+
 out="$(bash "$script" --dry-run -- scripts/lib/common.sh)"
 assert_contains "$out" "bash scripts/checks/post-change-focused-self-test.sh"
 assert_contains "$out" "bash scripts/checks/post-change-targeted-self-test.sh"

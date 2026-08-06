@@ -32,6 +32,8 @@ add_owner_check() {
 
 for path in "${paths[@]}"; do
   case "$path" in
+    src/Bukit-Core/*.cs)
+      add_owner_check public-api-drift ;;
     AGENTS.md|guide/dev/agent-task-workflow.md|guide/dev/testing.md|\
     scripts/checks/agent-governance-contract.sh)
       add_owner_check governance ;;
@@ -140,6 +142,9 @@ run_or_print() {
 if [[ ${#owner_checks[@]} -gt 0 ]]; then
   for owner_check in "${owner_checks[@]}"; do
     case "$owner_check" in
+      public-api-drift)
+        run_or_print "public API drift" \
+          bash scripts/checks/public-api-drift.sh check Release ;;
       governance)
         run_or_print "agent governance contract" bash scripts/checks/agent-governance-contract.sh ;;
       focused-self-test)
