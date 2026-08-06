@@ -83,9 +83,10 @@ public sealed class ImageMetadataReaderTests : IDisposable
         var bytes = new byte[30];
         // RIFF header
         bytes[0] = 0x52; bytes[1] = 0x49; bytes[2] = 0x46; bytes[3] = 0x46; // RIFF
-        bytes[4] = 0x1A; bytes[5] = 0x00; bytes[6] = 0x00; bytes[7] = 0x00; // size
+        bytes[4] = 0x16; bytes[5] = 0x00; bytes[6] = 0x00; bytes[7] = 0x00; // file size - 8
         bytes[8] = 0x57; bytes[9] = 0x45; bytes[10] = 0x42; bytes[11] = 0x50; // WEBP
         bytes[12] = 0x56; bytes[13] = 0x50; bytes[14] = 0x38; bytes[15] = 0x58; // VP8X
+        bytes[16] = 10; // chunk size
         // VP8X: width-1 = 99 (0x63), height-1 = 49 (0x31)
         bytes[24] = 99;        // width low byte
         bytes[25] = 0;         // width mid
@@ -108,8 +109,11 @@ public sealed class ImageMetadataReaderTests : IDisposable
     {
         var bytes = new byte[30];
         bytes[0] = 0x52; bytes[1] = 0x49; bytes[2] = 0x46; bytes[3] = 0x46; // RIFF
+        bytes[4] = 0x16; // file size - 8
         bytes[8] = 0x57; bytes[9] = 0x45; bytes[10] = 0x42; bytes[11] = 0x50; // WEBP
         bytes[12] = 0x56; bytes[13] = 0x50; bytes[14] = 0x38; bytes[15] = 0x20; // "VP8 "
+        bytes[16] = 10; // chunk size
+        bytes[23] = 0x9D; bytes[24] = 0x01; bytes[25] = 0x2A; // VP8 key-frame signature
         // VP8 frame: width 14-bit little endian = 100 (0x64), height = 50 (0x32)
         bytes[26] = 100; bytes[27] = 0;
         bytes[28] = 50; bytes[29] = 0;
@@ -129,8 +133,11 @@ public sealed class ImageMetadataReaderTests : IDisposable
         // RIFF/WEBP header requires >= 30 bytes to reach the format check
         var bytes = new byte[30];
         bytes[0] = 0x52; bytes[1] = 0x49; bytes[2] = 0x46; bytes[3] = 0x46; // RIFF
+        bytes[4] = 0x16; // file size - 8
         bytes[8] = 0x57; bytes[9] = 0x45; bytes[10] = 0x42; bytes[11] = 0x50; // WEBP
         bytes[12] = 0x56; bytes[13] = 0x50; bytes[14] = 0x38; bytes[15] = 0x4C; // VP8L
+        bytes[16] = 10; // chunk size
+        bytes[20] = 0x2F; // VP8L signature
         // VP8L lossless: 14-bit (width-1) and (height-1) packed into bytes 21-24
         var widthMinusOne = 99;  // 100-1
         var heightMinusOne = 49; // 50-1
@@ -148,7 +155,151 @@ public sealed class ImageMetadataReaderTests : IDisposable
         Assert.Equal(50, metadata.Height);
     }
 
-    // ── JPEG ─────────────────────────────────────────────────────────
+    // ── WEBP safety boundaries ─────────────────────────────────────
+
+    [Fact]
+    public void TryReadImageMetadata_LargeWebp_UsesBoundedMemory()
+    {
+        const int fileSize = 8 * 1024 * 1024;
+        var path = Path.Combine(_testDir, "large.webp");
+        var header = new byte[30];
+        header[0] = 0x52; header[1] = 0x49; header[2] = 0x46; header[3] = 0x46; // RIFF
+        header[4] = 0xF8; header[5] = 0xFF; header[6] = 0x7F; header[7] = 0x00; // file size - 8
+        header[8] = 0x57; header[9] = 0x45; header[10] = 0x42; header[11] = 0x50; // WEBP
+        header[12] = 0x56; header[13] = 0x50; header[14] = 0x38; header[15] = 0x58; // VP8X
+        header[16] = 10; // VP8X chunk size
+        header[24] = 99; // width - 1
+        header[27] = 49; // height - 1
+
+        using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+            stream.SetLength(fileSize);
+            stream.Write(header);
+        }
+
+        var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+
+        var metadata = ImageMetadataReader.TryReadImageMetadata(path);
+
+        var allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        Assert.NotNull(metadata);
+        Assert.Equal(100, metadata!.Width);
+        Assert.Equal(50, metadata.Height);
+        Assert.True(allocatedBytes < 1024 * 1024, $"WebP metadata parsing allocated {allocatedBytes} bytes.");
+    }
+
+    [Fact]
+    public void TryReadImageMetadata_WebpTruncatedChunk_ReturnsNull()
+    {
+        var bytes = new byte[30];
+        bytes[0] = 0x52; bytes[1] = 0x49; bytes[2] = 0x46; bytes[3] = 0x46; // RIFF
+        bytes[4] = 0x16; // file size - 8
+        bytes[8] = 0x57; bytes[9] = 0x45; bytes[10] = 0x42; bytes[11] = 0x50; // WEBP
+        bytes[12] = 0x56; bytes[13] = 0x50; bytes[14] = 0x38; bytes[15] = 0x58; // VP8X
+        bytes[16] = 100; // declared chunk extends beyond the file
+        bytes[24] = 99;
+        bytes[27] = 49;
+        var path = WriteBytes(bytes, "truncated.webp");
+
+        var metadata = ImageMetadataReader.TryReadImageMetadata(path);
+
+        Assert.Null(metadata);
+    }
+
+    [Fact]
+    public void TryReadImageMetadata_WebpTruncatedRiffContainer_ReturnsNull()
+    {
+        var bytes = new byte[30];
+        bytes[0] = 0x52; bytes[1] = 0x49; bytes[2] = 0x46; bytes[3] = 0x46; // RIFF
+        bytes[4] = 0x00; bytes[5] = 0x10; // declares a 4096-byte container payload
+        bytes[8] = 0x57; bytes[9] = 0x45; bytes[10] = 0x42; bytes[11] = 0x50; // WEBP
+        bytes[12] = 0x56; bytes[13] = 0x50; bytes[14] = 0x38; bytes[15] = 0x58; // VP8X
+        bytes[16] = 10; // chunk size itself fits
+        bytes[24] = 99;
+        bytes[27] = 49;
+        var path = WriteBytes(bytes, "truncated-riff.webp");
+
+        var metadata = ImageMetadataReader.TryReadImageMetadata(path);
+
+        Assert.Null(metadata);
+    }
+
+    [Fact]
+    public void TryReadImageMetadata_WebpChunkOutsideDeclaredRiffContainer_ReturnsNull()
+    {
+        var bytes = new byte[128];
+        bytes[0] = 0x52; bytes[1] = 0x49; bytes[2] = 0x46; bytes[3] = 0x46; // RIFF
+        bytes[4] = 0x16; // declares a 30-byte container
+        bytes[8] = 0x57; bytes[9] = 0x45; bytes[10] = 0x42; bytes[11] = 0x50; // WEBP
+        bytes[12] = 0x56; bytes[13] = 0x50; bytes[14] = 0x38; bytes[15] = 0x58; // VP8X
+        bytes[16] = 100; // fits the physical file but not the declared RIFF container
+        bytes[24] = 99;
+        bytes[27] = 49;
+        var path = WriteBytes(bytes, "chunk-outside-riff.webp");
+
+        var metadata = ImageMetadataReader.TryReadImageMetadata(path);
+
+        Assert.Null(metadata);
+    }
+
+    [Fact]
+    public void TryReadImageMetadata_WebpVp8lWithoutSignature_ReturnsNull()
+    {
+        var bytes = new byte[30];
+        bytes[0] = 0x52; bytes[1] = 0x49; bytes[2] = 0x46; bytes[3] = 0x46; // RIFF
+        bytes[4] = 0x16; // file size - 8
+        bytes[8] = 0x57; bytes[9] = 0x45; bytes[10] = 0x42; bytes[11] = 0x50; // WEBP
+        bytes[12] = 0x56; bytes[13] = 0x50; bytes[14] = 0x38; bytes[15] = 0x4C; // VP8L
+        bytes[16] = 10; // chunk size
+        bytes[20] = 0x00; // invalid: VP8L requires 0x2F
+        bytes[21] = 99;
+        bytes[22] = 0x40;
+        bytes[23] = 12;
+        var path = WriteBytes(bytes, "invalid-vp8l.webp");
+
+        var metadata = ImageMetadataReader.TryReadImageMetadata(path);
+
+        Assert.Null(metadata);
+    }
+
+    [Fact]
+    public void TryReadImageMetadata_WebpVp8WithoutFrameSignature_ReturnsNull()
+    {
+        var bytes = new byte[30];
+        bytes[0] = 0x52; bytes[1] = 0x49; bytes[2] = 0x46; bytes[3] = 0x46; // RIFF
+        bytes[4] = 0x16; // file size - 8
+        bytes[8] = 0x57; bytes[9] = 0x45; bytes[10] = 0x42; bytes[11] = 0x50; // WEBP
+        bytes[12] = 0x56; bytes[13] = 0x50; bytes[14] = 0x38; bytes[15] = 0x20; // "VP8 "
+        bytes[16] = 10; // chunk size
+        bytes[23] = 0x00; bytes[24] = 0x00; bytes[25] = 0x00; // invalid frame signature
+        bytes[26] = 100;
+        bytes[28] = 50;
+        var path = WriteBytes(bytes, "invalid-vp8.webp");
+
+        var metadata = ImageMetadataReader.TryReadImageMetadata(path);
+
+        Assert.Null(metadata);
+    }
+
+    [Fact]
+    public void TryReadImageMetadata_WebpVp8xWithWrongChunkSize_ReturnsNull()
+    {
+        var bytes = new byte[32];
+        bytes[0] = 0x52; bytes[1] = 0x49; bytes[2] = 0x46; bytes[3] = 0x46; // RIFF
+        bytes[4] = 0x18; // file size - 8
+        bytes[8] = 0x57; bytes[9] = 0x45; bytes[10] = 0x42; bytes[11] = 0x50; // WEBP
+        bytes[12] = 0x56; bytes[13] = 0x50; bytes[14] = 0x38; bytes[15] = 0x58; // VP8X
+        bytes[16] = 12; // invalid: VP8X payload must be exactly 10 bytes
+        bytes[24] = 99;
+        bytes[27] = 49;
+        var path = WriteBytes(bytes, "invalid-vp8x-size.webp");
+
+        var metadata = ImageMetadataReader.TryReadImageMetadata(path);
+
+        Assert.Null(metadata);
+    }
+
+    // JPEG
 
     [Fact]
     public void TryReadImageMetadata_Jpeg_ReadsDimensions()

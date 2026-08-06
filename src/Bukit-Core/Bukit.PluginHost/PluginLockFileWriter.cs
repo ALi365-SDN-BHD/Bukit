@@ -46,9 +46,52 @@ public sealed class PluginLockFileWriter
         root.Add("resolved", resolved);
 
         var stream = new YamlStream(new YamlDocument(root));
-        await using var file = File.Create(lockPath);
-        await using var writer = new StreamWriter(file);
-        stream.Save(writer, assignAnchors: false);
-        await writer.FlushAsync(cancellationToken);
+        string tempPath = Path.Combine(
+            bukitDirectory,
+            $".{Path.GetFileName(lockPath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            await using (var file = new FileStream(
+                tempPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (var writer = new StreamWriter(file))
+            {
+                stream.Save(writer, assignAnchors: false);
+                await writer.FlushAsync(cancellationToken);
+                file.Flush(flushToDisk: true);
+            }
+
+            if (File.Exists(lockPath))
+            {
+                File.Replace(tempPath, lockPath, destinationBackupFileName: null);
+            }
+            else
+            {
+                File.Move(tempPath, lockPath);
+            }
+        }
+        catch
+        {
+            DeleteFileBestEffort(tempPath);
+            throw;
+        }
+    }
+
+    private static void DeleteFileBestEffort(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 }

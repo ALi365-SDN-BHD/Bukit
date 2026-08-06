@@ -37,6 +37,20 @@ public sealed class RouteSecurityValidatorTests
         Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, ex.Code);
     }
 
+    [Theory]
+    [InlineData("posts/example")]
+    [InlineData("./posts/example")]
+    [InlineData("\\posts\\example")]
+    public void RelativeUrlWithoutLeadingSlash_Throws(string url)
+    {
+        var ex = Assert.Throws<ConfigException>(() =>
+            RouteSecurityValidator.ValidateInternalUrl(url, "test-route"));
+
+        Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, ex.Code);
+        Assert.Contains("start with '/'", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("test-route", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void ControlCharacters_Throws()
     {

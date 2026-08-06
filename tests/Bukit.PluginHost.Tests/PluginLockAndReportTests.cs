@@ -19,26 +19,30 @@ public sealed class PluginLockAndReportTests
     {
         using var directory = TestDirectory.Create();
         var writer = new PluginLockFileWriter();
+        var lockEntry = new PluginLockEntry(
+            Id: "echo",
+            Version: "1.0.0",
+            Source: "plugins/echo",
+            ManifestVersion: "1.0.0",
+            Protocol: "bukit-plugin-v1",
+            Entry: "plugins/echo/bin/osx-arm64/bukit-plugin-echo",
+            Platform: "osx-arm64",
+            Sha256: new string('a', 64),
+            Commands: ["echo"],
+            ResolvedAt: DateTimeOffset.Parse("2026-06-24T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
+            Sha256Verified: true);
 
         await writer.WriteAsync(
             directory.Path,
-            [
-                new PluginLockEntry(
-                    Id: "echo",
-                    Version: "1.0.0",
-                    Source: "plugins/echo",
-                    ManifestVersion: "1.0.0",
-                    Protocol: "bukit-plugin-v1",
-                    Entry: "plugins/echo/bin/osx-arm64/bukit-plugin-echo",
-                    Platform: "osx-arm64",
-                    Sha256: new string('a', 64),
-                    Commands: ["echo"],
-                    ResolvedAt: DateTimeOffset.Parse("2026-06-24T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
-                    Sha256Verified: true)
-            ],
+            [lockEntry],
+            CancellationToken.None);
+        await writer.WriteAsync(
+            directory.Path,
+            [lockEntry],
             CancellationToken.None);
 
-        string lockText = File.ReadAllText(Path.Combine(directory.Path, ".bukit", "plugins.lock.yaml"));
+        string bukitDirectory = Path.Combine(directory.Path, ".bukit");
+        string lockText = File.ReadAllText(Path.Combine(bukitDirectory, "plugins.lock.yaml"));
         Assert.Contains("resolved:", lockText, StringComparison.Ordinal);
         Assert.DoesNotContain("plugins:", lockText, StringComparison.Ordinal);
         Assert.Contains("source: plugins/echo", lockText, StringComparison.Ordinal);
@@ -49,6 +53,43 @@ public sealed class PluginLockAndReportTests
         Assert.Contains("- echo", lockText, StringComparison.Ordinal);
         Assert.Contains("resolvedAt: 2026-06-24T00:00:00", lockText, StringComparison.Ordinal);
         Assert.Contains("sha256Verified: true", lockText, StringComparison.Ordinal);
+        Assert.Empty(Directory.EnumerateFiles(bukitDirectory, "*.tmp", SearchOption.TopDirectoryOnly));
+    }
+
+    [Fact]
+    public async Task PluginLockFileWriter_CancellationPreservesExistingLock()
+    {
+        using var directory = TestDirectory.Create();
+        string bukitDirectory = Path.Combine(directory.Path, ".bukit");
+        Directory.CreateDirectory(bukitDirectory);
+        string lockPath = Path.Combine(bukitDirectory, "plugins.lock.yaml");
+        const string existingLock = "version: 1\nresolved:\n  existing: {}\n";
+        await File.WriteAllTextAsync(lockPath, existingLock);
+
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var writer = new PluginLockFileWriter();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => writer.WriteAsync(
+            directory.Path,
+            [
+                new PluginLockEntry(
+                    Id: "replacement",
+                    Version: "2.0.0",
+                    Source: "plugins/replacement",
+                    ManifestVersion: "2.0.0",
+                    Protocol: "bukit-plugin-v1",
+                    Entry: "plugins/replacement/bin/osx-arm64/bukit-plugin-replacement",
+                    Platform: "osx-arm64",
+                    Sha256: new string('b', 64),
+                    Commands: ["replacement"],
+                    ResolvedAt: DateTimeOffset.Parse("2026-08-06T00:00:00Z", System.Globalization.CultureInfo.InvariantCulture),
+                    Sha256Verified: true)
+            ],
+            cancellation.Token));
+
+        Assert.Equal(existingLock, await File.ReadAllTextAsync(lockPath));
+        Assert.Empty(Directory.EnumerateFiles(bukitDirectory, "*.tmp", SearchOption.TopDirectoryOnly));
     }
 
     [Fact]

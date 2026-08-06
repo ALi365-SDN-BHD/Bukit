@@ -220,7 +220,7 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
-    public void Generate_UrlNormalization_AddsLeadingSlash()
+    public void Generate_RouteOverrideMissingLeadingSlash_Throws()
     {
         var fieldValues = new Dictionary<string, object>
         {
@@ -232,9 +232,9 @@ public sealed class RouteGeneratorTests
             }
         };
         var item = Item("x", fieldValues);
-        var route = RouteGenerator.Generate(item);
+        var exception = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
 
-        Assert.Equal("/no-leading/", route.Url);
+        Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, exception.Code);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Globalization;
 using System.Text;
 using System.Xml;
@@ -163,28 +164,50 @@ internal static class ImageMetadataReader
 
     internal static ImageMetadata? TryReadWebpMetadata(string path)
     {
-        var bytes = File.ReadAllBytes(path);
+        Span<byte> buffer = stackalloc byte[30];
+        using var stream = File.OpenRead(path);
+        var read = stream.ReadAtLeast(buffer, buffer.Length, throwOnEndOfStream: false);
+        var bytes = buffer[..read];
         if (bytes.Length < 30)
         {
             return null;
         }
 
-        var chunk = Encoding.ASCII.GetString(bytes, 12, 4);
-        if (chunk == "VP8X" && bytes.Length >= 30)
+        var riffPayloadSize = BinaryPrimitives.ReadUInt32LittleEndian(bytes.Slice(4, 4));
+        var declaredContainerLength = 8L + riffPayloadSize;
+        if (declaredContainerLength > stream.Length)
+        {
+            return null;
+        }
+
+        var chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(bytes.Slice(16, 4));
+        var paddedChunkSize = (long)chunkSize + (chunkSize & 1);
+        var chunkEnd = 20L + paddedChunkSize;
+        if (chunkEnd > stream.Length || chunkEnd > declaredContainerLength)
+        {
+            return null;
+        }
+
+        var chunk = Encoding.ASCII.GetString(bytes.Slice(12, 4));
+        if (chunk == "VP8X" && chunkSize == 10)
         {
             var width = 1 + bytes[24] + (bytes[25] << 8) + (bytes[26] << 16);
             var height = 1 + bytes[27] + (bytes[28] << 8) + (bytes[29] << 16);
             return new ImageMetadata("image/webp", width, height);
         }
 
-        if (chunk == "VP8 " && bytes.Length >= 30)
+        if (chunk == "VP8 " &&
+            chunkSize >= 10 &&
+            bytes[23] == 0x9D &&
+            bytes[24] == 0x01 &&
+            bytes[25] == 0x2A)
         {
-            var width = ReadLittleEndianUInt16(bytes.AsSpan(26, 2)) & 0x3FFF;
-            var height = ReadLittleEndianUInt16(bytes.AsSpan(28, 2)) & 0x3FFF;
+            var width = ReadLittleEndianUInt16(bytes.Slice(26, 2)) & 0x3FFF;
+            var height = ReadLittleEndianUInt16(bytes.Slice(28, 2)) & 0x3FFF;
             return new ImageMetadata("image/webp", width, height);
         }
 
-        if (chunk == "VP8L" && bytes.Length >= 25)
+        if (chunk == "VP8L" && chunkSize >= 5 && bytes[20] == 0x2F)
         {
             var b0 = bytes[21];
             var b1 = bytes[22];

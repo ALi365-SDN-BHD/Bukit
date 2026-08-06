@@ -159,7 +159,7 @@ public sealed class RouteGeneratorCoverageTests
     }
 
     [Fact]
-    public void Generate_NormalizeUrl_MissingLeadingSlash_Added()
+    public void Generate_RouteOverrideMissingLeadingSlash_Throws()
     {
         var fieldValues = new Dictionary<string, object>
         {
@@ -171,9 +171,9 @@ public sealed class RouteGeneratorCoverageTests
             }
         };
         var item = Item("x", fieldValues: fieldValues);
-        var route = RouteGenerator.Generate(item);
+        var exception = Assert.Throws<ConfigException>(() => RouteGenerator.Generate(item));
 
-        Assert.Equal("/no-slash/path/", route.Url);
+        Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, exception.Code);
     }
 
     // ── NormalizeOutputPath tests (via Generate) ──────────────────────────

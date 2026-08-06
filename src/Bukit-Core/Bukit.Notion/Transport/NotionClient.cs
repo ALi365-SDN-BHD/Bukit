@@ -398,7 +398,7 @@ public sealed class NotionClient : IDisposable
         {
             throw new ArgumentException(
                 "Notion request URI must be an absolute HTTPS URL for api.notion.com on port 443.",
-                nameof(requestUri));
+                nameof(request));
         }
 
         var explicitHost = request.Headers.Host;

@@ -34,9 +34,9 @@ public static class RouteSecurityValidator
             Fail("URL must not contain query or fragment components", value, source, DiagnosticCode.RouteInvalidInternalUrl);
         }
 
-        if (!value.StartsWith("/", StringComparison.Ordinal) && Uri.TryCreate(value, UriKind.Absolute, out var absolute) && !string.IsNullOrWhiteSpace(absolute.Scheme))
+        if (!value.StartsWith("/", StringComparison.Ordinal))
         {
-            Fail("URL must be an internal path", value, source, DiagnosticCode.RouteInvalidInternalUrl);
+            Fail("URL must start with '/' and be an internal path", value, source, DiagnosticCode.RouteInvalidInternalUrl);
         }
 
         ValidateUrlPathSegments(value, source);

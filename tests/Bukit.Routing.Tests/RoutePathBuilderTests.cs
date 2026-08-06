@@ -44,6 +44,15 @@ public sealed class RoutePathBuilderTests
         Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, exception.Code);
     }
 
+    [Fact]
+    public void BuildOutputPathFromUrl_RelativeUrlWithoutLeadingSlash_Throws()
+    {
+        var exception = Assert.Throws<ConfigException>(() =>
+            RoutePathBuilder.BuildOutputPathFromUrl("posts/example"));
+
+        Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, exception.Code);
+    }
+
     [Theory]
     [InlineData("none", "hello-world/index.html")]
     [InlineData("url", "hello-world/index.html")]

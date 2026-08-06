@@ -368,6 +368,7 @@ public sealed class NotionClientTests
 
         Assert.Equal(0, handler.RequestCount);
         Assert.Null(request.Headers.Authorization);
+        Assert.Equal("request", exception.ParamName);
         Assert.DoesNotContain(secret, exception.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain(target, exception.ToString(), StringComparison.Ordinal);
     }

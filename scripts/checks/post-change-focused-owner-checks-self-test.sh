@@ -38,7 +38,9 @@ assert_count "$out" "bash scripts/checks/agent-governance-contract.sh" 1
 out="$(bash "$script" --dry-run -- \
   scripts/checks/codex-workflow.py \
   scripts/checks/codex-workflow-policy.v1.json \
-  scripts/checks/codex-workflow-self-test.sh)"
+  scripts/checks/codex-workflow-self-test.sh \
+  scripts/checks/codex_workflow/common.py \
+  scripts/checks/codex-workflow-self-test.d/cache.sh)"
 assert_count "$out" "bash scripts/checks/codex-workflow-self-test.sh" 1
 
 out="$(bash "$script" --dry-run -- guide/skills/AGENTS.md)"

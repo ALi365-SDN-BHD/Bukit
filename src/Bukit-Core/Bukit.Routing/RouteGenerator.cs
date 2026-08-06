@@ -83,6 +83,7 @@ public static class RouteGenerator
     private static RouteInfo BuildFromPattern(RouteContentSource source, string pattern, string template, string outputPathEncoding)
     {
         var url = ExpandPermalinkPattern(pattern, source);
+        RouteSecurityValidator.ValidateInternalUrl(url, $"route permalink for {source.Slug}");
         url = RoutePathBuilder.NormalizeUrl(url);
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
 
@@ -169,6 +170,11 @@ public static class RouteGenerator
         if (!TryGetPartialRouteFields(source.Fields, out var url, out var outputPathOverride, out var template))
         {
             return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            RouteSecurityValidator.ValidateInternalUrl(url, $"route.url for {source.Slug}");
         }
 
         var normalizedUrl = string.IsNullOrWhiteSpace(url)

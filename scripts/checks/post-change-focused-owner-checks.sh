@@ -37,7 +37,9 @@ for path in "${paths[@]}"; do
       add_owner_check governance ;;
     scripts/checks/codex-workflow.py|\
     scripts/checks/codex-workflow-policy.v1.json|\
-    scripts/checks/codex-workflow-self-test.sh)
+    scripts/checks/codex-workflow-self-test.sh|\
+    scripts/checks/codex-workflow-self-test.d/*.sh|\
+    scripts/checks/codex_workflow/*.py)
       add_owner_check "self-test:scripts/checks/codex-workflow-self-test.sh" ;;
     guide/skills/AGENTS.md)
       add_owner_check skills-strict ;;

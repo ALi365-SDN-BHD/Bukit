@@ -1,6 +1,7 @@
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Routing;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Routing.Tests;
@@ -91,6 +92,30 @@ public sealed class RouteGeneratorTests
     }
 
     [Fact]
+    public void GenerateWithSource_PartialOverrideWithRelativeUrl_Throws()
+    {
+        var document = CreateDocument(
+            "partial-relative",
+            new Dictionary<string, object>
+            {
+                ["collection"] = "posts",
+                ["route"] = new Dictionary<string, object>
+                {
+                    ["url"] = "partial-relative"
+                }
+            });
+        var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>
+        {
+            ["posts"] = new("/blog/{slug}/", "pages/post.html")
+        };
+
+        var exception = Assert.Throws<ConfigException>(() =>
+            RouteGenerator.GenerateWithSource(document, collections: collections));
+
+        Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, exception.Code);
+    }
+
+    [Fact]
     public void GenerateWithSource_CollectionRule_ReturnsNamedTuple()
     {
         var document = CreateDocument(
@@ -113,6 +138,26 @@ public sealed class RouteGeneratorTests
         Assert.Equal(result.Route, route);
         Assert.Equal(result.Source, source);
         Assert.Equal("/blog/collection/", route.Url);
+    }
+
+    [Fact]
+    public void GenerateWithSource_CollectionRuleWithRelativePermalink_Throws()
+    {
+        var document = CreateDocument(
+            "collection-relative",
+            new Dictionary<string, object>
+            {
+                ["collection"] = "posts"
+            });
+        var collections = new Dictionary<string, RouteGenerator.CollectionRouteRule>
+        {
+            ["posts"] = new("blog/{slug}/", "pages/post.html")
+        };
+
+        var exception = Assert.Throws<ConfigException>(() =>
+            RouteGenerator.GenerateWithSource(document, collections: collections));
+
+        Assert.Equal(DiagnosticCode.RouteInvalidInternalUrl, exception.Code);
     }
 
     [Fact]

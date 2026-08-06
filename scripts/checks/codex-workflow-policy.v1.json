@@ -6,7 +6,9 @@
       "matches": [
         "scripts/checks/codex-workflow.py",
         "scripts/checks/codex-workflow-policy.v1.json",
-        "scripts/checks/codex-workflow-self-test.sh"
+        "scripts/checks/codex-workflow-self-test.sh",
+        "scripts/checks/codex-workflow-self-test.d/*.sh",
+        "scripts/checks/codex_workflow/*.py"
       ],
       "publicContract": false,
       "resource": "static-parallel",
@@ -25,6 +27,24 @@
       "resource": "static-parallel",
       "specialtyTests": [
         "bash scripts/checks/codex-workflow-self-test.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "code-analysis-ratchet",
+      "matches": [
+        "docs/superpowers/plans/*code-analysis*.md",
+        "docs/superpowers/plans/**/*code-analysis*.md",
+        "scripts/checks/baselines/code-analysis.v1.json",
+        "scripts/checks/code-analysis-ratchet-policy-self-test.sh",
+        "scripts/checks/code-analysis-ratchet-self-test.sh",
+        "scripts/checks/code-analysis-ratchet.py",
+        "scripts/checks/code-analysis-ratchet.sh"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/code-analysis-ratchet-self-test.sh"
       ]
     },
     {
