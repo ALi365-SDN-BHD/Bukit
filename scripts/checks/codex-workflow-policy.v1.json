@@ -63,6 +63,29 @@
       ]
     },
     {
+      "contractConsumerGlobs": [],
+      "id": "public-api-governance",
+      "matches": [
+        "docs/governance/bukit-core-public-api-baseline.v1.json",
+        "docs/schemas/bukit-core-public-api-baseline.v1.schema.json",
+        "docs/superpowers/plans/*public-api*.md",
+        "docs/superpowers/plans/**/*public-api*.md",
+        "guide/dev/public-api-governance.md",
+        "scripts/checks/public-api-drift.sh",
+        "scripts/checks/public-api-drift-self-test.sh",
+        "scripts/checks/fixtures/public-api-drift/*",
+        "scripts/checks/fixtures/public-api-drift/**/*",
+        "tools/Bukit.PublicApiDrift/*.cs",
+        "tools/Bukit.PublicApiDrift/**/*.cs",
+        "tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/public-api-drift-self-test.sh"
+      ]
+    },
+    {
       "contractConsumerGlobs": [
         "tests/Bukit.Config.Tests/*.cs",
         "tests/Bukit.Config.Tests/**/*.cs"
@@ -186,6 +209,38 @@
       "resource": "dotnet-serial",
       "specialtyTests": [
         "dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
+        "tests/Bukit.Plugin.Abstractions.Tests/*.cs",
+        "tests/Bukit.Plugin.Abstractions.Tests/**/*.cs",
+        "tests/Bukit.PluginHost.Tests/*.cs",
+        "tests/Bukit.PluginHost.Tests/**/*.cs"
+      ],
+      "id": "bukit-plugin-abstractions-source",
+      "matches": [
+        "src/Bukit-Core/Bukit.Plugin.Abstractions/*.cs",
+        "src/Bukit-Core/Bukit.Plugin.Abstractions/**/*.cs"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj",
+        "dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "bukit-plugin-abstractions-tests",
+      "matches": [
+        "tests/Bukit.Plugin.Abstractions.Tests/*.cs",
+        "tests/Bukit.Plugin.Abstractions.Tests/**/*.cs"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj"
       ]
     },
     {

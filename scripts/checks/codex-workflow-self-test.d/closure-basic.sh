@@ -48,6 +48,16 @@ assert_closure_mapping \
   true
 assert_closure_mapping \
   "$closure_fixture" \
+  src/Bukit-Core/Bukit.Plugin.Abstractions/Manifest/PluginManifest.cs \
+  '["dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj", "dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  tests/Bukit.Plugin.Abstractions.Tests/PluginManifestBinaryCompatibilityTests.cs \
+  '["dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj"]' \
+  false
+assert_closure_mapping \
+  "$closure_fixture" \
   src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs \
   '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
   true
@@ -180,3 +190,17 @@ assert_closure_mapping \
   guide/dev/content.md \
   '["dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
   false
+
+for public_api_governance_path in \
+  docs/governance/bukit-core-public-api-baseline.v1.json \
+  docs/schemas/bukit-core-public-api-baseline.v1.schema.json \
+  docs/superpowers/plans/2026-08-06-bukit-public-api-drift-remediation.md \
+  guide/dev/public-api-governance.md \
+  scripts/checks/public-api-drift-self-test.sh \
+  tools/Bukit.PublicApiDrift/ApiSurfaceModels.cs; do
+  assert_closure_mapping \
+    "$closure_fixture" \
+    "$public_api_governance_path" \
+    '["bash scripts/checks/public-api-drift-self-test.sh"]' \
+    false
+done

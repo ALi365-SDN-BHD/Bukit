@@ -60,6 +60,7 @@ expected_consumers = sorted([
     "tests/Bukit.Engine.Tests/EngineFeatureTests.cs",
     "tests/Bukit.Notion.Tests/NotionClientTests.cs",
     "tests/Bukit.Plugin.Abstractions.Tests/PluginConfigDtoTests.cs",
+    "tests/Bukit.Plugin.Abstractions.Tests/PluginManifestBinaryCompatibilityTests.cs",
     "tests/Bukit.PluginHost.Tests/SystemProcessRunnerTests.cs",
     "tests/Bukit.Rendering.Tests/RenderingPackageTests.cs",
     "tests/Bukit.Routing.Tests/RoutePathBuilderTests.cs",
@@ -73,4 +74,3 @@ if result["contractConsumers"] != expected_consumers:
         f"{result['contractConsumers']}"
     )
 PY
-

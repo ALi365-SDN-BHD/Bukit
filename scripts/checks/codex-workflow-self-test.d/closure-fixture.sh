@@ -1,7 +1,11 @@
 # Priority 2: verification closure generation.
 closure_fixture="$scratch/closure-fixture"
 mkdir -p \
+  "$closure_fixture/docs/governance" \
+  "$closure_fixture/docs/schemas" \
+  "$closure_fixture/docs/superpowers/plans" \
   "$closure_fixture/guide/dev" \
+  "$closure_fixture/scripts/checks" \
   "$closure_fixture/src/Bukit-Core/Bukit.Config" \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy" \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering" \
@@ -13,6 +17,7 @@ mkdir -p \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine/obj/Debug" \
   "$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport" \
   "$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions/Config" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions/Manifest" \
   "$closure_fixture/src/Bukit-Core/Bukit.PluginHost" \
   "$closure_fixture/src/Bukit-Core/Bukit.Rendering" \
   "$closure_fixture/src/Bukit-Core/Bukit.Routing" \
@@ -36,7 +41,8 @@ mkdir -p \
   "$closure_fixture/tests/Bukit.Routing.Tests" \
   "$closure_fixture/tests/Bukit.Shared.Tests" \
   "$closure_fixture/tests/Bukit.Theme.Tests" \
-  "$closure_fixture/tests/PluginProcessProbe"
+  "$closure_fixture/tests/PluginProcessProbe" \
+  "$closure_fixture/tools/Bukit.PublicApiDrift"
 git -C "$closure_fixture" init -q
 git -C "$closure_fixture" config user.email codex-workflow@example.invalid
 git -C "$closure_fixture" config user.name "Codex Workflow Self Test"
@@ -73,6 +79,8 @@ printf 'internal sealed class SystemProcessRunner {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs"
 printf 'public sealed record PluginConfigEntry(bool Enabled, string Source);\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions/Config/PluginConfigEntry.cs"
+printf 'public sealed record PluginManifest(string Id);\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Plugin.Abstractions/Manifest/PluginManifest.cs"
 printf 'public static class ContentDocumentFactory {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Engine.Abstractions/ContentDocumentFactory.cs"
 printf 'public static class RoutePathBuilder {}\n' \
@@ -95,6 +103,8 @@ printf 'public sealed class SystemProcessRunnerTests {}\n' \
   >"$closure_fixture/tests/Bukit.PluginHost.Tests/SystemProcessRunnerTests.cs"
 printf 'public sealed class PluginConfigDtoTests {}\n' \
   >"$closure_fixture/tests/Bukit.Plugin.Abstractions.Tests/PluginConfigDtoTests.cs"
+printf 'public sealed class PluginManifestBinaryCompatibilityTests {}\n' \
+  >"$closure_fixture/tests/Bukit.Plugin.Abstractions.Tests/PluginManifestBinaryCompatibilityTests.cs"
 printf 'public sealed class ImportNotionPushWorkflowTests {}\n' \
   >"$closure_fixture/tests/Bukit.Importing.Tests/ImportNotionPushWorkflowTests.cs"
 printf 'public sealed class ImportPluginInvokeCompatibilityTests {}\n' \
@@ -156,7 +166,16 @@ for project in \
 done
 printf '<Project Sdk="Microsoft.NET.Sdk" />\n' >"$closure_fixture/Directory.Packages.props"
 printf 'return 0;\n' >"$closure_fixture/tests/PluginProcessProbe/Program.cs"
+printf '{}\n' >"$closure_fixture/docs/governance/bukit-core-public-api-baseline.v1.json"
+printf '{}\n' >"$closure_fixture/docs/schemas/bukit-core-public-api-baseline.v1.schema.json"
+printf '# Public API remediation\n' \
+  >"$closure_fixture/docs/superpowers/plans/2026-08-06-bukit-public-api-drift-remediation.md"
+printf '# Public API governance\n' \
+  >"$closure_fixture/guide/dev/public-api-governance.md"
+printf '#!/usr/bin/env bash\n' \
+  >"$closure_fixture/scripts/checks/public-api-drift-self-test.sh"
+printf 'internal sealed record ApiPolicy(string Compatibility);\n' \
+  >"$closure_fixture/tools/Bukit.PublicApiDrift/ApiSurfaceModels.cs"
 printf 'unmapped\n' >"$closure_fixture/README.unknown"
 git -C "$closure_fixture" add .
 git -C "$closure_fixture" commit -qm initial
-
