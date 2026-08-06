@@ -115,7 +115,7 @@ public sealed class G04D7ARouteGenerationResultTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsTupleSignatureAnd425Types0Candidates()
+    public void CurrentBaseline_RecordsTupleSignatureAnd427Types0Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -127,7 +127,7 @@ public sealed class G04D7ARouteGenerationResultTests
             .ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(425, types.Length);
+        Assert.Equal(427, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));

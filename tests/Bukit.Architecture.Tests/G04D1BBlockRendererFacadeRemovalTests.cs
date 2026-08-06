@@ -81,7 +81,7 @@ public sealed class G04D1BBlockRendererFacadeRemovalTests
         Assert.Equal("net10.0", root.GetProperty("targetFramework").GetString());
         Assert.Equal("no-general-clr-sdk", root.GetProperty("sdkPolicy").GetString());
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(425, types.Length);
+        Assert.Equal(427, types.Length);
         Assert.Equal(0, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
 

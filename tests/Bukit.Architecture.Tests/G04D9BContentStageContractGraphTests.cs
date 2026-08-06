@@ -287,7 +287,7 @@ public sealed class G04D9BContentStageContractGraphTests
             .ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(425, types.Length);
+        Assert.Equal(427, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
