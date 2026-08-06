@@ -8,18 +8,72 @@ public static class SsrfGuard
     public static async ValueTask<Stream> SsrfSafeConnectAsync(
         SocketsHttpConnectionContext context, CancellationToken cancellationToken)
     {
-        var host = context.DnsEndPoint.Host;
-        var port = context.DnsEndPoint.Port;
+        return await SsrfSafeConnectAsync(
+            context.DnsEndPoint.Host,
+            context.DnsEndPoint.Port,
+            cancellationToken,
+            Dns.GetHostAddressesAsync,
+            ConnectSocketAsync).ConfigureAwait(false);
+    }
 
-        var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
-        var safeAddress = Array.Find(addresses, static a => !IsPrivateAddress(a))
-                          ?? throw new HttpRequestException(
-                              $"SSRF blocked: all resolved addresses for '{host}' are private/reserved.");
+    internal static async ValueTask<Stream> SsrfSafeConnectAsync(
+        string host,
+        int port,
+        CancellationToken cancellationToken,
+        Func<string, CancellationToken, Task<IPAddress[]>> resolveAddressesAsync,
+        Func<IPAddress, int, CancellationToken, ValueTask<Stream>> connectAsync)
+    {
+        ArgumentNullException.ThrowIfNull(resolveAddressesAsync);
+        ArgumentNullException.ThrowIfNull(connectAsync);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        var socket = new Socket(safeAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+        var addresses = await resolveAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+        Exception? lastFailure = null;
+        var foundPublicAddress = false;
+        foreach (var address in addresses)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (IsPrivateAddress(address))
+            {
+                continue;
+            }
+
+            foundPublicAddress = true;
+            try
+            {
+                return await connectAsync(address, port, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception) when (
+                exception is SocketException or IOException or HttpRequestException)
+            {
+                lastFailure = exception;
+            }
+        }
+
+        if (!foundPublicAddress)
+        {
+            throw new HttpRequestException(
+                $"SSRF blocked: all resolved addresses for '{host}' are private/reserved.");
+        }
+
+        throw new HttpRequestException(
+            $"Unable to connect to any public address resolved for '{host}'.",
+            lastFailure);
+    }
+
+    private static async ValueTask<Stream> ConnectSocketAsync(
+        IPAddress address,
+        int port,
+        CancellationToken cancellationToken)
+    {
+        var socket = new Socket(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
         try
         {
-            await socket.ConnectAsync(new IPEndPoint(safeAddress, port), cancellationToken);
+            await socket.ConnectAsync(new IPEndPoint(address, port), cancellationToken);
             return new NetworkStream(socket, ownsSocket: true);
         }
         catch
