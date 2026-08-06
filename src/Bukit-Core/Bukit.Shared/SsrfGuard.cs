@@ -83,9 +83,26 @@ public static class SsrfGuard
         }
     }
 
+    /// <summary>
+    /// Returns <see langword="true"/> when any resolved address is private/reserved
+    /// or the host cannot be safely resolved. Cancellation and unexpected resolver
+    /// failures propagate. Use <see cref="CreateSafeHandler"/> for connection-time
+    /// SSRF enforcement instead of treating this preflight result as authorization.
+    /// </summary>
     public static async Task<bool> IsPrivateHostAsync(
         string host, CancellationToken cancellationToken)
+        => await IsPrivateHostAsync(
+            host,
+            cancellationToken,
+            Dns.GetHostAddressesAsync).ConfigureAwait(false);
+
+    internal static async Task<bool> IsPrivateHostAsync(
+        string host,
+        CancellationToken cancellationToken,
+        Func<string, CancellationToken, Task<IPAddress[]>> resolveAddressesAsync)
     {
+        ArgumentNullException.ThrowIfNull(resolveAddressesAsync);
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             if (IPAddress.TryParse(host, out var directIp))
@@ -93,12 +110,12 @@ public static class SsrfGuard
                 return IsPrivateAddress(directIp);
             }
 
-            var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
-            return addresses.Length > 0 && Array.Exists(addresses, IsPrivateAddress);
+            var addresses = await resolveAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+            return addresses.Length == 0 || Array.Exists(addresses, IsPrivateAddress);
         }
-        catch
+        catch (Exception exception) when (exception is SocketException or ArgumentException)
         {
-            return false;
+            return true;
         }
     }
 

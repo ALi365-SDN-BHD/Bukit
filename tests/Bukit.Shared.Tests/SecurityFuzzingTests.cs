@@ -26,9 +26,7 @@ public sealed class SecurityFuzzingTests
         // Path traversal payloads should not be resolvable as public hosts
         // When used as a host, they should either be private or fail to resolve
         var result = await SsrfGuard.IsPrivateHostAsync(payload, CancellationToken.None);
-        // We don't assert on the result - just verify no exception is thrown
-        // The important thing is the SSRF guard handles these gracefully
-        Assert.True(result || !result);
+        Assert.True(result, $"Expected invalid host payload to fail closed: {payload}");
     }
 
     [Theory]
