@@ -5,19 +5,19 @@ namespace Bukit.Engine;
 
 /// <summary>
 /// Owns process-group/tree creation and termination for external tool invocations.
-/// On Linux the tool runs in a new session via setsid; on macOS it runs as a monitored
-/// shell job. Both give the tool a dedicated process group so descendants can be
-/// terminated as a unit; on Windows the process tree kill is used.
+/// On Linux util-linux setsid makes the tool the process-group leader; macOS uses a
+/// monitored shell job. Descendants can then be terminated as a unit. On Windows
+/// the process tree kill is used.
 /// Resource accounting is intentionally not duplicated here (PluginHost owns it).
 /// </summary>
 internal static partial class ExternalToolProcessTree
 {
     private const int Sigkill = 9;
-    private static readonly string? LinuxSetSidPath = ResolveLinuxSetSidPath();
 
     /// <summary>
     /// Rewrites the start info so the tool runs as the leader of its own process group.
-    /// Returns the path the wrapper uses to publish the group pgid, or null on Windows.
+    /// Returns the path the macOS wrapper uses to publish the group pgid; Linux and
+    /// Windows do not need a wrapper-state file and return null.
     /// </summary>
     internal static string? PrepareStartInfo(ProcessStartInfo startInfo)
     {
@@ -28,10 +28,7 @@ internal static partial class ExternalToolProcessTree
 
         if (OperatingSystem.IsLinux())
         {
-            PrepareSetSidStartInfo(
-                startInfo,
-                LinuxSetSidPath ?? throw new PlatformNotSupportedException(
-                    "Linux process-tree control requires the setsid utility."));
+            PrepareSetSidStartInfo(startInfo, ResolveSetSidPath());
             return null;
         }
 
@@ -66,8 +63,16 @@ internal static partial class ExternalToolProcessTree
         return pgidPath;
     }
 
+    /// <summary>
+    /// Runs the original executable directly under util-linux setsid. Unlike shell
+    /// monitor mode, this creates a process group in a non-interactive Linux session
+    /// without emitting job-control diagnostics to the tool's stderr stream.
+    /// </summary>
     internal static void PrepareSetSidStartInfo(ProcessStartInfo startInfo, string setSidPath)
     {
+        ArgumentNullException.ThrowIfNull(startInfo);
+        ArgumentException.ThrowIfNullOrWhiteSpace(setSidPath);
+
         var originalFileName = startInfo.FileName;
         var originalArguments = new List<string>();
         if (!string.IsNullOrWhiteSpace(startInfo.Arguments))
@@ -87,13 +92,8 @@ internal static partial class ExternalToolProcessTree
         startInfo.FileName = setSidPath;
     }
 
-    private static string? ResolveLinuxSetSidPath()
+    private static string ResolveSetSidPath()
     {
-        if (!OperatingSystem.IsLinux())
-        {
-            return null;
-        }
-
         foreach (var candidate in new[] { "/usr/bin/setsid", "/bin/setsid" })
         {
             if (File.Exists(candidate))
@@ -102,7 +102,8 @@ internal static partial class ExternalToolProcessTree
             }
         }
 
-        return null;
+        throw new PlatformNotSupportedException(
+            "Linux external-tool process-tree isolation requires util-linux setsid at /usr/bin/setsid or /bin/setsid.");
     }
 
     /// <summary>
@@ -183,8 +184,8 @@ internal static partial class ExternalToolProcessTree
 
         if (OperatingSystem.IsLinux())
         {
-            // setsid replaces itself with the tool, so Process.Id is also the
-            // process-group id and remains usable after the leader exits.
+            // util-linux setsid execs the tool in place, so the Process id is also
+            // the stable group id even if the tool exits before a descendant.
             return wrapperProcess.Id;
         }
 

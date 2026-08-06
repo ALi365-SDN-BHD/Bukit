@@ -5,20 +5,18 @@ namespace Bukit.PluginHost.ProcessTree;
 
 /// <summary>
 /// Creates the platform process-tree limiter. Windows uses a kill-on-close Job Object
-/// with job accounting; Linux uses setsid and macOS uses a monitored shell job to
-/// place the plugin in a dedicated process group so the whole group can be sampled
-/// and terminated together.
+/// with job accounting; Linux uses util-linux setsid and macOS uses a monitored shell
+/// job to place the plugin in a dedicated process group so the whole group can be
+/// sampled and terminated together.
 /// Platforms that cannot prove tree control throw so the caller can fail closed with
 /// <see cref="PluginHostErrorCodes.ResourceLimitUnsupported"/>.
 /// </summary>
 internal static class PlatformProcessTreeLimiter
 {
-    private static readonly string? LinuxSetSidPath = ResolveLinuxSetSidPath();
-
     internal static bool IsSupported =>
         OperatingSystem.IsWindows() ||
         OperatingSystem.IsMacOS() ||
-        (OperatingSystem.IsLinux() && LinuxSetSidPath is not null);
+        (OperatingSystem.IsLinux() && TryResolveSetSidPath() is not null);
 
     internal static IProcessTreeLimiter Create()
     {
@@ -38,9 +36,8 @@ internal static class PlatformProcessTreeLimiter
 
     /// <summary>
     /// Rewrites the start info so the child runs as the leader of its own process
-    /// group on Unix. Linux uses setsid because non-interactive /bin/sh implementations
-    /// are not required to provide job control; macOS uses a monitored shell job. No-op
-    /// on Windows, where the job object provides tree control after the process starts.
+    /// group on Linux (setsid) or as a monitored shell job on macOS. No-op on
+    /// Windows, where the job object provides tree control after the process starts.
     /// </summary>
     internal static void PrepareStartInfo(ProcessStartInfo startInfo)
     {
@@ -53,8 +50,9 @@ internal static class PlatformProcessTreeLimiter
         {
             PrepareSetSidStartInfo(
                 startInfo,
-                LinuxSetSidPath ?? throw new PlatformNotSupportedException(
-                    "Linux process-tree control requires the setsid utility."));
+                TryResolveSetSidPath()
+                    ?? throw new PlatformNotSupportedException(
+                        "Linux plugin process-tree isolation requires util-linux setsid at /usr/bin/setsid or /bin/setsid."));
             return;
         }
 
@@ -75,8 +73,15 @@ internal static class PlatformProcessTreeLimiter
         startInfo.FileName = "/bin/sh";
     }
 
+    /// <summary>
+    /// Runs the original executable directly under util-linux setsid. This avoids
+    /// non-interactive shell job-control warnings and makes the process id the pgid.
+    /// </summary>
     internal static void PrepareSetSidStartInfo(ProcessStartInfo startInfo, string setSidPath)
     {
+        ArgumentNullException.ThrowIfNull(startInfo);
+        ArgumentException.ThrowIfNullOrWhiteSpace(setSidPath);
+
         var originalFileName = startInfo.FileName;
         var originalArguments = startInfo.ArgumentList.ToArray();
         startInfo.ArgumentList.Clear();
@@ -89,13 +94,8 @@ internal static class PlatformProcessTreeLimiter
         startInfo.FileName = setSidPath;
     }
 
-    private static string? ResolveLinuxSetSidPath()
+    private static string? TryResolveSetSidPath()
     {
-        if (!OperatingSystem.IsLinux())
-        {
-            return null;
-        }
-
         foreach (var candidate in new[] { "/usr/bin/setsid", "/bin/setsid" })
         {
             if (File.Exists(candidate))
@@ -119,9 +119,8 @@ internal sealed class UnixProcessGroupTreeLimiter : IProcessTreeLimiter
     public void Attach(Process process)
     {
         _wrapperProcess = process;
-        // On Linux setsid replaces itself with the plugin, so the Process pid is the
-        // stable process-group id even after the plugin leader exits. macOS retains
-        // the shell wrapper and resolves its monitored child below.
+        // util-linux setsid execs the plugin in place, so Linux can capture the
+        // stable process-group id without racing child enumeration.
         _groupLeaderPid = OperatingSystem.IsLinux() ? process.Id : 0;
         _peakAggregateMemoryBytes = 0;
         if (_groupLeaderPid <= 0)
