@@ -222,8 +222,8 @@ public static class BuildPathUtils
         sb.AppendLine("  <meta charset=\"utf-8\" />");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
         sb.AppendLine($"  <title>{EscapeHtml(title)}</title>");
-        sb.AppendLine($"  <link rel=\"stylesheet\" href=\"{cssHref}\" />");
-        sb.AppendLine($"  <link rel=\"canonical\" href=\"{canonical}\" />");
+        sb.AppendLine($"  <link rel=\"stylesheet\" href=\"{EscapeHtml(cssHref)}\" />");
+        sb.AppendLine($"  <link rel=\"canonical\" href=\"{EscapeHtml(canonical)}\" />");
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");
         sb.AppendLine("  <main class=\"container\">");
@@ -248,7 +248,7 @@ public static class BuildPathUtils
         sb.AppendLine("  <meta charset=\"utf-8\" />");
         sb.AppendLine("  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
         sb.AppendLine($"  <title>{EscapeHtml(title)}</title>");
-        sb.AppendLine($"  <link rel=\"stylesheet\" href=\"{cssHref}\" />");
+        sb.AppendLine($"  <link rel=\"stylesheet\" href=\"{EscapeHtml(cssHref)}\" />");
         sb.AppendLine("</head>");
         sb.AppendLine("<body>");
         sb.AppendLine("  <main class=\"container\">");
@@ -259,7 +259,7 @@ public static class BuildPathUtils
         {
             var route = routedDocument.Route;
             var href = baseUrl == "/" ? route.Url : $"{baseUrl}{route.Url}";
-            sb.AppendLine($"      <li><a href=\"{href}\">{EscapeHtml(routedDocument.Document.Title)}</a></li>");
+            sb.AppendLine($"      <li><a href=\"{EscapeHtml(href)}\">{EscapeHtml(routedDocument.Document.Title)}</a></li>");
         }
 
         sb.AppendLine("    </ul>");

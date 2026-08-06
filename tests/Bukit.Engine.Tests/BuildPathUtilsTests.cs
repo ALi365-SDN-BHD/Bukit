@@ -117,6 +117,41 @@ public sealed class BuildPathUtilsTests
     }
 
     [Fact]
+    public void RenderSimplePage_EncodesCanonicalUrlAttribute()
+    {
+        const string unsafeUrl = "/post/?q=\"quoted\"&page=1";
+
+        var result = BuildPathUtils.RenderSimplePage("/", "My Page", unsafeUrl, "<p>hello</p>");
+
+        Assert.Contains("href=\"/post/?q=&quot;quoted&quot;&amp;page=1\"", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("href=\"/post/?q=\"quoted\"&page=1\"", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RenderSimpleIndex_EncodesRouteUrlAttribute()
+    {
+        var document = ContentDocument.Create(
+            id: "p1",
+            title: "Post 1",
+            slug: "post-1",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
+        var route = new RouteInfo(
+            "/post/?q=\"quoted\"&page=1",
+            "post/index.html",
+            "pages/post.html");
+
+        var result = BuildPathUtils.RenderSimpleIndex(
+            "/",
+            [new RoutedContentDocument(document, route)],
+            "Blog");
+
+        Assert.Contains("href=\"/post/?q=&quot;quoted&quot;&amp;page=1\"", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("href=\"/post/?q=\"quoted\"&page=1\"", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EscapeHtml_EncodesSpecialCharacters()
     {
         var result = BuildPathUtils.EscapeHtml("<script>alert(\"xss\"); & ' test");
