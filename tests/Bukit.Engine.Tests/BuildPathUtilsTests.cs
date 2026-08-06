@@ -176,6 +176,17 @@ public sealed class BuildPathUtilsTests
     }
 
     [Fact]
+    public void MakeAbsolute_RootedPath_NormalizesParentSegments()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-root");
+        var input = Path.Combine(root, "nested", "..", "target");
+
+        var result = BuildPathUtils.MakeAbsolute(root, input);
+
+        Assert.Equal(Path.GetFullPath(Path.Combine(root, "target")), result);
+    }
+
+    [Fact]
     public void MakeAbsolute_TreatsUrlLikeRelativePath_ForLegacyBehavior()
     {
         var root = Path.GetFullPath("/Users/site/public");

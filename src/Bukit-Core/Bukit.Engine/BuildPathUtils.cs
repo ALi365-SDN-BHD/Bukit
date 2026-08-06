@@ -25,7 +25,7 @@ public static class BuildPathUtils
 
         if (!enforceWithinRoot)
         {
-            return Path.IsPathRooted(path) ? path : resolved;
+            return resolved;
         }
 
         var rootFull = Path.GetFullPath(rootDir);
