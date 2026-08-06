@@ -10,6 +10,22 @@ namespace Bukit.Engine.Tests;
 public sealed class ExternalToolProcessRunnerTests
 {
     [Fact]
+    public void PrepareSetSidStartInfo_PreservesExecutableAndArgumentsWithoutShellJobControl()
+    {
+        var startInfo = new ProcessStartInfo("/opt/bukit/tool");
+        startInfo.ArgumentList.Add("--label");
+        startInfo.ArgumentList.Add("value with spaces");
+
+        ExternalToolProcessTree.PrepareSetSidStartInfo(startInfo, "/usr/bin/setsid");
+
+        Assert.Equal("/usr/bin/setsid", startInfo.FileName);
+        Assert.Equal(
+            ["/opt/bukit/tool", "--label", "value with spaces"],
+            startInfo.ArgumentList);
+        Assert.DoesNotContain("set -m", string.Join(' ', startInfo.ArgumentList), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunAsync_ParentExitWithPipeChild_TerminatesTreeAndReaders()
     {
         if (OperatingSystem.IsWindows())

@@ -5,15 +5,18 @@ namespace Bukit.PluginHost.ProcessTree;
 
 /// <summary>
 /// Creates the platform process-tree limiter. Windows uses a kill-on-close Job Object
-/// with job accounting; Unix places the plugin in a dedicated process group (via a
-/// monitored shell job) so the whole group can be sampled and terminated together.
+/// with job accounting; Linux uses util-linux setsid and macOS uses a monitored shell
+/// job to place the plugin in a dedicated process group so the whole group can be
+/// sampled and terminated together.
 /// Platforms that cannot prove tree control throw so the caller can fail closed with
 /// <see cref="PluginHostErrorCodes.ResourceLimitUnsupported"/>.
 /// </summary>
 internal static class PlatformProcessTreeLimiter
 {
     internal static bool IsSupported =>
-        OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
+        OperatingSystem.IsWindows() ||
+        OperatingSystem.IsMacOS() ||
+        (OperatingSystem.IsLinux() && TryResolveSetSidPath() is not null);
 
     internal static IProcessTreeLimiter Create()
     {
@@ -33,13 +36,23 @@ internal static class PlatformProcessTreeLimiter
 
     /// <summary>
     /// Rewrites the start info so the child runs as the leader of its own process
-    /// group on Unix (monitored shell job). No-op on Windows, where the job object
-    /// provides tree control after the process starts.
+    /// group on Linux (setsid) or as a monitored shell job on macOS. No-op on
+    /// Windows, where the job object provides tree control after the process starts.
     /// </summary>
     internal static void PrepareStartInfo(ProcessStartInfo startInfo)
     {
         if (OperatingSystem.IsWindows())
         {
+            return;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            PrepareSetSidStartInfo(
+                startInfo,
+                TryResolveSetSidPath()
+                    ?? throw new PlatformNotSupportedException(
+                        "Linux plugin process-tree isolation requires util-linux setsid at /usr/bin/setsid or /bin/setsid."));
             return;
         }
 
@@ -59,6 +72,40 @@ internal static class PlatformProcessTreeLimiter
 
         startInfo.FileName = "/bin/sh";
     }
+
+    /// <summary>
+    /// Runs the original executable directly under util-linux setsid. This avoids
+    /// non-interactive shell job-control warnings and makes the process id the pgid.
+    /// </summary>
+    internal static void PrepareSetSidStartInfo(ProcessStartInfo startInfo, string setSidPath)
+    {
+        ArgumentNullException.ThrowIfNull(startInfo);
+        ArgumentException.ThrowIfNullOrWhiteSpace(setSidPath);
+
+        var originalFileName = startInfo.FileName;
+        var originalArguments = startInfo.ArgumentList.ToArray();
+        startInfo.ArgumentList.Clear();
+        startInfo.ArgumentList.Add(originalFileName);
+        foreach (var argument in originalArguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        startInfo.FileName = setSidPath;
+    }
+
+    private static string? TryResolveSetSidPath()
+    {
+        foreach (var candidate in new[] { "/usr/bin/setsid", "/bin/setsid" })
+        {
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
 }
 
 internal sealed class UnixProcessGroupTreeLimiter : IProcessTreeLimiter
@@ -72,9 +119,14 @@ internal sealed class UnixProcessGroupTreeLimiter : IProcessTreeLimiter
     public void Attach(Process process)
     {
         _wrapperProcess = process;
-        _groupLeaderPid = 0;
+        // util-linux setsid execs the plugin in place, so Linux can capture the
+        // stable process-group id without racing child enumeration.
+        _groupLeaderPid = OperatingSystem.IsLinux() ? process.Id : 0;
         _peakAggregateMemoryBytes = 0;
-        ResolveGroupLeaderAtStartup();
+        if (_groupLeaderPid <= 0)
+        {
+            ResolveGroupLeaderAtStartup();
+        }
     }
 
     public ValueTask<ProcessTreeUsage> SampleAsync(CancellationToken cancellationToken)
