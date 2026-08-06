@@ -32,8 +32,10 @@ public sealed class PluginProtocolCompatibilityTests
             Version: "1.0.0",
             Protocol: "bukit-plugin-v1",
             Kind: "process",
-            Distribution: "self-contained",
-            ManifestVersion: 1);
+            Distribution: "self-contained")
+        {
+            ManifestVersion = 1
+        };
         Assert.Equal(1, manifest.ManifestVersion);
     }
 

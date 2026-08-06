@@ -79,8 +79,10 @@ public sealed class PluginManifestLoader : IPluginManifestLoader
             distribution,
             platforms,
             commands,
-            permissions,
-            manifestVersion);
+            permissions)
+        {
+            ManifestVersion = manifestVersion
+        };
     }
 
     private static YamlMappingNode LoadRoot(TextReader reader, string path)

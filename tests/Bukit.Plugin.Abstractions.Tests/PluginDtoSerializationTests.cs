@@ -89,7 +89,10 @@ public sealed class PluginDtoSerializationTests
                     Arguments: [new PluginArgumentSpec("value", "Value to echo", Required: true)],
                     Options: [new PluginOptionSpec("--upper", "flag", "Uppercase output")])
             ],
-            RequiredPermissions: new PluginPermissionSet());
+            RequiredPermissions: new PluginPermissionSet())
+        {
+            ManifestVersion = 2
+        };
 
         var json = JsonSerializer.Serialize(manifest, PluginJsonSerializerContext.Default.PluginManifest);
         var roundTripped = JsonSerializer.Deserialize(json, PluginJsonSerializerContext.Default.PluginManifest);
@@ -99,6 +102,7 @@ public sealed class PluginDtoSerializationTests
         Assert.Equal(manifest.Protocol, roundTripped.Protocol);
         Assert.Single(roundTripped.Commands);
         Assert.Single(roundTripped.Platforms);
+        Assert.Equal(2, roundTripped.ManifestVersion);
     }
 
     [Fact]
