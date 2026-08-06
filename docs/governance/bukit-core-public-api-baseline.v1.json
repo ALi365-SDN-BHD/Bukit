@@ -691,6 +691,7 @@
       "publicMembers": [
         "public .ctor()",
         "public Bukit.Config.CollectionConfig! \u003CClone\u003E$()",
+        "public Bukit.Config.CollectionIndexPolicyConfig! IndexPolicy { get; init; }",
         "public Bukit.Config.CollectionOutputConfig! Output { get; init; }",
         "public Bukit.Config.CollectionPaginationConfig! Pagination { get; init; }",
         "public System.Boolean NoindexWhenEmpty { get; init; }",
@@ -708,6 +709,28 @@
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
         "public virtual final System.Boolean Equals(Bukit.Config.CollectionConfig? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Config",
+      "name": "Bukit.Config.CollectionIndexPolicyConfig",
+      "owner": "Configuration",
+      "classification": "serialized-contract",
+      "compatibility": "2.x-shape-stable",
+      "migrationHorizon": "retain-2.x",
+      "signature": "public sealed class Bukit.Config.CollectionIndexPolicyConfig : System.IEquatable\u003CBukit.Config.CollectionIndexPolicyConfig~\u003E~",
+      "publicMembers": [
+        "public .ctor()",
+        "public Bukit.Config.CollectionIndexPolicyConfig! \u003CClone\u003E$()",
+        "public System.Int32 MinimumItems { get; init; }",
+        "public System.String! BelowMinimum { get; init; }",
+        "public static System.Boolean op_Equality(Bukit.Config.CollectionIndexPolicyConfig? left, Bukit.Config.CollectionIndexPolicyConfig? right)",
+        "public static System.Boolean op_Inequality(Bukit.Config.CollectionIndexPolicyConfig? left, Bukit.Config.CollectionIndexPolicyConfig? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Config.CollectionIndexPolicyConfig? other)"
       ],
       "protectedMembers": []
     },
@@ -1996,6 +2019,7 @@
       "signature": "public sealed class Bukit.Content.BodyCacheDecorator : Bukit.Engine.Abstractions.Content.IContentBodyStore~, System.IAsyncDisposable~",
       "publicMembers": [
         "public .ctor(Bukit.Engine.Abstractions.Content.IContentBodyStore! inner, System.Int32 maxEntries = 10000)",
+        "public .ctor(Bukit.Engine.Abstractions.Content.IContentBodyStore! inner, System.Int32 maxEntries, System.Threading.CancellationToken lifetimeToken)",
         "public Bukit.Content.BodyCacheMetrics! Metrics { get; }",
         "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.ContentBody!\u003E! GetAsync(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.Threading.CancellationToken cancellationToken = null)",
         "public virtual final System.Threading.Tasks.ValueTask DisposeAsync()"
@@ -5308,6 +5332,7 @@
       "publicMembers": [
         "public .ctor(Bukit.Notion.Transport.NotionClientOptions! options)",
         "public .ctor(Bukit.Notion.Transport.NotionClientOptions! options, System.Net.Http.HttpClient! httpClient)",
+        "public .ctor(Bukit.Notion.Transport.NotionClientOptions! options, System.Net.Http.HttpMessageHandler! handler)",
         "public Bukit.Notion.Transport.NotionClientStats! GetStats()",
         "public System.Threading.Tasks.Task\u003CSystem.Text.Json.JsonDocument!\u003E! GetAsync(System.String! url, System.Threading.CancellationToken cancellationToken = null)",
         "public System.Threading.Tasks.Task\u003CSystem.Text.Json.JsonDocument!\u003E! SendAsync(System.Net.Http.HttpRequestMessage! request, Bukit.Notion.Transport.NotionRequestSemantics semantics, System.Threading.CancellationToken cancellationToken = null)",
@@ -5325,6 +5350,7 @@
       "signature": "public sealed class Bukit.Notion.Transport.NotionClientOptions",
       "publicMembers": [
         "public .ctor()",
+        "public System.Func\u003CSystem.Net.Http.HttpMessageHandler!\u003E? HttpHandlerFactory { get; init; }",
         "public System.Int32 MaxRetries { get; init; }",
         "public System.Int32 RequestDelayMs { get; init; }",
         "public System.Int32? MaxRps { get; init; }",
@@ -5427,6 +5453,7 @@
         "public .ctor(System.Boolean Enabled, System.String! Source, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? ExposeCommands = null, Bukit.Plugin.Abstractions.Security.PluginPermissionSet? Permissions = null, Bukit.Plugin.Abstractions.Config.PluginTimeoutOptions? Timeout = null, Bukit.Plugin.Abstractions.Config.PluginOutputLimitOptions? Output = null, System.String! FailMode = \u0022strict\u0022, System.Boolean AllowInCi = false, System.String? Description = null, System.Boolean PermissionsExplicit = false, System.Boolean ExposeCommandsDeclared = false, System.String! ManifestPolicy = \u0022static\u0022)",
         "public Bukit.Plugin.Abstractions.Config.PluginConfigEntry! \u003CClone\u003E$()",
         "public Bukit.Plugin.Abstractions.Config.PluginOutputLimitOptions! Output { get; init; }",
+        "public Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions? Resources { get; init; }",
         "public Bukit.Plugin.Abstractions.Config.PluginTimeoutOptions! Timeout { get; init; }",
         "public Bukit.Plugin.Abstractions.Security.PluginPermissionSet! Permissions { get; init; }",
         "public System.Boolean AllowInCi { get; init; }",
@@ -5492,6 +5519,29 @@
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
         "public virtual final System.Boolean Equals(Bukit.Plugin.Abstractions.Config.PluginOutputLimitOptions? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Plugin.Abstractions",
+      "name": "Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions",
+      "owner": "External plugin protocol",
+      "classification": "serialized-contract",
+      "compatibility": "2.x-shape-stable",
+      "migrationHorizon": "retain-2.x",
+      "signature": "public sealed class Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions : System.IEquatable\u003CBukit.Plugin.Abstractions.Config.PluginResourceLimitOptions~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.Int32? MaxCpuTimeMs = null, System.Int64? MaxMemoryBytes = null)",
+        "public Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions! \u003CClone\u003E$()",
+        "public System.Int32? MaxCpuTimeMs { get; init; }",
+        "public System.Int64? MaxMemoryBytes { get; init; }",
+        "public System.Void Deconstruct(out System.Int32? MaxCpuTimeMs, out System.Int64? MaxMemoryBytes)",
+        "public static System.Boolean op_Equality(Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions? left, Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions? right)",
+        "public static System.Boolean op_Inequality(Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions? left, Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions? other)"
       ],
       "protectedMembers": []
     },
@@ -5584,6 +5634,7 @@
         "public Bukit.Plugin.Abstractions.Security.PluginPermissionSet! RequiredPermissions { get; init; }",
         "public System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Plugin.Abstractions.Manifest.PluginPlatformEntry!\u003E! Platforms { get; init; }",
         "public System.Collections.Generic.IReadOnlyList\u003CBukit.Plugin.Abstractions.Manifest.PluginCommandSpec!\u003E! Commands { get; init; }",
+        "public System.Int32 ManifestVersion { get; init; }",
         "public System.String! Distribution { get; init; }",
         "public System.String! Id { get; init; }",
         "public System.String! Kind { get; init; }",
@@ -5665,6 +5716,7 @@
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CBukit.Plugin.Abstractions.Config.PluginConfigEntry~\u003E~ PluginConfigEntry { get; }",
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CBukit.Plugin.Abstractions.Config.PluginHostConfig~\u003E~ PluginHostConfig { get; }",
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CBukit.Plugin.Abstractions.Config.PluginOutputLimitOptions~\u003E~ PluginOutputLimitOptions { get; }",
+        "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CBukit.Plugin.Abstractions.Config.PluginResourceLimitOptions~\u003E~ PluginResourceLimitOptions { get; }",
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CBukit.Plugin.Abstractions.Config.PluginTimeoutOptions~\u003E~ PluginTimeoutOptions { get; }",
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CBukit.Plugin.Abstractions.Manifest.PluginArgumentSpec~\u003E~ PluginArgumentSpec { get; }",
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CBukit.Plugin.Abstractions.Manifest.PluginCommandSpec~\u003E~ PluginCommandSpec { get; }",
@@ -5703,6 +5755,9 @@
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CSystem.Collections.Generic.IReadOnlyList\u003CBukit.Plugin.Abstractions.Results.PluginMessage~\u003E~\u003E~ IReadOnlyListPluginMessage { get; }",
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CSystem.Collections.Generic.IReadOnlyList\u003CSystem.String~\u003E~\u003E~ IReadOnlyListString { get; }",
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CSystem.Int32\u003E~ Int32 { get; }",
+        "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CSystem.Int32?\u003E~ NullableInt32 { get; }",
+        "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CSystem.Int64\u003E~ Int64 { get; }",
+        "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CSystem.Int64?\u003E~ NullableInt64 { get; }",
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CSystem.String~\u003E~ String { get; }",
         "public System.Text.Json.Serialization.Metadata.JsonTypeInfo\u003CSystem.Text.Json.JsonElement\u003E~ JsonElement { get; }",
         "public static Bukit.Plugin.Abstractions.PluginJsonSerializerContext! Default { get; }",
@@ -6591,10 +6646,12 @@
         "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! Arguments { get; init; }",
         "public System.Int32 StderrMaxBytes { get; init; }",
         "public System.Int32 StdoutMaxBytes { get; init; }",
+        "public System.Int64? MaxMemoryBytes { get; init; }",
         "public System.String! ExecutablePath { get; init; }",
         "public System.String! StandardInputJson { get; init; }",
         "public System.String! WorkingDirectory { get; init; }",
         "public System.TimeSpan Timeout { get; init; }",
+        "public System.TimeSpan? MaxCpuTime { get; init; }",
         "public System.Void Deconstruct(out System.String! ExecutablePath, out System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Arguments, out System.String! StandardInputJson, out System.String! WorkingDirectory, out System.TimeSpan Timeout, out System.Int32 StdoutMaxBytes, out System.Int32 StderrMaxBytes, out System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String?\u003E? EnvironmentVariables)",
         "public static System.Boolean op_Equality(Bukit.PluginHost.PluginProcessRequest? left, Bukit.PluginHost.PluginProcessRequest? right)",
         "public static System.Boolean op_Inequality(Bukit.PluginHost.PluginProcessRequest? left, Bukit.PluginHost.PluginProcessRequest? right)",
@@ -6622,6 +6679,7 @@
         "public System.Int32 ExitCode { get; init; }",
         "public System.String! Stderr { get; init; }",
         "public System.String! StdoutJson { get; init; }",
+        "public System.String? ResourceLimitExceeded { get; init; }",
         "public System.Void Deconstruct(out System.Int32 ExitCode, out System.String! StdoutJson, out System.String! Stderr, out System.Boolean TimedOut, out System.Boolean OutputLimitExceeded, out Bukit.PluginHost.ProcessOutputStream? OutputLimitStream)",
         "public static System.Boolean op_Equality(Bukit.PluginHost.PluginProcessResult? left, Bukit.PluginHost.PluginProcessResult? right)",
         "public static System.Boolean op_Inequality(Bukit.PluginHost.PluginProcessResult? left, Bukit.PluginHost.PluginProcessResult? right)",
@@ -6692,10 +6750,12 @@
         "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! Arguments { get; init; }",
         "public System.Int32 StderrMaxBytes { get; init; }",
         "public System.Int32 StdoutMaxBytes { get; init; }",
+        "public System.Int64? MaxMemoryBytes { get; init; }",
         "public System.String! ExecutablePath { get; init; }",
         "public System.String! StandardInput { get; init; }",
         "public System.String! WorkingDirectory { get; init; }",
         "public System.TimeSpan Timeout { get; init; }",
+        "public System.TimeSpan? MaxCpuTime { get; init; }",
         "public System.Void Deconstruct(out System.String! ExecutablePath, out System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Arguments, out System.String! StandardInput, out System.String! WorkingDirectory, out System.TimeSpan Timeout, out System.Int32 StdoutMaxBytes, out System.Int32 StderrMaxBytes, out System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String?\u003E? EnvironmentVariables)",
         "public static System.Boolean op_Equality(Bukit.PluginHost.ProcessRunRequest? left, Bukit.PluginHost.ProcessRunRequest? right)",
         "public static System.Boolean op_Inequality(Bukit.PluginHost.ProcessRunRequest? left, Bukit.PluginHost.ProcessRunRequest? right)",
@@ -6723,6 +6783,7 @@
         "public System.Int32 ExitCode { get; init; }",
         "public System.String! Stderr { get; init; }",
         "public System.String! Stdout { get; init; }",
+        "public System.String? ResourceLimitExceeded { get; init; }",
         "public System.Void Deconstruct(out System.Int32 ExitCode, out System.String! Stdout, out System.String! Stderr, out System.Boolean TimedOut, out System.Boolean OutputLimitExceeded, out Bukit.PluginHost.ProcessOutputStream? OutputLimitStream)",
         "public static System.Boolean op_Equality(Bukit.PluginHost.ProcessRunResult? left, Bukit.PluginHost.ProcessRunResult? right)",
         "public static System.Boolean op_Inequality(Bukit.PluginHost.ProcessRunResult? left, Bukit.PluginHost.ProcessRunResult? right)",
@@ -6744,6 +6805,7 @@
       "publicMembers": [
         "public .ctor(System.String! Id, System.String! Version, System.String! Platform, System.String! ExecutablePath, System.String! WorkingDirectory, Bukit.Plugin.Abstractions.Protocol.PluginHostInfo! Host, System.String? ProjectRoot = null, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Arguments = null, Bukit.Plugin.Abstractions.Config.PluginTimeoutOptions? Timeout = null, Bukit.Plugin.Abstractions.Config.PluginOutputLimitOptions? Output = null, Bukit.Plugin.Abstractions.Security.PluginPermissionSet? GrantedPermissions = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String?\u003E? EnvironmentVariables = null, System.Boolean? Sha256Verified = null)",
         "public Bukit.Plugin.Abstractions.Config.PluginOutputLimitOptions! Output { get; init; }",
+        "public Bukit.Plugin.Abstractions.Config.PluginResourceLimitOptions? Resources { get; init; }",
         "public Bukit.Plugin.Abstractions.Config.PluginTimeoutOptions! Timeout { get; init; }",
         "public Bukit.Plugin.Abstractions.Protocol.PluginHostInfo! Host { get; init; }",
         "public Bukit.Plugin.Abstractions.Security.PluginPermissionSet! GrantedPermissions { get; init; }",
@@ -6815,6 +6877,7 @@
       "publicMembers": [
         "public .ctor()",
         "public Bukit.Rendering.GeoCitationModel! \u003CClone\u003E$()",
+        "public System.String! Relation { get; init; }",
         "public System.String! Title { get; init; }",
         "public System.String! Url { get; init; }",
         "public static System.Boolean op_Equality(Bukit.Rendering.GeoCitationModel? left, Bukit.Rendering.GeoCitationModel? right)",
@@ -7709,6 +7772,8 @@
       "signature": "public static class Bukit.Shared.SsrfGuard",
       "publicMembers": [
         "public static System.Boolean IsPrivateAddress(System.Net.IPAddress! address)",
+        "public static System.Net.Http.HttpClient! CreateSafeHttpClient(System.TimeSpan? timeout = null, System.String? userAgent = null)",
+        "public static System.Net.Http.SocketsHttpHandler! CreateSafeHandler()",
         "public static System.Threading.Tasks.Task\u003CSystem.Boolean\u003E! IsPrivateHostAsync(System.String! host, System.Threading.CancellationToken cancellationToken)",
         "public static System.Threading.Tasks.ValueTask\u003CSystem.IO.Stream!\u003E SsrfSafeConnectAsync(System.Net.Http.SocketsHttpConnectionContext! context, System.Threading.CancellationToken cancellationToken)"
       ],
