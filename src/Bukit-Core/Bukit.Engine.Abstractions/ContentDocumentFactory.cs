@@ -5,7 +5,7 @@ namespace Bukit.Engine.Abstractions.Content;
 /// <see cref="ContentRecord"/> instances from raw content fields.
 /// Extracted from <see cref="IContentBodyStore"/> default interface logic.
 /// </summary>
-public static class ContentDocumentFactory
+internal static class ContentDocumentFactory
 {
     /// <summary>
     /// Merges raw properties into custom fields. The result is always a fresh

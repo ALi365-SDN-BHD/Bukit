@@ -6,6 +6,17 @@ namespace Bukit.Engine.Abstractions.Tests;
 public sealed class ContentDocumentFactoryTests
 {
     [Fact]
+    public void Type_IsInternalImplementationDetail()
+    {
+        var type = typeof(IContentBodyStore).Assembly.GetType(
+            "Bukit.Engine.Abstractions.Content.ContentDocumentFactory",
+            throwOnError: true)!;
+
+        Assert.False(type.IsPublic);
+        Assert.True(type.IsNotPublic);
+    }
+
+    [Fact]
     public void MergeFields_CaseSensitiveMutableInput_CustomFieldWinsCaseInsensitively()
     {
         // A case-sensitive mutable dictionary must not defeat the documented
