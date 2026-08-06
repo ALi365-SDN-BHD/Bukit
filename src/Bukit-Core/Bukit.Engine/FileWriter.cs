@@ -9,8 +9,22 @@ internal static class FileWriter
 
     internal static IOutputPathPolicy DefaultPolicy
     {
-        get => s_defaultPolicy ??= new SafePathResolver();
-        set => s_defaultPolicy = value;
+        get
+        {
+            var current = Volatile.Read(ref s_defaultPolicy);
+            if (current is not null)
+            {
+                return current;
+            }
+
+            var created = new SafePathResolver();
+            return Interlocked.CompareExchange(ref s_defaultPolicy, created, null) ?? created;
+        }
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            Volatile.Write(ref s_defaultPolicy, value);
+        }
     }
 
     public static string GetSafeFullPath(string outputRoot, string relativePath, IOutputPathPolicy? pathPolicy = null)

@@ -1,3 +1,5 @@
+using System.Reflection;
+using Bukit.Engine.Output;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -63,5 +65,65 @@ public sealed class FileWriterTests : IDisposable
         FileWriter.WriteUtf8(_tempDir, "test.txt", "new content");
 
         Assert.Equal("new content", File.ReadAllText(filePath));
+    }
+
+    [Fact]
+    public void DefaultPolicy_ConcurrentFirstReads_PublishSingleInstance()
+    {
+        const int workerCount = 64;
+        const int rounds = 200;
+        var field = typeof(FileWriter).GetField(
+            "s_defaultPolicy",
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+        var original = FileWriter.DefaultPolicy;
+        var observed = new IOutputPathPolicy?[workerCount];
+        var observedMultipleInstances = false;
+        using var barrier = new Barrier(workerCount + 1);
+        var workers = Enumerable.Range(0, workerCount)
+            .Select(index => new Thread(() =>
+            {
+                for (var round = 0; round < rounds; round++)
+                {
+                    barrier.SignalAndWait();
+                    observed[index] = FileWriter.DefaultPolicy;
+                    barrier.SignalAndWait();
+                }
+            })
+            {
+                IsBackground = true
+            })
+            .ToArray();
+
+        try
+        {
+            foreach (var worker in workers)
+            {
+                worker.Start();
+            }
+
+            for (var round = 0; round < rounds; round++)
+            {
+                field.SetValue(null, null);
+                Array.Clear(observed);
+                barrier.SignalAndWait();
+                barrier.SignalAndWait();
+                observedMultipleInstances |= observed
+                    .Distinct(ReferenceEqualityComparer.Instance)
+                    .Count() > 1;
+            }
+        }
+        finally
+        {
+            foreach (var worker in workers)
+            {
+                worker.Join();
+            }
+
+            field.SetValue(null, original);
+        }
+
+        Assert.False(
+            observedMultipleInstances,
+            "Concurrent first reads published more than one default policy instance.");
     }
 }
