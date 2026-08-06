@@ -41,33 +41,27 @@ if result["closureFiles"] != expected_closure:
     raise SystemExit(f"unexpected closure: {result['closureFiles']}")
 PY
 
-assert_closure_mapping \
-  "$closure_fixture" \
+assert_closure_mapping "$closure_fixture" \
   src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj \
   '["dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj", "dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
   true
-assert_closure_mapping \
-  "$closure_fixture" \
+assert_closure_mapping "$closure_fixture" \
   src/Bukit-Core/Bukit.Plugin.Abstractions/Manifest/PluginManifest.cs \
   '["dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj", "dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
   true
-assert_closure_mapping \
-  "$closure_fixture" \
+assert_closure_mapping "$closure_fixture" \
   tests/Bukit.Plugin.Abstractions.Tests/PluginManifestBinaryCompatibilityTests.cs \
   '["dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj"]' \
   false
-assert_closure_mapping \
-  "$closure_fixture" \
+assert_closure_mapping "$closure_fixture" \
   src/Bukit-Core/Bukit.PluginHost/SystemProcessRunner.cs \
   '["dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj"]' \
   true
-assert_closure_mapping \
-  "$closure_fixture" \
+assert_closure_mapping "$closure_fixture" \
   src/Bukit-Core/Bukit.Engine.Abstractions/ContentDocumentFactory.cs \
   '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"]' \
   true
-assert_closure_mapping \
-  "$closure_fixture" \
+assert_closure_mapping "$closure_fixture" \
   tests/Bukit.Engine.Abstractions.Tests/ContentDocumentFactoryTests.cs \
   '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj"]' \
   false
