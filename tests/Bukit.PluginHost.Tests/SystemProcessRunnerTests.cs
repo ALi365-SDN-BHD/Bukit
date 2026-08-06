@@ -3,12 +3,29 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using Bukit.PluginProcessProbe;
 using Bukit.PluginHost;
+using Bukit.PluginHost.ProcessTree;
 using Xunit;
 
 namespace Bukit.PluginHost.Tests;
 
 public sealed class SystemProcessRunnerTests
 {
+    [Fact]
+    public void PrepareSetSidStartInfo_PreservesExecutableAndArgumentsWithoutShellJobControl()
+    {
+        var startInfo = new ProcessStartInfo("/opt/bukit/plugin");
+        startInfo.ArgumentList.Add("--label");
+        startInfo.ArgumentList.Add("value with spaces");
+
+        PlatformProcessTreeLimiter.PrepareSetSidStartInfo(startInfo, "/usr/bin/setsid");
+
+        Assert.Equal("/usr/bin/setsid", startInfo.FileName);
+        Assert.Equal(
+            ["/opt/bukit/plugin", "--label", "value with spaces"],
+            startInfo.ArgumentList);
+        Assert.DoesNotContain("set -m", string.Join(' ', startInfo.ArgumentList), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task WaitForTerminationGraceAsync_IncompleteCleanup_ReturnsFalseWithinGrace()
     {

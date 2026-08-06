@@ -5,13 +5,15 @@ namespace Bukit.Engine;
 
 /// <summary>
 /// Owns process-group/tree creation and termination for external tool invocations.
-/// On Unix the tool runs as the leader of its own process group (monitored shell job)
-/// so descendants can be terminated as a unit; on Windows the process tree kill is used.
+/// On Linux the tool runs in a new session via setsid; on macOS it runs as a monitored
+/// shell job. Both give the tool a dedicated process group so descendants can be
+/// terminated as a unit; on Windows the process tree kill is used.
 /// Resource accounting is intentionally not duplicated here (PluginHost owns it).
 /// </summary>
 internal static partial class ExternalToolProcessTree
 {
     private const int Sigkill = 9;
+    private static readonly string? LinuxSetSidPath = ResolveLinuxSetSidPath();
 
     /// <summary>
     /// Rewrites the start info so the tool runs as the leader of its own process group.
@@ -21,6 +23,15 @@ internal static partial class ExternalToolProcessTree
     {
         if (OperatingSystem.IsWindows())
         {
+            return null;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            PrepareSetSidStartInfo(
+                startInfo,
+                LinuxSetSidPath ?? throw new PlatformNotSupportedException(
+                    "Linux process-tree control requires the setsid utility."));
             return null;
         }
 
@@ -53,6 +64,45 @@ internal static partial class ExternalToolProcessTree
 
         startInfo.FileName = "/bin/sh";
         return pgidPath;
+    }
+
+    internal static void PrepareSetSidStartInfo(ProcessStartInfo startInfo, string setSidPath)
+    {
+        var originalFileName = startInfo.FileName;
+        var originalArguments = new List<string>();
+        if (!string.IsNullOrWhiteSpace(startInfo.Arguments))
+        {
+            originalArguments.AddRange(TokenizeArguments(startInfo.Arguments));
+            startInfo.Arguments = string.Empty;
+        }
+
+        originalArguments.AddRange(startInfo.ArgumentList);
+        startInfo.ArgumentList.Clear();
+        startInfo.ArgumentList.Add(originalFileName);
+        foreach (var argument in originalArguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        startInfo.FileName = setSidPath;
+    }
+
+    private static string? ResolveLinuxSetSidPath()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return null;
+        }
+
+        foreach (var candidate in new[] { "/usr/bin/setsid", "/bin/setsid" })
+        {
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -129,6 +179,13 @@ internal static partial class ExternalToolProcessTree
         if (OperatingSystem.IsWindows())
         {
             return 0;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            // setsid replaces itself with the tool, so Process.Id is also the
+            // process-group id and remains usable after the leader exits.
+            return wrapperProcess.Id;
         }
 
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(2);
