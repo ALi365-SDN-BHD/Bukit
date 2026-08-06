@@ -344,6 +344,20 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "bukit-cli-documentation",
+      "matches": [
+        "guide/dev/cli.md",
+        "guide/skills/bukit-cli-reference/SKILL.md"
+      ],
+      "publicContract": true,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash guide/skills/scripts/validate-skills-strict.sh",
+        "bash scripts/checks/cli-docs-sync.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "bukit-cli-tests",
       "matches": [
         "tests/Bukit.Cli.Tests/*.cs",

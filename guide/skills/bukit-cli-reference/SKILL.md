@@ -22,6 +22,10 @@ Use only these static Core commands:
 | `seo` | `--dir`, `--report`, `--strict`, `--external` |
 | `seo audit` | `--dir`, `--report`, `--strict`, `--external` |
 | `seo diff` | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
+| `seo insights` | `--dir`, `--routes`, `--observations`, `--rules`, `--out`, `--strict-join` |
+| `seo question-insights` | `--dir`, `--routes` (`--route-map` alias), `--targets`, `--observations`, `--rules`, `--out`, `--strict-join` |
+| `seo generative-insights` | `--dir`, `--routes` (`--route-map` alias), `--observations`, `--rules`, `--out`, `--strict-join` |
+| `seo authority-insights` | `--dir`, `--routes` (`--route-map` alias), `--observations`, `--rules`, `--out`, `--strict-join` |
 | `geo` | `--dir` |
 | `geo audit` | `--dir` |
 | `publish` | `--dir`, `--report`, `--strict`, `--external` |

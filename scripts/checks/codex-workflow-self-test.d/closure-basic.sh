@@ -192,9 +192,9 @@ for public_api_governance_path in \
   guide/dev/public-api-governance.md \
   scripts/checks/public-api-drift-self-test.sh \
   tools/Bukit.PublicApiDrift/ApiSurfaceModels.cs; do
-  assert_closure_mapping \
-    "$closure_fixture" \
-    "$public_api_governance_path" \
-    '["bash scripts/checks/public-api-drift-self-test.sh"]' \
-    false
+  assert_closure_mapping "$closure_fixture" "$public_api_governance_path" '["bash scripts/checks/public-api-drift-self-test.sh"]' false
+done
+
+for cli_documentation_path in guide/dev/cli.md guide/skills/bukit-cli-reference/SKILL.md; do
+  assert_closure_mapping "$closure_fixture" "$cli_documentation_path" '["bash guide/skills/scripts/validate-skills-strict.sh", "bash scripts/checks/cli-docs-sync.sh"]' true
 done
