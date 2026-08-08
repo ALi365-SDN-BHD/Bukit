@@ -114,6 +114,32 @@ External Process + Manifest Verification + Path Boundary + Permission Declaratio
 14. CI 环境默认采用更严格策略。
 ```
 
+### 3.1 决策补录
+
+#### 2026-08-09：Windows 插件进程树约束接受为 best-effort 边界
+
+**决策**：Windows 平台上插件进程树限制器的 start→attach 竞争窗口（Job Object 在启动前创建，插件进程在 `Process.Start()` 返回后立即分配；该窗口内快速派生的子进程可能位于 job 之外）被正式接受为 2.0 系列的 best-effort 约束边界。PluginHost 不要求证明所有 descendant 自启动时刻即参与资源核算。
+
+**覆盖范围**：本决策覆盖 `docs/superpowers/specs/2026-08-04-bukit-core-whole-rereview-remediation-design.md`（Batch 3）中“配置 resource limit 而当前平台无法证明整棵进程树受控时，在启动前返回稳定 unsupported/resource-limit diagnostic”的强证明要求在 Windows 上的适用。Unix 平台不受影响：进程组在工具执行前创建，整组终止与资源采样仍可证明。
+
+**理由**：
+
+```text
+1. 本 ADR 非目标第 6 条已声明第一版不做 Windows Job Object 完整隔离。
+2. 当前阶段为 internal-first、非完整 OS sandbox；闭合窗口需要原生
+   CreateProcess CREATE_SUSPENDED → assign → resume 与 Windows CI 验证，
+   成本与第一方插件的实际风险不成比例。
+3. 插件信任模型基于项目本地 plugins/、sha256 校验与显式授权，
+   不以执行不可信第三方插件为前提。
+```
+
+**重新立项条件**：仅当不可信 Windows 插件成为产品目标时，才立项
+（a）CREATE_SUSPENDED → assign → resume 的 suspended 创建；（b）Windows 验证矩阵。
+在此之前该窗口按已记录的 best-effort 边界对待，不再作为缺陷跟踪。
+
+**关联实现**：`IProcessTreeLimiter`、`WindowsJobProcessTreeLimiter`、
+`PlatformProcessTreeLimiter.PrepareStartInfo` 的契约注释与本记录保持一致。
+
 ---
 
 ## 4. 安全目标
