@@ -49,12 +49,24 @@ public static class PreviewCommand
         var host = (command.GetString("--host") ?? "localhost").Trim();
         var portText = (command.GetString("--port") ?? "4173").Trim();
         var strictPort = command.GetBool("--strict-port");
+        var allowLan = command.GetBool("--allow-lan") || command.GetBool("--public");
 
         var port = ParsePort(portText);
         if (port < 0 || port > 65535)
         {
             Console.Error.WriteLine("Invalid --port.");
             return 2;
+        }
+
+        if (ShouldRefuseNonLoopbackHost(host, allowLan))
+        {
+            Console.Error.WriteLine("bukit preview refused to bind a non-loopback host. Use --allow-lan to expose the preview server to your LAN.");
+            return 2;
+        }
+
+        if (DevCommand.IsLanExposureHost(host))
+        {
+            Console.Error.WriteLine($"Warning: bukit preview is listening on non-loopback host '{host}'. Only use --allow-lan on trusted networks.");
         }
 
         if (!Directory.Exists(dir))
@@ -155,6 +167,9 @@ public static class PreviewCommand
                !site.Plugins.TryGetValue("analytics", out var plugin) ||
                plugin.Enabled;
     }
+
+    internal static bool ShouldRefuseNonLoopbackHost(string host, bool allowLan)
+        => DevCommand.ShouldRefuseLanExposure(host, allowLan);
 
     private static int ParsePort(string portText)
     {
@@ -292,6 +307,12 @@ public static class PreviewCommand
             if (candidate is null)
             {
                 context.Response.StatusCode = 403;
+                return;
+            }
+
+            if (StaticServerInternalPathPolicy.IsInternalOutputPath(rootDir, candidate))
+            {
+                context.Response.StatusCode = 404;
                 return;
             }
 

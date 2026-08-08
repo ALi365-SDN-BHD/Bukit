@@ -13,7 +13,7 @@ loads dynamic plugin descriptors only when the command is not a Core command.
 | `config` | `--config`, `--site`, `--site-url`, `--output` |
 | `config check` | `--config`, `--site`, `--site-url` |
 | `config schema` | `--output` |
-| `preview` | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site` |
+| `preview` | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public` |
 | `clean` | `--dir`, `--config`, `--site` |
 | `version` | none |

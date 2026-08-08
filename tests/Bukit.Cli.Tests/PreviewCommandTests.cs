@@ -183,6 +183,38 @@ public sealed class PreviewCommandTests
         }
     }
 
+    [Fact]
+    public async Task RunAsync_NonLoopbackHostWithoutAllowLan_ReturnsExitCode2()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "bukit-test-preview-lan");
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, "index.html"), "<html></html>");
+
+        try
+        {
+            // 192.0.2.0/24 is TEST-NET-1 (RFC 5737) and never bound; the refusal must
+            // happen before any listener is created.
+            var command = BuildCommand("--dir", dir, "--host", "192.0.2.10", "--port", "4173");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var exitCode = await PreviewCommand.RunAsync(command, cts.Token);
+            Assert.Equal(2, exitCode);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Preview_RefusesLanExposureUnlessAllowLan()
+    {
+        Assert.True(PreviewCommand.ShouldRefuseNonLoopbackHost("0.0.0.0", allowLan: false));
+        Assert.True(PreviewCommand.ShouldRefuseNonLoopbackHost("192.168.1.10", allowLan: false));
+        Assert.False(PreviewCommand.ShouldRefuseNonLoopbackHost("0.0.0.0", allowLan: true));
+        Assert.False(PreviewCommand.ShouldRefuseNonLoopbackHost("localhost", allowLan: false));
+        Assert.False(PreviewCommand.ShouldRefuseNonLoopbackHost("127.0.0.1", allowLan: false));
+    }
+
     private static CliBoundCommand BuildCommand(params string[] keyValues)
     {
         var dict = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);

@@ -58,6 +58,66 @@ public sealed class DevCommandTests
     }
 
     [Fact]
+    public void DevPathGuard_SymlinkTargetOutsideRoot_IsForbidden()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), "bukit-dev-symlink-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(baseDir, "dist");
+        var outside = Path.Combine(baseDir, "private");
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "secret.txt"), "secret");
+        try
+        {
+            var linkPath = Path.Combine(root, "public-link");
+            try
+            {
+                Directory.CreateSymbolicLink(linkPath, outside);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                return; // symbolic links unavailable on this host; probe not applicable
+            }
+
+            Assert.Null(DevPathGuard.TryResolveWithinRoot(root, "/public-link/secret.txt"));
+            Assert.NotNull(DevPathGuard.TryResolveWithinRoot(root, "/index.html"));
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DevPathGuard_SymlinkedFileTargetOutsideRoot_IsForbidden()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), "bukit-dev-symlink-file-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(baseDir, "dist");
+        var outside = Path.Combine(baseDir, "private");
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(outside);
+        var secretPath = Path.Combine(outside, "secret.txt");
+        File.WriteAllText(secretPath, "secret");
+        try
+        {
+            var linkPath = Path.Combine(root, "page.html");
+            try
+            {
+                File.CreateSymbolicLink(linkPath, secretPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                return; // symbolic links unavailable on this host; probe not applicable
+            }
+
+            Assert.Null(DevPathGuard.TryResolveWithinRoot(root, "/page.html"));
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ResolveWatchDirs_DoesNotTreatPrefixSiblingAsThemeChild()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-dev-watch-" + Guid.NewGuid().ToString("N"));
