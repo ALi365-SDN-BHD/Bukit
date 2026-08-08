@@ -37,7 +37,9 @@ internal static class PlatformProcessTreeLimiter
     /// <summary>
     /// Rewrites the start info so the child runs as the leader of its own process
     /// group on Linux (setsid) or as a monitored shell job on macOS. No-op on
-    /// Windows, where the job object provides tree control after the process starts.
+    /// Windows: containment there is best-effort from the moment of
+    /// <see cref="IProcessTreeLimiter.Attach"/>, not from process creation (see the
+    /// Windows job attach window note on the limiter implementations).
     /// </summary>
     internal static void PrepareStartInfo(ProcessStartInfo startInfo)
     {
@@ -512,6 +514,16 @@ internal sealed class UnixProcessGroupTreeLimiter : IProcessTreeLimiter
     }
 }
 
+/// <summary>
+/// Windows job-object tree limiter. Containment guarantee is precise as follows: the
+/// job is created before launch and the plugin process is assigned to it immediately
+/// after <c>Process.Start()</c> returns; from that moment every descendant created by
+/// an in-job process joins the job automatically. Because .NET process launch cannot
+/// assign the job before the first thread runs, a malicious or faulty plugin that
+/// spawns a child inside the start-to-attach window can leave that child outside the
+/// job. Closing containment fully would require suspended creation
+/// (CreateProcess CREATE_SUSPENDED → assign → resume), which is not implemented.
+/// </summary>
 internal sealed class WindowsJobProcessTreeLimiter : IProcessTreeLimiter
 {
     private IntPtr _jobHandle;

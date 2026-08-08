@@ -67,6 +67,8 @@ public sealed class SystemProcessRunner : IProcessRunner
             throw new InvalidOperationException($"Failed to start plugin process: {request.ExecutablePath}");
         }
 
+        // Windows: job assignment happens after start; see WindowsJobProcessTreeLimiter
+        // for the documented start-to-attach window. Unix: containment predates launch.
         treeLimiter?.Attach(process);
 
         using var timeoutCts = new CancellationTokenSource(request.Timeout);
