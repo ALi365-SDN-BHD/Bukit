@@ -15,6 +15,15 @@ internal static partial class ExternalToolProcessTree
     private const int Sigkill = 9;
 
     /// <summary>
+    /// Shell program for the macOS monitored-job wrapper. The wrapper-state file path
+    /// travels as the first positional argument ($1) and is never interpolated into the
+    /// program text, so temp paths containing quotes or shell metacharacters cannot
+    /// alter the command. After <c>shift</c>, "$@" is the original tool command.
+    /// </summary>
+    internal const string MacWrapperProgram =
+        "pgid=$1; shift; set -m; \"$@\" <&0 & job=$!; printf '%s' \"$job\" > \"$pgid\"; set +m; wait \"$job\"; exit \"$?\"";
+
+    /// <summary>
     /// Rewrites the start info so the tool runs as the leader of its own process group.
     /// Returns the path the macOS wrapper uses to publish the group pgid; Linux and
     /// Windows do not need a wrapper-state file and return null.
@@ -33,6 +42,21 @@ internal static partial class ExternalToolProcessTree
         }
 
         var pgidPath = Path.Combine(Path.GetTempPath(), $"bukit-tool-pgid-{Guid.NewGuid():N}");
+        ApplyMacWrapperStartInfo(startInfo, pgidPath);
+        return pgidPath;
+    }
+
+    /// <summary>
+    /// Rewrites the start info so the tool runs as a monitored shell job whose group
+    /// pgid is published to <paramref name="pgidPath"/>. Exposed separately from
+    /// <see cref="PrepareStartInfo"/> so the wrapper layout can be verified on any
+    /// platform.
+    /// </summary>
+    internal static void ApplyMacWrapperStartInfo(ProcessStartInfo startInfo, string pgidPath)
+    {
+        ArgumentNullException.ThrowIfNull(startInfo);
+        ArgumentException.ThrowIfNullOrWhiteSpace(pgidPath);
+
         var originalFileName = startInfo.FileName;
         var originalArguments = new List<string>();
         if (!string.IsNullOrWhiteSpace(startInfo.Arguments))
@@ -50,9 +74,9 @@ internal static partial class ExternalToolProcessTree
         // job control would otherwise redirect from /dev/null.
         // set +m before wait suppresses the shell's job-completion notification, which
         // would otherwise pollute the captured stderr stream.
-        startInfo.ArgumentList.Add(
-            $"set -m; \"$@\" <&0 & job=$!; printf \'%s\' \"$job\" > \'{pgidPath}\'; set +m; wait \"$job\"; exit \"$?\"");
+        startInfo.ArgumentList.Add(MacWrapperProgram);
         startInfo.ArgumentList.Add("bukit-tool-tree");
+        startInfo.ArgumentList.Add(pgidPath);
         startInfo.ArgumentList.Add(originalFileName);
         foreach (var argument in originalArguments)
         {
@@ -60,7 +84,6 @@ internal static partial class ExternalToolProcessTree
         }
 
         startInfo.FileName = "/bin/sh";
-        return pgidPath;
     }
 
     /// <summary>
