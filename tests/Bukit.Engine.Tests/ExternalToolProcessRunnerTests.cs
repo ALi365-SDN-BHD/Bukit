@@ -26,6 +26,63 @@ public sealed class ExternalToolProcessRunnerTests
     }
 
     [Fact]
+    public void ApplyMacWrapperStartInfo_StatePathTravelsAsPositionalArgumentNotProgramText()
+    {
+        var startInfo = new ProcessStartInfo("/opt/bukit/tool");
+        startInfo.ArgumentList.Add("--input");
+        startInfo.ArgumentList.Add("value with spaces");
+        var hostilePath = "/tmp/bukit'$(touch /tmp/bukit-pwned)'pgid";
+
+        ExternalToolProcessTree.ApplyMacWrapperStartInfo(startInfo, hostilePath);
+
+        Assert.Equal("/bin/sh", startInfo.FileName);
+        Assert.Equal("-c", startInfo.ArgumentList[0]);
+        Assert.Equal(ExternalToolProcessTree.MacWrapperProgram, startInfo.ArgumentList[1]);
+        Assert.DoesNotContain(hostilePath, startInfo.ArgumentList[1], StringComparison.Ordinal);
+        Assert.Equal(
+            ["bukit-tool-tree", hostilePath, "/opt/bukit/tool", "--input", "value with spaces"],
+            startInfo.ArgumentList.Skip(2));
+    }
+
+    [Fact]
+    public async Task MacWrapper_StatePathWithSingleQuote_StillPublishesPgidAndRunsTool()
+    {
+        RequireUnix();
+        var root = CreateTempDir();
+        try
+        {
+            var quotedDir = Path.Combine(root, "state'dir with'quotes");
+            Directory.CreateDirectory(quotedDir);
+            var pgidPath = Path.Combine(quotedDir, "pgid");
+            var startInfo = StartInfo("/bin/echo");
+            startInfo.ArgumentList.Add("bukit-wrapper-probe");
+
+            ExternalToolProcessTree.ApplyMacWrapperStartInfo(startInfo, pgidPath);
+
+            using var process = Process.Start(startInfo)!;
+            var stdout = await process.StandardOutput.ReadToEndAsync();
+            using var exitTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            await process.WaitForExitAsync(exitTimeout.Token);
+
+            Assert.Equal(0, process.ExitCode);
+            Assert.Contains("bukit-wrapper-probe", stdout, StringComparison.Ordinal);
+            Assert.True(File.Exists(pgidPath), "The wrapper must publish its group pgid even for quoted state paths.");
+            var text = await File.ReadAllTextAsync(pgidPath);
+            Assert.True(
+                int.TryParse(
+                    text.Trim(),
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var publishedPid) && publishedPid > 0,
+                "The published pgid must be a positive integer.");
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_ParentExitWithPipeChild_TerminatesTreeAndReaders()
     {
         if (OperatingSystem.IsWindows())
