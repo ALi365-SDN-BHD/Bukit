@@ -78,7 +78,9 @@ public static partial class BukitCliSpecs
                 new CliOptionSpec("--port", "监听端口", CliOptionType.String, ValueName: "port"),
                 new CliOptionSpec("--strict-port", "严格端口模式", CliOptionType.Flag),
                 new CliOptionSpec("--config", "配置文件路径"),
-                new CliOptionSpec("--site", "多站点名")
+                new CliOptionSpec("--site", "多站点名"),
+                new CliOptionSpec("--allow-lan", "允许预览服务器监听非本机地址", CliOptionType.Flag),
+                new CliOptionSpec("--public", "--allow-lan 的别名", CliOptionType.Flag)
             });
 
         var dev = new CliCommandSpec(

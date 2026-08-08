@@ -36,7 +36,7 @@ internal sealed class DevRequestHandler
                 return;
             }
 
-            if (IsInternalOutputPath(_outputDir, candidate))
+            if (StaticServerInternalPathPolicy.IsInternalOutputPath(_outputDir, candidate))
             {
                 context.Response.StatusCode = 404;
                 return;
@@ -129,27 +129,6 @@ internal sealed class DevRequestHandler
         var raw = request.RawUrl ?? request.Url?.AbsolutePath ?? "/";
         var queryIndex = raw.IndexOf('?', StringComparison.Ordinal);
         return queryIndex >= 0 ? raw[..queryIndex] : raw;
-    }
-
-    private static bool IsInternalOutputPath(string outputDir, string candidate)
-    {
-        var relative = Path.GetRelativePath(Path.GetFullPath(outputDir), candidate)
-            .Replace(Path.DirectorySeparatorChar, '/')
-            .Replace(Path.AltDirectorySeparatorChar, '/');
-        var segments = relative.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0)
-        {
-            return false;
-        }
-
-        if (string.Equals(segments[0], ".bukit", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return segments.Length == 1 &&
-            (string.Equals(segments[0], ".bukit-build-state.json", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(segments[0], ".bukit-output-marker", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

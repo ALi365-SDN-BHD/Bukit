@@ -654,6 +654,106 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Preview_DoesNotServeBukitInternalDirectory()
+    {
+        var internalDir = Path.Combine(_tempDir, ".bukit");
+        Directory.CreateDirectory(internalDir);
+        File.WriteAllText(Path.Combine(internalDir, "build-report.json"), "{\"secret\":\"provenance-token\"}");
+        File.WriteAllText(Path.Combine(internalDir, "publish-audit-report.json"), "{\"secret\":\"sourceItemId\"}");
+
+        var report = await SendRequestAsync("/.bukit/build-report.json", removeManagedAnalytics: false);
+        var audit = await SendRequestAsync("/.bukit/publish-audit-report.json", removeManagedAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.NotFound, report.StatusCode);
+        Assert.DoesNotContain("provenance-token", report.Body, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NotFound, audit.StatusCode);
+        Assert.DoesNotContain("sourceItemId", audit.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Preview_DoesNotServeBuildStateOrOutputMarker()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, ".bukit-build-state.json"), "{\"state\":true}");
+        File.WriteAllText(Path.Combine(_tempDir, ".bukit-output-marker"), "bukit-output");
+
+        var state = await SendRequestAsync("/.bukit-build-state.json", removeManagedAnalytics: false);
+        var marker = await SendRequestAsync("/.bukit-output-marker", removeManagedAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.NotFound, state.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, marker.StatusCode);
+    }
+
+    [Fact]
+    public void Preview_SymlinkTargetOutsideRoot_IsForbidden()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), "bukit-preview-symlink-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(baseDir, "dist");
+        var outside = Path.Combine(baseDir, "private");
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "secret.txt"), "secret");
+        try
+        {
+            var linkPath = Path.Combine(root, "public-link");
+            try
+            {
+                Directory.CreateSymbolicLink(linkPath, outside);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                return; // symbolic links unavailable on this host; probe not applicable
+            }
+
+            Assert.Null(DevPathGuard.TryResolveWithinRoot(root, "/public-link/secret.txt"));
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Preview_DirectorySymlinkAliasIntoBukitDir_IsNotFound()
+    {
+        var internalDir = Path.Combine(_tempDir, ".bukit");
+        Directory.CreateDirectory(internalDir);
+        File.WriteAllText(Path.Combine(internalDir, "build-report.json"), "{\"secret\":\"provenance-token\"}");
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(_tempDir, "public-reports"), internalDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return; // symbolic links unavailable on this host; probe not applicable
+        }
+
+        var response = await SendRequestAsync("/public-reports/build-report.json", removeManagedAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.DoesNotContain("provenance-token", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Preview_FileSymlinkAliasIntoBuildState_IsNotFound()
+    {
+        var statePath = Path.Combine(_tempDir, ".bukit-build-state.json");
+        File.WriteAllText(statePath, "{\"secret\":\"state-token\"}");
+        try
+        {
+            File.CreateSymbolicLink(Path.Combine(_tempDir, "state-alias.json"), statePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return; // symbolic links unavailable on this host; probe not applicable
+        }
+
+        var response = await SendRequestAsync("/state-alias.json", removeManagedAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.DoesNotContain("state-token", response.Body, StringComparison.Ordinal);
+    }
+
     private async Task<(HttpStatusCode StatusCode, string Body, string? ContentType)> SendRequestAsync(string path, bool removeManagedAnalytics)
     {
         var response = await SendRawRequestAsync(path, removeManagedAnalytics);

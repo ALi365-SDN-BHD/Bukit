@@ -11,7 +11,7 @@ This table is derived from `BukitCliSpecs.cs`.
 | `config` | Parent command for config checks. | `--config`, `--site`, `--site-url`, `--output` |
 | `config check` | Validate config without building pages. | `--config`, `--site`, `--site-url` |
 | `config schema` | Emit JSON Schema for `site.yaml`. | `--output` |
-| `preview` | Serve an existing output directory. | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site` |
+| `preview` | Serve an existing output directory. | `--dir`, `--host`, `--port`, `--strict-port`, `--config`, `--site`, `--allow-lan`, `--public` |
 | `dev` | Build, watch files, serve output, and trigger LiveReload. | `--config`, `--site`, `--host`, `--port`, `--output`, `--no-watch`, `--allow-lan`, `--public` |
 | `clean` | Remove output and cache directories. | `--dir`, `--config`, `--site` |
 | `version` | Print version. | none |

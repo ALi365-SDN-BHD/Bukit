@@ -77,7 +77,18 @@ public static class PathUtils
         }
 
         var target = info.ResolveLinkTarget(returnFinalTarget: true);
-        return TrimTrailingSeparators(Path.GetFullPath(target?.FullName ?? info.FullName));
+        var resolved = Path.GetFullPath(target?.FullName ?? info.FullName);
+        if (target is not null)
+        {
+            // Link targets are returned verbatim: an absolute target whose own prefix
+            // contains a link (e.g. /var/... on macOS, where /var -> /private/var)
+            // stays unnormalized while component walks from the volume root resolve
+            // that prefix. Re-normalize the target so both directions agree; target
+            // components are already final targets, so the recursion converges.
+            resolved = ResolveExistingLinks(resolved);
+        }
+
+        return TrimTrailingSeparators(resolved);
     }
 
     private static string EnsureTrailingSeparator(string path)
