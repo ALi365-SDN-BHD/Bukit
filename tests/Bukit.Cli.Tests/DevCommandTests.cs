@@ -118,6 +118,97 @@ public sealed class DevCommandTests
     }
 
     [Fact]
+    public void InternalPathPolicy_DirectorySymlinkAliasIntoBukitDir_IsInternal()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), "bukit-dev-internal-alias-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(baseDir, "dist");
+        var internalDir = Path.Combine(root, ".bukit");
+        Directory.CreateDirectory(internalDir);
+        File.WriteAllText(Path.Combine(internalDir, "build-report.json"), "secret");
+        try
+        {
+            var alias = Path.Combine(root, "public-reports");
+            try
+            {
+                Directory.CreateSymbolicLink(alias, internalDir);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                return; // symbolic links unavailable on this host; probe not applicable
+            }
+
+            // Confinement legitimately passes: the physical target stays inside the root.
+            var candidate = DevPathGuard.TryResolveWithinRoot(root, "/public-reports/build-report.json");
+            Assert.NotNull(candidate);
+            Assert.True(StaticServerInternalPathPolicy.IsInternalOutputPath(root, candidate!));
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void InternalPathPolicy_FileSymlinkAliasIntoBuildState_IsInternal()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), "bukit-dev-internal-alias-file-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(baseDir, "dist");
+        Directory.CreateDirectory(root);
+        var statePath = Path.Combine(root, ".bukit-build-state.json");
+        File.WriteAllText(statePath, "secret");
+        try
+        {
+            var alias = Path.Combine(root, "state-alias.json");
+            try
+            {
+                File.CreateSymbolicLink(alias, statePath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                return; // symbolic links unavailable on this host; probe not applicable
+            }
+
+            var candidate = DevPathGuard.TryResolveWithinRoot(root, "/state-alias.json");
+            Assert.NotNull(candidate);
+            Assert.True(StaticServerInternalPathPolicy.IsInternalOutputPath(root, candidate!));
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void InternalPathPolicy_SymlinkAliasToPublicContent_IsNotInternal()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), "bukit-dev-public-alias-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(baseDir, "dist");
+        var assetsDir = Path.Combine(root, "assets");
+        Directory.CreateDirectory(assetsDir);
+        File.WriteAllText(Path.Combine(assetsDir, "site.css"), "body{}");
+        try
+        {
+            var alias = Path.Combine(root, "styles");
+            try
+            {
+                Directory.CreateSymbolicLink(alias, assetsDir);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                return; // symbolic links unavailable on this host; probe not applicable
+            }
+
+            var candidate = DevPathGuard.TryResolveWithinRoot(root, "/styles/site.css");
+            Assert.NotNull(candidate);
+            Assert.False(StaticServerInternalPathPolicy.IsInternalOutputPath(root, candidate!));
+        }
+        finally
+        {
+            Directory.Delete(baseDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ResolveWatchDirs_DoesNotTreatPrefixSiblingAsThemeChild()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-dev-watch-" + Guid.NewGuid().ToString("N"));

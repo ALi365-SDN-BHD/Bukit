@@ -60,13 +60,13 @@ public static class PreviewCommand
 
         if (ShouldRefuseNonLoopbackHost(host, allowLan))
         {
-            Console.Error.WriteLine("bukit preview refused to bind a non-loopback host. Use --allow-lan to expose the preview server to your LAN.");
+            await Console.Error.WriteLineAsync("bukit preview refused to bind a non-loopback host. Use --allow-lan to expose the preview server to your LAN.");
             return 2;
         }
 
         if (DevCommand.IsLanExposureHost(host))
         {
-            Console.Error.WriteLine($"Warning: bukit preview is listening on non-loopback host '{host}'. Only use --allow-lan on trusted networks.");
+            await Console.Error.WriteLineAsync($"Warning: bukit preview is listening on non-loopback host '{host}'. Only use --allow-lan on trusted networks.");
         }
 
         if (!Directory.Exists(dir))

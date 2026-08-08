@@ -60,6 +60,30 @@ public sealed class PathUtilsTests : IDisposable
     }
 
     [Fact]
+    public void IsSameOrSubPathOf_LinkTargetTraversingAnotherLink_ResolvesToPhysicalTarget()
+    {
+        var real = Path.Combine(_rootDir, "real");
+        Directory.CreateDirectory(real);
+        var dataPath = Path.Combine(real, "data.txt");
+        File.WriteAllText(dataPath, "content");
+        var dirAlias = Path.Combine(_rootDir, "alias1");
+        var fileAlias = Path.Combine(_rootDir, "alias2.txt");
+        try
+        {
+            Directory.CreateSymbolicLink(dirAlias, real);
+            // The file link target itself routes through the directory link, so the
+            // verbatim target string still contains an unresolved link component.
+            File.CreateSymbolicLink(fileAlias, Path.Combine(dirAlias, "data.txt"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return; // symbolic links unavailable on this host; probe not applicable
+        }
+
+        Assert.True(PathUtils.IsSameOrSubPathOf(fileAlias, real));
+    }
+
+    [Fact]
     public void IsSubPathOf_WhitespacePath_Throws()
     {
         var parent = Path.Combine(_rootDir, "content");

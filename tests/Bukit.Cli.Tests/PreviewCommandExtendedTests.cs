@@ -713,6 +713,47 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Preview_DirectorySymlinkAliasIntoBukitDir_IsNotFound()
+    {
+        var internalDir = Path.Combine(_tempDir, ".bukit");
+        Directory.CreateDirectory(internalDir);
+        File.WriteAllText(Path.Combine(internalDir, "build-report.json"), "{\"secret\":\"provenance-token\"}");
+        try
+        {
+            Directory.CreateSymbolicLink(Path.Combine(_tempDir, "public-reports"), internalDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return; // symbolic links unavailable on this host; probe not applicable
+        }
+
+        var response = await SendRequestAsync("/public-reports/build-report.json", removeManagedAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.DoesNotContain("provenance-token", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Preview_FileSymlinkAliasIntoBuildState_IsNotFound()
+    {
+        var statePath = Path.Combine(_tempDir, ".bukit-build-state.json");
+        File.WriteAllText(statePath, "{\"secret\":\"state-token\"}");
+        try
+        {
+            File.CreateSymbolicLink(Path.Combine(_tempDir, "state-alias.json"), statePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return; // symbolic links unavailable on this host; probe not applicable
+        }
+
+        var response = await SendRequestAsync("/state-alias.json", removeManagedAnalytics: false);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.DoesNotContain("state-token", response.Body, StringComparison.Ordinal);
+    }
+
     private async Task<(HttpStatusCode StatusCode, string Body, string? ContentType)> SendRequestAsync(string path, bool removeManagedAnalytics)
     {
         var response = await SendRawRequestAsync(path, removeManagedAnalytics);
