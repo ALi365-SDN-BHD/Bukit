@@ -4,6 +4,7 @@
     <Project Path="tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj" />
     <Project Path="tests/Bukit.Clone.Tests/Bukit.Clone.Tests.csproj" />
     <Project Path="tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj" />
+    <Project Path="tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj" />
     <Project Path="tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj" />
     <Project Path="tests/Bukit.Engine.Abstractions.Tests/Bukit.Engine.Abstractions.Tests.csproj" />
     <Project Path="tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" />
