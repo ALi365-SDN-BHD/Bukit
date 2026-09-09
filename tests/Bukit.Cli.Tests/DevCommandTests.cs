@@ -1,3 +1,4 @@
+using Xunit.Abstractions;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Commands.Dev;
 using Bukit.Cli.Shared.Cli.Binding;
@@ -10,7 +11,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
-public sealed class DevCommandTests
+public sealed class DevCommandTests(ITestOutputHelper output)
 {
     [Fact]
     public async Task WaitForShutdownOrAcceptLoopAsync_AcceptLoopFaults_PropagatesBeforeCancellation()
@@ -32,6 +33,7 @@ public sealed class DevCommandTests
     {
         if (OperatingSystem.IsWindows())
         {
+            output.WriteLine("BUKIT_NOT_APPLICABLE: non-Windows case-sensitive comparison");
             return;
         }
 
@@ -69,14 +71,7 @@ public sealed class DevCommandTests
         try
         {
             var linkPath = Path.Combine(root, "public-link");
-            try
-            {
-                Directory.CreateSymbolicLink(linkPath, outside);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            Directory.CreateSymbolicLink(linkPath, outside);
 
             Assert.Null(DevPathGuard.TryResolveWithinRoot(root, "/public-link/secret.txt"));
             Assert.NotNull(DevPathGuard.TryResolveWithinRoot(root, "/index.html"));
@@ -100,14 +95,7 @@ public sealed class DevCommandTests
         try
         {
             var linkPath = Path.Combine(root, "page.html");
-            try
-            {
-                File.CreateSymbolicLink(linkPath, secretPath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            File.CreateSymbolicLink(linkPath, secretPath);
 
             Assert.Null(DevPathGuard.TryResolveWithinRoot(root, "/page.html"));
         }
@@ -128,14 +116,7 @@ public sealed class DevCommandTests
         try
         {
             var alias = Path.Combine(root, "public-reports");
-            try
-            {
-                Directory.CreateSymbolicLink(alias, internalDir);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            Directory.CreateSymbolicLink(alias, internalDir);
 
             // Confinement legitimately passes: the physical target stays inside the root.
             var candidate = DevPathGuard.TryResolveWithinRoot(root, "/public-reports/build-report.json");
@@ -159,14 +140,7 @@ public sealed class DevCommandTests
         try
         {
             var alias = Path.Combine(root, "state-alias.json");
-            try
-            {
-                File.CreateSymbolicLink(alias, statePath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            File.CreateSymbolicLink(alias, statePath);
 
             var candidate = DevPathGuard.TryResolveWithinRoot(root, "/state-alias.json");
             Assert.NotNull(candidate);
@@ -189,14 +163,7 @@ public sealed class DevCommandTests
         try
         {
             var alias = Path.Combine(root, "styles");
-            try
-            {
-                Directory.CreateSymbolicLink(alias, assetsDir);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            Directory.CreateSymbolicLink(alias, assetsDir);
 
             var candidate = DevPathGuard.TryResolveWithinRoot(root, "/styles/site.css");
             Assert.NotNull(candidate);

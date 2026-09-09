@@ -696,14 +696,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         try
         {
             var linkPath = Path.Combine(root, "public-link");
-            try
-            {
-                Directory.CreateSymbolicLink(linkPath, outside);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            Directory.CreateSymbolicLink(linkPath, outside);
 
             Assert.Null(DevPathGuard.TryResolveWithinRoot(root, "/public-link/secret.txt"));
         }
@@ -719,14 +712,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         var internalDir = Path.Combine(_tempDir, ".bukit");
         Directory.CreateDirectory(internalDir);
         File.WriteAllText(Path.Combine(internalDir, "build-report.json"), "{\"secret\":\"provenance-token\"}");
-        try
-        {
-            Directory.CreateSymbolicLink(Path.Combine(_tempDir, "public-reports"), internalDir);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            return; // symbolic links unavailable on this host; probe not applicable
-        }
+        Directory.CreateSymbolicLink(Path.Combine(_tempDir, "public-reports"), internalDir);
 
         var response = await SendRequestAsync("/public-reports/build-report.json", removeManagedAnalytics: false);
 
@@ -739,14 +725,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     {
         var statePath = Path.Combine(_tempDir, ".bukit-build-state.json");
         File.WriteAllText(statePath, "{\"secret\":\"state-token\"}");
-        try
-        {
-            File.CreateSymbolicLink(Path.Combine(_tempDir, "state-alias.json"), statePath);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            return; // symbolic links unavailable on this host; probe not applicable
-        }
+        File.CreateSymbolicLink(Path.Combine(_tempDir, "state-alias.json"), statePath);
 
         var response = await SendRequestAsync("/state-alias.json", removeManagedAnalytics: false);
 

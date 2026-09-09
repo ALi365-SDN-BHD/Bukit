@@ -1,15 +1,16 @@
+using Xunit.Abstractions;
 using Xunit;
 
 namespace Bukit.Shared.Tests;
 
-public sealed class PlatformPathHelperTests
+public sealed class PlatformPathHelperTests(ITestOutputHelper output)
 {
     [Fact]
     public void PathComparison_OnWindows_ReturnsOrdinalIgnoreCase()
     {
         if (!OperatingSystem.IsWindows())
         {
-            Assert.False(OperatingSystem.IsWindows(), "Test only runs on Windows");
+            output.WriteLine("BUKIT_NOT_APPLICABLE: Windows path comparison");
             return;
         }
 
@@ -21,7 +22,7 @@ public sealed class PlatformPathHelperTests
     {
         if (OperatingSystem.IsWindows())
         {
-            Assert.True(OperatingSystem.IsWindows(), "Test only runs on non-Windows");
+            output.WriteLine("BUKIT_NOT_APPLICABLE: non-Windows path comparison");
             return;
         }
 

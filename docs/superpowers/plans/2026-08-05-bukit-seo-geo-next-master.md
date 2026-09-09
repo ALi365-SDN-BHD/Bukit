@@ -1,5 +1,7 @@
 # Bukit SEO/GEO Next Master Implementation Plan
 
+> **历史计划：** 本文保留当时的范围、决策与执行记录；其中未勾选项和历史授权不代表当前状态或新的执行授权。当前质量改进状态与本轮验证证据见 [2026-09-09 质量改进执行记录](2026-09-09-bukit-quality-remediation.md)。已有实现与本轮验证分别记录，不据此补勾历史验收项。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 按严格顺序把 Bukit 从“生成机器可读内容”推进到“问题覆盖、来源可信、引用可观测、结果可验证”的离线闭环，同时保持 Core 确定性、无网络和无排名承诺。

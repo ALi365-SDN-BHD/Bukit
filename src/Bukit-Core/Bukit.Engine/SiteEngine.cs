@@ -46,8 +46,7 @@ public sealed class SiteEngine
 
     public Task<BuildResult> BuildAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken = default)
     {
-        var pipeline = new BuildPipeline(BuildCoreAsync);
-        return pipeline.ExecuteAsync(new BuildPipelineContext(config, rootDir, overrides), cancellationToken);
+        return BuildCoreAsync(config, rootDir, overrides, cancellationToken);
     }
 
     public static IReadOnlyList<RouteInfo> GetListRoutes(
@@ -125,13 +124,11 @@ public sealed class SiteEngine
 
     // -- core build orchestrator --
 
-    private async Task<BuildResult> BuildCoreAsync(BuildPipelineContext context, CancellationToken cancellationToken)
+    private async Task<BuildResult> BuildCoreAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken)
     {
         var buildLogger = new BuildDiagnosticLogger(_logger);
-        var plan = BuildPlanner.Plan(context.Config, context.RootDir, context.Overrides, buildLogger);
+        var plan = BuildPlanner.Plan(config, rootDir, overrides, buildLogger);
         var effectiveConfig = plan.EffectiveConfig;
-        var rootDir = context.RootDir;
-        var overrides = context.Overrides;
 
         var contentPipeline = new ContentPipeline(_contentProviderFactory, buildLogger);
         var contentResult = await contentPipeline.ExecuteAsync(effectiveConfig, rootDir, overrides, plan.MediaCacheDir, cancellationToken);
@@ -332,26 +329,6 @@ public sealed class SiteEngine
         WriteOutputMarker(outputDir);
         BuildRecoveryTracker.MarkCompleted(outputDir);
         return buildResult;
-    }
-
-    private static IReadOnlyList<ContentDocument> FilterDocumentsByLanguage(
-        IReadOnlyList<ContentDocument> documents,
-        string language,
-        string defaultLanguage)
-    {
-        return documents
-            .Where(document =>
-            {
-                var docLanguage = document.Record.Presentation.Language;
-                if (string.IsNullOrWhiteSpace(docLanguage) ||
-                    string.Equals(docLanguage, "und", StringComparison.OrdinalIgnoreCase))
-                {
-                    return string.Equals(language, defaultLanguage, StringComparison.OrdinalIgnoreCase);
-                }
-
-                return string.Equals(docLanguage, language, StringComparison.OrdinalIgnoreCase);
-            })
-            .ToArray();
     }
 
     private async Task<BuildVariantResult> BuildVariantAsync(

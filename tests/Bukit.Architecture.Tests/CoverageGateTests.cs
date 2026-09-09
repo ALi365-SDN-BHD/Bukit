@@ -41,6 +41,9 @@ public sealed class CoverageGateTests
         Assert.DoesNotContain("tests/Bukit.Importing.Tests", listProjects, StringComparison.Ordinal);
         Assert.DoesNotContain("tests/Bukit.Labs.Cli.Tests", listProjects, StringComparison.Ordinal);
         Assert.Contains("--collect:XPlat Code Coverage", runOne, StringComparison.Ordinal);
+        Assert.Equal(13, listProjects.Split('\n').Count(line => line.StartsWith("emit tests/", StringComparison.Ordinal)));
+        Assert.Equal(1, runOne.Split("dotnet test", StringSplitOptions.None).Length - 1);
+        Assert.Contains("trx;LogFileName=tests.trx", runOne, StringComparison.Ordinal);
         Assert.Contains("coverage.cobertura.xml", findResults, StringComparison.Ordinal);
         Assert.Contains("src/Bukit-Core", summarize, StringComparison.Ordinal);
         Assert.Contains("projectFloor", validatePolicy, StringComparison.Ordinal);
@@ -312,6 +315,8 @@ public sealed class CoverageGateTests
 
         if (!release)
         {
+            AssertRunContains(plan, "coverage-run-one-self-test.sh");
+            AssertCiExecutionContract(root, workflow);
             return;
         }
 
@@ -319,6 +324,67 @@ public sealed class CoverageGateTests
         {
             Assert.Contains("coverage-summary", Needs(Job(root, job)));
         }
+    }
+
+    [Theory]
+    [InlineData("needs: [coverage-plan, coverage-projects, coverage-summary, platform-tests]", "needs: [coverage-plan, coverage-projects, coverage-summary]")]
+    [InlineData("always() && (github.event_name", "(github.event_name")]
+    [InlineData("!= \"success\"", "== \"failure\"")]
+    [InlineData("coverage-run-one-self-test.sh", "missing-runner-owner.sh")]
+    [InlineData("ubuntu-24.04", "ubuntu-latest")]
+    [InlineData("macos-15", "macos-14")]
+    [InlineData("windows-2025", "windows-2022")]
+    [InlineData("Bukit.Shared.Tests.PlatformSafeSourceFileOpenerTests", "OmittedOpenerTests")]
+    [InlineData("inputs.gate == 'core' || inputs.gate == 'coverage'", "inputs.gate == 'core'")]
+    public void CiExecutionContract_RejectsMissingRequiredEvidence(string before, string after)
+    {
+        var workflow = ReadRepoFile(".github", "workflows", "ci.yaml");
+        var invalid = workflow.Replace(before, after, StringComparison.Ordinal);
+        Assert.NotEqual(workflow, invalid);
+        Assert.ThrowsAny<XunitException>(() => AssertCoverageWorkflowContract(invalid, release: false));
+    }
+
+    private static void AssertCiExecutionContract(YamlMappingNode root, string workflow)
+    {
+        const string coreTrigger = "github.event_name != 'workflow_dispatch' || inputs.gate == 'core'";
+        var core = Job(root, "core-tests");
+        Assert.Equal("Core tests", TryScalar(core, "name"));
+        Assert.Equal(["coverage-plan", "coverage-projects", "coverage-summary", "platform-tests"], Needs(core));
+        Assert.Equal("${{ always() && (" + coreTrigger + ") }}", TryScalar(core, "if"));
+        AssertRunContains(core, "required = [\"coverage-plan\", \"coverage-projects\", \"coverage-summary\", \"platform-tests\"]");
+        AssertRunContains(core, "needs.get(name, {}).get(\"result\") != \"success\"");
+        Assert.DoesNotContain("ci-full.sh", workflow, StringComparison.Ordinal);
+        Assert.Equal("${{ " + coreTrigger + " || inputs.gate == 'coverage' }}", TryScalar(Job(root, "coverage-plan"), "if"));
+        Assert.Null(TryScalar(Job(root, "fast-contracts"), "if"));
+        Assert.Equal("Fast contracts", TryScalar(Job(root, "fast-contracts"), "name"));
+        Assert.Equal("Core coverage", TryScalar(Job(root, "coverage-summary"), "name"));
+        var upload = Assert.Single(Steps(Job(root, "coverage-projects")), step => IsArtifact(step, "core-coverage-project-${{ matrix.name }}"));
+        Assert.Equal("always()", TryScalar(upload, "if"));
+        Assert.Null(TryScalar(upload, "continue-on-error"));
+
+        var platform = Job(root, "platform-tests");
+        Assert.Equal("${{ " + coreTrigger + " }}", TryScalar(platform, "if"));
+        Assert.Equal("${{ matrix.runner }}", TryScalar(platform, "runs-on"));
+        var matrix = Assert.IsType<YamlSequenceNode>(Get(Mapping(Mapping(platform, "strategy"), "matrix"), "include"));
+        Assert.Equal(
+            ["ubuntu-24.04/Linux/x64", "macos-15/Darwin/arm64", "windows-2025/Windows/x64"],
+            matrix.Children.Cast<YamlMappingNode>().Select(item => $"{TryScalar(item, "runner")}/{TryScalar(item, "os")}/{TryScalar(item, "arch")}"));
+        foreach (var name in new[]
+        {
+            "Bukit.PluginHost.Tests.SystemProcessRunnerTests", "Bukit.PluginHost.Tests.PluginPathValidatorTests",
+            "Bukit.Engine.Tests.ExternalToolProcessRunnerTests", "Bukit.Engine.Tests.SafeOutputFileSystemTests",
+            "Bukit.Engine.Tests.DirectoryCopyFollowSymlinksTests", "Bukit.Shared.Tests.PlatformPathHelperTests",
+            "Bukit.Shared.Tests.PathUtilsTests", "Bukit.Shared.Tests.PlatformSafeSourceFileOpenerTests",
+            "Bukit.Cli.Tests.PreviewCommandTests", "Bukit.Cli.Tests.PreviewCommandExtendedTests", "Bukit.Cli.Tests.DevCommandTests"
+        })
+            AssertRunContains(platform, name);
+        AssertRunContains(platform, "FullyQualifiedName~");
+        AssertRunContains(platform, "BUKIT_NOT_APPLICABLE:");
+        AssertRunContains(platform, "actual_os != expected_os or host_arch != expected_arch");
+        AssertRunContains(platform, "any(count == 0 for count in actual_by_class.values())");
+        AssertRunContains(platform, "get(\"outcome\") not in (\"Completed\", \"Passed\")");
+        Assert.DoesNotContain("--collect", string.Join("\n", Steps(platform).Select(step => TryScalar(step, "run"))), StringComparison.Ordinal);
+        Assert.Equal("always()", TryScalar(Assert.Single(Steps(platform), step => IsArtifact(step, "platform-${{ matrix.os }}-${{ matrix.arch }}")), "if"));
     }
 
     private static YamlMappingNode Job(YamlMappingNode root, string name)

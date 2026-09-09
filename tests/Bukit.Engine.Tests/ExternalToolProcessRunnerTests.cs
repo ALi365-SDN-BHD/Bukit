@@ -1,14 +1,32 @@
+using Xunit.Abstractions;
 using System.Diagnostics;
 using System.Text;
 using Bukit.Config;
 using Bukit.Shared;
 using Xunit;
-using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
-public sealed class ExternalToolProcessRunnerTests
+public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
 {
+    [Fact]
+    public async Task RunAsync_WindowsNativeProcess_CapturesOutputAndExitCode()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            output.WriteLine("BUKIT_NOT_APPLICABLE: Windows native process probe");
+            return;
+        }
+        var info = StartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"));
+        info.ArgumentList.Add("/d");
+        info.ArgumentList.Add("/c");
+        info.ArgumentList.Add("echo windows-out & echo windows-error 1>&2 & exit /b 7");
+        var result = await ExternalToolProcessRunner.RunAsync(info, TimeSpan.FromSeconds(10));
+        Assert.Equal(7, result.ExitCode);
+        Assert.Contains("windows-out", result.StandardOutput, StringComparison.Ordinal);
+        Assert.Contains("windows-error", result.StandardError, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void PrepareSetSidStartInfo_PreservesExecutableAndArgumentsWithoutShellJobControl()
     {
@@ -47,7 +65,7 @@ public sealed class ExternalToolProcessRunnerTests
     [Fact]
     public async Task MacWrapper_StatePathWithSingleQuote_StillPublishesPgidAndRunsTool()
     {
-        RequireUnix();
+        if (!RequireUnix()) return;
         var root = CreateTempDir();
         try
         {
@@ -87,7 +105,8 @@ public sealed class ExternalToolProcessRunnerTests
     {
         if (OperatingSystem.IsWindows())
         {
-            throw SkipException.ForSkip("This process-tree probe uses temporary Unix executables.");
+            output.WriteLine("BUKIT_NOT_APPLICABLE: POSIX process probe");
+            return;
         }
 
         var root = Path.Combine(Path.GetTempPath(), "bukit-exttool-tree-" + Guid.NewGuid().ToString("N"));
@@ -195,7 +214,7 @@ public sealed class ExternalToolProcessRunnerTests
     [Fact]
     public async Task RunAsync_FloodsStdoutAndStderr_CompletesWithoutDeadlock()
     {
-        RequireUnix();
+        if (!RequireUnix()) return;
         var root = CreateTempDir();
         try
         {
@@ -226,7 +245,7 @@ public sealed class ExternalToolProcessRunnerTests
     [Fact]
     public async Task RunAsync_TimesOut_KillsDescendantBeforeDelayedWrite()
     {
-        RequireUnix();
+        if (!RequireUnix()) return;
         var root = CreateTempDir();
         try
         {
@@ -254,7 +273,7 @@ public sealed class ExternalToolProcessRunnerTests
     [Fact]
     public async Task ScssCompiler_ExitZeroWithoutCss_PreservesSource()
     {
-        RequireUnix();
+        if (!RequireUnix()) return;
         var root = CreateTempDir();
         var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
@@ -334,7 +353,7 @@ public sealed class ExternalToolProcessRunnerTests
     [Fact]
     public async Task ScssCompiler_EntryPointUnset_CompilesAllFilesToStagingTree()
     {
-        RequireUnix();
+        if (!RequireUnix()) return;
         var root = CreateTempDir();
         var originalPath = Environment.GetEnvironmentVariable("PATH");
         try
@@ -375,7 +394,7 @@ public sealed class ExternalToolProcessRunnerTests
     [Fact]
     public async Task RunAsync_OutputBeyondLimit_TerminatesAndThrowsBoundedDiagnostic()
     {
-        RequireUnix();
+        if (!RequireUnix()) return;
         var root = CreateTempDir();
         try
         {
@@ -405,7 +424,7 @@ public sealed class ExternalToolProcessRunnerTests
     [Fact]
     public async Task ExternalTool_OutputBeyondLimit_TerminatesTreeAndReturnsBoundedDiagnostic()
     {
-        RequireUnix();
+        if (!RequireUnix()) return;
         var root = CreateTempDir();
         try
         {
@@ -437,7 +456,7 @@ public sealed class ExternalToolProcessRunnerTests
     [Fact]
     public async Task RunAsync_Timeout_WithInheritedPipes_ReturnsWithinDrainDeadline()
     {
-        RequireUnix();
+        if (!RequireUnix()) return;
         var root = CreateTempDir();
         try
         {
@@ -466,7 +485,7 @@ public sealed class ExternalToolProcessRunnerTests
     [Fact]
     public async Task RunAsync_ParentExitsWithInheritedPipe_ReturnsWithinDrainDeadline()
     {
-        RequireUnix();
+        if (!RequireUnix()) return;
         var root = CreateTempDir();
         try
         {
@@ -547,12 +566,11 @@ public sealed class ExternalToolProcessRunnerTests
     private static string PrependPath(string directory, string? originalPath) =>
         string.IsNullOrEmpty(originalPath) ? directory : directory + Path.PathSeparator + originalPath;
 
-    private static void RequireUnix()
+    private bool RequireUnix()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            throw SkipException.ForSkip("This process-tree probe uses temporary Unix executables.");
-        }
+        if (!OperatingSystem.IsWindows()) return true;
+        output.WriteLine("BUKIT_NOT_APPLICABLE: POSIX process probe");
+        return false;
     }
 
     private sealed class TwoPhaseReadStream(string first, string second) : Stream

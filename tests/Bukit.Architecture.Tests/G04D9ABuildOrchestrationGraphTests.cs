@@ -24,20 +24,18 @@ public sealed class G04D9ABuildOrchestrationGraphTests
         "Bukit.Engine.RoutePipelineResult";
     private const string CandidateManifestBlob =
         "7b07d6890562387010b52301e9f8716e9bf10ed1";
-    private const string CurrentBaselineStatement =
+    private const string HistoricalBaselineStatement =
         "The current public API baseline contains 425 types, including 0 `2.0-candidate` entries.";
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
-    public void ApprovedBuildOrchestrationTypes_ExistInternalSealedAndNotExported()
+    public void RetainedRouteOrchestrationTypes_ExistInternalSealedAndNotExported()
     {
         Assembly assembly = typeof(SiteEngine).Assembly;
         Type[] exported = assembly.GetExportedTypes();
 
         foreach (string typeName in new[]
                  {
-                     BuildPipelineTypeName,
-                     BuildPipelineContextTypeName,
                      RoutePipelineTypeName,
                      RoutePipelineResultTypeName
                  })
@@ -51,67 +49,19 @@ public sealed class G04D9ABuildOrchestrationGraphTests
     }
 
     [Fact]
-    public void InternalBuildPipelineGraph_KeepsConstructorExecutionAndContextShape()
+    public void RemovedBuildForwarders_AreAbsentAndPublicBuildEntryIsUnchanged()
     {
         Assembly assembly = typeof(SiteEngine).Assembly;
-        Type pipeline = GetType(assembly, BuildPipelineTypeName);
-        Type context = GetType(assembly, BuildPipelineContextTypeName);
-        Type executor = typeof(Func<,,>).MakeGenericType(
-            context,
-            typeof(CancellationToken),
-            typeof(Task<BuildResult>));
-
-        ConstructorInfo pipelineConstructor = Assert.Single(
-            pipeline.GetConstructors(
-                BindingFlags.Public |
-                BindingFlags.Instance |
-                BindingFlags.DeclaredOnly));
-        Assert.Equal(
-            [executor],
-            pipelineConstructor.GetParameters()
-                .Select(parameter => parameter.ParameterType)
-                .ToArray());
-
-        MethodInfo execute = Assert.Single(
-            pipeline.GetMethods(
-                BindingFlags.Public |
-                BindingFlags.Instance |
-                BindingFlags.DeclaredOnly),
-            method => method.Name == "ExecuteAsync");
-        Assert.Equal(typeof(Task<BuildResult>), execute.ReturnType);
-        Assert.Equal(
-            [context, typeof(CancellationToken)],
-            execute.GetParameters()
-                .Select(parameter => parameter.ParameterType)
-                .ToArray());
-        Assert.True(execute.GetParameters()[1].HasDefaultValue);
-        Assert.Null(execute.GetParameters()[1].DefaultValue);
-
-        ConstructorInfo contextConstructor = Assert.Single(
-            context.GetConstructors(
-                BindingFlags.Public |
-                BindingFlags.Instance |
-                BindingFlags.DeclaredOnly));
-        Assert.Equal(
-            [typeof(AppConfig), typeof(string), typeof(ConfigOverrides)],
-            contextConstructor.GetParameters()
-                .Select(parameter => parameter.ParameterType)
-                .ToArray());
-
-        PropertyInfo[] properties = context.GetProperties(
-                BindingFlags.Public |
-                BindingFlags.Instance |
-                BindingFlags.DeclaredOnly)
-            .Where(property =>
-                property.Name is "Config" or "RootDir" or "Overrides")
-            .OrderBy(property => property.Name, StringComparer.Ordinal)
-            .ToArray();
-        Assert.Equal(
-            ["Config", "Overrides", "RootDir"],
-            properties.Select(property => property.Name).ToArray());
-        Assert.Equal(
-            [typeof(AppConfig), typeof(ConfigOverrides), typeof(string)],
-            properties.Select(property => property.PropertyType).ToArray());
+        Assert.Null(assembly.GetType(BuildPipelineTypeName));
+        Assert.Null(assembly.GetType(BuildPipelineContextTypeName));
+        MethodInfo build = typeof(SiteEngine).GetMethod(
+            nameof(SiteEngine.BuildAsync),
+            [typeof(AppConfig), typeof(string), typeof(ConfigOverrides), typeof(CancellationToken)])!;
+        Assert.NotNull(build);
+        Assert.True(build.IsPublic);
+        Assert.Equal(typeof(Task<BuildResult>), build.ReturnType);
+        Assert.True(build.GetParameters()[3].HasDefaultValue);
+        Assert.Null(build.GetParameters()[3].DefaultValue);
     }
 
     [Fact]
@@ -385,8 +335,12 @@ public sealed class G04D9ABuildOrchestrationGraphTests
             string content = File.ReadAllText(
                 Path.Combine(RepoRoot, relativePath));
 
-            Assert.Contains(CurrentBaselineStatement, content);
+            Assert.Contains(HistoricalBaselineStatement, content);
+            Assert.Contains("**Current inventory:**", content, StringComparison.Ordinal);
+            Assert.Contains("machine-readable public API baseline", content, StringComparison.Ordinal);
+            Assert.Contains("Historical 425-type snapshot (not current):", content, StringComparison.Ordinal);
             Assert.Contains("G-04D9A", content, StringComparison.Ordinal);
+            Assert.Contains("`BuildPipeline` and `BuildPipelineContext` are removed", content, StringComparison.Ordinal);
             Assert.Contains(
                 "BuildPipeline",
                 content,

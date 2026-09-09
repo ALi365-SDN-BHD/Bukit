@@ -50,18 +50,166 @@ jobs:
   core-tests:
     name: Core tests
     runs-on: ubuntu-latest
+    needs: [coverage-plan, coverage-projects, coverage-summary, platform-tests]
+    if: ${{ always() && (github.event_name != 'workflow_dispatch' || inputs.gate == 'core') }}
+    timeout-minutes: 5
+    steps:
+      - name: Require all Core evidence
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY_CORE'
+          import json, os
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          required = ["coverage-plan", "coverage-projects", "coverage-summary", "platform-tests"]
+          failed = [name for name in required if needs.get(name, {}).get("result") != "success"]
+          if failed:
+              raise SystemExit("Required Core evidence failed, cancelled, skipped or missing: " + ", ".join(failed))
+          print("All required Core evidence succeeded")
+          PY_CORE
+
+  platform-tests:
+    name: "Platform: ${{ matrix.os }} ${{ matrix.arch }}"
+    runs-on: ${{ matrix.runner }}
     needs: fast-contracts
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.gate == 'core' }}
-    timeout-minutes: 45
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            os: Linux
+            arch: x64
+          - runner: macos-15
+            os: Darwin
+            arch: arm64
+          - runner: windows-2025
+            os: Windows
+            arch: x64
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
-      - name: Restore tests
-        run: dotnet restore bukit-test.slnx
-      - name: Run Core tests
-        run: BUKIT_CI_FULL_SKIP_FAST=1 bash scripts/gates/ci-full.sh Release
+      - name: Run non-instrumented platform specialties
+        shell: python
+        env:
+          EXPECTED_OS: ${{ matrix.os }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+          DOTNET_CLI_UI_LANGUAGE: en
+        run: |
+          import json, os, platform, re, subprocess, sys
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          results = Path(os.environ.get("BUKIT_PLATFORM_RESULTS", "TestResults/platform"))
+          results.mkdir(parents=True, exist_ok=True)
+          expected_os, expected_arch = os.environ["EXPECTED_OS"], os.environ["EXPECTED_ARCH"]
+          actual_os = platform.system()
+          info = subprocess.check_output(["dotnet", "--info"], text=True)
+          sdk = subprocess.check_output(["dotnet", "--version"], text=True).strip()
+          host_arch = re.search(r"Host:\s+.*?Architecture:\s+(\S+)", info, re.S).group(1).lower()
+          (results / "dotnet-info.txt").write_text(info, encoding="utf-8")
+          evidence = {"os": actual_os, "machine": platform.machine(), "processArchitecture": host_arch, "sdk": sdk, "projects": []}
+          (results / "platform.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+          if actual_os != expected_os or host_arch != expected_arch:
+              raise SystemExit("Platform verification gap: actual OS or .NET host architecture does not match matrix")
+          requested = json.loads(Path("global.json").read_text())["sdk"]
+          actual_version = tuple(map(int, sdk.split(".")))
+          minimum = tuple(map(int, requested["version"].split(".")))
+          if requested.get("rollForward") != "latestFeature" or actual_version[:2] != minimum[:2] or actual_version < minimum:
+              raise SystemExit("SDK does not satisfy global.json latestFeature policy")
+
+          classes = {
+              "Bukit.PluginHost.Tests": ["Bukit.PluginHost.Tests.SystemProcessRunnerTests", "Bukit.PluginHost.Tests.PluginPathValidatorTests"],
+              "Bukit.Engine.Tests": ["Bukit.Engine.Tests.ExternalToolProcessRunnerTests"],
+          }
+          if actual_os != "Linux":
+              classes["Bukit.Engine.Tests"] += ["Bukit.Engine.Tests.SafeOutputFileSystemTests", "Bukit.Engine.Tests.DirectoryCopyFollowSymlinksTests"]
+              classes["Bukit.Shared.Tests"] = ["Bukit.Shared.Tests.PlatformPathHelperTests", "Bukit.Shared.Tests.PathUtilsTests", "Bukit.Shared.Tests.PlatformSafeSourceFileOpenerTests"]
+              classes["Bukit.Cli.Tests"] = ["Bukit.Cli.Tests.PreviewCommandTests", "Bukit.Cli.Tests.PreviewCommandExtendedTests", "Bukit.Cli.Tests.DevCommandTests"]
+
+          posix_process_methods = {
+              "MacWrapper_StatePathWithSingleQuote_StillPublishesPgidAndRunsTool",
+              "RunAsync_ParentExitWithPipeChild_TerminatesTreeAndReaders",
+              "RunAsync_FloodsStdoutAndStderr_CompletesWithoutDeadlock",
+              "RunAsync_TimesOut_KillsDescendantBeforeDelayedWrite",
+              "ScssCompiler_ExitZeroWithoutCss_PreservesSource",
+              "ScssCompiler_EntryPointUnset_CompilesAllFilesToStagingTree",
+              "RunAsync_OutputBeyondLimit_TerminatesAndThrowsBoundedDiagnostic",
+              "ExternalTool_OutputBeyondLimit_TerminatesTreeAndReturnsBoundedDiagnostic",
+              "RunAsync_Timeout_WithInheritedPipes_ReturnsWithinDrainDeadline",
+              "RunAsync_ParentExitsWithInheritedPipe_ReturnsWithinDrainDeadline",
+          }
+          if actual_os == "Windows":
+              allowed_na = {"Bukit.Engine.Tests.ExternalToolProcessRunnerTests." + name for name in posix_process_methods} | {
+                  "Bukit.Shared.Tests.PlatformSafeSourceFileOpenerTests.Open_WhenTargetIsFifo_FailsClosedWithoutBlocking",
+                  "Bukit.Shared.Tests.PlatformPathHelperTests.PathComparison_OnNonWindows_ReturnsOrdinal",
+                  "Bukit.Cli.Tests.DevCommandTests.DevPathGuard_OnNonWindows_RejectsCaseDifferentSiblingEscape",
+              }
+          else:
+              allowed_na = {
+                  "Bukit.Engine.Tests.ExternalToolProcessRunnerTests.RunAsync_WindowsNativeProcess_CapturesOutputAndExitCode",
+                  "Bukit.Shared.Tests.PlatformPathHelperTests.PathComparison_OnWindows_ReturnsOrdinalIgnoreCase",
+              }
+
+          failed = []
+          for project, selected in classes.items():
+              output = results / project
+              output.mkdir(exist_ok=True)
+              trx = output / "tests.trx"
+              trx.unlink(missing_ok=True)
+              command = ["dotnet", "test", f"tests/{project}/{project}.csproj", "-c", "Release", "--filter", "|".join("FullyQualifiedName~" + name for name in selected), "--logger", "trx;LogFileName=tests.trx", "--results-directory", str(output)]
+              print("Running:", command, flush=True)
+              completed = subprocess.run(command)
+              record = {"project": project, "command": command, "exitCode": completed.returncode}
+              evidence["projects"].append(record)
+              try:
+                  root = ET.parse(trx).getroot()
+                  counters = root.find("{*}ResultSummary/{*}Counters")
+                  rows = root.findall("{*}Results/{*}UnitTestResult")
+                  methods = {test.get("id"): test.find("{*}TestMethod") for test in root.findall("{*}TestDefinitions/{*}UnitTest")}
+                  actual_by_class = dict.fromkeys(selected, 0)
+                  not_applicable = []
+                  for row in rows:
+                      if row.get("outcome") != "Passed":
+                          raise ValueError(f"Failed or unexpected skipped test: {row.get('testName')} ({row.get('outcome')})")
+                      method = methods[row.get("testId")]
+                      class_name = method.get("className").split(",")[0]
+                      method_name = class_name + "." + method.get("name")
+                      stdout = row.findtext("{*}Output/{*}StdOut", "")
+                      if class_name not in actual_by_class:
+                          raise ValueError("Unexpected selected class: " + class_name)
+                      if "BUKIT_NOT_APPLICABLE:" in stdout:
+                          if method_name not in allowed_na:
+                              raise ValueError("Unapproved platform N/A: " + method_name)
+                          not_applicable.append(method_name)
+                      else:
+                          actual_by_class[class_name] += 1
+                  record.update(executedByClass=actual_by_class, notApplicable=not_applicable)
+                  print(json.dumps(record, indent=2), flush=True)
+                  if any(count == 0 for count in actual_by_class.values()):
+                      raise ValueError("Selected class has no applicable executed tests")
+                  if (root.find("{*}ResultSummary").get("outcome") not in ("Completed", "Passed")
+                          or completed.returncode != 0 or int(counters.get("executed", "0")) != len(rows)
+                          or int(counters.get("total", "0")) != len(rows)
+                          or int(counters.get("passed", "0")) != len(rows)
+                          or any(int(counters.get(key, "0")) != 0 for key in ("failed", "error", "timeout", "aborted", "notExecuted"))):
+                      raise ValueError("Failed test process or invalid TRX counters")
+              except (OSError, ET.ParseError, AttributeError, KeyError, ValueError) as error:
+                  record["verificationGap"] = str(error)
+                  failed.append(project)
+                  print(f"{project}: verification gap: {error}", file=sys.stderr)
+              (results / "platform.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+          if failed:
+              raise SystemExit("Platform verification incomplete: " + ", ".join(failed))
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: platform-${{ matrix.os }}-${{ matrix.arch }}
+          path: TestResults/platform
+          if-no-files-found: error
 
   coverage-plan:
     name: Core coverage plan
@@ -78,6 +226,8 @@ jobs:
         run: bash scripts/checks/coverage/output-path-self-test.sh
       - name: Check coverage project list failures
         run: bash scripts/checks/coverage/project-list-self-test.sh
+      - name: Check coverage runner evidence
+        run: bash scripts/checks/coverage-run-one-self-test.sh
       - name: Check coverage matrix
         run: bash scripts/checks/coverage/matrix-self-test.sh
       - name: Check coverage summary thresholds
@@ -111,6 +261,7 @@ jobs:
           COVERAGE_FILTER: ${{ matrix.filter }}
         run: bash scripts/checks/coverage/run-one.sh Release "${{ matrix.project }}" TestResults/coverage/projects "$COVERAGE_FILTER"
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: core-coverage-project-${{ matrix.name }}
           path: TestResults/coverage/projects

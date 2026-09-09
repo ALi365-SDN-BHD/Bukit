@@ -45,10 +45,7 @@ public sealed class PluginPathValidatorTests
         string outsideRoot = System.IO.Path.Combine(directory.Path, "outside", "import");
         Directory.CreateDirectory(pluginsRoot);
         Directory.CreateDirectory(outsideRoot);
-        if (!TryCreateDirectorySymlink(System.IO.Path.Combine(pluginsRoot, "import"), outsideRoot))
-        {
-            return;
-        }
+        Directory.CreateSymbolicLink(System.IO.Path.Combine(pluginsRoot, "import"), outsideRoot);
 
         var validator = new PluginPathValidator();
 
@@ -103,10 +100,7 @@ public sealed class PluginPathValidatorTests
         Directory.CreateDirectory(outsideDirectory);
         string outsideExecutable = System.IO.Path.Combine(outsideDirectory, "plugin");
         File.WriteAllText(outsideExecutable, string.Empty);
-        if (!TryCreateFileSymlink(System.IO.Path.Combine(entryDirectory, "plugin"), outsideExecutable))
-        {
-            return;
-        }
+        File.CreateSymbolicLink(System.IO.Path.Combine(entryDirectory, "plugin"), outsideExecutable);
 
         var validator = new PluginPathValidator();
 
@@ -119,29 +113,4 @@ public sealed class PluginPathValidatorTests
         Assert.Contains("real path", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool TryCreateDirectorySymlink(string path, string target)
-    {
-        try
-        {
-            Directory.CreateSymbolicLink(path, target);
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryCreateFileSymlink(string path, string target)
-    {
-        try
-        {
-            File.CreateSymbolicLink(path, target);
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            return false;
-        }
-    }
 }

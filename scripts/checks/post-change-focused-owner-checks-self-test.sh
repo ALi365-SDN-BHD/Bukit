@@ -80,6 +80,12 @@ assert_count "$out" "bash scripts/build/native-aot-self-test.sh" 1
 out="$(bash "$script" --dry-run -- scripts/checks/coverage/list-core-projects.sh)"
 assert_count "$out" "bash scripts/checks/coverage/project-list-self-test.sh" 1
 
+out="$(bash "$script" --dry-run -- \
+  scripts/checks/coverage/run-one.sh scripts/checks/coverage-run-one-self-test.sh)"
+assert_count "$out" "bash scripts/checks/coverage-run-one-self-test.sh" 1
+assert_not_contains "$out" "project-list-self-test.sh"
+assert_not_contains "$out" "bash scripts/checks/coverage/run-one.sh"
+
 out="$(bash "$script" --dry-run -- scripts/checks/public-api-drift-self-test-policy.sh)"
 assert_count "$out" "bash scripts/checks/public-api-drift-self-test.sh" 1
 

@@ -1,5 +1,7 @@
 # Bukit Core Release Must-Fix Closure Implementation Plan
 
+> **历史计划：** 本文保留当时的范围、决策与执行记录；其中未勾选项和历史授权不代表当前状态或新的执行授权。当前质量改进状态与本轮验证证据见 [2026-09-09 质量改进执行记录](2026-09-09-bukit-quality-remediation.md)。已有实现与本轮验证分别记录，不据此补勾历史验收项。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 完整修复并验证 C-1、C-3、I-1、I-2、I-8，使五项原发布阻断问题在实现、直接消费者和回归测试层面全部闭合。

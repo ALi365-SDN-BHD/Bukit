@@ -1,12 +1,12 @@
+using Xunit.Abstractions;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Bukit.Shared.IO;
 using Xunit;
-using Xunit.Sdk;
 
 namespace Bukit.Shared.Tests;
 
-public sealed class PlatformSafeSourceFileOpenerTests : IDisposable
+public sealed class PlatformSafeSourceFileOpenerTests(ITestOutputHelper output) : IDisposable
 {
     private readonly List<string> _tempRoots = new();
 
@@ -53,7 +53,7 @@ public sealed class PlatformSafeSourceFileOpenerTests : IDisposable
     {
         if (!IsApprovedOpenerPlatform())
         {
-            throw SkipException.ForSkip("The platform has no approved safe source opener.");
+            Assert.Fail("Verification gap: no approved safe source opener for this platform.");
         }
 
         var root = CreateTempRoot();
@@ -78,21 +78,14 @@ public sealed class PlatformSafeSourceFileOpenerTests : IDisposable
     {
         if (!IsApprovedOpenerPlatform())
         {
-            throw SkipException.ForSkip("The platform has no approved safe source opener.");
+            Assert.Fail("Verification gap: no approved safe source opener for this platform.");
         }
 
         var root = CreateTempRoot();
         var target = Path.Combine(root, "target.txt");
         var link = Path.Combine(root, "link.txt");
         File.WriteAllText(target, "target");
-        try
-        {
-            File.CreateSymbolicLink(link, target);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
-        }
+        File.CreateSymbolicLink(link, target);
 
         Assert.Throws<IOException>(() =>
             new PlatformSafeSourceFileOpener().Open(link, root));
@@ -103,7 +96,7 @@ public sealed class PlatformSafeSourceFileOpenerTests : IDisposable
     {
         if (!IsApprovedOpenerPlatform())
         {
-            throw SkipException.ForSkip("The platform has no approved safe source opener.");
+            Assert.Fail("Verification gap: no approved safe source opener for this platform.");
         }
 
         var root = CreateTempRoot();
@@ -123,7 +116,8 @@ public sealed class PlatformSafeSourceFileOpenerTests : IDisposable
     {
         if (OperatingSystem.IsWindows())
         {
-            throw SkipException.ForSkip("POSIX FIFO proof does not apply on Windows.");
+            output.WriteLine("BUKIT_NOT_APPLICABLE: POSIX FIFO proof");
+            return;
         }
 
         var root = CreateTempRoot();
@@ -131,7 +125,7 @@ public sealed class PlatformSafeSourceFileOpenerTests : IDisposable
         const string mkfifoPath = "/usr/bin/mkfifo";
         if (!File.Exists(mkfifoPath))
         {
-            throw SkipException.ForSkip("/usr/bin/mkfifo is unavailable.");
+            Assert.Fail("Verification gap: /usr/bin/mkfifo is unavailable.");
         }
 
         using (var process = Process.Start(new ProcessStartInfo
@@ -144,7 +138,7 @@ public sealed class PlatformSafeSourceFileOpenerTests : IDisposable
             await process.WaitForExitAsync();
             if (process.ExitCode != 0)
             {
-                throw SkipException.ForSkip($"mkfifo failed with exit code {process.ExitCode}.");
+                Assert.Fail($"Verification gap: mkfifo failed with exit code {process.ExitCode}.");
             }
         }
 

@@ -738,6 +738,98 @@
         "dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj",
         "dotnet test tests/Bukit.Theme.Tests/Bukit.Theme.Tests.csproj"
       ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "quality-remediation-ci",
+      "matches": [
+        ".github/workflows/ci.yaml"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "bash scripts/checks/active-workflow-boundary-self-test.sh",
+        "bash scripts/checks/active-workflow-boundary.sh",
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "coverage-run-one",
+      "matches": [
+        "scripts/checks/coverage/run-one.sh"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "bash scripts/checks/coverage-run-one-self-test.sh",
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "coverage-run-one-owner",
+      "matches": [
+        "scripts/checks/coverage-run-one-self-test.sh"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/coverage-run-one-self-test.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "readme-cli-links",
+      "matches": [
+        "README.md",
+        "README.zh-CN.md",
+        "README.ms.md"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/cli-docs-sync.sh",
+        "bash scripts/checks/readme-sync.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "current-internal-contract",
+      "matches": [
+        "docs/governance/bukit-core-2.0-consumer-declaration.md",
+        "guide/dev/public-api-governance.md"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "bash scripts/checks/public-api-drift-self-test.sh",
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "quality-remediation-plan",
+      "matches": [
+        "docs/superpowers/plans/2026-09-09-bukit-quality-remediation.md"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/codex-workflow-self-test.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "historical-seo-plan",
+      "matches": [
+        "docs/superpowers/plans/2026-08-05-bukit-seo-geo-next-master.md"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ]
     }
   ],
   "resourceRules": [
