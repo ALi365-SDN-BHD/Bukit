@@ -19,6 +19,9 @@ internal sealed partial class VariantBuildPipeline
         var variantTotalStopwatch = Stopwatch.StartNew();
         var variantStageMetrics = new BuildStageMetricsCollector();
 
+        var media = context.Config.Content.Media.DownloadToLocal ? new ContentMediaOutput(context) : null;
+        if (media is not null)
+            context = context with { BodyStore = media, Documents = context.Documents.Select(document => media.NormalizeDocument(document)).ToArray() };
         Directory.CreateDirectory(context.OutputDir);
 
         var bootstrap = await BootstrapThemeAsync(
@@ -55,6 +58,17 @@ internal sealed partial class VariantBuildPipeline
                 dataModules.RouteMetadata)
         };
         ValidatePostDeriveRoutes(routePipelineResult);
+        if (media is not null)
+        {
+            for (var i = 0; i < routePipelineResult.PluginContext.DerivedDocuments.Count; i++)
+            {
+                var derived = routePipelineResult.PluginContext.DerivedDocuments[i];
+                routePipelineResult.PluginContext.DerivedDocuments[i] = derived with { Document = media.NormalizeDocument(derived.Document) };
+            }
+            foreach (var document in dataModules.DataDocuments) media.NormalizeDocument(document, collect: true);
+            await media.ResolveAsync(routePipelineResult.RouteResult.RoutedDocuments
+                .Concat(routePipelineResult.PluginContext.DerivedDocuments).Select(document => document.Document), cancellationToken);
+        }
 
         var rendererThemePlan = VariantRendererThemePlanner.Create(
             context,
@@ -84,6 +98,10 @@ internal sealed partial class VariantBuildPipeline
             rendererThemePlan.ParentThemeRootForTokens,
             logger);
 
+        renderAssetPlan = renderAssetPlan with
+        {
+            AssetPipelineContext = renderAssetPlan.AssetPipelineContext with { MediaOutputs = media?.Plan(cancellationToken) }
+        };
         var assetPipelinePreparation = await AssetPipeline.PrepareAsync(
             renderAssetPlan.AssetPipelineContext,
             cancellationToken);
@@ -150,12 +168,13 @@ internal sealed partial class VariantBuildPipeline
             AssetOutputPlan.Validate(plannedOutputs, assetPipelinePreparation.OutputPlan.DestinationComparer);
             var searchSnippets = templateResolver.TryResolveKindTemplate("search", out var searchTemplate) &&
                 TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
-            var projectionResults = new DefaultContentProjectionWriter().Write(new PublishProjectionContext(
+            var projectionResults = await new DefaultContentProjectionWriter().WriteAsync(new PublishProjectionContext(
                 context.Config, context.OutputDir, context.ContentGraph, seoStage.SeoResult.SeoIndex.Entries,
                 seoStage.SeoResult.SeoIndex.Models, routePipelineResult.PluginContext.RoutedDocuments,
                 context.BodyStore, context.BaseUrl, searchSnippets, logger,
                 routePipelineResult.RouteResult.ListRouteGraph,
-                DerivedDocuments: routePipelineResult.PluginContext.DerivedDocuments));
+                DerivedDocuments: routePipelineResult.PluginContext.DerivedDocuments), cancellationToken);
+            media?.ValidateOutputs(plannedOutputs);
             PublicOutputLifecycle.Record(manifestSetup.Manifest, context.OutputDir, plannedOutputs);
             var result = await VariantReportStage.ExecuteAsync(
                 context, routePipelineResult, seoStage.SeoResult, renderPipelineResult,

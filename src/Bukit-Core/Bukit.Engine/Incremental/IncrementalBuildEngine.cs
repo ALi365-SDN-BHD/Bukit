@@ -57,7 +57,7 @@ internal static class IncrementalBuildEngine
         out string contentHash)
     {
         contentHash = string.Empty;
-        if (bodyStore is LocalizedContentBodyStore)
+        if (bodyStore is LocalizedContentBodyStore or ContentMediaOutput)
         {
             return false;
         }

@@ -28,7 +28,8 @@ internal sealed record AssetPipelineContext(
     IReadOnlyList<RenderEntry>? RenderEntries = null,
     ConcurrentDictionary<string, BuildManifestEntry>? ManifestEntries = null,
     string? ScssOutputDir = null,
-    IReadOnlyList<AssetOutputItem>? ProjectionOutputs = null);
+    IReadOnlyList<AssetOutputItem>? ProjectionOutputs = null,
+    IReadOnlyList<AssetOutputItem>? MediaOutputs = null);
 
 internal sealed record AssetPipelineResult(
     BuildStageMetrics StageMetrics);

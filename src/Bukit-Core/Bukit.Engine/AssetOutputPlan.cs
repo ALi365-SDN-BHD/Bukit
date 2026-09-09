@@ -94,7 +94,11 @@ internal sealed class AssetOutputPlan
             IgnoreDotPrefixedFiles = true,
             FollowSymlinks = false
         };
-        AddDirectoryItems(effectiveItems, context.MediaDownloadDir, "assets/uploads", AssetOutputCategory.Media, mediaOptions, cancellationToken);
+        if (context.MediaOutputs is null)
+            AddDirectoryItems(effectiveItems, context.MediaDownloadDir, "assets/uploads", AssetOutputCategory.Media, mediaOptions, cancellationToken);
+        else
+            foreach (var item in context.MediaOutputs)
+                effectiveItems[(AssetOutputCategory.Media, item.Destination)] = item;
 
         if (tokens is not null)
         {

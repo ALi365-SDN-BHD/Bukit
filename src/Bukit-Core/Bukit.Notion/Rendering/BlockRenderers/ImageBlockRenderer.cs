@@ -22,7 +22,8 @@ public sealed class ImageBlockRenderer : INotionBlockRenderer
         }
 
         var captionText = image.TryGetProperty("caption", out var cap) ? NotionRichTextRenderer.Render(cap) : null;
-        var img = $"<img src=\"{WebUtility.HtmlEncode(safeUrl)}\" alt=\"\" />";
+        var alt = ExtractPlainText(cap).Trim();
+        var img = $"<img src=\"{WebUtility.HtmlEncode(safeUrl)}\" alt=\"{WebUtility.HtmlEncode(alt)}\" />";
         if (string.IsNullOrWhiteSpace(captionText))
         {
             return Task.FromResult<string?>(img);

@@ -78,7 +78,48 @@ public sealed class BlockRendererMediaAndContainerTests
 
         var html = await new ImageBlockRenderer().RenderAsync(doc.RootElement, null!, CancellationToken.None);
 
-        Assert.Equal("<figure><img src=\"https://cdn.example.com/image.png\" alt=\"\" /><figcaption>Hero image</figcaption></figure>", html);
+        Assert.Equal("<figure><img src=\"https://cdn.example.com/image.png\" alt=\"Hero image\" /><figcaption>Hero image</figcaption></figure>", html);
+    }
+
+    [Fact]
+    public async Task ImageBlockRenderer_RichCaption_EncodesPlainAltAndPreservesRichCaption()
+    {
+        using var doc = JsonDocument.Parse("""
+        {"image":{"type":"external","external":{"url":"https://cdn.example.com/a.png?x=1&y=2"},
+          "caption":[{"plain_text":"中文 \"引号\" <图> & ","annotations":{"bold":true}},
+                     {"plain_text":"说明","href":"https://example.com/","annotations":{"italic":true}}]}}
+        """);
+
+        var html = await new ImageBlockRenderer().RenderAsync(doc.RootElement, null!, CancellationToken.None);
+
+        Assert.Contains("alt=\"中文 &quot;引号&quot; &lt;图&gt; &amp; 说明\"", html);
+        Assert.Contains("<figcaption><strong>中文 &quot;引号&quot; &lt;图&gt; &amp; </strong>", html);
+        Assert.Contains("<em>", html);
+        Assert.Contains(">说明</a>", html);
+        Assert.Contains("href=\"https://example.com/\"", html);
+        Assert.Contains("src=\"https://cdn.example.com/a.png?x=1&amp;y=2\"", html);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("[{\"plain_text\":\" \\t\\n\"}]")]
+    public async Task ImageBlockRenderer_EmptyDescription_DoesNotInventAlt(string caption)
+    {
+        using var doc = JsonDocument.Parse("{\"image\":{\"type\":\"external\",\"external\":{\"url\":\"https://cdn.example.com/a.png\"},\"caption\":" + caption + "}}");
+        var html = await new ImageBlockRenderer().RenderAsync(doc.RootElement, null!, CancellationToken.None);
+        Assert.Equal("<img src=\"https://cdn.example.com/a.png\" alt=\"\" />", html);
+    }
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:text/html,<script>alert(1)</script>")]
+    public async Task ImageBlockRenderer_UnsafeUrlWithCaption_IsRejected(string url)
+    {
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(new
+        {
+            image = new { type = "external", external = new { url }, caption = new[] { new { plain_text = "中文描述" } } }
+        }));
+        Assert.Null(await new ImageBlockRenderer().RenderAsync(doc.RootElement, null!, CancellationToken.None));
     }
 
     [Fact]

@@ -10,7 +10,7 @@ namespace Bukit.Engine;
 
 internal interface IContentProjectionWriter
 {
-    IReadOnlyList<PublishProjectionResult> Write(PublishProjectionContext context);
+    Task<IReadOnlyList<PublishProjectionResult>> WriteAsync(PublishProjectionContext context, CancellationToken cancellationToken = default);
 }
 
 internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
@@ -41,8 +41,14 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
         _aggregateProjections = aggregateProjections;
     }
 
-    public IReadOnlyList<PublishProjectionResult> Write(PublishProjectionContext context)
+    public async Task<IReadOnlyList<PublishProjectionResult>> WriteAsync(PublishProjectionContext context, CancellationToken cancellationToken = default)
     {
+        // Use the same provider/variant body as rendering, including when HTML was skipped.
+        context = context with
+        {
+            RoutedDocuments = await ResolveBodiesAsync(context.RoutedDocuments),
+            DerivedDocuments = await ResolveBodiesAsync(context.DerivedDocuments)
+        };
         var results = new List<PublishProjectionResult>
         {
             _jsonProjection.Project(context),
@@ -55,6 +61,25 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
         }
 
         return results;
+
+        async Task<IReadOnlyList<RoutedContentDocument>> ResolveBodiesAsync(IReadOnlyList<RoutedContentDocument> documents)
+        {
+            var resolved = new List<RoutedContentDocument>(documents.Count);
+            foreach (var routed in documents)
+            {
+                var document = routed.Document;
+                var html = await ContentBodyResolver.GetHtmlAsync(document, context.BodyStore ?? NullContentBodyStore.Instance, cancellationToken);
+                resolved.Add(routed with
+                {
+                    Document = document with
+                    {
+                        Body = document.Body with { Html = html },
+                        Record = document.Record with { Presentation = document.Record.Presentation with { Body = html } }
+                    }
+                });
+            }
+            return resolved;
+        }
     }
 
     internal static IReadOnlyList<ContentProjectionDocumentContext> BuildDocumentContexts(PublishProjectionContext context)
