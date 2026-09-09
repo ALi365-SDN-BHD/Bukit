@@ -37,6 +37,8 @@ dotnet test "${args[@]}"
 
 python3 - "$results_dir/tests.trx" <<'PY_TRX'
 import sys
+import uuid
+from pathlib import Path
 import xml.etree.ElementTree as ET
 
 try:
@@ -58,6 +60,31 @@ try:
                      ("failed", "error", "timeout", "aborted", "inconclusive", "notRunnable", "disconnected")))
     if not valid:
         raise ValueError("no executed tests, failed/aborted results, or inconsistent counters")
+    # VSTest copies collector output into the TRX deployment directory. Keep
+    # that referenced attachment, removing only its byte-identical GUID original.
+    results = Path(sys.argv[1]).parent.resolve()
+    deployment = root.find("{*}TestSettings/{*}Deployment").get("runDeploymentRoot", "")
+    refs = summary.findall("{*}CollectorDataEntries/{*}Collector[@uri='datacollector://microsoft/CoverletCodeCoverage/1.0']/{*}UriAttachments/{*}UriAttachment/{*}A")
+    if len(refs) != 1:
+        raise ValueError("expected one TRX coverage attachment")
+    href = refs[0].get("href", "").replace("\\", "/")
+    parts = (deployment + "/In/" + href).split("/")
+    if len(parts) != 4 or any(part in ("", ".", "..") for part in parts) or parts[-1] != "coverage.cobertura.xml":
+        raise ValueError("invalid TRX coverage attachment path")
+    attachment = results.joinpath(*parts)
+    if attachment.resolve() != attachment or not attachment.is_file():
+        raise ValueError("missing or unsafe TRX coverage attachment")
+    originals = [path for path in results.rglob("coverage.cobertura.xml") if path != attachment]
+    if len(originals) > 1:
+        raise ValueError("unexpected additional coverage reports")
+    if originals:
+        original = originals[0]
+        if original.parent.parent != results or original.resolve() != original:
+            raise ValueError("unexpected or unsafe coverage original")
+        uuid.UUID(original.parent.name)
+        if original.read_bytes() != attachment.read_bytes():
+            raise ValueError("collector original and TRX coverage attachment differ")
+        original.unlink()
     print(f"TRX executed: {len(passed)}; skipped: {len(skipped)}")
 except (OSError, ET.ParseError, AttributeError, ValueError) as error:
     raise SystemExit(f"Invalid coverage TRX: {error}")

@@ -648,7 +648,9 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     [Fact]
     public async Task Preview_RejectsVeryLongPathWithoutCrash()
     {
-        var response = await SendRequestAsync("/" + new string('a', 1024), removeManagedAnalytics: false);
+        var longPath = "/" + string.Join("/", Enumerable.Repeat(new string('a', 128), 9));
+        Assert.True(longPath.Length > 1024);
+        var response = await SendRequestAsync(longPath, removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);

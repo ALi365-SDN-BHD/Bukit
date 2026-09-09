@@ -801,7 +801,6 @@ public sealed class DevCommandTests(ITestOutputHelper output)
     [Theory]
     [InlineData("/%252e%252e/")]
     [InlineData("/%5c..%5csecret")]
-    [InlineData("/%00")]
     public async Task DevRequestHandler_RejectsEncodedDotDotPath(string path)
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-traversal-" + Guid.NewGuid().ToString("N"));
@@ -831,12 +830,6 @@ public sealed class DevCommandTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task DevRequestHandler_RejectsNullByteEncodedPath()
-    {
-        await AssertDevTraversalRejectedAsync("/%00");
-    }
-
-    [Fact]
     public async Task DevRequestHandler_HandlesVeryLongPath()
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-long-" + Guid.NewGuid().ToString("N"));
@@ -844,7 +837,8 @@ public sealed class DevCommandTests(ITestOutputHelper output)
 
         try
         {
-            var longPath = "/" + new string('a', 1024);
+            var longPath = "/" + string.Join("/", Enumerable.Repeat(new string('a', 128), 9));
+            Assert.True(longPath.Length > 1024);
             var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 longPath,
@@ -888,7 +882,8 @@ public sealed class DevCommandTests(ITestOutputHelper output)
     [InlineData("/%252e%252e/")]
     [InlineData("/%5c..%5csecret")]
     [InlineData("/%EF%BC%8E%EF%BC%8E/secret")]
-    public void DevPathGuard_RejectsUnicodeAndEncodedTraversal(string path)
+    [InlineData("/%00")]
+    public void DevPathGuard_RejectsUnicodeEncodedTraversalAndNullByte(string path)
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-dev-path-guard-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -948,15 +943,22 @@ public sealed class DevCommandTests(ITestOutputHelper output)
 
         using var client = new HttpClient();
         var responseTask = client.GetAsync(host.Prefix);
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cts.Cancel();
+            Assert.NotSame(loopTask, await Task.WhenAny(loopTask, Task.Delay(100)));
 
-        cts.Cancel();
-        Assert.NotSame(loopTask, await Task.WhenAny(loopTask, Task.Delay(100)));
-
-        release.TrySetResult(true);
-        await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
-        using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            release.TrySetResult(true);
+            await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
+            using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        }
+        finally
+        {
+            release.TrySetResult(true);
+            cts.Cancel();
+        }
     }
 
     [Fact]
@@ -977,16 +979,24 @@ public sealed class DevCommandTests(ITestOutputHelper output)
 
         using var client = new HttpClient();
         var responseTask = client.GetAsync(host.Prefix);
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Task? disposeTask = null;
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            disposeTask = Task.Run(host.Dispose);
+            Assert.NotSame(disposeTask, await Task.WhenAny(disposeTask, Task.Delay(100)));
 
-        var disposeTask = Task.Run(host.Dispose);
-        Assert.NotSame(disposeTask, await Task.WhenAny(disposeTask, Task.Delay(100)));
-
-        release.TrySetResult(true);
-        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
-        await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
-        using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.True(response.IsSuccessStatusCode);
+            release.TrySetResult(true);
+            await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
+            await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
+            using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(response.IsSuccessStatusCode);
+        }
+        finally
+        {
+            release.TrySetResult(true);
+            await (disposeTask ?? Task.Run(host.Dispose)).WaitAsync(TimeSpan.FromSeconds(5));
+        }
     }
 
     [Fact]
@@ -1296,6 +1306,52 @@ public sealed class DevCommandTests(ITestOutputHelper output)
         return (string)method.Invoke(null, [extension])!;
     }
 
+    [Fact]
+    public async Task ProcessSingleRawRequestAsync_CancelsBlockedHandler()
+    {
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = ProcessSingleRawRequestAsync("/", async (context, cancellationToken) =>
+        {
+            entered.TrySetResult(true);
+            await release.Task.WaitAsync(cancellationToken);
+            context.Response.Close();
+        });
+
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                request.WaitAsync(TimeSpan.FromSeconds(8)));
+        }
+        finally
+        {
+            release.TrySetResult(true);
+            try { await request.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (OperationCanceledException) { }
+        }
+    }
+
+    [Fact]
+    public async Task ProcessSingleRawRequestAsync_RejectsResponseBeforeApplicationDispatch()
+    {
+        using var transport = StartListener(out var prefix, out _);
+        var handlerCalled = false;
+        var request = ProcessSingleRawRequestAsync(prefix, (_, _) =>
+        {
+            handlerCalled = true;
+            return Task.CompletedTask;
+        });
+        var context = await transport.GetContextAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        context.Response.StatusCode = 400;
+        context.Response.Close();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            request.WaitAsync(TimeSpan.FromSeconds(8)));
+        Assert.Contains("before application dispatch", error.Message, StringComparison.Ordinal);
+        Assert.False(handlerCalled);
+    }
+
     private static async Task<(HttpStatusCode StatusCode, string Body)> ProcessSingleRequestAsync(
         string path,
         Func<HttpListenerContext, CancellationToken, Task> handleAsync)
@@ -1309,16 +1365,46 @@ public sealed class DevCommandTests(ITestOutputHelper output)
         Func<HttpListenerContext, CancellationToken, Task> handleAsync)
     {
         using var listener = StartListener(out var prefix, out _);
-        using var client = new HttpClient();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var client = new HttpClient(new SocketsHttpHandler { UseProxy = false })
+        {
+            Timeout = Timeout.InfiniteTimeSpan
+        };
         var contextTask = listener.GetContextAsync();
-        var responseTask = client.GetAsync(new Uri(new Uri(prefix), path));
+        var responseTask = client.GetAsync(new Uri(new Uri(prefix), path), deadline.Token);
+        Task handlerTask = Task.CompletedTask;
+        try
+        {
+            var first = await Task.WhenAny(contextTask, responseTask).WaitAsync(deadline.Token);
+            if (first == responseTask)
+            {
+                using var rejected = await responseTask;
+                throw new InvalidOperationException(
+                    $"HTTP transport returned {rejected.StatusCode} before application dispatch.");
+            }
 
-        var context = await contextTask;
-        await handleAsync(context, CancellationToken.None);
-
-        using var response = await responseTask;
-        var body = await response.Content.ReadAsByteArrayAsync();
-        return (response.StatusCode, body, response.Content.Headers.ContentLength);
+            var context = await contextTask.WaitAsync(deadline.Token);
+            handlerTask = handleAsync(context, deadline.Token);
+            await handlerTask.WaitAsync(deadline.Token);
+            using var response = await responseTask.WaitAsync(deadline.Token);
+            var body = await response.Content.ReadAsByteArrayAsync(deadline.Token);
+            return (response.StatusCode, body, response.Content.Headers.ContentLength);
+        }
+        finally
+        {
+            deadline.Cancel();
+            listener.Close();
+            try
+            {
+                await Task.WhenAll(contextTask, responseTask, handlerTask).WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception) when (contextTask.IsCompleted && responseTask.IsCompleted && handlerTask.IsCompleted)
+            {
+                // Observe cancellation/close failures after the primary request result.
+            }
+            if (responseTask.IsCompletedSuccessfully)
+                responseTask.Result.Dispose();
+        }
     }
 
     [Fact]

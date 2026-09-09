@@ -189,6 +189,22 @@
 | P4 | README 权威链接、历史状态标识、当前 baseline 引用、指定措辞断言及测试指南已收敛；控制器专项复审已完成，无 Critical/Important/Minor 发现 | 当前 inventory 断言先 RED；Architecture 310、README/CLI docs、agent governance、API owner、workflow self-test 全通过；closure 无 unmapped | `P4-current-inventory-red.log`、`P4-*-green.log`、`P4-tests.json`、`P4-closure.json`、`P4-implementation.md`、`P4-review.md` |
 | 最终增量复审 | 控制器已完成唯一一次增量复审，无 Critical/Important/Minor 发现 | 37 个变更文件全部映射；跨批次契约与证据差异已核对 | `final-review-scope.json`、`final-content-deltas.json`、`final-static-checks.json`、`final-review.md` |
 
-总体状态：**PARTIAL**。五批本地实施、授权专项与最终增量复审已完成；远端三平台实测及实际完整的新 13 项 Core coverage 矩阵仍待另行授权验收。
+总体状态：**PARTIAL**。五批初始本地实施、授权专项与最终增量复审已完成。用户随后已授权验证分支提交/推送及草稿 PR；远端验证已开始，实际三平台和完整 coverage 汇总验收尚未完成。
 
 最终复审逐项核对旧缓存失效及当前内容差异：P0/P2/P3 后续差异仅为本计划状态文字；P1 后续文档、架构断言及平台测试差异分别由 P4、P3 验证覆盖。保留原始日志作为对应版本的证据，不将失效记录宣称为当前缓存命中；环境状态差异见 `final-cache-checks.json`。本次最终状态注记不增加运行时证据，也不为刷新注记重复 fixture 或重建缓存。
+
+### 远端集成修复 P3-CI
+
+草稿 PR #65、远端提交 `9595d6f`、首次运行 `34309836839`：13 个 coverage 项目测试均通过，但汇总检测到 26 份报告而非 13 份。新增 TRX logger 会把 collector 原始报告复制为 TRX 附件；本地真实 collector 单项测试重现了同一份报告的两个相同副本。远端 SDK 为 10.0.401，本地复现 SDK 为 10.0.100。
+
+修复仅在单项目 runner 中保留 TRX 声明的附件；只有本项目 GUID 原始报告与附件逐字节相同时才删除重复原件。额外报告、内容不一致、附件缺失、引用越界或符号链接均拒绝，不修改 `find-results.sh`、13 项清单、84%/70% 门槛或 TRX 证据。owner 用例先 RED 后 GREEN，真实 collector 修复后保留一份报告并通过原始计数检查；Architecture 310 通过，直接 owner 证据见 `P3-CI-tests.json`、`P3-CI-owner-green.log`。
+
+coverage 修复已通过控制器专项复审，待远端重跑；初始最终增量复审不视为本后续修复的复审证据。详细记录：`P3-CI-coverage-repair.md`、`P3-CI-closure.json`、`P3-CI-real-duplicate-proof.json`、`P3-CI-real-green-files.log`。
+
+### Windows 专项测试边界修复 P3-CI-Windows
+
+首次 Windows 运行长时间未产生日志，具体等待位置尚未确证。源码确认 Dev 测试 helper 可在客户端提前结束后无界等待应用 context；1024 字符单 URL 段及编码空字符也可能被 Windows HTTP.sys 先于应用拒绝。本修复不把这些源码风险宣称为该次远端等待的已证实根因。
+
+仅调整已批准的 Dev/Preview 测试：Dev 共享请求使用统一 5 秒截止、context/client 竞争、handler 与响应读取有界等待；提前响应明确失败，取消后关闭 listener 并有界观察任务结束。两项长路径改用 9 个 128 字符段，仍以真实 handler 验证总长超过 1024 的路径返回 404 且不泄漏路径；`/%00` 转入准确命名的 DevPathGuard 跨平台理论断言，其余可传输编码穿越继续通过 HTTP 验证 403。两项 shutdown 测试 finally 先释放受控 TCS，再完成取消/释放，保持真实等待断言。生产代码和 registry 未变。
+
+有界阻塞回归先在 8 秒外层截止 RED 并释放清理，修复后 5 秒取消 GREEN；真实早响应反例确认未经应用 handler 的 400 不视为成功。完整 CLI 987 项通过、零 skipped；workflow self-test 通过。证据见 `P3-CI-Windows-helper-red.log`、`P3-CI-Windows-helper-green.log`、`P3-CI-Windows-tests.json`、`P3-CI-Windows-closure.json`、`P3-CI-windows-test-repair.md` 和 `P3-CI-windows-test-review.md`。本批控制器专项复审已完成，新的真实 Windows 运行验收待完成，旧运行取消不计通过。
