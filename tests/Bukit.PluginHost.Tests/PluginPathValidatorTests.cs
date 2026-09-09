@@ -61,7 +61,7 @@ public sealed class PluginPathValidatorTests
     public void ValidatePluginEntry_AllowsRelativeEntryInsidePlugin(string entry)
     {
         using var directory = TestDirectory.Create();
-        string pluginRoot = System.IO.Path.Combine(directory.Path, "plugins/import");
+        string pluginRoot = System.IO.Path.Combine(directory.Path, "plugins", "import");
         Directory.CreateDirectory(pluginRoot);
         var validator = new PluginPathValidator();
 
@@ -80,7 +80,7 @@ public sealed class PluginPathValidatorTests
     public void ValidatePluginEntry_RejectsUnsafePaths(string entry)
     {
         using var directory = TestDirectory.Create();
-        string pluginRoot = System.IO.Path.Combine(directory.Path, "plugins/import");
+        string pluginRoot = System.IO.Path.Combine(directory.Path, "plugins", "import");
         Directory.CreateDirectory(pluginRoot);
         var validator = new PluginPathValidator();
 
@@ -93,7 +93,7 @@ public sealed class PluginPathValidatorTests
     public void ValidatePluginEntry_RejectsSymlinkEscapingPluginDirectory()
     {
         using var directory = TestDirectory.Create();
-        string pluginRoot = System.IO.Path.Combine(directory.Path, "plugins/import");
+        string pluginRoot = System.IO.Path.Combine(directory.Path, "plugins", "import");
         string entryDirectory = System.IO.Path.Combine(pluginRoot, "bin", "test-rid");
         string outsideDirectory = System.IO.Path.Combine(directory.Path, "outside");
         Directory.CreateDirectory(entryDirectory);

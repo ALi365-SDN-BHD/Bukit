@@ -622,9 +622,9 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     }
 
     [Fact]
-    public async Task Preview_RejectsBackslashTraversal()
+    public async Task Preview_RejectsDoubleEncodedBackslashTraversal()
     {
-        var response = await SendRequestAsync("/%5c..%5csecret", removeManagedAnalytics: false);
+        var response = await SendRequestAsync("/%255c..%255csecret", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);

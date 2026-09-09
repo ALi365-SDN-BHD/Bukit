@@ -208,3 +208,19 @@ coverage 修复已通过控制器专项复审，待远端重跑；初始最终�
 仅调整已批准的 Dev/Preview 测试：Dev 共享请求使用统一 5 秒截止、context/client 竞争、handler 与响应读取有界等待；提前响应明确失败，取消后关闭 listener 并有界观察任务结束。两项长路径改用 9 个 128 字符段，仍以真实 handler 验证总长超过 1024 的路径返回 404 且不泄漏路径；`/%00` 转入准确命名的 DevPathGuard 跨平台理论断言，其余可传输编码穿越继续通过 HTTP 验证 403。两项 shutdown 测试 finally 先释放受控 TCS，再完成取消/释放，保持真实等待断言。生产代码和 registry 未变。
 
 有界阻塞回归先在 8 秒外层截止 RED 并释放清理，修复后 5 秒取消 GREEN；真实早响应反例确认未经应用 handler 的 400 不视为成功。完整 CLI 987 项通过、零 skipped；workflow self-test 通过。证据见 `P3-CI-Windows-helper-red.log`、`P3-CI-Windows-helper-green.log`、`P3-CI-Windows-tests.json`、`P3-CI-Windows-closure.json`、`P3-CI-windows-test-repair.md` 和 `P3-CI-windows-test-review.md`。本批控制器专项复审已完成，新的真实 Windows 运行验收待完成，旧运行取消不计通过。
+
+### Windows 反斜杠传输输入修复 P3-CI-Backslash
+
+首轮 Windows 完整日志 `remote-platform-windows-first.log` 确认 Preview 单编码反斜杠用例在客户端响应先完成、应用 context 未到达的分支超时；日志没有记录该响应的状态码，后续长期等待的具体用例仍未确证。保留这份目标平台失败证据，同时记录当前 macOS 原始输入的 4 项通过基线。
+
+仅将 Dev theory、Dev fact、Preview fact 三处 HTTP 输入改为 `/%255c..%255csecret`，两个 fact 改名明确 DoubleEncodedBackslash；既有直接 DevPathGuard theory 保留原始 `/%5c..%5csecret`。已有三轮解码逻辑支持该输入，生产实现、helper、selector 均未改动。真实 handler 403 和无路径泄漏断言保持严格，不接受 400、不跳过测试。修复后 macOS 对应 4 项通过；双编码输入能否通过 Windows 原生传输到达应用仍须远端实测，不以本地通过代替。
+
+本批完整 CLI 987 项、workflow self-test 均通过，命令及结果见 `P3-CI-Backslash-tests.json`；闭包、精确测试差异和实施记录见 `P3-CI-Backslash-closure.json`、`P3-CI-Backslash-test-delta.patch`、`P3-CI-backslash-repair.md`。控制器专项复审已通过，见 `P3-CI-backslash-review.md`；远端验收待完成。
+
+### Windows 路径与 Dispose 契约修复 P3-CI-PlatformFix
+
+首轮及第二轮 Windows 日志均有相同三项 PluginPathValidator 失败，不能将首轮 PluginHost 记为通过：一项是 `/usr/local/bin/plugin` 根相对输入被清洗为相对路径接受；两项是 fixture 的混合分隔符与规范化结果进行字符串前缀比较。第二轮另确认 Dispose 测试在成功等待 dispose/loop 后，客户端遭遇 `HttpRequestException → IOException → SocketException` 连接重置；这一传输结果不等于 gate 提前释放。
+
+生产只将既有相对路径前置条件的 `IsPathFullyQualified` 换成 `IsPathRooted`，保留 Windows regex 和后续限制。三处测试 pluginRoot 改用平台路径组件。Dispose 测试使用既有 tracked-request 钩子，要求 entered、释放前 dispose 未完成、释放后真实 dispatch/loop/dispose 均成功且无日志错误；之后客户端成功仍须成功状态，仅 Windows 明确 `IOException → SocketException(ConnectionReset)` 可作为已停止传输的结果。没有 skip 或宽泛异常豁免。
+
+本地新增日志空断言先暴露受控 handler 在 Stop 后写已 disposed 响应的问题，见 `P3-CI-PlatformFix-dev-response-after-stop-red.log`。仅调整该 handler 在进入前设 204、释放后不再写响应，由 host.Dispose 负责传输关闭；真实 dispatch/gate 完成断言保留，随后定向通过。此修复不改变生产 shutdown 行为。PluginPathValidator 定向 16、Dispose 定向 1、完整 PluginHost 215、完整 CLI 987、API drift 零及 workflow self-test 均通过。完整命令与结果见 `P3-CI-PlatformFix-tests.json`；闭包、实施记录见 `P3-CI-PlatformFix-closure.json`、`P3-CI-platform-fix.md`。本批控制器复审与新的 Windows 运行验收待完成。

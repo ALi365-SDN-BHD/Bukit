@@ -800,7 +800,7 @@ public sealed class DevCommandTests(ITestOutputHelper output)
 
     [Theory]
     [InlineData("/%252e%252e/")]
-    [InlineData("/%5c..%5csecret")]
+    [InlineData("/%255c..%255csecret")]
     public async Task DevRequestHandler_RejectsEncodedDotDotPath(string path)
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-traversal-" + Guid.NewGuid().ToString("N"));
@@ -824,9 +824,9 @@ public sealed class DevCommandTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task DevRequestHandler_RejectsBackslashTraversal()
+    public async Task DevRequestHandler_RejectsDoubleEncodedBackslashTraversal()
     {
-        await AssertDevTraversalRejectedAsync("/%5c..%5csecret");
+        await AssertDevTraversalRejectedAsync("/%255c..%255csecret");
     }
 
     [Fact]
@@ -965,16 +965,17 @@ public sealed class DevCommandTests(ITestOutputHelper output)
     public async Task DevServerHost_Dispose_WaitsForDispatchBeforeDisposingRequestGate()
     {
         using var logger = new BufferingLogger();
-        var host = DevServerHost.Start("localhost", 0, logger);
+        var tracked = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var host = DevServerHost.Start("localhost", 0, logger, request => tracked.TrySetResult(request));
         var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var loopTask = host.RunAcceptLoopAsync(async context =>
         {
+            context.Response.StatusCode = 204;
             entered.TrySetResult(true);
             await release.Task;
-            context.Response.StatusCode = 204;
-            context.Response.Close();
+            // Dispose owns transport shutdown; the held dispatch only proves gate lifetime.
         }, CancellationToken.None);
 
         using var client = new HttpClient();
@@ -983,14 +984,33 @@ public sealed class DevCommandTests(ITestOutputHelper output)
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var dispatchTask = await tracked.Task.WaitAsync(TimeSpan.FromSeconds(5));
             disposeTask = Task.Run(host.Dispose);
             Assert.NotSame(disposeTask, await Task.WhenAny(disposeTask, Task.Delay(100)));
 
             release.TrySetResult(true);
             await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
             await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
-            using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.True(response.IsSuccessStatusCode);
+            await dispatchTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(dispatchTask.IsCompletedSuccessfully);
+            Assert.Empty(logger.Errors);
+            try
+            {
+                using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.True(response.IsSuccessStatusCode);
+            }
+            catch (HttpRequestException error) when (
+                OperatingSystem.IsWindows() &&
+                error.InnerException is IOException
+                {
+                    InnerException: System.Net.Sockets.SocketException
+                    {
+                        SocketErrorCode: System.Net.Sockets.SocketError.ConnectionReset
+                    }
+                })
+            {
+                output.WriteLine("HTTP.sys reset the client connection after successful dispatch drain and disposal.");
+            }
         }
         finally
         {
