@@ -180,6 +180,8 @@
 
 证据目录：`/tmp/codex-reports/bukit-remediation-20260909/`。外部日志是本次会话证据，未获得远端平台验证前不标整体完成。
 
+以下批次表及修复小节保留各阶段的当时状态，包括历史 `PARTIAL`、失败和“待验收”记录；当前最终结论见本节末尾“最终关闭”。
+
 | 批次 | 实现状态 | 当前验证 | 证据 |
 |---|---|---|---|
 | P0 | 精确映射、owner 路由及唯一计划已实施；控制器专项复审无阻塞发现 | 两个授权 self-test 均通过；RED 已确认；closure 无 unmapped | `P0-mapping-red.log`、`P0-owner-red.log`、`P0-workflow-green.log`、`P0-owner-green.log`、`P0-closure.json`、`P0-tests.json` |
@@ -189,7 +191,7 @@
 | P4 | README 权威链接、历史状态标识、当前 baseline 引用、指定措辞断言及测试指南已收敛；控制器专项复审已完成，无 Critical/Important/Minor 发现 | 当前 inventory 断言先 RED；Architecture 310、README/CLI docs、agent governance、API owner、workflow self-test 全通过；closure 无 unmapped | `P4-current-inventory-red.log`、`P4-*-green.log`、`P4-tests.json`、`P4-closure.json`、`P4-implementation.md`、`P4-review.md` |
 | 最终增量复审 | 控制器已完成唯一一次增量复审，无 Critical/Important/Minor 发现 | 37 个变更文件全部映射；跨批次契约与证据差异已核对 | `final-review-scope.json`、`final-content-deltas.json`、`final-static-checks.json`、`final-review.md` |
 
-总体状态：**PARTIAL**。五批初始本地实施、授权专项与最终增量复审已完成。用户随后已授权验证分支提交/推送及草稿 PR；远端验证已开始，实际三平台和完整 coverage 汇总验收尚未完成。
+阶段历史状态：**PARTIAL**。五批初始本地实施、授权专项与最终增量复审已完成。用户随后已授权验证分支提交/推送及草稿 PR；当时远端验证已开始，实际三平台和完整 coverage 汇总验收尚未完成。
 
 最终复审逐项核对旧缓存失效及当前内容差异：P0/P2/P3 后续差异仅为本计划状态文字；P1 后续文档、架构断言及平台测试差异分别由 P4、P3 验证覆盖。保留原始日志作为对应版本的证据，不将失效记录宣称为当前缓存命中；环境状态差异见 `final-cache-checks.json`。本次最终状态注记不增加运行时证据，也不为刷新注记重复 fixture 或重建缓存。
 
@@ -224,3 +226,23 @@ coverage 修复已通过控制器专项复审，待远端重跑；初始最终�
 生产只将既有相对路径前置条件的 `IsPathFullyQualified` 换成 `IsPathRooted`，保留 Windows regex 和后续限制。三处测试 pluginRoot 改用平台路径组件。Dispose 测试使用既有 tracked-request 钩子，要求 entered、释放前 dispose 未完成、释放后真实 dispatch/loop/dispose 均成功且无日志错误；之后客户端成功仍须成功状态，仅 Windows 明确 `IOException → SocketException(ConnectionReset)` 可作为已停止传输的结果。没有 skip 或宽泛异常豁免。
 
 本地新增日志空断言先暴露受控 handler 在 Stop 后写已 disposed 响应的问题，见 `P3-CI-PlatformFix-dev-response-after-stop-red.log`。仅调整该 handler 在进入前设 204、释放后不再写响应，由 host.Dispose 负责传输关闭；真实 dispatch/gate 完成断言保留，随后定向通过。此修复不改变生产 shutdown 行为。PluginPathValidator 定向 16、Dispose 定向 1、完整 PluginHost 215、完整 CLI 987、API drift 零及 workflow self-test 均通过。完整命令与结果见 `P3-CI-PlatformFix-tests.json`；闭包、实施记录见 `P3-CI-PlatformFix-closure.json`、`P3-CI-platform-fix.md`。本批控制器复审与新的 Windows 运行验收待完成。
+
+### 最终关闭（2026-09-09，本地证据注记）
+
+当前总体状态：**SUCCESS**。批准的五批改进、远端发现的限定修复及必要验收均已完成，无未关闭 Critical/Important/Minor 发现。[草稿 PR #65](https://github.com/ALi365-SDN-BHD/Bukit/pull/65) 的远端提交 `71c8a2fdabe50c466d1c2eb6c4b590fc305553cb` 在[第三轮 CI 34313388341](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/34313388341) 全部成功。
+
+- `Fast contracts` 成功，Architecture 310 项通过。
+- 13 个 Core coverage 项目共执行 5661 项测试，零失败、零跳过；总体覆盖率 **89.42%**，整体 84%/单项目 70% 门槛及恰好 13 份 coverage 文件检查全部通过。
+- 三平台完整指定类专项及 `Core tests` 汇总成功。实际 OS、.NET host 架构和 SDK **10.0.401** 已由运行脚本校验；`platform.json`、`dotnet-info.txt`、TRX 与 coverage 产物已上传。
+
+| 实际目标 | 适用用例通过 | 明确不适用 |
+|---|---:|---:|
+| Linux x64 | 57 | 1 |
+| macOS arm64 | 251 | 2 |
+| Windows x64 | 240 | 13 |
+
+不适用项按既定精确方法/OS 规则单独记录，不计入适用通过数。Windows 的根相对路径拒绝、双编码反斜杠真实 HTTP 403、Dispose 排空及其余要求的路径/进程/服务专项已在完整类中通过；前两轮失败和取消没有被计作通过。
+
+P0–P4 专项及一次最终增量复审已通过。所有后续限定修复也已通过控制器专项复审，见 `P3-CI-coverage-review.md`、`P3-CI-windows-test-review.md`、`P3-CI-backslash-review.md`、`P3-CI-platform-fix-review.md`。最终机器证据见 `remote-final-evidence.json`、`remote-platform-final-counts.json` 及 `remote-fast-third.log`、`remote-core-tests-third.log`、`remote-coverage-summary-third.log`、三份 `remote-platform-*-third.log`。
+
+本段是远端 `71c8a2f` 已通过之后的**本地收尾注记**，不再推送或触发 CI；本地实施内容与该远端版本仅此计划注记不同，远端 PR 描述由控制器同步。本次仅运行计划的直接 workflow owner 检查，不重跑 .NET/平台 fixture。未合并、发布或部署；第 5 节暂不实施事项保持原范围。

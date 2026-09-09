@@ -71,3 +71,6 @@ examples/silkroad_biz24/
 /.qoder
 coverage-results/
 coverage-results-filtered/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
