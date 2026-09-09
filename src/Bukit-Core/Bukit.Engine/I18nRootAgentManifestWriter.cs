@@ -47,13 +47,8 @@ internal sealed class I18nRootAgentManifestWriter : II18nRootProjectionWriter
                     record.Presentation.Language,
                     record.Trust.ReviewStatus,
                     PublicContentProjectionPolicy.SanitizeEntities(record).Select(x => x.Name).ToArray(),
-                    PrefixRepresentationUrls(
-                        result.BaseUrl,
-                        DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(
-                            record,
-                            mergedRoute,
-                            seoEntry,
-                            model)),
+                    DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(
+                        record, route with { Url = mergedRoute }, seoEntry, model, result.BaseUrl),
                     record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
             }
         }
@@ -61,17 +56,4 @@ internal sealed class I18nRootAgentManifestWriter : II18nRootProjectionWriter
         new AgentManifestProjection().Project(context.OutputDir, entries);
     }
 
-    private static IReadOnlyList<DefaultContentProjectionWriter.RepresentationEntry> PrefixRepresentationUrls(
-        string baseUrl,
-        IReadOnlyList<DefaultContentProjectionWriter.RepresentationEntry> representations)
-    {
-        return representations.Select(x => x.Kind switch
-        {
-            "json" or "markdown" => x with
-            {
-                Url = I18nRootProjectionPath.CombineBaseUrl(baseUrl, x.Url)
-            },
-            _ => x
-        }).ToArray();
-    }
 }

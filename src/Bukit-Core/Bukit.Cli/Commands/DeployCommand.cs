@@ -87,15 +87,21 @@ public static class DeployCommand
             ? Path.GetFullPath(effectiveOutput)
             : Path.GetFullPath(Path.Combine(resolved.RootDir, effectiveOutput));
 
-        if (skipBuild && !dryRun && !Directory.Exists(outputDir))
+        if (skipBuild && !Directory.Exists(outputDir))
         {
             logger.Error($"Output directory not found: {outputDir}");
             return 1;
         }
 
-        if (skipBuild && !dryRun && Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories).Length == 0)
+        if (skipBuild && Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories).Length == 0)
         {
             logger.Error($"Output directory is empty: {outputDir}");
+            return 1;
+        }
+
+        if (DeploymentReadinessValidator.Validate(outputDir) is { } readinessError)
+        {
+            logger.Error(readinessError);
             return 1;
         }
 
@@ -136,7 +142,7 @@ public static class DeployCommand
 
         if (result.Success)
         {
-            logger.Info($"Deployment complete. Site available at: {result.DeployedUrl}");
+            logger.Info($"Git push completed. Expected site URL (publication not verified): {result.DeployedUrl}");
             return 0;
         }
 

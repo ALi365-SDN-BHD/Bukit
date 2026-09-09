@@ -42,7 +42,8 @@ internal sealed record PublishRepresentationOutput(
     string Url,
     string Path,
     bool Exists,
-    bool Indexable);
+    bool Indexable,
+    string? DocumentRoute = null);
 
 internal sealed record PublishRepresentation(
     string Kind,
@@ -177,9 +178,15 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
     public PublishProjectionResult Project(PublishProjectionContext context)
     {
         ProjectAggregate(context);
-        var path = Path.Combine(context.OutputDir, Representation.Path);
+        var relativePath = Representation.Kind switch
+        {
+            "atom" => context.Config.Site.Feed.Path + "/atom.xml",
+            "jsonfeed" => context.Config.Site.Feed.Path + "/feed.json",
+            _ => Representation.Path
+        };
+        var path = FileWriter.GetSafeFullPath(context.OutputDir, relativePath);
         var text = File.Exists(path) ? File.ReadAllText(path) : null;
-        var outputs = BuildRouteOutputs(context, text, File.Exists(path));
+        var outputs = BuildRouteOutputs(context, text, File.Exists(path), relativePath);
         if (outputs.Count > 0)
         {
             return new PublishProjectionResult(Representation, outputs);
@@ -187,7 +194,7 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
 
         return new PublishProjectionResult(
             Representation,
-            [new PublishRepresentationOutput(Representation.Kind, "/" + Representation.Path.Replace('\\', '/'), Representation.Path, File.Exists(path), Indexable: false)]);
+            [new PublishRepresentationOutput(Representation.Kind, "/" + relativePath.Replace('\\', '/'), relativePath, File.Exists(path), Indexable: false)]);
     }
 
     protected abstract void ProjectAggregate(PublishProjectionContext context);
@@ -195,7 +202,8 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
     private IReadOnlyList<PublishRepresentationOutput> BuildRouteOutputs(
         PublishProjectionContext context,
         string? text,
-        bool fileExists)
+        bool fileExists,
+        string relativePath)
     {
         var outputs = new List<PublishRepresentationOutput>();
         foreach (var routedDocument in context.RoutedDocuments.Concat(context.DerivedDocuments)
@@ -212,7 +220,7 @@ internal abstract class AggregatePublishProjectionBase : IPublishProjection
             outputs.Add(new PublishRepresentationOutput(
                 Representation.Kind,
                 route.Url,
-                Representation.Path.Replace('\\', '/'),
+                relativePath.Replace('\\', '/'),
                 exists,
                 indexable));
         }

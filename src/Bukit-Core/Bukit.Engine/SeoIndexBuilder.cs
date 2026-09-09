@@ -23,7 +23,8 @@ internal static class SeoIndexBuilder
         ListRouteGraph? listRouteGraph = null,
         IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
         SearchActionDescriptor? searchAction = null,
-        BreadcrumbDescriptorCatalog? breadcrumbs = null)
+        BreadcrumbDescriptorCatalog? breadcrumbs = null,
+        DateTimeOffset? now = null)
     {
         var entries = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
@@ -56,7 +57,7 @@ internal static class SeoIndexBuilder
                 route,
                 model.Canonical,
                 model.Robots,
-                IsIndexableContent(document, model.Robots),
+                IsIndexableContent(document, model.Robots, now ?? DateTimeOffset.UtcNow),
                 SitemapPolicy.ResolveLastModified(document),
                 document.Id,
                 document.Record.Identity.ContentType,
@@ -231,7 +232,7 @@ internal static class SeoIndexBuilder
         return ListPageMetadataBuilder.BuildSummary(config.Site, route, pagination);
     }
 
-    private static bool IsIndexableContent(ContentDocument document, string? robots)
+    private static bool IsIndexableContent(ContentDocument document, string? robots, DateTimeOffset now)
     {
         if (!SeoModelBuilder.IsIndexable(robots))
         {
@@ -244,7 +245,7 @@ internal static class SeoIndexBuilder
             return false;
         }
 
-        return record.Lifecycle.ExpiresAt is null || record.Lifecycle.ExpiresAt > DateTimeOffset.UtcNow;
+        return record.Lifecycle.ExpiresAt is null || record.Lifecycle.ExpiresAt > now;
     }
 
     private static IReadOnlyDictionary<string, ContentField>? BuildListFields(

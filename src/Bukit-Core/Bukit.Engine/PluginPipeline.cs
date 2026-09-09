@@ -31,10 +31,8 @@ internal sealed class PluginPipeline
     {
         var metricsCollector = new BuildStageMetricsCollector();
 
-        if (ctx.IncrementalEnabled)
-        {
-            BuildManifestTracker.DeleteStaleManifestOutputs(ctx.OutputDir, ctx.Manifest, ctx.CurrentKeys, ctx.Logger);
-        }
+        foreach (var key in ctx.Manifest.Entries.Keys.Where(key => !ctx.CurrentKeys.ContainsKey(key)).ToArray())
+            ctx.Manifest.Entries.Remove(key);
 
         ctx.PluginContext.Data[BuildContextDataKeys.PriorPluginOutputs] = ctx.Manifest.PluginOutputs
             .Select(entry =>
@@ -58,7 +56,7 @@ internal sealed class PluginPipeline
             ctx.PluginContext,
             ctx.OutputDir,
             ctx.Manifest,
-            ctx.IncrementalEnabled,
+            false,
             ctx.Logger,
             ctx.Config.Build.FingerprintMode,
             cancellationToken: cancellationToken);
@@ -67,7 +65,6 @@ internal sealed class PluginPipeline
 
         if (ctx.IncrementalEnabled)
         {
-            ctx.Manifest.Save(ctx.ManifestPath);
             ctx.Logger.Info($"Incremental build: rendered={ctx.RenderedCount}, skipped={ctx.SkippedCount}, cache={Path.GetDirectoryName(ctx.ManifestPath)}");
         }
 

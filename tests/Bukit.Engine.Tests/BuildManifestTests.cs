@@ -9,6 +9,35 @@ namespace Bukit.Engine.Tests;
 
 public sealed class BuildManifestTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData(",\"ownedOutputs\":null")]
+    [InlineData(",\"ownedOutputs\":[\"a.json\",3]")]
+    public void Load_CorruptOwnershipIsNotTrusted(string ownership)
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "{\"version\":3,\"outputRoot\":\"/tmp/output\"" + ownership + "}");
+            Assert.Empty(BuildManifest.Load(path).OutputRoot);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void SaveAndLoad_EmptyOwnershipRetainsRoot()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            new BuildManifest { OutputRoot = "/tmp/output" }.Save(path);
+            var loaded = BuildManifest.Load(path);
+            Assert.Equal("/tmp/output", loaded.OutputRoot);
+            Assert.Empty(loaded.OwnedOutputs);
+        }
+        finally { File.Delete(path); }
+    }
+
     [Fact]
     public void TrackAssetPlanOutputs_Sha256LargeFile_UsesBoundedAllocation()
     {
@@ -252,7 +281,7 @@ public sealed class BuildManifestTests
         manifest.Save(manifestPath);
         var loaded = BuildManifest.Load(manifestPath);
 
-        Assert.Equal(2, loaded.Version);
+        Assert.Equal(3, loaded.Version);
         Assert.Equal("meta-v1", loaded.Entries["pages/hello/index.html"].MetadataHash);
     }
 

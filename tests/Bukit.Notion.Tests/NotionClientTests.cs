@@ -524,6 +524,61 @@ public sealed class NotionClientTests
         Assert.Equal(1, handler.DisposeCount);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ResponseBody_TimeoutAndCallerCancellation(bool callerCancels)
+    {
+        using var content = new BlockingContent();
+        var handler = new SequenceHandler(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+        using var http = new HttpClient(handler);
+        using var client = new NotionClient(
+            new NotionClientOptions { Token = "body-secret", Timeout = callerCancels ? TimeSpan.FromSeconds(10) : TimeSpan.FromMilliseconds(100), MaxRetries = 2 },
+            http, (_, _) => Task.CompletedTask, () => DateTimeOffset.UtcNow, ownsHttpClient: false);
+        using var cancellation = new CancellationTokenSource();
+        var request = client.GetAsync(NotionApiUrls.Database("db"), cancellation.Token);
+        await content.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        if (callerCancels)
+        {
+            cancellation.Cancel();
+            var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request.WaitAsync(TimeSpan.FromSeconds(3)));
+            Assert.Equal(cancellation.Token, error.CancellationToken);
+        }
+        else
+        {
+            var error = await Assert.ThrowsAsync<NotionApiException>(() => request.WaitAsync(TimeSpan.FromSeconds(3)));
+            Assert.Equal(NotionApiErrorKind.Transport, error.Kind);
+            Assert.DoesNotContain("body-secret", error.ToString());
+        }
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task ResponseBody_IOExceptionIsSafeTransportFailure()
+    {
+        var handler = new SequenceHandler(new HttpResponseMessage(HttpStatusCode.OK) { Content = new BlockingContent(fail: true) });
+        using var http = new HttpClient(handler);
+        using var client = CreateClient("body-secret", http);
+        var error = await Assert.ThrowsAsync<NotionApiException>(() => client.GetAsync(NotionApiUrls.Database("db")));
+        Assert.Equal(NotionApiErrorKind.Transport, error.Kind);
+        Assert.DoesNotContain("body-secret", error.ToString());
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    private sealed class BlockingContent(bool fail = false) : HttpContent
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        protected override bool TryComputeLength(out long length) { length = 0; return false; }
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+            => SerializeToStreamAsync(stream, context, CancellationToken.None);
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            if (fail) throw new IOException("https://api.notion.com/body-secret");
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+    }
+
     private static NotionClient CreateClient(
         string token,
         HttpClient http,

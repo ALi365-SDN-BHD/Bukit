@@ -9,7 +9,9 @@ internal enum AssetOutputCategory
     Assets,
     Media,
     Tokens,
-    Render
+    Render,
+    Projection,
+    Plugin
 }
 
 internal enum AssetOutputOperation
@@ -120,11 +122,15 @@ internal sealed class AssetOutputPlan
             }
         }
 
-        var items = effectiveItems.Values
+        var items = effectiveItems.Values.Concat((context.ProjectionOutputs ?? Array.Empty<AssetOutputItem>())
+            .Where(item => item.Destination != "robots.txt" || !effectiveItems.Values.Any(existing => existing.Category == AssetOutputCategory.Static && existing.Destination == "robots.txt")))
+            .Where(item => item.Category != AssetOutputCategory.Projection || item.Destination != "robots.txt" ||
+                context.Manifest.OwnedOutputs.Contains("robots.txt") || !File.Exists(Path.Combine(context.OutputDir, "robots.txt")))
             .OrderBy(item => item.Destination, comparer)
             .ThenBy(item => item.Category)
             .ThenBy(item => item.Source, StringComparer.Ordinal)
             .ToArray();
+        foreach (var item in items) FileWriter.GetSafeFullPath(context.OutputDir, item.Destination);
         Validate(items, comparer);
         return new AssetOutputPlan(items, comparer);
     }
@@ -204,7 +210,7 @@ internal sealed class AssetOutputPlan
         return destinations;
     }
 
-    private static void Validate(IReadOnlyList<AssetOutputItem> items, StringComparer comparer)
+    internal static void Validate(IReadOnlyList<AssetOutputItem> items, StringComparer comparer)
     {
         var exactCollision = items
             .GroupBy(item => item.Destination, comparer)

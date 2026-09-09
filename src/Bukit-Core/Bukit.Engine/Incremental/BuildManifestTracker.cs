@@ -71,11 +71,10 @@ internal static class BuildManifestTracker
         {
             cancellationToken.ThrowIfCancellationRequested();
             var fullPath = outputFileSystem.GetSafeFullPath(stale);
-            if (File.Exists(fullPath))
-            {
-                File.Delete(fullPath);
-                DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
-            }
+            PublicOutputLifecycle.DeleteOwnedFile(outputDir, stale);
+            manifest.Static.Remove(stale);
+            manifest.Assets.Remove(stale);
+            manifest.Media.Remove(stale);
         }
 
         foreach (var staleEntry in blockingStaleRenderEntries)
@@ -218,19 +217,7 @@ internal static class BuildManifestTracker
         foreach (var kv in removed)
         {
             var relativePath = string.IsNullOrWhiteSpace(kv.Value.OutputPath) ? kv.Key : kv.Value.OutputPath;
-            try
-            {
-                var fullPath = FileWriter.GetSafeFullPath(outputDir, relativePath, pathPolicy);
-                if (File.Exists(fullPath))
-                {
-                    File.Delete(fullPath);
-                    DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                logger.Warn($"Failed to delete stale output '{relativePath}': {ex.Message}");
-            }
+            PublicOutputLifecycle.DeleteOwnedFile(outputDir, relativePath);
 
             manifest.Entries.Remove(kv.Key);
         }
@@ -321,19 +308,7 @@ internal static class BuildManifestTracker
                      .Where(key => !current.ContainsKey(key) && currentDestinations?.Contains(key) != true)
                      .ToList())
         {
-            try
-            {
-                var fullPath = outputFileSystem.GetSafeFullPath(stale);
-                if (File.Exists(fullPath))
-                {
-                    File.Delete(fullPath);
-                    DeleteEmptyDirectoriesUpToRoot(Path.GetDirectoryName(fullPath), outputDir);
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
-            {
-                logger.Warn($"Failed to delete stale {kind} output '{stale}': {ex.Message}");
-            }
+            PublicOutputLifecycle.DeleteOwnedFile(outputDir, stale);
         }
     }
 

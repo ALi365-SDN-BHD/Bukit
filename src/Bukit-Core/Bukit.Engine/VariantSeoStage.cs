@@ -57,7 +57,8 @@ internal static class VariantSeoStage
             routeResult.ListRouteGraph,
             routeMetadata,
             searchAction,
-            breadcrumbs);
+            breadcrumbs,
+            context.BuildStartedAt);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
         pluginContext.Data[BuildContextDataKeys.SeoModels] = seoResult.SeoIndex.Models;
 

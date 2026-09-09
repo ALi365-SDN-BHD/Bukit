@@ -9,7 +9,7 @@ machine-readable projections.
 |---|---|
 | `index.html` and route `index.html` files | Rendered HTML pages. |
 | `assets/` | Theme assets and localized media. |
-| `content/*.json` and `content/*.md` | Per-document public machine-readable projections. |
+| `content/<route-output-path>.json` and `content/<route-output-path>.md` | Per-document public machine-readable projections. |
 | `agent-manifest.json` | Public representation inventory for agents and compatible plugins. |
 | `.bukit/build-report.json` | Build summary, timings, render counts, diagnostic counts, and public output inventory. |
 | `.bukit/routes.json` | Route inventory. |
@@ -85,6 +85,40 @@ it has UUID syntax.
 
 ## Plugin Outputs
 
-Built-in after-build plugins write aggregate outputs. External dynamic plugin
+The output stage writes public projections and aggregates. Built-in after-build
+plugins also produce tracked outputs such as taxonomy data, feeds and redirects. External dynamic plugin
 commands may write artifacts when invoked, but they are not part of the static
 Core build output contract.
+
+### Document Projection Migration and Build Recovery
+
+JSON and Markdown use the complete validated HTML output filename: `news/acme/index.html`
+produces `content/news/acme/index.html.json` and `.md`. Collections with the same slug
+use their own routes. HTML URLs, public IDs, JSON fields and plugin protocols are unchanged.
+Language directories remain outside `content/`: with `/docs/` and language `en`, the file
+`en/content/news/acme/index.html.json` is addressed at
+`/docs/en/content/news/acme/index.html.json`. URL path segments are encoded once.
+The agent manifest and audit output list the computed representation URLs.
+
+Old slug-only JSON/Markdown URLs are replaced; ambiguous aliases are not retained.
+Update clients to use `agent-manifest.json`. Published-site URL replacement is a separate
+deployment task. The internal build manifest now uses version 3 to track owned public
+outputs. Upgrading an older or invalid ownership manifest triggers one clean rebuild,
+protected by the existing output marker. A nonempty directory without that marker cannot
+be automatically cleaned; select a new dedicated empty output directory. The build does
+not guess ownership from old filenames. During ordinary builds, only previously tracked
+outputs are removed; untracked user files remain.
+
+Draft exclusion or deletion withdraws HTML, JSON and Markdown on the next successful
+build. Expired and noindex documents retain these files but are excluded from indexing
+aggregates such as sitemap, search, feeds and agent manifest. Expiration is not withdrawal.
+Disabling an output, removing a collection or removing a language also removes its previously
+owned files. Cleanup failure fails the build and preserves the last committed ownership.
+
+All language outputs, root aggregates, reports, required validation and resource cleanup
+must succeed before manifests and completed build state are committed. Failed local output
+may be partial; whole-site staging is not implemented. A marked managed directory can be
+cleaned for recovery. A first failed build without a marker requires a new empty directory.
+All deployment entry points, including skip-build and dry-run, require recognized completed
+state; old audit reports do not prove readiness. A successful Git push confirms transfer,
+not that the hosted site has finished publishing.

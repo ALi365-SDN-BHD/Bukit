@@ -4,7 +4,7 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal static class TaxonomyRedirectWriter
 {
-    internal static void WriteRedirects(string outputDir, string kind, Dictionary<string, TaxonomyTerm> terms, string? routePrefix = null)
+    internal static void WriteRedirects(string outputDir, string kind, Dictionary<string, TaxonomyTerm> terms, string? routePrefix = null, ICollection<string>? generatedPaths = null)
     {
         var normalizedRoutePrefix = TaxonomyPageCreator.NormalizeRoutePrefix(kind, routePrefix);
         foreach (var term in terms.Values)
@@ -34,7 +34,9 @@ internal static class TaxonomyRedirectWriter
                 Directory.CreateDirectory(aliasDir);
 
                 var html = RenderRedirect(targetUrl);
-                File.WriteAllText(Path.Combine(aliasDir, "index.html"), html, Encoding.UTF8);
+                var path = Path.Combine(aliasDir, "index.html");
+                File.WriteAllText(path, html, Encoding.UTF8);
+                generatedPaths?.Add(BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(outputDir, path)));
             }
         }
     }

@@ -4,7 +4,9 @@ namespace Bukit.Engine.Incremental;
 
 public sealed class BuildManifest
 {
-    public int Version { get; set; } = 2;
+    public int Version { get; set; } = 3;
+    internal string OutputRoot { get; set; } = string.Empty;
+    internal HashSet<string> OwnedOutputs { get; set; } = new(StringComparer.Ordinal);
     public string TemplateHash { get; set; } = string.Empty;
     public Dictionary<string, BuildManifestEntry> Entries { get; set; } = new(StringComparer.Ordinal);
     public Dictionary<string, string> Media { get; set; } = new(StringComparer.Ordinal);
@@ -32,10 +34,9 @@ public sealed class BuildManifest
                 return new BuildManifest();
             }
 
-            if (root.TryGetProperty("version", out var versionProp) && versionProp.ValueKind == JsonValueKind.Number)
-            {
-                manifest.Version = versionProp.GetInt32();
-            }
+            manifest.Version = root.TryGetProperty("version", out var versionProp) &&
+                versionProp.ValueKind == JsonValueKind.Number && versionProp.TryGetInt32(out var version)
+                ? version : 0;
 
             if (root.TryGetProperty("templateHash", out var templateHashProp) && templateHashProp.ValueKind == JsonValueKind.String)
             {
@@ -69,6 +70,13 @@ public sealed class BuildManifest
                 }
             }
 
+            if (manifest.Version == 3 && root.TryGetProperty("ownedOutputs", out var owned) &&
+                owned.ValueKind == JsonValueKind.Array && owned.EnumerateArray().All(item => item.ValueKind == JsonValueKind.String))
+            {
+                manifest.OutputRoot = GetString(root, "outputRoot") ?? string.Empty;
+                foreach (var item in owned.EnumerateArray()) manifest.OwnedOutputs.Add(item.GetString()!);
+            }
+
             ReadTrackedFileSet(root, "media", manifest.Media);
             ReadTrackedFileSet(root, "assets", manifest.Assets);
             ReadTrackedFileSet(root, "static", manifest.Static);
@@ -100,6 +108,10 @@ public sealed class BuildManifest
                 writer.WriteStartObject();
                 writer.WriteNumber("version", Version);
                 writer.WriteString("templateHash", TemplateHash);
+                writer.WriteString("outputRoot", OutputRoot);
+                writer.WriteStartArray("ownedOutputs");
+                foreach (var path in OwnedOutputs.OrderBy(x => x, StringComparer.Ordinal)) writer.WriteStringValue(path);
+                writer.WriteEndArray();
 
                 writer.WriteStartObject("entries");
                 foreach (var kv in Entries.OrderBy(x => x.Key, StringComparer.Ordinal))

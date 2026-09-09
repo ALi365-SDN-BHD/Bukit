@@ -48,24 +48,11 @@ internal static class RepresentationAuditRules
 
     private static IReadOnlyList<string> BuildProjectionPathCandidates(PublishDocument document, string outputDir, string extension)
     {
-        var record = document.ContentRecord!;
-        var paths = new List<string>
-        {
-            DefaultContentProjectionWriter.GetContentProjectionBasePath(outputDir, record) + extension
-        };
-
-        var normalizedOutputPath = document.OutputPath.Replace('\\', '/');
-        var slash = normalizedOutputPath.IndexOf('/', StringComparison.Ordinal);
-        if (slash > 0)
-        {
-            var firstSegment = normalizedOutputPath[..slash];
-            if (!string.Equals(firstSegment, "content", StringComparison.OrdinalIgnoreCase))
-            {
-                paths.Add(DefaultContentProjectionWriter.GetContentProjectionBasePath(Path.Combine(outputDir, firstSegment), record) + extension);
-            }
-        }
-
-        return paths;
+        var kind = extension == ".json" ? "json" : "markdown";
+        var actual = document.ProjectionOutputs.FirstOrDefault(x => x.Kind == kind);
+        var relative = actual?.Path ?? DefaultContentProjectionWriter.GetContentProjectionRelativePath(
+            new Engine.Abstractions.Routing.RouteInfo(document.RouteUrl, document.OutputPath, string.Empty), extension);
+        return [FileWriter.GetSafeFullPath(outputDir, relative)];
     }
 
     private static void AnalyzeJsonProjection(PublishDocument document, string outputDir, List<PublishAuditIssue> issues)

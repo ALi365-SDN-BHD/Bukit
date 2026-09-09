@@ -26,6 +26,8 @@ internal sealed record BuildVariantResult(
     IReadOnlyList<RouteInfo>? StaticRoutes = null,
     IReadOnlyList<PluginOutputTrackingInfo>? PluginOutputs = null)
 {
+    internal ManifestSetupResult? PendingManifest { get; init; }
+    internal IReadOnlyList<AssetOutputItem> PlannedOutputs { get; init; } = Array.Empty<AssetOutputItem>();
     public IReadOnlyList<RoutedContentDocument> DerivedDocuments { get; init; } = DerivedDocuments ?? Array.Empty<RoutedContentDocument>();
     public IReadOnlyList<PublishProjectionResult> ProjectionResults { get; init; } = ProjectionResults ?? Array.Empty<PublishProjectionResult>();
     public IReadOnlyList<RouteInfo> StaticRoutes { get; init; } = StaticRoutes ?? Array.Empty<RouteInfo>();

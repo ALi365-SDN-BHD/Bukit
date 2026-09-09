@@ -205,16 +205,16 @@ public sealed class PublishRepresentationRegistryTests
             var jsonResult = new JsonContentDocumentProjection().Project(context);
             var markdownResult = new MarkdownContentDocumentProjection().Project(context);
 
-            Assert.Contains(jsonResult.Outputs, x => x.Kind == "json" && x.Url == "/content/projection-post.json" && x.Exists && x.Indexable);
-            Assert.Contains(markdownResult.Outputs, x => x.Kind == "markdown" && x.Url == "/content/projection-post.md" && x.Exists && x.Indexable);
-            Assert.True(File.Exists(Path.Combine(outputDir, "content", "projection-post.json")));
-            Assert.True(File.Exists(Path.Combine(outputDir, "content", "projection-post.md")));
-            var jsonText = File.ReadAllText(Path.Combine(outputDir, "content", "projection-post.json"));
+            Assert.Contains(jsonResult.Outputs, x => x.Kind == "json" && x.Url == "/content/projection-post/index.html.json" && x.Exists && x.Indexable);
+            Assert.Contains(markdownResult.Outputs, x => x.Kind == "markdown" && x.Url == "/content/projection-post/index.html.md" && x.Exists && x.Indexable);
+            Assert.True(File.Exists(Path.Combine(outputDir, "content", "projection-post/index.html.json")));
+            Assert.True(File.Exists(Path.Combine(outputDir, "content", "projection-post/index.html.md")));
+            var jsonText = File.ReadAllText(Path.Combine(outputDir, "content", "projection-post/index.html.json"));
             Assert.DoesNotContain(relatedNotionId, jsonText, StringComparison.OrdinalIgnoreCase);
             using var json = System.Text.Json.JsonDocument.Parse(jsonText);
             Assert.Equal("Silk Road Editorial Desk", json.RootElement.GetProperty("author").GetString());
             Assert.Equal("Organization", json.RootElement.GetProperty("authorType").GetString());
-            Assert.DoesNotContain(relatedNotionId, File.ReadAllText(Path.Combine(outputDir, "content", "projection-post.md")), StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(relatedNotionId, File.ReadAllText(Path.Combine(outputDir, "content", "projection-post/index.html.md")), StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -234,12 +234,12 @@ public sealed class PublishRepresentationRegistryTests
 
         var withoutJsonLd = DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(
             record,
-            route.Url,
+            route,
             entry,
             new SeoModel { Title = "Post", Canonical = "https://example.com/post/" });
         var withJsonLd = DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(
             record,
-            route.Url,
+            route,
             entry,
             new SeoModel { Title = "Post", Canonical = "https://example.com/post/", JsonLd = ["{\"@type\":\"Article\"}"] });
 

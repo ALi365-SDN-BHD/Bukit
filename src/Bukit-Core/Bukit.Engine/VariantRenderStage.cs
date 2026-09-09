@@ -32,7 +32,8 @@ internal static class VariantRenderStage
             ? RenderDependencyHasher.Compute(
                 context.Config,
                 siteModel,
-                context.Overrides.ExecutionMode)
+                context.Overrides.ExecutionMode,
+                seoAlternates: seoStage.SeoAlternates)
             : string.Empty;
         renderDependencyHashStopwatch.Stop();
         metrics.AddDuration(

@@ -326,6 +326,18 @@ public static class PreviewCommand
                 candidate = Path.Combine(candidate, "index.html");
             }
 
+            if (!Bukit.Shared.PathUtils.IsSameOrSubPathOf(candidate, rootDir))
+            {
+                context.Response.StatusCode = 403;
+                return;
+            }
+
+            if (StaticServerInternalPathPolicy.IsInternalOutputPath(rootDir, candidate))
+            {
+                context.Response.StatusCode = 404;
+                return;
+            }
+
             if (!File.Exists(candidate))
             {
                 context.Response.StatusCode = 404;

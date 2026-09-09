@@ -56,8 +56,8 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         Assert.Equal("/post/", document.GetProperty("routeUrl").GetString());
         var representations = document.GetProperty("representations").EnumerateArray().ToArray();
         Assert.Contains(representations, x => x.GetProperty("kind").GetString() == "html" && x.GetProperty("url").GetString() == "/post/" && x.GetProperty("generated").GetBoolean());
-        Assert.Contains(representations, x => x.GetProperty("kind").GetString() == "json" && x.GetProperty("path").GetString() == "content/post.json");
-        Assert.Contains(representations, x => x.GetProperty("kind").GetString() == "markdown" && x.GetProperty("path").GetString() == "content/post.md");
+        Assert.Contains(representations, x => x.GetProperty("kind").GetString() == "json" && x.GetProperty("path").GetString() == "content/post/index.html.json");
+        Assert.Contains(representations, x => x.GetProperty("kind").GetString() == "markdown" && x.GetProperty("path").GetString() == "content/post/index.html.md");
         Assert.NotEqual(File.ReadAllText(seoPath), File.ReadAllText(publishPath));
     }
 

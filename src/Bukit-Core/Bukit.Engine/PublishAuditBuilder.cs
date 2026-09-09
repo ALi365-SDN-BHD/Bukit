@@ -100,7 +100,7 @@ internal static class PublishAuditBuilder
         string kind,
         string? outputDir)
     {
-        var (url, path) = ResolveRepresentationLocation(route, record, kind);
+        var (url, path) = ResolveRepresentationLocation(route, document, record, kind);
         var generated = IsAggregateKind(kind)
             ? IsAggregateIncluded(route, document, kind)
             : outputDir is not null && !string.IsNullOrWhiteSpace(path)
@@ -111,9 +111,16 @@ internal static class PublishAuditBuilder
 
     private static (string Url, string Path) ResolveRepresentationLocation(
         SeoAuditRoute route,
+        PublishDocument? document,
         Engine.Abstractions.Content.ContentRecord? record,
         string kind)
     {
+        var actual = document?.ProjectionOutputs.FirstOrDefault(x => x.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase));
+        if (actual is not null)
+            return (IsAggregateKind(kind)
+                ? DefaultContentProjectionWriter.GetPublicOutputUrl(actual.Path, document!.ProjectionBaseUrl)
+                : actual.Url, actual.Path);
+        var projectionRoute = new Engine.Abstractions.Routing.RouteInfo(route.Url, route.OutputPath, string.Empty);
         if (string.Equals(kind, "html", StringComparison.OrdinalIgnoreCase))
         {
             return (route.Url, route.OutputPath.Replace('\\', '/'));
@@ -126,12 +133,12 @@ internal static class PublishAuditBuilder
 
         if (record is not null && string.Equals(kind, "json", StringComparison.OrdinalIgnoreCase))
         {
-            return (DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".json"), ToProjectionPath(record, ".json"));
+            return (DefaultContentProjectionWriter.GetContentProjectionUrl(projectionRoute, ".json", document?.ProjectionBaseUrl ?? "/"), DefaultContentProjectionWriter.GetContentProjectionRelativePath(projectionRoute, ".json"));
         }
 
         if (record is not null && string.Equals(kind, "markdown", StringComparison.OrdinalIgnoreCase))
         {
-            return (DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".md"), ToProjectionPath(record, ".md"));
+            return (DefaultContentProjectionWriter.GetContentProjectionUrl(projectionRoute, ".md", document?.ProjectionBaseUrl ?? "/"), DefaultContentProjectionWriter.GetContentProjectionRelativePath(projectionRoute, ".md"));
         }
 
         if (string.Equals(kind, "jsonld", StringComparison.OrdinalIgnoreCase))
@@ -143,9 +150,6 @@ internal static class PublishAuditBuilder
             .FirstOrDefault(x => string.Equals(x.Kind, kind, StringComparison.OrdinalIgnoreCase));
         return aggregate is null ? (route.Url, string.Empty) : ("/" + aggregate.Path.Replace('\\', '/'), aggregate.Path.Replace('\\', '/'));
     }
-
-    private static string ToProjectionPath(Engine.Abstractions.Content.ContentRecord record, string extension)
-        => DefaultContentProjectionWriter.GetContentProjectionUrl(record, extension).TrimStart('/');
 
     private static bool IsAggregateIncluded(SeoAuditRoute route, PublishDocument? document, string kind)
         => kind.ToLowerInvariant() switch

@@ -151,38 +151,19 @@ public sealed class NotionClient : IDisposable
             using var attemptRequest = bufferedRequest.CreateRequest();
             ApplyNotionHeaders(attemptRequest);
 
-            HttpResponseMessage response;
-            try
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            if (_options.Timeout > TimeSpan.Zero)
             {
-                response = await _httpClient.SendAsync(
-                    attemptRequest,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancellationToken);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (OperationCanceledException exception)
-            {
-                throw new NotionApiException(
-                    NotionApiErrorKind.Transport,
-                    "Notion request failed due to a transport error.",
-                    attempts: attempt + 1,
-                    rootErrorType: exception.GetBaseException().GetType().FullName);
-            }
-            catch (HttpRequestException exception)
-            {
-                throw new NotionApiException(
-                    NotionApiErrorKind.Transport,
-                    "Notion request failed due to a transport error.",
-                    attempts: attempt + 1,
-                    rootErrorType: exception.GetBaseException().GetType().FullName);
+                deadline.CancelAfter(_options.Timeout);
             }
 
-            using (response)
+            try
             {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(
+                    attemptRequest,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    deadline.Token);
+                var body = await response.Content.ReadAsStringAsync(deadline.Token);
                 if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 {
                     if (attempt >= maxRetries)
@@ -228,6 +209,26 @@ public sealed class NotionClient : IDisposable
                         attempt + 1,
                         exception.GetType().FullName);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+            catch (OperationCanceledException exception)
+            {
+                throw new NotionApiException(
+                    NotionApiErrorKind.Transport,
+                    "Notion request failed due to a transport error.",
+                    attempts: attempt + 1,
+                    rootErrorType: exception.GetBaseException().GetType().FullName);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or IOException)
+            {
+                throw new NotionApiException(
+                    NotionApiErrorKind.Transport,
+                    "Notion request failed due to a transport error.",
+                    attempts: attempt + 1,
+                    rootErrorType: exception.GetBaseException().GetType().FullName);
             }
         }
     }

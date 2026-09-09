@@ -33,11 +33,11 @@ public sealed class BuildReportPipelineProjectionResultTests
             {
                 ["post/index.html"] = new SeoModel { Title = "Post", Description = "Post description", Canonical = "https://example.com/post/" }
             };
-            var writer = new StubProjectionWriter(new PublishProjectionResult(
+            var projection = new PublishProjectionResult(
                 PublishRepresentationRegistry.AggregateRepresentations().Single(x => x.Kind == "llms"),
-                [new PublishRepresentationOutput("llms", "/post/", "llms.txt", Exists: true, Indexable: true)]));
+                [new PublishRepresentationOutput("llms", "/post/", "llms.txt", Exists: true, Indexable: true)]);
 
-            new BuildReportPipeline(writer).Execute(new BuildReportPipelineContext(
+            new BuildReportPipeline().Execute(new BuildReportPipelineContext(
                 Config: ConfigWithGeo(),
                 Language: "en",
                 OutputDir: outputDir,
@@ -55,7 +55,7 @@ public sealed class BuildReportPipelineProjectionResultTests
                 StageMetrics: new BuildStageMetrics(new Dictionary<string, long>(), new Dictionary<string, int>()),
                 Logger: new ConsoleLogger(LogLevel.Error),
                 DefaultLanguage: null,
-                ContentGraph: ContentGraph()));
+                ContentGraph: ContentGraph(), ProjectionResults: [projection]));
 
             var report = File.ReadAllText(Path.Combine(outputDir, ".bukit", "publish-audit-report.json"));
             Assert.Contains("\"kind\": \"llms\"", report, StringComparison.Ordinal);
@@ -69,18 +69,6 @@ public sealed class BuildReportPipelineProjectionResultTests
                 Directory.Delete(outputDir, recursive: true);
             }
         }
-    }
-
-    private sealed class StubProjectionWriter : IContentProjectionWriter
-    {
-        private readonly PublishProjectionResult _result;
-
-        public StubProjectionWriter(PublishProjectionResult result)
-        {
-            _result = result;
-        }
-
-        public IReadOnlyList<PublishProjectionResult> Write(PublishProjectionContext context) => [_result];
     }
 
     private static ContentDocument Item()

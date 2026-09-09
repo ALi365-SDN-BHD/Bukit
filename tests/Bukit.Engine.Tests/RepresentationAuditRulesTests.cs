@@ -118,7 +118,7 @@ public sealed class RepresentationAuditRulesTests : IDisposable
     {
         // Create the json projection file where it is expected
         var record = MakeRecord();
-        var basePath = DefaultContentProjectionWriter.GetContentProjectionBasePath(_outputDir, record);
+        var basePath = DefaultContentProjectionWriter.GetContentProjectionBasePath(_outputDir, new Bukit.Engine.Abstractions.Routing.RouteInfo("/posts/post-1/", "posts/post-1/index.html", ""));
         var dir = Path.GetDirectoryName(basePath)!;
         Directory.CreateDirectory(dir);
         File.WriteAllText(basePath + ".json", "{}");

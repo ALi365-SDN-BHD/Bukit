@@ -56,7 +56,8 @@ internal static class VariantRenderAssetPlanner
             FollowSymlinks: context.Config.Build.FollowSymlinks,
             RenderEntries: renderEntries,
             ManifestEntries: manifestSetup.ManifestEntries,
-            ScssOutputDir: context.ScssOutputDir);
+            ScssOutputDir: context.ScssOutputDir,
+            ProjectionOutputs: PublicOutputLifecycle.ProjectionPlan(context.Config, renderDocuments.Select(x => x.Route)));
 
         return new VariantRenderAssetPlan(
             renderDocuments,

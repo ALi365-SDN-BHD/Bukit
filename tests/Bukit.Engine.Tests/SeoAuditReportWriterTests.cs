@@ -1355,22 +1355,22 @@ public sealed class SeoAuditReportWriterTests : IDisposable
 
         var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, graph);
 
-        Assert.Contains(report.Issues, x => x.Code == "publish.representation_file_missing" && x.Route == "/post/" && x.Message.Contains("content/post.json", StringComparison.Ordinal));
-        Assert.Contains(report.Issues, x => x.Code == "publish.representation_file_missing" && x.Route == "/post/" && x.Message.Contains("content/post.md", StringComparison.Ordinal));
+        Assert.Contains(report.Issues, x => x.Code == "publish.representation_file_missing" && x.Route == "/post/" && x.Message.Contains("content/post/index.html.json", StringComparison.Ordinal));
+        Assert.Contains(report.Issues, x => x.Code == "publish.representation_file_missing" && x.Route == "/post/" && x.Message.Contains("content/post/index.html.md", StringComparison.Ordinal));
     }
 
     [Fact]
     public void Build_ReportsProjectionContentMismatches()
     {
         WriteOutput("post/index.html");
-        WriteOutput("content/post.md", """
+        WriteOutput("content/post/index.html.md", """
             # Post
 
             - Route: /post/
             - Language: ms
             - Review Status: draft
             """);
-        WriteOutput("content/post.json", """
+        WriteOutput("content/post/index.html.json", """
             {
               "id": "post-1",
               "route": "/wrong/",
@@ -1441,14 +1441,14 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     {
         const string relatedNotionId = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb";
         WriteOutput("post/index.html");
-        WriteOutput("content/post.md", """
+        WriteOutput("content/post/index.html.md", """
             # Post
 
             - Route: /post/
             - Language: en
             - Review Status: approved
             """);
-        WriteOutput("content/post.json", """
+        WriteOutput("content/post/index.html.json", """
             {
               "id": "post",
               "route": "/post/",

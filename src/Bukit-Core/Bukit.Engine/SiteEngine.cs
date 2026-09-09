@@ -22,6 +22,7 @@ public sealed class SiteEngine
     private readonly ISearchIndexBuilder _searchIndexBuilder;
     private readonly Func<string, ITemplateRenderer>? _rendererFactory;
     private readonly VariantBuildPipeline _variantPipeline;
+    private readonly TimeProvider _timeProvider;
 
     public SiteEngine(ILogger logger)
         : this(logger, new DefaultContentProviderFactory(), new DefaultSearchIndexBuilder(), null)
@@ -33,8 +34,9 @@ public sealed class SiteEngine
     {
     }
 
-    internal SiteEngine(ILogger logger, IContentProviderFactory contentProviderFactory, ISearchIndexBuilder searchIndexBuilder, Func<string, ITemplateRenderer>? rendererFactory)
+    internal SiteEngine(ILogger logger, IContentProviderFactory contentProviderFactory, ISearchIndexBuilder searchIndexBuilder, Func<string, ITemplateRenderer>? rendererFactory, TimeProvider? timeProvider = null)
     {
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _logger = logger;
         _contentProviderFactory = contentProviderFactory;
         _searchIndexBuilder = searchIndexBuilder;
@@ -118,7 +120,7 @@ public sealed class SiteEngine
         var config = BuildOptionsMapper.ToAppConfig(options, outputDirName);
         var overrides = new ConfigOverrides { IsCI = options.IsCI, Incremental = false };
         var factory = new FixedContentProviderFactory(provider, _contentProviderFactory);
-        var engine = new SiteEngine(_logger, factory, _searchIndexBuilder, _rendererFactory);
+        var engine = new SiteEngine(_logger, factory, _searchIndexBuilder, _rendererFactory, _timeProvider);
         await engine.BuildAsync(config, rootDir, overrides, cancellationToken);
     }
 
@@ -127,7 +129,7 @@ public sealed class SiteEngine
     private async Task<BuildResult> BuildCoreAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken)
     {
         var buildLogger = new BuildDiagnosticLogger(_logger);
-        var plan = BuildPlanner.Plan(config, rootDir, overrides, buildLogger);
+        var plan = BuildPlanner.Plan(config, rootDir, overrides, buildLogger, _timeProvider.GetUtcNow());
         var effectiveConfig = plan.EffectiveConfig;
 
         var contentPipeline = new ContentPipeline(_contentProviderFactory, buildLogger);
@@ -137,6 +139,9 @@ public sealed class SiteEngine
         var bodyStore = contentResult.BodyStore;
         var bodyCacheMetrics = contentResult.BodyCacheMetrics;
 
+        BuildResult completedResult;
+        IReadOnlyList<BuildVariantResult> completedVariants;
+        BuildManifest completedManifest;
         try
         {
             var templateHashCache = new DirectoryHashCache();
@@ -161,6 +166,7 @@ public sealed class SiteEngine
                 buildLogger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
                 bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
                 MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, bodyCacheMetrics);
+                completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, plan.OutputDir, new[] { result });
                 var generatedFiles = BuildOutputInventory.Create(plan.OutputDir);
                 plan.Stopwatch.Stop();
                 var singleLanguageBuildResult = BuildResultFactory.Create(
@@ -179,24 +185,37 @@ public sealed class SiteEngine
                 var securityData = BuildReporter.CreateSecurityReportData(effectiveConfig, rootDir, plan.OutputDir, new[] { result });
                 await BuildReporter.WriteIfEnabledAsync(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData, cancellationToken).ConfigureAwait(false);
                 BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI);
-                WriteOutputMarker(plan.OutputDir);
-                BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
-                return singleLanguageBuildResult;
+                completedResult = singleLanguageBuildResult;
+                completedVariants = new[] { result };
             }
-
-            bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
-            return await BuildMultiLanguageAsync(
-                effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
-                plan.LayoutsDir, assetWorkspace.AssetsDir, assetWorkspace.ScssOutputDir, plan.StaticDir, plan.MediaCacheDir,
-                plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
-                templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
-                bodyCacheMetrics,
-                contentResult.SchemaErrors, buildLogger, cancellationToken);
+            else
+            {
+                bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
+                (completedResult, completedVariants, completedManifest) = await BuildMultiLanguageAsync(
+                    effectiveConfig, rootDir, overrides, documents, contentGraph, bodyStore, plan.OutputDir,
+                    plan.LayoutsDir, assetWorkspace.AssetsDir, assetWorkspace.ScssOutputDir, plan.StaticDir, plan.MediaCacheDir,
+                    plan.ParentLayoutsDir, plan.ParentAssetsDir, plan.ParentStaticDir, plan.UserLayoutsDir,
+                    templateHashCache, languages, plan.StartedAt, plan.Stopwatch,
+                    bodyCacheMetrics,
+                    contentResult.SchemaErrors, buildLogger, cancellationToken);
+            }
         }
         finally
         {
             await DisposeBodyStoreAsync(bodyStore);
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var rootManifestPath = PublicOutputLifecycle.ManifestPath(rootDir, overrides);
+        foreach (var variant in completedVariants)
+            if (variant.PendingManifest is { } pending && pending.ManifestPath != rootManifestPath)
+                pending.Manifest.Save(pending.ManifestPath);
+        completedManifest.Save(rootManifestPath);
+        WriteOutputMarker(plan.OutputDir);
+        BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
+        buildLogger.Info($"Build completed: {Path.GetFullPath(plan.OutputDir)}");
+        buildLogger.Info("event=build.done");
+        return completedResult;
     }
 
     private static BodyCacheMetrics? RefreshBodyCacheMetrics(IContentBodyStore bodyStore)
@@ -239,7 +258,7 @@ public sealed class SiteEngine
         return await BuildVariantAsync(variantCtx, templateHashCache, cancellationToken, logger);
     }
 
-    private async Task<BuildResult> BuildMultiLanguageAsync(
+    private async Task<(BuildResult Result, IReadOnlyList<BuildVariantResult> Variants, BuildManifest Manifest)> BuildMultiLanguageAsync(
         AppConfig config, string rootDir, ConfigOverrides overrides,
         IReadOnlyList<ContentDocument> documents, CanonicalContentGraph contentGraph, IContentBodyStore bodyStore,
         string outputDir, string layoutsDir, string assetsDir, string? scssOutputDir, string staticDir,
@@ -302,9 +321,15 @@ public sealed class SiteEngine
 
         var variantResults = results.Where(r => r is not null).ToList();
 
+        var previous = BuildManifest.Load(PublicOutputLifecycle.ManifestPath(rootDir, overrides));
+        var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, Array.Empty<RouteInfo>(), root: true)
+            .Where(item => item.Destination != "robots.txt" || previous.OwnedOutputs.Contains("robots.txt") ||
+                !File.Exists(Path.Combine(outputDir, "robots.txt"))).ToArray();
+        var completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, outputDir, variantResults, rootOutputs);
+        if (rootOutputs.Any(x => x.Destination == "robots.txt") && PublicOutputLifecycle.SameRoot(previous, outputDir) && previous.OwnedOutputs.Contains("robots.txt"))
+            PublicOutputLifecycle.DeleteOwnedFile(outputDir, "robots.txt");
         var projectionResults = I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder);
         SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, buildLogger, projectionResults);
-        buildLogger.Info("event=build.done");
         // Refresh metrics after all language variants finished rendering
         bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, documents.Count, variantResults, bodyCacheMetrics);
@@ -326,9 +351,7 @@ public sealed class SiteEngine
         var securityData = BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults);
         await BuildReporter.WriteIfEnabledAsync(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData, cancellationToken).ConfigureAwait(false);
         BuildReporter.EnforceSecurityGate(config, securityData, overrides.IsCI);
-        WriteOutputMarker(outputDir);
-        BuildRecoveryTracker.MarkCompleted(outputDir);
-        return buildResult;
+        return (buildResult, variantResults, completedManifest);
     }
 
     private async Task<BuildVariantResult> BuildVariantAsync(

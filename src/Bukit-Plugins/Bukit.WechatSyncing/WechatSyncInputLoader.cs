@@ -52,7 +52,7 @@ public static class WechatSyncInputLoader
                 continue;
             }
 
-            var jsonPath = ResolveOutputPath(outputDir, jsonUrl, "content json");
+            var jsonPath = ResolveOutputPath(outputDir, Uri.UnescapeDataString(NormalizeHtmlLocatorUrl(jsonUrl, baseUrl)), "content json");
             if (!File.Exists(jsonPath))
             {
                 logger.Warn($"plugin wechat-sync content json missing: {jsonUrl}");

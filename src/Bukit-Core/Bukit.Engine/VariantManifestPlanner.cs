@@ -32,9 +32,9 @@ internal static class VariantManifestPlanner
         var templateHash = incrementalEnabled
             ? ComputeCompositeTemplateHash(context, templateHashCache)
             : string.Empty;
-        var manifest = incrementalEnabled
-            ? BuildManifest.Load(manifestPath)
-            : new BuildManifest();
+        var manifest = BuildManifest.Load(manifestPath);
+        if (!PublicOutputLifecycle.SameRoot(manifest, context.OutputDir)) manifest = new BuildManifest();
+        if (!incrementalEnabled) manifest.Entries.Clear();
         manifest.TemplateHash = templateHash;
         var manifestEntries = incrementalEnabled
             ? new ConcurrentDictionary<string, BuildManifestEntry>(manifest.Entries, StringComparer.Ordinal)

@@ -26,6 +26,11 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
             return new DeployResult { Success = false, Error = $"Output directory is empty: {context.OutputDir}" };
         }
 
+        if (DeploymentReadinessValidator.Validate(context.OutputDir) is { } readinessError)
+        {
+            return new DeployResult { Success = false, Error = readinessError };
+        }
+
         var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
         if (string.IsNullOrWhiteSpace(token))
         {
@@ -67,11 +72,12 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
         logger.Info($"Target branch: {branch}");
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"bukit-deploy-{Guid.NewGuid():N}");
+        var checkoutDir = Path.Combine(tempDir, "checkout");
         string? askpassScript = null;
 
         try
         {
-            Directory.CreateDirectory(tempDir);
+            Directory.CreateDirectory(checkoutDir);
 
             askpassScript = CreateAskpassScript(tempDir, token);
             var remoteUrl = $"https://github.com/{repoInfo.Owner}/{repoInfo.RepoName}.git";
@@ -82,22 +88,22 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
                 logger.Info($"Cloning existing {branch} branch...");
                 if (context.KeepHistory)
                 {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, gitCommandTimeout, ct, "clone", "--single-branch", "--branch", branch, remoteUrl, ".");
+                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "clone", "--single-branch", "--branch", branch, remoteUrl, ".");
                 }
                 else
                 {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, gitCommandTimeout, ct, "clone", "--single-branch", "--branch", branch, "--depth", "1", remoteUrl, ".");
+                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "clone", "--single-branch", "--branch", branch, "--depth", "1", remoteUrl, ".");
                 }
             }
             else
             {
                 logger.Info($"Creating new {branch} branch...");
-                await RunGitAsync(gitPath, tempDir, gitCommandTimeout, ct, "init");
-                await RunGitAsync(gitPath, tempDir, gitCommandTimeout, ct, "checkout", "-b", branch);
-                await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, gitCommandTimeout, ct, "remote", "add", "origin", remoteUrl);
+                await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "init");
+                await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "checkout", "-b", branch);
+                await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "remote", "add", "origin", remoteUrl);
             }
 
-            foreach (var entry in Directory.GetFileSystemEntries(tempDir))
+            foreach (var entry in Directory.GetFileSystemEntries(checkoutDir))
             {
                 var name = Path.GetFileName(entry);
                 if (name is ".git" or ".nojekyll" or "CNAME")
@@ -116,9 +122,9 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
             }
 
             logger.Info("Copying build output...");
-            CopyDirectory(context.OutputDir, tempDir);
+            CopyDirectory(context.OutputDir, checkoutDir);
 
-            var nojekyllPath = Path.Combine(tempDir, ".nojekyll");
+            var nojekyllPath = Path.Combine(checkoutDir, ".nojekyll");
             if (!File.Exists(nojekyllPath))
             {
                 await File.WriteAllTextAsync(nojekyllPath, string.Empty, ct);
@@ -126,11 +132,11 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
 
             if (!string.IsNullOrWhiteSpace(cname))
             {
-                var cnamePath = Path.Combine(tempDir, "CNAME");
+                var cnamePath = Path.Combine(checkoutDir, "CNAME");
                 await File.WriteAllTextAsync(cnamePath, cname, ct);
             }
 
-            var privacyErrors = DeploymentPrivacyValidator.Validate(context.OutputDir, tempDir);
+            var privacyErrors = DeploymentPrivacyValidator.Validate(context.OutputDir, checkoutDir);
             if (privacyErrors.Count > 0)
             {
                 return new DeployResult
@@ -140,20 +146,20 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
                 };
             }
 
-            await EnsureGitIdentityAsync(gitPath, tempDir, gitCommandTimeout, ct, logger);
+            await EnsureGitIdentityAsync(gitPath, checkoutDir, gitCommandTimeout, ct, logger);
 
-            await RunGitAsync(gitPath, tempDir, gitCommandTimeout, ct, "add", "-A");
-            await RunGitAsync(gitPath, tempDir, gitCommandTimeout, ct, "commit", "-m", message, "--allow-empty");
+            await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "add", "-A");
+            await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "commit", "-m", message, "--allow-empty");
 
             try
             {
                 if (context.Force)
                 {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, gitCommandTimeout, ct, "push", "--force", "origin", branch);
+                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "push", "--force", "origin", branch);
                 }
                 else
                 {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, tempDir, gitCommandTimeout, ct, "push", "origin", branch);
+                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "push", "origin", branch);
                 }
             }
             catch (Exception pushEx)
@@ -170,7 +176,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
                 throw;
             }
 
-            logger.Info("Deployment successful.");
+            logger.Info("Git push completed. GitHub Pages publication has not been verified.");
             return new DeployResult { Success = true, DeployedUrl = deployedUrl };
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

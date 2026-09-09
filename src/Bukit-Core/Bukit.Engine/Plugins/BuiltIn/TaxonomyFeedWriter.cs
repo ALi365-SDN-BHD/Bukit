@@ -14,7 +14,8 @@ internal static class TaxonomyFeedWriter
         string siteTitle,
         Dictionary<string, TaxonomyTerm> terms,
         string kind,
-        string? routePrefix = null)
+        string? routePrefix = null,
+        ICollection<string>? generatedPaths = null)
     {
         var normalizedSiteUrl = NormalizeFeedUrl(siteUrl);
         var normalizedBaseUrl = NormalizeFeedUrl(baseUrl);
@@ -48,7 +49,9 @@ internal static class TaxonomyFeedWriter
                 ? Path.Combine(outputDir, term.Slug)
                 : Path.Combine(outputDir, Path.Combine(outputPrefix.Split('/')), term.Slug);
             Directory.CreateDirectory(feedDir);
-            File.WriteAllText(Path.Combine(feedDir, "feed.xml"), xml, Encoding.UTF8);
+            var path = Path.Combine(feedDir, "feed.xml");
+            File.WriteAllText(path, xml, Encoding.UTF8);
+            generatedPaths?.Add(BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(outputDir, path)));
         }
     }
 

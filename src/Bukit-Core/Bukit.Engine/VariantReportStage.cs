@@ -14,7 +14,8 @@ internal static class VariantReportStage
         BuildStageMetricsCollector variantStageMetrics,
         ThemeTemplateResolver templateResolver,
         AnalyticsBuildState analyticsBuildState,
-        ILogger logger)
+        ILogger logger,
+        IReadOnlyList<PublishProjectionResult> projectionResults)
     {
         var searchSnippetsEnabled = templateResolver.TryResolveKindTemplate(
                 "search",
@@ -47,7 +48,8 @@ internal static class VariantReportStage
             StageMetrics: variantStageMetrics.Snapshot(),
             Logger: logger,
             DefaultLanguage: context.DefaultLanguage,
-            ContentGraph: context.ContentGraph));
+            ContentGraph: context.ContentGraph,
+            ProjectionResults: projectionResults));
         analyticsBuildState.RecordRenderOutcome(
             renderPipelineResult.RenderedCount,
             renderPipelineResult.SkippedCount);
@@ -58,7 +60,7 @@ internal static class VariantReportStage
         return Task.FromResult(result);
     }
 
-    private static IReadOnlyList<PluginOutputTrackingInfo> GetPluginOutputs(
+    internal static IReadOnlyList<PluginOutputTrackingInfo> GetPluginOutputs(
         BuildContext pluginContext)
     {
         if (!pluginContext.Data.TryGetValue("__plugin_outputs", out var outputsObject) ||

@@ -30,9 +30,10 @@ internal sealed class SeoPipeline
         ListRouteGraph? listRouteGraph = null,
         IReadOnlyDictionary<string, RouteMetadataEntry>? routeMetadata = null,
         SearchActionDescriptor? searchAction = null,
-        BreadcrumbDescriptorCatalog? breadcrumbs = null)
+        BreadcrumbDescriptorCatalog? breadcrumbs = null,
+        DateTimeOffset? now = null)
     {
-        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata, searchAction, breadcrumbs);
+        var seoIndex = SeoIndexBuilder.Build(config, baseUrl, renderQueue, listRoutes, seoAlternates, listRouteGraph, routeMetadata, searchAction, breadcrumbs, now);
         SeoDiagnostics.AnalyzeIndex(config, seoIndex.Entries, seoIndex.Models, logger);
 
         var seoHtmlMode = (config.Site.Seo.RenderMode ?? "inject").Trim().ToLowerInvariant();

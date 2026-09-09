@@ -13,7 +13,7 @@ using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
-public sealed class SiteEngineIntegrationTests
+public sealed partial class SiteEngineIntegrationTests
 {
     private sealed class TestLogger : ILogger
     {
@@ -468,8 +468,8 @@ public sealed class SiteEngineIntegrationTests
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             var distDir = Path.Combine(root, "dist");
-            var jsonProjectionPath = Path.Combine(distDir, "content", "hello-world.json");
-            var markdownProjectionPath = Path.Combine(distDir, "content", "hello-world.md");
+            var jsonProjectionPath = Path.Combine(distDir, "content", "blog/hello-world/index.html.json");
+            var markdownProjectionPath = Path.Combine(distDir, "content", "blog/hello-world/index.html.md");
             var agentManifestPath = Path.Combine(distDir, "agent-manifest.json");
             var publishAuditPath = Path.Combine(distDir, ".bukit", "publish-audit-report.json");
 
@@ -3263,7 +3263,7 @@ public sealed class SiteEngineIntegrationTests
     }
 
     [Fact]
-    public async Task BuildAsync_LegacyTrackedRawStaticHtml_IsDeletedWithoutDeletingUntrackedOutput()
+    public async Task BuildAsync_TrackedRawStaticHtml_IsDeletedWithoutDeletingUntrackedOutput()
     {
         var root = CreateRouteConflictSite();
         try
@@ -3284,6 +3284,8 @@ public sealed class SiteEngineIntegrationTests
 
             new BuildManifest
             {
+                OutputRoot = Path.GetFullPath(outputDir),
+                OwnedOutputs = new HashSet<string>(StringComparer.Ordinal) { "raw.html" },
                 Static = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["raw.html"] = "legacy-fingerprint"

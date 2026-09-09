@@ -52,6 +52,18 @@ internal sealed class DevRequestHandler
                 candidate = Path.Combine(candidate, "index.html");
             }
 
+            if (!PathUtils.IsSameOrSubPathOf(candidate, _outputDir))
+            {
+                context.Response.StatusCode = 403;
+                return;
+            }
+
+            if (StaticServerInternalPathPolicy.IsInternalOutputPath(_outputDir, candidate))
+            {
+                context.Response.StatusCode = 404;
+                return;
+            }
+
             if (!File.Exists(candidate))
             {
                 context.Response.StatusCode = 404;

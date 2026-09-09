@@ -12,7 +12,8 @@ internal static class RenderDependencyHasher
         AppConfig config,
         SiteModel siteModel,
         BuildExecutionMode executionMode = BuildExecutionMode.Production,
-        string analyticsRendererContractVersion = AnalyticsRendererContract.Version)
+        string analyticsRendererContractVersion = AnalyticsRendererContract.Version,
+        IReadOnlyDictionary<string, IReadOnlyList<SeoAlternateModel>>? seoAlternates = null)
     {
         var context = new RenderDependencyContext(
             config,
@@ -25,6 +26,19 @@ internal static class RenderDependencyHasher
         foreach (var contributor in RenderDependencyContributorPlan.Contributors)
         {
             contributor.Contribute(context, writer);
+        }
+
+        if (config.Site.Seo.Enabled && seoAlternates is not null)
+        {
+            foreach (var (key, alternates) in seoAlternates.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+            {
+                writer.AppendFramedValue("alternateGroup", key);
+                foreach (var alternate in alternates)
+                {
+                    writer.AppendFramedValue("hreflang", alternate.Hreflang);
+                    writer.AppendFramedValue("href", alternate.Href);
+                }
+            }
         }
 
         return HashUtil.ToHexLower(hasher.GetHashAndReset());

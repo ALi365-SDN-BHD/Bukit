@@ -88,6 +88,9 @@ internal sealed partial class VariantBuildPipeline
             renderAssetPlan.AssetPipelineContext,
             cancellationToken);
 
+        // Remove only prior owned destinations before aggregate writers inspect existing files.
+        PublicOutputLifecycle.PrepareProjectionWrites(context.OutputDir, manifestSetup.Manifest, assetPipelinePreparation.OutputPlan.Items);
+
         var seoStage = await VariantSeoStage.ExecuteAsync(
             context,
             renderAssetPlan,
@@ -141,15 +144,23 @@ internal sealed partial class VariantBuildPipeline
                 variantTotalStopwatch.ElapsedMilliseconds);
 
             analyticsTransformPlan.PluginHtmlTransforms.RecordExecutions();
-            return await VariantReportStage.ExecuteAsync(
-                context,
-                routePipelineResult,
-                seoStage.SeoResult,
-                renderPipelineResult,
-                variantStageMetrics,
-                templateResolver,
-                analyticsTransformPlan.AnalyticsBuildState,
-                logger);
+            var plannedOutputs = assetPipelinePreparation.OutputPlan.Items.Concat(
+                VariantReportStage.GetPluginOutputs(routePipelineResult.PluginContext).Select(output =>
+                    new AssetOutputItem(output.Plugin, output.Path, AssetOutputCategory.Plugin, Operation: AssetOutputOperation.Generate))).ToArray();
+            AssetOutputPlan.Validate(plannedOutputs, assetPipelinePreparation.OutputPlan.DestinationComparer);
+            var searchSnippets = templateResolver.TryResolveKindTemplate("search", out var searchTemplate) &&
+                TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
+            var projectionResults = new DefaultContentProjectionWriter().Write(new PublishProjectionContext(
+                context.Config, context.OutputDir, context.ContentGraph, seoStage.SeoResult.SeoIndex.Entries,
+                seoStage.SeoResult.SeoIndex.Models, routePipelineResult.PluginContext.RoutedDocuments,
+                context.BodyStore, context.BaseUrl, searchSnippets, logger,
+                routePipelineResult.RouteResult.ListRouteGraph,
+                DerivedDocuments: routePipelineResult.PluginContext.DerivedDocuments));
+            PublicOutputLifecycle.Record(manifestSetup.Manifest, context.OutputDir, plannedOutputs);
+            var result = await VariantReportStage.ExecuteAsync(
+                context, routePipelineResult, seoStage.SeoResult, renderPipelineResult,
+                variantStageMetrics, templateResolver, analyticsTransformPlan.AnalyticsBuildState, logger, projectionResults);
+            return result with { PendingManifest = manifestSetup, PlannedOutputs = plannedOutputs };
         }
         finally
         {

@@ -17,6 +17,9 @@ public sealed class DeployCommandTests
         try
         {
             Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "dist"));
+            File.WriteAllText(Path.Combine(root, "dist", ".bukit-build-state.json"), "{\"version\":1,\"status\":\"completed\"}");
+            File.WriteAllText(Path.Combine(root, "dist", "index.html"), "<h1>Hello</h1>");
             var siteYaml = Path.Combine(root, "site.yaml");
             File.WriteAllText(siteYaml, """
             site:
@@ -75,6 +78,9 @@ public sealed class DeployCommandTests
         try
         {
             Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "dist"));
+            File.WriteAllText(Path.Combine(root, "dist", ".bukit-build-state.json"), "{\"version\":1,\"status\":\"completed\"}");
+            File.WriteAllText(Path.Combine(root, "dist", "index.html"), "<h1>Hello</h1>");
             var siteYaml = Path.Combine(root, "site.yaml");
             File.WriteAllText(siteYaml, """
             site:
@@ -280,6 +286,9 @@ public sealed class DeployCommandTests
         try
         {
             Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "dist"));
+            File.WriteAllText(Path.Combine(root, "dist", ".bukit-build-state.json"), "{\"version\":1,\"status\":\"completed\"}");
+            File.WriteAllText(Path.Combine(root, "dist", "index.html"), "<h1>Hello</h1>");
             var siteYaml = Path.Combine(root, "site.yaml");
             File.WriteAllText(siteYaml, """
             site:
@@ -333,6 +342,9 @@ public sealed class DeployCommandTests
         try
         {
             Directory.CreateDirectory(root);
+            Directory.CreateDirectory(Path.Combine(root, "dist"));
+            File.WriteAllText(Path.Combine(root, "dist", ".bukit-build-state.json"), "{\"version\":1,\"status\":\"completed\"}");
+            File.WriteAllText(Path.Combine(root, "dist", "index.html"), "<h1>Hello</h1>");
             var siteYaml = Path.Combine(root, "site.yaml");
             File.WriteAllText(siteYaml, """
             site:
@@ -464,6 +476,7 @@ public sealed class DeployCommandTests
         {
             Directory.CreateDirectory(root);
             Directory.CreateDirectory(Path.Combine(root, "dist"));
+            File.WriteAllText(Path.Combine(root, "dist", ".bukit-build-state.json"), "{\"version\":1,\"status\":\"completed\"}");
             File.WriteAllText(Path.Combine(root, "dist", "index.html"), "<h1>Hello</h1>");
 
             var siteYaml = Path.Combine(root, "site.yaml");

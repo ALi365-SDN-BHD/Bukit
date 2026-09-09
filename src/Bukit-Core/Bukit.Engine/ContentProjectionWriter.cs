@@ -73,7 +73,8 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                         document.Document.Record,
                         document.Route,
                         entry,
-                        model);
+                        model,
+                        context.BaseUrl);
                 })
                 .ToArray();
         }
@@ -94,7 +95,8 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                 record,
                 route,
                 entry,
-                model);
+                model,
+                context.BaseUrl);
             documentContexts.Add(documentContext);
         }
 
@@ -122,7 +124,7 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                 record.Presentation.Language,
                 record.Trust.ReviewStatus,
                 PublicContentProjectionPolicy.SanitizeEntities(record).Select(x => x.Name).ToArray(),
-                BuildAgentManifestRepresentationEntries(record, route.Url, entry, model),
+                BuildAgentManifestRepresentationEntries(record, route, entry, model, context.BaseUrl),
                 record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
         }
 
@@ -131,45 +133,38 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
 
     internal static IReadOnlyList<RepresentationEntry> BuildAgentManifestRepresentationEntries(
         ContentRecord record,
-        string routeUrl,
+        RouteInfo route,
         SeoIndexEntry? entry,
-        SeoModel? model)
+        SeoModel? model,
+        string baseUrl = "/")
     {
+        var routeUrl = route.Url;
         var canonical = model?.Canonical ?? entry?.Canonical ?? routeUrl;
         return PublishRepresentationRegistry.DocumentRepresentationsFor(includeJsonLd: model?.JsonLd.Count > 0)
             .Select(representation => representation.Kind switch
             {
                 "html" => new RepresentationEntry(representation.Kind, routeUrl),
                 "semantic-html" => new RepresentationEntry(representation.Kind, routeUrl),
-                "json" => new RepresentationEntry(representation.Kind, GetContentProjectionUrl(record, ".json")),
-                "markdown" => new RepresentationEntry(representation.Kind, GetContentProjectionUrl(record, ".md")),
+                "json" => new RepresentationEntry(representation.Kind, GetContentProjectionUrl(route, ".json", baseUrl)),
+                "markdown" => new RepresentationEntry(representation.Kind, GetContentProjectionUrl(route, ".md", baseUrl)),
                 "jsonld" => new RepresentationEntry(representation.Kind, canonical),
                 _ => new RepresentationEntry(representation.Kind, routeUrl)
             })
             .ToArray();
     }
 
-    internal static string GetContentProjectionBasePath(string outputDir, ContentRecord record)
-    {
-        var fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Slug);
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Id);
-        }
+    internal static string GetContentProjectionRelativePath(RouteInfo route, string extension = "")
+        => "content/" + BuildPathUtils.NormalizeRelPath(route.OutputPath) + extension;
 
-        return Path.Combine(outputDir, "content", fileName);
-    }
+    internal static string GetContentProjectionBasePath(string outputDir, RouteInfo route)
+        => FileWriter.GetSafeFullPath(outputDir, GetContentProjectionRelativePath(route));
 
-    internal static string GetContentProjectionUrl(ContentRecord record, string extension)
-    {
-        var fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Slug);
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            fileName = BuildPathUtils.SanitizeFileSegment(record.Identity.Id);
-        }
+    internal static string GetContentProjectionUrl(RouteInfo route, string extension, string baseUrl = "/")
+        => GetPublicOutputUrl(GetContentProjectionRelativePath(route, extension), baseUrl);
 
-        return $"/content/{fileName}{extension}";
-    }
+    internal static string GetPublicOutputUrl(string relativePath, string baseUrl)
+        => BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/') + "/" +
+           string.Join("/", relativePath.Replace('\\', '/').Split('/').Select(Uri.EscapeDataString));
 
     internal sealed record AgentManifestEntry(
         string Id,
@@ -189,7 +184,8 @@ internal sealed record ContentProjectionDocumentContext(
     ContentRecord Record,
     RouteInfo Route,
     SeoIndexEntry? SeoIndexEntry,
-    SeoModel? SeoModel);
+    SeoModel? SeoModel,
+    string BaseUrl = "/");
 
 internal sealed class JsonContentDocumentProjection : IPublishProjection
 {
@@ -210,7 +206,7 @@ internal sealed class JsonContentDocumentProjection : IPublishProjection
         var entry = context.SeoIndexEntry;
         var model = context.SeoModel;
         var publicId = PublicContentProjectionPolicy.ResolvePublicId(record, route.Url);
-        var path = DefaultContentProjectionWriter.GetContentProjectionBasePath(context.OutputDir, record) + ".json";
+        var path = DefaultContentProjectionWriter.GetContentProjectionBasePath(context.OutputDir, route) + ".json";
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var projection = new ContentProjectionDocument(
             Id: publicId,
@@ -245,14 +241,14 @@ internal sealed class JsonContentDocumentProjection : IPublishProjection
             Canonical: model?.Canonical ?? entry?.Canonical);
 
         var json = JsonSerializer.Serialize(projection, ContentProjectionJsonContext.Default.ContentProjectionDocument);
-        File.WriteAllText(path, json + Environment.NewLine, Encoding.UTF8);
-        var relPath = DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".json").TrimStart('/');
+        FileWriter.WriteUtf8(context.OutputDir, DefaultContentProjectionWriter.GetContentProjectionRelativePath(route, ".json"), json + Environment.NewLine);
+        var relPath = DefaultContentProjectionWriter.GetContentProjectionRelativePath(route, ".json");
         return new PublishRepresentationOutput(
             Representation.Kind,
-            DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".json"),
+            DefaultContentProjectionWriter.GetContentProjectionUrl(route, ".json", context.BaseUrl),
             relPath,
             File.Exists(path),
-            entry?.Indexable != false);
+            entry?.Indexable != false, route.Url);
     }
 }
 
@@ -273,7 +269,7 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
         var record = context.Record;
         var route = context.Route;
         var entry = context.SeoIndexEntry;
-        var path = DefaultContentProjectionWriter.GetContentProjectionBasePath(context.OutputDir, record) + ".md";
+        var path = DefaultContentProjectionWriter.GetContentProjectionBasePath(context.OutputDir, route) + ".md";
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var sb = new StringBuilder();
         sb.AppendLine($"# {record.Presentation.Title}");
@@ -313,14 +309,14 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
             sb.AppendLine(SearchIndexBuilder.StripHtmlToText(record.Presentation.Body));
         }
 
-        File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
-        var relPath = DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".md").TrimStart('/');
+        FileWriter.WriteUtf8(context.OutputDir, DefaultContentProjectionWriter.GetContentProjectionRelativePath(route, ".md"), sb.ToString());
+        var relPath = DefaultContentProjectionWriter.GetContentProjectionRelativePath(route, ".md");
         return new PublishRepresentationOutput(
             Representation.Kind,
-            DefaultContentProjectionWriter.GetContentProjectionUrl(record, ".md"),
+            DefaultContentProjectionWriter.GetContentProjectionUrl(route, ".md", context.BaseUrl),
             relPath,
             File.Exists(path),
-            entry?.Indexable != false);
+            entry?.Indexable != false, route.Url);
     }
 }
 

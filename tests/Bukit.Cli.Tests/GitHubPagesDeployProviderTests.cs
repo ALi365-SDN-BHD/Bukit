@@ -1185,6 +1185,86 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.Equal(expectedUrl, result.DeployedUrl);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("invalid")]
+    [InlineData("[]")]
+    [InlineData("{\"version\":2,\"status\":\"completed\"}")]
+    [InlineData("{\"version\":1,\"status\":\"started\"}")]
+    [InlineData("{\"version\":1,\"status\":42}")]
+    public async Task DeployAsync_UnreadyOutputNeverInvokesGit(string? state)
+    {
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.SetGithubToken("dummy-token");
+        scope.WriteOutputFile("index.html", "hello");
+        var path = Path.Combine(scope.OutputDir, ".bukit-build-state.json");
+        File.Delete(path);
+        if (state is not null) File.WriteAllText(path, state);
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+        Assert.False(result.Success);
+        Assert.Contains("Rebuild", result.Error);
+        Assert.DoesNotContain("ls-remote", scope.FakeGit.ReadLog());
+    }
+
+    [Fact]
+    public async Task DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        var realGit = InvokePrivateStatic<string?>(nameof(GitHubPagesDeployProvider), "ResolveGit", [null])!;
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.SetGithubToken("dummy-token");
+        scope.WriteOutputFile("index.html", "new page");
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+        var remote = Path.Combine(scope.WorktreeDir, "remote.git");
+        async Task<string> Git(params string[] args)
+        {
+            var start = new ProcessStartInfo(realGit) { WorkingDirectory = scope.WorktreeDir, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+            foreach (var arg in args) start.ArgumentList.Add(arg);
+            using var process = Process.Start(start)!;
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            var stderr = process.StandardError.ReadToEndAsync();
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+                await Task.WhenAll(stdout, stderr).WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.True(process.ExitCode == 0, await stderr);
+                return await stdout;
+            }
+            finally
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+            }
+        }
+        await Git("init", "--bare", remote);
+        await Git("init");
+        await Git("config", "user.name", "test");
+        await Git("config", "user.email", "test@example.invalid");
+        await Git("checkout", "-b", "gh-pages");
+        File.WriteAllText(Path.Combine(scope.WorktreeDir, "old.html"), "old page");
+        await Git("add", "old.html");
+        await Git("commit", "-m", "seed");
+        await Git("push", remote, "gh-pages");
+        await Git("remote", "add", "origin", "https://github.com/test/local.git");
+        string Quote(string value) => "'" + value.Replace("'", "'\\''") + "'";
+        WriteExecutable(scope.FakeGit.BinDir, "git", $"""
+            if [ -n "$GIT_ASKPASS" ]; then
+              [ -f "$GIT_ASKPASS" ] || exit 71
+              [ "$("$GIT_ASKPASS")" = "$BUKIT_GITHUB_TOKEN" ] || exit 72
+              printf '%s' "$GIT_ASKPASS" > {Quote(Path.Combine(scope.WorktreeDir, "askpass-path"))}
+              exec {Quote(realGit)} -c {Quote("url." + remote + ".insteadOf=https://github.com/test/local.git")} "$@"
+            fi
+            exec {Quote(realGit)} "$@"
+            """);
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(keepHistory: true), CancellationToken.None);
+        Assert.True(result.Success, result.Error);
+        Assert.Equal("new page", (await Git("--git-dir", remote, "show", "gh-pages:index.html")).Trim());
+        var files = await Git("--git-dir", remote, "ls-tree", "--name-only", "gh-pages");
+        Assert.DoesNotContain("old.html", files);
+        Assert.DoesNotContain("askpass", files);
+        Assert.DoesNotContain(".bukit", files);
+        Assert.False(File.Exists(File.ReadAllText(Path.Combine(scope.WorktreeDir, "askpass-path"))));
+    }
+
     private static void AssertDeploymentCleanupSucceeded(GitHubPagesDeployTestScope scope)
     {
         var askpassPath = scope.FakeGit.ReadAskpassPath();
@@ -1205,6 +1285,7 @@ public sealed class GitHubPagesDeployProviderTests
             OutputDir = Path.Combine(_root, "output");
             Directory.CreateDirectory(WorktreeDir);
             Directory.CreateDirectory(OutputDir);
+            File.WriteAllText(Path.Combine(OutputDir, ".bukit-build-state.json"), "{\"version\":1,\"status\":\"completed\"}");
             Logger = new RecordingLogger();
             FakeGit = new FakeGitHarness(_root);
 

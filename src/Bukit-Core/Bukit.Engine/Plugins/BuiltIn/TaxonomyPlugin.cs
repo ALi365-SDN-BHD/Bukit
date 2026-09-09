@@ -230,15 +230,20 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         writer.WriteEndObject();
         writer.Flush();
 
+        var generatedPaths = new List<string> { "taxonomy.json" };
         foreach (var (_, kind, _, terms, routePrefix) in kindTerms)
         {
-            TaxonomyFeedWriter.WriteFeeds(context.OutputDir, _config.Site.Url ?? string.Empty, context.BaseUrl, _config.Site.Title, terms, kind, routePrefix);
+            TaxonomyFeedWriter.WriteFeeds(context.OutputDir, _config.Site.Url ?? string.Empty, context.BaseUrl, _config.Site.Title, terms, kind, routePrefix, generatedPaths);
         }
 
         foreach (var (_, kind, _, terms, routePrefix) in kindTerms)
         {
-            TaxonomyRedirectWriter.WriteRedirects(context.OutputDir, kind, terms, routePrefix);
+            TaxonomyRedirectWriter.WriteRedirects(context.OutputDir, kind, terms, routePrefix, generatedPaths);
         }
+        var outputs = context.Data.TryGetValue("__plugin_outputs", out var tracked) && tracked is HashSet<PluginOutputTrackingInfo> existing
+            ? existing : new HashSet<PluginOutputTrackingInfo>();
+        foreach (var path in generatedPaths) outputs.Add(new PluginOutputTrackingInfo(Name, "after-build", path));
+        context.Data["__plugin_outputs"] = outputs;
     }
 
     internal static string NormalizeOutputMode(string? mode)

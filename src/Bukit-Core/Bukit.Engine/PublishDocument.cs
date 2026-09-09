@@ -39,7 +39,11 @@ internal sealed record PublishDocument(
     bool RobotsIncluded,
     bool ManifestIncluded,
     SeoModel? SeoModel,
-    ContentRecord? ContentRecord);
+    ContentRecord? ContentRecord)
+{
+    internal IReadOnlyList<PublishRepresentationOutput> ProjectionOutputs { get; init; } = Array.Empty<PublishRepresentationOutput>();
+    internal string ProjectionBaseUrl { get; init; } = "/";
+}
 
 internal sealed record PublishEntitySummary(string Type, string Name, string? Description);
 

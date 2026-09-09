@@ -59,7 +59,7 @@ internal static class I18nRootProjectionCoordinator
             representation,
             I18nRootProjectionInventory.BuildOutputs(
                 writerContext.OutputDir,
-                representation,
+                InventoryRepresentation(writerContext.Config, representation),
                 writerContext.Results));
     }
 
@@ -71,8 +71,20 @@ internal static class I18nRootProjectionCoordinator
         writer.Write(context, representation);
         return new PublishProjectionResult(
             representation,
-            I18nRootProjectionInventory.BuildOutputs(context.OutputDir, representation, context.Results));
+            I18nRootProjectionInventory.BuildOutputs(context.OutputDir, InventoryRepresentation(context.Config, representation), context.Results));
     }
+
+    private static PublishRepresentation InventoryRepresentation(AppConfig config, PublishRepresentation representation)
+        => representation with
+        {
+            Path = representation.Kind switch
+            {
+                "atom" => config.Site.Feed.Path + "/atom.xml",
+                "jsonfeed" => config.Site.Feed.Path + "/feed.json",
+                "search" when SiteModeResolver.ResolveSearchMode(config.Site) == "index" => "search.index.json",
+                _ => representation.Path
+            }
+        };
 
     private static I18nRootProjectionWriterContext ToWriterContext(PublishProjectionContext context)
         => new(

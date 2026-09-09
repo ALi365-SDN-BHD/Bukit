@@ -23,6 +23,18 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_JsonProjectionStripsBaseAndDecodesUnicodeOnce()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        var path = Path.Combine(outputDir, "en/content/news/企业/index.html.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        WriteManifest(outputDir, "/docs/en/content/news/%E4%BC%81%E4%B8%9A/index.html.json", "/news/企业/");
+        File.WriteAllText(path, ContentJson(body: "<p>company</p>", route: "/news/企业/"));
+        var context = await LoadAsync(outputDir, baseUrl: "/docs");
+        Assert.Equal("<p>company</p>", Assert.Single(context.Routed).Item.ContentHtml);
+    }
+
+    [Fact]
     public async Task LoadAsync_RejectsJsonRepresentationEscapingOutputDirectory()
     {
         var outputDir = Path.Combine(_rootDir, "dist");
