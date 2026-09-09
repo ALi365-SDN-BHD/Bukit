@@ -140,9 +140,9 @@ internal static class PageRenderDispatcher
                             var reason = !hasExisting ? "new_page" : !outputExists ? "output_missing"
                                 : existing!.TemplateHash != templateHash ? "template_changed"
                                 : existing.MetadataHash != mh ? "content_changed"
-                                : existing.ContentHash != contentHash ? "content_changed"
                                 : existing.RouteHash != rh ? "route_changed"
-                                : existing.RenderDependencyHash != entryRenderDependencyHash ? "render_dependency_changed" : "render";
+                                : existing.RenderDependencyHash != entryRenderDependencyHash ? "render_dependency_changed"
+                                : contentHash is not null && existing.ContentHash != contentHash ? "content_changed" : "render";
                             renderReasons.AddOrUpdate(reason, 1, (_, v) => v + 1);
                         }
                         else

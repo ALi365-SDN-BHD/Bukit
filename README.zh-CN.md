@@ -83,7 +83,7 @@ Bukit Core 2.0 将以下命令面作为内部使用的受治理范围；这不�
 | `publish` | 审计或 diff 发布就绪报告 |
 | `deploy` | 将构建后的站点部署到 GitHub Pages |
 
-稳定子命令是 `config check`、`config schema`、`seo audit`、`seo diff`、`geo audit`、`publish audit` 和 `publish diff`。
+完整子命令与选项见 [CLI 参考](guide/user/12-cli-reference.md)。
 
 ## 最小 `site.yaml`
 

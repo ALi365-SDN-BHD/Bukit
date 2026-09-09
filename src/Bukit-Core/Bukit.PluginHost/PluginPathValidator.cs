@@ -98,7 +98,7 @@ public sealed partial class PluginPathValidator : IPluginPathValidator
             return false;
         }
 
-        if (WindowsAbsolutePathRegex().IsMatch(path) || Path.IsPathFullyQualified(path))
+        if (WindowsAbsolutePathRegex().IsMatch(path) || Path.IsPathRooted(path))
         {
             error = "Path must be relative.";
             return false;

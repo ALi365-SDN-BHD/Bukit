@@ -622,9 +622,9 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     }
 
     [Fact]
-    public async Task Preview_RejectsBackslashTraversal()
+    public async Task Preview_RejectsDoubleEncodedBackslashTraversal()
     {
-        var response = await SendRequestAsync("/%5c..%5csecret", removeManagedAnalytics: false);
+        var response = await SendRequestAsync("/%255c..%255csecret", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
@@ -648,7 +648,9 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     [Fact]
     public async Task Preview_RejectsVeryLongPathWithoutCrash()
     {
-        var response = await SendRequestAsync("/" + new string('a', 1024), removeManagedAnalytics: false);
+        var longPath = "/" + string.Join("/", Enumerable.Repeat(new string('a', 128), 9));
+        Assert.True(longPath.Length > 1024);
+        var response = await SendRequestAsync(longPath, removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
@@ -696,14 +698,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         try
         {
             var linkPath = Path.Combine(root, "public-link");
-            try
-            {
-                Directory.CreateSymbolicLink(linkPath, outside);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            Directory.CreateSymbolicLink(linkPath, outside);
 
             Assert.Null(DevPathGuard.TryResolveWithinRoot(root, "/public-link/secret.txt"));
         }
@@ -719,14 +714,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         var internalDir = Path.Combine(_tempDir, ".bukit");
         Directory.CreateDirectory(internalDir);
         File.WriteAllText(Path.Combine(internalDir, "build-report.json"), "{\"secret\":\"provenance-token\"}");
-        try
-        {
-            Directory.CreateSymbolicLink(Path.Combine(_tempDir, "public-reports"), internalDir);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            return; // symbolic links unavailable on this host; probe not applicable
-        }
+        Directory.CreateSymbolicLink(Path.Combine(_tempDir, "public-reports"), internalDir);
 
         var response = await SendRequestAsync("/public-reports/build-report.json", removeManagedAnalytics: false);
 
@@ -739,14 +727,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
     {
         var statePath = Path.Combine(_tempDir, ".bukit-build-state.json");
         File.WriteAllText(statePath, "{\"secret\":\"state-token\"}");
-        try
-        {
-            File.CreateSymbolicLink(Path.Combine(_tempDir, "state-alias.json"), statePath);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            return; // symbolic links unavailable on this host; probe not applicable
-        }
+        File.CreateSymbolicLink(Path.Combine(_tempDir, "state-alias.json"), statePath);
 
         var response = await SendRequestAsync("/state-alias.json", removeManagedAnalytics: false);
 

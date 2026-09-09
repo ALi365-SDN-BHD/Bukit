@@ -346,9 +346,8 @@ public sealed class RouteMetadataRenderingTests
     public void RouteDependencyHash_WithPipelineBuiltSiteModels_ChangesOnlyForAffectedRoute()
     {
         var config = CreateConfig();
-        var pipeline = new VariantBuildPipeline();
-        var beforeSite = BuildSiteModel(pipeline, config, "Before");
-        var afterSite = BuildSiteModel(pipeline, config, "After");
+        var beforeSite = BuildSiteModel(config, "Before");
+        var afterSite = BuildSiteModel(config, "After");
         var beforeMetadata = new Dictionary<string, RouteMetadataEntry>
         {
             ["/insights/"] = Entry("/insights/", "Insights", "Before"),
@@ -432,13 +431,13 @@ public sealed class RouteMetadataRenderingTests
         }
     };
 
-    private static SiteModel BuildSiteModel(VariantBuildPipeline pipeline, AppConfig config, string summary)
+    private static SiteModel BuildSiteModel(AppConfig config, string summary)
     {
         var routeRows = new[]
         {
             new ModuleInfo { Id = "insights", Title = "Insights", Slug = "insights", Content = summary }
         };
-        return pipeline.BuildSiteModel(
+        return VariantDataSitePlanner.BuildSiteModel(
             config,
             "/",
             new Dictionary<string, IReadOnlyList<ModuleInfo>> { ["page_meta"] = routeRows },

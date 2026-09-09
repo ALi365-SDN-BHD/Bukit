@@ -1,6 +1,4 @@
-using System.Runtime.InteropServices;
 using Xunit;
-using Xunit.Sdk;
 
 namespace Bukit.Engine.Tests;
 
@@ -22,14 +20,10 @@ public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
         }
     }
 
-    private static bool IsSymlinkPlatform()
-        => RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 
     [Fact]
     public void Sync_WithFollowSymlinks_InternalSymlink_IsCopied()
     {
-        if (!IsSymlinkPlatform()) return;
-
         var sourceDir = Path.Combine(_root, "source");
         var destDir = Path.Combine(_root, "dest");
         Directory.CreateDirectory(sourceDir);
@@ -48,8 +42,6 @@ public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
     [Fact]
     public void Sync_WithFollowSymlinks_ExternalSymlink_IsSkipped()
     {
-        if (!IsSymlinkPlatform()) return;
-
         var sourceDir = Path.Combine(_root, "source");
         var destDir = Path.Combine(_root, "dest");
         Directory.CreateDirectory(sourceDir);
@@ -69,8 +61,6 @@ public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
     [Fact]
     public void Sync_WithoutFollowSymlinks_SymlinkIsSkipped()
     {
-        if (!IsSymlinkPlatform()) return;
-
         var sourceDir = Path.Combine(_root, "source");
         var destDir = Path.Combine(_root, "dest");
         Directory.CreateDirectory(sourceDir);
@@ -88,8 +78,6 @@ public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
     [Fact]
     public void Sync_WithFollowSymlinks_SymlinkChain_ResolvesFinalTarget()
     {
-        if (!IsSymlinkPlatform()) return;
-
         var sourceDir = Path.Combine(_root, "source");
         var destDir = Path.Combine(_root, "dest");
         Directory.CreateDirectory(sourceDir);

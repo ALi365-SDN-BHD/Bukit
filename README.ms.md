@@ -87,7 +87,7 @@ Bukit Core 2.0 mentadbir permukaan arahan ini untuk kegunaan dalaman; ini bukan 
 | `publish` | Mengaudit atau membandingkan laporan kesediaan terbit |
 | `deploy` | Mendeploy laman yang telah dibina ke GitHub Pages |
 
-Subcommand stabil ialah `config check`, `config schema`, `seo audit`, `seo diff`, `geo audit`, `publish audit`, dan `publish diff`.
+Lihat [rujukan CLI](guide/user/12-cli-reference.md) untuk senarai lengkap subcommand dan pilihan.
 
 ## `site.yaml` Minimum
 

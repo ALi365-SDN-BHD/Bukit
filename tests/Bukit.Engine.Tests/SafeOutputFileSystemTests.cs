@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Bukit.Engine.Output;
 using Bukit.Shared;
 using Xunit;
@@ -60,8 +59,6 @@ public sealed class SafeOutputFileSystemTests : IDisposable
     [Fact]
     public async Task DeleteFileAsync_RejectsOutputSymlinkEscape()
     {
-        if (!IsSymlinkPlatform()) return;
-
         var outputRoot = Path.Combine(_root, "dist");
         var outside = Path.Combine(_root, "outside");
         Directory.CreateDirectory(outputRoot);
@@ -80,8 +77,6 @@ public sealed class SafeOutputFileSystemTests : IDisposable
     [Fact]
     public async Task WriteTextAsync_RejectsOutputSymlinkEscape()
     {
-        if (!IsSymlinkPlatform()) return;
-
         var outputRoot = Path.Combine(_root, "dist");
         var outside = Path.Combine(_root, "outside");
         Directory.CreateDirectory(outputRoot);
@@ -114,6 +109,4 @@ public sealed class SafeOutputFileSystemTests : IDisposable
         }
     }
 
-    private static bool IsSymlinkPlatform()
-        => RuntimeInformation.IsOSPlatform(OSPlatform.Linux) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 }

@@ -1,3 +1,4 @@
+using Xunit.Abstractions;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Commands.Dev;
 using Bukit.Cli.Shared.Cli.Binding;
@@ -10,7 +11,7 @@ using Xunit;
 
 namespace Bukit.Cli.Tests;
 
-public sealed class DevCommandTests
+public sealed class DevCommandTests(ITestOutputHelper output)
 {
     [Fact]
     public async Task WaitForShutdownOrAcceptLoopAsync_AcceptLoopFaults_PropagatesBeforeCancellation()
@@ -32,6 +33,7 @@ public sealed class DevCommandTests
     {
         if (OperatingSystem.IsWindows())
         {
+            output.WriteLine("BUKIT_NOT_APPLICABLE: non-Windows case-sensitive comparison");
             return;
         }
 
@@ -69,14 +71,7 @@ public sealed class DevCommandTests
         try
         {
             var linkPath = Path.Combine(root, "public-link");
-            try
-            {
-                Directory.CreateSymbolicLink(linkPath, outside);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            Directory.CreateSymbolicLink(linkPath, outside);
 
             Assert.Null(DevPathGuard.TryResolveWithinRoot(root, "/public-link/secret.txt"));
             Assert.NotNull(DevPathGuard.TryResolveWithinRoot(root, "/index.html"));
@@ -100,14 +95,7 @@ public sealed class DevCommandTests
         try
         {
             var linkPath = Path.Combine(root, "page.html");
-            try
-            {
-                File.CreateSymbolicLink(linkPath, secretPath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            File.CreateSymbolicLink(linkPath, secretPath);
 
             Assert.Null(DevPathGuard.TryResolveWithinRoot(root, "/page.html"));
         }
@@ -128,14 +116,7 @@ public sealed class DevCommandTests
         try
         {
             var alias = Path.Combine(root, "public-reports");
-            try
-            {
-                Directory.CreateSymbolicLink(alias, internalDir);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            Directory.CreateSymbolicLink(alias, internalDir);
 
             // Confinement legitimately passes: the physical target stays inside the root.
             var candidate = DevPathGuard.TryResolveWithinRoot(root, "/public-reports/build-report.json");
@@ -159,14 +140,7 @@ public sealed class DevCommandTests
         try
         {
             var alias = Path.Combine(root, "state-alias.json");
-            try
-            {
-                File.CreateSymbolicLink(alias, statePath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            File.CreateSymbolicLink(alias, statePath);
 
             var candidate = DevPathGuard.TryResolveWithinRoot(root, "/state-alias.json");
             Assert.NotNull(candidate);
@@ -189,14 +163,7 @@ public sealed class DevCommandTests
         try
         {
             var alias = Path.Combine(root, "styles");
-            try
-            {
-                Directory.CreateSymbolicLink(alias, assetsDir);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-            {
-                return; // symbolic links unavailable on this host; probe not applicable
-            }
+            Directory.CreateSymbolicLink(alias, assetsDir);
 
             var candidate = DevPathGuard.TryResolveWithinRoot(root, "/styles/site.css");
             Assert.NotNull(candidate);
@@ -833,8 +800,7 @@ public sealed class DevCommandTests
 
     [Theory]
     [InlineData("/%252e%252e/")]
-    [InlineData("/%5c..%5csecret")]
-    [InlineData("/%00")]
+    [InlineData("/%255c..%255csecret")]
     public async Task DevRequestHandler_RejectsEncodedDotDotPath(string path)
     {
         var outputDir = Path.Combine(Path.GetTempPath(), "bukit-dev-handler-traversal-" + Guid.NewGuid().ToString("N"));
@@ -858,15 +824,9 @@ public sealed class DevCommandTests
     }
 
     [Fact]
-    public async Task DevRequestHandler_RejectsBackslashTraversal()
+    public async Task DevRequestHandler_RejectsDoubleEncodedBackslashTraversal()
     {
-        await AssertDevTraversalRejectedAsync("/%5c..%5csecret");
-    }
-
-    [Fact]
-    public async Task DevRequestHandler_RejectsNullByteEncodedPath()
-    {
-        await AssertDevTraversalRejectedAsync("/%00");
+        await AssertDevTraversalRejectedAsync("/%255c..%255csecret");
     }
 
     [Fact]
@@ -877,7 +837,8 @@ public sealed class DevCommandTests
 
         try
         {
-            var longPath = "/" + new string('a', 1024);
+            var longPath = "/" + string.Join("/", Enumerable.Repeat(new string('a', 128), 9));
+            Assert.True(longPath.Length > 1024);
             var handler = new DevRequestHandler(outputDir, removeManagedAnalytics: false, new TestLogger());
             var response = await ProcessSingleRequestAsync(
                 longPath,
@@ -921,7 +882,8 @@ public sealed class DevCommandTests
     [InlineData("/%252e%252e/")]
     [InlineData("/%5c..%5csecret")]
     [InlineData("/%EF%BC%8E%EF%BC%8E/secret")]
-    public void DevPathGuard_RejectsUnicodeAndEncodedTraversal(string path)
+    [InlineData("/%00")]
+    public void DevPathGuard_RejectsUnicodeEncodedTraversalAndNullByte(string path)
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-dev-path-guard-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -981,45 +943,80 @@ public sealed class DevCommandTests
 
         using var client = new HttpClient();
         var responseTask = client.GetAsync(host.Prefix);
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cts.Cancel();
+            Assert.NotSame(loopTask, await Task.WhenAny(loopTask, Task.Delay(100)));
 
-        cts.Cancel();
-        Assert.NotSame(loopTask, await Task.WhenAny(loopTask, Task.Delay(100)));
-
-        release.TrySetResult(true);
-        await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
-        using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            release.TrySetResult(true);
+            await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
+            using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        }
+        finally
+        {
+            release.TrySetResult(true);
+            cts.Cancel();
+        }
     }
 
     [Fact]
     public async Task DevServerHost_Dispose_WaitsForDispatchBeforeDisposingRequestGate()
     {
         using var logger = new BufferingLogger();
-        var host = DevServerHost.Start("localhost", 0, logger);
+        var tracked = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var host = DevServerHost.Start("localhost", 0, logger, request => tracked.TrySetResult(request));
         var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var loopTask = host.RunAcceptLoopAsync(async context =>
         {
+            context.Response.StatusCode = 204;
             entered.TrySetResult(true);
             await release.Task;
-            context.Response.StatusCode = 204;
-            context.Response.Close();
+            // Dispose owns transport shutdown; the held dispatch only proves gate lifetime.
         }, CancellationToken.None);
 
         using var client = new HttpClient();
         var responseTask = client.GetAsync(host.Prefix);
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Task? disposeTask = null;
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var dispatchTask = await tracked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            disposeTask = Task.Run(host.Dispose);
+            Assert.NotSame(disposeTask, await Task.WhenAny(disposeTask, Task.Delay(100)));
 
-        var disposeTask = Task.Run(host.Dispose);
-        Assert.NotSame(disposeTask, await Task.WhenAny(disposeTask, Task.Delay(100)));
-
-        release.TrySetResult(true);
-        await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
-        await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
-        using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.True(response.IsSuccessStatusCode);
+            release.TrySetResult(true);
+            await disposeTask.WaitAsync(TimeSpan.FromSeconds(5));
+            await loopTask.WaitAsync(TimeSpan.FromSeconds(5));
+            await dispatchTask.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(dispatchTask.IsCompletedSuccessfully);
+            Assert.Empty(logger.Errors);
+            try
+            {
+                using var response = await responseTask.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.True(response.IsSuccessStatusCode);
+            }
+            catch (HttpRequestException error) when (
+                OperatingSystem.IsWindows() &&
+                error.InnerException is IOException
+                {
+                    InnerException: System.Net.Sockets.SocketException
+                    {
+                        SocketErrorCode: System.Net.Sockets.SocketError.ConnectionReset
+                    }
+                })
+            {
+                output.WriteLine("HTTP.sys reset the client connection after successful dispatch drain and disposal.");
+            }
+        }
+        finally
+        {
+            release.TrySetResult(true);
+            await (disposeTask ?? Task.Run(host.Dispose)).WaitAsync(TimeSpan.FromSeconds(5));
+        }
     }
 
     [Fact]
@@ -1329,6 +1326,52 @@ public sealed class DevCommandTests
         return (string)method.Invoke(null, [extension])!;
     }
 
+    [Fact]
+    public async Task ProcessSingleRawRequestAsync_CancelsBlockedHandler()
+    {
+        var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = ProcessSingleRawRequestAsync("/", async (context, cancellationToken) =>
+        {
+            entered.TrySetResult(true);
+            await release.Task.WaitAsync(cancellationToken);
+            context.Response.Close();
+        });
+
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                request.WaitAsync(TimeSpan.FromSeconds(8)));
+        }
+        finally
+        {
+            release.TrySetResult(true);
+            try { await request.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (OperationCanceledException) { }
+        }
+    }
+
+    [Fact]
+    public async Task ProcessSingleRawRequestAsync_RejectsResponseBeforeApplicationDispatch()
+    {
+        using var transport = StartListener(out var prefix, out _);
+        var handlerCalled = false;
+        var request = ProcessSingleRawRequestAsync(prefix, (_, _) =>
+        {
+            handlerCalled = true;
+            return Task.CompletedTask;
+        });
+        var context = await transport.GetContextAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        context.Response.StatusCode = 400;
+        context.Response.Close();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            request.WaitAsync(TimeSpan.FromSeconds(8)));
+        Assert.Contains("before application dispatch", error.Message, StringComparison.Ordinal);
+        Assert.False(handlerCalled);
+    }
+
     private static async Task<(HttpStatusCode StatusCode, string Body)> ProcessSingleRequestAsync(
         string path,
         Func<HttpListenerContext, CancellationToken, Task> handleAsync)
@@ -1342,16 +1385,46 @@ public sealed class DevCommandTests
         Func<HttpListenerContext, CancellationToken, Task> handleAsync)
     {
         using var listener = StartListener(out var prefix, out _);
-        using var client = new HttpClient();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var client = new HttpClient(new SocketsHttpHandler { UseProxy = false })
+        {
+            Timeout = Timeout.InfiniteTimeSpan
+        };
         var contextTask = listener.GetContextAsync();
-        var responseTask = client.GetAsync(new Uri(new Uri(prefix), path));
+        var responseTask = client.GetAsync(new Uri(new Uri(prefix), path), deadline.Token);
+        Task handlerTask = Task.CompletedTask;
+        try
+        {
+            var first = await Task.WhenAny(contextTask, responseTask).WaitAsync(deadline.Token);
+            if (first == responseTask)
+            {
+                using var rejected = await responseTask;
+                throw new InvalidOperationException(
+                    $"HTTP transport returned {rejected.StatusCode} before application dispatch.");
+            }
 
-        var context = await contextTask;
-        await handleAsync(context, CancellationToken.None);
-
-        using var response = await responseTask;
-        var body = await response.Content.ReadAsByteArrayAsync();
-        return (response.StatusCode, body, response.Content.Headers.ContentLength);
+            var context = await contextTask.WaitAsync(deadline.Token);
+            handlerTask = handleAsync(context, deadline.Token);
+            await handlerTask.WaitAsync(deadline.Token);
+            using var response = await responseTask.WaitAsync(deadline.Token);
+            var body = await response.Content.ReadAsByteArrayAsync(deadline.Token);
+            return (response.StatusCode, body, response.Content.Headers.ContentLength);
+        }
+        finally
+        {
+            deadline.Cancel();
+            listener.Close();
+            try
+            {
+                await Task.WhenAll(contextTask, responseTask, handlerTask).WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            catch (Exception) when (contextTask.IsCompleted && responseTask.IsCompleted && handlerTask.IsCompleted)
+            {
+                // Observe cancellation/close failures after the primary request result.
+            }
+            if (responseTask.IsCompletedSuccessfully)
+                responseTask.Result.Dispose();
+        }
     }
 
     [Fact]

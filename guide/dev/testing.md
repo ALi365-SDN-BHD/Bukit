@@ -173,10 +173,48 @@ bash scripts/checks/coverage-baseline-schema.sh
 bash scripts/checks/coverage.sh Release
 ```
 
-In CI and release workflows, `coverage-plan` validates the coverage policy and
-builds a per-project matrix from the Core test project list. The
-`coverage-summary` job downloads those isolated project results, enforces the
-Core thresholds, and uploads the resulting coverage evidence.
+In CI and release workflows, `coverage-plan` validates policy and builds a
+per-project matrix from the unchanged 13 Core test projects. Each
+`coverage-projects` invocation runs that project's complete tests once and collects
+coverage and TRX together. `coverage-summary` rejects missing project results,
+enforces 84% overall and 70% per-project coverage, and uploads the evidence.
+The single-project runner validates actual executed tests and reports skipped
+cases; its direct owner test is:
+
+```bash
+bash scripts/checks/coverage-run-one-self-test.sh
+```
+
+Ordinary CI no longer repeats those full project tests through `ci-full.sh`.
+The `Core tests` check aggregates required coverage and platform results; failure,
+cancellation, missing evidence, or an unexpected skipped prerequisite cannot pass
+it. PRs, the existing push branches and manual `core` run fast contracts, full Core
+coverage, three platform specialties and the aggregate. Manual `coverage` runs
+fast plus coverage; manual `fast` runs fast only. The release workflow and local
+`ci-full.sh` keep their existing structure and separate authorization boundaries.
+
+The non-instrumented platform specialties select these complete test classes:
+
+| Runner / actual target | Required classes |
+|---|---|
+| `ubuntu-24.04` / Linux x64 | PluginHost: `SystemProcessRunnerTests`, `PluginPathValidatorTests`; Engine: `ExternalToolProcessRunnerTests` |
+| `macos-15` / macOS arm64 | The Linux process classes; Engine: `SafeOutputFileSystemTests`, `DirectoryCopyFollowSymlinksTests`; Shared: `PlatformPathHelperTests`, `PathUtilsTests`, `PlatformSafeSourceFileOpenerTests`; CLI: `PreviewCommandTests`, `PreviewCommandExtendedTests`, `DevCommandTests` |
+| `windows-2025` / Windows x64 | The same full class selection as macOS, exercising the Windows branches |
+
+Process behavior and OS-specific path, link, preview and dev-server behavior need
+this separate evidence without coverage instrumentation. `platform-tests` checks
+the actual OS, .NET host process architecture and SDK against the matrix and
+`global.json`; a runner label alone is insufficient. `TestResults/platform`
+contains `platform.json`, `dotnet-info.txt` and per-project TRX files. Coverage
+TRX files are beside each project's coverage output under
+`TestResults/coverage/projects`.
+
+Explicit POSIX-only or opposite-platform cases emit `BUKIT_NOT_APPLICABLE:` in
+TRX test output. The platform report accepts only the declared method/OS pairs,
+lists them separately and requires actual applicable execution in every selected
+class. A required path/link capability failure or unexpected skipped test is a
+verification gap, not a pass. The local macOS run does not establish hosted Linux,
+Windows or macOS acceptance; actual target runs remain separately required.
 
 Smoke one supported release archive or publish directory with:
 
