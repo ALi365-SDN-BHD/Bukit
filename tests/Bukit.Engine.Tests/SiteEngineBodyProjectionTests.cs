@@ -29,7 +29,7 @@ public sealed partial class SiteEngineIntegrationTests
             var documents = multilingual ? new[] { MediaDocument("one"), MediaDocument("two", "zh") } : new[] { MediaDocument("one") };
             documents = documents.Select(document => document with { CustomFields = new Dictionary<string, ContentField>(document.CustomFields!) { ["bodyFingerprint"] = new("text", "stable-source-body") } }).ToArray();
             if (multilingual) documents[1] = documents[1] with { Body = documents[1].Body with { BodyKey = "one" } };
-            var html = $"<h3>用笔方法</h3><p>中锋行笔，侧锋铺墨。</p><h3>葫芦画法</h3><p>先画小圆，再画大圆。</p><img src=\"{server.Url}\" alt=\"葫芦图\">";
+            var html = $"<h3>用笔方法</h3><p>中锋行笔，侧锋铺墨。</p><h3>葫芦画法</h3><p>先画小圆，再画大圆。</p><a href=\"https://example.org/guide?q=ink&amp;lang=zh\">绘画参考</a><img src=\"{server.Url}\" alt=\"葫芦图\">";
             Dictionary<string, string>? expected = null;
             foreach (var clean in new[] { true, false, true })
             {
@@ -52,6 +52,7 @@ public sealed partial class SiteEngineIntegrationTests
                     Assert.Empty(json.RootElement.GetProperty("sections").EnumerateArray());
                     var markdown = File.ReadAllText(Path.Combine(variant, "content", "blog", document.Slug, "index.html.md"));
                     Assert.Contains("## Body", markdown);
+                    Assert.Contains("[绘画参考](<https://example.org/guide?q=ink&amp;lang=zh>)", markdown);
                     foreach (var text in new[] { "用笔方法", "中锋行笔，侧锋铺墨。", "葫芦画法", "先画小圆，再画大圆。" }) Assert.Contains(text, markdown);
                     Assert.DoesNotContain("LAYOUT ONLY", body);
                     Assert.DoesNotContain("LAYOUT ONLY", markdown);

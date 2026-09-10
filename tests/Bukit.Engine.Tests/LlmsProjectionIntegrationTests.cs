@@ -1,5 +1,13 @@
 using Bukit.Config;
 using Bukit.Shared;
+using System.Text.Json;
+using Markdig;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
+using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
+using Bukit.Engine.Abstractions.Routing;
+using Bukit.Engine.Plugins.BuiltIn;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -56,6 +64,7 @@ public sealed class LlmsProjectionIntegrationTests
                   layouts: layouts
                 """);
             WritePost(root, "visible.md", "Visible", "visible", extraFrontMatter: "");
+            File.AppendAllText(Path.Combine(root, "content", "visible.md"), "\n\nBefore [Official **website**](https://example.org/company?q=rail&lang=中文) after. [Related](../related/) [Details](#details)\n");
             WritePost(root, "hidden.md", "Hidden", "hidden", extraFrontMatter: "robots: noindex,nofollow");
             WritePost(root, "expired.md", "Expired", "expired", extraFrontMatter: "expires_at: 2024-01-01T00:00:00Z");
             File.WriteAllText(Path.Combine(root, "layouts", "layouts", "base.html"), """
@@ -90,6 +99,32 @@ public sealed class LlmsProjectionIntegrationTests
             Assert.DoesNotContain("https://example.com/blog/hidden/", llms, StringComparison.Ordinal);
             Assert.DoesNotContain("https://example.com/blog/expired/", llms, StringComparison.Ordinal);
             Assert.Contains("https://example.com/blog/visible/", llmsFull, StringComparison.Ordinal);
+            var markdown = File.ReadAllText(Path.Combine(root, "dist", "content/blog/visible/index.html.md"));
+            foreach (var output in new[] { markdown, llmsFull })
+            {
+                var links = Markdown.Parse(output).Descendants<LinkInline>().Select(link => Uri.UnescapeDataString(link.Url!)).ToArray();
+                Assert.Contains("https://example.org/company?q=rail&lang=中文", links);
+                Assert.Contains(output == markdown ? "/blog/related/" : "https://example.com/blog/related/", links);
+                Assert.Contains(output == markdown ? "/blog/visible/#details" : "https://example.com/blog/visible/#details", links);
+            }
+            using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "dist", "content/blog/visible/index.html.json")));
+            var htmlBody = json.RootElement.GetProperty("body").GetString()!;
+            Assert.Contains("href=\"../related/\"", htmlBody);
+            Assert.Contains(htmlBody, File.ReadAllText(Path.Combine(root, "dist", "blog/visible/index.html")));
+            Assert.Equal("/blog/visible/", json.RootElement.GetProperty("route").GetString());
+            using var search = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "dist", "search.json")));
+            var searchItem = search.RootElement.EnumerateArray().Single(item => item.GetProperty("url").GetString() == "/blog/visible/");
+            Assert.Equal(SearchIndexBuilder.StripHtmlToText(htmlBody), searchItem.GetProperty("content").GetString());
+            Assert.Equal(json.RootElement.GetProperty("id").GetString(), searchItem.GetProperty("id").GetString());
+            var document = ContentDocument.Create("visible", "Visible", "visible", DateTimeOffset.UnixEpoch, htmlBody);
+            var route = new RouteInfo("/blog/visible/", "blog/visible/index.html", "pages/post.html");
+            await LlmsTxtPlugin.WriteLlmsFullTxtAsync(config, Path.Combine(root, "async"), "/", [new(document, route)], [],
+                CanonicalContentGraph.Empty, new Dictionary<string, SeoIndexEntry>
+                {
+                    [route.OutputPath] = new(route, "https://example.com/blog/visible/", null, true, DateTimeOffset.UnixEpoch, document.Id, "post")
+                }, NullContentBodyStore.Instance);
+            Assert.Equal(Markdown.Parse(llmsFull).Descendants<LinkInline>().Select(link => link.Url),
+                Markdown.Parse(File.ReadAllText(Path.Combine(root, "async", "llms-full.txt"))).Descendants<LinkInline>().Select(link => link.Url));
             Assert.DoesNotContain("https://example.com/blog/hidden/", llmsFull, StringComparison.Ordinal);
             Assert.DoesNotContain("https://example.com/blog/expired/", llmsFull, StringComparison.Ordinal);
             Assert.Empty(logger.Errors);

@@ -331,7 +331,7 @@ internal sealed class MarkdownContentDocumentProjection : IPublishProjection
             sb.AppendLine();
             sb.AppendLine("## Body");
             sb.AppendLine();
-            sb.AppendLine(SearchIndexBuilder.StripHtmlToText(record.Presentation.Body));
+            sb.AppendLine(MarkdownBodyProjection.FromHtml(record.Presentation.Body, SearchIndexBuilder.NormalizeSearchUrl(context.BaseUrl, route.Url)));
         }
 
         FileWriter.WriteUtf8(context.OutputDir, DefaultContentProjectionWriter.GetContentProjectionRelativePath(route, ".md"), sb.ToString());

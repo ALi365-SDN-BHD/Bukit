@@ -439,7 +439,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             }
 
             var html = await ContentBodyResolver.GetHtmlAsync(document, bodyStore, cancellationToken).ConfigureAwait(false);
-            var text = SearchIndexBuilder.StripHtmlToText(html);
+            var text = MarkdownBodyProjection.FromHtml(html, url);
             sb.AppendLine(text);
             sb.AppendLine();
             sb.AppendLine("---");
@@ -535,7 +535,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 #pragma warning disable CS0618
             var html = ContentBodyResolver.GetHtml(document, bodyStore);
 #pragma warning restore CS0618
-            var text = SearchIndexBuilder.StripHtmlToText(html);
+            var text = MarkdownBodyProjection.FromHtml(html, url);
             sb.AppendLine(text);
             sb.AppendLine();
             sb.AppendLine("---");
