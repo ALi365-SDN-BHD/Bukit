@@ -1,0 +1,32 @@
+name: "srbiz"
+version: 1.0.0
+engine: bukit
+description: Theme generated from HTML import
+templates:
+  home:
+    template: pages/index.html
+    required: true
+  page:
+    template: pages/page.html
+    accepts:
+      collection: page
+  author:
+    template: pages/author.html
+    accepts:
+      collection: author
+  post:
+    template: pages/post.html
+    accepts:
+      collection: post
+  list:
+    template: pages/insights.html
+    accepts:
+      kind: list
+  company:
+    template: pages/company.html
+    accepts:
+      collection: company
+  company-list:
+    template: pages/companies.html
+    accepts:
+      kind: list

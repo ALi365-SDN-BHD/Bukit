@@ -1,0 +1,6 @@
+{% layout "layouts/base.html" %}
+{{ base_url = site.base_url }}{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+<main id="main-content" tabindex="-1">
+  <section class="page-hero"><div class="container"><div class="breadcrumb"><a href="{{ base_url }}/">首页</a> / <a href="{{ base_url }}/insights/">商务资讯</a> / <a href="{{ base_url }}/insights/tags/">资讯标签</a> / {{ taxonomy.term }}</div><h1>{{ taxonomy.term }}</h1><p>浏览“{{ taxonomy.term }}”标签下的商务资讯。</p></div></section>
+  <section class="section" aria-labelledby="tag-insights-list-title"><div class="container"><h2 id="tag-insights-list-title" class="visually-hidden">{{ taxonomy.term }}资讯列表</h2><div class="insights-grid">{{ for item in pages }}<article class="article-card">{{ include "components/article-card.html" }}</article>{{ end }}</div>{{ include "partials/pagination-nav.html" }}</div></section>
+</main>

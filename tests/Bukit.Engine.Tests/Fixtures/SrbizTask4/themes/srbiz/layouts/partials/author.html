@@ -1,0 +1,26 @@
+{{ author_profile = page.fields.authorprofile }}
+{{ legacy_author = page.fields.author }}
+{{ if author_profile && author_profile.value }}
+<section class="article-trust article-trust--author" aria-labelledby="article-author-title">
+  <h2 id="article-author-title">作者</h2>
+  <div class="article-trust__items">
+    {{ for author in author_profile.value }}
+      {{ author_url = author["url"] }}
+      {{ author_slug = author["slug"] }}
+      {{ author_title = author["label"] }}
+      {{ if !author_title }}{{ author_title = author["name"] }}{{ end }}
+      {{ if !author_title }}{{ author_title = author["plain_text"] }}{{ end }}
+      {{ if !author_title }}{{ author_title = author["title"] }}{{ end }}
+      {{ if !author_title }}{{ author_title = author_slug }}{{ end }}
+      {{ if !author_title }}{{ author_title = author_url }}{{ end }}
+      {{ if !author_title }}{{ author_title = author }}{{ end }}
+      {{ if author_url }}<a href="{{ base_url }}{{ author_url }}">{{ author_title }}</a>{{ else if author_slug }}<a href="{{ base_url }}/authors/{{ author_slug }}/">{{ author_title }}</a>{{ else }}<span>{{ author_title }}</span>{{ end }}
+    {{ end }}
+  </div>
+</section>
+{{ else if legacy_author && legacy_author.value }}
+<section class="article-trust article-trust--author" aria-labelledby="article-author-title">
+  <h2 id="article-author-title">作者</h2>
+  <div class="article-trust__items"><span>{{ legacy_author.value }}</span></div>
+</section>
+{{ end }}

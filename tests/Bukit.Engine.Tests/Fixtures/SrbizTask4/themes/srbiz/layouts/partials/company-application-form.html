@@ -1,0 +1,85 @@
+{{ form_config = site.params.company_application_form }}
+{{ form_entries = form_config.entries }}
+{{ form_enabled = form_config && form_config.enabled && form_config.action_url && form_config.responder_url && form_entries && form_entries.company_name && form_entries.contact_name && form_entries.phone && form_entries.email && form_entries.country && form_entries.industry && form_entries.summary && form_entries.cooperation && form_entries.consent }}
+<div class="section-header company-application-header">
+  <div>
+    <div class="section-kicker">Application Form</div>
+    <h2 class="section-title">提交企业资料</h2>
+    <p class="section-desc" id="company-application-help">提交前请阅读<a href="{{ base_url }}/privacy/" target="_blank" rel="noopener">《隐私声明》</a>。请填写真实、完整的企业资料。提交后，资料将发送至丝路商讯使用的 Google Forms，供入驻审核及后续联系。</p>
+  </div>
+</div>
+
+<form
+  class="form-card company-application-form"
+  method="post"
+  action="{{ if form_enabled }}{{ form_config.action_url }}{{ end }}"
+  target="company-application-response"
+  accept-charset="UTF-8"
+  aria-describedby="company-application-help company-application-status"
+  data-company-application-form
+  data-min-fill-ms="2000"
+  data-timeout-ms="15000"
+  {{ if !form_enabled }}aria-disabled="true"{{ end }}>
+  <div class="form-grid">
+    <div class="form-field">
+      <label for="company-name">企业名称</label>
+      <input id="company-name" name="{{ if form_enabled }}{{ form_entries.company_name }}{{ else }}company_name{{ end }}" type="text" placeholder="请输入企业名称" autocomplete="organization" required {{ if !form_enabled }}disabled{{ end }}>
+    </div>
+    <div class="form-field">
+      <label for="contact-name">联系人</label>
+      <input id="contact-name" name="{{ if form_enabled }}{{ form_entries.contact_name }}{{ else }}contact_name{{ end }}" type="text" placeholder="请输入联系人" autocomplete="name" required {{ if !form_enabled }}disabled{{ end }}>
+    </div>
+    <div class="form-field">
+      <label for="application-phone">联系电话</label>
+      <input id="application-phone" name="{{ if form_enabled }}{{ form_entries.phone }}{{ else }}phone{{ end }}" type="tel" placeholder="请输入联系电话" autocomplete="tel" required {{ if !form_enabled }}disabled{{ end }}>
+    </div>
+    <div class="form-field">
+      <label for="application-email">联系邮箱</label>
+      <input id="application-email" name="{{ if form_enabled }}{{ form_entries.email }}{{ else }}email{{ end }}" type="email" placeholder="请输入邮箱" autocomplete="email" required {{ if !form_enabled }}disabled{{ end }}>
+    </div>
+    <div class="form-field">
+      <label for="country">企业国家 / 地区</label>
+      <select id="country" name="{{ if form_enabled }}{{ form_entries.country }}{{ else }}country{{ end }}" autocomplete="country-name" required {{ if !form_enabled }}disabled{{ end }}>
+        <option value="" selected disabled>请选择国家 / 地区</option>
+        <option value="中国">中国</option>
+        <option value="马来西亚">马来西亚</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label for="industry">所属行业</label>
+      <input id="industry" name="{{ if form_enabled }}{{ form_entries.industry }}{{ else }}industry{{ end }}" type="text" placeholder="例如：科技、旅游、商务服务" autocomplete="organization-title" required {{ if !form_enabled }}disabled{{ end }}>
+    </div>
+    <div class="form-field full">
+      <label for="company-summary">企业简介</label>
+      <textarea id="company-summary" name="{{ if form_enabled }}{{ form_entries.summary }}{{ else }}summary{{ end }}" placeholder="请简要介绍企业主营业务、服务能力与市场方向" required {{ if !form_enabled }}disabled{{ end }}></textarea>
+    </div>
+    <div class="form-field full">
+      <label for="needs">合作需求</label>
+      <textarea id="needs" name="{{ if form_enabled }}{{ form_entries.cooperation }}{{ else }}cooperation{{ end }}" placeholder="请说明希望寻找客户、代理、渠道、服务机构或项目合作" required {{ if !form_enabled }}disabled{{ end }}></textarea>
+    </div>
+    <div class="form-field full company-application-consent">
+      <label for="data-consent">
+        <input id="data-consent" name="{{ if form_enabled }}{{ form_entries.consent }}{{ else }}consent{{ end }}" type="checkbox" value="同意丝路商讯将本资料用于企业入驻审核及后续联系" required {{ if !form_enabled }}disabled{{ end }}>
+        <span>同意丝路商讯将本资料用于企业入驻审核及后续联系</span>
+      </label>
+      <p class="company-application-privacy">详细了解资料如何处理，请阅读<a href="{{ base_url }}/privacy/" target="_blank" rel="noopener">《隐私声明》</a>。</p>
+    </div>
+  </div>
+
+  <div class="company-application-honeypot" aria-hidden="true">
+    <label for="company-website-confirmation">请勿填写此字段</label>
+    <input id="company-website-confirmation" name="company_website_confirmation" type="text" tabindex="-1" autocomplete="off" data-company-application-honeypot>
+  </div>
+
+  <div class="company-application-actions">
+    <button class="btn btn-dark" type="submit" data-company-application-submit {{ if !form_enabled }}disabled{{ end }}>提交申请</button>
+    <p id="company-application-status" class="company-application-status{{ if !form_enabled }} is-disabled{{ end }}" aria-live="polite" aria-atomic="true" data-company-application-status>{{ if !form_enabled }}当前暂不可提交，请稍后再试。{{ end }}</p>
+  </div>
+  <p class="company-application-fallback" data-company-application-fallback>如果无法完成提交，可<a href="{{ if form_config && form_config.responder_url }}{{ form_config.responder_url }}{{ else }}#{{ end }}" target="_blank" rel="noopener noreferrer">前往备用 Google 表单</a>。</p>
+  <noscript>
+    <p class="company-application-fallback">JavaScript 未启用，内嵌提交无法反馈结果。请<a href="{{ if form_config && form_config.responder_url }}{{ form_config.responder_url }}{{ else }}#{{ end }}" target="_blank" rel="noopener noreferrer">直接打开备用 Google 表单</a>完成申请。</p>
+  </noscript>
+</form>
+
+<iframe class="company-application-response-frame" name="company-application-response" title="企业入驻申请提交响应" hidden data-company-application-frame></iframe>

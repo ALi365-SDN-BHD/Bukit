@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="{{ site.language }}">
+{{ base_url = site.base_url }}{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.seo.document_title | html.escape }}</title>
+  <link rel="icon" href="{{ base_url }}/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="{{ base_url }}/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="{{ base_url }}/apple-touch-icon.png" sizes="180x180">
+  {{ if page.seo && page.seo.description }}<meta name="description" content="{{ page.seo.description }}">{{ else if page.summary }}<meta name="description" content="{{ page.summary }}">{{ end }}
+  {{ if page.seo && page.seo.canonical }}<link rel="canonical" href="{{ page.seo.canonical }}">{{ end }}
+  <script src="{{ base_url }}/assets/js/consent.js"></script>
+  <link rel="stylesheet" href="{{ base_url }}/assets/css/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
+  {{ include "partials/header.html" }}
+  {{ content }}
+  {{ include "partials/analytics-consent.html" }}
+  {{ include "partials/footer.html" }}
+  <script src="{{ base_url }}/assets/js/main.js"></script>
+</body>
+</html>

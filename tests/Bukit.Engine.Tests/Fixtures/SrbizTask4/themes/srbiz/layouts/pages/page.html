@@ -1,0 +1,16 @@
+{% layout "layouts/base.html" %}
+{{ base_url = site.base_url }}{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+{{ page_kind = "page" }}{{ if page.fields }}{{ if page.fields.page_kind }}{{ page_kind = page.fields.page_kind.value }}{{ else if page.fields.pagekind }}{{ page_kind = page.fields.pagekind.value }}{{ end }}{{ end }}
+<main id="main-content" tabindex="-1">
+  <section class="page-hero"><div class="container"><div class="breadcrumb"><a href="{{ base_url }}/">首页</a> / {{ page.title }}</div><h1>{{ page.title }}</h1><p>{{ page.summary }}</p></div></section>
+
+  {{ if page_kind == "contact" }}
+    {{ contact = site.data_index.settings.contact }}
+    <section class="section"><div class="container"><article class="content-panel contact-panel">{{ page.content }}<h2>联系信息</h2><dl class="info-list contact-info-list">{{ if contact && contact.email }}<div><dt>邮箱</dt><dd><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></dd></div>{{ else }}<div><dt>邮箱</dt><dd><a href="mailto:contact@silushangxun.com">contact@silushangxun.com</a></dd></div>{{ end }}</dl></article></div></section>
+  {{ else if page_kind == "join" }}
+    <section class="section"><div class="container"><div class="section-header"><div><div class="section-kicker">Who Should Join</div><h2 class="section-title">适合入驻的企业</h2><p class="section-desc">无论您是正在拓展马来西亚市场的中国企业，还是希望连接中国市场的马来西亚企业，都可以提交资料申请展示。</p></div></div><div class="service-grid">{{ if site.modules && site.modules.services }}{{ for item in site.modules.services }}<article class="service-card">{{ include "components/service-card.html" }}</article>{{ end }}{{ end }}</div>{{ include "partials/company-application-form.html" }}</div></section>
+    <section class="section soft"><div class="container"><div class="section-header"><div><div class="section-kicker">FAQ</div><h2 class="section-title">常见问题</h2></div></div><div class="faq-list">{{ if site.modules && site.modules.faqs }}{{ for item in site.modules.faqs }}{{ include "components/faq.html" }}{{ end }}{{ end }}</div></div></section>
+  {{ else }}
+    <section class="section"><div class="container"><article class="content-panel">{{ page.content }}</article></div></section>
+  {{ end }}
+</main>

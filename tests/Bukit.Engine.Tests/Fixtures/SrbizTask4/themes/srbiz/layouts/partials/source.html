@@ -1,0 +1,46 @@
+{{ source_list = page.fields.sources }}
+{{ primary_source = page.fields.primarysource }}
+{{ original_url = page.provenance.original_source }}
+{{ if source_list && source_list.value }}
+<section class="source-list" aria-labelledby="source-list-title">
+  <h2 id="source-list-title">具名来源</h2>
+  <ul>
+    {{ for source in source_list.value }}
+      {{ source_url = source["url"] }}
+      {{ source_title = source["label"] }}
+      {{ if !source_title }}{{ source_title = source["name"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["publisher"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["plain_text"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["title"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["slug"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source_url }}{{ end }}
+      {{ if !source_title }}{{ source_title = source }}{{ end }}
+      <li>{{ if source_url }}<a href="{{ source_url }}" target="_blank" rel="noopener noreferrer">{{ source_title }}</a>{{ else }}{{ source_title }}{{ end }}</li>
+    {{ end }}
+  </ul>
+</section>
+{{ end }}
+{{ if primary_source && primary_source.value }}
+<section class="source-list source-list--primary" aria-labelledby="primary-source-title">
+  <h2 id="primary-source-title">原始来源</h2>
+  <ul>
+    {{ for source in primary_source.value }}
+      {{ source_url = source["url"] }}
+      {{ source_title = source["label"] }}
+      {{ if !source_title }}{{ source_title = source["name"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["publisher"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["plain_text"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["title"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["slug"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source_url }}{{ end }}
+      {{ if !source_title }}{{ source_title = source }}{{ end }}
+      <li>{{ if source_url }}<a href="{{ source_url }}" target="_blank" rel="noopener noreferrer">{{ source_title }}</a>{{ else }}{{ source_title }}{{ end }}</li>
+    {{ end }}
+  </ul>
+</section>
+{{ else if original_url }}
+<section class="source-list source-list--primary" aria-labelledby="primary-source-title">
+  <h2 id="primary-source-title">原始来源</h2>
+  <p><a href="{{ original_url }}" target="_blank" rel="noopener noreferrer">阅读原始来源</a></p>
+</section>
+{{ end }}

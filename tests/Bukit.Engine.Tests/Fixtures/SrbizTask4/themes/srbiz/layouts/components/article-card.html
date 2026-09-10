@@ -1,0 +1,10 @@
+<img src="{{ if item.fields.cover }}{{ item.fields.cover.value }}{{ else }}{{ base_url }}/assets/images/fallback-article.svg{{ end }}" alt="{{ if item.fields.cover_alt }}{{ item.fields.cover_alt.value }}{{ else }}{{ item.title }}封面{{ end }}" loading="lazy" width="720" height="405">
+<div class="article-card__body">
+  <div class="article-card__meta">
+    {{ if item.fields.category && item.fields.category.value }}{{ for category in item.fields.category.value }}{{ category_linked = false }}{{ if site.data && site.data.taxonomy && site.data.taxonomy.categories }}{{ for term in site.data.taxonomy.categories.terms }}{{ if term.title == category }}<a class="taxonomy-chip" href="{{ base_url }}{{ term.url }}">{{ category }}</a>{{ category_linked = true }}{{ end }}{{ end }}{{ end }}{{ if !category_linked }}<span>{{ category }}</span>{{ end }}{{ end }}{{ end }}
+    {{ if item.publish_date }}<time datetime="{{ item.publish_date | date.to_string "%Y-%m-%d" }}">{{ item.publish_date | date.to_string "%Y-%m-%d" }}</time>{{ end }}
+  </div>
+  <h3>{{ item.title }}</h3>
+  {{ if item.summary }}<p>{{ item.summary }}</p>{{ end }}
+  <a class="card-link" href="{{ base_url }}{{ item.url }}">阅读详情 →</a>
+</div>

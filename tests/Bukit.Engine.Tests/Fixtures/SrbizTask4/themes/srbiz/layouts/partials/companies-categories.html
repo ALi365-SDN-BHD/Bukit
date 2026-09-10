@@ -1,0 +1,8 @@
+<nav class="category-tabs" aria-label="企业分类">
+  {{ all_companies_active = page.url | string.starts_with "/companies/" }}
+  {{ china_companies_active = page.url | string.starts_with "/china-companies/" }}
+  {{ malaysia_companies_active = page.url | string.starts_with "/malaysia-companies/" }}
+  <a href="{{ base_url }}/companies/"{{ if all_companies_active }} aria-current="page"{{ end }}>全部企业</a>
+  <a href="{{ base_url }}/china-companies/"{{ if china_companies_active }} aria-current="page"{{ end }}>中国企业</a>
+  <a href="{{ base_url }}/malaysia-companies/"{{ if malaysia_companies_active }} aria-current="page"{{ end }}>马来西亚企业</a>
+</nav>

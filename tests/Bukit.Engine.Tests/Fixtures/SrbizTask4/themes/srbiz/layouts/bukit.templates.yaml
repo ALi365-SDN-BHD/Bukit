@@ -1,0 +1,95 @@
+templates:
+  components/article-card.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: true }
+  components/company-card.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: true }
+  components/faq.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: false }
+  components/service-card.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: false }
+  partials/header.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: false }
+  partials/footer.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: false }
+  partials/company-application-form.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: false }
+  partials/insights-categories.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: true, supports_search_snippets: false }
+  partials/companies-categories.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: false }
+  partials/pagination-nav.html:
+    capabilities: { needs_page_content: false, supports_pagination: true, supports_taxonomy: false, supports_search_snippets: false }
+  partials/list-hero-summary.html:
+    capabilities: { needs_page_content: false, supports_pagination: true, supports_taxonomy: false, supports_search_snippets: false }
+  partials/author.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: false }
+  partials/source.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: false }
+  partials/related-entity.html:
+    capabilities: { needs_page_content: false, supports_pagination: false, supports_taxonomy: false, supports_search_snippets: false }
+  layouts/base.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/index.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: true
+  pages/page.html:
+    capabilities:
+      needs_page_content: true
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/post.html:
+    capabilities:
+      needs_page_content: true
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/company.html:
+    capabilities:
+      needs_page_content: true
+      supports_pagination: false
+      supports_taxonomy: false
+      supports_search_snippets: false
+  pages/insights.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: true
+      supports_taxonomy: false
+      supports_search_snippets: true
+  pages/insights-taxonomy.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: true
+      supports_taxonomy: true
+      supports_search_snippets: true
+  pages/insights-tags.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: false
+      supports_taxonomy: true
+      supports_search_snippets: true
+  pages/insights-tag.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: true
+      supports_taxonomy: true
+      supports_search_snippets: true
+  pages/companies.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: true
+      supports_taxonomy: false
+      supports_search_snippets: true
+  pages/list.html:
+    capabilities:
+      needs_page_content: false
+      supports_pagination: true
+      supports_taxonomy: false
+      supports_search_snippets: true

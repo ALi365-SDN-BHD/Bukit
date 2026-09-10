@@ -1,0 +1,66 @@
+{% layout "layouts/base.html" %}
+{{ base_url = site.base_url }}{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+<main id="main-content" tabindex="-1">
+  <section class="hero">
+    <div class="container hero-grid">
+      <div>
+        <span class="eyebrow">China · Malaysia · Business</span>
+        <h1>{{ page.title }}</h1>
+        <p class="hero-subtitle">{{ page.summary }}</p>
+        <div class="hero-actions"><a class="btn btn-primary" href="{{ base_url }}/insights/">查看商务资讯</a><a class="btn btn-secondary" href="{{ base_url }}/companies/">浏览企业列表</a><a class="btn btn-secondary" href="{{ base_url }}/join/">申请企业入驻</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-header"><div><div class="section-kicker">Core Entrances</div><h2 class="section-title">两大核心入口，连接信息与资源</h2><p class="section-desc">通过商务资讯了解市场，通过企业列表建立合作，让商业机会从信息走向连接。</p></div></div>
+      <div class="entry-grid">
+        {{ if site.modules && site.modules.sections }}
+          {{ for item in site.modules.sections }}
+            <article class="entry-card">
+              <h3>{{ item.title }}</h3>
+              {{ if item.fields.summary }}<p class="lead">{{ item.fields.summary.value }}</p>{{ end }}
+              <div>{{ item.content }}</div>
+              {{ if item.fields.path && item.fields.path.value == "/insights/" }}
+                <div class="entry-preview">
+                  <div class="preview-line"><strong>政策动态</strong><span>投资、签证、税务、贸易与企业合规</span></div>
+                  <div class="preview-line"><strong>市场观察</strong><span>行业趋势、消费变化与项目机会</span></div>
+                </div>
+              {{ else if item.fields.path && item.fields.path.value == "/companies/" }}
+                <div class="entry-preview">
+                  <div class="preview-company"><strong>中国企业</strong><span>已进入或计划拓展马来西亚市场的品牌与项目</span></div>
+                  <div class="preview-company"><strong>马来西亚企业</strong><span>希望连接中国市场与跨境合作的本地企业</span></div>
+                </div>
+              {{ end }}
+              {{ if item.fields.path }}<div class="section-actions"><a class="btn btn-dark" href="{{ base_url }}{{ item.fields.path.value }}">了解更多</a></div>{{ end }}
+            </article>
+          {{ end }}
+        {{ end }}
+      </div>
+    </div>
+  </section>
+
+  <section class="section soft">
+    <div class="container">
+      <div class="section-header"><div><div class="section-kicker">Latest Insights</div><h2 class="section-title">最新商务资讯</h2><p class="section-desc">围绕中马商业合作、政策动态、企业出海与市场机会，提供可用于企业判断的信息参考。</p></div><a class="btn btn-outline" href="{{ base_url }}/insights/">全部资讯</a></div>
+      <div class="insights-grid">
+        {{ posts_count = 0 }}
+        {{ for item in pages }}{{ if item.fields && item.fields.collection && item.fields.collection.value == "posts" && posts_count < 3 }}<article class="article-card">{{ include "components/article-card.html" }}</article>{{ posts_count = posts_count + 1 }}{{ end }}{{ end }}
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-header"><div><div class="section-kicker">Featured Companies</div><h2 class="section-title">精选企业资源</h2><p class="section-desc">展示中马两地企业与跨境服务机构，为企业合作、项目落地和资源对接建立基础入口。</p></div><a class="btn btn-outline" href="{{ base_url }}/companies/">浏览企业列表</a></div>
+      <div class="companies-grid">
+        {{ companies_count = 0 }}
+        {{ for item in pages }}{{ if item.fields && item.fields.collection && item.fields.collection.value == "companies" && companies_count < 3 }}<article class="company-card">{{ include "components/company-card.html" }}</article>{{ companies_count = companies_count + 1 }}{{ end }}{{ end }}
+      </div>
+    </div>
+  </section>
+
+  <section class="section deep"><div class="container"><div class="section-header"><div><div class="section-kicker">Platform Value</div><h2 class="section-title">从信息到连接，服务中马商业合作</h2><p class="section-desc">丝路商讯不只是资讯站，也是一套面向企业展示、合作发现与服务对接的商业资源入口。</p></div></div><div class="value-grid"><div class="value-card"><strong>信息参考</strong><p>持续整理政策、市场、项目与企业动态。</p></div><div class="value-card"><strong>企业展示</strong><p>为入驻企业建立可信、结构化的线上资料页。</p></div><div class="value-card"><strong>资源连接</strong><p>帮助企业找到服务机构、渠道伙伴与合作机会。</p></div><div class="value-card"><strong>内容资产</strong><p>以资讯和企业内容积累长期 SEO / GEO 价值。</p></div></div></div></section>
+  <section class="section"><div class="container"><div class="cta-section"><h2>适合入驻丝路商讯的企业</h2><p>已进入或计划进入马来西亚市场的中国企业、希望连接中国市场的马来西亚企业，以及跨境服务机构，都可以申请展示。</p><div class="hero-actions"><a class="btn btn-primary" href="{{ base_url }}/join/">申请企业入驻</a><a class="btn btn-secondary" href="{{ base_url }}/contact/">联系平台合作</a></div></div></div></section>
+</main>

@@ -1,0 +1,7 @@
+{% layout "layouts/base.html" %}
+{{ base_url = site.base_url }}{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+<main id="main-content" tabindex="-1">
+  <section class="page-hero"><div class="container"><div class="breadcrumb"><a href="{{ base_url }}/">首页</a> / {{ page.title }}</div><h1>{{ page.title }}</h1><p>{{ include "partials/list-hero-summary.html" }}</p></div></section>
+  <section class="section" aria-labelledby="companies-list-title"><div class="container">{{ include "partials/companies-categories.html" }}<h2 id="companies-list-title" class="visually-hidden">{{ if page.url | string.starts_with "/china-companies/" }}中国企业名录{{ else if page.url | string.starts_with "/malaysia-companies/" }}马来西亚企业名录{{ else }}全部企业{{ end }}</h2><div class="companies-grid">{{ for item in pages }}<article class="company-card">{{ include "components/company-card.html" }}</article>{{ end }}</div>{{ include "partials/pagination-nav.html" }}</div></section>
+  <section class="section soft"><div class="container"><div class="cta-section"><h2>希望企业展示在丝路商讯？</h2><p>提交企业资料后，平台将根据企业类型、行业方向与合作需求进行审核展示。</p><div class="hero-actions"><a class="btn btn-primary" href="{{ base_url }}/join/">申请企业入驻</a></div></div></div></section>
+</main>

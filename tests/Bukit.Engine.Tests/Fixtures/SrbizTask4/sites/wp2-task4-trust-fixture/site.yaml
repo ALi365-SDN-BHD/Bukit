@@ -1,0 +1,108 @@
+site:
+  name: srbiz-wp2-task4-trust-fixture
+  title: 丝路商讯信任信息合同
+  url: https://trust-fixture.invalid/
+  description: 仅用于验证 WP2 Task 4 文章与企业信任信息合同。
+  baseUrl: /
+  language: zh-CN
+  timezone: Asia/Kuala_Lumpur
+  outputPathEncoding: none
+  seo:
+    renderMode: inject
+    homeTitleTemplate: "{pageTitle}"
+    pageTitleTemplate: "{pageTitle}{separator}{siteTitle}"
+    titleSeparator: " ｜ "
+  collections:
+    posts:
+      permalink: /insights/{slug}/
+      template: pages/post.html
+      listRoute: /insights/
+      listTitle: 商务资讯
+      listDescription: WP2 Task 4 信任信息 fixture。
+      listTemplate: pages/insights.html
+    companies:
+      permalink: /companies/{slug}/
+      template: pages/company.html
+      listRoute: /companies/
+      listTitle: 企业列表
+      listDescription: WP2 Task 4 企业信任信息 fixture。
+      listTemplate: pages/companies.html
+    authors:
+      permalink: /authors/{slug}/
+      template: pages/author.html
+      listRoute: /authors/
+      listTitle: 作者
+      listDescription: WP2 Task 6 作者路由 fixture。
+      listTemplate: pages/list.html
+content:
+  sources:
+    - type: markdown
+      name: posts
+      mode: content
+      collection: posts
+      markdown:
+        dir: sites/wp2-task4-trust-fixture/content/posts
+    - type: markdown
+      name: companies
+      mode: content
+      collection: companies
+      markdown:
+        dir: sites/wp2-task4-trust-fixture/content/companies
+    - type: markdown
+      name: authors
+      mode: content
+      collection: authors
+      markdown:
+        dir: sites/wp2-task4-trust-fixture/content/authors
+  media:
+    downloadToLocal: false
+    defaultImageUrl: /assets/images/fallback-article.svg
+taxonomy:
+  outputMode: pages
+  itemFields: [cover, cover_alt, category, tags, topics, regions]
+  pageSize: 12
+  indexEnabled: false
+  kinds:
+    - key: category
+      kind: categories
+      title: 商务资讯分类
+      description: 按分类浏览商务资讯。
+      singularTitlePrefix: 商务资讯
+      routePrefix: /insights/category/
+      indexTemplate: pages/insights-taxonomy.html
+      termTemplate: pages/insights-taxonomy.html
+      indexEnabled: false
+    - key: tags
+      kind: tags
+      title: 资讯标签
+      description: 按标签浏览商务资讯。
+      singularTitlePrefix: 标签
+      routePrefix: /insights/tags/
+      indexTemplate: pages/insights-tags.html
+      termTemplate: pages/insights-tag.html
+      indexEnabled: true
+    - key: topics
+      kind: topics
+      title: 商务资讯主题
+      description: 按主题浏览商务资讯。
+      singularTitlePrefix: 主题
+      routePrefix: /insights/topics/
+      indexTemplate: pages/insights-tags.html
+      termTemplate: pages/insights-tag.html
+      indexEnabled: true
+    - key: regions
+      kind: regions
+      title: 商务资讯地区
+      description: 按地区浏览商务资讯。
+      singularTitlePrefix: 地区
+      routePrefix: /insights/regions/
+      indexTemplate: pages/insights-tags.html
+      termTemplate: pages/insights-tag.html
+      indexEnabled: true
+build:
+  output: dist-wp2-task4-trust-fixture
+  clean: true
+theme:
+  name: srbiz
+logging:
+  level: error

@@ -1,0 +1,13 @@
+schema: spec-driven
+context: |
+  Bukit 是企业内部内容发布 Core；SRBiz-bukit 是独立网站仓库。
+  当前跨仓批准变更集中记录在 align-srbiz-publishing-contracts。
+  Core 仅允许架构文档改动；站点模板、交付验证与隔离候选属于网站范围。
+  不隐含授权 commit、push、deploy、Notion 写入或通知。
+rules:
+  proposal:
+    - 明确跨仓影响、用户批准范围和非目标。
+  specs:
+    - 每个 requirement 使用 SHALL 或 MUST，并至少包含一个 WHEN/THEN Scenario。
+  tasks:
+    - tasks.md 是唯一实施清单；只有具备实际证据才勾选完成。

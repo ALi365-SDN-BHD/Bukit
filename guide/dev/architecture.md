@@ -7,7 +7,9 @@ Bukit Core is split into focused projects under `src/Bukit-Core`.
 | `Bukit.Cli` | User command entry point, command binding, dev server, deploy provider. |
 | `Bukit.Cli.Shared` | CLI metadata, parser, help renderer, config path resolver. |
 | `Bukit.Config` | Strict YAML loading, defaults, schema generation, validation. |
-| `Bukit.Content` | Markdown and Notion providers, body stores, media localization. |
+| `Bukit.Content` | Content-source composition, Markdown provider, body stores and media localization. |
+| `Bukit.Content.Notion` | Notion content adapter and source-to-content mapping. |
+| `Bukit.Notion` | Notion transport, request lifetime, retries and source contracts. |
 | `Bukit.Engine.Abstractions` | Content, routing, and plugin models shared by runtime layers. |
 | `Bukit.Engine` | Build orchestration, routing, rendering pipeline, plugins, reports. |
 | `Bukit.Plugin.Abstractions` | External plugin config, manifest, protocol, runtime, security DTOs. |
@@ -36,7 +38,8 @@ Variant stages:
 8. Render pages, list routes, and static templates.
 9. Sync assets, static files, media, and generated theme tokens.
 10. Run after-build plugins.
-11. Write projections and reports.
+11. Execute document/aggregate projections, then let reports consume actual output locations.
+12. Finish all variants, root aggregates, stale-owned cleanup, required reports/security validation and body-store disposal; only then persist manifests, marker and completed state.
 
 ## Configuration Ownership
 
@@ -55,7 +58,7 @@ compatibility entry points with deterministic defaults; site-aware production
 execution uses the explicit effective configuration path.
 
 The output preflight uses `AssetOutputPlan` before publication writes. It checks
-render/static/assets/media/token claims for exact and structural conflicts under
+render/static/assets/media/token/projection claims for exact and structural conflicts under
 the destination filesystem's actual case semantics. The same destination
 comparer is passed into incremental manifest tracking.
 
@@ -73,3 +76,30 @@ See [Core Safety And Reliability Invariants](core-safety-reliability-invariants.
 for cleanup, DOM, ownership, symlink, cache, concurrency, and report boundaries.
 The approved 2.0 CLR migration and its limits are recorded in the
 [AD-01 final closure ledger](../../docs/analysis/bukit-core-ad01-config-decoupling-final-closure-2026-07-24.zh-CN.md).
+
+## Public output and site delivery contracts
+
+Document projections retain the complete validated route filename: `news/acme/index.html`
+becomes `content/news/acme/index.html.json` and `.md`. BaseUrl and language prefixes
+are applied to URLs consistently; reports consume actual document and aggregate output
+paths. Source JSON relations remain directional; a site template may compute reverse
+HTML navigation without rewriting those source relations. Scriban exposes the canonical
+slug as `page.content_model.slug`, not a top-level `page.slug` identity.
+
+The internal v3 build manifest tracks explicitly owned public outputs independently of
+incremental rendering and detailed reports. Required deletion failure fails the build;
+ordinary cleanup preserves untracked files. Legacy or invalid ownership triggers existing
+marker-protected clean recovery; a nonempty unmarked directory requiring cleanup is
+refused. Draft exclusion/deletion withdraws pages and projections; expiry/noindex excludes
+content from indexing aggregates while retaining the document files.
+
+Deployment readiness requires a supported completed build state and the existing privacy
+checks. An audit report alone does not prove a failed output is deployable. Builds may
+leave incomplete local files: Core does not provide whole-site atomic staging. A site's
+separate immutable delivery candidate is a site workflow, not an added Core runtime
+capability. Git push success is distinct from read-only verification of the hosted files.
+
+SRBiz-specific relationship, artifact comparison and delivery requirements are recorded in
+`openspec/changes/align-srbiz-publishing-contracts/`; site implementation does not modify
+Core code or the external plugin protocol. VerifiedAt remains a site business field and
+must not be silently mapped to Core reviewedAt or source edit timestamps.

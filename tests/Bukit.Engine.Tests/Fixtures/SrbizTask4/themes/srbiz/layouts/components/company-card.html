@@ -1,0 +1,11 @@
+<div class="company-card__body">
+  <img class="company-logo" src="{{ if item.fields.logo }}{{ item.fields.logo.value }}{{ else }}{{ base_url }}/assets/images/fallback-company.svg{{ end }}" alt="{{ item.title }}企业 Logo" loading="lazy" width="96" height="96">
+  <div class="company-card__tags">
+    {{ if item.fields.country }}<span>{{ item.fields.country.value }}</span>{{ end }}
+    {{ if item.fields.industry }}<span>{{ item.fields.industry.value }}</span>{{ end }}
+    {{ if item.fields.company_type }}<span>{{ item.fields.company_type.value }}</span>{{ else if item.fields.companytype }}<span>{{ item.fields.companytype.value }}</span>{{ end }}
+  </div>
+  <h3>{{ item.title }}</h3>
+  {{ if item.summary }}<p>{{ item.summary }}</p>{{ end }}
+  <a class="card-link" href="{{ base_url }}{{ item.url }}">查看企业 →</a>
+</div>

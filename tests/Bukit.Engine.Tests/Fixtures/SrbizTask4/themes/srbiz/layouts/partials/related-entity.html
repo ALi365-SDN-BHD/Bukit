@@ -1,0 +1,136 @@
+{{
+related_by_slug = { companies: {}, posts: {} }
+related_by_url = { companies: {}, posts: {} }
+for candidate in pages
+  if candidate.fields && candidate.fields.collection && candidate.content_model && candidate.content_model.language == page.content_model.language && candidate.url
+    candidate_collection = candidate.fields.collection.value
+    if candidate_collection == "companies" || candidate_collection == "posts"
+      slug_bucket = related_by_slug[candidate_collection][candidate.content_model.slug] ?? []
+      related_by_slug[candidate_collection][candidate.content_model.slug] = array.add slug_bucket candidate
+      url_bucket = related_by_url[candidate_collection][candidate.url] ?? []
+      related_by_url[candidate_collection][candidate.url] = array.add url_bucket candidate
+    end
+  end
+end
+func resolve_related(relation, expected_collection)
+  if (relation | object.typeof) != "object"
+    ret { target: null, reason: "invalid" }
+  end
+  relation_slug = relation["slug"]
+  relation_url = relation["url"]
+  slug_type = relation_slug | object.typeof
+  url_type = relation_url | object.typeof
+  if (slug_type != null && slug_type != "string") || (url_type != null && url_type != "string")
+    ret { target: null, reason: "invalid" }
+  end
+  if relation_slug == ""; relation_slug = null; end
+  if relation_url == ""; relation_url = null; end
+  local_url = null
+  canonical_input = false
+  site_origin = site.url
+  while site_origin && (site_origin | string.ends_with "/")
+    site_origin = site_origin | string.remove_last "/"
+  end
+  if relation_url && (relation_url | string.starts_with "/") && !(relation_url | string.starts_with "//")
+    local_url = relation_url
+  else if relation_url && site.url && (relation_url | string.starts_with (site_origin + "/"))
+    local_url = relation_url | string.remove_first site_origin
+    canonical_input = true
+  end
+  if local_url && base_url != "" && (local_url | string.starts_with (base_url + "/"))
+    local_url = local_url | string.remove_first base_url
+  end
+  if canonical_input && base_url != "" && !(relation_url | string.starts_with (site_origin + base_url + "/"))
+    local_url = relation_url
+  end
+  if !relation_slug && !local_url
+    ret { target: null, reason: "invalid" }
+  end
+  if relation_slug
+    matches = related_by_slug[expected_collection][relation_slug] ?? []
+  else
+    matches = related_by_url[expected_collection][local_url] ?? []
+  end
+  if matches.size == 0
+    ret { target: null, reason: "missing" }
+  end
+  if matches.size != 1
+    ret { target: null, reason: "ambiguous" }
+  end
+  if relation_slug && local_url && local_url != matches[0].url
+    ret { target: null, reason: "conflict" }
+  end
+  ret { target: matches[0], reason: "" }
+end
+related_missing = 0
+related_ambiguous = 0
+related_conflict = 0
+related_invalid = 0
+related_links = []
+related_seen = []
+is_company_page = page.fields && page.fields.collection && page.fields.collection.value == "companies"
+explicit_relations = page.fields.relatedcompanies
+expected_collection = "companies"
+if is_company_page
+  explicit_relations = page.fields.relatedcontent
+  expected_collection = "posts"
+end
+if explicit_relations && explicit_relations.value
+  for relation in explicit_relations.value
+    resolved = resolve_related relation expected_collection
+    if resolved.reason == "missing"; related_missing = related_missing + 1; end
+    if resolved.reason == "ambiguous"; related_ambiguous = related_ambiguous + 1; end
+    if resolved.reason == "conflict"; related_conflict = related_conflict + 1; end
+    if resolved.reason == "invalid"; related_invalid = related_invalid + 1; end
+    if resolved.target && !(related_seen | array.contains resolved.target.url)
+      related_seen = array.add related_seen resolved.target.url
+      if !is_company_page || related_links.size < 6
+        related_links = array.add related_links resolved.target
+      end
+    end
+  end
+end
+if is_company_page
+  sorted_pages = pages | array.sort "url"
+  for item in sorted_pages
+    if item.fields && item.fields.collection && item.fields.collection.value == "posts" && item.content_model && item.content_model.language == page.content_model.language && item.fields.relatedcompanies && item.fields.relatedcompanies.value
+      for relation in item.fields.relatedcompanies.value
+        resolved = resolve_related relation "companies"
+        if resolved.target && resolved.target.url == page.url && !(related_seen | array.contains item.url) && related_links.size < 6
+          related_seen = array.add related_seen item.url
+          related_links = array.add related_links item
+        end
+      end
+    end
+  end
+end
+}}
+<!-- srbiz-related:v1 missing={{ related_missing }} ambiguous={{ related_ambiguous }} conflict={{ related_conflict }} invalid={{ related_invalid }} -->
+{{ if related_links.size > 0 }}
+<section class="{{ if is_company_page }}related-content{{ else }}related-entities{{ end }}" aria-labelledby="{{ if is_company_page }}related-content-title{{ else }}related-companies-title{{ end }}">
+  <h2 id="{{ if is_company_page }}related-content-title{{ else }}related-companies-title{{ end }}">{{ if is_company_page }}相关报道{{ else }}报道对象{{ end }}</h2>
+  <div class="related-entities__list">
+    {{ for target in related_links }}<a href="{{ base_url }}{{ target.url }}">{{ target.title | html.escape }}</a>{{ end }}
+  </div>
+</section>
+{{ end }}
+{{ company_sources = page.fields.sources }}
+{{ if is_company_page && company_sources && company_sources.value }}
+<section class="source-list source-list--company" aria-labelledby="company-source-title">
+  <h2 id="company-source-title">企业资料来源</h2>
+  <ul>
+    {{ for source in company_sources.value }}
+      {{ source_url = source["url"] }}
+      {{ source_title = source["label"] }}
+      {{ if !source_title }}{{ source_title = source["name"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["publisher"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["plain_text"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["title"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source["slug"] }}{{ end }}
+      {{ if !source_title }}{{ source_title = source_url }}{{ end }}
+      {{ if !source_title }}{{ source_title = source }}{{ end }}
+      <li>{{ if source_url }}<a href="{{ source_url }}" target="_blank" rel="noopener noreferrer">{{ source_title }}</a>{{ else }}{{ source_title }}{{ end }}</li>
+    {{ end }}
+  </ul>
+</section>
+{{ end }}

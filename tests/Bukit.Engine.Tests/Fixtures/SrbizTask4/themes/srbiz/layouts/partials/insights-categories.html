@@ -1,0 +1,10 @@
+<nav class="category-tabs" aria-label="商务资讯分类">
+  <a href="{{ base_url }}/insights/"{{ if !taxonomy || taxonomy.is_index }} aria-current="page"{{ end }}>全部资讯</a>
+  {{ if site.data && site.data.taxonomy && site.data.taxonomy.categories }}
+    {{ for term in site.data.taxonomy.categories.terms }}
+      {{ term_is_current = false }}
+      {{ if taxonomy && taxonomy.slug == term.slug }}{{ term_is_current = true }}{{ else if page.url | string.starts_with term.url }}{{ term_is_current = true }}{{ end }}
+      <a href="{{ base_url }}{{ term.url }}"{{ if term_is_current }} aria-current="page"{{ end }}>{{ term.title }}</a>
+    {{ end }}
+  {{ end }}
+</nav>

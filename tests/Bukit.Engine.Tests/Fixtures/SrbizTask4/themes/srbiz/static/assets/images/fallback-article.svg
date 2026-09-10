@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#071D2E"/>
+      <stop offset=".55" stop-color="#0D3557"/>
+      <stop offset="1" stop-color="#1F7A78"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".72" cy=".26" r=".52">
+      <stop stop-color="#C58A32" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#C58A32" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <rect width="1200" height="720" fill="url(#glow)"/>
+  <path d="M144 485C275 344 452 278 676 287c160 6 291 54 392 145" fill="none" stroke="#F6D89B" stroke-width="7" stroke-linecap="round" opacity=".72"/>
+  <path d="M167 526C299 407 459 349 648 354c172 5 309 49 410 132" fill="none" stroke="#ffffff" stroke-width="2" stroke-dasharray="8 12" opacity=".25"/>
+  <circle cx="492" cy="292" r="18" fill="#F6D89B"/>
+  <circle cx="492" cy="292" r="56" fill="none" stroke="#F6D89B" opacity=".32"/>
+  <circle cx="778" cy="361" r="17" fill="#65D4CB"/>
+  <circle cx="778" cy="361" r="52" fill="none" stroke="#65D4CB" opacity=".30"/>
+  <text x="94" y="146" fill="#F6D89B" font-family="Arial, sans-serif" font-size="56" font-weight="800">丝路商讯</text>
+  <text x="98" y="206" fill="#ffffff" opacity=".82" font-family="Arial, sans-serif" font-size="28">连接中马商业资讯与市场机会</text>
+  <g opacity=".16" stroke="#fff">
+    <path d="M88 600h1020"/>
+    <path d="M144 600v-70h46v70m78 0v-118h64v118m80 0v-88h52v88m86 0v-156h68v156m72 0v-104h60v104m88 0v-132h72v132"/>
+  </g>
+</svg>

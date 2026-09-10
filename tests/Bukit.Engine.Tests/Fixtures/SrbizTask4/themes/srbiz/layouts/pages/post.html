@@ -1,0 +1,43 @@
+{% layout "layouts/base.html" %}
+{{ base_url = site.base_url }}{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+{{ site_origin = site.url }}{{ while site_origin && (site_origin | string.ends_with "/") }}{{ site_origin = site_origin | string.remove_last "/" }}{{ end }}
+{{ is_v2_article = page.fields.contentversion && page.fields.contentversion.value == "v2" }}
+{{ has_v2_author = page.fields.authorprofile && page.fields.authorprofile.value }}
+{{ has_v2_source = (page.fields.sources && page.fields.sources.value) || (page.fields.primarysource && page.fields.primarysource.value) }}
+{{ if is_v2_article && has_v2_author }}
+  {{ v2_author = page.fields.authorprofile.value | array.first }}
+  {{ v2_author_url = v2_author["url"] }}
+  {{ v2_author_name = v2_author["label"] || v2_author["name"] || v2_author["plain_text"] || v2_author["title"] || v2_author["slug"] || site.title }}
+  {{ if v2_author_url }}
+    {{ for item in pages }}
+      {{ if item["url"] == v2_author_url && item["title"] }}
+        {{ v2_author_name = item["title"] }}
+      {{ end }}
+    {{ end }}
+    {{ v2_author_absolute_url = v2_author_url }}
+    {{ if (v2_author_url | string.starts_with "/") && !(v2_author_url | string.starts_with "//") }}
+      {{ v2_author_route = v2_author_url }}
+      {{ if base_url != "" && (v2_author_route | string.starts_with (base_url + "/")) }}{{ v2_author_route = v2_author_route | string.remove_first base_url }}{{ end }}
+      {{ v2_author_absolute_url = site_origin + base_url + v2_author_route }}
+    {{ end }}
+  {{ end }}
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":{{ page.title | util.json_string }},"url":{{ page.seo.canonical | util.json_string }},"author":{"@type":"Organization","name":{{ v2_author_name | util.json_string }}{{ if v2_author_url }},"url":{{ v2_author_absolute_url | util.json_string }}{{ end }}},"publisher":{"@type":"NewsMediaOrganization","name":{{ site.title | util.json_string }},"url":{{ site.url | util.json_string }}}}</script>
+{{ end }}
+<main id="main-content" tabindex="-1">
+  {{ if is_v2_article && (!has_v2_author || !has_v2_source) }}<div class="article-contract-error" data-v2-trust-error="missing-author-source">v2 文章缺少作者或来源，不能发布。</div>{{ end }}
+  <section class="article-hero"><div class="article-container"><div class="breadcrumb"><a href="{{ base_url }}/">首页</a> / <a href="{{ base_url }}/insights/">商务资讯</a>{{ if page.fields.category && page.fields.category.value }}{{ primary_category = page.fields.category.value | array.first }} / {{ primary_category_linked = false }}{{ if site.data && site.data.taxonomy && site.data.taxonomy.categories }}{{ for term in site.data.taxonomy.categories.terms }}{{ if term.title == primary_category }}<a href="{{ base_url }}{{ term.url }}">{{ primary_category }}</a>{{ primary_category_linked = true }}{{ end }}{{ end }}{{ end }}{{ if !primary_category_linked }}<span>{{ primary_category }}</span>{{ end }}{{ end }}</div><div class="article-meta-row">{{ if page.fields.category && page.fields.category.value }}{{ for category in page.fields.category.value }}{{ category_linked = false }}{{ if site.data && site.data.taxonomy && site.data.taxonomy.categories }}{{ for term in site.data.taxonomy.categories.terms }}{{ if term.title == category }}<a class="tag taxonomy-chip" href="{{ base_url }}{{ term.url }}">{{ category }}</a>{{ category_linked = true }}{{ end }}{{ end }}{{ end }}{{ if !category_linked }}<span class="tag">{{ category }}</span>{{ end }}{{ end }}{{ end }}{{ if page.publish_date }}<time datetime="{{ page.publish_date | date.to_string "%Y-%m-%d" }}">{{ page.publish_date | date.to_string "%Y-%m-%d" }}</time>{{ end }}{{ if page.fields.reviewedat && page.fields.reviewedat.value }}<span>审核日期：{{ page.fields.reviewedat.value }}</span>{{ end }}</div><h1>{{ page.title }}</h1><p class="article-lead">{{ page.summary }}</p>{{ include "partials/author.html" }}</div></section>
+  <section class="article-main"><div class="article-container"><div class="article-reading-card"><article class="article-content">
+    {{ if page.content != "" }}
+      {{ has_notice_text = page.content | string.contains "本站部分内容整理自公开网络资料" }}
+      {{ has_original_link = page.content | string.contains "阅读原文" }}
+      {{ has_notice = has_notice_text && has_original_link }}
+      {{ original_url = page.provenance.original_source }}
+      <!-- srbiz-body:start -->{{ page.content }}<!-- srbiz-body:end -->
+      {{ if !has_notice }}
+        <div class="article-copyright-notice">
+          本站部分内容整理自公开网络资料，若侵犯了您的隐私或版权，请及时联系我们，我们将迅速处理或删除相关信息。{{ if original_url }}<a href="{{ original_url }}" target="_blank" rel="noopener noreferrer">阅读原文</a>{{ end }}
+        </div>
+      {{ end }}
+    {{ end }}
+  </article>{{ include "partials/source.html" }}{{ include "partials/related-entity.html" }}{{ if page.fields.topics && page.fields.topics.value }}<section class="article-tags" aria-labelledby="article-topics-title"><h2 id="article-topics-title">主题</h2><div class="article-tags__list">{{ for topic in page.fields.topics.value }}{{ topic_linked = false }}{{ if site.data && site.data.taxonomy && site.data.taxonomy.topics }}{{ for term in site.data.taxonomy.topics.terms }}{{ if term.title == topic }}<a class="tag taxonomy-chip" href="{{ base_url }}{{ term.url }}">{{ topic }}</a>{{ topic_linked = true }}{{ end }}{{ end }}{{ end }}{{ if !topic_linked }}<span class="tag">{{ topic }}</span>{{ end }}{{ end }}</div></section>{{ end }}{{ if page.fields.regions && page.fields.regions.value }}<section class="article-tags" aria-labelledby="article-regions-title"><h2 id="article-regions-title">地区</h2><div class="article-tags__list">{{ for region in page.fields.regions.value }}{{ region_linked = false }}{{ if site.data && site.data.taxonomy && site.data.taxonomy.regions }}{{ for term in site.data.taxonomy.regions.terms }}{{ if term.title == region }}<a class="tag taxonomy-chip" href="{{ base_url }}{{ term.url }}">{{ region }}</a>{{ region_linked = true }}{{ end }}{{ end }}{{ end }}{{ if !region_linked }}<span class="tag">{{ region }}</span>{{ end }}{{ end }}</div></section>{{ end }}{{ if page.fields.tags && page.fields.tags.value }}<section class="article-tags" aria-labelledby="article-tags-title"><h2 id="article-tags-title">文章标签</h2><div class="article-tags__list">{{ for tag in page.fields.tags.value }}{{ tag_linked = false }}{{ if site.data && site.data.taxonomy && site.data.taxonomy.tags }}{{ for term in site.data.taxonomy.tags.terms }}{{ if term.title == tag }}<a class="tag taxonomy-chip" href="{{ base_url }}{{ term.url }}">{{ tag }}</a>{{ tag_linked = true }}{{ end }}{{ end }}{{ end }}{{ if !tag_linked }}<span class="tag">{{ tag }}</span>{{ end }}{{ end }}</div></section>{{ end }}</div></div></section>
+</main>

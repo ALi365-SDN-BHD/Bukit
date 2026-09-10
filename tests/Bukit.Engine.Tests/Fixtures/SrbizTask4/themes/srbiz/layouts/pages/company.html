@@ -1,0 +1,25 @@
+{% layout "layouts/base.html" %}
+{{ base_url = site.base_url }}{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+{{ company_schema_type = "Organization" }}
+{{ if page.fields.schematype && page.fields.schematype.value }}{{ company_schema_type = page.fields.schematype.value }}{{ end }}
+<script type="application/ld+json">{"@context":"https://schema.org","@type":{{ company_schema_type | util.json_string }},"name":{{ page.title | util.json_string }}{{ if page.fields.legalname && page.fields.legalname.value }},"legalName":{{ page.fields.legalname.value | util.json_string }}{{ end }}{{ if page.fields.website && page.fields.website.value }},"url":{{ page.fields.website.value | util.json_string }}{{ end }}{{ if page.fields.country && page.fields.country.value }},"address":{"@type":"PostalAddress","addressCountry":{{ page.fields.country.value | util.json_string }}{{ if page.fields.address && page.fields.address.value }},"streetAddress":{{ page.fields.address.value | util.json_string }}{{ end }}}{{ end }}}</script>
+<main id="main-content" tabindex="-1">
+  <section class="page-hero"><div class="company-container"><div class="breadcrumb"><a href="{{ base_url }}/">首页</a> / <a href="{{ base_url }}/companies/">企业列表</a> / {{ page.title }}</div><h1>{{ page.title }}</h1><p>{{ page.summary }}</p><div class="company-meta" style="margin-top:22px">{{ if page.fields.country }}<span>{{ page.fields.country.value }}</span>{{ end }}{{ if page.fields.industry }}<span>{{ page.fields.industry.value }}</span>{{ end }}{{ if page.fields.company_type }}<span>{{ page.fields.company_type.value }}</span>{{ else if page.fields.companytype }}<span>{{ page.fields.companytype.value }}</span>{{ end }}</div></div></section>
+  <section class="section"><div class="company-container company-profile"><aside class="company-panel"><img class="company-logo" src="{{ if page.fields.logo }}{{ page.fields.logo.value }}{{ else }}{{ base_url }}/assets/images/fallback-company.svg{{ end }}" alt="{{ page.title }}企业 Logo" width="120" height="120"><h2>{{ page.title }}</h2><p>{{ page.summary }}</p><dl class="info-list">{{ if page.fields.legalname }}<div><dt>法定名</dt><dd>{{ page.fields.legalname.value }}</dd></div>{{ end }}{{ if page.fields.displaynameen }}<div><dt>英文展示名</dt><dd>{{ page.fields.displaynameen.value }}</dd></div>{{ end }}{{ if page.fields.verifiedat && page.fields.verifiedat.value && page.fields.verifiedat.value != "" }}<div><dt>核验日期</dt><dd>{{ page.fields.verifiedat.value | object.format "yyyy-MM-dd" }}</dd></div>{{ end }}{{ if page.fields.country }}<div><dt>国家</dt><dd>{{ page.fields.country.value }}</dd></div>{{ end }}{{ if page.fields.industry }}<div><dt>行业</dt><dd>{{ page.fields.industry.value }}</dd></div>{{ end }}{{ if page.fields.capabilities && page.fields.capabilities.value }}<div><dt>能力</dt><dd>{{ for item in page.fields.capabilities.value }}<span>{{ item }}</span>{{ end }}</dd></div>{{ end }}{{ if page.fields.markets && page.fields.markets.value }}<div><dt>市场</dt><dd>{{ for item in page.fields.markets.value }}<span>{{ item }}</span>{{ end }}</dd></div>{{ end }}{{ if page.fields.company_type }}<div><dt>类型</dt><dd>{{ page.fields.company_type.value }}</dd></div>{{ else if page.fields.companytype }}<div><dt>类型</dt><dd>{{ page.fields.companytype.value }}</dd></div>{{ else if page.fields.schematype }}<div><dt>类型</dt><dd>{{ page.fields.schematype.value }}</dd></div>{{ end }}{{ if page.fields.location }}<div><dt>城市</dt><dd>{{ page.fields.location.value }}</dd></div>{{ end }}{{ if page.fields.address }}<div><dt>地址</dt><dd>{{ page.fields.address.value }}</dd></div>{{ end }}{{ if page.fields.website }}<div><dt>官网</dt><dd><a class="company-website-link" href="{{ page.fields.website.value }}" target="_blank" rel="noopener noreferrer" aria-label="访问 {{ page.title | html.escape }} 官网（新窗口打开）"><svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1 1-1V6a1 1 0 0 1 1-1h5"/></svg><span>访问官网</span></a></dd></div>{{ end }}</dl><div class="section-actions"><a class="btn btn-dark" href="{{ base_url }}/contact/">联系企业</a></div></aside><article class="content-panel">
+    <h2>企业简介</h2>
+    {{ has_company_notice = false }}
+    {{ if page.content != "" }}
+      {{ has_company_notice = page.content | string.contains "本站部分内容整理自公开网络资料，若侵犯了您的隐私或版权，请及时联系我们，我们将迅速处理或删除相关信息。" }}
+    {{ end }}
+    <!-- srbiz-body:start -->{{ page.content }}<!-- srbiz-body:end -->
+    {{ if page.fields.cooperation }}<h2>合作需求</h2><p>{{ page.fields.cooperation.value }}</p>{{ end }}
+    {{ if page.fields.target_market }}<h2>目标市场</h2><p>{{ page.fields.target_market.value }}</p>{{ else if page.fields.targetmarket }}<h2>目标市场</h2><p>{{ page.fields.targetmarket.value }}</p>{{ end }}
+    {{ include "partials/related-entity.html" }}
+    <div class="commercial-disclaimer">企业资料基于公开信息、企业提交资料与编辑核验记录整理展示，不构成投资、采购、合作或信用背书；请在交易前自行完成尽调与合同审核。</div>
+    {{ if page.content != "" && !has_company_notice }}
+      <div class="article-copyright-notice">
+        本站部分内容整理自公开网络资料，若侵犯了您的隐私或版权，请及时联系我们，我们将迅速处理或删除相关信息。
+      </div>
+    {{ end }}
+  </article></div></section>
+</main>

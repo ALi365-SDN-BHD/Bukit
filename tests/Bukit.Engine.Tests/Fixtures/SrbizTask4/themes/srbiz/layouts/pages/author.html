@@ -1,0 +1,51 @@
+{% layout "layouts/base.html" %}
+{{ base_url = site.base_url }}{{ if base_url == "/" }}{{ base_url = "" }}{{ end }}
+{{ bio = null }}{{ profile_url = null }}{{ avatar = null }}{{ verified = false }}{{ same_as = null }}{{ if page.fields }}{{ if page.fields.bio }}{{ bio = page.fields.bio.value }}{{ end }}{{ if page.fields.profileurl }}{{ profile_url = page.fields.profileurl.value }}{{ end }}{{ if page.fields.avatar }}{{ avatar = page.fields.avatar.value }}{{ end }}{{ if page.fields.verified }}{{ verified = page.fields.verified.value }}{{ end }}{{ if page.fields.sameas }}{{ same_as = page.fields.sameas.value }}{{ end }}{{ end }}
+{{ author_summary = page.summary }}{{ if !author_summary && bio }}{{ author_summary = bio }}{{ end }}
+<main id="main-content" tabindex="-1">
+  <section class="page-hero">
+    <div class="container">
+      <div class="breadcrumb"><a href="{{ base_url }}/">首页</a> / 作者</div>
+      <h1>{{ page.title }}</h1>
+      {{ if author_summary }}<p>{{ author_summary }}</p>{{ end }}
+      {{ if page.updated_at && (page.updated_at | date.to_string "%Y-%m-%d") != "1970-01-01" && (page.updated_at | date.to_string "%Y-%m-%d") != "0001-01-01" }}
+        <div class="article-meta-row">资料更新于 <time datetime="{{ page.updated_at | date.to_string "%Y-%m-%d" }}">{{ page.updated_at | date.to_string "%Y-%m-%d" }}</time></div>
+      {{ else if page.publish_date && (page.publish_date | date.to_string "%Y-%m-%d") != "1970-01-01" && (page.publish_date | date.to_string "%Y-%m-%d") != "0001-01-01" }}
+        <div class="article-meta-row">资料发布于 <time datetime="{{ page.publish_date | date.to_string "%Y-%m-%d" }}">{{ page.publish_date | date.to_string "%Y-%m-%d" }}</time></div>
+      {{ end }}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <article class="content-panel author-profile">
+        {{ if avatar }}
+          {{ author_avatar = avatar | array.first }}
+          {{ if author_avatar }}<img class="company-logo" src="{{ author_avatar | html.escape }}" alt="{{ page.title | html.escape }}头像" width="120" height="120">{{ end }}
+        {{ end }}
+        <h2>作者简介</h2>
+        {{ if bio }}
+          <p>{{ bio }}</p>
+        {{ else if author_summary }}
+          <p>{{ author_summary }}</p>
+        {{ else }}
+          <p>丝路商讯编辑部负责平台商务资讯整理、企业资料核验与内容发布。</p>
+        {{ end }}
+        {{ if verified }}
+          <p><strong>资料状态：</strong>已核验</p>
+        {{ end }}
+        {{ if profile_url }}
+          <p><a href="{{ profile_url | html.escape }}" rel="me">作者公开主页</a></p>
+        {{ end }}
+        {{ if same_as }}
+          <h2>相关主页</h2>
+          <ul>
+            {{ for profile in same_as }}
+              <li><a href="{{ profile | html.escape }}" rel="me noopener noreferrer">{{ profile }}</a></li>
+            {{ end }}
+          </ul>
+        {{ end }}
+      </article>
+    </div>
+  </section>
+</main>

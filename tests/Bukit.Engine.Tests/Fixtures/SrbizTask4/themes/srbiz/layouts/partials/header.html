@@ -1,0 +1,23 @@
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="{{ base_url }}/" aria-label="丝路商讯首页">
+      <img class="brand-mark" src="{{ base_url }}/favicon.svg" alt="" width="42" height="42">
+      <span class="brand-text"><strong>丝路商讯</strong><span>Silk Road Business</span></span>
+    </a>
+    <button class="mobile-menu-button" type="button" aria-expanded="false" aria-controls="primary-navigation" hidden data-menu-button>菜单</button>
+    <nav class="site-nav" id="primary-navigation" aria-label="主导航">
+      {{ if site.modules && site.modules.navigation }}
+        {{ for item in site.modules.navigation }}
+          <a{{ if item.fields.path.value == "/join/" }} class="nav-cta"{{ end }} href="{{ base_url }}{{ item.fields.path.value }}"{{ if page.url == item.fields.path.value }} aria-current="page"{{ end }}>{{ item.title }}</a>
+        {{ end }}
+      {{ else }}
+        <a href="{{ base_url }}/">首页</a>
+        <a href="{{ base_url }}/insights/">商务资讯</a>
+        <a href="{{ base_url }}/companies/">企业列表</a>
+        <a href="{{ base_url }}/about/">关于</a>
+        <a href="{{ base_url }}/contact/">联系</a>
+        <a class="nav-cta" href="{{ base_url }}/join/">申请入驻</a>
+      {{ end }}
+    </nav>
+  </div>
+</header>

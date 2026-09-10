@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="520" viewBox="0 0 960 520" fill="none">
+  <defs>
+    <radialGradient id="g1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(442 174) rotate(90) scale(220)">
+      <stop stop-color="#F6D89B" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#F6D89B" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(604 356) rotate(90) scale(180)">
+      <stop stop-color="#63D4CB" stop-opacity=".46"/>
+      <stop offset="1" stop-color="#63D4CB" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="line" x1="430" y1="170" x2="620" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C58A32"/>
+      <stop offset=".52" stop-color="#F6D89B"/>
+      <stop offset="1" stop-color="#1F7A78"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="520" fill="none"/>
+  <path d="M139 219C223 124 340 77 479 84c134 7 239 58 315 152 37 46 58 91 65 135" stroke="white" stroke-opacity=".09" stroke-width="2"/>
+  <path d="M190 318c100-77 206-118 318-123 130-6 242 36 337 124" stroke="white" stroke-opacity=".12" stroke-width="2"/>
+  <path d="M417 161C495 201 556 265 612 356" stroke="url(#line)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M409 182C504 212 572 276 631 367" stroke="#F6D89B" stroke-opacity=".44" stroke-width="2" stroke-linecap="round" stroke-dasharray="6 10"/>
+  <circle cx="420" cy="166" r="76" fill="url(#g1)"/>
+  <circle cx="420" cy="166" r="13" fill="#F6D89B"/>
+  <circle cx="420" cy="166" r="34" stroke="#F6D89B" stroke-opacity=".42"/>
+  <circle cx="420" cy="166" r="54" stroke="#F6D89B" stroke-opacity=".20"/>
+  <circle cx="618" cy="361" r="70" fill="url(#g2)"/>
+  <circle cx="618" cy="361" r="12" fill="#63D4CB"/>
+  <circle cx="618" cy="361" r="31" stroke="#63D4CB" stroke-opacity=".42"/>
+  <circle cx="618" cy="361" r="52" stroke="#63D4CB" stroke-opacity=".20"/>
+  <g fill="white" opacity=".22">
+    <circle cx="284" cy="116" r="3"/><circle cx="326" cy="96" r="2"/><circle cx="514" cy="126" r="3"/>
+    <circle cx="693" cy="196" r="2"/><circle cx="760" cy="260" r="3"/><circle cx="708" cy="374" r="2"/>
+    <circle cx="556" cy="420" r="3"/><circle cx="348" cy="355" r="2"/><circle cx="244" cy="282" r="3"/>
+  </g>
+  <text x="358" y="134" fill="#F6D89B" font-size="24" font-family="Arial, sans-serif" font-weight="700">中国</text>
+  <text x="642" y="392" fill="#BDF6F1" font-size="24" font-family="Arial, sans-serif" font-weight="700">马来西亚</text>
+  <path d="M120 410h720" stroke="white" stroke-opacity=".12"/>
+  <path d="M164 410v-48h28v48m36 0v-74h42v74m46 0v-118h30v118m42 0v-64h48v64m56 0v-92h34v92m38 0v-142h42v142m42 0v-58h54v58" stroke="#F6D89B" stroke-opacity=".38" stroke-width="3"/>
+</svg>

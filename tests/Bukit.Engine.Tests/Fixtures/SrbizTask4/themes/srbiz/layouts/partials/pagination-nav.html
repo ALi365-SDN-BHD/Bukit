@@ -1,0 +1,28 @@
+{{ pagination_base_url = base_url }}
+{{ if pagination_base_url == "/" }}{{ pagination_base_url = "" }}{{ end }}
+{{ if pagination && pagination.total_pages > 1 }}
+  {{ pagination_window_size = 8 }}
+  {{ pagination_page_start = 1 }}
+  {{ pagination_page_end = pagination.total_pages }}
+  {{ pagination_route = page.url | string.replace_first "/" "" true }}
+  {{ if pagination.page > 1 }}{{ pagination_route = page.url | string.split "/page/" | array.first }}{{ end }}
+  {{ if pagination.total_pages > pagination_window_size }}
+    {{ if pagination.page <= 4 }}
+      {{ pagination_page_end = pagination_window_size }}
+    {{ else if pagination.page >= pagination.total_pages - 3 }}
+      {{ pagination_page_start = pagination.total_pages - pagination_window_size + 1 }}
+    {{ else }}
+      {{ pagination_page_start = pagination.page - 4 }}
+      {{ pagination_page_end = pagination_page_start + pagination_window_size - 1 }}
+    {{ end }}
+  {{ end }}
+  <nav class="pagination" aria-label="分页导航">
+    {{ if pagination.prev_url }}<a class="pagination-arrow" href="{{ pagination_base_url }}{{ pagination.prev_url }}" aria-label="上一页">‹</a>{{ else }}<span class="pagination-arrow is-disabled" aria-hidden="true">‹</span>{{ end }}
+    {{ for page_number in pagination_page_start..pagination_page_end }}
+      {{ if page_number == pagination.page }}<span class="pagination-page" aria-current="page">{{ page_number }}</span>
+      {{ else if page_number == 1 }}<a class="pagination-page" href="{{ pagination_base_url }}{{ pagination_route }}/">{{ page_number }}</a>
+      {{ else }}<a class="pagination-page" href="{{ pagination_base_url }}{{ pagination_route }}/page/{{ page_number }}/">{{ page_number }}</a>{{ end }}
+    {{ end }}
+    {{ if pagination.next_url }}<a class="pagination-arrow" href="{{ pagination_base_url }}{{ pagination.next_url }}" aria-label="下一页">›</a>{{ else }}<span class="pagination-arrow is-disabled" aria-hidden="true">›</span>{{ end }}
+  </nav>
+{{ end }}

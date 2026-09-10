@@ -1,0 +1,4 @@
+{{ if page.summary }}
+  {{ summary_parts = page.summary | string.split " 第 " }}
+  {{ summary_parts[0] }}
+{{ end }}
