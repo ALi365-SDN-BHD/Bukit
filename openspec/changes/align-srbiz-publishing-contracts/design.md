@@ -13,7 +13,7 @@
 3. VerifiedAt 独立来自业务核验字段，不退回 LastEditedTime/UpdatedAt，不映射 reviewedAt；覆盖有效、空、时区日期。JSON 关系保留源数据方向；无效关系隐藏只影响 HTML 导航。
 4. 一致性检查复用现有 fail-closed completed/security/publish/trust 合同，保留旧 checker 接口和错误规则。核对身份、标题、路由、HTML/JSON/search，资讯/企业正文排除 chrome；Markdown 按支持的文本/链接语义比较，图片存在性与复制哈希校验。HTML 合法反向关系和 search snippets 差异允许。等字节媒体改名报告而不改写。仅空企业列表使用 noindexWhenEmpty；非空企业总列表/马来西亚列表曾被交付补写 noindex 的两处差异必须在独立部署审阅说明中标记。
 5. 单个 Python 工具三个入口：check --build-root … --report …；prepare --site-root … --baseline-repo … --baseline-commit … --out …；verify-online --candidate … --base-url …。prepare 输出目录必须全新；固定隔离源码/配置/模板、已锁 runtime、不可变 Git 基线。凭据仅环境变量传入，不复制秘密。业务原始构建不修改；公开 package 与私有 evidence 分离，.bukit 报告不公开。只显式保留现有 CNAME/README/验证文件，并记录来源与哈希；复用 IndexNow prepare helper，不新建/轮换 key。候选清单与哈希封存，篡改即失效。不要求历史 Notion 可重建；固定 fixture 可重放，封存候选可重验。
-6. 线上验证只读、有界 HTTPS：新增/保留文件全部比较哈希，删除文件必须404/410；覆盖头部、正文及总体 deadline，拒绝跨主机重定向。首次成功日志不得早于必需检查。无 commit/push/deploy/Notion 写入、通知或远端修复。
+6. 线上验证只读、有界 HTTPS：精确根目录CNAME作为部署元数据，以封存哈希、明确发布Git提交普通blob及HTTPS目标域名匹配验收，不请求/CNAME；其余新增/保留文件全部HTTP200和哈希比较，删除文件必须404/410。头部、正文、发布Git读取均受单次及总体deadline限制，拒绝跨主机重定向。首次成功日志不得早于必需检查。无 commit/push/deploy/Notion 写入、通知或远端修复。
 7. Core 文档记录实际投影生命周期、marker 保护、有效 manifest/完成状态顺序、slug 路径迁移、draft/删除撤回与 expiry/noindex 仅排除索引的区别。发现新增 Core 缺陷时报告并停止受影响项，不在网站批次偷修 Core。
 
 ## Risks / Trade-offs
@@ -23,3 +23,7 @@
 ## Migration Plan
 
 先落规范和闭包，再模板/fixture，随后交付脚本，最后文档与逐条需求证据。每批仅一次专项复审，Critical/Important 才限定重入；最终只对新差异及跨批交点做一次统一复审。候选准备允许真实 SRBiz 的只读 Notion 取数，不写 Notion，不替代独立上线审批。
+
+## 已批准CNAME平台合同修正
+
+GitHub Pages把根CNAME用作自定义域名元数据并从HTTP站点输出排除。schema2显式封存根CNAME分类和工具receipt，不改历史candidate5。verify-online在存在该元数据时要求本地published-repo与完整published-commit，以有界只读Git读取普通blob，校验封存字节和唯一DNS域名匹配HTTPS目标；跳过的仅是该元数据的HTTP请求，其他路径HTTP/hash/删除/重定向/超时合同不变。Git读取计入总体deadline，任一失败保持INCOMPLETE。不修改Pages配置、不引入.nojekyll。

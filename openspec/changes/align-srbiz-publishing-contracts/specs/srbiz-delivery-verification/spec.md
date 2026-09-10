@@ -5,7 +5,7 @@
 ## ADDED Requirements
 
 ### Requirement: 单工具三入口
-交付工具 MUST 支持 check --build-root … --report …、prepare --site-root … --baseline-repo … --baseline-commit … --out …、verify-online --candidate … --base-url …。
+交付工具 MUST 支持 check --build-root … --report …、prepare --site-root … --baseline-repo … --baseline-commit … --out …、verify-online --candidate … --base-url …，含CNAME时必须提供 --published-repo … --published-commit 完整不可变提交。
 
 #### Scenario: 单工具三入口验收
 - **WHEN** 调用任一模式
@@ -55,7 +55,7 @@ prepare SHALL 复用现有 IndexNow prepare helper，但不得生成或轮换 ke
 - **THEN** 核验失败且不得继续将其视为批准候选
 
 ### Requirement: 有界HTTPS核验
-verify-online MUST 只读核对全部新增/保留文件哈希及删除404/410，限制响应头、正文及总体 deadline，拒绝跨主机重定向。
+verify-online MUST 只读核对全部文件：精确根目录CNAME作为GitHub Pages部署元数据，核对封存字节/哈希与明确本地发布仓不可变提交中的普通blob一致，唯一合法域名与HTTPS目标host匹配，不请求/CNAME；其余新增/保留文件保持HTTP200及哈希校验、删除404/410，限制响应头、正文及总体deadline（含发布commit读取），拒绝跨主机重定向。候选schema必须显式封存CNAME分类与工具版本/哈希，旧候选不得静默迁移。
 
 #### Scenario: 有界HTTPS核验验收
 - **WHEN** 站点响应200但字节错、删除文件仍在或跳转其他主机
@@ -64,6 +64,14 @@ verify-online MUST 只读核对全部新增/保留文件哈希及删除404/410�
 #### Scenario: 正文持续阻塞
 - **WHEN** HTTPS 响应头立即返回但正文持续阻塞，或整体核验超过总期限
 - **THEN** verify-online 在正文或总体 deadline 内取消并返回失败，不输出首次成功日志
+
+#### Scenario: CNAME部署元数据
+- **WHEN** 候选封存CNAME且平台对/CNAME返回404
+- **THEN** 必须提供完整发布commit，核对普通blob字节与唯一域名匹配HTTPS目标；不发送/CNAME请求，其余页面仍严格HTTP验收
+
+#### Scenario: 元数据不可信
+- **WHEN** CNAME缺失、损坏、多行、多域名、域名不匹配、提交缺失/非普通blob或读取超时
+- **THEN** 失败关闭，不输出VERIFIED；不得豁免其他路径或添加.nojekyll
 
 ### Requirement: 分批验收停止边界
 实施 SHALL 使用唯一 tasks 清单、每批一次专项及最终一次新差异复审，结束时无 open Critical/Important；发现新增 Core 缺陷须停止受影响项并报告。

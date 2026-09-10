@@ -26,3 +26,9 @@
 - [x] 4.4 明确两处非空企业列表 robots 变化及媒体等字节改名报告，不改写 raw build。
 - [x] 4.5 最终一次 delta-only 复审，无 open Critical/Important，披露未验证线上边界；不 commit/push/deploy/通知。
 - [x] 4.6 完成前再次严格运行 openspec validate align-srbiz-publishing-contracts --strict --no-interactive。
+
+## 5. 已批准CNAME合同修正
+- [x] 5.1 更新部署元数据与有界Git验收合同，保留历史候选。
+- [x] 5.2 实现schema2显式CNAME分类、发布commit普通blob和HTTPS域名校验。
+- [x] 5.3 完整运行交付owner专项与OpenSpec严格校验，验证错误元数据及普通文件仍失败。
+- [x] 5.4 完成一次限定复审，再交主控安排源码提交、新候选与部署验收。
