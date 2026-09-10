@@ -10,6 +10,8 @@ public sealed class StaticFileServiceTests : IDisposable
     private readonly List<string> _tempRoots = new();
 
     [Theory]
+    [InlineData("404.html", "/404.html")]
+    [InlineData("docs/404.html", "/docs/404/")]
     [InlineData("index.html", "/")]
     [InlineData("about.html", "/about/")]
     [InlineData("about/team.html", "/about/team/")]
@@ -36,6 +38,13 @@ public sealed class StaticFileServiceTests : IDisposable
             CancellationToken.None);
 
         Assert.Equal(expectedUrl, renderer.PageUrls.Single());
+        Assert.Equal(expectedUrl, Assert.Single(StaticFileService.BuildStaticHtmlRoutes(staticDir, "pages/static.html")).Url);
+        if (relativePath == "404.html")
+        {
+            Assert.True(File.Exists(Path.Combine(outputDir, "404.html")));
+            Assert.False(Directory.Exists(Path.Combine(outputDir, "404")));
+            Assert.Contains("404.html", currentKeys.Keys);
+        }
     }
 
     [Fact]

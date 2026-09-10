@@ -134,11 +134,15 @@ internal static class StaticFileService
     }
 
     internal static string BuildOutputPathFromStaticHtmlPath(string relativeOutputPath)
-        => RoutePathBuilder.BuildOutputPathFromUrl(BuildUrlFromStaticHtmlPath(relativeOutputPath));
+        => BuildPathUtils.NormalizeRelPath(relativeOutputPath).Equals("404.html", StringComparison.OrdinalIgnoreCase)
+            ? "404.html"
+            : RoutePathBuilder.BuildOutputPathFromUrl(BuildUrlFromStaticHtmlPath(relativeOutputPath));
 
     internal static string BuildUrlFromStaticHtmlPath(string relativeOutputPath)
     {
         var normalizedPath = BuildPathUtils.NormalizeRelPath(relativeOutputPath);
+        if (normalizedPath.Equals("404.html", StringComparison.OrdinalIgnoreCase))
+            return "/404.html";
         var pathWithoutExtension = normalizedPath.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
             ? normalizedPath[..^5]
             : normalizedPath;

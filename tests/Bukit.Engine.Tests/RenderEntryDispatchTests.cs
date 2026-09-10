@@ -78,10 +78,13 @@ public sealed class RenderEntryDispatchTests
         Assert.True(File.Exists(Path.Combine(outputDir, "index.html")));
     }
 
-    [Fact]
-    public async Task DispatchAsync_RendersStaticEntry()
+    [Theory]
+    [InlineData("about.html", "about/index.html", "/about/")]
+    [InlineData("404.html", "404.html", "/404.html")]
+    [InlineData("docs/404.html", "docs/404/index.html", "/docs/404/")]
+    public async Task DispatchAsync_RendersStaticEntry(string input, string output, string url)
     {
-        var staticDir = CreateStaticDirWithHtml("about.html", "<main>About</main>");
+        var staticDir = CreateStaticDirWithHtml(input, "<main>About</main>");
         var entries = RenderEntry.ForStaticDir(staticDir, "pages/static.html", _ => { }, false);
         var outputDir = CreateOutputDir();
         var renderer = new CaptureRenderer();
@@ -104,7 +107,10 @@ public sealed class RenderEntryDispatchTests
             CancellationToken.None);
 
         Assert.Equal(1, result.RenderedCount);
-        Assert.True(File.Exists(Path.Combine(outputDir, "about", "index.html")));
+        Assert.True(File.Exists(Path.Combine(outputDir, output)));
+        Assert.Equal(url, Assert.Single(entries).Route.Url);
+        Assert.Equal(output, entries[0].Route.OutputPath);
+        if (input == "404.html") Assert.False(Directory.Exists(Path.Combine(outputDir, "404")));
     }
 
     [Fact]

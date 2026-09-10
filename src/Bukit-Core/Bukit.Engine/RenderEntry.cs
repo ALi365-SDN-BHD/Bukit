@@ -89,6 +89,8 @@ internal sealed record RenderEntry(
     private static string BuildUrlFromStaticHtmlPath(string relativePath)
     {
         var normalized = relativePath.Replace('\\', '/');
+        if (normalized.Equals("404.html", StringComparison.OrdinalIgnoreCase))
+            return "/404.html";
         if (normalized.Equals("index.html", StringComparison.OrdinalIgnoreCase))
             return "/";
         if (normalized.EndsWith("/index.html", StringComparison.OrdinalIgnoreCase))
@@ -99,6 +101,8 @@ internal sealed record RenderEntry(
     private static string BuildOutputPathFromStaticHtmlPath(string relativePath)
     {
         var normalized = relativePath.Replace('\\', '/');
+        if (normalized.Equals("404.html", StringComparison.OrdinalIgnoreCase))
+            return "404.html";
         if (normalized.Equals("index.html", StringComparison.OrdinalIgnoreCase))
             return "index.html";
         if (normalized.EndsWith("index.html", StringComparison.OrdinalIgnoreCase))

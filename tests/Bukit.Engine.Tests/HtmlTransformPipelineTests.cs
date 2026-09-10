@@ -35,6 +35,7 @@ public sealed class HtmlTransformPipelineTests
         var staticDir = Path.Combine(outputDir, "input");
         Directory.CreateDirectory(staticDir);
         await File.WriteAllTextAsync(Path.Combine(staticDir, "about.html"), "static");
+        await File.WriteAllTextAsync(Path.Combine(staticDir, "404.html"), "not found");
         var item = ContentDocument.Create("post", "Post", "post", DateTimeOffset.UnixEpoch, "content");
         var pageRoute = new RouteInfo("/post/", "post/index.html", "page.html");
         var listRoute = new RouteInfo("/", "index.html", "list.html");
@@ -69,6 +70,9 @@ public sealed class HtmlTransformPipelineTests
             x.DocumentKind == HtmlDocumentKind.List && x.RouteUrl == "/" && x.OutputPath == "index.html");
         Assert.Contains(transform.Contexts, x =>
             x.DocumentKind == HtmlDocumentKind.Static && x.RouteUrl == "/about/" && x.OutputPath == "about/index.html");
+        Assert.Contains(transform.Contexts, x =>
+            x.DocumentKind == HtmlDocumentKind.Static && x.RouteUrl == "/404.html" && x.OutputPath == "404.html");
+        Assert.Contains("|static", await File.ReadAllTextAsync(Path.Combine(outputDir, "404.html")));
         Assert.Contains("|content", await File.ReadAllTextAsync(Path.Combine(outputDir, "post", "index.html")));
         Assert.Contains("|list", await File.ReadAllTextAsync(Path.Combine(outputDir, "index.html")));
         Assert.Contains("|static", await File.ReadAllTextAsync(Path.Combine(outputDir, "about", "index.html")));
