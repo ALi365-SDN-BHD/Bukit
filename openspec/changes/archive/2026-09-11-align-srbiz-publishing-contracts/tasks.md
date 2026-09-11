@@ -21,7 +21,7 @@
 
 ## 4. 最终交付证据
 - [x] 4.1 更新站点用户指南和逐条 requirement→代码→证据追踪。
-- [x] 4.2 后续独立 Core 验证已完成：网站页脚改用已有 site.build_year；固定 TimeProvider UTC 2040-12-31T16:00:00Z 与原内容日期/mtime，root 和 /docs 各 131 个公开文件冷/暖/增量全部路径及 SHA256 一致，真实页脚为 2041；仅回拨时钟一小时则为 2040，增量与同时间冷构建一致。Engine 完整专项 2410 通过。来源为 candidate4 加明确单行派生，原候选封存不变；源版本证据见 /Users/ali/.codex/worktrees/8f41/Bukit/.cache/srbiz-clock-followup/REPORT.md。锁定 Native AOT CLI 仍无时钟参数，历史 Notion 不要求重建。
+- [x] 4.2 后续独立 Core 验证已完成：网站页脚改用已有 site.build_year；固定 TimeProvider UTC 2040-12-31T16:00:00Z 与原内容日期/mtime，root 和 /docs 各 131 个公开文件冷/暖/增量全部路径及 SHA256 一致，真实页脚为 2041；仅回拨时钟一小时则为 2040，增量与同时间冷构建一致。Engine 完整专项 2410 通过。来源为 candidate4 加明确单行派生，原候选封存不变；源版本证据见 [归档核对中的后续整合证据](completion.md)。锁定 Native AOT CLI 仍无时钟参数，历史 Notion 不要求重建。
 - [x] 4.3 只读获取真实 SRBiz（含 Prasarana）数据并在隔离环境封存候选，不写 Notion/不部署。
 - [x] 4.4 明确两处非空企业列表 robots 变化及媒体等字节改名报告，不改写 raw build。
 - [x] 4.5 最终一次 delta-only 复审，无 open Critical/Important，披露未验证线上边界；不 commit/push/deploy/通知。

@@ -100,6 +100,7 @@ separate immutable delivery candidate is a site workflow, not an added Core runt
 capability. Git push success is distinct from read-only verification of the hosted files.
 
 SRBiz-specific relationship, artifact comparison and delivery requirements are recorded in
-`openspec/changes/align-srbiz-publishing-contracts/`; site implementation does not modify
+`openspec/specs/srbiz-*/` (implementation history in
+`openspec/changes/archive/2026-09-11-align-srbiz-publishing-contracts/`); site implementation does not modify
 Core code or the external plugin protocol. VerifiedAt remains a site business field and
 must not be silently mapped to Core reviewedAt or source edit timestamps.

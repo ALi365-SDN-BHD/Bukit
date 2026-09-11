@@ -1,8 +1,8 @@
 schema: spec-driven
 context: |
   Bukit 是企业内部内容发布 Core；SRBiz-bukit 是独立网站仓库。
-  当前跨仓批准变更集中记录在 align-srbiz-publishing-contracts。
-  Core 仅允许架构文档改动；站点模板、交付验证与隔离候选属于网站范围。
+  当前规范记录在 openspec/specs/，已完成变更记录在 openspec/changes/archive/。
+  align-srbiz-publishing-contracts 已归档；其 Core 范围仅为架构文档，站点实现保持隔离。
   不隐含授权 commit、push、deploy、Notion 写入或通知。
 rules:
   proposal:

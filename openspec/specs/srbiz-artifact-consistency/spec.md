@@ -1,8 +1,9 @@
-## Purpose
+# srbiz-artifact-consistency Specification
 
+## Purpose
 定义网站业务产物在 HTML、JSON、Markdown、搜索和媒体之间可核验的一致性边界，区分允许的表示差异与真实遗漏。验收复用已有失败关闭规则，保留原始字节和公开路径，确保冷构建、暖缓存及增量构建给出相同公开结果。
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: 复用失败关闭门禁
 check MUST 复用已识别完成状态、security、publish、trust 必需校验，保留现有发布 checker 接口与错误规则；所有检查完成前不得输出成功。
@@ -50,7 +51,7 @@ HTML 推导反向关系与 search snippets 的有意差异 SHALL 被允许，JSO
 ### Requirement: 可重放一致性
 固定 fixture SHALL 比较冷、暖、增量构建全部公开路径和内容，只有明确内部运行报告可排除；每轮固定相同内容和构建时间前提。
 
-实施证据更新（独立 Core 时钟验证后续）：经用户授权，网站页脚改用已有 site.build_year，固定 fixture 以 candidate4 原输入加该单行修复派生，并记录原始/有效哈希，未修改原候选封存。源版本 Engine 在既有内部 TimeProvider 入口固定 UTC 2040-12-31T16:00:00Z；root 与 /docs 各 131 个公开文件的冷、暖、增量路径及 SHA256 相等，真实页脚显示时区年份 2041。仅将构建时间回拨一小时，真实页脚为 2040，增量与同时间冷构建全公开哈希相等；不再依赖附加探针或公开字段排除。完整 Engine 专项 2410 通过。此证据补齐原 4.2 固定构建语义时间条件，不改变本条 SHALL 合同；不要求冻结 HTTP deadline、性能计时或内部报告时钟。锁定 Native AOT CLI 的既有及本次网站专项与源版本证据分开记录，CLI 没有新增时钟参数，不宣称历史 Notion 可重建或网站已上线。详见 /Users/ali/.codex/worktrees/8f41/Bukit/.cache/srbiz-clock-followup/REPORT.md。
+实施证据更新（独立 Core 时钟验证后续）：经用户授权，网站页脚改用已有 site.build_year，固定 fixture 以 candidate4 原输入加该单行修复派生，并记录原始/有效哈希，未修改原候选封存。源版本 Engine 在既有内部 TimeProvider 入口固定 UTC 2040-12-31T16:00:00Z；root 与 /docs 各 131 个公开文件的冷、暖、增量路径及 SHA256 相等，真实页脚显示时区年份 2041。仅将构建时间回拨一小时，真实页脚为 2040，增量与同时间冷构建全公开哈希相等；不再依赖附加探针或公开字段排除。完整 Engine 专项 2410 通过。此证据补齐原 4.2 固定构建语义时间条件，不改变本条 SHALL 合同；不要求冻结 HTTP deadline、性能计时或内部报告时钟。锁定 Native AOT CLI 的既有及本次网站专项与源版本证据分开记录，CLI 没有新增时钟参数，不宣称历史 Notion 可重建或网站已上线。历史实施证据定位：`openspec/changes/archive/2026-09-11-align-srbiz-publishing-contracts/completion.md`。
 
 #### Scenario: 可重放一致性验收
 - **WHEN** 相同 fixture 以三种缓存状态构建

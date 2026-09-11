@@ -1,3 +1,7 @@
+## Purpose
+
+Preserve the hosting identity of the root error document while using the existing static HTML transform pipeline, without changing nested or ordinary document routing.
+
 ## ADDED Requirements
 
 ### Requirement: Root error document identity
