@@ -99,13 +99,19 @@ public sealed class AnalyticsReportWriterTests : IDisposable
         AnalyticsReportWriter.WriteIfEnabled(config, _outputDir, snapshot);
 
         var resolved = AnalyticsConfigNormalizer.Normalize(config.Site.Analytics);
-        var transformed = new AnalyticsHtmlTransform(
+        var transform = new AnalyticsHtmlTransform(
             resolved,
-            AnalyticsProviderRegistry.CreateDefault()).Transform(
-                new HtmlTransformContext(
-                    "/", "index.html", HtmlDocumentKind.Content,
-                    BuildExecutionMode.Production, new ConsoleLogger(LogLevel.Error)),
-                "<html><head></head><body></body></html>");
+            AnalyticsProviderRegistry.CreateDefault());
+        var context = new HtmlTransformContext(
+            "/", "index.html", HtmlDocumentKind.Content,
+            BuildExecutionMode.Production, new ConsoleLogger(LogLevel.Error));
+        var transformed = transform.Transform(
+            context,
+            "<html><head></head><body></body></html>");
+        var withTitle = transform.Transform(
+            context,
+            "<html><head><title>Page &amp; Site</title></head><body></body></html>");
+        Assert.Equal(ExtractInlineScriptBodies(transformed), ExtractInlineScriptBodies(withTitle));
         var expected = ExtractInlineScriptBodies(transformed)
             .Select(body => "sha256-" + Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(body))))
             .Distinct(StringComparer.Ordinal)

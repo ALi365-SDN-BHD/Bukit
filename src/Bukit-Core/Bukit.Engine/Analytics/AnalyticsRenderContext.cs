@@ -6,4 +6,5 @@ internal sealed record AnalyticsRenderContext(
     string RouteUrl,
     string OutputPath,
     bool IsListPage,
-    BuildExecutionMode ExecutionMode);
+    BuildExecutionMode ExecutionMode,
+    string? PageTitle = null);

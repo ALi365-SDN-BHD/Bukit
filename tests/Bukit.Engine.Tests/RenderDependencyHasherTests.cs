@@ -285,7 +285,7 @@ public sealed class RenderDependencyHasherTests
     public void Compute_BaseConfiguration_MatchesGoldenHash()
     {
         Assert.Equal(
-            "e25173b0b583e16fd78dc3703e1b8546b196b9b5a90e514e2788c9961d72028a",
+            "cdb43344b36dc619f9eb7a2ff625d37957f138573b6dbf35b974e2f51a9f0af2",
             RenderDependencyHasher.Compute(CreateBaseConfig(), s_emptySiteModel));
     }
 
@@ -470,12 +470,17 @@ public sealed class RenderDependencyHasherTests
             config,
             s_emptySiteModel,
             analyticsRendererContractVersion: "5");
+        var version6 = RenderDependencyHasher.Compute(
+            config,
+            s_emptySiteModel,
+            analyticsRendererContractVersion: "6");
 
         Assert.NotEqual(version1, version2);
         Assert.NotEqual(version2, version3);
         Assert.NotEqual(version3, version4);
         Assert.NotEqual(version4, version5);
-        Assert.Equal(version5, current);
+        Assert.NotEqual(version5, version6);
+        Assert.Equal(version6, current);
     }
 
     [Fact]
@@ -577,8 +582,8 @@ public sealed class RenderDependencyHasherTests
         };
 
         Assert.NotEqual(
-            RenderDependencyHasher.Compute(disabled, s_emptySiteModel, analyticsRendererContractVersion: "5"),
-            RenderDependencyHasher.Compute(disabled, s_emptySiteModel, analyticsRendererContractVersion: "6"));
+            RenderDependencyHasher.Compute(disabled, s_emptySiteModel, analyticsRendererContractVersion: "6"),
+            RenderDependencyHasher.Compute(disabled, s_emptySiteModel, analyticsRendererContractVersion: "7"));
     }
 
     [Fact]

@@ -54,7 +54,8 @@ internal sealed class AnalyticsHtmlTransform : IHtmlTransform
                 context.RouteUrl,
                 context.OutputPath,
                 context.DocumentKind == HtmlDocumentKind.List,
-                context.ExecutionMode);
+                context.ExecutionMode,
+                HtmlDocumentTitleInspector.Inspect(cleaned).PrimaryTitle);
             var fragments = AnalyticsFragmentRenderer.Render(_config, _providers, renderContext);
 
             var result = InjectHeadFragments(cleaned, fragments, out var headInjected, out var headMissing);

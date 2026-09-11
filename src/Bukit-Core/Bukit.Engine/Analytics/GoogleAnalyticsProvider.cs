@@ -12,13 +12,14 @@ internal sealed class GoogleAnalyticsProvider : IAnalyticsProvider
         var scriptUrl = AnalyticsValueEncoder.HtmlAttribute(
             $"https://www.googletagmanager.com/gtag/js?id={measurementId}");
         var javascriptMeasurementId = AnalyticsValueEncoder.JavaScriptString(measurementId);
+        var pageTitleAttribute = PageTitleAttribute(context);
         var headStart = $$"""
             <script async src="{{scriptUrl}}"></script>
-            <script>
+            <script{{pageTitleAttribute}}>
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', '{{javascriptMeasurementId}}');
+            (function(s){var t=s.getAttribute('data-bukit-page-title');gtag('config', '{{javascriptMeasurementId}}', t===null?{}:{'page_title':t});})(document.currentScript);
             </script>
             """;
 
@@ -30,9 +31,10 @@ internal sealed class GoogleAnalyticsProvider : IAnalyticsProvider
         AnalyticsRenderContext context)
     {
         var measurementId = AnalyticsValueEncoder.JavaScriptString(provider.Options["measurementId"]);
+        var pageTitleAttribute = PageTitleAttribute(context);
         var headStart = $$"""
-            <script>
-            gtag('config', '{{measurementId}}');
+            <script{{pageTitleAttribute}}>
+            (function(s){var t=s.getAttribute('data-bukit-page-title');gtag('config', '{{measurementId}}', t===null?{}:{'page_title':t});})(document.currentScript);
             </script>
             """;
 
@@ -47,14 +49,20 @@ internal sealed class GoogleAnalyticsProvider : IAnalyticsProvider
         var scriptUrl = AnalyticsValueEncoder.HtmlAttribute(
             $"https://www.googletagmanager.com/gtag/js?id={measurementId}");
         var javascriptMeasurementId = AnalyticsValueEncoder.JavaScriptString(measurementId);
+        var pageTitleAttribute = PageTitleAttribute(context);
         var headStart = $$"""
             <script async src="{{scriptUrl}}"></script>
-            <script>
+            <script{{pageTitleAttribute}}>
             gtag('js', new Date());
-            gtag('config', '{{javascriptMeasurementId}}');
+            (function(s){var t=s.getAttribute('data-bukit-page-title');gtag('config', '{{javascriptMeasurementId}}', t===null?{}:{'page_title':t});})(document.currentScript);
             </script>
             """;
 
         return new AnalyticsHtmlFragments(provider.Key, HeadStart: headStart);
     }
+
+    private static string PageTitleAttribute(AnalyticsRenderContext context)
+        => context.PageTitle is null
+            ? string.Empty
+            : $" data-bukit-page-title=\"{AnalyticsValueEncoder.HtmlAttribute(context.PageTitle)}\"";
 }

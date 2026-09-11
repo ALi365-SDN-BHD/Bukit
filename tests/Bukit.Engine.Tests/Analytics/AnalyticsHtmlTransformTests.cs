@@ -100,13 +100,29 @@ public sealed class AnalyticsHtmlTransformTests
         Assert.Equal(1, Count(third, "bukit:analytics:google-analytics:G-SECOND:head:start"));
         Assert.Equal(1, Count(third, "bukit:analytics:google-analytics:G-THIRD:head:start"));
 
-        var firstConfig = third.IndexOf("gtag('config', 'G-FIRST')", StringComparison.Ordinal);
-        var secondConfig = third.IndexOf("gtag('config', 'G-SECOND')", StringComparison.Ordinal);
-        var thirdConfig = third.IndexOf("gtag('config', 'G-THIRD')", StringComparison.Ordinal);
+        var firstConfig = third.IndexOf("gtag('config', 'G-FIRST',", StringComparison.Ordinal);
+        var secondConfig = third.IndexOf("gtag('config', 'G-SECOND',", StringComparison.Ordinal);
+        var thirdConfig = third.IndexOf("gtag('config', 'G-THIRD',", StringComparison.Ordinal);
         var gtm = third.IndexOf("google-tag-manager:GTM-MIDDLE:head:start", StringComparison.Ordinal);
         Assert.True(firstConfig >= 0 && firstConfig < gtm && gtm < secondConfig && secondConfig < thirdConfig);
         Assert.Equal(first, second);
         Assert.Equal(second, third);
+    }
+
+    [Fact]
+    public void Transform_GoogleAnalytics_UsesNormalizedFinalHeadTitle()
+    {
+        var transform = CreateTransform(Provider("google-analytics", measurementId: "G-TITLE"));
+        const string html = "<html><head><title>  Page &amp; Site  </title></head><body></body></html>";
+
+        var result = transform.Transform(Context(), html);
+
+        Assert.Contains(
+            "<script data-bukit-page-title=\"Page &amp; Site\">",
+            result,
+            StringComparison.Ordinal);
+        Assert.Equal(1, Count(result, "gtag('config', 'G-TITLE',"));
+        Assert.Equal(1, Count(result, "data-bukit-page-title=\""));
     }
 
     [Fact]

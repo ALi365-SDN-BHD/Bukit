@@ -28,12 +28,26 @@ public sealed class AnalyticsProviderTests
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-ABC123');
+            (function(s){var t=s.getAttribute('data-bukit-page-title');gtag('config', 'G-ABC123', t===null?{}:{'page_title':t});})(document.currentScript);
             </script>
             """,
             fragments.HeadStart);
         Assert.Null(fragments.HeadEnd);
         Assert.Null(fragments.BodyStart);
+    }
+
+    [Fact]
+    public void GoogleAnalytics_Render_EncodesStaticPageTitleAsDataAttribute()
+    {
+        var fragments = new GoogleAnalyticsProvider().Render(
+            Provider("google-analytics", "google-analytics:G-ABC123", ("measurementId", "G-ABC123")),
+            FakeContext with { PageTitle = "Page & \"Site\" <目录>" });
+
+        Assert.Contains(
+            "<script data-bukit-page-title=\"Page &amp; &quot;Site&quot; &lt;目录&gt;\">",
+            fragments.HeadStart,
+            StringComparison.Ordinal);
+        Assert.Contains("getAttribute('data-bukit-page-title')", fragments.HeadStart, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -132,7 +146,7 @@ public sealed class AnalyticsProviderTests
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-X\u0027\u003C/script\u003E\u0026\u0022');
+            (function(s){var t=s.getAttribute('data-bukit-page-title');gtag('config', 'G-X\u0027\u003C/script\u003E\u0026\u0022', t===null?{}:{'page_title':t});})(document.currentScript);
             </script>
             """,
             fragments.HeadStart);

@@ -128,6 +128,15 @@ Providers generate fixed templates. They cannot read files, access the
 network, or accept arbitrary JavaScript, head HTML, or body HTML. Bukit encodes
 configured values at the HTML or JavaScript boundary.
 
+For Google Analytics, Bukit reads the normalized primary `<title>` from the
+final HTML and supplies it as `page_title` on each destination's `config`
+command. This prevents the initial page view from depending on whether the
+browser has parsed the title before the asynchronous Google loader runs. The
+title is stored in an HTML-encoded data attribute, so page-specific text does
+not change the inline script body or its CSP hash. A page without a head title
+keeps Google's document-title default. A client that intentionally changes the
+title after load must supply the intended `page_title` on its later events.
+
 ## Google Consent Mode
 
 Any `google-analytics` or `google-tag-manager` provider requires an explicit
