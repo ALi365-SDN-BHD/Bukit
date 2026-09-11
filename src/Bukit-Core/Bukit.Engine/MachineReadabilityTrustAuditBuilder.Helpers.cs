@@ -195,14 +195,10 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             issues.Add(Warning("seo.robots_txt_sitemap_missing", null, "robots.txt does not declare a Sitemap URL."));
         }
 
-        if (!robotsText.Split('\n').Any(x => x.Trim().Equals("Disallow: /", StringComparison.OrdinalIgnoreCase)))
+        var rules = new RobotsTxtRules(robotsText);
+        foreach (var route in routes.Where(x => x.Indexable && rules.IsBlocked("*", x.Url)))
         {
-            return;
-        }
-
-        foreach (var route in routes.Where(x => x.Indexable))
-        {
-            issues.Add(Error("seo.robots_txt_blocks_indexable", route.Url, "robots.txt disallows all crawling while route is indexable."));
+            issues.Add(Error("seo.robots_txt_blocks_indexable", route.Url, "robots.txt default crawler policy blocks this indexable route."));
         }
     }
 

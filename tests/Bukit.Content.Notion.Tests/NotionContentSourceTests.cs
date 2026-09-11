@@ -73,6 +73,84 @@ public sealed class NotionContentSourceTests
     }
 
     [Fact]
+    public async Task LoadRawAsync_PreservesSplitIdentifiersAndExplicitWhitespace()
+    {
+        var options = new NotionContentSourceOptions
+        {
+            DatabaseId = "db-1", Token = "token", FilterType = "none",
+            FieldPolicyMode = "all", RenderContent = false
+        };
+        var handler = new SingleResponseHandler("""
+            {"has_more":false,"results":[{"id":"page-1","created_time":"2026-09-11T00:00:00Z","properties":{
+              "Title":{"type":"title","title":[{"plain_text":"Page"}]},
+              "Language":{"type":"rich_text","rich_text":[{"plain_text":"zh-"},{"plain_text":"CN"}]},
+              "Url":{"type":"rich_text","rich_text":[{"plain_text":"/文"},{"plain_text":"档/"}]},
+              "Template":{"type":"rich_text","rich_text":[{"plain_text":"pages/page"},{"plain_text":".html"}]},
+              "Summary":{"type":"rich_text","rich_text":[{"plain_text":"First"},{"plain_text":"  "},{"plain_text":"second"}]}
+            }}]}
+            """);
+        NotionContentClient CreateClient() => new(options, handler, static (_, _) => Task.CompletedTask);
+
+        var result = await new NotionContentSource(options, logger: null, CreateClient).LoadRawAsync();
+        var fields = Assert.Single(result.Documents).CustomFields;
+
+        Assert.Equal("zh-CN", ContentFieldReader.GetText(fields, "language"));
+        Assert.Equal("/文档/", ContentFieldReader.GetText(fields, "url"));
+        Assert.Equal("pages/page.html", ContentFieldReader.GetText(fields, "template"));
+        Assert.Equal("First  second", ContentFieldReader.GetText(fields, "summary"));
+    }
+
+    [Fact]
+    public async Task PageCache_ReadonlyReusesEmptyBodyWithoutFetchingBlocks()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-empty-cache-" + Guid.NewGuid().ToString("N"));
+        var cache = NotionCacheManager.CreatePageHtmlCache(new NotionContentSourceOptions { DatabaseId = "db-1", Token = "token", CacheMode = "readwrite", CacheDir = root });
+        var handler = new SingleResponseHandler("""{"results":[],"has_more":false}""");
+        using var client = new Bukit.Notion.Transport.NotionClient(
+            new Bukit.Notion.Transport.NotionClientOptions { Token = "token", MaxRetries = 0 },
+            handler, static (_, _) => Task.CompletedTask, static () => DateTimeOffset.UtcNow);
+        var renderer = new Bukit.Notion.Rendering.NotionBlocksRenderer(client);
+        try
+        {
+            Assert.NotNull(cache);
+            Assert.Equal(string.Empty, await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, cache, "page-1", "v1", CancellationToken.None));
+            Assert.Equal(1, handler.RequestCount);
+            Assert.Equal(string.Empty, await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, cache with { Mode = "readonly" }, "page-1", "v1", CancellationToken.None));
+            Assert.Equal(1, handler.RequestCount);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(",\"html\":null")]
+    [InlineData(",\"html\":123")]
+    public async Task PageCache_ReadonlyRejectsMissingOrInvalidHtml(string htmlProperty)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-invalid-cache-" + Guid.NewGuid().ToString("N"));
+        var cache = NotionCacheManager.CreatePageHtmlCache(new NotionContentSourceOptions { DatabaseId = "db-1", Token = "token", CacheMode = "readonly", CacheDir = root });
+        var handler = new SingleResponseHandler("""{"results":[],"has_more":false}""");
+        using var client = new Bukit.Notion.Transport.NotionClient(
+            new Bukit.Notion.Transport.NotionClientOptions { Token = "token", MaxRetries = 0 },
+            handler, static (_, _) => Task.CompletedTask, static () => DateTimeOffset.UtcNow);
+        try
+        {
+            Assert.NotNull(cache);
+            await File.WriteAllTextAsync(Path.Combine(cache.PagesDir, "page-1.json"), "{\"version\":1,\"lastEditedTime\":\"v1\"" + htmlProperty + "}");
+            await Assert.ThrowsAsync<Bukit.Shared.ContentException>(() => NotionCacheManager.GetOrRenderPageHtmlAsync(
+                new Bukit.Notion.Rendering.NotionBlocksRenderer(client), cache, "page-1", "v1", CancellationToken.None));
+            Assert.Equal(0, handler.RequestCount);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task PageQuery_PreservesEngineTitleFragmentSpacing()
     {
         var singleHandler = new SingleResponseHandler("""
@@ -422,12 +500,17 @@ public sealed class NotionContentSourceTests
 
     private sealed class SingleResponseHandler(string body) : HttpMessageHandler
     {
+        internal int RequestCount { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
-            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            RequestCount++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(body, Encoding.UTF8, "application/json")
             });
+        }
     }
 }

@@ -417,8 +417,6 @@ public sealed class PublishAuditReportWriterTests : IDisposable
             """);
         File.WriteAllText(Path.Combine(_outputDir, "rss.xml"), "<rss><channel></channel></rss>");
         File.WriteAllText(Path.Combine(_outputDir, "robots.txt"), """
-            User-agent: *
-            Disallow: /
             User-agent: GPTBot
             Disallow: /
             Allow: /post/
@@ -828,6 +826,54 @@ public sealed class PublishAuditReportWriterTests : IDisposable
         var report = SeoAuditReportWriter.Build(Config(), _outputDir, index, models, ContentGraph());
 
         Assert.DoesNotContain(report.Issues, x => x.Code == "publish.ai_crawler_policy_conflict" && x.Route == "/post/");
+    }
+
+    [Theory]
+    [InlineData("User-agent: *\nAllow: /\nUser-agent: GPTBot\nDisallow: /", true, false)]
+    [InlineData("User-agent: GPTBot\nDisallow: /\nUser-agent: ClaudeBot\nAllow: /", true, false)]
+    [InlineData("User-agent: *\nDisallow: /\nUser-agent: GPTBot\nAllow: /", true, true)]
+    [InlineData("User-agent: GPTBot\nDisallow: /\nAllow: /post/", false, false)]
+    [InlineData("User-agent: GPTBot\nDisallow: /\nUser-agent: gptbot\nAllow: /post/", false, false)]
+    [InlineData("User-agent: GPTBot\nUser-agent: ClaudeBot\nDisallow: /post/", true, false)]
+    [InlineData("User-agent: Googlebot\nDisallow: /", false, false)]
+    [InlineData("User-agent: Cohere-AI\nDisallow: /", true, false)]
+    [InlineData("User-agent: *\nDisallow: /Post/", false, false)]
+    [InlineData("User-agent : * # default group\nDisallow: /po* # matching prefix", true, true)]
+    [InlineData("User-agent: *\nDisallow: /post$", false, false)]
+    [InlineData("User-agent: *\nAllow: /post/\nDisallow: /post/$", true, true)]
+    [InlineData("User-agent: *\nDisallow: /post/\nAllow: /post/$", false, false)]
+    [InlineData("User-agent: *\nDisallow: /%70ost/", true, true)]
+    [InlineData("User-agent: *\nDisallow: /\nAllow: /post/", false, false)]
+    public void Build_RobotsRulesRespectGroupsAndRouteMatching(string robots, bool aiBlocked, bool defaultBlocked)
+    {
+        WriteOutput("post/index.html", "<html><head><title>Post</title></head><body><h1>Post</h1></body></html>");
+        File.WriteAllText(Path.Combine(_outputDir, "robots.txt"), robots);
+        var index = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Entry("/post/", "post/index.html", "https://example.com/post/")
+        };
+        var models = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["post/index.html"] = Model("Post", "https://example.com/post/")
+        };
+
+        var result = MachineReadabilityTrustAuditBuilder.Build(Config(), _outputDir, index, models, ContentGraph());
+
+        Assert.Equal(aiBlocked, result.PublishReport.Issues.Any(issue => issue.Code == "publish.ai_crawler_policy_conflict" && issue.Route == "/post/"));
+        Assert.Equal(defaultBlocked, result.SeoReport.Issues.Any(issue => issue.Code == "seo.robots_txt_blocks_indexable" && issue.Route == "/post/"));
+    }
+
+    [Fact]
+    public void RobotsRules_EmptySpecificGroupOverridesWildcardAndPreservesReservedEncoding()
+    {
+        var rules = new RobotsTxtRules("User-agent: *\nDisallow: /\nUser-agent: GPTBot\nDisallow:");
+        Assert.False(rules.IsBlocked("GPTBot", "/post/"));
+        Assert.True(rules.IsBlocked("ClaudeBot", "/post/"));
+
+        rules = new RobotsTxtRules("User-agent: *\nDisallow: /a%2fb\nDisallow: /文档/");
+        Assert.True(rules.IsBlocked("GPTBot", "/a%2Fb"));
+        Assert.False(rules.IsBlocked("GPTBot", "/a/b"));
+        Assert.True(rules.IsBlocked("GPTBot", "/%E6%96%87%E6%A1%A3/"));
     }
 
     public void Dispose()

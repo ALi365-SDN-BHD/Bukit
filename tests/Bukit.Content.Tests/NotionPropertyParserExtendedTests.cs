@@ -254,15 +254,19 @@ public sealed class NotionPropertyParserExtendedTests
         Assert.Equal(string.Empty, NotionPropertyParser.NormalizeFieldKey(""));
     }
 
-    [Fact]
-    public void TryParseRichTextArray_MultiSegment_Concatenated()
+    [Theory]
+    [InlineData("title", "Hello", "World", "HelloWorld")]
+    [InlineData("rich_text", "zh-", "CN", "zh-CN")]
+    [InlineData("rich_text", "Hello ", " World", "Hello  World")]
+    [InlineData("rich_text", " ", "Word", " Word")]
+    public void TryParseRichTextArray_MultiSegment_Concatenated(string type, string first, string second, string expected)
     {
-        var json = """{"type":"title","title":[{"plain_text":"Hello"},{"plain_text":"World"}]}""";
+        var json = $$"""{"type":"{{type}}","{{type}}":[{"plain_text":{{JsonSerializer.Serialize(first)}}},{"plain_text":{{JsonSerializer.Serialize(second)}}}]}""";
         using var doc = JsonDocument.Parse(json);
         var ok = NotionPropertyTypeParser.TryParseNotionPropertyToField(doc.RootElement, out var field, out var _);
 
         Assert.True(ok);
-        Assert.Equal("Hello World", field.Value);
+        Assert.Equal(expected, field.Value);
     }
 
     [Fact]

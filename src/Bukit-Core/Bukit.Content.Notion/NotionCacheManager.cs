@@ -63,7 +63,7 @@ internal static class NotionCacheManager
 
                 if (version == 1 &&
                     string.Equals(cachedLastEdited, lastEditedTime, StringComparison.Ordinal) &&
-                    !string.IsNullOrWhiteSpace(cachedHtml))
+                    cachedHtml is not null)
                 {
                     return cachedHtml!;
                 }

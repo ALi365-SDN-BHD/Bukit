@@ -327,15 +327,7 @@ internal static class NotionPropertyTypeParser
             }
             if (item.TryGetProperty("plain_text", out var t) && t.ValueKind == JsonValueKind.String)
             {
-                var s = t.GetString();
-                if (!string.IsNullOrWhiteSpace(s))
-                {
-                    if (sb.Length > 0)
-                    {
-                        sb.Append(' ');
-                    }
-                    sb.Append(s.Trim());
-                }
+                sb.Append(t.GetString());
             }
         }
 
