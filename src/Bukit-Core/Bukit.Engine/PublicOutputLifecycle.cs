@@ -29,20 +29,7 @@ internal static class PublicOutputLifecycle
             if (config.Site.Seo.RobotsTxt.Enabled) Add("robots.txt", "robots");
             if (!root || SiteModeResolver.ResolveFeedMode(config.Site) == "merged")
             {
-                var formats = root ? config.Site.Feed.Formats.Select(x => x.Trim().ToLowerInvariant()).Where(x => x is "rss" or "atom" or "json").ToArray() : config.Site.Feed.Formats.ToArray();
-                if (formats.Contains("rss", StringComparer.OrdinalIgnoreCase) || root && formats.Length == 0) Add("rss.xml", "feed");
-                if (formats.Contains("atom", StringComparer.OrdinalIgnoreCase)) Add(config.Site.Feed.Path + "/atom.xml", "atom");
-                if (formats.Contains("json", StringComparer.OrdinalIgnoreCase)) Add(config.Site.Feed.Path + "/feed.json", "jsonfeed");
-                if (!root && config.Site.Collections is not null)
-                {
-                    foreach (var (name, collection) in config.Site.Collections.Where(x => x.Value.Output.Rss))
-                    {
-                        var path = (collection.Output.FeedPath ?? config.Site.Feed.Path + "/" + name).Trim().Replace('\\', '/').Trim('/');
-                        if (formats.Contains("rss", StringComparer.OrdinalIgnoreCase)) Add(path.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) ? path : path + "/rss.xml", "collection-feed " + name);
-                        if (formats.Contains("atom", StringComparer.OrdinalIgnoreCase)) Add(path + "/atom.xml", "collection-atom " + name);
-                        if (formats.Contains("json", StringComparer.OrdinalIgnoreCase)) Add(path + "/feed.json", "collection-jsonfeed " + name);
-                    }
-                }
+                AddFeedOutputs(config, root, Add);
             }
         }
         if (config.Site.Seo.Geo.Enabled)
@@ -51,6 +38,26 @@ internal static class PublicOutputLifecycle
             if (config.Site.Seo.Geo.LlmsFullTxt) Add("llms-full.txt", "llms-full");
         }
         return items;
+    }
+
+    private static void AddFeedOutputs(AppConfig config, bool root, Action<string, string> add)
+    {
+        string[] formats = root
+            ? [.. config.Site.Feed.Formats.Select(x => x.Trim().ToLowerInvariant()).Where(x => x is "rss" or "atom" or "json")]
+            : [.. config.Site.Feed.Formats];
+        if (formats.Contains("rss", StringComparer.OrdinalIgnoreCase) || root && formats.Length == 0) add("rss.xml", "feed");
+        if (formats.Contains("atom", StringComparer.OrdinalIgnoreCase)) add(config.Site.Feed.Path + "/atom.xml", "atom");
+        if (formats.Contains("json", StringComparer.OrdinalIgnoreCase)) add(config.Site.Feed.Path + "/feed.json", "jsonfeed");
+        if (!root && config.Site.Collections is not null)
+        {
+            foreach (var (name, collection) in config.Site.Collections.Where(x => x.Value.Output.Rss))
+            {
+                var path = (collection.Output.FeedPath ?? config.Site.Feed.Path + "/" + name).Trim().Replace('\\', '/').Trim('/');
+                if (formats.Contains("rss", StringComparer.OrdinalIgnoreCase)) add(path.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) ? path : path + "/rss.xml", "collection-feed " + name);
+                if (formats.Contains("atom", StringComparer.OrdinalIgnoreCase)) add(path + "/atom.xml", "collection-atom " + name);
+                if (formats.Contains("json", StringComparer.OrdinalIgnoreCase)) add(path + "/feed.json", "collection-jsonfeed " + name);
+            }
+        }
     }
 
     internal static void PrepareProjectionWrites(string outputDir, BuildManifest previous, IReadOnlyList<AssetOutputItem> items)
@@ -105,7 +112,7 @@ internal static class PublicOutputLifecycle
         var items = variants.SelectMany(variant => variant.PlannedOutputs.Select(item => item with
         {
             Destination = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(outputDir, Path.Combine(variant.OutputDir, item.Destination)))
-        })).Concat(rootOutputs ?? Array.Empty<AssetOutputItem>()).ToArray();
+        })).Concat(rootOutputs ?? []).ToArray();
         AssetOutputPlan.Validate(items, OutputDestinationIdentityComparer.ForOutputRoot(outputDir));
         var previous = BuildManifest.Load(ManifestPath(rootDir, overrides));
         DeleteStale(outputDir, previous, items.Select(x => x.Destination).ToHashSet(OutputDestinationIdentityComparer.ForOutputRoot(outputDir)));

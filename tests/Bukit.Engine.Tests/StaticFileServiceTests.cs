@@ -16,6 +16,8 @@ public sealed class StaticFileServiceTests : IDisposable
     [InlineData("about.html", "/about/")]
     [InlineData("about/team.html", "/about/team/")]
     [InlineData("docs/index.html", "/docs/")]
+    [InlineData("reindex.html", "/reindex/")]
+    [InlineData("docs/myindex.html", "/docs/myindex/")]
     public void RenderStaticFiles_StaticHtml_GeneratesExpectedUrl(string relativePath, string expectedUrl)
     {
         var root = CreateTempRoot();
@@ -39,6 +41,8 @@ public sealed class StaticFileServiceTests : IDisposable
 
         Assert.Equal(expectedUrl, renderer.PageUrls.Single());
         Assert.Equal(expectedUrl, Assert.Single(StaticFileService.BuildStaticHtmlRoutes(staticDir, "pages/static.html")).Url);
+        var expectedOutput = relativePath == "404.html" ? "404.html" : expectedUrl.TrimStart('/') + "index.html";
+        Assert.True(File.Exists(Path.Combine(outputDir, expectedOutput)));
         if (relativePath == "404.html")
         {
             Assert.True(File.Exists(Path.Combine(outputDir, "404.html")));

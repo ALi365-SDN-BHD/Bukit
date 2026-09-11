@@ -166,7 +166,7 @@ public sealed class SiteEngine
                 buildLogger.Info($"event=build.variant.done language={effectiveConfig.Site.Language} baseUrl={BuildPathUtils.NormalizeBaseUrl(effectiveConfig.Site.BaseUrl)}");
                 bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
                 MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, effectiveConfig, plan.OutputDir, documents.Count, new[] { result }, bodyCacheMetrics);
-                completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, plan.OutputDir, new[] { result });
+                completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, plan.OutputDir, [result]);
                 var generatedFiles = BuildOutputInventory.Create(plan.OutputDir);
                 plan.Stopwatch.Stop();
                 var singleLanguageBuildResult = BuildResultFactory.Create(
@@ -186,7 +186,7 @@ public sealed class SiteEngine
                 await BuildReporter.WriteIfEnabledAsync(effectiveConfig, rootDir, plan.OutputDir, singleLanguageBuildResult, new[] { result }, _logger, securityData, cancellationToken).ConfigureAwait(false);
                 BuildReporter.EnforceSecurityGate(effectiveConfig, securityData, overrides.IsCI);
                 completedResult = singleLanguageBuildResult;
-                completedVariants = new[] { result };
+                completedVariants = [result];
             }
             else
             {
@@ -322,7 +322,7 @@ public sealed class SiteEngine
         var variantResults = results.Where(r => r is not null).ToList();
 
         var previous = BuildManifest.Load(PublicOutputLifecycle.ManifestPath(rootDir, overrides));
-        var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, Array.Empty<RouteInfo>(), root: true)
+        var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
             .Where(item => item.Destination != "robots.txt" || previous.OwnedOutputs.Contains("robots.txt") ||
                 !File.Exists(Path.Combine(outputDir, "robots.txt"))).ToArray();
         var completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, outputDir, variantResults, rootOutputs);

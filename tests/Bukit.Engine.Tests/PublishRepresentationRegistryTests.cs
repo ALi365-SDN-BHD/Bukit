@@ -228,17 +228,14 @@ public sealed class PublishRepresentationRegistryTests
     [Fact]
     public void AgentManifestProjection_OnlyDeclaresJsonLdWhenSeoModelContainsJsonLd()
     {
-        var record = Document("post", "Post").Record;
         var route = new RouteInfo("/post/", "post/index.html", "post.html");
         var entry = new SeoIndexEntry(route, "https://example.com/post/", null, true, DateTimeOffset.Parse("2026-06-05T00:00:00Z"), "post", "post");
 
         var withoutJsonLd = DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(
-            record,
             route,
             entry,
             new SeoModel { Title = "Post", Canonical = "https://example.com/post/" });
         var withJsonLd = DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(
-            record,
             route,
             entry,
             new SeoModel { Title = "Post", Canonical = "https://example.com/post/", JsonLd = ["{\"@type\":\"Article\"}"] });

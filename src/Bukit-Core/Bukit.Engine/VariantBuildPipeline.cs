@@ -21,7 +21,7 @@ internal sealed partial class VariantBuildPipeline
 
         var media = context.Config.Content.Media.DownloadToLocal ? new ContentMediaOutput(context) : null;
         if (media is not null)
-            context = context with { BodyStore = media, Documents = context.Documents.Select(document => media.NormalizeDocument(document)).ToArray() };
+            context = context with { BodyStore = media, Documents = [.. context.Documents.Select(document => media.NormalizeDocument(document))] };
         Directory.CreateDirectory(context.OutputDir);
 
         var bootstrap = await BootstrapThemeAsync(

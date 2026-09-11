@@ -105,7 +105,7 @@ internal sealed record RenderEntry(
             return "404.html";
         if (normalized.Equals("index.html", StringComparison.OrdinalIgnoreCase))
             return "index.html";
-        if (normalized.EndsWith("index.html", StringComparison.OrdinalIgnoreCase))
+        if (normalized.EndsWith("/index.html", StringComparison.OrdinalIgnoreCase))
             return normalized;
         return normalized[..^".html".Length] + "/index.html";
     }

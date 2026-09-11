@@ -16,6 +16,23 @@ namespace Bukit.Engine.Tests;
 
 public sealed partial class SiteEngineIntegrationTests
 {
+    [Theory]
+    [InlineData("<a data-href=\"/assets/uploads/ghost.png\" href=\"/about/\">About</a>")]
+    [InlineData("<a title=\"href='/assets/uploads/ghost.png'\" href=\"/about/\">About</a>")]
+    public async Task MediaLifecycle_IgnoresHrefTextOutsideTheAnchorHref(string html)
+    {
+        var (root, config) = CreateMediaSite(baseUrl: "/site/");
+        try
+        {
+            await BuildMediaAsync(root, config, [MediaDocument("one")], html);
+            var output = Path.Combine(root, "dist");
+            Assert.Contains(html, File.ReadAllText(Path.Combine(output, "blog", "one", "index.html")));
+            Assert.False(File.Exists(Path.Combine(output, "assets", "uploads", "ghost.png")));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
+        }
+        finally { CleanupDir(root); }
+    }
+
     [Fact]
     public async Task MediaLifecycle_ColdAndWarmDelayedBodyPublishesOnlyReferencedBytes()
     {

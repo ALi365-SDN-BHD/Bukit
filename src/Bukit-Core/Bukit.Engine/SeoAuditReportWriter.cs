@@ -68,13 +68,13 @@ internal static partial class SeoAuditReportWriter
 
         var documentProjections = results.SelectMany(result => result.ProjectionResults.Where(x => !x.Representation.IsAggregate).Select(projection => projection with
         {
-            Outputs = projection.Outputs.Select(output => output with
+            Outputs = [.. projection.Outputs.Select(output => output with
             {
                 Path = BuildPathUtils.NormalizeRelPath(Path.Combine(result.Language, output.Path)),
                 DocumentRoute = output.DocumentRoute is null ? null : CombineBaseUrl(result.BaseUrl, output.DocumentRoute)
-            }).ToArray()
+            })]
         }));
-        var actualProjections = documentProjections.Concat(projectionResults ?? Array.Empty<PublishProjectionResult>()).ToArray();
+        var actualProjections = documentProjections.Concat(projectionResults ?? []).ToArray();
         var auditResult = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, new CanonicalContentGraph(records, entities), requireHreflangTargets: true, actualProjections);
         WriteReport(outputDir, auditResult, logger);
         return auditResult.SeoReport;

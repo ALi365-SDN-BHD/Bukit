@@ -43,7 +43,7 @@ internal sealed class BuildReportPipeline
     internal BuildVariantResult Execute(BuildReportPipelineContext ctx)
     {
         var contentGraph = ctx.ContentGraph ?? CanonicalContentGraph.Empty;
-        var projectionResults = ctx.ProjectionResults ?? Array.Empty<PublishProjectionResult>();
+        var projectionResults = ctx.ProjectionResults ?? [];
         SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger, projectionResults);
         return new BuildVariantResult(
             Language: ctx.Language,

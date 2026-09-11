@@ -8,10 +8,10 @@ using Bukit.Engine.Abstractions.Content;
 namespace Bukit.Engine;
 
 // Resolves this variant's published bodies before asset preflight, retaining exactly those results.
-internal sealed class ContentMediaOutput(BuildVariantContext context) : IContentBodyStore
+internal sealed partial class ContentMediaOutput(BuildVariantContext context) : IContentBodyStore
 {
-    private static readonly Regex SrcsetUrl = new(@"(^|,)\s*(?<url>[^\s,]+)", RegexOptions.CultureInvariant);
-    private static readonly Regex AnchorUrl = new("<a\\b[^>]*?\\bhref\\s*=\\s*(?<quote>[\"'])(?<url>.*?)\\k<quote>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    [GeneratedRegex(@"(^|,)\s*(?<url>[^\s,]+)", RegexOptions.CultureInvariant)]
+    private static partial Regex SrcsetUrl();
     private readonly ConcurrentDictionary<(string Id, ContentBodyRef Body), Lazy<Task<ContentBody>>> _bodies = new();
     private readonly ConcurrentDictionary<string, byte> _references = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _fallbacks = new(StringComparer.Ordinal);
@@ -37,7 +37,7 @@ internal sealed class ContentMediaOutput(BuildVariantContext context) : IContent
             CustomFields = fields,
             Record = document.Record with
             {
-                Media = document.Record.Media.Select(media => media with { Url = RewriteUrl(media.Url, collect) }).ToArray(),
+                Media = [.. document.Record.Media.Select(media => media with { Url = RewriteUrl(media.Url, collect) })],
                 Presentation = document.Record.Presentation with { Body = html }
             }
         };
@@ -95,21 +95,15 @@ internal sealed class ContentMediaOutput(BuildVariantContext context) : IContent
 
     private string RewriteHtml(string html, bool collect)
     {
-        var references = HtmlMediaReferenceScanner.Find(html).ToList();
         // Localized image links no longer have the remote href shape recognized by the source scanner.
-        foreach (Match match in AnchorUrl.Matches(html))
-        {
-            var url = match.Groups["url"];
-            if (!references.Any(reference => reference.ValueStart == url.Index))
-                references.Add(new HtmlMediaReference(HtmlMediaReferenceKind.Url, url.Index, url.Length, url.Value));
-        }
+        var references = HtmlMediaReferenceScanner.Find(html, includeAllAnchorHrefs: true);
         var result = new StringBuilder(html.Length);
         var last = 0;
-        foreach (var reference in references.OrderBy(reference => reference.ValueStart))
+        foreach (var reference in references)
         {
             var value = WebUtility.HtmlDecode(reference.Value);
             var rewritten = reference.Kind == HtmlMediaReferenceKind.Srcset
-                ? SrcsetUrl.Replace(value, match => match.Value[..(match.Groups["url"].Index - match.Index)] + RewriteUrl(match.Groups["url"].Value, collect, requireFallback: true))
+                ? SrcsetUrl().Replace(value, match => match.Value[..(match.Groups["url"].Index - match.Index)] + RewriteUrl(match.Groups["url"].Value, collect, requireFallback: true))
                 : RewriteUrl(value, collect, requireFallback: true);
             result.Append(html, last, reference.ValueStart - last);
             result.Append(WebUtility.HtmlEncode(rewritten));

@@ -104,28 +104,7 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                 .ToArray();
         }
 
-        var routedAll = context.RoutedDocuments.Concat(context.DerivedDocuments).ToList();
-        var documentContexts = new List<ContentProjectionDocumentContext>(routedAll.Count);
-        foreach (var routedDocument in routedAll)
-        {
-            var record = routedDocument.Document.Record;
-            var route = routedDocument.Route;
-
-            var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
-            context.SeoIndex.TryGetValue(key, out var entry);
-            context.SeoModels.TryGetValue(key, out var model);
-
-            var documentContext = new ContentProjectionDocumentContext(
-                context.OutputDir,
-                record,
-                route,
-                entry,
-                model,
-                context.BaseUrl);
-            documentContexts.Add(documentContext);
-        }
-
-        return documentContexts;
+        return [];
     }
 
     internal static IReadOnlyList<AgentManifestEntry> BuildAgentManifestEntries(PublishProjectionContext context)
@@ -149,7 +128,7 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
                 record.Presentation.Language,
                 record.Trust.ReviewStatus,
                 PublicContentProjectionPolicy.SanitizeEntities(record).Select(x => x.Name).ToArray(),
-                BuildAgentManifestRepresentationEntries(record, route, entry, model, context.BaseUrl),
+                BuildAgentManifestRepresentationEntries(route, entry, model, context.BaseUrl),
                 record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
         }
 
@@ -157,7 +136,6 @@ internal sealed class DefaultContentProjectionWriter : IContentProjectionWriter
     }
 
     internal static IReadOnlyList<RepresentationEntry> BuildAgentManifestRepresentationEntries(
-        ContentRecord record,
         RouteInfo route,
         SeoIndexEntry? entry,
         SeoModel? model,

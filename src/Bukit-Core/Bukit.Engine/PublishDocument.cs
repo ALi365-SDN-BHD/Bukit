@@ -41,7 +41,7 @@ internal sealed record PublishDocument(
     SeoModel? SeoModel,
     ContentRecord? ContentRecord)
 {
-    internal IReadOnlyList<PublishRepresentationOutput> ProjectionOutputs { get; init; } = Array.Empty<PublishRepresentationOutput>();
+    internal IReadOnlyList<PublishRepresentationOutput> ProjectionOutputs { get; init; } = [];
     internal string ProjectionBaseUrl { get; init; } = "/";
 }
 
@@ -55,7 +55,9 @@ internal static class PublishDocumentBuilder
         SeoIndexEntry entry,
         SeoModel? model,
         ContentRecord? record,
-        IReadOnlyList<string> schemaTypes)
+        IReadOnlyList<string> schemaTypes,
+        string baseUrl,
+        IReadOnlyList<PublishProjectionResult>? projectionResults)
     {
         return new PublishDocument(
             entry.Route.Url,
@@ -92,7 +94,14 @@ internal static class PublishDocumentBuilder
             RobotsIncluded: false,
             ManifestIncluded: false,
             model,
-            record);
+            record)
+        {
+            ProjectionBaseUrl = baseUrl,
+            ProjectionOutputs = [.. (projectionResults ?? [])
+                .SelectMany(result => result.Representation.IsAggregate
+                    ? result.Outputs.Take(1)
+                    : result.Outputs.Where(output => string.Equals(output.DocumentRoute, entry.Route.Url, StringComparison.OrdinalIgnoreCase)))]
+        };
     }
 
     internal static DateTimeOffset? NormalizeLastModified(DateTimeOffset lastModified)

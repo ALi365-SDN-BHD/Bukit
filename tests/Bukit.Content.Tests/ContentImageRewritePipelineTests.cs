@@ -575,6 +575,21 @@ public sealed class ContentImageRewritePipelineTests
     }
 
     [Fact]
+    public void HtmlMediaReferenceScanner_LocalizedAnchorsUseWholeAttributesAndOrderedSpans()
+    {
+        const string html = """
+            <a data-href="/ghost.png" title="href='/ghost.png'" href="/assets/uploads/real.png">Image</a>
+            <img src="https://img.example/next.jpg">
+            """;
+        var references = HtmlMediaReferenceScanner.Find(html, includeAllAnchorHrefs: true);
+
+        Assert.Equal(["/assets/uploads/real.png", "https://img.example/next.jpg"], references.Select(reference => reference.Value));
+        Assert.True(references[0].ValueStart + references[0].ValueLength < references[1].ValueStart);
+        Assert.Equal("/assets/uploads/real.png", html.Substring(references[0].ValueStart, references[0].ValueLength));
+        Assert.Equal("https://img.example/next.jpg", Assert.Single(HtmlMediaReferenceScanner.Find(html)).Value);
+    }
+
+    [Fact]
     public void HtmlMediaReferenceScanner_HandlesEmptyAndNullSafeInputs()
     {
         Assert.Empty(HtmlMediaReferenceScanner.Find(string.Empty));

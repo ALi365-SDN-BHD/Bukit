@@ -126,7 +126,7 @@ internal sealed class AssetOutputPlan
             }
         }
 
-        var items = effectiveItems.Values.Concat((context.ProjectionOutputs ?? Array.Empty<AssetOutputItem>())
+        var items = effectiveItems.Values.Concat((context.ProjectionOutputs ?? [])
             .Where(item => item.Destination != "robots.txt" || !effectiveItems.Values.Any(existing => existing.Category == AssetOutputCategory.Static && existing.Destination == "robots.txt")))
             .Where(item => item.Category != AssetOutputCategory.Projection || item.Destination != "robots.txt" ||
                 context.Manifest.OwnedOutputs.Contains("robots.txt") || !File.Exists(Path.Combine(context.OutputDir, "robots.txt")))

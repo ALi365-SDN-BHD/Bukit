@@ -82,6 +82,10 @@ public sealed class RenderEntryDispatchTests
     [InlineData("about.html", "about/index.html", "/about/")]
     [InlineData("404.html", "404.html", "/404.html")]
     [InlineData("docs/404.html", "docs/404/index.html", "/docs/404/")]
+    [InlineData("index.html", "index.html", "/")]
+    [InlineData("docs/index.html", "docs/index.html", "/docs/")]
+    [InlineData("reindex.html", "reindex/index.html", "/reindex/")]
+    [InlineData("docs/myindex.html", "docs/myindex/index.html", "/docs/myindex/")]
     public async Task DispatchAsync_RendersStaticEntry(string input, string output, string url)
     {
         var staticDir = CreateStaticDirWithHtml(input, "<main>About</main>");

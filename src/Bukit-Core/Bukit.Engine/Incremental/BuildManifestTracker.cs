@@ -208,21 +208,6 @@ internal static class BuildManifestTracker
         manifest.Assets = currentAssets;
     }
 
-    internal static void DeleteStaleManifestOutputs(string outputDir, BuildManifest manifest, ConcurrentDictionary<string, byte> currentKeys, ILogger logger, IOutputPathPolicy? pathPolicy = null)
-    {
-        var removed = manifest.Entries
-            .Where(kv => !currentKeys.ContainsKey(kv.Key))
-            .ToList();
-
-        foreach (var kv in removed)
-        {
-            var relativePath = string.IsNullOrWhiteSpace(kv.Value.OutputPath) ? kv.Key : kv.Value.OutputPath;
-            PublicOutputLifecycle.DeleteOwnedFile(outputDir, relativePath);
-
-            manifest.Entries.Remove(kv.Key);
-        }
-    }
-
     private static void AddStaticSourceOutputs(string? sourceDir, Dictionary<string, string> outputs, bool renderHtmlStaticFiles, string? fingerprintMode = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sourceDir) || !Directory.Exists(sourceDir))

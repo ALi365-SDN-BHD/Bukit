@@ -60,16 +60,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var schemaTypes = model is null
                 ? Array.Empty<string>()
                 : SeoSchemaValidator.ExtractSchemaTypes(model.JsonLd, entry.Route.Url, seoIssues, searchActionExpected);
-            var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes);
-            document = document with
-            {
-                ProjectionBaseUrl = config.Site.BaseUrl,
-                ProjectionOutputs = (projectionResults ?? Array.Empty<PublishProjectionResult>())
-                    .SelectMany(result => result.Representation.IsAggregate
-                        ? result.Outputs.Take(1)
-                        : result.Outputs.Where(output => string.Equals(output.DocumentRoute, entry.Route.Url, StringComparison.OrdinalIgnoreCase)))
-                    .ToArray()
-            };
+            var document = PublishDocumentBuilder.Build(entry, model, record, schemaTypes, config.Site.BaseUrl, projectionResults);
             var outputPath = Path.Combine(outputDir, entry.Route.OutputPath);
             var outputExists = File.Exists(outputPath);
             HtmlDocumentTitleInspection? titleInspection = null;

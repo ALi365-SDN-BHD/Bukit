@@ -48,7 +48,7 @@ internal sealed class I18nRootAgentManifestWriter : II18nRootProjectionWriter
                     record.Trust.ReviewStatus,
                     PublicContentProjectionPolicy.SanitizeEntities(record).Select(x => x.Name).ToArray(),
                     DefaultContentProjectionWriter.BuildAgentManifestRepresentationEntries(
-                        record, route with { Url = mergedRoute }, seoEntry, model, result.BaseUrl),
+                        route with { Url = mergedRoute }, seoEntry, model, result.BaseUrl),
                     record.Lifecycle.UpdatedAt ?? record.Lifecycle.PublishedAt));
             }
         }

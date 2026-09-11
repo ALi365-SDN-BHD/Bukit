@@ -21,7 +21,7 @@ internal static class HtmlMediaReferenceScanner
         ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif", ".bmp", ".ico", ".tiff", ".tif"
     };
 
-    public static IReadOnlyList<HtmlMediaReference> Find(string html)
+    public static IReadOnlyList<HtmlMediaReference> Find(string html, bool includeAllAnchorHrefs = false)
     {
         if (string.IsNullOrEmpty(html))
         {
@@ -73,7 +73,7 @@ internal static class HtmlMediaReferenceScanner
                 continue;
             }
 
-            ScanAttributes(html, nameEnd, tagEnd, tagName, ref references);
+            ScanAttributes(html, nameEnd, tagEnd, tagName, includeAllAnchorHrefs, ref references);
 
             i = tagEnd + 1;
         }
@@ -117,6 +117,7 @@ internal static class HtmlMediaReferenceScanner
         int attrsStart,
         int tagEnd,
         ReadOnlySpan<char> tagName,
+        bool includeAllAnchorHrefs,
         ref List<HtmlMediaReference>? references)
     {
         var i = attrsStart;
@@ -194,7 +195,7 @@ internal static class HtmlMediaReferenceScanner
             var valueLength = i - valueStart;
             i++; // consume closing quote.
 
-            if (TryClassify(tagName, attributeName, html, valueStart, valueLength, out var kind))
+            if (TryClassify(tagName, attributeName, html, valueStart, valueLength, includeAllAnchorHrefs, out var kind))
             {
                 references ??= new List<HtmlMediaReference>(4);
                 references.Add(new HtmlMediaReference(
@@ -212,6 +213,7 @@ internal static class HtmlMediaReferenceScanner
         string html,
         int valueStart,
         int valueLength,
+        bool includeAllAnchorHrefs,
         out HtmlMediaReferenceKind kind)
     {
         kind = default;
@@ -254,7 +256,7 @@ internal static class HtmlMediaReferenceScanner
         {
             if (attributeName.Equals("href", StringComparison.OrdinalIgnoreCase))
             {
-                if (IsImageHrefValue(html, valueStart, valueLength))
+                if (includeAllAnchorHrefs || IsImageHrefValue(html, valueStart, valueLength))
                 {
                     kind = HtmlMediaReferenceKind.Url;
                     return true;
