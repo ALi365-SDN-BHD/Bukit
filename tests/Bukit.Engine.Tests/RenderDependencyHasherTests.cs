@@ -293,7 +293,8 @@ public sealed class RenderDependencyHasherTests
             images with { Enabled = false },
             images with { Sizes = new[] { 480 } },
             images with { Sizes = new[] { 480, 768, 900 } },
-            images with { Quality = 70 }
+            images with { Quality = 70 },
+            images with { Formats = Array.Empty<string>() }
         })
         {
             Assert.NotEqual(baseline, RenderDependencyHasher.Compute(
@@ -305,7 +306,7 @@ public sealed class RenderDependencyHasherTests
     public void Compute_BaseConfiguration_MatchesGoldenHash()
     {
         Assert.Equal(
-            "1328edc81223f81d9a1a8f0c93df7e6cbf39602390b0782f16e25cb5917031fe",
+            "88d00a9a3e1ce4b44e4125772a6fc7b83f8c66cc8a5a065a61d622f239738486",
             RenderDependencyHasher.Compute(CreateBaseConfig(), s_emptySiteModel));
     }
 
@@ -314,7 +315,7 @@ public sealed class RenderDependencyHasherTests
     {
         // Golden hash for the canonical framed/type-tagged render dependency encoding.
         Assert.Equal(
-            "a64742710183f7d4e7baf1d0c35a9739a9833463e5be2b2288de3066ba4a7a93",
+            "a242c8681281cec8bd47bfee773971db2de2762c4cdf2e44121aaf0f2194f44c",
             RenderDependencyHasher.Compute(
                 CreateRepresentativeGoldenConfig(),
                 CreateRepresentativeGoldenSiteModel(),

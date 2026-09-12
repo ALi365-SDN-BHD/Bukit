@@ -17,6 +17,49 @@ namespace Bukit.Engine.Tests;
 
 public sealed partial class SiteEngineIntegrationTests
 {
+    [Theory]
+    [InlineData("/assets/uploads", false)]
+    [InlineData("/media", false)]
+    [InlineData("media", true)]
+    public async Task MediaLifecycle_FormatSwitchRefreshesIncrementalHtml(string urlBase, bool multiLanguage)
+    {
+        var (root, config) = CreateMediaSite(multiLanguage, "/site/", urlBase);
+        using var server = new MediaImageServer(width: 1000);
+        try
+        {
+            var output = Path.Combine(root, "dist", multiLanguage ? "en" : "");
+            var pageFile = Path.Combine(output, "blog", "one", "index.html");
+            foreach (var enabled in new[] { false, true, false, true })
+            {
+                config = config with
+                {
+                    Theme = config.Theme with
+                    {
+                        Images = new ImageOptimizationConfig
+                        {
+                            Enabled = true,
+                            Formats = enabled ? new[] { "webp" } : Array.Empty<string>(),
+                            Sizes = new[] { 480 }
+                        }
+                    }
+                };
+                await BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"fallback\">");
+                var page = File.ReadAllText(pageFile);
+                Assert.Equal(enabled, page.Contains("<source type=\"image/webp\"", StringComparison.Ordinal));
+                Assert.Contains("-480w.png 480w", page);
+                Assert.Contains("alt=\"fallback\"", page);
+                Assert.DoesNotContain("data-bukit-generated-srcset", page);
+                if (enabled)
+                {
+                    Assert.Contains("-480w.webp 480w", page);
+                    Assert.Single(Directory.EnumerateFiles(Path.Combine(output, urlBase.Trim('/')), "*-480w.webp"));
+                }
+            }
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
+        }
+        finally { CleanupDir(root); }
+    }
+
     [Fact]
     public async Task MediaLifecycle_WebpOutputsHtmlAndIncrementalManifestStayConsistent()
     {

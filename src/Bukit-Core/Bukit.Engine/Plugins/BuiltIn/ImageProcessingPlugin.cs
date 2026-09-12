@@ -735,7 +735,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             {
                 path = path[..suffixAt];
             }
-            if (!path.StartsWith("/", StringComparison.Ordinal) ||
+            if (!path.StartsWith('/') ||
                 Path.GetExtension(path).ToLowerInvariant() is not (".jpg" or ".jpeg" or ".png"))
             {
                 return false;
