@@ -46,28 +46,9 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             return;
         }
 
-        var assetsDir = Path.Combine(context.OutputDir, "assets");
-        var mediaDir = Path.GetFullPath(Path.Combine(context.OutputDir,
-            ResponsiveImageHtmlTransform.NormalizeMediaUrlBase(_config.Content.Media.UrlBase).TrimStart('/')));
-        if (!IsWithinDirectory(context.OutputDir, mediaDir))
-        {
-            throw new IOException("Image media output directory escapes the output root.");
-        }
-        var imageDirectories = new[] { assetsDir, mediaDir }.Distinct(StringComparer.Ordinal)
-            .Where(Directory.Exists).ToArray();
         var priorPluginOutputs = GetPriorPluginOutputs(context);
-        foreach (var directory in imageDirectories)
-        {
-            CleanupOrphanedOwnedVariants(context.OutputDir, directory, priorPluginOutputs, cancellationToken);
-        }
-
-        var exts = new[] { ".jpg", ".jpeg", ".png" };
+        var imageFiles = FindSourceImages(context, priorPluginOutputs, cancellationToken);
         var sizes = NormalizeSizes(config.Sizes);
-        var imageFiles = imageDirectories.SelectMany(directory => SafeFileEnumerator.EnumerateFiles(directory, "*.*"))
-            .Distinct(StringComparer.Ordinal)
-            .Where(f => exts.Contains(Path.GetExtension(f).ToLowerInvariant()))
-            .Where(f => !IsOwnedGeneratedVariant(context.OutputDir, f, priorPluginOutputs))
-            .ToList();
 
         if (imageFiles.Count == 0)
         {
@@ -316,6 +297,32 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         {
             context.Data["__plugin_outputs"] = generatedOutputs;
         }
+    }
+
+    private List<string> FindSourceImages(
+        BuildContext context,
+        HashSet<PluginOutputTrackingInfo> priorPluginOutputs,
+        CancellationToken cancellationToken)
+    {
+        var assetsDir = Path.Combine(context.OutputDir, "assets");
+        var mediaDir = Path.GetFullPath(Path.Combine(context.OutputDir,
+            ResponsiveImageHtmlTransform.NormalizeMediaUrlBase(_config.Content.Media.UrlBase).TrimStart('/')));
+        if (!IsWithinDirectory(context.OutputDir, mediaDir))
+        {
+            throw new IOException("Image media output directory escapes the output root.");
+        }
+        var imageDirectories = new[] { assetsDir, mediaDir }.Distinct(StringComparer.Ordinal)
+            .Where(Directory.Exists).ToArray();
+        foreach (var directory in imageDirectories)
+        {
+            CleanupOrphanedOwnedVariants(context.OutputDir, directory, priorPluginOutputs, cancellationToken);
+        }
+
+        var exts = new[] { ".jpg", ".jpeg", ".png" };
+        return [.. imageDirectories.SelectMany(directory => SafeFileEnumerator.EnumerateFiles(directory, "*.*"))
+            .Distinct(StringComparer.Ordinal)
+            .Where(f => exts.Contains(Path.GetExtension(f).ToLowerInvariant()))
+            .Where(f => !IsOwnedGeneratedVariant(context.OutputDir, f, priorPluginOutputs))];
     }
 
     private const string FreshnessSuffix = ".bukit-freshness.json";
