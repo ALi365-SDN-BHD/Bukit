@@ -269,7 +269,7 @@ public sealed class CoverageGateTests
         yaml.Load(new StringReader(workflow));
         var root = Assert.IsType<YamlMappingNode>(Assert.Single(yaml.Documents).RootNode);
 
-        AssertRunContains(Job(root, "fast-contracts"),
+        AssertRunContains(Job(root, "architecture-contracts"),
             "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj");
 
         var plan = Job(root, "coverage-plan");
@@ -327,6 +327,12 @@ public sealed class CoverageGateTests
     }
 
     [Theory]
+    [InlineData("needs: [fast-gate, architecture-contracts]", "needs: [fast-gate]")]
+    [InlineData("if: ${{ always() }}", "if: ${{ success() }}")]
+    [InlineData("required = [\"fast-gate\", \"architecture-contracts\"]", "required = [\"fast-gate\"]")]
+    [InlineData("bash scripts/gates/ci-fast.sh Release", "echo skipped fast gate")]
+    [InlineData("name: Architecture contracts", "name: Architecture contracts\n    needs: fast-gate")]
+    [InlineData("name: Fast gate", "name: Fast gate\n    if: ${{ false }}")]
     [InlineData("needs: [coverage-plan, coverage-projects, coverage-summary, platform-tests]", "needs: [coverage-plan, coverage-projects, coverage-summary]")]
     [InlineData("always() && (github.event_name", "(github.event_name")]
     [InlineData("!= \"success\"", "== \"failure\"")]
@@ -355,14 +361,37 @@ public sealed class CoverageGateTests
         AssertRunContains(core, "needs.get(name, {}).get(\"result\") != \"success\"");
         Assert.DoesNotContain("ci-full.sh", workflow, StringComparison.Ordinal);
         Assert.Equal("${{ " + coreTrigger + " || inputs.gate == 'coverage' }}", TryScalar(Job(root, "coverage-plan"), "if"));
-        Assert.Null(TryScalar(Job(root, "fast-contracts"), "if"));
-        Assert.Equal("Fast contracts", TryScalar(Job(root, "fast-contracts"), "name"));
+        var fast = Job(root, "fast-contracts");
+        Assert.Equal("${{ always() }}", TryScalar(fast, "if"));
+        Assert.Equal("Fast contracts", TryScalar(fast, "name"));
+        Assert.Equal(["fast-gate", "architecture-contracts"], Needs(fast));
+        var fastStep = Assert.Single(Steps(fast));
+        Assert.Equal("${{ toJSON(needs) }}", TryScalar(Mapping(fastStep, "env"), "NEEDS_JSON"));
+        AssertRunContains(fast, "required = [\"fast-gate\", \"architecture-contracts\"]");
+        AssertRunContains(fast, "needs.get(name, {}).get(\"result\") != \"success\"");
+        foreach (var name in new[] { "fast-gate", "architecture-contracts", "fast-contracts" })
+        {
+            var job = Job(root, name);
+            Assert.Null(TryScalar(job, "continue-on-error"));
+            foreach (var step in Steps(job))
+            {
+                Assert.Null(TryScalar(step, "continue-on-error"));
+                Assert.Null(TryScalar(step, "if"));
+            }
+            if (name != "fast-contracts")
+            {
+                Assert.Null(TryScalar(job, "if"));
+                Assert.False(job.Children.ContainsKey(new YamlScalarNode("needs")));
+            }
+        }
+        AssertRunContains(Job(root, "fast-gate"), "bash scripts/gates/ci-fast.sh Release");
         Assert.Equal("Core coverage", TryScalar(Job(root, "coverage-summary"), "name"));
         var upload = Assert.Single(Steps(Job(root, "coverage-projects")), step => IsArtifact(step, "core-coverage-project-${{ matrix.name }}"));
         Assert.Equal("always()", TryScalar(upload, "if"));
         Assert.Null(TryScalar(upload, "continue-on-error"));
 
         var platform = Job(root, "platform-tests");
+        Assert.Equal(["fast-contracts"], Needs(platform));
         Assert.Equal("${{ " + coreTrigger + " }}", TryScalar(platform, "if"));
         Assert.Equal("${{ matrix.runner }}", TryScalar(platform, "runs-on"));
         var matrix = Assert.IsType<YamlSequenceNode>(Get(Mapping(Mapping(platform, "strategy"), "matrix"), "include"));

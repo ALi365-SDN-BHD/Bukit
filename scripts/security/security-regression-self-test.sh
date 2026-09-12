@@ -4,6 +4,7 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 script="$root/scripts/security/security-regression.sh"
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-security-self-test.XXXXXX")"
+scratch="$(cd "$scratch" && pwd -P)"
 output="$scratch/output.log"
 trap 'rm -rf "$scratch"' EXIT
 
@@ -113,6 +114,8 @@ fi
   printf '</Results><ResultSummary><Counters total="%s" executed="%s" passed="%s" failed="%s" notExecuted="%s" /></ResultSummary></TestRun>\n' \
     "$total" "$executed" "$passed" "$failed" "$not_executed"
 } >"$trx"
+[[ -z "${FAKE_RESULTS_LOG:-}" ]] || printf '%s\n' "$results_directory" >> "$FAKE_RESULTS_LOG"
+[[ "$mode" != "process-failure" ]] || exit 7
 FAKE_DOTNET
 chmod +x "$scratch/bin/dotnet"
 
@@ -143,4 +146,24 @@ for mode in zero missing-selector missing failed; do
   fi
 done
 
+for mode in failed process-failure; do
+  if FAKE_TRX_MODE="$mode" PATH="$scratch/bin:$PATH" \
+    BUKIT_SECURITY_RESULTS="$scratch/retained" bash "$script" Release >"$output" 2>&1; then
+    fail "$mode unexpectedly passed"
+  fi
+  [[ -n "$(find "$scratch/retained" -name '*.trx' -print -quit)" ]] || fail "failure TRX not retained"
+done
+printf 'keep' > "$scratch/retained/sentinel"
+FAKE_TRX_MODE=valid PATH="$scratch/bin:$PATH" \
+  BUKIT_SECURITY_RESULTS="$scratch/retained" bash "$script" Release >"$output" 2>&1
+[[ "$(cat "$scratch/retained/sentinel")" == keep ]] || fail "unrelated output changed"
+if FAKE_TRX_MODE=process-failure FAKE_RESULTS_LOG="$scratch/results-paths" PATH="$scratch/bin:$PATH" \
+  BUKIT_SECURITY_RESULTS= bash "$script" Release >"$output" 2>&1; then fail "process failure passed"; fi
+while IFS= read -r path; do [[ ! -e "$path" ]] || fail "default temp directory retained"; done < "$scratch/results-paths"
+ln -s "$scratch/retained" "$scratch/link"
+for unsafe in / . ../outside "$scratch/link"; do
+  if PATH="$scratch/bin:$PATH" BUKIT_SECURITY_RESULTS="$unsafe" bash "$script" Release >"$output" 2>&1; then
+    fail "unsafe output accepted: $unsafe"
+  fi
+done
 echo "security regression self-test OK"

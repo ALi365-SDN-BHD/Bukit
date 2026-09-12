@@ -114,7 +114,7 @@ internal static partial class SiteDefaultsApplier
             Enabled = ConfigYamlHelpers.GetOptionalBool(imagesNode, "enabled") ?? false,
             Formats = ConfigYamlHelpers.GetOptionalSequence(imagesNode, "formats") is null
                 ? new[] { "webp" }
-                : ConfigYamlHelpers.ReadStringList(imagesNode, "formats") ?? Array.Empty<string>(),
+                : ConfigYamlHelpers.ReadStringList(imagesNode, "formats") ?? [],
             Sizes = ConfigYamlHelpers.ReadIntList(imagesNode, "sizes", "theme.images")
                 ?? new[] { 480, 768, 1200 },
             Quality = ConfigYamlHelpers.GetOptionalInt(imagesNode, "quality") ?? 80

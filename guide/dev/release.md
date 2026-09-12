@@ -129,3 +129,23 @@ surfaces:
 bash scripts/release/release-assets-self-test.sh
 bash scripts/smoke/release-artifacts-self-test.sh
 ```
+
+## Workflow execution and failure evidence
+
+After input validation, fast gate and Architecture contracts run independently.
+`Fast contracts` requires both to succeed before Core tests, coverage and security.
+The complete non-instrumented Core tests and selector-verified security tests remain
+required. Each test project restores its own dependencies; no broad test-solution
+restore precedes those runs. Coverage project artifacts and security TRX files are
+uploaded even after failure; test failures still block packaging.
+
+Public requests check `v<version>` against the build SHA before expensive work and
+again after protected Environment approval, immediately before publication. Missing
+tags are permitted; lightweight and annotated tags must resolve to the build SHA.
+Network or malformed responses fail closed. New tags use `github.sha` explicitly.
+The check is read-only and does not replace management approval or prevent a
+concurrent external tag change between verification and publication.
+
+`BUKIT_SECURITY_RESULTS=TestResults/security` preserves each run in a fresh
+subdirectory, including failed TRX files. Without it, temporary results are cleaned
+on exit. Existing evidence is never deleted by this option.

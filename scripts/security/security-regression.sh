@@ -5,8 +5,24 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 cd "$(repo_root)"
 
 configuration="${1:-Release}"
-results="$(mktemp -d "${TMPDIR:-/tmp}/bukit-security-results.XXXXXX")"
-trap 'rm -rf "$results"' EXIT
+if [[ -n "${BUKIT_SECURITY_RESULTS:-}" ]]; then
+  # Allocate a fresh run directory; never overwrite or clean caller-owned evidence.
+  results="$(python3 - "$BUKIT_SECURITY_RESULTS" <<'PY_RESULTS'
+import pathlib, sys, tempfile
+path = pathlib.Path(sys.argv[1])
+if '..' in path.parts or path == pathlib.Path('.') or path == pathlib.Path('/'):
+    raise SystemExit("unsafe security results path")
+path = path.absolute()
+if any(part.is_symlink() for part in (path, *path.parents)):
+    raise SystemExit("symlink security results path")
+path.mkdir(parents=True, exist_ok=True)
+print(tempfile.mkdtemp(prefix="run-", dir=path))
+PY_RESULTS
+)"
+else
+  results="$(mktemp -d "${TMPDIR:-/tmp}/bukit-security-results.XXXXXX")"
+  trap 'rm -rf "$results"' EXIT
+fi
 projects=(
   "tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj|FullyQualifiedName~SsrfGuardIntegrationTests|FullyQualifiedName~DevRequestHandler_HandleAsync_DoesNotServeBukitInternalFiles"
   "tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj|FullyQualifiedName~ImageAssetLocalizerTests"

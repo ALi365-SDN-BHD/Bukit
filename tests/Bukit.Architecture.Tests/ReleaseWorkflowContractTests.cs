@@ -132,6 +132,63 @@ public sealed class ReleaseWorkflowContractTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void PublicTagChecks_BindBuildCommitBeforeWorkAndAfterApproval()
+    {
+        var early = Step(Job("validate-inputs"), "Verify release tag commit");
+        Assert.Equal("${{ inputs.publish == 'true' }}", Scalar(early, "if"));
+        Assert.Equal("${{ inputs.version }}", Scalar(Mapping(early, "env"), "VERSION"));
+        Assert.Contains("verify-release-tag.sh \"$VERSION\" \"$GITHUB_SHA\"", Scalar(early, "run"), StringComparison.Ordinal);
+        var steps = Steps(Job("publish-release")).ToArray();
+        Assert.StartsWith("actions/checkout@", Scalar(steps[0], "uses"));
+        Assert.StartsWith("actions/download-artifact@", Scalar(steps[1], "uses"));
+        Assert.Equal(Scalar(early, "run"), Scalar(steps[^2], "run"));
+        Assert.Null(TryScalar(steps[^2], "if"));
+        Assert.Null(TryScalar(steps[^2], "continue-on-error"));
+        Assert.Equal("${{ github.sha }}", Scalar(Mapping(steps[^1], "with"), "target_commitish"));
+    }
+
+    [Fact]
+    public void FastEvidence_RunsIndependentlyAndFailsClosed()
+    {
+        foreach (var name in new[] { "fast-gate", "architecture-contracts" })
+        {
+            Assert.Equal("validate-inputs", Scalar(Job(name), "needs"));
+            Assert.Null(TryScalar(Job(name), "if"));
+            Assert.Null(TryScalar(Job(name), "continue-on-error"));
+        }
+        var fast = Job("fast-contracts");
+        Assert.Equal("${{ always() }}", Scalar(fast, "if"));
+        Assert.Equal(new[] { "fast-gate", "architecture-contracts" },
+            Assert.IsType<YamlSequenceNode>(Get(fast, "needs")).Children.Cast<YamlScalarNode>().Select(n => n.Value));
+        var run = Scalar(Assert.Single(Steps(fast)), "run");
+        Assert.Contains("required = [\"fast-gate\", \"architecture-contracts\"]", run, StringComparison.Ordinal);
+        Assert.Contains("needs.get(name, {}).get(\"result\") != \"success\"", run, StringComparison.Ordinal);
+        foreach (var name in new[] { "core-tests", "coverage-plan", "security-check" })
+            Assert.Equal("fast-contracts", Scalar(Job(name), "needs"));
+    }
+
+    [Fact]
+    public void TestFailures_PreserveEvidenceWithoutBroadRestore()
+    {
+        foreach (var name in new[] { "core-tests", "coverage-projects", "security-check" })
+        {
+            foreach (var step in Steps(Job(name)))
+            {
+                Assert.DoesNotContain("dotnet restore", TryScalar(step, "run") ?? "", StringComparison.Ordinal);
+                Assert.Null(TryScalar(step, "continue-on-error"));
+            }
+        }
+        foreach (var name in new[] { "coverage-projects", "security-check" })
+        {
+            var upload = Assert.Single(Steps(Job(name)), step => TryScalar(step, "uses")?.StartsWith("actions/upload-artifact@", StringComparison.Ordinal) == true);
+            Assert.Equal("always()", Scalar(upload, "if"));
+        }
+        var security = Step(Job("security-check"), "Run security regression entrypoint");
+        Assert.Equal("TestResults/security", Scalar(Mapping(security, "env"), "BUKIT_SECURITY_RESULTS"));
+        Assert.DoesNotContain("SKIP_RESTORE", Scalar(security, "run"), StringComparison.Ordinal);
+    }
+
     private YamlMappingNode Job(string name)
     {
         return Mapping(Mapping(_root, "jobs"), name);
