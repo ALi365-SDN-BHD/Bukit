@@ -754,6 +754,23 @@
       ]
     },
     {
+      "contractConsumerGlobs": [
+        ".github/workflows/release.yaml",
+        "scripts/build/native-aot.sh"
+      ],
+      "id": "native-aot-packaging",
+      "matches": [
+        "scripts/build/native-aot-self-test.sh",
+        "scripts/build/native-aot.sh",
+        "scripts/build/package-native-aot.sh"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/build/native-aot-self-test.sh"
+      ]
+    },
+    {
       "contractConsumerGlobs": [],
       "id": "coverage-run-one",
       "matches": [

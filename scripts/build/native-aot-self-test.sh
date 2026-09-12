@@ -4,10 +4,13 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/bukit-native-aot-self-test.XXXXXX")"
+scratch="$(cd "$scratch" && pwd -P)"
 trap 'rm -rf -- "$scratch"' EXIT
 
 fake_bin="$scratch/bin"
 mkdir -p "$fake_bin"
+export BUKIT_TEST_REAL_TAR="$(command -v tar)"
+export BUKIT_TEST_REAL_PWSH="$(command -v pwsh || command -v powershell || true)"
 
 cat > "$fake_bin/dotnet" <<'FAKE_DOTNET'
 #!/usr/bin/env bash
@@ -15,9 +18,13 @@ set -euo pipefail
 
 printf '%s\n' "$@" > "${FAKE_DOTNET_ARGS:?}"
 output=""
+rid=""
 while [[ $# -gt 0 ]]; do
   if [[ "$1" == "-o" ]]; then
     output="${2:-}"
+    shift 2
+  elif [[ "$1" == "-r" ]]; then
+    rid="$2"
     shift 2
   else
     shift
@@ -30,7 +37,18 @@ if [[ "${FAKE_DOTNET_FAIL:-0}" == "1" ]]; then
 fi
 mkdir -p "$output"
 if [[ "${FAKE_DOTNET_EMPTY:-0}" != "1" ]]; then
-  printf 'native\n' > "$output/bukit"
+  exe="$output/bukit"
+  [[ "$rid" != win-* ]] || exe="$exe.exe"
+  case "${FAKE_CLI_STATE:-valid}" in
+    missing) printf 'resource\n' > "$output/resource.txt" ;;
+    empty) touch "$exe" ;;
+    nonexec) printf 'native\n' > "$exe" ;;
+    valid) printf 'native\n' > "$exe"; chmod +x "$exe" ;;
+  esac
+  printf 'debug\n' > "$output/bukit.pdb"
+  printf 'debug\n' > "$output/bukit.dbg"
+  mkdir -p "$output/bukit.dSYM/Contents/Resources/DWARF"
+  printf 'debug\n' > "$output/bukit.dSYM/Contents/Resources/DWARF/bukit"
 fi
 printf 'fake dotnet publish log\n'
 FAKE_DOTNET
@@ -42,16 +60,40 @@ set -euo pipefail
 case "$*" in
   *"${BUKIT_EXPECTED_ARCHIVE:?}"*) exit 91 ;;
 esac
-[[ "${BUKIT_ARCHIVE_PATH:-}" == "$BUKIT_EXPECTED_ARCHIVE" ]] || {
+pending="${BUKIT_ARCHIVE_PATH:?}"
+if command -v cygpath >/dev/null 2>&1; then
+  pending="$(cygpath -u "$pending")"
+fi
+[[ "$pending" == "${BUKIT_EXPECTED_ARCHIVE%/*}"/.bukit-build-win-x64.*/"${BUKIT_EXPECTED_ARCHIVE##*/}" ]] || {
   echo "fake pwsh: archive environment mismatch" >&2
   exit 92
 }
 if [[ "${FAKE_PWSH_SKIP_WRITE:-0}" != "1" ]]; then
-  printf 'zip\n' > "$BUKIT_ARCHIVE_PATH"
+  if [[ "${FAKE_ARCHIVE_FAIL:-0}" == "1" ]]; then
+    printf 'partial zip\n' > "$pending"
+    echo 'injected archive failure' >&2
+    exit 74
+  fi
+  if [[ -n "$BUKIT_TEST_REAL_PWSH" ]]; then
+    "$BUKIT_TEST_REAL_PWSH" "$@"
+  else
+    zip -qr "$pending" .
+  fi
 fi
 FAKE_PWSH
 
-chmod +x "$fake_bin/dotnet" "$fake_bin/pwsh"
+cat > "$fake_bin/tar" <<'FAKE_TAR'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${FAKE_ARCHIVE_FAIL:-0}" == "1" ]]; then
+  printf 'partial tar\n' > "$4"
+  echo 'injected archive failure' >&2
+  exit 74
+fi
+exec "$BUKIT_TEST_REAL_TAR" "$@"
+FAKE_TAR
+
+chmod +x "$fake_bin/dotnet" "$fake_bin/pwsh" "$fake_bin/tar"
 export PATH="$fake_bin:$PATH"
 export FAKE_DOTNET_ARGS="$scratch/dotnet.args"
 
@@ -73,6 +115,7 @@ archive="$(bash scripts/build/package-native-aot.sh 1.2.3 linux-x64 "$output_roo
 grep -Fx -- '-p:ContinuousIntegrationBuild=true' "$FAKE_DOTNET_ARGS" >/dev/null
 grep -Fx -- '-p:Deterministic=true' "$FAKE_DOTNET_ARGS" >/dev/null
 grep -Fx -- '-p:NativeDebugSymbols=false' "$FAKE_DOTNET_ARGS" >/dev/null
+grep -Fx -- '-p:BukitStripSymbols=true' "$FAKE_DOTNET_ARGS" >/dev/null
 artifacts_root="$(sed -n '/^--artifacts-path$/{n;p;}' "$FAKE_DOTNET_ARGS")"
 canonical_output_root="$(cd "$output_root" && pwd -P)"
 [[ "$artifacts_root" == "$canonical_output_root"/.bukit-build-linux-x64.* ]] || {
@@ -83,6 +126,12 @@ grep -Fx -- "-p:PathMap=$(pwd -P)=/_/src%2C$artifacts_root=/_/build" \
   "$FAKE_DOTNET_ARGS" >/dev/null
 [[ ! -e "$artifacts_root" ]] || {
   echo "native-aot self-test: isolated build artifacts survived packaging" >&2
+  exit 1
+}
+[[ ! -e "$output_root/publish/linux-x64/bukit.pdb" &&
+   ! -e "$output_root/publish/linux-x64/bukit.dbg" &&
+   ! -e "$output_root/publish/linux-x64/bukit.dSYM" ]] || {
+  echo "native-aot self-test: debug symbols survived packaging" >&2
   exit 1
 }
 
@@ -107,7 +156,20 @@ if FAKE_DOTNET_EMPTY=1 bash scripts/build/package-native-aot.sh \
   echo "native-aot self-test: empty publish directory unexpectedly succeeded" >&2
   exit 1
 fi
-grep -F 'publish directory is empty:' "$scratch/empty-publish.stderr" >/dev/null
+grep -F 'release CLI is missing or empty:' "$scratch/empty-publish.stderr" >/dev/null
+
+for rid in linux-x64 osx-arm64 win-x64; do
+  for state in missing empty nonexec; do
+    [[ "$rid:$state" != win-x64:nonexec ]] || continue
+    if FAKE_CLI_STATE="$state" bash scripts/build/package-native-aot.sh \
+      1.2.3 "$rid" "$scratch/cli-$rid-$state" Release \
+      >"$scratch/cli.stdout" 2>"$scratch/cli.stderr"; then
+      echo "native-aot self-test: $rid accepted $state CLI" >&2
+      exit 1
+    fi
+    grep -F 'release CLI is ' "$scratch/cli.stderr" >/dev/null
+  done
+done
 
 invalid_root="$scratch/invalid-rid"
 invalid_marker="$invalid_root/publish/not-a-rid/keep.txt"
@@ -161,6 +223,31 @@ windows_archive="$(bash scripts/build/package-native-aot.sh 1.2.3 win-x64 "$wind
   echo "native-aot self-test: Windows archive is empty" >&2
   exit 1
 }
+python3 - "$windows_archive" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as archive:
+    assert archive.testzip() is None
+    assert archive.namelist() == ['bukit.exe'], archive.namelist()
+    assert archive.read('bukit.exe') == b'native\n'
+PY
+
+for rid in linux-x64 win-x64; do
+  failure_root="$scratch/archive-fail-$rid"
+  export BUKIT_EXPECTED_ARCHIVE="$failure_root/bukit-1.2.3-$rid.zip"
+  if FAKE_ARCHIVE_FAIL=1 bash scripts/build/package-native-aot.sh \
+    1.2.3 "$rid" "$failure_root" Release \
+    >"$scratch/archive-fail.stdout" 2>"$scratch/archive-fail.stderr"; then
+    echo "native-aot self-test: injected archive failure succeeded" >&2
+    exit 1
+  fi
+  grep -F 'injected archive failure' "$scratch/archive-fail.stderr" >/dev/null
+  [[ ! -e "$failure_root/bukit-1.2.3-$rid.zip" &&
+     ! -e "$failure_root/bukit-1.2.3-$rid.tar.gz" &&
+     -z "$(find "$failure_root" -maxdepth 1 -name '.bukit-build-*' -print)" ]] || {
+    echo "native-aot self-test: partial archive or scratch survived failure" >&2
+    exit 1
+  }
+done
 
 if bash scripts/build/native-aot.sh 1.2.3 linux-x64 \
   >"$scratch/missing.stdout" 2>"$scratch/missing.stderr"; then

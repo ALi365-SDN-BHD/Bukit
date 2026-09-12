@@ -55,6 +55,7 @@ else
   archive="$output_root/$archive_base.tar.gz"
 fi
 rm -f -- "$archive"
+pending_archive="$build_root/$archive_base.${archive##*.}"
 
 dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
   -c "$configuration" \
@@ -65,19 +66,29 @@ dotnet publish src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj \
   -p:ContinuousIntegrationBuild=true \
   -p:Deterministic=true \
   -p:NativeDebugSymbols=false \
+  -p:BukitStripSymbols=true \
   --artifacts-path "$build_root" \
   -p:PathMap="$(pwd -P)=/_/src%2C$build_root=/_/build" \
   -o "$publish_dir" >&2
 
-[[ -n "$(find "$publish_dir" -mindepth 1 -print -quit)" ]] || {
-  echo "publish directory is empty: $publish_dir" >&2
+find "$publish_dir" -type d -name '*.dSYM' -prune -exec rm -rf -- {} +
+find "$publish_dir" -type f \( -name '*.pdb' -o -name '*.dbg' \) -exec rm -f -- {} +
+
+exe="$publish_dir/bukit"
+[[ "$rid" != win-* ]] || exe="$exe.exe"
+[[ -f "$exe" && -s "$exe" && ! -L "$exe" ]] || {
+  echo "release CLI is missing or empty: $exe" >&2
+  exit 1
+}
+[[ "$rid" == win-* || -x "$exe" ]] || {
+  echo "release CLI is not executable: $exe" >&2
   exit 1
 }
 
 if [[ "$rid" == win-* ]]; then
-  archive_for_pwsh="$archive"
+  archive_for_pwsh="$pending_archive"
   if command -v cygpath >/dev/null 2>&1; then
-    archive_for_pwsh="$(cygpath -w "$archive")"
+    archive_for_pwsh="$(cygpath -w "$pending_archive")"
   fi
 
   if command -v pwsh >/dev/null 2>&1; then
@@ -85,7 +96,7 @@ if [[ "$rid" == win-* ]]; then
   elif command -v powershell >/dev/null 2>&1; then
     pwsh_cmd="powershell"
   else
-    (cd "$publish_dir" && zip -qr "$archive" .)
+    (cd "$publish_dir" && zip -qr "$pending_archive" .)
   fi
 
   if [[ -n "${pwsh_cmd:-}" ]]; then
@@ -93,13 +104,14 @@ if [[ "$rid" == win-* ]]; then
       '$source=(Get-Location).Path; $dest=$env:BUKIT_ARCHIVE_PATH; [IO.Compression.ZipFile]::CreateFromDirectory($source,$dest)')
   fi
 else
-  tar -C "$publish_dir" -czf "$archive" .
+  tar -C "$publish_dir" -czf "$pending_archive" .
 fi
 
-[[ -s "$archive" ]] || {
-  echo "archive is empty: $archive" >&2
+[[ -s "$pending_archive" ]] || {
+  echo "archive is empty: $pending_archive" >&2
   exit 1
 }
+mv -- "$pending_archive" "$archive"
 
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'archive=%s\npublish_dir=%s\n' "$archive" "$publish_dir" >> "$GITHUB_OUTPUT"
