@@ -142,7 +142,7 @@ uploaded even after failure; test failures still block packaging.
 Public requests check `v<version>` against the build SHA before expensive work and
 again after protected Environment approval, immediately before publication. Missing
 tags are permitted; lightweight and annotated tags must resolve to the build SHA.
-Network or malformed responses fail closed. New tags use `github.sha` explicitly.
+Network or malformed responses fail closed. New tags explicitly target the workflow commit SHA.
 The check is read-only and does not replace management approval or prevent a
 concurrent external tag change between verification and publication.
 
