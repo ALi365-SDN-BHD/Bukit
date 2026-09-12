@@ -57,6 +57,7 @@ internal sealed class AssetSourceWorkspace : IDisposable
             "bukit-asset-workspaces",
             Guid.NewGuid().ToString("N"));
         var workspaceAssetsDir = Path.Combine(workspaceRoot, "assets");
+        Directory.CreateDirectory(workspaceAssetsDir);
         var scssOutputDir = scssConfig is { Enabled: true }
             ? Path.Combine(workspaceRoot, "scss-output")
             : null;

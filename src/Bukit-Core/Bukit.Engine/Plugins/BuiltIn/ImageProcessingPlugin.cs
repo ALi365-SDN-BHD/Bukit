@@ -1,15 +1,20 @@
 using System.Diagnostics;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Bukit.Config;
 using Bukit.Content.Media;
 using Bukit.Shared;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Processing;
 
 using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.BuiltIn;
 
-internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
+internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlugin, IHtmlTransformPlugin
 {
     private readonly AppConfig _config;
     private readonly ImageContentValidator _imageValidator = new();
@@ -22,6 +27,16 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
     public string Name => "image-processing";
     public string Version => "1.0.0";
+
+    public IHtmlTransform CreateHtmlTransform(HtmlTransformPluginContext context)
+    {
+        context.BuildContext.Data.TryGetValue(BuildContextDataKeys.MediaDownloadDir, out var mediaDownloadDir);
+        return new ResponsiveImageHtmlTransform(
+            _config,
+            mediaDownloadDir as string,
+            context.BuildContext.BaseUrl,
+            context.BuildContext.Logger);
+    }
 
     public async Task AfterBuildAsync(BuildContext context, CancellationToken cancellationToken = default)
     {
@@ -45,7 +60,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             cancellationToken);
 
         var exts = new[] { ".jpg", ".jpeg", ".png" };
-        var sizes = config.Sizes ?? new[] { 480, 768, 1200 };
+        var sizes = NormalizeSizes(config.Sizes);
         var imageFiles = SafeFileEnumerator.EnumerateFiles(assetsDir, "*.*")
             .Where(f => exts.Contains(Path.GetExtension(f).ToLowerInvariant()))
             .Where(f => !IsOwnedGeneratedVariant(context.OutputDir, f, priorPluginOutputs))
@@ -56,34 +71,47 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             return;
         }
 
-        var quality = config.Quality > 0 ? config.Quality : 80;
+        var resizePlans = new Dictionary<string, IReadOnlyList<int>>(StringComparer.Ordinal);
         foreach (var imageFile in imageFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var applicableSizes = TryGetImageWidth(imageFile, context.Logger, out var width)
+                ? sizes.Where(size => size < width).ToArray()
+                : Array.Empty<int>();
             CleanupStaleVariants(
                 context.OutputDir,
                 imageFile,
-                sizes,
+                applicableSizes,
                 priorPluginOutputs);
+            if (applicableSizes.Length > 0)
+            {
+                resizePlans[imageFile] = applicableSizes;
+            }
         }
 
-        var tool = await FindResizeToolAsync(context.Logger, cancellationToken);
-        if (tool is null)
+        if (resizePlans.Count == 0)
         {
-            context.Logger.Warn("event=image_processing.skip reason=no_tool message=Install ImageMagick (magick) for image resizing.");
             return;
         }
 
+        var quality = config.Quality > 0 ? config.Quality : 80;
+        var tool = await FindResizeToolAsync(context.Logger, cancellationToken);
+        if (tool is null)
+        {
+            context.Logger.Info("event=image_processing.fallback tool=imagesharp");
+        }
+        var toolIdentity = tool ?? "imagesharp";
+
         var generatedOutputs = new HashSet<PluginOutputTrackingInfo>();
 
-        foreach (var imageFile in imageFiles)
+        foreach (var (imageFile, applicableSizes) in resizePlans)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var sourceInfo = new FileInfo(imageFile);
             var sourceSha256 = await ComputeSha256Async(imageFile, cancellationToken);
 
-            foreach (var size in sizes)
+            foreach (var size in applicableSizes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var baseName = Path.GetFileNameWithoutExtension(imageFile);
@@ -108,7 +136,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
                 // Skip if variant exists and freshness matches current inputs
                 if (variantExists && hasOwnedFreshness &&
-                    existingFreshness.Matches(sourceInfo, sourceSha256, quality, size, ext, tool))
+                    existingFreshness.Matches(sourceInfo, sourceSha256, quality, size, ext, toolIdentity))
                 {
                     AddTrackedOutput(context, generatedOutputs, sizedFile);
                     AddTrackedOutput(context, generatedOutputs, freshnessFile);
@@ -138,26 +166,41 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
                         Path.GetDirectoryName(sizedFile)!,
                         $".{Path.GetFileNameWithoutExtension(sizedFile)}.bukit-{Guid.NewGuid():N}{ext}");
                     var temporaryFreshnessFile = freshnessFile + $".bukit-{Guid.NewGuid():N}.tmp";
-                    var startInfo = new ProcessStartInfo
+                    (int ExitCode, string StandardError) result;
+                    if (tool is null)
                     {
-                        FileName = tool,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    startInfo.ArgumentList.Add(imageFile);
-                    startInfo.ArgumentList.Add("-resize");
-                    startInfo.ArgumentList.Add($"{size}x");
-                    startInfo.ArgumentList.Add("-quality");
-                    startInfo.ArgumentList.Add(quality.ToString());
-                    startInfo.ArgumentList.Add(temporarySizedFile);
-                    try
+                        await ResizeWithImageSharpAsync(
+                            imageFile,
+                            temporarySizedFile,
+                            size,
+                            quality,
+                            cancellationToken);
+                        result = (0, string.Empty);
+                    }
+                    else
                     {
-                        var result = await ExternalToolProcessRunner.RunAsync(
+                        var startInfo = new ProcessStartInfo
+                        {
+                            FileName = tool,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        startInfo.ArgumentList.Add(imageFile);
+                        startInfo.ArgumentList.Add("-resize");
+                        startInfo.ArgumentList.Add($"{size}x");
+                        startInfo.ArgumentList.Add("-quality");
+                        startInfo.ArgumentList.Add(quality.ToString());
+                        startInfo.ArgumentList.Add(temporarySizedFile);
+                        var externalResult = await ExternalToolProcessRunner.RunAsync(
                             startInfo,
                             TimeSpan.FromSeconds(10),
                             cancellationToken);
+                        result = (externalResult.ExitCode, externalResult.StandardError);
+                    }
+                    try
+                    {
                         if (result.ExitCode == 0 && File.Exists(temporarySizedFile) &&
                             await _imageValidator.ValidateAsync(
                                 temporarySizedFile,
@@ -179,7 +222,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
                                 Quality: quality,
                                 Size: size,
                                 Format: ext.ToLowerInvariant(),
-                                Tool: tool));
+                                Tool: toolIdentity));
                             File.Move(temporarySizedFile, sizedFile, overwrite: false);
                             try
                             {
@@ -226,7 +269,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
             var srcsetParts = new List<string>();
             var existingSizes = new List<int>();
-            foreach (var size in sizes)
+            foreach (var size in resizePlans.GetValueOrDefault(imageFile) ?? Array.Empty<int>())
             {
                 var sizedFile = Path.Combine(
                     Path.GetDirectoryName(imageFile)!,
@@ -275,6 +318,198 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
     private const string FreshnessSuffix = ".bukit-freshness.json";
     private const int FreshnessSchemaVersion = 1;
     private const string FreshnessOwner = "bukit:image-processing";
+
+    private static IReadOnlyList<int> NormalizeSizes(IReadOnlyList<int>? sizes) =>
+        (sizes ?? new[] { 480, 768, 1200 })
+        .Where(size => size > 0)
+        .Distinct()
+        .Order()
+        .ToArray();
+
+    private static bool TryGetImageWidth(string path, ILogger logger, out int width)
+    {
+        width = 0;
+        try
+        {
+            width = ImageMetadataReader.TryReadImageMetadata(path)?.Width ?? 0;
+            return width > 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            logger.Warn($"event=image_processing.skip file={Path.GetFileName(path)} reason=invalid_source");
+            return false;
+        }
+    }
+
+    private static async Task ResizeWithImageSharpAsync(
+        string source,
+        string destination,
+        int width,
+        int quality,
+        CancellationToken cancellationToken)
+    {
+        using var image = await Image.LoadAsync(source, cancellationToken);
+        image.Mutate(operation => operation.Resize(width, 0));
+        if (Path.GetExtension(destination).Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+            Path.GetExtension(destination).Equals(".jpeg", StringComparison.OrdinalIgnoreCase))
+        {
+            await image.SaveAsJpegAsync(destination, new JpegEncoder { Quality = quality }, cancellationToken);
+            return;
+        }
+
+        await image.SaveAsPngAsync(destination, cancellationToken);
+    }
+
+    private sealed class ResponsiveImageHtmlTransform(
+        AppConfig config,
+        string? mediaDownloadDir,
+        string baseUrl,
+        ILogger logger) : IHtmlTransform
+    {
+        private static readonly Regex HtmlElementRegex = new(
+            @"<(?:script|style|template)\b[^>]*>[\s\S]*?</(?:script|style|template)\s*>|<img\b[^>]*>",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        private static readonly Regex SrcAttributeRegex = new(
+            """\bsrc\s*=\s*(?:\"(?<double>[^\"]*)\"|'(?<single>[^']*)')""",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        private static readonly Regex SrcsetAttributeRegex = new(
+            @"\bsrcset\s*=",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        private static readonly Regex DecodingAttributeRegex = new(
+            @"\bdecoding\s*=",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        private readonly IReadOnlyList<int> _sizes = NormalizeSizes(config.Theme.Images?.Sizes);
+        private readonly string _baseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
+        private readonly string _mediaUrlBase = NormalizeMediaUrlBase(config.Content.Media.UrlBase);
+        private readonly Uri? _siteUri = Uri.TryCreate(config.Site.Url, UriKind.Absolute, out var siteUri) ? siteUri : null;
+
+        public string Name => "responsive-images";
+
+        public string Transform(HtmlTransformContext context, string html)
+        {
+            if (config.Theme.Images is not { Enabled: true } ||
+                string.IsNullOrWhiteSpace(mediaDownloadDir) ||
+                !Directory.Exists(mediaDownloadDir))
+            {
+                return html;
+            }
+
+            return HtmlElementRegex.Replace(html, match =>
+                match.Value.StartsWith("<img", StringComparison.OrdinalIgnoreCase)
+                    ? RewriteImageTag(match.Value)
+                    : match.Value);
+        }
+
+        private string RewriteImageTag(string tag)
+        {
+            var srcMatch = SrcAttributeRegex.Match(tag);
+            if (!srcMatch.Success)
+            {
+                return tag;
+            }
+
+            var sourceUrl = WebUtility.HtmlDecode(
+                srcMatch.Groups["double"].Success
+                    ? srcMatch.Groups["double"].Value
+                    : srcMatch.Groups["single"].Value);
+            if (!TryResolveMediaSource(sourceUrl, out var sourceFile) ||
+                !TryGetImageWidth(sourceFile, logger, out var sourceWidth))
+            {
+                return tag;
+            }
+
+            var attributes = string.Empty;
+            var applicableSizes = _sizes.Where(size => size < sourceWidth).ToArray();
+            if (applicableSizes.Length > 0 && !SrcsetAttributeRegex.IsMatch(tag))
+            {
+                var candidates = applicableSizes
+                    .Select(size => $"{BuildVariantUrl(sourceUrl, size)} {size}w")
+                    .Append($"{sourceUrl} {sourceWidth}w");
+                attributes += $" srcset=\"{WebUtility.HtmlEncode(string.Join(", ", candidates))}\"";
+            }
+            if (!DecodingAttributeRegex.IsMatch(tag))
+            {
+                attributes += " decoding=\"async\"";
+            }
+
+            if (attributes.Length == 0)
+            {
+                return tag;
+            }
+
+            var insertAt = tag.LastIndexOf('>');
+            if (insertAt > 0 && tag[insertAt - 1] == '/')
+            {
+                insertAt--;
+            }
+            return tag.Insert(insertAt, attributes);
+        }
+
+        private bool TryResolveMediaSource(string sourceUrl, out string sourceFile)
+        {
+            sourceFile = string.Empty;
+            var path = sourceUrl;
+            if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var absolute) &&
+                absolute.Scheme is "http" or "https")
+            {
+                if (_siteUri is null ||
+                    !string.Equals(_siteUri.GetLeftPart(UriPartial.Authority), absolute.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+                path = absolute.AbsolutePath;
+            }
+
+            var prefix = _baseUrl + _mediaUrlBase;
+            if (!path.StartsWith(prefix + '/', StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string relative;
+            try
+            {
+                relative = Uri.UnescapeDataString(path[(prefix.Length + 1)..]);
+            }
+            catch (UriFormatException)
+            {
+                return false;
+            }
+            if (relative.Contains('\\'))
+            {
+                return false;
+            }
+
+            var candidate = Path.GetFullPath(Path.Combine(
+                mediaDownloadDir!,
+                relative.Replace('/', Path.DirectorySeparatorChar)));
+            if (!IsWithinDirectory(mediaDownloadDir!, candidate) ||
+                !File.Exists(candidate) ||
+                Path.GetExtension(candidate).ToLowerInvariant() is not (".jpg" or ".jpeg" or ".png"))
+            {
+                return false;
+            }
+
+            sourceFile = candidate;
+            return true;
+        }
+
+        private static string NormalizeMediaUrlBase(string? value)
+        {
+            var normalized = string.IsNullOrWhiteSpace(value) ? "/assets/uploads" : value.Trim();
+            if (!normalized.StartsWith('/'))
+            {
+                normalized = "/" + normalized;
+            }
+            return normalized.TrimEnd('/');
+        }
+
+        private static string BuildVariantUrl(string sourceUrl, int width)
+        {
+            var extensionAt = sourceUrl.LastIndexOf('.');
+            return $"{sourceUrl[..extensionAt]}-{width}w{sourceUrl[extensionAt..]}";
+        }
+    }
 
     private static string MimeTypeForExtension(string extension) => extension.ToLowerInvariant() switch
     {

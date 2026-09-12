@@ -25,7 +25,7 @@ public sealed class PluginRunnerTests
         var firstAnalytics = Assert.Single(first, x => x.Name == "analytics");
         var secondAnalytics = Assert.Single(second, x => x.Name == "analytics");
         Assert.NotSame(firstAnalytics, secondAnalytics);
-        Assert.Equal(first.Select(x => x.Name).OrderBy(x => x, StringComparer.OrdinalIgnoreCase), first.Select(x => x.Name));
+        Assert.Equal(new[] { "image-processing", "analytics" }, first.Select(x => x.Name));
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class PluginRunnerTests
             Assert.Single(context.PluginExecutions, x => x.Name == "analytics" && x.Hook == "html-transform");
         });
 
-        Assert.Single(context.PluginExecutions);
+        Assert.Equal(2, context.PluginExecutions.Count);
     }
 
     [Fact]

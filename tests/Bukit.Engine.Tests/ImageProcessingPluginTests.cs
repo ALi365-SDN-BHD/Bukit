@@ -102,6 +102,67 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
+    public async Task AfterBuild_NoImageTool_UsesImageSharpAndDoesNotUpscale()
+    {
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var noToolDir = Path.Combine(outDir, "no-tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(noToolDir);
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 1000);
+            Environment.SetEnvironmentVariable("PATH", noToolDir);
+
+            await new ImageProcessingPlugin(CreateConfig(
+                    new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 1200 } }))
+                .AfterBuildAsync(CreateContext(outDir));
+
+            var variant = Path.Combine(assetsDir, "photo-480w.jpg");
+            Assert.Equal(480, Image.Identify(variant).Width);
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-1200w.jpg")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public void HtmlTransform_AddsFileBasedSrcsetWithoutOverwritingTemplateHints()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var mediaDir = Path.Combine(outDir, "media");
+            Directory.CreateDirectory(mediaDir);
+            WriteValidImage(Path.Combine(mediaDir, "photo.jpg"), "source", width: 1000);
+            var context = CreateContext(outDir);
+            context.Data[BuildContextDataKeys.MediaDownloadDir] = mediaDir;
+            var plugin = new ImageProcessingPlugin(CreateConfig(
+                new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768, 1200 } }));
+            var transform = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(
+                context,
+                BuildExecutionMode.Production));
+
+            var html = transform.Transform(
+                new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                """<img src="/assets/uploads/photo.jpg" sizes="50vw" alt="Photo">""");
+
+            Assert.Contains("sizes=\"50vw\"", html, StringComparison.Ordinal);
+            Assert.Contains("srcset=\"/assets/uploads/photo-480w.jpg 480w, /assets/uploads/photo-768w.jpg 768w, /assets/uploads/photo.jpg 1000w\"", html, StringComparison.Ordinal);
+            Assert.Contains("decoding=\"async\"", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("1200w", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
     public async Task AfterBuild_OnlyProcessesImageExtensions()
     {
         var outDir = GetTempDir();
@@ -791,7 +852,7 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuildAsync_SourceRenamedWithoutResizeTool_RemovesOwnedOrphan()
+    public async Task AfterBuildAsync_SourceRenamedWithoutResizeTool_ReplacesOwnedOrphan()
     {
         RequireUnix();
         var outDir = GetTempDir();
@@ -823,8 +884,9 @@ public sealed class ImageProcessingPluginTests
 
             Assert.False(File.Exists(variant));
             Assert.False(File.Exists(sidecar));
-            Assert.False(context.Data.ContainsKey("__plugin_outputs"));
-            Assert.False(context.Data.ContainsKey("__image_srcsets"));
+            Assert.True(File.Exists(Path.Combine(assetsDir, "renamed-480w.jpg")));
+            Assert.True(context.Data.ContainsKey("__plugin_outputs"));
+            Assert.True(context.Data.ContainsKey("__image_srcsets"));
         }
         finally
         {
@@ -1088,7 +1150,7 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
-    private static void WriteValidImage(string path, string seed)
+    private static void WriteValidImage(string path, string seed, int width = 1600)
     {
         var hash = 0;
         foreach (var character in seed)
@@ -1098,7 +1160,7 @@ public sealed class ImageProcessingPluginTests
 
         var color = new SixLabors.ImageSharp.PixelFormats.Rgba32(
             (byte)(hash & 0xFF), (byte)((hash >> 8) & 0xFF), (byte)((hash >> 16) & 0xFF));
-        using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(8, 8);
+        using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(width, 8);
         for (var y = 0; y < image.Height; y++)
         {
             for (var x = 0; x < image.Width; x++)
@@ -1107,7 +1169,7 @@ public sealed class ImageProcessingPluginTests
             }
         }
 
-        image[7, 7] = new SixLabors.ImageSharp.PixelFormats.Rgba32(255, 255, 255);
+        image[width - 1, 7] = new SixLabors.ImageSharp.PixelFormats.Rgba32(255, 255, 255);
         image.SaveAsJpeg(path);
     }
 

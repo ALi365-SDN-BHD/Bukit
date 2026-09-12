@@ -106,10 +106,10 @@ public sealed class AssetToolingSymlinkTests
             hash = unchecked(hash * 31 + character);
         }
 
-        using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(2, 2);
+        using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1600, 2);
         image[0, 0] = new SixLabors.ImageSharp.PixelFormats.Rgba32(
             (byte)(hash & 0xFF), (byte)((hash >> 8) & 0xFF), (byte)((hash >> 16) & 0xFF));
-        image[1, 1] = new SixLabors.ImageSharp.PixelFormats.Rgba32(255, 255, 255);
+        image[1599, 1] = new SixLabors.ImageSharp.PixelFormats.Rgba32(255, 255, 255);
         image.SaveAsJpeg(path);
     }
 

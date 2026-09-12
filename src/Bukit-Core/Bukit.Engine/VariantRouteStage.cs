@@ -47,6 +47,9 @@ internal static class VariantRouteStage
             Logger = logger
         };
         pluginContext.Data[ListRouteGraphBuilder.BuildContextDataKey] = routeResult.ListRouteGraph;
+        pluginContext.Data[BuildContextDataKeys.MediaDownloadDir] = ContentProviderFactory
+            .BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir)
+            .DownloadDir;
 
         var taxonomyStopwatch = Stopwatch.StartNew();
         TaxonomyTermsInjector.InjectFromDataDocuments(pluginContext, dataDocuments);
