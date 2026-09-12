@@ -130,8 +130,12 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
-    [Fact]
-    public void HtmlTransform_AddsFileBasedSrcsetWithoutOverwritingTemplateHints()
+    [Theory]
+    [InlineData("<img src=\"/assets/uploads/photo.jpg\" sizes=\"50vw\" alt=\"A > B\">")]
+    [InlineData("<img data-src=\"/assets/uploads/other.jpg\" src=\"/assets/uploads/photo.jpg\" sizes=\"50vw\" alt=\"A > B\">")]
+    [InlineData("<img title=\"src='/assets/uploads/other.jpg' srcset='fake' decoding='sync'\" src='/assets/uploads/photo.jpg' sizes=\"50vw\" alt=\"A > B\"/>")]
+    [InlineData("<img src=/assets/uploads/photo.jpg sizes=\"50vw\" alt=\"A > B\">")]
+    public void HtmlTransform_AddsFileBasedSrcsetWithoutOverwritingTemplateHints(string input)
     {
         var outDir = GetTempDir();
         try
@@ -149,8 +153,9 @@ public sealed class ImageProcessingPluginTests
 
             var html = transform.Transform(
                 new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
-                """<img src="/assets/uploads/photo.jpg" sizes="50vw" alt="Photo">""");
+                input);
 
+            Assert.Contains("alt=\"A > B\"", html, StringComparison.Ordinal);
             Assert.Contains("sizes=\"50vw\"", html, StringComparison.Ordinal);
             Assert.Contains("srcset=\"/assets/uploads/photo-480w.jpg 480w, /assets/uploads/photo-768w.jpg 768w, /assets/uploads/photo.jpg 1000w\"", html, StringComparison.Ordinal);
             Assert.Contains("decoding=\"async\"", html, StringComparison.Ordinal);

@@ -44,7 +44,7 @@ internal static class StaticServerInternalPathPolicy
             return false;
         }
 
-        if (string.Equals(segments[0], ".bukit", StringComparison.OrdinalIgnoreCase))
+        if (segments.Any(segment => string.Equals(segment, ".bukit", StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }

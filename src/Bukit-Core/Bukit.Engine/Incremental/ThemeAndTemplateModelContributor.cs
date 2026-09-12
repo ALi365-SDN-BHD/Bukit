@@ -8,6 +8,11 @@ internal sealed class ThemeAndTemplateModelContributor : IRenderDependencyContri
     {
         var theme = context.Config.Theme;
         writer.AppendLabeledCanonicalValue("theme.params", theme.Params);
+        writer.AppendLabeledCanonicalValue("theme.images.transform", "2");
+        writer.AppendLabeledCanonicalValue("theme.images.enabled", theme.Images?.Enabled ?? false);
+        writer.AppendLabeledCanonicalValue("theme.images.sizes", theme.Images?.Sizes);
+        writer.AppendLabeledCanonicalValue("theme.images.quality", theme.Images?.Quality);
+
 
         if (theme.Shortcodes is { Count: > 0 })
         {

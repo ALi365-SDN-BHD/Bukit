@@ -17,6 +17,48 @@ namespace Bukit.Engine.Tests;
 public sealed partial class SiteEngineIntegrationTests
 {
     [Theory]
+    [InlineData("/assets/uploads", false)]
+    [InlineData("/media", false)]
+    [InlineData("media", true)]
+    public async Task MediaLifecycle_ImageConfigurationChangesRefreshIncrementalHtml(string urlBase, bool multiLanguage)
+    {
+        var (root, config) = CreateMediaSite(multiLanguage, "/site/", urlBase);
+        using var server = new MediaImageServer(width: 1000);
+        try
+        {
+            var document = MediaDocument("one");
+            var html = $"<img src=\"{server.Url}\" alt=\"A > B\">";
+            var output = Path.Combine(root, "dist", multiLanguage ? "en" : "");
+            var pageFile = Path.Combine(output, "blog", "one", "index.html");
+            foreach (var sizes in new[] { new[] { 480, 768 }, new[] { 480 }, new[] { 480, 600 } })
+            {
+                config = config with { Theme = config.Theme with { Images = new ImageOptimizationConfig { Enabled = true, Sizes = sizes } } };
+                await BuildMediaAsync(root, config, [document], html);
+                var page = File.ReadAllText(pageFile);
+                Assert.Contains("alt=\"A > B\"", page);
+                foreach (var size in sizes)
+                {
+                    Assert.Contains($"-{size}w.png {size}w", page);
+                    Assert.Single(Directory.EnumerateFiles(Path.Combine(output, urlBase.Trim('/')), $"*-{size}w.png"));
+                }
+                if (!sizes.Contains(768))
+                {
+                    Assert.DoesNotContain("-768w", page);
+                    Assert.Empty(Directory.EnumerateFiles(Path.Combine(output, urlBase.Trim('/')), "*-768w.png"));
+                }
+            }
+            config = config with { Theme = config.Theme with { Images = config.Theme.Images! with { Enabled = false } } };
+            await BuildMediaAsync(root, config, [document], html);
+            Assert.DoesNotContain("srcset=", File.ReadAllText(pageFile));
+            config = config with { Theme = config.Theme with { Images = config.Theme.Images! with { Enabled = true } } };
+            await BuildMediaAsync(root, config, [document], html);
+            Assert.Contains("-600w.png 600w", File.ReadAllText(pageFile));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
+        }
+        finally { CleanupDir(root); }
+    }
+
+    [Theory]
     [InlineData("<a data-href=\"/assets/uploads/ghost.png\" href=\"/about/\">About</a>")]
     [InlineData("<a title=\"href='/assets/uploads/ghost.png'\" href=\"/about/\">About</a>")]
     public async Task MediaLifecycle_IgnoresHrefTextOutsideTheAnchorHref(string html)
@@ -272,9 +314,9 @@ public sealed partial class SiteEngineIntegrationTests
         public byte[] Bytes { get; }
         public string Url { get; }
         public int RequestCount => Volatile.Read(ref _requests);
-        public MediaImageServer(bool fail = false)
+        public MediaImageServer(bool fail = false, int width = 2)
         {
-            using var image = new Image<Rgba32>(2, 2);
+            using var image = new Image<Rgba32>(width, 2);
             using var bytes = new MemoryStream();
             image.SaveAsPng(bytes);
             Bytes = bytes.ToArray();

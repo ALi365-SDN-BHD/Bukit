@@ -656,16 +656,19 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         Assert.DoesNotContain(_tempDir, response.Body, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task Preview_DoesNotServeBukitInternalDirectory()
+    [Theory]
+    [InlineData("")]
+    [InlineData("en/")]
+    [InlineData("zh-CN/")]
+    public async Task Preview_DoesNotServeBukitInternalDirectory(string prefix)
     {
-        var internalDir = Path.Combine(_tempDir, ".bukit");
+        var internalDir = Path.Combine(_tempDir, prefix + ".bukit");
         Directory.CreateDirectory(internalDir);
         File.WriteAllText(Path.Combine(internalDir, "build-report.json"), "{\"secret\":\"provenance-token\"}");
         File.WriteAllText(Path.Combine(internalDir, "publish-audit-report.json"), "{\"secret\":\"sourceItemId\"}");
 
-        var report = await SendRequestAsync("/.bukit/build-report.json", removeManagedAnalytics: false);
-        var audit = await SendRequestAsync("/.bukit/publish-audit-report.json", removeManagedAnalytics: false);
+        var report = await SendRequestAsync("/" + prefix + ".bukit/build-report.json", removeManagedAnalytics: false);
+        var audit = await SendRequestAsync("/" + prefix + ".bukit/publish-audit-report.json", removeManagedAnalytics: false);
 
         Assert.Equal(HttpStatusCode.NotFound, report.StatusCode);
         Assert.DoesNotContain("provenance-token", report.Body, StringComparison.Ordinal);

@@ -47,21 +47,24 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         }
 
         var assetsDir = Path.Combine(context.OutputDir, "assets");
-        if (!Directory.Exists(assetsDir))
+        var mediaDir = Path.GetFullPath(Path.Combine(context.OutputDir,
+            ResponsiveImageHtmlTransform.NormalizeMediaUrlBase(_config.Content.Media.UrlBase).TrimStart('/')));
+        if (!IsWithinDirectory(context.OutputDir, mediaDir))
         {
-            return;
+            throw new IOException("Image media output directory escapes the output root.");
         }
-
+        var imageDirectories = new[] { assetsDir, mediaDir }.Distinct(StringComparer.Ordinal)
+            .Where(Directory.Exists).ToArray();
         var priorPluginOutputs = GetPriorPluginOutputs(context);
-        CleanupOrphanedOwnedVariants(
-            context.OutputDir,
-            assetsDir,
-            priorPluginOutputs,
-            cancellationToken);
+        foreach (var directory in imageDirectories)
+        {
+            CleanupOrphanedOwnedVariants(context.OutputDir, directory, priorPluginOutputs, cancellationToken);
+        }
 
         var exts = new[] { ".jpg", ".jpeg", ".png" };
         var sizes = NormalizeSizes(config.Sizes);
-        var imageFiles = SafeFileEnumerator.EnumerateFiles(assetsDir, "*.*")
+        var imageFiles = imageDirectories.SelectMany(directory => SafeFileEnumerator.EnumerateFiles(directory, "*.*"))
+            .Distinct(StringComparer.Ordinal)
             .Where(f => exts.Contains(Path.GetExtension(f).ToLowerInvariant()))
             .Where(f => !IsOwnedGeneratedVariant(context.OutputDir, f, priorPluginOutputs))
             .ToList();
@@ -263,7 +266,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         var data = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         foreach (var imageFile in imageFiles)
         {
-            var relPath = Path.GetRelativePath(assetsDir, imageFile);
+            var relPath = Path.GetRelativePath(context.OutputDir, imageFile);
             var baseName = Path.GetFileNameWithoutExtension(imageFile);
             var ext = Path.GetExtension(imageFile);
 
@@ -286,7 +289,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
                 var sizedRel = Path.Combine(Path.GetDirectoryName(relPath) ?? "", $"{baseName}-{size}w{ext}")
                     .Replace("\\", "/", StringComparison.Ordinal);
-                srcsetParts.Add($"/assets/{sizedRel} {size}w");
+                srcsetParts.Add($"/{sizedRel} {size}w");
                 existingSizes.Add(size);
             }
 
@@ -296,11 +299,11 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             }
 
             var rel = relPath.Replace("\\", "/", StringComparison.Ordinal);
-            data[rel] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            data[rel.StartsWith("assets/", StringComparison.Ordinal) ? rel[7..] : rel] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
             {
                 ["srcset"] = string.Join(", ", srcsetParts),
                 ["sizes"] = existingSizes.ToArray(),
-                ["url"] = $"/assets/{rel}"
+                ["url"] = $"/{rel}"
             };
         }
 
@@ -365,21 +368,13 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         ILogger logger) : IHtmlTransform
     {
         [GeneratedRegex(
-            @"<(?:script|style|template)\b[^>]*>[\s\S]*?</(?:script|style|template)\s*>|<img\b[^>]*>",
+            """<!--[\s\S]*?-->|<(?:script|style|template)\b(?:[^>"']|"[^"]*"|'[^']*')*>[\s\S]*?</(?:script|style|template)\s*>|<img(?=[\s/>])(?:[^>"']|"[^"]*"|'[^']*')*>""",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex HtmlElementRegex();
         [GeneratedRegex(
-            """\bsrc\s*=\s*(?:\"(?<double>[^\"]*)\"|'(?<single>[^']*)')""",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex SrcAttributeRegex();
-        [GeneratedRegex(
-            @"\bsrcset\s*=",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex SrcsetAttributeRegex();
-        [GeneratedRegex(
-            @"\bdecoding\s*=",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-        private static partial Regex DecodingAttributeRegex();
+            """(?<name>[^\s=/>]+)(?:\s*=\s*(?:"(?<double>[^"]*)"|'(?<single>[^']*)'|(?<unquoted>[^\s>]+)))?""",
+            RegexOptions.CultureInvariant)]
+        private static partial Regex AttributeRegex();
         private readonly IReadOnlyList<int> _sizes = NormalizeSizes(config.Theme.Images?.Sizes);
         private readonly string _baseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
         private readonly string _mediaUrlBase = NormalizeMediaUrlBase(config.Content.Media.UrlBase);
@@ -404,16 +399,18 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
         private string RewriteImageTag(string tag)
         {
-            var srcMatch = SrcAttributeRegex().Match(tag);
-            if (!srcMatch.Success)
+            var parsedAttributes = AttributeRegex().Matches(tag[4..^1]);
+            var srcMatch = parsedAttributes.FirstOrDefault(attribute =>
+                attribute.Groups["name"].Value.Equals("src", StringComparison.OrdinalIgnoreCase));
+            if (srcMatch is null)
             {
                 return tag;
             }
 
             var sourceUrl = WebUtility.HtmlDecode(
-                srcMatch.Groups["double"].Success
-                    ? srcMatch.Groups["double"].Value
-                    : srcMatch.Groups["single"].Value);
+                srcMatch.Groups["double"].Success ? srcMatch.Groups["double"].Value :
+                srcMatch.Groups["single"].Success ? srcMatch.Groups["single"].Value :
+                srcMatch.Groups["unquoted"].Value);
             if (!TryResolveMediaSource(sourceUrl, out var sourceFile) ||
                 !TryGetImageWidth(sourceFile, logger, out var sourceWidth))
             {
@@ -422,14 +419,14 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
             var attributes = string.Empty;
             var applicableSizes = _sizes.Where(size => size < sourceWidth).ToArray();
-            if (applicableSizes.Length > 0 && !SrcsetAttributeRegex().IsMatch(tag))
+            if (applicableSizes.Length > 0 && !parsedAttributes.Any(attribute => attribute.Groups["name"].Value.Equals("srcset", StringComparison.OrdinalIgnoreCase)))
             {
                 var candidates = applicableSizes
                     .Select(size => $"{BuildVariantUrl(sourceUrl, size)} {size}w")
                     .Append($"{sourceUrl} {sourceWidth}w");
                 attributes += $" srcset=\"{WebUtility.HtmlEncode(string.Join(", ", candidates))}\"";
             }
-            if (!DecodingAttributeRegex().IsMatch(tag))
+            if (!parsedAttributes.Any(attribute => attribute.Groups["name"].Value.Equals("decoding", StringComparison.OrdinalIgnoreCase)))
             {
                 attributes += " decoding=\"async\"";
             }
@@ -496,7 +493,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             return true;
         }
 
-        private static string NormalizeMediaUrlBase(string? value)
+        internal static string NormalizeMediaUrlBase(string? value)
         {
             var normalized = string.IsNullOrWhiteSpace(value) ? "/assets/uploads" : value.Trim();
             if (!normalized.StartsWith('/'))

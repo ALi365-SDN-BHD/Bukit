@@ -105,12 +105,14 @@ public sealed class DevCommandTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
-    public void InternalPathPolicy_DirectorySymlinkAliasIntoBukitDir_IsInternal()
+    [Theory]
+    [InlineData(".bukit")]
+    [InlineData("en/.bukit")]
+    public void InternalPathPolicy_DirectorySymlinkAliasIntoBukitDir_IsInternal(string internalPath)
     {
         var baseDir = Path.Combine(Path.GetTempPath(), "bukit-dev-internal-alias-" + Guid.NewGuid().ToString("N"));
         var root = Path.Combine(baseDir, "dist");
-        var internalDir = Path.Combine(root, ".bukit");
+        var internalDir = Path.Combine(root, internalPath);
         Directory.CreateDirectory(internalDir);
         File.WriteAllText(Path.Combine(internalDir, "build-report.json"), "secret");
         try
@@ -773,6 +775,8 @@ public sealed class DevCommandTests(ITestOutputHelper output)
 
     [Theory]
     [InlineData("/.bukit/security-report.json", ".bukit", "security-report.json")]
+    [InlineData("/en/.bukit/security-report.json", "en/.bukit", "security-report.json")]
+    [InlineData("/zh-CN/.bukit/security-report.json", "zh-CN/.bukit", "security-report.json")]
     [InlineData("/.bukit-build-state.json", null, ".bukit-build-state.json")]
     [InlineData("/.bukit-output-marker", null, ".bukit-output-marker")]
     public async Task DevRequestHandler_HandleAsync_DoesNotServeBukitInternalFiles(string requestPath, string? subdir, string fileName)

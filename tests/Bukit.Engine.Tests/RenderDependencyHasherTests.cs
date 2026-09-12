@@ -282,10 +282,30 @@ public sealed class RenderDependencyHasherTests
     }
 
     [Fact]
+    public void Compute_ImageConfigurationChangesInvalidateRenderedHtml()
+    {
+        var config = CreateBaseConfig();
+        var images = new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } };
+        config = config with { Theme = config.Theme with { Images = images } };
+        var baseline = RenderDependencyHasher.Compute(config, s_emptySiteModel);
+        foreach (var changed in new[]
+        {
+            images with { Enabled = false },
+            images with { Sizes = new[] { 480 } },
+            images with { Sizes = new[] { 480, 768, 900 } },
+            images with { Quality = 70 }
+        })
+        {
+            Assert.NotEqual(baseline, RenderDependencyHasher.Compute(
+                config with { Theme = config.Theme with { Images = changed } }, s_emptySiteModel));
+        }
+    }
+
+    [Fact]
     public void Compute_BaseConfiguration_MatchesGoldenHash()
     {
         Assert.Equal(
-            "cdb43344b36dc619f9eb7a2ff625d37957f138573b6dbf35b974e2f51a9f0af2",
+            "1328edc81223f81d9a1a8f0c93df7e6cbf39602390b0782f16e25cb5917031fe",
             RenderDependencyHasher.Compute(CreateBaseConfig(), s_emptySiteModel));
     }
 
@@ -294,7 +314,7 @@ public sealed class RenderDependencyHasherTests
     {
         // Golden hash for the canonical framed/type-tagged render dependency encoding.
         Assert.Equal(
-            "41f7841c85b48100795ccf012fdf0bdff401ccc815b5d4c90c4f6ecefe4730bc",
+            "a64742710183f7d4e7baf1d0c35a9739a9833463e5be2b2288de3066ba4a7a93",
             RenderDependencyHasher.Compute(
                 CreateRepresentativeGoldenConfig(),
                 CreateRepresentativeGoldenSiteModel(),
