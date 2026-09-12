@@ -31,16 +31,27 @@ public sealed partial class SiteEngineIntegrationTests
             var pageFile = Path.Combine(output, "blog", "one", "index.html");
             foreach (var enabled in new[] { false, true, false, true })
             {
+                var configPath = Path.Combine(root, "image-formats.yaml");
+                File.WriteAllText(configPath, $$"""
+                    site:
+                      name: media
+                      title: Media
+                    content:
+                      sources:
+                        - type: markdown
+                          markdown:
+                            dir: content
+                    theme:
+                      images:
+                        enabled: true
+                        formats: {{(enabled ? "[webp]" : "[]")}}
+                        sizes: [480]
+                    """);
                 config = config with
                 {
                     Theme = config.Theme with
                     {
-                        Images = new ImageOptimizationConfig
-                        {
-                            Enabled = true,
-                            Formats = enabled ? new[] { "webp" } : Array.Empty<string>(),
-                            Sizes = new[] { 480 }
-                        }
+                        Images = ConfigLoader.Load(configPath).Theme.Images
                     }
                 };
                 await BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"fallback\">");

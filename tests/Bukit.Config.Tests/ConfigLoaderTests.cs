@@ -1662,6 +1662,32 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Contains("mapping", exception.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("formats: [webp]", true)]
+    [InlineData("formats: []", false)]
+    public void Load_ImageFormats_PreservesExplicitEmptyList(string formats, bool expectWebp)
+    {
+        var configPath = WriteTempYaml($$"""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            theme:
+              images:
+                enabled: true
+                {{formats}}
+            """);
+
+        var config = ConfigLoader.Load(configPath);
+
+        Assert.Equal(expectWebp ? new[] { "webp" } : Array.Empty<string>(), config.Theme.Images!.Formats);
+    }
+
     [Fact]
     public void Load_ImageSizeWrongKind_ThrowsStableIndexedPath()
     {
