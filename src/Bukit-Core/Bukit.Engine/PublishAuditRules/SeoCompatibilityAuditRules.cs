@@ -71,6 +71,25 @@ internal static class SeoCompatibilityAuditRules
         }
     }
 
+    internal static void AnalyzeRobotsTxt(string? robotsText, IReadOnlyList<SeoAuditRoute> routes, List<SeoAuditIssue> issues)
+    {
+        if (robotsText is null)
+        {
+            return;
+        }
+
+        if (!robotsText.Contains("Sitemap:", StringComparison.OrdinalIgnoreCase))
+        {
+            issues.Add(new("warning", "seo.robots_txt_sitemap_missing", null, "robots.txt does not declare a Sitemap URL."));
+        }
+
+        var rules = new RobotsTxtRules(robotsText);
+        foreach (var route in routes.Where(x => x.Indexable && rules.IsBlocked("*", x.Url)))
+        {
+            issues.Add(new("error", "seo.robots_txt_blocks_indexable", route.Url, "robots.txt default crawler policy blocks this indexable route."));
+        }
+    }
+
     private static readonly string[] AiAgents =
     [
         "GPTBot", "ChatGPT-User", "OAI-SearchBot", "ClaudeBot", "Claude-Web",

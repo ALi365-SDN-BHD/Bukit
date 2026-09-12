@@ -53,11 +53,11 @@ internal sealed class RobotsTxtRules
         var path = NormalizePath(string.IsNullOrWhiteSpace(routeUrl) ? "/" : routeUrl.StartsWith('/') ? routeUrl : "/" + routeUrl);
         var longest = -1;
         var allowed = true;
-        foreach (var rule in groups.SelectMany(group => group.Rules))
+        foreach (var (allow, length, matcher) in groups.SelectMany(group => group.Rules))
         {
-            if (rule.Length < longest || !rule.Matcher.IsMatch(path)) continue;
-            allowed = rule.Length == longest ? allowed || rule.Allow : rule.Allow;
-            longest = rule.Length;
+            if (length < longest || !matcher.IsMatch(path)) continue;
+            allowed = length == longest ? allowed || allow : allow;
+            longest = length;
         }
         return !allowed;
     }
@@ -78,7 +78,7 @@ internal sealed class RobotsTxtRules
             else if (path[i] > 0x7e || path[i] <= 0x20)
             {
                 var length = char.IsSurrogatePair(path, i) ? 2 : 1;
-                result.Append(Uri.EscapeDataString(path.Substring(i, length)));
+                result.Append(Uri.EscapeDataString(path.AsSpan(i, length)));
                 i += length - 1;
             }
             else result.Append(path[i]);

@@ -183,25 +183,6 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         }
     }
 
-    private static void AnalyzeRobotsTxt(string? robotsText, IReadOnlyList<SeoAuditRoute> routes, List<SeoAuditIssue> issues)
-    {
-        if (robotsText is null)
-        {
-            return;
-        }
-
-        if (!ContainsInvariant(robotsText, "Sitemap:"))
-        {
-            issues.Add(Warning("seo.robots_txt_sitemap_missing", null, "robots.txt does not declare a Sitemap URL."));
-        }
-
-        var rules = new RobotsTxtRules(robotsText);
-        foreach (var route in routes.Where(x => x.Indexable && rules.IsBlocked("*", x.Url)))
-        {
-            issues.Add(Error("seo.robots_txt_blocks_indexable", route.Url, "robots.txt default crawler policy blocks this indexable route."));
-        }
-    }
-
     private static void AnalyzeSitemapXml(string? sitemapText, List<SeoAuditIssue> issues)
     {
         if (string.IsNullOrWhiteSpace(sitemapText))

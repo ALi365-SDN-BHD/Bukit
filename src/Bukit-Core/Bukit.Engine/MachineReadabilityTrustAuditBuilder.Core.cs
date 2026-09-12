@@ -228,7 +228,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         AnalyzeDocumentTitleDuplicates(documentTitles, seoIssues);
         AnalyzeCanonicalTargets(routes, seoIssues);
         AnalyzeHreflang(routes, modelByCanonical, seoIssues, requireHreflangTargets);
-        AnalyzeRobotsTxt(robotsText, routes, seoIssues);
+        SeoCompatibilityAuditRules.AnalyzeRobotsTxt(robotsText, routes, seoIssues);
 
         var sortedRoutes = routes
             .OrderBy(x => x.Url, StringComparer.OrdinalIgnoreCase)
