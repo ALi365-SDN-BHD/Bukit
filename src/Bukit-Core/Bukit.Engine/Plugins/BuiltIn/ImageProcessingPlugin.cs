@@ -319,12 +319,10 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
     private const int FreshnessSchemaVersion = 1;
     private const string FreshnessOwner = "bukit:image-processing";
 
+    private static readonly int[] DefaultSizes = [480, 768, 1200];
+
     private static IReadOnlyList<int> NormalizeSizes(IReadOnlyList<int>? sizes) =>
-        (sizes ?? new[] { 480, 768, 1200 })
-        .Where(size => size > 0)
-        .Distinct()
-        .Order()
-        .ToArray();
+        [.. (sizes ?? DefaultSizes).Where(size => size > 0).Distinct().Order()];
 
     private static bool TryGetImageWidth(string path, ILogger logger, out int width)
     {
@@ -360,24 +358,28 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         await image.SaveAsPngAsync(destination, cancellationToken);
     }
 
-    private sealed class ResponsiveImageHtmlTransform(
+    private sealed partial class ResponsiveImageHtmlTransform(
         AppConfig config,
         string? mediaDownloadDir,
         string baseUrl,
         ILogger logger) : IHtmlTransform
     {
-        private static readonly Regex HtmlElementRegex = new(
+        [GeneratedRegex(
             @"<(?:script|style|template)\b[^>]*>[\s\S]*?</(?:script|style|template)\s*>|<img\b[^>]*>",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-        private static readonly Regex SrcAttributeRegex = new(
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex HtmlElementRegex();
+        [GeneratedRegex(
             """\bsrc\s*=\s*(?:\"(?<double>[^\"]*)\"|'(?<single>[^']*)')""",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-        private static readonly Regex SrcsetAttributeRegex = new(
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex SrcAttributeRegex();
+        [GeneratedRegex(
             @"\bsrcset\s*=",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-        private static readonly Regex DecodingAttributeRegex = new(
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex SrcsetAttributeRegex();
+        [GeneratedRegex(
             @"\bdecoding\s*=",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        private static partial Regex DecodingAttributeRegex();
         private readonly IReadOnlyList<int> _sizes = NormalizeSizes(config.Theme.Images?.Sizes);
         private readonly string _baseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
         private readonly string _mediaUrlBase = NormalizeMediaUrlBase(config.Content.Media.UrlBase);
@@ -394,7 +396,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
                 return html;
             }
 
-            return HtmlElementRegex.Replace(html, match =>
+            return HtmlElementRegex().Replace(html, match =>
                 match.Value.StartsWith("<img", StringComparison.OrdinalIgnoreCase)
                     ? RewriteImageTag(match.Value)
                     : match.Value);
@@ -402,7 +404,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
         private string RewriteImageTag(string tag)
         {
-            var srcMatch = SrcAttributeRegex.Match(tag);
+            var srcMatch = SrcAttributeRegex().Match(tag);
             if (!srcMatch.Success)
             {
                 return tag;
@@ -420,14 +422,14 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
             var attributes = string.Empty;
             var applicableSizes = _sizes.Where(size => size < sourceWidth).ToArray();
-            if (applicableSizes.Length > 0 && !SrcsetAttributeRegex.IsMatch(tag))
+            if (applicableSizes.Length > 0 && !SrcsetAttributeRegex().IsMatch(tag))
             {
                 var candidates = applicableSizes
                     .Select(size => $"{BuildVariantUrl(sourceUrl, size)} {size}w")
                     .Append($"{sourceUrl} {sourceWidth}w");
                 attributes += $" srcset=\"{WebUtility.HtmlEncode(string.Join(", ", candidates))}\"";
             }
-            if (!DecodingAttributeRegex.IsMatch(tag))
+            if (!DecodingAttributeRegex().IsMatch(tag))
             {
                 attributes += " decoding=\"async\"";
             }
