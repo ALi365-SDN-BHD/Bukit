@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Content.Media;
@@ -16,6 +17,69 @@ namespace Bukit.Engine.Tests;
 
 public sealed partial class SiteEngineIntegrationTests
 {
+    [Fact]
+    public async Task MediaLifecycle_WebpOutputsHtmlAndIncrementalManifestStayConsistent()
+    {
+        var (root, config) = CreateMediaSite(baseUrl: "/site/");
+        using var server = new MediaImageServer(width: 1000);
+        try
+        {
+            config = config with
+            {
+                Theme = config.Theme with
+                {
+                    Images = new ImageOptimizationConfig
+                    {
+                        Enabled = true,
+                        Formats = new[] { "webp" },
+                        Sizes = new[] { 480 },
+                        Quality = 78
+                    }
+                }
+            };
+            var document = MediaDocument("one");
+            var content = $"<img src=\"{server.Url}\" sizes=\"80vw\" alt=\"WebP fallback\" loading=\"lazy\">";
+
+            await BuildMediaAsync(root, config, [document], content);
+            var output = Path.Combine(root, "dist");
+            var mediaDir = Path.Combine(output, "assets", "uploads");
+            var source = Assert.Single(
+                Directory.EnumerateFiles(mediaDir, "*.png"),
+                path => !Path.GetFileNameWithoutExtension(path).EndsWith("-480w", StringComparison.Ordinal));
+            var stem = Path.GetFileNameWithoutExtension(source);
+            var responsive = Path.Combine(mediaDir, $"{stem}-480w.webp");
+            var full = Path.Combine(mediaDir, $"{stem}-1000w.webp");
+            var retainedTimestamp = DateTime.UnixEpoch.AddDays(1);
+            File.SetLastWriteTimeUtc(responsive, retainedTimestamp);
+            await BuildMediaAsync(root, config, [document], content);
+            Assert.Equal(retainedTimestamp, File.GetLastWriteTimeUtc(responsive));
+            Assert.Equal(480, Image.Identify(responsive).Width);
+            Assert.Equal(1000, Image.Identify(full).Width);
+
+            config = config with
+            {
+                Theme = config.Theme with { Images = config.Theme.Images! with { Quality = 79 } }
+            };
+            await BuildMediaAsync(root, config, [document], content);
+            Assert.NotEqual(retainedTimestamp, File.GetLastWriteTimeUtc(responsive));
+            var freshness = JsonNode.Parse(File.ReadAllText(responsive + ".bukit-freshness.json"))!.AsObject();
+            Assert.Equal(79, freshness["quality"]!.GetValue<int>());
+
+            var page = File.ReadAllText(Path.Combine(output, "blog", "one", "index.html"));
+            Assert.Contains("<picture><source type=\"image/webp\"", page, StringComparison.Ordinal);
+            Assert.Contains($"/site/assets/uploads/{stem}-480w.webp 480w", page, StringComparison.Ordinal);
+            Assert.Contains($"/site/assets/uploads/{stem}-1000w.webp 1000w", page, StringComparison.Ordinal);
+            Assert.Contains($"src=\"/site/assets/uploads/{Path.GetFileName(source)}\"", page, StringComparison.Ordinal);
+            Assert.Contains("sizes=\"80vw\" alt=\"WebP fallback\" loading=\"lazy\"", page, StringComparison.Ordinal);
+
+            var manifest = BuildManifest.Load(Path.Combine(root, ".cache", "build-manifest.json"));
+            Assert.Contains(manifest.PluginOutputs.Values, output => output.Path.EndsWith($"{stem}-480w.webp", StringComparison.Ordinal));
+            Assert.Contains(manifest.PluginOutputs.Values, output => output.Path.EndsWith($"{stem}-1000w.webp.bukit-freshness.json", StringComparison.Ordinal));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
+        }
+        finally { CleanupDir(root); }
+    }
+
     [Theory]
     [InlineData("/assets/uploads", false)]
     [InlineData("/media", false)]

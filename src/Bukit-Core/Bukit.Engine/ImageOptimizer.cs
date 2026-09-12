@@ -1,13 +1,22 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Threading;
 using Bukit.Config;
 using Bukit.Content.Media;
 using Bukit.Shared;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.Processing;
 
 namespace Bukit.Engine;
 
 internal static class ImageOptimizer
 {
+    private static readonly string s_webpEncoderIdentity = "imagesharp-webp-" + (
+        typeof(WebpEncoder).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ??
+        typeof(WebpEncoder).Assembly.GetName().Version?.ToString() ??
+        "unknown");
+
     internal static async Task OptimizeIfEnabled(string assetsDir, ImageOptimizationConfig? config, ILogger logger, CancellationToken cancellationToken = default)
     {
         if (config is not { Enabled: true })
@@ -28,7 +37,7 @@ internal static class ImageOptimizer
         var formats = config.Formats ?? new[] { "webp" };
         var quality = config.Quality > 0 ? config.Quality : 80;
 
-        foreach (var format in formats)
+        foreach (var format in formats.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -83,46 +92,73 @@ internal static class ImageOptimizer
         return string.Join(", ", parts);
     }
 
+    internal static string WebpEncoderIdentity => s_webpEncoderIdentity;
+
+    internal static async Task EncodeWebpAsync(
+        string inputFile,
+        string outputFile,
+        int? width,
+        int quality,
+        CancellationToken cancellationToken)
+    {
+        if (width is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width));
+        }
+
+        try
+        {
+            using var image = await Image.LoadAsync(inputFile, cancellationToken);
+            if (width is { } targetWidth && targetWidth < image.Width)
+            {
+                image.Mutate(operation => operation.Resize(targetWidth, 0));
+            }
+
+            await image.SaveAsWebpAsync(
+                outputFile,
+                new WebpEncoder { Quality = Math.Clamp(quality, 1, 100) },
+                cancellationToken);
+
+            if (!await new ImageContentValidator().ValidateAsync(outputFile, "image/webp", cancellationToken))
+            {
+                throw new InvalidDataException("ImageSharp produced an invalid WebP output.");
+            }
+        }
+        catch
+        {
+            TryDelete(outputFile);
+            throw;
+        }
+    }
+
     private static async Task ConvertToWebp(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
     {
-        var tool = await FindImageToolAsync("webp", cancellationToken);
-        if (tool is null)
+        var temporaryOutput = Path.Combine(
+            Path.GetDirectoryName(outputFile)!,
+            $".{Path.GetFileNameWithoutExtension(outputFile)}.bukit-{Guid.NewGuid():N}{Path.GetExtension(outputFile)}");
+        try
         {
-            logger.Warn("event=image_optimize.skip reason=no_tool message=Install cwebp (libwebp) or ImageMagick for WebP conversion.");
-            return;
+            await EncodeWebpAsync(inputFile, temporaryOutput, width: null, quality, cancellationToken);
+            File.Move(temporaryOutput, outputFile, overwrite: true);
+            logger.Info($"event=image_optimize.ok file={Path.GetFileName(inputFile)}");
         }
-
-        var startInfo = new ProcessStartInfo
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            FileName = tool.Path,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        if (tool.Kind == ImageToolKind.Cwebp)
-        {
-            startInfo.ArgumentList.Add("-q");
-            startInfo.ArgumentList.Add(quality.ToString());
-            startInfo.ArgumentList.Add(inputFile);
-            startInfo.ArgumentList.Add("-o");
-            startInfo.ArgumentList.Add(outputFile);
+            throw;
         }
-        else
+        catch (Exception ex)
         {
-            startInfo.ArgumentList.Add(inputFile);
-            startInfo.ArgumentList.Add("-quality");
-            startInfo.ArgumentList.Add(quality.ToString());
-            startInfo.ArgumentList.Add(outputFile);
+            logger.Warn($"event=image_optimize.error file={Path.GetFileName(inputFile)} reason=encode_failed type={ex.GetType().Name}");
         }
-
-        await RunTool(startInfo, logger, inputFile, outputFile, expectedOutputMime: "image/webp", cancellationToken);
+        finally
+        {
+            TryDelete(temporaryOutput);
+        }
     }
 
     private static async Task ConvertToAvif(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
     {
-        var tool = await FindImageToolAsync("avif", cancellationToken);
+        var tool = await FindImageToolAsync(cancellationToken);
         if (tool is null)
         {
             logger.Warn("event=image_optimize.skip reason=no_tool message=Install ImageMagick (magick) for AVIF conversion.");
@@ -131,7 +167,7 @@ internal static class ImageOptimizer
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = tool.Path,
+            FileName = tool,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -146,24 +182,9 @@ internal static class ImageOptimizer
         await RunTool(startInfo, logger, inputFile, outputFile, expectedOutputMime: null, cancellationToken);
     }
 
-    private static async Task<ImageTool?> FindImageToolAsync(
-        string format,
-        CancellationToken cancellationToken = default)
+    private static async Task<string?> FindImageToolAsync(CancellationToken cancellationToken = default)
     {
-        ImageTool[] candidates = string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase)
-            ?
-            [
-                new ImageTool("cwebp", ImageToolKind.Cwebp),
-                new ImageTool("magick", ImageToolKind.Magick),
-                new ImageTool("convert", ImageToolKind.Convert)
-            ]
-            :
-            [
-                new ImageTool("magick", ImageToolKind.Magick),
-                new ImageTool("convert", ImageToolKind.Convert)
-            ];
-
-        foreach (var candidate in candidates)
+        foreach (var candidate in new[] { "magick", "convert" })
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -174,8 +195,8 @@ internal static class ImageOptimizer
             {
                 var result = await ExternalToolProcessRunner.RunAsync(new ProcessStartInfo
                 {
-                    FileName = candidate.Path,
-                    Arguments = candidate.Kind == ImageToolKind.Cwebp ? "-version" : "--version",
+                    FileName = candidate,
+                    Arguments = "--version",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -286,12 +307,4 @@ internal static class ImageOptimizer
         }
     }
 
-    private enum ImageToolKind
-    {
-        Cwebp,
-        Magick,
-        Convert
-    }
-
-    private sealed record ImageTool(string Path, ImageToolKind Kind);
 }

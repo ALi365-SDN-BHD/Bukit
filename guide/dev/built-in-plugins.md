@@ -12,12 +12,28 @@ Built-in plugins are registered by `BuiltInPluginSource`.
 | `related-content` | derive pages | Builds related-content data. |
 | `alias` | derive pages | Adds redirect pages from alias metadata. |
 | `menu` | after build | Writes menu data from `site.menus`. |
-| `image-processing` | after build | Writes image processing output metadata. |
+| `image-processing` | html transform, after build | Writes responsive original-format variants, Core-native validated WebP variants, ownership metadata, and progressive `<picture>` markup. |
 | `analytics` | html transform | Injects validated provider fragments into content, list, and static HTML. |
 
 Additional aggregate writers such as sitemap, feed, search, and llms output are
 implemented as built-in plugin classes and projection writers, but the current
 registry determines which plugins run through `PluginRunner`.
+
+## Image Processing
+
+`image-processing` derives candidate widths from the decoded source and never
+upscales. When `theme.images.formats` contains `webp`, it uses the bundled
+ImageSharp encoder for JPEG/PNG inputs, validates each complete WebP decode,
+and tracks the output plus freshness sidecar before adding that candidate to
+HTML. Freshness includes source identity and SHA-256, width, format, quality,
+and encoder identity. A failed or unowned candidate is not overwritten or
+referenced; successful siblings and the original-format `img` remain usable.
+
+The after-build rewrite is limited to HTML paths owned by the current build and
+is idempotent: existing `picture`, script, style, template, and comment blocks
+are opaque. An empty `formats` list leaves owned WebP in place but does not
+generate or project it. AVIF requests emit a stable fail-closed diagnostic and
+do not publish AVIF until an approved encoder/full-decoder chain is available.
 
 ## Data Files
 

@@ -407,11 +407,18 @@ author.
 | `theme.scss.enabled` | `false` | Enables SCSS compilation. |
 | `theme.scss.entryPoint` | none | SCSS entry point. |
 | `theme.scss.outputDir` | `assets` | SCSS output directory. |
-| `theme.images.enabled` | `false` | Enables image optimization. |
-| `theme.images.formats` | `webp` | Output formats. |
-| `theme.images.sizes` | `480`, `768`, `1200` | Positive widths. |
-| `theme.images.quality` | `80` | Image quality setting. |
+| `theme.images.enabled` | `false` | Enables responsive original-format variants and requested next-generation formats. |
+| `theme.images.formats` | `webp` | Case-insensitive output formats. WebP uses the Core-bundled ImageSharp encoder and needs no PATH tool. `[]` disables next-generation generation and projection without deleting already owned WebP. AVIF remains fail-closed until Core has an approved encoder and full decoder validation path. |
+| `theme.images.sizes` | `480`, `768`, `1200` | Positive widths below the source width; images are never upscaled. |
+| `theme.images.quality` | `80` | WebP/JPEG quality setting, clamped to `1..100` by the built-in WebP encoder. |
 | `theme.componentValidation` | `off` | `off`, `warn`, or `strict`. |
+
+When WebP is enabled, Bukit emits validated full-width and configured smaller
+WebP candidates for local JPEG/PNG content images. Final HTML uses one
+`<picture>` with `source type="image/webp"`; the original `img`, original-format
+`src`/`srcset`, `sizes`, accessibility text, dimensions, loading hints, classes,
+IDs, and other attributes remain the fallback. Existing `picture` markup and
+external, data, SVG, or GIF images are not rewritten.
 
 ## Taxonomy Fields
 

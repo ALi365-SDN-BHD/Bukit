@@ -45,48 +45,70 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         {
             return;
         }
+        if (config.Formats?.Any(format => string.Equals(format, "avif", StringComparison.OrdinalIgnoreCase)) == true)
+        {
+            context.Logger.Warn("event=image_avif.skip reason=no_approved_decoder");
+        }
 
         var priorPluginOutputs = GetPriorPluginOutputs(context);
         var imageFiles = FindSourceImages(context, priorPluginOutputs, cancellationToken);
         var sizes = NormalizeSizes(config.Sizes);
+        var webpEnabled = config.Formats?.Any(format =>
+            string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase)) == true;
+        var generatedOutputs = new HashSet<PluginOutputTrackingInfo>();
 
         if (imageFiles.Count == 0)
         {
+            if (!webpEnabled)
+            {
+                PreservePriorWebpOutputs(context, priorPluginOutputs, generatedOutputs);
+            }
+            SetTrackedOutputs(context, generatedOutputs);
             return;
         }
 
         var resizePlans = new Dictionary<string, IReadOnlyList<int>>(StringComparer.Ordinal);
+        var sourceWidths = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var imageFile in imageFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var applicableSizes = TryGetImageWidth(imageFile, context.Logger, out var width)
-                ? sizes.Where(size => size < width).ToArray()
-                : Array.Empty<int>();
+            var hasWidth = TryGetImageWidth(imageFile, context.Logger, out var width);
+            var applicableSizes = hasWidth ? sizes.Where(size => size < width).ToArray() : Array.Empty<int>();
             CleanupStaleVariants(
                 context.OutputDir,
                 imageFile,
                 applicableSizes,
                 priorPluginOutputs);
+            if (hasWidth)
+            {
+                sourceWidths[imageFile] = width;
+                if (webpEnabled)
+                {
+                    CleanupStaleVariants(
+                        context.OutputDir,
+                        imageFile,
+                        [.. applicableSizes.Append(width).Distinct()],
+                        priorPluginOutputs,
+                        ".webp");
+                }
+            }
             if (applicableSizes.Length > 0)
             {
                 resizePlans[imageFile] = applicableSizes;
             }
         }
 
-        if (resizePlans.Count == 0)
-        {
-            return;
-        }
-
         var quality = config.Quality > 0 ? config.Quality : 80;
-        var tool = await FindResizeToolAsync(context.Logger, cancellationToken);
-        if (tool is null)
+        string? tool = null;
+        if (resizePlans.Count > 0)
         {
-            context.Logger.Info("event=image_processing.fallback tool=imagesharp");
+            tool = await FindResizeToolAsync(context.Logger, cancellationToken);
+            if (tool is null)
+            {
+                context.Logger.Info("event=image_processing.fallback tool=imagesharp");
+            }
         }
         var toolIdentity = tool ?? "imagesharp";
-
-        var generatedOutputs = new HashSet<PluginOutputTrackingInfo>();
 
         foreach (var (imageFile, applicableSizes) in resizePlans)
         {
@@ -244,6 +266,24 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             }
         }
 
+        if (webpEnabled)
+        {
+            var webpSrcsets = await GenerateWebpVariantsAsync(
+                context,
+                imageFiles,
+                sourceWidths,
+                sizes,
+                quality,
+                priorPluginOutputs,
+                generatedOutputs,
+                cancellationToken);
+            RewriteCurrentHtmlWithWebp(context, webpSrcsets, cancellationToken);
+        }
+        else
+        {
+            PreservePriorWebpOutputs(context, priorPluginOutputs, generatedOutputs);
+        }
+
         var data = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         foreach (var imageFile in imageFiles)
         {
@@ -293,10 +333,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             context.Data["__image_srcsets"] = data;
         }
 
-        if (generatedOutputs.Count > 0)
-        {
-            context.Data["__plugin_outputs"] = generatedOutputs;
-        }
+        SetTrackedOutputs(context, generatedOutputs);
     }
 
     private List<string> FindSourceImages(
@@ -368,6 +405,213 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         await image.SaveAsPngAsync(destination, cancellationToken);
     }
 
+    private async Task<Dictionary<string, string>> GenerateWebpVariantsAsync(
+        BuildContext context,
+        IReadOnlyList<string> imageFiles,
+        IReadOnlyDictionary<string, int> sourceWidths,
+        IReadOnlyList<int> sizes,
+        int quality,
+        HashSet<PluginOutputTrackingInfo> priorOutputs,
+        HashSet<PluginOutputTrackingInfo> generatedOutputs,
+        CancellationToken cancellationToken)
+    {
+        var srcsets = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var baseUrl = BuildPathUtils.NormalizeBaseUrl(context.BaseUrl).TrimEnd('/');
+
+        foreach (var imageFile in imageFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!sourceWidths.TryGetValue(imageFile, out var sourceWidth))
+            {
+                continue;
+            }
+
+            var sourceInfo = new FileInfo(imageFile);
+            var sourceSha256 = await ComputeSha256Async(imageFile, cancellationToken);
+            var baseName = Path.GetFileNameWithoutExtension(imageFile);
+            var candidates = new List<string>();
+            foreach (var width in sizes.Where(size => size < sourceWidth).Append(sourceWidth).Distinct().Order())
+            {
+                var webpFile = Path.Combine(Path.GetDirectoryName(imageFile)!, $"{baseName}-{width}w.webp");
+                if (!await GenerateOwnedWebpVariantAsync(
+                    context,
+                    imageFile,
+                    sourceInfo,
+                    sourceSha256,
+                    webpFile,
+                    width,
+                    quality,
+                    priorOutputs,
+                    generatedOutputs,
+                    cancellationToken))
+                {
+                    continue;
+                }
+
+                var webpRelative = GetRelativeIdentity(context.OutputDir, webpFile);
+                candidates.Add($"{baseUrl}/{webpRelative} {width}w");
+            }
+
+            if (candidates.Count > 0)
+            {
+                var sourceRelative = GetRelativeIdentity(context.OutputDir, imageFile);
+                srcsets[$"{baseUrl}/{sourceRelative}"] = string.Join(", ", candidates);
+            }
+        }
+
+        return srcsets;
+    }
+
+    private async Task<bool> GenerateOwnedWebpVariantAsync(
+        BuildContext context,
+        string sourceFile,
+        FileInfo sourceInfo,
+        string sourceSha256,
+        string webpFile,
+        int width,
+        int quality,
+        HashSet<PluginOutputTrackingInfo> priorOutputs,
+        HashSet<PluginOutputTrackingInfo> generatedOutputs,
+        CancellationToken cancellationToken)
+    {
+        var freshnessFile = webpFile + FreshnessSuffix;
+        var variantExists = File.Exists(webpFile);
+        var sidecarExists = File.Exists(freshnessFile);
+        var hasPriorOwnership = HasPriorOwnership(context.OutputDir, priorOutputs, webpFile, freshnessFile);
+        var hasValidFreshness = TryReadFreshness(
+            freshnessFile,
+            context.OutputDir,
+            sourceFile,
+            webpFile,
+            width,
+            out var existingFreshness);
+        var hasOwnedFreshness = hasPriorOwnership && hasValidFreshness;
+
+        if (variantExists && hasOwnedFreshness && existingFreshness.Matches(
+            sourceInfo,
+            sourceSha256,
+            quality,
+            width,
+            ".webp",
+            ImageOptimizer.WebpEncoderIdentity))
+        {
+            AddTrackedOutput(context, generatedOutputs, webpFile);
+            AddTrackedOutput(context, generatedOutputs, freshnessFile);
+            return true;
+        }
+
+        if ((variantExists || sidecarExists) && !hasOwnedFreshness)
+        {
+            context.Logger.Warn($"event=image_webp.skip file={Path.GetFileName(webpFile)} reason=unowned_existing_output");
+            return false;
+        }
+
+        if (hasOwnedFreshness)
+        {
+            TryDelete(webpFile);
+            TryDelete(freshnessFile);
+        }
+
+        var temporaryWebp = Path.Combine(
+            Path.GetDirectoryName(webpFile)!,
+            $".{Path.GetFileNameWithoutExtension(webpFile)}.bukit-{Guid.NewGuid():N}.webp");
+        var temporaryFreshness = freshnessFile + $".bukit-{Guid.NewGuid():N}.tmp";
+        try
+        {
+            await ImageOptimizer.EncodeWebpAsync(sourceFile, temporaryWebp, width, quality, cancellationToken);
+            var variantInfo = new FileInfo(temporaryWebp);
+            var variantSha256 = await ComputeSha256Async(temporaryWebp, cancellationToken);
+            WriteFreshness(temporaryFreshness, new VariantFreshness(
+                SchemaVersion: FreshnessSchemaVersion,
+                Owner: FreshnessOwner,
+                SourcePath: GetRelativeIdentity(context.OutputDir, sourceFile),
+                VariantPath: GetRelativeIdentity(context.OutputDir, webpFile),
+                SourceSize: sourceInfo.Length,
+                SourceMtime: sourceInfo.LastWriteTimeUtc.Ticks,
+                SourceSha256: sourceSha256,
+                VariantLength: variantInfo.Length,
+                VariantSha256: variantSha256,
+                Quality: quality,
+                Size: width,
+                Format: ".webp",
+                Tool: ImageOptimizer.WebpEncoderIdentity));
+            File.Move(temporaryWebp, webpFile, overwrite: false);
+            try
+            {
+                File.Move(temporaryFreshness, freshnessFile, overwrite: false);
+            }
+            catch
+            {
+                TryDelete(webpFile);
+                throw;
+            }
+
+            AddTrackedOutput(context, generatedOutputs, webpFile);
+            AddTrackedOutput(context, generatedOutputs, freshnessFile);
+            context.Logger.Info($"event=image_webp.ok file={Path.GetFileName(webpFile)}");
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            context.Logger.Warn($"event=image_webp.error file={Path.GetFileName(webpFile)} reason={ex.GetType().Name}");
+            return false;
+        }
+        finally
+        {
+            TryDelete(temporaryWebp);
+            TryDelete(temporaryFreshness);
+        }
+    }
+
+    private void RewriteCurrentHtmlWithWebp(
+        BuildContext context,
+        IReadOnlyDictionary<string, string> webpSrcsets,
+        CancellationToken cancellationToken)
+    {
+        if (!context.Data.TryGetValue(BuildContextDataKeys.CurrentHtmlOutputs, out var value) ||
+            value is not IReadOnlyList<string> htmlOutputs)
+        {
+            return;
+        }
+
+        foreach (var outputPath in htmlOutputs)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!Path.GetExtension(outputPath).Equals(".html", StringComparison.OrdinalIgnoreCase) ||
+                !TryResolveRelativeIdentity(context.OutputDir, outputPath.Replace('\\', '/'), out var htmlFile) ||
+                !File.Exists(htmlFile))
+            {
+                continue;
+            }
+
+            var html = File.ReadAllText(htmlFile);
+            var rewritten = ResponsiveImageHtmlTransform.RewriteWebpPictures(
+                html,
+                webpSrcsets,
+                context.BaseUrl,
+                _config.Site.Url);
+            if (string.Equals(html, rewritten, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var temporary = htmlFile + $".bukit-{Guid.NewGuid():N}.tmp";
+            try
+            {
+                File.WriteAllText(temporary, rewritten);
+                File.Move(temporary, htmlFile, overwrite: true);
+            }
+            finally
+            {
+                TryDelete(temporary);
+            }
+        }
+    }
+
     private sealed partial class ResponsiveImageHtmlTransform(
         AppConfig config,
         string? mediaDownloadDir,
@@ -375,7 +619,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         ILogger logger) : IHtmlTransform
     {
         [GeneratedRegex(
-            """<!--[\s\S]*?-->|<(?:script|style|template)\b(?:[^>"']|"[^"]*"|'[^']*')*>[\s\S]*?</(?:script|style|template)\s*>|<img(?=[\s/>])(?:[^>"']|"[^"]*"|'[^']*')*>""",
+            """<!--[\s\S]*?-->|<(?:script|style|template)\b(?:[^>"']|"[^"]*"|'[^']*')*>[\s\S]*?</(?:script|style|template)\s*>|<picture\b(?:[^>"']|"[^"]*"|'[^']*')*>[\s\S]*?</picture\s*>|<img(?=[\s/>])(?:[^>"']|"[^"]*"|'[^']*')*>""",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex HtmlElementRegex();
         [GeneratedRegex(
@@ -386,6 +630,10 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         private readonly string _baseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
         private readonly string _mediaUrlBase = NormalizeMediaUrlBase(config.Content.Media.UrlBase);
         private readonly Uri? _siteUri = Uri.TryCreate(config.Site.Url, UriKind.Absolute, out var siteUri) ? siteUri : null;
+        private readonly bool _webpEnabled = config.Theme.Images?.Formats?.Any(format =>
+            string.Equals(format, "webp", StringComparison.OrdinalIgnoreCase)) == true;
+
+        private const string GeneratedSrcsetMarker = "data-bukit-generated-srcset";
 
         public string Name => "responsive-images";
 
@@ -402,6 +650,103 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
                 match.Value.StartsWith("<img", StringComparison.OrdinalIgnoreCase)
                     ? RewriteImageTag(match.Value)
                     : match.Value);
+        }
+
+        internal static string RewriteWebpPictures(
+            string html,
+            IReadOnlyDictionary<string, string> webpSrcsets,
+            string baseUrl,
+            string? siteUrl)
+        {
+            var normalizedBaseUrl = BuildPathUtils.NormalizeBaseUrl(baseUrl).TrimEnd('/');
+            var siteUri = Uri.TryCreate(siteUrl, UriKind.Absolute, out var parsedSiteUri) ? parsedSiteUri : null;
+            return HtmlElementRegex().Replace(html, match =>
+            {
+                if (!match.Value.StartsWith("<img", StringComparison.OrdinalIgnoreCase))
+                {
+                    return match.Value;
+                }
+
+                var attributes = AttributeRegex().Matches(match.Value[4..^1]);
+                var hasGeneratedSrcset = attributes.Any(attribute =>
+                    attribute.Groups["name"].Value.Equals(GeneratedSrcsetMarker, StringComparison.OrdinalIgnoreCase));
+                if (!hasGeneratedSrcset && attributes.Any(attribute =>
+                    attribute.Groups["name"].Value.Equals("srcset", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return match.Value;
+                }
+
+                var fallbackTag = hasGeneratedSrcset
+                    ? match.Value.Replace($" {GeneratedSrcsetMarker}=\"\"", string.Empty, StringComparison.Ordinal)
+                    : match.Value;
+                var src = GetAttributeValue(attributes, "src");
+                if (src is null || !TryNormalizeLocalImageUrl(src, normalizedBaseUrl, siteUri, out var sourceUrl) ||
+                    !webpSrcsets.TryGetValue(sourceUrl, out var webpSrcset))
+                {
+                    return fallbackTag;
+                }
+
+                var sizes = GetAttributeValue(attributes, "sizes");
+                var source = $"<source type=\"image/webp\" srcset=\"{WebUtility.HtmlEncode(webpSrcset)}\"" +
+                    (sizes is null ? ">" : $" sizes=\"{WebUtility.HtmlEncode(sizes)}\">");
+                return $"<picture>{source}{fallbackTag}</picture>";
+            });
+        }
+
+        private static string? GetAttributeValue(MatchCollection attributes, string name)
+        {
+            var match = attributes.FirstOrDefault(attribute =>
+                attribute.Groups["name"].Value.Equals(name, StringComparison.OrdinalIgnoreCase));
+            if (match is null)
+            {
+                return null;
+            }
+
+            return WebUtility.HtmlDecode(
+                match.Groups["double"].Success ? match.Groups["double"].Value :
+                match.Groups["single"].Success ? match.Groups["single"].Value :
+                match.Groups["unquoted"].Value);
+        }
+
+        private static bool TryNormalizeLocalImageUrl(
+            string sourceUrl,
+            string baseUrl,
+            Uri? siteUri,
+            out string normalized)
+        {
+            normalized = string.Empty;
+            var path = sourceUrl;
+            if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var absolute) && absolute.Scheme is "http" or "https")
+            {
+                if (siteUri is null ||
+                    !string.Equals(siteUri.GetLeftPart(UriPartial.Authority), absolute.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+                path = absolute.AbsolutePath;
+            }
+            else if (sourceUrl.StartsWith("//", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var suffixAt = path.IndexOfAny(['?', '#']);
+            if (suffixAt >= 0)
+            {
+                path = path[..suffixAt];
+            }
+            if (!path.StartsWith("/", StringComparison.Ordinal) ||
+                Path.GetExtension(path).ToLowerInvariant() is not (".jpg" or ".jpeg" or ".png"))
+            {
+                return false;
+            }
+
+            normalized = path;
+            if (baseUrl.Length > 0 && !normalized.StartsWith(baseUrl + "/", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            return true;
         }
 
         private string RewriteImageTag(string tag)
@@ -432,6 +777,10 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
                     .Select(size => $"{BuildVariantUrl(sourceUrl, size)} {size}w")
                     .Append($"{sourceUrl} {sourceWidth}w");
                 attributes += $" srcset=\"{WebUtility.HtmlEncode(string.Join(", ", candidates))}\"";
+                if (_webpEnabled)
+                {
+                    attributes += $" {GeneratedSrcsetMarker}=\"\"";
+                }
             }
             if (!parsedAttributes.Any(attribute => attribute.Groups["name"].Value.Equals("decoding", StringComparison.OrdinalIgnoreCase)))
             {
@@ -546,6 +895,36 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         var relPath = Path.GetRelativePath(context.OutputDir, path)
             .Replace("\\", "/", StringComparison.Ordinal);
         return outputs.Contains(new PluginOutputTrackingInfo("image-processing", "after-build", relPath));
+    }
+
+    private static void PreservePriorWebpOutputs(
+        BuildContext context,
+        HashSet<PluginOutputTrackingInfo> priorOutputs,
+        HashSet<PluginOutputTrackingInfo> generatedOutputs)
+    {
+        foreach (var output in priorOutputs.Where(output =>
+            output.Path.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+            output.Path.EndsWith($".webp{FreshnessSuffix}", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (TryResolveRelativeIdentity(context.OutputDir, output.Path, out var path) && File.Exists(path))
+            {
+                generatedOutputs.Add(output);
+            }
+        }
+    }
+
+    private static void SetTrackedOutputs(
+        BuildContext context,
+        HashSet<PluginOutputTrackingInfo> generatedOutputs)
+    {
+        if (generatedOutputs.Count > 0)
+        {
+            context.Data["__plugin_outputs"] = generatedOutputs;
+        }
+        else
+        {
+            context.Data.Remove("__plugin_outputs");
+        }
     }
 
     private static HashSet<PluginOutputTrackingInfo> GetPriorPluginOutputs(BuildContext context)
@@ -963,11 +1342,12 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         string outputDir,
         string sourceFile,
         IReadOnlyList<int> currentSizes,
-        HashSet<PluginOutputTrackingInfo> priorOutputs)
+        HashSet<PluginOutputTrackingInfo> priorOutputs,
+        string? variantExtension = null)
     {
         var dir = Path.GetDirectoryName(sourceFile)!;
         var baseName = Path.GetFileNameWithoutExtension(sourceFile);
-        var ext = Path.GetExtension(sourceFile);
+        var ext = variantExtension ?? Path.GetExtension(sourceFile);
         var currentSizeSet = new HashSet<int>(currentSizes);
 
         foreach (var existingFile in SafeFileEnumerator.EnumerateFiles(dir, $"{baseName}-*w{ext}"))

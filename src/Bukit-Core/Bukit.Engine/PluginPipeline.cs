@@ -46,6 +46,10 @@ internal sealed class PluginPipeline
                     BuildPathUtils.NormalizeRelPath(path));
             })
             .ToHashSet();
+        ctx.PluginContext.Data[BuildContextDataKeys.CurrentHtmlOutputs] = ctx.CurrentKeys.Keys
+            .Where(path => Path.GetExtension(path).Equals(".html", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
         var afterBuildStopwatch = Stopwatch.StartNew();
         await PluginRunner.RunAfterBuildAsync(

@@ -130,6 +130,193 @@ public sealed class ImageProcessingPluginTests
         }
     }
 
+    [Fact]
+    public async Task AfterBuild_WebpGeneratesOwnedCandidatesAndProgressivePicture()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            var source = Path.Combine(assetsDir, "photo.png");
+            using (var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1000, 8, new(10, 20, 30, 0)))
+                image.SaveAsPng(source);
+            var htmlFile = Path.Combine(outDir, "index.html");
+            const string img = "<img src=\"/assets/photo.png\" sizes=\"50vw\" alt=\"A > B\" width=\"1000\" height=\"8\" loading=\"lazy\" decoding=\"async\" class=\"hero\" id=\"lead\">";
+            var config = CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = new[] { "webp", "WEBP" },
+                Sizes = new[] { 480, 1200 },
+                Quality = 76
+            }) with
+            {
+                Content = TestContent.Markdown() with { Media = new MediaConfig { UrlBase = "/assets" } }
+            };
+            var context = CreateContext(outDir);
+            context.Data[BuildContextDataKeys.MediaDownloadDir] = assetsDir;
+            context.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
+            var plugin = new ImageProcessingPlugin(config);
+            var transformed = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(
+                context,
+                BuildExecutionMode.Production)).Transform(
+                    new HtmlTransformContext("/", "index.html", HtmlDocumentKind.Content, BuildExecutionMode.Production, context.Logger),
+                    img);
+            File.WriteAllText(htmlFile, $"<html><body>{transformed}</body></html>");
+
+            await plugin.AfterBuildAsync(context);
+
+            var responsive = Path.Combine(assetsDir, "photo-480w.webp");
+            var full = Path.Combine(assetsDir, "photo-1000w.webp");
+            Assert.Equal(480, Image.Identify(responsive).Width);
+            Assert.Equal(1000, Image.Identify(full).Width);
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-1200w.webp")));
+            Assert.True(File.Exists(responsive + ".bukit-freshness.json"));
+            var freshness = JsonNode.Parse(File.ReadAllText(responsive + ".bukit-freshness.json"))!.AsObject();
+            Assert.Equal(".webp", freshness["format"]!.GetValue<string>());
+            Assert.Equal(76, freshness["quality"]!.GetValue<int>());
+            Assert.Equal(480, freshness["size"]!.GetValue<int>());
+            Assert.StartsWith("imagesharp-webp-", freshness["tool"]!.GetValue<string>(), StringComparison.Ordinal);
+
+            var html = File.ReadAllText(htmlFile);
+            Assert.Contains("<picture><source type=\"image/webp\"", html, StringComparison.Ordinal);
+            Assert.Contains("/assets/photo-480w.webp 480w, /assets/photo-1000w.webp 1000w", html, StringComparison.Ordinal);
+            Assert.Contains("srcset=\"/assets/photo-480w.png 480w, /assets/photo.png 1000w\"", html, StringComparison.Ordinal);
+            Assert.Contains("src=\"/assets/photo.png\" sizes=\"50vw\" alt=\"A > B\" width=\"1000\" height=\"8\" loading=\"lazy\" decoding=\"async\" class=\"hero\" id=\"lead\"", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("data-bukit-generated-srcset", html, StringComparison.Ordinal);
+            Assert.Equal(1, CountOccurrences(html, "<picture>"));
+
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Data["__plugin_outputs"]);
+            Assert.Contains(outputs, output => output.Path == "assets/photo-480w.webp");
+            Assert.Contains(outputs, output => output.Path == "assets/photo-1000w.webp.bukit-freshness.json");
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_WebpRewriteProtectsExistingPictureAndIsIdempotent()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            var source = Path.Combine(assetsDir, "photo.jpg");
+            WriteValidImage(source, "source", width: 700);
+            var htmlFile = Path.Combine(outDir, "index.html");
+            const string existing = "<picture><source type=\"image/avif\" srcset=\"photo.avif\"><img src=\"/assets/photo.jpg\" alt=\"existing\"></picture>";
+            const string ignored = "<script>const fake='<img src=\"/assets/photo.jpg\">';</script><!-- <img src=\"/assets/photo.jpg\"> --><img src=\"https://cdn.example/photo.jpg\"><img src=\"data:image/png;base64,AA\"><img src=\"/assets/icon.gif\"><img src=\"/assets/photo.jpg\" srcset=\"/custom.jpg 2x\" alt=\"author\">";
+            File.WriteAllText(htmlFile, existing + ignored + "<img src=\"/assets/photo.jpg\" alt=\"local\">");
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 480 } });
+            var first = CreateContext(outDir);
+            first.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
+            await new ImageProcessingPlugin(config).AfterBuildAsync(first);
+            var once = File.ReadAllText(htmlFile);
+
+            var second = CreateContext(outDir);
+            second.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
+            second.Data[BuildContextDataKeys.PriorPluginOutputs] = first.Data["__plugin_outputs"];
+            await new ImageProcessingPlugin(config).AfterBuildAsync(second);
+            var twice = File.ReadAllText(htmlFile);
+
+            Assert.Equal(once, twice);
+            Assert.Contains(existing, twice, StringComparison.Ordinal);
+            Assert.Contains(ignored, twice, StringComparison.Ordinal);
+            Assert.Equal(2, CountOccurrences(twice, "<picture>"));
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_EmptyFormatsPreservesOwnedWebpWithoutProjectingIt()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
+            var first = CreateContext(outDir);
+            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = new[] { "webp" },
+                Sizes = new[] { 480 }
+            })).AfterBuildAsync(first);
+            var webp = Path.Combine(assetsDir, "photo-480w.webp");
+            var originalHash = SHA256.HashData(File.ReadAllBytes(webp));
+            var htmlFile = Path.Combine(outDir, "index.html");
+            const string html = "<img src=\"/assets/photo.jpg\" alt=\"fallback\">";
+            File.WriteAllText(htmlFile, html);
+
+            var second = CreateContext(outDir);
+            second.Data[BuildContextDataKeys.PriorPluginOutputs] = first.Data["__plugin_outputs"];
+            second.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
+            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = Array.Empty<string>(),
+                Sizes = new[] { 480 }
+            })).AfterBuildAsync(second);
+
+            Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(webp)));
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(second.Data["__plugin_outputs"]);
+            Assert.Contains(outputs, output => output.Path == "assets/photo-480w.webp");
+            Assert.Equal(html, File.ReadAllText(htmlFile));
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_WebpKeepsUnownedCandidateAndDoesNotProjectIt()
+    {
+        var outDir = GetTempDir();
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
+            File.WriteAllText(Path.Combine(assetsDir, "broken.jpg"), "not an image");
+            var unowned = Path.Combine(assetsDir, "photo-480w.webp");
+            using (var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(2, 2))
+                image.SaveAsWebp(unowned);
+            var unownedHash = SHA256.HashData(File.ReadAllBytes(unowned));
+            var htmlFile = Path.Combine(outDir, "index.html");
+            File.WriteAllText(htmlFile, "<img src=\"/assets/photo.jpg\" alt=\"fallback\">");
+            var context = CreateContext(outDir);
+            context.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
+
+            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true,
+                Formats = new[] { "webp" },
+                Sizes = new[] { 480 }
+            })).AfterBuildAsync(context);
+
+            Assert.Equal(unownedHash, SHA256.HashData(File.ReadAllBytes(unowned)));
+            Assert.False(File.Exists(unowned + ".bukit-freshness.json"));
+            Assert.True(File.Exists(Path.Combine(assetsDir, "photo-700w.webp")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "broken.webp")));
+            var html = File.ReadAllText(htmlFile);
+            Assert.DoesNotContain("photo-480w.webp", html, StringComparison.Ordinal);
+            Assert.Contains("photo-700w.webp 700w", html, StringComparison.Ordinal);
+            AssertNotTracked(context, outDir, unowned, unowned + ".bukit-freshness.json");
+        }
+        finally
+        {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
     [Theory]
     [InlineData("<img src=\"/assets/uploads/photo.jpg\" sizes=\"50vw\" alt=\"A > B\">")]
     [InlineData("<img data-src=\"/assets/uploads/other.jpg\" src=\"/assets/uploads/photo.jpg\" sizes=\"50vw\" alt=\"A > B\">")]
@@ -1179,6 +1366,9 @@ public sealed class ImageProcessingPluginTests
     }
 
     private static string EscapeSingleQuoted(string value) => value.Replace("'", "'\\''", StringComparison.Ordinal);
+
+    private static int CountOccurrences(string value, string needle) =>
+        value.Split(needle, StringSplitOptions.None).Length - 1;
 
     private static void WriteCopyTool(string toolDir) => WriteTool(toolDir, "magick", """
         if [ "$1" = "--version" ]; then exit 0; fi
