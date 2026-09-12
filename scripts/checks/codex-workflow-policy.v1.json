@@ -761,6 +761,7 @@
       "id": "native-aot-packaging",
       "matches": [
         "scripts/build/native-aot-self-test.sh",
+        "scripts/build/native-aot-self-test.d/*.sh",
         "scripts/build/native-aot.sh",
         "scripts/build/package-native-aot.sh"
       ],
