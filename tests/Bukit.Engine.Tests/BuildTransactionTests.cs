@@ -8,8 +8,15 @@ public sealed class BuildTransactionTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "bukit-transaction-tests-" + Guid.NewGuid().ToString("N"));
     private readonly ILogger _logger = new ConsoleLogger(LogLevel.Error);
+    private readonly string? _originalNotionToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
     private AppConfig Config => new() { Site = new() { Name = "test", Title = "Test" }, Content = new() { Sources = [new() { Type = "markdown", Markdown = new() }] }, Build = new() { Output = "public", Clean = false } };
-    public BuildTransactionTests() { Directory.CreateDirectory(_root); Directory.CreateDirectory(Path.Combine(_root, "public")); File.WriteAllText(Path.Combine(_root, "public", "old.txt"), "old"); }
+    public BuildTransactionTests()
+    {
+        Directory.CreateDirectory(_root);
+        Directory.CreateDirectory(Path.Combine(_root, "public"));
+        File.WriteAllText(Path.Combine(_root, "public", "old.txt"), "old");
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "transaction-test-token");
+    }
 
     [Fact]
     public void FailureAndCancellationLeaveTargetsUnchanged()
@@ -296,7 +303,11 @@ public sealed class BuildTransactionTests : IDisposable
         Assert.Equal(outer.OutputDir, BuildTransaction.Physical(Path.Combine(_root, "public")));
     }
 
-    public void Dispose() { Directory.Delete(_root, true); }
+    public void Dispose()
+    {
+        Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, _originalNotionToken);
+        Directory.Delete(_root, true);
+    }
 }
 
 public sealed partial class SiteEngineIntegrationTests
