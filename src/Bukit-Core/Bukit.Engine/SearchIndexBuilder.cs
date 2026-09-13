@@ -35,7 +35,10 @@ internal static class SearchIndexBuilder
             {
                 if (documentsByPath.TryGetValue(key, out var document))
                 {
-                    WriteSearchItem(writer, document, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled, maxContentLength);
+                    if (!IsSearchExcluded(document))
+                    {
+                        WriteSearchItem(writer, document, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled, maxContentLength);
+                    }
                 }
                 else if (listRoutesByPath.TryGetValue(BuildPathUtils.NormalizeRelPath(key), out var listRoute))
                 {
@@ -93,9 +96,11 @@ internal static class SearchIndexBuilder
         writer.Flush();
     }
 
-    private static bool IsSearchExcluded(ContentDocument document)
+    internal static bool IsSearchExcluded(ContentDocument document)
     {
-        return ContentFieldReader.GetBool(document.CustomFields, "searchExclude") is true;
+        return document.Publish.ExcludeFromSearch ||
+            ContentFieldReader.GetBool(document.CustomFields, "searchExclude") is true ||
+            ContentFieldReader.GetBool(document.CustomFields, "excludeFromSearch") is true;
     }
 
     internal static void WriteSearchItem(

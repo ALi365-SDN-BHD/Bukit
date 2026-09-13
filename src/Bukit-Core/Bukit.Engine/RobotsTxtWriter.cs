@@ -26,7 +26,8 @@ internal static class RobotsTxtWriter
         AppConfig config,
         string outputDir,
         string baseUrl,
-        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex)
+        IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
+        IReadOnlyList<string>? sitemapUrls = null)
     {
         if (!config.Site.Seo.RobotsTxt.Enabled || string.IsNullOrWhiteSpace(config.Site.Url))
         {
@@ -46,7 +47,10 @@ internal static class RobotsTxtWriter
         };
         if (seoIndex.Values.Any(x => x.Indexable))
         {
-            lines.Add($"Sitemap: {SitemapGenerator.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/sitemap.xml")}");
+            foreach (var sitemapUrl in sitemapUrls ?? [SitemapGenerator.BuildAbsoluteUrl(config.Site.Url, baseUrl, "/sitemap.xml")])
+            {
+                lines.Add($"Sitemap: {sitemapUrl}");
+            }
         }
 
         var geo = config.Site.Seo.Geo;

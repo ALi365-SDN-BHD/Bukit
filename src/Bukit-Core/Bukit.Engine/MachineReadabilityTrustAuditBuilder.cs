@@ -19,7 +19,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         IReadOnlyDictionary<string, SeoModel> seoModels,
         CanonicalContentGraph? contentGraph = null,
         bool requireHreflangTargets = true,
-        IReadOnlyList<PublishProjectionResult>? projectionResults = null)
+        IReadOnlyList<PublishProjectionResult>? projectionResults = null,
+        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null)
     {
         return BuildPublishAuditCore(
             config,
@@ -28,6 +29,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             seoModels,
             contentGraph,
             requireHreflangTargets,
-            projectionResults);
+            projectionResults,
+            documentsByOutputPath);
     }
 }

@@ -6,6 +6,7 @@ internal static class SeoCompatibilityAuditRules
         PublishDocument document,
         bool sitemapIncluded,
         bool searchIncluded,
+        bool searchExpected,
         bool rssIncluded,
         bool rssExpected,
         bool atomFeedIncluded,
@@ -30,7 +31,7 @@ internal static class SeoCompatibilityAuditRules
             issues.Add(Warning("publish.sitemap_missing_route", document.RouteUrl, "Indexable published content is missing from sitemap output."));
         }
 
-        if (!searchIncluded)
+        if (searchExpected && !searchIncluded)
         {
             issues.Add(Warning("publish.search_missing_route", document.RouteUrl, "Indexable published content is missing from search index output."));
         }

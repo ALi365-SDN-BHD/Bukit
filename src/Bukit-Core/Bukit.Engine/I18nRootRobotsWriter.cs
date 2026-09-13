@@ -12,6 +12,10 @@ internal sealed class I18nRootRobotsWriter : II18nRootProjectionWriter
             context.Config,
             context.OutputDir,
             context.RootBaseUrl,
-            seoIndex);
+            seoIndex,
+            string.Equals(context.Config.Site.SitemapMode?.Trim() ?? "split", "split", StringComparison.OrdinalIgnoreCase)
+                ? context.Results.Select(result => SitemapGenerator.BuildAbsoluteUrl(
+                    context.Config.Site.Url ?? string.Empty, result.BaseUrl, "/sitemap.xml")).ToArray()
+                : null);
     }
 }

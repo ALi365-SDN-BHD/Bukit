@@ -25,9 +25,11 @@ internal static partial class SeoAuditReportWriter
         IReadOnlyDictionary<string, SeoModel> seoModels,
         CanonicalContentGraph? contentGraph,
         ILogger logger,
-        IReadOnlyList<PublishProjectionResult>? projectionResults = null)
+        IReadOnlyList<PublishProjectionResult>? projectionResults = null,
+        IReadOnlyDictionary<string, ContentDocument>? documentsByOutputPath = null)
     {
-        var result = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, contentGraph, requireHreflangTargets: false, projectionResults);
+        var result = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, contentGraph,
+            requireHreflangTargets: false, projectionResults, documentsByOutputPath);
         WriteReport(outputDir, result, logger);
         return result.SeoReport;
     }
@@ -43,8 +45,14 @@ internal static partial class SeoAuditReportWriter
         var seoModels = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase);
         var records = new List<ContentRecord>();
         var entities = new List<EntityRecord>();
+        var documentsByOutputPath = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
         foreach (var result in results)
         {
+            foreach (var (key, document) in SearchIndexBuilder.BuildDocumentMap(result.RoutedDocuments.Concat(result.DerivedDocuments)))
+            {
+                documentsByOutputPath[BuildMergedKey(result.Language, key)] = document;
+            }
+
             foreach (var (key, entry) in result.SeoIndex)
             {
                 var mergedKey = BuildMergedKey(result.Language, key);
@@ -75,7 +83,8 @@ internal static partial class SeoAuditReportWriter
             })]
         }));
         var actualProjections = documentProjections.Concat(projectionResults ?? []).ToArray();
-        var auditResult = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels, new CanonicalContentGraph(records, entities), requireHreflangTargets: true, actualProjections);
+        var auditResult = MachineReadabilityTrustAuditBuilder.Build(config, outputDir, seoIndex, seoModels,
+            new CanonicalContentGraph(records, entities), requireHreflangTargets: true, actualProjections, documentsByOutputPath);
         WriteReport(outputDir, auditResult, logger);
         return auditResult.SeoReport;
     }

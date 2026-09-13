@@ -111,7 +111,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     private static LlmsSelection BuildFullLlmsSelection(
         IReadOnlyDictionary<string, ContentDocument> documentsByPath,
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
-        IReadOnlyDictionary<string, ContentRecord> recordsById)
+        IReadOnlyDictionary<string, ContentRecord[]> recordsById)
     {
         var candidates = new List<(ContentDocument Document, ContentRecord Record, SeoIndexEntry Entry, SeoModel? Model)>();
         foreach (var (key, entry) in seoIndex)
@@ -121,8 +121,10 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
                 continue;
             }
 
-            var record = recordsById.TryGetValue(document.Id, out var canonicalRecord)
-                ? canonicalRecord
+            var record = recordsById.TryGetValue(document.Id, out var records)
+                ? records.FirstOrDefault(candidate => string.Equals(candidate.Presentation.Language,
+                    document.Record.Presentation.Language, StringComparison.OrdinalIgnoreCase))
+                    ?? records[0]
                 : document.Record;
             candidates.Add((document, record, entry, null));
         }
@@ -176,7 +178,8 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         IReadOnlyList<RoutedContentDocument> derivedDocuments,
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
         IReadOnlyDictionary<string, SeoModel> seoModels,
-        SeoGeoConfig geo)
+        SeoGeoConfig geo,
+        ISet<string>? publishedUrls = null)
     {
         var sb = new StringBuilder();
         var title = config.Site.Title;
@@ -265,6 +268,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             sb.AppendLine();
             foreach (var page in orderedPages)
             {
+                publishedUrls?.Add(page.Url);
                 sb.Append(MarkdownLink(page.Title, page.Url));
                 if (!string.IsNullOrWhiteSpace(page.Description))
                 {
@@ -288,6 +292,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
                 var url = ResolveFullUrl(candidate.Entry.Route.Url, canonicalBase);
                 var pageTitle = candidate.Record.Presentation.Title ?? candidate.Model?.Title ?? candidate.Document.Title;
                 var desc = candidate.Record.Presentation.Summary ?? candidate.Model?.Description ?? description;
+                publishedUrls?.Add(url);
                 sb.Append(MarkdownLink(pageTitle, url));
                 if (!string.IsNullOrWhiteSpace(desc))
                 {
@@ -307,6 +312,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             sb.AppendLine();
             foreach (var page in optionalPages)
             {
+                publishedUrls?.Add(page.Url);
                 sb.Append(MarkdownLink(page.Title, page.Url));
                 if (!string.IsNullOrWhiteSpace(page.Description))
                 {
@@ -321,6 +327,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             {
                 foreach (var link in geo.LlmsTxtOptionalLinks)
                 {
+                    publishedUrls?.Add(link.Url);
                     sb.Append(MarkdownLink(link.Title, link.Url));
                     if (!string.IsNullOrWhiteSpace(link.Description))
                     {
@@ -377,7 +384,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         var canonicalBase = BuildBase(config, baseUrl);
         var recordsById = contentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
 
         sb.AppendLine($"# {title}");
         if (!string.IsNullOrWhiteSpace(description))
@@ -463,7 +470,8 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         IReadOnlyList<RoutedContentDocument> derivedDocuments,
         CanonicalContentGraph contentGraph,
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
-        IContentBodyStore bodyStore)
+        IContentBodyStore bodyStore,
+        ISet<string>? publishedUrls = null)
     {
         var sb = new StringBuilder();
         var title = config.Site.Title;
@@ -471,7 +479,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         var canonicalBase = BuildBase(config, baseUrl);
         var recordsById = contentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
 
         sb.AppendLine($"# {title}");
         if (!string.IsNullOrWhiteSpace(description))
@@ -497,6 +505,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             var record = candidate.Record;
 
             var url = ResolveFullUrl(entry.Route.Url, canonicalBase);
+            publishedUrls?.Add(url);
             sb.AppendLine($"# {record.Presentation.Title ?? document.Title}");
             sb.AppendLine();
             sb.AppendLine($"URL: {url}");

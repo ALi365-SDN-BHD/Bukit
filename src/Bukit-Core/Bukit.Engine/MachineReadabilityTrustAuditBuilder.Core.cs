@@ -78,6 +78,10 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             }
 
             var rssExpected = IsFeedFormatEnabled(config, "rss") && feedWindowRoutes.Contains(entry.Route.Url);
+            var sourceDocument = documentsByOutputPath?.GetValueOrDefault(key);
+            var searchExpected = entry.Indexable && (sourceDocument is null || !SearchIndexBuilder.IsSearchExcluded(sourceDocument));
+            var curation = sourceDocument is null ? null : LlmsCurationPolicyParser.Parse(sourceDocument);
+            var llmsExcluded = curation is { Valid: true, Policy.Visibility: LlmsVisibility.Exclude };
             var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
                 ? projectedSitemap
                 : entry.Indexable && ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>");
@@ -95,19 +99,17 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var jsonFeedIncluded = TryGetProjectionIncluded(projectionLookup, "jsonfeed", entry, out var projectedJsonFeed)
                 ? projectedJsonFeed
                 : entry.Indexable && jsonFeedExpected && ContainsInvariant(jsonFeedText, entry.Canonical);
-            var llmsExpected = IsLlmsContent(config, entry);
-            var llmsKindExpected = llmsExpected || (entry.Indexable && llmsText is not null);
+            var llmsExpected = !llmsExcluded && IsLlmsContent(config, entry);
+            var llmsKindExpected = !llmsExcluded && (llmsExpected || (entry.Indexable && llmsText is not null));
             var llmsIncluded = TryGetProjectionIncluded(projectionLookup, "llms", entry, out var projectedLlms)
                 ? projectedLlms
                 : entry.Indexable &&
-                  llmsKindExpected &&
                   (ContainsInvariant(llmsText, entry.Route.Url) || ContainsInvariant(llmsText, entry.Canonical));
-            var llmsFullExpected = IsLlmsFullContent(config, entry);
-            var llmsFullKindExpected = llmsFullExpected || (entry.Indexable && llmsFullText is not null);
+            var llmsFullExpected = !llmsExcluded && IsLlmsFullContent(config, entry);
+            var llmsFullKindExpected = !llmsExcluded && (llmsFullExpected || (entry.Indexable && llmsFullText is not null));
             var llmsFullIncluded = TryGetProjectionIncluded(projectionLookup, "llms-full", entry, out var projectedLlmsFull)
                 ? projectedLlmsFull
                 : entry.Indexable &&
-                  llmsFullKindExpected &&
                   (ContainsInvariant(llmsFullText, entry.Route.Url) || ContainsInvariant(llmsFullText, entry.Canonical));
             var robotsExpected = config.Site.Seo.RobotsTxt.Enabled || robotsText is not null;
             var agentManifestExpected = entry.Indexable;
@@ -127,7 +129,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                     Atom: atomFeedExpected,
                     JsonFeed: jsonFeedExpected,
                     Sitemap: entry.Indexable,
-                    Search: entry.Indexable,
+                    Search: searchExpected,
                     Llms: llmsKindExpected,
                     LlmsFull: llmsFullKindExpected,
                     Robots: robotsExpected,
@@ -156,10 +158,8 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 seoIssues.Add(Error("seo.noindex_in_sitemap", entry.Route.Url, $"Noindex route appears in sitemap: {entry.Canonical}."));
             }
 
-            if (documentsByOutputPath is not null &&
-                documentsByOutputPath.TryGetValue(key, out var curationDocument))
+            if (curation is not null)
             {
-                var curation = LlmsCurationPolicyParser.Parse(curationDocument);
                 if (curation.Valid && curation.Policy.Visibility == LlmsVisibility.Include && !entry.Indexable)
                 {
                     seoIssues.Add(Warning("geo.llms_include_nonindexable", entry.Route.Url,
@@ -187,7 +187,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             }
 
             AnalyzePublishDocument(document, trustRequirements, outputDir, publishIssues);
-            SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, rssIncluded, rssExpected, atomFeedIncluded, atomFeedExpected, jsonFeedIncluded, jsonFeedExpected, llmsIncluded, llmsExpected, llmsFullIncluded, llmsFullExpected, manifestIncluded, robotsText, publishIssues);
+            SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, searchExpected, rssIncluded, rssExpected, atomFeedIncluded, atomFeedExpected, jsonFeedIncluded, jsonFeedExpected, llmsIncluded, llmsExpected, llmsFullIncluded, llmsFullExpected, manifestIncluded, robotsText, publishIssues);
             publishDocuments.Add(document);
 
             var auditRoute = new SeoAuditRoute(

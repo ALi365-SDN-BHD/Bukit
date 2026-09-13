@@ -293,6 +293,10 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         PublishRepresentationExpectation expectation)
     {
         var kinds = existing.ToList();
+        if (!expectation.Search)
+        {
+            kinds.RemoveAll(kind => string.Equals(kind, "search", StringComparison.OrdinalIgnoreCase));
+        }
         foreach (var kind in PublishRepresentationRegistry.ExpectedAggregateKinds(expectation))
         {
             AddKind(kinds, true, kind);

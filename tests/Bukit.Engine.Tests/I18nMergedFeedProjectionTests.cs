@@ -311,7 +311,11 @@ public sealed class I18nMergedFeedProjectionTests
             Assert.Contains("https://example.com/zh/blog/hello/", llms, StringComparison.Ordinal);
             Assert.Contains("https://example.com/en/blog/hello/", llmsFull, StringComparison.Ordinal);
             Assert.Contains("https://example.com/zh/blog/hello/", llmsFull, StringComparison.Ordinal);
-            Assert.Contains("Sitemap: https://example.com/sitemap.xml", robots, StringComparison.Ordinal);
+            Assert.Contains("Sitemap: https://example.com/en/sitemap.xml", robots, StringComparison.Ordinal);
+            Assert.Contains("Sitemap: https://example.com/zh/sitemap.xml", robots, StringComparison.Ordinal);
+            Assert.False(File.Exists(Path.Combine(root, "dist", "sitemap.xml")));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "en", "sitemap.xml")));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "zh", "sitemap.xml")));
             Assert.DoesNotContain("publish.llms_missing_route", publishAudit, StringComparison.Ordinal);
             Assert.DoesNotContain("publish.llms_full_missing_route", publishAudit, StringComparison.Ordinal);
 

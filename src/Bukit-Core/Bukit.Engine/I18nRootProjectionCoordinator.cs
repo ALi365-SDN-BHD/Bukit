@@ -12,7 +12,10 @@ internal sealed record I18nRootProjectionWriterContext(
     string OutputDir,
     string RootBaseUrl,
     IReadOnlyList<BuildVariantResult> Results,
-    ILogger Logger);
+    ILogger Logger)
+{
+    internal Dictionary<string, IReadOnlySet<string>> PublishedUrls { get; } = new(StringComparer.Ordinal);
+}
 
 internal static class I18nRootProjectionCoordinator
 {
@@ -60,7 +63,8 @@ internal static class I18nRootProjectionCoordinator
             I18nRootProjectionInventory.BuildOutputs(
                 writerContext.OutputDir,
                 InventoryRepresentation(writerContext.Config, representation),
-                writerContext.Results));
+                writerContext.Results,
+                writerContext.PublishedUrls.GetValueOrDefault(representation.Kind)));
     }
 
     private static PublishProjectionResult Project(
@@ -71,7 +75,8 @@ internal static class I18nRootProjectionCoordinator
         writer.Write(context, representation);
         return new PublishProjectionResult(
             representation,
-            I18nRootProjectionInventory.BuildOutputs(context.OutputDir, InventoryRepresentation(context.Config, representation), context.Results));
+            I18nRootProjectionInventory.BuildOutputs(context.OutputDir, InventoryRepresentation(context.Config, representation),
+                context.Results, context.PublishedUrls.GetValueOrDefault(representation.Kind)));
     }
 
     private static PublishRepresentation InventoryRepresentation(AppConfig config, PublishRepresentation representation)

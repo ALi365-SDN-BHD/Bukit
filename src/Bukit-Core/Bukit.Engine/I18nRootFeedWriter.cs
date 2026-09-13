@@ -9,7 +9,6 @@ internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)
     {
-        _ = representation;
         var siteUrl = context.Config.Site.Url;
         if (string.IsNullOrWhiteSpace(siteUrl) ||
             SiteModeResolver.ResolveFeedMode(context.Config.Site) != "merged")
@@ -17,10 +16,20 @@ internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
             return;
         }
 
-        GenerateMergedFeeds(context, siteUrl);
+        var format = representation.Kind switch
+        {
+            "feed" => "rss",
+            "atom" => "atom",
+            "jsonfeed" => "json",
+            _ => string.Empty
+        };
+        if (ParseFeedFormats(context.Config.Site.Feed.Formats).Contains(format))
+        {
+            GenerateMergedFeeds(context, siteUrl, format);
+        }
     }
 
-    private static void GenerateMergedFeeds(I18nRootProjectionWriterContext context, string siteUrl)
+    private static void GenerateMergedFeeds(I18nRootProjectionWriterContext context, string siteUrl, string format)
     {
         var postCandidates = new List<(string RouteUrl, RssGenerator.Post Post)>();
         var rssCollections = ResolveRssCollections(context.Config.Site.Collections);
@@ -47,45 +56,41 @@ internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
             .OrderBy(candidate => candidate.RouteUrl, StringComparer.OrdinalIgnoreCase)
             .Select(candidate => candidate.Post)
             .ToArray();
-        var formats = ParseFeedFormats(context.Config.Site.Feed.Formats);
         var limit = context.Config.Site.Feed.Limit > 0 ? context.Config.Site.Feed.Limit : 20;
-        foreach (var format in formats)
+        switch (format)
         {
-            switch (format)
-            {
-                case "rss":
-                    RssGenerator.GenerateMerged(
-                        context.OutputDir,
-                        siteUrl,
-                        context.RootBaseUrl,
-                        context.Config.Site.Title,
-                        posts,
-                        limit,
-                        context.Config.Site.Description);
-                    break;
-                case "atom":
-                    AtomFeedGenerator.Generate(
-                        context.OutputDir,
-                        siteUrl,
-                        context.RootBaseUrl,
-                        context.Config.Site.Title,
-                        posts,
-                        $"{context.Config.Site.Feed.Path}/atom.xml",
-                        limit,
-                        context.Config.Site.Description);
-                    break;
-                case "json":
-                    JsonFeedGenerator.Generate(
-                        context.OutputDir,
-                        siteUrl,
-                        context.RootBaseUrl,
-                        context.Config.Site.Title,
-                        posts,
-                        $"{context.Config.Site.Feed.Path}/feed.json",
-                        limit,
-                        context.Config.Site.Description);
-                    break;
-            }
+            case "rss":
+                RssGenerator.GenerateMerged(
+                    context.OutputDir,
+                    siteUrl,
+                    context.RootBaseUrl,
+                    context.Config.Site.Title,
+                    posts,
+                    limit,
+                    context.Config.Site.Description);
+                break;
+            case "atom":
+                AtomFeedGenerator.Generate(
+                    context.OutputDir,
+                    siteUrl,
+                    context.RootBaseUrl,
+                    context.Config.Site.Title,
+                    posts,
+                    $"{context.Config.Site.Feed.Path}/atom.xml",
+                    limit,
+                    context.Config.Site.Description);
+                break;
+            case "json":
+                JsonFeedGenerator.Generate(
+                    context.OutputDir,
+                    siteUrl,
+                    context.RootBaseUrl,
+                    context.Config.Site.Title,
+                    posts,
+                    $"{context.Config.Site.Feed.Path}/feed.json",
+                    limit,
+                    context.Config.Site.Description);
+                break;
         }
     }
 

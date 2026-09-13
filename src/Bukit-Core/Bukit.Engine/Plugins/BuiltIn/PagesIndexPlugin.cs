@@ -71,7 +71,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
     {
         var recordsById = context.ContentGraph.Records
             .GroupBy(x => x.Identity.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
         foreach (var routedDocument in context.RoutedDocuments)
         {
             var document = routedDocument.Document;
@@ -80,7 +80,11 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
                 continue;
             }
 
-            recordsById.TryGetValue(document.Id, out var record);
+            var record = recordsById.TryGetValue(document.Id, out var records)
+                ? records.FirstOrDefault(candidate => string.Equals(candidate.Presentation.Language,
+                    document.Record.Presentation.Language, StringComparison.OrdinalIgnoreCase))
+                    ?? records[0]
+                : document.Record;
             index[document.Id] = BuildPageObject(document, routedDocument.Route, record);
         }
     }

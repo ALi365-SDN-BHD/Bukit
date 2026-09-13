@@ -27,6 +27,7 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
         }
 
         var state = I18nMergedVariantState.Create(context.Results);
+        var urls = new HashSet<string>(StringComparer.Ordinal);
         LlmsTxtPlugin.WriteLlmsTxt(
             context.Config,
             context.OutputDir,
@@ -35,7 +36,9 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
             state.DerivedDocuments,
             state.SeoIndex,
             state.SeoModels,
-            context.Config.Site.Seo.Geo);
+            context.Config.Site.Seo.Geo,
+            urls);
+        context.PublishedUrls["llms"] = urls;
     }
 
     private static void GenerateRootLlmsFull(I18nRootProjectionWriterContext context)
@@ -46,6 +49,7 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
         }
 
         var state = I18nMergedVariantState.Create(context.Results);
+        var urls = new HashSet<string>(StringComparer.Ordinal);
         LlmsTxtPlugin.WriteLlmsFullTxt(
             context.Config,
             context.OutputDir,
@@ -54,6 +58,8 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
             state.DerivedDocuments,
             state.ContentGraph,
             state.SeoIndex,
-            state.BodyStore);
+            state.BodyStore,
+            urls);
+        context.PublishedUrls["llms-full"] = urls;
     }
 }
