@@ -201,6 +201,158 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         Assert.Equal("old-cache", File.ReadAllText(Path.Combine(finalCache, "sentinel.txt")));
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public async Task WorktreeBuild_PreservesOutputCleaningProtection(bool clean, bool marked)
+    {
+        var root = Path.Combine(_root, "output-protection");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+        var output = Path.Combine(root, "dist");
+        Directory.CreateDirectory(output);
+        var sentinel = Path.Combine(output, "user-file.txt");
+        File.WriteAllText(sentinel, "keep me");
+        var hidden = Path.Combine(output, ".npmrc");
+        File.WriteAllText(hidden, "keep hidden file");
+        var cache = Path.Combine(root, ".cache");
+        Directory.CreateDirectory(cache);
+        var cacheFile = Path.Combine(cache, "existing.key");
+        File.WriteAllText(cacheFile, "keep cache file");
+        if (marked)
+        {
+            File.WriteAllText(Path.Combine(output, ".bukit-output-marker"), "");
+        }
+
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site, clean ? "--clean" : "--no-clean"], root);
+
+        if (clean && !marked)
+        {
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains(".bukit-output-marker", result.Output, StringComparison.Ordinal);
+            Assert.Equal("keep me", File.ReadAllText(sentinel));
+        }
+        else
+        {
+            Assert.True(result.ExitCode == 0, result.Output);
+            Assert.Equal(!clean, File.Exists(sentinel));
+            Assert.Equal(!clean, File.Exists(hidden));
+            Assert.True(File.Exists(Path.Combine(output, "en", "index.html")));
+        }
+        Assert.Equal("keep cache file", File.ReadAllText(cacheFile));
+    }
+
+    [Fact]
+    public void Staging_PreservesLinksAndEmptyDirectories_WithoutFollowingTargets()
+    {
+        if (OperatingSystem.IsWindows()) return; // Creating symlinks requires host privileges on Windows.
+        var source = Path.Combine(_root, "source");
+        var staging = Path.Combine(_root, "staging");
+        Directory.CreateDirectory(Path.Combine(source, "empty"));
+        File.WriteAllText(Path.Combine(source, ".env"), "retained");
+        File.CreateSymbolicLink(Path.Combine(source, "file-link"), ".env");
+        File.CreateSymbolicLink(Path.Combine(source, "dangling-link"), "missing");
+        Directory.CreateSymbolicLink(Path.Combine(source, "cycle"), ".");
+
+        WorktreeBuildCoordinator.PrepareStaging(source, staging, copyExisting: true);
+        WorktreeBuildCoordinator.CommitDirectories([(staging, source, Path.Combine(_root, "backup"))], []);
+
+        Assert.Equal("retained", File.ReadAllText(Path.Combine(source, ".env")));
+        Assert.True(Directory.Exists(Path.Combine(source, "empty")));
+        Assert.Equal(".env", new FileInfo(Path.Combine(source, "file-link")).LinkTarget);
+        Assert.Equal("missing", new FileInfo(Path.Combine(source, "dangling-link")).LinkTarget);
+        Assert.Equal(".", new DirectoryInfo(Path.Combine(source, "cycle")).LinkTarget);
+    }
+
+    [Fact]
+    public void BackupCleanupFailure_DoesNotThrowOrRemoveRetainedBackup()
+    {
+        var backup = Path.Combine(_root, "retained-backup");
+        Directory.CreateDirectory(backup);
+        File.WriteAllText(Path.Combine(backup, "original"), "old");
+
+        // A directory at a file-cleanup path deterministically produces an I/O/access error on every OS.
+        WorktreeBuildCoordinator.CleanupBackup(backup, isDirectory: false);
+
+        Assert.Equal("old", File.ReadAllText(Path.Combine(backup, "original")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FailedBuild_PreservesOutputCacheAndExternalFiles(bool cacheLink)
+    {
+        if (cacheLink && OperatingSystem.IsWindows()) return;
+        var root = Path.Combine(_root, "failure-atomicity");
+        var site = CreateSite(root, "/reports/\n");
+        await InitializeRepositoryAsync(root);
+        var invocation = new[] { typeof(BuildCommand).Assembly.Location, "build", "--config", site };
+        var first = await RunProcessAsync("dotnet", invocation, root);
+        Assert.True(first.ExitCode == 0, first.Output);
+        var reports = Path.Combine(root, "reports");
+        Directory.CreateDirectory(reports);
+        var sentinel = Path.Combine(reports, "sentinel.txt");
+        File.WriteAllText(sentinel, "unchanged");
+        if (cacheLink)
+        {
+            File.CreateSymbolicLink(Path.Combine(root, ".cache", "build-manifest.json.tmp"), sentinel);
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "{{ invalid(");
+        }
+        else
+        {
+            Directory.CreateDirectory(Path.Combine(reports, "result.json"));
+            File.AppendAllText(Path.Combine(root, "content", "en", "index.md"), "\nnew content");
+        }
+        Assert.Equal(0, (await RunProcessAsync("git", ["add", "."], root)).ExitCode);
+        Assert.Equal(0, (await RunProcessAsync("git", ["commit", "-m", "failure fixture"], root)).ExitCode);
+        var outputBefore = SnapshotPublishedOutputs(Path.Combine(root, "dist"));
+        var cacheBefore = SnapshotPublishedOutputs(Path.Combine(root, ".cache"));
+
+        var result = await RunProcessAsync("dotnet", cacheLink ? invocation :
+            [.. invocation, "--metrics", "reports/result.json"], root);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains(cacheLink ? "i18n-worktree-worker-failed" : "File transaction target is a directory", result.Output, StringComparison.Ordinal);
+        Assert.Equal(outputBefore, SnapshotPublishedOutputs(Path.Combine(root, "dist")));
+        Assert.Equal(cacheBefore, SnapshotPublishedOutputs(Path.Combine(root, ".cache")));
+        Assert.Equal("unchanged", File.ReadAllText(sentinel));
+        var worktrees = await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root);
+        Assert.Single(worktrees.Output.Split('\n'), line => line.StartsWith("worktree ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Commit_DoesNotDeleteBackupPathsItDidNotCreate()
+    {
+        var staging = Path.Combine(_root, "new-metrics.json");
+        var final = Path.Combine(_root, "metrics.json");
+        var backup = Path.Combine(_root, "unowned-backup");
+        File.WriteAllText(staging, "new");
+        File.WriteAllText(backup, "unrelated");
+
+        WorktreeBuildCoordinator.CommitDirectories([], [(staging, final, backup)]);
+
+        Assert.Equal("new", File.ReadAllText(final));
+        Assert.Equal("unrelated", File.ReadAllText(backup));
+    }
+
+    [Fact]
+    public async Task WorktreeBuild_RejectsGitDirectoryEvenWithoutCleaning()
+    {
+        var root = Path.Combine(_root, "unsafe-output");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+        var head = File.ReadAllText(Path.Combine(root, ".git", "HEAD"));
+
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site, "--output", ".git", "--no-clean"], root);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("unsafe output directory", result.Output, StringComparison.Ordinal);
+        Assert.Equal(head, File.ReadAllText(Path.Combine(root, ".git", "HEAD")));
+    }
+
     [Fact]
     public async Task WorkerFailure_PreservesPublishedOutputCacheAndExistingWorktrees()
     {
@@ -232,7 +384,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
-    public async Task NextBuild_RecoversOnlyRegisteredResidualWorktree()
+    public async Task NextBuild_ProtectsActiveRun_ThenRecoversOnlyRegisteredResidualWorktree()
     {
         var root = Path.Combine(_root, "residual-recovery");
         var site = CreateSite(root);
@@ -244,6 +396,16 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         Directory.CreateDirectory(runRoot);
         Assert.Equal(0, (await RunProcessAsync("git", ["worktree", "add", "--detach", residualWorktree, "HEAD"], root)).ExitCode);
         await File.WriteAllTextAsync(Path.Combine(runRoot, "owned-worktrees.txt"), residualWorktree + Environment.NewLine);
+
+        using (WorktreeBuildCoordinator.AcquireRunLock(repository))
+        {
+            var competing = await RunProcessAsync("dotnet",
+                [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+            Assert.NotEqual(0, competing.ExitCode);
+            Assert.Contains("Cannot acquire the multilingual build lock", competing.Output, StringComparison.Ordinal);
+            Assert.True(Directory.Exists(residualWorktree));
+            Assert.True(File.Exists(Path.Combine(runRoot, "owned-worktrees.txt")));
+        }
 
         var result = await RunProcessAsync(
             "dotnet",

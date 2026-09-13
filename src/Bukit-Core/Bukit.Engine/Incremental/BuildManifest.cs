@@ -99,12 +99,14 @@ public sealed class BuildManifest
             Directory.CreateDirectory(dir);
         }
 
-        var tempPath = manifestPath + ".tmp";
+        var tempPath = manifestPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var created = false;
         try
         {
-            using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 65536))
-            using (var writer = new Utf8JsonWriter(stream))
+            using (var stream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 65536))
             {
+                created = true;
+                using var writer = new Utf8JsonWriter(stream);
                 writer.WriteStartObject();
                 writer.WriteNumber("version", Version);
                 writer.WriteString("templateHash", TemplateHash);
@@ -143,7 +145,7 @@ public sealed class BuildManifest
         }
         catch
         {
-            DeleteFileBestEffort(tempPath);
+            if (created) DeleteFileBestEffort(tempPath);
             throw;
         }
     }

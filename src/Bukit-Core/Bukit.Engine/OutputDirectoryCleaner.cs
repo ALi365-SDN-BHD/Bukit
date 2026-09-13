@@ -19,7 +19,7 @@ public static class OutputDirectoryCleaner
         Directory.Delete(outputDir, recursive: true);
     }
 
-    private static void EnsureCanClean(string rootDir, string outputDir)
+    internal static void EnsureCanClean(string rootDir, string outputDir, bool requireMarker = true)
     {
         var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var fullOutput = Path.GetFullPath(outputDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -33,7 +33,7 @@ public static class OutputDirectoryCleaner
             throw new ConfigException($"Refusing to clean unsafe output directory: {outputDir}. How to fix: set build.output to a dedicated subdirectory like 'dist' or 'public'.", DiagnosticCode.BuildOutputUnsafe);
         }
 
-        if (!Directory.EnumerateFileSystemEntries(fullOutput).Any())
+        if (!requireMarker || !Directory.Exists(fullOutput) || !Directory.EnumerateFileSystemEntries(fullOutput).Any())
         {
             return;
         }
@@ -66,6 +66,10 @@ public static class OutputDirectoryCleaner
                 {
                     return true;
                 }
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                return false;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

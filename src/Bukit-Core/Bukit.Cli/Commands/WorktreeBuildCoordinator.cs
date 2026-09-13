@@ -104,11 +104,11 @@ internal static class WorktreeBuildCoordinator
             ? Path.Combine(resolved.RootDir, ".cache")
             : Path.GetFullPath(overrides.CacheDir);
         EnsureDisjoint(finalOutputDir, finalCacheDir);
+        OutputDirectoryCleaner.EnsureCanClean(resolved.RootDir, finalOutputDir, effectiveConfig.Build.Clean);
 
         var runId = Guid.NewGuid().ToString("N");
         var runsRoot = RunsRoot(repository.Root);
-        Directory.CreateDirectory(runsRoot);
-        RestrictDirectory(runsRoot);
+        using var runLock = AcquireRunLock(repository.Root);
         await RecoverOwnedWorktreesAsync(repository.Root, runsRoot, logger, cancellationToken).ConfigureAwait(false);
 
         var runRoot = Path.Combine(runsRoot, runId);
@@ -657,18 +657,31 @@ internal static class WorktreeBuildCoordinator
             CreateNoWindow = true
         };
 
-    private static void PrepareStaging(string source, string staging, bool copyExisting)
+    internal static void PrepareStaging(string source, string staging, bool copyExisting)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(staging)!);
         Directory.CreateDirectory(staging);
         if (copyExisting && Directory.Exists(source))
         {
-            DirectoryCopy.Sync(source, staging, new DirectoryCopyOptions
+            foreach (var entry in new DirectoryInfo(source).EnumerateFileSystemInfos())
             {
-                IgnoreDotPrefixedFiles = false,
-                FollowSymlinks = false,
-                Prune = false
-            });
+                var destination = Path.Combine(staging, entry.Name);
+                if (entry.LinkTarget is { } target)
+                {
+                    if (entry is DirectoryInfo)
+                        Directory.CreateSymbolicLink(destination, target);
+                    else
+                        File.CreateSymbolicLink(destination, target);
+                }
+                else if (entry is DirectoryInfo)
+                {
+                    PrepareStaging(entry.FullName, destination, copyExisting: true);
+                }
+                else
+                {
+                    File.Copy(entry.FullName, destination);
+                }
+            }
         }
     }
 
@@ -721,8 +734,13 @@ internal static class WorktreeBuildCoordinator
         IReadOnlyList<(string Staging, string Final, string Backup)> directories,
         IReadOnlyList<(string Staging, string Final, string Backup)> files)
     {
-        var completedDirectories = new List<(string Staging, string Final, string Backup, bool HadOriginal)>();
-        var completedFiles = new List<(string Staging, string Final, string Backup, bool HadOriginal)>();
+        foreach (var item in directories)
+            if (File.Exists(item.Final)) throw new IOException($"Directory transaction target is a file: {item.Final}");
+        foreach (var item in files)
+            if (Directory.Exists(item.Final)) throw new IOException($"File transaction target is a directory: {item.Final}");
+
+        var completedDirectories = new List<(string Staging, string Final, string Backup, bool HadOriginal, bool Installed)>();
+        var completedFiles = new List<(string Staging, string Final, string Backup, bool HadOriginal, bool Installed)>();
         try
         {
             foreach (var item in directories)
@@ -732,8 +750,9 @@ internal static class WorktreeBuildCoordinator
                 {
                     Directory.Move(item.Final, item.Backup);
                 }
-                completedDirectories.Add((item.Staging, item.Final, item.Backup, hadOriginal));
+                completedDirectories.Add((item.Staging, item.Final, item.Backup, hadOriginal, false));
                 Directory.Move(item.Staging, item.Final);
+                completedDirectories[^1] = (item.Staging, item.Final, item.Backup, hadOriginal, true);
             }
             foreach (var item in files.Where(item => File.Exists(item.Staging)))
             {
@@ -743,37 +762,64 @@ internal static class WorktreeBuildCoordinator
                 {
                     File.Move(item.Final, item.Backup);
                 }
-                completedFiles.Add((item.Staging, item.Final, item.Backup, hadOriginal));
+                completedFiles.Add((item.Staging, item.Final, item.Backup, hadOriginal, false));
                 File.Move(item.Staging, item.Final);
+                completedFiles[^1] = (item.Staging, item.Final, item.Backup, hadOriginal, true);
             }
         }
-        catch
+        catch (Exception commitError)
         {
+            var rollbackErrors = new List<Exception>();
             foreach (var item in completedFiles.AsEnumerable().Reverse())
             {
-                File.Delete(item.Final);
-                if (item.HadOriginal && File.Exists(item.Backup))
+                try
                 {
-                    File.Move(item.Backup, item.Final);
+                    if (item.Installed) File.Delete(item.Final);
+                    if (item.HadOriginal) File.Move(item.Backup, item.Final);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    rollbackErrors.Add(new IOException($"Unable to restore '{item.Final}'; backup: '{item.Backup}'.", ex));
                 }
             }
             foreach (var item in completedDirectories.AsEnumerable().Reverse())
             {
-                TryDeleteDirectory(item.Final);
-                if (item.HadOriginal && Directory.Exists(item.Backup))
+                try
                 {
-                    Directory.Move(item.Backup, item.Final);
+                    if (item.Installed) Directory.Delete(item.Final, recursive: true);
+                    if (item.HadOriginal) Directory.Move(item.Backup, item.Final);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    rollbackErrors.Add(new IOException($"Unable to restore '{item.Final}'; backup: '{item.Backup}'.", ex));
                 }
             }
+            if (rollbackErrors.Count > 0)
+                throw new AggregateException("Output transaction failed and rollback is incomplete.", new[] { commitError }.Concat(rollbackErrors));
             throw;
         }
-        foreach (var item in completedFiles)
+        foreach (var item in completedFiles.Where(item => item.HadOriginal))
         {
-            File.Delete(item.Backup);
+            CleanupBackup(item.Backup, isDirectory: false);
         }
-        foreach (var item in completedDirectories)
+        foreach (var item in completedDirectories.Where(item => item.HadOriginal))
         {
-            TryDeleteDirectory(item.Backup);
+            CleanupBackup(item.Backup, isDirectory: true);
+        }
+    }
+
+    internal static void CleanupBackup(string path, bool isDirectory)
+    {
+        try
+        {
+            if (isDirectory)
+                Directory.Delete(path, recursive: true);
+            else
+                File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"[i18n-worktree-cleanup-failed] Build committed; backup retained at '{path}': {ex.Message}");
         }
     }
 
@@ -843,6 +889,23 @@ internal static class WorktreeBuildCoordinator
     {
         var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(repositoryRoot))))[..16];
         return Path.Combine(Path.GetTempPath(), "bukit-i18n-worktrees", hash);
+    }
+
+    internal static FileStream AcquireRunLock(string repositoryRoot)
+    {
+        var runsRoot = RunsRoot(repositoryRoot);
+        Directory.CreateDirectory(runsRoot);
+        RestrictDirectory(runsRoot);
+        // ponytail: serialize builds per checkout; use per-output locks only if concurrent builds become necessary.
+        // Keep the lock file: deleting it could let another process lock a different inode.
+        try
+        {
+            return new FileStream(Path.Combine(runsRoot, "build.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        }
+        catch (IOException ex)
+        {
+            throw new WorktreeBuildException("i18n-worktree-worker-failed", "Cannot acquire the multilingual build lock; another build may still be running.", ex);
+        }
     }
 
     private static void TryDeleteDirectory(string path)
