@@ -27,7 +27,11 @@ internal sealed record LlmsCurationPolicy(
 internal sealed record LlmsCurationParseResult(
     bool Valid,
     LlmsCurationPolicy Policy,
-    IReadOnlyList<string> ErrorCodes);
+    IReadOnlyList<string> ErrorCodes)
+{
+    internal bool IsExplicitlyIncluded => Valid && Policy.Visibility == LlmsVisibility.Include;
+    internal bool IsExplicitlyExcluded => Valid && Policy.Visibility == LlmsVisibility.Exclude;
+}
 
 internal static class LlmsCurationPolicyParser
 {

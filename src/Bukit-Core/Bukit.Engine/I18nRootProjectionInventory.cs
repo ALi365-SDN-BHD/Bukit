@@ -58,35 +58,11 @@ internal static class I18nRootProjectionInventory
         {
             if (kind is "search" or "jsonfeed" or "agent-manifest")
             {
-                using var json = JsonDocument.Parse(text);
-                var items = json.RootElement;
-                var arrayName = kind == "jsonfeed" ? "items" : "documents";
-                if (items.ValueKind != JsonValueKind.Array &&
-                    (items.ValueKind != JsonValueKind.Object || !items.TryGetProperty(arrayName, out items)))
-                    return urls;
-                if (items.ValueKind != JsonValueKind.Array) return urls;
-                foreach (var item in items.EnumerateArray())
-                {
-                    if (item.ValueKind == JsonValueKind.Object &&
-                        item.TryGetProperty(kind == "agent-manifest" ? "route" : "url", out var url) &&
-                        url.ValueKind == JsonValueKind.String)
-                        urls.Add(url.GetString()!);
-                }
+                ReadJsonUrls(text, kind, urls);
             }
             else if (kind is "sitemap" or "feed" or "atom")
             {
-                var root = XDocument.Parse(text).Root;
-                var container = kind == "feed" ? root?.Elements().FirstOrDefault(element => element.Name.LocalName == "channel") : root;
-                var entryName = kind switch { "sitemap" => "url", "feed" => "item", _ => "entry" };
-                foreach (var entry in container?.Elements().Where(element => element.Name.LocalName == entryName) ?? [])
-                {
-                    foreach (var link in entry.Elements().Where(element => element.Name.LocalName == (kind == "sitemap" ? "loc" : "link")))
-                    {
-                        if (kind == "atom" && link.Attribute("rel")?.Value is not (null or "alternate")) continue;
-                        var url = kind == "atom" ? link.Attribute("href")?.Value : link.Value;
-                        if (!string.IsNullOrWhiteSpace(url)) urls.Add(url.Trim());
-                    }
-                }
+                ReadXmlUrls(text, kind, urls);
             }
         }
         catch (Exception exception) when (exception is JsonException or System.Xml.XmlException)
@@ -95,6 +71,40 @@ internal static class I18nRootProjectionInventory
             urls.Clear();
         }
         return urls;
+    }
+
+    private static void ReadJsonUrls(string text, string kind, HashSet<string> urls)
+    {
+        using var json = JsonDocument.Parse(text);
+        var items = json.RootElement;
+        var arrayName = kind == "jsonfeed" ? "items" : "documents";
+        if (items.ValueKind != JsonValueKind.Array &&
+            (items.ValueKind != JsonValueKind.Object || !items.TryGetProperty(arrayName, out items)))
+            return;
+        if (items.ValueKind != JsonValueKind.Array) return;
+        foreach (var item in items.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.Object &&
+                item.TryGetProperty(kind == "agent-manifest" ? "route" : "url", out var url) &&
+                url.ValueKind == JsonValueKind.String)
+                urls.Add(url.GetString()!);
+        }
+    }
+
+    private static void ReadXmlUrls(string text, string kind, HashSet<string> urls)
+    {
+        var root = XDocument.Parse(text).Root;
+        var container = kind == "feed" ? root?.Elements().FirstOrDefault(element => element.Name.LocalName == "channel") : root;
+        var entryName = kind switch { "sitemap" => "url", "feed" => "item", _ => "entry" };
+        foreach (var entry in container?.Elements().Where(element => element.Name.LocalName == entryName) ?? [])
+        {
+            foreach (var link in entry.Elements().Where(element => element.Name.LocalName == (kind == "sitemap" ? "loc" : "link")))
+            {
+                if (kind == "atom" && link.Attribute("rel")?.Value is not (null or "alternate")) continue;
+                var url = kind == "atom" ? link.Attribute("href")?.Value : link.Value;
+                if (!string.IsNullOrWhiteSpace(url)) urls.Add(url.Trim());
+            }
+        }
     }
 }
 

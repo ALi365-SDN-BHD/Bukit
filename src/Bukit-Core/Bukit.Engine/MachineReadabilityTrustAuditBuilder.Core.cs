@@ -78,10 +78,11 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             }
 
             var rssExpected = IsFeedFormatEnabled(config, "rss") && feedWindowRoutes.Contains(entry.Route.Url);
-            var sourceDocument = documentsByOutputPath?.GetValueOrDefault(key);
+            ContentDocument? sourceDocument = null;
+            documentsByOutputPath?.TryGetValue(key, out sourceDocument);
             var searchExpected = entry.Indexable && (sourceDocument is null || !SearchIndexBuilder.IsSearchExcluded(sourceDocument));
             var curation = sourceDocument is null ? null : LlmsCurationPolicyParser.Parse(sourceDocument);
-            var llmsExcluded = curation is { Valid: true, Policy.Visibility: LlmsVisibility.Exclude };
+            var llmsExcluded = curation is { IsExplicitlyExcluded: true };
             var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
                 ? projectedSitemap
                 : entry.Indexable && ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>");
@@ -160,14 +161,13 @@ internal static partial class MachineReadabilityTrustAuditBuilder
 
             if (curation is not null)
             {
-                if (curation.Valid && curation.Policy.Visibility == LlmsVisibility.Include && !entry.Indexable)
+                if (curation.IsExplicitlyIncluded && !entry.Indexable)
                 {
                     seoIssues.Add(Warning("geo.llms_include_nonindexable", entry.Route.Url,
                         $"llms visibility include cannot override noindex; route stays excluded from llms output: {entry.Canonical}."));
                 }
 
-                if (curation.Valid &&
-                    curation.Policy.Visibility == LlmsVisibility.Exclude &&
+                if (curation.IsExplicitlyExcluded &&
                     (llmsIncluded || llmsFullIncluded))
                 {
                     publishIssues.Add(new PublishAuditIssue("warning", "publish.llms_excluded_route_present", entry.Route.Url,

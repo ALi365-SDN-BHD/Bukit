@@ -47,7 +47,7 @@ internal sealed class BuildTransaction : IDisposable
     }
 
     internal static BuildTransaction Begin(AppConfig config, string rootDir, ConfigOverrides overrides, ILogger logger,
-        CancellationToken cancellationToken = default, Action<string, string, bool>? move = null, Action<string, bool>? delete = null)
+        Action<string, string, bool>? move = null, Action<string, bool>? delete = null, CancellationToken cancellationToken = default)
     {
         config = ConfigApplier.Apply(config, overrides);
         ConfigValidator.Validate(config);
@@ -61,15 +61,27 @@ internal sealed class BuildTransaction : IDisposable
             throw new ConfigException("Unsafe or overlapping build output/cache directories. How to fix: use a dedicated output subdirectory and separate cache directory.", DiagnosticCode.BuildOutputUnsafe);
         var media = ContentProviderFactory.BuildEffectiveMediaConfig(config.Content.Media, rootDir, Path.Combine(cache, "media")).DownloadDir;
         var resources = GetResources(config, rootDir, overrides, output, cache, media);
-        var theme = ThemePathResolver.Resolve(rootDir, config.Theme, logger);
-        var inputs = new[] { theme.LayoutsDir, theme.AssetsDir, theme.StaticDir, theme.ParentLayoutsDir, theme.ParentAssetsDir, theme.ParentStaticDir, theme.UserLayoutsDir }
-            .Where(path => path is not null).Select(path => ResourcePath(path!)).ToArray();
-        foreach (var resource in resources.Where(resource => resource.Write))
-            if (inputs.Any(input => BuildResourceLease.Same(input, resource.Path) || BuildResourceLease.Contains(input, resource.Path) || resource.Directory && BuildResourceLease.Contains(resource.Path, input)))
-                throw new IOException($"Build resource overlaps source tree and cannot be staged safely: {resource.Path}");
-        foreach (var file in resources.Where(resource => !resource.Directory))
-            if (resources.Any(other => BuildResourceLease.Contains(file.Path, other.Path) || other.Directory && BuildResourceLease.Same(file.Path, other.Path)))
-                throw new IOException($"A file resource cannot contain another resource: {file.Path}");
+        ValidateResources(config, rootDir, output, resources, logger);
+        var targets = CreateTargets(resources);
+        var lease = BuildResourceLease.Acquire(resources);
+        BuildTransaction? transaction = null;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // Validate the formal target, never a conveniently empty staging directory.
+            BuildPlanner.ValidateOutputDirectory(config, logicalRoot, logicalOutput, overrides);
+            transaction = new(targets, lease, logger, output, cache, ResourcePath(media), logicalOutput, move, delete);
+            StageTargets(targets, output, config, cancellationToken);
+            foreach (var resource in resources.Where(r => !r.Write))
+                transaction._readOnly.Add((resource.Path, Fingerprint(transaction.Map(resource.Path))));
+            return transaction;
+        }
+        catch { if (transaction is null) lease.Dispose(); else transaction.Dispose(); throw; }
+    }
+
+    private static void ValidateResources(AppConfig config, string rootDir, string output, List<BuildResourceLease.Resource> resources, ILogger logger)
+    {
+        ValidateSourceResources(config, rootDir, resources, logger);
         foreach (var resource in resources.Where(r => r.Write))
         {
             if (BuildResourceLease.Same(resource.Path, rootDir) || BuildResourceLease.Contains(resource.Path, rootDir) || resource.Path.Split(Path.DirectorySeparatorChar).Contains(".git"))
@@ -80,6 +92,23 @@ internal sealed class BuildTransaction : IDisposable
         foreach (var reader in resources.Where(resource => !resource.Write))
             if (resources.Any(writer => writer.Write && (BuildResourceLease.Same(reader.Path, writer.Path) || reader.Directory && BuildResourceLease.Contains(reader.Path, writer.Path))))
                 throw new IOException($"Read-only cache overlaps a writer: {reader.Path}");
+    }
+
+    private static void ValidateSourceResources(AppConfig config, string rootDir, List<BuildResourceLease.Resource> resources, ILogger logger)
+    {
+        var theme = ThemePathResolver.Resolve(rootDir, config.Theme, logger);
+        var inputs = new[] { theme.LayoutsDir, theme.AssetsDir, theme.StaticDir, theme.ParentLayoutsDir, theme.ParentAssetsDir, theme.ParentStaticDir, theme.UserLayoutsDir }
+            .Where(path => path is not null).Select(path => ResourcePath(path!)).ToArray();
+        foreach (var resource in resources.Where(resource => resource.Write))
+            if (inputs.Any(input => BuildResourceLease.Same(input, resource.Path) || BuildResourceLease.Contains(input, resource.Path) || resource.Directory && BuildResourceLease.Contains(resource.Path, input)))
+                throw new IOException($"Build resource overlaps source tree and cannot be staged safely: {resource.Path}");
+        foreach (var file in resources.Where(resource => !resource.Directory))
+            if (resources.Any(other => BuildResourceLease.Contains(file.Path, other.Path) || other.Directory && BuildResourceLease.Same(file.Path, other.Path)))
+                throw new IOException($"A file resource cannot contain another resource: {file.Path}");
+    }
+
+    private static List<Target> CreateTargets(List<BuildResourceLease.Resource> resources)
+    {
         var targets = new List<Target>();
         foreach (var resource in resources.Where(r => r.Write).OrderBy(r => r.Path.Length))
         {
@@ -87,33 +116,25 @@ internal sealed class BuildTransaction : IDisposable
             if (targets.Any(t => BuildResourceLease.Same(t.Path, resource.Path))) throw new IOException($"Duplicate incompatible resource: {resource.Path}");
             targets.Add(new Target(resource.Path, resource.Directory));
         }
-        var lease = BuildResourceLease.Acquire(resources);
-        BuildTransaction? transaction = null;
-        try
+        return targets;
+    }
+
+    private static void StageTargets(List<Target> targets, string output, AppConfig config, CancellationToken cancellationToken)
+    {
+        foreach (var target in targets)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            // Validate the formal target, never a conveniently empty staging directory.
-            BuildPlanner.ValidateOutputDirectory(config, logicalRoot, logicalOutput, overrides);
-            transaction = new(targets, lease, logger, output, cache, ResourcePath(media), logicalOutput, move, delete);
-            foreach (var target in targets)
+            if (!Directory.Exists(Path.GetDirectoryName(target.Stage))) throw new IOException($"Build resource parent disappeared: {target.Path}");
+            if (target.Directory)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!Directory.Exists(Path.GetDirectoryName(target.Stage))) throw new IOException($"Build resource parent disappeared: {target.Path}");
-                if (target.Directory)
-                {
-                    Directory.CreateDirectory(target.Stage);
-                    if (target.Path == output && !config.Build.Clean) RejectGeneratedOutputLinks(output, config);
-                    if (Directory.Exists(target.Path) && !(config.Build.Clean && target.Path == output)) CopyDirectory(target.Path, target.Stage, cancellationToken, target.Path == output);
-                    else if (File.Exists(target.Path)) throw new IOException($"A file occupies directory resource: {target.Path}");
-                }
-                else if (File.Exists(target.Path)) File.Copy(target.Path, target.Stage);
-                else if (Directory.Exists(target.Path)) throw new IOException($"A directory occupies file resource: {target.Path}");
+                Directory.CreateDirectory(target.Stage);
+                if (target.Path == output && !config.Build.Clean) RejectGeneratedOutputLinks(output, config);
+                if (Directory.Exists(target.Path) && !(config.Build.Clean && target.Path == output)) CopyDirectory(target.Path, target.Stage, target.Path == output, cancellationToken);
+                else if (File.Exists(target.Path)) throw new IOException($"A file occupies directory resource: {target.Path}");
             }
-            foreach (var resource in resources.Where(r => !r.Write))
-                transaction._readOnly.Add((resource.Path, Fingerprint(transaction.Map(resource.Path))));
-            return transaction;
+            else if (File.Exists(target.Path)) File.Copy(target.Path, target.Stage);
+            else if (Directory.Exists(target.Path)) throw new IOException($"A directory occupies file resource: {target.Path}");
         }
-        catch { if (transaction is null) lease.Dispose(); else transaction.Dispose(); throw; }
     }
 
     internal static IReadOnlyList<string> WatchResources(AppConfig config, string root, string output, string cache)
@@ -125,20 +146,8 @@ internal sealed class BuildTransaction : IDisposable
     private static List<BuildResourceLease.Resource> GetResources(AppConfig config, string rootDir, ConfigOverrides overrides, string output, string cache, string media)
     {
         var resources = new List<BuildResourceLease.Resource> { new(output, true, true), new(cache, true, true), new(ResourcePath(media), true, config.Content.Media.DownloadToLocal) };
-        foreach (var source in config.Content.Sources ?? [])
-        {
-            if (!string.Equals(source.Type, "notion", StringComparison.OrdinalIgnoreCase) || source.Notion is not { } notion) continue;
-            var mode = (notion.CacheMode ?? "off").Trim().ToLowerInvariant();
-            if (mode is not ("readonly" or "readwrite")) continue;
-            var path = string.IsNullOrWhiteSpace(notion.CacheDir) ? Path.Combine(rootDir, ".cache", "notion") : BuildPathUtils.MakeAbsolute(rootDir, notion.CacheDir);
-            resources.Add(new(ResourcePath(path), true, mode == "readwrite"));
-        }
-        if (config.Site.Plugins?.GetValueOrDefault("pages-index")?.Enabled != false && PagesIndexConfigHelper.HasNotionContent(config) && config.Theme.Params is { } parameters &&
-            PagesIndexConfigHelper.TryGetMap(parameters, "pages_index", out var pages) && PagesIndexConfigHelper.TryGetMap(pages, "resolve_notion", out var resolve) && PagesIndexConfigHelper.TryGetBool(resolve, "enabled", false) && PagesIndexConfigHelper.TryGetStringList(resolve, "field_keys").Count > 0 && PagesIndexConfigHelper.TryGetInt(resolve, "max_items", 200) > 0)
-        {
-            var mode = PagesIndexCacheHelper.NormalizeCacheMode(PagesIndexConfigHelper.TryGetString(resolve, "cache_mode") ?? "readwrite");
-            if (mode != "off") resources.Add(new(ResourcePath(PagesIndexCacheHelper.ResolveCachePath(rootDir, PagesIndexConfigHelper.TryGetString(resolve, "cache_path"))), false, mode == "readwrite"));
-        }
+        AddNotionResources(resources, config, rootDir);
+        AddPagesIndexResource(resources, config, rootDir);
         if (!string.IsNullOrWhiteSpace(overrides.MetricsPath))
         {
             var path = BuildPathUtils.MakeAbsolute(rootDir, overrides.MetricsPath);
@@ -159,6 +168,28 @@ internal sealed class BuildTransaction : IDisposable
             if (missing is not null) resources.Add(new(missing, true, true, NewAncestor: true));
         }
         return resources;
+    }
+
+    private static void AddNotionResources(List<BuildResourceLease.Resource> resources, AppConfig config, string rootDir)
+    {
+        foreach (var source in config.Content.Sources ?? [])
+        {
+            if (!string.Equals(source.Type, "notion", StringComparison.OrdinalIgnoreCase) || source.Notion is not { } notion) continue;
+            var mode = (notion.CacheMode ?? "off").Trim().ToLowerInvariant();
+            if (mode is not ("readonly" or "readwrite")) continue;
+            var path = string.IsNullOrWhiteSpace(notion.CacheDir) ? Path.Combine(rootDir, ".cache", "notion") : BuildPathUtils.MakeAbsolute(rootDir, notion.CacheDir);
+            resources.Add(new(ResourcePath(path), true, mode == "readwrite"));
+        }
+    }
+
+    private static void AddPagesIndexResource(List<BuildResourceLease.Resource> resources, AppConfig config, string rootDir)
+    {
+        if (config.Site.Plugins?.GetValueOrDefault("pages-index")?.Enabled != false && PagesIndexConfigHelper.HasNotionContent(config) && config.Theme.Params is { } parameters &&
+            PagesIndexConfigHelper.TryGetMap(parameters, "pages_index", out var pages) && PagesIndexConfigHelper.TryGetMap(pages, "resolve_notion", out var resolve) && PagesIndexConfigHelper.TryGetBool(resolve, "enabled", false) && PagesIndexConfigHelper.TryGetStringList(resolve, "field_keys").Count > 0 && PagesIndexConfigHelper.TryGetInt(resolve, "max_items", 200) > 0)
+        {
+            var mode = PagesIndexCacheHelper.NormalizeCacheMode(PagesIndexConfigHelper.TryGetString(resolve, "cache_mode") ?? "readwrite");
+            if (mode != "off") resources.Add(new(ResourcePath(PagesIndexCacheHelper.ResolveCachePath(rootDir, PagesIndexConfigHelper.TryGetString(resolve, "cache_path"))), false, mode == "readwrite"));
+        }
     }
 
     // A nested Engine call inherits AsyncLocal state. Claims always use formal identities,
@@ -254,7 +285,7 @@ internal sealed class BuildTransaction : IDisposable
         return string.Join("\n", directories) + "\n" + string.Join("\n", files.Select(file => Path.GetRelativePath(path, file) + ":" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(file)))));
     }
 
-    private static void CopyDirectory(string source, string destination, CancellationToken cancellationToken, bool preserveLinks)
+    private static void CopyDirectory(string source, string destination, bool preserveLinks, CancellationToken cancellationToken)
     {
         foreach (var entry in new DirectoryInfo(source).EnumerateFileSystemInfos())
         {
@@ -274,7 +305,7 @@ internal sealed class BuildTransaction : IDisposable
                 if (entry is DirectoryInfo) Directory.CreateSymbolicLink(path, link); else File.CreateSymbolicLink(path, link);
                 continue;
             }
-            if (entry is DirectoryInfo) { Directory.CreateDirectory(path); CopyDirectory(entry.FullName, path, cancellationToken, preserveLinks); }
+            if (entry is DirectoryInfo) { Directory.CreateDirectory(path); CopyDirectory(entry.FullName, path, preserveLinks, cancellationToken); }
             else File.Copy(entry.FullName, path);
         }
     }

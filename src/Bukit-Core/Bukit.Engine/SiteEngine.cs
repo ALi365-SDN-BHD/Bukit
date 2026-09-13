@@ -128,7 +128,7 @@ public sealed class SiteEngine
 
     private async Task<BuildResult> BuildCoreAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken)
     {
-        using var transaction = BuildTransaction.Begin(config, rootDir, overrides, _logger, cancellationToken);
+        using var transaction = BuildTransaction.Begin(config, rootDir, overrides, _logger, cancellationToken: cancellationToken);
         overrides = overrides with { CacheDir = transaction.CacheDir };
         var buildLogger = new BuildDiagnosticLogger(_logger);
         var plan = BuildPlanner.Plan(config, rootDir, overrides, buildLogger, _timeProvider.GetUtcNow());

@@ -6,7 +6,7 @@ namespace Bukit.Engine;
 internal sealed class BuildResourceLease : IDisposable
 {
     internal sealed record Resource(string Path, bool Directory, bool Write, bool NewAncestor = false);
-    private static readonly object RegistrationGate = new();
+    private static readonly Lock RegistrationGate = new();
     private static readonly string Registry = Path.Combine(Path.GetTempPath(), "bukit-build-leases-v1");
     private readonly FileStream _handle;
 
