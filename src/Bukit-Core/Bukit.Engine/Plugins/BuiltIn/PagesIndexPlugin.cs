@@ -370,7 +370,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
             return;
         }
 
-        var mediaCacheDir = Path.Combine(context.RootDir, ".cache", "media");
+        var mediaCacheDir = BuildTransaction.DefaultMediaCache(Path.Combine(context.RootDir, ".cache", "media"));
         var effective = BuildResolveMediaConfig(media, context.RootDir, mediaCacheDir);
         var fieldKeys = new HashSet<string>(media.FieldKeys ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
 
@@ -451,7 +451,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
 
         return media with
         {
-            DownloadDir = downloadDir,
+            DownloadDir = BuildTransaction.Physical(downloadDir),
             UrlBase = urlBase
         };
     }

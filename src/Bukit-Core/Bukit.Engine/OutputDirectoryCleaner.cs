@@ -19,7 +19,7 @@ public static class OutputDirectoryCleaner
         Directory.Delete(outputDir, recursive: true);
     }
 
-    private static void EnsureCanClean(string rootDir, string outputDir)
+    internal static void EnsureCanClean(string rootDir, string outputDir)
     {
         var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var fullOutput = Path.GetFullPath(outputDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

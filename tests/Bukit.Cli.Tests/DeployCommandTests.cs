@@ -8,6 +8,59 @@ namespace Bukit.Cli.Tests;
 public sealed class DeployCommandTests
 {
     [Fact]
+    public async Task RunAsync_BuildFails_PreservesOutputAndNeverEntersProvider()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-build-failure-" + Guid.NewGuid().ToString("N"));
+        var originalError = Console.Error;
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        var originalToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        var writer = new StringWriter();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "dist"));
+            File.WriteAllText(Path.Combine(root, "dist", "index.html"), "old-output");
+            var config = Path.Combine(root, "site.yaml");
+            File.WriteAllText(config, """
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  markdown:
+                    dir: content
+            deploy:
+              provider: github-pages
+            build:
+              output: dist
+            """);
+            Environment.SetEnvironmentVariable("PATH", string.Empty);
+            Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);
+            Console.SetError(writer);
+            // Deploy requests clean; Engine rejects this non-owned output before exchange.
+            var error = await Assert.ThrowsAsync<Bukit.Shared.ConfigException>(() => DeployCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase) { ["--config"] = config },
+                Array.Empty<string>())));
+            Assert.Contains(".bukit-output-marker", error.Message, StringComparison.Ordinal);
+            Assert.Equal("old-output", File.ReadAllText(Path.Combine(root, "dist", "index.html")));
+            Assert.Single(Directory.EnumerateFileSystemEntries(Path.Combine(root, "dist")));
+            Assert.DoesNotContain("git command not found", writer.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain("GITHUB_TOKEN", writer.ToString(), StringComparison.Ordinal);
+            Assert.False(Directory.Exists(Path.Combine(root, ".git")));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(root, ".bukit-txn-*"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            Environment.SetEnvironmentVariable("GITHUB_TOKEN", originalToken);
+            Console.SetError(originalError);
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_DryRunSkipBuild_ReturnsZero()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));

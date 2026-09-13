@@ -279,9 +279,11 @@ public sealed partial class SiteEngineIntegrationTests
             }
             else
             {
-                var exception = await Assert.ThrowsAsync<IOException>(() => BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"描述\">"));
+                var beforeFailure = TransactionHashes(root);
+            var exception = await Assert.ThrowsAsync<IOException>(() => BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"描述\">"));
                 Assert.Contains("Referenced localized media output is missing", exception.Message);
-                Assert.True(BuildRecoveryTracker.HasIncompleteBuild(output));
+                Assert.Equal(beforeFailure, TransactionHashes(root));
+                Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
             }
             Assert.True(server.RequestCount > 0);
         }
@@ -303,10 +305,12 @@ public sealed partial class SiteEngineIntegrationTests
             var staticPath = Path.Combine(root, "static", structural ? "assets/uploads" : url.TrimStart('/'));
             Directory.CreateDirectory(Path.GetDirectoryName(staticPath)!);
             File.WriteAllText(staticPath, "static owner");
+            var beforeFailure = TransactionHashes(root);
             var exception = await Assert.ThrowsAsync<BukitException>(() => BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"描述\">"));
             Assert.Equal(DiagnosticCode.BuildAssetOutputCollision, exception.Code);
             Assert.False(File.Exists(Path.Combine(root, "dist", "blog", "one", "index.html")));
-            Assert.True(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
+            Assert.Equal(beforeFailure, TransactionHashes(root));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
         }
         finally { CleanupDir(root); }
     }
@@ -364,9 +368,11 @@ public sealed partial class SiteEngineIntegrationTests
             var oldPublicFile = Path.Combine(root, "dist", "assets", "uploads", "unplanned.png");
             File.WriteAllBytes(oldPublicFile, server.Bytes);
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "<html><body>{{ page.content }}<img src=\"/assets/uploads/unplanned.png\" alt=\"Unplanned\"></body></html>");
+            var beforeFailure = TransactionHashes(root);
             var exception = await Assert.ThrowsAsync<IOException>(() => BuildMediaAsync(root, config, [document], html));
             Assert.Contains("unplanned.png", exception.Message);
-            Assert.True(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
+            Assert.Equal(beforeFailure, TransactionHashes(root));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
         }
         finally { CleanupDir(root); }
     }
@@ -378,12 +384,48 @@ public sealed partial class SiteEngineIntegrationTests
         try
         {
             File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "<html><body>{{ page.content }}<img srcset=\" /assets/uploads/missing.png 1x\" alt=\"Missing\"></body></html>");
+            var beforeFailure = TransactionHashes(root);
             var exception = await Assert.ThrowsAsync<IOException>(() => BuildMediaAsync(root, config, [MediaDocument("one")], "<p>Published body</p>"));
             Assert.Contains("missing.png", exception.Message);
             var output = Path.Combine(root, "dist");
-            Assert.Contains("srcset=\" /assets/uploads/missing.png 1x\"", File.ReadAllText(Path.Combine(output, "blog", "one", "index.html")));
+            Assert.False(File.Exists(Path.Combine(output, "blog", "one", "index.html")));
             Assert.False(File.Exists(Path.Combine(output, "assets", "uploads", "missing.png")));
-            Assert.True(BuildRecoveryTracker.HasIncompleteBuild(output));
+            Assert.Equal(beforeFailure, TransactionHashes(root));
+                Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
+        }
+        finally { CleanupDir(root); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MediaLifecycle_CustomDownloadsCommitOnlyAfterOutputValidation(bool fail)
+    {
+        var (root, config) = CreateMediaSite();
+        config = config with { Content = config.Content with { Media = config.Content.Media with { DownloadDir = "downloads" } } };
+        using var server = new MediaImageServer();
+        try
+        {
+            var downloads = Path.Combine(root, "downloads");
+            Directory.CreateDirectory(downloads);
+            File.WriteAllText(Path.Combine(downloads, "unowned.txt"), "preserve");
+            if (fail) File.WriteAllText(Path.Combine(root, "layouts", "pages", "post.html"), "<html><body>{{ page.content }}<img src=\"/assets/uploads/unplanned.png\" alt=\"missing\"></body></html>");
+            var before = TransactionHashes(root);
+            Task Build() => BuildMediaAsync(root, config, [MediaDocument("one")], $"<img src=\"{server.Url}\" alt=\"image\">");
+            if (fail)
+            {
+                await Assert.ThrowsAsync<IOException>(Build);
+                Assert.Equal(before, TransactionHashes(root));
+                Assert.Equal(new[] { "unowned.txt" }, Directory.EnumerateFiles(downloads).Select(Path.GetFileName));
+            }
+            else
+            {
+                await Build();
+                Assert.True(Directory.EnumerateFiles(downloads).Count() > 1);
+                Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "one", "index.html")));
+            }
+            Assert.True(server.RequestCount > 0);
+            Assert.Equal("preserve", File.ReadAllText(Path.Combine(downloads, "unowned.txt")));
         }
         finally { CleanupDir(root); }
     }

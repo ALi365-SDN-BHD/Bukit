@@ -21,7 +21,7 @@ internal static class NotionCacheManager
 
         var root = options.CacheDir!.Trim();
         var pagesDir = Path.Combine(root, "pages");
-        Directory.CreateDirectory(pagesDir);
+        if (mode == "readwrite") Directory.CreateDirectory(pagesDir);
         return new PageHtmlCache(mode, root, pagesDir);
     }
 

@@ -177,7 +177,7 @@ internal static class ContentProviderFactory
             IncludeSlugs = notion.IncludeSlugs,
             IncludeSlugProperty = notion.IncludeSlugProperty,
             CacheMode = cacheMode,
-            CacheDir = cacheDir,
+            CacheDir = cacheDir is null ? null : BuildTransaction.Physical(cacheDir),
             PropertyMap = notion.PropertyMap,
             AutoSummary = autoSummary,
             AutoSummaryMaxLength = autoSummaryMaxLength
@@ -220,7 +220,7 @@ internal static class ContentProviderFactory
 
         return media with
         {
-            DownloadDir = downloadDir,
+            DownloadDir = BuildTransaction.Physical(downloadDir),
             UrlBase = urlBase,
             DefaultImageUrl = defaultImageUrl,
             FieldKeys = media.FieldKeys ?? Array.Empty<string>(),

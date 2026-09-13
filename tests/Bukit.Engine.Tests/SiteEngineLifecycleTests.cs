@@ -176,8 +176,10 @@ public sealed partial class SiteEngineIntegrationTests
             Directory.CreateDirectory(path);
             File.WriteAllText(Path.Combine(path, "obstruction"), "failure injection");
             if (failure == "delete") items = items.Skip(1).ToArray();
+            var beforeFailure = TransactionHashes(root);
             await Assert.ThrowsAnyAsync<Exception>(() => BuildLifecycleAsync(root, config, items));
-            Assert.True(BuildRecoveryTracker.HasIncompleteBuild(output));
+            Assert.Equal(beforeFailure, TransactionHashes(root));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
             Assert.Equal(manifest, File.ReadAllBytes(manifestPath));
             Directory.Delete(path, recursive: true);
             await BuildLifecycleAsync(root, config, items);
@@ -194,7 +196,7 @@ public sealed partial class SiteEngineIntegrationTests
     }
 
     [Fact]
-    public async Task PublicLifecycle_FirstFailureRequiresEmptyDirectoryAndPreservesUntrackedFiles()
+    public async Task PublicLifecycle_FirstFailurePreservesUntrackedFilesWithoutRecoveryMutation()
     {
         var (root, config) = CreateBuildReportHealthSite();
         config = LifecycleConfig(config);
@@ -207,8 +209,9 @@ public sealed partial class SiteEngineIntegrationTests
             var items = new[] { LifecycleDocument("news", "acme") };
             await Assert.ThrowsAnyAsync<Exception>(() => BuildLifecycleAsync(root, config, items));
             Assert.False(File.Exists(Path.Combine(output, ".bukit-output-marker")));
-            var error = await Assert.ThrowsAnyAsync<Exception>(() => BuildLifecycleAsync(root, config, items));
-            Assert.Contains("empty", error.Message, StringComparison.OrdinalIgnoreCase);
+            var beforeRetry = TransactionHashes(root);
+            await Assert.ThrowsAnyAsync<Exception>(() => BuildLifecycleAsync(root, config, items));
+            Assert.Equal(beforeRetry, TransactionHashes(root));
             Assert.Equal("keep", File.ReadAllText(sentinel));
         }
         finally { CleanupDir(root); }
@@ -293,8 +296,10 @@ public sealed partial class SiteEngineIntegrationTests
             var collision = Path.Combine(root, "static", "content", "news", "acme");
             Directory.CreateDirectory(collision);
             File.WriteAllText(Path.Combine(collision, "index.html.json"), "static conflict");
+            var beforeFailure = TransactionHashes(root);
             await Assert.ThrowsAnyAsync<Exception>(() => BuildLifecycleAsync(root, config, [LifecycleDocument("news", "acme")]));
-            Assert.True(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
+            Assert.Equal(beforeFailure, TransactionHashes(root));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
         }
         finally { CleanupDir(root); }
     }
@@ -306,8 +311,10 @@ public sealed partial class SiteEngineIntegrationTests
         try
         {
             var engine = new SiteEngine(new TestLogger(), new StaticContentProviderFactory(new RawContentLoadResult([], new FailingDisposeBodyStore())), new DefaultSearchIndexBuilder());
+            var beforeFailure = TransactionHashes(root);
             await Assert.ThrowsAsync<IOException>(() => engine.BuildAsync(config, root, new ConfigOverrides { Clean = false }));
-            Assert.True(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
+            Assert.Equal(beforeFailure, TransactionHashes(root));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(Path.Combine(root, "dist")));
             Assert.False(File.Exists(Path.Combine(root, ".cache", "build-manifest.json")));
         }
         finally { CleanupDir(root); }

@@ -101,7 +101,7 @@ internal static class BuildResultFactory
                 CacheMissCount: cacheMissCount),
             Variants: variants.Select(v => new BuildVariantSummary(
                 v.Language,
-                Path.GetFullPath(v.OutputDir),
+                BuildTransaction.Logical(Path.GetFullPath(v.OutputDir)),
                 v.BaseUrl,
                 v.RoutedDocuments.Count + v.DerivedDocuments.Count,
                 v.RenderedCount,

@@ -128,11 +128,13 @@ public sealed partial class SiteEngineIntegrationTests
             await Build(new ProjectionBodyStore(html));
             var manifestPath = Path.Combine(root, ".cache", "build-manifest.json");
             var manifest = File.ReadAllBytes(manifestPath);
+            var beforeFailure = TransactionHashes(root);
             var failing = new ProjectionFailureStore(cancel ? cts : null);
             if (cancel) await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Build(failing, token: cts.Token));
             else await Assert.ThrowsAsync<InvalidOperationException>(() => Build(failing));
             var output = Path.Combine(root, "dist");
-            Assert.True(BuildRecoveryTracker.HasIncompleteBuild(output));
+            Assert.Equal(beforeFailure, TransactionHashes(root));
+            Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));
             Assert.Equal(manifest, File.ReadAllBytes(manifestPath));
             await Build(new ProjectionBodyStore(html));
             Assert.False(BuildRecoveryTracker.HasIncompleteBuild(output));

@@ -32,7 +32,7 @@ internal sealed class IncrementalManifestReportWriter : IBuildReportWriter
         {
             writer.WriteStartObject();
             writer.WriteString("language", variant.Language);
-            writer.WriteString("outputDir", variant.OutputDir);
+            writer.WriteString("outputDir", BuildTransaction.Logical(variant.OutputDir));
             writer.WriteNumber("renderedCount", variant.RenderedCount);
             writer.WriteNumber("skippedCount", variant.SkippedCount);
             writer.WriteEndObject();

@@ -27,7 +27,7 @@ internal sealed class NotionRelationTargetCache
         {
             relationsDir = Path.Combine(relationsDir, ToSafePathSegment(scope));
         }
-        Directory.CreateDirectory(relationsDir);
+        if (normalizedMode == "readwrite") Directory.CreateDirectory(relationsDir);
         return new NotionRelationTargetCache(normalizedMode, relationsDir);
     }
 

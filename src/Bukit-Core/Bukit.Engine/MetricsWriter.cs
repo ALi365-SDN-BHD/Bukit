@@ -22,6 +22,8 @@ internal static class MetricsWriter
         }
 
         var fullPath = Path.IsPathRooted(metricsPath) ? metricsPath : Path.Combine(rootDir, metricsPath);
+        var htmlPath = BuildTransaction.Physical(Path.ChangeExtension(fullPath, ".html"));
+        fullPath = BuildTransaction.Physical(fullPath);
         var dir = Path.GetDirectoryName(fullPath);
         if (!string.IsNullOrWhiteSpace(dir))
         {
@@ -73,7 +75,7 @@ internal static class MetricsWriter
         }
         writer.WriteEndObject();
 
-        writer.WriteString("outputDir", Path.GetFullPath(outputDir));
+        writer.WriteString("outputDir", BuildTransaction.Logical(Path.GetFullPath(outputDir)));
         writer.WriteNumber("contentItems", contentItemCount);
 
         writer.WritePropertyName("variants");
@@ -83,7 +85,7 @@ internal static class MetricsWriter
             writer.WriteStartObject();
             writer.WriteString("language", v.Language);
             writer.WriteString("baseUrl", v.BaseUrl);
-            writer.WriteString("outputDir", Path.GetFullPath(v.OutputDir));
+            writer.WriteString("outputDir", BuildTransaction.Logical(Path.GetFullPath(v.OutputDir)));
             writer.WriteNumber("routed", v.RoutedDocuments.Count);
             writer.WriteNumber("derived", v.DerivedDocuments.Count);
             writer.WriteNumber("rendered", v.RenderedCount);
@@ -160,7 +162,7 @@ internal static class MetricsWriter
         writer.WriteEndObject();
         writer.Flush();
 
-        WriteHtmlReport(Path.ChangeExtension(fullPath, ".html"), config, contentItemCount, variants);
+        WriteHtmlReport(htmlPath, config, contentItemCount, variants);
     }
 
     private static void WriteHtmlReport(

@@ -80,7 +80,7 @@ public static class DevCommand
             logger);
 
         var watchedDirs = ResolveWatchDirs(rootDir, config);
-        var excludedDirs = ResolveExcludedWatchDirs(rootDir, outputDir, cacheDir);
+        var excludedDirs = ResolveExcludedWatchDirs(rootDir, outputDir, cacheDir).Concat(BuildTransaction.WatchResources(config, rootDir, outputDir, cacheDir)).Distinct().ToArray();
         DevFileWatcher? watcher = null;
         if (ShouldStartWatcher(noWatch, watchedDirs.Count))
         {

@@ -224,9 +224,9 @@ internal static class PagesIndexCacheHelper
         if (!string.IsNullOrWhiteSpace(configured))
         {
             var raw = configured.Trim();
-            return Path.IsPathRooted(raw) ? raw : Path.Combine(rootDir, raw);
+            return BuildTransaction.Physical(Path.IsPathRooted(raw) ? raw : Path.Combine(rootDir, raw));
         }
 
-        return Path.Combine(rootDir, ".cache", "notion", "pages-index.json");
+        return BuildTransaction.Physical(Path.Combine(rootDir, ".cache", "notion", "pages-index.json"));
     }
 }

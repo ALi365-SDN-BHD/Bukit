@@ -201,7 +201,7 @@ internal sealed class DevFileWatcher : IDisposable, IAsyncDisposable
             return true;
         }
 
-        if (IsDotPrefixed(eventName))
+        if (fullPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(segment => segment.StartsWith(".bukit-txn-", StringComparison.Ordinal)) || IsDotPrefixed(eventName))
         {
             return true;
         }

@@ -139,6 +139,7 @@ public sealed class NotionContentSourceTests
         try
         {
             Assert.NotNull(cache);
+            Directory.CreateDirectory(cache.PagesDir);
             await File.WriteAllTextAsync(Path.Combine(cache.PagesDir, "page-1.json"), "{\"version\":1,\"lastEditedTime\":\"v1\"" + htmlProperty + "}");
             await Assert.ThrowsAsync<Bukit.Shared.ContentException>(() => NotionCacheManager.GetOrRenderPageHtmlAsync(
                 new Bukit.Notion.Rendering.NotionBlocksRenderer(client), cache, "page-1", "v1", CancellationToken.None));

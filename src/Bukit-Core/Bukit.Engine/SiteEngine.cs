@@ -128,6 +128,8 @@ public sealed class SiteEngine
 
     private async Task<BuildResult> BuildCoreAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken)
     {
+        using var transaction = BuildTransaction.Begin(config, rootDir, overrides, _logger, cancellationToken);
+        overrides = overrides with { CacheDir = transaction.CacheDir };
         var buildLogger = new BuildDiagnosticLogger(_logger);
         var plan = BuildPlanner.Plan(config, rootDir, overrides, buildLogger, _timeProvider.GetUtcNow());
         var effectiveConfig = plan.EffectiveConfig;
@@ -213,7 +215,8 @@ public sealed class SiteEngine
         completedManifest.Save(rootManifestPath);
         WriteOutputMarker(plan.OutputDir);
         BuildRecoveryTracker.MarkCompleted(plan.OutputDir);
-        buildLogger.Info($"Build completed: {Path.GetFullPath(plan.OutputDir)}");
+        transaction.Commit(cancellationToken);
+        buildLogger.Info($"Build completed: {BuildTransaction.Logical(Path.GetFullPath(plan.OutputDir))}");
         buildLogger.Info("event=build.done");
         return completedResult;
     }
@@ -306,7 +309,7 @@ public sealed class SiteEngine
 
                 var variantDocuments = I18nOutputMerger.FilterDocumentsByLanguage(documents, lang, defaultLanguage);
                 var variantOutputDir = Path.Combine(outputDir, lang);
-                variantLogger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
+                variantLogger.Info($"event=build.variant.start language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
                 var variantCtx = new BuildVariantContext(
                     variantConfig, rootDir, overrides, variantDocuments, contentGraph, bodyStore, variantOutputDir, baseUrl,
                     layoutsDir, assetsDir, staticDir, mediaCacheDir,
@@ -316,7 +319,7 @@ public sealed class SiteEngine
                     ParentLayoutsDir: parentLayoutsDir, ParentAssetsDir: parentAssetsDir, ParentStaticDir: parentStaticDir,
                     UserLayoutsDir: userLayoutsDir, ScssOutputDir: scssOutputDir);
                 results[i] = await BuildVariantAsync(variantCtx, templateHashCache, ct, variantLogger);
-                variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={variantOutputDir}");
+                variantLogger.Info($"event=build.variant.done language={lang} baseUrl={baseUrl} outputDir={BuildTransaction.Logical(variantOutputDir)}");
             });
 
         var variantResults = results.Where(r => r is not null).ToList();

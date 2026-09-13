@@ -27,7 +27,7 @@ internal static class BuildPlanner
         var effectiveConfig = ConfigApplier.Apply(config, overrides);
         ConfigValidator.Validate(effectiveConfig);
 
-        var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
+        var outputDir = BuildTransaction.Physical(BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output));
         var resolved = ThemePathResolver.Resolve(rootDir, effectiveConfig.Theme, logger);
         ValidateNamedThemeManifest(effectiveConfig, resolved);
         var bootstrap = ThemeBootstrapper.Bootstrap(effectiveConfig, rootDir, logger, resolved);
@@ -43,7 +43,7 @@ internal static class BuildPlanner
             effectiveConfig, outputDir,
             resolved.LayoutsDir, resolved.AssetsDir, resolved.StaticDir,
             parentLayoutsDir, parentAssetsDir, parentStaticDir, resolved.UserLayoutsDir,
-            mediaCacheDir, startedAt, stopwatch);
+            BuildTransaction.DefaultMediaCache(mediaCacheDir), startedAt, stopwatch);
     }
 
     private static void ValidateNamedThemeManifest(AppConfig config, ResolvedThemePaths resolved)
@@ -75,6 +75,18 @@ internal static class BuildPlanner
             Path.Combine(parentThemeRoot, "static"));
     }
 
+    internal static void ValidateOutputDirectory(AppConfig config, string rootDir, string outputDir, ConfigOverrides overrides)
+    {
+        if (!Directory.Exists(outputDir)) return;
+        var manifestPath = PublicOutputLifecycle.ManifestPath(rootDir, overrides);
+        var prior = Incremental.BuildManifest.Load(manifestPath);
+        var needsMigration = Directory.EnumerateFileSystemEntries(outputDir).Any() &&
+            (File.Exists(manifestPath) || File.Exists(Path.Combine(outputDir, ".bukit-output-marker"))) &&
+            (prior.Version != 3 || !PublicOutputLifecycle.SameRoot(prior, outputDir));
+        if (config.Build.Clean || needsMigration || BuildRecoveryTracker.HasIncompleteBuild(outputDir))
+            OutputDirectoryCleaner.EnsureCanClean(rootDir, outputDir);
+    }
+
     private static void PrepareOutputDirectory(AppConfig config, string rootDir, string outputDir, ConfigOverrides overrides, ILogger logger)
     {
         var manifestPath = PublicOutputLifecycle.ManifestPath(rootDir, overrides);
@@ -85,25 +97,25 @@ internal static class BuildPlanner
         if (needsMigration && !config.Build.Clean)
         {
             if (BuildRecoveryTracker.HasIncompleteBuild(outputDir))
-                logger.Warn($"event=build.recovery previousIncomplete=true outputDir={outputDir} action=autoClean");
+                logger.Warn($"event=build.recovery previousIncomplete=true outputDir={BuildTransaction.Logical(outputDir)} action=autoClean");
             logger.Info("event=build.output.migration version=3 action=protectedClean");
-            OutputDirectoryCleaner.CleanIfExists(rootDir, outputDir);
+            OutputDirectoryCleaner.CleanIfExists(BuildTransaction.PhysicalRoot(rootDir), outputDir);
         }
 
         if (config.Build.Clean && Directory.Exists(outputDir))
         {
-            OutputDirectoryCleaner.CleanIfExists(rootDir, outputDir);
+            OutputDirectoryCleaner.CleanIfExists(BuildTransaction.PhysicalRoot(rootDir), outputDir);
         }
 
         if (!config.Build.Clean && BuildRecoveryTracker.HasIncompleteBuild(outputDir))
         {
-            logger.Warn($"event=build.recovery previousIncomplete=true outputDir={outputDir} action=autoClean");
-            OutputDirectoryCleaner.CleanIfExists(rootDir, outputDir);
+            logger.Warn($"event=build.recovery previousIncomplete=true outputDir={BuildTransaction.Logical(outputDir)} action=autoClean");
+            OutputDirectoryCleaner.CleanIfExists(BuildTransaction.PhysicalRoot(rootDir), outputDir);
         }
 
         Directory.CreateDirectory(outputDir);
 
         BuildRecoveryTracker.MarkStarted(outputDir);
-        logger.Info($"event=build.start rootDir={rootDir} outputDir={outputDir}");
+        logger.Info($"event=build.start rootDir={rootDir} outputDir={BuildTransaction.Logical(outputDir)}");
     }
 }

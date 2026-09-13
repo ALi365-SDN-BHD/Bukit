@@ -98,12 +98,12 @@ internal static class PublicOutputLifecycle
     }
 
     internal static bool SameRoot(BuildManifest manifest, string outputDir)
-        => !string.IsNullOrEmpty(manifest.OutputRoot) && string.Equals(manifest.OutputRoot, Path.GetFullPath(outputDir), PlatformPathHelper.PathComparison);
+        => !string.IsNullOrEmpty(manifest.OutputRoot) && string.Equals(manifest.OutputRoot, BuildTransaction.Logical(Path.GetFullPath(outputDir)), PlatformPathHelper.PathComparison);
 
     internal static void Record(BuildManifest manifest, string outputDir, IEnumerable<AssetOutputItem> items)
     {
         manifest.Version = 3;
-        manifest.OutputRoot = Path.GetFullPath(outputDir);
+        manifest.OutputRoot = BuildTransaction.Logical(Path.GetFullPath(outputDir));
         manifest.OwnedOutputs = items.Select(x => x.Destination).ToHashSet(StringComparer.Ordinal);
     }
 
