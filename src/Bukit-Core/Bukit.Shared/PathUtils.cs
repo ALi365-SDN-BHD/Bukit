@@ -4,8 +4,8 @@ public static class PathUtils
 {
     public static bool IsSubPathOf(string child, string parent)
     {
-        var childPath = NormalizeFullPath(child, resolveSymlinks: true);
-        var parentPath = NormalizeFullPath(parent, resolveSymlinks: true);
+        var childPath = GetCanonicalFullPath(child);
+        var parentPath = GetCanonicalFullPath(parent);
         var parentWithSeparator = EnsureTrailingSeparator(parentPath);
 
         return childPath.StartsWith(parentWithSeparator, PlatformPathHelper.PathComparison);
@@ -13,19 +13,19 @@ public static class PathUtils
 
     public static bool IsSameOrSubPathOf(string child, string parent)
     {
-        var childPath = NormalizeFullPath(child, resolveSymlinks: true);
-        var parentPath = NormalizeFullPath(parent, resolveSymlinks: true);
+        var childPath = GetCanonicalFullPath(child);
+        var parentPath = GetCanonicalFullPath(parent);
 
         return string.Equals(childPath, parentPath, PlatformPathHelper.PathComparison)
             || childPath.StartsWith(EnsureTrailingSeparator(parentPath), PlatformPathHelper.PathComparison);
     }
 
-    private static string NormalizeFullPath(string path, bool resolveSymlinks)
+    public static string GetCanonicalFullPath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         var fullPath = TrimTrailingSeparators(Path.GetFullPath(path));
-        return resolveSymlinks ? ResolveExistingLinks(fullPath) : fullPath;
+        return ResolveExistingLinks(fullPath);
     }
 
     private static string ResolveExistingLinks(string fullPath)

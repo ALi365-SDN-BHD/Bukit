@@ -15,7 +15,7 @@ using Bukit.Theme;
 
 namespace Bukit.Engine;
 
-public sealed class SiteEngine
+public sealed partial class SiteEngine
 {
     private readonly ILogger _logger;
     private readonly IContentProviderFactory _contentProviderFactory;
@@ -321,37 +321,25 @@ public sealed class SiteEngine
 
         var variantResults = results.Where(r => r is not null).ToList();
 
-        var previous = BuildManifest.Load(PublicOutputLifecycle.ManifestPath(rootDir, overrides));
-        var rootOutputs = PublicOutputLifecycle.ProjectionPlan(config, [], root: true)
-            .Where(item => item.Destination != "robots.txt" || previous.OwnedOutputs.Contains("robots.txt") ||
-                !File.Exists(Path.Combine(outputDir, "robots.txt"))).ToArray();
-        var completedManifest = PublicOutputLifecycle.CollectAndClean(rootDir, overrides, outputDir, variantResults, rootOutputs);
-        if (rootOutputs.Any(x => x.Destination == "robots.txt") && PublicOutputLifecycle.SameRoot(previous, outputDir) && previous.OwnedOutputs.Contains("robots.txt"))
-            PublicOutputLifecycle.DeleteOwnedFile(outputDir, "robots.txt");
-        var projectionResults = I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder);
-        SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, buildLogger, projectionResults);
-        // Refresh metrics after all language variants finished rendering
-        bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
-        MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, documents.Count, variantResults, bodyCacheMetrics);
-        var generatedFiles = BuildOutputInventory.Create(outputDir);
-        buildStopwatch.Stop();
-        var buildResult = BuildResultFactory.Create(
+        var completed = await FinalizeMultiLanguageOutputsAsync(
             config,
             rootDir,
-            outputDir,
             overrides,
-            buildStartedAt,
-            DateTimeOffset.UtcNow,
-            buildStopwatch.ElapsedMilliseconds,
+            outputDir,
+            rootBaseUrl,
+            documents.Count,
             variantResults,
+            buildStartedAt,
+            buildStopwatch,
+            RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics,
             schemaErrors,
-            generatedFiles,
-            warningCount: buildLogger.WarningCount,
-            errorCount: buildLogger.ErrorCount);
-        var securityData = BuildReporter.CreateSecurityReportData(config, rootDir, outputDir, variantResults);
-        await BuildReporter.WriteIfEnabledAsync(config, rootDir, outputDir, buildResult, variantResults, _logger, securityData, cancellationToken).ConfigureAwait(false);
-        BuildReporter.EnforceSecurityGate(config, securityData, overrides.IsCI);
-        return (buildResult, variantResults, completedManifest);
+            buildLogger,
+            additionalWarningCount: 0,
+            additionalErrorCount: 0,
+            reportedRootDir: null,
+            reportedOutputDir: null,
+            cancellationToken).ConfigureAwait(false);
+        return (completed.Result, variantResults, completed.Manifest);
     }
 
     private async Task<BuildVariantResult> BuildVariantAsync(

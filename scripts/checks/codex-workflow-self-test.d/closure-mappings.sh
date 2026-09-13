@@ -92,6 +92,19 @@ for cli_documentation_path in guide/dev/cli.md guide/skills/bukit-cli-reference/
   assert_closure_mapping "$closure_fixture" "$cli_documentation_path" '["bash guide/skills/scripts/validate-skills-strict.sh", "bash scripts/checks/cli-docs-sync.sh"]' true
 done
 
+for i18n_worktree_contract_path in \
+  docs/worktree.md \
+  guide/user/11-i18n-seo.md \
+  guide/user/14-troubleshooting.md \
+  openspec/changes/add-i18n-worktree-isolation/.openspec.yaml \
+  openspec/changes/add-i18n-worktree-isolation/README.md \
+  openspec/changes/add-i18n-worktree-isolation/design.md \
+  openspec/changes/add-i18n-worktree-isolation/proposal.md \
+  openspec/changes/add-i18n-worktree-isolation/specs/i18n-worktree-build/spec.md \
+  openspec/changes/add-i18n-worktree-isolation/tasks.md; do
+  assert_closure_mapping "$closure_fixture" "$i18n_worktree_contract_path" '["bash scripts/checks/cli-docs-sync.sh", "openspec validate add-i18n-worktree-isolation --strict"]' true
+done
+
 # Approved quality-remediation paths stay exact; adjacent docs/workflows remain unmapped.
 assert_closure_mapping "$closure_fixture" .github/workflows/ci.yaml '["bash scripts/checks/active-workflow-boundary-self-test.sh", "bash scripts/checks/active-workflow-boundary.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
 assert_closure_mapping "$closure_fixture" scripts/checks/coverage/run-one.sh '["bash scripts/checks/coverage-run-one-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false

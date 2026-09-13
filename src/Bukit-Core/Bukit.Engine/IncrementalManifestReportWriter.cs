@@ -28,11 +28,15 @@ internal sealed class IncrementalManifestReportWriter : IBuildReportWriter
         writer.WriteEndObject();
         writer.WritePropertyName("variants");
         writer.WriteStartArray();
+        var reportedOutputs = context.Result.Variants.ToDictionary(
+            item => item.Language,
+            item => item.OutputDir,
+            StringComparer.OrdinalIgnoreCase);
         foreach (var variant in context.Variants.OrderBy(item => item.Language, StringComparer.OrdinalIgnoreCase))
         {
             writer.WriteStartObject();
             writer.WriteString("language", variant.Language);
-            writer.WriteString("outputDir", variant.OutputDir);
+            writer.WriteString("outputDir", reportedOutputs.GetValueOrDefault(variant.Language, variant.OutputDir));
             writer.WriteNumber("renderedCount", variant.RenderedCount);
             writer.WriteNumber("skippedCount", variant.SkippedCount);
             writer.WriteEndObject();

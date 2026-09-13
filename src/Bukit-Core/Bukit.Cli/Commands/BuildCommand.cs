@@ -9,7 +9,21 @@ namespace Bukit.Cli.Commands;
 public static class BuildCommand
 {
     public static async Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
+        => await RunCoreAsync(command, useWorktreeIsolation: true, cancellationToken).ConfigureAwait(false);
+
+    internal static async Task<int> RunInProcessAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
+        => await RunCoreAsync(command, useWorktreeIsolation: false, cancellationToken).ConfigureAwait(false);
+
+    private static async Task<int> RunCoreAsync(
+        CliBoundCommand command,
+        bool useWorktreeIsolation,
+        CancellationToken cancellationToken)
     {
+        if (useWorktreeIsolation && WorktreeBuildCoordinator.IsWorker)
+        {
+            return await WorktreeBuildCoordinator.RunWorkerAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var config = ConfigLoader.Load(resolved.FullConfigPath);
 
@@ -32,7 +46,19 @@ public static class BuildCommand
             Jobs = TryParsePositiveInt(command.GetString("--jobs"))
         };
 
-        var logger = new ConsoleLogger(ParseLogLevel(config.Logging.Level, overrides.IsCI), command.GetString("--log-format") ?? "text");
+        var logFormat = command.GetString("--log-format") ?? "text";
+        var logger = new ConsoleLogger(ParseLogLevel(config.Logging.Level, overrides.IsCI), logFormat);
+
+        if (useWorktreeIsolation && I18nOutputMerger.GetLanguages(ConfigApplier.Apply(config, overrides).Site).Count > 0)
+        {
+            return await WorktreeBuildCoordinator.RunAsync(
+                config,
+                resolved,
+                overrides,
+                logFormat,
+                logger,
+                cancellationToken).ConfigureAwait(false);
+        }
 
         var engine = new SiteEngine(logger);
         await engine.BuildAsync(config, resolved.RootDir, overrides, cancellationToken);
@@ -54,7 +80,7 @@ public static class BuildCommand
         return n;
     }
 
-    private static LogLevel ParseLogLevel(string? level, bool isCi)
+    internal static LogLevel ParseLogLevel(string? level, bool isCi)
     {
         if (isCi)
         {

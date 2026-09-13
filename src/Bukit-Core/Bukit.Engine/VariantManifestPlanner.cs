@@ -55,12 +55,12 @@ internal static class VariantManifestPlanner
         var parts = new List<string>
         {
             "scriban-renderer-v1",
-            ComputeTemplateDirectoryPart("child", context.LayoutsDir, templateHashCache),
-            ComputeTemplateDirectoryPart("parent", context.ParentLayoutsDir, templateHashCache),
-            ComputeTemplateDirectoryPart("user", context.UserLayoutsDir, templateHashCache),
-            ComputeThemeYamlPart(context.LayoutsDir),
-            ComputeThemeYamlPart(context.ParentLayoutsDir),
-            ComputeThemeYamlPart(context.UserLayoutsDir)
+            ComputeTemplateDirectoryPart("child", context.LayoutsDir, context, templateHashCache),
+            ComputeTemplateDirectoryPart("parent", context.ParentLayoutsDir, context, templateHashCache),
+            ComputeTemplateDirectoryPart("user", context.UserLayoutsDir, context, templateHashCache),
+            ComputeThemeYamlPart(context.LayoutsDir, context),
+            ComputeThemeYamlPart(context.ParentLayoutsDir, context),
+            ComputeThemeYamlPart(context.UserLayoutsDir, context)
         };
         return HashUtil.Sha256Hex(string.Join('\n', parts));
     }
@@ -68,6 +68,7 @@ internal static class VariantManifestPlanner
     private static string ComputeTemplateDirectoryPart(
         string label,
         string? directory,
+        BuildVariantContext context,
         DirectoryHashCache cache)
     {
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
@@ -75,10 +76,18 @@ internal static class VariantManifestPlanner
             return $"{label}:missing";
         }
 
-        return $"{label}:{Path.GetFullPath(directory)}:{cache.GetOrAdd(directory)}";
+        var identityDirectory = Path.GetFullPath(directory);
+        if (!string.IsNullOrWhiteSpace(context.TemplateIdentityRoot) &&
+            PathUtils.IsSameOrSubPathOf(identityDirectory, context.RootDir))
+        {
+            identityDirectory = Path.GetFullPath(Path.Combine(
+                context.TemplateIdentityRoot,
+                Path.GetRelativePath(context.RootDir, identityDirectory)));
+        }
+        return $"{label}:{identityDirectory}:{cache.GetOrAdd(directory)}";
     }
 
-    private static string ComputeThemeYamlPart(string? layoutsDirectory)
+    private static string ComputeThemeYamlPart(string? layoutsDirectory, BuildVariantContext context)
     {
         if (string.IsNullOrWhiteSpace(layoutsDirectory))
         {
@@ -87,11 +96,19 @@ internal static class VariantManifestPlanner
 
         var parent = Directory.GetParent(layoutsDirectory)?.FullName ?? string.Empty;
         var themeYamlPath = Path.Combine(parent, "theme.yaml");
+        var identityPath = themeYamlPath;
+        if (!string.IsNullOrWhiteSpace(context.TemplateIdentityRoot) &&
+            PathUtils.IsSameOrSubPathOf(themeYamlPath, context.RootDir))
+        {
+            identityPath = Path.GetFullPath(Path.Combine(
+                context.TemplateIdentityRoot,
+                Path.GetRelativePath(context.RootDir, themeYamlPath)));
+        }
         if (!File.Exists(themeYamlPath))
         {
-            return $"theme-yaml:{themeYamlPath}:missing";
+            return $"theme-yaml:{identityPath}:missing";
         }
 
-        return $"theme-yaml:{themeYamlPath}:{HashUtil.Sha256Hex(File.ReadAllBytes(themeYamlPath))}";
+        return $"theme-yaml:{identityPath}:{HashUtil.Sha256Hex(File.ReadAllBytes(themeYamlPath))}";
     }
 }

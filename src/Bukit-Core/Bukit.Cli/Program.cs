@@ -75,6 +75,11 @@ catch (RenderException ex)
     PrintError(command, 3, ex, isJsonErrorMode, ex.Code.HasValue ? ex.Code.Value.ToString() : null);
     return 3;
 }
+catch (WorktreeBuildException ex)
+{
+    PrintError(command, 1, ex, isJsonErrorMode, ex.Code);
+    return 1;
+}
 catch (Exception ex)
 {
     return PrintUnhandledError(command, ex, isJsonErrorMode);

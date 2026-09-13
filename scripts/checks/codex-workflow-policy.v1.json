@@ -360,6 +360,27 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "i18n-worktree-contract",
+      "matches": [
+        "docs/worktree.md",
+        "guide/user/11-i18n-seo.md",
+        "guide/user/14-troubleshooting.md",
+        "openspec/changes/add-i18n-worktree-isolation/.openspec.yaml",
+        "openspec/changes/add-i18n-worktree-isolation/README.md",
+        "openspec/changes/add-i18n-worktree-isolation/design.md",
+        "openspec/changes/add-i18n-worktree-isolation/proposal.md",
+        "openspec/changes/add-i18n-worktree-isolation/specs/i18n-worktree-build/spec.md",
+        "openspec/changes/add-i18n-worktree-isolation/tasks.md"
+      ],
+      "publicContract": true,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/cli-docs-sync.sh",
+        "openspec validate add-i18n-worktree-isolation --strict"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "bukit-cli-tests",
       "matches": [
         "tests/Bukit.Cli.Tests/*.cs",

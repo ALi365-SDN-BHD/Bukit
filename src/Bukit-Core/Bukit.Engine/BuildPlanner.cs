@@ -20,14 +20,24 @@ internal sealed record BuildPlan(
 
 internal static class BuildPlanner
 {
-    internal static BuildPlan Plan(AppConfig config, string rootDir, ConfigOverrides overrides, ILogger logger, DateTimeOffset? buildStartedAt = null)
+    internal static BuildPlan Plan(
+        AppConfig config,
+        string rootDir,
+        ConfigOverrides overrides,
+        ILogger logger,
+        DateTimeOffset? buildStartedAt = null,
+        string? internalOutputDir = null)
     {
         var startedAt = buildStartedAt ?? DateTimeOffset.UtcNow;
         var stopwatch = Stopwatch.StartNew();
-        var effectiveConfig = ConfigApplier.Apply(config, overrides);
+        var effectiveConfig = ConfigApplier.Apply(
+            config,
+            internalOutputDir is null ? overrides : overrides with { Output = null });
         ConfigValidator.Validate(effectiveConfig);
 
-        var outputDir = BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output);
+        var outputDir = internalOutputDir is null
+            ? BuildPathUtils.MakeAbsolute(rootDir, effectiveConfig.Build.Output)
+            : Path.GetFullPath(internalOutputDir);
         var resolved = ThemePathResolver.Resolve(rootDir, effectiveConfig.Theme, logger);
         ValidateNamedThemeManifest(effectiveConfig, resolved);
         var bootstrap = ThemeBootstrapper.Bootstrap(effectiveConfig, rootDir, logger, resolved);

@@ -61,7 +61,7 @@ public static class DeployCommand
         if (!skipBuild)
         {
             logger.Info("Building site before deploy...");
-            var buildResult = await BuildCommand.RunAsync(new CliBoundCommand(
+            var buildResult = await BuildCommand.RunInProcessAsync(new CliBoundCommand(
                 new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["--config"] = command.GetString("--config"),

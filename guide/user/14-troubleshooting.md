@@ -24,6 +24,25 @@ Common causes:
 - Check that route patterns include `{slug}` where required.
 - Keep `build.output` inside a dedicated output directory.
 
+### Multilingual Worktree Diagnostics
+
+These stable codes apply when an explicit `bukit build` has `site.languages`:
+
+| Code | Meaning |
+|---|---|
+| `i18n-worktree-git-required` | Git, a repository, or a resolvable `HEAD` is unavailable. |
+| `i18n-worktree-dirty` | The repository has staged, unstaged, or untracked changes. |
+| `i18n-worktree-input-untracked` | A required config/content/theme/static/plugin input is untracked, ignored, external, or crosses the repository through a symlink. |
+| `i18n-worktree-worker-failed` | A language Worker exited unsuccessfully or the isolated build failed. |
+| `i18n-worktree-result-invalid` | The Worker result schema, hash, language, completion state, or output path failed validation. |
+| `i18n-worktree-cleanup-failed` | Bukit could not remove an owned temporary Worktree. |
+
+Commit the intended build inputs and retry. Do not add `dist/`, `.cache/`, or
+temporary generated files merely to make the repository clean; keep them in
+`.gitignore`. A failed run does not publish its staging output. Bukit removes
+only Worktrees registered to that run and attempts targeted recovery on the
+next multilingual build.
+
 ### `BuildAssetOutputCollision`
 
 Bukit found two output owners for the same destination, or a file/directory
@@ -88,4 +107,7 @@ excludes `.bukit` reports and build state files.
 ## Slow Builds
 
 Use `--metrics` to inspect stage timing, `--jobs` to limit or increase render
-parallelism, and `--incremental` to reuse unchanged render results.
+parallelism, and `--incremental` to reuse unchanged render results. For an
+explicit multilingual build, tune `build.languageJobs` separately to control
+the number of language Worker processes; increasing it also multiplies the
+per-Worker `--jobs` resource demand.
