@@ -52,5 +52,17 @@ and do not leave a pre-fix document as the only discoverable current status.
 
 ## Script Rule
 
+Static checks establish only their stated coverage. CLI docs sync checks token
+presence, not every parameter's command ownership or prose semantics. The
+config-docs contract checks selected references and compares both Notion
+property-map inventories against `NotionPropertyMapConfig` in current source,
+rejecting missing or unknown keys. Its direct regression check is
+`bash scripts/checks/config-docs-contract-self-test.sh`.
+
+Passing these checks does not prove failure/recovery behavior, security
+boundaries, or all config defaults are documented correctly. Review those
+claims against the applicable current contracts and implementation, and keep
+user, developer and agent-facing explanations aligned.
+
 Scripts must stay small. A gate script composes checks; it does not contain
 large inline scanners. A checker should own one concern and fail fast.

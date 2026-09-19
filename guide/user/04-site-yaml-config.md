@@ -246,7 +246,7 @@ indexable false, and feeds keep emitting eligible content items.
 | `content.sources[].notion.includeSlugProperty` | `Slug` | Property used for slug allowlist checks. |
 | `content.sources[].notion.cacheMode` | `off` | `off`, `readwrite`, or `readonly`. |
 | `content.sources[].notion.cacheDir` | none | Non-empty cache directory when set. |
-| `content.sources[].notion.propertyMap` | none | Uses `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, and `Canonical`. |
+| `content.sources[].notion.propertyMap` | none | Uses `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, `Canonical`, `OriginalUrl`, `References`, `EntitiesJson`, `Cover`, `CoverAlt`, and `CoverCaption`. See [Notion Content](06-notion-content.md#canonical-source-entity-and-cover-mapping) for property types and structured values. |
 | `content.sources[].dataIndex.scopeField` | `scope` | Scope field for a `mode: data` scalar index. |
 | `content.sources[].dataIndex.keyField` | `key` | Key field for a `mode: data` scalar index. |
 | `content.sources[].dataIndex.valueField` | `value` | Scalar value field. |

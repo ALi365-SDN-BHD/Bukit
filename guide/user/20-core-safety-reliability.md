@@ -9,6 +9,7 @@ roadmap items.
 | Area | Current behavior | User action |
 |---|---|---|
 | Output cleaning | `clean` and build cleanup use the same safety policy. | Keep generated output in a dedicated directory such as `dist`. |
+| Build transactions | Managed output, writable caches and metrics are staged; failures before commit preserve formal targets. | Fix the failure and retry; preserve reported backups if commit rollback fails. |
 | Search UI | Content titles and snippets are inserted as text nodes, not interpreted as HTML. | Do not rely on HTML embedded in search title or snippet fields. |
 | Output ownership | Rendered pages, static files, assets, media, and generated theme tokens are checked for destination conflicts before publication writes begin. | Give each source a unique output destination. |
 | Directory symlinks | Default recursive content, static, media, and report inventory walks do not descend through symlink or reparse-point directories. | Store publishable inputs in ordinary directories. |
@@ -34,6 +35,21 @@ Bukit refuses to recursively delete:
 An empty safe directory can be removed. A successful Bukit build writes the
 marker automatically. Do not add a marker to an arbitrary directory to bypass
 the review step; move the output to a dedicated directory instead.
+
+## Build Failure And Recovery
+
+Single-language and multilingual builds use the same in-process transaction.
+Rendering, aggregation, report, validation or cancellation failure before
+commit leaves formal output and managed caches unchanged. `dev` reloads only
+after commit, and a failed deploy build does not start deployment.
+
+Commit exchanges targets separately and attempts rollback on exchange failure;
+it is not a multi-directory atomic operation. A reader can briefly observe a
+missing directory. If restoration fails, retain the reported backups for
+manual recovery. Backup cleanup failure after commit is a warning and leaves
+the new output in place. Crash/power-loss recovery and external side effects
+of custom providers/plugins are not covered. See
+[Build transactions](../dev/cli.md#build-transactions) for the full boundary.
 
 ## Deterministic Output Ownership
 

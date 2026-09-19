@@ -116,9 +116,15 @@ Disabling an output, removing a collection or removing a language also removes i
 owned files. Cleanup failure fails the build and preserves the last committed ownership.
 
 All language outputs, root aggregates, reports, required validation and resource cleanup
-must succeed before manifests and completed build state are committed. Failed local output
-may be partial; whole-site staging is not implemented. A marked managed directory can be
-cleaned for recovery. A first failed build without a marker requires a new empty directory.
+must succeed before staged output, manifests, writable caches and metrics are committed.
+Failures before commit preserve existing formal targets; a first failed build does not
+publish its partial staged output. Fix the cause and retry the same safe output path.
+Target exchanges are coordinated, not atomic across directories. Exchange failure attempts
+rollback; if rollback fails, preserve the reported backups for manual recovery. Backup
+cleanup failure after a successful commit is a warning and does not undo the new output.
+Crash/power-loss recovery and custom provider/plugin external side effects are outside
+this guarantee. Legacy incomplete output still follows marker-protected recovery rules.
+See [Build transactions](../dev/cli.md#build-transactions) for the complete boundary.
 All deployment entry points, including skip-build and dry-run, require recognized completed
 state; old audit reports do not prove readiness. A successful Git push confirms transfer,
 not that the hosted site has finished publishing.

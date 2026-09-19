@@ -22,7 +22,8 @@ Bukit Core is split into focused projects under `src/Bukit-Core`.
 ## Build Flow
 
 `Program` binds a command. `BuildCommand` loads config, applies CLI overrides,
-and calls the `BuildAsync` method on `SiteEngine`. `SiteEngine` plans the build,
+and calls the `BuildAsync` method on `SiteEngine`. `SiteEngine` acquires resource
+leases and stages the managed write set through `BuildTransaction`, plans the build,
 loads content, chooses single-language or multi-language flow, and delegates
 each variant to `VariantBuildPipeline`.
 
@@ -39,7 +40,7 @@ Variant stages:
 9. Sync assets, static files, media, and generated theme tokens.
 10. Run after-build plugins.
 11. Execute document/aggregate projections, then let reports consume actual output locations.
-12. Finish all variants, root aggregates, stale-owned cleanup, required reports/security validation and body-store disposal; only then persist manifests, marker and completed state.
+12. Finish all variants, root aggregates, stale-owned cleanup, required reports/security validation and body-store disposal; persist staged manifests, marker and completed state, then commit the managed targets.
 
 ## Configuration Ownership
 
@@ -94,10 +95,14 @@ refused. Draft exclusion/deletion withdraws pages and projections; expiry/noinde
 content from indexing aggregates while retaining the document files.
 
 Deployment readiness requires a supported completed build state and the existing privacy
-checks. An audit report alone does not prove a failed output is deployable. Builds may
-leave incomplete local files: Core does not provide whole-site atomic staging. A site's
-separate immutable delivery candidate is a site workflow, not an added Core runtime
-capability. Git push success is distinct from read-only verification of the hosted files.
+checks. An audit report alone does not prove a failed output is deployable. Core stages
+managed output, writable caches and metrics; failures before commit preserve the formal
+targets. Commit coordinates separate target exchanges and attempts reverse restoration
+on failure. It is not a multi-directory atomic rename or crash-recovery guarantee; a
+reader may briefly observe an absent directory. See [Build transactions](cli.md#build-transactions)
+for backup recovery and external-side-effect limits. A site's immutable delivery candidate
+remains a separate site workflow. Git push success is distinct from read-only verification
+of the hosted files.
 
 SRBiz-specific relationship, artifact comparison and delivery requirements are recorded in
 `openspec/specs/srbiz-*/` (implementation history in

@@ -23,9 +23,17 @@ Do not collapse those into one public SDK in documentation.
 
 ## Security Model
 
-External plugins receive only granted filesystem and environment permissions.
-Secrets are masked in reports. Plugin output size and timeouts are configured
-through plugin host config, not through Core build hooks.
+External plugin permissions are declarative: the host validates required
+permissions against explicit grants and checks paths at its own configuration,
+request and artifact boundaries. This is not an OS filesystem or network
+sandbox. A plugin process runs with the operating-system permissions of the
+invoking account; grants do not confine arbitrary plugin system calls. Run only
+trusted plugins within that account's trust boundary.
+
+Environment inheritance is explicitly cleared and only the host's approved
+environment is supplied. Secrets are masked in reports. Plugin output size,
+timeouts and process-tree controls do not provide filesystem isolation; they
+are configured through plugin host config, not through Core build hooks.
 
 ## IndexNow Internal Plugin
 

@@ -54,6 +54,12 @@ fi
 out="$(bash "$script" --dry-run -- scripts/checks/post-change-targeted.sh)"
 assert_contains "$out" "bash scripts/checks/post-change-targeted-self-test.sh"
 
+out="$(bash "$script" --dry-run -- \
+  scripts/checks/config-docs/validate_docs.py scripts/checks/config-docs-contract.sh \
+  scripts/checks/config-docs-contract-self-test.sh)"
+assert_count "$out" "bash scripts/checks/config-docs-contract-self-test.sh" 1
+assert_not_contains "$out" "bash scripts/gates/ci-fast.sh"
+
 out="$(bash "$script" --dry-run -- scripts/gates/ci-fast.sh scripts/quality-gate.sh)"
 assert_count "$out" "bash scripts/checks/ci-fast-portability-self-test.sh" 1
 assert_not_contains "$out" "bash scripts/gates/ci-fast.sh"

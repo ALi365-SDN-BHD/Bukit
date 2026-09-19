@@ -42,7 +42,7 @@ validation is enabled.
 | `filterValue` | Required for select, status, and rich text filters. |
 | `cacheMode` | `off`, `readwrite`, or `readonly`. |
 | `content.sources[].notion.fieldPolicy.mode` | `whitelist` or `all`. |
-| `propertyMap` | Uses Core field keys `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, and `Canonical`. |
+| `propertyMap` | Uses Core field keys `Title`, `Slug`, `Type`, `PublishAt`, `Language`, `I18nKey`, `Summary`, `Collection`, `SeoTitle`, `SeoDescription`, `SeoImage`, `Canonical`, `OriginalUrl`, `References`, `EntitiesJson`, `Cover`, `CoverAlt`, and `CoverCaption`. |
 
 The canonical publish date is resolved deterministically: the mapped
 `PublishAt` value wins, otherwise Bukit uses the Notion Page object's top-level
@@ -67,6 +67,32 @@ types; values are never converted with `ToString()`.
 
 A source-level `collection` can provide ownership instead and overrides the
 mapped item collection without changing its mapped type.
+
+## Canonical Source, Entity And Cover Mapping
+
+Each mapping value names a Notion property. These mappings read raw properties
+directly and project canonical inputs independently of ordinary field whitelist
+filtering; the mapped properties do not need to be repeated in the allowlist:
+
+| Mapping key | Accepted Notion property types | Projected value |
+|---|---|---|
+| `OriginalUrl` | `url` | `original_url` source URL. |
+| `References` | `multi_select`, `rich_text` | `references` list; one rich-text value becomes one list item. |
+| `EntitiesJson` | `rich_text` | `entities` parsed from a JSON array of objects. |
+| `Cover` | `rich_text`, `url`, `files` | `cover`; a file list uses its first value. |
+| `CoverAlt` | `rich_text` | `cover_alt` text. |
+| `CoverCaption` | `rich_text` | `cover_caption` text. |
+
+Every `EntitiesJson` object requires non-empty string fields `type`, `name`,
+and `description`, for example:
+
+```json
+[{"type":"Organization","name":"Example News","description":"Editorial publisher"}]
+```
+
+Malformed JSON, a non-array value, a non-object item, or a missing/empty required
+string fails content loading. A mapped property with an unsupported Notion
+type also fails with a diagnostic identifying the page and property.
 
 ## Rendering
 

@@ -74,6 +74,9 @@ for path in "${paths[@]}"; do
       add_owner_check ci-fast-portability ;;
     scripts/checks/docs-consistency.sh)
       add_owner_check docs-consistency ;;
+    scripts/checks/config-docs/validate_docs.py|scripts/checks/config-docs-contract.sh|\
+    scripts/checks/config-docs-contract-self-test.sh)
+      add_owner_check "self-test:scripts/checks/config-docs-contract-self-test.sh" ;;
     .github/workflows/*)
       add_owner_check active-workflow ;;
     scripts/security/security-regression.sh|scripts/security/security-regression-self-test.sh|\

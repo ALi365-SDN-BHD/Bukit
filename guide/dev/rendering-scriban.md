@@ -18,9 +18,11 @@ Analytics is intentionally absent from the rendering model. Scriban has no
 render a compatibility Analytics partial. Analytics output belongs to the
 Core built-in plugin after template rendering.
 
-The `Title` property on `SeoModel` is the semantic title used by OG, Twitter,
-JSON-LD, search, and semantic title audits. Its `DocumentTitle` property is exposed as
-`page.seo.document_title` and is the final HTML document title source. Core
+The `Title` property on `SeoModel` is the SEO title used by OG, Twitter, search,
+and SEO title rules. Page-level JSON-LD names and headlines use the visible
+route/content title instead, so an `seo_title` override does not replace them.
+The `DocumentTitle` property is exposed as `page.seo.document_title` and is the
+final HTML document title source. Core
 builders always populate it; injection falls back to the `Title` property for
 models produced by older callers.
 

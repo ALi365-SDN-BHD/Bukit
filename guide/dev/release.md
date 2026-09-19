@@ -39,11 +39,16 @@ artifact-driven.
 - SEO, GEO, publish, security, and route report schemas.
 - README and guide links.
 
-## Thin Gates
+## Fast And Full Source Gates
 
-The current `scripts/gates/ci-fast.sh` is intentionally thin. It validates docs,
-config-docs contracts, skills, README links, and Core CLI script boundaries
-without running expensive release work.
+`scripts/gates/ci-fast.sh` validates docs, config-docs contracts, skills, README
+links, and Core CLI script boundaries. It also runs verification-script
+self-tests, `dotnet format`, the code-analysis debt ratchet, public API drift
+checks, and YAML static-context regeneration checks. The public API check
+builds Core; the YAML check builds the Theme project in temporary artifact
+directories. It requires the .NET toolchain and restored dependencies, can
+write build intermediates, and is not a docs-only or read-only check. It does
+not perform Native AOT packaging or the full Core test suite.
 
 `scripts/gates/ci-full.sh` is the Core source gate: it runs `ci-fast` and the
 explicit Core test project list in `scripts/checks/core-tests.sh`. Release
