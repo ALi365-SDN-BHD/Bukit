@@ -1,5 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
-using SixLabors.ImageSharp;
+using SkiaSharp;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Authentication;
@@ -2351,43 +2351,34 @@ public sealed class ImageAssetLocalizerTests
             seed = unchecked(seed * 31 + character);
         }
 
-        using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1, 1);
-        image[0, 0] = new SixLabors.ImageSharp.PixelFormats.Rgba32(
+        using var image = new SKBitmap(1, 1);
+        image.SetPixel(0, 0, new SKColor(
             (byte)(seed & 0xFF),
             (byte)((seed >> 8) & 0xFF),
-            (byte)((seed >> 16) & 0xFF));
+            (byte)((seed >> 16) & 0xFF)));
 
-        using var stream = new MemoryStream();
-        switch (contentType.ToLowerInvariant())
+        var format = contentType.ToLowerInvariant() switch
         {
-            case "image/jpeg" or "image/jpg":
-                image.SaveAsJpeg(stream);
-                break;
-            case "image/png":
-                image.SaveAsPng(stream);
-                break;
-            case "image/gif":
-                image.SaveAsGif(stream);
-                break;
-            case "image/webp":
-                image.SaveAsWebp(stream);
-                break;
-            case "image/bmp":
-                image.SaveAsBmp(stream);
-                break;
-            default:
-                // AVIF/ICO have no approved decoder: return a magic-only payload
-                // so signature-level tests still observe the declared behavior
-                return contentType.ToLowerInvariant() switch
-                {
-                    "image/avif" => [0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66, 0, 0, 0, 0],
-                    "image/x-icon" or "image/vnd.microsoft.icon" or "image/ico" => [0, 0, 1, 0],
-                    "image/tiff" => [0x49, 0x49, 0x2A, 0],
-                    _ => []
-                };
+            "image/jpeg" or "image/jpg" => SKEncodedImageFormat.Jpeg,
+            "image/png" => SKEncodedImageFormat.Png,
+            "image/webp" => SKEncodedImageFormat.Webp,
+            _ => (SKEncodedImageFormat?)null
+        };
+        if (format is { } encodedFormat)
+        {
+            using var data = image.Encode(encodedFormat, 90);
+            return data.ToArray();
         }
 
-        return stream.ToArray();
+        return contentType.ToLowerInvariant() switch
+        {
+            "image/gif" => ImageContentValidatorTests.CreateGif(1, seed),
+            "image/bmp" => ImageContentValidatorTests.CreateBmp(seed),
+            "image/avif" => [0, 0, 0, 16, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66, 0, 0, 0, 0],
+            "image/x-icon" or "image/vnd.microsoft.icon" or "image/ico" => [0, 0, 1, 0],
+            "image/tiff" => [0x49, 0x49, 0x2A, 0],
+            _ => []
+        };
     }
 
     [Fact]
@@ -2398,19 +2389,18 @@ public sealed class ImageAssetLocalizerTests
         try
         {
             byte[] full;
-            using (var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(128, 128))
+            using (var image = new SKBitmap(128, 128))
             {
                 for (var y = 0; y < 128; y++)
                 {
                     for (var x = 0; x < 128; x++)
                     {
-                        image[x, y] = new SixLabors.ImageSharp.PixelFormats.Rgba32((byte)x, (byte)y, 0);
+                        image.SetPixel(x, y, new SKColor((byte)x, (byte)y, 0));
                     }
                 }
 
-                using var stream = new MemoryStream();
-                image.SaveAsJpeg(stream);
-                full = stream.ToArray();
+                using var data = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+                full = data.ToArray();
             }
 
             // Header stays intact but the scan data is cut off: only a full decode
@@ -2452,17 +2442,8 @@ public sealed class ImageAssetLocalizerTests
         Directory.CreateDirectory(dir);
         try
         {
-            using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1, 1);
-            for (var i = 0; i < 256; i++)
-            {
-                image.Frames.AddFrame(image.Frames.RootFrame);
-            }
-
             var path = Path.Combine(dir, "frames.gif");
-            using (var stream = File.Create(path))
-            {
-                image.SaveAsGif(stream);
-            }
+            File.WriteAllBytes(path, ImageContentValidatorTests.CreateGif(257));
 
             Assert.False(await new ImageContentValidator().ValidateAsync(path, "image/gif", CancellationToken.None));
         }

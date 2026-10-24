@@ -9,8 +9,7 @@ using Bukit.Content.Media;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Incremental;
 using Bukit.Shared;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -107,8 +106,10 @@ public sealed partial class SiteEngineIntegrationTests
             File.SetLastWriteTimeUtc(responsive, retainedTimestamp);
             await BuildMediaAsync(root, config, [document], content);
             Assert.Equal(retainedTimestamp, File.GetLastWriteTimeUtc(responsive));
-            Assert.Equal(480, Image.Identify(responsive).Width);
-            Assert.Equal(1000, Image.Identify(full).Width);
+            using var responsiveCodec = SKCodec.Create(responsive);
+            using var fullCodec = SKCodec.Create(full);
+            Assert.Equal(480, responsiveCodec.Info.Width);
+            Assert.Equal(1000, fullCodec.Info.Width);
 
             config = config with
             {
@@ -476,9 +477,10 @@ public sealed partial class SiteEngineIntegrationTests
         public int RequestCount => Volatile.Read(ref _requests);
         public MediaImageServer(bool fail = false, int width = 2)
         {
-            using var image = new Image<Rgba32>(width, 2);
+            using var image = new SKBitmap(width, 2);
             using var bytes = new MemoryStream();
-            image.SaveAsPng(bytes);
+            using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+            encoded.SaveTo(bytes);
             Bytes = bytes.ToArray();
             _listener.Start();
             Url = $"http://127.0.0.1:{((IPEndPoint)_listener.LocalEndpoint).Port}/image.png";

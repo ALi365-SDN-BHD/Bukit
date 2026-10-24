@@ -7,7 +7,9 @@
     <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
     <PackageReference Include="Markdig" />
-    <PackageReference Include="SixLabors.ImageSharp" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+    <PackageReference Include="TiffLibrary" />
   </ItemGroup>
 
   <PropertyGroup>

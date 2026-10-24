@@ -8,7 +8,7 @@ using Bukit.Content.Media;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine;
 using Bukit.Shared;
-using SixLabors.ImageSharp;
+using SkiaSharp;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -443,13 +443,12 @@ public sealed class ContentProviderFactoryTests
             hash = unchecked(hash * 31 + character);
         }
 
-        using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(2, 2);
-        image[0, 0] = new SixLabors.ImageSharp.PixelFormats.Rgba32(
-            (byte)(hash & 0xFF), (byte)((hash >> 8) & 0xFF), (byte)((hash >> 16) & 0xFF));
-        image[1, 1] = new SixLabors.ImageSharp.PixelFormats.Rgba32(255, 255, 255);
-        using var stream = new MemoryStream();
-        image.SaveAsJpeg(stream);
-        return stream.ToArray();
+        using var image = new SKBitmap(2, 2);
+        image.SetPixel(0, 0, new SKColor(
+            (byte)(hash & 0xFF), (byte)((hash >> 8) & 0xFF), (byte)((hash >> 16) & 0xFF)));
+        image.SetPixel(1, 1, SKColors.White);
+        using var data = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+        return data.ToArray();
     }
 
     private sealed class LoopbackImageServer : IDisposable

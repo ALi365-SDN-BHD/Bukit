@@ -21,9 +21,9 @@ registry determines which plugins run through `PluginRunner`.
 
 ## Image Processing
 
-`image-processing` derives candidate widths from the decoded source and never
+`image-processing` derives candidate widths from the displayed source and never
 upscales. When `theme.images.formats` contains `webp`, it uses the bundled
-ImageSharp encoder for JPEG/PNG inputs, validates each complete WebP decode,
+SkiaSharp encoder for JPEG/PNG inputs, validates each complete WebP decode,
 and tracks the output plus freshness sidecar before adding that candidate to
 HTML. Freshness includes source identity and SHA-256, width, format, quality,
 and encoder identity. A failed or unowned candidate is not overwritten or
@@ -34,6 +34,25 @@ is idempotent: existing `picture`, script, style, template, and comment blocks
 are opaque. An empty `formats` list leaves owned WebP in place but does not
 generate or project it. AVIF requests emit a stable fail-closed diagnostic and
 do not publish AVIF until an approved encoder/full-decoder chain is available.
+
+Core validates JPEG, PNG, GIF, WebP, and BMP with SkiaSharp 4.153.1, and standard
+TIFF with TiffLibrary 0.6.65. Every frame/page must decode completely within the
+256-frame/page and 100,000,000-total-pixel limits. BigTIFF, AVIF, and ICO remain
+unsupported. TIFF validation does not enable TIFF conversion or resizing.
+TIFF directory/field and strip/tile byte ranges must fit the source file before
+decoder allocation; padded edge tiles also count toward the decoded-pixel budget.
+The pinned PNG decoder exposes only the default APNG image, so APNG validation
+and built-in conversion fail closed rather than silently flattening animation.
+WeChat also rejects multi-frame GIF/WebP conversion; supported-under-limit
+JPEG/PNG passthrough preserves the original bytes, including APNG.
+Built-in Engine and WeChat conversion apply display orientation and normalize
+profiled colors to sRGB. WeChat preserves PNG alpha and unassociated RGB colors
+when size limits require JPEG fallback.
+PNG eXIf orientation is read with bounded metadata/CRC checks in either byte order.
+External resizing applies `-auto-orient` before `-resize`. Updated encoder/tool
+identities regenerate older owned variants under these orientation semantics.
+SkiaSharp supplies macOS/Windows native assets; the Linux NoDependencies native
+package is included by both Content and WeChat. WebP generation needs no PATH tool.
 
 ## Data Files
 

@@ -7,9 +7,7 @@ using System.Text.RegularExpressions;
 using Bukit.Config;
 using Bukit.Content.Media;
 using Bukit.Shared;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 
 using Bukit.Engine.Abstractions.Plugins;
 namespace Bukit.Engine.Plugins.BuiltIn;
@@ -105,10 +103,10 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             tool = await FindResizeToolAsync(context.Logger, cancellationToken);
             if (tool is null)
             {
-                context.Logger.Info("event=image_processing.fallback tool=imagesharp");
+                context.Logger.Info("event=image_processing.fallback tool=skiasharp");
             }
         }
-        var toolIdentity = tool ?? "imagesharp";
+        var toolIdentity = tool is null ? "skiasharp-orientation-v2" : $"{tool}-auto-orient-v1";
 
         foreach (var (imageFile, applicableSizes) in resizePlans)
         {
@@ -175,7 +173,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
                     (int ExitCode, string StandardError) result;
                     if (tool is null)
                     {
-                        await ResizeWithImageSharpAsync(
+                        await ResizeWithSkiaSharpAsync(
                             imageFile,
                             temporarySizedFile,
                             size,
@@ -194,6 +192,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
                             CreateNoWindow = true
                         };
                         startInfo.ArgumentList.Add(imageFile);
+                        startInfo.ArgumentList.Add("-auto-orient");
                         startInfo.ArgumentList.Add("-resize");
                         startInfo.ArgumentList.Add($"{size}x");
                         startInfo.ArgumentList.Add("-quality");
@@ -376,33 +375,29 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         width = 0;
         try
         {
-            width = ImageMetadataReader.TryReadImageMetadata(path)?.Width ?? 0;
+            using var codec = SKCodec.Create(path);
+            if (codec is null) return false;
+            var origin = ImageOptimizer.GetEncodedOrigin(path, codec);
+            width = origin >= SKEncodedOrigin.LeftTop ? codec.Info.Height : codec.Info.Width;
             return width > 0;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
             logger.Warn($"event=image_processing.skip file={Path.GetFileName(path)} reason=invalid_source");
             return false;
         }
     }
 
-    private static async Task ResizeWithImageSharpAsync(
+    private static Task ResizeWithSkiaSharpAsync(
         string source,
         string destination,
         int width,
         int quality,
         CancellationToken cancellationToken)
     {
-        using var image = await Image.LoadAsync(source, cancellationToken);
-        image.Mutate(operation => operation.Resize(width, 0));
-        if (Path.GetExtension(destination).Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
-            Path.GetExtension(destination).Equals(".jpeg", StringComparison.OrdinalIgnoreCase))
-        {
-            await image.SaveAsJpegAsync(destination, new JpegEncoder { Quality = quality }, cancellationToken);
-            return;
-        }
-
-        await image.SaveAsPngAsync(destination, cancellationToken);
+        var format = Path.GetExtension(destination).Equals(".png", StringComparison.OrdinalIgnoreCase)
+            ? SKEncodedImageFormat.Png : SKEncodedImageFormat.Jpeg;
+        return ImageOptimizer.EncodeAsync(source, destination, width, quality, format, cancellationToken);
     }
 
     private async Task<Dictionary<string, string>> GenerateWebpVariantsAsync(

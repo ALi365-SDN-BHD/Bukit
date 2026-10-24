@@ -408,7 +408,7 @@ author.
 | `theme.scss.entryPoint` | none | SCSS entry point. |
 | `theme.scss.outputDir` | `assets` | SCSS output directory. |
 | `theme.images.enabled` | `false` | Enables responsive original-format variants and requested next-generation formats. |
-| `theme.images.formats` | `webp` | Case-insensitive output formats. WebP uses the Core-bundled ImageSharp encoder and needs no PATH tool. `[]` disables next-generation generation and projection without deleting already owned WebP. AVIF remains fail-closed until Core has an approved encoder and full decoder validation path. |
+| `theme.images.formats` | `webp` | Case-insensitive output formats. WebP uses the Core-bundled SkiaSharp encoder and needs no PATH tool. `[]` disables next-generation generation and projection without deleting already owned WebP. AVIF remains fail-closed until Core has an approved encoder and full decoder validation path. |
 | `theme.images.sizes` | `480`, `768`, `1200` | Positive widths below the source width; images are never upscaled. |
 | `theme.images.quality` | `80` | WebP/JPEG quality setting, clamped to `1..100` by the built-in WebP encoder. |
 | `theme.componentValidation` | `off` | `off`, `warn`, or `strict`. |
@@ -419,6 +419,17 @@ WebP candidates for local JPEG/PNG content images. Final HTML uses one
 `src`/`srcset`, `sizes`, accessibility text, dimensions, loading hints, classes,
 IDs, and other attributes remain the fallback. Existing `picture` markup and
 external, data, SVG, or GIF images are not rewritten.
+
+Image validation uses SkiaSharp for JPEG/PNG/GIF/WebP/BMP and TiffLibrary for
+standard TIFF pages. TIFF validation does not add TIFF optimization.
+APNG conversion is skipped because the pinned decoder cannot expose every frame.
+WeChat conversion also rejects animated GIF/WebP rather than producing a still
+image; supported JPEG/PNG files within the upload limit retain their original bytes.
+Built-in conversion preserves display orientation, including PNG eXIf, and normalizes colors to sRGB;
+responsive candidate widths follow the displayed image dimensions.
+External image tools apply orientation before resizing; older owned candidates are regenerated.
+Native Skia assets are included for macOS, Windows, and Linux; no image tool installation
+is needed for built-in WebP generation.
 
 ## Taxonomy Fields
 

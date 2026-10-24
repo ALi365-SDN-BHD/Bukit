@@ -9,7 +9,7 @@ using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
-using SixLabors.ImageSharp;
+using SkiaSharp;
 using Xunit;
 using Xunit.Sdk;
 
@@ -102,7 +102,7 @@ public sealed class ImageProcessingPluginTests
     }
 
     [Fact]
-    public async Task AfterBuild_NoImageTool_UsesImageSharpAndDoesNotUpscale()
+    public async Task AfterBuild_NoImageTool_UsesSkiaSharpAndDoesNotUpscale()
     {
         var outDir = GetTempDir();
         var originalPath = Environment.GetEnvironmentVariable("PATH");
@@ -120,8 +120,162 @@ public sealed class ImageProcessingPluginTests
                 .AfterBuildAsync(CreateContext(outDir));
 
             var variant = Path.Combine(assetsDir, "photo-480w.jpg");
-            Assert.Equal(480, Image.Identify(variant).Width);
+            using var codec = SKCodec.Create(variant);
+            Assert.Equal(480, codec.Info.Width);
             Assert.False(File.Exists(Path.Combine(assetsDir, "photo-1200w.jpg")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_OrientedSource_UsesDisplayedWidthForCandidates()
+    {
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            Environment.SetEnvironmentVariable("PATH", outDir);
+            File.WriteAllBytes(Path.Combine(assetsDir, "portrait.jpg"), ImageOptimizerTests.CreateOrientedJpeg(SKEncodedOrigin.RightTop));
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 20, 60 } });
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(outDir));
+
+            Assert.False(File.Exists(Path.Combine(assetsDir, "portrait-60w.webp")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "portrait-60w.jpg")));
+            using var full = SKBitmap.Decode(Path.Combine(assetsDir, "portrait-40w.webp"));
+            using var resized = SKBitmap.Decode(Path.Combine(assetsDir, "portrait-20w.webp"));
+            Assert.Equal((40, 80), (full.Width, full.Height));
+            Assert.Equal((20, 40), (resized.Width, resized.Height));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuild_PngExifUsesDisplayedWidthAndRejectsMalformedPlanning()
+    {
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            Directory.CreateDirectory(assetsDir);
+            Environment.SetEnvironmentVariable("PATH", outDir);
+            File.WriteAllBytes(Path.Combine(assetsDir, "portrait.png"), ImageOptimizerTests.CreateOrientedPng(SKEncodedOrigin.RightTop, true));
+            File.WriteAllBytes(Path.Combine(assetsDir, "bad.png"), ImageOptimizerTests.CreateOrientedPng(SKEncodedOrigin.RightTop, false, "ifd-offset"));
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 20, 60, 100 } });
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(CreateContext(outDir));
+
+            using var full = SKBitmap.Decode(Path.Combine(assetsDir, "portrait-80w.webp"));
+            using var resized = SKBitmap.Decode(Path.Combine(assetsDir, "portrait-60w.png"));
+            Assert.NotNull(full);
+            Assert.NotNull(resized);
+            Assert.Equal((80, 40), (full.Width, full.Height));
+            Assert.Equal((60, 30), (resized.Width, resized.Height));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "portrait-100w.webp")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "portrait-100w.png")));
+            Assert.Empty(Directory.GetFiles(assetsDir, "bad-*"));
+            Assert.Empty(Directory.GetFiles(assetsDir, ".*.bukit-*"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("magick")]
+    [InlineData("convert")]
+    public async Task AfterBuild_ExternalResizeAutoOrientsBeforeDisplayedWidthResize(string tool)
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            File.WriteAllBytes(Path.Combine(assetsDir, "portrait.jpg"), ImageOptimizerTests.CreateOrientedJpeg(SKEncodedOrigin.RightTop, 40, 80));
+            var expected = Path.Combine(toolDir, "expected.jpg");
+            using (var image = new SKBitmap(60, 30))
+            using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 90)) File.WriteAllBytes(expected, data.ToArray());
+            var args = Path.Combine(toolDir, "args.txt");
+            WriteTool(toolDir, tool, $"""
+                if [ "$1" = "--version" ]; then exit 0; fi
+                printf '%s\n' "$@" > '{EscapeSingleQuoted(args)}'
+                [ "$2" = "-auto-orient" ] && [ "$3" = "-resize" ] && [ "$4" = "60x" ] || exit 9
+                for last in "$@"; do :; done
+                /bin/cp '{EscapeSingleQuoted(expected)}' "$last"
+                """);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
+
+            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+                { Enabled = true, Formats = Array.Empty<string>(), Sizes = new[] { 60, 100 } })).AfterBuildAsync(CreateContext(outDir));
+
+            var arguments = File.ReadAllLines(args);
+            Assert.Equal(new[] { "-auto-orient", "-resize", "60x", "-quality" }, arguments[1..5]);
+            using var output = SKBitmap.Decode(Path.Combine(assetsDir, "portrait-60w.jpg"));
+            Assert.Equal((60, 30), (output.Width, output.Height));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "portrait-100w.jpg")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("magick")]
+    [InlineData("convert")]
+    public async Task AfterBuild_ExternalResizeRebuildsLegacyOrientationOwnership(string tool)
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            File.WriteAllBytes(Path.Combine(assetsDir, "portrait.jpg"), ImageOptimizerTests.CreateOrientedJpeg(SKEncodedOrigin.RightTop, 40, 80));
+            WriteTool(toolDir, tool, """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                /bin/cp "$1" "$last"
+                """);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = Array.Empty<string>(), Sizes = new[] { 20 } });
+            var first = CreateContext(outDir);
+            await new ImageProcessingPlugin(config).AfterBuildAsync(first);
+            var variant = Path.Combine(assetsDir, "portrait-20w.jpg");
+            var sidecar = variant + ".bukit-freshness.json";
+            var freshness = JsonNode.Parse(File.ReadAllText(sidecar))!.AsObject();
+            freshness["tool"] = tool;
+            File.WriteAllText(sidecar, freshness.ToJsonString());
+            var oldTimestamp = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            File.SetLastWriteTimeUtc(variant, oldTimestamp);
+            var second = CreateContext(outDir);
+            second.Data[BuildContextDataKeys.PriorPluginOutputs] = first.Data["__plugin_outputs"];
+
+            await new ImageProcessingPlugin(config).AfterBuildAsync(second);
+
+            Assert.True(File.GetLastWriteTimeUtc(variant) > oldTimestamp);
+            Assert.NotEqual(tool, JsonNode.Parse(File.ReadAllText(sidecar))!["tool"]!.GetValue<string>());
         }
         finally
         {
@@ -139,8 +293,12 @@ public sealed class ImageProcessingPluginTests
             var assetsDir = Path.Combine(outDir, "assets");
             Directory.CreateDirectory(assetsDir);
             var source = Path.Combine(assetsDir, "photo.png");
-            using (var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(1000, 8, new(10, 20, 30, 0)))
-                image.SaveAsPng(source);
+            using (var image = new SKBitmap(1000, 8))
+            {
+                image.Erase(SKColors.Transparent);
+                using var encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+                File.WriteAllBytes(source, encoded.ToArray());
+            }
             var htmlFile = Path.Combine(outDir, "index.html");
             const string img = "<img src=\"/assets/photo.png\" sizes=\"50vw\" alt=\"A > B\" width=\"1000\" height=\"8\" loading=\"lazy\" decoding=\"async\" class=\"hero\" id=\"lead\">";
             var config = CreateConfig(new ImageOptimizationConfig
@@ -168,15 +326,17 @@ public sealed class ImageProcessingPluginTests
 
             var responsive = Path.Combine(assetsDir, "photo-480w.webp");
             var full = Path.Combine(assetsDir, "photo-1000w.webp");
-            Assert.Equal(480, Image.Identify(responsive).Width);
-            Assert.Equal(1000, Image.Identify(full).Width);
+            using var responsiveCodec = SKCodec.Create(responsive);
+            using var fullCodec = SKCodec.Create(full);
+            Assert.Equal(480, responsiveCodec.Info.Width);
+            Assert.Equal(1000, fullCodec.Info.Width);
             Assert.False(File.Exists(Path.Combine(assetsDir, "photo-1200w.webp")));
             Assert.True(File.Exists(responsive + ".bukit-freshness.json"));
             var freshness = JsonNode.Parse(File.ReadAllText(responsive + ".bukit-freshness.json"))!.AsObject();
             Assert.Equal(".webp", freshness["format"]!.GetValue<string>());
             Assert.Equal(76, freshness["quality"]!.GetValue<int>());
             Assert.Equal(480, freshness["size"]!.GetValue<int>());
-            Assert.StartsWith("imagesharp-webp-", freshness["tool"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.StartsWith("skiasharp-webp-", freshness["tool"]!.GetValue<string>(), StringComparison.Ordinal);
 
             var html = File.ReadAllText(htmlFile);
             Assert.Contains("<picture><source type=\"image/webp\"", html, StringComparison.Ordinal);
@@ -192,6 +352,54 @@ public sealed class ImageProcessingPluginTests
         }
         finally
         {
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AfterBuild_PreviousEncoderIdentity_RebuildsOwnedWebpAndFallback(bool previousSkia)
+    {
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var noTools = Path.Combine(outDir, "no-tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(noTools);
+            Environment.SetEnvironmentVariable("PATH", noTools);
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
+            var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 480 } });
+            var first = CreateContext(outDir);
+            await new ImageProcessingPlugin(config).AfterBuildAsync(first);
+            var webp = Path.Combine(assetsDir, "photo-480w.webp");
+            var fallback = Path.Combine(assetsDir, "photo-480w.jpg");
+            var oldTimestamp = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            foreach (var variant in new[] { webp, fallback })
+            {
+                var sidecar = variant + ".bukit-freshness.json";
+                var freshness = JsonNode.Parse(File.ReadAllText(sidecar))!.AsObject();
+                freshness["tool"] = previousSkia
+                    ? variant == webp ? ImageOptimizer.WebpEncoderIdentity.Replace("orientation-v2-", "", StringComparison.Ordinal) : "skiasharp"
+                    : variant == webp ? "imagesharp-webp-3.1.12" : "imagesharp";
+                File.WriteAllText(sidecar, freshness.ToJsonString());
+                File.SetLastWriteTimeUtc(variant, oldTimestamp);
+            }
+
+            var second = CreateContext(outDir);
+            second.Data[BuildContextDataKeys.PriorPluginOutputs] = first.Data["__plugin_outputs"];
+            await new ImageProcessingPlugin(config).AfterBuildAsync(second);
+
+            Assert.StartsWith("skiasharp-webp-", JsonNode.Parse(File.ReadAllText(webp + ".bukit-freshness.json"))!["tool"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Equal("skiasharp-orientation-v2", JsonNode.Parse(File.ReadAllText(fallback + ".bukit-freshness.json"))!["tool"]!.GetValue<string>());
+            Assert.True(File.GetLastWriteTimeUtc(webp) > oldTimestamp);
+            Assert.True(File.GetLastWriteTimeUtc(fallback) > oldTimestamp);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
@@ -287,8 +495,11 @@ public sealed class ImageProcessingPluginTests
             WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "source", width: 700);
             File.WriteAllText(Path.Combine(assetsDir, "broken.jpg"), "not an image");
             var unowned = Path.Combine(assetsDir, "photo-480w.webp");
-            using (var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(2, 2))
-                image.SaveAsWebp(unowned);
+            using (var image = new SKBitmap(2, 2))
+            {
+                using var encoded = image.Encode(SKEncodedImageFormat.Webp, 80);
+                File.WriteAllBytes(unowned, encoded.ToArray());
+            }
             var unownedHash = SHA256.HashData(File.ReadAllBytes(unowned));
             var htmlFile = Path.Combine(outDir, "index.html");
             File.WriteAllText(htmlFile, "<img src=\"/assets/photo.jpg\" alt=\"fallback\">");
@@ -1350,19 +1561,13 @@ public sealed class ImageProcessingPluginTests
             hash = unchecked(hash * 31 + character);
         }
 
-        var color = new SixLabors.ImageSharp.PixelFormats.Rgba32(
+        var color = new SKColor(
             (byte)(hash & 0xFF), (byte)((hash >> 8) & 0xFF), (byte)((hash >> 16) & 0xFF));
-        using var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(width, 8);
-        for (var y = 0; y < image.Height; y++)
-        {
-            for (var x = 0; x < image.Width; x++)
-            {
-                image[x, y] = color;
-            }
-        }
-
-        image[width - 1, 7] = new SixLabors.ImageSharp.PixelFormats.Rgba32(255, 255, 255);
-        image.SaveAsJpeg(path);
+        using var image = new SKBitmap(width, 8);
+        image.Erase(color);
+        image.SetPixel(width - 1, 7, SKColors.White);
+        using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+        File.WriteAllBytes(path, encoded.ToArray());
     }
 
     private static string EscapeSingleQuoted(string value) => value.Replace("'", "'\\''", StringComparison.Ordinal);
