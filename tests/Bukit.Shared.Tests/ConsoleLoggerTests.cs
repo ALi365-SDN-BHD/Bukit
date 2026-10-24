@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Xunit;
 
@@ -163,6 +164,40 @@ public sealed class ConsoleLoggerTests
         var logger = new ConsoleLogger(LogLevel.Debug);
         var output = CaptureStderr(() => logger.Debug("hello"));
         Assert.Equal("[debug] hello", output);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" \t")]
+    public void JsonFormat_ControlCharactersRoundTrip_AndBlankCorrelationIdsAreOmitted(string? correlationId)
+    {
+        var originalTrace = Environment.GetEnvironmentVariable("BUKIT_TRACE_ID");
+        var originalSpan = Environment.GetEnvironmentVariable("BUKIT_SPAN_ID");
+        try
+        {
+            Environment.SetEnvironmentVariable("BUKIT_TRACE_ID", correlationId);
+            Environment.SetEnvironmentVariable("BUKIT_SPAN_ID", correlationId);
+            const string message = "quote=\" slash=\\ line=\n tab=\t control=\u0001 中文";
+            var before = DateTimeOffset.UtcNow;
+            var output = CaptureStderr(() => new ConsoleLogger(LogLevel.Info, " JSON ").Warn(message));
+            var after = DateTimeOffset.UtcNow;
+
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            Assert.Equal("Warn", root.GetProperty("level").GetString());
+            Assert.Equal(message, root.GetProperty("msg").GetString());
+            Assert.False(root.TryGetProperty("traceId", out _));
+            Assert.False(root.TryGetProperty("spanId", out _));
+            Assert.DoesNotContain('\n', output);
+            var timestamp = DateTimeOffset.ParseExact(root.GetProperty("ts").GetString()!, "O", CultureInfo.InvariantCulture);
+            Assert.InRange(timestamp, before, after);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BUKIT_TRACE_ID", originalTrace);
+            Environment.SetEnvironmentVariable("BUKIT_SPAN_ID", originalSpan);
+        }
     }
 
     private static string CaptureStderr(Action action)

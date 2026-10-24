@@ -7,6 +7,46 @@ namespace Bukit.Shared.Tests;
 
 public sealed class SsrfGuardHostTests
 {
+    [Theory]
+    [InlineData("127.0.0.1", true)]
+    [InlineData("2130706433", true)]
+    [InlineData("0x7f000001", true)]
+    [InlineData("::ffff:10.0.0.1", true)]
+    [InlineData("8.8.8.8", false)]
+    public async Task IsPrivateHostAsync_IpLiteral_DoesNotResolveDns(string host, bool expected)
+    {
+        var result = await SsrfGuard.IsPrivateHostAsync(host,
+            (_, _) => throw new InvalidOperationException("Literal IP must not use DNS."),
+            CancellationToken.None);
+
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public async Task IsPrivateHostAsync_PublicDns_PassesHostAndTokenAndAllowsAllPublicResults()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var calls = 0;
+        var result = await SsrfGuard.IsPrivateHostAsync("public.example", (host, token) =>
+        {
+            calls++;
+            Assert.Equal("public.example", host);
+            Assert.Equal(cancellation.Token, token);
+            return Task.FromResult(new[] { IPAddress.Parse("8.8.8.8"), IPAddress.Parse("2606:4700:4700::1111") });
+        }, cancellation.Token);
+
+        Assert.False(result);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task IsPrivateHostAsync_InvalidHostResolverArgument_FailsClosed()
+    {
+        Assert.True(await SsrfGuard.IsPrivateHostAsync("invalid/host",
+            (_, _) => Task.FromException<IPAddress[]>(new ArgumentException("Invalid host.")),
+            CancellationToken.None));
+    }
+
     [Fact]
     public async Task IsPrivateHostAsync_CanceledBeforeHostnameResolution_PropagatesCancellation()
     {

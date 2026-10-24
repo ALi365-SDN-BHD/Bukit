@@ -4,6 +4,17 @@ namespace Bukit.Shared.Tests;
 
 public sealed class UrlRedactorTests
 {
+    [Theory]
+    [InlineData("HTTPS://user:password@EXAMPLE.COM:443/private-token?key=query-token#fragment-token", "https://example.com/<redacted-path>")]
+    [InlineData("https://user:password@[2001:4860:4860::8888]:8443/private-token?key=query-token#fragment-token", "https://[2001:4860:4860::8888]:8443/<redacted-path>")]
+    [InlineData("/private-token?key=query-token#fragment-token", "<redacted-url>")]
+    [InlineData("https://user:password@/private-token", "<redacted-url>")]
+    [InlineData("data:text/plain,private-token", "<redacted-url>")]
+    public void Redact_CombinedCredentialsOrMalformedInput_DoesNotEchoSecrets(string input, string expected)
+    {
+        Assert.Equal(expected, UrlRedactor.Redact(input));
+    }
+
     [Fact]
     public void Redact_Null_ReturnsNull()
     {

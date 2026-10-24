@@ -5,6 +5,79 @@ namespace Bukit.Shared.Tests;
 public sealed class SafeUrlTests
 {
     [Theory]
+    [InlineData(null, false, false, false)]
+    [InlineData(" \t\r\n", false, false, false)]
+    [InlineData(" https://example.com/a?b=1#part ", true, true, true)]
+    [InlineData(" HTTPS://example.com/a ", true, true, true)]
+    [InlineData(" HTTP://example.com/a ", true, true, false)]
+    [InlineData(" MAILTO:user@example.com ", true, false, false)]
+    [InlineData(" tel:+12345 ", true, false, false)]
+    [InlineData(" /assets/中文.png ", true, true, true)]
+    [InlineData("\t/assets/image.png\r\n", true, true, true)]
+    [InlineData("/path%5Cpart?q=%09", true, true, true)]
+    [InlineData("https://example.com/path%5Cpart?q=%0A", true, true, true)]
+    [InlineData(" //example.com/a ", false, false, false)]
+    [InlineData("relative/page.html", false, false, false)]
+    [InlineData("#section", false, false, false)]
+    [InlineData("https://", false, false, false)]
+    [InlineData(" JaVaScRiPt:alert(1) ", false, false, false)]
+    [InlineData("ftp://example.com/file", false, false, false)]
+    public void UrlPolicies_TrimAndApplyDistinctSchemeAllowlists(string? url, bool link, bool media, bool embed)
+    {
+        Assert.Equal(link ? url!.Trim() : null, SafeUrl.ForLink(url));
+        Assert.Equal(media ? url!.Trim() : null, SafeUrl.ForMedia(url));
+        Assert.Equal(embed ? url!.Trim() : null, SafeUrl.ForEmbed(url));
+    }
+
+    [Theory]
+    [InlineData("link")]
+    [InlineData("media")]
+    [InlineData("embed")]
+    public void UrlPolicies_BackslashAuthorityConfusion_IsRejected(string policy)
+    {
+        const string url = @"/\attacker.example/payload";
+        var result = policy switch
+        {
+            "link" => SafeUrl.ForLink(url),
+            "media" => SafeUrl.ForMedia(url),
+            _ => SafeUrl.ForEmbed(url)
+        };
+
+        Assert.Null(result);
+    }
+
+    [Theory]
+    [InlineData("/\t/attacker.example/payload")]
+    [InlineData("/\r/attacker.example/payload")]
+    [InlineData("/\n/attacker.example/payload")]
+    [InlineData("/path\0part")]
+    [InlineData("/path\u001Fpart")]
+    [InlineData("/path\u007Fpart")]
+    [InlineData("/path\u0085part")]
+    [InlineData(@"/path\part")]
+    [InlineData(@"https://example.com\@attacker.example/payload")]
+    [InlineData("https://example.com/\tpath")]
+    [InlineData("https://example.com/\rpath")]
+    [InlineData("https://example.com/\npath")]
+    public void UrlPolicies_EmbeddedControlsOrBackslashes_AreRejected(string url)
+    {
+        Assert.Null(SafeUrl.ForLink(url));
+        Assert.Null(SafeUrl.ForMedia(url));
+        Assert.Null(SafeUrl.ForEmbed(url));
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData(" \t", false)]
+    [InlineData(" /page ", false)]
+    [InlineData(" //example.com/page ", true)]
+    [InlineData("mailto:user@example.com", true)]
+    public void IsExternal_EmptyAndTrimmedInput_ReturnExpected(string? url, bool expected)
+    {
+        Assert.Equal(expected, SafeUrl.IsExternal(url));
+    }
+
+    [Theory]
     [InlineData("https://example.com")]
     [InlineData("http://example.com")]
     [InlineData("mailto:user@example.com")]

@@ -8,7 +8,8 @@ public static class PathUtils
         var parentPath = NormalizeFullPath(parent, resolveSymlinks: true);
         var parentWithSeparator = EnsureTrailingSeparator(parentPath);
 
-        return childPath.StartsWith(parentWithSeparator, PlatformPathHelper.PathComparison);
+        return !string.Equals(childPath, parentPath, PlatformPathHelper.PathComparison)
+            && childPath.StartsWith(parentWithSeparator, PlatformPathHelper.PathComparison);
     }
 
     public static bool IsSameOrSubPathOf(string child, string parent)

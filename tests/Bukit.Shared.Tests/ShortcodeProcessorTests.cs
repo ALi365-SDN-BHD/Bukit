@@ -187,4 +187,39 @@ public sealed class ShortcodeProcessorTests
         var result = ShortcodeProcessor.RenderShortcode("link", templates, "<img onerror=x>");
         Assert.Equal("<a>&lt;img onerror=x&gt;</a>", result);
     }
+
+    [Fact]
+    public void RenderShortcodes_EncodedInput_DecodesThenEncodesOnce()
+    {
+        var templates = new Dictionary<string, string> { ["note"] = "<p>{{ $1 }}</p>" };
+
+        Assert.Equal("<p>&lt;script&gt; &amp; text</p>", ShortcodeProcessor.RenderShortcodes(
+            "{% note &quot;&lt;script&gt; &amp; text&quot; %}", templates));
+    }
+
+    [Fact]
+    public void RenderShortcode_AttributeBreakingCharacters_AreEncoded()
+    {
+        var templates = new Dictionary<string, string> { ["note"] = "<p data-text=\"{{ $1 }}\"></p>" };
+
+        Assert.Equal("<p data-text=\"&quot; onmouseover=&quot;x &amp; &lt;tag&gt;&#39;\"></p>",
+            ShortcodeProcessor.RenderShortcode("note", templates, "\" onmouseover=\"x & <tag>'"));
+    }
+
+    [Fact]
+    public void RenderShortcode_PlaceholderInArgument_IsNotReinterpreted()
+    {
+        var templates = new Dictionary<string, string> { ["note"] = "{{ $1 }}|{{ $2 }}" };
+
+        Assert.Equal("{{ $2 }}|second", ShortcodeProcessor.RenderShortcode("note", templates, "{{ $2 }}", "second"));
+    }
+
+    [Fact]
+    public void RenderShortcodes_EmptyAndMultilineArguments_KeepPositions()
+    {
+        var templates = new Dictionary<string, string> { ["note"] = "{{ $1 }}|{{ $2 }}|{{ $3 }}" };
+
+        Assert.Equal("|line1\nline2|last", ShortcodeProcessor.RenderShortcodes(
+            "{% note \"\" 'line1\nline2' \"last\" %}", templates));
+    }
 }
