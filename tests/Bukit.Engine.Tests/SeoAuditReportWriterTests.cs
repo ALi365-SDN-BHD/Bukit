@@ -1,9 +1,12 @@
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
+using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Rendering;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
@@ -19,6 +22,37 @@ public sealed class SeoAuditReportWriterTests : IDisposable
     public SeoAuditReportWriterTests()
     {
         Directory.CreateDirectory(_outputDir);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("2026-06-05T00:00:00Z")]
+    public void Write_LastModifiedMatchesNullableDateTimeSchema(string? timestamp)
+    {
+        WriteOutput("index.html");
+        var lastModified = timestamp is null ? DateTimeOffset.UnixEpoch : DateTimeOffset.Parse(timestamp, System.Globalization.CultureInfo.InvariantCulture);
+        var index = new Dictionary<string, SeoIndexEntry>
+        {
+            ["index.html"] = Entry("/", "index.html", "https://example.com/") with { LastModified = lastModified }
+        };
+        var models = new Dictionary<string, SeoModel> { ["index.html"] = Model("Home", "https://example.com/") };
+
+        SeoAuditReportWriter.Write(Config(), _outputDir, index, models, new ConsoleLogger(LogLevel.Error));
+
+        var report = JsonNode.Parse(File.ReadAllText(Path.Combine(_outputDir, ".bukit", "seo-report.json")))!.AsObject();
+        var value = JsonSerializer.SerializeToElement(report).GetProperty("routes")[0];
+        if (timestamp is null) Assert.Equal(JsonValueKind.Null, value.GetProperty("lastModified").ValueKind);
+        else Assert.Equal(lastModified, value.GetProperty("lastModified").GetDateTimeOffset());
+        ReportAssertions.Schema("seo-report.json", JsonSerializer.SerializeToElement(report));
+        foreach (var invalid in new[] { "\"not-a-date\"", "\"2026-06-05\"", "\"2026-02-30T00:00:00Z\"", "42" })
+        {
+            var mutant = report.DeepClone();
+            mutant["routes"]![0]!["lastModified"] = JsonNode.Parse(invalid);
+            var error = Assert.Throws<InvalidDataException>(() => ReportAssertions.Schema("seo-report.json", JsonSerializer.SerializeToElement(mutant)));
+            Assert.Contains("lastModified", error.Message);
+        }
+        report["routes"]![0]!.AsObject().Remove("lastModified");
+        Assert.Throws<InvalidDataException>(() => ReportAssertions.Schema("seo-report.json", JsonSerializer.SerializeToElement(report)));
     }
 
     [Fact]

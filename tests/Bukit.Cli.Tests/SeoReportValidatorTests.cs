@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Bukit.Cli.Commands;
 using Xunit;
 
@@ -139,6 +140,25 @@ public sealed class SeoReportValidatorTests
     {
         SeoAuditReportContractValidator.Validate(Parse(ValidReportJson()));
         PublishAuditReportContractValidator.Validate(Parse(ValidPublishReportJson()));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ValidateReportContract_LastModifiedAcceptsNullAndString_ButRejectsOtherTypes(bool publish)
+    {
+        var report = JsonNode.Parse(publish ? ValidPublishReportJson() : ValidReportWithRoutesJson())!;
+        var row = report[publish ? "documents" : "routes"]![0]!;
+        var contract = publish ? SeoReportValidator.AuditReportContract.PublishOnly : SeoReportValidator.AuditReportContract.SeoOnly;
+        foreach (var timestamp in new string?[] { null, "2026-06-05T00:00:00Z" })
+        {
+            row["lastModified"] = timestamp;
+            AuditReportContractValidator.ValidateReportContract(JsonSerializer.SerializeToElement(report), contract);
+        }
+        row["lastModified"] = 42;
+        var error = Assert.Throws<InvalidDataException>(() =>
+            AuditReportContractValidator.ValidateReportContract(JsonSerializer.SerializeToElement(report), contract));
+        Assert.Contains("lastModified", error.Message);
     }
 
     [Fact]

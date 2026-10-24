@@ -53,7 +53,7 @@ Each route entry represents one final generated route from `SeoIndex`:
 - `canonical`: computed canonical URL.
 - `robots`: robots directive, when configured.
 - `indexable`: `false` when robots contains `noindex` or `none`.
-- `lastModified`: SEO index lastmod timestamp.
+- `lastModified`: required SEO index lastmod date-time string, or `null` when unknown (for example, a generated home route without dated content). Non-null values must be valid date-time strings.
 - `contentType`: page/content type from the source item or `list`.
 - `sourceItemId`: source content id when the route is content-backed.
 - `sitemapIncluded`: whether the canonical appears in `sitemap.xml`.

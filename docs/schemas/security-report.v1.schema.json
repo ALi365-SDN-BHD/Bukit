@@ -18,12 +18,13 @@
     },
     "checks": {
       "type": "object",
-      "required": ["routeTraversal", "unsafeSlug", "pluginOutputPath", "remoteThemeLock"],
+      "required": ["routeTraversal", "unsafeSlug", "pluginOutputPath", "remoteThemeLock", "publicOutputPrivacy"],
       "properties": {
         "routeTraversal": { "$ref": "#/$defs/check" },
         "unsafeSlug": { "$ref": "#/$defs/check" },
         "pluginOutputPath": { "$ref": "#/$defs/check" },
-        "remoteThemeLock": { "$ref": "#/$defs/check" }
+        "remoteThemeLock": { "$ref": "#/$defs/check" },
+        "publicOutputPrivacy": { "$ref": "#/$defs/check" }
       },
       "additionalProperties": false
     }

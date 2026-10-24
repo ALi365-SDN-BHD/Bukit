@@ -35,6 +35,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+      - name: Check security coverage helper
+        run: python3 -B scripts/checks/coverage/security-layer-self-test.py
+      - name: Check Core report inventory
+        run: python3 -B scripts/checks/core-report-inventory.py --self-test
+      - name: Check infrastructure platform selection
+        run: python3 -B scripts/checks/test-infrastructure-platform-self-test.py
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
@@ -153,8 +159,8 @@ jobs:
               raise SystemExit("SDK does not satisfy global.json latestFeature policy")
 
           classes = {
-              "Bukit.PluginHost.Tests": ["Bukit.PluginHost.Tests.SystemProcessRunnerTests", "Bukit.PluginHost.Tests.PluginPathValidatorTests"],
-              "Bukit.Engine.Tests": ["Bukit.Engine.Tests.ExternalToolProcessRunnerTests"],
+              "Bukit.PluginHost.Tests": ["Bukit.PluginHost.Tests.SystemProcessRunnerTests", "Bukit.PluginHost.Tests.PluginPathValidatorTests", "Bukit.PluginHost.Tests.PluginProtocolProbeTests"],
+              "Bukit.Engine.Tests": ["Bukit.Engine.Tests.ExternalToolProcessRunnerTests", "Bukit.Engine.Tests.TestInfrastructureTests"],
           }
           if actual_os != "Linux":
               classes["Bukit.Engine.Tests"] += ["Bukit.Engine.Tests.SafeOutputFileSystemTests", "Bukit.Engine.Tests.DirectoryCopyFollowSymlinksTests"]

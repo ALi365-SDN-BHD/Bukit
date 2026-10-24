@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
+using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
@@ -399,6 +401,60 @@ public sealed class BuildReporterTests
         Assert.Contains(files, x => x.GetProperty("path").GetString() == "index.html");
         Assert.Contains(files, x => x.GetProperty("path").GetString() == "assets/css/main.css");
         Assert.DoesNotContain(files, x => x.GetProperty("path").GetString()!.StartsWith(".bukit/", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ReleaseChecksums_ExcludeOnlyRootRecoveryState_AndMatchCompletedBytes(bool enabled)
+    {
+        using var sandbox = new SiteSandbox();
+        sandbox.Write("index.html", "<html>home</html>");
+        sandbox.Write("nested/.bukit-build-state.json", "public content");
+        sandbox.Write(".bukit-output-marker", "bukit-output\n");
+        sandbox.Write(".bukit/internal.json", "{}");
+        BuildRecoveryTracker.MarkStarted(sandbox.Root);
+        var config = CreateConfig(enabled);
+        var variant = CreateVariant(sandbox.Root);
+        var result = CreateResult(config, sandbox.Root, variant);
+
+        await BuildReporter.WriteIfEnabledAsync(config, sandbox.Root, sandbox.Root, result, [variant], new ConsoleLogger(LogLevel.Error));
+        BuildRecoveryTracker.MarkCompleted(sandbox.Root);
+
+        using var state = JsonDocument.Parse(File.ReadAllText(sandbox.PathFor(".bukit-build-state.json")));
+        Assert.Equal("completed", state.RootElement.GetProperty("status").GetString());
+        using var report = JsonDocument.Parse(File.ReadAllText(sandbox.PathFor(".bukit/release-bundle-checksums.json")));
+        ReportAssertions.Schema("release-bundle-checksums.json", report.RootElement);
+        ReportAssertions.Files(report.RootElement, "files",
+            [".bukit-output-marker", "index.html", "nested/.bukit-build-state.json"],
+            path => File.ReadAllBytes(sandbox.PathFor(path)), "fileCount", "bundleHash");
+    }
+
+    [Theory]
+    [InlineData("passed")]
+    [InlineData("warning")]
+    [InlineData("failed")]
+    [InlineData("not_checked")]
+    [InlineData("not_applicable")]
+    public void SecurityReportSchema_RequiresPrivacyCheck_AndRejectsUnknownOrInvalidFields(string status)
+    {
+        using var sandbox = new SiteSandbox();
+        var path = sandbox.PathFor("security-report.json");
+        var data = new SecurityReportData("passed", "passed", "not_applicable", "not_applicable", status, [], []);
+        BuildReporterSecurity.WriteSecurityReport(path, CreateConfig(enabled: true), data);
+        var report = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        Assert.Equal(status, report["checks"]!["publicOutputPrivacy"]!["status"]!.GetValue<string>());
+        ReportAssertions.Schema("security-report.json", JsonSerializer.SerializeToElement(report));
+
+        foreach (var mutation in new[] { "missing", "unknown-check", "unknown-field", "status", "severity" })
+        {
+            var mutant = report.DeepClone();
+            var checks = mutant["checks"]!.AsObject();
+            if (mutation == "missing") checks.Remove("publicOutputPrivacy");
+            else if (mutation == "unknown-check") checks["unexpected"] = checks["publicOutputPrivacy"]!.DeepClone();
+            else checks["publicOutputPrivacy"]![mutation == "unknown-field" ? "unexpected" : mutation] = "invalid";
+            Assert.Throws<InvalidDataException>(() => ReportAssertions.Schema("security-report.json", JsonSerializer.SerializeToElement(mutant)));
+        }
     }
 
     [Fact]
