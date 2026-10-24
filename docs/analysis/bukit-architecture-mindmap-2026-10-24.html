@@ -1,0 +1,184 @@
+<title>Bukit 架构思维导图</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: left-to-right collapsible tree; one hue per top-level branch, neutrals tinted toward blue-grey */
+:root{
+  --bg:#f5f6f8; --fg:#1b2230; --muted:#5d6779; --line:#b9c0cc; --panel:#ffffff; --edge:#d9dde5;
+  --nl:90%; --ns:62%; --nt:#1b2230; --rootbg:#1b2230; --roottxt:#f5f6f8;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12161d; --fg:#e6e9ef; --muted:#9aa4b5; --line:#3a4354; --panel:#1a202a; --edge:#2b3340;
+  --nl:24%; --ns:45%; --nt:#e6e9ef; --rootbg:#e6e9ef; --roottxt:#12161d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161d; --fg:#e6e9ef; --muted:#9aa4b5; --line:#3a4354; --panel:#1a202a; --edge:#2b3340;
+  --nl:24%; --ns:45%; --nt:#e6e9ef; --rootbg:#e6e9ef; --roottxt:#12161d; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif;
+  padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{max-width:900px;margin-bottom:14px}
+h1{font-size:22px;margin:0 0 4px;text-wrap:balance}
+p.sub{margin:0;color:var(--muted)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.bar button,.bar input{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:6px 12px}
+.bar button{cursor:pointer}.bar button:hover{border-color:var(--muted)}
+.bar input{min-width:0;flex:1 1 180px;max-width:280px}
+button:focus-visible,input:focus-visible,.nd:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
+.wrap{overflow:auto;background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:18px 16px 22px}
+ul.t,ul.kids{list-style:none;margin:0;padding:0}
+ul.t>li{display:flex;align-items:center;width:max-content}
+li{position:relative;display:flex;align-items:center}
+ul.kids{display:flex;flex-direction:column;margin-left:30px;position:relative}
+ul.kids::before{content:"";position:absolute;left:-15px;top:50%;width:15px;border-top:1.5px solid var(--line)}
+ul.kids>li{padding:3px 0}
+ul.kids>li::before{content:"";position:absolute;left:-15px;top:50%;width:15px;border-top:1.5px solid var(--line)}
+ul.kids>li::after{content:"";position:absolute;left:-15px;top:0;bottom:0;border-left:1.5px solid var(--line)}
+ul.kids>li:first-child::after{top:50%}ul.kids>li:last-child::after{bottom:50%}ul.kids>li:only-child::after{display:none}
+.nd{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;border-radius:7px;padding:4px 10px;
+  background:hsl(var(--h,215) var(--ns) var(--nl));color:var(--nt);border:1px solid hsl(var(--h,215) 40% 50% / .45)}
+.nd.has{cursor:pointer;font-weight:600}
+.nd .c{font-size:11px;font-weight:400;opacity:.7;font-variant-numeric:tabular-nums}
+.nd .a{font-size:10px;display:inline-block;transition:transform .12s}
+.open>.nd .a{transform:rotate(90deg)}
+.nd.leaf{background:transparent;border-color:transparent;padding:3px 8px;font-weight:400}
+.nd.leaf em{font-style:normal;color:var(--muted);font-size:12px}
+.nd.root{background:var(--rootbg);color:var(--roottxt);font-size:17px;padding:10px 18px;border-color:transparent}
+.nd.hit{outline:2px solid #f59e0b;outline-offset:1px}
+li:not(.open)>ul.kids{display:none}
+.legend{margin-top:12px;color:var(--muted);font-size:12px;max-width:900px}
+@media (prefers-reduced-motion:reduce){.nd .a{transition:none}}
+</style>
+
+<header>
+  <h1>Bukit 架构思维导图</h1>
+  <p class="sub">.NET 10 Native AOT 静态站点引擎 v2.0.4。覆盖 Core 全部 14 个项目、CLI 命令、构建管线、内置插件、外部插件与 Labs。点击节点展开或折叠。</p>
+</header>
+<div class="bar">
+  <button id="ex" type="button">全部展开</button>
+  <button id="co" type="button">收起到二级</button>
+  <input id="q" type="search" placeholder="搜索节点，如 Sitemap、Notion" aria-label="搜索节点">
+</div>
+<div class="wrap"><ul class="t" id="root"></ul></div>
+<p class="legend">图中"阅读深度"不同：Engine、Cli、Config 为逐文件读完；Content、Notion、Theme、Rendering、PluginHost、Shared、插件与 Labs 基于项目引用、目录结构、关键源码和官方文档。</p>
+
+<script>
+const N=(l,...k)=>({l,k});
+const D=N("Bukit",
+ N("Core 项目（14）",
+  N("Bukit.Cli","命令入口、绑定、dev 服务器","GitHub Pages 部署提供者","doctor / 审计命令","Program.cs"),
+  N("Bukit.Cli.Shared","CLI 元数据（Specs/Descriptors）","参数解析器","帮助渲染","配置路径解析"),
+  N("Bukit.Config","严格 YAML 加载（ConfigLoader）","默认值（SiteDefaultsApplier）","校验（ConfigValidator）","JSON Schema 生成","环境变量覆盖 BUKIT_*__*","时区解析","集合 / i18n / Provider 校验","主题清单严格校验"),
+  N("Bukit.Content","IContentProvider 抽象","Markdown：FolderProvider、FrontMatter、BodyStore","Composite 提供者、BodyCacheDecorator","媒体：图片本地化、签名校验、MediaIndex"),
+  N("Bukit.Content.Notion","NotionContentProvider","属性解析 NotionPropertyParser","source 到 content 映射"),
+  N("Bukit.Notion","Transport：NotionClient、重试、请求语义","Blocks 与渲染器注册表","HTML 到 Notion 块转换","NotionWriteClient（写入）","健康检查、Schema 诊断","分页保护"),
+  N("Bukit.Engine.Abstractions","ContentDocument / ContentRecord","CanonicalContentGraph","RouteInfo","ContentModelSchema","内部插件接口（Plugins/）","BuildContext（不含 AppConfig）"),
+  N("Bukit.Engine","SiteEngine、BuildTransaction、BuildPlanner","渲染 / SEO / 报告 / 增量","内置插件 BuiltIn","约 4.2 万行，最大项目"),
+  N("Bukit.Plugin.Abstractions","配置 / 清单 / 协议 DTO","权限集合","结果：Artifact、Diagnostic、Message"),
+  N("Bukit.PluginHost","清单加载与迁移","哈希校验、路径校验","权限评估","进程调用与进程树","锁文件 plugins.lock.yaml","密钥掩码、执行报告"),
+  N("Bukit.Rendering","Scriban 渲染器","模板模型 Models","ComponentFunctions、SectionRenderHelper"),
+  N("Bukit.Routing","路由生成","路由路径安全"),
+  N("Bukit.Shared","DiagnosticCode / 异常","URL 与路径工具、SafeUrl、UrlRedactor","SsrfGuard","SafeFileEnumerator","SlugHelper、ShortcodeProcessor","Logger"),
+  N("Bukit.Theme","theme.yaml 清单与加载","组件注册、Section 数据与校验","Tokens 处理","PageComposer","主题 Doctor、Catalog")),
+ N("CLI 命令",
+  N("build","加载配置、应用覆盖","调用 SiteEngine.BuildAsync"),
+  N("doctor","配置 / 模板 / 主题 / Markdown / Notion / Manifest / Schema 检查"),
+  N("config","check 校验","schema 生成"),
+  N("dev","LiveReload、WebSocket /__ws__","监听 content 与主题目录","增量重建"),
+  N("preview","静态服务已构建目录"),
+  N("clean","删除 output、.cache、.bukit","OutputDirectoryCleaner 安全规则"),
+  N("version / completion"),
+  N("lint","Scriban 模板 lint"),
+  N("seo",N("audit / diff","报告对比与校验"),N("insights","基础洞察"),N("authority","外部权威观察"),N("question","搜索问题洞察"),N("generative","生成式引用洞察")),
+  N("geo","GEO 与 llms.txt 审计"),
+  N("publish","发布审计 audit","报告 diff","--external 外部审计"),
+  N("deploy","GitHub Pages","dry-run","要求构建状态完成且隐私检查通过")),
+ N("构建管线",
+  N("事务层",
+   "BuildResourceLease 资源租约","BuildTransaction 暂存受管写集","BuildPlanner 规划与 clean","BuildRecoveryTracker 恢复状态","提交：逐目标交换，失败反向还原"),
+  N("内容阶段",
+   "ContentLoad","DraftFilter","ImageLocalize","ContentGraphValidate","CollectionWarning"),
+  N("变体阶段 VariantBuildPipeline",
+   "1 主题引导","2 数据模块","3 内容与列表路由","4 分类法术语注入","5 derive 插件","6 渲染条目与聚合预检","7 SEO 模型","8 渲染页面 / 列表 / 静态模板","9 同步 assets / static / 媒体 / tokens","10 after-build 插件","11 文档与聚合投影","12 收尾、清理、报告、提交"),
+  N("多语言","I18nOutputMerger","I18nRoot 系列：sitemap、feed、llms、robots、search、agent manifest"),
+  N("增量构建","IncrementalBuildEngine","BuildManifest v3 与 Tracker","各 Contributor：SEO、Taxonomy、Theme、Analytics 等","HashUtil、DirectoryHashCache")),
+ N("内容源与领域模型",
+  N("内容源","Markdown（含 Obsidian 导出）","Notion（NOTION_TOKEN 来自环境变量）","Composite 多源组合"),
+  N("ContentDocument",
+   N("ContentRecord","Identity：id、slug、i18nKey、type、status","Presentation：title、summary、html、language、translations","Classification：collection、sections、tags","Ownership：author、organization、owner、reviewer","Lifecycle：publishedAt、updated、expiresAt、reviewedAt、evergreen","Provenance：source、originalUrl、citations","Trust：credibilityScore、reviewStatus、qualityFlags","Entities、Relations（有向）、Media"),
+   "ContentBodyRef（按需解析正文）","ContentRoutePolicy","ContentPublishPolicy（draft、expiry、noindex）","CustomFields","Diagnostics"),
+  N("CanonicalContentGraph","Builder 与 Validator"),
+  N("规则","Draft 撤下页面与投影","过期 / noindex 只退出索引聚合","VerifiedAt 属站点字段，不映射 reviewedAt","Scriban 用 page.content_model.slug")),
+ N("内置插件（Engine）",
+  "Alias","Analytics（GA / GTM、consent、CSP）","Archive","DataFiles","Feed","ImageProcessing","LlmsTxt","Menu","PagesIndex（含缓存）","Pagination","RelatedContent","SearchIndex","Sitemap",
+  N("Taxonomy","数据、feed、层级","重定向、模板解析、页面创建")),
+ N("输出、SEO、GEO 与审计",
+  N("站点输出","HTML 页面","sitemap（split）","RSS / Atom / JSON Feed","robots.txt","llms.txt / llms-full.txt","搜索索引","页面 .json / .md 投影","agent manifest"),
+  N("SEO 标记","JSON-LD（SeoJsonLdBuilder）","Open Graph / Twitter Card","canonical / hreflang","标题模板与 SeoModelBuilder"),
+  N("审计","SEO 审计","GEO 审计","发布审计 PublishAudit","机器可读性信任审计","PublicOutputPrivacyCheck","路由清单校验"),
+  N("报告（schema v1）","build-report","routes","assets","artifact-manifest","publish-url-snapshot","incremental-manifest","release-bundle-checksums","plugin-execution-report")),
+ N("主题与渲染",
+  N("主题目录","layouts/（base、pages、partials）","assets/","static/","theme.yaml（必需）"),
+  N("渲染","Scriban 模板","ScribanTemplateLinter 与符号分析","TemplateCapabilitiesResolver","SCSS 编译 ScssCompiler","图片优化 ImageOptimizer"),
+  N("不支持","远程主题源、注册表、安装、市场")),
+ N("外部进程插件体系",
+  N("协议 v1","handshake","manifest","invoke","JSON 信封"),
+  N("安全","声明式权限（非 OS 沙箱）","入口哈希校验","环境变量清空后白名单","密钥掩码","超时 / 输出限制 / 进程树","CI 策略"),
+  N("插件项目",
+   N("IndexNow","两阶段：生成 key 文件，再提交"),
+   N("WechatSync","同步到微信公众号草稿"),
+   N("Import","HTML demo 导入、主题生成、Notion seed"),
+   N("Clone","网站克隆"),
+   "Echo（示例）","WordCountSectionPlugin（示例）")),
+ N("Labs（非 Core）",
+  N("Bukit.Labs.Cli",
+   "Clone：保真度、行为、截图比对","Data","Intent：向导、校验、应用","Theme：init、wizard、pack、install、registry、template","Visual","Webhook")),
+ N("持久化（无数据库）",
+  "site.yaml","\.bukit/plugins.yaml 与 plugins.lock.yaml","\.bukit/ 与 .cache/ 缓存","\.bukit-output-marker","\.bukit-build-state.json","\.bukit-txn-*-stage / -backup","输出目录 .bukit/*.json 报告","Notion API（只读；写入仅 Import）"),
+ N("工程与规范",
+  N("技术栈","net10.0、SDK 10.0.100","Scriban 7.2.5","Markdig 0.38.0","YamlDotNet 16.3.0 + 静态生成器","ImageSharp 3.1.12","AngleSharp 1.5.2","xunit、NetArchTest、BenchmarkDotNet"),
+  N("编码规范","Nullable enable、TreatWarningsAsErrors","AnalysisLevel 9.0","PascalCase，接口 I 前缀","UTF-8、LF、4 空格","sealed record 与 partial 拆分","InternalsVisibleTo 向测试开放","AOT：source-generated JSON / YAML"),
+  N("测试","20+ 测试项目","Architecture.Tests：依赖矩阵与边界","fixtures"),
+  N("CI 与脚本","ci.yaml：fast-gate、architecture-contracts","可选 core / coverage 门禁","scripts/checks：public-api-drift、docs 同步等","codex-workflow.py：closure、cache、queue"),
+  N("AGENTS.md 红线","保护区 guide-0.x / scripts-0.x","Website 与 Core 隔离","单写者与固定槽位","未授权不跑全量门禁")),
+ N("代码阅读发现的问题（待核实）",
+  N("已对照源码确认",
+   "SeoExternalAuditor 硬编码读 routes，发布报告用 documents","clean 删除 .bukit，含手写 plugins.yaml 与锁文件","HashUtil 超限文件只记长度，同长度改动会误命中缓存","TaxonomyRedirectWriter 别名 Trim 后拼路径（是否可越界待查）",
+   "ConfigCollectionReader 缺必填键的 modelSchema 条目被丢弃（校验层是否另报错未查）","SeoAlternatesService.AddVariantRouteAlternates 恒返回 existing，是空操作","SeoJsonLdBuilder：无条目的 FAQPage / HowTo 走 Article 构建器，且引用输出两份","StripHtmlToText：tagName 未复位，丢失两个 script/style 之间的文本","DocsCheckCommand 未注册，仅测试可调用","deploy --dry-run 仍执行 clean 构建，仅跳过最终推送"),
+  N("复核后排除",
+   "PageRenderDispatcher 并发读 manifest.Entries：并行阶段只读基线，写入走拷贝与 lock，未发现并发写"),
+  N("尚未复核",
+   "其余次要问题见 /tmp/codex-reports/report-*.md")));
+
+const root=document.getElementById('root');
+let hue=0;
+function build(n,depth,h){
+  const li=document.createElement('li'); if(h!==undefined) li.style.setProperty('--h',h);
+  const o=typeof n==='string'?{l:n,k:[]}:n; const has=o.k.length>0;
+  const d=document.createElement('span'); d.className='nd'+(has?' has':' leaf')+(depth===0?' root':''); d.tabIndex=has?0:-1;
+  let label=o.l; let note='';
+  if(!has){const m=label.match(/^(.*?)[：（]/); }
+  d.append(document.createTextNode(label));
+  if(has){const c=document.createElement('span'); c.className='c'; c.textContent=o.k.length; d.append(c);
+    const a=document.createElement('span'); a.className='a'; a.textContent='▶'; d.prepend(a);
+    d.setAttribute('role','button'); d.setAttribute('aria-expanded',depth<2);
+    const tog=()=>{const open=li.classList.toggle('open'); d.setAttribute('aria-expanded',open)};
+    d.onclick=tog; d.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tog()}};
+    if(depth<2) li.classList.add('open');}
+  li.append(d);
+  if(has){const ul=document.createElement('ul'); ul.className='kids';
+    o.k.forEach((c,i)=>ul.append(build(c,depth+1,depth===0?Math.round(i*360/o.k.length+205)%360:h)));
+    li.append(ul);}
+  return li;
+}
+root.append(build(D,0));
+const all=()=>[...root.querySelectorAll('li')].filter(l=>l.querySelector(':scope>ul.kids'));
+document.getElementById('ex').onclick=()=>all().forEach(l=>{l.classList.add('open');l.firstChild.setAttribute('aria-expanded',true)});
+document.getElementById('co').onclick=()=>all().forEach(l=>{const dp=l.parentElement.id==='root'?0:(l.parentElement.closest('li').parentElement.id==='root'?1:2);const o=dp<2;l.classList.toggle('open',o);l.firstChild.setAttribute('aria-expanded',o)});
+document.getElementById('q').oninput=e=>{
+  const v=e.target.value.trim().toLowerCase();
+  root.querySelectorAll('.nd').forEach(x=>x.classList.remove('hit'));
+  if(!v) return;
+  let first=null;
+  root.querySelectorAll('.nd').forEach(x=>{ if(x.textContent.toLowerCase().includes(v)){x.classList.add('hit'); first=first||x;
+    let p=x.parentElement; while(p&&p.id!=='root'){ if(p.tagName==='LI') {p.classList.add('open'); if(p.firstChild.setAttribute) p.firstChild.setAttribute('aria-expanded',true)} p=p.parentElement;}}});
+  if(first) first.scrollIntoView({block:'nearest',inline:'center'});
+};
+</script>
