@@ -16,7 +16,7 @@ public static class SafeUrl
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
         var trimmed = url.Trim();
-        if (trimmed.StartsWith("//", StringComparison.Ordinal)) return null;
+        if (IsAmbiguous(trimmed)) return null;
         if (trimmed.StartsWith('/')) return trimmed;
         if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)) return null;
         return LinkSchemes.Contains(uri.Scheme) ? trimmed : null;
@@ -26,7 +26,7 @@ public static class SafeUrl
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
         var trimmed = url.Trim();
-        if (trimmed.StartsWith("//", StringComparison.Ordinal)) return null;
+        if (IsAmbiguous(trimmed)) return null;
         if (trimmed.StartsWith('/')) return trimmed;
         if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)) return null;
         return MediaSchemes.Contains(uri.Scheme) ? trimmed : null;
@@ -36,12 +36,16 @@ public static class SafeUrl
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
         var trimmed = url.Trim();
-        if (trimmed.StartsWith("//", StringComparison.Ordinal)) return null;
+        if (IsAmbiguous(trimmed)) return null;
         if (trimmed.StartsWith('/')) return trimmed;
         if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)) return null;
         if (!string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)) return null;
         return trimmed;
     }
+
+    private static bool IsAmbiguous(string url)
+        => url.StartsWith("//", StringComparison.Ordinal)
+            || url.Any(c => c == '\\' || char.IsControl(c));
 
     public static bool IsExternal(string? url)
     {

@@ -7,6 +7,120 @@ namespace Bukit.Shared.Tests;
 
 public sealed class SsrfGuardConnectTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SafeConnect_EmptyOrPrivateResolution_NeverConnects(bool hasAddresses)
+    {
+        var attempts = 0;
+        var addresses = hasAddresses
+            ? new[] { IPAddress.Loopback, IPAddress.Parse("::ffff:10.0.0.1"), IPAddress.IPv6Loopback }
+            : Array.Empty<IPAddress>();
+
+        var error = await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            await SsrfGuard.SsrfSafeConnectAsync("private.example", 443,
+                (_, _) => Task.FromResult(addresses),
+                (_, _, _) =>
+                {
+                    attempts++;
+                    throw new InvalidOperationException("Must not connect.");
+                }, CancellationToken.None));
+
+        Assert.Equal(0, attempts);
+        Assert.Contains("SSRF blocked", error.Message);
+        Assert.Null(error.InnerException);
+    }
+
+    [Fact]
+    public async Task SafeConnect_CanceledBeforeResolution_DoesNotResolveOrConnect()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await SsrfGuard.SsrfSafeConnectAsync("public.example", 443,
+                (_, _) => throw new InvalidOperationException("Must not resolve."),
+                (_, _, _) => throw new InvalidOperationException("Must not connect."),
+                cancellation.Token));
+    }
+
+    [Fact]
+    public async Task SafeConnect_ResolverFailure_PropagatesWithoutConnecting()
+    {
+        var expected = new SocketException((int)SocketError.HostNotFound);
+        var error = await Assert.ThrowsAsync<SocketException>(async () =>
+            await SsrfGuard.SsrfSafeConnectAsync("missing.example", 443,
+                (_, _) => Task.FromException<IPAddress[]>(expected),
+                (_, _, _) => throw new InvalidOperationException("Must not connect."),
+                CancellationToken.None));
+
+        Assert.Same(expected, error);
+    }
+
+    [Fact]
+    public async Task SafeConnect_EachConnectionResolvesAgain_RejectsReboundPrivateAddress()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var expected = new MemoryStream([1]);
+        var resolutions = 0;
+        var connections = 0;
+        Task<IPAddress[]> Resolve(string host, CancellationToken token)
+        {
+            Assert.Equal("rebound.example", host);
+            Assert.Equal(cancellation.Token, token);
+            return Task.FromResult(new[] { ++resolutions == 1 ? IPAddress.Parse("8.8.8.8") : IPAddress.Loopback });
+        }
+        ValueTask<Stream> Connect(IPAddress address, int port, CancellationToken token)
+        {
+            connections++;
+            Assert.Equal(IPAddress.Parse("8.8.8.8"), address);
+            Assert.Equal(8443, port);
+            Assert.Equal(cancellation.Token, token);
+            return ValueTask.FromResult<Stream>(expected);
+        }
+
+        Assert.Same(expected, await SsrfGuard.SsrfSafeConnectAsync(
+            "rebound.example", 8443, Resolve, Connect, cancellation.Token));
+        await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            await SsrfGuard.SsrfSafeConnectAsync("rebound.example", 8443, Resolve, Connect, cancellation.Token));
+
+        Assert.Equal(2, resolutions);
+        Assert.Equal(1, connections);
+    }
+
+    [Theory]
+    [InlineData("io")]
+    [InlineData("http")]
+    [InlineData("unexpected")]
+    public async Task SafeConnect_OnlyExpectedNetworkFailuresTryNextAddress(string failureKind)
+    {
+        Exception failure = failureKind switch
+        {
+            "io" => new IOException("connection failed"),
+            "http" => new HttpRequestException("connection failed"),
+            _ => new InvalidOperationException("connector invariant failed")
+        };
+        using var expected = new MemoryStream();
+        var attempts = 0;
+        async Task<Stream> ConnectAsync() => await SsrfGuard.SsrfSafeConnectAsync("public.example", 443,
+            (_, _) => Task.FromResult(new[] { IPAddress.Parse("8.8.8.8"), IPAddress.Parse("1.1.1.1") }),
+            (_, _, _) => ++attempts == 1
+                ? ValueTask.FromException<Stream>(failure)
+                : ValueTask.FromResult<Stream>(expected),
+            CancellationToken.None);
+
+        if (failureKind == "unexpected")
+        {
+            Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(ConnectAsync));
+            Assert.Equal(1, attempts);
+        }
+        else
+        {
+            Assert.Same(expected, await ConnectAsync());
+            Assert.Equal(2, attempts);
+        }
+    }
+
     [Fact]
     public async Task SafeConnect_FirstPublicAddressFails_TriesNextPublicAddress()
     {

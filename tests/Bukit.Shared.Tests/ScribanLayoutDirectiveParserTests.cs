@@ -69,4 +69,58 @@ public sealed class ScribanLayoutDirectiveParserTests
     {
         Assert.Equal("layouts/base.html", ScribanLayoutDirectiveParser.NormalizePath(@"layouts\base.html"));
     }
+
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    [InlineData("\r")]
+    public void TryExtractLayoutDirective_FirstContentLine_PreservesBodyAndNormalizesNewlines(string newline)
+    {
+        var template = $"{newline}  {newline}  {{% LAYOUT 'layouts/base.html' %}}  {newline}<main>body</main>{newline}";
+
+        Assert.True(ScribanLayoutDirectiveParser.TryExtractLayoutDirective(template, out var path, out var body));
+        Assert.Equal("layouts/base.html", path);
+        Assert.Equal("\n  \n<main>body</main>\n", body);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" \r\n\t")]
+    [InlineData("body\r\n{% layout 'base.html' %}")]
+    [InlineData("{{ include 'header.html' }}\r\nbody")]
+    [InlineData("{% layout base.html %}\r\nbody")]
+    [InlineData("{% layout '' %}\r\nbody")]
+    [InlineData("{% layout 'base.html %}\r\nbody")]
+    [InlineData("{% layout 'base.html' }}\r\nbody")]
+    public void TryExtractLayoutDirective_MissingOrInvalidFirstDirective_LeavesOriginalBody(string template)
+    {
+        Assert.False(ScribanLayoutDirectiveParser.TryExtractLayoutDirective(template, out var path, out var body));
+        Assert.Empty(path);
+        Assert.Equal(template, body);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    [InlineData("unquoted")]
+    [InlineData("'unterminated")]
+    [InlineData("\"unterminated")]
+    [InlineData("''")]
+    public void TryExtractQuotedString_EmptyOrIncompleteValue_ReturnsFalse(string text)
+    {
+        Assert.False(ScribanLayoutDirectiveParser.TryExtractQuotedString(text, out var value));
+        Assert.Empty(value);
+    }
+
+    [Theory]
+    [InlineData(@"..\layouts\\base.html", "../layouts//base.html")]
+    [InlineData("/layouts/base.html", "/layouts/base.html")]
+    [InlineData("", "")]
+    public void NormalizePath_OnlyReplacesSeparators_AndIsIdempotent(string input, string expected)
+    {
+        var normalized = ScribanLayoutDirectiveParser.NormalizePath(input);
+
+        Assert.Equal(expected, normalized);
+        Assert.Equal(normalized, ScribanLayoutDirectiveParser.NormalizePath(normalized));
+    }
 }

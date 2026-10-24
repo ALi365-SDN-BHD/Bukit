@@ -1,0 +1,111 @@
+name: Shared phase 1 evidence
+
+on:
+  push:
+    branches:
+      - evidence/shared-phase1-20261025
+
+permissions:
+  contents: read
+
+jobs:
+  shared:
+    name: Shared ${{ matrix.os }} x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      DOTNET_INSTALL_DIR: ${{ runner.temp }}/shared-dotnet-10.0.100
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            os: Linux
+          - runner: windows-2025
+            os: Windows
+    steps:
+      - name: Preserve source bytes
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.100'
+          architecture: x64
+      - name: Collect Shared evidence
+        shell: python
+        env:
+          EXPECTED_OS: ${{ matrix.os }}
+          DOTNET_CLI_UI_LANGUAGE: en
+        run: |
+          import hashlib, json, os, platform, re, subprocess, time
+          from pathlib import Path
+
+          output = Path('TestResults/shared-platform')
+          output.mkdir(parents=True, exist_ok=True)
+          inputs = ['src/Bukit-Core/Bukit.Shared', 'tests/Bukit.Shared.Tests',
+                    'Directory.Build.props', 'Directory.Packages.props', 'tests/Directory.Build.props',
+                    'tests/TestCleanup.cs', 'global.json', 'coverage.runsettings', 'docs/coverage-baselines.json',
+                    'scripts/checks/coverage/run-one.sh', 'scripts/checks/coverage/summarize.py',
+                    'scripts/checks/coverage/validate-output-root.py']
+          paths = subprocess.check_output(['git', 'ls-files', '--', *inputs], text=True).splitlines()
+          hashes = {path: hashlib.sha256(Path(path).read_bytes()).hexdigest() for path in paths}
+          digest = hashlib.sha256(json.dumps(hashes, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+          info = subprocess.check_output(['dotnet', '--info'], text=True)
+          sdk = subprocess.check_output(['dotnet', '--version'], text=True).strip()
+          host = re.search(r'Host:\s+Version:\s+(\S+)\s+Architecture:\s+(\S+)', info)
+          info = re.sub(r'\nEnvironment variables:.*?(?=\nglobal.json file:|\nLearn more:|\Z)',
+                        '\nEnvironment variables: [state only in platform.json]\n', info, flags=re.S)
+          (output / 'dotnet-info.txt').write_text(info, encoding='utf-8')
+          environment = ['PATH', 'DOTNET_ROOT', 'DOTNET_INSTALL_DIR', 'DOTNET_ROLL_FORWARD', 'NUGET_PACKAGES',
+                         'NUGET_HTTP_CACHE_PATH', 'MSBuildSDKsPath', 'BUKIT_COVERAGE_SETTINGS']
+          evidence = {
+              'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+              'os': platform.system(), 'osVersion': platform.platform(), 'machine': platform.machine(),
+              'sdk': sdk, 'runtime': host.group(1) if host else None,
+              'processArchitecture': host.group(2).lower() if host else None,
+              'sourceInputSha256': digest, 'sourceInputs': hashes,
+              'environmentState': {name: ('unset' if name not in os.environ else 'set' if os.environ[name] else 'empty') for name in environment},
+              'commands': [],
+          }
+          def save():
+              (output / 'platform.json').write_text(json.dumps(evidence, indent=2) + '\n', encoding='utf-8')
+          save()
+          if (evidence['os'] != os.environ['EXPECTED_OS'] or evidence['processArchitecture'] != 'x64'
+                  or platform.machine().lower() not in ('x86_64', 'amd64')
+                  or sdk != '10.0.100' or evidence['runtime'] != '10.0.0'
+                  or digest != '762af41d8eebf03a0d47a99583183823499c4b96c32c3f5f4fd2f162c9e6332f'):
+              raise SystemExit('Platform, toolchain, or source version mismatch')
+          project = 'tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj'
+          common = ['dotnet', 'test', project, '-c', 'Release']
+          logger = ['--logger', 'trx;LogFileName=tests.trx', '--results-directory']
+          full = (['bash', 'scripts/checks/coverage/run-one.sh', 'Release', project, (output / 'full').as_posix()]
+                  if platform.system() == 'Linux'
+                  else common + logger + [(output / 'full/Bukit.Shared.Tests').as_posix()])
+          selected = '|'.join('FullyQualifiedName~Bukit.Shared.Tests.' + name for name in
+                              ['PlatformPathHelperTests', 'PathUtilsTests', 'PlatformSafeSourceFileOpenerTests'])
+          commands = [('full', full), ('platform', common + ['--filter', selected] + logger + [(output / 'platform').as_posix()])]
+          for label, command in commands:
+              start = time.monotonic()
+              print('Running:', command, flush=True)
+              with (output / (label + '.log')).open('w', encoding='utf-8') as log:
+                  completed = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)
+              print((output / (label + '.log')).read_text(encoding='utf-8', errors='replace'), flush=True)
+              evidence['commands'].append({'label': label, 'command': command, 'exitCode': completed.returncode,
+                                           'durationMs': round((time.monotonic() - start) * 1000)})
+              save()
+          assets = Path('tests/Bukit.Shared.Tests/obj/project.assets.json')
+          if assets.exists():
+              data = json.loads(assets.read_text(encoding='utf-8'))
+              evidence['resolvedPackages'] = sorted(name for name, item in data['libraries'].items() if item['type'] == 'package')
+              save()
+          if any(command['exitCode'] != 0 for command in evidence['commands']):
+              raise SystemExit('Shared specialty failed; inspect retained logs and TRX')
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: shared-phase1-${{ matrix.os }}-x64
+          path: TestResults/shared-platform
+          if-no-files-found: error

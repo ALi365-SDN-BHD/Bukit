@@ -214,4 +214,124 @@ public sealed class PlatformSafeSourceFileOpenerTests(ITestOutputHelper output) 
         Assert.Equal(0xA0800, x64Flags);
         Assert.Equal(0x88800, arm64Flags);
     }
+
+    [Fact]
+    public void Open_NestedFile_VerifiesMetadataAndDisposesOwnedHandle()
+    {
+        var root = CreateTempRoot();
+        var nested = Directory.CreateDirectory(Path.Combine(root, "nested")).FullName;
+        var path = Path.Combine(nested, "page.md");
+        File.WriteAllBytes(path, [1, 2, 3]);
+        File.SetLastWriteTimeUtc(path, new DateTime(2026, 1, 2, 3, 4, 6, DateTimeKind.Utc));
+        var expectedTime = File.GetLastWriteTimeUtc(path);
+
+        using var verified = new PlatformSafeSourceFileOpener().Open(path, root);
+        Assert.Equal(Path.GetFullPath(path), verified.VerifiedPath, ignoreCase: OperatingSystem.IsWindows());
+        Assert.Equal(3, verified.Length);
+        Assert.Equal(expectedTime, verified.LastWriteTimeUtc);
+        Assert.Equal(1, verified.Stream.ReadByte());
+        Assert.False(verified.Stream.CanWrite);
+        verified.Dispose();
+
+        Assert.True(verified.Handle.IsClosed);
+        Assert.Throws<ObjectDisposedException>(() => verified.Stream.ReadByte());
+        Assert.Throws<ObjectDisposedException>(() => verified.Length);
+        Assert.Throws<ObjectDisposedException>(() => verified.LastWriteTimeUtc);
+        verified.Dispose();
+    }
+
+    [Fact]
+    public void VerifiedSourceFile_StalePath_ReadsMetadataAndContentFromOwnedHandle()
+    {
+        var root = CreateTempRoot();
+        var original = Path.Combine(root, "original.txt");
+        var replacement = Path.Combine(root, "replacement.txt");
+        File.WriteAllBytes(original, [1, 2, 3]);
+        File.WriteAllBytes(replacement, [9, 8, 7, 6, 5]);
+        File.SetLastWriteTimeUtc(original, new DateTime(2025, 1, 2, 3, 4, 6, DateTimeKind.Utc));
+        File.SetLastWriteTimeUtc(replacement, new DateTime(2026, 1, 2, 3, 4, 6, DateTimeKind.Utc));
+        var originalTime = File.GetLastWriteTimeUtc(original);
+        Assert.NotEqual(originalTime, File.GetLastWriteTimeUtc(replacement));
+
+        using var stream = File.OpenRead(original);
+        // Model a stale pathname without relying on OS-specific rename/sharing behavior.
+        using var verified = new VerifiedSourceFile(stream.SafeFileHandle, stream, replacement);
+
+        Assert.Equal(3, verified.Length);
+        Assert.Equal(originalTime, verified.LastWriteTimeUtc);
+        Assert.Equal(1, verified.Stream.ReadByte());
+    }
+
+    [Fact]
+    public void Open_MissingFileOrDirectory_FailsClosed()
+    {
+        var root = CreateTempRoot();
+        var directory = Directory.CreateDirectory(Path.Combine(root, "directory")).FullName;
+        var opener = new PlatformSafeSourceFileOpener();
+
+        Assert.Throws<IOException>(() => opener.Open(Path.Combine(root, "missing.txt"), root));
+        Assert.Throws<IOException>(() => opener.Open(directory, root));
+        Assert.Throws<IOException>(() => opener.Open(root, root));
+    }
+
+    [Fact]
+    public void Open_ParentDirectoryLinkToOutside_FailsClosed()
+    {
+        var root = CreateTempRoot();
+        var outside = CreateTempRoot();
+        File.WriteAllText(Path.Combine(outside, "secret.txt"), "secret");
+        var link = Path.Combine(root, "external");
+        Directory.CreateSymbolicLink(link, outside);
+
+        Assert.Throws<IOException>(() =>
+            new PlatformSafeSourceFileOpener().Open(Path.Combine(link, "secret.txt"), root));
+    }
+
+    [Fact]
+    public void Open_FileReplacedBySymlinkAfterEnumeration_FailsClosed()
+    {
+        var root = CreateTempRoot();
+        var outside = CreateTempRoot();
+        var path = Path.Combine(root, "page.md");
+        var secret = Path.Combine(outside, "secret.md");
+        File.WriteAllText(path, "page");
+        File.WriteAllText(secret, "secret");
+        var enumerated = Assert.Single(SafeFileEnumerator.EnumerateFiles(root));
+        File.Delete(path);
+        File.CreateSymbolicLink(path, secret);
+
+        Assert.Throws<IOException>(() => new PlatformSafeSourceFileOpener().Open(enumerated, root));
+    }
+
+    [Fact]
+    public void Open_NullPathOrRoot_RejectsInvalidArguments()
+    {
+        var opener = new PlatformSafeSourceFileOpener();
+        var root = CreateTempRoot();
+
+        Assert.Throws<ArgumentNullException>(() => opener.Open(null!, root));
+        Assert.Throws<ArgumentNullException>(() => opener.Open(Path.Combine(root, "page.md"), null!));
+    }
+
+    [Theory]
+    [InlineData(Architecture.Arm64)]
+    [InlineData(Architecture.X64)]
+    public void SelectPosixOpenFlags_MacOs_UsesNoFollowNonBlockingAndCloseOnExec(Architecture architecture)
+    {
+        Assert.Equal(0x1000104, PlatformSafeSourceFileOpener.SelectPosixOpenFlags(true, false, architecture));
+    }
+
+    [Theory]
+    [InlineData(true, false, Architecture.X86)]
+    [InlineData(false, true, Architecture.Arm)]
+    [InlineData(false, false, Architecture.X64)]
+    public void PosixSelectors_UnsupportedPlatformOrArchitecture_FailClosed(bool macOs, bool linux, Architecture architecture)
+    {
+        Assert.Throws<PlatformNotSupportedException>(() =>
+            PlatformSafeSourceFileOpener.SelectPosixOpenFlags(macOs, linux, architecture));
+        Assert.Throws<PlatformNotSupportedException>(() =>
+            PlatformSafeSourceFileOpener.SelectPosixStatAbi(macOs, linux, architecture));
+        Assert.Throws<PlatformNotSupportedException>(() =>
+            PlatformSafeSourceFileOpener.GetPosixStatModeOffset((PosixStatAbi)(-1)));
+    }
 }

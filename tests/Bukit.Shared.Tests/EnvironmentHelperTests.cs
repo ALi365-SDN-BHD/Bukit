@@ -10,13 +10,18 @@ public sealed class EnvironmentHelperTests
     [InlineData("TRUE", true)]
     [InlineData("yes", true)]
     [InlineData("YES", true)]
+    [InlineData(" tRuE ", true)]
+    [InlineData(" YeS ", true)]
+    [InlineData(" 1 ", true)]
+    [InlineData("on", false)]
+    [InlineData(null, false)]
     [InlineData("false", false)]
     [InlineData("0", false)]
     [InlineData("no", false)]
     [InlineData("", false)]
     [InlineData("   ", false)]
     [InlineData("random", false)]
-    public void IsAutoSummaryEnabled_VariousValues_ReturnsExpected(string envValue, bool expected)
+    public void IsAutoSummaryEnabled_VariousValues_ReturnsExpected(string? envValue, bool expected)
     {
         SetEnv(EnvironmentHelper.AutoSummaryKey, envValue, original =>
         {
@@ -75,13 +80,15 @@ public sealed class EnvironmentHelperTests
         });
     }
 
-    [Fact]
-    public void GetNotionToken_WhenSet_ReturnsValue()
+    [Theory]
+    [InlineData("secret_abc123")]
+    [InlineData("  secret_abc123  ")]
+    public void GetNotionToken_WhenSet_ReturnsValue(string value)
     {
-        SetEnv(EnvironmentHelper.NotionTokenKey, "secret_abc123", original =>
+        SetEnv(EnvironmentHelper.NotionTokenKey, value, original =>
         {
             var result = EnvironmentHelper.GetNotionToken();
-            Assert.Equal("secret_abc123", result);
+            Assert.Equal(value, result);
         });
     }
 
@@ -103,6 +110,20 @@ public sealed class EnvironmentHelperTests
             var result = EnvironmentHelper.GetNotionToken();
             Assert.Equal("", result);
         });
+    }
+
+    [Theory]
+    [InlineData("1", 1)]
+    [InlineData("  +42  ", 42)]
+    [InlineData("2147483647", int.MaxValue)]
+    [InlineData("2147483648", 200)]
+    [InlineData("-2147483649", 200)]
+    [InlineData("1.5", 200)]
+    [InlineData("1,000", 200)]
+    public void GetAutoSummaryMaxLength_IntegerBoundaries_ReturnExpected(string value, int expected)
+    {
+        SetEnv(EnvironmentHelper.AutoSummaryMaxLenKey, value, _ =>
+            Assert.Equal(expected, EnvironmentHelper.GetAutoSummaryMaxLength()));
     }
 
     private static void SetEnv(string key, string? value, Action<string?> action)

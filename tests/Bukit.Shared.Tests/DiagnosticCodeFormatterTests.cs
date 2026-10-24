@@ -18,6 +18,7 @@ public sealed class DiagnosticCodeFormatterTests
     [InlineData(DiagnosticCode.RouteDuplicateOutputPath, "BKT-0202")]
     [InlineData(DiagnosticCode.RouteInvalidPattern, "BKT-0203")]
     [InlineData(DiagnosticCode.RouteListRouteInvalid, "BKT-0204")]
+    [InlineData(DiagnosticCode.RouteOutputPathRejected, "BKT-0209")]
     [InlineData(DiagnosticCode.RenderTemplateNotFound, "BKT-0301")]
     [InlineData(DiagnosticCode.RenderTemplateParseError, "BKT-0302")]
     [InlineData(DiagnosticCode.RenderLayoutNestingExceeded, "BKT-0303")]
@@ -55,6 +56,7 @@ public sealed class DiagnosticCodeFormatterTests
     [InlineData(DiagnosticCode.RouteDuplicateOutputPath, "Route", "duplicate")]
     [InlineData(DiagnosticCode.RouteInvalidPattern, "Route", "invalid")]
     [InlineData(DiagnosticCode.RouteListRouteInvalid, "Route", "list")]
+    [InlineData(DiagnosticCode.RouteOutputPathRejected, "Route", "removed")]
     [InlineData(DiagnosticCode.RenderTemplateNotFound, "Render", "template")]
     [InlineData(DiagnosticCode.RenderTemplateParseError, "Render", "parse")]
     [InlineData(DiagnosticCode.RenderLayoutNestingExceeded, "Render", "layout")]
@@ -78,5 +80,15 @@ public sealed class DiagnosticCodeFormatterTests
         var result = DiagnosticCodeFormatter.Describe(code);
         Assert.Contains(expectedCategory, result, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(expectedKeyword, result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData((DiagnosticCode)0, "BKT-0000")]
+    [InlineData((DiagnosticCode)0xABCD, "BKT-ABCD")]
+    [InlineData(DiagnosticCode.ConfigDeprecatedField, "BKT-0005")]
+    public void Describe_UnmappedCode_IncludesStableHexFallback(DiagnosticCode code, string expected)
+    {
+        Assert.Equal(expected, DiagnosticCodeFormatter.Format(code));
+        Assert.Equal($"Diagnostic code: {expected}", DiagnosticCodeFormatter.Describe(code));
     }
 }

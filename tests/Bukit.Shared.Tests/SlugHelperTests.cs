@@ -1,3 +1,4 @@
+using System.Globalization;
 using Bukit.Shared;
 using Xunit;
 
@@ -69,8 +70,7 @@ public sealed class SlugHelperTests
     {
         var result = SlugHelper.Slugify("机器学习");
 
-        Assert.True(result.Length > 0);
-        Assert.DoesNotContain("-", result, StringComparison.Ordinal);
+        Assert.Equal("机器学习", result);
     }
 
     [Fact]
@@ -78,8 +78,7 @@ public sealed class SlugHelperTests
     {
         var result = SlugHelper.Slugify("AI 机器学习");
 
-        Assert.StartsWith("ai", result, StringComparison.Ordinal);
-        Assert.Contains("-", result, StringComparison.Ordinal);
+        Assert.Equal("ai-机器学习", result);
     }
 
     [Fact]
@@ -88,5 +87,55 @@ public sealed class SlugHelperTests
         var result = SlugHelper.Slugify("hello--world");
 
         Assert.Equal("hello-world", result);
+    }
+
+    [Theory]
+    [InlineData("café", "cafe\u0301")]
+    [InlineData("über", "u\u0308ber")]
+    public void Slugify_CanonicallyEquivalentAccents_ProduceSameSlug(string composed, string decomposed)
+    {
+        Assert.Equal(SlugHelper.Slugify(composed), SlugHelper.Slugify(decomposed));
+    }
+
+    [Theory]
+    [InlineData(" --中文._.ABC-- ", "中文-abc")]
+    [InlineData("🚀 Hello 🌍", "hello")]
+    [InlineData("Æ Œ Ø ß", "ae-oe-o-ss")]
+    public void Slugify_UnicodeAndSeparatorBoundaries_ReturnExpected(string input, string expected)
+    {
+        Assert.Equal(expected, SlugHelper.Slugify(input));
+    }
+
+    [Fact]
+    public void Slugify_TurkishCurrentCulture_DoesNotChangeOutput()
+    {
+        var original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
+            Assert.Equal("istanbul-cafe", SlugHelper.Slugify("ISTANBUL CAFÉ"));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
+    public void Slugify_SeededValidUnicodeInputs_AreIdempotentAndHaveValidSeparators()
+    {
+        const int seed = 20261024;
+        string[] tokens = ["A", "z", "0", "9", "中", "文", "é", "e\u0301", "ß", "œ", "ø", "🚀", " ", "-", "_", ".", "/", "\\", "\t", "!", "&"];
+        var random = new Random(seed);
+        for (var sample = 0; sample < 512; sample++)
+        {
+            var input = string.Concat(Enumerable.Range(0, random.Next(0, 65)).Select(_ => tokens[random.Next(tokens.Length)]));
+            var slug = SlugHelper.Slugify(input);
+            var context = $"seed={seed}, sample={sample}, input={System.Text.Json.JsonSerializer.Serialize(input)}, slug={slug}";
+
+            Assert.True(slug == SlugHelper.Slugify(slug), context);
+            Assert.True(slug.All(c => char.IsLetterOrDigit(c) || c == '-'), context);
+            Assert.True(!slug.StartsWith('-') && !slug.EndsWith('-') && !slug.Contains("--", StringComparison.Ordinal), context);
+        }
     }
 }
