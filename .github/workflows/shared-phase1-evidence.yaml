@@ -13,8 +13,6 @@ jobs:
     name: Shared ${{ matrix.os }} x64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
-    env:
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}/shared-dotnet-10.0.100
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -31,6 +29,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-dotnet@v5
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/shared-dotnet-10.0.100
         with:
           dotnet-version: '10.0.100'
           architecture: x64
