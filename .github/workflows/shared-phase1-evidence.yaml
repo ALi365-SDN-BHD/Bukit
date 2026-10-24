@@ -28,12 +28,25 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@v5
-        env:
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/shared-dotnet-10.0.100
-        with:
-          dotnet-version: '10.0.100'
-          architecture: x64
+      - name: Install exact SDK and bundled runtime
+        shell: python
+        run: |
+          import os, platform, subprocess, urllib.request
+          from pathlib import Path
+          temporary = Path(os.environ['RUNNER_TEMP'])
+          install = temporary / 'shared-dotnet-10.0.100'
+          windows = platform.system() == 'Windows'
+          script = temporary / ('dotnet-install.ps1' if windows else 'dotnet-install.sh')
+          urllib.request.urlretrieve('https://dot.net/v1/' + script.name, script)
+          command = (['pwsh', '-NoProfile', '-File', str(script), '-Version', '10.0.100',
+                      '-Architecture', 'x64', '-InstallDir', str(install), '-NoPath'] if windows else
+                     ['bash', str(script), '--version', '10.0.100', '--architecture', 'x64',
+                      '--install-dir', str(install), '--no-path'])
+          subprocess.run(command, check=True)
+          with open(os.environ['GITHUB_PATH'], 'a', encoding='utf-8') as output:
+              output.write(str(install) + '\n')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as output:
+              output.write('DOTNET_ROOT=' + str(install) + '\n')
       - name: Collect Shared evidence
         shell: python
         env:
