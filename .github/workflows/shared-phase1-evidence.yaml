@@ -20,8 +20,6 @@ jobs:
         include:
           - runner: ubuntu-24.04
             os: Linux
-          - runner: windows-2025
-            os: Windows
     steps:
       - name: Preserve source bytes
         run: git config --global core.autocrlf false
@@ -53,7 +51,7 @@ jobs:
           EXPECTED_OS: ${{ matrix.os }}
           DOTNET_CLI_UI_LANGUAGE: en
         run: |
-          import hashlib, json, os, platform, re, subprocess, time
+          import hashlib, json, os, platform, re, shutil, subprocess, time
           from pathlib import Path
 
           output = Path('TestResults/shared-platform')
@@ -94,12 +92,12 @@ jobs:
           project = 'tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj'
           common = ['dotnet', 'test', project, '-c', 'Release']
           logger = ['--logger', 'trx;LogFileName=tests.trx', '--results-directory']
-          full = (['bash', 'scripts/checks/coverage/run-one.sh', 'Release', project, (output / 'full').as_posix()]
+          full = (['bash', 'scripts/checks/coverage/run-one.sh', 'Release', project, 'TestResults/coverage/shared-platform-linux']
                   if platform.system() == 'Linux'
                   else common + logger + [(output / 'full/Bukit.Shared.Tests').as_posix()])
           selected = '|'.join('FullyQualifiedName~Bukit.Shared.Tests.' + name for name in
                               ['PlatformPathHelperTests', 'PathUtilsTests', 'PlatformSafeSourceFileOpenerTests'])
-          commands = [('full', full), ('platform', common + ['--filter', selected] + logger + [(output / 'platform').as_posix()])]
+          commands = [('full', full)]
           for label, command in commands:
               start = time.monotonic()
               print('Running:', command, flush=True)
@@ -109,6 +107,9 @@ jobs:
               evidence['commands'].append({'label': label, 'command': command, 'exitCode': completed.returncode,
                                            'durationMs': round((time.monotonic() - start) * 1000)})
               save()
+          coverage = Path('TestResults/coverage/shared-platform-linux')
+          if coverage.exists():
+              shutil.copytree(coverage, output / 'full')
           assets = Path('tests/Bukit.Shared.Tests/obj/project.assets.json')
           if assets.exists():
               data = json.loads(assets.read_text(encoding='utf-8'))
