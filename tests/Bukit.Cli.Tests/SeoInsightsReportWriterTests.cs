@@ -397,7 +397,7 @@ public sealed class SeoInsightsReportWriterTests
 
     private static object CreateRouteMap(IReadOnlyList<RouteDefinition> routes)
     {
-        var engineAssembly = Assembly.Load("Bukit.Engine");
+        var engineAssembly = Assembly.Load("Bukit.Engine.Audit");
         var entryType = engineAssembly.GetType("Bukit.Engine.SeoRouteMapEntry", throwOnError: true)!;
         var entryConstructor = entryType.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             .Single(constructor => constructor.GetParameters().Length == 10);

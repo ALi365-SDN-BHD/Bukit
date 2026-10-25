@@ -222,7 +222,7 @@ public sealed class SeoInsightsRuleEvaluatorTests
 
     private static SeoObservationRouteMatcher CreateMatcher()
     {
-        var engineAssembly = Assembly.Load("Bukit.Engine");
+        var engineAssembly = Assembly.Load("Bukit.Engine.Audit");
         var entryType = engineAssembly.GetType("Bukit.Engine.SeoRouteMapEntry", throwOnError: true)!;
         var entryConstructor = entryType.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             .Single(constructor => constructor.GetParameters().Length == 10);

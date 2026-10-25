@@ -97,6 +97,7 @@ public sealed class G04D6BScribanModelBinderTests
         Assert.Equal(
             [
                 "Bukit.Engine",
+                "Bukit.Engine.Audit",
                 "Bukit.Rendering.Tests"
             ],
             friends);

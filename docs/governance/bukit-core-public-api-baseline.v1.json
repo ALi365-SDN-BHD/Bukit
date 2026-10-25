@@ -37,6 +37,10 @@
       "project": "src/Bukit-Core/Bukit.Engine.Assets/Bukit.Engine.Assets.csproj"
     },
     {
+      "assembly": "Bukit.Engine.Audit",
+      "project": "src/Bukit-Core/Bukit.Engine.Audit/Bukit.Engine.Audit.csproj"
+    },
+    {
       "assembly": "Bukit.Engine.Feeds",
       "project": "src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj"
     },

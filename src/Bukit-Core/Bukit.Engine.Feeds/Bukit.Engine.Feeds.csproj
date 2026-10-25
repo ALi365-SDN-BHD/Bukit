@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Bukit.Engine" />
+    <InternalsVisibleTo Include="Bukit.Engine.Audit" />
     <InternalsVisibleTo Include="Bukit.Engine.Tests" />
   </ItemGroup>
 

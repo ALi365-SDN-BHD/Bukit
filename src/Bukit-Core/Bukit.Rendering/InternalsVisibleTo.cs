@@ -2,3 +2,4 @@ using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("Bukit.Rendering.Tests")]
 [assembly: InternalsVisibleTo("Bukit.Engine")]
+[assembly: InternalsVisibleTo("Bukit.Engine.Audit")]

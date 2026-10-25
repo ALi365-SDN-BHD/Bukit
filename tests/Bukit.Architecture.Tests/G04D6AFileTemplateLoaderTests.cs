@@ -116,6 +116,7 @@ public sealed class G04D6AFileTemplateLoaderTests
         Assert.Equal(
             [
                 "Bukit.Engine",
+                "Bukit.Engine.Audit",
                 "Bukit.Rendering.Tests"
             ],
             friends);

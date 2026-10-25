@@ -166,7 +166,10 @@
         "src/Bukit-Core/Bukit.Engine.Analytics/Bukit.Engine.Analytics.csproj",
         "src/Bukit-Core/Bukit.Engine.Assets/*.cs",
         "src/Bukit-Core/Bukit.Engine.Assets/**/*.cs",
-        "src/Bukit-Core/Bukit.Engine.Assets/Bukit.Engine.Assets.csproj"
+        "src/Bukit-Core/Bukit.Engine.Assets/Bukit.Engine.Assets.csproj",
+        "src/Bukit-Core/Bukit.Engine.Audit/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Audit/**/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Audit/Bukit.Engine.Audit.csproj"
       ],
       "publicContract": true,
       "resource": "dotnet-serial",

@@ -12,6 +12,7 @@
     <ProjectReference Include="..\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
     <ProjectReference Include="..\Bukit.Engine.Analytics\Bukit.Engine.Analytics.csproj" />
     <ProjectReference Include="..\Bukit.Engine.Assets\Bukit.Engine.Assets.csproj" />
+    <ProjectReference Include="..\Bukit.Engine.Audit\Bukit.Engine.Audit.csproj" />
     <ProjectReference Include="..\Bukit.Engine.Feeds\Bukit.Engine.Feeds.csproj" />
     <ProjectReference Include="..\Bukit.Engine.Primitives\Bukit.Engine.Primitives.csproj" />
     <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
