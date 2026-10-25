@@ -10,6 +10,7 @@ mkdir -p \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli/Deploy" \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content" \
+  "$closure_fixture/src/Bukit-Core/Bukit.Content/Notion" \
   "$closure_fixture/src/Bukit-Core/Bukit.Content.Notion" \
   "$closure_fixture/src/Bukit-Core/Bukit.Cli.Shared" \
   "$closure_fixture/src/Bukit-Core/Bukit.Engine" \
@@ -73,6 +74,8 @@ printf 'public sealed class BodyCacheDecorator {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs"
 printf 'internal sealed class NotionBodyStore {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Content.Notion/NotionBodyStore.cs"
+printf 'internal sealed class NotionBodyStore {}\n' \
+  >"$closure_fixture/src/Bukit-Core/Bukit.Content/Notion/NotionBodyStore.cs"
 printf 'public sealed class NotionClient {}\n' \
   >"$closure_fixture/src/Bukit-Core/Bukit.Notion/Transport/NotionClient.cs"
 printf 'internal sealed class SystemProcessRunner {}\n' \

@@ -8,13 +8,13 @@ using Xunit;
 
 namespace Bukit.Content.Tests;
 
-public sealed class NotionContentProviderEndToEndTests
+public sealed class NotionContentSourceEndToEndTests
 {
     [Fact]
     public async Task LoadAsync_WithFakeNotionApi_LoadsItemsAndRendersBodyOnDemand()
     {
         var handler = new FakeNotionHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -26,10 +26,10 @@ public sealed class NotionContentProviderEndToEndTests
             FieldPolicyMode = "all"
         };
 
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
 
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
 
@@ -81,7 +81,7 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadRawAsync_WithFakeNotionApi_ReturnsRawContentDocuments()
     {
         var handler = new FakeNotionHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -94,10 +94,10 @@ public sealed class NotionContentProviderEndToEndTests
             RenderContent = false
         };
 
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
 
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
 
@@ -118,7 +118,7 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadAsync_WithWhitelistFieldPolicy_FiltersUnallowedFieldsBeforeMetaPromotion()
     {
         var handler = new FieldPolicyHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -134,10 +134,10 @@ public sealed class NotionContentProviderEndToEndTests
             }
         };
 
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
 
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
 
@@ -160,7 +160,7 @@ public sealed class NotionContentProviderEndToEndTests
         try
         {
             var handler = new CacheHandler();
-            var options = new NotionProviderOptions
+            var options = new NotionContentSourceOptions
             {
                 DatabaseId = "db-123",
                 Token = "secret-token",
@@ -170,15 +170,15 @@ public sealed class NotionContentProviderEndToEndTests
                 CacheDir = cacheDir
             };
 
-            NotionApiClient CreateClient() =>
+            NotionContentClient CreateClient() =>
                 new(options, handler, (_, _) => Task.CompletedTask);
 
-            var firstProvider = new NotionContentProvider(options, logger: null, CreateClient);
+            var firstProvider = new NotionContentSource(options, logger: null, CreateClient);
             var firstResult = await firstProvider.LoadRawAsync();
             var firstItem = Assert.Single(firstResult.Documents);
             var firstBody = await firstResult.BodyStore.GetAsync(firstItem);
 
-            var secondProvider = new NotionContentProvider(options, logger: null, CreateClient);
+            var secondProvider = new NotionContentSource(options, logger: null, CreateClient);
             var secondResult = await secondProvider.LoadRawAsync();
             var secondItem = Assert.Single(secondResult.Documents);
             var secondBody = await secondResult.BodyStore.GetAsync(secondItem);
@@ -202,7 +202,7 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadAsync_WithRelationTags_ResolvesMissingTargetAndPromotesTaxonomy()
     {
         var handler = new RelationHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -212,10 +212,10 @@ public sealed class NotionContentProviderEndToEndTests
             FieldPolicyMode = "all"
         };
 
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
 
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
 
@@ -239,12 +239,12 @@ public sealed class NotionContentProviderEndToEndTests
     [Fact]
     public async Task LoadAsync_WhenRequiredOptionsMissing_ThrowsBeforeHttp()
     {
-        var missingDatabase = new NotionContentProvider(new NotionProviderOptions
+        var missingDatabase = new NotionContentSource(new NotionContentSourceOptions
         {
             DatabaseId = " ",
             Token = "secret-token"
         });
-        var missingToken = new NotionContentProvider(new NotionProviderOptions
+        var missingToken = new NotionContentSource(new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = ""
@@ -261,16 +261,16 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadAsync_WhenQueryResponseMissingResults_ThrowsContentException()
     {
         var handler = new MissingResultsHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
             FilterType = "none",
             RequestDelayMs = 0
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
@@ -281,7 +281,7 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadAsync_FollowsPaginationSkipsMissingIdsAndHonorsMaxItems()
     {
         var handler = new PaginationHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -290,9 +290,9 @@ public sealed class NotionContentProviderEndToEndTests
             MaxItems = 2,
             RequestDelayMs = 0
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
 
@@ -308,7 +308,7 @@ public sealed class NotionContentProviderEndToEndTests
         try
         {
             var handler = new CacheHandler();
-            var options = new NotionProviderOptions
+            var options = new NotionContentSourceOptions
             {
                 DatabaseId = "db-123",
                 Token = "secret-token",
@@ -317,9 +317,9 @@ public sealed class NotionContentProviderEndToEndTests
                 CacheMode = "readonly",
                 CacheDir = cacheDir
             };
-            NotionApiClient CreateClient() =>
+            NotionContentClient CreateClient() =>
                 new(options, handler, (_, _) => Task.CompletedTask);
-            var provider = new NotionContentProvider(options, logger: null, CreateClient);
+            var provider = new NotionContentSource(options, logger: null, CreateClient);
             var result = await provider.LoadRawAsync();
             var item = Assert.Single(result.Documents);
 
@@ -349,7 +349,7 @@ public sealed class NotionContentProviderEndToEndTests
             {"version":1,"lastEditedTime":"2026-05-14T00:00:00.000Z","html":"<p>stale</p>"}
             """);
             var handler = new CacheHandler();
-            var options = new NotionProviderOptions
+            var options = new NotionContentSourceOptions
             {
                 DatabaseId = "db-123",
                 Token = "secret-token",
@@ -358,9 +358,9 @@ public sealed class NotionContentProviderEndToEndTests
                 CacheMode = "readwrite",
                 CacheDir = cacheDir
             };
-            NotionApiClient CreateClient() =>
+            NotionContentClient CreateClient() =>
                 new(options, handler, (_, _) => Task.CompletedTask);
-            var provider = new NotionContentProvider(options, logger: null, CreateClient);
+            var provider = new NotionContentSource(options, logger: null, CreateClient);
             var result = await provider.LoadRawAsync();
             var item = Assert.Single(result.Documents);
 
@@ -383,7 +383,7 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadAsync_WhenDatabaseSchemaMissingProperties_Throws()
     {
         var handler = new SchemaHandler("{}");
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -391,9 +391,9 @@ public sealed class NotionContentProviderEndToEndTests
             FilterProperty = "Published",
             RequestDelayMs = 0
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
@@ -411,7 +411,7 @@ public sealed class NotionContentProviderEndToEndTests
           }
         }
         """);
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -419,9 +419,9 @@ public sealed class NotionContentProviderEndToEndTests
             FilterProperty = "Published",
             RequestDelayMs = 0
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
@@ -441,7 +441,7 @@ public sealed class NotionContentProviderEndToEndTests
           }
         }
         """);
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -449,9 +449,9 @@ public sealed class NotionContentProviderEndToEndTests
             FilterProperty = "Missing",
             RequestDelayMs = 0
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
@@ -464,16 +464,16 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadAsync_WhenPagePropertiesHaveCaseInsensitiveConflict_Throws()
     {
         var handler = new PageConflictHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
             FilterType = "none",
             RequestDelayMs = 0
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
 
@@ -487,7 +487,7 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadAsync_WhenHasMoreWithoutCursor_ThrowsStablePaginationException()
     {
         var handler = new HasMoreWithoutCursorHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -495,9 +495,9 @@ public sealed class NotionContentProviderEndToEndTests
             RenderContent = false,
             RequestDelayMs = 0
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         // CI-08 contract: has_more=true with a missing cursor fails closed.
         var exception = await Record.ExceptionAsync(() => provider.LoadRawAsync());
@@ -510,7 +510,7 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task BodyStore_WithAutoSummaryEnabled_ExtractsSummaryFromRenderedHtml()
     {
         var handler = new AutoSummaryHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -519,9 +519,9 @@ public sealed class NotionContentProviderEndToEndTests
             AutoSummary = true,
             AutoSummaryMaxLength = 42
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
         var result = await provider.LoadRawAsync();
         var item = Assert.Single(result.Documents);
 
@@ -543,7 +543,7 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadAsync_WithComplexPageProperties_MapsFieldsCoverIconAndProjectedFields()
     {
         var handler = new ComplexPropertiesHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -552,9 +552,9 @@ public sealed class NotionContentProviderEndToEndTests
             RenderContent = false,
             FieldPolicyMode = "all"
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
 
@@ -588,7 +588,7 @@ public sealed class NotionContentProviderEndToEndTests
     public async Task LoadAsync_WithMixedInvalidProviderProperties_SkipsInvalidFieldsAndKeepsFallbackText()
     {
         var handler = new MixedInvalidPropertiesHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -597,9 +597,9 @@ public sealed class NotionContentProviderEndToEndTests
             RenderContent = false,
             FieldPolicyMode = "all"
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
 
@@ -680,9 +680,9 @@ public sealed class NotionContentProviderEndToEndTests
         Assert.Contains("created_time", error.Message, StringComparison.Ordinal);
     }
 
-    private static NotionContentProvider CreatePublishDateProvider(HttpMessageHandler handler)
+    private static NotionContentSource CreatePublishDateProvider(HttpMessageHandler handler)
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-date",
             Token = "secret-token",
@@ -690,9 +690,9 @@ public sealed class NotionContentProviderEndToEndTests
             FilterType = "none",
             RenderContent = false
         };
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
-        return new NotionContentProvider(options, logger: null, CreateClient);
+        return new NotionContentSource(options, logger: null, CreateClient);
     }
 
     private sealed class PublishDateHandler(

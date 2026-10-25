@@ -1,3 +1,11 @@
+for notion_fallback_contract_path in \
+  openspec/changes/fix-notion-relation-fallback-diagnostics/proposal.md \
+  openspec/changes/fix-notion-relation-fallback-diagnostics/design.md \
+  openspec/changes/fix-notion-relation-fallback-diagnostics/tasks.md \
+  openspec/changes/fix-notion-relation-fallback-diagnostics/specs/notion-relation-fallback-diagnostics/spec.md; do
+  assert_closure_mapping "$closure_fixture" "$notion_fallback_contract_path" '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj --filter FullyQualifiedName~CrossSourceRelationProjectionTests"]' false
+done
+
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs \
@@ -6,6 +14,11 @@ assert_closure_mapping \
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Content.Notion/NotionBodyStore.cs \
+  '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Content/Notion/NotionBodyStore.cs \
   '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
   true
 assert_closure_mapping \
@@ -101,6 +114,20 @@ for readme_path in README.md README.zh-CN.md README.ms.md; do
 done
 for internal_contract_path in docs/governance/bukit-core-2.0-consumer-declaration.md guide/dev/public-api-governance.md; do
   assert_closure_mapping "$closure_fixture" "$internal_contract_path" '["bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
+done
+for notion_contract_path in \
+  openspec/changes/migrate-notion-compatibility/proposal.md \
+  openspec/changes/migrate-notion-compatibility/design.md \
+  openspec/changes/migrate-notion-compatibility/tasks.md \
+  openspec/changes/migrate-notion-compatibility/specs/notion-compatibility-migration/spec.md \
+  guide/dev/architecture.md; do
+  assert_closure_mapping "$closure_fixture" "$notion_contract_path" '["bash scripts/checks/codex-workflow-self-test.sh", "bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter \"FullyQualifiedName~NotionBoundaryTests|FullyQualifiedName~NotionCompatibilityMigrationTests\"", "dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj --filter \"FullyQualifiedName~NotionContentSourceTests|FullyQualifiedName~CrossSourceRelationProjectionTests\"", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj --filter FullyQualifiedName~NotionContentSourceEndToEndTests"]' false
+done
+assert_closure_mapping "$closure_fixture" guide/skills/bukit-content/SKILL.md '["bash guide/skills/scripts/validate-skills-strict.sh"]' false
+for notion_governance_path in \
+  docs/governance/bukit-core-2.0-notion-compatibility-migration.md \
+  docs/analysis/bukit-core-ad03c5-notion-property-parser-retention-decision-2026-07-24.zh-CN.md; do
+  assert_closure_mapping "$closure_fixture" "$notion_governance_path" '["bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
 done
 assert_closure_mapping "$closure_fixture" src/Bukit-Labs/Bukit.Labs.Cli/Commands/Theme/ThemeCommand.cs '["dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"]' true
 assert_closure_mapping "$closure_fixture" tests/Bukit.Labs.Cli.Tests/ThemeDoctorReportPrinterTests.cs '["dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"]' false

@@ -28,7 +28,7 @@ selects the provider (`markdown`/`notion`) and is unrelated to document type.
 | Provider | Implementation | Notes |
 |---|---|---|
 | Markdown | `MarkdownFolderProvider` | Reads files, parses front matter, renders body lazily. |
-| Notion | `NotionContentProvider` | Queries Notion database pages and can render blocks. |
+| Notion | `NotionContentSource` in `Bukit.Content` | Queries Notion database pages and can render blocks. |
 | Composite | `CompositeContentProvider` | Combines multiple sources and preserves body stores per source. |
 
 Notion canonical Collection projection precedes ordinary whitelist filtering.

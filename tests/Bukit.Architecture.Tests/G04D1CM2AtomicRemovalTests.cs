@@ -50,7 +50,7 @@ public sealed class G04D1CM2AtomicRemovalTests
     [Fact]
     public void BukitContent_DoesNotExposeApprovedLegacyExtensionGraph()
     {
-        var contentAssembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
+        var contentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
 
         Assert.All(RemovedLegacyTypes, name =>
             Assert.Null(contentAssembly.GetType(name, throwOnError: false, ignoreCase: false)));
@@ -94,22 +94,21 @@ public sealed class G04D1CM2AtomicRemovalTests
     }
 
     [Fact]
-    public void HistoricallyExcludedLegacyTypes_NowRemainInternalWithExactIdentities()
+    public void HistoricallyExcludedLegacyTypes_AreRemovedByTheLaterApprovedMigration()
     {
-        var contentAssembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
-        string[] retainedTypes =
+        var contentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
+        string[] removedTypes =
         [
             "Bukit.Content.Notion.NotionApiClient",
             "Bukit.Content.Notion.NotionProviderOptions"
         ];
 
-        Assert.All(retainedTypes, name =>
+        Assert.All(removedTypes, name =>
         {
             var type = contentAssembly.GetType(name, throwOnError: false, ignoreCase: false);
 
-            Assert.NotNull(type);
-            Assert.False(type.IsPublic, $"AD-03C4 bridge remains public: {name}");
-            Assert.DoesNotContain(type, contentAssembly.GetExportedTypes());
+            Assert.Null(type);
+            Assert.DoesNotContain(contentAssembly.GetExportedTypes(), exported => exported.FullName == name);
         });
     }
 

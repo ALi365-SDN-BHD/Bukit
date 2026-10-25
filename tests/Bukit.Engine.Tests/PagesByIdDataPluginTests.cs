@@ -454,7 +454,7 @@ public sealed class PagesByIdDataPluginTests : IDisposable
     private sealed class FakeFetcher : Bukit.Engine.Plugins.BuiltIn.INotionPageFetcher
     {
         public Task<Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage?> FetchAsync(
-            Bukit.Content.Notion.NotionApiClient client,
+            Bukit.Content.Notion.NotionContentClient client,
             string pageId,
             ILogger logger,
             CancellationToken cancellationToken)
@@ -475,7 +475,7 @@ public sealed class PagesByIdDataPluginTests : IDisposable
     private sealed class ThrowingFetcher : Bukit.Engine.Plugins.BuiltIn.INotionPageFetcher
     {
         public Task<Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage?> FetchAsync(
-            Bukit.Content.Notion.NotionApiClient client,
+            Bukit.Content.Notion.NotionContentClient client,
             string pageId,
             ILogger logger,
             CancellationToken cancellationToken)
@@ -489,7 +489,7 @@ public sealed class PagesByIdDataPluginTests : IDisposable
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task<Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage?> FetchAsync(
-            Bukit.Content.Notion.NotionApiClient client,
+            Bukit.Content.Notion.NotionContentClient client,
             string pageId,
             ILogger logger,
             CancellationToken cancellationToken)

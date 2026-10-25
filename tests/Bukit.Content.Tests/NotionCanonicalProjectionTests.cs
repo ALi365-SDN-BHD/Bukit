@@ -106,7 +106,7 @@ public sealed class NotionCanonicalProjectionTests
 
     private static async Task<RawContentDocument> LoadSingleAsync(string extraProperties)
     {
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-canonical",
             Token = "token",
@@ -125,8 +125,8 @@ public sealed class NotionCanonicalProjectionTests
             }
         };
         var handler = new CanonicalPageHandler(extraProperties);
-        NotionApiClient CreateClient() => new(options, handler, (_, _) => Task.CompletedTask);
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        NotionContentClient CreateClient() => new(options, handler, (_, _) => Task.CompletedTask);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
 

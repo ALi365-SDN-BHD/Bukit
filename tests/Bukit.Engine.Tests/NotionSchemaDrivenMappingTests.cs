@@ -12,7 +12,7 @@ public sealed class NotionSchemaDrivenMappingTests
     public async Task NotionRawInput_ProjectsThroughSchemaDrivenCanonicalMappings()
     {
         var handler = new SchemaMappingNotionHandler();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db-123",
             Token = "secret-token",
@@ -22,10 +22,10 @@ public sealed class NotionSchemaDrivenMappingTests
             FieldPolicyMode = "all"
         };
 
-        NotionApiClient CreateClient() =>
+        NotionContentClient CreateClient() =>
             new(options, handler, (_, _) => Task.CompletedTask);
 
-        var provider = new NotionContentProvider(options, logger: null, CreateClient);
+        var provider = new NotionContentSource(options, logger: null, CreateClient);
 
         var result = await provider.LoadRawAsync();
 

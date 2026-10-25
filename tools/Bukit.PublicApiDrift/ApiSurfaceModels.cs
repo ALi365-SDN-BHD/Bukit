@@ -36,7 +36,6 @@ internal static class ApiPolicy
         new("Bukit.Cli.Shared", "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj"),
         new("Bukit.Config", "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj"),
         new("Bukit.Content", "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj"),
-        new("Bukit.Content.Notion", "src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj"),
         new("Bukit.Engine", "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj"),
         new("Bukit.Engine.Abstractions", "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj"),
         new("Bukit.Engine.Analytics", "src/Bukit-Core/Bukit.Engine.Analytics/Bukit.Engine.Analytics.csproj"),

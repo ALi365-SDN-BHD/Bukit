@@ -46,7 +46,8 @@ public sealed class Ad03C6AggregateClosureTests
         ("Bukit.Shared", "Bukit.Shared.Notion.ToggleBlock"),
         ("Bukit.Content", "Bukit.Content.Notion.NotionApiClient"),
         ("Bukit.Content", "Bukit.Content.Notion.NotionContentProvider"),
-        ("Bukit.Content", "Bukit.Content.Notion.NotionProviderOptions")
+        ("Bukit.Content", "Bukit.Content.Notion.NotionProviderOptions"),
+        ("Bukit.Content", ParserTypeName)
     ];
     private static readonly (string Assembly, string Name, string Target)[]
         MigrationRows =
@@ -134,12 +135,17 @@ public sealed class Ad03C6AggregateClosureTests
         (
             "Bukit.Content.dll",
             "Bukit.Content.Notion.NotionContentProvider",
-            "`Bukit.Content.Notion.NotionContentSource` in `Bukit.Content.Notion.dll`; explicitly adapt the consumer interface and content semantics"
+            "`Bukit.Content.Notion.NotionContentSource` in `Bukit.Content.dll`; explicitly adapt the consumer interface and content semantics"
         ),
         (
             "Bukit.Content.dll",
             "Bukit.Content.Notion.NotionProviderOptions",
-            "`Bukit.Content.Notion.NotionContentSourceOptions` in `Bukit.Content.Notion.dll`; explicitly map options; not a drop-in replacement"
+            "`Bukit.Content.Notion.NotionContentSourceOptions` in `Bukit.Content.dll`; explicitly map options; not a drop-in replacement"
+        ),
+        (
+            "Bukit.Content.dll",
+            ParserTypeName,
+            "no public canonical replacement; no mechanical migration"
         )
     ];
     private static readonly string[] ClosureRows =
@@ -177,7 +183,7 @@ public sealed class Ad03C6AggregateClosureTests
             new Dictionary<string, int>(StringComparer.Ordinal)
             {
                 ["cross-assembly-implementation"] = 255,
-                ["implementation-public"] = 41,
+                ["implementation-public"] = 40,
                 ["serialized-contract"] = 98,
                 ["plugin-wire-contract"] = 23,
                 ["persisted-internal-format"] = 6,
@@ -188,7 +194,7 @@ public sealed class Ad03C6AggregateClosureTests
             "compatibility",
             new Dictionary<string, int>(StringComparer.Ordinal)
             {
-                ["1.x-do-not-narrow"] = 258,
+                ["1.x-do-not-narrow"] = 257,
                 ["1.x-shape-stable"] = 119,
                 ["not-a-clr-contract"] = 40,
                 ["1.x-migration-safe"] = 6,
@@ -200,14 +206,14 @@ public sealed class Ad03C6AggregateClosureTests
             "migrationHorizon",
             new Dictionary<string, int>(StringComparer.Ordinal)
             {
-                ["2.0-review"] = 301,
+                ["2.0-review"] = 300,
                 ["retain-1.x"] = 122,
                 ["retain-2.x"] = 3
             });
     }
 
     [Fact]
-    public void GovernedBaseline_RemovesExactLegacySetAndRetainsParserMetadataAndShape()
+    public void GovernedBaseline_RemovesExactLegacySetAndPreservesMovedCanonicalMetadata()
     {
         using JsonDocument document = ReadJson(
             "docs",
@@ -225,31 +231,22 @@ public sealed class Ad03C6AggregateClosureTests
                 entry.GetProperty("name").GetString() == name);
         }
 
-        JsonElement parser = Assert.Single(types, entry =>
-            entry.GetProperty("assembly").GetString() == "Bukit.Content" &&
-            entry.GetProperty("name").GetString() == ParserTypeName);
-        Assert.Equal(
-            "implementation-public",
-            parser.GetProperty("classification").GetString());
-        Assert.Equal(
-            "1.x-do-not-narrow",
-            parser.GetProperty("compatibility").GetString());
-        Assert.Equal(
-            "2.0-review",
-            parser.GetProperty("migrationHorizon").GetString());
-        Assert.Equal(
-            "public static class Bukit.Content.Notion.NotionPropertyParser",
-            parser.GetProperty("signature").GetString());
-        Assert.Equal(
-            [
-                "public static System.Collections.Generic.IReadOnlyDictionary<System.String!, Bukit.Engine.Abstractions.Content.ContentField!>! ExtractAllFields(System.Text.Json.JsonElement properties)",
-                "public static System.Collections.Generic.IReadOnlyDictionary<System.String!, Bukit.Engine.Abstractions.Content.ContentField!>! ExtractFields(System.Text.Json.JsonElement properties)"
-            ],
-            parser.GetProperty("publicMembers")
-                .EnumerateArray()
-                .Select(member => member.GetString()!)
-                .ToArray());
-        Assert.Empty(parser.GetProperty("protectedMembers").EnumerateArray());
+        foreach (string name in new[]
+        {
+            "Bukit.Content.Notion.NotionContentSource",
+            "Bukit.Content.Notion.NotionContentSourceOptions"
+        })
+        {
+            JsonElement moved = Assert.Single(types, entry =>
+                entry.GetProperty("assembly").GetString() == "Bukit.Content" &&
+                entry.GetProperty("name").GetString() == name);
+            Assert.Equal("Notion content adapter contract", moved.GetProperty("owner").GetString());
+            Assert.Equal("cross-assembly-implementation", moved.GetProperty("classification").GetString());
+            Assert.Equal("1.x-do-not-narrow", moved.GetProperty("compatibility").GetString());
+            Assert.Equal("2.0-review", moved.GetProperty("migrationHorizon").GetString());
+            Assert.Empty(moved.GetProperty("protectedMembers").EnumerateArray());
+        }
+        Assert.DoesNotContain(types, entry => entry.GetProperty("assembly").GetString() == "Bukit.Content.Notion");
     }
 
     [Fact]
@@ -259,6 +256,13 @@ public sealed class Ad03C6AggregateClosureTests
 
         Assert.Contains("2.0-only", notice, StringComparison.Ordinal);
         Assert.Contains("1.x remains unchanged", notice, StringComparison.Ordinal);
+        foreach (string name in new[] { "NotionContentSource", "NotionContentSourceOptions" })
+        {
+            Assert.Contains(
+                $"| `Bukit.Content.Notion.dll` | `Bukit.Content.Notion.{name}` | `Bukit.Content.dll` | unchanged |",
+                notice, StringComparison.Ordinal);
+        }
+        Assert.Contains("no compatibility shell or type forwarder", notice, StringComparison.Ordinal);
         foreach ((string assembly, string name, string target) in MigrationRows)
         {
             Assert.Contains(

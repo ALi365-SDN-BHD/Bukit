@@ -98,3 +98,35 @@ convergence 处理，本任务不顺带清理。
 通过保留原 assembly identity 与 public method shape 被控制，但没有被证明为零。
 若未来执行删除、internalize 或 public SDK productization，必须另立迁移与版本化任务，
 不能把本 C5 retain-by-design 决议解释成预授权。
+
+## 8. 2026-10-25 独立批准的 2.0 删除重审
+
+2026-10-25 的独立 ITEM1 在明确询问 public parser 删除、两个 canonical public
+类型 assembly 移动、旧 DLL/project 删除及无兼容 shell/type forwarder 的 binary
+break 后，得到所有者“继续”的明确确认。因此仅对 2.0 将原保留结论改为
+`removed-in-2.0-review`，不是追溯改写上述 July 决议、理由或原有证据边界；1.x
+visibility 和 closed 136-entry candidate manifest 保持不变。
+
+删除 `Bukit.Content.Notion.NotionPropertyParser` 及
+`ExtractFields(JsonElement)` / `ExtractAllFields(JsonElement)`，没有同用途 public
+parser replacement；原有 `NotionContentPropertyParser` 与 `NotionPropertyTypeParser`
+仍为 internal。`NotionContentSource.LoadRawAsync` 是内容加载/投影流程，不是
+one-to-one public parser 替代入口。新决议不承诺通用 CLR SDK。
+
+public `NotionContentSource` / `NotionContentSourceOptions` 从
+`Bukit.Content.Notion.dll` 移至 `Bukit.Content.dll`，namespace/full name 不变；
+旧 runtime project 与 DLL mapping 删除，无 shell 或 type forwarder。消费者须更新
+project/assembly references、reflection、serializer 与 assembly-qualified bindings
+并 recompile；旧 binary-only consumers 需要源码或所有者提供的 rebuild。
+source 原 public ctor（nullable ILogger default null）及 options 的 31 public members
+保持不变，source 只增加既有 provider interfaces 和既有 LoadRawAsync 的 compiler-derived
+virtual-final 标记。当前受控 inventory 为 426→425 public types / 19→18 assemblies，
+其余 423 个 type entries 不变；历史 425/14 与 Theme 428→426/19 记录不改写。
+
+private、unindexed、binary-only、reflection/serializer-bound 和 undisclosed consumers
+仍不可观测。搜索无结果、计数目标及 no-general-clr-sdk 均不是单独删除授权；本次依据
+是明确展示 breaking boundary 后的独立确认，不宣称所有未知消费者均安全。
+原三项无条件重审触发规则及原始证据限制继续作为历史记录保留。
+
+精确迁移要求见 [2.0 Notion compatibility migration](../governance/bukit-core-2.0-notion-compatibility-migration.md)。
+本追加节不声称已发布、部署、重跑历史 aggregate gate 或与独立 item3 合并验证。

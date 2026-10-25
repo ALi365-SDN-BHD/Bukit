@@ -1,5 +1,7 @@
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Content;
+using System.Net;
+using System.Text;
 using Xunit;
 
 namespace Bukit.Content.Notion.Tests;
@@ -51,6 +53,84 @@ public sealed class CrossSourceRelationProjectionTests
         Assert.Null(links[1]["title"]);
         var diagnostic = Assert.Single(document.Diagnostics);
         Assert.Equal("notion.relation.permission_denied", diagnostic.Code);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden, "notion.relation.permission_denied")]
+    [InlineData(HttpStatusCode.NotFound, "notion.relation.permission_denied")]
+    [InlineData(HttpStatusCode.Unauthorized, "notion.relation.unresolved")]
+    [InlineData(HttpStatusCode.InternalServerError, "notion.relation.unresolved")]
+    public async Task CompositeProvider_UsesRealSourceFallbackForOrderedRemoteRelations(
+        HttpStatusCode missingStatus,
+        string expectedDiagnostic)
+    {
+        var options = new NotionContentSourceOptions
+        {
+            DatabaseId = "articles-db", Token = "dummy-articles", FilterType = "none",
+            FieldPolicyMode = "all", RenderContent = false, MaxRetries = 0
+        };
+        var handler = new RelationSourceHandler(missingStatus);
+        NotionContentClient CreateClient() => new(options, handler, static (_, _) => Task.CompletedTask);
+        var source = new NotionContentSource(options, logger: null, CreateClient);
+        var composite = new CompositeContentProvider(
+            [("articles", "content", (IContentProvider)source)],
+            Schema(Mapping("authoredBy", "authoredBy", "person")));
+
+        var result = await composite.LoadRawAsync();
+        try
+        {
+            var document = Assert.Single(result.Documents);
+            Assert.Equal("articles:article-1", document.SourceId);
+            var links = Projection(document, "authoredby");
+            Assert.Equal(["remote-author", "missing-author", "remote-author"], links.Select(LinkId));
+            foreach (var link in new[] { links[0], links[2] })
+            {
+                Assert.Equal("Remote Author", link["title"]);
+                Assert.Equal("remote-author", link["slug"]);
+                Assert.Equal("person", link["type"]);
+                Assert.Equal("/authors/remote-author/", link["url"]);
+                Assert.Equal("remote-author", link["profileId"]);
+                Assert.Equal("Remote Author", link["displayName"]);
+                Assert.Equal("/authors/remote-author/", link["profileUrl"]);
+            }
+            Assert.Null(links[1]["title"]);
+            Assert.Null(links[1]["slug"]);
+            Assert.Null(links[1]["url"]);
+            var diagnostic = Assert.Single(document.Diagnostics);
+            Assert.Equal(expectedDiagnostic, diagnostic.Code);
+            Assert.Equal("authoredBy", diagnostic.Field);
+            Assert.Contains("missing-author", diagnostic.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("private-response-body-sentinel", diagnostic.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(options.Token, diagnostic.Message, StringComparison.Ordinal);
+            Assert.Equal(
+                ["POST /v1/databases/articles-db/query", "GET /v1/pages/remote-author", "GET /v1/pages/missing-author"],
+                handler.Requests);
+        }
+        finally
+        {
+            await ((IAsyncDisposable)result.BodyStore).DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task SourceFallback_PropagatesCallerCancellationDuringRequest()
+    {
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var options = new NotionContentSourceOptions
+        {
+            DatabaseId = "articles-db", Token = "dummy-articles", MaxRetries = 0
+        };
+        var handler = new BlockingRelationHandler(requestStarted);
+        NotionContentClient CreateClient() => new(options, handler, static (_, _) => Task.CompletedTask);
+        var source = new NotionContentSource(options, logger: null, CreateClient);
+        using var cancellation = new CancellationTokenSource();
+
+        var resolveTask = source.CreateRelationFallbackResolver().ResolveAsync(["missing-author"], cancellation.Token);
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => resolveTask);
+        Assert.Equal(cancellation.Token, exception.CancellationToken);
     }
 
     [Fact]
@@ -364,6 +444,60 @@ public sealed class CrossSourceRelationProjectionTests
         Assert.Equal(id, link["profileId"]);
         Assert.Equal(title, link["displayName"]);
         Assert.Equal(url, link["profileUrl"]);
+    }
+
+    private sealed class RelationSourceHandler(HttpStatusCode missingStatus) : HttpMessageHandler
+    {
+        public List<string> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Assert.Equal("api.notion.com", request.RequestUri!.Host);
+            Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+            Assert.Equal("dummy-articles", request.Headers.Authorization?.Parameter);
+            var key = $"{request.Method} {request.RequestUri.AbsolutePath}";
+            Requests.Add(key);
+            var (status, json) = key switch
+            {
+                "POST /v1/databases/articles-db/query" => (HttpStatusCode.OK, """
+                    {"results":[{"id":"article-1","created_time":"2026-07-25T00:00:00Z","properties":{
+                      "Title":{"type":"title","title":[{"plain_text":"Article"}]},
+                      "authoredBy":{"type":"relation","relation":[{"id":"remote-author"},{"id":"missing-author"},{"id":"remote-author"}]}
+                    }}],"has_more":false}
+                    """),
+                "GET /v1/pages/remote-author" => (HttpStatusCode.OK, """
+                    {"id":"remote-author","properties":{
+                      "Title":{"type":"title","title":[{"plain_text":"Remote Author"}]},
+                      "Slug":{"type":"rich_text","rich_text":[{"plain_text":"remote-author"}]},
+                      "Type":{"type":"select","select":{"name":"person"}},
+                      "Url":{"type":"url","url":"/authors/remote-author/"}
+                    }}
+                    """),
+                "GET /v1/pages/missing-author" => (missingStatus, $$"""
+                    {"object":"error","status":{{(int)missingStatus}},"code":"fixture_error","message":"private-response-body-sentinel dummy-articles"}
+                    """),
+                _ => throw new InvalidOperationException($"Unexpected fixture request: {key}")
+            };
+            return Task.FromResult(new HttpResponseMessage(status)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
+    private sealed class BlockingRelationHandler(TaskCompletionSource requestStarted) : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("https://api.notion.com/v1/pages/missing-author", request.RequestUri!.AbsoluteUri);
+            Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+            Assert.Equal("dummy-articles", request.Headers.Authorization?.Parameter);
+            requestStarted.TrySetResult();
+            return await new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously)
+                .Task.WaitAsync(cancellationToken);
+        }
     }
 
     private sealed class RecordingResolver(
