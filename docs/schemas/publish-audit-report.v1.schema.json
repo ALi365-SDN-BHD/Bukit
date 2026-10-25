@@ -82,7 +82,7 @@
           "type": "boolean"
         },
         "lastModified": {
-          "type": "string",
+          "type": ["string", "null"],
           "format": "date-time"
         },
         "contentType": {

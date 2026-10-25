@@ -35,6 +35,7 @@ Current schema:
 Each document represents one final published route:
 
 - `routeUrl`, `outputPath`, `canonical`, `indexable`, and `lastModified` identify the route.
+- `lastModified` is required: a date-time string when known, or `null` when no modification date is available (for example, an empty site's generated home route). Non-null values must be valid date-time strings.
 - `title`, `description`, `summary`, `language`, `author`, `organization`, `source`, `originalSource`, `sourceReferences`, `reviewStatus`, and `updatedAt` expose trust and provenance metadata.
 - `entityNames`, `entitySummaries`, `representationKinds`, `representations`, `schemaTypes`, `structuredDataTypes`, and `semanticOutline` expose machine-readable discovery data.
 - `representations[]` records each representation `kind`, public `url`, output `path`, whether it was `generated`, and whether it belongs to an indexable document.

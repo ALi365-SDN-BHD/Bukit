@@ -86,6 +86,103 @@ Bukit 是 .NET 10 Native AOT 静态站点引擎，当前处于企业内部优先
 
 出口：空站点在沙箱中构建成功，公共产物快照和报告校验通过；报告清单及安全层覆盖率检查器自检完成。
 
+#### 0.1 基础设施实施与证据（2026-10-25）
+
+**阶段 0：SUCCESS。专项、三平台验收及最终增量复核均已通过。**
+
+本节证据根目录 `R` 为 `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/core-phase0-rNC5Fv`；证据文件名均相对此目录。下表 `Infrastructure/` 相对于 `tests/Bukit.Engine.Tests/`；测试计数均为 Passed / Failed / Skip。此前 Shared 验收与图片迁移提交保留。
+
+| 阶段 0 要求 | 文件 | 已执行证据 |
+|---|---|---|
+| 独立沙箱、文件/目录链接及 YAML/Markdown/主题构造；空站点与三个最小 fixture | `Infrastructure/SiteSandbox.cs`、`Infrastructure/SiteBuilder.cs`、`TestInfrastructureTests.cs`；复用 `tests/fixtures/{basic-markdown-site,i18n-site,taxonomy-site}/` 的 20 个显式输入 | 四场景各两次真实构建通过；日期固定，多语核对 en/zh-CN，分类法在沙箱设 pageSize=1 并验证两页/顺序/前后链接；`core-engine-green.trx` |
+| 公共产物精确路径及字节比较、失败安全原始快照 | `Infrastructure/OutputSnapshot.cs`、`TestInfrastructureTests.cs` | 公共比较仅排除根/配置语言根的 `.bukit/` 和确切 marker/state 文件；嵌套同名项、隐藏文件及公共 manifest 保留。真实阻塞构建失败后 output/全部实际托管缓存原始字节与身份保持不变；失败快照不采用公共排除规则；同一 GREEN TRX |
+| 报告独立 schema、路径/计数/长度/哈希及运行字段语义校验 | `Infrastructure/LocalJsonSchema.cs`、`Infrastructure/ReportAssertions.cs`、`TestInfrastructureTests.cs` | 单语 14 / 多语 23 份报告检查集合通过；32 个 schema 用例及独立字段/文件/计数/哈希变异检查，含精确数值边界；四场景每次构建均验报告；同一 GREEN TRX |
+| Notion 分页、429、5xx，复用 handler/时钟/延迟接缝 | `tests/Bukit.Notion.Tests/NotionTestTransport.cs`、`NotionTestTransportTests.cs`、`NotionClientTests.cs` | **54/0/0**：新类14、既有类40；`notion-results/notion.trx`。目标仍为 `https://api.notion.com:443`；429 重试，500/503 按现有策略立即失败，302/307 拒绝 |
+| 真实假插件进程：正常、超时、崩溃、乱码、超大输出 | `tests/PluginProcessProbe/Program.cs`、`tests/Bukit.PluginHost.Tests/PluginProtocolProbeTests.cs`、`SystemProcessRunnerTests.cs` | **31/0/0**：新类7、既有类24；`plugin-results/plugin.trx`。崩溃用 exit 7，乱码含实际无效 UTF-8；TPR-001 修正后以 `1024 < 2048 < 4096` 判别较小上限，限定复核已关闭 |
+| 三文件安全覆盖率检查器 | `scripts/checks/coverage/security-layer.py`、`security-layer-self-test.py`，复用 `summarize.py` | `coverage-green.log`：**11 项通过**；独立检查缺文件/零分母、规范化路径+行号跨报告/嵌套/状态机合并；19/20 通过，1899/1999 不因四舍五入通过；专项复核无 finding |
+| 当前生成入口驱动的报告清单 | `docs/testing/core-report-inventory.json`、`scripts/checks/core-report-inventory.py` | `core-inventory-green.log`：**5 自检 + 24 条记录 / 20 本地 schema 通过**；入口、产物路径、声明 ID/版本、本地 schema、测试绑定齐备，Analytics 为 v2 / 2.0 |
+| 新平台类接入 CI，配置变更有直接 owner 自检 | `.github/workflows/ci.yaml`、`scripts/checks/test-infrastructure-platform-self-test.py` | `core-ci-green.log`：三 OS 选择、确切命令、helper 顺序、4 个负向变异通过；已选择 `TestInfrastructureTests` 与 `PluginProtocolProbeTests`；原生执行证据见0.4 |
+
+#### 0.2 历史 RED、授权修复与当前 GREEN
+
+本机基准 `c34bf2333db28270bfdd7ec10e0a38c52be45122`；**macOS 15.8.1 / Darwin 24.6.0 / arm64，SDK 10.0.100、runtime 10.0.0、VSTest 18.0.1，Release；Python 3.9.6**。结果据实际 TRX 行与类定义核对。
+
+| 执行阶段 | 结果 | 原始证据 |
+|---|---|---|
+| 首次基础设施，Core 修复前 | **36/4/0，历史 RED，退出1** | `engine-final.trx`、`engine-final.log`；文件名含 final 不表示阶段最终成功 |
+| 加入直接回归后、修复前 | **164/16/0，历史 RED，退出1** | `core-engine-red.trx`、`core-engine-red.log`；16失败为隐私5、根状态清单2、未知日期2、Windows形式查找3、真实场景4 |
+| 授权修复后 Engine 组合专项 | **180/0/0，退出0** | `core-engine-green.trx`、`core-engine-green.log`；Infrastructure **43**、BuildReporter **33**、SEO writer **58**、Publish writer **46** |
+| CLI 直接消费者专项 | **21/0/0，退出0** | `core-cli-green.trx`、`core-cli-green.log`；既有 nullable reader 的兼容回归，CLI runtime 未改 |
+
+已通过的独立 Core 修复边界：
+- **SR-001**：`docs/schemas/security-report.v1.schema.json` 声明并要求 `publicOutputPrivacy`，保留未知字段拒绝；`BuildReporterTests.cs` 验证五种真实状态及缺失/未知/非法枚举负例。
+- **SR-002**：`docs/schemas/{seo-report,publish-audit-report}.v1.schema.json` 保留必填 `lastModified`，允许 string/null 并保持 date-time 约束；对应两份 schema 文档、两个 Engine writer 类及 CLI `SeoReportValidatorTests.cs` 均有直接证据。
+- **SR-003**：`src/Bukit-Core/Bukit.Engine/BuildReportInventories.cs` 仅排除根内部 `.bukit-build-state.json`；嵌套同名公共文件、已存在 marker、原事务顺序保留；启用/禁用报告两种回归独立重算完成字节的长度、SHA-256、计数及聚合哈希。
+- **SSR-001**：`Infrastructure/ReportAssertions.cs` 三个 audit/semantic 查找规范化反斜杠；Infrastructure 三行回归独立到达各查找，仍拒绝缺失文件/改变的语义内容；原生 Windows 证明见0.4。
+
+`core-report-repair-review.md` 已完成唯一预定修复专项复核，**SR-001/002/003、SSR-001 均 reviewed-resolved，Critical 0 / Important 0 / Minor 0**；四个真实场景的两次构建/报告检查及失败安全均通过。此前 coverage/transport 专项证据沿用，TPR-001 已由 `transport-process-scoped-rereview.md` 关闭。
+
+#### 0.3 本机确切复现/收口命令
+
+从仓库根目录运行；`R` 仅缩写已记录的绝对结果路径，shell 展开后前七条的可执行文件、参数、过滤、logger 与路径和原回执相同。第八条用于本次计划及 OpenSpec 状态文档的 owner 检查，日志为 `docs-owner.log`。Engine fixture 独占，其他 .NET 串行；按 closure/classification 执行，匹配的 GREEN 不为刷新证据重复运行。
+
+```sh
+R=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/core-phase0-rNC5Fv
+
+python3 -B scripts/checks/coverage/security-layer-self-test.py
+
+dotnet test tests/Bukit.Notion.Tests/Bukit.Notion.Tests.csproj -c Release --filter "FullyQualifiedName~NotionTestTransportTests|FullyQualifiedName~NotionClientTests" --logger "trx;LogFileName=notion.trx" --results-directory "$R/notion-results"
+
+dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Release --filter "FullyQualifiedName~SystemProcessRunnerTests|FullyQualifiedName~PluginProtocolProbeTests" --logger "trx;LogFileName=plugin.trx" --results-directory "$R/plugin-results"
+
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter "FullyQualifiedName~TestInfrastructureTests|FullyQualifiedName~BuildReporterTests|FullyQualifiedName~SeoAuditReportWriterTests|FullyQualifiedName~PublishAuditReportWriterTests" --logger "trx;LogFileName=core-engine.trx" --results-directory "$R/core-engine-results"
+
+dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter FullyQualifiedName~SeoReportValidatorTests --logger "trx;LogFileName=core-cli.trx" --results-directory "$R/core-cli-results"
+
+python3 -B scripts/checks/core-report-inventory.py --self-test
+
+python3 -B scripts/checks/test-infrastructure-platform-self-test.py
+
+git diff --check -- docs/plans/bukit-core-automated-test-plan-2026-10-24.zh-CN.md openspec/changes/fix-core-report-contracts/tasks.md
+```
+
+#### 0.4 冻结版本与三平台证据
+
+`snapshot.json`：临时分支 **`evidence/core-phase0-20261025`**，提交 **`c4e09fc07321ed682ae48b3b6b50a1926a5177a4`**；main 保留。冻结 **935 项 sourceInputs**，摘要 **`4ecfa8bbbeac4adc86769500f8b5a445009d89658373b0efa5dbb20ce2e2d6fa`**；临时工作流摘要 `7eaf3a1801fd8891c24f2842b975ddc43224795f37ebafac3c93cab98c3440f3`。
+
+`local-platform-evidence.json` 保存冻结输入、macOS 实际身份及 Engine/Plugin 原始 TRX 身份，冻结时二者 cache HIT；Core 专项复核另核对 Engine/CLI/inventory/CI 四条缓存全部 HIT，包含 HEAD、闭包内容、原命令、环境状态及工具链。本机复用匹配证据，未为补平台记录重跑 fixture。
+
+临时工作流 owner 自检 **24 个 mock 场景 PASS**，回执 `remote-workflow-owner-result.json` / `remote-workflow-self-check.py.log`。随后实际 [Actions run 40138709708](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40138709708) 及两个 native job 均 **success**，见 `remote-run.json`、`platform-acceptance.json`；mock 与原生结果分别归档。
+
+| 平台 / 实际 OS | Infrastructure P/F/Skip / 实际适用数 | PluginProtocolProbe P/F/Skip / 实际适用数 | 执行证据 |
+|---|---|---|---|
+| macOS 15.8.1 / Darwin 24.6.0 / arm64 | **43/0/0 / 43** | **7/0/0 / 7** | `core-engine-green.trx`、`plugin-results/plugin.trx`、`local-platform-evidence.json` |
+| Linux 6.17.0-1022-azure / x86_64 / glibc2.39，.NET x64 | **43/0/0 / 43** | **7/0/0 / 7** | [Linux job 121005666511](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40138709708/job/121005666511)；`remote-artifacts/core-phase0-Linux-x64/` |
+| Windows 2025Server-10.0.26100-SP0 / AMD64，.NET x64 | **43/0/0 / 43** | **7/0/0 / 7** | [Windows job 121005666789](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40138709708/job/121005666789)；`remote-artifacts/core-phase0-Windows-x64/` |
+
+三平台均为 **SDK 10.0.100、runtime 10.0.0、VSTest 18.0.1**。两个远端目录各含 `platform.json` 及 `Bukit.Engine.Tests/tests.trx`、`Bukit.PluginHost.Tests/tests.trx`；四条命令退出0。专项复核逐项确认935项输入相同、两个类的完整 `(testName, methodName)` 清单含 theory 参数一致，所有行 Passed，零 Skip/N/A。本机 Engine 180、Plugin 31 是组合总数；其他类未被记作远端已执行。
+
+远端实际使用 `platform.json.commands` 的参数数组；下列为其确切命令展示（Windows 行不是未经转义即可粘贴的 shell 语法）：
+
+```text
+/home/runner/work/_temp/core-phase0-dotnet-10.0.100/dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter 'FullyQualifiedName~Bukit.Engine.Tests.TestInfrastructureTests' --logger 'trx;LogFileName=tests.trx' --results-directory /home/runner/work/_temp/core-phase0-evidence/Bukit.Engine.Tests
+/home/runner/work/_temp/core-phase0-dotnet-10.0.100/dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Release --filter 'FullyQualifiedName~Bukit.PluginHost.Tests.PluginProtocolProbeTests' --logger 'trx;LogFileName=tests.trx' --results-directory /home/runner/work/_temp/core-phase0-evidence/Bukit.PluginHost.Tests
+D:\a\_temp\core-phase0-dotnet-10.0.100\dotnet.exe test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter FullyQualifiedName~Bukit.Engine.Tests.TestInfrastructureTests --logger trx;LogFileName=tests.trx --results-directory D:\a\_temp\core-phase0-evidence\Bukit.Engine.Tests
+D:\a\_temp\core-phase0-dotnet-10.0.100\dotnet.exe test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Release --filter FullyQualifiedName~Bukit.PluginHost.Tests.PluginProtocolProbeTests --logger trx;LogFileName=tests.trx --results-directory D:\a\_temp\core-phase0-evidence\Bukit.PluginHost.Tests
+```
+
+平台专项发现并关闭 **PSR-001**：本机后处理 Python 启动曾把远端 `LC_CTYPE=unset` 记录为 set；外部 `record-remote-cache.py` 改为解释器启动后应用状态并断言54项完整状态映射等于原回执。`remote-cache-corrected-receipts.json` 指向四份新 `*-corrected-cache.json`，明确替代但保留原错误元数据记录，其余命令/源码/提交/工具链/结果/时长不变。`platform-cache-scoped-rereview.md` 确认 resolved，**Critical 0 / Important 0 / Minor 0**；这是缓存记账修正，原生测试没有重跑，也不是 Core runtime 缺陷。
+
+#### 0.5 收口与范围
+
+Core GREEN 和预定复核均已接受，`openspec/changes/fix-core-report-contracts/tasks.md` 两个验收项据实际回执勾选。控制器在本次状态修改前已生成 `execution-cache-refinement.json` 及四份 `*-execution-cache.json`，仅排除未参与运行的 OpenSpec tasks 清单；原 test cache/完整闭包及935项冻结快照身份保留。本次两文档修改由独立 owner 检查负责，不把状态修改后的完整闭包冒称旧 cache HIT。
+
+既有上下文继续明示：agent-manifest 本地 schema 缺失，公共字节仍入快照；PluginHost schema 缺少可选 `resourceLimitExceeded` / `networkPermissionGranted`；metrics、search-index-index、ThemeCatalog 保留无 schema 状态，ThemeCatalog 为 public-API-only。清单检查不声称全部24类真实实例 schema 已通过，也不追加本次修复范围。
+
+本次仅阶段0；三个安全层文件实际 **≥95%** 采集在阶段5，整体 **≥84%** / 各源项目 **≥70%** 按最终覆盖率验收；阶段6全报告实例、阶段7连续20次稳定性仍按原阶段执行。未执行全量/发布/整个解决方案门禁，离线 Notion 与 mock owner 证据保持其原有边界。
+
+最终收口：一次生成的 `final-review-scope.json` 与唯一 `final-review.md` 确认阶段出口满足要求，**Critical 0 / Important 0 / Minor 0**，六项历史 finding 均已关闭。状态回填后的两文档 owner 检查见 `docs-final-owner.log`；父任务唯一指标汇总见 `metrics-report.json`。阶段 0 提交由用户在验收后另行授权；临时 evidence 分支保留供追溯。
+
 ### 阶段 1：Bukit.Shared
 
 #### 1.1 范围与行为依据
@@ -530,3 +627,4 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | 2026-10-24 | 按审计修订：澄清公共产物与报告比较、已知缺陷显式跳过、Notion 假传输、覆盖率证据及项目映射、当前 schema、原生冒烟、三平台执行与 Core 范围；移除两项缺乏失败用例的缺陷认定 |
 | 2026-10-24 | 细化并执行阶段 1：12 组 Shared 风险用例、确定性 DNS/路径/句柄边界、精确命令与覆盖率证据；记录最终 511 Passed、2 KnownDefect Skip、87.21% 行覆盖，以及 KD-009/KD-010、TRX 跳过计数兼容问题和平台验收缺口 |
 | 2026-10-24 | 经授权独立修复 KD-009/KD-010，摘除 Skip/KnownDefect；最新 Shared 530 Passed、零跳过、87.27% 行覆盖，macOS 平台 41 项适用用例通过，直接消费者 47 项通过；保留修复前历史、ImageSharp 还原告警限制及 Linux/Windows 待验证状态 |
+| 2026-10-25 | 记录阶段0基础设施、授权 Core 修复与专项复核、三平台同输入43+7项通过及确切命令；保留36/4、164/16历史 RED、PSR-001缓存记账修正及独立文档收口边界 |

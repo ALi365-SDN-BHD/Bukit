@@ -1,10 +1,52 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 
 string command = args.Length == 0 ? "echo" : args[0];
 
 switch (command)
 {
+    case "handshake":
+        {
+            using var request = JsonDocument.Parse(await Console.In.ReadToEndAsync());
+            var root = request.RootElement;
+            if (root.GetProperty("type").GetString() != "handshake" ||
+                root.GetProperty("protocol").GetString() != "bukit-plugin-v1")
+            {
+                Console.Error.Write("expected bukit-plugin-v1 handshake");
+                return 2;
+            }
+
+            Console.Out.Write(JsonSerializer.Serialize(new
+            {
+                type = "handshakeResponse",
+                protocol = "bukit-plugin-v1",
+                requestId = root.GetProperty("requestId").GetString(),
+                success = true,
+                plugin = new
+                {
+                    id = "process-probe",
+                    name = "Process probe",
+                    version = "1.0.0",
+                    platform = root.GetProperty("host").GetProperty("platform").GetString()
+                }
+            }));
+            return 0;
+        }
+
+    case "garbage":
+        {
+            if (args.Length > 1 && args[1] == "invalid-utf8")
+            {
+                await Console.OpenStandardOutput().WriteAsync(new byte[] { 0xff, 0xfe, 0x80 });
+            }
+            else
+            {
+                Console.Out.Write("{malformed protocol JSON");
+            }
+            return 0;
+        }
+
     case "echo":
         {
             string input = await Console.In.ReadToEndAsync();

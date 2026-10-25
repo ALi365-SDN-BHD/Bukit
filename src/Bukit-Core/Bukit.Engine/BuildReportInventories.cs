@@ -49,6 +49,8 @@ internal static class ReleaseBundleInventory
 
         return SafeFileEnumerator.EnumerateFiles(outputDir)
             .Where(path => !IsUnderReportDirectory(path, reportDir))
+            // Recovery state is finalized after reporting and is not release content.
+            .Where(path => BuildReporter.NormalizePath(Path.GetRelativePath(outputDir, path)) != ".bukit-build-state.json")
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .Select(path => BuildReportFileEntryFactory.Create(outputDir, path))
             .ToList();
