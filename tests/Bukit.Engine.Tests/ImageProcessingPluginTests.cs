@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bukit.Config;
 using Bukit.Content;
@@ -17,6 +19,140 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ImageProcessingPluginTests
 {
+    [Fact]
+    public async Task AfterBuild_ExternalCopyPreservesExactFreshnessBytesSrcsetAndTracking()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets", "nested");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            var source = Path.Combine(assetsDir, "photo&one.jpg");
+            WriteValidImage(source, "contract", width: 1000);
+            File.SetLastWriteTimeUtc(source, new DateTime(2020, 1, 2, 3, 4, 5, DateTimeKind.Utc));
+            WriteTool(toolDir, "magick", """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                /bin/cp "$1" "$last"
+                """);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
+            var context = CreateContext(outDir);
+
+            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+            {
+                Enabled = true, Formats = [], Sizes = [768, 0, 480, 768, -1, 1200, 1000], Quality = 73
+            })).AfterBuildAsync(context);
+
+            var sourceBytes = File.ReadAllBytes(source);
+            var hash = Convert.ToHexString(SHA256.HashData(sourceBytes));
+            var info = new FileInfo(source);
+            var expectedOutputs = new HashSet<PluginOutputTrackingInfo>();
+            foreach (var size in new[] { 480, 768 })
+            {
+                var relative = $"assets/nested/photo&one-{size}w.jpg";
+                var variant = Path.Combine(outDir, relative);
+                Assert.Equal(sourceBytes, File.ReadAllBytes(variant));
+                var expected = $$"""{"schemaVersion":1,"owner":"bukit:image-processing","sourcePath":"assets/nested/photo\u0026one.jpg","variantPath":"assets/nested/photo\u0026one-{{size}}w.jpg","sourceSize":{{info.Length}},"sourceMtime":{{info.LastWriteTimeUtc.Ticks}},"sourceSha256":"{{hash}}","variantLength":{{sourceBytes.LongLength}},"variantSha256":"{{hash}}","quality":73,"size":{{size}},"format":".jpg","tool":"magick-auto-orient-v1"}""";
+                Assert.Equal(Encoding.UTF8.GetBytes(expected), File.ReadAllBytes(variant + ".bukit-freshness.json"));
+                expectedOutputs.Add(new("image-processing", "after-build", relative));
+                expectedOutputs.Add(new("image-processing", "after-build", relative + ".bukit-freshness.json"));
+            }
+
+            var images = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.ImageSrcsets));
+            Assert.Equal(["nested/photo&one.jpg"], images.Keys);
+            var image = Assert.IsType<Dictionary<string, object>>(images["nested/photo&one.jpg"]);
+            Assert.Equal(["srcset", "sizes", "url"], image.Keys);
+            Assert.Equal("/assets/nested/photo&one-480w.jpg 480w, /assets/nested/photo&one-768w.jpg 768w", image["srcset"]);
+            Assert.Equal([480, 768], Assert.IsType<int[]>(image["sizes"]));
+            Assert.Equal("/assets/nested/photo&one.jpg", image["url"]);
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
+            Assert.True(expectedOutputs.SetEquals(outputs));
+            Assert.Equal(5, Directory.GetFiles(assetsDir).Length);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData(LogLevel.Warn)]
+    [InlineData(LogLevel.Error)]
+    public async Task AfterBuild_ExternalFailureUsesCountedCallerJsonLoggerBeforeFiltering(LogLevel level)
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+        using var stdout = new StringWriter();
+        using var stderr = new StringWriter();
+        var sink = new ResizeWarningLogger(new ConsoleLogger(level, "json"));
+        var logger = new BuildDiagnosticLogger(sink);
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            WriteValidImage(Path.Combine(assetsDir, "photo.jpg"), "failure");
+            WriteTool(toolDir, "magick", """
+                if [ "$1" = "--version" ]; then exit 0; fi
+                printf 'resize rejected' >&2
+                exit 7
+                """);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
+            var context = new BuildContext
+            {
+                RootDir = outDir, OutputDir = outDir, LayoutsDir = outDir, BaseUrl = "/",
+                RoutedDocuments = [], Logger = logger
+            };
+
+            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+                { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context);
+
+            const string expected = "event=image_resize.error file=photo.jpg reason=resize rejected";
+            Assert.Equal(expected, Assert.Single(sink.Warnings));
+            Assert.Equal(1, logger.WarningCount);
+            Assert.Equal(0, logger.ErrorCount);
+            Assert.Empty(stdout.ToString());
+            if (level == LogLevel.Error) Assert.Empty(stderr.ToString());
+            else
+            {
+                var line = Assert.Single(stderr.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries));
+                using var json = JsonDocument.Parse(line);
+                Assert.Equal("Warn", json.RootElement.GetProperty("level").GetString());
+                Assert.Equal(expected, json.RootElement.GetProperty("msg").GetString());
+            }
+            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
+            Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
+            Assert.Equal([Path.Combine(assetsDir, "photo.jpg")], Directory.GetFiles(assetsDir));
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    private sealed class ResizeWarningLogger(ILogger inner) : ILogger
+    {
+        internal List<string> Warnings { get; } = [];
+        public void Debug(string message) => inner.Debug(message);
+        public void Info(string message) => inner.Info(message);
+        public void Warn(string message) { Warnings.Add(message); inner.Warn(message); }
+        public void Error(string message) => Assert.Fail("Unexpected Error: " + message);
+    }
+
     [Fact]
     public async Task AfterBuild_NotEnabled_DoesNothing()
     {
@@ -629,17 +765,76 @@ public sealed class ImageProcessingPluginTests
                 TimeSpan.FromSeconds(2));
             cancellation.Cancel();
 
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
                 buildTask);
+            Assert.Equal(cancellation.Token, exception.CancellationToken);
 
             await Task.Delay(1200);
             Assert.False(File.Exists(Path.Combine(assetsDir, "test-480w.jpg")));
             Assert.False(File.Exists(marker));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "test-480w.jpg.bukit-freshness.json")));
+            Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
+            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
+            Assert.Empty(Directory.GetFiles(assetsDir, ".test-480w.bukit-*.jpg"));
+            Assert.Empty(Directory.GetFiles(assetsDir, "test-480w.jpg.bukit-freshness.json.bukit-*.tmp"));
         }
         finally
         {
             Environment.SetEnvironmentVariable("PATH", originalPath);
             Environment.SetEnvironmentVariable("BUKIT_IMAGE_TEST_MARKER", originalMarker);
+            if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        }
+    }
+
+    [Fact]
+    public async Task AfterBuildAsync_ResizeTimeoutRemovesPartialOutputWithoutPublishing()
+    {
+        RequireUnix();
+        var outDir = GetTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            var assetsDir = Path.Combine(outDir, "assets");
+            var toolDir = Path.Combine(outDir, "tools");
+            Directory.CreateDirectory(assetsDir);
+            Directory.CreateDirectory(toolDir);
+            var source = Path.Combine(assetsDir, "photo.jpg");
+            WriteValidImage(source, "timeout");
+            var originalBytes = File.ReadAllBytes(source);
+            var marker = Path.Combine(outDir, "resize-started");
+            WriteTool(toolDir, "magick", $"""
+                if [ "$1" = "--version" ]; then exit 0; fi
+                for last in "$@"; do :; done
+                printf partial > "$last"
+                printf started > '{EscapeSingleQuoted(marker)}'
+                /bin/sleep 30
+                """);
+            Environment.SetEnvironmentVariable("PATH", toolDir);
+            var logger = new ResizeWarningLogger(new ConsoleLogger(LogLevel.Error));
+            var context = new BuildContext
+            {
+                RootDir = outDir, OutputDir = outDir, LayoutsDir = outDir, BaseUrl = "/",
+                RoutedDocuments = [], Logger = logger
+            };
+
+            await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
+                { Enabled = true, Formats = [], Sizes = [480] })).AfterBuildAsync(context);
+
+            Assert.True(File.Exists(marker));
+            var warning = Assert.Single(logger.Warnings);
+            Assert.StartsWith("event=image_resize.error file=photo.jpg reason=External tool '", warning, StringComparison.Ordinal);
+            Assert.Contains("timed out after 10000ms.", warning, StringComparison.Ordinal);
+            Assert.Equal(originalBytes, File.ReadAllBytes(source));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg")));
+            Assert.False(File.Exists(Path.Combine(assetsDir, "photo-480w.jpg.bukit-freshness.json")));
+            Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
+            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
+            Assert.Empty(Directory.GetFiles(assetsDir, ".photo-480w.bukit-*.jpg"));
+            Assert.Empty(Directory.GetFiles(assetsDir, "photo-480w.jpg.bukit-freshness.json.bukit-*.tmp"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
             if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
         }
     }
