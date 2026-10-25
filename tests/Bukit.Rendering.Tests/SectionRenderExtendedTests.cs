@@ -214,10 +214,16 @@ public sealed class SectionRenderExtendedTests : IDisposable
         }
     }
 
-    private sealed class TestFailingPlugin : ISectionPlugin
+    private sealed class TestFailingPlugin(bool afterRender = false, string failure = "throw") : ISectionPlugin
     {
-        public SectionHook SupportedHook => SectionHook.BeforeRender;
-        public Task ExecuteAsync(SectionContext ctx, CancellationToken ct = default) => throw new InvalidOperationException("plugin boom");
+        public SectionHook SupportedHook => afterRender ? SectionHook.AfterRender : SectionHook.BeforeRender;
+        public Task ExecuteAsync(SectionContext ctx, CancellationToken ct = default) => failure switch
+        {
+            "throw" => throw new InvalidOperationException("plugin boom"),
+            "faulted" => Task.FromException(new InvalidOperationException("plugin boom")),
+            "canceled" => Task.FromCanceled(new CancellationToken(canceled: true)),
+            _ => throw new ArgumentOutOfRangeException(nameof(failure))
+        };
     }
 
     [Fact]
@@ -281,6 +287,60 @@ public sealed class SectionRenderExtendedTests : IDisposable
         var plugins = new Dictionary<string, ISectionPlugin> { ["fail"] = new TestFailingPlugin() };
         var result = CreateRenderer(manifest, sectionPlugins: plugins).RenderPage("pages/page.html", CreateModel());
         Assert.Contains("plugin error", result);
+    }
+
+    public static IEnumerable<object[]> PluginFailureCases()
+    {
+        foreach (var afterRender in new[] { false, true })
+        foreach (var failure in new[] { "throw", "faulted", "canceled" })
+        foreach (var validation in new[] { "off", "warn", "strict" })
+        foreach (var scriptObject in new[] { false, true })
+            yield return [afterRender, failure, validation, scriptObject];
+    }
+
+    [Theory]
+    [MemberData(nameof(PluginFailureCases))]
+    [Trait("Category", "Contract")]
+    public void RenderSection_PluginFailure_ObeysValidationPolicy(
+        bool afterRender, string failure, string validation, bool scriptObject)
+    {
+        const string html = "<h1>Hello</h1>";
+        File.WriteAllText(Path.Combine(_layoutsDir, "sections", "hero", "hero.html"), html);
+        File.WriteAllText(Path.Combine(_layoutsDir, "pages", "page.html"),
+            "{{ render_section '{\"type\":\"hero\"}' }}");
+        var manifest = new ThemeManifestV2
+        {
+            Name = "test", Version = "1.0.0",
+            Sections = new() { ["hero"] = new() { Template = "sections/hero/hero.html", Plugin = "fail" } }
+        };
+        var plugins = new Dictionary<string, ISectionPlugin>
+        {
+            ["fail"] = new TestFailingPlugin(afterRender, failure)
+        };
+        var renderer = CreateRenderer(manifest, validation: validation, sectionPlugins: plugins);
+        var helper = new SectionRenderHelper(
+            new ThemeComponentRegistry(_themeDir, manifest, null), null, validation,
+            new FileTemplateLoader(_layoutsDir, null), new ScriptObject(), null, plugins);
+        string Render() => scriptObject
+            ? helper.RenderScriptObjectSection(new ScriptObject { ["type"] = "hero" }, new ScriptObject())
+            : renderer.RenderPage("pages/page.html", CreateModel());
+
+        if (validation == "strict")
+        {
+            var error = Assert.Throws<RenderException>(() => Render());
+            Assert.Contains("theme.section.plugin_failed", error.Message);
+            Assert.Contains(nameof(TestFailingPlugin), error.Message);
+        }
+        else
+        {
+            var result = Render();
+            Assert.StartsWith("<!-- code=theme.section.plugin_failed", result);
+            Assert.Contains(nameof(TestFailingPlugin), result);
+            if (afterRender)
+                Assert.EndsWith("\n" + html, result);
+            else
+                Assert.DoesNotContain(html, result);
+        }
     }
 
     // ── SectionRenderHelper direct ────────────────────────────────────
