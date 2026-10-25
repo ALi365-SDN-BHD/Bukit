@@ -165,7 +165,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
             context.RoutedDocuments,
             context.DerivedDocuments,
             context.SeoIndex,
-            context.Data.TryGetValue(BuildContextDataKeys.SeoModels, out var m) && m is IReadOnlyDictionary<string, SeoModel> models
+            context.TryGet(BuildDataKeys.SeoModels, out var models)
                 ? models
                 : new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
             geo);

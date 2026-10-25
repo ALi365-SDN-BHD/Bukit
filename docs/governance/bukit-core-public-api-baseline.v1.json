@@ -4079,6 +4079,8 @@
         "public Bukit.Engine.Abstractions.Content.CanonicalContentGraph! ContentGraph { get; init; }",
         "public Bukit.Engine.Abstractions.Content.IContentBodyStore! BodyStore { get; init; }",
         "public Bukit.Shared.ILogger! Logger { get; init; }",
+        "public System.Boolean Remove\u003CT\u003E(Bukit.Engine.Abstractions.Plugins.BuildDataKey\u003CT!\u003E! key)",
+        "public System.Boolean TryGet\u003CT\u003E(Bukit.Engine.Abstractions.Plugins.BuildDataKey\u003CT!\u003E! key, out T? value)",
         "public System.Collections.Generic.Dictionary\u003CSystem.String!, System.Object!\u003E! Data { get; }",
         "public System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Plugins.SeoIndexEntry!\u003E! SeoIndex { get; set; }",
         "public System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! RoutedDocuments { get; init; }",
@@ -4091,7 +4093,25 @@
         "public System.String! LayoutsDir { get; init; }",
         "public System.String! OutputDir { get; init; }",
         "public System.String! ResolveTemplateKind(System.String! kind)",
-        "public System.String! RootDir { get; init; }"
+        "public System.String! RootDir { get; init; }",
+        "public System.Void Set\u003CT\u003E(Bukit.Engine.Abstractions.Plugins.BuildDataKey\u003CT!\u003E! key, T! value)",
+        "public T! Get\u003CT\u003E(Bukit.Engine.Abstractions.Plugins.BuildDataKey\u003CT!\u003E! key)",
+        "public T! GetOrAdd\u003CT\u003E(Bukit.Engine.Abstractions.Plugins.BuildDataKey\u003CT!\u003E! key, System.Func\u003CT!\u003E! factory)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Engine.Abstractions",
+      "name": "Bukit.Engine.Abstractions.Plugins.BuildDataKey\u00601",
+      "owner": "Canonical model and in-process engine contracts",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "2.x-do-not-narrow",
+      "migrationHorizon": "retain-2.x",
+      "signature": "public sealed class Bukit.Engine.Abstractions.Plugins.BuildDataKey\u003CT\u003E",
+      "publicMembers": [
+        "public .ctor(System.String! name)",
+        "public System.String! Name { get; }",
+        "public virtual System.String! ToString()"
       ],
       "protectedMembers": []
     },

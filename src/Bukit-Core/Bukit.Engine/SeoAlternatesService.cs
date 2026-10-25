@@ -155,7 +155,7 @@ internal static class SeoAlternatesService
                 : kind => templateResolver.ResolveKindTemplate(kind),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
-        pluginContext.Data[ListRouteGraphBuilder.BuildContextDataKey] = listRouteGraph;
+        pluginContext.Set(BuildDataKeys.ListRouteGraph, listRouteGraph);
 
         var dataDocuments = variantDocuments.Where(ContentFieldReader.IsDataItem).ToList();
         TaxonomyTermsInjector.InjectFromDataDocuments(pluginContext, dataDocuments);

@@ -281,7 +281,7 @@ public sealed class TaxonomyPluginDerivePagesTests
         Assert.Equal("/insights/category", taxonomy["routePrefix"]);
         Assert.Equal("/insights/category/市场观察/", taxonomy["url"]);
 
-        var siteTaxonomy = Assert.IsType<Dictionary<string, object>>(ctx.Data["taxonomy"]);
+        var siteTaxonomy = Assert.IsType<Dictionary<string, object>>(ctx.Get(BuildDataKeys.Taxonomy));
         var categoryData = Assert.IsType<Dictionary<string, object>>(siteTaxonomy["category"]);
         var dataTerms = Assert.IsType<List<object>>(categoryData["terms"]);
         var dataTerm = Assert.IsType<Dictionary<string, object>>(dataTerms[0]);
@@ -637,7 +637,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             CreateItem("p2", "Post 2", new DateTimeOffset(2024, 1, 2, 0, 0, 0, TimeSpan.Zero), categories: ["Market"])
         };
         var (context, appConfig) = CreateContext(routed, taxonomyConfig: taxonomy, language: "zh-CN");
-        context.Data["taxonomy_ensure_terms"] = new Dictionary<string, List<Dictionary<string, object>>>
+        context.Set(BuildDataKeys.TaxonomyEnsureTerms, new Dictionary<string, List<Dictionary<string, object>>>
         {
             ["category"] =
             [
@@ -647,7 +647,7 @@ public sealed class TaxonomyPluginDerivePagesTests
                     ["description"] = "市场观察资讯"
                 }
             ]
-        };
+        });
 
         var derived = new TaxonomyPlugin(appConfig).DerivePages(context);
 
@@ -676,7 +676,7 @@ public sealed class TaxonomyPluginDerivePagesTests
             ]
         };
         var (context, appConfig) = CreateContext([], taxonomyConfig: taxonomy, language: "zh-CN");
-        context.Data["taxonomy_ensure_terms"] = new Dictionary<string, List<Dictionary<string, object>>>
+        context.Set(BuildDataKeys.TaxonomyEnsureTerms, new Dictionary<string, List<Dictionary<string, object>>>
         {
             ["topic"] =
             [
@@ -686,7 +686,7 @@ public sealed class TaxonomyPluginDerivePagesTests
                     ["slug"] = "empty"
                 }
             ]
-        };
+        });
 
         var derived = new TaxonomyPlugin(appConfig).DerivePages(context);
 

@@ -124,7 +124,7 @@ public sealed class PluginPipelineTests
             CancellationToken.None);
 
         var prior = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(
-            pluginContext.Data["__prior_plugin_outputs"]);
+            pluginContext.Get(BuildDataKeys.PriorPluginOutputs));
         Assert.Contains(prior, output =>
             output.Plugin == "image-processing" &&
             output.Hook == "after-build" &&

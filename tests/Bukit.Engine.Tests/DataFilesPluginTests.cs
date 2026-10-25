@@ -95,7 +95,7 @@ public sealed class DataFilesPluginTests
             var context = CreateContext(root);
             new DataFilesPlugin(CreateConfig()).DerivePages(context);
 
-            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            var data = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.DataFiles));
             Assert.Contains("safe", data.Keys);
             Assert.DoesNotContain("linked", data.Keys);
         }
@@ -141,7 +141,7 @@ public sealed class DataFilesPluginTests
 
             new DataFilesPlugin(config).DerivePages(context);
 
-            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            var data = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.DataFiles));
             Assert.Contains("safe", data.Keys);
             Assert.DoesNotContain("en", data.Keys);
         }
@@ -174,7 +174,7 @@ public sealed class DataFilesPluginTests
 
             new DataFilesPlugin(CreateConfig()).DerivePages(context);
 
-            Assert.DoesNotContain("__data_files", context.Data.Keys);
+            Assert.False(context.TryGet(BuildDataKeys.DataFiles, out _));
         }
         finally
         {
@@ -330,7 +330,7 @@ public sealed class DataFilesPluginTests
             var context = CreateContext(root);
             new DataFilesPlugin(CreateConfig()).DerivePages(context);
 
-            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            var data = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.DataFiles));
             foreach (var (name, _) in encodings)
             {
                 var document = Assert.IsType<Dictionary<string, object>>(data[name]);
@@ -534,7 +534,7 @@ public sealed class DataFilesPluginTests
                 maxScalarChars: 1)
                 .DerivePages(context);
 
-            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            var data = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.DataFiles));
             var document = Assert.IsType<Dictionary<string, object>>(data["property"]);
             Assert.Equal(1L, document["a"]);
         }
@@ -632,7 +632,7 @@ public sealed class DataFilesPluginTests
 
             new DataFilesPlugin(config, maxTotalSizeBytes: 4).DerivePages(context);
 
-            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            var data = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.DataFiles));
             Assert.Equal(["en", "fr"], data.Keys);
         }
         finally
@@ -766,7 +766,7 @@ public sealed class DataFilesPluginTests
 
             var derived = new DataFilesPlugin(config).DerivePages(ctx);
             Assert.Empty(derived);
-            Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
+            Assert.True(ctx.TryGet(BuildDataKeys.DataFiles, out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             var authors = Assert.IsType<Dictionary<string, object>>(dict["authors"]);
             var john = Assert.IsType<Dictionary<string, object>>(authors["john"]);
@@ -792,7 +792,7 @@ public sealed class DataFilesPluginTests
 
             new DataFilesPlugin(CreateConfig()).DerivePages(context);
 
-            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            var data = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.DataFiles));
             var complex = Assert.IsType<Dictionary<string, object>>(data["complex"]);
             Assert.Equal("value", complex["[ a, b ]"]);
         }
@@ -825,7 +825,7 @@ public sealed class DataFilesPluginTests
             };
 
             new DataFilesPlugin(config).DerivePages(ctx);
-            Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
+            Assert.True(ctx.TryGet(BuildDataKeys.DataFiles, out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             var nav = Assert.IsType<Dictionary<string, object>>(dict["nav"]);
             var items = Assert.IsType<List<object>>(nav["items"]);
@@ -872,7 +872,7 @@ public sealed class DataFilesPluginTests
             };
 
             new DataFilesPlugin(config).DerivePages(ctx);
-            Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
+            Assert.True(ctx.TryGet(BuildDataKeys.DataFiles, out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             Assert.Contains("zh-CN", dict.Keys);
             Assert.Contains("en", dict.Keys);
@@ -906,7 +906,7 @@ public sealed class DataFilesPluginTests
             };
 
             new DataFilesPlugin(config).DerivePages(ctx);
-            Assert.True(ctx.Data.TryGetValue("__data_files", out var val));
+            Assert.True(ctx.TryGet(BuildDataKeys.DataFiles, out var val));
             var dict = Assert.IsType<Dictionary<string, object>>(val);
             Assert.Contains("team", dict.Keys);
         }
@@ -1002,8 +1002,8 @@ public sealed class DataFilesPluginTests
             new DataFilesPlugin(CreateConfig()).DerivePages(firstContext);
             new DataFilesPlugin(CreateConfig()).DerivePages(secondContext);
 
-            var first = Assert.IsType<Dictionary<string, object>>(firstContext.Data["__data_files"]);
-            var second = Assert.IsType<Dictionary<string, object>>(secondContext.Data["__data_files"]);
+            var first = Assert.IsType<Dictionary<string, object>>(firstContext.Get(BuildDataKeys.DataFiles));
+            var second = Assert.IsType<Dictionary<string, object>>(secondContext.Get(BuildDataKeys.DataFiles));
             Assert.Equal(new[] { "a", "z", "b", "y" }, first.Keys);
             Assert.Equal(first.Keys, second.Keys);
         }
@@ -1059,7 +1059,7 @@ public sealed class DataFilesPluginTests
             var plugin = new DataFilesPlugin(CreateConfig(), maxEntries: 10);
             plugin.DerivePages(context);
 
-            var data = Assert.IsType<Dictionary<string, object>>(context.Data["__data_files"]);
+            var data = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.DataFiles));
             Assert.Equal(10, data.Count);
         }
         finally

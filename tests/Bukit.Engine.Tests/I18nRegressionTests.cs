@@ -77,7 +77,7 @@ public sealed class I18nRegressionTests : IDisposable
             BodyStore = variant.BodyStore, Logger = new ConsoleLogger(LogLevel.Error)
         };
         await new PagesIndexPlugin(Config()).DerivePagesAsync(context);
-        var index = Assert.IsType<Dictionary<string, object>>(context.Data["pages_by_id"]);
+        var index = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.PagesById));
         var page = Assert.IsType<Dictionary<string, object>>(index["shared"]);
         Assert.Equal(chinese.Title, page["title"]);
         Assert.Equal(chinese.Record.Presentation.Summary, page["summary"]);

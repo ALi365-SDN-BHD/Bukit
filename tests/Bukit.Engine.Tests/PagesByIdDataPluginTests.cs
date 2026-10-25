@@ -84,7 +84,7 @@ public sealed class PagesByIdDataPluginTests
 
         await PluginRunner.RunDerivePagesAsync(ctx, config);
 
-        Assert.True(ctx.Data.TryGetValue("pages_by_id", out var indexObj));
+        Assert.True(ctx.TryGet(BuildDataKeys.PagesById, out var indexObj));
         var index = Assert.IsType<Dictionary<string, object>>(indexObj);
 
         Assert.True(index.TryGetValue("page-1", out var pageObj));
@@ -127,7 +127,7 @@ public sealed class PagesByIdDataPluginTests
         var plugin = new PagesIndexPlugin(config);
         await plugin.DerivePagesAsync(ctx);
 
-        var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
+        var index = Assert.IsType<Dictionary<string, object>>(ctx.Get(BuildDataKeys.PagesById));
         var page = Assert.IsType<Dictionary<string, object>>(index["greeting"]);
         Assert.Equal("中文摘要", page["summary"]);
     }
@@ -189,7 +189,7 @@ public sealed class PagesByIdDataPluginTests
         var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(config);
         await plugin.DerivePagesAsync(ctx);
 
-        var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
+        var index = Assert.IsType<Dictionary<string, object>>(ctx.Get(BuildDataKeys.PagesById));
         var page = Assert.IsType<Dictionary<string, object>>(index["hello"]);
         Assert.Equal("/blog/hello/", page["url"]);
         Assert.Equal("Hello", page["title"]);
@@ -274,7 +274,7 @@ public sealed class PagesByIdDataPluginTests
             var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(config, new FakeFetcher());
             await plugin.DerivePagesAsync(ctx);
 
-            var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
+            var index = Assert.IsType<Dictionary<string, object>>(ctx.Get(BuildDataKeys.PagesById));
             var resolved = Assert.IsType<Dictionary<string, object>>(index["missing-1"]);
             Assert.Equal("Missing Title", resolved["title"]);
             Assert.Equal(string.Empty, resolved["url"]);
@@ -362,7 +362,7 @@ public sealed class PagesByIdDataPluginTests
         var plugin = new Bukit.Engine.Plugins.BuiltIn.PagesIndexPlugin(config, new ThrowingFetcher());
         await plugin.DerivePagesAsync(ctx);
 
-        var index = Assert.IsType<Dictionary<string, object>>(ctx.Data["pages_by_id"]);
+        var index = Assert.IsType<Dictionary<string, object>>(ctx.Get(BuildDataKeys.PagesById));
         var resolved = Assert.IsType<Dictionary<string, object>>(index["missing-1"]);
         Assert.Equal("Cached", resolved["title"]);
     }

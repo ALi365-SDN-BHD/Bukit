@@ -51,20 +51,16 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
         cancellationToken.ThrowIfCancellationRequested();
         if (index.Count > 0)
         {
-            context.Data["pages_by_id"] = index;
+            context.Set(BuildDataKeys.PagesById, index);
         }
         return Array.Empty<RoutedContentDocument>();
     }
 
     private static Dictionary<string, object> GetOrCreateIndex(BuildContext context)
     {
-        if (context.Data.TryGetValue("pages_by_id", out var existing) &&
-            existing is Dictionary<string, object> dict)
-        {
-            return dict;
-        }
-
-        return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        return context.TryGet(BuildDataKeys.PagesById, out var existing)
+            ? existing
+            : new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
     }
 
     private static void AddRoutedToIndex(BuildContext context, Dictionary<string, object> index)

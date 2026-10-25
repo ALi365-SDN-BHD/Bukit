@@ -211,12 +211,7 @@ internal static class TaxonomyIndexBuilder
 
     internal static void MergeEnsureTerms(BuildContext context, string kind, Dictionary<string, TaxonomyTerm> terms)
     {
-        if (!context.Data.TryGetValue("taxonomy_ensure_terms", out var obj) || obj is null)
-        {
-            return;
-        }
-
-        if (obj is not Dictionary<string, List<Dictionary<string, object>>> map)
+        if (!context.TryGet(BuildDataKeys.TaxonomyEnsureTerms, out var map))
         {
             return;
         }

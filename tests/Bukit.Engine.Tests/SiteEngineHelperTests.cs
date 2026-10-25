@@ -571,7 +571,7 @@ public sealed class SiteEngineHelperTests
 
         Assert.Contains(result, r => r.Url == "/blog/");
         Assert.Contains(result, r => r.Url == "/blog/page/2/");
-        var graph = Assert.IsType<ListRouteGraph>(context.Data[ListRouteGraphBuilder.BuildContextDataKey]);
+        var graph = Assert.IsType<ListRouteGraph>(context.Get(BuildDataKeys.ListRouteGraph));
         Assert.Equal(graph.Routes.Select(route => route.Url), result.Select(route => route.Url));
     }
 

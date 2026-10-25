@@ -91,7 +91,7 @@ public sealed class SiteEngine
             collections,
             outputPathEncoding,
             templateResolver);
-        context.Data[ListRouteGraphBuilder.BuildContextDataKey] = graph;
+        context.Set(BuildDataKeys.ListRouteGraph, graph);
         return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
     }
 

@@ -306,7 +306,7 @@ public sealed class PaginationPluginDerivePagesTests
             .Select(i => CreateRoutedItem(i))
             .ToList();
         var (ctx, config) = CreateContext(routed, pageSize: 5);
-        ctx.Data[ListRouteGraphBuilder.BuildContextDataKey] = ListRouteGraph.Create(new[]
+        ctx.Set(BuildDataKeys.ListRouteGraph, ListRouteGraph.Create(new[]
         {
             new ListRoutePlan
             {
@@ -321,7 +321,7 @@ public sealed class PaginationPluginDerivePagesTests
                 TotalItems = 12,
                 CanonicalUrl = "/blog/page/2/"
             }
-        });
+        }));
 
         var derived = new PaginationPlugin(config).DerivePages(ctx);
 
@@ -335,7 +335,7 @@ public sealed class PaginationPluginDerivePagesTests
             .Select(i => CreateRoutedItem(i))
             .ToList();
         var (ctx, config) = CreateContext(routed, pageSize: 5);
-        ctx.Data[ListRouteGraphBuilder.BuildContextDataKey] = ListRouteGraph.Create(new[]
+        ctx.Set(BuildDataKeys.ListRouteGraph, ListRouteGraph.Create(new[]
         {
             new ListRoutePlan
             {
@@ -350,7 +350,7 @@ public sealed class PaginationPluginDerivePagesTests
                 TotalItems = 12,
                 CanonicalUrl = "/blog/page/2/"
             }
-        });
+        }));
 
         var requirements = new PaginationPlugin(config).GetTemplateRequirementKinds(ctx);
 

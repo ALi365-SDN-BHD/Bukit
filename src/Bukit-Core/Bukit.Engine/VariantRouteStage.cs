@@ -46,10 +46,10 @@ internal static class VariantRouteStage
             TemplateResolver = templateResolver.ResolveKindTemplate,
             Logger = logger
         };
-        pluginContext.Data[ListRouteGraphBuilder.BuildContextDataKey] = routeResult.ListRouteGraph;
-        pluginContext.Data[BuildContextDataKeys.MediaDownloadDir] = ContentProviderFactory
+        pluginContext.Set(BuildDataKeys.ListRouteGraph, routeResult.ListRouteGraph);
+        pluginContext.Set(BuildDataKeys.MediaDownloadDir, ContentProviderFactory
             .BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir)
-            .DownloadDir;
+            .DownloadDir);
 
         var taxonomyStopwatch = Stopwatch.StartNew();
         TaxonomyTermsInjector.InjectFromDataDocuments(pluginContext, dataDocuments);

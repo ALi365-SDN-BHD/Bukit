@@ -97,14 +97,8 @@ internal sealed class SearchIndexPlugin : IBukitPlugin, IAfterBuildPlugin
     {
         var emitSnippet = TryResolveTemplate(context, "search", out var searchTemplate) &&
             TemplateCapabilitiesResolver.SupportsSearchSnippets(searchTemplate, context.LayoutsDir);
-        var listRouteGraph = context.Data.TryGetValue(ListRouteGraphBuilder.BuildContextDataKey, out var graphValue) &&
-            graphValue is ListRouteGraph graph
-                ? graph
-                : null;
-        var seoModels = context.Data.TryGetValue(BuildContextDataKeys.SeoModels, out var seoModelsValue) &&
-            seoModelsValue is IReadOnlyDictionary<string, SeoModel> models
-                ? models
-                : null;
+        var listRouteGraph = context.TryGet(BuildDataKeys.ListRouteGraph, out var graph) ? graph : null;
+        var seoModels = context.TryGet(BuildDataKeys.SeoModels, out var models) ? models : null;
         SearchIndexBuilder.GenerateSingleSearchIndex(
             context.OutputDir,
             context.BaseUrl,

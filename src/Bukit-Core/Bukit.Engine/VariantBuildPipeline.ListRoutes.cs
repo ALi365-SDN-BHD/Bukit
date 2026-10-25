@@ -14,7 +14,7 @@ internal sealed partial class VariantBuildPipeline
             routeResult.ListRouteGraph,
             pluginContext.DerivedDocuments);
         graph = ListRouteGraphBuilder.ApplyRouteMetadata(graph, routeMetadata);
-        pluginContext.Data[ListRouteGraphBuilder.BuildContextDataKey] = graph;
+        pluginContext.Set(BuildDataKeys.ListRouteGraph, graph);
 
         return routeResult with
         {

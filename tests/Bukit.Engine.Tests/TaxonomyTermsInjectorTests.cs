@@ -11,6 +11,16 @@ namespace Bukit.Engine.Tests;
 
 public sealed class TaxonomyTermsInjectorTests
 {
+    private static BuildContext CreateContext() => new()
+    {
+        RootDir = "/tmp/test",
+        OutputDir = "/tmp/test",
+        BaseUrl = "/",
+        LayoutsDir = "/tmp/test",
+        RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+        Logger = new ConsoleLogger(LogLevel.Error)
+    };
+
     private static ContentDocument CreateDocument(string id, string title, string slug, IReadOnlyDictionary<string, ContentField>? fields = null)
     {
         return ContentDocument.Create(id, title, slug, DateTimeOffset.UtcNow, null, fields);
@@ -56,7 +66,7 @@ public sealed class TaxonomyTermsInjectorTests
 
         TaxonomyTermsInjector.InjectFromDataDocuments(context, documents);
 
-        Assert.Empty(context.Data);
+        Assert.Empty(context.SnapshotData());
     }
 
     [Fact]
@@ -114,12 +124,12 @@ public sealed class TaxonomyTermsInjectorTests
     [Fact]
     public void GetOrCreateEnsureTermsMap_WithNewKind_CreatesMap()
     {
-        var data = new Dictionary<string, object>();
+        var context = CreateContext();
 
-        var result = TaxonomyTermsInjector.GetOrCreateEnsureTermsMap(data);
+        var result = TaxonomyTermsInjector.GetOrCreateEnsureTermsMap(context);
 
         Assert.NotNull(result);
-        Assert.True(data.ContainsKey("taxonomy_ensure_terms"));
+        Assert.Same(result, context.Get(BuildDataKeys.TaxonomyEnsureTerms));
     }
 
     [Fact]
@@ -129,12 +139,10 @@ public sealed class TaxonomyTermsInjectorTests
         {
             ["tags"] = new List<Dictionary<string, object>> { new() { ["title"] = "Tech", ["slug"] = "tech" } }
         };
-        var data = new Dictionary<string, object>
-        {
-            ["taxonomy_ensure_terms"] = existing
-        };
+        var context = CreateContext();
+        context.Set(BuildDataKeys.TaxonomyEnsureTerms, existing);
 
-        var result = TaxonomyTermsInjector.GetOrCreateEnsureTermsMap(data);
+        var result = TaxonomyTermsInjector.GetOrCreateEnsureTermsMap(context);
 
         Assert.Same(existing, result);
     }

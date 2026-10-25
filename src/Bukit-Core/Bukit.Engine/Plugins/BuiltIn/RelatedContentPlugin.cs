@@ -88,14 +88,11 @@ internal sealed class RelatedContentPlugin : IBukitPlugin, IDerivePagesPlugin
 
                 var topN = related.Take(limit).ToList();
 
-                lock (context.Data)
+                var dict = context.GetOrAdd(
+                    BuildDataKeys.RelatedPages,
+                    static () => new Dictionary<string, List<object>>(StringComparer.OrdinalIgnoreCase));
+                lock (dict)
                 {
-                    if (!context.Data.TryGetValue("__related_pages", out var dictObj) || dictObj is not Dictionary<string, List<object>> dict)
-                    {
-                        dict = new Dictionary<string, List<object>>(StringComparer.OrdinalIgnoreCase);
-                        context.Data["__related_pages"] = dict;
-                    }
-
                     dict[currentItem.Id] = topN;
                 }
             }

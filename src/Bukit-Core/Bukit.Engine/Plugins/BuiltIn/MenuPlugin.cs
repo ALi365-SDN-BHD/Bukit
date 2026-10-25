@@ -25,7 +25,7 @@ internal sealed class MenuPlugin : IBukitPlugin, IAfterBuildPlugin
             return;
         }
 
-        context.Data["menus"] = ProjectMenus(menus);
+        context.Set(BuildDataKeys.Menus, ProjectMenus(menus));
 
         var jsonPath = Path.Combine(context.OutputDir, "menus.json");
         Directory.CreateDirectory(context.OutputDir);

@@ -163,6 +163,15 @@ See the
 for exact signatures, evidence, exclusions, rollback boundaries, and migration
 examples.
 
+## Typed Build Data Keys (2.0.x)
+
+This reviewed additive change adds `BuildDataKey<T>`
+(`cross-assembly-implementation / 2.x-do-not-narrow / retain-2.x`) and the
+`BuildContext` members `Get`, `TryGet`, `Set`, `Remove`, and `GetOrAdd`.
+`BuildContext.Data` keeps its signature and shares the same store, but is marked
+`[Obsolete]`. Nothing is removed. Removing `Data` requires a separately reviewed
+3.0 change.
+
 ## Baseline Review Vocabulary
 
 Every governed type uses one classification and one compatibility value.

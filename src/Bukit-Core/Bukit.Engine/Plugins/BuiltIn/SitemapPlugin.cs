@@ -89,9 +89,7 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
         BuildContext context,
         AppConfig config)
     {
-        var graph = context.Data.TryGetValue(ListRouteGraphBuilder.BuildContextDataKey, out var value) && value is ListRouteGraph routeGraph
-            ? routeGraph
-            : null;
+        var graph = context.TryGet(BuildDataKeys.ListRouteGraph, out var routeGraph) ? routeGraph : null;
         return ListRouteSitemapPolicy.BuildExcludedOutputPaths(config, graph);
     }
 }

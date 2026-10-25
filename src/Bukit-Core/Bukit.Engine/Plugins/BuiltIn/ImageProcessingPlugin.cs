@@ -28,10 +28,10 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
     public IHtmlTransform CreateHtmlTransform(HtmlTransformPluginContext context)
     {
-        context.BuildContext.Data.TryGetValue(BuildContextDataKeys.MediaDownloadDir, out var mediaDownloadDir);
+        context.BuildContext.TryGet(BuildDataKeys.MediaDownloadDir, out var mediaDownloadDir);
         return new ResponsiveImageHtmlTransform(
             _config,
-            mediaDownloadDir as string,
+            mediaDownloadDir,
             context.BuildContext.BaseUrl,
             context.BuildContext.Logger);
     }
@@ -329,7 +329,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
 
         if (data.Count > 0)
         {
-            context.Data["__image_srcsets"] = data;
+            context.Set(BuildDataKeys.ImageSrcsets, data);
         }
 
         SetTrackedOutputs(context, generatedOutputs);
@@ -567,8 +567,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
         IReadOnlyDictionary<string, string> webpSrcsets,
         CancellationToken cancellationToken)
     {
-        if (!context.Data.TryGetValue(BuildContextDataKeys.CurrentHtmlOutputs, out var value) ||
-            value is not IReadOnlyList<string> htmlOutputs)
+        if (!context.TryGet(BuildDataKeys.CurrentHtmlOutputs, out var htmlOutputs))
         {
             return;
         }
@@ -914,18 +913,17 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
     {
         if (generatedOutputs.Count > 0)
         {
-            context.Data["__plugin_outputs"] = generatedOutputs;
+            context.Set(BuildDataKeys.PluginOutputs, generatedOutputs);
         }
         else
         {
-            context.Data.Remove("__plugin_outputs");
+            context.Remove(BuildDataKeys.PluginOutputs);
         }
     }
 
     private static HashSet<PluginOutputTrackingInfo> GetPriorPluginOutputs(BuildContext context)
     {
-        if (context.Data.TryGetValue(BuildContextDataKeys.PriorPluginOutputs, out var value) &&
-            value is HashSet<PluginOutputTrackingInfo> outputs)
+        if (context.TryGet(BuildDataKeys.PriorPluginOutputs, out var outputs))
         {
             return outputs;
         }

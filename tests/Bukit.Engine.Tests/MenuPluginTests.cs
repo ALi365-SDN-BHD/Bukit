@@ -37,7 +37,7 @@ public sealed class MenuPluginTests
 
             new MenuPlugin(config).AfterBuild(ctx);
             Assert.False(File.Exists(Path.Combine(outDir, "menus.json")));
-            Assert.False(ctx.Data.ContainsKey("menus"));
+            Assert.False(ctx.TryGet(BuildDataKeys.Menus, out _));
         }
         finally
         {
@@ -79,7 +79,7 @@ public sealed class MenuPluginTests
 
             new MenuPlugin(config).AfterBuild(ctx);
 
-            Assert.True(ctx.Data.ContainsKey("menus"));
+            Assert.True(ctx.TryGet(BuildDataKeys.Menus, out _));
             var jsonPath = Path.Combine(outDir, "menus.json");
             Assert.True(File.Exists(jsonPath));
 
@@ -196,7 +196,7 @@ public sealed class MenuPluginTests
             new MenuPlugin(config).AfterBuild(ctx);
 
             var menus = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(
-                ctx.Data["menus"]);
+                ctx.Get(BuildDataKeys.Menus));
             var main = Assert.IsAssignableFrom<IReadOnlyList<object>>(menus["Main"]);
             var parent = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(Assert.Single(main));
             Assert.Equal("parent", parent["identifier"]);

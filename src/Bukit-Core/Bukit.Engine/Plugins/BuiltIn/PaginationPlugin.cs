@@ -167,8 +167,7 @@ internal sealed class PaginationPlugin : IBukitPlugin, IDerivePagesPlugin, ITemp
 
     private static bool IsHandledByListRouteGraph(BuildContext context, string collectionKey)
     {
-        return context.Data.TryGetValue(ListRouteGraphBuilder.BuildContextDataKey, out var value) &&
-               value is ListRouteGraph graph &&
+        return context.TryGet(BuildDataKeys.ListRouteGraph, out var graph) &&
                graph.Routes.Any(route =>
                    route.Kind == ListRouteKind.CollectionPage &&
                    string.Equals(route.Collection, collectionKey, StringComparison.OrdinalIgnoreCase));

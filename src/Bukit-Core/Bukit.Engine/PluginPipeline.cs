@@ -34,7 +34,7 @@ internal sealed class PluginPipeline
         foreach (var key in ctx.Manifest.Entries.Keys.Where(key => !ctx.CurrentKeys.ContainsKey(key)).ToArray())
             ctx.Manifest.Entries.Remove(key);
 
-        ctx.PluginContext.Data[BuildContextDataKeys.PriorPluginOutputs] = ctx.Manifest.PluginOutputs
+        ctx.PluginContext.Set(BuildDataKeys.PriorPluginOutputs, ctx.Manifest.PluginOutputs
             .Select(entry =>
             {
                 var path = string.IsNullOrWhiteSpace(entry.Value.Path)
@@ -45,11 +45,11 @@ internal sealed class PluginPipeline
                     entry.Value.Hook,
                     BuildPathUtils.NormalizeRelPath(path));
             })
-            .ToHashSet();
-        ctx.PluginContext.Data[BuildContextDataKeys.CurrentHtmlOutputs] = ctx.CurrentKeys.Keys
+            .ToHashSet());
+        ctx.PluginContext.Set<IReadOnlyList<string>>(BuildDataKeys.CurrentHtmlOutputs, ctx.CurrentKeys.Keys
             .Where(path => Path.GetExtension(path).Equals(".html", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.Ordinal)
-            .ToArray();
+            .ToArray());
 
         var afterBuildStopwatch = Stopwatch.StartNew();
         await PluginRunner.RunAfterBuildAsync(

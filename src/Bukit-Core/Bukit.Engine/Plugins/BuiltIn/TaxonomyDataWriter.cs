@@ -56,7 +56,7 @@ internal static class TaxonomyDataWriter
 
         if (taxonomy.Count > 0)
         {
-            context.Data["taxonomy"] = taxonomy;
+            context.Set(BuildDataKeys.Taxonomy, taxonomy);
         }
     }
 

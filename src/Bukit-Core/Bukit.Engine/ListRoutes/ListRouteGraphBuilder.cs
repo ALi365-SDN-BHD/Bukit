@@ -10,8 +10,6 @@ namespace Bukit.Engine;
 
 internal static partial class ListRouteGraphBuilder
 {
-    internal const string BuildContextDataKey = "__list_route_graph";
-
     internal static ListRouteGraph Build(
         IReadOnlyList<RoutedContentDocument> routed,
         IReadOnlyDictionary<string, CollectionConfig>? collections,

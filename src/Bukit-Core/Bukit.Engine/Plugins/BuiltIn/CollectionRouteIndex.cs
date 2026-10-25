@@ -8,8 +8,6 @@ using Bukit.Engine.Abstractions.Plugins;
 
 internal sealed class CollectionRouteIndex
 {
-    private const string CacheKey = "__collection_route_index";
-
     private readonly Dictionary<string, IReadOnlyList<RoutedContentDocument>> _byCollection;
 
     private CollectionRouteIndex(
@@ -24,14 +22,7 @@ internal sealed class CollectionRouteIndex
 
     internal static CollectionRouteIndex GetOrBuild(BuildContext context)
     {
-        if (context.Data.TryGetValue(CacheKey, out var cached) && cached is CollectionRouteIndex existing)
-        {
-            return existing;
-        }
-
-        var index = Create(context.RoutedDocuments);
-        context.Data[CacheKey] = index;
-        return index;
+        return context.GetOrAdd(BuildDataKeys.CollectionRouteIndex, () => Create(context.RoutedDocuments));
     }
 
     internal static CollectionRouteIndex Create(IReadOnlyList<RoutedContentDocument> routed)

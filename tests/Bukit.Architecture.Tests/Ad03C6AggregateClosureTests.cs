@@ -164,7 +164,7 @@ public sealed class Ad03C6AggregateClosureTests
         JsonElement[] types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(427, types.Length);
+        Assert.Equal(428, types.Length);
         Assert.Equal(
             0,
             types.Count(entry =>
@@ -176,7 +176,7 @@ public sealed class Ad03C6AggregateClosureTests
             "classification",
             new Dictionary<string, int>(StringComparer.Ordinal)
             {
-                ["cross-assembly-implementation"] = 256,
+                ["cross-assembly-implementation"] = 257,
                 ["implementation-public"] = 41,
                 ["serialized-contract"] = 98,
                 ["plugin-wire-contract"] = 23,
@@ -192,7 +192,8 @@ public sealed class Ad03C6AggregateClosureTests
                 ["1.x-shape-stable"] = 119,
                 ["not-a-clr-contract"] = 40,
                 ["1.x-migration-safe"] = 6,
-                ["2.x-shape-stable"] = 2
+                ["2.x-shape-stable"] = 2,
+                ["2.x-do-not-narrow"] = 1
             });
         AssertDistribution(
             types,
@@ -201,7 +202,7 @@ public sealed class Ad03C6AggregateClosureTests
             {
                 ["2.0-review"] = 303,
                 ["retain-1.x"] = 122,
-                ["retain-2.x"] = 2
+                ["retain-2.x"] = 3
             });
     }
 

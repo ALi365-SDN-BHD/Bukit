@@ -60,7 +60,7 @@ internal static class VariantSeoStage
             breadcrumbs,
             context.BuildStartedAt);
         pluginContext.SeoIndex = seoResult.SeoIndex.Entries;
-        pluginContext.Data[BuildContextDataKeys.SeoModels] = seoResult.SeoIndex.Models;
+        pluginContext.Set(BuildDataKeys.SeoModels, seoResult.SeoIndex.Models);
 
         return Task.FromResult(new SeoStageResult(
             seoResult,

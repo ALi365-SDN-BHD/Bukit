@@ -63,8 +63,7 @@ internal static class VariantReportStage
     internal static IReadOnlyList<PluginOutputTrackingInfo> GetPluginOutputs(
         BuildContext pluginContext)
     {
-        if (!pluginContext.Data.TryGetValue("__plugin_outputs", out var outputsObject) ||
-            outputsObject is not HashSet<PluginOutputTrackingInfo> outputs)
+        if (!pluginContext.TryGet(BuildDataKeys.PluginOutputs, out var outputs))
         {
             return Array.Empty<PluginOutputTrackingInfo>();
         }

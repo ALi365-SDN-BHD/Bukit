@@ -15,7 +15,7 @@ internal static class TaxonomyTermsInjector
             return;
         }
 
-        var ensure = GetOrCreateEnsureTermsMap(context.Data);
+        var ensure = GetOrCreateEnsureTermsMap(context);
 
         foreach (var document in dataDocuments)
         {
@@ -153,7 +153,7 @@ internal static class TaxonomyTermsInjector
                     client,
                     databaseId,
                     cancellationToken);
-                InjectNotionSchemaOptions(schemaOptions, keyToKind, context.Data);
+                InjectNotionSchemaOptions(schemaOptions, keyToKind, context);
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
@@ -165,9 +165,9 @@ internal static class TaxonomyTermsInjector
     private static void InjectNotionSchemaOptions(
         IReadOnlyDictionary<string, IReadOnlyList<string>> schemaOptions,
         IReadOnlyDictionary<string, string> keyToKind,
-        Dictionary<string, object> data)
+        BuildContext context)
     {
-        var ensure = GetOrCreateEnsureTermsMap(data);
+        var ensure = GetOrCreateEnsureTermsMap(context);
 
         foreach (var property in schemaOptions)
         {
@@ -211,18 +211,10 @@ internal static class TaxonomyTermsInjector
         }
     }
 
-    internal static Dictionary<string, List<Dictionary<string, object>>> GetOrCreateEnsureTermsMap(Dictionary<string, object> data)
-    {
-        if (data.TryGetValue("taxonomy_ensure_terms", out var existing) &&
-            existing is Dictionary<string, List<Dictionary<string, object>>> typed)
-        {
-            return typed;
-        }
-
-        var map = new Dictionary<string, List<Dictionary<string, object>>>(StringComparer.OrdinalIgnoreCase);
-        data["taxonomy_ensure_terms"] = map;
-        return map;
-    }
+    internal static Dictionary<string, List<Dictionary<string, object>>> GetOrCreateEnsureTermsMap(BuildContext context)
+        => context.GetOrAdd(
+            BuildDataKeys.TaxonomyEnsureTerms,
+            static () => new Dictionary<string, List<Dictionary<string, object>>>(StringComparer.OrdinalIgnoreCase));
 
     internal static string NormalizeNotionFieldKey(string text)
         => NotionCompatibilityQueries.NormalizeFieldKey(text);

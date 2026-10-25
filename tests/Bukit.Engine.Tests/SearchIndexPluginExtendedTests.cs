@@ -488,8 +488,8 @@ public sealed class SearchIndexPluginExtendedTests
             {
                 [route.OutputPath] = new(routeInfo, "https://example.com/companies/malaysia/", null, true, DateTimeOffset.UtcNow, null, "list", IsDerived: true)
             };
-            context.Data[ListRouteGraphBuilder.BuildContextDataKey] = ListRouteGraph.Create(new[] { route });
-            context.Data[BuildContextDataKeys.SeoModels] = new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
+            context.Set(BuildDataKeys.ListRouteGraph, ListRouteGraph.Create(new[] { route }));
+            context.Set(BuildDataKeys.SeoModels, new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase)
             {
                 [route.OutputPath] = new()
                 {
@@ -497,7 +497,7 @@ public sealed class SearchIndexPluginExtendedTests
                     Description = "Companies operating in Malaysia",
                     Canonical = "https://example.com/companies/malaysia/"
                 }
-            };
+            });
 
             var plugin = new SearchIndexPlugin(config);
             plugin.AfterBuild(context);

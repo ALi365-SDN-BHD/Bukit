@@ -168,7 +168,7 @@ internal sealed class DataFilesPlugin : IBukitPlugin, IDerivePagesPlugin, IDeriv
 
         if (result.Count > 0)
         {
-            context.Data["__data_files"] = result;
+            context.Set(BuildDataKeys.DataFiles, result);
         }
 
         return Array.Empty<RoutedContentDocument>();

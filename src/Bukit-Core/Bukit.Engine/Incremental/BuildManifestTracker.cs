@@ -166,7 +166,7 @@ internal static class BuildManifestTracker
     internal static void TrackPluginOutputs(BuildContext pluginContext, string outputDir, BuildManifest manifest, bool incrementalEnabled, ILogger logger, string? fingerprintMode = null, IOutputPathPolicy? pathPolicy = null, CancellationToken cancellationToken = default)
     {
         var currentOutputs = new Dictionary<string, PluginOutputManifestEntry>(StringComparer.Ordinal);
-        if (pluginContext.Data.TryGetValue("__plugin_outputs", out var outputsObj) && outputsObj is HashSet<PluginOutputTrackingInfo> outputs)
+        if (pluginContext.TryGet(BuildDataKeys.PluginOutputs, out var outputs))
         {
             foreach (var output in outputs)
             {

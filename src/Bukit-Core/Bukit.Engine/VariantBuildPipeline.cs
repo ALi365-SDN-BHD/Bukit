@@ -80,7 +80,7 @@ internal sealed partial class VariantBuildPipeline
             context.BaseUrl,
             dataModules.Modules,
             dataModules.SourceData,
-            routePipelineResult.PluginContext.Data,
+            routePipelineResult.PluginContext.SnapshotData(),
             dataModules.DataIndex,
             context.BuildStartedAt);
         var manifestSetup = VariantManifestPlanner.Create(

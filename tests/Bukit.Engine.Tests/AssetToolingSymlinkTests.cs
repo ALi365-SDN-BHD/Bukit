@@ -87,7 +87,7 @@ public sealed class AssetToolingSymlinkTests
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(context);
 
-            var srcsets = Assert.IsType<Dictionary<string, object>>(context.Data["__image_srcsets"]);
+            var srcsets = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.ImageSrcsets));
             Assert.Contains("local.jpg", srcsets.Keys);
             Assert.DoesNotContain(srcsets.Keys, key => key.Contains("linked-external", StringComparison.Ordinal));
         }

@@ -104,7 +104,7 @@ public sealed class AnalyticsBuildStateTests
             BuildExecutionMode.Production);
 
         Assert.True(session.AnalyticsBuildState.Snapshot().PluginEnabled);
-        Assert.Empty(context.Data);
+        Assert.Empty(context.SnapshotData());
     }
 
     [Fact]
@@ -159,6 +159,6 @@ public sealed class AnalyticsBuildStateTests
         Assert.NotSame(first, second);
         Assert.NotSame(second, third);
         Assert.Equal(BuildExecutionMode.Development, third.ExecutionMode);
-        Assert.Empty(context.Data);
+        Assert.Empty(context.SnapshotData());
     }
 }

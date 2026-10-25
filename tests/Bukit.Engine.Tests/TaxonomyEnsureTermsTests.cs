@@ -30,7 +30,7 @@ public sealed class TaxonomyEnsureTermsTests
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
-        ctx.Data["taxonomy_ensure_terms"] = new Dictionary<string, List<Dictionary<string, object>>>(StringComparer.OrdinalIgnoreCase)
+        ctx.Set(BuildDataKeys.TaxonomyEnsureTerms, new Dictionary<string, List<Dictionary<string, object>>>(StringComparer.OrdinalIgnoreCase)
         {
             ["categories"] = new List<Dictionary<string, object>>
             {
@@ -40,7 +40,7 @@ public sealed class TaxonomyEnsureTermsTests
                     ["slug"] = "cat-one"
                 }
             }
-        };
+        });
 
         var plugin = new TaxonomyPlugin(config);
         var derived = plugin.DerivePages(ctx);
@@ -84,7 +84,7 @@ public sealed class TaxonomyEnsureTermsTests
 
         TaxonomyTermsInjector.InjectFromDataDocuments(ctx, new List<ContentDocument> { dataDocument });
 
-        Assert.True(ctx.Data.TryGetValue("taxonomy_ensure_terms", out var obj));
+        Assert.True(ctx.TryGet(BuildDataKeys.TaxonomyEnsureTerms, out var obj));
         var map = Assert.IsType<Dictionary<string, List<Dictionary<string, object>>>>(obj);
         Assert.True(map.TryGetValue("categories", out var list));
         Assert.Single(list);

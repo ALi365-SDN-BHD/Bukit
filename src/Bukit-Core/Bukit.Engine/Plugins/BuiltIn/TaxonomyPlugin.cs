@@ -240,10 +240,8 @@ internal sealed class TaxonomyPlugin : IBukitPlugin, IDerivePagesPlugin, IAfterB
         {
             TaxonomyRedirectWriter.WriteRedirects(context.OutputDir, kind, terms, routePrefix, generatedPaths);
         }
-        var outputs = context.Data.TryGetValue("__plugin_outputs", out var tracked) && tracked is HashSet<PluginOutputTrackingInfo> existing
-            ? existing : [];
+        var outputs = context.GetOrAdd(BuildDataKeys.PluginOutputs, static () => []);
         foreach (var path in generatedPaths) outputs.Add(new PluginOutputTrackingInfo(Name, "after-build", path));
-        context.Data["__plugin_outputs"] = outputs;
     }
 
     internal static string NormalizeOutputMode(string? mode)

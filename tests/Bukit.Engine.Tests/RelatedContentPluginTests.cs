@@ -90,7 +90,7 @@ public sealed class RelatedContentPluginTests
 
         new RelatedContentPlugin(config).DerivePages(ctx);
 
-        Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
+        Assert.True(ctx.TryGet(BuildDataKeys.RelatedPages, out var val));
         var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
         Assert.Contains("1", dict);
         Assert.Contains("3", dict);
@@ -124,7 +124,7 @@ public sealed class RelatedContentPluginTests
 
         new RelatedContentPlugin(config).DerivePages(ctx);
 
-        Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
+        Assert.True(ctx.TryGet(BuildDataKeys.RelatedPages, out var val));
         var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
         Assert.Contains("1", dict);
         Assert.Contains("3", dict);
@@ -156,7 +156,7 @@ public sealed class RelatedContentPluginTests
 
         new RelatedContentPlugin(config).DerivePages(ctx);
 
-        Assert.False(ctx.Data.TryGetValue("__related_pages", out var val)
+        Assert.False(ctx.TryGet(BuildDataKeys.RelatedPages, out var val)
             && val is Dictionary<string, List<object>> d && d.Count > 0);
     }
 
@@ -204,7 +204,7 @@ public sealed class RelatedContentPluginTests
 
         new RelatedContentPlugin(config).DerivePages(ctx);
 
-        Assert.False(ctx.Data.TryGetValue("__related_pages", out var d)
+        Assert.False(ctx.TryGet(BuildDataKeys.RelatedPages, out var d)
             && d is Dictionary<string, List<object>> dict
             && (dict.ContainsKey("blog-archive-2024") || dict.ContainsKey("blog-page-2")));
     }
@@ -236,7 +236,7 @@ public sealed class RelatedContentPluginTests
 
         new RelatedContentPlugin(config).DerivePages(ctx);
 
-        Assert.True(ctx.Data.TryGetValue("__related_pages", out var val));
+        Assert.True(ctx.TryGet(BuildDataKeys.RelatedPages, out var val));
         var dict = Assert.IsType<Dictionary<string, List<object>>>(val);
         Assert.Contains("1", dict);
         Assert.Contains("3", dict);
@@ -268,7 +268,7 @@ public sealed class RelatedContentPluginTests
 
         new RelatedContentPlugin(config).DerivePages(ctx);
 
-        Assert.False(ctx.Data.TryGetValue("__related_pages", out var val)
+        Assert.False(ctx.TryGet(BuildDataKeys.RelatedPages, out var val)
             && val is Dictionary<string, List<object>> d && d.Values.Any(v => v.Count > 0));
     }
 

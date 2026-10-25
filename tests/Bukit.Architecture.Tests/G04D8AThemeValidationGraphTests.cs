@@ -165,7 +165,7 @@ public sealed class G04D8AThemeValidationGraphTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsRetainedErrorAnd427Types0Candidates()
+    public void CurrentBaseline_RecordsRetainedErrorAnd428Types0Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -177,7 +177,7 @@ public sealed class G04D8AThemeValidationGraphTests
             .ToArray();
 
         Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(427, types.Length);
+        Assert.Equal(428, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));

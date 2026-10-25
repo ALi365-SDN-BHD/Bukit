@@ -1,10 +1,23 @@
+using Bukit.Engine.Abstractions.Content;
+using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class TaxonomyMetadataLoaderTests
 {
+    private static BuildContext CreateContext() => new()
+    {
+        RootDir = "/tmp/test",
+        OutputDir = "/tmp/test",
+        BaseUrl = "/",
+        LayoutsDir = "/tmp/test",
+        RoutedDocuments = Array.Empty<RoutedContentDocument>(),
+        Logger = new ConsoleLogger(LogLevel.Error)
+    };
+
     [Fact]
     public void ParseSimpleFrontMatter_ValidYaml_ReturnsDictionary()
     {
@@ -49,7 +62,7 @@ public sealed class TaxonomyMetadataLoaderTests
     [Fact]
     public void LoadFromEnsureTerms_EnrichesExistingTerms()
     {
-        var data = new Dictionary<string, object>();
+        var context = CreateContext();
         var ensure = new Dictionary<string, List<Dictionary<string, object>>>
         {
             ["tags"] = new List<Dictionary<string, object>>
@@ -64,14 +77,14 @@ public sealed class TaxonomyMetadataLoaderTests
                 }
             }
         };
-        data["taxonomy_ensure_terms"] = ensure;
+        context.Set(BuildDataKeys.TaxonomyEnsureTerms, ensure);
 
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
         {
             ["tech"] = new TaxonomyTerm("Tech", "tech")
         };
 
-        TaxonomyMetadataLoader.LoadFromEnsureTerms(data, "tags", terms);
+        TaxonomyMetadataLoader.LoadFromEnsureTerms(context, "tags", terms);
 
         Assert.Equal("Technology posts", terms["tech"].Description);
         Assert.Equal("/img/tech.png", terms["tech"].Image);
@@ -82,7 +95,7 @@ public sealed class TaxonomyMetadataLoaderTests
     [Fact]
     public void LoadFromEnsureTerms_DoesNotOverwriteExistingMetadata()
     {
-        var data = new Dictionary<string, object>();
+        var context = CreateContext();
         var ensure = new Dictionary<string, List<Dictionary<string, object>>>
         {
             ["tags"] = new List<Dictionary<string, object>>
@@ -94,7 +107,7 @@ public sealed class TaxonomyMetadataLoaderTests
                 }
             }
         };
-        data["taxonomy_ensure_terms"] = ensure;
+        context.Set(BuildDataKeys.TaxonomyEnsureTerms, ensure);
 
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
         {
@@ -105,7 +118,7 @@ public sealed class TaxonomyMetadataLoaderTests
             }
         };
 
-        TaxonomyMetadataLoader.LoadFromEnsureTerms(data, "tags", terms);
+        TaxonomyMetadataLoader.LoadFromEnsureTerms(context, "tags", terms);
 
         Assert.Equal("Existing description", terms["tech"].Description);
         Assert.Equal(99, terms["tech"].Weight);
@@ -114,19 +127,19 @@ public sealed class TaxonomyMetadataLoaderTests
     [Fact]
     public void LoadFromEnsureTerms_MissingKind_DoesNotThrow()
     {
-        var data = new Dictionary<string, object>();
+        var context = CreateContext();
         var ensure = new Dictionary<string, List<Dictionary<string, object>>>
         {
             ["tags"] = new List<Dictionary<string, object>>()
         };
-        data["taxonomy_ensure_terms"] = ensure;
+        context.Set(BuildDataKeys.TaxonomyEnsureTerms, ensure);
 
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
         {
             ["tech"] = new TaxonomyTerm("Tech", "tech")
         };
 
-        TaxonomyMetadataLoader.LoadFromEnsureTerms(data, "categories", terms);
+        TaxonomyMetadataLoader.LoadFromEnsureTerms(context, "categories", terms);
 
         Assert.Null(terms["tech"].Description);
     }

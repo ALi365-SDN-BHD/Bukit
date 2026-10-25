@@ -37,7 +37,7 @@ public sealed class ImageProcessingPluginTests
             };
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(ctx);
-            Assert.False(ctx.Data.ContainsKey("__image_srcsets"));
+            Assert.False(ctx.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -63,7 +63,7 @@ public sealed class ImageProcessingPluginTests
             };
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(ctx);
-            Assert.False(ctx.Data.ContainsKey("__image_srcsets"));
+            Assert.False(ctx.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -270,7 +270,7 @@ public sealed class ImageProcessingPluginTests
             var oldTimestamp = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             File.SetLastWriteTimeUtc(variant, oldTimestamp);
             var second = CreateContext(outDir);
-            second.Data[BuildContextDataKeys.PriorPluginOutputs] = first.Data["__plugin_outputs"];
+            second.Set(BuildDataKeys.PriorPluginOutputs, first.Get(BuildDataKeys.PluginOutputs));
 
             await new ImageProcessingPlugin(config).AfterBuildAsync(second);
 
@@ -312,8 +312,8 @@ public sealed class ImageProcessingPluginTests
                 Content = TestContent.Markdown() with { Media = new MediaConfig { UrlBase = "/assets" } }
             };
             var context = CreateContext(outDir);
-            context.Data[BuildContextDataKeys.MediaDownloadDir] = assetsDir;
-            context.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
+            context.Set(BuildDataKeys.MediaDownloadDir, assetsDir);
+            context.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
             var plugin = new ImageProcessingPlugin(config);
             var transformed = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(
                 context,
@@ -346,7 +346,7 @@ public sealed class ImageProcessingPluginTests
             Assert.DoesNotContain("data-bukit-generated-srcset", html, StringComparison.Ordinal);
             Assert.Equal(1, CountOccurrences(html, "<picture>"));
 
-            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Data["__plugin_outputs"]);
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
             Assert.Contains(outputs, output => output.Path == "assets/photo-480w.webp");
             Assert.Contains(outputs, output => output.Path == "assets/photo-1000w.webp.bukit-freshness.json");
         }
@@ -389,7 +389,7 @@ public sealed class ImageProcessingPluginTests
             }
 
             var second = CreateContext(outDir);
-            second.Data[BuildContextDataKeys.PriorPluginOutputs] = first.Data["__plugin_outputs"];
+            second.Set(BuildDataKeys.PriorPluginOutputs, first.Get(BuildDataKeys.PluginOutputs));
             await new ImageProcessingPlugin(config).AfterBuildAsync(second);
 
             Assert.StartsWith("skiasharp-webp-", JsonNode.Parse(File.ReadAllText(webp + ".bukit-freshness.json"))!["tool"]!.GetValue<string>(), StringComparison.Ordinal);
@@ -420,13 +420,13 @@ public sealed class ImageProcessingPluginTests
             File.WriteAllText(htmlFile, existing + ignored + "<img src=\"/assets/photo.jpg\" alt=\"local\">");
             var config = CreateConfig(new ImageOptimizationConfig { Enabled = true, Formats = new[] { "webp" }, Sizes = new[] { 480 } });
             var first = CreateContext(outDir);
-            first.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
+            first.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
             await new ImageProcessingPlugin(config).AfterBuildAsync(first);
             var once = File.ReadAllText(htmlFile);
 
             var second = CreateContext(outDir);
-            second.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
-            second.Data[BuildContextDataKeys.PriorPluginOutputs] = first.Data["__plugin_outputs"];
+            second.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
+            second.Set(BuildDataKeys.PriorPluginOutputs, first.Get(BuildDataKeys.PluginOutputs));
             await new ImageProcessingPlugin(config).AfterBuildAsync(second);
             var twice = File.ReadAllText(htmlFile);
 
@@ -464,8 +464,8 @@ public sealed class ImageProcessingPluginTests
             File.WriteAllText(htmlFile, html);
 
             var second = CreateContext(outDir);
-            second.Data[BuildContextDataKeys.PriorPluginOutputs] = first.Data["__plugin_outputs"];
-            second.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
+            second.Set(BuildDataKeys.PriorPluginOutputs, first.Get(BuildDataKeys.PluginOutputs));
+            second.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
             await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
             {
                 Enabled = true,
@@ -474,7 +474,7 @@ public sealed class ImageProcessingPluginTests
             })).AfterBuildAsync(second);
 
             Assert.Equal(originalHash, SHA256.HashData(File.ReadAllBytes(webp)));
-            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(second.Data["__plugin_outputs"]);
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(second.Get(BuildDataKeys.PluginOutputs));
             Assert.Contains(outputs, output => output.Path == "assets/photo-480w.webp");
             Assert.Equal(html, File.ReadAllText(htmlFile));
         }
@@ -504,7 +504,7 @@ public sealed class ImageProcessingPluginTests
             var htmlFile = Path.Combine(outDir, "index.html");
             File.WriteAllText(htmlFile, "<img src=\"/assets/photo.jpg\" alt=\"fallback\">");
             var context = CreateContext(outDir);
-            context.Data[BuildContextDataKeys.CurrentHtmlOutputs] = new[] { "index.html" };
+            context.Set(BuildDataKeys.CurrentHtmlOutputs, new[] { "index.html" });
 
             await new ImageProcessingPlugin(CreateConfig(new ImageOptimizationConfig
             {
@@ -542,7 +542,7 @@ public sealed class ImageProcessingPluginTests
             Directory.CreateDirectory(mediaDir);
             WriteValidImage(Path.Combine(mediaDir, "photo.jpg"), "source", width: 1000);
             var context = CreateContext(outDir);
-            context.Data[BuildContextDataKeys.MediaDownloadDir] = mediaDir;
+            context.Set(BuildDataKeys.MediaDownloadDir, mediaDir);
             var plugin = new ImageProcessingPlugin(CreateConfig(
                 new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768, 1200 } }));
             var transform = plugin.CreateHtmlTransform(new HtmlTransformPluginContext(
@@ -706,7 +706,7 @@ public sealed class ImageProcessingPluginTests
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480, 768 } }))
                 .AfterBuildAsync(context);
 
-            var images = Assert.IsType<Dictionary<string, object>>(context.Data["__image_srcsets"]);
+            var images = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.ImageSrcsets));
             var photo = Assert.IsType<Dictionary<string, object>>(images["photo.jpg"]);
             Assert.Equal("/assets/photo-480w.jpg 480w", photo["srcset"]);
             Assert.Equal(new[] { 480 }, Assert.IsType<int[]>(photo["sizes"]));
@@ -744,7 +744,7 @@ public sealed class ImageProcessingPluginTests
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
                 .AfterBuildAsync(context);
 
-            Assert.False(context.Data.ContainsKey("__image_srcsets"));
+            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -840,7 +840,7 @@ public sealed class ImageProcessingPluginTests
 
             Assert.False(File.Exists(variantFile));
             Assert.False(File.Exists(freshnessFile));
-            Assert.False(secondContext.Data.ContainsKey("__image_srcsets"));
+            Assert.False(secondContext.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -923,7 +923,7 @@ public sealed class ImageProcessingPluginTests
                     new ImageOptimizationConfig { Enabled = true, Sizes = new[] { 480 } }))
                 .AfterBuildAsync(context);
 
-            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Data["__plugin_outputs"]);
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
             Assert.Contains(outputs, output => output.Path == "assets/photo-480w.jpg");
             Assert.Contains(outputs, output => output.Path == "assets/photo-480w.jpg.bukit-freshness.json");
         }
@@ -1159,9 +1159,9 @@ public sealed class ImageProcessingPluginTests
 
             Assert.Equal(copiedVariantBytes, await File.ReadAllBytesAsync(copiedVariant));
             Assert.Equal(copiedSidecarBytes, await File.ReadAllBytesAsync(copiedSidecar));
-            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Data["__plugin_outputs"]);
+            var outputs = Assert.IsType<HashSet<PluginOutputTrackingInfo>>(context.Get(BuildDataKeys.PluginOutputs));
             Assert.DoesNotContain(outputs, output => output.Path == "assets/copied/photo-300w.jpg");
-            var images = Assert.IsType<Dictionary<string, object>>(context.Data["__image_srcsets"]);
+            var images = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.ImageSrcsets));
             Assert.DoesNotContain("copied/photo.jpg", images.Keys);
         }
         finally
@@ -1288,8 +1288,8 @@ public sealed class ImageProcessingPluginTests
             Assert.False(File.Exists(variant));
             Assert.False(File.Exists(sidecar));
             Assert.True(File.Exists(Path.Combine(assetsDir, "renamed-480w.jpg")));
-            Assert.True(context.Data.ContainsKey("__plugin_outputs"));
-            Assert.True(context.Data.ContainsKey("__image_srcsets"));
+            Assert.True(context.TryGet(BuildDataKeys.PluginOutputs, out _));
+            Assert.True(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -1331,8 +1331,8 @@ public sealed class ImageProcessingPluginTests
 
             Assert.False(File.Exists(variant));
             Assert.False(File.Exists(sidecar));
-            Assert.False(context.Data.ContainsKey("__plugin_outputs"));
-            Assert.False(context.Data.ContainsKey("__image_srcsets"));
+            Assert.False(context.TryGet(BuildDataKeys.PluginOutputs, out _));
+            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -1527,7 +1527,7 @@ public sealed class ImageProcessingPluginTests
 
             Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg")));
             Assert.False(File.Exists(Path.Combine(assetsDir, "hero-480w.jpg.bukit-freshness.json")));
-            Assert.False(context.Data.ContainsKey("__image_srcsets"));
+            Assert.False(context.TryGet(BuildDataKeys.ImageSrcsets, out _));
         }
         finally
         {
@@ -1538,7 +1538,7 @@ public sealed class ImageProcessingPluginTests
 
     private static void AssertNotTracked(BuildContext context, string outDir, params string[] paths)
     {
-        if (!context.Data.TryGetValue("__plugin_outputs", out var value) ||
+        if (!context.TryGet(BuildDataKeys.PluginOutputs, out var value) ||
             value is not HashSet<PluginOutputTrackingInfo> outputs)
         {
             return;
@@ -1619,7 +1619,7 @@ public sealed class ImageProcessingPluginTests
             }
         }
 
-        context.Data[BuildContextDataKeys.PriorPluginOutputs] = outputs;
+        context.Set(BuildDataKeys.PriorPluginOutputs, outputs);
         return context;
     }
 

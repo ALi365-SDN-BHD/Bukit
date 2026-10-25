@@ -106,7 +106,7 @@ public sealed class PluginExecutionSessionTests
             await PluginRunner.RunAfterBuildAsync(context, session);
 
             var menus = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(
-                context.Data["menus"]);
+                context.Get(BuildDataKeys.Menus));
             var main = Assert.IsAssignableFrom<IReadOnlyList<object>>(menus["Main"]);
             var parent = Assert.IsAssignableFrom<IReadOnlyDictionary<string, object>>(Assert.Single(main));
             Assert.Equal("parent", parent["identifier"]);
@@ -118,11 +118,11 @@ public sealed class PluginExecutionSessionTests
             Assert.Equal("child", child["identifier"]);
             Assert.Equal(3, child["weight"]);
 
-            Assert.DoesNotContain(session.AnalyticsBuildState, context.Data.Values);
-            Assert.False(context.Data.ContainsKey("__plugin_registry_cache"));
-            Assert.False(context.Data.ContainsKey("__analytics_build_state"));
-            Assert.False(context.Data.ContainsKey("__taxonomy_index_cache"));
-            AssertDataGraphDoesNotReachConfig(context.Data);
+            Assert.DoesNotContain(session.AnalyticsBuildState, context.SnapshotData().Values);
+            Assert.False(context.SnapshotData().ContainsKey("__plugin_registry_cache"));
+            Assert.False(context.SnapshotData().ContainsKey("__analytics_build_state"));
+            Assert.False(context.SnapshotData().ContainsKey("__taxonomy_index_cache"));
+            AssertDataGraphDoesNotReachConfig(context.SnapshotData());
         }
         finally
         {
@@ -156,7 +156,7 @@ public sealed class PluginExecutionSessionTests
             "<html><head></head><body></body></html>");
 
         Assert.Equal(1, session.AnalyticsBuildState.Snapshot().ProcessedHtml);
-        Assert.DoesNotContain(session.AnalyticsBuildState, context.Data.Values);
+        Assert.DoesNotContain(session.AnalyticsBuildState, context.SnapshotData().Values);
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public sealed class PluginExecutionSessionTests
 
             _ = secondTaxonomy.DerivePages(context);
             Assert.Equal(4, Bukit.Engine.Plugins.BuiltIn.TaxonomyPlugin.BuildIndexCountForTests);
-            Assert.False(context.Data.ContainsKey("__taxonomy_index_cache"));
+            Assert.False(context.SnapshotData().ContainsKey("__taxonomy_index_cache"));
         }
         finally
         {
