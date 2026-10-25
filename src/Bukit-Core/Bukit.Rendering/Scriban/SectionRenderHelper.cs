@@ -179,9 +179,9 @@ internal sealed class SectionRenderHelper
             try
             {
                 var task = plugin.ExecuteAsync(ctx);
-                // Scriban renders sections synchronously; bridge only when plugin is truly async.
+                // The synchronous bridge must observe failures even when the Task already completed.
                 // TODO(async-render): remove when SectionRenderHelper becomes fully async.
-                if (!task.IsCompleted) task.GetAwaiter().GetResult();
+                task.GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -288,15 +288,15 @@ internal sealed class SectionRenderHelper
             try
             {
                 var task = afterPlugin.ExecuteAsync(afterCtx);
-                // Scriban renders sections synchronously; bridge only when plugin is truly async.
+                // The synchronous bridge must observe failures even when the Task already completed.
                 // TODO(async-render): remove when SectionRenderHelper becomes fully async.
-                if (!task.IsCompleted) task.GetAwaiter().GetResult();
+                task.GetAwaiter().GetResult();
+                if (afterCtx.RenderedHtml is not null) html = afterCtx.RenderedHtml;
             }
             catch (Exception ex)
             {
                 html = Diagnostic("theme.section.plugin_failed", $"section plugin error [{afterPlugin.GetType().Name}]: {ex.Message}") + "\n" + html;
             }
-            if (afterCtx.RenderedHtml is not null) html = afterCtx.RenderedHtml;
         }
 
         return html;
