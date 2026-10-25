@@ -100,6 +100,13 @@ for public_api_governance_path in \
   tools/Bukit.PublicApiDrift/ApiSurfaceModels.cs; do
   assert_closure_mapping "$closure_fixture" "$public_api_governance_path" '["bash scripts/checks/public-api-drift-self-test.sh"]' false
 done
+for image_resize_temp_contract_path in \
+  openspec/changes/fix-image-resize-temp-cleanup/proposal.md \
+  openspec/changes/fix-image-resize-temp-cleanup/design.md \
+  openspec/changes/fix-image-resize-temp-cleanup/tasks.md \
+  openspec/changes/fix-image-resize-temp-cleanup/specs/image-resize-temp-cleanup/spec.md; do
+  assert_closure_mapping "$closure_fixture" "$image_resize_temp_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter FullyQualifiedName~BuiltInPluginSplitTests", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~ImageProcessingPluginTests|FullyQualifiedName~ExternalToolProcessRunnerTests\""]' false
+done
 
 for cli_documentation_path in guide/dev/cli.md guide/skills/bukit-cli-reference/SKILL.md; do
   assert_closure_mapping "$closure_fixture" "$cli_documentation_path" '["bash guide/skills/scripts/validate-skills-strict.sh", "bash scripts/checks/cli-docs-sync.sh"]' true
@@ -157,6 +164,13 @@ for logging_contract_path in \
   assert_closure_mapping "$closure_fixture" "$logging_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter FullyQualifiedName~CommandConfigLoaderTests", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~LibraryDiagnosticOutputTests|FullyQualifiedName~SiteEngineLoggerTests\""]' false
 done
 assert_closure_mapping "$closure_fixture" docs/superpowers/plans/2026-08-05-bukit-seo-geo-next-master.md '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
+for plugin_split_contract_path in \
+  openspec/changes/migrate-built-in-plugin-split/proposal.md \
+  openspec/changes/migrate-built-in-plugin-split/design.md \
+  openspec/changes/migrate-built-in-plugin-split/tasks.md \
+  openspec/changes/migrate-built-in-plugin-split/specs/built-in-plugin-split/spec.md; do
+  assert_closure_mapping "$closure_fixture" "$plugin_split_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter \"FullyQualifiedName~BuiltInPluginSplitTests|FullyQualifiedName~G04D9EBuiltInPluginGraphTests\"", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~DataFilesPluginTests|FullyQualifiedName~ImageProcessingPluginTests\"", "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj --filter FullyQualifiedName~ScribanTemplateRendererTests"]' false
+done
 for unmapped_remediation_path in .github/workflows/unplanned.yaml docs/governance/unplanned.md docs/superpowers/plans/unplanned.md; do
   expect_exit 0 "${tool[@]}" closure --repo "$closure_fixture" --policy scripts/checks/codex-workflow-policy.v1.json --changed "$unmapped_remediation_path"
   python3 - "$command_output" "$unmapped_remediation_path" <<'PY_CHECK'
