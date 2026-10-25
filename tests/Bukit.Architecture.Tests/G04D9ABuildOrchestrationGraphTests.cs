@@ -1,3 +1,4 @@
+using Bukit.Theme;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -219,7 +220,7 @@ public sealed class G04D9ABuildOrchestrationGraphTests
             .ToArray();
 
         Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(428, types.Length);
+        Assert.Equal(PublicApiBaselineFacts.GovernedTypeCount, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));

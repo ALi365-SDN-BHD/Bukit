@@ -14,6 +14,8 @@ namespace Bukit.Architecture.Tests;
 public sealed class G04D8BThemeDoctorResultTests
 {
     private const string DoctorResultTypeName =
+        "Bukit.Theme.ThemeDoctor+DoctorResult";
+    private const string HistoricalDoctorResultTypeName =
         "Bukit.Theme.ThemeDoctorCommand+DoctorResult";
     private const string CandidateManifestBlob =
         "7b07d6890562387010b52301e9f8716e9bf10ed1";
@@ -24,7 +26,7 @@ public sealed class G04D8BThemeDoctorResultTests
     [Fact]
     public void DoctorResult_RemainsPublicNestedSealedRecordWithListShape()
     {
-        Assembly assembly = typeof(ThemeDoctorCommand).Assembly;
+        Assembly assembly = typeof(ThemeDoctor).Assembly;
         Type result = GetType(assembly, DoctorResultTypeName);
 
         Assert.True(result.IsNestedPublic);
@@ -32,7 +34,7 @@ public sealed class G04D8BThemeDoctorResultTests
         Assert.False(result.IsAbstract);
         Assert.Contains(result, assembly.GetExportedTypes());
         Assert.Contains(
-            typeof(IEquatable<ThemeDoctorCommand.DoctorResult>),
+            typeof(IEquatable<ThemeDoctor.DoctorResult>),
             result.GetInterfaces());
 
         ConstructorInfo constructor = Assert.Single(
@@ -70,20 +72,15 @@ public sealed class G04D8BThemeDoctorResultTests
     [Fact]
     public void PublicThemeDoctorFacade_KeepsExactDoctorResultGraph()
     {
-        Type facade = typeof(ThemeDoctorCommand);
-        Type result = typeof(ThemeDoctorCommand.DoctorResult);
+        Type facade = typeof(ThemeDoctor);
+        Type result = typeof(ThemeDoctor.DoctorResult);
         MethodInfo diagnose = Assert.Single(
             facade.GetMethods(
                 BindingFlags.Public |
                 BindingFlags.Static |
                 BindingFlags.DeclaredOnly),
-            method => method.Name == nameof(ThemeDoctorCommand.Diagnose));
-        MethodInfo printReport = Assert.Single(
-            facade.GetMethods(
-                BindingFlags.Public |
-                BindingFlags.Static |
-                BindingFlags.DeclaredOnly),
-            method => method.Name == nameof(ThemeDoctorCommand.PrintReport));
+            method => method.Name == nameof(ThemeDoctor.Diagnose));
+        Assert.Null(facade.GetMethod("PrintReport"));
 
         Assert.Equal(result, diagnose.ReturnType);
         Assert.Equal(
@@ -100,11 +97,6 @@ public sealed class G04D8BThemeDoctorResultTests
             diagnose.GetParameters(),
             parameter => Assert.False(parameter.IsOptional));
 
-        Assert.Equal(typeof(void), printReport.ReturnType);
-        ParameterInfo printParameter =
-            Assert.Single(printReport.GetParameters());
-        Assert.Equal(result, printParameter.ParameterType);
-        Assert.False(printParameter.IsOptional);
     }
 
     [Fact]
@@ -125,7 +117,7 @@ public sealed class G04D8BThemeDoctorResultTests
             "Bukit.Cli.csproj"));
 
         Assert.DoesNotContain(
-            "ThemeDoctorCommand",
+            "ThemeDoctor",
             source,
             StringComparison.Ordinal);
         Assert.DoesNotContain(
@@ -152,8 +144,8 @@ public sealed class G04D8BThemeDoctorResultTests
     [Fact]
     public void ThemeJsonContexts_DoNotRootDoctorResult()
     {
-        Assembly assembly = typeof(ThemeDoctorCommand).Assembly;
-        Type result = typeof(ThemeDoctorCommand.DoctorResult);
+        Assembly assembly = typeof(ThemeDoctor).Assembly;
+        Type result = typeof(ThemeDoctor.DoctorResult);
         Type[] contexts = assembly
             .GetTypes()
             .Where(type =>
@@ -211,7 +203,7 @@ public sealed class G04D8BThemeDoctorResultTests
     }
 
     [Fact]
-    public void CurrentBaseline_RetainsDoctorResultAndRecords428Types0Candidates()
+    public void CurrentBaseline_RetainsDoctorResultAndRecords426Types0Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -223,7 +215,7 @@ public sealed class G04D8BThemeDoctorResultTests
             .ToArray();
 
         Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(428, types.Length);
+        Assert.Equal(PublicApiBaselineFacts.GovernedTypeCount, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
@@ -308,7 +300,7 @@ public sealed class G04D8BThemeDoctorResultTests
         JsonElement historical = Assert.Single(candidates, entry =>
             entry.GetProperty("assembly").GetString() == "Bukit.Theme" &&
             entry.GetProperty("fullName").GetString() ==
-            DoctorResultTypeName);
+            HistoricalDoctorResultTypeName);
         Assert.Equal(
             "consumer-declaration-pending",
             historical.GetProperty("declarationStatus").GetString());

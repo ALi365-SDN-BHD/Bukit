@@ -102,6 +102,18 @@ done
 for internal_contract_path in docs/governance/bukit-core-2.0-consumer-declaration.md guide/dev/public-api-governance.md; do
   assert_closure_mapping "$closure_fixture" "$internal_contract_path" '["bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
 done
+assert_closure_mapping "$closure_fixture" src/Bukit-Labs/Bukit.Labs.Cli/Commands/Theme/ThemeCommand.cs '["dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"]' true
+assert_closure_mapping "$closure_fixture" tests/Bukit.Labs.Cli.Tests/ThemeDoctorReportPrinterTests.cs '["dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"]' false
+assert_closure_mapping "$closure_fixture" tests/Bukit.Importing.Tests/ThemeGeneratorTests.cs '["dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj --filter FullyQualifiedName~ThemeGeneratorTests"]' false
+for relocation_contract_path in \
+  docs/governance/bukit-core-2.0-template-theme-relocation.md \
+  guide/dev/theme.md \
+  openspec/changes/relocate-template-theme/proposal.md \
+  openspec/changes/relocate-template-theme/design.md \
+  openspec/changes/relocate-template-theme/tasks.md \
+  openspec/changes/relocate-template-theme/specs/template-theme-relocation/spec.md; do
+  assert_closure_mapping "$closure_fixture" "$relocation_contract_path" '["bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
+done
 assert_closure_mapping "$closure_fixture" docs/superpowers/plans/2026-09-09-bukit-quality-remediation.md '["bash scripts/checks/codex-workflow-self-test.sh"]' false
 assert_closure_mapping "$closure_fixture" docs/superpowers/plans/2026-08-05-bukit-seo-geo-next-master.md '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
 for unmapped_remediation_path in .github/workflows/unplanned.yaml docs/governance/unplanned.md docs/superpowers/plans/unplanned.md; do

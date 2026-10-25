@@ -13,6 +13,7 @@ public class DependencyMatrixTests
     private static readonly Assembly RoutingAssembly = typeof(Bukit.Routing.RouteGenerator).Assembly;
     private static readonly Assembly ContentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
     private static readonly Assembly RenderingAssembly = typeof(Bukit.Rendering.SiteModel).Assembly;
+    private static readonly Assembly ThemeAssembly = typeof(Bukit.Theme.ThemeManifestV2).Assembly;
     private static readonly Assembly EngineAssembly = typeof(Bukit.Engine.SiteEngine).Assembly;
     private static readonly Assembly CliSharedAssembly = typeof(Bukit.Cli.Shared.ConfigPathResolver).Assembly;
     private static readonly Assembly CliAssembly = typeof(Bukit.Cli.BukitCliSpecs).Assembly;
@@ -114,7 +115,15 @@ public class DependencyMatrixTests
     {
         Types.InAssembly(CliAssembly)
             .ShouldNot()
-            .HaveDependencyOnAny(["Bukit.Content", "Bukit.Rendering", "Bukit.Routing"])
+            .HaveDependencyOnAny(["Bukit.Content", "Bukit.Routing"])
+            .GetResult()
+            .ShouldBeSuccessful();
+
+        Types.InAssembly(CliAssembly)
+            .That()
+            .DoNotHaveName("DoctorTemplateAnalyzer")
+            .ShouldNot()
+            .HaveDependencyOn("Bukit.Rendering")
             .GetResult()
             .ShouldBeSuccessful();
     }
@@ -207,6 +216,7 @@ public class DependencyMatrixTests
             "Bukit.Content->Bukit.Engine.Assets",
             "Bukit.Rendering->Bukit.Engine.Audit",
             "Bukit.Engine.Abstractions->Bukit.Content.Notion",
+            "Bukit.Engine.Abstractions->Bukit.Theme",
             "Bukit.Engine.Abstractions->Bukit.Content.Notion.Tests",
             "Bukit.Content->Bukit.Content.Notion.Tests",
             "Bukit.Engine->bukit",
@@ -223,7 +233,7 @@ public class DependencyMatrixTests
         Assembly[] allAssemblies =
         [
             SharedAssembly, ConfigAssembly, AbstractionsAssembly,
-            RoutingAssembly, ContentAssembly, RenderingAssembly,
+            RoutingAssembly, ContentAssembly, RenderingAssembly, ThemeAssembly,
             CliSharedAssembly, CliAssembly,
             .. EngineModuleAssemblies.All
         ];

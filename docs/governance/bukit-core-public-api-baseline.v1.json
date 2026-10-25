@@ -926,7 +926,6 @@
       "migrationHorizon": "2.0-review",
       "signature": "public static class Bukit.Config.ConfigValidator",
       "publicMembers": [
-        "public static System.Collections.Generic.List\u003CSystem.String!\u003E! ValidateThemeYaml(System.String! themeRoot)",
         "public static System.Void Validate(Bukit.Config.AppConfig! config)",
         "public static System.Void Validate(Bukit.Config.AppConfig! config, Bukit.Config.ConfigValidationOptions! options)"
       ],
@@ -2614,20 +2613,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.ITemplateRenderer",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public interface Bukit.Engine.ITemplateRenderer",
-      "publicMembers": [
-        "public abstract System.String! RenderList(System.String! templateRelativePath, Bukit.Rendering.ListPageModel! model)",
-        "public abstract System.String! RenderPage(System.String! templateRelativePath, Bukit.Rendering.PageModel! model)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.Incremental.BuildManifest",
       "owner": "Build engine",
       "classification": "persisted-internal-format",
@@ -2738,26 +2723,10 @@
       "migrationHorizon": "2.0-review",
       "signature": "public static class Bukit.Engine.RouteInventoryValidator",
       "publicMembers": [
-        "public static System.Threading.Tasks.Task\u003CSystem.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E!\u003E! BuildContentRoutesAsync(Bukit.Config.AppConfig! config, System.String! rootDir, System.Boolean isCi, Bukit.Shared.ILogger! logger, Bukit.Engine.ThemeTemplateResolver? templateResolver = null, System.Threading.CancellationToken cancellationToken = null)",
+        "public static System.Threading.Tasks.Task\u003CSystem.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E!\u003E! BuildContentRoutesAsync(Bukit.Config.AppConfig! config, System.String! rootDir, System.Boolean isCi, Bukit.Shared.ILogger! logger, Bukit.Theme.ThemeTemplateResolver? templateResolver = null, System.Threading.CancellationToken cancellationToken = null)",
         "public static System.ValueTuple\u003CBukit.Engine.Abstractions.Routing.RouteInfo!, System.String!\u003E GenerateRouteWithSource(Bukit.Engine.Abstractions.Content.ContentDocument! document, Bukit.Config.SiteConfig! site)",
         "public static System.Void ValidateContentRoutes(System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! routed, System.String! scope = \u0022content\u0022)",
         "public static System.Void ValidateFinalRoutes(System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! routed, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! derived, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E? specialRoutes = null, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E? staticHtmlRoutes = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.ScribanTemplateLinter",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.ScribanTemplateLinter",
-      "publicMembers": [
-        "public static System.Collections.Generic.List\u003CBukit.Engine.TemplateVariableWarning!\u003E! LintDirectory(System.String! layoutsDir, System.String! templateName)",
-        "public static System.Collections.Generic.List\u003CBukit.Engine.TemplateVariableWarning!\u003E! LintTemplate(Scriban.Template! template, System.String! templateRelativePath)",
-        "public static System.String? GetFieldPath(System.String! variableName, System.String? root)",
-        "public static System.String? GetRootContext(System.String! variableName)"
       ],
       "protectedMembers": []
     },
@@ -2773,8 +2742,8 @@
         "public .ctor(Bukit.Shared.ILogger! logger)",
         "public System.Threading.Tasks.Task! BuildAsync(Bukit.Content.IContentProvider! provider, Bukit.Engine.BuildOptions! options, System.Threading.CancellationToken cancellationToken = null)",
         "public System.Threading.Tasks.Task\u003CBukit.Engine.BuildResult!\u003E! BuildAsync(Bukit.Config.AppConfig! config, System.String! rootDir, Bukit.Config.ConfigOverrides! overrides, System.Threading.CancellationToken cancellationToken = null)",
-        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, Bukit.Engine.ThemeTemplateResolver? templateResolver = null)",
-        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! routedDocuments, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, System.String! outputPathEncoding, Bukit.Engine.ThemeTemplateResolver? templateResolver = null)"
+        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, Bukit.Theme.ThemeTemplateResolver? templateResolver = null)",
+        "public static System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Routing.RouteInfo!\u003E! GetListRoutes(System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! routedDocuments, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, System.String! outputPathEncoding, Bukit.Theme.ThemeTemplateResolver? templateResolver = null)"
       ],
       "protectedMembers": []
     },
@@ -2928,117 +2897,6 @@
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
         "public virtual final System.Boolean Equals(Bukit.Engine.TemplateCapabilitiesResolver.TemplateFieldDeclaration? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.TemplateRendererBase",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public abstract class Bukit.Engine.TemplateRendererBase : Bukit.Engine.ITemplateRenderer~",
-      "publicMembers": [
-        "public abstract System.String! RenderList(System.String! templateRelativePath, Bukit.Rendering.ListPageModel! model)",
-        "public abstract System.String! RenderPage(System.String! templateRelativePath, Bukit.Rendering.PageModel! model)"
-      ],
-      "protectedMembers": [
-        "protected .ctor(System.String! layoutsDir, System.String? parentLayoutsDir = null, System.String? userLayoutsDir = null, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? shortcodes = null)",
-        "protected System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? Shortcodes { get; }",
-        "protected System.String! LayoutsDir { get; }",
-        "protected System.String! RenderWithLayout(System.String! templateRelativePath, System.Object! modelData, System.Int32 depth = 0)",
-        "protected System.String? ParentLayoutsDir { get; }",
-        "protected System.String? UserLayoutsDir { get; }",
-        "protected abstract System.Object! ParseTemplateText(System.String! templateText, System.String! templatePath, System.String! templateRelativePath)",
-        "protected abstract System.String! RenderTemplateCore(System.Object! parsedTemplate, System.String! templateRelativePath, System.Object! modelData)",
-        "protected abstract System.String! ResolveTemplatePath(System.String! templateRelativePath)",
-        "protected abstract System.Void SetContent(System.Object! modelData, System.String! content)",
-        "protected virtual System.ValueTuple\u003CSystem.String!, System.String?\u003E ExtractLayoutDirective(System.String! templateText)"
-      ]
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.TemplateVariableWarning",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.TemplateVariableWarning : System.IEquatable\u003CBukit.Engine.TemplateVariableWarning~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.String! Variable, System.String! Template, System.String! Message)",
-        "public Bukit.Engine.TemplateVariableWarning! \u003CClone\u003E$()",
-        "public System.String! Message { get; init; }",
-        "public System.String! Template { get; init; }",
-        "public System.String! Variable { get; init; }",
-        "public System.Void Deconstruct(out System.String! Variable, out System.String! Template, out System.String! Message)",
-        "public static System.Boolean op_Equality(Bukit.Engine.TemplateVariableWarning? left, Bukit.Engine.TemplateVariableWarning? right)",
-        "public static System.Boolean op_Inequality(Bukit.Engine.TemplateVariableWarning? left, Bukit.Engine.TemplateVariableWarning? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Engine.TemplateVariableWarning? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.ThemeBootstrapResult",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.ThemeBootstrapResult : System.IEquatable\u003CBukit.Engine.ThemeBootstrapResult~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.String? ThemeName, System.String? ThemeRoot, System.String? ParentThemeRoot, Bukit.Theme.ThemeManifestV2? Manifest, Bukit.Theme.ThemeComponentRegistry? Registry, Bukit.Theme.SectionSchemaValidator? SchemaValidator)",
-        "public Bukit.Engine.ThemeBootstrapResult! \u003CClone\u003E$()",
-        "public Bukit.Theme.SectionSchemaValidator? SchemaValidator { get; init; }",
-        "public Bukit.Theme.ThemeComponentRegistry? Registry { get; init; }",
-        "public Bukit.Theme.ThemeManifestV2? Manifest { get; init; }",
-        "public System.String? ParentThemeRoot { get; init; }",
-        "public System.String? ThemeName { get; init; }",
-        "public System.String? ThemeRoot { get; init; }",
-        "public System.Void Deconstruct(out System.String? ThemeName, out System.String? ThemeRoot, out System.String? ParentThemeRoot, out Bukit.Theme.ThemeManifestV2? Manifest, out Bukit.Theme.ThemeComponentRegistry? Registry, out Bukit.Theme.SectionSchemaValidator? SchemaValidator)",
-        "public static System.Boolean op_Equality(Bukit.Engine.ThemeBootstrapResult? left, Bukit.Engine.ThemeBootstrapResult? right)",
-        "public static System.Boolean op_Inequality(Bukit.Engine.ThemeBootstrapResult? left, Bukit.Engine.ThemeBootstrapResult? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Engine.ThemeBootstrapResult? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.ThemeBootstrapper",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.ThemeBootstrapper",
-      "publicMembers": [
-        "public static Bukit.Engine.ThemeBootstrapResult! Bootstrap(Bukit.Config.AppConfig! config, System.String! rootDir, Bukit.Shared.ILogger! log)",
-        "public static Bukit.Engine.ThemeBootstrapResult! BootstrapRequired(Bukit.Config.AppConfig! config, System.String! rootDir, Bukit.Shared.ILogger! log)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.ThemeTemplateResolver",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.ThemeTemplateResolver",
-      "publicMembers": [
-        "public .ctor(Bukit.Theme.ThemeManifestV2? manifest)",
-        "public System.Boolean TryResolveKindTemplate(System.String! kind, out System.String! template)",
-        "public System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Theme.ThemeTemplateDefinition!\u003E! DeclaredTemplates { get; }",
-        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! GetRequiredTemplatePaths()",
-        "public System.String! ResolveContentTemplate(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String? kind = null)",
-        "public System.String! ResolveHomeTemplate()",
-        "public System.String! ResolveKindTemplate(System.String! kind)",
-        "public System.Void ValidateRequiredTemplates()"
       ],
       "protectedMembers": []
     },
@@ -6977,6 +6835,20 @@
     },
     {
       "assembly": "Bukit.Rendering",
+      "name": "Bukit.Rendering.ITemplateRenderer",
+      "owner": "Rendering and theme model",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public interface Bukit.Rendering.ITemplateRenderer",
+      "publicMembers": [
+        "public abstract System.String! RenderList(System.String! templateRelativePath, Bukit.Rendering.ListPageModel! model)",
+        "public abstract System.String! RenderPage(System.String! templateRelativePath, Bukit.Rendering.PageModel! model)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Rendering",
       "name": "Bukit.Rendering.ListCollectionModel",
       "owner": "Rendering and theme model",
       "classification": "serialized-contract",
@@ -7189,6 +7061,22 @@
     },
     {
       "assembly": "Bukit.Rendering",
+      "name": "Bukit.Rendering.Scriban.ScribanTemplateLinter",
+      "owner": "Rendering and theme model",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Rendering.Scriban.ScribanTemplateLinter",
+      "publicMembers": [
+        "public static System.Collections.Generic.List\u003CBukit.Rendering.Scriban.TemplateVariableWarning!\u003E! LintDirectory(System.String! layoutsDir, System.String! templateName)",
+        "public static System.Collections.Generic.List\u003CBukit.Rendering.Scriban.TemplateVariableWarning!\u003E! LintTemplate(Scriban.Template! template, System.String! templateRelativePath)",
+        "public static System.String? GetFieldPath(System.String! variableName, System.String? root)",
+        "public static System.String? GetRootContext(System.String! variableName)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Rendering",
       "name": "Bukit.Rendering.Scriban.ScribanTemplateRenderer",
       "owner": "Rendering and theme model",
       "classification": "cross-assembly-implementation",
@@ -7214,6 +7102,30 @@
       "publicMembers": [
         "public .ctor()",
         "public System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.ContentDocument!\u003E? ResolveData(Bukit.Theme.PageSectionDefinition! sectionDef)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Rendering",
+      "name": "Bukit.Rendering.Scriban.TemplateVariableWarning",
+      "owner": "Rendering and theme model",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Rendering.Scriban.TemplateVariableWarning : System.IEquatable\u003CBukit.Rendering.Scriban.TemplateVariableWarning~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Variable, System.String! Template, System.String! Message)",
+        "public Bukit.Rendering.Scriban.TemplateVariableWarning! \u003CClone\u003E$()",
+        "public System.String! Message { get; init; }",
+        "public System.String! Template { get; init; }",
+        "public System.String! Variable { get; init; }",
+        "public System.Void Deconstruct(out System.String! Variable, out System.String! Template, out System.String! Message)",
+        "public static System.Boolean op_Equality(Bukit.Rendering.Scriban.TemplateVariableWarning? left, Bukit.Rendering.Scriban.TemplateVariableWarning? right)",
+        "public static System.Boolean op_Inequality(Bukit.Rendering.Scriban.TemplateVariableWarning? left, Bukit.Rendering.Scriban.TemplateVariableWarning? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Rendering.Scriban.TemplateVariableWarning? other)"
       ],
       "protectedMembers": []
     },
@@ -7760,37 +7672,6 @@
     },
     {
       "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.ScribanLayoutDirectiveParser",
-      "owner": "Shared foundation",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Shared.ScribanLayoutDirectiveParser",
-      "publicMembers": [
-        "public static System.Boolean TryExtractLayoutDirective(System.String! templateText, out System.String! layoutTemplateRelativePath, out System.String! bodyTemplateText)",
-        "public static System.Boolean TryExtractQuotedString(System.String! text, out System.String! value)",
-        "public static System.Boolean TryParseDirective(System.String! open, System.String! close, System.String! line, out System.String! inner)",
-        "public static System.Boolean TryParseLayoutLine(System.String! line, out System.String! layoutTemplateRelativePath)",
-        "public static System.String! NormalizePath(System.String! templateRelativePath)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Shared",
-      "name": "Bukit.Shared.ShortcodeProcessor",
-      "owner": "Shared foundation",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Shared.ShortcodeProcessor",
-      "publicMembers": [
-        "public static System.String! RenderShortcode(System.String! name, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? shortcodeTemplates, System.String![]! positionalArgs)",
-        "public static System.String! RenderShortcodes(System.String! html, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, System.String!\u003E? shortcodeTemplates)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Shared",
       "name": "Bukit.Shared.SlugHelper",
       "owner": "Shared foundation",
       "classification": "cross-assembly-implementation",
@@ -7998,6 +7879,47 @@
     },
     {
       "assembly": "Bukit.Theme",
+      "name": "Bukit.Theme.ThemeBootstrapResult",
+      "owner": "Theme runtime",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Theme.ThemeBootstrapResult : System.IEquatable\u003CBukit.Theme.ThemeBootstrapResult~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String? ThemeName, System.String? ThemeRoot, System.String? ParentThemeRoot, Bukit.Theme.ThemeManifestV2? Manifest, Bukit.Theme.ThemeComponentRegistry? Registry, Bukit.Theme.SectionSchemaValidator? SchemaValidator)",
+        "public Bukit.Theme.SectionSchemaValidator? SchemaValidator { get; init; }",
+        "public Bukit.Theme.ThemeBootstrapResult! \u003CClone\u003E$()",
+        "public Bukit.Theme.ThemeComponentRegistry? Registry { get; init; }",
+        "public Bukit.Theme.ThemeManifestV2? Manifest { get; init; }",
+        "public System.String? ParentThemeRoot { get; init; }",
+        "public System.String? ThemeName { get; init; }",
+        "public System.String? ThemeRoot { get; init; }",
+        "public System.Void Deconstruct(out System.String? ThemeName, out System.String? ThemeRoot, out System.String? ParentThemeRoot, out Bukit.Theme.ThemeManifestV2? Manifest, out Bukit.Theme.ThemeComponentRegistry? Registry, out Bukit.Theme.SectionSchemaValidator? SchemaValidator)",
+        "public static System.Boolean op_Equality(Bukit.Theme.ThemeBootstrapResult? left, Bukit.Theme.ThemeBootstrapResult? right)",
+        "public static System.Boolean op_Inequality(Bukit.Theme.ThemeBootstrapResult? left, Bukit.Theme.ThemeBootstrapResult? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Theme.ThemeBootstrapResult? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Theme",
+      "name": "Bukit.Theme.ThemeBootstrapper",
+      "owner": "Theme runtime",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Theme.ThemeBootstrapper",
+      "publicMembers": [
+        "public static Bukit.Theme.ThemeBootstrapResult! Bootstrap(Bukit.Config.AppConfig! config, System.String! rootDir, Bukit.Shared.ILogger! log)",
+        "public static Bukit.Theme.ThemeBootstrapResult! BootstrapRequired(Bukit.Config.AppConfig! config, System.String! rootDir, Bukit.Shared.ILogger! log)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Theme",
       "name": "Bukit.Theme.ThemeCapabilities",
       "owner": "Theme runtime",
       "classification": "serialized-contract",
@@ -8142,39 +8064,38 @@
     },
     {
       "assembly": "Bukit.Theme",
-      "name": "Bukit.Theme.ThemeDoctorCommand",
+      "name": "Bukit.Theme.ThemeDoctor",
       "owner": "Theme runtime",
       "classification": "cross-assembly-implementation",
       "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Theme.ThemeDoctorCommand",
+      "signature": "public static class Bukit.Theme.ThemeDoctor",
       "publicMembers": [
-        "public static Bukit.Theme.ThemeDoctorCommand.DoctorResult! Diagnose(System.String! themeRoot, Bukit.Theme.ThemeManifestV2! manifest, Bukit.Theme.ThemeComponentRegistry! registry)",
-        "public static System.Void PrintReport(Bukit.Theme.ThemeDoctorCommand.DoctorResult! result)"
+        "public static Bukit.Theme.ThemeDoctor.DoctorResult! Diagnose(System.String! themeRoot, Bukit.Theme.ThemeManifestV2! manifest, Bukit.Theme.ThemeComponentRegistry! registry)"
       ],
       "protectedMembers": []
     },
     {
       "assembly": "Bukit.Theme",
-      "name": "Bukit.Theme.ThemeDoctorCommand\u002BDoctorResult",
+      "name": "Bukit.Theme.ThemeDoctor\u002BDoctorResult",
       "owner": "Theme runtime",
       "classification": "cross-assembly-implementation",
       "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Theme.ThemeDoctorCommand.DoctorResult : System.IEquatable\u003CBukit.Theme.ThemeDoctorCommand.DoctorResult~\u003E~",
+      "signature": "public sealed class Bukit.Theme.ThemeDoctor.DoctorResult : System.IEquatable\u003CBukit.Theme.ThemeDoctor.DoctorResult~\u003E~",
       "publicMembers": [
         "public .ctor(System.Boolean HasErrors, System.Boolean HasWarnings, System.Collections.Generic.List\u003CSystem.String!\u003E! Issues)",
-        "public Bukit.Theme.ThemeDoctorCommand.DoctorResult! \u003CClone\u003E$()",
+        "public Bukit.Theme.ThemeDoctor.DoctorResult! \u003CClone\u003E$()",
         "public System.Boolean HasErrors { get; init; }",
         "public System.Boolean HasWarnings { get; init; }",
         "public System.Collections.Generic.List\u003CSystem.String!\u003E! Issues { get; init; }",
         "public System.Void Deconstruct(out System.Boolean HasErrors, out System.Boolean HasWarnings, out System.Collections.Generic.List\u003CSystem.String!\u003E! Issues)",
-        "public static System.Boolean op_Equality(Bukit.Theme.ThemeDoctorCommand.DoctorResult? left, Bukit.Theme.ThemeDoctorCommand.DoctorResult? right)",
-        "public static System.Boolean op_Inequality(Bukit.Theme.ThemeDoctorCommand.DoctorResult? left, Bukit.Theme.ThemeDoctorCommand.DoctorResult? right)",
+        "public static System.Boolean op_Equality(Bukit.Theme.ThemeDoctor.DoctorResult? left, Bukit.Theme.ThemeDoctor.DoctorResult? right)",
+        "public static System.Boolean op_Inequality(Bukit.Theme.ThemeDoctor.DoctorResult? left, Bukit.Theme.ThemeDoctor.DoctorResult? right)",
         "public virtual System.Boolean Equals(System.Object? obj)",
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Theme.ThemeDoctorCommand.DoctorResult? other)"
+        "public virtual final System.Boolean Equals(Bukit.Theme.ThemeDoctor.DoctorResult? other)"
       ],
       "protectedMembers": []
     },
@@ -8247,6 +8168,19 @@
         "public virtual YamlDotNet.Serialization.ITypeInspector~ GetTypeInspector()",
         "public virtual YamlDotNet.Serialization.ITypeResolver~ GetTypeResolver()",
         "public virtual YamlDotNet.Serialization.ObjectFactories.StaticObjectFactory~ GetFactory()"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Theme",
+      "name": "Bukit.Theme.ThemeManifestYamlValidator",
+      "owner": "Theme runtime",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Theme.ThemeManifestYamlValidator",
+      "publicMembers": [
+        "public static System.Collections.Generic.List\u003CSystem.String!\u003E! Validate(System.String! themeRoot)"
       ],
       "protectedMembers": []
     },
@@ -8333,6 +8267,26 @@
         "public System.Collections.Generic.List\u003CSystem.String!\u003E? RequiredFields { get; set; }",
         "public System.String! Template { get; set; }",
         "public System.String? Label { get; set; }"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Theme",
+      "name": "Bukit.Theme.ThemeTemplateResolver",
+      "owner": "Theme runtime",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Theme.ThemeTemplateResolver",
+      "publicMembers": [
+        "public .ctor(Bukit.Theme.ThemeManifestV2? manifest)",
+        "public System.Boolean TryResolveKindTemplate(System.String! kind, out System.String! template)",
+        "public System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Theme.ThemeTemplateDefinition!\u003E! DeclaredTemplates { get; }",
+        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E! GetRequiredTemplatePaths()",
+        "public System.String! ResolveContentTemplate(Bukit.Engine.Abstractions.Content.ContentDocument! document, System.String? kind = null)",
+        "public System.String! ResolveHomeTemplate()",
+        "public System.String! ResolveKindTemplate(System.String! kind)",
+        "public System.Void ValidateRequiredTemplates()"
       ],
       "protectedMembers": []
     },

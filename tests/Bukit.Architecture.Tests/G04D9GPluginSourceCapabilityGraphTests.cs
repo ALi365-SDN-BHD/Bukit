@@ -79,7 +79,7 @@ public sealed class G04D9GPluginSourceCapabilityGraphTests
         JsonElement[] types = current.RootElement.GetProperty("types")
             .EnumerateArray()
             .ToArray();
-        Assert.Equal(428, types.Length);
+        Assert.Equal(PublicApiBaselineFacts.GovernedTypeCount, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));

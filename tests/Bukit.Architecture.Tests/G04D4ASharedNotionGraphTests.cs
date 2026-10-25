@@ -187,7 +187,7 @@ public sealed class G04D4ASharedNotionGraphTests
     }
 
     [Fact]
-    public void FinalBaseline_RecordsFourteenAssemblies428TypesAndNoSharedLegacyNotionEntries()
+    public void FinalBaseline_RecordsFourteenAssemblies426TypesAndNoSharedLegacyNotionEntries()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -197,7 +197,7 @@ public sealed class G04D4ASharedNotionGraphTests
         JsonElement[] types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(428, types.Length);
+        Assert.Equal(PublicApiBaselineFacts.GovernedTypeCount, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));

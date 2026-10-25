@@ -111,13 +111,13 @@ public sealed class G04D9BContentStageContractGraphTests
         [
             typeof(ContentValidationIssue),
             typeof(IContentProviderFactory),
-            typeof(ITemplateRenderer),
             typeof(ContentStageInput),
             typeof(ContentStageOutput),
-            typeof(IContentStage),
-            typeof(TemplateRendererBase)
+            typeof(IContentStage)
         ];
         Assert.All(retained, type => Assert.Contains(type, exported));
+        Assert.Contains(typeof(ITemplateRenderer), typeof(SiteModel).Assembly.GetExportedTypes());
+        Assert.Null(assembly.GetType("Bukit.Engine.TemplateRendererBase"));
 
         ConstructorInfo[] constructors = typeof(ContentPipeline)
             .GetConstructors(
@@ -222,49 +222,12 @@ public sealed class G04D9BContentStageContractGraphTests
     }
 
     [Fact]
-    public void RendererExtensionSeam_RemainsPublicAbstractWithProtectedHooks()
+    public void RendererInterface_RemainsPublicInRenderingWithoutUnusedBase()
     {
-        Type renderer = typeof(TemplateRendererBase);
-
-        Assert.True(renderer.IsPublic);
-        Assert.True(renderer.IsAbstract);
-        Assert.Contains(typeof(ITemplateRenderer), renderer.GetInterfaces());
-
-        ConstructorInfo constructor = Assert.Single(
-            renderer.GetConstructors(
-                BindingFlags.NonPublic |
-                BindingFlags.Instance |
-                BindingFlags.DeclaredOnly));
-        Assert.True(constructor.IsFamily);
-        Assert.Equal(
-            [
-                typeof(string),
-                typeof(string),
-                typeof(string),
-                typeof(IReadOnlyDictionary<string, string>)
-            ],
-            constructor.GetParameters()
-                .Select(parameter => parameter.ParameterType)
-                .ToArray());
-
-        string[] protectedMethods = renderer.GetMethods(
-                BindingFlags.NonPublic |
-                BindingFlags.Instance |
-                BindingFlags.DeclaredOnly)
-            .Where(method => method.IsFamily && !method.IsSpecialName)
-            .Select(method => method.Name)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToArray();
-        Assert.Equal(
-            [
-                "ExtractLayoutDirective",
-                "ParseTemplateText",
-                "RenderTemplateCore",
-                "RenderWithLayout",
-                "ResolveTemplatePath",
-                "SetContent"
-            ],
-            protectedMethods);
+        Assert.True(typeof(ITemplateRenderer).IsPublic);
+        Assert.True(typeof(ITemplateRenderer).IsInterface);
+        Assert.Equal(typeof(SiteModel).Assembly, typeof(ITemplateRenderer).Assembly);
+        Assert.Null(typeof(ContentPipeline).Assembly.GetType("Bukit.Engine.TemplateRendererBase"));
 
         Assert.Equal(
             ["RenderList", "RenderPage"],
@@ -275,7 +238,7 @@ public sealed class G04D9BContentStageContractGraphTests
     }
 
     [Fact]
-    public void CurrentBaseline_RemovesTwoValidatorsAndRetainsSevenContracts()
+    public void CurrentBaseline_RemovesValidatorsAndUnusedBaseAndRetainsSixContracts()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -287,7 +250,7 @@ public sealed class G04D9BContentStageContractGraphTests
             .ToArray();
 
         Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(428, types.Length);
+        Assert.Equal(PublicApiBaselineFacts.GovernedTypeCount, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
@@ -303,11 +266,10 @@ public sealed class G04D9BContentStageContractGraphTests
         [
             "Bukit.Engine.ContentValidationIssue",
             "Bukit.Engine.IContentProviderFactory",
-            "Bukit.Engine.ITemplateRenderer",
+            "Bukit.Rendering.ITemplateRenderer",
             "Bukit.Engine.Stages.ContentStageInput",
             "Bukit.Engine.Stages.ContentStageOutput",
-            "Bukit.Engine.Stages.IContentStage",
-            "Bukit.Engine.TemplateRendererBase"
+            "Bukit.Engine.Stages.IContentStage"
         ];
         foreach (string typeName in retainedNames)
         {

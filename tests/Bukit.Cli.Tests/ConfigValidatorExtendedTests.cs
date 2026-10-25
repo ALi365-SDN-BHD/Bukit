@@ -1,3 +1,4 @@
+using Bukit.Theme;
 using Bukit.Config;
 using Bukit.Shared;
 using Xunit;
@@ -145,7 +146,7 @@ public sealed class ConfigValidatorExtendedTests
     public void ValidateThemeYaml_NoFile_ReturnsIssues()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        var result = ConfigValidator.ValidateThemeYaml(tempDir);
+        var result = ThemeManifestYamlValidator.Validate(tempDir);
         Assert.NotEmpty(result);
         var issue = Assert.Single(result);
         Assert.Equal("BKT-0100: theme.yaml not found. Bukit Core 1.0 requires a theme.yaml manifest under the active theme root.", issue);
@@ -167,7 +168,7 @@ engine: bukit
 description: A test
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Empty(result!);
         }
@@ -185,7 +186,7 @@ description: A test
 version: 1.0.0
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("name"));
         }
@@ -204,7 +205,7 @@ name: test
 version: not-a-version
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("version"));
         }
@@ -225,7 +226,7 @@ engine: bukit
 requires_bukit: ^2.0.0
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("requires_bukit"));
             Assert.Contains(result!, w => w.Contains("unknown field"));
@@ -250,7 +251,7 @@ sections:
     unknown: should-fail
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("theme.yaml.sections.hero"));
             Assert.Contains(result!, w => w.Contains("unknown field"));
@@ -275,7 +276,7 @@ components:
     bad: value
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("theme.yaml.components.card"));
             Assert.Contains(result!, w => w.Contains("unknown field"));
@@ -299,7 +300,7 @@ sections:
     template: ../../malicious.html
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("has path traversal") || w.Contains("outside theme scope"));
         }
@@ -320,7 +321,7 @@ engine: bukit
 extends: ../invalid
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("extends") && w.Contains("invalid"));
         }
@@ -342,7 +343,7 @@ extends:
   - parent
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("theme.yaml.extends") && w.Contains("must be a string"));
         }
@@ -363,7 +364,7 @@ engine: bukit
 extends: parent
 """);
 
-            var result = ConfigValidator.ValidateThemeYaml(tempDir);
+            var result = ThemeManifestYamlValidator.Validate(tempDir);
             Assert.NotNull(result);
             Assert.Contains(result!, w => w.Contains("not found") || w.Contains("parent theme"));
         }

@@ -13,6 +13,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Bukit.Engine" />
     <InternalsVisibleTo Include="Bukit.Rendering" />
+    <InternalsVisibleTo Include="Bukit.Theme" />
     <InternalsVisibleTo Include="Bukit.Content.Notion" />
     <InternalsVisibleTo Include="Bukit.Engine.Abstractions.Tests" />
     <InternalsVisibleTo Include="Bukit.Engine.Tests" />

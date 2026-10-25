@@ -10,6 +10,26 @@ decision records below describe their recorded snapshots, not the current count.
 References to a 425-type baseline are historical. Current verification status is
 recorded in the [approved quality-remediation plan](../superpowers/plans/2026-09-09-bukit-quality-remediation.md).
 
+## Later independent template / Theme migration
+
+The [approved template/Theme relocation](bukit-core-2.0-template-theme-relocation.md)
+records current CLR ownership and breaking consumer actions. The direct compiled
+snapshot/check measures 428 → 426 types in the same 19 assemblies.
+Private, unindexed, binary-only and reflection consumers remain unknown; old
+identities require migration and recompilation, without facades or forwarding.
+
+The historical G-04D8B retention reason below describes `ThemeDoctorCommand` and
+its former public printing graph. This later approved change supersedes those
+requirements: current diagnosis is `ThemeDoctor.Diagnose`, returning the public
+nested `ThemeDoctor.DoctorResult`; presentation is internal to Labs CLI. The
+record/list shape remains. Likewise, the later relocation supersedes G-04D9B's
+interface/base location and inheritance retention: `ITemplateRenderer` now belongs
+to Rendering and `TemplateRendererBase`, including its protected surface, is
+deleted. Other retained contracts are unchanged. G-04D9H's warning and linter
+move to Rendering.Scriban, not its other list/template companions. The closed
+candidate cohort, old full names, reports and original decision counts remain
+historical evidence, not current API inventory or proof of this migration's tests.
+
 Status: `closed`
 
 Target: `2.0.0`

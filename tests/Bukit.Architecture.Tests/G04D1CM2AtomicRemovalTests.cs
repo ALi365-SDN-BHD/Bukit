@@ -114,7 +114,7 @@ public sealed class G04D1CM2AtomicRemovalTests
     }
 
     [Fact]
-    public void CurrentBaseline_ContainsFourteenAssemblies428TypesAnd0Candidates()
+    public void CurrentBaseline_ContainsFourteenAssemblies426TypesAnd0Candidates()
     {
         using var document = ReadJson(
             "docs",
@@ -125,7 +125,7 @@ public sealed class G04D1CM2AtomicRemovalTests
 
         Assert.Equal("bukit-core-public-api-baseline-v1", root.GetProperty("schema").GetString());
         Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(428, types.Length);
+        Assert.Equal(PublicApiBaselineFacts.GovernedTypeCount, types.Length);
         Assert.Equal(0, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));
         Assert.All(RemovedLegacyTypes, removed => Assert.DoesNotContain(types, type =>

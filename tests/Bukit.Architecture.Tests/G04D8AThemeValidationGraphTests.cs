@@ -127,7 +127,7 @@ public sealed class G04D8AThemeValidationGraphTests
     }
 
     [Fact]
-    public void ThemeFriendBoundary_RemainsEmpty()
+    public void ThemeFriendBoundary_ContainsOnlyEngineAndOwnerTests()
     {
         string[] friends = typeof(SectionSchemaValidator)
             .Assembly
@@ -136,7 +136,7 @@ public sealed class G04D8AThemeValidationGraphTests
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Empty(friends);
+        Assert.Equal(["Bukit.Engine", "Bukit.Theme.Tests"], friends);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class G04D8AThemeValidationGraphTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsRetainedErrorAnd428Types0Candidates()
+    public void CurrentBaseline_RecordsRetainedErrorAnd426Types0Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -177,7 +177,7 @@ public sealed class G04D8AThemeValidationGraphTests
             .ToArray();
 
         Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(428, types.Length);
+        Assert.Equal(PublicApiBaselineFacts.GovernedTypeCount, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));

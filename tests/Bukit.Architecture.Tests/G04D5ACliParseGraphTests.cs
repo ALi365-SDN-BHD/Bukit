@@ -189,7 +189,7 @@ public sealed class G04D5ACliParseGraphTests
     }
 
     [Fact]
-    public void CurrentBaseline_RecordsFourteenAssemblies428TypesAnd0Candidates()
+    public void CurrentBaseline_RecordsFourteenAssemblies426TypesAnd0Candidates()
     {
         using JsonDocument current = ReadJson(
             "docs",
@@ -199,7 +199,7 @@ public sealed class G04D5ACliParseGraphTests
         JsonElement[] types = root.GetProperty("types").EnumerateArray().ToArray();
 
         Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
-        Assert.Equal(428, types.Length);
+        Assert.Equal(PublicApiBaselineFacts.GovernedTypeCount, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));

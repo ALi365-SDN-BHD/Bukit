@@ -15,6 +15,29 @@ decision records below describe their recorded snapshots, not the current count.
 References to a 425-type baseline are historical. Current verification status is
 recorded in the [approved quality-remediation plan](../../docs/superpowers/plans/2026-09-09-bukit-quality-remediation.md).
 
+### Later independent template / Theme migration
+
+The [approved template/Theme relocation](../../docs/governance/bukit-core-2.0-template-theme-relocation.md)
+records later breaking CLR changes and current ownership. The direct compiled
+snapshot/check measures 428 → 426 types in the same 19 assemblies.
+Private consumers remain unknown and old binaries/namespaces require migration
+and recompilation; internalized helpers and removed printing/base hooks have no
+drop-in public replacement. This is not additive logger work or a new SDK.
+
+The historical G-04D8B decision below retains the old `ThemeDoctorCommand` result
+and explains its old public printing graph. This later approval supersedes that
+identity/printing requirement: `ThemeDoctor.Diagnose` returns nested public
+`ThemeDoctor.DoctorResult`, and internal Labs CLI presentation retains output.
+The record/list shape is unchanged. The historical G-04D9B base/interface decision
+is superseded only by moving `ITemplateRenderer` to Rendering and deleting
+`TemplateRendererBase`, including protected hooks. G-04D9H's warning and linter
+move to Rendering.Scriban; its other companions remain. Historical reports and
+the closed candidate manifest are not rewritten by these later decisions.
+
+For this bounded migration, build only affected projects and invoke the API tool
+directly against the 19 built governed assemblies. The generic wrapper workflow
+below builds the solution and is not authorized by this task; neither is `ci-fast`.
+
 C# `public` is CLR visibility, not an automatic supported SDK promise.
 
 Bukit's supported external surfaces are CLI behavior, configuration and theme

@@ -1,6 +1,65 @@
 {
   "pathRules": [
     {
+      "id": "bukit-labs-cli-source",
+      "matches": [
+        "src/Bukit-Labs/Bukit.Labs.Cli/*.cs",
+        "src/Bukit-Labs/Bukit.Labs.Cli/**/*.cs",
+        "src/Bukit-Labs/Bukit.Labs.Cli/Bukit.Labs.Cli.csproj"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "contractConsumerGlobs": [
+        "tests/Bukit.Labs.Cli.Tests/*.cs",
+        "tests/Bukit.Labs.Cli.Tests/**/*.cs"
+      ]
+    },
+    {
+      "id": "bukit-labs-cli-tests",
+      "matches": [
+        "tests/Bukit.Labs.Cli.Tests/*.cs",
+        "tests/Bukit.Labs.Cli.Tests/**/*.cs",
+        "tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "contractConsumerGlobs": []
+    },
+    {
+      "id": "bukit-importing-theme-tests",
+      "matches": [
+        "tests/Bukit.Importing.Tests/ThemeGeneratorTests.cs"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj --filter FullyQualifiedName~ThemeGeneratorTests"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "contractConsumerGlobs": []
+    },
+    {
+      "id": "template-theme-migration-contract",
+      "matches": [
+        "docs/governance/bukit-core-2.0-template-theme-relocation.md",
+        "guide/dev/theme.md",
+        "openspec/changes/relocate-template-theme/*.md",
+        "openspec/changes/relocate-template-theme/specs/template-theme-relocation/spec.md"
+      ],
+      "specialtyTests": [
+        "bash scripts/checks/public-api-drift-self-test.sh",
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "contractConsumerGlobs": []
+    },
+    {
       "contractConsumerGlobs": [],
       "id": "codex-workflow",
       "matches": [

@@ -442,8 +442,8 @@ public static class ThemeCommand
         }
 
         var registry = new ThemeComponentRegistry(themeRoot, manifest, parentRegistry);
-        var result = ThemeDoctorCommand.Diagnose(themeRoot, manifest, registry);
-        ThemeDoctorCommand.PrintReport(result);
+        var result = ThemeDoctor.Diagnose(themeRoot, manifest, registry);
+        ThemeDoctorReportPrinter.Print(result);
         return Task.FromResult(0);
     }
 

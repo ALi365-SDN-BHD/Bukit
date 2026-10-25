@@ -1,3 +1,4 @@
+using Bukit.Theme;
 using System.Text.RegularExpressions;
 using Bukit.Config;
 using Bukit.Engine;
@@ -137,7 +138,7 @@ internal static class DoctorTemplateAnalyzer
 
     internal static void CheckTemplateVariables(string layoutsDir)
     {
-        var warnings = Bukit.Engine.ScribanTemplateLinter.LintDirectory(layoutsDir, "");
+        var warnings = Bukit.Rendering.Scriban.ScribanTemplateLinter.LintDirectory(layoutsDir, "");
 
         if (warnings.Count == 0)
         {

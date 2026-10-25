@@ -1,3 +1,4 @@
+using Bukit.Theme;
 using Bukit.Cli.Shared;
 using System.Text.Json;
 using Scriban;
@@ -204,7 +205,7 @@ public static class DoctorCommand
         var themeRoot = Path.Combine(rootDir, "themes", config.Theme.Name ?? "starter");
         if (Directory.Exists(themeRoot))
         {
-            var yamlIssues = ConfigValidator.ValidateThemeYaml(themeRoot);
+            var yamlIssues = ThemeManifestYamlValidator.Validate(themeRoot);
             if (yamlIssues.Count > 0)
             {
                 Console.WriteLine("✖ theme.yaml issues (1.0 requires a valid theme.yaml manifest):");

@@ -1,3 +1,4 @@
+using Bukit.Theme;
 using System.Diagnostics;
 using Bukit.Config;
 using Bukit.Shared;
@@ -53,7 +54,7 @@ internal static class BuildPlanner
             return;
         }
 
-        var issues = ConfigValidator.ValidateThemeYaml(resolved.ThemeRoot);
+        var issues = ThemeManifestYamlValidator.Validate(resolved.ThemeRoot);
         if (issues.Count > 0)
         {
             throw new ConfigException(

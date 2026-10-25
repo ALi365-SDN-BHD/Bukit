@@ -8,13 +8,22 @@ files.
 
 | File | Role |
 |---|---|
-| `ThemePathResolver` | Resolves layouts, assets, static, parent, and user layout paths. |
-| `ThemeBootstrapper` | Loads theme manifest and runtime helpers. |
+| `Bukit.Theme.ThemePathResolver` (internal) | Resolves layouts, assets, static, parent, and user layout paths with lexical root-boundary validation. |
+| `Bukit.Theme.ThemeBootstrapper` | Loads theme manifest and runtime helpers. |
+| `Bukit.Theme.ThemeTemplateResolver` | Selects declared content/home/kind templates. |
 | `ThemeManifestLoader` | Reads `theme.yaml`. |
-| `ThemeManifestStrictValidator` | Rejects invalid theme manifest fields and paths. |
+| `Bukit.Theme.ThemeManifestYamlValidator.Validate` | Public theme.yaml validation entry, returning manifest diagnostics. |
+| `Bukit.Theme.ThemeManifestStrictValidator` (internal partials) | Rejects invalid theme manifest fields and paths. |
+| `Bukit.Theme.ThemeDoctor.Diagnose` | Returns ordered diagnosis issues; internal Labs CLI `ThemeDoctorReportPrinter` owns console reporting. |
 | `ThemeComponentRegistry` | Loads component definitions. |
 | `SectionSchemaValidator` | Validates section data. |
 | `ThemeTokensProcessor` | Converts tokens into CSS variables. |
+
+Template helpers and linting belong to `Bukit.Rendering.Scriban`; the public
+renderer interface is `Bukit.Rendering.ITemplateRenderer`. See the
+[2.0 migration map](../../docs/governance/bukit-core-2.0-template-theme-relocation.md)
+for breaking CLR identity/member changes and private-consumer limits. Config still
+validates application theme options; only manifest validation moved to Theme.
 
 ## Manifest Areas
 

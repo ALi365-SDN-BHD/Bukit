@@ -1,3 +1,4 @@
+using Bukit.Rendering.Scriban;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -38,10 +39,10 @@ public sealed class G04D9HListTemplateCapabilityGraphTests
         [
             typeof(TemplateCapabilitiesResolver.ListPageContentResolution),
             typeof(TemplateCapabilitiesResolver.TemplateCapabilityFlags),
-            typeof(TemplateCapabilitiesResolver.TemplateFieldDeclaration),
-            typeof(TemplateVariableWarning)
+            typeof(TemplateCapabilitiesResolver.TemplateFieldDeclaration)
         ];
         Assert.All(retained, type => Assert.Contains(type, exported));
+        Assert.Contains(typeof(TemplateVariableWarning), typeof(ScribanTemplateLinter).Assembly.GetExportedTypes());
 
         MethodInfo resolve = typeof(TemplateCapabilitiesResolver).GetMethod(
             nameof(TemplateCapabilitiesResolver.ResolveListPageContent))!;
@@ -82,7 +83,7 @@ public sealed class G04D9HListTemplateCapabilityGraphTests
         JsonElement[] types = current.RootElement.GetProperty("types")
             .EnumerateArray()
             .ToArray();
-        Assert.Equal(428, types.Length);
+        Assert.Equal(PublicApiBaselineFacts.GovernedTypeCount, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
             "2.0-candidate"));
@@ -94,7 +95,7 @@ public sealed class G04D9HListTemplateCapabilityGraphTests
             "Bukit.Engine.TemplateCapabilitiesResolver+ListPageContentResolution",
             "Bukit.Engine.TemplateCapabilitiesResolver+TemplateCapabilityFlags",
             "Bukit.Engine.TemplateCapabilitiesResolver+TemplateFieldDeclaration",
-            "Bukit.Engine.TemplateVariableWarning"
+            "Bukit.Rendering.Scriban.TemplateVariableWarning"
         ];
         foreach (string typeName in retained)
         {

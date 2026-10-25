@@ -1,3 +1,4 @@
+using Bukit.Theme;
 using Bukit.Config;
 using Bukit.Importing;
 using Xunit;
@@ -120,7 +121,7 @@ public sealed class ThemeGeneratorTests : IDisposable
         Assert.Contains("template: pages/index.html", themeYaml, StringComparison.Ordinal);
         Assert.Contains("template: pages/page.html", themeYaml, StringComparison.Ordinal);
         Assert.Contains("template: pages/insights.html", themeYaml, StringComparison.Ordinal);
-        Assert.Empty(ConfigValidator.ValidateThemeYaml(themeRoot));
+        Assert.Empty(ThemeManifestYamlValidator.Validate(themeRoot));
     }
 
     private static DiscoveredPage CreatePage(
