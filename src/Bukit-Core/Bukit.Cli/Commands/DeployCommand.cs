@@ -64,13 +64,26 @@ public static class DeployCommand
         if (!skipBuild)
         {
             logger.Info("Building site before deploy...");
-            await new SiteEngine(logger).BuildAsync(config, resolved.RootDir, new ConfigOverrides
+            var buildResult = await BuildCommand.RunInProcessAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = command.GetString("--config"),
+                    ["--site"] = command.GetString("--site"),
+                    ["--output"] = cliOutput,
+                    ["--base-url"] = cliBaseUrl,
+                    ["--site-url"] = cliSiteUrl,
+                    ["--clean"] = "true",
+                    ["--ci"] = isCI ? "true" : null,
+                }
+                .Where(x => x.Value is not null)
+                .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
+                Array.Empty<string>()));
+
+            if (buildResult != 0)
             {
-                Output = cliOutput,
-                BaseUrl = cliBaseUrl,
-                Clean = true,
-                IsCI = isCI
-            });
+                logger.Error("Build failed. Aborting deploy.");
+                return buildResult;
+            }
         }
 
         var outputDir = Path.IsPathRooted(effectiveOutput)
