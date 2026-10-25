@@ -157,7 +157,10 @@
       "matches": [
         "src/Bukit-Core/Bukit.Engine.Primitives/*.cs",
         "src/Bukit-Core/Bukit.Engine.Primitives/**/*.cs",
-        "src/Bukit-Core/Bukit.Engine.Primitives/Bukit.Engine.Primitives.csproj"
+        "src/Bukit-Core/Bukit.Engine.Primitives/Bukit.Engine.Primitives.csproj",
+        "src/Bukit-Core/Bukit.Engine.Feeds/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Feeds/**/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj"
       ],
       "publicContract": true,
       "resource": "dotnet-serial",

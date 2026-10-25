@@ -39,6 +39,7 @@ internal static class ApiPolicy
         new("Bukit.Content.Notion", "src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj"),
         new("Bukit.Engine", "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj"),
         new("Bukit.Engine.Abstractions", "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj"),
+        new("Bukit.Engine.Feeds", "src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj"),
         new("Bukit.Engine.Primitives", "src/Bukit-Core/Bukit.Engine.Primitives/Bukit.Engine.Primitives.csproj"),
         new("Bukit.Notion", "src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj"),
         new("Bukit.Plugin.Abstractions", "src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj"),

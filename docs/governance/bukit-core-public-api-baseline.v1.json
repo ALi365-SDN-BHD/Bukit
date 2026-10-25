@@ -29,6 +29,10 @@
       "project": "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj"
     },
     {
+      "assembly": "Bukit.Engine.Feeds",
+      "project": "src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj"
+    },
+    {
       "assembly": "Bukit.Engine.Primitives",
       "project": "src/Bukit-Core/Bukit.Engine.Primitives/Bukit.Engine.Primitives.csproj"
     },
@@ -2731,53 +2735,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.RssGenerator",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.RssGenerator",
-      "publicMembers": [
-        "public static System.String! BuildAbsoluteUrl(System.String! siteUrl, System.String! baseUrl, System.String! url)",
-        "public static System.Void Generate(System.String! outputDir, System.String! siteUrl, System.String! baseUrl, System.String! siteTitle, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! routed, Bukit.Engine.Abstractions.Content.IContentBodyStore! bodyStore, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Plugins.SeoIndexEntry!\u003E? seoIndex = null, System.Int32 maxItems = 20, System.String? siteDescription = null)",
-        "public static System.Void GenerateMerged(System.String! outputDir, System.String! siteUrl, System.String! baseUrl, System.String! siteTitle, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.RssGenerator.Post!\u003E! posts, System.Int32 maxItems = 20, System.String? siteDescription = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.RssGenerator\u002BPost",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Engine.RssGenerator.Post : System.IEquatable\u003CBukit.Engine.RssGenerator.Post~\u003E~",
-      "publicMembers": [
-        "public .ctor(System.String! Title, System.String! AbsoluteUrl, System.DateTimeOffset PublishAt, System.String? Description, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Categories, System.String? ContentHtml, System.String? Author = null, System.String? Language = null, System.String? Source = null, System.String? ReviewStatus = null, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Entities = null)",
-        "public Bukit.Engine.RssGenerator.Post! \u003CClone\u003E$()",
-        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Categories { get; init; }",
-        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Entities { get; init; }",
-        "public System.DateTimeOffset PublishAt { get; init; }",
-        "public System.String! AbsoluteUrl { get; init; }",
-        "public System.String! Title { get; init; }",
-        "public System.String? Author { get; init; }",
-        "public System.String? ContentHtml { get; init; }",
-        "public System.String? Description { get; init; }",
-        "public System.String? Language { get; init; }",
-        "public System.String? ReviewStatus { get; init; }",
-        "public System.String? Source { get; init; }",
-        "public System.Void Deconstruct(out System.String! Title, out System.String! AbsoluteUrl, out System.DateTimeOffset PublishAt, out System.String? Description, out System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Categories, out System.String? ContentHtml, out System.String? Author, out System.String? Language, out System.String? Source, out System.String? ReviewStatus, out System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Entities)",
-        "public static System.Boolean op_Equality(Bukit.Engine.RssGenerator.Post? left, Bukit.Engine.RssGenerator.Post? right)",
-        "public static System.Boolean op_Inequality(Bukit.Engine.RssGenerator.Post? left, Bukit.Engine.RssGenerator.Post? right)",
-        "public virtual System.Boolean Equals(System.Object? obj)",
-        "public virtual System.Int32 GetHashCode()",
-        "public virtual System.String! ToString()",
-        "public virtual final System.Boolean Equals(Bukit.Engine.RssGenerator.Post? other)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.ScribanTemplateLinter",
       "owner": "Build engine",
       "classification": "cross-assembly-implementation",
@@ -4293,6 +4250,53 @@
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
         "public virtual final System.Boolean Equals(Bukit.Engine.Abstractions.Routing.RouteInfo? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Engine.Feeds",
+      "name": "Bukit.Engine.RssGenerator",
+      "owner": "Build engine",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Engine.RssGenerator",
+      "publicMembers": [
+        "public static System.String! BuildAbsoluteUrl(System.String! siteUrl, System.String! baseUrl, System.String! url)",
+        "public static System.Void Generate(System.String! outputDir, System.String! siteUrl, System.String! baseUrl, System.String! siteTitle, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Config.CollectionConfig!\u003E? collections, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.Abstractions.Content.RoutedContentDocument!\u003E! routed, Bukit.Engine.Abstractions.Content.IContentBodyStore! bodyStore, System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Plugins.SeoIndexEntry!\u003E? seoIndex = null, System.Int32 maxItems = 20, System.String? siteDescription = null)",
+        "public static System.Void GenerateMerged(System.String! outputDir, System.String! siteUrl, System.String! baseUrl, System.String! siteTitle, System.Collections.Generic.IReadOnlyList\u003CBukit.Engine.RssGenerator.Post!\u003E! posts, System.Int32 maxItems = 20, System.String? siteDescription = null)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Engine.Feeds",
+      "name": "Bukit.Engine.RssGenerator\u002BPost",
+      "owner": "Build engine",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public sealed class Bukit.Engine.RssGenerator.Post : System.IEquatable\u003CBukit.Engine.RssGenerator.Post~\u003E~",
+      "publicMembers": [
+        "public .ctor(System.String! Title, System.String! AbsoluteUrl, System.DateTimeOffset PublishAt, System.String? Description, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Categories, System.String? ContentHtml, System.String? Author = null, System.String? Language = null, System.String? Source = null, System.String? ReviewStatus = null, System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Entities = null)",
+        "public Bukit.Engine.RssGenerator.Post! \u003CClone\u003E$()",
+        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Categories { get; init; }",
+        "public System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Entities { get; init; }",
+        "public System.DateTimeOffset PublishAt { get; init; }",
+        "public System.String! AbsoluteUrl { get; init; }",
+        "public System.String! Title { get; init; }",
+        "public System.String? Author { get; init; }",
+        "public System.String? ContentHtml { get; init; }",
+        "public System.String? Description { get; init; }",
+        "public System.String? Language { get; init; }",
+        "public System.String? ReviewStatus { get; init; }",
+        "public System.String? Source { get; init; }",
+        "public System.Void Deconstruct(out System.String! Title, out System.String! AbsoluteUrl, out System.DateTimeOffset PublishAt, out System.String? Description, out System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Categories, out System.String? ContentHtml, out System.String? Author, out System.String? Language, out System.String? Source, out System.String? ReviewStatus, out System.Collections.Generic.IReadOnlyList\u003CSystem.String!\u003E? Entities)",
+        "public static System.Boolean op_Equality(Bukit.Engine.RssGenerator.Post? left, Bukit.Engine.RssGenerator.Post? right)",
+        "public static System.Boolean op_Inequality(Bukit.Engine.RssGenerator.Post? left, Bukit.Engine.RssGenerator.Post? right)",
+        "public virtual System.Boolean Equals(System.Object? obj)",
+        "public virtual System.Int32 GetHashCode()",
+        "public virtual System.String! ToString()",
+        "public virtual final System.Boolean Equals(Bukit.Engine.RssGenerator.Post? other)"
       ],
       "protectedMembers": []
     },

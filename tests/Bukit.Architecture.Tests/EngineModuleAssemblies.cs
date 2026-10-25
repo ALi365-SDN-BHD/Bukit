@@ -12,7 +12,9 @@ internal static class EngineModuleAssemblies
     internal static readonly Assembly Engine = typeof(Bukit.Engine.SiteEngine).Assembly;
     internal static readonly Assembly Primitives = typeof(Bukit.Engine.BuildPathUtils).Assembly;
 
-    internal static readonly Assembly[] All = [Engine, Primitives];
+    internal static readonly Assembly Feeds = typeof(Bukit.Engine.RssGenerator).Assembly;
+
+    internal static readonly Assembly[] All = [Engine, Primitives, Feeds];
 
     internal static Type GetType(string fullName)
     {

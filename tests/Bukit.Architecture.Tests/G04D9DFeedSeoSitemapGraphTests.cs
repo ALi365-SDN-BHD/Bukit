@@ -28,12 +28,11 @@ public sealed class G04D9DFeedSeoSitemapGraphTests
     [Fact]
     public void ApprovedFeedSeoSitemapTypes_ExistButAreNotExported()
     {
-        Assembly assembly = typeof(RssGenerator).Assembly;
-        Type[] exported = assembly.GetExportedTypes();
+        Type[] exported = EngineModuleAssemblies.GetExportedTypes();
 
         foreach (string typeName in InternalizedTypeNames)
         {
-            Type type = GetType(assembly, typeName);
+            Type type = EngineModuleAssemblies.GetType(typeName);
             Assert.DoesNotContain(type, exported);
 
             if (!type.IsNested)
@@ -50,7 +49,7 @@ public sealed class G04D9DFeedSeoSitemapGraphTests
     [Fact]
     public void SitemapGraph_KeepsNestedRecordShapeInsideInternalParent()
     {
-        Assembly assembly = typeof(RssGenerator).Assembly;
+        Assembly assembly = EngineModuleAssemblies.Feeds;
         Type sitemap = GetType(assembly, "Bukit.Engine.SitemapGenerator");
         Type alternate = GetType(
             assembly,
