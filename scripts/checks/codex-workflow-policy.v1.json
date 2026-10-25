@@ -176,7 +176,37 @@
       "specialtyTests": [
         "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
         "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
-        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj",
+        "python3 -B scripts/checks/core-report-inventory.py --self-test"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "core-report-inventory",
+      "matches": [
+        "docs/testing/core-report-inventory.json",
+        "scripts/checks/core-report-inventory.py"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "python3 -B scripts/checks/core-report-inventory.py --self-test"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
+        "scripts/checks/post-change-focused.sh",
+        "scripts/checks/post-change-targeted.sh"
+      ],
+      "id": "post-change-targeted-mapping",
+      "matches": [
+        "scripts/checks/post-change-targeted-projects.sh"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/post-change-focused-self-test.sh",
+        "bash scripts/checks/post-change-targeted-self-test.sh"
       ]
     },
     {

@@ -98,11 +98,15 @@ public class DependencyMatrixTests
     [Fact]
     public void Engine_MustNotDependOn_Cli()
     {
-        Types.InAssembly(EngineAssembly)
-            .ShouldNot()
-            .HaveDependencyOn("Bukit.Cli")
-            .GetResult()
-            .ShouldBeSuccessful();
+        // Covers Bukit.Engine and every assembly split out of it.
+        foreach (Assembly assembly in EngineModuleAssemblies.All)
+        {
+            Types.InAssembly(assembly)
+                .ShouldNot()
+                .HaveDependencyOn("Bukit.Cli")
+                .GetResult()
+                .ShouldBeSuccessful();
+        }
     }
 
     [Fact]

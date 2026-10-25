@@ -9,6 +9,13 @@ project_for_module() {
   local module="$1"
   case "$module" in
     Bukit.Cli.Shared) module="Bukit.Cli" ;;
+    Bukit.Engine.Feeds|Bukit.Engine.Assets) module="Bukit.Engine" ;;
+    Bukit.Engine.Primitives|Bukit.Engine.Analytics|Bukit.Engine.Audit)
+      # Split out of Bukit.Engine; bukit (the CLI) is also a friend of these modules.
+      printf '%s\n' \
+        tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj \
+        tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj
+      return ;;
     Bukit.Plugin.WechatSync|Bukit.WechatSyncing) module="Bukit.Plugin.WechatSync" ;;
     Bukit.Plugin.Echo)
       printf '%s\n' \
