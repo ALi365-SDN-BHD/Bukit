@@ -29,6 +29,10 @@
       "project": "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj"
     },
     {
+      "assembly": "Bukit.Engine.Analytics",
+      "project": "src/Bukit-Core/Bukit.Engine.Analytics/Bukit.Engine.Analytics.csproj"
+    },
+    {
       "assembly": "Bukit.Engine.Feeds",
       "project": "src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj"
     },

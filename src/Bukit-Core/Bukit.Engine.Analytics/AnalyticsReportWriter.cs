@@ -14,7 +14,7 @@ internal static class AnalyticsReportWriter
         string outputDir,
         AnalyticsBuildSnapshot snapshot)
     {
-        var relativePath = Path.Combine(BuildReporter.ReportDirectoryName, FileName);
+        var relativePath = Path.Combine(BuildReportPaths.ReportDirectoryName, FileName);
         var path = FileWriter.GetSafeFullPath(outputDir, relativePath);
         if (!config.Build.Report.Enabled)
         {

@@ -160,7 +160,10 @@
         "src/Bukit-Core/Bukit.Engine.Primitives/Bukit.Engine.Primitives.csproj",
         "src/Bukit-Core/Bukit.Engine.Feeds/*.cs",
         "src/Bukit-Core/Bukit.Engine.Feeds/**/*.cs",
-        "src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj"
+        "src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj",
+        "src/Bukit-Core/Bukit.Engine.Analytics/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Analytics/**/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Analytics/Bukit.Engine.Analytics.csproj"
       ],
       "publicContract": true,
       "resource": "dotnet-serial",

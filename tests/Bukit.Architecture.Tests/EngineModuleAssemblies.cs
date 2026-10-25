@@ -14,7 +14,9 @@ internal static class EngineModuleAssemblies
 
     internal static readonly Assembly Feeds = typeof(Bukit.Engine.RssGenerator).Assembly;
 
-    internal static readonly Assembly[] All = [Engine, Primitives, Feeds];
+    internal static readonly Assembly Analytics = Assembly.Load("Bukit.Engine.Analytics");
+
+    internal static readonly Assembly[] All = [Engine, Primitives, Feeds, Analytics];
 
     internal static Type GetType(string fullName)
     {

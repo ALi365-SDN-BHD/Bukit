@@ -236,7 +236,7 @@ public sealed partial class AnalyticsPluginBoundaryTests
     public void AnalyticsProviderRegistry_IsStaticAndNativeAotFriendly()
     {
         string registrySource = ReadMainlineSource(
-            "src/Bukit-Core/Bukit.Engine/Analytics/AnalyticsProviderRegistry.cs");
+            "src/Bukit-Core/Bukit.Engine.Analytics/AnalyticsProviderRegistry.cs");
         string[] providerTypes = ProviderConstructionRegex().Matches(registrySource)
             .Select(match => match.Groups[1].Value)
             .Distinct(StringComparer.Ordinal)
@@ -268,8 +268,7 @@ public sealed partial class AnalyticsPluginBoundaryTests
             RepoRoot,
             "src",
             "Bukit-Core",
-            "Bukit.Engine",
-            "Analytics");
+            "Bukit.Engine.Analytics");
         foreach (string path in Directory.EnumerateFiles(analyticsDirectory, "*.cs", SearchOption.TopDirectoryOnly))
         {
             AssertDoesNotUseDynamicDiscovery(File.ReadAllText(path), Path.GetRelativePath(RepoRoot, path));

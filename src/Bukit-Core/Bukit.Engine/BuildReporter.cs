@@ -10,7 +10,7 @@ namespace Bukit.Engine;
 
 internal static class BuildReporter
 {
-    internal const string ReportDirectoryName = ".bukit";
+    internal const string ReportDirectoryName = BuildReportPaths.ReportDirectoryName;
     internal const string ArtifactSchemaVersion = "1.0";
     internal const string BuildReportSchema = "https://bukit.dev/schemas/build-report.v1.json";
     internal const string RoutesReportSchema = "https://bukit.dev/schemas/routes.v1.json";
