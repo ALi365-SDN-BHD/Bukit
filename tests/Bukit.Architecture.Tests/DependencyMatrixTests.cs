@@ -205,15 +205,24 @@ public class DependencyMatrixTests
             "Bukit.Engine.Abstractions->Bukit.Content.Notion",
             "Bukit.Engine.Abstractions->Bukit.Content.Notion.Tests",
             "Bukit.Content->Bukit.Content.Notion.Tests",
-            "Bukit.Engine->bukit"
+            "Bukit.Engine->bukit",
+            "Bukit.Engine.Primitives->Bukit.Engine.Feeds",
+            "Bukit.Engine.Primitives->Bukit.Engine.Analytics",
+            "Bukit.Engine.Primitives->Bukit.Engine.Assets",
+            "Bukit.Engine.Primitives->Bukit.Engine.Audit",
+            "Bukit.Engine.Primitives->bukit",
+            "Bukit.Engine.Feeds->Bukit.Engine.Audit",
+            "Bukit.Engine.Analytics->bukit",
+            "Bukit.Engine.Audit->bukit"
         };
 
-        var allAssemblies = new[]
-        {
+        Assembly[] allAssemblies =
+        [
             SharedAssembly, ConfigAssembly, AbstractionsAssembly,
             RoutingAssembly, ContentAssembly, RenderingAssembly,
-            EngineAssembly, CliSharedAssembly, CliAssembly
-        };
+            CliSharedAssembly, CliAssembly,
+            .. EngineModuleAssemblies.All
+        ];
 
         foreach (var asm in allAssemblies)
         {
