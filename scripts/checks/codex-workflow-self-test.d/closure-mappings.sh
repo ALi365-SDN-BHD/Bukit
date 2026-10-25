@@ -114,6 +114,13 @@ for relocation_contract_path in \
   openspec/changes/relocate-template-theme/specs/template-theme-relocation/spec.md; do
   assert_closure_mapping "$closure_fixture" "$relocation_contract_path" '["bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
 done
+for labs_yaml_contract_path in \
+  openspec/changes/fix-labs-theme-yaml-context/proposal.md \
+  openspec/changes/fix-labs-theme-yaml-context/design.md \
+  openspec/changes/fix-labs-theme-yaml-context/tasks.md \
+  openspec/changes/fix-labs-theme-yaml-context/specs/labs-theme-yaml-context/spec.md; do
+  assert_closure_mapping "$closure_fixture" "$labs_yaml_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter FullyQualifiedName~MetaRemovalInventoryTests", "dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"]' false
+done
 assert_closure_mapping "$closure_fixture" docs/superpowers/plans/2026-09-09-bukit-quality-remediation.md '["bash scripts/checks/codex-workflow-self-test.sh"]' false
 assert_closure_mapping "$closure_fixture" docs/superpowers/plans/2026-08-05-bukit-seo-geo-next-master.md '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
 for unmapped_remediation_path in .github/workflows/unplanned.yaml docs/governance/unplanned.md docs/superpowers/plans/unplanned.md; do

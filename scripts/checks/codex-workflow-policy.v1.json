@@ -1,6 +1,26 @@
 {
   "pathRules": [
     {
+      "id": "labs-theme-yaml-context-contract",
+      "matches": [
+        "openspec/changes/fix-labs-theme-yaml-context/*.md",
+        "openspec/changes/fix-labs-theme-yaml-context/specs/labs-theme-yaml-context/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter FullyQualifiedName~MetaRemovalInventoryTests",
+        "dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "contractConsumerGlobs": [
+        "tests/Bukit.Labs.Cli.Tests/ThemeModelsTests.cs",
+        "tests/Bukit.Labs.Cli.Tests/ThemeCommandTests.cs",
+        "tests/Bukit.Labs.Cli.Tests/ThemeWorkflowTests.cs",
+        "tests/Bukit.Engine.Tests/MetaRemovalInventoryTests.cs"
+      ]
+    },
+    {
       "id": "bukit-labs-cli-source",
       "matches": [
         "src/Bukit-Labs/Bukit.Labs.Cli/*.cs",

@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UseAppHost>false</UseAppHost>
+    <BukitGenerateLabsYamlStaticContext Condition="'$(BukitGenerateLabsYamlStaticContext)' == ''">false</BukitGenerateLabsYamlStaticContext>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +21,11 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Bukit.Labs.Cli.Tests" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(BukitGenerateLabsYamlStaticContext)' == 'true'">
+    <Compile Remove="Commands/Theme/ThemeYamlStaticContext.Generated.cs" />
+    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
