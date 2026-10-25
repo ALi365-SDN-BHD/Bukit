@@ -12,14 +12,15 @@ release-cadence commitments.
 **Current inventory:** The [machine-readable public API baseline](../../docs/governance/bukit-core-public-api-baseline.v1.json)
 defines the current assembly and type inventory. Numerical statements in historical
 decision records below describe their recorded snapshots, not the current count.
-References to a 425-type baseline are historical. Current verification status is
+Historical 425-type / 14-assembly records are distinct from the new current
+425-type / 18-assembly inventory below. Earlier verification status is
 recorded in the [approved quality-remediation plan](../../docs/superpowers/plans/2026-09-09-bukit-quality-remediation.md).
 
 ### Later independent template / Theme migration
 
 The [approved template/Theme relocation](../../docs/governance/bukit-core-2.0-template-theme-relocation.md)
 records later breaking CLR changes and current ownership. The direct compiled
-snapshot/check measures 428 → 426 types in the same 19 assemblies.
+snapshot/check measured 428 → 426 types in the same 19 assemblies at that migration.
 Private consumers remain unknown and old binaries/namespaces require migration
 and recompilation; internalized helpers and removed printing/base hooks have no
 drop-in public replacement. This is not additive logger work or a new SDK.
@@ -34,9 +35,37 @@ is superseded only by moving `ITemplateRenderer` to Rendering and deleting
 move to Rendering.Scriban; its other companions remain. Historical reports and
 the closed candidate manifest are not rewritten by these later decisions.
 
-For this bounded migration, build only affected projects and invoke the API tool
+For that bounded Theme migration, the approved procedure built only affected
+projects and invoked the API tool
 directly against the 19 built governed assemblies. The generic wrapper workflow
-below builds the solution and is not authorized by this task; neither is `ci-fast`.
+below builds the solution and was not authorized by that task; neither was `ci-fast`.
+
+### Later independent Notion compatibility migration (2026-10-25)
+
+The separately approved [Notion compatibility migration](../../docs/governance/bukit-core-2.0-notion-compatibility-migration.md)
+removes public `NotionPropertyParser` without a public parser replacement and
+moves `NotionContentSource` / `NotionContentSourceOptions` from
+`Bukit.Content.Notion.dll` to `Bukit.Content.dll`, retaining their full names.
+The old runtime project/DLL is removed without a shell or type forwarder.
+The explicitly accepted binary break requires updated project references,
+reflection/serializer/assembly-qualified bindings and recompilation. Private,
+unindexed, binary-only and undisclosed consumers remain unknown; this is not
+evidence that all consumers are safe or a general CLR SDK promise.
+
+Current inventory: **425 public types / 18 assemblies**, zero candidates
+(426→425 / 19→18 for this independent change). Current distributions include
+implementation-public 40, 1.x-do-not-narrow 257 and 2.0-review 300; other
+distribution values and all 423 unrelated type entries are unchanged.
+Source/options metadata and options' 31 public members remain unchanged; the
+source adds only required provider interfaces and the compiler-derived
+virtual-final flag on its existing LoadRawAsync method. Its nullable ILogger
+constructor/default remains unchanged. LoadRawAsync is not a one-to-one public
+parser migration. The source-bounded fallback bridge remains internal.
+
+Build only the scoped affected projects and invoke the API tool directly against
+the 18 built governed assemblies for this task. The generic wrapper, whole-solution,
+full/release/aggregate gates and `ci-fast` are not authorized by this approval.
+This does not combine verification with the independent built-in-plugin split.
 
 C# `public` is CLR visibility, not an automatic supported SDK promise.
 
@@ -48,10 +77,11 @@ assemblies.
 
 ## Notion Assembly Distribution Boundary
 
-`Bukit.Notion` and `Bukit.Content.Notion` are monorepo Core components. They
+`Bukit.Notion` and `Bukit.Content/Notion` (in `Bukit.Content`) are monorepo Core components. They
 provide canonical implementation boundaries inside Bukit's source and build
-graph, but they are not supported NuGet SDKs. Both projects explicitly set
-`IsPackable=false`; the release workflow continues to distribute the Core CLI,
+graph, but they are not supported NuGet SDKs. `Bukit.Notion` explicitly sets
+`IsPackable=false`; this does not assert that `Bukit.Content` sets that property.
+The release workflow continues to distribute the Core CLI,
 not independent Notion library packages.
 
 Their existing exported types remain governed as `1.x-do-not-narrow` through
@@ -72,7 +102,7 @@ surface, namespace, and assembly identity.
 New Notion capabilities must be implemented in the canonical projects:
 protocol, transport, conversion, diagnostics, rendering, and write behavior in
 `Bukit.Notion`; Bukit content projection and source adaptation in
-`Bukit.Content.Notion`. Legacy facades must delegate to those owners and must not
+`Bukit.Content/Notion` in `Bukit.Content`. Any facades retained on 1.x must delegate to those owners and must not
 acquire a second transport, endpoint list, renderer registry, projection path,
 or cache format.
 
@@ -83,16 +113,18 @@ the freeze itself is not a deprecation or removal decision.
 
 ### AD-03C5 Notion Property Parser Retention
 
-`Bukit.Content.Notion.NotionPropertyParser` in `Bukit.Content.dll` is
-retain-by-design. It remains a public static implementation facade with only
+At the original July decision, `Bukit.Content.Notion.NotionPropertyParser` in
+`Bukit.Content.dll` was retain-by-design, a public static implementation facade with only
 `ExtractFields(JsonElement)` and `ExtractAllFields(JsonElement)` as its public
-declared methods. Its governed classification is
+declared methods. Its historical governed classification was
 `implementation-public / 1.x-do-not-narrow / 2.0-review`; this is CLR
 visibility for a retained implementation detail, not a general-purpose SDK
-promise.
+promise. This paragraph records the historical retention reasoning, not the
+current 2.0 identity. The explicit 2026-10-25 approval above supersedes only that
+2.0 outcome with `removed-in-2.0-review`; it does not alter 1.x or erase the ledger.
 
 There is no public canonical replacement for this parser in the canonical
-`Bukit.Content.Notion` adapter. Its existing `NotionContentPropertyParser` and
+Notion adapter now owned by `Bukit.Content/Notion`. Its existing `NotionContentPropertyParser` and
 `NotionPropertyTypeParser` implementations remain internal, and this decision
 does not expose either implementation or create another public parser API.
 Repository and reviewed public evidence found no direct current production
@@ -124,8 +156,9 @@ The check compares the compiled public and protected surfaces with
 `docs/governance/bukit-core-public-api-baseline.v1.json`. It is a
 maintainer-local governance tool, not a general CLR SDK declaration.
 Both `check` and `snapshot` require the exact policy-owned, ordered mapping of
-the governed Core assemblies to their projects (nineteen after the Engine
-split added `Bukit.Engine.Primitives`, `Bukit.Engine.Feeds`,
+the governed Core assemblies to their projects (eighteen after the Notion merge;
+the earlier nineteen followed the Engine split that added
+`Bukit.Engine.Primitives`, `Bukit.Engine.Feeds`,
 `Bukit.Engine.Analytics`, `Bukit.Engine.Assets` and
 `Bukit.Engine.Audit`) before any assembly is captured.
 

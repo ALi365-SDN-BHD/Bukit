@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Bukit.Architecture.Tests;
 
-public sealed class Ad03C5NotionPropertyParserRetentionTests
+public sealed class Ad03C5NotionPropertyParserRemovalTests
 {
     private const string ParserTypeName =
         "Bukit.Content.Notion.NotionPropertyParser";
@@ -14,44 +14,11 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
-    public void LegacyParser_RemainsTheExactPublicBukitContentFacade()
+    public void LegacyParser_IsAbsentFromContent()
     {
-        Type parser = typeof(Bukit.Content.Notion.NotionPropertyParser);
-
-        Assert.Equal("Bukit.Content", parser.Assembly.GetName().Name);
-        Assert.Equal(ParserTypeName, parser.FullName);
-        Assert.True(parser.IsPublic);
-        Assert.True(parser.IsAbstract);
-        Assert.True(parser.IsSealed);
-        Assert.Contains(parser, parser.Assembly.GetExportedTypes());
-
-        MethodInfo[] methods = parser
-            .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
-            .OrderBy(method => method.Name, StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Equal(["ExtractAllFields", "ExtractFields"], methods.Select(method => method.Name));
-        Assert.All(methods, method =>
-        {
-            Assert.False(method.IsGenericMethod);
-            ParameterInfo parameter = Assert.Single(method.GetParameters());
-            Assert.Equal("properties", parameter.Name);
-            Assert.Equal(typeof(JsonElement), parameter.ParameterType);
-            Assert.False(parameter.IsOptional);
-            Assert.Equal(
-                typeof(IReadOnlyDictionary<string, ContentField>),
-                method.ReturnType);
-        });
-
-        MemberInfo[] publicDeclaredMembers = parser
-            .GetMembers(
-                BindingFlags.Public |
-                BindingFlags.Static |
-                BindingFlags.Instance |
-                BindingFlags.DeclaredOnly)
-            .OrderBy(member => member.Name, StringComparer.Ordinal)
-            .ToArray();
-        Assert.Equal(methods, publicDeclaredMembers);
+        Assembly contentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
+        Assert.Null(contentAssembly.GetType(ParserTypeName, throwOnError: false, ignoreCase: false));
+        Assert.DoesNotContain(contentAssembly.GetExportedTypes(), type => type.FullName == ParserTypeName);
     }
 
     [Fact]
@@ -60,7 +27,7 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
         Assembly adapterAssembly =
             typeof(Bukit.Content.Notion.NotionContentSource).Assembly;
 
-        Assert.Equal("Bukit.Content.Notion", adapterAssembly.GetName().Name);
+        Assert.Equal("Bukit.Content", adapterAssembly.GetName().Name);
         Assert.All(
             new[]
             {
@@ -83,31 +50,21 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
     }
 
     [Fact]
-    public void GovernedBaseline_ClassifiesTheRetainedParserAsImplementationPublic()
+    public void GovernedBaseline_RemovesTheParserRatherThanReclassifyingIt()
     {
         using JsonDocument baseline = ReadJson(
             "docs",
             "governance",
             "bukit-core-public-api-baseline.v1.json");
-        JsonElement parser = Assert.Single(
+        Assert.DoesNotContain(
             baseline.RootElement.GetProperty("types").EnumerateArray(),
             entry =>
                 entry.GetProperty("assembly").GetString() == "Bukit.Content" &&
                 entry.GetProperty("name").GetString() == ParserTypeName);
-
-        Assert.Equal(
-            "implementation-public",
-            parser.GetProperty("classification").GetString());
-        Assert.Equal(
-            "1.x-do-not-narrow",
-            parser.GetProperty("compatibility").GetString());
-        Assert.Equal(
-            "2.0-review",
-            parser.GetProperty("migrationHorizon").GetString());
     }
 
     [Fact]
-    public void ActiveGovernanceAndDecisionLedger_RecordRetentionAndReviewTriggers()
+    public void ActiveGovernanceAndDecisionLedger_PreserveHistoricalRetentionAndExplicitApprovedReversal()
     {
         string governance = File.ReadAllText(Path.Combine(
             RepoRoot,
@@ -121,6 +78,8 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
             governance,
             StringComparison.Ordinal);
         Assert.Contains("retain-by-design", governance, StringComparison.Ordinal);
+        Assert.Contains("removed-in-2.0-review", governance, StringComparison.Ordinal);
+        Assert.Contains("2026-10-25", governance, StringComparison.Ordinal);
         Assert.Contains("no public canonical replacement", governance, StringComparison.Ordinal);
         Assert.Contains(
             "Any real security or correctness defect starts a re-review.",
@@ -137,6 +96,9 @@ public sealed class Ad03C5NotionPropertyParserRetentionTests
 
         Assert.Contains("# Bukit Core AD-03C5", ledger, StringComparison.Ordinal);
         Assert.Contains("retain-by-design", ledger, StringComparison.Ordinal);
+        Assert.Contains("## 8.", ledger, StringComparison.Ordinal);
+        Assert.Contains("2026-10-25", ledger, StringComparison.Ordinal);
+        Assert.Contains("removed-in-2.0-review", ledger, StringComparison.Ordinal);
         Assert.Contains("no public canonical replacement", ledger, StringComparison.Ordinal);
         Assert.Contains("private", ledger, StringComparison.Ordinal);
         Assert.Contains("binary-only", ledger, StringComparison.Ordinal);

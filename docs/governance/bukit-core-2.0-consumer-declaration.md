@@ -7,14 +7,15 @@
 **Current inventory:** The [machine-readable public API baseline](bukit-core-public-api-baseline.v1.json)
 defines the current assembly and type inventory. Numerical statements in historical
 decision records below describe their recorded snapshots, not the current count.
-References to a 425-type baseline are historical. Current verification status is
+Historical 425-type / 14-assembly records are distinct from the new current
+425-type / 18-assembly inventory below. Earlier verification status is
 recorded in the [approved quality-remediation plan](../superpowers/plans/2026-09-09-bukit-quality-remediation.md).
 
 ## Later independent template / Theme migration
 
 The [approved template/Theme relocation](bukit-core-2.0-template-theme-relocation.md)
 records current CLR ownership and breaking consumer actions. The direct compiled
-snapshot/check measures 428 → 426 types in the same 19 assemblies.
+snapshot/check measured 428 → 426 types in the same 19 assemblies at that migration.
 Private, unindexed, binary-only and reflection consumers remain unknown; old
 identities require migration and recompilation, without facades or forwarding.
 
@@ -29,6 +30,29 @@ deleted. Other retained contracts are unchanged. G-04D9H's warning and linter
 move to Rendering.Scriban, not its other list/template companions. The closed
 candidate cohort, old full names, reports and original decision counts remain
 historical evidence, not current API inventory or proof of this migration's tests.
+
+## Later independent Notion compatibility migration (2026-10-25)
+
+The separately approved [Notion compatibility migration](bukit-core-2.0-notion-compatibility-migration.md)
+explicitly accepts deletion of public `Bukit.Content.Notion.NotionPropertyParser`
+without a public parser replacement, movement of public `NotionContentSource`
+and `NotionContentSourceOptions` from `Bukit.Content.Notion.dll` to
+`Bukit.Content.dll` with unchanged full names, and removal of the old runtime
+project/DLL without a shell or type forwarder. This changes the current inventory
+from 426 to **425 types**, and 19 to **18 assemblies**, not the historical
+425-type / 14-assembly snapshot. All 423 other entries, moved metadata, source
+constructor (nullable ILogger default null) and options' 31 public members remain
+unchanged, apart from the source's required provider interfaces and compiler-derived
+virtual-final flag on its existing LoadRawAsync method.
+
+This 2.0-only binary break requires changed project/assembly references,
+reflection/serializer/assembly-qualified bindings and recompilation; source/options
+namespace stability is not binary compatibility. LoadRawAsync is not a one-to-one
+public parser substitute. Private, unindexed, binary-only, reflection-bound and
+undisclosed consumers remain unknown. This separately approved reversal of
+AD-03C5 does not reopen the closed declaration channel, rewrite its historical
+candidate cohort or create a general-purpose CLR SDK. No 1.x change, release,
+publication, item3 integration or historical aggregate-test result is implied.
 
 Status: `closed`
 

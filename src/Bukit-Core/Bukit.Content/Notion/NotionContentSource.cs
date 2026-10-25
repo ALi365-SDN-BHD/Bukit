@@ -10,7 +10,7 @@ using Bukit.Notion.Transport;
 using Bukit.Shared;
 namespace Bukit.Content.Notion;
 
-public sealed class NotionContentSource
+public sealed class NotionContentSource : IContentProvider, INotionRelationFallbackResolverProvider
 {
     private readonly NotionContentSourceOptions _options;
     private readonly ILogger? _logger;
@@ -30,6 +30,9 @@ public sealed class NotionContentSource
 
     internal INotionRelationFallbackResolver CreateRelationFallbackResolver()
         => new SourceBoundedRelationFallbackResolver(_options, _logger, _clientFactory);
+
+    INotionRelationFallbackResolver INotionRelationFallbackResolverProvider.RelationFallbackResolver
+        => CreateRelationFallbackResolver();
 
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
@@ -384,7 +387,9 @@ public sealed class NotionContentSource
                 {
                     throw;
                 }
-                catch (NotionApiException exception) when (exception.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+                catch (Exception exception) when (exception is
+                    NotionApiException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.NotFound } or
+                    ContentException { InnerException: NotionApiException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.NotFound } })
                 {
                     failures[pageId] = "notion.relation.permission_denied";
                 }

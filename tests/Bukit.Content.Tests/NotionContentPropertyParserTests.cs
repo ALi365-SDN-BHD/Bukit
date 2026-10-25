@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Bukit.Content.Tests;
 
-public sealed class NotionPropertyParserTests
+public sealed class NotionContentPropertyParserTests
 {
     [Fact]
     public void ExtractAllFields_ParsesCommonPropertyTypes()
@@ -39,7 +39,7 @@ public sealed class NotionPropertyParserTests
 
         using var doc = JsonDocument.Parse(json);
         var props = doc.RootElement.GetProperty("properties");
-        var fields = NotionPropertyParser.ExtractAllFields(props);
+        var fields = NotionContentPropertyParser.ExtractAllFields(props);
 
         Assert.Equal("text", fields["seo_title"].Type);
         Assert.Equal("Hello", fields["seo_title"].Value);
@@ -58,4 +58,3 @@ public sealed class NotionPropertyParserTests
         Assert.NotNull(fields["publishat"].Value);
     }
 }
-

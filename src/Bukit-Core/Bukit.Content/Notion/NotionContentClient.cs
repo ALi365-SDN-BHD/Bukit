@@ -25,11 +25,20 @@ internal sealed class NotionContentClient : IDisposable
         NotionContentSourceOptions options,
         HttpMessageHandler handler,
         Func<int, CancellationToken, Task> delayAsync)
+        : this(options, handler, delayAsync, static () => DateTimeOffset.UtcNow)
+    {
+    }
+
+    internal NotionContentClient(
+        NotionContentSourceOptions options,
+        HttpMessageHandler handler,
+        Func<int, CancellationToken, Task> delayAsync,
+        Func<DateTimeOffset> utcNow)
         : this(new NotionClient(
             MapOptions(options),
             handler,
             delayAsync,
-            static () => DateTimeOffset.UtcNow))
+            utcNow))
     {
     }
 

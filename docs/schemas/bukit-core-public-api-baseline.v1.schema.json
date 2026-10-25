@@ -27,8 +27,8 @@
     },
     "assemblies": {
       "type": "array",
-      "minItems": 19,
-      "maxItems": 19,
+      "minItems": 18,
+      "maxItems": 18,
       "uniqueItems": true,
       "prefixItems": [
         {
@@ -56,15 +56,6 @@
           "properties": {
             "assembly": { "const": "Bukit.Content" },
             "project": { "const": "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj" }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["assembly", "project"],
-          "properties": {
-            "assembly": { "const": "Bukit.Content.Notion" },
-            "project": { "const": "src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj" }
           }
         },
         {

@@ -215,7 +215,7 @@ public class DependencyMatrixTests
             "Bukit.Shared->Bukit.Engine.Assets",
             "Bukit.Content->Bukit.Engine.Assets",
             "Bukit.Rendering->Bukit.Engine.Audit",
-            "Bukit.Engine.Abstractions->Bukit.Content.Notion",
+            "Bukit.Engine.Abstractions->Bukit.Content",
             "Bukit.Engine.Abstractions->Bukit.Theme",
             "Bukit.Engine.Abstractions->Bukit.Content.Notion.Tests",
             "Bukit.Content->Bukit.Content.Notion.Tests",

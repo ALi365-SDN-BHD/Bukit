@@ -24,7 +24,7 @@ public sealed class NotionPropertyMapTests
             """);
         var map = new NotionPropertyMapConfig { Title = "SEO Title" };
 
-        var result = NotionPropertyParser.ExtractTitle(properties, map);
+        var result = NotionContentPropertyParser.ExtractTitle(properties, map);
 
         Assert.Equal("Hello World", result);
     }
@@ -38,7 +38,7 @@ public sealed class NotionPropertyMapTests
             }
             """);
 
-        var result = NotionPropertyParser.ExtractTitle(properties, null);
+        var result = NotionContentPropertyParser.ExtractTitle(properties, null);
 
         Assert.Equal("Default Title", result);
     }
@@ -53,7 +53,7 @@ public sealed class NotionPropertyMapTests
             """);
         var map = new NotionPropertyMapConfig(); // no Title set
 
-        var result = NotionPropertyParser.ExtractTitle(properties, map);
+        var result = NotionContentPropertyParser.ExtractTitle(properties, map);
 
         Assert.Equal("Default Title", result);
     }
@@ -68,7 +68,7 @@ public sealed class NotionPropertyMapTests
             """);
         var map = new NotionPropertyMapConfig { Slug = "URL Slug" };
 
-        var result = NotionPropertyParser.ExtractSlug(properties, map);
+        var result = NotionContentPropertyParser.ExtractSlug(properties, map);
 
         Assert.Equal("my-slug", result);
     }
@@ -82,7 +82,7 @@ public sealed class NotionPropertyMapTests
             }
             """);
 
-        var result = NotionPropertyParser.ExtractSlug(properties, null);
+        var result = NotionContentPropertyParser.ExtractSlug(properties, null);
 
         Assert.Equal("default-slug", result);
     }
@@ -97,7 +97,7 @@ public sealed class NotionPropertyMapTests
             """);
         var map = new NotionPropertyMapConfig { Type = "Content Type" };
 
-        var result = NotionPropertyParser.ExtractType(properties, map);
+        var result = NotionContentPropertyParser.ExtractType(properties, map);
 
         Assert.Equal("news", result);
     }
@@ -111,7 +111,7 @@ public sealed class NotionPropertyMapTests
             }
             """);
 
-        var result = NotionPropertyParser.ExtractType(properties, null);
+        var result = NotionContentPropertyParser.ExtractType(properties, null);
 
         Assert.Equal("post", result);
     }
@@ -131,8 +131,8 @@ public sealed class NotionPropertyMapTests
             Collection = "Content Collection"
         };
 
-        var type = NotionPropertyParser.ExtractType(properties, map);
-        var collection = NotionPropertyParser.ExtractCollection(properties, map);
+        var type = NotionContentPropertyParser.ExtractType(properties, map);
+        var collection = NotionContentPropertyParser.ExtractCollection(properties, map);
 
         Assert.Equal("article", type);
         Assert.Equal("news", collection);
@@ -151,7 +151,7 @@ public sealed class NotionPropertyMapTests
             """);
         var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
 
-        var collection = NotionPropertyParser.ExtractCollection(properties, map);
+        var collection = NotionContentPropertyParser.ExtractCollection(properties, map);
 
         Assert.Equal("news", collection);
     }
@@ -179,7 +179,7 @@ public sealed class NotionPropertyMapTests
         var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
 
         var ex = Assert.Throws<ContentException>(() =>
-            NotionPropertyParser.ExtractCollection(properties, map));
+            NotionContentPropertyParser.ExtractCollection(properties, map));
 
         Assert.Contains("Content Collection", ex.Message);
         Assert.Contains(notionType, ex.Message);
@@ -201,7 +201,7 @@ public sealed class NotionPropertyMapTests
             """);
         var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
 
-        var collection = NotionPropertyParser.ExtractCollection(properties, map);
+        var collection = NotionContentPropertyParser.ExtractCollection(properties, map);
 
         Assert.Null(collection);
     }
@@ -212,7 +212,7 @@ public sealed class NotionPropertyMapTests
         var properties = ParseJson("""{ "Other": { "type": "rich_text", "rich_text": [] } }""");
         var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
 
-        var collection = NotionPropertyParser.ExtractCollection(properties, map);
+        var collection = NotionContentPropertyParser.ExtractCollection(properties, map);
 
         Assert.Null(collection);
     }
@@ -234,7 +234,7 @@ public sealed class NotionPropertyMapTests
         var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
 
         var ex = Assert.Throws<ContentException>(() =>
-            NotionPropertyParser.ExtractCollection(properties, map));
+            NotionContentPropertyParser.ExtractCollection(properties, map));
 
         Assert.Contains("Collection", ex.Message);
         Assert.Contains("single scalar", ex.Message);
@@ -255,7 +255,7 @@ public sealed class NotionPropertyMapTests
         var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
 
         var ex = Assert.Throws<ContentException>(() =>
-            NotionPropertyParser.ExtractCollection(properties, map));
+            NotionContentPropertyParser.ExtractCollection(properties, map));
 
         Assert.Contains("single scalar", ex.Message);
     }
@@ -279,7 +279,7 @@ public sealed class NotionPropertyMapTests
         var map = new NotionPropertyMapConfig { Collection = "Content Collection" };
 
         var ex = Assert.Throws<ContentException>(() =>
-            NotionPropertyParser.ExtractCollection(properties, map));
+            NotionContentPropertyParser.ExtractCollection(properties, map));
 
         Assert.Contains("single scalar", ex.Message);
     }
@@ -294,7 +294,7 @@ public sealed class NotionPropertyMapTests
             """);
         var map = new NotionPropertyMapConfig { PublishAt = "Release Date" };
 
-        var result = NotionPropertyParser.ExtractPublishAt(properties, map);
+        var result = NotionContentPropertyParser.ExtractPublishAt(properties, map);
 
         Assert.NotNull(result);
         Assert.Equal(2025, result!.Value.Year);
@@ -310,7 +310,7 @@ public sealed class NotionPropertyMapTests
             }
             """);
 
-        var result = NotionPropertyParser.ExtractPublishAt(properties, null);
+        var result = NotionContentPropertyParser.ExtractPublishAt(properties, null);
 
         Assert.NotNull(result);
         Assert.Equal(2024, result!.Value.Year);
@@ -326,7 +326,7 @@ public sealed class NotionPropertyMapTests
             """);
         var map = new NotionPropertyMapConfig { PublishAt = "NonExistent" };
 
-        var result = NotionPropertyParser.ExtractPublishAt(properties, map);
+        var result = NotionContentPropertyParser.ExtractPublishAt(properties, map);
 
         Assert.Null(result);
     }

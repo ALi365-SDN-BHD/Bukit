@@ -18,7 +18,7 @@ internal sealed record NotionFetchedPage(
 
 internal interface INotionPageFetcher
 {
-    Task<NotionFetchedPage?> FetchAsync(NotionApiClient client, string pageId, ILogger logger, CancellationToken cancellationToken);
+    Task<NotionFetchedPage?> FetchAsync(NotionContentClient client, string pageId, ILogger logger, CancellationToken cancellationToken);
 }
 
 internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
@@ -245,7 +245,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
         var maxRetries = PagesIndexConfigHelper.TryGetInt(resolveCfg, "max_retries", 5);
         var requestDelayMs = PagesIndexConfigHelper.TryGetInt(resolveCfg, "request_delay_ms", 0);
 
-        var opts = new NotionProviderOptions
+        var opts = new NotionContentSourceOptions
         {
             DatabaseId = "dummy",
             Token = token.Trim(),
@@ -254,7 +254,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
             RequestDelayMs = requestDelayMs
         };
 
-        using var client = new NotionApiClient(opts);
+        using var client = new NotionContentClient(opts);
         using var sem = new SemaphoreSlim(concurrency, concurrency);
         var tasks = new Task<NotionFetchedPage?>[ids.Count];
         for (var i = 0; i < ids.Count; i++)

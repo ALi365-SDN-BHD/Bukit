@@ -10,15 +10,15 @@ using Xunit;
 
 namespace Bukit.Content.Tests;
 
-public sealed class NotionApiClientTests
+public sealed class NotionContentClientTests
 {
     [Fact]
     public async Task Constructor_WithArbitraryHttpClient_FailsClosedBeforeSending()
     {
         var handler = new SequenceHandler(new Queue<HttpResponseMessage>());
         using var http = new HttpClient(handler);
-        using var client = new NotionApiClient(
-            new NotionProviderOptions
+        using var client = new NotionContentClient(
+            new NotionContentSourceOptions
             {
                 DatabaseId = "db",
                 Token = "token",
@@ -117,7 +117,7 @@ public sealed class NotionApiClientTests
         var now = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var delays = new List<int>();
 
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
@@ -125,7 +125,7 @@ public sealed class NotionApiClientTests
             MaxRps = 1
         };
 
-        using var client = new NotionApiClient(options, handler, (ms, _) =>
+        using var client = new NotionContentClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             now = now.AddMilliseconds(ms);
@@ -163,14 +163,14 @@ public sealed class NotionApiClientTests
         var handler = new SequenceHandler(responses);
 
         var delays = new List<int>();
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
             RequestDelayMs = 0
         };
 
-        using var client = new NotionApiClient(options, handler, (ms, _) =>
+        using var client = new NotionContentClient(options, handler, (ms, _) =>
         {
             delays.Add(ms);
             return Task.CompletedTask;
@@ -202,7 +202,7 @@ public sealed class NotionApiClientTests
 
         var handler = new SequenceHandler(responses);
 
-        var options = new NotionProviderOptions
+        var options = new NotionContentSourceOptions
         {
             DatabaseId = "db",
             Token = "token",
@@ -210,7 +210,7 @@ public sealed class NotionApiClientTests
             MaxRetries = 2
         };
 
-        using var client = new NotionApiClient(options, handler, (_, _) => Task.CompletedTask);
+        using var client = new NotionContentClient(options, handler, (_, _) => Task.CompletedTask);
 
         var ex = await Assert.ThrowsAsync<ContentException>(() =>
             client.GetAsync("https://api.notion.com/v1/databases/db", CancellationToken.None));
@@ -244,9 +244,9 @@ public sealed class NotionApiClientTests
         }
     }
 
-    private static NotionApiClient CreateHandlerClient(HttpMessageHandler handler)
+    private static NotionContentClient CreateHandlerClient(HttpMessageHandler handler)
         => new(
-            new NotionProviderOptions
+            new NotionContentSourceOptions
             {
                 DatabaseId = "db",
                 Token = "token",

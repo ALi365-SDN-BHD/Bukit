@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Bukit.Content.Tests;
 
-public sealed class NotionPropertyParserExtendedTests
+public sealed class NotionContentPropertyParserExtendedTests
 {
     [Fact]
     public void ParseFormula_StringType_ReturnsTextField()
@@ -227,31 +227,31 @@ public sealed class NotionPropertyParserExtendedTests
     [Fact]
     public void NormalizeFieldKey_Uppercase_ConvertsToLower()
     {
-        Assert.Equal("hello_world", NotionPropertyParser.NormalizeFieldKey("Hello World"));
+        Assert.Equal("hello_world", NotionContentPropertyParser.NormalizeFieldKey("Hello World"));
     }
 
     [Fact]
     public void NormalizeFieldKey_SpacesAndSpecialChars_ReplacedWithUnderscore()
     {
-        Assert.Equal("hello_123", NotionPropertyParser.NormalizeFieldKey("Hello @#$ 123"));
+        Assert.Equal("hello_123", NotionContentPropertyParser.NormalizeFieldKey("Hello @#$ 123"));
     }
 
     [Fact]
     public void NormalizeFieldKey_ConsecutiveUnderscores_Collapsed()
     {
-        Assert.Equal("a_b", NotionPropertyParser.NormalizeFieldKey("A   B"));
+        Assert.Equal("a_b", NotionContentPropertyParser.NormalizeFieldKey("A   B"));
     }
 
     [Fact]
     public void NormalizeFieldKey_LeadingTrailingSpecialChars_Trimmed()
     {
-        Assert.Equal("test", NotionPropertyParser.NormalizeFieldKey("!!!Test!!!"));
+        Assert.Equal("test", NotionContentPropertyParser.NormalizeFieldKey("!!!Test!!!"));
     }
 
     [Fact]
     public void NormalizeFieldKey_EmptyString_ReturnsEmpty()
     {
-        Assert.Equal(string.Empty, NotionPropertyParser.NormalizeFieldKey(""));
+        Assert.Equal(string.Empty, NotionContentPropertyParser.NormalizeFieldKey(""));
     }
 
     [Theory]
@@ -381,7 +381,7 @@ public sealed class NotionPropertyParserExtendedTests
         jsonParts.Append("\"extra\":{\"type\":\"rich_text\",\"rich_text\":[{\"plain_text\":\"visible\"}]}");
 
         using var doc = JsonDocument.Parse($"{{{jsonParts}}}");
-        var fields = NotionPropertyParser.ExtractFields(doc.RootElement);
+        var fields = NotionContentPropertyParser.ExtractFields(doc.RootElement);
 
         Assert.DoesNotContain(fields.Keys, k => reservedKeys.Contains(k, StringComparer.OrdinalIgnoreCase));
         Assert.True(fields.ContainsKey("extra"));
@@ -392,7 +392,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var json = """{"title":{"type":"title","title":[{"plain_text":"My Title"}]},"tags":{"type":"rich_text","rich_text":[{"plain_text":"tag1"}]}}""";
         using var doc = JsonDocument.Parse(json);
-        var fields = NotionPropertyParser.ExtractAllFields(doc.RootElement);
+        var fields = NotionContentPropertyParser.ExtractAllFields(doc.RootElement);
 
         Assert.Contains("title", fields.Keys);
         Assert.Contains("tags", fields.Keys);
@@ -410,8 +410,8 @@ public sealed class NotionPropertyParserExtendedTests
         }
         """);
 
-        Assert.Empty(NotionPropertyParser.ExtractFields(nonObject.RootElement));
-        var fields = NotionPropertyParser.ExtractAllFields(withEmptyKeys.RootElement);
+        Assert.Empty(NotionContentPropertyParser.ExtractFields(nonObject.RootElement));
+        var fields = NotionContentPropertyParser.ExtractAllFields(withEmptyKeys.RootElement);
 
         Assert.Single(fields);
         Assert.Equal("shown", fields["visible"].Value);
@@ -619,7 +619,7 @@ public sealed class NotionPropertyParserExtendedTests
             SeoImage = "SEO Image"
         };
 
-        NotionPropertyParser.ProjectSeoFields(projectedValues, properties, propertyMap);
+        NotionContentPropertyParser.ProjectSeoFields(projectedValues, properties, propertyMap);
 
         Assert.Equal("Custom SEO Title", projectedValues["seo_title"]);
         Assert.Equal("Custom Description", projectedValues["seo_desc"]);
@@ -631,7 +631,7 @@ public sealed class NotionPropertyParserExtendedTests
     {
         var properties = JsonDocument.Parse(@"{}").RootElement;
         var projectedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        NotionPropertyParser.ProjectSeoFields(projectedValues, properties, null);
+        NotionContentPropertyParser.ProjectSeoFields(projectedValues, properties, null);
         Assert.Empty(projectedValues);
     }
 

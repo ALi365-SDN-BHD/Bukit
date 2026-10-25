@@ -9,37 +9,39 @@ public sealed class Ad03C4ContentNotionBridgeInternalizationTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
 
-    private static readonly string[] InternalBridgeTypeNames =
+    private static readonly string[] RemovedBridgeTypeNames =
     [
         "Bukit.Content.Notion.NotionApiClient",
         "Bukit.Content.Notion.NotionContentProvider",
-        "Bukit.Content.Notion.NotionProviderOptions"
+        "Bukit.Content.Notion.NotionProviderOptions",
+        "Bukit.Content.Notion.NotionCompatibilityQueries",
+        "Bukit.Content.Notion.NotionCompatibilityPage"
     ];
 
     [Fact]
-    public void LegacyContentNotionBridgeCluster_IsInternalWithExistingDependencyBoundary()
+    public void LegacyContentNotionBridgeCluster_IsRemovedWithConsolidatedDependencyBoundary()
     {
         Assembly contentAssembly =
-            typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
+            typeof(Bukit.Content.IContentProvider).Assembly;
         string[] exportedTypeNames = contentAssembly.GetExportedTypes()
             .Select(type => type.FullName!)
             .ToArray();
 
         Assert.Equal("Bukit.Content", contentAssembly.GetName().Name);
-        Assert.All(InternalBridgeTypeNames, typeName =>
+        Assert.All(RemovedBridgeTypeNames, typeName =>
         {
-            Type type = contentAssembly.GetType(
+            Type? type = contentAssembly.GetType(
                 typeName,
-                throwOnError: true,
-                ignoreCase: false)!;
+                throwOnError: false,
+                ignoreCase: false);
 
-            Assert.False(type.IsPublic, $"Legacy bridge remains public: {typeName}");
+            Assert.Null(type);
             Assert.DoesNotContain(typeName, exportedTypeNames);
         });
 
         XDocument contentProject = ReadProject("Bukit.Content");
         string[] contentReferences = GetProjectReferences(contentProject);
-        Assert.Contains("Bukit.Content.Notion", contentReferences);
+        Assert.DoesNotContain("Bukit.Content.Notion", contentReferences);
         Assert.Contains("Bukit.Notion", contentReferences);
 
         XDocument engineProject = ReadProject("Bukit.Engine");
@@ -47,10 +49,9 @@ public sealed class Ad03C4ContentNotionBridgeInternalizationTests
             "Bukit.Content.Notion",
             GetProjectReferences(engineProject));
 
-        XDocument adapterProject = ReadProject("Bukit.Content.Notion");
-        string[] adapterFriends = GetProjectFriends(adapterProject);
-        Assert.DoesNotContain("Bukit.Engine", adapterFriends);
-        Assert.DoesNotContain("Bukit.Engine.Tests", adapterFriends);
+        Assert.False(File.Exists(Path.Combine(
+            RepoRoot, "src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj")));
+        Assert.Same(contentAssembly, typeof(Bukit.Content.Notion.NotionContentSource).Assembly);
 
         Assert.Equal(
             ContentBoundaryExpectations.FriendAssemblies,
@@ -71,12 +72,6 @@ public sealed class Ad03C4ContentNotionBridgeInternalizationTests
                 reference.Attribute("Include")?.Value.Replace(
                     '\\',
                     Path.DirectorySeparatorChar)) ?? string.Empty)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-    private static string[] GetProjectFriends(XDocument project)
-        => project.Descendants("InternalsVisibleTo")
-            .Select(friend => friend.Attribute("Include")?.Value ?? string.Empty)
             .Order(StringComparer.Ordinal)
             .ToArray();
 

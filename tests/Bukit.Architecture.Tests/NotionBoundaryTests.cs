@@ -45,11 +45,11 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
-    public void CanonicalNotionProjects_MustRemainNonPackableMonorepoComponents()
+    public void CanonicalNotionComponents_MustRemainMonorepoImplementationBoundaries()
     {
         var repoRoot = FindRepoRoot();
         var coreRoot = Path.Combine(repoRoot, "src", "Bukit-Core");
-        var projectNames = new[] { "Bukit.Notion", "Bukit.Content.Notion" };
+        var projectNames = new[] { "Bukit.Notion", "Bukit.Content" };
 
         foreach (var projectName in projectNames)
         {
@@ -58,9 +58,12 @@ public sealed class NotionBoundaryTests
                 projectName,
                 $"{projectName}.csproj"));
 
-            Assert.Collection(
-                project.Descendants("IsPackable"),
-                element => Assert.Equal("false", element.Value));
+            if (projectName == "Bukit.Notion")
+            {
+                Assert.Collection(
+                    project.Descendants("IsPackable"),
+                    element => Assert.Equal("false", element.Value));
+            }
             Assert.Empty(project.Descendants("PackageId"));
             Assert.Empty(project.Descendants("GeneratePackageOnBuild"));
         }
@@ -96,17 +99,21 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
-    public void ContentNotion_Project_MustExist_WithExactAdapterDependencies()
+    public void Content_MustOwnCanonicalNotionSourcesWithExactProjectDependencies()
     {
         var repoRoot = FindRepoRoot();
         var projectPath = Path.Combine(
             repoRoot,
             "src",
             "Bukit-Core",
-            "Bukit.Content.Notion",
-            "Bukit.Content.Notion.csproj");
+            "Bukit.Content",
+            "Bukit.Content.csproj");
 
-        Assert.True(File.Exists(projectPath), $"Missing Notion content adapter project: {projectPath}");
+        Assert.True(File.Exists(projectPath), $"Missing Content project: {projectPath}");
+        Assert.True(File.Exists(Path.Combine(
+            repoRoot, "src/Bukit-Core/Bukit.Content/Notion/NotionContentSource.cs")));
+        Assert.False(File.Exists(Path.Combine(
+            repoRoot, "src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj")));
 
         var project = XDocument.Load(projectPath);
         var references = project.Descendants("ProjectReference")
@@ -118,14 +125,13 @@ public sealed class NotionBoundaryTests
         Assert.Equal(
             ["Bukit.Config", "Bukit.Engine.Abstractions", "Bukit.Notion", "Bukit.Shared"],
             references);
-        Assert.Empty(project.Descendants("PackageReference"));
     }
 
     [Fact]
     public void ContentNotion_MustUseCanonicalNotionEndpointOwner()
     {
         var repoRoot = FindRepoRoot();
-        var root = Path.Combine(repoRoot, "src", "Bukit-Core", "Bukit.Content.Notion");
+        var root = Path.Combine(repoRoot, "src", "Bukit-Core", "Bukit.Content", "Notion");
         var forbidden = new[]
         {
             "using Bukit.Shared.Notion;",
@@ -144,7 +150,7 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
-    public void Content_MustReferenceContentNotionCompatibilityAdapter()
+    public void Content_MustNotReferenceTheRemovedContentNotionProject()
     {
         var repoRoot = FindRepoRoot();
         var project = XDocument.Load(Path.Combine(
@@ -159,11 +165,11 @@ public sealed class NotionBoundaryTests
                 reference.Attribute("Include")?.Value.Replace('\\', Path.DirectorySeparatorChar)) ?? string.Empty)
             .ToArray();
 
-        Assert.Contains("Bukit.Content.Notion", references);
+        Assert.DoesNotContain("Bukit.Content.Notion", references);
     }
 
     [Fact]
-    public void Engine_MustUseContentCompatibilityBoundaryForNotionAdapterInternals()
+    public void Engine_MustUseCanonicalContentOwnershipWithoutLegacyShells()
     {
         var repoRoot = FindRepoRoot();
         var coreRoot = Path.Combine(repoRoot, "src", "Bukit-Core");
@@ -178,23 +184,15 @@ public sealed class NotionBoundaryTests
 
         Assert.DoesNotContain("Bukit.Content.Notion", engineReferences);
 
-        var adapterProject = XDocument.Load(Path.Combine(
-            coreRoot,
-            "Bukit.Content.Notion",
-            "Bukit.Content.Notion.csproj"));
-        var adapterFriends = adapterProject.Descendants("InternalsVisibleTo")
-            .Select(friend => friend.Attribute("Include")?.Value ?? string.Empty)
-            .ToArray();
-
-        Assert.DoesNotContain("Bukit.Engine", adapterFriends);
-        Assert.DoesNotContain("Bukit.Engine.Tests", adapterFriends);
+        Assert.Contains("Bukit.Content", engineReferences);
 
         var forbidden = new[]
         {
-            "NotionContentSourceOptions",
-            "NotionContentClient",
-            "NotionDatabaseOptionReader",
-            "NotionPageQuery"
+            "NotionProviderOptions",
+            "NotionApiClient",
+            "NotionContentProvider",
+            "NotionCompatibilityQueries",
+            "NotionPropertyParser"
         };
         var engineRoot = Path.Combine(coreRoot, "Bukit.Engine");
         var violations = Directory.EnumerateFiles(engineRoot, "*.cs", SearchOption.AllDirectories)
@@ -244,7 +242,7 @@ public sealed class NotionBoundaryTests
         var roots = new[]
         {
             Path.Combine(repoRoot, "src", "Bukit-Core", "Bukit.Notion"),
-            Path.Combine(repoRoot, "src", "Bukit-Core", "Bukit.Content.Notion")
+            Path.Combine(repoRoot, "src", "Bukit-Core", "Bukit.Content", "Notion")
         };
 
         var violations = roots
@@ -259,28 +257,29 @@ public sealed class NotionBoundaryTests
     }
 
     [Fact]
-    public void RemainingContentTypesResolveAndRemovedSharedTypesStayAbsent()
+    public void CanonicalContentTypesResolveAndRemovedLegacyTypesStayAbsent()
     {
-        var contentAssembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
+        var contentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
         var sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
 
         Assert.Equal("Bukit.Content", contentAssembly.GetName().Name);
         Assert.Equal("Bukit.Shared", sharedAssembly.GetName().Name);
 
-        AssertTypesResolve(contentAssembly, LegacyContentNotionTypes);
+        AssertTypesResolve(contentAssembly, ExportedCanonicalContentNotionTypes);
+        AssertTypesAbsent(contentAssembly, LegacyContentNotionTypes);
         AssertTypesAbsent(sharedAssembly, LegacySharedNotionTypes);
     }
 
     [Fact]
-    public void RemainingLegacyNotionFacades_MustMatchGovernedTwoZeroBaseline()
+    public void CanonicalNotionExports_MustMatchGovernedTwoZeroBaseline()
     {
-        var contentAssembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
+        var contentAssembly = typeof(Bukit.Content.IContentProvider).Assembly;
         var sharedAssembly = typeof(Bukit.Shared.BukitException).Assembly;
 
         AssertLegacyFacadeExports(
             contentAssembly,
             "Bukit.Content.Notion",
-            ExportedLegacyContentNotionTypes);
+            ExportedCanonicalContentNotionTypes);
         AssertLegacyFacadeExports(
             sharedAssembly,
             "Bukit.Shared.Notion",
@@ -357,9 +356,10 @@ public sealed class NotionBoundaryTests
         "Bukit.Content.Notion.NotionProviderOptions"
     ];
 
-    private static readonly string[] ExportedLegacyContentNotionTypes =
+    private static readonly string[] ExportedCanonicalContentNotionTypes =
     [
-        "Bukit.Content.Notion.NotionPropertyParser"
+        "Bukit.Content.Notion.NotionContentSource",
+        "Bukit.Content.Notion.NotionContentSourceOptions"
     ];
 
     private static readonly string[] LegacySharedNotionTypes =

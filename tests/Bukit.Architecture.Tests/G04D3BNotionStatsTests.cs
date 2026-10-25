@@ -21,7 +21,7 @@ public sealed class G04D3BNotionStatsTests
     public void LegacyStatsIdentity_IsAbsentAndCanonicalStatsRemainsPublic()
     {
         Assembly contentAssembly =
-            typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
+            typeof(Bukit.Content.IContentProvider).Assembly;
         Assembly notionAssembly =
             typeof(Bukit.Notion.Transport.NotionClientStats).Assembly;
 
@@ -52,16 +52,16 @@ public sealed class G04D3BNotionStatsTests
     }
 
     [Fact]
-    public void LegacyFacade_InternalGetStatsReturnsCanonicalIdentityDirectly()
+    public void CanonicalContentClient_InternalGetStatsReturnsCanonicalIdentityDirectly()
     {
         Assembly contentAssembly =
-            typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
-        Type legacyClient = contentAssembly.GetType(
-            "Bukit.Content.Notion.NotionApiClient",
+            typeof(Bukit.Content.IContentProvider).Assembly;
+        Type contentClient = contentAssembly.GetType(
+            "Bukit.Content.Notion.NotionContentClient",
             throwOnError: true,
             ignoreCase: false)!;
         MethodInfo method = Assert.Single(
-            legacyClient.GetMethods(
+            contentClient.GetMethods(
                 BindingFlags.NonPublic |
                 BindingFlags.Instance |
                 BindingFlags.DeclaredOnly),
@@ -109,12 +109,11 @@ public sealed class G04D3BNotionStatsTests
         Assert.Equal(
             ContentBoundaryExpectations.FriendAssemblies,
             GetFriendAssemblies(
-                typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly));
+                typeof(Bukit.Content.IContentProvider).Assembly));
         Assert.Equal(
             [
                 "Bukit.Cli.Tests",
                 "Bukit.Content",
-                "Bukit.Content.Notion",
                 "Bukit.Content.Notion.Tests",
                 "Bukit.Importing.Tests",
                 "Bukit.Notion.Tests",
@@ -123,11 +122,7 @@ public sealed class G04D3BNotionStatsTests
             GetFriendAssemblies(
                 typeof(Bukit.Notion.Transport.NotionClientStats).Assembly));
         Assert.Equal(
-            [
-                "Bukit.Content",
-                "Bukit.Content.Notion.Tests",
-                "Bukit.Content.Tests"
-            ],
+            ContentBoundaryExpectations.FriendAssemblies,
             GetFriendAssemblies(
                 typeof(Bukit.Content.Notion.NotionContentSource).Assembly));
     }
