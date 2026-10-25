@@ -107,14 +107,14 @@ internal static class PublicOutputLifecycle
         manifest.OwnedOutputs = items.Select(x => x.Destination).ToHashSet(StringComparer.Ordinal);
     }
 
-    internal static BuildManifest CollectAndClean(string rootDir, ConfigOverrides overrides, string outputDir, IReadOnlyList<BuildVariantResult> variants, IReadOnlyList<AssetOutputItem>? rootOutputs = null)
+    internal static BuildManifest CollectAndClean(string rootDir, ConfigOverrides overrides, string outputDir, IReadOnlyList<BuildVariantResult> variants, ILogger logger, IReadOnlyList<AssetOutputItem>? rootOutputs = null)
     {
         var items = variants.SelectMany(variant => variant.PlannedOutputs.Select(item => item with
         {
             Destination = BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(outputDir, Path.Combine(variant.OutputDir, item.Destination)))
         })).Concat(rootOutputs ?? []).ToArray();
         AssetOutputPlan.Validate(items, OutputDestinationIdentityComparer.ForOutputRoot(outputDir));
-        var previous = BuildManifest.Load(ManifestPath(rootDir, overrides));
+        var previous = BuildManifest.Load(ManifestPath(rootDir, overrides), logger);
         DeleteStale(outputDir, previous, items.Select(x => x.Destination).ToHashSet(OutputDestinationIdentityComparer.ForOutputRoot(outputDir)));
         var manifest = variants.Count == 1 && variants[0].OutputDir == outputDir ? variants[0].PendingManifest!.Manifest : new BuildManifest();
         Record(manifest, outputDir, items);

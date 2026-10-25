@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Bukit.Content.Media;
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 
 namespace Bukit.Engine;
 
@@ -59,12 +60,12 @@ internal sealed partial class ContentMediaOutput(BuildVariantContext context) : 
         }
     }
 
-    internal IReadOnlyList<AssetOutputItem> Plan(CancellationToken cancellationToken)
+    internal IReadOnlyList<AssetOutputItem> Plan(ILogger logger, CancellationToken cancellationToken)
     {
         var effective = ContentProviderFactory.BuildEffectiveMediaConfig(context.Config.Content.Media, context.RootDir, context.MediaDownloadDir);
         var options = new DirectoryCopyOptions { IgnoreDotPrefixedFiles = true, FollowSymlinks = false };
         var candidates = Directory.Exists(effective.DownloadDir)
-            ? DirectoryCopy.EnumerateFilesForSync(effective.DownloadDir, options, cancellationToken).ToDictionary(item => BuildPathUtils.NormalizeRelPath(item.RelativePath), StringComparer.Ordinal)
+            ? DirectoryCopy.EnumerateFilesForSync(effective.DownloadDir, options, logger, cancellationToken).ToDictionary(item => BuildPathUtils.NormalizeRelPath(item.RelativePath), StringComparer.Ordinal)
             : new Dictionary<string, DirectoryCopyItem>(StringComparer.Ordinal);
         var items = new List<AssetOutputItem>();
         foreach (var relative in _references.Keys.OrderBy(path => path, StringComparer.Ordinal))

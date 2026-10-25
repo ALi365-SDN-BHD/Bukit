@@ -23,7 +23,7 @@ internal sealed record DirectoryCopyItem(
 
 internal static class DirectoryCopy
 {
-    public static void Copy(string sourceDir, string destinationDir, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
+    public static void Copy(string sourceDir, string destinationDir, ILogger logger, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -42,7 +42,7 @@ internal static class DirectoryCopy
 
             if (IsSymlink(file))
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink: {file}");
+                logger.Warn($"Skipping symlink: {file}");
                 continue;
             }
 
@@ -69,19 +69,19 @@ internal static class DirectoryCopy
 
             if (IsSymlink(dir))
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink directory: {dir}");
+                logger.Warn($"Skipping symlink directory: {dir}");
                 continue;
             }
 
             var dest = Path.Combine(destinationDir, name);
-            Copy(dir, dest, outputRoot, pathPolicy);
+            Copy(dir, dest, logger, outputRoot, pathPolicy);
         }
     }
 
-    public static void Sync(string sourceDir, string destinationDir, bool prune = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
-        => Sync(sourceDir, destinationDir, new DirectoryCopyOptions { Prune = prune, IgnoreDotPrefixedFiles = true }, outputRoot, pathPolicy);
+    public static void Sync(string sourceDir, string destinationDir, ILogger logger, bool prune = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
+        => Sync(sourceDir, destinationDir, new DirectoryCopyOptions { Prune = prune, IgnoreDotPrefixedFiles = true }, logger, outputRoot, pathPolicy);
 
-    public static void Sync(string sourceDir, string destinationDir, DirectoryCopyOptions options, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
+    public static void Sync(string sourceDir, string destinationDir, DirectoryCopyOptions options, ILogger logger, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -100,14 +100,14 @@ internal static class DirectoryCopy
 
             if (!options.FollowSymlinks && IsSymlink(file))
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink: {file}");
+                logger.Warn($"Skipping symlink: {file}");
                 continue;
             }
 
             if (options.FollowSymlinks && IsSymlink(file) &&
                 !TryResolveSafeTarget(file, ResolvePhysicalPath(sourceDir) ?? sourceDir, options, out _))
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink outside source directory: {file}");
+                logger.Warn($"Skipping symlink outside source directory: {file}");
                 continue;
             }
 
@@ -124,19 +124,19 @@ internal static class DirectoryCopy
 
             if (!options.FollowSymlinks && IsSymlink(dir))
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink directory: {dir}");
+                logger.Warn($"Skipping symlink directory: {dir}");
                 continue;
             }
 
             if (options.FollowSymlinks && IsSymlink(dir) &&
                 !TryResolveSafeTarget(dir, ResolvePhysicalPath(sourceDir) ?? sourceDir, options, out _))
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink directory outside source directory: {dir}");
+                logger.Warn($"Skipping symlink directory outside source directory: {dir}");
                 continue;
             }
 
             var dest = Path.Combine(destinationDir, name);
-            Sync(dir, dest, options, outputRoot, pathPolicy);
+            Sync(dir, dest, options, logger, outputRoot, pathPolicy);
         }
 
         if (options.Prune)
@@ -148,6 +148,7 @@ internal static class DirectoryCopy
     internal static IReadOnlyList<DirectoryCopyItem> EnumerateFilesForSync(
         string sourceDir,
         DirectoryCopyOptions options,
+        ILogger logger,
         CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(sourceDir))
@@ -169,6 +170,7 @@ internal static class DirectoryCopy
             options,
             ancestors,
             results,
+            logger,
             cancellationToken);
         return results
             .OrderBy(item => item.RelativePath, PathComparer)
@@ -268,7 +270,7 @@ internal static class DirectoryCopy
         }
     }
 
-    public static void SyncFiles(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
+    public static void SyncFiles(string sourceDir, string destinationDir, ILogger logger, bool ignoreDotPrefixedFiles = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))
         {
@@ -289,7 +291,7 @@ internal static class DirectoryCopy
 
             if (IsSymlink(file))
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink: {file}");
+                logger.Warn($"Skipping symlink: {file}");
                 continue;
             }
 
@@ -297,18 +299,25 @@ internal static class DirectoryCopy
         }
     }
 
-    public static void SyncFilesRecursive(string sourceDir, string destinationDir, bool ignoreDotPrefixedFiles = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
+    public static void SyncFilesRecursive(string sourceDir, string destinationDir, ILogger logger, bool ignoreDotPrefixedFiles = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
     {
         if (!Directory.Exists(sourceDir))
         {
             return;
         }
 
+        SyncFilesRecursive(sourceDir, destinationDir, logger, () => SafeFileEnumerator.EnumerateFiles(sourceDir),
+            ignoreDotPrefixedFiles, outputRoot, pathPolicy);
+    }
+
+    internal static void SyncFilesRecursive(string sourceDir, string destinationDir, ILogger logger,
+        Func<IEnumerable<string>> enumerateFiles, bool ignoreDotPrefixedFiles = false, string? outputRoot = null, IOutputPathPolicy? pathPolicy = null)
+    {
         Directory.CreateDirectory(destinationDir);
 
         var skipOptions = new DirectoryCopyOptions { IgnoreDotPrefixedFiles = ignoreDotPrefixedFiles };
 
-        foreach (var file in SafeFileEnumerator.EnumerateFiles(sourceDir))
+        foreach (var file in enumerateFiles())
         {
             var name = Path.GetFileName(file);
             if (ShouldSkipDotfile(name, skipOptions))
@@ -318,7 +327,7 @@ internal static class DirectoryCopy
 
             if (IsSymlink(file))
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink: {file}");
+                logger.Warn($"Skipping symlink: {file}");
                 continue;
             }
 
@@ -376,6 +385,7 @@ internal static class DirectoryCopy
         DirectoryCopyOptions options,
         HashSet<string> ancestors,
         List<DirectoryCopyItem> results,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         foreach (var file in Directory.GetFiles(currentDir).OrderBy(path => path, PathComparer))
@@ -390,7 +400,7 @@ internal static class DirectoryCopy
             var isSymlink = IsSymlink(file);
             if (isSymlink && !options.FollowSymlinks)
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink: {file}");
+                logger.Warn($"Skipping symlink: {file}");
                 continue;
             }
 
@@ -399,7 +409,7 @@ internal static class DirectoryCopy
                 options.FollowSymlinks &&
                 !TryResolveSafeTarget(file, physicalSourceRoot, options, out sourcePath))
             {
-                Console.Error.WriteLine($"[warn] Skipping unsafe symlink target: {file}");
+                logger.Warn($"Skipping unsafe symlink target: {file}");
                 continue;
             }
 
@@ -421,7 +431,7 @@ internal static class DirectoryCopy
             var isSymlink = IsSymlink(dir);
             if (isSymlink && !options.FollowSymlinks)
             {
-                Console.Error.WriteLine($"[warn] Skipping symlink directory: {dir}");
+                logger.Warn($"Skipping symlink directory: {dir}");
                 continue;
             }
 
@@ -429,13 +439,13 @@ internal static class DirectoryCopy
             if (options.FollowSymlinks &&
                 !TryResolveSafeTarget(dir, physicalSourceRoot, options, out realDirectory))
             {
-                Console.Error.WriteLine($"[warn] Skipping unsafe symlink directory target: {dir}");
+                logger.Warn($"Skipping unsafe symlink directory target: {dir}");
                 continue;
             }
 
             if (ancestors.Contains(realDirectory))
             {
-                Console.Error.WriteLine($"[warn] Skipping recursive symlink directory: {dir}");
+                logger.Warn($"Skipping recursive symlink directory: {dir}");
                 continue;
             }
 
@@ -450,6 +460,7 @@ internal static class DirectoryCopy
                 options,
                 childAncestors,
                 results,
+                logger,
                 cancellationToken);
         }
     }

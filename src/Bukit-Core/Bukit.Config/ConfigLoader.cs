@@ -6,7 +6,11 @@ namespace Bukit.Config;
 public static class ConfigLoader
 {
     public static AppConfig Load(string path)
+        => Load(path, new ConsoleLogger(LogLevel.Warn));
+
+    public static AppConfig Load(string path, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         if (string.IsNullOrWhiteSpace(path))
         {
             throw new ConfigException("Config path is required.", DiagnosticCode.ConfigRequiredFieldMissing);
@@ -121,7 +125,7 @@ public static class ConfigLoader
 
         if (build.FollowSymlinks)
         {
-            Console.Error.WriteLine("[warn] build.followSymlinks is enabled. Symlinks may point outside the project directory. Ensure all symlinks are trusted.");
+            logger.Warn("build.followSymlinks is enabled. Symlinks may point outside the project directory. Ensure all symlinks are trusted.");
         }
 
         var theme = new ThemeConfig

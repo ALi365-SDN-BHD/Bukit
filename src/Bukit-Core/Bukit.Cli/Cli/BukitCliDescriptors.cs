@@ -6,23 +6,26 @@ namespace Bukit.Cli;
 public static class BukitCliDescriptors
 {
     public static IReadOnlyList<CommandDescriptor> CreateDescriptors()
+        => CreateDescriptors("text");
+
+    internal static IReadOnlyList<CommandDescriptor> CreateDescriptors(string logFormat)
     {
         var registry = BukitCliSpecs.CreateRegistry();
 
         return new CommandDescriptor[]
         {
-            new(registry.Commands.First(c => c.Name == "build"), cmd => BuildCommand.RunAsync(cmd)),
-            new(registry.Commands.First(c => c.Name == "clean"), CleanCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "build"), cmd => BuildCommand.RunAsync(cmd, cmd.GetString("--log-format") ?? logFormat)),
+            new(registry.Commands.First(c => c.Name == "clean"), cmd => CleanCommand.RunAsync(cmd, logFormat)),
             new(registry.Commands.First(c => c.Name == "completion"), CompletionCommand.RunAsync),
-            new(registry.Commands.First(c => c.Name == "doctor"), DoctorCommand.RunAsync),
-            new(registry.Commands.First(c => c.Name == "preview"), PreviewCommand.RunAsync),
-            new(registry.Commands.First(c => c.Name == "dev"), DevCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "doctor"), cmd => DoctorCommand.RunAsync(cmd, logFormat)),
+            new(registry.Commands.First(c => c.Name == "preview"), cmd => PreviewCommand.RunAsync(cmd, logFormat)),
+            new(registry.Commands.First(c => c.Name == "dev"), cmd => DevCommand.RunAsync(cmd, logFormat)),
             new(registry.Commands.First(c => c.Name == "version"), VersionCommand.RunAsync),
-            new(registry.Commands.First(c => c.Name == "config"), ConfigCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "config"), cmd => ConfigCommand.RunAsync(cmd, logFormat)),
             new(registry.Commands.First(c => c.Name == "seo"), SeoCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "geo"), GeoCommand.RunAsync),
             new(registry.Commands.First(c => c.Name == "publish"), PublishCommand.RunAsync),
-            new(registry.Commands.First(c => c.Name == "deploy"), DeployCommand.RunAsync),
+            new(registry.Commands.First(c => c.Name == "deploy"), cmd => DeployCommand.RunAsync(cmd, logFormat)),
         };
     }
 

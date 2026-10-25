@@ -85,6 +85,53 @@ public sealed class BuildReporterTests
     }
 
     [Fact]
+    public void BuildDiagnosticLogger_FilteredDuplicateWarningsStillCountOncePerCall()
+    {
+        using var stderr = new StringWriter();
+        var original = Console.Error;
+        var root = new BuildDiagnosticLogger(new ConsoleLogger(LogLevel.Error));
+        try
+        {
+            Console.SetError(stderr);
+            root.Warn("same event text");
+            root.ForwardTo(new ConsoleLogger(LogLevel.Error)).Warn("same event text");
+        }
+        finally { Console.SetError(original); }
+        Assert.Empty(stderr.ToString());
+        Assert.Equal(2, root.WarningCount);
+    }
+
+    [Fact]
+    public async Task SecurityGate_AfterReportDoesNotRewriteSnapshotOrBackfillCounts()
+    {
+        string root = CreateTempDir();
+        try
+        {
+            var config = CreateConfig(enabled: true);
+            config = config with { Build = config.Build with { Report = config.Build.Report with { SecurityFailMode = "warn" } } };
+            var variant = CreateVariant(root);
+            var result = CreateResult(config, root, variant);
+            var sink = new DiagnosticProbeLogger();
+            var counted = new BuildDiagnosticLogger(sink);
+            await BuildReporter.WriteIfEnabledAsync(config, root, root, result, [variant], sink);
+            string report = Path.Combine(root, ".bukit", "build-report.json");
+            byte[] before = File.ReadAllBytes(report);
+            var failed = new SecurityReportData("failed", "passed", "passed", "passed", "passed", [], ["failed"]);
+            BuildReporter.EnforceSecurityGate(config, failed, false, sink);
+            Assert.Equal(1, sink.WarningCount);
+            Assert.Equal(0, counted.WarningCount);
+            Assert.Equal(before, File.ReadAllBytes(report));
+            config = config with { Build = config.Build with { Report = config.Build.Report with { SecurityFailMode = "strict" } } };
+            Assert.Equal("BKT-BUILD-SECURITY-0001: security-report.json contains failed checks (mode=strict).",
+                Assert.Throws<InvalidOperationException>(() => BuildReporter.EnforceSecurityGate(config, failed, false, sink)).Message);
+            config = config with { Build = config.Build with { Report = config.Build.Report with { SecurityFailMode = "off" } } };
+            BuildReporter.EnforceSecurityGate(config, failed, true, sink);
+            Assert.Equal(1, sink.WarningCount);
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
+    }
+
+    [Fact]
     public async Task OutputInventories_DoNotIncludeFilesThroughDirectorySymlink()
     {
         var tempDir = CreateTempDir();
@@ -644,7 +691,7 @@ public sealed class BuildReporterTests
             Warnings: Array.Empty<string>(),
             Errors: new[] { "route traversal detected" });
 
-        var ex = Assert.Throws<InvalidOperationException>(() => BuildReporter.EnforceSecurityGate(config, securityData, isCi: true));
+        var ex = Assert.Throws<InvalidOperationException>(() => BuildReporter.EnforceSecurityGate(config, securityData, isCi: true, logger: new ConsoleLogger(LogLevel.Warn)));
         Assert.Contains("BKT-BUILD-SECURITY-0001", ex.Message, StringComparison.Ordinal);
     }
 
@@ -667,7 +714,7 @@ public sealed class BuildReporterTests
             Warnings: Array.Empty<string>(),
             Errors: new[] { "route traversal detected" });
 
-        Assert.Throws<InvalidOperationException>(() => BuildReporter.EnforceSecurityGate(config, securityData, isCi: false));
+        Assert.Throws<InvalidOperationException>(() => BuildReporter.EnforceSecurityGate(config, securityData, isCi: false, logger: new ConsoleLogger(LogLevel.Warn)));
     }
 
     [Fact]
@@ -689,7 +736,7 @@ public sealed class BuildReporterTests
             Warnings: Array.Empty<string>(),
             Errors: new[] { "route traversal detected" });
 
-        var ex = Record.Exception(() => BuildReporter.EnforceSecurityGate(config, securityData, isCi: true));
+        var ex = Record.Exception(() => BuildReporter.EnforceSecurityGate(config, securityData, isCi: true, logger: new ConsoleLogger(LogLevel.Warn)));
         Assert.Null(ex);
     }
 

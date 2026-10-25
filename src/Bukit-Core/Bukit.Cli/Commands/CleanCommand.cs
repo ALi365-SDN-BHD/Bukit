@@ -9,6 +9,9 @@ namespace Bukit.Cli.Commands;
 public static class CleanCommand
 {
     public static Task<int> RunAsync(CliBoundCommand command)
+        => RunAsync(command, "text");
+
+    internal static Task<int> RunAsync(CliBoundCommand command, string logFormat)
     {
         var configPath = command.GetString("--config");
         var site = command.GetString("--site");
@@ -21,7 +24,7 @@ public static class CleanCommand
         {
             var resolved = ConfigPathResolver.Resolve(configPath, site);
             rootDir = resolved.RootDir;
-            var config = ConfigLoader.Load(resolved.FullConfigPath);
+            var (config, _) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, isCi: false);
             outputDir = Path.GetFullPath(Path.Combine(rootDir, config.Build.Output));
         }
         else

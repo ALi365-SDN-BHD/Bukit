@@ -862,7 +862,8 @@
       "migrationHorizon": "2.0-review",
       "signature": "public static class Bukit.Config.ConfigLoader",
       "publicMembers": [
-        "public static Bukit.Config.AppConfig! Load(System.String! path)"
+        "public static Bukit.Config.AppConfig! Load(System.String! path)",
+        "public static Bukit.Config.AppConfig! Load(System.String! path, Bukit.Shared.ILogger! logger)"
       ],
       "protectedMembers": []
     },
@@ -2629,7 +2630,8 @@
         "public System.Int32 Version { get; set; }",
         "public System.String! TemplateHash { get; set; }",
         "public System.Void Save(System.String! manifestPath)",
-        "public static Bukit.Engine.Incremental.BuildManifest! Load(System.String! manifestPath)"
+        "public static Bukit.Engine.Incremental.BuildManifest! Load(System.String! manifestPath)",
+        "public static Bukit.Engine.Incremental.BuildManifest! Load(System.String! manifestPath, Bukit.Shared.ILogger! logger)"
       ],
       "protectedMembers": []
     },
@@ -6737,6 +6739,7 @@
       "signature": "public sealed class Bukit.PluginHost.SystemProcessRunner : Bukit.PluginHost.IProcessRunner~",
       "publicMembers": [
         "public .ctor()",
+        "public .ctor(Bukit.Shared.ILogger! logger)",
         "public virtual final System.Threading.Tasks.Task\u003CBukit.PluginHost.ProcessRunResult!\u003E! RunAsync(Bukit.PluginHost.ProcessRunRequest! request, System.Threading.CancellationToken cancellationToken)"
       ],
       "protectedMembers": []

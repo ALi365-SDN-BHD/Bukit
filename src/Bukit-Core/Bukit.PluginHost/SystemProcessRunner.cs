@@ -9,6 +9,17 @@ public sealed class SystemProcessRunner : IProcessRunner
 {
     private static readonly Encoding Utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private static readonly TimeSpan TerminationGracePeriod = TimeSpan.FromSeconds(2);
+    private readonly ILogger _logger;
+
+    public SystemProcessRunner() : this(new ConsoleLogger(LogLevel.Warn))
+    {
+    }
+
+    public SystemProcessRunner(ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _logger = logger;
+    }
 
     public async Task<ProcessRunResult> RunAsync(
         ProcessRunRequest request,
@@ -283,7 +294,7 @@ public sealed class SystemProcessRunner : IProcessRunner
         }
     }
 
-    private static async Task<bool> TerminateProcessAsync(
+    private async Task<bool> TerminateProcessAsync(
         Process process,
         IProcessTreeLimiter? treeLimiter,
         Task<LimitedOutput> stdoutTask,
@@ -302,12 +313,16 @@ public sealed class SystemProcessRunner : IProcessRunner
             tasks.Add(ObserveTerminationTaskAsync(resourceMonitorTask));
         }
 
-        var completed = await WaitForTerminationGraceAsync(
-            Task.WhenAll(tasks),
-            TerminationGracePeriod);
+        return await WaitForTerminationAndWarnAsync(Task.WhenAll(tasks), TerminationGracePeriod, _logger);
+    }
+
+    internal static async Task<bool> WaitForTerminationAndWarnAsync(
+        Task completion, TimeSpan gracePeriod, ILogger logger)
+    {
+        var completed = await WaitForTerminationGraceAsync(completion, gracePeriod);
         if (!completed)
         {
-            Console.Error.WriteLine(
+            logger.Warn(
                 $"Plugin process termination did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds.");
         }
 

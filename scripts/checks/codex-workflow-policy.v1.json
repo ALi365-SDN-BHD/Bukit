@@ -1009,6 +1009,28 @@
       "specialtyTests": [
         "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
       ]
+    },
+    {
+      "id": "library-logging-contract",
+      "matches": [
+        "openspec/changes/unify-library-logging/*.md",
+        "openspec/changes/unify-library-logging/specs/library-logging/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter FullyQualifiedName~CommandConfigLoaderTests",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~LibraryDiagnosticOutputTests|FullyQualifiedName~SiteEngineLoggerTests\""
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "contractConsumerGlobs": [
+        "tests/Bukit.Engine.Tests/MetaRemovalInventoryTests.cs",
+        "tests/Bukit.Engine.Tests/BuildReporterTests.cs",
+        "tests/Bukit.Engine.Tests/LibraryDiagnosticOutputTests.cs",
+        "tests/Bukit.Engine.Tests/SiteEngineLoggerTests.cs",
+        "tests/Bukit.Cli.Tests/CommandConfigLoaderTests.cs",
+        "tests/Bukit.Architecture.Tests/LibraryConsoleOutputTests.cs"
+      ]
     }
   ],
   "resourceRules": [

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Incremental;
 
@@ -10,13 +11,14 @@ internal sealed class DirectoryHashCache
     private readonly long _maxTotalSize;
 
     public DirectoryHashCache(
+        ILogger logger,
         Func<string, string>? hashFactory = null,
         int maxFiles = 10000,
         long maxTotalSize = 100 * 1024 * 1024)
     {
         _maxFiles = maxFiles;
         _maxTotalSize = maxTotalSize;
-        _hashFactory = hashFactory ?? (path => HashUtil.Sha256HexForDirectory(path, _maxFiles, _maxTotalSize));
+        _hashFactory = hashFactory ?? (path => HashUtil.Sha256HexForDirectory(path, logger, _maxFiles, _maxTotalSize));
     }
 
     public string GetOrAdd(string directoryPath)

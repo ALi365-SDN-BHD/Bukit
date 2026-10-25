@@ -4,12 +4,66 @@ using System.Runtime.InteropServices;
 using Bukit.PluginProcessProbe;
 using Bukit.PluginHost;
 using Bukit.PluginHost.ProcessTree;
+using Bukit.Shared;
+using System.Text.Json;
 using Xunit;
 
 namespace Bukit.PluginHost.Tests;
 
 public sealed class SystemProcessRunnerTests
 {
+    [Fact]
+    public void LoggerConstructor_RetainsOldConstructorAndRejectsNull()
+    {
+        Assert.NotNull(new SystemProcessRunner());
+        Assert.Equal("logger", Assert.Throws<ArgumentNullException>(() => new SystemProcessRunner(null!)).ParamName);
+    }
+
+    [Theory]
+    [InlineData("text", LogLevel.Warn)]
+    [InlineData("json", LogLevel.Warn)]
+    [InlineData("json", LogLevel.Error)]
+    public async Task TerminationWarning_ActuallyEmitsOutOfBandWithSelectedSink(string format, LogLevel level)
+    {
+        using var stdout = new StringWriter();
+        using var stderr = new StringWriter();
+        var originalOut = Console.Out;
+        var originalErr = Console.Error;
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        const string message = "Plugin process termination did not complete within 2 seconds.";
+        try
+        {
+            Console.SetOut(stdout);
+            Console.SetError(stderr);
+            var logger = new ConsoleLogger(level, format);
+            Assert.False(await SystemProcessRunner.WaitForTerminationAndWarnAsync(
+                completion.Task, TimeSpan.FromMilliseconds(1), logger));
+            completion.SetResult();
+            Assert.True(await SystemProcessRunner.WaitForTerminationAndWarnAsync(
+                Task.CompletedTask, TimeSpan.FromSeconds(2), logger));
+            var result = await new SystemProcessRunner(logger).RunAsync(
+                ProbeRequest(arguments: ["echo"], stdin: "protocol-input"), CancellationToken.None);
+            Assert.Equal("protocol-input", result.Stdout);
+            Assert.Equal("stderr-log", result.Stderr);
+        }
+        finally
+        {
+            completion.TrySetResult();
+            Console.SetOut(originalOut);
+            Console.SetError(originalErr);
+        }
+        Assert.Empty(stdout.ToString());
+        if (level == LogLevel.Error) Assert.Empty(stderr.ToString());
+        else if (format == "text") Assert.Equal("[warn] " + message + Environment.NewLine, stderr.ToString());
+        else
+        {
+            using var json = JsonDocument.Parse(stderr.ToString());
+            Assert.Equal("Warn", json.RootElement.GetProperty("level").GetString());
+            Assert.Equal(message, json.RootElement.GetProperty("msg").GetString());
+            Assert.EndsWith(Environment.NewLine, stderr.ToString());
+        }
+    }
+
     [Fact]
     public void PrepareSetSidStartInfo_PreservesExecutableAndArgumentsWithoutShellJobControl()
     {

@@ -45,8 +45,12 @@ public sealed class PluginCliLoader
     }
 
     public static PluginCliLoader CreateDefault()
+        => CreateDefault(new ConsoleLogger(LogLevel.Warn));
+
+    internal static PluginCliLoader CreateDefault(ILogger logger)
     {
-        var processInvoker = new PluginProcessInvoker(new SystemProcessRunner());
+        ArgumentNullException.ThrowIfNull(logger);
+        var processInvoker = new PluginProcessInvoker(new SystemProcessRunner(logger));
         return new PluginCliLoader(
             new PluginConfigLoader(),
             new PluginManifestLoader(),

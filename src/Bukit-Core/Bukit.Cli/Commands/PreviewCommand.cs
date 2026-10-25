@@ -17,7 +17,10 @@ public static class PreviewCommand
     public static async Task<int> RunAsync(CliBoundCommand command)
         => await RunAsync(command, CancellationToken.None);
 
-    public static async Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken)
+    public static Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken)
+        => RunAsync(command, "text", cancellationToken);
+
+    internal static async Task<int> RunAsync(CliBoundCommand command, string logFormat, CancellationToken cancellationToken = default)
     {
         var dirOpt = command.GetString("--dir");
         var configPathOpt = command.GetString("--config");
@@ -28,7 +31,7 @@ public static class PreviewCommand
         if (!string.IsNullOrWhiteSpace(configPathOpt) || !string.IsNullOrWhiteSpace(siteOpt))
         {
             resolvedConfigPath = ConfigPathResolver.Resolve(configPathOpt, siteOpt);
-            explicitConfig = ConfigLoader.Load(resolvedConfigPath.FullConfigPath);
+            (explicitConfig, _) = CommandConfigLoader.Load(resolvedConfigPath.FullConfigPath, logFormat, isCi: false);
         }
 
         string dir;
@@ -83,7 +86,7 @@ public static class PreviewCommand
                 resolvedConfigPath!.FullConfigPath,
                 ConfigFound: true,
                 Error: null)
-            : ResolveAnalyticsPolicyInPreview(dir);
+            : ResolveAnalyticsPolicyInPreview(dir, logFormat);
 
         if (analyticsPolicy.Decision == PreviewAnalyticsPolicyDecision.Error)
         {
@@ -408,7 +411,7 @@ public static class PreviewCommand
         }
     }
 
-    internal static PreviewAnalyticsPolicyResolution ResolveAnalyticsPolicyInPreview(string previewDir)
+    internal static PreviewAnalyticsPolicyResolution ResolveAnalyticsPolicyInPreview(string previewDir, string logFormat)
     {
         var current = new DirectoryInfo(Path.GetFullPath(previewDir));
         while (current is not null)
@@ -418,7 +421,7 @@ public static class PreviewCommand
             {
                 try
                 {
-                    var config = ConfigLoader.Load(configPath);
+                    var (config, _) = CommandConfigLoader.Load(configPath, logFormat, isCi: false);
                     return new PreviewAnalyticsPolicyResolution(
                         ShouldRemoveManagedAnalytics(config.Site)
                             ? PreviewAnalyticsPolicyDecision.Remove

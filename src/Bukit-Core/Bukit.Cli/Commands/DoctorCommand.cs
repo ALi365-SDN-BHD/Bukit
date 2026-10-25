@@ -20,11 +20,14 @@ public static class DoctorCommand
         AppConfig Config,
         string LayoutsDir,
         string[] AllHtmlFiles);
-    public static async Task<int> RunAsync(CliBoundCommand command)
+    public static Task<int> RunAsync(CliBoundCommand command)
+        => RunAsync(command, "text");
+
+    internal static async Task<int> RunAsync(CliBoundCommand command, string logFormat)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var rootDir = resolved.RootDir;
-        var config = ConfigLoader.Load(resolved.FullConfigPath);
+        var (config, logger) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, isCi: false);
 
         var siteUrl = command.GetString("--site-url");
         if (!string.IsNullOrWhiteSpace(siteUrl))
@@ -61,7 +64,7 @@ public static class DoctorCommand
         ThemeBootstrapResult bootstrap;
         try
         {
-            bootstrap = ThemeBootstrapper.BootstrapRequired(config, rootDir, new ConsoleLogger(LogLevel.Warn));
+            bootstrap = ThemeBootstrapper.BootstrapRequired(config, rootDir, logger);
         }
         catch (ConfigException ex)
         {
@@ -282,7 +285,7 @@ public static class DoctorCommand
             RoutedDocuments = Array.Empty<Bukit.Engine.Abstractions.Content.RoutedContentDocument>(),
             BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
             TemplateResolver = templateResolver.ResolveKindTemplate,
-            Logger = new ConsoleLogger(LogLevel.Info)
+            Logger = logger
         };
 
         var discoverySession = PluginExecutionSession.Create(
@@ -368,7 +371,7 @@ public static class DoctorCommand
                 config,
                 rootDir,
                 isCi: false,
-                new ConsoleLogger(LogLevel.Error),
+                new ConsoleLogger(LogLevel.Error, logFormat),
                 templateResolver);
             RouteInventoryValidator.ValidateContentRoutes(routedDocuments);
             Console.WriteLine("✔ Routes valid");
@@ -393,7 +396,7 @@ public static class DoctorCommand
                 RoutedDocuments = routedDocuments,
                 BodyStore = Bukit.Engine.Abstractions.Content.NullContentBodyStore.Instance,
                 TemplateResolver = templateResolver.ResolveKindTemplate,
-                Logger = new ConsoleLogger(LogLevel.Info)
+                Logger = logger
             };
             listRoutes = SiteEngine.GetListRoutes(
                 routedPluginContext,
@@ -444,7 +447,7 @@ public static class DoctorCommand
         try
         {
             var factory = new DefaultContentProviderFactory();
-            var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Error));
+            var contentPipeline = new ContentPipeline(factory, new ConsoleLogger(LogLevel.Error, logFormat));
             var contentResult = await contentPipeline.ExecuteAsync(config, rootDir, new ConfigOverrides(), Path.Combine(rootDir, ".cache", "media"));
             try
             {

@@ -341,7 +341,7 @@ internal static class ImageOptimizer
 
     private static async Task ConvertToAvif(string inputFile, string outputFile, int quality, ILogger logger, CancellationToken cancellationToken)
     {
-        var tool = await FindImageToolAsync(cancellationToken);
+        var tool = await FindImageToolAsync(logger, cancellationToken);
         if (tool is null)
         {
             logger.Warn("event=image_optimize.skip reason=no_tool message=Install ImageMagick (magick) for AVIF conversion.");
@@ -365,7 +365,7 @@ internal static class ImageOptimizer
         await RunTool(startInfo, logger, inputFile, outputFile, expectedOutputMime: null, cancellationToken);
     }
 
-    private static async Task<string?> FindImageToolAsync(CancellationToken cancellationToken = default)
+    private static async Task<string?> FindImageToolAsync(ILogger logger, CancellationToken cancellationToken = default)
     {
         foreach (var candidate in new[] { "magick", "convert" })
         {
@@ -384,7 +384,7 @@ internal static class ImageOptimizer
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
-                }, TimeSpan.FromSeconds(3), cancellationToken);
+                }, TimeSpan.FromSeconds(3), logger, cancellationToken);
                 if (result.ExitCode == 0)
                 {
                     return candidate;
@@ -419,6 +419,7 @@ internal static class ImageOptimizer
             var result = await ExternalToolProcessRunner.RunAsync(
                 startInfo,
                 TimeSpan.FromSeconds(10),
+                logger,
                 cancellationToken);
             var validationAttempted = result.ExitCode == 0 && File.Exists(temporaryOutput);
             var outputIsValid = validationAttempted &&

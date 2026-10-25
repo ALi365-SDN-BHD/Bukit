@@ -18,7 +18,7 @@ internal sealed record NotionFetchedPage(
 
 internal interface INotionPageFetcher
 {
-    Task<NotionFetchedPage?> FetchAsync(NotionApiClient client, string pageId, CancellationToken cancellationToken);
+    Task<NotionFetchedPage?> FetchAsync(NotionApiClient client, string pageId, ILogger logger, CancellationToken cancellationToken);
 }
 
 internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
@@ -185,7 +185,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
         var cachePath = PagesIndexCacheHelper.ResolveCachePath(context.RootDir, PagesIndexConfigHelper.TryGetString(resolveCfg, "cache_path"));
         if (cacheMode != "off")
         {
-            var cached = PagesIndexCacheHelper.TryLoadCache(cachePath);
+            var cached = PagesIndexCacheHelper.TryLoadCache(cachePath, context.Logger);
             if (cached is not null && cached.Count > 0)
             {
                 var toFetch = new List<string>();
@@ -213,7 +213,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
                     if (cacheMode == "readwrite")
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        PagesIndexCacheHelper.TrySaveCache(cachePath, index);
+                        PagesIndexCacheHelper.TrySaveCache(cachePath, index, context.Logger);
                     }
                     return;
                 }
@@ -310,7 +310,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
         if (cacheMode == "readwrite")
         {
             cancellationToken.ThrowIfCancellationRequested();
-            PagesIndexCacheHelper.TrySaveCache(cachePath, index);
+            PagesIndexCacheHelper.TrySaveCache(cachePath, index, context.Logger);
         }
 
         async Task<NotionFetchedPage?> ResolveOneAsync(string pageId)
@@ -318,7 +318,7 @@ internal sealed class PagesIndexPlugin : IBukitPlugin, IDerivePagesAsyncPlugin
             await sem.WaitAsync(cancellationToken);
             try
             {
-                return await _notionFetcher.FetchAsync(client, pageId, cancellationToken);
+                return await _notionFetcher.FetchAsync(client, pageId, context.Logger, cancellationToken);
             }
             finally
             {

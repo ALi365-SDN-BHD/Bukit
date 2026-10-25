@@ -1,4 +1,5 @@
 using Bukit.Engine.Output;
+using Bukit.Shared;
 using Bukit.Shared.IO;
 using Xunit;
 using Xunit.Sdk;
@@ -7,6 +8,7 @@ namespace Bukit.Engine.Tests;
 
 public sealed class DirectoryCopyTests : IDisposable
 {
+    private static readonly ILogger Logger = new ConsoleLogger(LogLevel.Warn);
     private readonly List<string> _tempRoots = new();
 
     [Fact]
@@ -16,7 +18,7 @@ public sealed class DirectoryCopyTests : IDisposable
         var sourceDir = Path.Combine(root, "missing");
         var destinationDir = Path.Combine(root, "output");
 
-        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
+        DirectoryCopy.SyncFiles(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: true);
 
         Assert.False(Directory.Exists(destinationDir));
     }
@@ -34,7 +36,7 @@ public sealed class DirectoryCopyTests : IDisposable
         var sourceTimestamp = new DateTime(2024, 01, 02, 03, 04, 05, DateTimeKind.Utc);
         File.SetLastWriteTimeUtc(sourceFile, sourceTimestamp);
 
-        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
+        DirectoryCopy.SyncFiles(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: false);
 
         var destinationFile = Path.Combine(destinationDir, "photo.jpg");
         Assert.True(File.Exists(destinationFile));
@@ -62,7 +64,7 @@ public sealed class DirectoryCopyTests : IDisposable
 
         try
         {
-            DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
+            DirectoryCopy.SyncFiles(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: true);
         }
         finally
         {
@@ -90,7 +92,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(destinationFile, "old");
         File.SetLastWriteTimeUtc(destinationFile, sourceTimestamp.AddMinutes(-10));
 
-        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
+        DirectoryCopy.SyncFiles(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: false);
 
         Assert.Equal("new-content", File.ReadAllText(destinationFile));
         Assert.Equal(sourceTimestamp, File.GetLastWriteTimeUtc(destinationFile));
@@ -106,7 +108,7 @@ public sealed class DirectoryCopyTests : IDisposable
 
         File.WriteAllText(Path.Combine(sourceDir, ".hidden.jpg"), "skip-me");
 
-        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
+        DirectoryCopy.SyncFiles(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: true);
 
         Assert.False(File.Exists(Path.Combine(destinationDir, ".hidden.jpg")));
     }
@@ -128,7 +130,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.SetLastWriteTimeUtc(sourceFile, timestamp);
         File.SetLastWriteTimeUtc(destinationFile, timestamp);
 
-        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { HashMode = "sha256", IgnoreDotPrefixedFiles = false });
+        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { HashMode = "sha256", IgnoreDotPrefixedFiles = false }, Logger);
 
         Assert.Equal("bbbb", File.ReadAllText(destinationFile));
     }
@@ -145,7 +147,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(destinationDir, "main.css"), "old");
         File.WriteAllText(Path.Combine(destinationDir, "removed.css"), "stale");
 
-        DirectoryCopy.Sync(sourceDir, destinationDir, prune: true);
+        DirectoryCopy.Sync(sourceDir, destinationDir, Logger, prune: true);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "main.css")));
         Assert.False(File.Exists(Path.Combine(destinationDir, "removed.css")));
@@ -162,7 +164,7 @@ public sealed class DirectoryCopyTests : IDisposable
 
         File.WriteAllText(Path.Combine(nestedDir, "nested.jpg"), "nested");
 
-        DirectoryCopy.SyncFiles(sourceDir, destinationDir, ignoreDotPrefixedFiles: true);
+        DirectoryCopy.SyncFiles(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: true);
 
         Assert.False(File.Exists(Path.Combine(destinationDir, "nested.jpg")));
         Assert.False(Directory.Exists(Path.Combine(destinationDir, "nested")));
@@ -180,7 +182,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(nestedDir, ".tmp"), "skip-me");
 
         var destinationDir = Path.Combine(root, "output");
-        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
+        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: false);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "cover.png")));
         Assert.Equal("cover", File.ReadAllText(Path.Combine(destinationDir, "cover.png")));
@@ -210,7 +212,7 @@ public sealed class DirectoryCopyTests : IDisposable
             throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
         }
 
-        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
+        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: false);
 
         Assert.Equal("local", File.ReadAllText(Path.Combine(destinationDir, "nested", "local.txt")));
         Assert.False(File.Exists(Path.Combine(destinationDir, "linked-external", "secret.txt")));
@@ -231,7 +233,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(externalFile, "secret");
         var planned = Assert.Single(DirectoryCopy.EnumerateFilesForSync(
             sourceDir,
-            new DirectoryCopyOptions { FollowSymlinks = true }));
+            new DirectoryCopyOptions { FollowSymlinks = true }, Logger));
         File.Delete(sourceFile);
         try
         {
@@ -266,7 +268,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, "public.txt"), "safe");
         File.WriteAllText(Path.Combine(externalDir, "public.txt"), "secret");
         var options = new DirectoryCopyOptions { FollowSymlinks = true };
-        var planned = Assert.Single(DirectoryCopy.EnumerateFilesForSync(sourceDir, options));
+        var planned = Assert.Single(DirectoryCopy.EnumerateFilesForSync(sourceDir, options, Logger));
 
         Directory.Delete(sourceDir, recursive: true);
         try
@@ -310,7 +312,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, ".htaccess"), "htaccess-data");
         File.WriteAllText(Path.Combine(sourceDir, "regular.txt"), "regular");
 
-        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false });
+        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false }, Logger);
 
         Assert.False(File.Exists(Path.Combine(destinationDir, ".env")));
         Assert.False(File.Exists(Path.Combine(destinationDir, ".env.local")));
@@ -337,7 +339,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(wellKnownDir, "security.txt"), "security-content");
         File.WriteAllText(Path.Combine(sourceDir, "index.html"), "home");
 
-        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false });
+        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false }, Logger);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, ".well-known", "security.txt")));
         Assert.Equal("security-content", File.ReadAllText(Path.Combine(destinationDir, ".well-known", "security.txt")));
@@ -356,7 +358,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, ".config"), "config");
         File.WriteAllText(Path.Combine(sourceDir, "visible.txt"), "visible");
 
-        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions());
+        DirectoryCopy.Sync(sourceDir, destinationDir, new DirectoryCopyOptions(), Logger);
 
         Assert.False(File.Exists(Path.Combine(destinationDir, ".hidden")));
         Assert.False(File.Exists(Path.Combine(destinationDir, ".config")));
@@ -375,7 +377,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, ".htaccess"), "htaccess-data");
 
         DirectoryCopy.Sync(sourceDir, destinationDir,
-            new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false, AlwaysDenySensitiveDotfiles = false });
+            new DirectoryCopyOptions { IgnoreDotPrefixedFiles = false, AlwaysDenySensitiveDotfiles = false }, Logger);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, ".env")));
         Assert.True(File.Exists(Path.Combine(destinationDir, ".htaccess")));
@@ -402,7 +404,7 @@ public sealed class DirectoryCopyTests : IDisposable
             return;
         }
 
-        DirectoryCopy.Sync(sourceDir, destinationDir, prune: false);
+        DirectoryCopy.Sync(sourceDir, destinationDir, Logger, prune: false);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "photo.jpg")));
         Assert.Equal("regular", File.ReadAllText(Path.Combine(destinationDir, "photo.jpg")));
@@ -431,7 +433,7 @@ public sealed class DirectoryCopyTests : IDisposable
             return;
         }
 
-        DirectoryCopy.Sync(sourceDir, destinationDir, prune: false);
+        DirectoryCopy.Sync(sourceDir, destinationDir, Logger, prune: false);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "real", "inside.txt")));
         Assert.False(Directory.Exists(Path.Combine(destinationDir, "linkdir")));
@@ -459,7 +461,7 @@ public sealed class DirectoryCopyTests : IDisposable
         }
 
         var options = new DirectoryCopyOptions { FollowSymlinks = true, IgnoreDotPrefixedFiles = false };
-        DirectoryCopy.Sync(sourceDir, destinationDir, options);
+        DirectoryCopy.Sync(sourceDir, destinationDir, options, Logger);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "photo.jpg")));
         Assert.True(File.Exists(Path.Combine(destinationDir, "link.jpg")));
@@ -487,7 +489,7 @@ public sealed class DirectoryCopyTests : IDisposable
         }
 
         var destinationDir = Path.Combine(root, "output");
-        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
+        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: false);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "nested", "real.txt")));
         Assert.Equal("real", File.ReadAllText(Path.Combine(destinationDir, "nested", "real.txt")));
@@ -515,7 +517,7 @@ public sealed class DirectoryCopyTests : IDisposable
             return;
         }
 
-        DirectoryCopy.Copy(sourceDir, destinationDir);
+        DirectoryCopy.Copy(sourceDir, destinationDir, Logger);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "photo.jpg")));
         Assert.False(File.Exists(Path.Combine(destinationDir, "link.jpg")));
@@ -560,7 +562,7 @@ public sealed class DirectoryCopyTests : IDisposable
         var sourceDir = Path.Combine(root, "missing");
         var destinationDir = Path.Combine(root, "output");
 
-        DirectoryCopy.Copy(sourceDir, destinationDir);
+        DirectoryCopy.Copy(sourceDir, destinationDir, Logger);
 
         Assert.False(Directory.Exists(destinationDir));
     }
@@ -575,7 +577,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, "a.txt"), "a");
         File.WriteAllText(Path.Combine(sourceDir, "sub", "b.txt"), "b");
 
-        DirectoryCopy.Copy(sourceDir, destinationDir);
+        DirectoryCopy.Copy(sourceDir, destinationDir, Logger);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "a.txt")));
         Assert.True(File.Exists(Path.Combine(destinationDir, "sub", "b.txt")));
@@ -592,7 +594,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, ".hidden.txt"), "skip");
         File.WriteAllText(Path.Combine(sourceDir, "visible.txt"), "keep");
 
-        DirectoryCopy.Copy(sourceDir, destinationDir);
+        DirectoryCopy.Copy(sourceDir, destinationDir, Logger);
 
         Assert.False(File.Exists(Path.Combine(destinationDir, ".hidden.txt")));
         Assert.False(Directory.Exists(Path.Combine(destinationDir, ".hidden-dir")));
@@ -610,7 +612,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, "a.txt"), "new");
         File.WriteAllText(Path.Combine(destinationDir, "a.txt"), "old");
 
-        DirectoryCopy.Copy(sourceDir, destinationDir);
+        DirectoryCopy.Copy(sourceDir, destinationDir, Logger);
 
         Assert.Equal("new", File.ReadAllText(Path.Combine(destinationDir, "a.txt")));
     }
@@ -628,6 +630,7 @@ public sealed class DirectoryCopyTests : IDisposable
         DirectoryCopy.Copy(
             sourceDir,
             destinationDir,
+            Logger,
             destinationDir,
             new RedirectingOutputPathPolicy(redirectedDir));
 
@@ -648,6 +651,7 @@ public sealed class DirectoryCopyTests : IDisposable
         DirectoryCopy.SyncFiles(
             sourceDir,
             destinationDir,
+            Logger,
             ignoreDotPrefixedFiles: false,
             outputRoot: destinationDir,
             pathPolicy: new RedirectingOutputPathPolicy(redirectedDir));
@@ -663,7 +667,7 @@ public sealed class DirectoryCopyTests : IDisposable
         var sourceDir = Path.Combine(root, "missing");
         var destinationDir = Path.Combine(root, "output");
 
-        DirectoryCopy.Sync(sourceDir, destinationDir);
+        DirectoryCopy.Sync(sourceDir, destinationDir, Logger);
 
         Assert.False(Directory.Exists(destinationDir));
     }
@@ -681,7 +685,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(destinationDir, "stale.txt"), "stale");
         Directory.CreateDirectory(Path.Combine(destinationDir, "stale-dir"));
 
-        DirectoryCopy.Sync(sourceDir, destinationDir, prune: true);
+        DirectoryCopy.Sync(sourceDir, destinationDir, Logger, prune: true);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "keep.txt")));
         Assert.False(File.Exists(Path.Combine(destinationDir, "stale.txt")));
@@ -698,7 +702,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, "top.txt"), "top");
         File.WriteAllText(Path.Combine(sourceDir, "deep", "nested", "bottom.txt"), "bottom");
 
-        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, ignoreDotPrefixedFiles: false);
+        DirectoryCopy.SyncFilesRecursive(sourceDir, destinationDir, Logger, ignoreDotPrefixedFiles: false);
 
         Assert.True(File.Exists(Path.Combine(destinationDir, "top.txt")));
         Assert.True(File.Exists(Path.Combine(destinationDir, "deep", "nested", "bottom.txt")));
@@ -714,7 +718,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, "a.txt"), "a");
         File.WriteAllText(Path.Combine(sourceDir, "sub", "c.txt"), "c");
 
-        var items = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions());
+        var items = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions(), Logger);
 
         Assert.Equal(3, items.Count);
         Assert.Equal("a.txt", items[0].RelativePath);
@@ -726,7 +730,7 @@ public sealed class DirectoryCopyTests : IDisposable
     public void EnumerateFilesForSync_NonExistentSource_ReturnsEmpty()
     {
         var root = CreateTempRoot();
-        var items = DirectoryCopy.EnumerateFilesForSync(Path.Combine(root, "missing"), new DirectoryCopyOptions());
+        var items = DirectoryCopy.EnumerateFilesForSync(Path.Combine(root, "missing"), new DirectoryCopyOptions(), Logger);
         Assert.Empty(items);
     }
 
@@ -741,7 +745,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, "asset.txt"), "content");
 
         // Obtain the planned item (source + physical root) exactly as AssetPipeline does
-        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions()).Single();
+        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions(), Logger).Single();
         DirectoryCopy.SyncPlannedFile(
             planned.SourcePath,
             Path.Combine(destinationDir, "asset.txt"),
@@ -763,7 +767,7 @@ public sealed class DirectoryCopyTests : IDisposable
         Directory.CreateDirectory(sourceDir);
         File.WriteAllText(Path.Combine(sourceDir, "asset.txt"), "content");
         var options = new DirectoryCopyOptions();
-        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, options).Single();
+        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, options, Logger).Single();
 
         DirectoryCopy.SyncPlannedFile(
             planned.SourcePath,
@@ -788,7 +792,7 @@ public sealed class DirectoryCopyTests : IDisposable
         var sourceFile = Path.Combine(sourceDir, "asset.txt");
         var destinationFile = Path.Combine(destinationDir, "asset.txt");
         File.WriteAllText(sourceFile, "safe");
-        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions()).Single();
+        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions(), Logger).Single();
         var opener = new ReplacingSourceOpener("safe", "evil");
 
         DirectoryCopy.SyncPlannedFile(
@@ -814,7 +818,7 @@ public sealed class DirectoryCopyTests : IDisposable
         File.WriteAllText(Path.Combine(sourceDir, "asset.txt"), "source");
         var destinationFile = Path.Combine(destinationDir, "asset.txt");
         File.WriteAllText(destinationFile, "existing");
-        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions()).Single();
+        var planned = DirectoryCopy.EnumerateFilesForSync(sourceDir, new DirectoryCopyOptions(), Logger).Single();
 
         Assert.Throws<IOException>(() => DirectoryCopy.SyncPlannedFile(
             planned.SourcePath,

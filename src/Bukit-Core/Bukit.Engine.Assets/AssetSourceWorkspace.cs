@@ -72,6 +72,7 @@ internal sealed class AssetSourceWorkspace : IDisposable
             foreach (var item in DirectoryCopy.EnumerateFilesForSync(
                          sourceAssetsDir,
                          copyOptions,
+                         logger,
                          cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();

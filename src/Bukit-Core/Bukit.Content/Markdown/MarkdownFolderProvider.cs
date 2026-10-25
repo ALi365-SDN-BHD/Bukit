@@ -21,18 +21,26 @@ public sealed class MarkdownFolderProvider : IContentProvider
 {
     private readonly MarkdownFolderProviderOptions _options;
     private readonly ISafeSourceFileOpener _opener;
+    private readonly ILogger _logger;
 
     public MarkdownFolderProvider(MarkdownFolderProviderOptions options)
-        : this(options, new PlatformSafeSourceFileOpener())
+        : this(options, new ConsoleLogger(LogLevel.Warn))
+    {
+    }
+
+    internal MarkdownFolderProvider(MarkdownFolderProviderOptions options, ILogger logger)
+        : this(options, new PlatformSafeSourceFileOpener(), logger)
     {
     }
 
     internal MarkdownFolderProvider(
         MarkdownFolderProviderOptions options,
-        ISafeSourceFileOpener opener)
+        ISafeSourceFileOpener opener,
+        ILogger logger)
     {
         _options = options;
         _opener = opener;
+        _logger = logger;
     }
 
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
@@ -126,7 +134,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
             if (MarkdownFrontMatterParser.TryExtractFrontMatter(markdown, out var frontMatterYaml, out var body))
             {
                 bodyMarkdown = body;
-                var fm = MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml);
+                var fm = MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml, _logger);
                 foreach (var kv in fm)
                 {
                     frontMatterValues[kv.Key] = kv.Value;

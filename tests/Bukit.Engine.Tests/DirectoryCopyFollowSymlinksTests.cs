@@ -1,9 +1,11 @@
 using Xunit;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
 {
+    private static readonly ILogger Logger = new ConsoleLogger(LogLevel.Warn);
     private readonly string _root;
 
     public DirectoryCopyFollowSymlinksTests()
@@ -32,7 +34,7 @@ public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
         var linkPath = Path.Combine(sourceDir, "link.txt");
         File.CreateSymbolicLink(linkPath, Path.Combine(sourceDir, "real.txt"));
 
-        DirectoryCopy.Sync(sourceDir, destDir, new DirectoryCopyOptions { FollowSymlinks = true });
+        DirectoryCopy.Sync(sourceDir, destDir, new DirectoryCopyOptions { FollowSymlinks = true }, Logger);
 
         Assert.True(File.Exists(Path.Combine(destDir, "real.txt")));
         Assert.True(File.Exists(Path.Combine(destDir, "link.txt")));
@@ -53,7 +55,7 @@ public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
         var linkPath = Path.Combine(sourceDir, "evil.txt");
         File.CreateSymbolicLink(linkPath, Path.Combine(outsideDir, "secret.txt"));
 
-        DirectoryCopy.Sync(sourceDir, destDir, new DirectoryCopyOptions { FollowSymlinks = true });
+        DirectoryCopy.Sync(sourceDir, destDir, new DirectoryCopyOptions { FollowSymlinks = true }, Logger);
 
         Assert.False(File.Exists(Path.Combine(destDir, "evil.txt")));
     }
@@ -69,7 +71,7 @@ public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
         var linkPath = Path.Combine(sourceDir, "link.txt");
         File.CreateSymbolicLink(linkPath, Path.Combine(sourceDir, "real.txt"));
 
-        DirectoryCopy.Sync(sourceDir, destDir, new DirectoryCopyOptions { FollowSymlinks = false });
+        DirectoryCopy.Sync(sourceDir, destDir, new DirectoryCopyOptions { FollowSymlinks = false }, Logger);
 
         Assert.True(File.Exists(Path.Combine(destDir, "real.txt")));
         Assert.False(File.Exists(Path.Combine(destDir, "link.txt")));
@@ -92,7 +94,7 @@ public sealed class DirectoryCopyFollowSymlinksTests : IDisposable
         var chain2 = Path.Combine(sourceDir, "chain2.txt");
         File.CreateSymbolicLink(chain2, Path.Combine(outsideDir, "target.txt"));
 
-        DirectoryCopy.Sync(sourceDir, destDir, new DirectoryCopyOptions { FollowSymlinks = true });
+        DirectoryCopy.Sync(sourceDir, destDir, new DirectoryCopyOptions { FollowSymlinks = true }, Logger);
 
         Assert.False(File.Exists(Path.Combine(destDir, "chain1.txt")));
     }

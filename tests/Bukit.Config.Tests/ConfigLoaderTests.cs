@@ -58,6 +58,25 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal(20, config.Site.Seo.Geo.LlmsTxtMaxArticles);
     }
 
+    [Fact]
+    public void Load_LoggerAwareOverloadRoutesUnprefixedWarningAndRejectsNull()
+    {
+        var path = WriteTempYaml("site:\n  name: test\n  title: Test\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\nbuild:\n  followSymlinks: true\n");
+        var logger = new WarningLogger();
+        Assert.True(ConfigLoader.Load(path, logger).Build.FollowSymlinks);
+        Assert.Equal("build.followSymlinks is enabled. Symlinks may point outside the project directory. Ensure all symlinks are trusted.", Assert.Single(logger.Messages));
+        Assert.Equal("logger", Assert.Throws<ArgumentNullException>(() => ConfigLoader.Load(path, null!)).ParamName);
+    }
+
+    private sealed class WarningLogger : ILogger
+    {
+        internal List<string> Messages { get; } = [];
+        public void Debug(string message) => Assert.Fail("Unexpected Debug");
+        public void Info(string message) => Assert.Fail("Unexpected Info");
+        public void Warn(string message) => Messages.Add(message);
+        public void Error(string message) => Assert.Fail("Unexpected Error");
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(7)]

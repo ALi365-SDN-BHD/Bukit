@@ -8,10 +8,13 @@ namespace Bukit.Cli.Commands;
 
 public static class BuildCommand
 {
-    public static async Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
+    public static Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
+        => RunAsync(command, command.GetString("--log-format") ?? "text", cancellationToken);
+
+    internal static async Task<int> RunAsync(CliBoundCommand command, string logFormat, CancellationToken cancellationToken = default)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
-        var config = ConfigLoader.Load(resolved.FullConfigPath);
+        var (config, logger) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, command.GetBool("--ci"));
 
         var siteUrl = command.GetString("--site-url");
         if (!string.IsNullOrWhiteSpace(siteUrl))
@@ -31,8 +34,6 @@ public static class BuildCommand
             MetricsPath = command.GetString("--metrics"),
             Jobs = TryParsePositiveInt(command.GetString("--jobs"))
         };
-
-        var logger = new ConsoleLogger(ParseLogLevel(config.Logging.Level, overrides.IsCI), command.GetString("--log-format") ?? "text");
 
         var engine = new SiteEngine(logger);
         await engine.BuildAsync(config, resolved.RootDir, overrides, cancellationToken);
@@ -54,20 +55,4 @@ public static class BuildCommand
         return n;
     }
 
-    private static LogLevel ParseLogLevel(string? level, bool isCi)
-    {
-        if (isCi)
-        {
-            return LogLevel.Warn;
-        }
-
-        return (level ?? "info").Trim().ToLowerInvariant() switch
-        {
-            "debug" => LogLevel.Debug,
-            "info" => LogLevel.Info,
-            "warn" => LogLevel.Warn,
-            "error" => LogLevel.Error,
-            _ => LogLevel.Info
-        };
-    }
 }

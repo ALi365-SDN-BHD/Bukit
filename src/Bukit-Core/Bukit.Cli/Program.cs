@@ -7,7 +7,8 @@ using Bukit.Shared;
 
 var command = args.Length > 0 ? args[0] : null;
 var commandArgsRaw = args.Skip(1).ToArray();
-var isJsonErrorMode = string.Equals(ReadGlobalLogFormat(commandArgsRaw, new List<string>(commandArgsRaw.Length), keepLogFormat: false), "json", StringComparison.OrdinalIgnoreCase);
+var logFormat = ReadGlobalLogFormat(commandArgsRaw, new List<string>(commandArgsRaw.Length), keepLogFormat: false) ?? "text";
+var isJsonErrorMode = string.Equals(logFormat, "json", StringComparison.OrdinalIgnoreCase);
 
 if (command is null || command is "help" or "--help" or "-h")
 {
@@ -17,11 +18,11 @@ if (command is null || command is "help" or "--help" or "-h")
 
 try
 {
-    var coreDescriptors = BukitCliDescriptors.CreateDescriptors();
+    var coreDescriptors = BukitCliDescriptors.CreateDescriptors(logFormat);
     var descriptor = BukitCliDescriptors.ResolveDescriptor(coreDescriptors, command);
     if (descriptor is null)
     {
-        var pluginCli = await PluginCliLoader.CreateDefault().LoadAsync(
+        var pluginCli = await PluginCliLoader.CreateDefault(new ConsoleLogger(LogLevel.Warn, logFormat)).LoadAsync(
             Directory.GetCurrentDirectory(),
             CancellationToken.None,
             toleratePluginFailures: string.Equals(command, "plugin", StringComparison.Ordinal));
@@ -31,7 +32,6 @@ try
 
     var commandArgsInfo = NormalizeGlobalLogFormat(commandArgsRaw, descriptor);
     var commandArgs = commandArgsInfo.Args;
-    isJsonErrorMode = commandArgsInfo.LogFormat == "json";
 
     if (descriptor is not null)
     {

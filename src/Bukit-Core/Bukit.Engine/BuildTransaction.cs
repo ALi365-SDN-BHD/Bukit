@@ -70,7 +70,7 @@ internal sealed class BuildTransaction : IDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
             // Validate the formal target, never a conveniently empty staging directory.
-            BuildPlanner.ValidateOutputDirectory(config, logicalRoot, logicalOutput, overrides);
+            BuildPlanner.ValidateOutputDirectory(config, logicalRoot, logicalOutput, overrides, logger);
             transaction = new(targets, lease, logger, output, cache, ResourcePath(media), logicalOutput, move, delete);
             StageTargets(targets, output, config, cancellationToken);
             foreach (var resource in resources.Where(r => !r.Write))

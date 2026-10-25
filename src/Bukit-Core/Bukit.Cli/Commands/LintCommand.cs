@@ -14,7 +14,7 @@ public static class LintCommand
         try
         {
             var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
-            var config = ConfigLoader.Load(resolved.FullConfigPath);
+            var (config, _) = CommandConfigLoader.Load(resolved.FullConfigPath, "text", isCi: false);
             ConfigValidator.Validate(config);
 
             LintMarkdown(config, resolved.RootDir, issues);

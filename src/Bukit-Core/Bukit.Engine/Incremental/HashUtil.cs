@@ -20,7 +20,7 @@ internal static class HashUtil
         return ToHexLower(hash);
     }
 
-    public static string Sha256HexForDirectory(string rootDir, int maxFiles = 10000, long maxTotalSize = 100 * 1024 * 1024)
+    public static string Sha256HexForDirectory(string rootDir, ILogger logger, int maxFiles = 10000, long maxTotalSize = 100 * 1024 * 1024)
     {
         if (!Directory.Exists(rootDir))
         {
@@ -49,7 +49,7 @@ internal static class HashUtil
 
             if (fileCount > maxFiles)
             {
-                WarnOnce($"Directory '{rootDir}' has {fileCount} files, exceeding limit of {maxFiles}. Only first {maxFiles} files will be processed.");
+                logger.Warn($"Directory '{rootDir}' has {fileCount} files, exceeding limit of {maxFiles}. Only first {maxFiles} files will be processed.");
             }
 
             foreach (var f in files)
@@ -68,7 +68,7 @@ internal static class HashUtil
 
                 if (totalSize + fileLength > maxTotalSize && processedCount > 0)
                 {
-                    WarnOnce($"Directory '{rootDir}' total size exceeds limit of {maxTotalSize} bytes. Stopping content processing at file {processedCount} of {fileCount}.");
+                    logger.Warn($"Directory '{rootDir}' total size exceeds limit of {maxTotalSize} bytes. Stopping content processing at file {processedCount} of {fileCount}.");
                     hasher.AppendData(Encoding.UTF8.GetBytes($"skip:{f.Relative}:{fileLength}"));
                     hasher.AppendData(separator);
                     processedCount++;
@@ -106,11 +106,6 @@ internal static class HashUtil
 
         var digest = hasher.GetHashAndReset();
         return ToHexLower(digest);
-    }
-
-    private static void WarnOnce(string message)
-    {
-        Console.Error.WriteLine($"[warn] {message}");
     }
 
     public static string ToHexLower(ReadOnlySpan<byte> bytes)

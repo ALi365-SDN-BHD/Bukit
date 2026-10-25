@@ -1,5 +1,6 @@
 using Xunit;
 using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Tests;
 
@@ -8,6 +9,7 @@ namespace Bukit.Engine.Tests;
 /// </summary>
 public sealed class PagesIndexCacheHelperTests : IDisposable
 {
+    private static readonly ILogger Logger = new ConsoleLogger(LogLevel.Warn);
     private readonly string _testDir;
 
     public PagesIndexCacheHelperTests()
@@ -26,7 +28,7 @@ public sealed class PagesIndexCacheHelperTests : IDisposable
     [Fact]
     public void TryLoadCache_MissingFile_ReturnsNull()
     {
-        var result = PagesIndexCacheHelper.TryLoadCache(Path.Combine(_testDir, "missing.json"));
+        var result = PagesIndexCacheHelper.TryLoadCache(Path.Combine(_testDir, "missing.json"), Logger);
         Assert.Null(result);
     }
 
@@ -36,7 +38,7 @@ public sealed class PagesIndexCacheHelperTests : IDisposable
         var path = Path.Combine(_testDir, "cache.json");
         File.WriteAllText(path, """{"page1": {"title": "Hello", "count": 42}}""");
 
-        var result = PagesIndexCacheHelper.TryLoadCache(path);
+        var result = PagesIndexCacheHelper.TryLoadCache(path, Logger);
 
         Assert.NotNull(result);
         Assert.True(result!.ContainsKey("page1"));
@@ -48,7 +50,7 @@ public sealed class PagesIndexCacheHelperTests : IDisposable
         var path = Path.Combine(_testDir, "bad.json");
         File.WriteAllText(path, "not valid json");
 
-        var result = PagesIndexCacheHelper.TryLoadCache(path);
+        var result = PagesIndexCacheHelper.TryLoadCache(path, Logger);
 
         Assert.Null(result);
     }
@@ -59,7 +61,7 @@ public sealed class PagesIndexCacheHelperTests : IDisposable
         var path = Path.Combine(_testDir, "array.json");
         File.WriteAllText(path, "[1,2,3]");
 
-        var result = PagesIndexCacheHelper.TryLoadCache(path);
+        var result = PagesIndexCacheHelper.TryLoadCache(path, Logger);
 
         Assert.Null(result);
     }
@@ -79,10 +81,10 @@ public sealed class PagesIndexCacheHelperTests : IDisposable
             }
         };
 
-        PagesIndexCacheHelper.TrySaveCache(path, index);
+        PagesIndexCacheHelper.TrySaveCache(path, index, Logger);
 
         Assert.True(File.Exists(path));
-        var loaded = PagesIndexCacheHelper.TryLoadCache(path);
+        var loaded = PagesIndexCacheHelper.TryLoadCache(path, Logger);
         Assert.NotNull(loaded);
         Assert.True(loaded!.ContainsKey("page1"));
     }
@@ -99,9 +101,9 @@ public sealed class PagesIndexCacheHelperTests : IDisposable
             }
         };
 
-        PagesIndexCacheHelper.TrySaveCache(path, index);
+        PagesIndexCacheHelper.TrySaveCache(path, index, Logger);
 
-        var loaded = PagesIndexCacheHelper.TryLoadCache(path);
+        var loaded = PagesIndexCacheHelper.TryLoadCache(path, Logger);
         Assert.NotNull(loaded);
         Assert.Empty(loaded!);
     }
@@ -115,9 +117,9 @@ public sealed class PagesIndexCacheHelperTests : IDisposable
             ["page1"] = "not-a-dictionary"
         };
 
-        PagesIndexCacheHelper.TrySaveCache(path, index);
+        PagesIndexCacheHelper.TrySaveCache(path, index, Logger);
 
-        var loaded = PagesIndexCacheHelper.TryLoadCache(path);
+        var loaded = PagesIndexCacheHelper.TryLoadCache(path, Logger);
         Assert.NotNull(loaded);
         Assert.Empty(loaded!);
     }

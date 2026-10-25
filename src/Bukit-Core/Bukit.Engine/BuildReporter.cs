@@ -53,8 +53,8 @@ internal static class BuildReporter
             : $"event=build.security_report.write dir={reportDir} root={rootDir}");
     }
 
-    internal static void EnforceSecurityGate(AppConfig config, SecurityReportData? securityData, bool isCi)
-        => BuildReporterSecurity.EnforceSecurityGate(config, securityData, isCi);
+    internal static void EnforceSecurityGate(AppConfig config, SecurityReportData? securityData, bool isCi, ILogger logger)
+        => BuildReporterSecurity.EnforceSecurityGate(config, securityData, isCi, logger);
 
     internal static SecurityReportData CreateSecurityReportData(
         AppConfig config,

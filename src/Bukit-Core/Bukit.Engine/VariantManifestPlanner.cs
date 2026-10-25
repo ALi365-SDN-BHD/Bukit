@@ -17,7 +17,8 @@ internal static class VariantManifestPlanner
     internal static ManifestSetupResult Create(
         BuildVariantContext context,
         ConfigOverrides overrides,
-        DirectoryHashCache templateHashCache)
+        DirectoryHashCache templateHashCache,
+        ILogger logger)
     {
         var incrementalEnabled = overrides.Incremental ?? true;
         var cacheDir = string.IsNullOrWhiteSpace(overrides.CacheDir)
@@ -32,7 +33,7 @@ internal static class VariantManifestPlanner
         var templateHash = incrementalEnabled
             ? ComputeCompositeTemplateHash(context, templateHashCache)
             : string.Empty;
-        var manifest = BuildManifest.Load(manifestPath);
+        var manifest = BuildManifest.Load(manifestPath, logger);
         if (!PublicOutputLifecycle.SameRoot(manifest, context.OutputDir)) manifest = new BuildManifest();
         if (!incrementalEnabled) manifest.Entries.Clear();
         manifest.TemplateHash = templateHash;

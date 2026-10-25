@@ -23,29 +23,32 @@ public static class DevCommand
         );
     }
 
-    public static async Task<int> RunAsync(CliBoundCommand command)
+    public static Task<int> RunAsync(CliBoundCommand command)
+        => RunAsync(command, "text");
+
+    internal static async Task<int> RunAsync(CliBoundCommand command, string logFormat)
     {
         var (configPath, site, host, port, noWatch, outputOverride, allowLan) = ExtractOptions(command);
-        return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride, allowLan);
+        return await RunCoreAsync(configPath, site, host, port, noWatch, outputOverride, allowLan, logFormat);
     }
 
     private static async Task<int> RunCoreAsync(
-        string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride, bool allowLan)
+        string? configPath, string? site, string host, int port, bool noWatch, string? outputOverride, bool allowLan, string logFormat)
     {
-        var logger = new ConsoleLogger(LogLevel.Info);
+        var bootstrapLogger = new ConsoleLogger(LogLevel.Warn, logFormat);
         if (IsLanExposureHost(host))
         {
             if (ShouldRefuseLanExposure(host, allowLan))
             {
-                logger.Error("bukit dev refused to bind a non-loopback host. Use --allow-lan to expose the development server to your LAN.");
+                bootstrapLogger.Error("bukit dev refused to bind a non-loopback host. Use --allow-lan to expose the development server to your LAN.");
                 return 2;
             }
 
-            logger.Warn($"bukit dev is listening on non-loopback host '{host}'. Only use --allow-lan on trusted networks.");
+            bootstrapLogger.Warn($"bukit dev is listening on non-loopback host '{host}'. Only use --allow-lan on trusted networks.");
         }
 
         var resolved = ConfigPathResolver.Resolve(configPath, site);
-        var config = ConfigLoader.Load(resolved.FullConfigPath);
+        var (config, logger) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, isCi: false);
         var rootDir = resolved.RootDir;
         var outputDir = BuildPathUtils.MakeAbsolute(rootDir, outputOverride ?? config.Build.Output);
 

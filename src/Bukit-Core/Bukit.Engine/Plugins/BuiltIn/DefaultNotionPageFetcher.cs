@@ -1,4 +1,5 @@
 using Bukit.Content.Notion;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -7,6 +8,7 @@ internal sealed class DefaultNotionPageFetcher : INotionPageFetcher
     public async Task<NotionFetchedPage?> FetchAsync(
         NotionApiClient client,
         string pageId,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         try
@@ -25,8 +27,8 @@ internal sealed class DefaultNotionPageFetcher : INotionPageFetcher
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine(
-                $"[warn] pages-index: failed to fetch Notion page '{pageId}': {exception.Message}");
+            logger.Warn(
+                $"pages-index: failed to fetch Notion page '{pageId}': {exception.Message}");
             return null;
         }
     }

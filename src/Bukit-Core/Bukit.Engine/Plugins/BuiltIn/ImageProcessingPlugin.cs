@@ -201,6 +201,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
                         var externalResult = await ExternalToolProcessRunner.RunAsync(
                             startInfo,
                             TimeSpan.FromSeconds(10),
+                            context.Logger,
                             cancellationToken);
                         result = (externalResult.ExitCode, externalResult.StandardError);
                     }
@@ -1210,7 +1211,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
     }
 
     private static async Task<string?> FindResizeToolAsync(
-        ILogger? logger = null,
+        ILogger logger,
         CancellationToken cancellationToken = default)
     {
         foreach (var name in new[] { "magick", "convert" })
@@ -1225,7 +1226,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
-                }, TimeSpan.FromSeconds(3), cancellationToken);
+                }, TimeSpan.FromSeconds(3), logger, cancellationToken);
                 if (result.ExitCode == 0)
                 {
                     return name;
@@ -1237,7 +1238,7 @@ internal sealed partial class ImageProcessingPlugin : IBukitPlugin, IAfterBuildA
             }
             catch (Exception ex)
             {
-                logger?.Warn($"event=image_processing.tool.probe.failed tool={name} reason={ex.Message}");
+                logger.Warn($"event=image_processing.tool.probe.failed tool={name} reason={ex.Message}");
             }
         }
 

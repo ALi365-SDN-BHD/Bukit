@@ -34,6 +34,17 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task LoggerAwareDefaultFactory_RejectsNullAndDoesNotRequireSiteConfig()
+    {
+        Assert.Equal("logger", Assert.Throws<ArgumentNullException>(() => PluginCliLoader.CreateDefault(null!)).ParamName);
+        Assert.False(File.Exists(Path.Combine(_tempDir, "site.yaml")));
+        var result = await PluginCliLoader.CreateDefault(new ConsoleLogger(LogLevel.Warn, "json"))
+            .LoadAsync(_tempDir, CancellationToken.None);
+        Assert.Single(result.Descriptors);
+        Assert.Equal("plugin", result.Descriptors[0].Spec.Name);
+    }
+
+    [Fact]
     public void BukitCliComposer_RejectsPluginCommandConflictWithCore()
     {
         var core = BukitCliDescriptors.CreateDescriptors();

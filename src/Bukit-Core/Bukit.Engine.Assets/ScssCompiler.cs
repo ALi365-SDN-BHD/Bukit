@@ -62,6 +62,7 @@ internal static class ScssCompiler
                     var result = await ExternalToolProcessRunner.RunAsync(
                         startInfo,
                         TimeSpan.FromSeconds(5),
+                        logger,
                         cancellationToken);
                     if (result.ExitCode == 0 && IsReadableFile(temporaryCssFile))
                     {
@@ -126,7 +127,7 @@ internal static class ScssCompiler
         return [entryPoint];
     }
 
-    private static async Task<string?> FindSassCliAsync(CancellationToken cancellationToken = default, ILogger? logger = null)
+    private static async Task<string?> FindSassCliAsync(CancellationToken cancellationToken, ILogger logger)
     {
         var names = new[] { "sass", "dart-sass" };
 
@@ -147,7 +148,7 @@ internal static class ScssCompiler
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
-                }, TimeSpan.FromSeconds(3), cancellationToken);
+                }, TimeSpan.FromSeconds(3), logger, cancellationToken);
                 if (result.ExitCode == 0)
                 {
                     return name;
@@ -159,7 +160,7 @@ internal static class ScssCompiler
             }
             catch (Exception ex)
             {
-                logger?.Debug($"event=scss.tool.probe.failed tool={name} reason={ex.Message}");
+                logger.Debug($"event=scss.tool.probe.failed tool={name} reason={ex.Message}");
             }
         }
 

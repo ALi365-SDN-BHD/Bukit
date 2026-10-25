@@ -11,10 +11,6 @@ public sealed class BuildCommandHelperTests
         .GetMethod("TryParsePositiveInt", BindingFlags.NonPublic | BindingFlags.Static)!
         ;
 
-    private static readonly MethodInfo s_parseLogLevel = typeof(BuildCommand)
-        .GetMethod("ParseLogLevel", BindingFlags.NonPublic | BindingFlags.Static)!
-        ;
-
     [Fact]
     public void TryParsePositiveInt_WhenMissing_ReturnsNull()
     {
@@ -46,7 +42,7 @@ public sealed class BuildCommandHelperTests
     [InlineData("debug", true, LogLevel.Warn)]
     public void ParseLogLevel_ReturnsExpectedLevel(string? configured, bool isCi, LogLevel expected)
     {
-        var level = (LogLevel)s_parseLogLevel.Invoke(null, [configured, isCi])!;
+        var level = CommandConfigLoader.ParseLogLevel(configured, isCi);
         Assert.Equal(expected, level);
     }
 }

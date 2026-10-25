@@ -9,7 +9,10 @@ namespace Bukit.Cli.Commands;
 
 public static class DeployCommand
 {
-    public static async Task<int> RunAsync(CliBoundCommand command)
+    public static Task<int> RunAsync(CliBoundCommand command)
+        => RunAsync(command, "text");
+
+    internal static async Task<int> RunAsync(CliBoundCommand command, string logFormat)
     {
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var skipBuild = command.GetBool("--skip-build");
@@ -17,9 +20,10 @@ public static class DeployCommand
         var force = command.GetBool("--force");
 
         AppConfig config;
+        ILogger logger;
         try
         {
-            config = ConfigLoader.Load(resolved.FullConfigPath);
+            (config, logger) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, command.GetBool("--ci"));
             ConfigValidator.Validate(config, new ConfigValidationOptions { ValidateProviderSecrets = !skipBuild });
         }
         catch (ConfigException ex)
@@ -52,7 +56,6 @@ public static class DeployCommand
         }
 
         var isCI = command.GetBool("--ci");
-        var logger = new ConsoleLogger(isCI ? LogLevel.Warn : LogLevel.Info);
 
         var effectiveOutput = !string.IsNullOrWhiteSpace(cliOutput)
             ? cliOutput
@@ -61,26 +64,13 @@ public static class DeployCommand
         if (!skipBuild)
         {
             logger.Info("Building site before deploy...");
-            var buildResult = await BuildCommand.RunAsync(new CliBoundCommand(
-                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["--config"] = command.GetString("--config"),
-                    ["--site"] = command.GetString("--site"),
-                    ["--output"] = cliOutput,
-                    ["--base-url"] = cliBaseUrl,
-                    ["--site-url"] = cliSiteUrl,
-                    ["--clean"] = "true",
-                    ["--ci"] = isCI ? "true" : null,
-                }
-                .Where(x => x.Value is not null)
-                .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
-                Array.Empty<string>()));
-
-            if (buildResult != 0)
+            await new SiteEngine(logger).BuildAsync(config, resolved.RootDir, new ConfigOverrides
             {
-                logger.Error("Build failed. Aborting deploy.");
-                return buildResult;
-            }
+                Output = cliOutput,
+                BaseUrl = cliBaseUrl,
+                Clean = true,
+                IsCI = isCI
+            });
         }
 
         var outputDir = Path.IsPathRooted(effectiveOutput)

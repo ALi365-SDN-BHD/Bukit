@@ -8,6 +8,9 @@ namespace Bukit.Cli.Commands;
 public static class ConfigCommand
 {
     public static Task<int> RunAsync(CliBoundCommand command)
+        => RunAsync(command, "text");
+
+    internal static Task<int> RunAsync(CliBoundCommand command, string logFormat)
     {
         var sub = command.GetArgument(0) ?? "default";
         if (string.IsNullOrWhiteSpace(sub))
@@ -18,18 +21,18 @@ public static class ConfigCommand
 
         return sub switch
         {
-            "check" => Task.FromResult(Check(command)),
+            "check" => Task.FromResult(Check(command, logFormat)),
             "schema" => Task.FromResult(Schema(command)),
             _ => Task.FromResult(Unknown(sub))
         };
     }
 
-    private static int Check(CliBoundCommand command)
+    private static int Check(CliBoundCommand command, string logFormat)
     {
         try
         {
             var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
-            var config = ConfigLoader.Load(resolved.FullConfigPath);
+            var (config, _) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, isCi: false);
 
             var siteUrl = command.GetString("--site-url");
             if (!string.IsNullOrWhiteSpace(siteUrl))

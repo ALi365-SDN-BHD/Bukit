@@ -1,11 +1,12 @@
 using System.Text;
 using System.Text.Json;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
 internal static class PagesIndexCacheHelper
 {
-    public static Dictionary<string, object>? TryLoadCache(string path)
+    public static Dictionary<string, object>? TryLoadCache(string path, ILogger logger)
     {
         if (!File.Exists(path))
         {
@@ -26,12 +27,12 @@ internal static class PagesIndexCacheHelper
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[warn] pages-index: failed to load cache '{path}': {ex.Message}");
+            logger.Warn($"pages-index: failed to load cache '{path}': {ex.Message}");
             return null;
         }
     }
 
-    public static void TrySaveCache(string path, Dictionary<string, object> index)
+    public static void TrySaveCache(string path, Dictionary<string, object> index, ILogger logger)
     {
         try
         {
@@ -75,7 +76,7 @@ internal static class PagesIndexCacheHelper
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[warn] pages-index: failed to save cache '{path}': {ex.Message}");
+            logger.Warn($"pages-index: failed to save cache '{path}': {ex.Message}");
         }
     }
 

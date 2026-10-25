@@ -57,6 +57,7 @@ internal sealed class AssetOutputPlan
             string.Empty,
             AssetOutputCategory.Static,
             copyOptions,
+            context.Logger,
             cancellationToken,
             renderedStaticCopyDestinations);
         AddDirectoryItems(
@@ -65,15 +66,17 @@ internal sealed class AssetOutputPlan
             string.Empty,
             AssetOutputCategory.Static,
             copyOptions,
+            context.Logger,
             cancellationToken,
             renderedStaticCopyDestinations);
-        AddDirectoryItems(effectiveItems, context.ParentAssetsDir, "assets", AssetOutputCategory.Assets, copyOptions, cancellationToken);
+        AddDirectoryItems(effectiveItems, context.ParentAssetsDir, "assets", AssetOutputCategory.Assets, copyOptions, context.Logger, cancellationToken);
         AddDirectoryItems(
             effectiveItems,
             context.AssetsDir,
             "assets",
             AssetOutputCategory.Assets,
             copyOptions,
+            context.Logger,
             cancellationToken,
             include: context.ScssConfig is { Enabled: true }
                 ? static candidate => !string.Equals(
@@ -87,6 +90,7 @@ internal sealed class AssetOutputPlan
             NormalizeOutputPrefix(context.ScssConfig?.OutputDir ?? "assets"),
             AssetOutputCategory.Assets,
             copyOptions,
+            context.Logger,
             cancellationToken);
 
         var mediaOptions = new DirectoryCopyOptions
@@ -95,7 +99,7 @@ internal sealed class AssetOutputPlan
             FollowSymlinks = false
         };
         if (context.MediaOutputs is null)
-            AddDirectoryItems(effectiveItems, context.MediaDownloadDir, "assets/uploads", AssetOutputCategory.Media, mediaOptions, cancellationToken);
+            AddDirectoryItems(effectiveItems, context.MediaDownloadDir, "assets/uploads", AssetOutputCategory.Media, mediaOptions, context.Logger, cancellationToken);
         else
             foreach (var item in context.MediaOutputs)
                 effectiveItems[(AssetOutputCategory.Media, item.Destination)] = item;
@@ -151,6 +155,7 @@ internal sealed class AssetOutputPlan
         string destinationPrefix,
         AssetOutputCategory category,
         DirectoryCopyOptions options,
+        ILogger logger,
         CancellationToken cancellationToken,
         IReadOnlySet<string>? excludedDestinations = null,
         Func<DirectoryCopyItem, bool>? include = null)
@@ -160,7 +165,7 @@ internal sealed class AssetOutputPlan
             return;
         }
 
-        foreach (var candidate in DirectoryCopy.EnumerateFilesForSync(sourceDir, options, cancellationToken))
+        foreach (var candidate in DirectoryCopy.EnumerateFilesForSync(sourceDir, options, logger, cancellationToken))
         {
             if (include is not null && !include(candidate))
             {

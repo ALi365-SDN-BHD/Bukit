@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Incremental;
 
@@ -15,7 +16,11 @@ public sealed class BuildManifest
     public Dictionary<string, PluginOutputManifestEntry> PluginOutputs { get; set; } = new(StringComparer.Ordinal);
 
     public static BuildManifest Load(string manifestPath)
+        => Load(manifestPath, new ConsoleLogger(LogLevel.Warn));
+
+    public static BuildManifest Load(string manifestPath, ILogger logger)
     {
+        ArgumentNullException.ThrowIfNull(logger);
         if (!File.Exists(manifestPath))
         {
             return new BuildManifest();
@@ -86,7 +91,7 @@ public sealed class BuildManifest
         }
         catch (Exception ex) when (ex is FileNotFoundException or JsonException or IOException)
         {
-            Console.Error.WriteLine($"[warn] Failed to load build manifest '{manifestPath}': {ex.Message}");
+            logger.Warn($"Failed to load build manifest '{manifestPath}': {ex.Message}");
             return new BuildManifest();
         }
     }

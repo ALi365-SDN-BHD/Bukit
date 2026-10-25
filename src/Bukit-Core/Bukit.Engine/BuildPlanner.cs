@@ -76,11 +76,11 @@ internal static class BuildPlanner
             Path.Combine(parentThemeRoot, "static"));
     }
 
-    internal static void ValidateOutputDirectory(AppConfig config, string rootDir, string outputDir, ConfigOverrides overrides)
+    internal static void ValidateOutputDirectory(AppConfig config, string rootDir, string outputDir, ConfigOverrides overrides, ILogger logger)
     {
         if (!Directory.Exists(outputDir)) return;
         var manifestPath = PublicOutputLifecycle.ManifestPath(rootDir, overrides);
-        var prior = Incremental.BuildManifest.Load(manifestPath);
+        var prior = Incremental.BuildManifest.Load(manifestPath, logger);
         var needsMigration = Directory.EnumerateFileSystemEntries(outputDir).Any() &&
             (File.Exists(manifestPath) || File.Exists(Path.Combine(outputDir, ".bukit-output-marker"))) &&
             (prior.Version != 3 || !PublicOutputLifecycle.SameRoot(prior, outputDir));
@@ -91,7 +91,7 @@ internal static class BuildPlanner
     private static void PrepareOutputDirectory(AppConfig config, string rootDir, string outputDir, ConfigOverrides overrides, ILogger logger)
     {
         var manifestPath = PublicOutputLifecycle.ManifestPath(rootDir, overrides);
-        var prior = Incremental.BuildManifest.Load(manifestPath);
+        var prior = Incremental.BuildManifest.Load(manifestPath, logger);
         var needsMigration = Directory.Exists(outputDir) && Directory.EnumerateFileSystemEntries(outputDir).Any() &&
             (File.Exists(manifestPath) || File.Exists(Path.Combine(outputDir, ".bukit-output-marker"))) &&
             (prior.Version != 3 || !PublicOutputLifecycle.SameRoot(prior, outputDir));

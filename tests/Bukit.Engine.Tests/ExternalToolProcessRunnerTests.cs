@@ -9,6 +9,25 @@ namespace Bukit.Engine.Tests;
 
 public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
 {
+    private static readonly ILogger Logger = new ConsoleLogger(LogLevel.Warn);
+
+    [Fact]
+    public async Task RunAsync_CallerCancellationRemainsCancellationAndRequiresLogger()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => ExternalToolProcessRunner.RunAsync(
+            StartInfo("unused"), TimeSpan.FromSeconds(1), null!));
+        if (!RequireUnix()) return;
+        string root = Path.Combine(Path.GetTempPath(), "bukit-tool-cancel-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string tool = WriteTool(root, "cancel", "sleep 30");
+            using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ExternalToolProcessRunner.RunAsync(
+                StartInfo(tool), TimeSpan.FromSeconds(20), Logger, cancel.Token));
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
+    }
     [Fact]
     public async Task RunAsync_WindowsNativeProcess_CapturesOutputAndExitCode()
     {
@@ -21,7 +40,7 @@ public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
         info.ArgumentList.Add("/d");
         info.ArgumentList.Add("/c");
         info.ArgumentList.Add("echo windows-out & echo windows-error 1>&2 & exit /b 7");
-        var result = await ExternalToolProcessRunner.RunAsync(info, TimeSpan.FromSeconds(10));
+        var result = await ExternalToolProcessRunner.RunAsync(info, TimeSpan.FromSeconds(10), Logger);
         Assert.Equal(7, result.ExitCode);
         Assert.Contains("windows-out", result.StandardOutput, StringComparison.Ordinal);
         Assert.Contains("windows-error", result.StandardError, StringComparison.Ordinal);
@@ -127,7 +146,7 @@ public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
             startInfo.ArgumentList.Add($"sleep 60 & echo $! > '{markerPath}'; exit 0");
 
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-                () => ExternalToolProcessRunner.RunAsync(startInfo, TimeSpan.FromSeconds(30)));
+                () => ExternalToolProcessRunner.RunAsync(startInfo, TimeSpan.FromSeconds(30), Logger));
             Assert.Contains("process tree", exception.Message, StringComparison.OrdinalIgnoreCase);
 
             var childPidText = await File.ReadAllTextAsync(markerPath);
@@ -230,6 +249,7 @@ public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
             var result = await ExternalToolProcessRunner.RunAsync(
                 StartInfo(tool),
                 TimeSpan.FromSeconds(5),
+                Logger,
                 CancellationToken.None);
 
             Assert.Equal(0, result.ExitCode);
@@ -259,6 +279,7 @@ public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
                 ExternalToolProcessRunner.RunAsync(
                     StartInfo(tool),
                     TimeSpan.FromMilliseconds(150),
+                    Logger,
                     CancellationToken.None));
 
             await Task.Delay(1200);
@@ -408,6 +429,7 @@ public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
                 ExternalToolProcessRunner.RunAsync(
                     StartInfo(tool),
                     TimeSpan.FromSeconds(30),
+                    Logger,
                     CancellationToken.None));
 
             Assert.Contains("produced more than", exception.Message, StringComparison.Ordinal);
@@ -438,6 +460,7 @@ public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
             var result = await ExternalToolProcessRunner.RunAsync(
                 StartInfo(tool),
                 TimeSpan.FromSeconds(10),
+                Logger,
                 CancellationToken.None);
 
             Assert.Equal(1, result.ExitCode);
@@ -470,6 +493,7 @@ public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
                 ExternalToolProcessRunner.RunAsync(
                     StartInfo(tool),
                     TimeSpan.FromMilliseconds(200),
+                    Logger,
                     CancellationToken.None));
             stopwatch.Stop();
 
@@ -499,6 +523,7 @@ public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
                 () => ExternalToolProcessRunner.RunAsync(
                     StartInfo(tool),
                     TimeSpan.FromSeconds(30),
+                    Logger,
                     CancellationToken.None));
             stopwatch.Stop();
 

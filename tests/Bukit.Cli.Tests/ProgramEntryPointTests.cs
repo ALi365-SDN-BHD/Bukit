@@ -217,6 +217,190 @@ public sealed class ProgramEntryPointTests : IDisposable
         Assert.Contains("Schema types: Article", result.StdOut, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("json", false)]
+    [InlineData("JSON", true)]
+    public async Task LoggerStartup_BuildPreservesWarningFormatAndErrorEnvelope(string format, bool split)
+    {
+        string path = WriteWarningConfig();
+        string[] option = split ? ["--log-format", format] : ["--log-format=" + format];
+        var result = await InvokeEntryPointAsync(["build", "--config", path, "--jobs", "0", .. option]);
+        Assert.Equal(2, result.ExitCode);
+        int end = result.StdErr.IndexOf(Environment.NewLine, StringComparison.Ordinal);
+        Assert.StartsWith("{", result.StdErr[..end]);
+        using var warning = System.Text.Json.JsonDocument.Parse(result.StdErr[..end]);
+        Assert.Equal("Warn", warning.RootElement.GetProperty("level").GetString());
+        Assert.StartsWith("build.followSymlinks", warning.RootElement.GetProperty("msg").GetString());
+        using var error = System.Text.Json.JsonDocument.Parse(result.StdErr[(end + Environment.NewLine.Length)..]);
+        Assert.Equal(2, error.RootElement.GetProperty("exitCode").GetInt32());
+        Assert.Contains("jobs", error.RootElement.GetProperty("errors")[0].GetProperty("message").GetString());
+    }
+
+    [Theory]
+    [InlineData("json", false)]
+    [InlineData("JSON", true)]
+    public async Task LoggerStartup_NonBuildRetainsGlobalFormat(string format, bool split)
+    {
+        string path = WriteWarningConfig();
+        string[] option = split ? ["--log-format", format] : ["--log-format=" + format];
+        var result = await InvokeEntryPointAsync(["config", "check", "--config", path, .. option]);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Config check passed", result.StdOut, StringComparison.Ordinal);
+        Assert.StartsWith("{", result.StdErr);
+        using var warning = System.Text.Json.JsonDocument.Parse(result.StdErr);
+        Assert.Equal("Warn", warning.RootElement.GetProperty("level").GetString());
+        Assert.StartsWith("build.followSymlinks", warning.RootElement.GetProperty("msg").GetString());
+    }
+
+    [Fact]
+    public async Task LoggerStartup_ErrorFiltersWarningAndNextInvocationHasNoState()
+    {
+        string path = WriteWarningConfig("error");
+        var filtered = await InvokeEntryPointAsync(["config", "check", "--config", path, "--log-format=json"]);
+        Assert.Equal(0, filtered.ExitCode);
+        Assert.Empty(filtered.StdErr);
+        var next = await InvokeEntryPointAsync(["version"]);
+        Assert.Empty(next.StdErr);
+    }
+
+    [Fact]
+    public async Task LoggerStartup_LateLoadFailureReplaysBeforeOriginalError()
+    {
+        string path = WriteWarningConfig("error", lateFailure: true);
+        var result = await InvokeEntryPointAsync(["build", "--config", path, "--log-format=JSON"]);
+        Assert.Equal(2, result.ExitCode);
+        int end = result.StdErr.IndexOf(Environment.NewLine, StringComparison.Ordinal);
+        Assert.StartsWith("{", result.StdErr[..end]);
+        using var warning = System.Text.Json.JsonDocument.Parse(result.StdErr[..end]);
+        Assert.Equal("Warn", warning.RootElement.GetProperty("level").GetString());
+        using var error = System.Text.Json.JsonDocument.Parse(result.StdErr[(end + Environment.NewLine.Length)..]);
+        Assert.Contains("pageSize", error.RootElement.GetProperty("errors")[0].GetProperty("message").GetString());
+        Assert.Empty(result.StdOut);
+    }
+
+    [Fact]
+    public async Task LoggerStartup_PluginDiscoveryUsesRawJsonWithoutSiteConfig()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteMalformedPluginConfig();
+        Assert.False(File.Exists(Path.Combine(_tempDir, "site.yaml")));
+        var result = await InvokeEntryPointAsync(["echo", "--log-format=JSON"]);
+        Assert.Equal(2, result.ExitCode);
+        using var error = System.Text.Json.JsonDocument.Parse(result.StdErr);
+        Assert.Contains("plugin config", error.RootElement.GetProperty("errors")[0].GetProperty("message").GetString());
+    }
+
+    private string WriteWarningConfig(string level = "warn", bool lateFailure = false)
+    {
+        string path = Path.Combine(_tempDir, "site.yaml");
+        File.WriteAllText(path, $$"""
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
+            build:
+              followSymlinks: true
+            logging:
+              level: {{level}}
+            {{(lateFailure ? "taxonomy:\n  pageSize: not-an-integer" : "")}}
+            """);
+        return path;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LoggerStartup_BuildErrorLevelAndCiOverride(bool ci)
+    {
+        string path = WriteWarningConfig("error");
+        string[] ciOption = ci ? ["--ci"] : [];
+        var result = await InvokeEntryPointAsync(["build", "--config", path, "--jobs", "0", "--log-format=json", .. ciOption]);
+        Assert.Equal(2, result.ExitCode);
+        string errorText = result.StdErr;
+        if (ci)
+        {
+            int end = errorText.IndexOf(Environment.NewLine, StringComparison.Ordinal);
+            using var warning = System.Text.Json.JsonDocument.Parse(errorText[..end]);
+            Assert.Equal("Warn", warning.RootElement.GetProperty("level").GetString());
+            errorText = errorText[(end + Environment.NewLine.Length)..];
+        }
+        using var error = System.Text.Json.JsonDocument.Parse(errorText);
+        Assert.Contains("jobs", error.RootElement.GetProperty("errors")[0].GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task LoggerStartup_ValidationFailureAfterSuccessfulLoadDoesNotReplayBootstrap()
+    {
+        string path = WriteWarningConfig("error");
+        File.WriteAllText(path, File.ReadAllText(path).Replace("url: https://example.com", "baseUrl: relative", StringComparison.Ordinal));
+        var result = await InvokeEntryPointAsync(["config", "check", "--config", path, "--log-format=json"]);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("Config error", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+    }
+
+    [Fact]
+    public async Task LoggerStartup_PreviewImplicitLateFailureUsesNearestConfigAndNeverStartsServer()
+    {
+        string path = WriteWarningConfig(lateFailure: true);
+        string previewDir = Path.Combine(_tempDir, "dist", "nested");
+        Directory.CreateDirectory(previewDir);
+        var result = await InvokeEntryPointAsync(["preview", "--dir", previewDir, "--port", "0", "--log-format=json"]);
+        Assert.Equal(2, result.ExitCode);
+        Assert.Empty(result.StdOut);
+        int end = result.StdErr.IndexOf(Environment.NewLine, StringComparison.Ordinal);
+        using var warning = System.Text.Json.JsonDocument.Parse(result.StdErr[..end]);
+        Assert.Equal("Warn", warning.RootElement.GetProperty("level").GetString());
+        string policy = result.StdErr[(end + Environment.NewLine.Length)..];
+        Assert.StartsWith("Preview analytics policy error:", policy);
+        Assert.Contains(path, policy, StringComparison.Ordinal);
+        Assert.Contains("pageSize", policy, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoggerStartup_PreviewExplicitConfigKeepsPriorityAndSelectedFormat()
+    {
+        string path = WriteWarningConfig();
+        string preview = Path.Combine(_tempDir, "dist");
+        Directory.CreateDirectory(preview);
+        File.WriteAllText(Path.Combine(preview, "site.yaml"), "site: [");
+        var result = await InvokeEntryPointAsync(["preview", "--config", path, "--dir", Path.Combine(preview, "missing"), "--log-format=json"]);
+        Assert.Equal(2, result.ExitCode);
+        int end = result.StdErr.IndexOf(Environment.NewLine, StringComparison.Ordinal);
+        using var warning = System.Text.Json.JsonDocument.Parse(result.StdErr[..end]);
+        Assert.Equal("Warn", warning.RootElement.GetProperty("level").GetString());
+        Assert.StartsWith("Directory not found:", result.StdErr[(end + Environment.NewLine.Length)..]);
+        Assert.Empty(result.StdOut);
+    }
+
+    [Fact]
+    public async Task LoggerStartup_DevLanRefusalPrecedesMissingConfigAndUsesJsonBootstrap()
+    {
+        var result = await InvokeEntryPointAsync(["dev", "--config", Path.Combine(_tempDir, "missing.yaml"), "--host", "0.0.0.0", "--log-format=JSON"]);
+        Assert.Equal(2, result.ExitCode);
+        Assert.Empty(result.StdOut);
+        using var json = System.Text.Json.JsonDocument.Parse(result.StdErr);
+        Assert.Equal("Error", json.RootElement.GetProperty("level").GetString());
+        Assert.Contains("refused", json.RootElement.GetProperty("msg").GetString());
+    }
+
+    [Fact]
+    public async Task LoggerStartup_InvalidBuildFormatStopsBeforeConfigurationLoad()
+    {
+        string path = WriteWarningConfig();
+        var result = await InvokeEntryPointAsync(["build", "--config", path, "--log-format=invalid"]);
+        Assert.Equal(2, result.ExitCode);
+        Assert.DoesNotContain("followSymlinks", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("--log-format", result.StdErr, StringComparison.Ordinal);
+    }
+
     private static async Task<(int ExitCode, string StdOut, string StdErr)> InvokeEntryPointAsync(string[] args)
     {
         var entryPoint = typeof(VersionCommand).Assembly.EntryPoint ?? throw new InvalidOperationException("Missing Bukit.Cli entry point.");

@@ -12,8 +12,13 @@ using Xunit;
 
 namespace Bukit.Engine.Tests;
 
-public sealed class PagesByIdDataPluginTests
+public sealed class PagesByIdDataPluginTests : IDisposable
 {
+    private readonly string _root = Path.Combine(Path.GetTempPath(), "bukit-pages-index-" + Guid.NewGuid().ToString("N"));
+
+    public PagesByIdDataPluginTests() => Directory.CreateDirectory(_root);
+    public void Dispose() => TestCleanup.DeleteDirectory(_root);
+
     [Fact]
     public async Task DerivePages_PopulatesSiteDataPagesById()
     {
@@ -60,7 +65,7 @@ public sealed class PagesByIdDataPluginTests
 
         var ctx = new BuildContext
         {
-            RootDir = "C:\\",
+            RootDir = _root,
             OutputDir = "C:\\out",
             BaseUrl = "/",
             LayoutsDir = "C:\\layouts",
@@ -111,7 +116,7 @@ public sealed class PagesByIdDataPluginTests
         };
         var ctx = new BuildContext
         {
-            RootDir = "C:\\",
+            RootDir = _root,
             OutputDir = "C:\\out",
             BaseUrl = "/",
             LayoutsDir = "C:\\layouts",
@@ -263,7 +268,7 @@ public sealed class PagesByIdDataPluginTests
 
             var ctx = new BuildContext
             {
-                RootDir = "C:\\",
+                RootDir = _root,
                 OutputDir = "C:\\out",
                 BaseUrl = "/",
                 LayoutsDir = "C:\\layouts",
@@ -451,6 +456,7 @@ public sealed class PagesByIdDataPluginTests
         public Task<Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage?> FetchAsync(
             Bukit.Content.Notion.NotionApiClient client,
             string pageId,
+            ILogger logger,
             CancellationToken cancellationToken)
         {
             return Task.FromResult<Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage?>(
@@ -471,6 +477,7 @@ public sealed class PagesByIdDataPluginTests
         public Task<Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage?> FetchAsync(
             Bukit.Content.Notion.NotionApiClient client,
             string pageId,
+            ILogger logger,
             CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("Fetcher should not be called when cache_mode=readonly");
@@ -484,6 +491,7 @@ public sealed class PagesByIdDataPluginTests
         public async Task<Bukit.Engine.Plugins.BuiltIn.NotionFetchedPage?> FetchAsync(
             Bukit.Content.Notion.NotionApiClient client,
             string pageId,
+            ILogger logger,
             CancellationToken cancellationToken)
         {
             Started.TrySetResult();

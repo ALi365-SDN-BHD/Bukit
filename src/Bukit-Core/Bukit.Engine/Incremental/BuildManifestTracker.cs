@@ -139,7 +139,7 @@ internal static class BuildManifestTracker
             FollowSymlinks = false
         };
         var currentMedia = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var item in DirectoryCopy.EnumerateFilesForSync(mediaDownloadDir, copyOptions, cancellationToken))
+        foreach (var item in DirectoryCopy.EnumerateFilesForSync(mediaDownloadDir, copyOptions, logger, cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var relativePath = BuildPathUtils.NormalizeRelPath(item.RelativePath);

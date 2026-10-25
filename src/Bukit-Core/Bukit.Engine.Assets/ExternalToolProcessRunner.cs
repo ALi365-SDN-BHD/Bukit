@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using Bukit.Shared;
 
 namespace Bukit.Engine;
 
@@ -19,9 +20,11 @@ internal static class ExternalToolProcessRunner
     internal static async Task<ExternalToolProcessResult> RunAsync(
         ProcessStartInfo startInfo,
         TimeSpan timeout,
+        ILogger logger,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(startInfo);
+        ArgumentNullException.ThrowIfNull(logger);
         if (timeout <= TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(nameof(timeout));
@@ -37,7 +40,7 @@ internal static class ExternalToolProcessRunner
 
         try
         {
-            return await RunCoreAsync(process, startInfo, timeout, cancellationToken, pgidPath).ConfigureAwait(false);
+            return await RunCoreAsync(process, startInfo, timeout, logger, cancellationToken, pgidPath).ConfigureAwait(false);
         }
         finally
         {
@@ -49,6 +52,7 @@ internal static class ExternalToolProcessRunner
         Process process,
         ProcessStartInfo startInfo,
         TimeSpan timeout,
+        ILogger logger,
         CancellationToken cancellationToken,
         string? pgidPath)
     {
@@ -73,14 +77,9 @@ internal static class ExternalToolProcessRunner
         catch (OperationCanceledException) when (linkedSource.IsCancellationRequested)
         {
             ExternalToolProcessTree.Terminate(process, groupLeaderPid);
-            var terminationCompleted = await WaitForTerminationGraceAsync(
+            var terminationCompleted = await WaitForTerminationAndWarnAsync(
                 CompleteTerminationAsync(process, stdoutTask, stderrTask),
-                TerminationGracePeriod);
-            if (!terminationCompleted)
-            {
-                Console.Error.WriteLine(
-                    $"External tool termination did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds: {startInfo.FileName}");
-            }
+                TerminationGracePeriod, startInfo.FileName, logger);
 
             if (cancellationToken.IsCancellationRequested)
             {
@@ -170,6 +169,15 @@ internal static class ExternalToolProcessRunner
             _ = ObserveEventuallyAsync(completion);
             return false;
         }
+    }
+
+    internal static async Task<bool> WaitForTerminationAndWarnAsync(
+        Task completion, TimeSpan gracePeriod, string fileName, ILogger logger)
+    {
+        var completed = await WaitForTerminationGraceAsync(completion, gracePeriod);
+        if (!completed)
+            logger.Warn($"External tool termination did not complete within {TerminationGracePeriod.TotalSeconds:0} seconds: {fileName}");
+        return completed;
     }
 
     private static async Task ObserveEventuallyAsync(Task task)

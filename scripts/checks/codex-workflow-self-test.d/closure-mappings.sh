@@ -122,6 +122,13 @@ for labs_yaml_contract_path in \
   assert_closure_mapping "$closure_fixture" "$labs_yaml_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter FullyQualifiedName~MetaRemovalInventoryTests", "dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"]' false
 done
 assert_closure_mapping "$closure_fixture" docs/superpowers/plans/2026-09-09-bukit-quality-remediation.md '["bash scripts/checks/codex-workflow-self-test.sh"]' false
+for logging_contract_path in \
+  openspec/changes/unify-library-logging/proposal.md \
+  openspec/changes/unify-library-logging/design.md \
+  openspec/changes/unify-library-logging/tasks.md \
+  openspec/changes/unify-library-logging/specs/library-logging/spec.md; do
+  assert_closure_mapping "$closure_fixture" "$logging_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter FullyQualifiedName~CommandConfigLoaderTests", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~LibraryDiagnosticOutputTests|FullyQualifiedName~SiteEngineLoggerTests\""]' false
+done
 assert_closure_mapping "$closure_fixture" docs/superpowers/plans/2026-08-05-bukit-seo-geo-next-master.md '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
 for unmapped_remediation_path in .github/workflows/unplanned.yaml docs/governance/unplanned.md docs/superpowers/plans/unplanned.md; do
   expect_exit 0 "${tool[@]}" closure --repo "$closure_fixture" --policy scripts/checks/codex-workflow-policy.v1.json --changed "$unmapped_remediation_path"

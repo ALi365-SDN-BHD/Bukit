@@ -87,7 +87,8 @@ internal sealed partial class VariantBuildPipeline
         var manifestSetup = VariantManifestPlanner.Create(
             context,
             context.Overrides,
-            templateHashCache);
+            templateHashCache,
+            logger);
         var renderAssetPlan = VariantRenderAssetPlanner.Create(
             context,
             routePipelineResult.RouteResult,
@@ -101,7 +102,7 @@ internal sealed partial class VariantBuildPipeline
 
         renderAssetPlan = renderAssetPlan with
         {
-            AssetPipelineContext = renderAssetPlan.AssetPipelineContext with { MediaOutputs = media?.Plan(cancellationToken) }
+            AssetPipelineContext = renderAssetPlan.AssetPipelineContext with { MediaOutputs = media?.Plan(logger, cancellationToken) }
         };
         var assetPipelinePreparation = await AssetPipeline.PrepareAsync(
             renderAssetPlan.AssetPipelineContext,

@@ -180,7 +180,7 @@ public sealed class MarkdownFolderProviderTests
             var opener = new ReplacingSafeSourceFileOpener(candidatePath, externalPath);
             var provider = new MarkdownFolderProvider(
                 new MarkdownFolderProviderOptions(contentDir),
-                opener);
+                opener, new ConsoleLogger(LogLevel.Warn));
 
             await Assert.ThrowsAsync<IOException>(() => provider.LoadRawAsync());
             Assert.True(opener.ReplacementOccurred);
@@ -532,7 +532,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var yaml = "title: Test\ncount: 42\nactive: true";
 
-        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml);
+        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml, new ConsoleLogger(LogLevel.Warn));
 
         Assert.Equal("Test", dict["title"]);
         Assert.Equal("42", dict["count"]);
@@ -544,7 +544,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var yaml = "tags: [one, two, three]";
 
-        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml);
+        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml, new ConsoleLogger(LogLevel.Warn));
 
         Assert.True(dict["tags"] is IEnumerable<object>);
         var list = ((IEnumerable<object>)dict["tags"]).Select(x => x.ToString()).ToList();
@@ -558,7 +558,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var yaml = "author:\n  name: Alice\n  email: a@b.com";
 
-        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml);
+        var dict = InvokeFromType<IReadOnlyDictionary<string, object>>(FmType, "ParseFrontMatter", yaml, new ConsoleLogger(LogLevel.Warn));
 
         Assert.True(dict["author"] is IReadOnlyDictionary<string, object>);
     }

@@ -10,7 +10,7 @@ namespace Bukit.Engine;
 
 internal static class BuildReporterSecurity
 {
-    internal static void EnforceSecurityGate(AppConfig config, SecurityReportData? securityData, bool isCi)
+    internal static void EnforceSecurityGate(AppConfig config, SecurityReportData? securityData, bool isCi, ILogger logger)
     {
         if (securityData is null)
         {
@@ -32,7 +32,7 @@ internal static class BuildReporterSecurity
         var message = $"BKT-BUILD-SECURITY-0001: security-report.json contains failed checks (mode={mode}).";
         if (mode == "warn")
         {
-            Console.Error.WriteLine(message);
+            logger.Warn(message);
             return;
         }
 

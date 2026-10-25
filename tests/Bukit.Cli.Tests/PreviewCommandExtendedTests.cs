@@ -242,7 +242,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         var previewDir = Path.Combine(_tempDir, "no-config");
         Directory.CreateDirectory(previewDir);
 
-        var result = PreviewCommand.ResolveAnalyticsPolicyInPreview(previewDir);
+        var result = PreviewCommand.ResolveAnalyticsPolicyInPreview(previewDir, "text");
 
         Assert.Equal(PreviewAnalyticsPolicyDecision.Keep, result.Decision);
         Assert.False(result.ConfigFound);
@@ -274,7 +274,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
                     dir: content
             """);
 
-        var result = PreviewCommand.ResolveAnalyticsPolicyInPreview(previewDir);
+        var result = PreviewCommand.ResolveAnalyticsPolicyInPreview(previewDir, "text");
 
         Assert.Equal(PreviewAnalyticsPolicyDecision.Remove, result.Decision);
         Assert.True(result.ConfigFound);
@@ -295,7 +295,7 @@ public sealed class PreviewCommandExtendedTests : IDisposable
         File.WriteAllText(Path.Combine(previewDir, "site.yaml"),
             $"site:\n  name: test\n  title: Test\n  analytics:\n{indentedAnalytics}\n{pluginYaml}content:\n  sources:\n    - type: markdown\n      name: page\n      collection: page\n      markdown:\n        dir: content\n");
 
-        var result = PreviewCommand.ResolveAnalyticsPolicyInPreview(previewDir);
+        var result = PreviewCommand.ResolveAnalyticsPolicyInPreview(previewDir, "text");
 
         Assert.Null(result.Error);
         Assert.Equal(PreviewAnalyticsPolicyDecision.Keep, result.Decision);

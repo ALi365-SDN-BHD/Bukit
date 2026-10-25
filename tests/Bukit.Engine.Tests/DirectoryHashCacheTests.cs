@@ -1,15 +1,17 @@
 using Bukit.Engine.Incremental;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
 
 public sealed class DirectoryHashCacheTests
 {
+    private static readonly ILogger Logger = new ConsoleLogger(LogLevel.Warn);
     [Fact]
     public void GetOrAdd_ReusesHashForSameDirectory()
     {
         var calls = 0;
-        var cache = new DirectoryHashCache(path =>
+        var cache = new DirectoryHashCache(Logger, path =>
         {
             calls++;
             return $"hash:{path}";
@@ -27,7 +29,7 @@ public sealed class DirectoryHashCacheTests
     public void GetOrAdd_ComputesHashSeparatelyForDifferentDirectories()
     {
         var calls = 0;
-        var cache = new DirectoryHashCache(path =>
+        var cache = new DirectoryHashCache(Logger, path =>
         {
             calls++;
             return $"hash:{path}";
@@ -52,7 +54,7 @@ public sealed class DirectoryHashCacheTests
                 File.WriteAllText(Path.Combine(tempDir, $"file-{i:D4}.txt"), $"content-{i}");
             }
 
-            var cache = new DirectoryHashCache(maxFiles: 5, maxTotalSize: 1024);
+            var cache = new DirectoryHashCache(Logger, maxFiles: 5, maxTotalSize: 1024);
             var result = cache.GetOrAdd(tempDir);
             Assert.NotNull(result);
             Assert.Equal(64, result.Length);

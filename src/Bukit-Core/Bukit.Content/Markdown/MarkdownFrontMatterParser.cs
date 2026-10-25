@@ -1,4 +1,5 @@
 using YamlDotNet.RepresentationModel;
+using Bukit.Shared;
 
 namespace Bukit.Content.Markdown;
 
@@ -46,7 +47,7 @@ internal static class MarkdownFrontMatterParser
         return true;
     }
 
-    internal static IReadOnlyDictionary<string, object> ParseFrontMatter(string yaml)
+    internal static IReadOnlyDictionary<string, object> ParseFrontMatter(string yaml, ILogger logger)
     {
         var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(yaml))
@@ -86,7 +87,7 @@ internal static class MarkdownFrontMatterParser
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[warn] Failed to parse front matter: {ex.Message}");
+            logger.Warn($"Failed to parse front matter: {ex.Message}");
             return dict;
         }
     }

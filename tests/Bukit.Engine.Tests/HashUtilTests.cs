@@ -1,5 +1,6 @@
 using System.Text;
 using Bukit.Engine.Incremental;
+using Bukit.Shared;
 using Xunit;
 using Xunit.Sdk;
 
@@ -7,6 +8,7 @@ namespace Bukit.Engine.Tests;
 
 public sealed class HashUtilTests
 {
+    private static readonly ILogger Logger = new ConsoleLogger(LogLevel.Warn);
     [Fact]
     public void Sha256HexForDirectory_IgnoresFilesThroughDirectorySymlink()
     {
@@ -19,7 +21,7 @@ public sealed class HashUtilTests
             Directory.CreateDirectory(externalDir);
             File.WriteAllText(Path.Combine(inputDir, "local.txt"), "local");
             File.WriteAllText(Path.Combine(externalDir, "secret.txt"), "secret");
-            var expected = HashUtil.Sha256HexForDirectory(inputDir);
+            var expected = HashUtil.Sha256HexForDirectory(inputDir, Logger);
 
             try
             {
@@ -30,7 +32,7 @@ public sealed class HashUtilTests
                 throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
             }
 
-            var actual = HashUtil.Sha256HexForDirectory(inputDir);
+            var actual = HashUtil.Sha256HexForDirectory(inputDir, Logger);
 
             Assert.Equal(expected, actual);
         }
@@ -136,7 +138,7 @@ public sealed class HashUtilTests
                 File.WriteAllText(Path.Combine(tempDir, $"file-{i:D4}.txt"), $"content-{i}");
             }
 
-            var result = HashUtil.Sha256HexForDirectory(tempDir, maxFiles: 5, maxTotalSize: 1024);
+            var result = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 5, maxTotalSize: 1024);
             Assert.NotNull(result);
             Assert.Equal(64, result.Length);
         }
@@ -159,8 +161,8 @@ public sealed class HashUtilTests
                 File.WriteAllText(Path.Combine(tempDir, $"file-{i:D4}.txt"), $"content-{i}");
             }
 
-            var result1 = HashUtil.Sha256HexForDirectory(tempDir, maxFiles: 10, maxTotalSize: 10 * 1024 * 1024);
-            var result2 = HashUtil.Sha256HexForDirectory(tempDir, maxFiles: 10, maxTotalSize: 10 * 1024 * 1024);
+            var result1 = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 10, maxTotalSize: 10 * 1024 * 1024);
+            var result2 = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 10, maxTotalSize: 10 * 1024 * 1024);
 
             Assert.Equal(result1, result2);
         }
