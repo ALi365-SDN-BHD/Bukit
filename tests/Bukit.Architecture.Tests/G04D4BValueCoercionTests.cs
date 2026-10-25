@@ -42,6 +42,7 @@ public sealed class G04D4BValueCoercionTests
                 "Bukit.Content",
                 "Bukit.Content.Tests",
                 "Bukit.Engine",
+                "Bukit.Engine.Assets",
                 "Bukit.Engine.Tests",
                 "Bukit.Rendering",
                 "Bukit.Shared.Tests"

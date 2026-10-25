@@ -7,6 +7,7 @@ internal static class ContentBoundaryExpectations
         "Bukit.Content.Notion.Tests",
         "Bukit.Content.Tests",
         "Bukit.Engine",
+        "Bukit.Engine.Assets",
         "Bukit.Engine.Tests"
     ];
 }

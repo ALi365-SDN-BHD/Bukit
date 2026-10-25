@@ -101,9 +101,9 @@ The check compares the compiled public and protected surfaces with
 `docs/governance/bukit-core-public-api-baseline.v1.json`. It is a
 maintainer-local governance tool, not a general CLR SDK declaration.
 Both `check` and `snapshot` require the exact policy-owned, ordered mapping of
-the governed Core assemblies to their projects (seventeen after the Engine
-split added `Bukit.Engine.Primitives`, `Bukit.Engine.Feeds` and
-`Bukit.Engine.Analytics`) before any assembly is captured.
+the governed Core assemblies to their projects (eighteen after the Engine
+split added `Bukit.Engine.Primitives`, `Bukit.Engine.Feeds`,
+`Bukit.Engine.Analytics` and `Bukit.Engine.Assets`) before any assembly is captured.
 
 The focused owner-check workflow routes governed Core C# source changes to
 this check so drift is detected early. That routing reports drift only; it does

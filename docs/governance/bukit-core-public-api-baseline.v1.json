@@ -33,6 +33,10 @@
       "project": "src/Bukit-Core/Bukit.Engine.Analytics/Bukit.Engine.Analytics.csproj"
     },
     {
+      "assembly": "Bukit.Engine.Assets",
+      "project": "src/Bukit-Core/Bukit.Engine.Assets/Bukit.Engine.Assets.csproj"
+    },
+    {
       "assembly": "Bukit.Engine.Feeds",
       "project": "src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj"
     },

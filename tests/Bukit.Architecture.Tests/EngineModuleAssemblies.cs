@@ -16,7 +16,9 @@ internal static class EngineModuleAssemblies
 
     internal static readonly Assembly Analytics = Assembly.Load("Bukit.Engine.Analytics");
 
-    internal static readonly Assembly[] All = [Engine, Primitives, Feeds, Analytics];
+    internal static readonly Assembly Assets = Assembly.Load("Bukit.Engine.Assets");
+
+    internal static readonly Assembly[] All = [Engine, Primitives, Feeds, Analytics, Assets];
 
     internal static Type GetType(string fullName)
     {

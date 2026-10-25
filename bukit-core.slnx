@@ -8,6 +8,7 @@
     <Project Path="src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Engine.Analytics/Bukit.Engine.Analytics.csproj" />
+    <Project Path="src/Bukit-Core/Bukit.Engine.Assets/Bukit.Engine.Assets.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Engine.Primitives/Bukit.Engine.Primitives.csproj" />
     <Project Path="src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj" />

@@ -18,6 +18,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Bukit.Engine" />
     <InternalsVisibleTo Include="Bukit.Engine.Analytics" />
+    <InternalsVisibleTo Include="Bukit.Engine.Assets" />
     <InternalsVisibleTo Include="Bukit.Engine.Feeds" />
     <InternalsVisibleTo Include="Bukit.Engine.Tests" />
     <InternalsVisibleTo Include="bukit" />
