@@ -155,10 +155,12 @@ public sealed class CoreBoundaryTests
     [Fact]
     public void CoreEngine_DoesNotContainRemoteThemeSourceTooling()
     {
-        var engineDir = Path.Combine(FindRepoRoot(), "src", "Bukit-Core", "Bukit.Engine");
+        var coreDir = Path.Combine(FindRepoRoot(), "src", "Bukit-Core");
+        var engineDirs = Directory.EnumerateDirectories(coreDir, "Bukit.Engine*", SearchOption.TopDirectoryOnly);
         var sourceText = string.Join(
             Environment.NewLine,
-            Directory.EnumerateFiles(engineDir, "*.cs", SearchOption.AllDirectories)
+            engineDirs
+                .SelectMany(dir => Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories))
                 .Select(File.ReadAllText));
 
         Assert.DoesNotContain("ThemeSourceManager", sourceText, StringComparison.Ordinal);

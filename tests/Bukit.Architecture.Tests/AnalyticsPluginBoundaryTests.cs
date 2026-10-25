@@ -48,7 +48,6 @@ public sealed partial class AnalyticsPluginBoundaryTests
     [Fact]
     public void HtmlTransformAndAnalyticsRuntimeTypes_RemainInternalToEngine()
     {
-        Assembly engineAssembly = typeof(PluginRegistry).Assembly;
         string[] internalEngineTypes =
         [
             "Bukit.Engine.IHtmlTransform",
@@ -68,7 +67,7 @@ public sealed partial class AnalyticsPluginBoundaryTests
 
         foreach (string typeName in internalEngineTypes)
         {
-            Type type = AssertEngineType(engineAssembly, typeName);
+            Type type = EngineModuleAssemblies.GetType(typeName);
             Assert.False(type.IsPublic || type.IsNestedPublic, $"{typeName} must remain Engine-internal.");
         }
 
@@ -104,13 +103,7 @@ public sealed partial class AnalyticsPluginBoundaryTests
         string cliProject = ReadMainlineSource("src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj");
         Assert.Empty(FindLinkedExternalCompileIncludes(cliProject));
 
-        Assembly engineAssembly = typeof(PluginRegistry).Assembly;
         Assembly cliAssembly = typeof(Bukit.Cli.Commands.PreviewCommand).Assembly;
-        string[] engineFriends = engineAssembly.GetCustomAttributes<
-                System.Runtime.CompilerServices.InternalsVisibleToAttribute>()
-            .Select(attribute => attribute.AssemblyName.Split(',')[0].Trim())
-            .ToArray();
-        Assert.Contains(cliAssembly.GetName().Name!, engineFriends, StringComparer.OrdinalIgnoreCase);
 
         string[] engineOwnedTypes =
         [
@@ -120,7 +113,12 @@ public sealed partial class AnalyticsPluginBoundaryTests
 
         foreach (string typeName in engineOwnedTypes)
         {
-            Assert.NotNull(engineAssembly.GetType(typeName, throwOnError: false, ignoreCase: false));
+            Type owned = EngineModuleAssemblies.GetType(typeName);
+            string[] ownerFriends = owned.Assembly.GetCustomAttributes<
+                    System.Runtime.CompilerServices.InternalsVisibleToAttribute>()
+                .Select(attribute => attribute.AssemblyName.Split(',')[0].Trim())
+                .ToArray();
+            Assert.Contains(cliAssembly.GetName().Name!, ownerFriends, StringComparer.OrdinalIgnoreCase);
             Assert.Null(cliAssembly.GetType(typeName, throwOnError: false, ignoreCase: false));
         }
     }

@@ -45,7 +45,7 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
         Assert.Equal("bukit-core-public-api-baseline-v1", root.GetProperty("schema").GetString());
         Assert.Equal("net10.0", root.GetProperty("targetFramework").GetString());
         Assert.Equal("no-general-clr-sdk", root.GetProperty("sdkPolicy").GetString());
-        Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
+        Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
         Assert.Equal(428, types.Length);
         Assert.Equal(0, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));

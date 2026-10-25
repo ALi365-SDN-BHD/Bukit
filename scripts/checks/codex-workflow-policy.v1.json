@@ -75,6 +75,7 @@
         "guide/dev/public-api-governance.md",
         "scripts/checks/public-api-drift.sh",
         "scripts/checks/public-api-drift-self-test.sh",
+        "scripts/checks/public-api-drift-self-test-policy.sh",
         "scripts/checks/fixtures/public-api-drift/*",
         "scripts/checks/fixtures/public-api-drift/**/*",
         "tools/Bukit.PublicApiDrift/*.cs",
@@ -124,6 +125,45 @@
       "publicContract": true,
       "resource": "dotnet-serial",
       "specialtyTests": [
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
+        "scripts/checks/public-api-drift.sh",
+        "tools/Bukit.PublicApiDrift/ApiSurfaceModels.cs"
+      ],
+      "id": "bukit-core-solution",
+      "matches": [
+        "bukit-core.slnx"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "bash scripts/checks/public-api-drift-self-test.sh",
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [
+        "tests/Bukit.Engine.Tests/*.cs",
+        "tests/Bukit.Engine.Tests/**/*.cs",
+        "tests/Bukit.Architecture.Tests/*.cs",
+        "src/Bukit-Core/Bukit.Engine/*.cs",
+        "src/Bukit-Core/Bukit.Engine/**/*.cs",
+        "src/Bukit-Core/Bukit.Cli/**/*.cs"
+      ],
+      "id": "bukit-engine-modules",
+      "matches": [
+        "src/Bukit-Core/Bukit.Engine.Primitives/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Primitives/**/*.cs",
+        "src/Bukit-Core/Bukit.Engine.Primitives/Bukit.Engine.Primitives.csproj"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
         "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
       ]
     },

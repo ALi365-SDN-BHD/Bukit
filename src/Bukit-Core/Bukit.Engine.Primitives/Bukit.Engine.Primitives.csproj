@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
+    <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
+    <ProjectReference Include="..\Bukit.Content\Bukit.Content.csproj" />
+    <ProjectReference Include="..\Bukit.Rendering\Bukit.Rendering.csproj" />
+    <ProjectReference Include="..\Bukit.Routing\Bukit.Routing.csproj" />
+    <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bukit.Engine" />
+    <InternalsVisibleTo Include="Bukit.Engine.Tests" />
+    <InternalsVisibleTo Include="bukit" />
+  </ItemGroup>
+
+</Project>

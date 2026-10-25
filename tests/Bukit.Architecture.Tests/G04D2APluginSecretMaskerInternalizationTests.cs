@@ -40,7 +40,7 @@ public sealed class G04D2APluginSecretMaskerInternalizationTests
         var root = document.RootElement;
         var types = root.GetProperty("types").EnumerateArray().ToArray();
 
-        Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
+        Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
         Assert.Equal(428, types.Length);
         Assert.Equal(0, types.Count(type =>
             type.GetProperty("compatibility").GetString() == "2.0-candidate"));

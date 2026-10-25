@@ -29,6 +29,10 @@
       "project": "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj"
     },
     {
+      "assembly": "Bukit.Engine.Primitives",
+      "project": "src/Bukit-Core/Bukit.Engine.Primitives/Bukit.Engine.Primitives.csproj"
+    },
+    {
       "assembly": "Bukit.Notion",
       "project": "src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj"
     },
@@ -2372,25 +2376,6 @@
     },
     {
       "assembly": "Bukit.Engine",
-      "name": "Bukit.Engine.BuildPathUtils",
-      "owner": "Build engine",
-      "classification": "cross-assembly-implementation",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Engine.BuildPathUtils",
-      "publicMembers": [
-        "public static System.String! EscapeHtml(System.String! text)",
-        "public static System.String! MakeAbsolute(System.String! rootDir, System.String! path)",
-        "public static System.String! MakeAbsolute(System.String! rootDir, System.String! path, System.Boolean enforceWithinRoot)",
-        "public static System.String! NormalizeBaseUrl(System.String! baseUrl)",
-        "public static System.String! NormalizeRelPath(System.String! path)",
-        "public static System.String! SanitizeFileSegment(System.String! value)",
-        "public static System.ValueTuple\u003CSystem.String!, System.String!, System.String!, System.String?, System.String?, System.String?, System.String?\u003E ResolveThemeDirectories(System.String! rootDir, Bukit.Config.ThemeConfig! theme, System.String? resolvedThemeRoot = null)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Engine",
       "name": "Bukit.Engine.BuildProjectInfo",
       "owner": "Build engine",
       "classification": "serialized-contract",
@@ -4308,6 +4293,25 @@
         "public virtual System.Int32 GetHashCode()",
         "public virtual System.String! ToString()",
         "public virtual final System.Boolean Equals(Bukit.Engine.Abstractions.Routing.RouteInfo? other)"
+      ],
+      "protectedMembers": []
+    },
+    {
+      "assembly": "Bukit.Engine.Primitives",
+      "name": "Bukit.Engine.BuildPathUtils",
+      "owner": "Build engine",
+      "classification": "cross-assembly-implementation",
+      "compatibility": "1.x-do-not-narrow",
+      "migrationHorizon": "2.0-review",
+      "signature": "public static class Bukit.Engine.BuildPathUtils",
+      "publicMembers": [
+        "public static System.String! EscapeHtml(System.String! text)",
+        "public static System.String! MakeAbsolute(System.String! rootDir, System.String! path)",
+        "public static System.String! MakeAbsolute(System.String! rootDir, System.String! path, System.Boolean enforceWithinRoot)",
+        "public static System.String! NormalizeBaseUrl(System.String! baseUrl)",
+        "public static System.String! NormalizeRelPath(System.String! path)",
+        "public static System.String! SanitizeFileSegment(System.String! value)",
+        "public static System.ValueTuple\u003CSystem.String!, System.String!, System.String!, System.String?, System.String?, System.String?, System.String?\u003E ResolveThemeDirectories(System.String! rootDir, Bukit.Config.ThemeConfig! theme, System.String? resolvedThemeRoot = null)"
       ],
       "protectedMembers": []
     },

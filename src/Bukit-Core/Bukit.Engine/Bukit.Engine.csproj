@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Bukit.Engine.Abstractions\Bukit.Engine.Abstractions.csproj" />
+    <ProjectReference Include="..\Bukit.Engine.Primitives\Bukit.Engine.Primitives.csproj" />
     <ProjectReference Include="..\Bukit.Config\Bukit.Config.csproj" />
     <ProjectReference Include="..\Bukit.Content\Bukit.Content.csproj" />
     <ProjectReference Include="..\Bukit.Rendering\Bukit.Rendering.csproj" />

@@ -30,12 +30,11 @@ public sealed class G04D9COutputFilesystemGraphTests
     [Fact]
     public void OutputFilesystemTypes_ExistInternalAndNotExported()
     {
-        Assembly assembly = typeof(SiteEngine).Assembly;
-        Type[] exported = assembly.GetExportedTypes();
+        Type[] exported = EngineModuleAssemblies.GetExportedTypes();
 
         foreach (string typeName in CandidateTypeNames)
         {
-            Type type = GetType(assembly, typeName);
+            Type type = EngineModuleAssemblies.GetType(typeName);
 
             Assert.True(type.IsNotPublic);
             Assert.DoesNotContain(type, exported);
@@ -45,7 +44,6 @@ public sealed class G04D9COutputFilesystemGraphTests
     [Fact]
     public void OutputFilesystemTypes_KeepTheirApprovedKindsAndRelationships()
     {
-        Assembly assembly = typeof(SiteEngine).Assembly;
 
         foreach (string typeName in new[]
                  {
@@ -54,55 +52,40 @@ public sealed class G04D9COutputFilesystemGraphTests
                      "Bukit.Engine.Incremental.HashUtil"
                  })
         {
-            Type type = GetType(assembly, typeName);
+            Type type = EngineModuleAssemblies.GetType(typeName);
             Assert.True(type.IsAbstract);
             Assert.True(type.IsSealed);
         }
 
-        Type options = GetType(
-            assembly,
-            "Bukit.Engine.DirectoryCopyOptions");
+        Type options = EngineModuleAssemblies.GetType("Bukit.Engine.DirectoryCopyOptions");
         Assert.True(options.IsSealed);
         Assert.False(options.IsAbstract);
 
-        Type outputFileSystem = GetType(
-            assembly,
-            "Bukit.Engine.Output.IOutputFileSystem");
-        Type outputPathPolicy = GetType(
-            assembly,
-            "Bukit.Engine.Output.IOutputPathPolicy");
+        Type outputFileSystem = EngineModuleAssemblies.GetType("Bukit.Engine.Output.IOutputFileSystem");
+        Type outputPathPolicy = EngineModuleAssemblies.GetType("Bukit.Engine.Output.IOutputPathPolicy");
         Assert.True(outputFileSystem.IsInterface);
         Assert.True(outputPathPolicy.IsInterface);
 
-        Type safeFileSystem = GetType(
-            assembly,
-            "Bukit.Engine.Output.SafeOutputFileSystem");
-        Type safePathResolver = GetType(
-            assembly,
-            "Bukit.Engine.Output.SafePathResolver");
+        Type safeFileSystem = EngineModuleAssemblies.GetType("Bukit.Engine.Output.SafeOutputFileSystem");
+        Type safePathResolver = EngineModuleAssemblies.GetType("Bukit.Engine.Output.SafePathResolver");
         Assert.Contains(outputFileSystem, safeFileSystem.GetInterfaces());
         Assert.Contains(outputPathPolicy, safePathResolver.GetInterfaces());
 
-        Type securityException = GetType(
-            assembly,
-            "Bukit.Engine.Output.OutputPathSecurityException");
+        Type securityException = EngineModuleAssemblies.GetType("Bukit.Engine.Output.OutputPathSecurityException");
         Assert.Equal(typeof(InvalidOperationException), securityException.BaseType);
 
-        Type destinationComparer = GetType(
-            assembly,
-            "Bukit.Engine.OutputDestinationIdentityComparer");
+        Type destinationComparer = EngineModuleAssemblies.GetType("Bukit.Engine.OutputDestinationIdentityComparer");
         Assert.True(destinationComparer.IsNotPublic);
-        Assert.DoesNotContain(destinationComparer, assembly.GetExportedTypes());
+        Assert.DoesNotContain(destinationComparer, EngineModuleAssemblies.GetExportedTypes());
     }
 
     [Fact]
     public void CoreOutputGraph_KeepsExpectedMemberNames()
     {
-        Assembly assembly = typeof(SiteEngine).Assembly;
 
         Assert.Equal(
             ["Copy", "Sync", "SyncFiles", "SyncFilesRecursive"],
-            GetType(assembly, "Bukit.Engine.DirectoryCopy")
+            EngineModuleAssemblies.GetType("Bukit.Engine.DirectoryCopy")
                 .GetMethods(
                     BindingFlags.Public |
                     BindingFlags.Static |
@@ -113,7 +96,7 @@ public sealed class G04D9COutputFilesystemGraphTests
                 .ToArray());
         Assert.Equal(
             ["GetSafeFullPath", "WriteUtf8"],
-            GetType(assembly, "Bukit.Engine.FileWriter")
+            EngineModuleAssemblies.GetType("Bukit.Engine.FileWriter")
                 .GetMethods(
                     BindingFlags.Public |
                     BindingFlags.Static |
@@ -127,7 +110,7 @@ public sealed class G04D9COutputFilesystemGraphTests
                 "Sha256HexForDirectory",
                 "ToHexLower"
             ],
-            GetType(assembly, "Bukit.Engine.Incremental.HashUtil")
+            EngineModuleAssemblies.GetType("Bukit.Engine.Incremental.HashUtil")
                 .GetMethods(
                     BindingFlags.Public |
                     BindingFlags.Static |
@@ -150,7 +133,7 @@ public sealed class G04D9COutputFilesystemGraphTests
             .EnumerateArray()
             .ToArray();
 
-        Assert.Equal(14, root.GetProperty("assemblies").GetArrayLength());
+        Assert.Equal(PublicApiBaselineFacts.GovernedAssemblyCount, root.GetProperty("assemblies").GetArrayLength());
         Assert.Equal(428, types.Length);
         Assert.Equal(0, types.Count(entry =>
             entry.GetProperty("compatibility").GetString() ==
@@ -234,12 +217,6 @@ public sealed class G04D9COutputFilesystemGraphTests
                 StringComparison.Ordinal);
         }
     }
-
-    private static Type GetType(Assembly assembly, string typeName) =>
-        assembly.GetType(
-            typeName,
-            throwOnError: true,
-            ignoreCase: false)!;
 
     private static JsonDocument ReadJson(params string[] relativeSegments)
     {
