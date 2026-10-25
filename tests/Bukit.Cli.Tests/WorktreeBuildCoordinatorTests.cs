@@ -190,7 +190,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         File.WriteAllText(Path.Combine(stagingOutput, "sentinel.txt"), "new-output");
         File.WriteAllText(Path.Combine(finalCache, "sentinel.txt"), "old-cache");
 
-        Assert.Throws<DirectoryNotFoundException>(() => WorktreeBuildCoordinator.CommitDirectories(
+        Assert.Throws<DirectoryNotFoundException>(() => WorktreeBuildTransaction.CommitDirectories(
             [
                 (stagingOutput, finalOutput, backupOutput),
                 (Path.Combine(transaction, ".missing-cache-staging"), finalCache, Path.Combine(transaction, ".cache.backup"))
@@ -256,8 +256,8 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         File.CreateSymbolicLink(Path.Combine(source, "dangling-link"), "missing");
         Directory.CreateSymbolicLink(Path.Combine(source, "cycle"), ".");
 
-        WorktreeBuildCoordinator.PrepareStaging(source, staging, copyExisting: true);
-        WorktreeBuildCoordinator.CommitDirectories([(staging, source, Path.Combine(_root, "backup"))], []);
+        WorktreeBuildPaths.PrepareStaging(source, staging, copyExisting: true);
+        WorktreeBuildTransaction.CommitDirectories([(staging, source, Path.Combine(_root, "backup"))], []);
 
         Assert.Equal("retained", File.ReadAllText(Path.Combine(source, ".env")));
         Assert.True(Directory.Exists(Path.Combine(source, "empty")));
@@ -274,7 +274,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         File.WriteAllText(Path.Combine(backup, "original"), "old");
 
         // A directory at a file-cleanup path deterministically produces an I/O/access error on every OS.
-        WorktreeBuildCoordinator.CleanupBackup(backup, isDirectory: false);
+        WorktreeBuildTransaction.CleanupBackup(backup, isDirectory: false);
 
         Assert.Equal("old", File.ReadAllText(Path.Combine(backup, "original")));
     }
@@ -331,7 +331,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         File.WriteAllText(staging, "new");
         File.WriteAllText(backup, "unrelated");
 
-        WorktreeBuildCoordinator.CommitDirectories([], [(staging, final, backup)]);
+        WorktreeBuildTransaction.CommitDirectories([], [(staging, final, backup)]);
 
         Assert.Equal("new", File.ReadAllText(final));
         Assert.Equal("unrelated", File.ReadAllText(backup));
@@ -397,7 +397,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         Assert.Equal(0, (await RunProcessAsync("git", ["worktree", "add", "--detach", residualWorktree, "HEAD"], root)).ExitCode);
         await File.WriteAllTextAsync(Path.Combine(runRoot, "owned-worktrees.txt"), residualWorktree + Environment.NewLine);
 
-        using (WorktreeBuildCoordinator.AcquireRunLock(repository))
+        using (WorktreeBuildPaths.AcquireRunLock(repository))
         {
             var competing = await RunProcessAsync("dotnet",
                 [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
