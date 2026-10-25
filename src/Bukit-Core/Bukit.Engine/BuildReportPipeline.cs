@@ -45,7 +45,7 @@ internal sealed class BuildReportPipeline
         var contentGraph = ctx.ContentGraph ?? CanonicalContentGraph.Empty;
         var projectionResults = ctx.ProjectionResults ?? [];
         SeoAuditReportWriter.Write(ctx.Config, ctx.OutputDir, ctx.SeoIndex, ctx.SeoModels, contentGraph, ctx.Logger,
-            projectionResults, SearchIndexBuilder.BuildDocumentMap(ctx.RoutedDocuments.Concat(ctx.DerivedDocuments)));
+            projectionResults, SearchIndexDocuments.BuildDocumentMap(ctx.RoutedDocuments.Concat(ctx.DerivedDocuments)));
         return new BuildVariantResult(
             Language: ctx.Language,
             OutputDir: ctx.OutputDir,

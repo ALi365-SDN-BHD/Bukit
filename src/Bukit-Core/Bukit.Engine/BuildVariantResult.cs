@@ -32,4 +32,15 @@ internal sealed record BuildVariantResult(
     public IReadOnlyList<PublishProjectionResult> ProjectionResults { get; init; } = ProjectionResults ?? Array.Empty<PublishProjectionResult>();
     public IReadOnlyList<RouteInfo> StaticRoutes { get; init; } = StaticRoutes ?? Array.Empty<RouteInfo>();
     public IReadOnlyList<PluginOutputTrackingInfo> PluginOutputs { get; init; } = PluginOutputs ?? Array.Empty<PluginOutputTrackingInfo>();
+
+    internal PublishedVariant ToPublishedVariant() => new(
+        Language,
+        BaseUrl,
+        BodyStore,
+        SeoIndex,
+        SeoModels,
+        RoutedDocuments,
+        DerivedDocuments,
+        ContentGraph,
+        ProjectionResults);
 }

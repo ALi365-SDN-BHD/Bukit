@@ -35,7 +35,7 @@ internal sealed class I18nRootFeedWriter : II18nRootProjectionWriter
         var rssCollections = ResolveRssCollections(context.Config.Site.Collections);
         foreach (var result in context.Results)
         {
-            var documentsByPath = SearchIndexBuilder.BuildDocumentMap(result.RoutedDocuments);
+            var documentsByPath = SearchIndexDocuments.BuildDocumentMap(result.RoutedDocuments);
             foreach (var (key, seo) in result.SeoIndex
                          .Where(x => x.Value.Indexable)
                          .OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))

@@ -25,7 +25,9 @@ internal sealed record PublishUrlChange(string Type, string Url, string? Semanti
 
 internal static class PublishUrlSnapshotBuilder
 {
-    internal static async Task<PublishUrlSnapshot> BuildAsync(AppConfig config, IReadOnlyList<BuildVariantResult> variants, CancellationToken cancellationToken = default)
+    internal const string Schema = "https://bukit.dev/schemas/publish-url-snapshot.v1.json";
+
+    internal static async Task<PublishUrlSnapshot> BuildAsync(AppConfig config, IReadOnlyList<PublishedVariant> variants, CancellationToken cancellationToken = default)
     {
         var routes = new List<(string Url, PublishUrlSnapshotRoute Route)>();
         foreach (var variant in variants)
@@ -42,12 +44,12 @@ internal static class PublishUrlSnapshotBuilder
             .ToArray();
 
         return new PublishUrlSnapshot(
-            BuildReporter.PublishUrlSnapshotSchema,
+            Schema,
             ResolveSiteUrl(config.Site.Url, deduped),
             deduped);
     }
 
-    private static async Task<List<(string Url, PublishUrlSnapshotRoute Route)>> BuildRoutesAsync(BuildVariantResult variant, CancellationToken cancellationToken)
+    private static async Task<List<(string Url, PublishUrlSnapshotRoute Route)>> BuildRoutesAsync(PublishedVariant variant, CancellationToken cancellationToken)
     {
         var routes = new List<(string Url, PublishUrlSnapshotRoute Route)>();
         var documents = variant.RoutedDocuments

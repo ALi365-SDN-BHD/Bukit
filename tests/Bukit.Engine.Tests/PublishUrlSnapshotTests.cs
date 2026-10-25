@@ -149,8 +149,8 @@ public sealed class PublishUrlSnapshotTests
         var later = CreateVariant(config, "https://silushangxun.com/insights/zeta/", "<p>Zeta</p>");
         var earlier = CreateVariant(config, "https://silushangxun.com/insights/alpha/", "<p>Alpha</p>");
 
-        var first = await PublishUrlSnapshotBuilder.BuildAsync(config, [later, earlier]);
-        var second = await PublishUrlSnapshotBuilder.BuildAsync(config, [earlier, later]);
+        var first = await PublishUrlSnapshotBuilder.BuildAsync(config, [later.ToPublishedVariant(), earlier.ToPublishedVariant()]);
+        var second = await PublishUrlSnapshotBuilder.BuildAsync(config, [earlier.ToPublishedVariant(), later.ToPublishedVariant()]);
         var firstJson = PublishUrlSnapshotJson.Serialize(first);
         var secondJson = PublishUrlSnapshotJson.Serialize(second);
 
@@ -217,8 +217,8 @@ public sealed class PublishUrlSnapshotTests
         var config = CreateConfig();
         const string canonical = "https://silushangxun.com/insights/body-store/";
 
-        var first = await PublishUrlSnapshotBuilder.BuildAsync(config, [CreateBodyStoreVariant(config, canonical, "<p>First body</p>")]);
-        var second = await PublishUrlSnapshotBuilder.BuildAsync(config, [CreateBodyStoreVariant(config, canonical, "<p>Changed body</p>")]);
+        var first = await PublishUrlSnapshotBuilder.BuildAsync(config, [CreateBodyStoreVariant(config, canonical, "<p>First body</p>").ToPublishedVariant()]);
+        var second = await PublishUrlSnapshotBuilder.BuildAsync(config, [CreateBodyStoreVariant(config, canonical, "<p>Changed body</p>").ToPublishedVariant()]);
 
         Assert.NotEqual(Assert.Single(first.Routes).SemanticHash, Assert.Single(second.Routes).SemanticHash);
     }

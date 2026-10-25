@@ -37,7 +37,7 @@ internal static partial class SeoAuditReportWriter
     internal static SeoAuditReport WriteMerged(
         AppConfig config,
         string outputDir,
-        IReadOnlyList<BuildVariantResult> results,
+        IReadOnlyList<PublishedVariant> results,
         ILogger logger,
         IReadOnlyList<PublishProjectionResult>? projectionResults = null)
     {
@@ -48,7 +48,7 @@ internal static partial class SeoAuditReportWriter
         var documentsByOutputPath = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
         foreach (var result in results)
         {
-            foreach (var (key, document) in SearchIndexBuilder.BuildDocumentMap(result.RoutedDocuments.Concat(result.DerivedDocuments)))
+            foreach (var (key, document) in SearchIndexDocuments.BuildDocumentMap(result.RoutedDocuments.Concat(result.DerivedDocuments)))
             {
                 documentsByOutputPath[BuildMergedKey(result.Language, key)] = document;
             }
@@ -93,7 +93,7 @@ internal static partial class SeoAuditReportWriter
     {
         var report = result.SeoReport;
         var json = JsonSerializer.Serialize(report, SeoAuditReportJsonContext.Default.SeoAuditReport);
-        FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "seo-report.json"), json + Environment.NewLine);
+        FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReportPaths.ReportDirectoryName, "seo-report.json"), json + Environment.NewLine);
         PublishAuditReportWriter.Write(outputDir, result.PublishReport);
         SeoRouteMapWriter.Write(outputDir, result.RouteMap);
 
@@ -150,7 +150,7 @@ internal static partial class SeoAuditReportWriter
                 .ToList());
 
         var json = JsonSerializer.Serialize(geoReport, GeoReportJsonContext.Default.GeoReport);
-        FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReporter.ReportDirectoryName, "geo-report.json"), json + Environment.NewLine);
+        FileWriter.WriteUtf8(outputDir, Path.Combine(BuildReportPaths.ReportDirectoryName, "geo-report.json"), json + Environment.NewLine);
     }
 
     internal static SeoAuditReport Build(

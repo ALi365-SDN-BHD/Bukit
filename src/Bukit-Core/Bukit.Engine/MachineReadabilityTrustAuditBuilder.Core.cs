@@ -80,7 +80,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var rssExpected = IsFeedFormatEnabled(config, "rss") && feedWindowRoutes.Contains(entry.Route.Url);
             ContentDocument? sourceDocument = null;
             documentsByOutputPath?.TryGetValue(key, out sourceDocument);
-            var searchExpected = entry.Indexable && (sourceDocument is null || !SearchIndexBuilder.IsSearchExcluded(sourceDocument));
+            var searchExpected = entry.Indexable && (sourceDocument is null || !SearchIndexDocuments.IsSearchExcluded(sourceDocument));
             var curation = sourceDocument is null ? null : LlmsCurationPolicyParser.Parse(sourceDocument);
             var llmsExcluded = curation is { IsExplicitlyExcluded: true };
             var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)

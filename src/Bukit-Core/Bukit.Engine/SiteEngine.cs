@@ -332,7 +332,7 @@ public sealed class SiteEngine
         if (rootOutputs.Any(x => x.Destination == "robots.txt") && PublicOutputLifecycle.SameRoot(previous, outputDir) && previous.OwnedOutputs.Contains("robots.txt"))
             PublicOutputLifecycle.DeleteOwnedFile(outputDir, "robots.txt");
         var projectionResults = I18nOutputMerger.GenerateRootOutputs(config, outputDir, rootBaseUrl, variantResults, buildLogger, _searchIndexBuilder);
-        SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults, buildLogger, projectionResults);
+        SeoAuditReportWriter.WriteMerged(config, outputDir, variantResults.Select(variant => variant.ToPublishedVariant()).ToArray(), buildLogger, projectionResults);
         // Refresh metrics after all language variants finished rendering
         bodyCacheMetrics = RefreshBodyCacheMetrics(bodyStore) ?? bodyCacheMetrics;
         MetricsWriter.WriteIfRequested(rootDir, overrides.MetricsPath, config, outputDir, documents.Count, variantResults, bodyCacheMetrics);

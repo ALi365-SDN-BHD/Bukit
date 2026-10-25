@@ -5,6 +5,13 @@ namespace Bukit.Engine;
 
 internal static class ContentModelSchemaFactory
 {
+    internal static readonly ContentModelSchema Default = new(
+        Statuses: ["draft", "published", "archived", "expired"],
+        ReviewStatuses: ["draft", "published", "reviewed", "verified", "needs-review", "archived", "expired"],
+        SyncStatuses: ["synced", "pending", "failed", "manual", "unknown"],
+        RequireRelationTargets: true,
+        RequireMediaAlt: true);
+
     internal static ContentModelSchema FromConfig(AppConfig config)
     {
         var explicitSchema = config.Content.ModelSchema;
@@ -93,9 +100,9 @@ internal static class ContentModelSchemaFactory
 
         return new ContentModelSchema(
             ContentTypes: explicitSchema?.ContentTypes,
-            Statuses: explicitSchema?.Statuses ?? ContentModelSchemaValidator.Default.Statuses,
-            ReviewStatuses: explicitSchema?.ReviewStatuses ?? ContentModelSchemaValidator.Default.ReviewStatuses,
-            SyncStatuses: explicitSchema?.SyncStatuses ?? ContentModelSchemaValidator.Default.SyncStatuses,
+            Statuses: explicitSchema?.Statuses ?? Default.Statuses,
+            ReviewStatuses: explicitSchema?.ReviewStatuses ?? Default.ReviewStatuses,
+            SyncStatuses: explicitSchema?.SyncStatuses ?? Default.SyncStatuses,
             CanonicalMappings: canonicalMappings.Count == 0 ? null : canonicalMappings,
             CustomFields: customFields.Count == 0 ? null : customFields,
             FieldScopes: fieldScopes.Count == 0 ? null : fieldScopes,
@@ -115,11 +122,11 @@ internal static class ContentModelSchemaFactory
             RequireUpdatedAt: explicitSchema?.RequireUpdatedAt ?? false,
             RequireProvenance: explicitSchema?.RequireProvenance ?? false,
             RequireReviewedAt: explicitSchema?.RequireReviewedAt ?? false,
-            RequireMediaAlt: explicitSchema?.RequireMediaAlt ?? ContentModelSchemaValidator.Default.RequireMediaAlt,
+            RequireMediaAlt: explicitSchema?.RequireMediaAlt ?? Default.RequireMediaAlt,
             RequireMediaDescription: explicitSchema?.RequireMediaDescription ?? false,
             RequireMediaLicense: explicitSchema?.RequireMediaLicense ?? false,
             RequireEntityIds: explicitSchema?.RequireEntityIds ?? false,
-            RequireRelationTargets: explicitSchema?.RequireRelationTargets ?? ContentModelSchemaValidator.Default.RequireRelationTargets);
+            RequireRelationTargets: explicitSchema?.RequireRelationTargets ?? Default.RequireRelationTargets);
     }
 
     private static ContentReferenceRule? ToReferenceRule(ContentReferenceRuleConfig? config)

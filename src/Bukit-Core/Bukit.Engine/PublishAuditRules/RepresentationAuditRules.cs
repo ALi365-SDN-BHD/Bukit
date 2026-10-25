@@ -50,7 +50,7 @@ internal static class RepresentationAuditRules
     {
         var kind = extension == ".json" ? "json" : "markdown";
         var actual = document.ProjectionOutputs.FirstOrDefault(x => x.Kind == kind);
-        var relative = actual?.Path ?? DefaultContentProjectionWriter.GetContentProjectionRelativePath(
+        var relative = actual?.Path ?? ContentProjectionPaths.GetContentProjectionRelativePath(
             new Engine.Abstractions.Routing.RouteInfo(document.RouteUrl, document.OutputPath, string.Empty), extension);
         return [FileWriter.GetSafeFullPath(outputDir, relative)];
     }

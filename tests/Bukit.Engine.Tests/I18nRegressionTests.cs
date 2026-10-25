@@ -245,7 +245,7 @@ public sealed class I18nRegressionTests : IDisposable
         }
         if (merged)
         {
-            SeoAuditReportWriter.WriteMerged(config, _root, variants, logger);
+            SeoAuditReportWriter.WriteMerged(config, _root, variants.Select(variant => variant.ToPublishedVariant()).ToArray(), logger);
             AssertExclusionReport(_root, "/docs/en/shared/", excluded: true);
             AssertExclusionReport(_root, "/docs/zh/shared/", excluded: false);
         }

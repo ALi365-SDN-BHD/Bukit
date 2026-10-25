@@ -107,7 +107,7 @@ public sealed class PublishRepresentationRegistryTests
         Assert.IsAssignableFrom<IPublishProjection>(new JsonContentDocumentProjection());
         Assert.IsAssignableFrom<IPublishProjection>(new MarkdownContentDocumentProjection());
         Assert.IsAssignableFrom<IPublishProjection>(new AgentManifestProjection());
-        foreach (var projection in PublishRepresentationRegistry.AggregateProjectionAdapters())
+        foreach (var projection in PublishProjectionAdapters.Aggregate())
         {
             Assert.IsAssignableFrom<IPublishProjection>(projection);
         }
@@ -116,7 +116,7 @@ public sealed class PublishRepresentationRegistryTests
     [Fact]
     public void AggregateProjectionAdapters_ReturnNamedDocumentFirstProjections()
     {
-        var projections = PublishRepresentationRegistry.AggregateProjectionAdapters();
+        var projections = PublishProjectionAdapters.Aggregate();
 
         Assert.Equal(
             [
@@ -276,7 +276,7 @@ public sealed class PublishRepresentationRegistryTests
                     new RoutedContentDocument(hidden, hiddenRoute)
                 });
 
-            var projection = PublishRepresentationRegistry.AggregateProjectionAdapters()
+            var projection = PublishProjectionAdapters.Aggregate()
                 .Single(x => x.Representation.Kind == "llms");
 
             var result = projection.Project(context);
@@ -329,7 +329,7 @@ public sealed class PublishRepresentationRegistryTests
                 BaseUrl: "/",
                 RoutedDocuments: new[] { new RoutedContentDocument(document, route) });
 
-            var projection = PublishRepresentationRegistry.AggregateProjectionAdapters()
+            var projection = PublishProjectionAdapters.Aggregate()
                 .Single(x => x.Representation.Kind == "feed");
 
             var result = projection.Project(context);
@@ -465,7 +465,7 @@ public sealed class PublishRepresentationRegistryTests
                 BaseUrl: "/",
                 RoutedDocuments: new[] { new RoutedContentDocument(document, route) });
 
-            foreach (var projection in PublishRepresentationRegistry.AggregateProjectionAdapters()
+            foreach (var projection in PublishProjectionAdapters.Aggregate()
                          .Where(x => x.Representation.Kind is "feed" or "atom" or "jsonfeed"))
             {
                 projection.Project(context);
@@ -519,7 +519,7 @@ public sealed class PublishRepresentationRegistryTests
                 SeoModels: new Dictionary<string, SeoModel>(StringComparer.OrdinalIgnoreCase),
                 RoutedDocuments: Array.Empty<RoutedContentDocument>());
             var projection = Assert.Single(
-                PublishRepresentationRegistry.AggregateProjectionAdapters(),
+                PublishProjectionAdapters.Aggregate(),
                 candidate => candidate.Representation.Kind == "jsonfeed");
 
             Assert.Throws<OutputPathSecurityException>(() => projection.Project(context));
@@ -566,7 +566,7 @@ public sealed class PublishRepresentationRegistryTests
                 BaseUrl: "/",
                 RoutedDocuments: new[] { new RoutedContentDocument(document, route) });
 
-            var projection = PublishRepresentationRegistry.AggregateProjectionAdapters()
+            var projection = PublishProjectionAdapters.Aggregate()
                 .Single(x => x.Representation.Kind == "search");
 
             projection.Project(context);

@@ -11,7 +11,7 @@ internal static class SeoRouteMapWriter
         var json = JsonSerializer.Serialize(map, SeoRouteMapJsonContext.Default.SeoRouteMap);
         FileWriter.WriteUtf8(
             outputDir,
-            Path.Combine(BuildReporter.ReportDirectoryName, FileName),
+            Path.Combine(BuildReportPaths.ReportDirectoryName, FileName),
             json + Environment.NewLine);
     }
 }

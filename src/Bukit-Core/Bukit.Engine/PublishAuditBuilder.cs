@@ -118,7 +118,7 @@ internal static class PublishAuditBuilder
         var actual = document?.ProjectionOutputs.FirstOrDefault(x => x.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase));
         if (actual is not null)
             return (IsAggregateKind(kind)
-                ? DefaultContentProjectionWriter.GetPublicOutputUrl(actual.Path, document!.ProjectionBaseUrl)
+                ? ContentProjectionPaths.GetPublicOutputUrl(actual.Path, document!.ProjectionBaseUrl)
                 : actual.Url, actual.Path);
         var projectionRoute = new Engine.Abstractions.Routing.RouteInfo(route.Url, route.OutputPath, string.Empty);
         if (string.Equals(kind, "html", StringComparison.OrdinalIgnoreCase))
@@ -133,12 +133,12 @@ internal static class PublishAuditBuilder
 
         if (record is not null && string.Equals(kind, "json", StringComparison.OrdinalIgnoreCase))
         {
-            return (DefaultContentProjectionWriter.GetContentProjectionUrl(projectionRoute, ".json", document?.ProjectionBaseUrl ?? "/"), DefaultContentProjectionWriter.GetContentProjectionRelativePath(projectionRoute, ".json"));
+            return (ContentProjectionPaths.GetContentProjectionUrl(projectionRoute, ".json", document?.ProjectionBaseUrl ?? "/"), ContentProjectionPaths.GetContentProjectionRelativePath(projectionRoute, ".json"));
         }
 
         if (record is not null && string.Equals(kind, "markdown", StringComparison.OrdinalIgnoreCase))
         {
-            return (DefaultContentProjectionWriter.GetContentProjectionUrl(projectionRoute, ".md", document?.ProjectionBaseUrl ?? "/"), DefaultContentProjectionWriter.GetContentProjectionRelativePath(projectionRoute, ".md"));
+            return (ContentProjectionPaths.GetContentProjectionUrl(projectionRoute, ".md", document?.ProjectionBaseUrl ?? "/"), ContentProjectionPaths.GetContentProjectionRelativePath(projectionRoute, ".md"));
         }
 
         if (string.Equals(kind, "jsonld", StringComparison.OrdinalIgnoreCase))

@@ -27,7 +27,7 @@ internal static class SearchIndexBuilder
 
         foreach (var r in results)
         {
-            var documentsByPath = BuildDocumentMap(includeDerived ? r.RoutedDocuments.Concat(r.DerivedDocuments) : r.RoutedDocuments);
+            var documentsByPath = SearchIndexDocuments.BuildDocumentMap(includeDerived ? r.RoutedDocuments.Concat(r.DerivedDocuments) : r.RoutedDocuments);
             var listRoutesByPath = BuildListRouteMap(r.ListRouteGraph);
             foreach (var (key, seo) in r.SeoIndex
                          .Where(x => x.Value.Indexable)
@@ -35,7 +35,7 @@ internal static class SearchIndexBuilder
             {
                 if (documentsByPath.TryGetValue(key, out var document))
                 {
-                    if (!IsSearchExcluded(document))
+                    if (!SearchIndexDocuments.IsSearchExcluded(document))
                     {
                         WriteSearchItem(writer, document, seo.Route, r.BaseUrl, r.BodyStore, r.SearchSnippetsEnabled, maxContentLength);
                     }
@@ -71,7 +71,7 @@ internal static class SearchIndexBuilder
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false });
         writer.WriteStartArray();
 
-        var documentsByPath = BuildDocumentMap(includeDerived ? routed.Concat(derivedRouted) : routed);
+        var documentsByPath = SearchIndexDocuments.BuildDocumentMap(includeDerived ? routed.Concat(derivedRouted) : routed);
         var listRoutesByPath = BuildListRouteMap(listRouteGraph);
         foreach (var (key, seo) in seoIndex
                      .Where(x => x.Value.Indexable)
@@ -79,7 +79,7 @@ internal static class SearchIndexBuilder
         {
             if (documentsByPath.TryGetValue(key, out var document))
             {
-                if (!IsSearchExcluded(document))
+                if (!SearchIndexDocuments.IsSearchExcluded(document))
                 {
                     WriteSearchItem(writer, document, seo.Route, baseUrl, bodyStore, emitSnippet, maxContentLength);
                 }
@@ -94,13 +94,6 @@ internal static class SearchIndexBuilder
 
         writer.WriteEndArray();
         writer.Flush();
-    }
-
-    internal static bool IsSearchExcluded(ContentDocument document)
-    {
-        return document.Publish.ExcludeFromSearch ||
-            ContentFieldReader.GetBool(document.CustomFields, "searchExclude") is true ||
-            ContentFieldReader.GetBool(document.CustomFields, "excludeFromSearch") is true;
     }
 
     internal static void WriteSearchItem(
@@ -176,17 +169,6 @@ internal static class SearchIndexBuilder
         }
 
         writer.WriteEndObject();
-    }
-
-    internal static Dictionary<string, ContentDocument> BuildDocumentMap(IEnumerable<RoutedContentDocument> routed)
-    {
-        var result = new Dictionary<string, ContentDocument>(StringComparer.OrdinalIgnoreCase);
-        foreach (var routedDocument in routed)
-        {
-            result[BuildPathUtils.NormalizeRelPath(routedDocument.Route.OutputPath)] = routedDocument.Document;
-        }
-
-        return result;
     }
 
     private static Dictionary<string, ListRoutePlan> BuildListRouteMap(ListRouteGraph? listRouteGraph)

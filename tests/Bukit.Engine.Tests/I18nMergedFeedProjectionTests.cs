@@ -243,7 +243,7 @@ public sealed class I18nMergedFeedProjectionTests
     [Fact]
     public void RootAggregateProjectionAdapters_ImplementProjectionContract()
     {
-        foreach (var projection in PublishRepresentationRegistry.RootAggregateProjectionAdapters())
+        foreach (var projection in PublishProjectionAdapters.RootAggregate())
         {
             Assert.IsAssignableFrom<IPublishProjection>(projection);
         }

@@ -77,7 +77,7 @@ public sealed class SitemapPublishProjectionCollectionTests
             ],
             ListRouteGraph: ListRouteGraph.Create([newsList]),
             DerivedDocuments: [new RoutedContentDocument(archive, archiveRoute)]);
-        var projection = PublishRepresentationRegistry.AggregateProjectionAdapters()
+        var projection = PublishProjectionAdapters.Aggregate()
             .Single(adapter => adapter.Representation.Kind == "sitemap");
 
         projection.Project(context);

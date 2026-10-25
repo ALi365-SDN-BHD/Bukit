@@ -349,7 +349,7 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
             ListRouteGraph: graph);
         foreach (var kind in new[] { "sitemap", "search", "llms", "llms-full" })
         {
-            PublishRepresentationRegistry.AggregateProjectionAdapters()
+            PublishProjectionAdapters.Aggregate()
                 .Single(adapter => adapter.Representation.Kind == kind)
                 .Project(context);
         }
@@ -416,7 +416,7 @@ public sealed class CompanyEntityAndEmptyCollectionTests : IDisposable
             ListRouteGraph: graph);
         foreach (var kind in new[] { "sitemap", "search", "llms", "llms-full" })
         {
-            PublishRepresentationRegistry.AggregateProjectionAdapters()
+            PublishProjectionAdapters.Aggregate()
                 .Single(adapter => adapter.Representation.Kind == kind)
                 .Project(context);
         }

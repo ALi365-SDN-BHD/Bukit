@@ -15,7 +15,7 @@ internal static partial class PublicOutputPrivacyCheck
     internal static PublicOutputPrivacyCheckResult Evaluate(
         AppConfig config,
         string outputDir,
-        IReadOnlyList<BuildVariantResult> variants)
+        IReadOnlyList<PublishedVariant> variants)
     {
         var notionRecords = CollectNotionRecords(variants);
         var notionSources = config.Content.Sources?
@@ -91,7 +91,7 @@ internal static partial class PublicOutputPrivacyCheck
         return new PublicOutputPrivacyCheckResult(errors.Count == 0 ? "passed" : "failed", errors);
     }
 
-    private static IReadOnlyList<ContentRecord> CollectNotionRecords(IReadOnlyList<BuildVariantResult> variants)
+    private static IReadOnlyList<ContentRecord> CollectNotionRecords(IReadOnlyList<PublishedVariant> variants)
     {
         var records = variants
             .SelectMany(variant => (variant.ContentGraph ?? CanonicalContentGraph.Empty).Records

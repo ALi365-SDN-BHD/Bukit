@@ -102,7 +102,7 @@ internal static class BuildReporterSecurity
         var unsafeSlug = CheckSlugs(variants, errors);
         var pluginOutputPath = CheckPluginOutputs(outputDir, variants, errors);
         var remoteThemeLock = CheckRemoteThemeLock(config, rootDir, warnings, errors);
-        var publicOutputPrivacy = PublicOutputPrivacyCheck.Evaluate(config, outputDir, variants);
+        var publicOutputPrivacy = PublicOutputPrivacyCheck.Evaluate(config, outputDir, variants.Select(variant => variant.ToPublishedVariant()).ToArray());
         errors.AddRange(publicOutputPrivacy.Errors);
 
         return new SecurityReportData(

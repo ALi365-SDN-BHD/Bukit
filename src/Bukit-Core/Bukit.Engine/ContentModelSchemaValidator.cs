@@ -5,12 +5,7 @@ namespace Bukit.Engine;
 
 internal static class ContentModelSchemaValidator
 {
-    internal static readonly ContentModelSchema Default = new(
-        Statuses: ["draft", "published", "archived", "expired"],
-        ReviewStatuses: ["draft", "published", "reviewed", "verified", "needs-review", "archived", "expired"],
-        SyncStatuses: ["synced", "pending", "failed", "manual", "unknown"],
-        RequireRelationTargets: true,
-        RequireMediaAlt: true);
+    internal static ContentModelSchema Default => ContentModelSchemaFactory.Default;
 
     internal static IReadOnlyList<ContentValidationIssue> Validate(
         CanonicalContentGraph graph,

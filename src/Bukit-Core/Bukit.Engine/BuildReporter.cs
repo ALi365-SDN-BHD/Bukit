@@ -20,7 +20,6 @@ internal static class BuildReporter
     internal const string ArtifactManifestSchema = "https://bukit.dev/schemas/artifact-manifest.v1.json";
     internal const string ReleaseBundleChecksumsSchema = "https://bukit.dev/schemas/release-bundle-checksums.v1.json";
     internal const string BuildManifestDigestSchema = "https://bukit.dev/schemas/build-manifest-digest.v1.json";
-    internal const string PublishUrlSnapshotSchema = "https://bukit.dev/schemas/publish-url-snapshot.v1.json";
 
     internal static async Task WriteIfEnabledAsync(
         AppConfig config,

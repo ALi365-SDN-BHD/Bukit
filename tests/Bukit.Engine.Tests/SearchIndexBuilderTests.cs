@@ -185,7 +185,7 @@ public sealed class SearchIndexBuilderTests
     [Fact]
     public void BuildDocumentMap_EmptyInput_ReturnsEmptyDictionary()
     {
-        var result = SearchIndexBuilder.BuildDocumentMap([]);
+        var result = SearchIndexDocuments.BuildDocumentMap([]);
 
         Assert.Empty(result);
     }
@@ -203,7 +203,7 @@ public sealed class SearchIndexBuilderTests
         var route = new RouteInfo("/blog/test-post/", "blog/test-post/index.html", "pages/post.html");
         var input = new[] { new RoutedContentDocument(document, route) };
 
-        var result = SearchIndexBuilder.BuildDocumentMap(input);
+        var result = SearchIndexDocuments.BuildDocumentMap(input);
 
         Assert.Single(result);
         Assert.True(result.ContainsKey("blog/test-post/index.html"));
@@ -228,7 +228,7 @@ public sealed class SearchIndexBuilderTests
             new RoutedContentDocument(document3, route3)
         };
 
-        var result = SearchIndexBuilder.BuildDocumentMap(input);
+        var result = SearchIndexDocuments.BuildDocumentMap(input);
 
         Assert.Equal(3, result.Count);
         Assert.Equal(document1, result["blog/alpha/index.html"]);
@@ -242,7 +242,7 @@ public sealed class SearchIndexBuilderTests
         var document = ContentDocument.Create("x", "X", "x", DateTimeOffset.UtcNow, null, ContentFieldReader.ToFieldMap(new Dictionary<string, object>()));
         var route = new RouteInfo("/pages/x/", "pages\\x\\index.html", "pages/page.html");
 
-        var result = SearchIndexBuilder.BuildDocumentMap([new RoutedContentDocument(document, route)]);
+        var result = SearchIndexDocuments.BuildDocumentMap([new RoutedContentDocument(document, route)]);
 
         Assert.True(result.ContainsKey("pages/x/index.html"));
     }

@@ -20,7 +20,7 @@ internal sealed class PublishUrlSnapshotReportWriter : IBuildReportWriter
             return;
         }
 
-        var snapshot = await PublishUrlSnapshotBuilder.BuildAsync(context.Config, context.Variants, cancellationToken).ConfigureAwait(false);
+        var snapshot = await PublishUrlSnapshotBuilder.BuildAsync(context.Config, context.Variants.Select(variant => variant.ToPublishedVariant()).ToArray(), cancellationToken).ConfigureAwait(false);
         using var stream = File.Create(snapshotPath);
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
         PublishUrlSnapshotJson.Write(writer, snapshot);

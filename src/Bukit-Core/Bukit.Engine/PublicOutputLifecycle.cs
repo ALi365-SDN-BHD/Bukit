@@ -16,8 +16,8 @@ internal static class PublicOutputLifecycle
         void Add(string path, string kind) => items.Add(new AssetOutputItem(kind, BuildPathUtils.NormalizeRelPath(path), AssetOutputCategory.Projection, Operation: AssetOutputOperation.Generate));
         foreach (var route in routes)
         {
-            Add(DefaultContentProjectionWriter.GetContentProjectionRelativePath(route, ".json"), "json " + route.Url);
-            Add(DefaultContentProjectionWriter.GetContentProjectionRelativePath(route, ".md"), "markdown " + route.Url);
+            Add(ContentProjectionPaths.GetContentProjectionRelativePath(route, ".json"), "json " + route.Url);
+            Add(ContentProjectionPaths.GetContentProjectionRelativePath(route, ".md"), "markdown " + route.Url);
         }
         Add("agent-manifest.json", "agent-manifest");
         if (!root || SiteModeResolver.ResolveSearchMode(config.Site) == "merged") Add("search.json", "search");
