@@ -8,6 +8,8 @@ This is the sole implementation checklist. User approval covers this separate Co
 - [x] Add real Source-to-Composite 403/404/401/500 regression cases and the real fallback caller-cancellation regression; observe complete specialty assertion RED (41 cases: 39 pass, only 403/404 fail).
 - [x] Add four exact contract mapping assertions and observe complete workflow-owner assertion RED before the policy addition (new proposal path unmapped).
 - [x] Extend only the existing permission-status catch and add the exact first policy rule; freeze the eight-path implementation and observed-only checklist for external delta capture.
-- [ ] Recompile the three approved projects serially and record current binaries externally.
-- [ ] Run the four exact GREEN specialties, record/check their actual consumed-input caches, and generate the complete zero-unmapped task closure externally.
-- [ ] Hand off contract/quality self-review and protected-boundary evidence in review_wait for the parent's specialty and delta-only final reviews.
+- [x] Recompile the three approved projects serially and record current binaries externally.
+- [x] Run the four exact GREEN specialties, record/check their actual consumed-input caches, and generate the complete zero-unmapped task closure externally.
+- [x] Hand off contract/quality self-review and protected-boundary evidence in review_wait for the parent's specialty and delta-only final reviews.
+
+Closeout reconciliation (2026-10-26): the last three boxes were deliberately frozen for external proof, not unfinished implementation. Historical completion and both accepted reviews are recorded in `core-notion-fallback-fix-5vmsqnd3/acceptance.json`; separately accepted current joint proof and its specialty review are in `joint-migration-validation-3f819sjx/joint-acceptance.json` and `joint-migration-validation-3f819sjx/joint-specialty-review.json`. These evidence directories are outside the repository under `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/`. This reconciliation does not pre-complete closeout or parent final reviews, and the original source-worktree checklist remains unchanged.

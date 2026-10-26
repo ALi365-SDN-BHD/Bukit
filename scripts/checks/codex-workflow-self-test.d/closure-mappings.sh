@@ -2,7 +2,12 @@ for notion_fallback_contract_path in \
   openspec/changes/fix-notion-relation-fallback-diagnostics/proposal.md \
   openspec/changes/fix-notion-relation-fallback-diagnostics/design.md \
   openspec/changes/fix-notion-relation-fallback-diagnostics/tasks.md \
-  openspec/changes/fix-notion-relation-fallback-diagnostics/specs/notion-relation-fallback-diagnostics/spec.md; do
+  openspec/changes/fix-notion-relation-fallback-diagnostics/specs/notion-relation-fallback-diagnostics/spec.md \
+  openspec/changes/archive/2026-10-26-fix-notion-relation-fallback-diagnostics/proposal.md \
+  openspec/changes/archive/2026-10-26-fix-notion-relation-fallback-diagnostics/design.md \
+  openspec/changes/archive/2026-10-26-fix-notion-relation-fallback-diagnostics/tasks.md \
+  openspec/changes/archive/2026-10-26-fix-notion-relation-fallback-diagnostics/specs/notion-relation-fallback-diagnostics/spec.md \
+  openspec/specs/notion-relation-fallback-diagnostics/spec.md; do
   assert_closure_mapping "$closure_fixture" "$notion_fallback_contract_path" '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj --filter FullyQualifiedName~CrossSourceRelationProjectionTests"]' false
 done
 
@@ -104,7 +109,12 @@ for image_resize_temp_contract_path in \
   openspec/changes/fix-image-resize-temp-cleanup/proposal.md \
   openspec/changes/fix-image-resize-temp-cleanup/design.md \
   openspec/changes/fix-image-resize-temp-cleanup/tasks.md \
-  openspec/changes/fix-image-resize-temp-cleanup/specs/image-resize-temp-cleanup/spec.md; do
+  openspec/changes/fix-image-resize-temp-cleanup/specs/image-resize-temp-cleanup/spec.md \
+  openspec/changes/archive/2026-10-26-fix-image-resize-temp-cleanup/proposal.md \
+  openspec/changes/archive/2026-10-26-fix-image-resize-temp-cleanup/design.md \
+  openspec/changes/archive/2026-10-26-fix-image-resize-temp-cleanup/tasks.md \
+  openspec/changes/archive/2026-10-26-fix-image-resize-temp-cleanup/specs/image-resize-temp-cleanup/spec.md \
+  openspec/specs/image-resize-temp-cleanup/spec.md; do
   assert_closure_mapping "$closure_fixture" "$image_resize_temp_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter FullyQualifiedName~BuiltInPluginSplitTests", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~ImageProcessingPluginTests|FullyQualifiedName~ExternalToolProcessRunnerTests\""]' false
 done
 
@@ -140,7 +150,12 @@ for notion_contract_path in \
   openspec/changes/migrate-notion-compatibility/design.md \
   openspec/changes/migrate-notion-compatibility/tasks.md \
   openspec/changes/migrate-notion-compatibility/specs/notion-compatibility-migration/spec.md \
-  guide/dev/architecture.md; do
+  guide/dev/architecture.md \
+  openspec/changes/archive/2026-10-26-migrate-notion-compatibility/proposal.md \
+  openspec/changes/archive/2026-10-26-migrate-notion-compatibility/design.md \
+  openspec/changes/archive/2026-10-26-migrate-notion-compatibility/tasks.md \
+  openspec/changes/archive/2026-10-26-migrate-notion-compatibility/specs/notion-compatibility-migration/spec.md \
+  openspec/specs/notion-compatibility-migration/spec.md; do
   assert_closure_mapping "$closure_fixture" "$notion_contract_path" '["bash scripts/checks/codex-workflow-self-test.sh", "bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter \"FullyQualifiedName~NotionBoundaryTests|FullyQualifiedName~NotionCompatibilityMigrationTests\"", "dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj --filter \"FullyQualifiedName~NotionContentSourceTests|FullyQualifiedName~CrossSourceRelationProjectionTests\"", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj --filter FullyQualifiedName~NotionContentSourceEndToEndTests"]' false
 done
 assert_closure_mapping "$closure_fixture" guide/skills/bukit-content/SKILL.md '["bash guide/skills/scripts/validate-skills-strict.sh"]' false
@@ -181,7 +196,12 @@ for plugin_split_contract_path in \
   openspec/changes/migrate-built-in-plugin-split/proposal.md \
   openspec/changes/migrate-built-in-plugin-split/design.md \
   openspec/changes/migrate-built-in-plugin-split/tasks.md \
-  openspec/changes/migrate-built-in-plugin-split/specs/built-in-plugin-split/spec.md; do
+  openspec/changes/migrate-built-in-plugin-split/specs/built-in-plugin-split/spec.md \
+  openspec/changes/archive/2026-10-26-migrate-built-in-plugin-split/proposal.md \
+  openspec/changes/archive/2026-10-26-migrate-built-in-plugin-split/design.md \
+  openspec/changes/archive/2026-10-26-migrate-built-in-plugin-split/tasks.md \
+  openspec/changes/archive/2026-10-26-migrate-built-in-plugin-split/specs/built-in-plugin-split/spec.md \
+  openspec/specs/built-in-plugin-split/spec.md; do
   assert_closure_mapping "$closure_fixture" "$plugin_split_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter \"FullyQualifiedName~BuiltInPluginSplitTests|FullyQualifiedName~G04D9EBuiltInPluginGraphTests\"", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~DataFilesPluginTests|FullyQualifiedName~ImageProcessingPluginTests\"", "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj --filter FullyQualifiedName~ScribanTemplateRendererTests"]' false
 done
 for unmapped_remediation_path in .github/workflows/unplanned.yaml docs/governance/unplanned.md docs/superpowers/plans/unplanned.md; do
