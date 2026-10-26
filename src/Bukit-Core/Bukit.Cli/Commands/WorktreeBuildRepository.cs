@@ -206,7 +206,7 @@ internal static class WorktreeBuildRepository
         }
         Add(Path.Combine(resolved.RootDir, ".bukit", "plugins.yaml"));
         Add(Path.Combine(resolved.RootDir, "plugins"));
-        return paths.Order(StringComparer.Ordinal).ToArray();
+        return [.. paths.Order(StringComparer.Ordinal)];
     }
 
     private static void ValidateSymlinkTargets(string path, string repositoryRoot)

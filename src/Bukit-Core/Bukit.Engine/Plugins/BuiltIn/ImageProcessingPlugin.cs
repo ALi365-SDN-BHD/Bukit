@@ -1,9 +1,10 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
-using static Bukit.Engine.Plugins.BuiltIn.ImageVariantFreshness;
-using static Bukit.Engine.Plugins.BuiltIn.ImageVariantGenerator;
-using static Bukit.Engine.Plugins.BuiltIn.ImageVariantOwnership;
+using Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
+using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantFreshness;
+using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantGenerator;
+using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantOwnership;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -136,7 +137,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
         {
             cancellationToken.ThrowIfCancellationRequested();
             var hasWidth = TryGetImageWidth(imageFile, context.Logger, out var width);
-            var applicableSizes = hasWidth ? sizes.Where(size => size < width).ToArray() : Array.Empty<int>();
+            var applicableSizes = hasWidth ? [.. sizes.Where(size => size < width)] : Array.Empty<int>();
             CleanupStaleVariants(
                 context.OutputDir,
                 imageFile,
@@ -214,7 +215,7 @@ internal sealed class ImageProcessingPlugin : IBukitPlugin, IAfterBuildAsyncPlug
 
             var srcsetParts = new List<string>();
             var existingSizes = new List<int>();
-            foreach (var size in resizePlans.GetValueOrDefault(imageFile) ?? Array.Empty<int>())
+            foreach (var size in resizePlans.GetValueOrDefault(imageFile) ?? [])
             {
                 var sizedFile = Path.Combine(
                     Path.GetDirectoryName(imageFile)!,

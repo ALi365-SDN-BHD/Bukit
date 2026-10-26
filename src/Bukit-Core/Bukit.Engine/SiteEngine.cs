@@ -56,11 +56,11 @@ public sealed partial class SiteEngine
         ThemeTemplateResolver? templateResolver = null)
     {
         var graph = ListRouteGraphBuilder.Build(
-            Array.Empty<RoutedContentDocument>(),
+            [],
             collections,
             outputPathEncoding: "none",
             templateResolver);
-        return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
+        return [.. graph.Routes.Select(route => route.ToRouteInfo())];
     }
 
     public static IReadOnlyList<RouteInfo> GetListRoutes(
@@ -92,7 +92,7 @@ public sealed partial class SiteEngine
             outputPathEncoding,
             templateResolver);
         context.Set(BuildDataKeys.ListRouteGraph, graph);
-        return graph.Routes.Select(route => route.ToRouteInfo()).ToArray();
+        return [.. graph.Routes.Select(route => route.ToRouteInfo())];
     }
 
     private static ListRouteGraph BuildListRouteGraph(
@@ -324,7 +324,7 @@ public sealed partial class SiteEngine
 
         var variantResults = results.Where(r => r is not null).ToList();
 
-        var completed = await FinalizeMultiLanguageOutputsAsync(
+        var (result, manifest) = await FinalizeMultiLanguageOutputsAsync(
             config,
             rootDir,
             overrides,
@@ -342,7 +342,7 @@ public sealed partial class SiteEngine
             reportedRootDir: null,
             reportedOutputDir: null,
             cancellationToken).ConfigureAwait(false);
-        return (completed.Result, variantResults, completed.Manifest);
+        return (result, variantResults, manifest);
     }
 
     private async Task<BuildVariantResult> BuildVariantAsync(

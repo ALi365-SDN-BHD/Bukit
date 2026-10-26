@@ -6,77 +6,77 @@ internal static class WorktreeBuildTransaction
         IReadOnlyList<(string Staging, string Final, string Backup)> directories,
         IReadOnlyList<(string Staging, string Final, string Backup)> files)
     {
-        foreach (var item in directories)
-            if (File.Exists(item.Final)) throw new IOException($"Directory transaction target is a file: {item.Final}");
-        foreach (var item in files)
-            if (Directory.Exists(item.Final)) throw new IOException($"File transaction target is a directory: {item.Final}");
+        foreach (var (_, final, _) in directories)
+            if (File.Exists(final)) throw new IOException($"Directory transaction target is a file: {final}");
+        foreach (var (_, final, _) in files)
+            if (Directory.Exists(final)) throw new IOException($"File transaction target is a directory: {final}");
 
         var completedDirectories = new List<(string Staging, string Final, string Backup, bool HadOriginal, bool Installed)>();
         var completedFiles = new List<(string Staging, string Final, string Backup, bool HadOriginal, bool Installed)>();
         try
         {
-            foreach (var item in directories)
+            foreach (var (staging, final, backup) in directories)
             {
-                var hadOriginal = Directory.Exists(item.Final);
+                var hadOriginal = Directory.Exists(final);
                 if (hadOriginal)
                 {
-                    Directory.Move(item.Final, item.Backup);
+                    Directory.Move(final, backup);
                 }
-                completedDirectories.Add((item.Staging, item.Final, item.Backup, hadOriginal, false));
-                Directory.Move(item.Staging, item.Final);
-                completedDirectories[^1] = (item.Staging, item.Final, item.Backup, hadOriginal, true);
+                completedDirectories.Add((staging, final, backup, hadOriginal, false));
+                Directory.Move(staging, final);
+                completedDirectories[^1] = (staging, final, backup, hadOriginal, true);
             }
-            foreach (var item in files.Where(item => File.Exists(item.Staging)))
+            foreach (var (staging, final, backup) in files.Where(item => File.Exists(item.Staging)))
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(item.Final)!);
-                var hadOriginal = File.Exists(item.Final);
+                Directory.CreateDirectory(Path.GetDirectoryName(final)!);
+                var hadOriginal = File.Exists(final);
                 if (hadOriginal)
                 {
-                    File.Move(item.Final, item.Backup);
+                    File.Move(final, backup);
                 }
-                completedFiles.Add((item.Staging, item.Final, item.Backup, hadOriginal, false));
-                File.Move(item.Staging, item.Final);
-                completedFiles[^1] = (item.Staging, item.Final, item.Backup, hadOriginal, true);
+                completedFiles.Add((staging, final, backup, hadOriginal, false));
+                File.Move(staging, final);
+                completedFiles[^1] = (staging, final, backup, hadOriginal, true);
             }
         }
         catch (Exception commitError)
         {
             var rollbackErrors = new List<Exception>();
-            foreach (var item in completedFiles.AsEnumerable().Reverse())
+            foreach (var (_, final, backup, hadOriginal, installed) in completedFiles.AsEnumerable().Reverse())
             {
                 try
                 {
-                    if (item.Installed) File.Delete(item.Final);
-                    if (item.HadOriginal) File.Move(item.Backup, item.Final);
+                    if (installed) File.Delete(final);
+                    if (hadOriginal) File.Move(backup, final);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    rollbackErrors.Add(new IOException($"Unable to restore '{item.Final}'; backup: '{item.Backup}'.", ex));
+                    rollbackErrors.Add(new IOException($"Unable to restore '{final}'; backup: '{backup}'.", ex));
                 }
             }
-            foreach (var item in completedDirectories.AsEnumerable().Reverse())
+            foreach (var (_, final, backup, hadOriginal, installed) in completedDirectories.AsEnumerable().Reverse())
             {
                 try
                 {
-                    if (item.Installed) Directory.Delete(item.Final, recursive: true);
-                    if (item.HadOriginal) Directory.Move(item.Backup, item.Final);
+                    if (installed) Directory.Delete(final, recursive: true);
+                    if (hadOriginal) Directory.Move(backup, final);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    rollbackErrors.Add(new IOException($"Unable to restore '{item.Final}'; backup: '{item.Backup}'.", ex));
+                    rollbackErrors.Add(new IOException($"Unable to restore '{final}'; backup: '{backup}'.", ex));
                 }
             }
             if (rollbackErrors.Count > 0)
                 throw new AggregateException("Output transaction failed and rollback is incomplete.", new[] { commitError }.Concat(rollbackErrors));
             throw;
         }
-        foreach (var item in completedFiles.Where(item => item.HadOriginal))
+        foreach (var (_, _, backup, _, _) in completedFiles.Where(item => item.HadOriginal))
         {
-            CleanupBackup(item.Backup, isDirectory: false);
+            CleanupBackup(backup, isDirectory: false);
         }
-        foreach (var item in completedDirectories.Where(item => item.HadOriginal))
+        foreach (var (_, _, backup, _, _) in completedDirectories.Where(item => item.HadOriginal))
         {
-            CleanupBackup(item.Backup, isDirectory: true);
+            CleanupBackup(backup, isDirectory: true);
         }
     }
 

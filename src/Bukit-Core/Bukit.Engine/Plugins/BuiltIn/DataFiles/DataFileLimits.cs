@@ -1,4 +1,4 @@
-namespace Bukit.Engine.Plugins.BuiltIn;
+namespace Bukit.Engine.Plugins.BuiltIn.DataFiles;
 
 /// <summary>
 /// Resource limits for one data-files load: directory traversal, file bytes,

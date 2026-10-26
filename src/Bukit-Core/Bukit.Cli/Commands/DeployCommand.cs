@@ -64,20 +64,25 @@ public static class DeployCommand
         if (!skipBuild)
         {
             logger.Info("Building site before deploy...");
-            var buildResult = await BuildCommand.RunInProcessAsync(new CliBoundCommand(
-                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["--config"] = command.GetString("--config"),
-                    ["--site"] = command.GetString("--site"),
-                    ["--output"] = cliOutput,
-                    ["--base-url"] = cliBaseUrl,
-                    ["--site-url"] = cliSiteUrl,
-                    ["--clean"] = "true",
-                    ["--ci"] = isCI ? "true" : null,
-                }
-                .Where(x => x.Value is not null)
-                .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
-                Array.Empty<string>()));
+            var buildResult = await BuildCommand.RunLoadedInProcessAsync(
+                new CliBoundCommand(
+                    new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["--config"] = command.GetString("--config"),
+                        ["--site"] = command.GetString("--site"),
+                        ["--output"] = cliOutput,
+                        ["--base-url"] = cliBaseUrl,
+                        ["--site-url"] = cliSiteUrl,
+                        ["--clean"] = "true",
+                        ["--ci"] = isCI ? "true" : null,
+                    }
+                    .Where(x => x.Value is not null)
+                    .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase),
+                    []),
+                config,
+                logger,
+                resolved,
+                logFormat).ConfigureAwait(false);
 
             if (buildResult != 0)
             {
@@ -152,5 +157,4 @@ public static class DeployCommand
         logger.Error($"Deployment failed: {result.Error}");
         return 1;
     }
-
 }

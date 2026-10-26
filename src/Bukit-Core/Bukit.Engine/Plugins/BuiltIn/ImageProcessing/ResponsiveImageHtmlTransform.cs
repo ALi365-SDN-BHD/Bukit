@@ -2,10 +2,10 @@ using System.Net;
 using System.Text.RegularExpressions;
 using Bukit.Config;
 using Bukit.Shared;
-using static Bukit.Engine.Plugins.BuiltIn.ImageVariantGenerator;
-using static Bukit.Engine.Plugins.BuiltIn.ImageVariantOwnership;
+using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantGenerator;
+using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantOwnership;
 
-namespace Bukit.Engine.Plugins.BuiltIn;
+namespace Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 
 /// <summary>
 /// Adds srcset/decoding attributes to media images and wraps generated WebP

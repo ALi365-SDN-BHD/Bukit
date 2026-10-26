@@ -3,10 +3,10 @@ using Bukit.Content.Media;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
 using SkiaSharp;
-using static Bukit.Engine.Plugins.BuiltIn.ImageVariantFreshness;
-using static Bukit.Engine.Plugins.BuiltIn.ImageVariantOwnership;
+using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantFreshness;
+using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantOwnership;
 
-namespace Bukit.Engine.Plugins.BuiltIn;
+namespace Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 
 /// <summary>
 /// Produces resized (external tool or SkiaSharp) and WebP variants with

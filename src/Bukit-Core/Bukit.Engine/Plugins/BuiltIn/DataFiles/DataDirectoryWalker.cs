@@ -1,7 +1,7 @@
 using Bukit.Config;
 using Bukit.Shared;
 
-namespace Bukit.Engine.Plugins.BuiltIn;
+namespace Bukit.Engine.Plugins.BuiltIn.DataFiles;
 
 /// <summary>
 /// Bounded, sorted enumeration of the data directory and the traversal budget

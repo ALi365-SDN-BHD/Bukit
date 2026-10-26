@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using static Bukit.Engine.Plugins.BuiltIn.ImageVariantOwnership;
+using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantOwnership;
 
-namespace Bukit.Engine.Plugins.BuiltIn;
+namespace Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 
 /// <summary>
 /// Freshness sidecar records that prove a variant was produced by Bukit from

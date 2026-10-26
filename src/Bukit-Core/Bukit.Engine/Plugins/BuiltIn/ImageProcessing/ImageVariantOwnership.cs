@@ -1,8 +1,8 @@
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Shared;
-using static Bukit.Engine.Plugins.BuiltIn.ImageVariantFreshness;
+using static Bukit.Engine.Plugins.BuiltIn.ImageProcessing.ImageVariantFreshness;
 
-namespace Bukit.Engine.Plugins.BuiltIn;
+namespace Bukit.Engine.Plugins.BuiltIn.ImageProcessing;
 
 /// <summary>
 /// Tracks which variant files Bukit owns, resolves output-relative identities,

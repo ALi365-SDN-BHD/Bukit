@@ -106,9 +106,20 @@ public sealed class BuiltInPluginSplitTests
 
     private static Type Helper(string name)
     {
-        var type = Engine.GetType("Bukit.Engine.Plugins.BuiltIn." + name);
-        Assert.NotNull(type);
-        return type;
+        foreach (var candidate in new[]
+                 {
+                     "Bukit.Engine.Plugins.BuiltIn." + name,
+                     "Bukit.Engine.Plugins.BuiltIn.DataFiles." + name,
+                     "Bukit.Engine.Plugins.BuiltIn.ImageProcessing." + name
+                 })
+        {
+            if (Engine.GetType(candidate) is { } type)
+            {
+                return type;
+            }
+        }
+
+        throw new InvalidOperationException("Missing built-in plugin helper type: " + name);
     }
 
     private static Microsoft.CodeAnalysis.SyntaxNode Source(string relativePath)

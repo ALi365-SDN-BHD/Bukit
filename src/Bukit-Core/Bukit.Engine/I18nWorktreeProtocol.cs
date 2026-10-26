@@ -1,102 +1,13 @@
-using System.Collections;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Bukit.Config;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
-using Bukit.Engine.Abstractions.Plugins;
-using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Incremental;
 using Bukit.Rendering;
 using Bukit.Shared;
 using Bukit.Theme;
 
 namespace Bukit.Engine;
-
-internal sealed record I18nContentSnapshot(
-    string Schema,
-    string Head,
-    DateTimeOffset BuildStartedAt,
-    IReadOnlyList<ContentDocument> Documents,
-    IReadOnlyDictionary<string, ContentBody> Bodies,
-    IReadOnlyDictionary<string, I18nBodyFileSnapshot> BodyFiles,
-    IReadOnlyList<ContentValidationIssue> SchemaErrors,
-    BodyCacheMetrics? BodyCacheMetrics);
-
-internal sealed record I18nBodyFileSnapshot(string Path, string Sha256);
-
-internal sealed record I18nWorkerRequest(
-    string Schema,
-    string Head,
-    string ConfigHash,
-    string ContentHash,
-    string Language,
-    string LogFormat,
-    string ConfigPath,
-    string RootDir,
-    string ProjectRootDir,
-    AppConfig Config,
-    ConfigOverrides Overrides,
-    string OutputDir,
-    string CacheDir,
-    string AssetsDir,
-    string? ScssOutputDir,
-    string MediaDownloadDir,
-    string SnapshotPath,
-    string ResultPath);
-
-internal sealed record I18nDerivedRouteSnapshot(RouteInfo Route, DateTimeOffset LastModified);
-
-internal sealed record I18nAssetOutputSnapshot(
-    string Source,
-    string Destination,
-    AssetOutputCategory Category,
-    AssetOutputOperation Operation);
-
-internal sealed record I18nBuildManifestSnapshot(
-    int Version,
-    string OutputRoot,
-    IReadOnlyList<string> OwnedOutputs,
-    string TemplateHash,
-    IReadOnlyDictionary<string, BuildManifestEntry> Entries,
-    IReadOnlyDictionary<string, string> Media,
-    IReadOnlyDictionary<string, string> Assets,
-    IReadOnlyDictionary<string, string> Static,
-    IReadOnlyDictionary<string, PluginOutputManifestEntry> PluginOutputs);
-
-internal sealed record I18nVariantSnapshot(
-    string Schema,
-    string Head,
-    string ConfigHash,
-    string ContentHash,
-    string Language,
-    bool Completed,
-    string OutputDir,
-    string BaseUrl,
-    bool SearchSnippetsEnabled,
-    IReadOnlyDictionary<string, ContentBody> Bodies,
-    IReadOnlyList<I18nDerivedRouteSnapshot> DerivedRoutes,
-    IReadOnlyDictionary<string, SeoIndexEntry> SeoIndex,
-    IReadOnlyDictionary<string, SeoModel> SeoModels,
-    IReadOnlyList<PluginExecutionInfo> PluginExecutions,
-    int RenderedCount,
-    int SkippedCount,
-    IReadOnlyDictionary<string, int> RenderReasons,
-    BuildStageMetrics StageMetrics,
-    IReadOnlyList<RoutedContentDocument> RoutedDocuments,
-    IReadOnlyList<ListRoutePlan> ListRoutes,
-    IReadOnlyList<RoutedContentDocument> DerivedDocuments,
-    IReadOnlyList<PublishProjectionResult> ProjectionResults,
-    IReadOnlyList<RouteInfo> StaticRoutes,
-    IReadOnlyList<PluginOutputTrackingInfo> PluginOutputs,
-    I18nBuildManifestSnapshot Manifest,
-    string TemplateHash,
-    bool IncrementalEnabled,
-    IReadOnlyList<I18nAssetOutputSnapshot> PlannedOutputs,
-    int WarningCount,
-    int ErrorCount);
 
 internal static class I18nWorktreeProtocol
 {
@@ -266,7 +177,7 @@ internal static class I18nWorktreeProtocol
             result.BaseUrl,
             result.SearchSnippetsEnabled,
             bodies,
-            result.DerivedRoutes.Select(x => new I18nDerivedRouteSnapshot(x.Route, x.LastModified)).ToArray(),
+            [.. result.DerivedRoutes.Select(x => new I18nDerivedRouteSnapshot(x.Route, x.LastModified))],
             result.SeoIndex,
             result.SeoModels,
             result.PluginExecutions,
@@ -283,7 +194,7 @@ internal static class I18nWorktreeProtocol
             FromManifest(pending.Manifest),
             pending.TemplateHash,
             pending.IncrementalEnabled,
-            result.PlannedOutputs.Select(x => new I18nAssetOutputSnapshot(x.Source, x.Destination, x.Category, x.Operation)).ToArray(),
+            [.. result.PlannedOutputs.Select(x => new I18nAssetOutputSnapshot(x.Source, x.Destination, x.Category, x.Operation))],
             warningCount,
             errorCount);
     }
@@ -316,7 +227,7 @@ internal static class I18nWorktreeProtocol
             snapshot.BaseUrl,
             snapshot.SearchSnippetsEnabled,
             bodyStore,
-            snapshot.DerivedRoutes.Select(x => (x.Route, x.LastModified)).ToArray(),
+            [.. snapshot.DerivedRoutes.Select(x => (x.Route, x.LastModified))],
             snapshot.SeoIndex,
             snapshot.SeoModels,
             snapshot.PluginExecutions,
@@ -338,118 +249,19 @@ internal static class I18nWorktreeProtocol
                 manifestPath,
                 ManifestEntries: null,
                 snapshot.IncrementalEnabled),
-            PlannedOutputs = snapshot.PlannedOutputs.Select(x => new AssetOutputItem(
+            PlannedOutputs = [.. snapshot.PlannedOutputs.Select(x => new AssetOutputItem(
                 x.Source,
                 x.Destination,
                 x.Category,
-                Operation: x.Operation)).ToArray()
+                Operation: x.Operation))]
         };
-    }
-
-    internal static async Task WriteContentAsync(string path, I18nContentSnapshot snapshot, CancellationToken cancellationToken)
-    {
-        var manifestDirectory = Path.GetDirectoryName(Path.GetFullPath(path))
-            ?? throw new InvalidOperationException("Content snapshot path has no parent directory.");
-        var bodyDirectory = Path.Combine(manifestDirectory, "bodies");
-        Directory.CreateDirectory(bodyDirectory);
-        var files = new Dictionary<string, I18nBodyFileSnapshot>(StringComparer.Ordinal);
-        var index = 0;
-        foreach (var (key, body) in snapshot.Bodies.OrderBy(x => x.Key, StringComparer.Ordinal))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var relativePath = Path.Combine("bodies", $"{index++:D8}.html");
-            var bodyPath = Path.Combine(manifestDirectory, relativePath);
-            await File.WriteAllTextAsync(bodyPath, body.Html, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
-            RestrictPermissions(bodyPath);
-            files[key] = new I18nBodyFileSnapshot(
-                relativePath.Replace(Path.DirectorySeparatorChar, '/'),
-                HashUtil.Sha256Hex(Encoding.UTF8.GetBytes(body.Html)));
-        }
-
-        await WriteAsync(
-            path,
-            snapshot with
-            {
-                Bodies = new Dictionary<string, ContentBody>(StringComparer.Ordinal),
-                BodyFiles = files
-            },
-            I18nWorktreeJsonContext.Default.I18nContentSnapshot,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    internal static Task WriteRequestAsync(string path, I18nWorkerRequest request, CancellationToken cancellationToken)
-        => WriteAsync(path, request, I18nWorktreeJsonContext.Default.I18nWorkerRequest, cancellationToken);
-
-    internal static Task WriteResultAsync(string path, I18nVariantSnapshot result, CancellationToken cancellationToken)
-        => WriteAsync(path, result, I18nWorktreeJsonContext.Default.I18nVariantSnapshot, cancellationToken);
-
-    internal static async Task<I18nContentSnapshot> ReadContentAsync(string path, CancellationToken cancellationToken)
-    {
-        var snapshot = await ReadAsync(path, I18nWorktreeJsonContext.Default.I18nContentSnapshot, cancellationToken).ConfigureAwait(false);
-        var manifestDirectory = Path.GetDirectoryName(Path.GetFullPath(path))
-            ?? throw new InvalidDataException("Content snapshot path has no parent directory.");
-        var bodies = new Dictionary<string, ContentBody>(StringComparer.Ordinal);
-        foreach (var (key, file) in snapshot.BodyFiles)
-        {
-            var bodyPath = FileWriter.GetSafeFullPath(manifestDirectory, file.Path);
-            var html = await File.ReadAllTextAsync(bodyPath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
-            var actualHash = HashUtil.Sha256Hex(Encoding.UTF8.GetBytes(html));
-            if (!string.Equals(actualHash, file.Sha256, StringComparison.Ordinal))
-            {
-                throw new InvalidDataException($"Content snapshot body hash is invalid: {file.Path}");
-            }
-            bodies[key] = new ContentBody(html);
-        }
-        return snapshot with { Bodies = bodies };
-    }
-
-    internal static Task<I18nWorkerRequest> ReadRequestAsync(string path, CancellationToken cancellationToken)
-        => ReadAsync(path, I18nWorktreeJsonContext.Default.I18nWorkerRequest, cancellationToken);
-
-    internal static Task<I18nVariantSnapshot> ReadResultAsync(string path, CancellationToken cancellationToken)
-        => ReadAsync(path, I18nWorktreeJsonContext.Default.I18nVariantSnapshot, cancellationToken);
-
-    internal static async Task<string> Sha256Async(string path, CancellationToken cancellationToken)
-    {
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        var hash = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
-        return Convert.ToHexStringLower(hash);
-    }
-
-    private static async Task WriteAsync<T>(string path, T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken)
-    {
-        var fullPath = Path.GetFullPath(path);
-        var directory = Path.GetDirectoryName(fullPath) ?? throw new InvalidOperationException("Protocol path has no parent directory.");
-        Directory.CreateDirectory(directory);
-        var tempPath = fullPath + ".tmp";
-        try
-        {
-            await using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 65536, FileOptions.Asynchronous))
-            {
-                await JsonSerializer.SerializeAsync(stream, value, typeInfo, cancellationToken).ConfigureAwait(false);
-                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            }
-            RestrictPermissions(tempPath);
-            File.Move(tempPath, fullPath, overwrite: true);
-        }
-        finally
-        {
-            File.Delete(tempPath);
-        }
-    }
-
-    private static async Task<T> ReadAsync<T>(string path, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken)
-    {
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        return await JsonSerializer.DeserializeAsync(stream, typeInfo, cancellationToken).ConfigureAwait(false)
-            ?? throw new InvalidDataException("Protocol payload is empty.");
     }
 
     private static I18nBuildManifestSnapshot FromManifest(BuildManifest manifest)
         => new(
             manifest.Version,
             manifest.OutputRoot,
-            manifest.OwnedOutputs.Order(StringComparer.Ordinal).ToArray(),
+            [.. manifest.OwnedOutputs.Order(StringComparer.Ordinal)],
             manifest.TemplateHash,
             manifest.Entries,
             manifest.Media,
@@ -493,136 +305,4 @@ internal static class I18nWorktreeProtocol
 
     private static bool PathEquals(string left, string right)
         => string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), Shared.PlatformPathHelper.PathComparison);
-
-    private static void RestrictPermissions(string path)
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-        }
-    }
 }
-
-internal sealed record I18nConfigIdentity(
-    AppConfig Config,
-    BuildExecutionMode ExecutionMode,
-    bool IsCI,
-    bool? Incremental,
-    int? Jobs);
-
-internal sealed class I18nObjectJsonConverter : JsonConverter<object>
-{
-    public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        using var document = JsonDocument.ParseValue(ref reader);
-        return ReadElement(document.RootElement);
-    }
-
-    public override void Write(Utf8JsonWriter writer, object value, JsonSerializerOptions options)
-    {
-        switch (value)
-        {
-            case JsonElement element:
-                element.WriteTo(writer);
-                return;
-            case string text:
-                writer.WriteStringValue(text);
-                return;
-            case bool boolean:
-                writer.WriteBooleanValue(boolean);
-                return;
-            case byte number:
-                writer.WriteNumberValue(number);
-                return;
-            case short number:
-                writer.WriteNumberValue(number);
-                return;
-            case int number:
-                writer.WriteNumberValue(number);
-                return;
-            case long number:
-                writer.WriteNumberValue(number);
-                return;
-            case float number:
-                writer.WriteNumberValue(number);
-                return;
-            case double number:
-                writer.WriteNumberValue(number);
-                return;
-            case decimal number:
-                writer.WriteNumberValue(number);
-                return;
-            case DateTime timestamp:
-                writer.WriteStringValue(timestamp);
-                return;
-            case DateTimeOffset timestamp:
-                writer.WriteStringValue(timestamp);
-                return;
-            case IReadOnlyDictionary<string, object?> map:
-                writer.WriteStartObject();
-                foreach (var (key, item) in map)
-                {
-                    writer.WritePropertyName(key);
-                    WriteValue(writer, item, options);
-                }
-                writer.WriteEndObject();
-                return;
-            case IDictionary dictionary:
-                writer.WriteStartObject();
-                foreach (DictionaryEntry item in dictionary)
-                {
-                    writer.WritePropertyName(item.Key?.ToString() ?? string.Empty);
-                    WriteValue(writer, item.Value, options);
-                }
-                writer.WriteEndObject();
-                return;
-            case IEnumerable sequence:
-                writer.WriteStartArray();
-                foreach (var item in sequence)
-                {
-                    WriteValue(writer, item, options);
-                }
-                writer.WriteEndArray();
-                return;
-            default:
-                writer.WriteStringValue(value.ToString());
-                return;
-        }
-    }
-
-    private static object? ReadElement(JsonElement element)
-        => element.ValueKind switch
-        {
-            JsonValueKind.Null => null,
-            JsonValueKind.String => element.GetString(),
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            JsonValueKind.Number when element.TryGetInt64(out var integer) => integer,
-            JsonValueKind.Number => element.GetDouble(),
-            JsonValueKind.Array => element.EnumerateArray().Select(ReadElement).ToArray(),
-            JsonValueKind.Object => element.EnumerateObject().ToDictionary(x => x.Name, x => ReadElement(x.Value), StringComparer.OrdinalIgnoreCase),
-            _ => element.GetRawText()
-        };
-
-    private static void WriteValue(Utf8JsonWriter writer, object? value, JsonSerializerOptions options)
-    {
-        if (value is null)
-        {
-            writer.WriteNullValue();
-        }
-        else
-        {
-            new I18nObjectJsonConverter().Write(writer, value, options);
-        }
-    }
-}
-
-[JsonSourceGenerationOptions(
-    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    WriteIndented = false,
-    Converters = [typeof(I18nObjectJsonConverter)])]
-[JsonSerializable(typeof(I18nContentSnapshot))]
-[JsonSerializable(typeof(I18nConfigIdentity))]
-[JsonSerializable(typeof(I18nWorkerRequest))]
-[JsonSerializable(typeof(I18nVariantSnapshot))]
-internal sealed partial class I18nWorktreeJsonContext : JsonSerializerContext;

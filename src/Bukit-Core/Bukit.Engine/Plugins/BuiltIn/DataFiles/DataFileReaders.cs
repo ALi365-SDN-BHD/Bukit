@@ -3,7 +3,7 @@ using Bukit.Config;
 using Bukit.Shared;
 using Bukit.Shared.IO;
 
-namespace Bukit.Engine.Plugins.BuiltIn;
+namespace Bukit.Engine.Plugins.BuiltIn.DataFiles;
 
 /// <summary>
 /// Opens data files without following links and decodes them with strict,

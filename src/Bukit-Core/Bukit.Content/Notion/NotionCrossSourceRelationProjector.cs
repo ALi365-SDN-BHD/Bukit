@@ -79,7 +79,7 @@ internal static class NotionCrossSourceRelationProjector
     }
 
     private static readonly NotionRelationFallbackResult EmptyFallback = new(
-        Array.Empty<RelationTargetInfo>(),
+        [],
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 
     private static Dictionary<string, RelationTargetInfo> BuildLoadedTargetIndex(
@@ -130,7 +130,7 @@ internal static class NotionCrossSourceRelationProjector
                     continue;
                 }
 
-                foreach (var id in ContentFieldReader.ToTextList(field.Value) ?? Array.Empty<string>())
+                foreach (var id in ContentFieldReader.ToTextList(field.Value) ?? [])
                 {
                     if (string.IsNullOrWhiteSpace(id) || index.ContainsKey(id) || !seen.Add(id))
                     {
@@ -214,13 +214,13 @@ internal static class NotionCrossSourceRelationProjector
             Properties = RawContentValue.FromFields(projected ?? fields),
             Diagnostics = diagnostics is null
                 ? document.Diagnostics
-                : document.Diagnostics.Concat(diagnostics).ToArray()
+                : [.. document.Diagnostics, .. diagnostics]
         };
     }
 
     private static Dictionary<string, object?> CreateProjection(RelationTargetInfo target, ContentReferenceRule? reference)
     {
-        var sameAs = (target.SameAs ?? Array.Empty<string>()).ToArray();
+        var sameAs = (target.SameAs ?? []).ToArray();
         var projection = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
             ["id"] = target.PageId,

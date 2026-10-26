@@ -117,6 +117,24 @@ public sealed partial class SiteEngine
         }
 
         var buildLogger = new BuildDiagnosticLogger(logger);
+        var variantContext = CreateVariantContext(request, snapshot, languages, buildLogger);
+
+        buildLogger.Info($"event=build.variant.start language={request.Language} baseUrl={variantContext.BaseUrl} outputDir={request.OutputDir}");
+        var result = await BuildVariantAsync(
+            variantContext,
+            new DirectoryHashCache(buildLogger),
+            cancellationToken,
+            buildLogger).ConfigureAwait(false);
+        buildLogger.Info($"event=build.variant.done language={request.Language} baseUrl={variantContext.BaseUrl} outputDir={request.OutputDir}");
+        return (result, buildLogger.WarningCount, buildLogger.ErrorCount);
+    }
+
+    private static BuildVariantContext CreateVariantContext(
+        I18nWorkerRequest request,
+        I18nContentSnapshot snapshot,
+        IReadOnlyList<string> languages,
+        BuildDiagnosticLogger buildLogger)
+    {
         var resolved = ThemePathResolver.Resolve(request.RootDir, request.Config.Theme, buildLogger);
         var bootstrap = ThemeBootstrapper.BootstrapRequired(request.Config, request.RootDir, buildLogger);
         var templateResolver = new ThemeTemplateResolver(bootstrap.Manifest);
@@ -142,7 +160,7 @@ public sealed partial class SiteEngine
         };
         var bodyStore = new DictionaryContentBodyStore(snapshot.Bodies);
         var contentGraph = CanonicalContentGraphBuilder.BuildFromDocuments(snapshot.Documents);
-        var variantContext = new BuildVariantContext(
+        return new BuildVariantContext(
             variantConfig,
             request.RootDir,
             request.Overrides with
@@ -171,15 +189,6 @@ public sealed partial class SiteEngine
             resolved.UserLayoutsDir,
             request.ScssOutputDir,
             request.ProjectRootDir);
-
-        buildLogger.Info($"event=build.variant.start language={request.Language} baseUrl={baseUrl} outputDir={request.OutputDir}");
-        var result = await BuildVariantAsync(
-            variantContext,
-            new DirectoryHashCache(buildLogger),
-            cancellationToken,
-            buildLogger).ConfigureAwait(false);
-        buildLogger.Info($"event=build.variant.done language={request.Language} baseUrl={baseUrl} outputDir={request.OutputDir}");
-        return (result, buildLogger.WarningCount, buildLogger.ErrorCount);
     }
 
     internal async Task<BuildResult> FinalizeI18nWorktreeBuildAsync(
@@ -198,7 +207,7 @@ public sealed partial class SiteEngine
             throw new InvalidDataException("Worker results do not contain the complete configured language set.");
         }
 
-        var completed = await FinalizeMultiLanguageOutputsAsync(
+        var (result, manifest) = await FinalizeMultiLanguageOutputsAsync(
             config,
             prepared.RootDir,
             prepared.Overrides,
@@ -226,12 +235,12 @@ public sealed partial class SiteEngine
                 pending.Manifest.Save(pending.ManifestPath);
             }
         }
-        completed.Manifest.Save(rootManifestPath);
+        manifest.Save(rootManifestPath);
         WriteOutputMarker(prepared.Plan.OutputDir);
         BuildRecoveryTracker.MarkCompleted(prepared.Plan.OutputDir);
         prepared.Logger.Info($"Build completed: {Path.GetFullPath(prepared.Plan.OutputDir)}");
         prepared.Logger.Info("event=build.done");
-        return completed.Result;
+        return result;
     }
 
     private async Task<(BuildResult Result, BuildManifest Manifest)> FinalizeMultiLanguageOutputsAsync(
@@ -266,17 +275,17 @@ public sealed partial class SiteEngine
         SeoAuditReportWriter.WriteMerged(
             config,
             outputDir,
-            variantResults.Select(variant => variant.ToPublishedVariant()).ToArray(),
+            [.. variantResults.Select(variant => variant.ToPublishedVariant())],
             buildLogger,
             projectionResults);
         var reportVariants = reportedOutputDir is null
             ? variantResults
-            : variantResults.Select(variant => variant with
+            : [.. variantResults.Select(variant => variant with
             {
                 OutputDir = Path.Combine(
                     reportedOutputDir,
                     Path.GetRelativePath(outputDir, variant.OutputDir))
-            }).ToArray();
+            })];
         MetricsWriter.WriteIfRequested(reportedRootDir ?? rootDir, overrides.MetricsPath, config, reportedOutputDir ?? outputDir, documentCount, reportVariants, bodyCacheMetrics);
         var generatedFiles = BuildOutputInventory.Create(outputDir);
         buildStopwatch.Stop();

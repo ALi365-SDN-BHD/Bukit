@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-namespace Bukit.Engine.Plugins.BuiltIn;
+namespace Bukit.Engine.Plugins.BuiltIn.DataFiles;
 
 /// <summary>
 /// Streams a JSON data file into dictionaries and lists while charging every

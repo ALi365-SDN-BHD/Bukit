@@ -3,7 +3,7 @@ using System.Text;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 
-namespace Bukit.Engine.Plugins.BuiltIn;
+namespace Bukit.Engine.Plugins.BuiltIn.DataFiles;
 
 /// <summary>
 /// Projects the first document of a YAML data file into dictionaries and lists,

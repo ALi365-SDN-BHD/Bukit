@@ -116,7 +116,7 @@ internal sealed class NotionRelationTargetCache
             }
             writer.WritePropertyName("sameAs");
             writer.WriteStartArray();
-            foreach (var sameAs in target.SameAs ?? Array.Empty<string>())
+            foreach (var sameAs in target.SameAs ?? [])
             {
                 writer.WriteStringValue(sameAs);
             }
@@ -157,14 +157,13 @@ internal sealed class NotionRelationTargetCache
     {
         if (!element.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Array)
         {
-            return Array.Empty<string>();
+            return [];
         }
 
-        return value.EnumerateArray()
+        return [.. value.EnumerateArray()
             .Where(item => item.ValueKind == JsonValueKind.String)
             .Select(item => item.GetString()?.Trim())
             .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Cast<string>()
-            .ToArray();
+            .Cast<string>()];
     }
 }

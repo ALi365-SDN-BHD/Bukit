@@ -55,9 +55,9 @@ public sealed class I18nWorktreeProtocolTests : IDisposable
             projectRoot,
             CancellationToken.None);
         var path = Path.Combine(_root, "snapshot.json");
-        await I18nWorktreeProtocol.WriteContentAsync(path, snapshot, CancellationToken.None);
+        await I18nWorktreeProtocolStore.WriteContentAsync(path, snapshot, CancellationToken.None);
         Assert.DoesNotContain("<p>body</p>", await File.ReadAllTextAsync(path), StringComparison.Ordinal);
-        var restored = await I18nWorktreeProtocol.ReadContentAsync(path, CancellationToken.None);
+        var restored = await I18nWorktreeProtocolStore.ReadContentAsync(path, CancellationToken.None);
 
         var expectedPath = Path.Combine(projectRoot, "content", "page.md");
         var restoredDocument = Assert.Single(restored.Documents);

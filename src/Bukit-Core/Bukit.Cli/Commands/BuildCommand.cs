@@ -17,6 +17,22 @@ public static class BuildCommand
     internal static Task<int> RunInProcessAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
         => RunAsync(command, command.GetString("--log-format") ?? "text", useWorktreeIsolation: false, cancellationToken);
 
+    internal static Task<int> RunLoadedInProcessAsync(
+        CliBoundCommand command,
+        AppConfig config,
+        ILogger logger,
+        ResolvedConfigPath resolved,
+        string logFormat,
+        CancellationToken cancellationToken = default)
+        => BuildFromLoadedConfigAsync(
+            command,
+            config,
+            logger,
+            resolved,
+            logFormat,
+            useWorktreeIsolation: false,
+            cancellationToken);
+
     private static async Task<int> RunAsync(
         CliBoundCommand command,
         string logFormat,
@@ -37,6 +53,25 @@ public static class BuildCommand
             config = config with { Site = config.Site with { Url = siteUrl } };
         }
 
+        return await BuildFromLoadedConfigAsync(
+            command,
+            config,
+            logger,
+            resolved,
+            logFormat,
+            useWorktreeIsolation,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<int> BuildFromLoadedConfigAsync(
+        CliBoundCommand command,
+        AppConfig config,
+        ILogger logger,
+        ResolvedConfigPath resolved,
+        string logFormat,
+        bool useWorktreeIsolation,
+        CancellationToken cancellationToken)
+    {
         var overrides = new ConfigOverrides
         {
             Output = command.GetString("--output"),

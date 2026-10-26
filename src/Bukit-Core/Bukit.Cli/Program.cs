@@ -30,15 +30,14 @@ try
         descriptor = BukitCliDescriptors.ResolveDescriptor(descriptors, command);
     }
 
-    var commandArgsInfo = NormalizeGlobalLogFormat(commandArgsRaw, descriptor);
-    var commandArgs = commandArgsInfo.Args;
+    var (_, commandArgs) = NormalizeGlobalLogFormat(commandArgsRaw, descriptor);
 
     if (descriptor is not null)
     {
         if (commandArgs.Any(x => x is "--help" or "-h"))
         {
-            var help = ResolveHelpTarget(descriptor.Spec, commandArgs);
-            var usage = CliHelpRenderer.Render(help.Spec, help.CommandPath);
+            var (spec, commandPath) = ResolveHelpTarget(descriptor.Spec, commandArgs);
+            var usage = CliHelpRenderer.Render(spec, commandPath);
             Console.WriteLine(usage);
             return 0;
         }

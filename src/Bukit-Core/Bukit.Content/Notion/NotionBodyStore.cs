@@ -153,10 +153,9 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
         }
 
         _lifetimeCts.Cancel();
-        Task[] activeTasks = _cache.Values
+        Task[] activeTasks = [.. _cache.Values
             .Where(static lazy => lazy.IsValueCreated)
-            .Select(static lazy => (Task)lazy.Value)
-            .ToArray();
+            .Select(static lazy => (Task)lazy.Value)];
         try
         {
             await Task.WhenAll(activeTasks);
