@@ -452,7 +452,9 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
             build:
               output: dist
               clean: false
-              languageJobs: 2
+              # Serialize workers: concurrent instrumented child processes would
+              # contend on coverlet's per-module hits file during coverage runs.
+              languageJobs: 1
             theme:
               layouts: layouts
             """);
