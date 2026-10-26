@@ -6,7 +6,12 @@
         "openspec/changes/fix-image-resize-temp-cleanup/proposal.md",
         "openspec/changes/fix-image-resize-temp-cleanup/design.md",
         "openspec/changes/fix-image-resize-temp-cleanup/tasks.md",
-        "openspec/changes/fix-image-resize-temp-cleanup/specs/image-resize-temp-cleanup/spec.md"
+        "openspec/changes/fix-image-resize-temp-cleanup/specs/image-resize-temp-cleanup/spec.md",
+        "openspec/changes/archive/2026-10-26-fix-image-resize-temp-cleanup/proposal.md",
+        "openspec/changes/archive/2026-10-26-fix-image-resize-temp-cleanup/design.md",
+        "openspec/changes/archive/2026-10-26-fix-image-resize-temp-cleanup/tasks.md",
+        "openspec/changes/archive/2026-10-26-fix-image-resize-temp-cleanup/specs/image-resize-temp-cleanup/spec.md",
+        "openspec/specs/image-resize-temp-cleanup/spec.md"
       ],
       "specialtyTests": [
         "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter FullyQualifiedName~BuiltInPluginSplitTests",
@@ -30,7 +35,12 @@
       "id": "built-in-plugin-split-migration-contract",
       "matches": [
         "openspec/changes/migrate-built-in-plugin-split/*.md",
-        "openspec/changes/migrate-built-in-plugin-split/specs/built-in-plugin-split/spec.md"
+        "openspec/changes/migrate-built-in-plugin-split/specs/built-in-plugin-split/spec.md",
+        "openspec/changes/archive/2026-10-26-migrate-built-in-plugin-split/proposal.md",
+        "openspec/changes/archive/2026-10-26-migrate-built-in-plugin-split/design.md",
+        "openspec/changes/archive/2026-10-26-migrate-built-in-plugin-split/tasks.md",
+        "openspec/changes/archive/2026-10-26-migrate-built-in-plugin-split/specs/built-in-plugin-split/spec.md",
+        "openspec/specs/built-in-plugin-split/spec.md"
       ],
       "specialtyTests": [
         "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~DataFilesPluginTests|FullyQualifiedName~ImageProcessingPluginTests\"",
@@ -112,7 +122,12 @@
         "openspec/changes/fix-notion-relation-fallback-diagnostics/proposal.md",
         "openspec/changes/fix-notion-relation-fallback-diagnostics/design.md",
         "openspec/changes/fix-notion-relation-fallback-diagnostics/tasks.md",
-        "openspec/changes/fix-notion-relation-fallback-diagnostics/specs/notion-relation-fallback-diagnostics/spec.md"
+        "openspec/changes/fix-notion-relation-fallback-diagnostics/specs/notion-relation-fallback-diagnostics/spec.md",
+        "openspec/changes/archive/2026-10-26-fix-notion-relation-fallback-diagnostics/proposal.md",
+        "openspec/changes/archive/2026-10-26-fix-notion-relation-fallback-diagnostics/design.md",
+        "openspec/changes/archive/2026-10-26-fix-notion-relation-fallback-diagnostics/tasks.md",
+        "openspec/changes/archive/2026-10-26-fix-notion-relation-fallback-diagnostics/specs/notion-relation-fallback-diagnostics/spec.md",
+        "openspec/specs/notion-relation-fallback-diagnostics/spec.md"
       ],
       "specialtyTests": [
         "dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj --filter FullyQualifiedName~CrossSourceRelationProjectionTests"
@@ -134,7 +149,12 @@
         "openspec/changes/migrate-notion-compatibility/design.md",
         "openspec/changes/migrate-notion-compatibility/tasks.md",
         "openspec/changes/migrate-notion-compatibility/specs/notion-compatibility-migration/spec.md",
-        "guide/dev/architecture.md"
+        "guide/dev/architecture.md",
+        "openspec/changes/archive/2026-10-26-migrate-notion-compatibility/proposal.md",
+        "openspec/changes/archive/2026-10-26-migrate-notion-compatibility/design.md",
+        "openspec/changes/archive/2026-10-26-migrate-notion-compatibility/tasks.md",
+        "openspec/changes/archive/2026-10-26-migrate-notion-compatibility/specs/notion-compatibility-migration/spec.md",
+        "openspec/specs/notion-compatibility-migration/spec.md"
       ],
       "specialtyTests": [
         "bash scripts/checks/codex-workflow-self-test.sh",
