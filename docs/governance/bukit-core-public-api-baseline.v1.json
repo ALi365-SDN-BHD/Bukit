@@ -7606,7 +7606,8 @@
       "signature": "public static class Bukit.Shared.PathUtils",
       "publicMembers": [
         "public static System.Boolean IsSameOrSubPathOf(System.String! child, System.String! parent)",
-        "public static System.Boolean IsSubPathOf(System.String! child, System.String! parent)"
+        "public static System.Boolean IsSubPathOf(System.String! child, System.String! parent)",
+        "public static System.String! GetCanonicalFullPath(System.String! path)"
       ],
       "protectedMembers": []
     },

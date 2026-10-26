@@ -231,6 +231,15 @@ This reviewed additive change adds `BuildDataKey<T>`
 `[Obsolete]`. Nothing is removed. Removing `Data` requires a separately reviewed
 3.0 change.
 
+## Path Canonicalization Helper (2.x)
+
+This reviewed additive change adds
+`PathUtils.GetCanonicalFullPath(string)` to the existing
+`cross-assembly-implementation / 1.x-do-not-narrow / 2.0-review`
+`Bukit.Shared.PathUtils` surface. The multilingual Worktree build uses it to
+compare repository, Worktree, and output paths after symlink resolution.
+Nothing is removed or narrowed.
+
 ## Baseline Review Vocabulary
 
 Every governed type uses one classification and one compatibility value.
