@@ -2,7 +2,11 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using Bukit.Cli.Commands;
+using Bukit.Cli.Shared;
 using Bukit.Cli.Shared.Cli.Binding;
+using Bukit.Config;
+using Bukit.Engine;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Cli.Tests;
@@ -384,6 +388,59 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task PrepareCancellation_CleansOwnedWorktree_AndPreservesUnrelatedWorktreeAndPriorOutputCache()
+    {
+        var root = Path.Combine(_root, "prepare-cancellation");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+        var unrelated = Path.Combine(_root, "unrelated-worktree");
+        Assert.Equal(0, (await RunProcessAsync("git", ["worktree", "add", "--detach", unrelated, "HEAD"], root)).ExitCode);
+        var unrelatedSentinel = Path.Combine(unrelated, "sentinel.bin");
+        byte[] oldUnrelated = [3, 0, 255];
+        await File.WriteAllBytesAsync(unrelatedSentinel, oldUnrelated);
+        var registrationBefore = (await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root)).Output;
+        var outputSentinel = Path.Combine(root, "dist", "sentinel.bin");
+        var cacheSentinel = Path.Combine(root, ".cache", "sentinel.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(outputSentinel)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(cacheSentinel)!);
+        byte[] oldOutput = [0, 1, 255];
+        byte[] oldCache = [255, 2, 0];
+        await File.WriteAllBytesAsync(outputSentinel, oldOutput);
+        await File.WriteAllBytesAsync(cacheSentinel, oldCache);
+        var repository = (await RunProcessAsync("git", ["rev-parse", "--show-toplevel"], root)).Output.Trim();
+        var runsRoot = WorktreeBuildPaths.RunsRoot(repository);
+        using var cancellation = new CancellationTokenSource();
+        var logger = new CancelOnContentLoadLogger(cancellation);
+        var run = await WorktreeBuildRun.StartAsync(
+            ConfigLoader.Load(site), new ResolvedConfigPath(site, root), new ConfigOverrides(), "text", logger,
+            cancellation.Token);
+        string? ownedWorktree = null;
+        string? registry = null;
+        try
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run.PrepareAsync(cancellation.Token));
+            Assert.True(logger.Triggered);
+            registry = Assert.Single(Directory.EnumerateFiles(runsRoot, "owned-worktrees.txt", SearchOption.AllDirectories));
+            ownedWorktree = Assert.Single(await File.ReadAllLinesAsync(registry));
+            Assert.True(Directory.Exists(ownedWorktree));
+            var registered = (await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root)).Output;
+            Assert.Contains("worktree " + ownedWorktree, registered, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await run.CleanupAsync();
+        }
+
+        Assert.NotNull(ownedWorktree);
+        Assert.False(Directory.Exists(ownedWorktree));
+        Assert.False(File.Exists(registry));
+        Assert.Equal(registrationBefore, (await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root)).Output);
+        Assert.Equal(oldUnrelated, await File.ReadAllBytesAsync(unrelatedSentinel));
+        Assert.Equal(oldOutput, await File.ReadAllBytesAsync(outputSentinel));
+        Assert.Equal(oldCache, await File.ReadAllBytesAsync(cacheSentinel));
+    }
+
+    [Fact]
     public async Task NextBuild_ProtectsActiveRun_ThenRecoversOnlyRegisteredResidualWorktree()
     {
         var root = Path.Combine(_root, "residual-recovery");
@@ -416,6 +473,23 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         Assert.False(Directory.Exists(residualWorktree));
         var worktrees = await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root);
         Assert.Single(worktrees.Output.Split('\n'), line => line.StartsWith("worktree ", StringComparison.Ordinal));
+    }
+
+    private sealed class CancelOnContentLoadLogger(CancellationTokenSource cancellation) : ILogger
+    {
+        public bool Triggered { get; private set; }
+        public void Debug(string message) { }
+        public void Warn(string message) { }
+        public void Error(string message) { }
+
+        public void Info(string message)
+        {
+            if (message.StartsWith("event=content.stage stage=ContentLoad ", StringComparison.Ordinal))
+            {
+                Triggered = true;
+                cancellation.Cancel();
+            }
+        }
     }
 
     private static CliBoundCommand Command(string site)

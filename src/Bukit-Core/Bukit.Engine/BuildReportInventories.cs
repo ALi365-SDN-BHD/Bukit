@@ -72,10 +72,14 @@ internal static class ArtifactManifestInventory
         string? outputDir,
         IReadOnlyList<BuildVariantResult>? variants)
     {
+        // The downstream digest includes this manifest, so including it would create a hash cycle.
         var artifactFiles = Directory.EnumerateFiles(reportDir, "*.json", SearchOption.TopDirectoryOnly)
             .Where(path => !string.Equals(
                 Path.GetFileName(path),
                 "artifact-manifest.json",
+                StringComparison.OrdinalIgnoreCase) && !string.Equals(
+                Path.GetFileName(path),
+                "build-manifest-digest.json",
                 StringComparison.OrdinalIgnoreCase))
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();

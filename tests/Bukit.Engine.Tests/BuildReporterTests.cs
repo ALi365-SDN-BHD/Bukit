@@ -293,6 +293,43 @@ public sealed class BuildReporterTests
         Assert.Equal("zh-CN", variantElement.GetProperty("language").GetString());
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RepeatedNoCleanBuilds_KeepArtifactAndDigestHashesCurrent(bool enabled)
+    {
+        using var site = new SiteBuilder();
+        site.Markdown("page", "Page", "Fixed local Markdown body.");
+        var config = site.Config;
+        config = config with { Build = config.Build with { Report = config.Build.Report with { Enabled = enabled } } };
+        var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error));
+        var reportDir = Path.Combine(site.Output, ".bukit");
+        var artifactPath = Path.Combine(reportDir, "artifact-manifest.json");
+        var digestPath = Path.Combine(reportDir, "build-manifest-digest.json");
+
+        for (var build = 0; build < 2; build++)
+        {
+            if (build > 0) Assert.True(File.Exists(digestPath));
+            await engine.BuildAsync(config, site.Root, new ConfigOverrides { Clean = false, Jobs = 1 });
+
+            var reportPaths = Directory.EnumerateFiles(reportDir, "*.json")
+                .Select(path => Path.GetFileName(path)!).ToArray();
+            var artifactPaths = reportPaths.Where(path => path is not "artifact-manifest.json" and not "build-manifest-digest.json");
+            Assert.Contains("security-report.json", artifactPaths);
+            Assert.Contains("release-bundle-checksums.json", artifactPaths);
+            if (enabled) Assert.Contains("analytics-report.json", artifactPaths);
+            using var artifacts = JsonDocument.Parse(File.ReadAllText(artifactPath));
+            ReportAssertions.Files(artifacts.RootElement, "artifacts", artifactPaths,
+                path => File.ReadAllBytes(Path.Combine(reportDir, path)), "artifactCount", "artifactSetHash");
+
+            using var digest = JsonDocument.Parse(File.ReadAllText(digestPath));
+            ReportAssertions.Files(digest.RootElement, "reports", reportPaths.Where(path => path != "build-manifest-digest.json"),
+                path => File.ReadAllBytes(Path.Combine(reportDir, path)), "reportCount", "reportSetHash");
+            Assert.Equal(ReportAssertions.Hash(File.ReadAllBytes(artifactPath)),
+                digest.RootElement.GetProperty("artifactManifestHash").GetString());
+        }
+    }
+
     [Fact]
     public async Task WriteIfEnabled_WritesArtifactManifestWithHashes()
     {
