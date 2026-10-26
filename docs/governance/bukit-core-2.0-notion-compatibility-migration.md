@@ -110,6 +110,6 @@ Labs or external-plugin business migrations.
 The historical AD-03C implementation and verification ledger is
 [AD-03C final aggregate closure](../analysis/bukit-core-ad03c-final-aggregate-closure-2026-07-24.zh-CN.md).
 The independent consolidation contract is
-[migrate-notion-compatibility](../../openspec/changes/migrate-notion-compatibility/design.md);
+[migrate-notion-compatibility](../../openspec/changes/archive/2026-10-26-migrate-notion-compatibility/design.md);
 its scoped execution and review outcomes are separate external task evidence,
 not a claim that the historical aggregate gate was rerun or a release was published.
