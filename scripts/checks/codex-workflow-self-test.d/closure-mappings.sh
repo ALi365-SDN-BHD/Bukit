@@ -11,26 +11,10 @@ for notion_fallback_contract_path in \
   assert_closure_mapping "$closure_fixture" "$notion_fallback_contract_path" '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj --filter FullyQualifiedName~CrossSourceRelationProjectionTests"]' false
 done
 
-assert_closure_mapping \
-  "$closure_fixture" \
-  src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs \
-  '["dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
-  true
-assert_closure_mapping \
-  "$closure_fixture" \
-  src/Bukit-Core/Bukit.Content.Notion/NotionBodyStore.cs \
-  '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
-  true
-assert_closure_mapping \
-  "$closure_fixture" \
-  src/Bukit-Core/Bukit.Content/Notion/NotionBodyStore.cs \
-  '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
-  true
-assert_closure_mapping \
-  "$closure_fixture" \
-  src/Bukit-Core/Bukit.Cli/Deploy/GitProcessRunner.cs \
-  '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' \
-  true
+assert_closure_mapping "$closure_fixture" src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs '["dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' true
+assert_closure_mapping "$closure_fixture" src/Bukit-Core/Bukit.Content.Notion/NotionBodyStore.cs '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' true
+assert_closure_mapping "$closure_fixture" src/Bukit-Core/Bukit.Content/Notion/NotionBodyStore.cs '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' true
+assert_closure_mapping "$closure_fixture" src/Bukit-Core/Bukit.Cli/Deploy/GitProcessRunner.cs '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"]' true
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Cli.Shared/Cli/Rendering/CliHelpRenderer.cs \
