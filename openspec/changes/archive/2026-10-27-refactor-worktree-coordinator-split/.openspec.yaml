@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-26
+goal: Split the oversized multilingual Worktree build coordinator without behavior changes.
+skip_specs: true

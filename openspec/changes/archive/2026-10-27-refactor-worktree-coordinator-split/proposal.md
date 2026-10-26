@@ -8,7 +8,7 @@ the repository's 600-line ceiling. The file mixed three unrelated responsibiliti
 build orchestration, Git repository/Worktree plumbing, and staging-path/transaction
 handling. Every new Worktree feature had to be added to an already oversized file.
 
-## Changes
+## What Changes
 
 - Keep orchestration in `WorktreeBuildCoordinator.cs`: worker entry point, the
   multilingual build pipeline, worker process launch, self-invocation, `WorkerPlan`.
@@ -27,6 +27,10 @@ handling. Every new Worktree feature had to be added to an already oversized fil
   owning types.
 
 ## Compatibility and boundaries
+
+Subsequent commit `3645c1f7` further extracted build-run state into
+`WorktreeBuildRun.cs`; the 395-line target below describes this first extraction,
+and all affected files remain below the 600-line ceiling.
 
 Pure extraction: no behavior, message, exception code, file layout, or public
 contract changes. All moved members keep their accessibility (`internal`) and
