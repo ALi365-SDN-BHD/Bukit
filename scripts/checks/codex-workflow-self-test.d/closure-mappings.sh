@@ -1,3 +1,11 @@
+for notion_fallback_contract_path in \
+  openspec/changes/fix-notion-relation-fallback-diagnostics/proposal.md \
+  openspec/changes/fix-notion-relation-fallback-diagnostics/design.md \
+  openspec/changes/fix-notion-relation-fallback-diagnostics/tasks.md \
+  openspec/changes/fix-notion-relation-fallback-diagnostics/specs/notion-relation-fallback-diagnostics/spec.md; do
+  assert_closure_mapping "$closure_fixture" "$notion_fallback_contract_path" '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj --filter FullyQualifiedName~CrossSourceRelationProjectionTests"]' false
+done
+
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Content/BodyCacheDecorator.cs \
@@ -6,6 +14,11 @@ assert_closure_mapping \
 assert_closure_mapping \
   "$closure_fixture" \
   src/Bukit-Core/Bukit.Content.Notion/NotionBodyStore.cs \
+  '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
+  true
+assert_closure_mapping \
+  "$closure_fixture" \
+  src/Bukit-Core/Bukit.Content/Notion/NotionBodyStore.cs \
   '["dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"]' \
   true
 assert_closure_mapping \
@@ -87,9 +100,29 @@ for public_api_governance_path in \
   tools/Bukit.PublicApiDrift/ApiSurfaceModels.cs; do
   assert_closure_mapping "$closure_fixture" "$public_api_governance_path" '["bash scripts/checks/public-api-drift-self-test.sh"]' false
 done
+for image_resize_temp_contract_path in \
+  openspec/changes/fix-image-resize-temp-cleanup/proposal.md \
+  openspec/changes/fix-image-resize-temp-cleanup/design.md \
+  openspec/changes/fix-image-resize-temp-cleanup/tasks.md \
+  openspec/changes/fix-image-resize-temp-cleanup/specs/image-resize-temp-cleanup/spec.md; do
+  assert_closure_mapping "$closure_fixture" "$image_resize_temp_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter FullyQualifiedName~BuiltInPluginSplitTests", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~ImageProcessingPluginTests|FullyQualifiedName~ExternalToolProcessRunnerTests\""]' false
+done
 
 for cli_documentation_path in guide/dev/cli.md guide/skills/bukit-cli-reference/SKILL.md; do
   assert_closure_mapping "$closure_fixture" "$cli_documentation_path" '["bash guide/skills/scripts/validate-skills-strict.sh", "bash scripts/checks/cli-docs-sync.sh"]' true
+done
+
+for i18n_worktree_contract_path in \
+  docs/worktree.md \
+  guide/user/11-i18n-seo.md \
+  guide/user/14-troubleshooting.md \
+  openspec/changes/add-i18n-worktree-isolation/.openspec.yaml \
+  openspec/changes/add-i18n-worktree-isolation/README.md \
+  openspec/changes/add-i18n-worktree-isolation/design.md \
+  openspec/changes/add-i18n-worktree-isolation/proposal.md \
+  openspec/changes/add-i18n-worktree-isolation/specs/i18n-worktree-build/spec.md \
+  openspec/changes/add-i18n-worktree-isolation/tasks.md; do
+  assert_closure_mapping "$closure_fixture" "$i18n_worktree_contract_path" '["bash scripts/checks/cli-docs-sync.sh", "openspec validate add-i18n-worktree-isolation --strict"]' true
 done
 
 # Approved quality-remediation paths stay exact; adjacent docs/workflows remain unmapped.
@@ -101,6 +134,20 @@ for readme_path in README.md README.zh-CN.md README.ms.md; do
 done
 for internal_contract_path in docs/governance/bukit-core-2.0-consumer-declaration.md guide/dev/public-api-governance.md; do
   assert_closure_mapping "$closure_fixture" "$internal_contract_path" '["bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
+done
+for notion_contract_path in \
+  openspec/changes/migrate-notion-compatibility/proposal.md \
+  openspec/changes/migrate-notion-compatibility/design.md \
+  openspec/changes/migrate-notion-compatibility/tasks.md \
+  openspec/changes/migrate-notion-compatibility/specs/notion-compatibility-migration/spec.md \
+  guide/dev/architecture.md; do
+  assert_closure_mapping "$closure_fixture" "$notion_contract_path" '["bash scripts/checks/codex-workflow-self-test.sh", "bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter \"FullyQualifiedName~NotionBoundaryTests|FullyQualifiedName~NotionCompatibilityMigrationTests\"", "dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj --filter \"FullyQualifiedName~NotionContentSourceTests|FullyQualifiedName~CrossSourceRelationProjectionTests\"", "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj --filter FullyQualifiedName~NotionContentSourceEndToEndTests"]' false
+done
+assert_closure_mapping "$closure_fixture" guide/skills/bukit-content/SKILL.md '["bash guide/skills/scripts/validate-skills-strict.sh"]' false
+for notion_governance_path in \
+  docs/governance/bukit-core-2.0-notion-compatibility-migration.md \
+  docs/analysis/bukit-core-ad03c5-notion-property-parser-retention-decision-2026-07-24.zh-CN.md; do
+  assert_closure_mapping "$closure_fixture" "$notion_governance_path" '["bash scripts/checks/public-api-drift-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
 done
 assert_closure_mapping "$closure_fixture" src/Bukit-Labs/Bukit.Labs.Cli/Commands/Theme/ThemeCommand.cs '["dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"]' true
 assert_closure_mapping "$closure_fixture" tests/Bukit.Labs.Cli.Tests/ThemeDoctorReportPrinterTests.cs '["dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj"]' false
@@ -130,6 +177,13 @@ for logging_contract_path in \
   assert_closure_mapping "$closure_fixture" "$logging_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj", "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter FullyQualifiedName~CommandConfigLoaderTests", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~LibraryDiagnosticOutputTests|FullyQualifiedName~SiteEngineLoggerTests\""]' false
 done
 assert_closure_mapping "$closure_fixture" docs/superpowers/plans/2026-08-05-bukit-seo-geo-next-master.md '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
+for plugin_split_contract_path in \
+  openspec/changes/migrate-built-in-plugin-split/proposal.md \
+  openspec/changes/migrate-built-in-plugin-split/design.md \
+  openspec/changes/migrate-built-in-plugin-split/tasks.md \
+  openspec/changes/migrate-built-in-plugin-split/specs/built-in-plugin-split/spec.md; do
+  assert_closure_mapping "$closure_fixture" "$plugin_split_contract_path" '["dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj --filter \"FullyQualifiedName~BuiltInPluginSplitTests|FullyQualifiedName~G04D9EBuiltInPluginGraphTests\"", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~DataFilesPluginTests|FullyQualifiedName~ImageProcessingPluginTests\"", "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj --filter FullyQualifiedName~ScribanTemplateRendererTests"]' false
+done
 for unmapped_remediation_path in .github/workflows/unplanned.yaml docs/governance/unplanned.md docs/superpowers/plans/unplanned.md; do
   expect_exit 0 "${tool[@]}" closure --repo "$closure_fixture" --policy scripts/checks/codex-workflow-policy.v1.json --changed "$unmapped_remediation_path"
   python3 - "$command_output" "$unmapped_remediation_path" <<'PY_CHECK'

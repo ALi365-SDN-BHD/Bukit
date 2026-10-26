@@ -17,10 +17,6 @@
       "project": "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj"
     },
     {
-      "assembly": "Bukit.Content.Notion",
-      "project": "src/Bukit-Core/Bukit.Content.Notion/Bukit.Content.Notion.csproj"
-    },
-    {
       "assembly": "Bukit.Engine",
       "project": "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj"
     },
@@ -2243,34 +2239,20 @@
     },
     {
       "assembly": "Bukit.Content",
-      "name": "Bukit.Content.Notion.NotionPropertyParser",
-      "owner": "Content acquisition",
-      "classification": "implementation-public",
-      "compatibility": "1.x-do-not-narrow",
-      "migrationHorizon": "2.0-review",
-      "signature": "public static class Bukit.Content.Notion.NotionPropertyParser",
-      "publicMembers": [
-        "public static System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.ContentField!\u003E! ExtractAllFields(System.Text.Json.JsonElement properties)",
-        "public static System.Collections.Generic.IReadOnlyDictionary\u003CSystem.String!, Bukit.Engine.Abstractions.Content.ContentField!\u003E! ExtractFields(System.Text.Json.JsonElement properties)"
-      ],
-      "protectedMembers": []
-    },
-    {
-      "assembly": "Bukit.Content.Notion",
       "name": "Bukit.Content.Notion.NotionContentSource",
       "owner": "Notion content adapter contract",
       "classification": "cross-assembly-implementation",
       "compatibility": "1.x-do-not-narrow",
       "migrationHorizon": "2.0-review",
-      "signature": "public sealed class Bukit.Content.Notion.NotionContentSource",
+      "signature": "public sealed class Bukit.Content.Notion.NotionContentSource : Bukit.Content.IContentProvider~, Bukit.Content.Notion.INotionRelationFallbackResolverProvider~",
       "publicMembers": [
         "public .ctor(Bukit.Content.Notion.NotionContentSourceOptions! options, Bukit.Shared.ILogger? logger = null)",
-        "public System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.RawContentLoadResult!\u003E! LoadRawAsync(System.Threading.CancellationToken cancellationToken = null)"
+        "public virtual final System.Threading.Tasks.Task\u003CBukit.Engine.Abstractions.Content.RawContentLoadResult!\u003E! LoadRawAsync(System.Threading.CancellationToken cancellationToken = null)"
       ],
       "protectedMembers": []
     },
     {
-      "assembly": "Bukit.Content.Notion",
+      "assembly": "Bukit.Content",
       "name": "Bukit.Content.Notion.NotionContentSourceOptions",
       "owner": "Notion content adapter contract",
       "classification": "cross-assembly-implementation",
@@ -7624,7 +7606,8 @@
       "signature": "public static class Bukit.Shared.PathUtils",
       "publicMembers": [
         "public static System.Boolean IsSameOrSubPathOf(System.String! child, System.String! parent)",
-        "public static System.Boolean IsSubPathOf(System.String! child, System.String! parent)"
+        "public static System.Boolean IsSubPathOf(System.String! child, System.String! parent)",
+        "public static System.String! GetCanonicalFullPath(System.String! path)"
       ],
       "protectedMembers": []
     },

@@ -6,14 +6,15 @@ namespace Bukit.Engine.Plugins.BuiltIn;
 internal sealed class DefaultNotionPageFetcher : INotionPageFetcher
 {
     public async Task<NotionFetchedPage?> FetchAsync(
-        NotionApiClient client,
+        NotionContentClient client,
         string pageId,
         ILogger logger,
         CancellationToken cancellationToken)
     {
         try
         {
-            var page = await NotionCompatibilityQueries.FetchPageAsync(client, pageId, cancellationToken);
+            ArgumentNullException.ThrowIfNull(client);
+            var page = await NotionPageQuery.FetchAsync(client.Transport, pageId, cancellationToken);
             return new NotionFetchedPage(
                 page.PageId,
                 page.Title,

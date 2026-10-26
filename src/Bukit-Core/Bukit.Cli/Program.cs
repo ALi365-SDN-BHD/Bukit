@@ -30,15 +30,14 @@ try
         descriptor = BukitCliDescriptors.ResolveDescriptor(descriptors, command);
     }
 
-    var commandArgsInfo = NormalizeGlobalLogFormat(commandArgsRaw, descriptor);
-    var commandArgs = commandArgsInfo.Args;
+    var (_, commandArgs) = NormalizeGlobalLogFormat(commandArgsRaw, descriptor);
 
     if (descriptor is not null)
     {
         if (commandArgs.Any(x => x is "--help" or "-h"))
         {
-            var help = ResolveHelpTarget(descriptor.Spec, commandArgs);
-            var usage = CliHelpRenderer.Render(help.Spec, help.CommandPath);
+            var (spec, commandPath) = ResolveHelpTarget(descriptor.Spec, commandArgs);
+            var usage = CliHelpRenderer.Render(spec, commandPath);
             Console.WriteLine(usage);
             return 0;
         }
@@ -74,6 +73,11 @@ catch (RenderException ex)
 {
     PrintError(command, 3, ex, isJsonErrorMode, ex.Code.HasValue ? ex.Code.Value.ToString() : null);
     return 3;
+}
+catch (WorktreeBuildException ex)
+{
+    PrintError(command, 1, ex, isJsonErrorMode, ex.Code);
+    return 1;
 }
 catch (Exception ex)
 {

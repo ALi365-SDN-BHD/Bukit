@@ -31,8 +31,9 @@ The following public identities are no longer exported in 2.0.
 | `Bukit.Shared.dll` | `Bukit.Shared.Notion.CalloutBlock` | `Bukit.Notion.Blocks.CalloutBlock` in `Bukit.Notion.dll` |
 | `Bukit.Shared.dll` | `Bukit.Shared.Notion.RichTextSegment` | `Bukit.Notion.Blocks.RichTextSegment` in `Bukit.Notion.dll` |
 | `Bukit.Content.dll` | `Bukit.Content.Notion.NotionApiClient` | `Bukit.Notion.Transport.NotionClient` + `Bukit.Notion.Transport.NotionClientOptions` in `Bukit.Notion.dll`; explicitly adapt request semantics, error translation, and `HttpClient` ownership |
-| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionContentProvider` | `Bukit.Content.Notion.NotionContentSource` in `Bukit.Content.Notion.dll`; explicitly adapt the consumer interface and content semantics |
-| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionProviderOptions` | `Bukit.Content.Notion.NotionContentSourceOptions` in `Bukit.Content.Notion.dll`; explicitly map options; not a drop-in replacement |
+| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionContentProvider` | `Bukit.Content.Notion.NotionContentSource` in `Bukit.Content.dll`; explicitly adapt the consumer interface and content semantics |
+| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionProviderOptions` | `Bukit.Content.Notion.NotionContentSourceOptions` in `Bukit.Content.dll`; explicitly map options; not a drop-in replacement |
+| `Bukit.Content.dll` | `Bukit.Content.Notion.NotionPropertyParser` | no public canonical replacement; no mechanical migration |
 
 The canonical block model namespace is `Bukit.Notion.Blocks`. The canonical
 URL and conversion owners are public APIs of `Bukit.Notion.dll`. The three
@@ -57,14 +58,39 @@ block family. Its owner must choose a canonical subtype or implement an
 explicit application-level mapping and test the resulting serialization and
 rendering behavior.
 
-## Retained identity
+## Separately approved 2026-10-25 consolidation
 
-`Bukit.Content.Notion.NotionPropertyParser` remains public in
-`Bukit.Content.dll` with its existing two public methods. There is no new
-canonical public parser promised by this migration. Its status is
-retain-by-design and is reviewed separately if a real correctness/security
-defect, a direct consumer declaration, or an approved CLR SDK productization
-decision appears.
+ITEM1 explicitly supersedes AD-03C5's historical retain-by-design outcome for
+2.0 only. `Bukit.Content.Notion.NotionPropertyParser` and its public
+`ExtractFields(JsonElement)` / `ExtractAllFields(JsonElement)` methods are removed.
+There is no public canonical replacement. Both implementation parsers remain
+internal. `NotionContentSource.LoadRawAsync` loads/projects content; it is not a
+one-to-one public parser substitute. A parser consumer must choose and test an
+application-level migration rather than infer equivalent behavior from that method.
+
+The two canonical public types keep their namespaces and full names but change
+their owning assembly:
+
+| Original assembly | CLR identity | New assembly | Full name |
+|---|---|---|---|
+| `Bukit.Content.Notion.dll` | `Bukit.Content.Notion.NotionContentSource` | `Bukit.Content.dll` | unchanged |
+| `Bukit.Content.Notion.dll` | `Bukit.Content.Notion.NotionContentSourceOptions` | `Bukit.Content.dll` | unchanged |
+
+Replace the `Bukit.Content.Notion.csproj` reference with
+`src/Bukit-Core/Bukit.Content/Bukit.Content.csproj`. The old runtime project and
+`Bukit.Content.Notion.dll` mapping are removed, with no compatibility shell or type forwarder.
+Source consumers must recompile; binary-only consumers need a rebuild. Update
+reflection, serializer and assembly-qualified bindings even though the full names
+are unchanged. The source retains its public constructor, including nullable
+`ILogger` default null, and implements IContentProvider with the existing internal
+fallback bridge. Its existing LoadRawAsync method acquires compiler-derived
+virtual-final interface implementation flags, not a new overload. Options' 31
+public members and all other 423 governed type entries remain unchanged.
+
+This independent approval changes the current inventory from 426 to 425 types
+and 19 to 18 governed assemblies. It does not rewrite the original retention
+reasoning, closed candidate manifest or historical Theme migration. See the
+[dated AD-03C5 section 8](../analysis/bukit-core-ad03c5-notion-property-parser-retention-decision-2026-07-24.zh-CN.md#8-2026-10-25-独立批准的-20-删除重审).
 
 ## Evidence limits
 
@@ -81,5 +107,9 @@ configuration schema, plugin protocol, assets, SEO, global path, content
 projection, or canonical runtime behavior change. It also does not implement
 Labs or external-plugin business migrations.
 
-The implementation and verification ledger is
+The historical AD-03C implementation and verification ledger is
 [AD-03C final aggregate closure](../analysis/bukit-core-ad03c-final-aggregate-closure-2026-07-24.zh-CN.md).
+The independent consolidation contract is
+[migrate-notion-compatibility](../../openspec/changes/migrate-notion-compatibility/design.md);
+its scoped execution and review outcomes are separate external task evidence,
+not a claim that the historical aggregate gate was rerun or a release was published.

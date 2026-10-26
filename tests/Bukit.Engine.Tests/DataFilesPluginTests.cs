@@ -4,6 +4,7 @@ using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
 using Bukit.Engine.Plugins;
 using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Engine.Plugins.BuiltIn.DataFiles;
 using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Shared;
@@ -16,6 +17,123 @@ namespace Bukit.Engine.Tests;
 
 public sealed class DataFilesPluginTests
 {
+    [Theory]
+    [InlineData("config", "config")]
+    [InlineData("maxEntries", "maxEntries")]
+    [InlineData("maxDepth", "maxDepth")]
+    [InlineData("maxFileSizeBytes", "maxFileSizeBytes")]
+    [InlineData("maxTotalSizeBytes", "maxTotalSizeBytes")]
+    [InlineData("maxDocumentNodes", "maxDocumentNodes")]
+    [InlineData("maxDocumentDepth", "maxDocumentDepth")]
+    [InlineData("maxProjectedChars", "maxProjectedChars")]
+    [InlineData("maxProjectedEntries", "maxProjectedEntries")]
+    [InlineData("maxDecodedChars", "resolvedMaxDecodedChars")]
+    [InlineData("maxScalarChars", "resolvedMaxScalarChars")]
+    [InlineData("scalarExceedsDecoded", "maxScalarChars")]
+    [InlineData("zeroDepths", null)]
+    public void Constructor_PreservesValidationOrderAndResolvedParameterNames(string input, string? parameter)
+    {
+        DataFilesPlugin Construct() => input switch
+        {
+            "config" => new(null!, maxEntries: 0),
+            "maxEntries" => new(CreateConfig(), maxEntries: 0),
+            "maxDepth" => new(CreateConfig(), maxDepth: -1),
+            "maxFileSizeBytes" => new(CreateConfig(), maxFileSizeBytes: 0),
+            "maxTotalSizeBytes" => new(CreateConfig(), maxTotalSizeBytes: 0),
+            "maxDocumentNodes" => new(CreateConfig(), maxDocumentNodes: 0),
+            "maxDocumentDepth" => new(CreateConfig(), maxDocumentDepth: -1),
+            "maxProjectedChars" => new(CreateConfig(), maxProjectedChars: 0),
+            "maxProjectedEntries" => new(CreateConfig(), maxProjectedEntries: 0),
+            "maxDecodedChars" => new(CreateConfig(), maxDecodedChars: 0),
+            "maxScalarChars" => new(CreateConfig(), maxScalarChars: 0),
+            "scalarExceedsDecoded" => new(CreateConfig(), maxDecodedChars: 1, maxScalarChars: 2),
+            "zeroDepths" => new(CreateConfig(), maxDepth: 0, maxDocumentDepth: 0),
+            _ => throw new InvalidOperationException(input)
+        };
+
+        if (parameter is null)
+        {
+            Assert.NotNull(Construct());
+            return;
+        }
+
+        if (input == "config")
+        {
+            Assert.Equal(parameter, Assert.Throws<ArgumentNullException>(() => Construct()).ParamName);
+            return;
+        }
+
+        var error = Assert.Throws<ArgumentOutOfRangeException>(() => Construct());
+        Assert.Equal(parameter, error.ParamName);
+        if (input == "scalarExceedsDecoded")
+            Assert.Equal(new ArgumentOutOfRangeException("maxScalarChars",
+                "The scalar character limit cannot exceed the decoded character limit.").Message, error.Message);
+        else
+        {
+            Assert.Equal(input is "maxDepth" or "maxDocumentDepth" ? -1L : 0L,
+                Convert.ToInt64(error.ActualValue));
+            Assert.Contains(parameter, error.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void DerivePages_MixedGraphSharesBudgetsAndResetsThemPerCall()
+    {
+        var root = GetTempDir();
+        try
+        {
+            var dataDir = Path.Combine(root, "data");
+            Directory.CreateDirectory(Path.Combine(dataDir, "en"));
+            const string json = """{"items":[1,2.5,true,null,"雪"]}""";
+            const string yaml = "original: &v [word, 7, false]\ncopy: *v\n---\nignored: later\n";
+            File.WriteAllText(Path.Combine(dataDir, "en", "a.json"), json);
+            File.WriteAllText(Path.Combine(dataDir, "b.yaml"), yaml);
+            var config = CreateConfig() with { Site = CreateConfig().Site with { Languages = ["en"] } };
+            var totalBytes = Encoding.UTF8.GetByteCount(json + yaml);
+            var plugin = new DataFilesPlugin(config, maxEntries: 3, maxTotalSizeBytes: totalBytes,
+                maxProjectedEntries: 17, maxProjectedChars: 30);
+
+            for (var call = 0; call < 2; call++)
+            {
+                var context = CreateContext(root);
+                Assert.Empty(plugin.DerivePages(context));
+                var data = Assert.IsType<Dictionary<string, object>>(context.Get(BuildDataKeys.DataFiles));
+                Assert.Same(data, context.SnapshotData()["__data_files"]);
+                Assert.Equal(["en", "b"], data.Keys);
+                Assert.Same(StringComparer.OrdinalIgnoreCase, data.Comparer);
+                var language = Assert.IsType<Dictionary<string, object>>(data["EN"]);
+                Assert.Equal(["a"], language.Keys);
+                var document = Assert.IsType<Dictionary<string, object>>(language["a"]);
+                Assert.Equal(["items"], document.Keys);
+                var items = Assert.IsType<List<object>>(document["items"]);
+                Assert.Equal(1L, Assert.IsType<long>(items[0]));
+                Assert.Equal(2.5, Assert.IsType<double>(items[1]));
+                Assert.True(Assert.IsType<bool>(items[2]));
+                Assert.Equal("", Assert.IsType<string>(items[3]));
+                Assert.Equal("雪", Assert.IsType<string>(items[4]));
+                Assert.Equal(5, items.Count);
+                var defaults = Assert.IsType<Dictionary<string, object>>(data["b"]);
+                Assert.Equal(["original", "copy"], defaults.Keys);
+                var original = Assert.IsType<List<object>>(defaults["original"]);
+                var copy = Assert.IsType<List<object>>(defaults["copy"]);
+                Assert.Equal(new object[] { "word", 7L, false }, original);
+                Assert.Equal(original, copy);
+                Assert.NotSame(original, copy);
+            }
+
+            var projectionError = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(config, maxProjectedEntries: 16).DerivePages(CreateContext(root)));
+            Assert.Equal("Data document projects to more than 16 collection entries at data/b.yaml.", projectionError.Message);
+            var bytesError = Assert.Throws<ConfigException>(() =>
+                new DataFilesPlugin(config, maxTotalSizeBytes: totalBytes - 1).DerivePages(CreateContext(root)));
+            Assert.Equal($"Data files exceed the total size limit of {totalBytes - 1} bytes at data/b.yaml.", bytesError.Message);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
     [Fact]
     public void DefaultDataFileOpener_UsesVerifiedNoFollowPath()
     {
@@ -54,7 +172,7 @@ public sealed class DataFilesPluginTests
                 throw SkipException.ForSkip($"File symlinks are unavailable: {ex.GetType().Name}");
             }
 
-            var method = typeof(DataFilesPlugin).GetMethod(
+            var method = typeof(DataFileReaders).GetMethod(
                 "OpenVerifiedDataFile",
                 BindingFlags.Static | BindingFlags.NonPublic);
             Assert.NotNull(method);
@@ -1078,7 +1196,7 @@ public sealed class DataFilesPluginTests
             throw new InvalidOperationException("enumerated beyond the bound");
         }
 
-        var result = DataFilesPlugin.TakeBoundedSorted(Entries(), limit: 2);
+        var result = DataDirectoryWalker.TakeBoundedSorted(Entries(), limit: 2);
 
         Assert.Equal(["/data/a.json", "/data/b.json"], result);
     }
@@ -1088,7 +1206,7 @@ public sealed class DataFilesPluginTests
     {
         static ConfigException Overflow(params string[] entries)
             => Assert.Throws<ConfigException>(() =>
-                DataFilesPlugin.TakeBoundedSortedWithinEntryBudget(
+                DataDirectoryWalker.TakeBoundedSortedWithinEntryBudget(
                     entries,
                     remainingEntries: 1,
                     maxEntries: 1));

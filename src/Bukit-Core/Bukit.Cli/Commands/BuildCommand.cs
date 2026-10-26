@@ -9,10 +9,41 @@ namespace Bukit.Cli.Commands;
 public static class BuildCommand
 {
     public static Task<int> RunAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
-        => RunAsync(command, command.GetString("--log-format") ?? "text", cancellationToken);
+        => RunAsync(command, command.GetString("--log-format") ?? "text", useWorktreeIsolation: true, cancellationToken);
 
-    internal static async Task<int> RunAsync(CliBoundCommand command, string logFormat, CancellationToken cancellationToken = default)
+    internal static Task<int> RunAsync(CliBoundCommand command, string logFormat, CancellationToken cancellationToken = default)
+        => RunAsync(command, logFormat, useWorktreeIsolation: true, cancellationToken);
+
+    internal static Task<int> RunInProcessAsync(CliBoundCommand command, CancellationToken cancellationToken = default)
+        => RunAsync(command, command.GetString("--log-format") ?? "text", useWorktreeIsolation: false, cancellationToken);
+
+    internal static Task<int> RunLoadedInProcessAsync(
+        CliBoundCommand command,
+        AppConfig config,
+        ILogger logger,
+        ResolvedConfigPath resolved,
+        string logFormat,
+        CancellationToken cancellationToken = default)
+        => BuildFromLoadedConfigAsync(
+            command,
+            config,
+            logger,
+            resolved,
+            logFormat,
+            useWorktreeIsolation: false,
+            cancellationToken);
+
+    private static async Task<int> RunAsync(
+        CliBoundCommand command,
+        string logFormat,
+        bool useWorktreeIsolation,
+        CancellationToken cancellationToken)
     {
+        if (useWorktreeIsolation && WorktreeBuildCoordinator.IsWorker)
+        {
+            return await WorktreeBuildCoordinator.RunWorkerAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         var resolved = ConfigPathResolver.Resolve(command.GetString("--config"), command.GetString("--site"));
         var (config, logger) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, command.GetBool("--ci"));
 
@@ -22,6 +53,25 @@ public static class BuildCommand
             config = config with { Site = config.Site with { Url = siteUrl } };
         }
 
+        return await BuildFromLoadedConfigAsync(
+            command,
+            config,
+            logger,
+            resolved,
+            logFormat,
+            useWorktreeIsolation,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<int> BuildFromLoadedConfigAsync(
+        CliBoundCommand command,
+        AppConfig config,
+        ILogger logger,
+        ResolvedConfigPath resolved,
+        string logFormat,
+        bool useWorktreeIsolation,
+        CancellationToken cancellationToken)
+    {
         var overrides = new ConfigOverrides
         {
             Output = command.GetString("--output"),
@@ -34,6 +84,17 @@ public static class BuildCommand
             MetricsPath = command.GetString("--metrics"),
             Jobs = TryParsePositiveInt(command.GetString("--jobs"))
         };
+
+        if (useWorktreeIsolation && I18nOutputMerger.GetLanguages(ConfigApplier.Apply(config, overrides).Site).Count > 0)
+        {
+            return await WorktreeBuildCoordinator.RunAsync(
+                config,
+                resolved,
+                overrides,
+                logFormat,
+                logger,
+                cancellationToken).ConfigureAwait(false);
+        }
 
         var engine = new SiteEngine(logger);
         await engine.BuildAsync(config, resolved.RootDir, overrides, cancellationToken);
@@ -54,5 +115,4 @@ public static class BuildCommand
 
         return n;
     }
-
 }

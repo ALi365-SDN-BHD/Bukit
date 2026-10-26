@@ -52,7 +52,7 @@ lists the allowed types.
 - Mapping Collection to any property other than `rich_text`, `select`, or
   `status`.
 
-Markdown uses `MarkdownFolderProvider`. Notion uses `NotionContentProvider` and
+Markdown uses `MarkdownFolderProvider`. Notion uses `NotionContentSource` and
 requires `NOTION_TOKEN` when provider secret validation is enabled. Media
 rewrites use `content.media` and SSRF protections.
 

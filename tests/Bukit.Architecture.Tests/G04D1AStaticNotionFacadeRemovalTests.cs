@@ -13,7 +13,7 @@ public sealed class G04D1AStaticNotionFacadeRemovalTests
     [Fact]
     public void BukitContent_DoesNotExposeApprovedLegacyStaticNotionFacades()
     {
-        var assembly = typeof(Bukit.Content.Notion.NotionPropertyParser).Assembly;
+        var assembly = typeof(Bukit.Content.IContentProvider).Assembly;
 
         Assert.All(RemovedTypes, typeName =>
             Assert.Null(assembly.GetType(typeName, throwOnError: false, ignoreCase: false)));

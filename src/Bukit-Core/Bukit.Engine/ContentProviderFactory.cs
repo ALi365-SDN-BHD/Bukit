@@ -136,7 +136,7 @@ internal static class ContentProviderFactory
         }
     }
 
-    private static NotionContentProvider CreateNotionProvider(string rootDir, NotionConfig notion, bool isCi, bool renderContent, ILogger logger, bool autoSummary = false, int autoSummaryMaxLength = 200)
+    private static NotionContentSource CreateNotionProvider(string rootDir, NotionConfig notion, bool isCi, bool renderContent, ILogger logger, bool autoSummary = false, int autoSummaryMaxLength = 200)
     {
         var token = EnvironmentHelper.GetNotionToken();
         if (string.IsNullOrWhiteSpace(token))
@@ -156,7 +156,7 @@ internal static class ContentProviderFactory
                 ? Path.Combine(rootDir, ".cache", "notion")
                 : BuildPathUtils.MakeAbsolute(rootDir, notion.CacheDir);
 
-        return new NotionContentProvider(new NotionProviderOptions
+        return new NotionContentSource(new NotionContentSourceOptions
         {
             DatabaseId = notion.DatabaseId,
             Token = token,

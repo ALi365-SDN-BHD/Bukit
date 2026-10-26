@@ -101,3 +101,13 @@ For an intentional SDK analyzer-wave or `.editorconfig` change:
 
 Do not replace `AnalysisLevel` with `latest` in a routine SDK update. Analyzer
 wave changes require their own reviewed baseline delta.
+
+## Baseline refresh log
+
+- **2026-10-26**: refreshed `scripts/checks/baselines/code-analysis.v1.json`
+  after the 2026-10-25 Engine assembly split and the i18n worktree extraction.
+  Every per-ID count is now at or below the observed `main` inventory:
+  `IDE0130` 36→80 and `CA1506` 18→21 reflect files that moved between
+  assemblies without namespace realignment and the new multilingual Worktree
+  pipeline. `IDE0042`, `IDE0290`, `IDE0300`, `IDE0301`, `IDE0305`, `CA1502`,
+  `CA1822`, `CA1849`, `CA1859`, and `CA1866` decreased.

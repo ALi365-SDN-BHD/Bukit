@@ -168,6 +168,7 @@ jobs:
               classes["Bukit.Cli.Tests"] = ["Bukit.Cli.Tests.PreviewCommandTests", "Bukit.Cli.Tests.PreviewCommandExtendedTests", "Bukit.Cli.Tests.DevCommandTests"]
 
           posix_process_methods = {
+              "RunAsync_CallerCancellationRemainsCancellationAndRequiresLogger",
               "MacWrapper_StatePathWithSingleQuote_StillPublishesPgidAndRunsTool",
               "RunAsync_ParentExitWithPipeChild_TerminatesTreeAndReaders",
               "RunAsync_FloodsStdoutAndStderr_CompletesWithoutDeadlock",
