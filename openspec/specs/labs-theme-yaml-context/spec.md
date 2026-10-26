@@ -1,6 +1,12 @@
 # Labs Theme YAML context
 
-## ADDED Requirements
+## Purpose
+
+Make the existing Labs theme YAML graphs statically deserializable through an explicitly refreshed, checked-in generated context while preserving public models and Theme ownership.
+
+The independent repair's approval, verification procedure and 426-type/19-assembly evidence are historical. Current accepted governance is 425 types / 18 assemblies after the separately approved Notion CLR migration and later public-member update; this closeout neither recaptures the API nor asserts private, binary or reflection consumers were tested or recompiled.
+
+## Requirements
 
 ### Requirement: Existing Labs YAML graphs are statically deserializable
 
@@ -27,9 +33,17 @@ Ordinary Labs builds SHALL compile a checked-in normalized context without runni
 
 ### Requirement: Repair remains independently scoped
 
+This requirement records the finished independent repair's implementation and evidence boundary. Its preservation and isolation clauses apply at that repair step; they do not undo later accepted logger or Section changes, restore an older API baseline, or authorize runtime verification for this documentation closeout.
+
 The repair SHALL preserve the existing Theme relocation and Core source/projects/public API baseline, add only the exact repair-document workflow mapping and owner regression, and use only authorized scoped verification. Parent SHALL own specialty and final review; logger and Section work SHALL remain untouched.
 
+#### Scenario: Independent repair preserves its boundary
+- **WHEN** the independent Labs YAML repair is prepared for parent review
+- **THEN** it preserves the existing Theme relocation and Core source/projects/public API baseline, with only its exact workflow mapping and owner regression and authorized scoped verification, leaving logger and Section work untouched.
+
 ### Requirement: Engine source-contract evidence is composed explicitly
+
+This is the finished repair's historical verification and evidence-composition procedure, not a new instruction to rerun those runtime suites during document closeout. Its scenario describes that repair handoff; unchanged historical runtime evidence is not a current cache hit.
 
 The repair SHALL verify the complete `MetaRemovalInventoryTests` class because its repository-text scan consumes the changed Labs model tests and new generated context. This authorization SHALL NOT permit a full Engine suite or Core fixture rerun. Parent SHALL compose the fresh class result with unchanged historical Engine runtime/fixture evidence and SHALL NOT describe the old full Engine command as a current cache hit.
 

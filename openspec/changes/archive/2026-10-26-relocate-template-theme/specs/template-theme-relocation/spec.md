@@ -31,3 +31,7 @@ ThemeDoctor SHALL expose diagnosis but no report printer. Labs SHALL own an inte
 ### Requirement: Approved public breaks are explicit
 
 The migration SHALL document old/new API locations and private-consumer uncertainty, update the current governed baseline to the measured intentional surface, and preserve historical candidate/report evidence. Verification SHALL use only the approved scoped commands, never a full/solution/release gate.
+
+#### Scenario: Relocation acceptance records intentional API moves
+- **WHEN** the template/theme migration is accepted
+- **THEN** its old/new API locations and private-consumer uncertainty are documented, its measured intentional surface becomes the governed baseline at that migration step, and historical candidate/report evidence is preserved using only approved scoped verification.

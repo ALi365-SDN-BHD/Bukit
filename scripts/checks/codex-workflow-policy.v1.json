@@ -345,7 +345,12 @@
       "id": "labs-theme-yaml-context-contract",
       "matches": [
         "openspec/changes/fix-labs-theme-yaml-context/*.md",
-        "openspec/changes/fix-labs-theme-yaml-context/specs/labs-theme-yaml-context/spec.md"
+        "openspec/changes/fix-labs-theme-yaml-context/specs/labs-theme-yaml-context/spec.md",
+        "openspec/changes/archive/2026-10-26-fix-labs-theme-yaml-context/design.md",
+        "openspec/changes/archive/2026-10-26-fix-labs-theme-yaml-context/proposal.md",
+        "openspec/changes/archive/2026-10-26-fix-labs-theme-yaml-context/specs/labs-theme-yaml-context/spec.md",
+        "openspec/changes/archive/2026-10-26-fix-labs-theme-yaml-context/tasks.md",
+        "openspec/specs/labs-theme-yaml-context/spec.md"
       ],
       "specialtyTests": [
         "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
@@ -410,7 +415,12 @@
         "docs/governance/bukit-core-2.0-template-theme-relocation.md",
         "guide/dev/theme.md",
         "openspec/changes/relocate-template-theme/*.md",
-        "openspec/changes/relocate-template-theme/specs/template-theme-relocation/spec.md"
+        "openspec/changes/relocate-template-theme/specs/template-theme-relocation/spec.md",
+        "openspec/changes/archive/2026-10-26-relocate-template-theme/design.md",
+        "openspec/changes/archive/2026-10-26-relocate-template-theme/proposal.md",
+        "openspec/changes/archive/2026-10-26-relocate-template-theme/specs/template-theme-relocation/spec.md",
+        "openspec/changes/archive/2026-10-26-relocate-template-theme/tasks.md",
+        "openspec/specs/template-theme-relocation/spec.md"
       ],
       "specialtyTests": [
         "bash scripts/checks/public-api-drift-self-test.sh",
@@ -1380,7 +1390,12 @@
       "id": "library-logging-contract",
       "matches": [
         "openspec/changes/unify-library-logging/*.md",
-        "openspec/changes/unify-library-logging/specs/library-logging/spec.md"
+        "openspec/changes/unify-library-logging/specs/library-logging/spec.md",
+        "openspec/changes/archive/2026-10-26-unify-library-logging/design.md",
+        "openspec/changes/archive/2026-10-26-unify-library-logging/proposal.md",
+        "openspec/changes/archive/2026-10-26-unify-library-logging/specs/library-logging/spec.md",
+        "openspec/changes/archive/2026-10-26-unify-library-logging/tasks.md",
+        "openspec/specs/library-logging/spec.md"
       ],
       "specialtyTests": [
         "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj",
@@ -1397,6 +1412,88 @@
         "tests/Bukit.Cli.Tests/CommandConfigLoaderTests.cs",
         "tests/Bukit.Architecture.Tests/LibraryConsoleOutputTests.cs"
       ]
+    },
+    {
+      "id": "core-report-contracts-closeout",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~TestInfrastructureTests|FullyQualifiedName~BuildReporterTests|FullyQualifiedName~SeoAuditReportWriterTests|FullyQualifiedName~PublishAuditReportWriterTests\"",
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter FullyQualifiedName~SeoReportValidatorTests",
+        "python3 -B scripts/checks/core-report-inventory.py --self-test"
+      ],
+      "contractConsumerGlobs": [
+        "docs/schemas/security-report.v1.schema.json",
+        "docs/schemas/seo-report.v1.schema.json",
+        "docs/schemas/publish-audit-report.v1.schema.json",
+        "tests/Bukit.Cli.Tests/SeoReportValidatorTests.cs",
+        "tests/Bukit.Engine.Tests/BuildReporterTests.cs",
+        "tests/Bukit.Engine.Tests/SeoAuditReportWriterTests.cs",
+        "tests/Bukit.Engine.Tests/PublishAuditReportWriterTests.cs"
+      ],
+      "matches": [
+        "openspec/changes/fix-core-report-contracts/design.md",
+        "openspec/changes/fix-core-report-contracts/proposal.md",
+        "openspec/changes/fix-core-report-contracts/specs/core-report-contracts/spec.md",
+        "openspec/changes/fix-core-report-contracts/tasks.md",
+        "openspec/changes/archive/2026-10-26-fix-core-report-contracts/design.md",
+        "openspec/changes/archive/2026-10-26-fix-core-report-contracts/proposal.md",
+        "openspec/changes/archive/2026-10-26-fix-core-report-contracts/specs/core-report-contracts/spec.md",
+        "openspec/changes/archive/2026-10-26-fix-core-report-contracts/tasks.md",
+        "openspec/specs/core-report-contracts/spec.md"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "section-rendering-closeout",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Rendering.Tests/Bukit.Rendering.Tests.csproj --filter \"FullyQualifiedName~SectionRenderExtendedTests|FullyQualifiedName~RenderSectionTests|FullyQualifiedName~ScribanTemplateRendererTests\""
+      ],
+      "contractConsumerGlobs": [
+        "src/Bukit-Core/Bukit.Rendering/Scriban/SectionRenderHelper.cs",
+        "tests/Bukit.Rendering.Tests/SectionRenderExtendedTests.cs",
+        "tests/Bukit.Rendering.Tests/RenderSectionTests.cs",
+        "tests/Bukit.Rendering.Tests/ScribanTemplateRendererTests.cs"
+      ],
+      "matches": [
+        "openspec/changes/fix-section-plugin-task-errors/design.md",
+        "openspec/changes/fix-section-plugin-task-errors/proposal.md",
+        "openspec/changes/fix-section-plugin-task-errors/specs/section-rendering/spec.md",
+        "openspec/changes/fix-section-plugin-task-errors/tasks.md",
+        "openspec/changes/archive/2026-10-26-fix-section-plugin-task-errors/design.md",
+        "openspec/changes/archive/2026-10-26-fix-section-plugin-task-errors/proposal.md",
+        "openspec/changes/archive/2026-10-26-fix-section-plugin-task-errors/specs/section-rendering/spec.md",
+        "openspec/changes/archive/2026-10-26-fix-section-plugin-task-errors/tasks.md",
+        "openspec/specs/section-rendering/spec.md"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "image-codec-backends-closeout",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj --filter \"FullyQualifiedName~ImageAssetLocalizerTests|FullyQualifiedName~ContentImageRewritePipelineTests|FullyQualifiedName~ImageContentValidatorTests\"",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~ImageOptimizerTests|FullyQualifiedName~ImageProcessingPluginTests|FullyQualifiedName~AssetToolingSymlinkTests|FullyQualifiedName~ContentProviderFactoryTests|FullyQualifiedName~Bukit.Engine.Tests.SiteEngineIntegrationTests.MediaLifecycle_|FullyQualifiedName~ImageMetadataReaderTests\"",
+        "dotnet test tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [
+        "Directory.Packages.props",
+        "tests/Bukit.Content.Tests/ImageContentValidatorTests.cs",
+        "tests/Bukit.Engine.Tests/ImageProcessingPluginTests.cs",
+        "tests/Bukit.Plugin.WechatSync.Tests/ImageConverterTests.cs"
+      ],
+      "matches": [
+        "openspec/changes/replace-imagesharp-with-skia-tiff/design.md",
+        "openspec/changes/replace-imagesharp-with-skia-tiff/proposal.md",
+        "openspec/changes/replace-imagesharp-with-skia-tiff/specs/image-codec-backends/spec.md",
+        "openspec/changes/replace-imagesharp-with-skia-tiff/tasks.md",
+        "openspec/changes/archive/2026-10-26-replace-imagesharp-with-skia-tiff/design.md",
+        "openspec/changes/archive/2026-10-26-replace-imagesharp-with-skia-tiff/proposal.md",
+        "openspec/changes/archive/2026-10-26-replace-imagesharp-with-skia-tiff/specs/image-codec-backends/spec.md",
+        "openspec/changes/archive/2026-10-26-replace-imagesharp-with-skia-tiff/tasks.md",
+        "openspec/specs/image-codec-backends/spec.md"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial"
     }
   ],
   "resourceRules": [
