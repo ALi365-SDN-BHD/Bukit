@@ -267,26 +267,35 @@ internal static class CollectionsValidator
             return;
         }
 
-        var sourcesWithCollection = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var referencedCollections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var sourcesWithoutCollection = new List<int>();
         for (var i = 0; i < contentSources.Count; i++)
         {
-            if (!string.IsNullOrWhiteSpace(contentSources[i].Collection))
+            var source = contentSources[i];
+            if (!string.IsNullOrWhiteSpace(source.Collection))
             {
-                sourcesWithCollection.Add(contentSources[i].Collection!.Trim());
+                referencedCollections.Add(source.Collection.Trim());
             }
             else
             {
                 sourcesWithoutCollection.Add(i);
             }
+
+            if (source.AddToCollections is { Count: > 0 })
+            {
+                foreach (var collection in source.AddToCollections)
+                {
+                    if (!string.IsNullOrWhiteSpace(collection))
+                    {
+                        referencedCollections.Add(collection.Trim());
+                    }
+                }
+            }
         }
 
-        if (sourcesWithoutCollection.Count == 0)
-        {
-            return;
-        }
-
-        var unreferencedCollections = collectionKeys.Except(sourcesWithCollection).ToList();
+        var unreferencedCollections = collections.Keys
+            .Where(key => !referencedCollections.Contains(key))
+            .ToList();
 
         if (unreferencedCollections.Count > 0)
         {

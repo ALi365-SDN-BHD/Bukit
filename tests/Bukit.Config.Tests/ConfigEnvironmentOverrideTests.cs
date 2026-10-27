@@ -1,3 +1,4 @@
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Config.Tests;
@@ -63,6 +64,53 @@ public sealed class ConfigEnvironmentOverrideTests : IDisposable
         Assert.Equal("env-media", config.Content.Media.DownloadDir);
         Assert.False(config.Build.Clean);
     }
+
+    [Fact]
+    public void Load_InvalidEnvironmentOverride_ShouldFailWithPathDiagnostic()
+    {
+        WriteMinimalConfig();
+        SetEnv("BUKIT_BUILD__CLEAN", "maybe");
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(_configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("build.clean", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_UnrelatedDoubleUnderscoreVariable_ShouldFailStrictValidation()
+    {
+        WriteMinimalConfig();
+        SetEnv("BUKIT_UNKNOWN__SETTING", "value");
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.Load(_configPath));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, ex.Code);
+        Assert.Contains("root.unknown", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_BukitPrefixedVariableWithoutDoubleUnderscore_ShouldBeIgnored()
+    {
+        WriteMinimalConfig();
+        SetEnv("BUKIT_NOISE", "value");
+
+        var config = ConfigLoader.Load(_configPath);
+
+        Assert.Equal("Starter", config.Site.Title);
+    }
+
+    private void WriteMinimalConfig()
+        => File.WriteAllText(_configPath, """
+            site:
+              name: starter
+              title: Starter
+            content:
+              sources:
+                - type: markdown
+                  markdown:
+                    dir: content
+            """);
 
     private void SetEnv(string key, string? value)
     {

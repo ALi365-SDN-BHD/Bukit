@@ -267,12 +267,13 @@ internal static class ConfigCollectionReader
         }
 
         var mappings = new List<CanonicalFieldMappingConfig>();
+        var index = 0;
         foreach (var child in seq.Children.OfType<YamlMappingNode>())
         {
             var canonicalField = ConfigYamlHelpers.GetOptionalString(child, "canonicalField");
             if (string.IsNullOrWhiteSpace(canonicalField))
             {
-                continue;
+                throw MissingRequired("content.modelSchema.canonicalMappings", index, "canonicalField");
             }
 
             mappings.Add(new CanonicalFieldMappingConfig
@@ -282,6 +283,7 @@ internal static class ConfigCollectionReader
                 SemanticType = ConfigYamlHelpers.GetOptionalString(child, "semanticType"),
                 Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false
             });
+            index++;
         }
 
         return mappings.Count == 0 ? null : mappings;
@@ -295,7 +297,7 @@ internal static class ConfigCollectionReader
             return null;
         }
 
-        var fields = ReadCustomFieldSequence(seq);
+        var fields = ReadCustomFieldSequence(seq, "content.modelSchema.customFields");
         return fields.Count == 0 ? null : fields;
     }
 
@@ -320,7 +322,9 @@ internal static class ConfigCollectionReader
                 throw new ConfigException($"content.modelSchema.fieldScopes.{keyNode.Value} must be a sequence.", DiagnosticCode.ConfigRequiredFieldMissing);
             }
 
-            var fields = ReadCustomFieldSequence(fieldsNode);
+            var fields = ReadCustomFieldSequence(
+                fieldsNode,
+                $"content.modelSchema.fieldScopes.{keyNode.Value.Trim()}");
             if (fields.Count > 0)
             {
                 scopes[keyNode.Value.Trim()] = fields;
@@ -330,15 +334,18 @@ internal static class ConfigCollectionReader
         return scopes.Count == 0 ? null : scopes;
     }
 
-    private static IReadOnlyList<CustomFieldDefinitionConfig> ReadCustomFieldSequence(YamlSequenceNode seq)
+    private static IReadOnlyList<CustomFieldDefinitionConfig> ReadCustomFieldSequence(
+        YamlSequenceNode seq,
+        string pathPrefix)
     {
         var fields = new List<CustomFieldDefinitionConfig>();
+        var index = 0;
         foreach (var child in seq.Children.OfType<YamlMappingNode>())
         {
             var name = ConfigYamlHelpers.GetOptionalString(child, "name");
             if (string.IsNullOrWhiteSpace(name))
             {
-                continue;
+                throw MissingRequired(pathPrefix, index, "name");
             }
 
             fields.Add(new CustomFieldDefinitionConfig
@@ -358,49 +365,66 @@ internal static class ConfigCollectionReader
                 SourcePolicy = ConfigYamlHelpers.GetOptionalString(child, "sourcePolicy"),
                 Reference = ReadReferenceRule(child)
             });
+            index++;
         }
 
         return fields;
     }
 
     private static IReadOnlyList<EntityMappingConfig>? ReadEntityMappings(YamlMappingNode node)
-        => ReadSchemaMappings(node, "entityMappings", child =>
+        => ReadSchemaMappings(node, "entityMappings", (child, index) =>
         {
             var rawKey = ConfigYamlHelpers.GetOptionalString(child, "rawKey");
+            if (string.IsNullOrWhiteSpace(rawKey))
+            {
+                throw MissingRequired("content.modelSchema.entityMappings", index, "rawKey");
+            }
+
             var entityType = ConfigYamlHelpers.GetOptionalString(child, "entityType");
-            return string.IsNullOrWhiteSpace(rawKey) || string.IsNullOrWhiteSpace(entityType)
-                ? null
-                : new EntityMappingConfig
-                {
-                    RawKey = rawKey,
-                    EntityType = entityType,
-                    IdField = ConfigYamlHelpers.GetOptionalString(child, "idField"),
-                    NameField = ConfigYamlHelpers.GetOptionalString(child, "nameField"),
-                    DescriptionField = ConfigYamlHelpers.GetOptionalString(child, "descriptionField"),
-                    UrlField = ConfigYamlHelpers.GetOptionalString(child, "urlField"),
-                    SameAsField = ConfigYamlHelpers.GetOptionalString(child, "sameAsField"),
-                    Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
-                    Reference = ReadReferenceRule(child)
-                };
+            if (string.IsNullOrWhiteSpace(entityType))
+            {
+                throw MissingRequired("content.modelSchema.entityMappings", index, "entityType");
+            }
+
+            return new EntityMappingConfig
+            {
+                RawKey = rawKey,
+                EntityType = entityType,
+                IdField = ConfigYamlHelpers.GetOptionalString(child, "idField"),
+                NameField = ConfigYamlHelpers.GetOptionalString(child, "nameField"),
+                DescriptionField = ConfigYamlHelpers.GetOptionalString(child, "descriptionField"),
+                UrlField = ConfigYamlHelpers.GetOptionalString(child, "urlField"),
+                SameAsField = ConfigYamlHelpers.GetOptionalString(child, "sameAsField"),
+                Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
+                Reference = ReadReferenceRule(child)
+            };
         });
 
     private static IReadOnlyList<RelationMappingConfig>? ReadRelationMappings(YamlMappingNode node)
-        => ReadSchemaMappings(node, "relationMappings", child =>
+        => ReadSchemaMappings(node, "relationMappings", (child, index) =>
         {
             var rawKey = ConfigYamlHelpers.GetOptionalString(child, "rawKey");
+            if (string.IsNullOrWhiteSpace(rawKey))
+            {
+                throw MissingRequired("content.modelSchema.relationMappings", index, "rawKey");
+            }
+
             var relationType = ConfigYamlHelpers.GetOptionalString(child, "relationType");
-            return string.IsNullOrWhiteSpace(rawKey) || string.IsNullOrWhiteSpace(relationType)
-                ? null
-                : new RelationMappingConfig
-                {
-                    RawKey = rawKey,
-                    RelationType = relationType,
-                    TargetType = ConfigYamlHelpers.GetOptionalString(child, "targetType"),
-                    TargetField = ConfigYamlHelpers.GetOptionalString(child, "targetField"),
-                    TargetIdField = ConfigYamlHelpers.GetOptionalString(child, "targetIdField"),
-                    Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
-                    Reference = ReadReferenceRule(child)
-                };
+            if (string.IsNullOrWhiteSpace(relationType))
+            {
+                throw MissingRequired("content.modelSchema.relationMappings", index, "relationType");
+            }
+
+            return new RelationMappingConfig
+            {
+                RawKey = rawKey,
+                RelationType = relationType,
+                TargetType = ConfigYamlHelpers.GetOptionalString(child, "targetType"),
+                TargetField = ConfigYamlHelpers.GetOptionalString(child, "targetField"),
+                TargetIdField = ConfigYamlHelpers.GetOptionalString(child, "targetIdField"),
+                Required = ConfigYamlHelpers.GetOptionalBool(child, "required") ?? false,
+                Reference = ReadReferenceRule(child)
+            };
         });
 
     private static ContentReferenceRuleConfig? ReadReferenceRule(YamlMappingNode node)
@@ -424,7 +448,7 @@ internal static class ConfigCollectionReader
     private static IReadOnlyList<T>? ReadSchemaMappings<T>(
         YamlMappingNode node,
         string key,
-        Func<YamlMappingNode, T?> read)
+        Func<YamlMappingNode, int, T> read)
     {
         var seq = ConfigYamlHelpers.GetOptionalSequence(node, key);
         if (seq is null || seq.Children.Count == 0)
@@ -433,17 +457,19 @@ internal static class ConfigCollectionReader
         }
 
         var values = new List<T>();
+        var index = 0;
         foreach (var child in seq.Children.OfType<YamlMappingNode>())
         {
-            var value = read(child);
-            if (value is not null)
-            {
-                values.Add(value);
-            }
+            values.Add(read(child, index++));
         }
 
         return values.Count == 0 ? null : values;
     }
+
+    private static ConfigException MissingRequired(string path, int index, string field)
+        => new(
+            $"{path}[{index}].{field} is required.",
+            DiagnosticCode.ConfigRequiredFieldMissing);
 
     private static MediaPolicyConfig? ReadMediaPolicy(YamlMappingNode node)
     {
