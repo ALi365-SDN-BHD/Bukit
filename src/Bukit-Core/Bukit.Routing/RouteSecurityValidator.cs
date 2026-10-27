@@ -67,6 +67,11 @@ public static class RouteSecurityValidator
                 return;
             }
 
+            if (ContainsControlCharacter(decoded))
+            {
+                Fail("Path segment must not contain encoded control characters", url, source, DiagnosticCode.RouteInvalidInternalUrl);
+            }
+
             if (decoded is "." or "..")
             {
                 Fail("Path segment must not traverse directories", url, source, DiagnosticCode.RouteInvalidInternalUrl);

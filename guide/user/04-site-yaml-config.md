@@ -289,6 +289,16 @@ resolution uses a complete route override, then
 override overlays the resolved base route. Neither a full override nor an
 `article` permalink removes the content collection requirement.
 
+A permalink is a file route only when the pattern itself ends in a literal
+`.html`, `.htm`, `.xml`, `.json`, or `.txt` extension, such as
+`/blog/{slug}.html` → `blog/my-post.html`. All other patterns produce a
+directory with an `index.html`: `/blog/{slug}` with slug `release.2026` gives
+`blog/release.2026/index.html`, and `/download/{slug}.php` gives
+`download/<slug>.php/index.html`. A pattern that ends in a static file
+extension such as `/files/{slug}.pdf` or `/js/{slug}.js` fails the build: put
+those files in the theme's `static/` or `assets/` directory. Only the literal
+pattern is checked, so a slug such as `node.js` in `/blog/{slug}` is allowed.
+
 Lists, pagination, filtered lists, archives, feeds, sitemap output policy,
 field scopes, and collection schema mode use `collection`. SEO
 Article/BlogPosting classification uses `type`. Search records retain `type`

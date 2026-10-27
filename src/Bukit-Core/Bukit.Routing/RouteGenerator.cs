@@ -82,12 +82,57 @@ public static class RouteGenerator
 
     private static RouteInfo BuildFromPattern(RouteContentSource source, string pattern, string template, string outputPathEncoding)
     {
+        RejectStaticAssetPattern(pattern, source);
+        var isFileRoute = IsFilePattern(pattern);
         var url = ExpandPermalinkPattern(pattern, source);
         RouteSecurityValidator.ValidateInternalUrl(url, $"route permalink for {source.Slug}");
-        url = RoutePathBuilder.NormalizeUrl(url);
+        url = RoutePathBuilder.NormalizeUrl(url, isFileRoute);
         var outputPath = RoutePathBuilder.BuildOutputPathFromUrl(url, outputPathEncoding);
 
         return new RouteInfo(url, outputPath, template);
+    }
+
+    // A route is a file only when the pattern itself ends in a literal web extension (.html, .xml, ...).
+    // Directory patterns such as /blog/{slug} stay directories even if the slug contains a dot.
+    // Uses the same extension list as explicit URLs so later re-normalization keeps the route kind.
+    private static bool IsFilePattern(string pattern)
+    {
+        var trimmed = pattern.Trim();
+        if (trimmed.EndsWith('/'))
+        {
+            return false;
+        }
+
+        var lastSlash = trimmed.LastIndexOf('/');
+        var lastSegment = lastSlash >= 0 ? trimmed[(lastSlash + 1)..] : trimmed;
+        return RoutePathBuilder.IsWebFileSegment(lastSegment);
+    }
+
+    private const string StaticAssetHint =
+        "Pages are rendered from templates; put files such as CSS, JS, images, fonts, and PDFs in the theme's " +
+        "static/ directory (copied to the same path) or assets/ directory (asset pipeline), " +
+        "or end the URL with '/' if it is a page directory.";
+
+    private static void RejectStaticAssetPattern(string pattern, RouteContentSource source)
+    {
+        var extension = RoutePathBuilder.GetStaticAssetExtension(pattern);
+        if (extension is not null)
+        {
+            throw new ConfigException(
+                $"Permalink pattern \"{pattern}\" for content \"{source.Id}\" ends in static file extension \"{extension}\". {StaticAssetHint}",
+                DiagnosticCode.RouteInvalidPattern);
+        }
+    }
+
+    private static void RejectStaticAssetUrl(string url, RouteContentSource source)
+    {
+        var extension = RoutePathBuilder.GetStaticAssetExtension(url);
+        if (extension is not null)
+        {
+            throw new ConfigException(
+                $"route.url \"{url.Trim()}\" for content \"{source.Id}\" ends in static file extension \"{extension}\". {StaticAssetHint}",
+                DiagnosticCode.RouteInvalidInternalUrl);
+        }
     }
 
     private static RouteInfo ValidateRoute(RouteInfo route, RouteContentSource source)
@@ -151,6 +196,7 @@ public static class RouteGenerator
                 !string.IsNullOrWhiteSpace(template))
             {
                 RouteSecurityValidator.ValidateInternalUrl(url, $"route.url for {source.Slug}");
+                RejectStaticAssetUrl(url, source);
                 var normalizedUrl = RoutePathBuilder.NormalizeUrl(url);
                 route = new RouteInfo(
                     normalizedUrl,
@@ -175,6 +221,7 @@ public static class RouteGenerator
         if (!string.IsNullOrWhiteSpace(url))
         {
             RouteSecurityValidator.ValidateInternalUrl(url, $"route.url for {source.Slug}");
+            RejectStaticAssetUrl(url, source);
         }
 
         var normalizedUrl = string.IsNullOrWhiteSpace(url)

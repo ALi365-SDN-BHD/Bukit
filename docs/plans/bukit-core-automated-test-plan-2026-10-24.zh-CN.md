@@ -553,6 +553,90 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 
 出口：三个项目分别达到第 9 节的单项目覆盖率下限。
 
+#### 4.1 执行与证据（2026-10-27）
+
+**阶段 4：SUCCESS（按 C 完成扩展名路由判定；审计修复最终复核通过）。**
+
+基线为 `f95a9e96`（阶段 3 审计修复提交后）。本阶段补测试、计划记录，并按审计决定 C 按模板判定扩展名 permalink；同时拒绝编码控制字符。Core 变更仅限 `RoutePathBuilder`、`RouteGenerator` 与 `RouteSecurityValidator`。证据根为 `/Users/ali/.local/state/bukit-verification/content-phase4/`。
+
+| 要求 | 证据 |
+|---|---|
+| 路由专项 | `tests/Bukit.Routing.Tests` **112/112**，覆盖率 **90.24% (333/369)**（含 4.3、4.4 修复后）；新增 encoding、扩展名 permalink、编码穿越/斜杠、`ValidateOutputPath` 用例 |
+| 路由闭包 | 完整 `tests/Bukit.Engine.Tests` **2671/2671**（含 `RouteSecurityValidatorTests`）；Engine 路由 7 类 **118/118**；`tests/Bukit.Architecture.Tests` **415/415** |
+| 主题专项 | `tests/Bukit.Theme.Tests` **179/179**，覆盖率 **79.59% (1349/1695)**；7 组严格 `theme.yaml` 诊断；既有 extends、tokens、section data/schema |
+| 渲染专项 | `tests/Bukit.Rendering.Tests` **346/346**，覆盖率 **90.31% (1473/1631)**；`content_model.slug` 模板级用例、确定性用例；既有模型/函数/linter/符号/错误定位 |
+| 覆盖率校核 | 三个项目均 ≥70%；`coverage-check-c.json`；工具 policy 为 0/0，70% 为人工核对 |
+| 缓存记录 | `content-phase4/cache/*.record.json`；Routing / Theme / Rendering / 完整 Engine / Architecture CACHE HIT：`12104837...`、`4348af54...`、`9538eff0...`、`cbd66790...`、`3cd512b4...` |
+| 审查 | 限定复核与最终 delta 复核均通过（Critical 0 / Important 0）；I-1/I-2/I-3、A-2/A-3/A-4、M-9/M-10 关闭；A-1/A-5~A-8 为非阻塞残留；见 `content-phase4/final-audit-review.md` |
+
+#### 4.2 阶段 4 审计修复（2026-10-27）
+
+审计结论为 **Critical 0 / Important 3 / Minor 5**；阶段 4 曾回退为 CONDITIONAL。本轮修复如下。
+
+| 审计项 | 状态 | 修复与证据 |
+|---|---|---|
+| I-1 路径安全证据缺口 | 已修复 | 新增 `%2e%2e`、`%2f`、编码控制字符拒绝、非法百分号行为、`ValidateOutputPath` 安全/不安全用例；完整 Engine 已包含 `RouteSecurityValidatorTests`；`RouteSecurityValidator` 覆盖率 **91.55% (65/71)**。`Uri.UnescapeDataString` 在 .NET 10 对畸形转义不抛异常，测试记录该行为，catch 为防御分支 |
+| I-2 扩展名 permalink | 已修复（C） | 由 **permalink 模板**决定文件/目录：末段有字面扩展名（`{slug}.html`）为文件，否则为目录（`/blog/{slug}` + `release.2026` 仍生成目录）。`NormalizeUrl` 增加显式 route-kind 重载；`RouteGenerator` 按模板判定；显式 route URL 仍按扩展名/尾斜杠判定（已由 4.3 收窄为常见 Web 扩展名）。新增 dotted slug 目录/文件用例 |
+| I-3 主题失败用例输入被改 | 已记录 | `layouts.base: 1` / `assets.css: 1` 是 YAML scalar，严格校验将其按路径字符串接受；最终测试用 sequence/map 触发类型错误。该 scalar 语义已在此记录，不改变生产行为 |
+| Minor：确定性过浅 | 部分记录 | 当前为表达式级同输入两次渲染；循环/字典顺序/文化差异未覆盖，列为后续测试深度项 |
+| Minor：错误定位 | 记录 | 解析错误仅断言文件名；行/span 后缀未单独断言 |
+| Minor：70% 人工核对 | 记录 | `coverage-check-c.json` 提供机器可读的逐项目 70% 结论；仓库 policy 仍为 0/0，工具级硬门禁留待后续 |
+| Minor：证据/M-9/M-10 | 已修复 | `final-findings` 补 M-9/M-10；旧 196/277 声明随旧复核归档；`corrections.md` 记录更正；metrics 补齐阶段事件 |
+| Minor：A-1 dotted heuristic | 已由 C 解决模板场景 | `/blog/{slug}` + dotted slug 保持目录；显式 route URL 仍按扩展名/尾斜杠判定，作为显式 URL 约定记录 |
+
+未运行 full/release、全解决方案、其他平台或远程 provider 门禁。
+
+#### 4.3 独立 Core 修复：显式 URL 只认常见 Web 扩展名（N-2，2026-10-27）
+
+**授权**：负责人于 2026-10-27 确认决定 C，并明确授权本次 Core 修复（复审 N-2）。本节为独立 Core 任务记录，不并入阶段 4 测试结论。
+
+**问题**：决定 C 的首版实现让单参数 `RoutePathBuilder.NormalizeUrl` 用 `Path.HasExtension` 判定文件，Engine 内 20 余处调用方随之改变。`route.url: /docs/v1.0` 从 `docs/v1.0/index.html` 变为无扩展名文件 `docs/v1.0`，用户文档未说明。
+
+**决定**：只有末段以 `.html`、`.htm`、`.xml`、`.json`、`.txt`（不区分大小写）结尾且无尾斜杠时为文件；其余一律为目录并补 `index.html`。permalink 模板使用同一扩展名表，保证 `route.Url` 再次规范化后文件/目录类型不变（`/download/{slug}.php` 由此变为目录，属于对 C 的收窄）。
+
+| 输入 | 修复前 | 修复后 |
+|---|---|---|
+| `route.url: /docs/v1.0` | `/docs/v1.0` → `docs/v1.0` | `/docs/v1.0/` → `docs/v1.0/index.html` |
+| `route.url: /docs/page.html` | 文件 `docs/page.html` | 不变 |
+| `route.url: /feed.xml` | 文件 | 不变 |
+| `route.url: /tags/node.js` | 文件 `tags/node.js` | 目录 `tags/node.js/index.html` |
+| permalink `/blog/{slug}.html` | 文件 | 不变 |
+| permalink `/download/{slug}.php` | URL 无尾斜杠、输出与再规范化不一致 | 目录 `download/<slug>.php/index.html` |
+
+| 项 | 证据 |
+|---|---|
+| Core 文件 | `src/Bukit-Core/Bukit.Routing/RoutePathBuilder.cs`（`WebFileExtensions`、`IsWebFileSegment`）、`src/Bukit-Core/Bukit.Routing/RouteGenerator.cs`（`IsFilePattern` 共用扩展名表） |
+| 测试 | `RoutePathBuilderTests.NormalizeUrl_ExplicitUrl_OnlyWebExtensionsAreFiles`（11）、`BuildOutputPathFromUrl_ExplicitUrl_OnlyWebExtensionsAreFiles`（4）；`RouteGeneratorTests.GenerateWithSource_FullOverrideDottedUrl_OnlyWebExtensionIsFile`（3）、`GenerateWithSource_PartialOverrideDottedUrl_RemainsDirectory`、`Generate_WithNonWebExtensionPermalink_RemainsDirectoryAndConsistent` |
+| RED（修复前） | 同一过滤 **8 失败 / 11 通过**：`/docs/v1.0`、`/blog/release.2026`、`/tags/node.js`、`/download/app.php` 被当作文件 |
+| GREEN | 定向 **20/20**；完整 Routing **98/98**（88.96%，298/335）、完整 Engine **2671/2671**、Content **568/568**、Architecture **415/415**；`scripts/checks/config-docs/validate_docs.py` 通过 |
+| 闭包 | `codex-workflow.py closure`：7 个变更文件，专项为 Routing / Engine / Content / Architecture；唯一未映射项为本计划文件（文档，无测试 owner） |
+| 用户文档 | `guide/user/05-markdown-content.md`（`route.url` 文件/目录规则）、`guide/user/04-site-yaml-config.md`（permalink 文件/目录规则） |
+| 证据根 | `/Users/ali/.local/state/bukit-verification/content-phase4-n2/` |
+
+剩余：路由层仍无"文件与同名目录"结构冲突检测（如 `/a.html` 与 `/a.html/x/`），也无 `{slug}.html` 的 Engine 管线级用例（复审 N-3），留待阶段 5/7。未运行 full/release、全解决方案或其他平台门禁。
+
+#### 4.4 独立 Core 修复：静态文件扩展名路由诊断（2026-10-27）
+
+**授权**：负责人于 2026-10-27 明确授权本次 Core 修改：`route.url` 与 permalink 末段为非 Web 扩展名的静态文件时给出构建诊断，提示放到 `static/` 或 `assets/`。
+
+**决定**：
+- 只对明确的静态文件扩展名报错（构建失败）：`.css .js .mjs .map .wasm`、常见图片、字体、`.pdf`、压缩包、音视频、`.csv` 与 Office 文档。未知带点段（`/docs/v1.0`、`.php`）仍按 4.3 规则生成目录，不报错。
+- permalink（`site.collections.*.permalink`、`site.permalinks.*`）只检查模板字面末段，诊断码 `RouteInvalidPattern`；slug 本身（如 `node.js`）不触发。
+- `route.url`（完整与部分覆盖）检查原始 URL，诊断码 `RouteInvalidInternalUrl`；以 `/` 结尾表示页面目录，不触发。
+- 复用既有诊断码，不新增公共枚举；报错信息含 URL/模板、内容 id、扩展名及 `static/`、`assets/` 与尾斜杠提示。
+
+| 项 | 证据 |
+|---|---|
+| Core 文件 | `src/Bukit-Core/Bukit.Routing/RoutePathBuilder.cs`（`StaticAssetExtensions`、`GetStaticAssetExtension`）、`src/Bukit-Core/Bukit.Routing/RouteGenerator.cs`（`RejectStaticAssetPattern`、`RejectStaticAssetUrl`） |
+| 测试 | `RouteGeneratorTests`：静态扩展名 permalink（4）、`site.permalinks`（1）、完整覆盖 route.url（4）、部分覆盖（1）报错；尾斜杠/`v1.0`/`.php` 完整覆盖（3）与 `node.js` slug（1）允许 |
+| RED（修复前） | 同一过滤 **10 失败 / 4 通过**（报错用例全部未报错） |
+| GREEN | 定向 **14/14**；完整 Routing **112/112**（90.24%，333/369）、完整 Engine **2671/2671**、Content **568/568**、Architecture **415/415**；`config-docs/validate_docs.py`、`cli-docs-sync.sh` 通过；仓库示例与 fixture 无受影响配置 |
+| 闭包 | `codex-workflow.py closure`：7 个变更文件；专项另含 `openspec validate add-i18n-worktree-isolation --strict`，该 change 已不存在（策略文件过期映射），无法执行，记录为验证缺口，未改策略文件 |
+| 用户文档 | `guide/user/05-markdown-content.md`、`guide/user/04-site-yaml-config.md`、`guide/user/14-troubleshooting.md`（新增 "Route Ends In A Static File Extension"） |
+| 证据根 | `/Users/ali/.local/state/bukit-verification/content-phase4-diag/` |
+
+剩余：未覆盖 `listRoute` 与插件生成路由；页面输出与 `static/` 复制之间的同名文件/目录冲突检测仍属复审 N-3。未运行 full/release、全解决方案或其他平台门禁。
+
 ### 阶段 5：Engine 安全层
 
 按顺序：
@@ -699,3 +783,7 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | 2026-10-27 | 执行阶段 3：补 `ContentDocument` 回退/状态/关系/媒体、Markdown BOM/CRLF、Canonical 图重复 id/悬空引用/validator 表征用例；领域专项 566+41+427+85，Engine 定向 11/11；Content 93.06%、Engine.Abstractions 76.23%、Notion 95.30%，均 ≥70% |
 | 2026-10-27 | 阶段 3 审计复审（Critical 0 / Important 3 / Minor 7）后按 B/B 修复：`requireRelationTargets` 解析 content/entity 目标、重复 ID 报错；完整 Engine 2671/2671、Architecture 415/415、CLI 1076/1076；领域 568+41+427+88；Content 93.08%、Engine.Abstractions 80.48%、Notion 95.30%；补 Trait、Markdown 边界、作者投影、draft `index.html`、项目映射与证据复制 |
 | 2026-10-27 | 阶段 3 审计修复最终复核：Critical 0 / Important 0；A-1、M-1~M-7、D-1~D-4 关闭；完整 Engine 2671/2671、CLI 1076/1076、Architecture 415/415；15 个文件未提交 |
+| 2026-10-27 | 执行阶段 4 基线：Routing 81/81（88.89%）、Theme 179/179（79.59%）、Rendering 346/346（90.31%）、Engine 路由 118/118、Architecture 415/415；补 permalink encoding、严格 theme.yaml、`content_model.slug` 与渲染确定性用例；按审计决定 C 按模板判定文件/目录（Core） |
+| 2026-10-27 | 阶段 4 最终复核：Critical 0 / Important 0；M-2/M-3/M-5/M-8/M-9/M-10 关闭，M-1/M-4/M-6/M-7 记录为非阻塞；Routing 88.89%、Theme 79.59%、Rendering 90.31%；10 个文件未提交 |
+| 2026-10-27 | 经负责人授权的独立 Core 修复（4.3，复审 N-2）：显式 `route.url` 与 permalink 只对 `.html/.htm/.xml/.json/.txt` 视为文件，其余为目录；RED 8 失败 → GREEN Routing 98/98（88.96%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05 |
+| 2026-10-27 | 经负责人授权的独立 Core 修复（4.4）：`route.url` 与 permalink 末段为静态文件扩展名时构建失败并提示 `static/`/`assets/`；RED 10 失败 → GREEN Routing 112/112（90.24%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05/14；openspec 过期映射无法执行已记录 |

@@ -65,6 +65,17 @@ Route conflicts are usually caused by repeated slugs in the same collection,
 manual route URL overrides, or list routes colliding with content routes. Adjust
 the slug, collection permalink, or list route.
 
+## Route Ends In A Static File Extension
+
+A `route.url` or permalink that ends in a static file extension such as `.css`,
+`.js`, `.pdf`, an image, font, archive, audio/video, or Office extension fails
+the build (`route.url` with the invalid internal URL code, permalink with the
+invalid permalink pattern code). Pages are rendered from templates, so these
+files cannot be routes. Put them in the theme's `static/` directory (copied to
+the same output path, e.g. `static/files/report.pdf` → `/files/report.pdf`) or
+`assets/` directory (asset pipeline, served under `/assets/`). If the URL is a
+page that merely contains a dot, such as `/docs/node.js`, end it with `/`.
+
 ## Template Fails
 
 - Confirm the template path exists under the resolved layouts directory.

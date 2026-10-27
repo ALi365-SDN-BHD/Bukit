@@ -249,7 +249,7 @@ public sealed class ScribanModelBinderTests
         Assert.False(site.TryGetValue("analytics", out _));
     }
 
-    [Fact]
+    [Fact, Trait("Category", "Unit")]
     public void ToScriptObject_PageModel_BindsCanonicalContentHelpers()
     {
         var model = new PageModel
@@ -258,7 +258,7 @@ public sealed class ScribanModelBinderTests
             Page = CreateMinimalPage() with
             {
                 ContentRecord = new ContentRecord(
-                    new ContentIdentity("page-1", "minimal", "minimal", "page", "published"),
+                    new ContentIdentity("page-1", "minimal-slug", "minimal-canonical", "page", "published"),
                     new ContentPresentation("Minimal Page", "summary", "<p>minimal</p>", "zh-CN", []),
                     new ContentClassification("page", "page", [], ["docs"]),
                     new ContentOwnership("Ali", "Bukit", null, null),
@@ -284,6 +284,9 @@ public sealed class ScribanModelBinderTests
         var entities = Assert.IsType<ScriptArray>(page["entities"]);
 
         Assert.Equal("page", content["content_type"]);
+        Assert.Equal("page-1", content["id"]);
+        Assert.Equal("minimal-slug", content["slug"]);
+        Assert.Equal("minimal-canonical", content["canonical_url_key"]);
         Assert.Equal("markdown", provenance["source"]);
         Assert.Equal("approved", trust["review_status"]);
         Assert.Equal("Bukit", Assert.IsType<ScriptObject>(entities[0])["name"]);

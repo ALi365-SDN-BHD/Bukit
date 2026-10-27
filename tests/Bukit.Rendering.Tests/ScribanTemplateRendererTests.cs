@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Bukit.Config;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 using Bukit.Theme;
 using Xunit;
@@ -81,6 +82,65 @@ public sealed class ScribanTemplateRendererTests : IDisposable
         var result = renderer.RenderPage("page.html", model);
         Assert.Contains("<title>Hello</title>", result);
         Assert.Contains("<p>World</p>", result);
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public void RenderPage_ContentModelSlug_IsAvailableWithoutTopLevelPageSlug()
+    {
+        File.WriteAllText(
+            Path.Combine(_layoutsDir, "content-model.html"),
+            "{{ page.content_model.slug }}|{{ page.slug }}");
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo
+            {
+                Title = "Page",
+                Url = "/page/",
+                Content = string.Empty,
+                ContentRecord = new ContentRecord(
+                    new ContentIdentity("page-1", "content-slug", "canonical-key", "page", "published"),
+                    new ContentPresentation("Page", null, string.Empty, "en", []),
+                    new ContentClassification("page", "pages", [], []),
+                    new ContentOwnership(null, null, null, null),
+                    new ContentLifecycle(DateTimeOffset.Parse("2026-06-01T00:00:00Z"), null, null, null),
+                    new ProvenanceRecord("markdown", null, [], [], null),
+                    new TrustMetadata(null, "approved", []),
+                    [],
+                    [],
+                    [])
+            }
+        };
+
+        var result = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir)
+            .RenderPage("content-model.html", model);
+
+        Assert.Equal("content-slug|", result);
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public void RenderPage_SameInput_ProducesIdenticalOutput()
+    {
+        File.WriteAllText(
+            Path.Combine(_layoutsDir, "deterministic.html"),
+            "{{ page.title }}|{{ page.content }}|{{ site.title }}");
+        var model = new PageModel
+        {
+            Site = CreateSite(),
+            Page = new PageInfo
+            {
+                Title = "Stable",
+                Content = "<p>Body</p>",
+                Url = "/stable/"
+            }
+        };
+
+        var first = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir)
+            .RenderPage("deterministic.html", model);
+        var second = new Bukit.Rendering.Scriban.ScribanTemplateRenderer(_layoutsDir)
+            .RenderPage("deterministic.html", model);
+
+        Assert.Equal(first, second);
     }
 
     [Fact]

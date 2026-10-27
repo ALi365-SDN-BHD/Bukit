@@ -7,6 +7,9 @@ namespace Bukit.Routing;
 public static class RoutePathBuilder
 {
     public static string NormalizeUrl(string url)
+        => NormalizeUrl(url, IsFileUrl(url));
+
+    public static string NormalizeUrl(string url, bool isFileRoute)
     {
         var trimmed = (url ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
@@ -19,7 +22,7 @@ public static class RoutePathBuilder
             trimmed = "/" + trimmed;
         }
 
-        if (!trimmed.EndsWith('/'))
+        if (!isFileRoute && !trimmed.EndsWith('/'))
         {
             trimmed += "/";
         }
@@ -29,8 +32,68 @@ public static class RoutePathBuilder
 
     public static string NormalizeListRoute(string route)
     {
-        var normalized = NormalizeUrl(route);
+        var normalized = NormalizeUrl(route, isFileRoute: false);
         return string.IsNullOrWhiteSpace(normalized) ? "/" : normalized;
+    }
+
+    // Extensions that make a route a file. Any other dotted segment (/docs/v1.0) stays a directory.
+    private static readonly HashSet<string> WebFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".html", ".htm", ".xml", ".json", ".txt"
+    };
+
+    private static bool IsFileUrl(string url)
+    {
+        var trimmed = (url ?? string.Empty).Trim();
+        if (trimmed.EndsWith('/'))
+        {
+            return false;
+        }
+
+        var lastSlash = trimmed.LastIndexOf('/');
+        var lastSegment = lastSlash >= 0 ? trimmed[(lastSlash + 1)..] : trimmed;
+        return IsWebFileSegment(lastSegment);
+    }
+
+    internal static bool IsWebFileSegment(string segment)
+    {
+        var dot = segment.LastIndexOf('.');
+        return dot > 0 && WebFileExtensions.Contains(segment[dot..]);
+    }
+
+    // Files that templates cannot produce; they belong in static/ or assets/, not in a page route.
+    private static readonly HashSet<string> StaticAssetExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".css", ".js", ".mjs", ".map", ".wasm",
+        ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".avif", ".ico", ".bmp",
+        ".woff", ".woff2", ".ttf", ".otf", ".eot",
+        ".pdf", ".zip", ".gz", ".tgz", ".tar", ".7z", ".rar",
+        ".mp3", ".mp4", ".webm", ".ogg", ".wav", ".m4a", ".mov",
+        ".csv", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx"
+    };
+
+    /// <summary>
+    /// Returns the static-asset extension (for example ".pdf") when the URL or pattern ends in one
+    /// without a trailing slash; otherwise null. A trailing slash marks an intentional page directory.
+    /// </summary>
+    internal static string? GetStaticAssetExtension(string urlOrPattern)
+    {
+        var trimmed = (urlOrPattern ?? string.Empty).Trim();
+        if (trimmed.Length == 0 || trimmed.EndsWith('/'))
+        {
+            return null;
+        }
+
+        var lastSlash = trimmed.LastIndexOf('/');
+        var lastSegment = lastSlash >= 0 ? trimmed[(lastSlash + 1)..] : trimmed;
+        var dot = lastSegment.LastIndexOf('.');
+        if (dot <= 0)
+        {
+            return null;
+        }
+
+        var extension = lastSegment[dot..];
+        return StaticAssetExtensions.Contains(extension) ? extension : null;
     }
 
     public static string BuildOutputPathFromUrl(string url, string outputPathEncoding = "none")
@@ -47,6 +110,7 @@ public static class RoutePathBuilder
         }
 
         var outputPath = normalizedUrl.TrimStart('/');
+        // File-like routes (/page.html) keep their extension; directory routes get index.html.
         if (outputPath.EndsWith('/'))
         {
             outputPath += "index.html";
