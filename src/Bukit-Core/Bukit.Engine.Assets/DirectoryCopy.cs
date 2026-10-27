@@ -488,7 +488,7 @@ internal static class DirectoryCopy
         try
         {
             var resolved = ResolvePhysicalPath(path);
-            if (resolved is null || !IsSameOrSubPathOf(physicalSourceRoot, resolved))
+            if (resolved is null || !PathUtils.IsSameOrSubPathOf(resolved, physicalSourceRoot))
             {
                 return false;
             }
@@ -521,16 +521,6 @@ internal static class DirectoryCopy
         }
 
         return false;
-    }
-
-    private static bool IsSameOrSubPathOf(string root, string candidate)
-    {
-        var relative = Path.GetRelativePath(root, candidate);
-        return relative == "." ||
-               (!Path.IsPathRooted(relative) &&
-                !relative.Equals("..", StringComparison.Ordinal) &&
-                !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
-                !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal));
     }
 
     private static string? ResolvePhysicalPath(string path)

@@ -21,12 +21,16 @@ public static class OutputDirectoryCleaner
 
     internal static void EnsureCanClean(string rootDir, string outputDir, bool requireMarker = true)
     {
-        var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var fullOutput = Path.GetFullPath(outputDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var fullRoot = NormalizeForComparison(rootDir);
+        var fullOutput = NormalizeForComparison(outputDir);
+        var userHomePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var userHome = string.IsNullOrWhiteSpace(userHomePath) ? null : NormalizeForComparison(userHomePath);
+        var userHomeComparison = OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : PlatformPathHelper.PathComparison;
         if (string.Equals(fullOutput, fullRoot, PlatformPathHelper.PathComparison)
             || !PathUtils.IsSubPathOf(fullOutput, fullRoot)
-            || string.Equals(fullOutput, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), PlatformPathHelper.PathComparison)
-            || string.Equals(fullOutput, Path.GetPathRoot(fullOutput)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), PlatformPathHelper.PathComparison)
+            || userHome is not null && string.Equals(fullOutput, userHome, userHomeComparison)
             || ContainsGitSegment(Path.GetRelativePath(fullRoot, fullOutput))
             || ContainsReparsePointBelowRoot(fullRoot, fullOutput))
         {
@@ -49,6 +53,15 @@ public static class OutputDirectoryCleaner
         }
     }
 
+    private static string NormalizeForComparison(string path)
+    {
+        var full = Path.GetFullPath(path);
+        var root = Path.GetPathRoot(full);
+        return string.Equals(full, root, PlatformPathHelper.PathComparison)
+            ? root!
+            : full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
     private static bool ContainsGitSegment(string path)
         => path.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Any(segment => string.Equals(segment, ".git", StringComparison.OrdinalIgnoreCase));
@@ -62,7 +75,11 @@ public static class OutputDirectoryCleaner
             current = Path.Combine(current, segment);
             try
             {
-                if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                var info = Directory.Exists(current)
+                    ? (FileSystemInfo)new DirectoryInfo(current)
+                    : new FileInfo(current);
+                if (info.LinkTarget is not null ||
+                    (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
                 {
                     return true;
                 }
