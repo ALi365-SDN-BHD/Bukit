@@ -424,7 +424,10 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
             ownedWorktree = Assert.Single(await File.ReadAllLinesAsync(registry));
             Assert.True(Directory.Exists(ownedWorktree));
             var registered = (await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root)).Output;
-            Assert.Contains("worktree " + ownedWorktree, registered, StringComparison.Ordinal);
+            Assert.Contains(
+                "worktree " + PathUtils.GetCanonicalFullPath(ownedWorktree),
+                registered,
+                StringComparison.Ordinal);
         }
         finally
         {

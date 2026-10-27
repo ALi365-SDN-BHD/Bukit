@@ -373,9 +373,9 @@ public sealed class CollectionsValidatorTests : IDisposable
     }
 
     [Fact]
-    public void Validate_ShouldFail_WhenAllSourcesAssignCollectionsButOneCollectionIsStillUnreferenced()
+    public void Validate_ShouldAccept_WhenAllSourcesAssignCollectionsEvenIfAnotherCollectionIsUnused()
     {
-        var ex = ValidateFails("""
+        var config = LoadAndValidate("""
             site:
               name: myblog
               title: My Blog
@@ -392,7 +392,7 @@ public sealed class CollectionsValidatorTests : IDisposable
                     dir: content
             """);
 
-        Assert.Contains("notes", ex.Message, StringComparison.Ordinal);
+        Assert.True(config.Site.Collections!.ContainsKey("notes"));
     }
 
     [Fact]
@@ -439,6 +439,10 @@ public sealed class CollectionsValidatorTests : IDisposable
                   addToCollections: [china_companies]
                   markdown:
                     dir: content
+                - type: markdown
+                  name: pages
+                  markdown:
+                    dir: pages
             """);
 
         Assert.True(config.Site.Collections!.ContainsKey("china_companies"));

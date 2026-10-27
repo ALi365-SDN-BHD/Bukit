@@ -293,6 +293,11 @@ internal static class CollectionsValidator
             }
         }
 
+        if (sourcesWithoutCollection.Count == 0)
+        {
+            return;
+        }
+
         var unreferencedCollections = collections.Keys
             .Where(key => !referencedCollections.Contains(key))
             .ToList();

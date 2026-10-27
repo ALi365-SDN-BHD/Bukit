@@ -466,6 +466,26 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 
 出口：Config 达到第 9 节的单项目覆盖率下限，schema 对照测试覆盖全部配置节。
 
+#### 2.1 执行、复审与证据（2026-10-27）
+
+**阶段 2：SUCCESS（I-1/I-2/I-3 已关闭；保留两个非阻塞 Minor）。**
+
+原始执行基线为 `bcae33b2`；KD-005 的 `ConfigCollectionReader` 生产修复已在该提交中。本复审新增 `CollectionsValidator` 的语义回退，避免把所有额外 collection 一律判为未引用；同时补测试、执行证据和计划记录。证据根为 `/Users/ali/.local/state/bukit-verification/config-phase2-audit-remediation/`，提交前证据另见 `/Users/ali/.local/state/bukit-verification/config-phase2-20261027/`。
+
+| 要求 | 证据 |
+|---|---|
+| 完整 Config 专项 | `bash scripts/checks/coverage/run-one.sh Release tests/Bukit.Config.Tests/Bukit.Config.Tests.csproj TestResults/coverage/config-phase2-audit-final`；**428 passed / 0 failed / 0 skipped**，wrapper exit 0；`tests.trx` 与 `coverage.cobertura.xml` 位于该目录 |
+| 单项目覆盖率 | Config **89.45% (2966/3316)**；`coverage-summary/coverage-summary.json`。Config-only policy 的自动最小值为 0/0，70% 门槛为人工核对；整体 75.88% 不是阶段指标 |
+| 缓存记录 | `cache/config-final.record.json`，59 个 Config 源码/测试/SDK 配置文件；`cache/check.log` 显示 CACHE HIT `356370b3...95a4f` |
+| I-1 schema 逐字段对照 | `tests/Bukit.Config.Tests/ConfigSchemaNestedContractTests.cs`：50 个嵌套/动态映射 case，覆盖 `site.seo`、`site.analytics`、`collections`、`modelSchema`、`notion`、`menus`、`components`、`build.report` 等；provider `oneOf`、plugin toggle 和动态 map 单独断言。5 个测试全部通过 |
+| I-3 Engine 闭包 | 11 个含 collection 配置的测试类完整执行：**255/255 passed**，`results/engine-2/engine-closure-2.trx` |
+| I-3 CLI 闭包 | 3 个 CLI 测试类完整执行：**54/54 passed**，`results/cli-2/cli-closure-2.trx` |
+| KD-005 | `ConfigCollectionReader` 对 canonical/custom/fieldScopes/entity/relation 映射缺失必填键抛 `ConfigRequiredFieldMissing`；五组 RED 后转 GREEN，无 Skip |
+| CFG-001 | 保留 `addToCollections` 引用和大小写比较修复；关闭“额外 collection 一律拒绝”的过度收紧，恢复“所有 source 已声明 collection 时允许额外 collection”的既有语义，避免 Engine 中依赖 front matter/空集合的 89 个用例回归 |
+| 审查 | 审计发现 I-1/I-2/I-3 已关闭；Core 修复专项复核、限定复核及最终 delta 复核完成，Critical 0 / Important 0。SR-004（裸键诊断精度）、KD-005-TEST-01（索引/实体/关系边界用例）、M-1（默认值断言广度）和 M-2（KD-005 边界）保留为非阻塞 Minor；最终复核见 `config-phase2-audit-remediation/final-review.md` |
+
+本轮额外修正了 CLI Worktree 测试在 macOS `/var` 与 `/private/var` 路径别名下的误报（仅测试路径规范化，无生产行为变化）。未运行 full/release、全解决方案、其他平台或远程 provider 门禁。
+
 ### 阶段 3：领域与内容源
 
 - `ContentDocument.Create`：字段回退链、状态默认值、`draft` 与 `status` 关系。
@@ -562,7 +582,7 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | KD-002 | `clean` 删除 `.bukit`，含手写 `plugins.yaml` 与锁文件（决定：应保留） | 5 |
 | KD-003 | `HashUtil` 对超限文件只记长度，同长度改动会误命中缓存 | 5 |
 | KD-004 | `TaxonomyRedirectWriter` 别名经 `Trim` 后拼路径，是否可越界待复现（决定：含 `..` 或绝对路径应拒绝并报错） | 5 |
-| KD-005 | `ConfigCollectionReader` 缺必填键的 `modelSchema` 条目被丢弃（决定：应加载时报错） | 2 |
+| KD-005 | **已修复并通过**：`ConfigCollectionReader` 缺必填键的 `modelSchema` 条目曾静默丢弃（决定：应加载时报错）；证据见 2.1 | 2 |
 | KD-006 | 无条目的 FAQPage、HowTo 走 Article 构建器，且引用输出两份 | 6 |
 | KD-007 | `StripHtmlToText` 丢失两个 script 或 style 块之间的文本 | 6 |
 | KD-008 | `deploy --dry-run` 仍执行 clean 构建（决定：应不构建，只校验现有输出） | 8 |
@@ -628,3 +648,4 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | 2026-10-24 | 细化并执行阶段 1：12 组 Shared 风险用例、确定性 DNS/路径/句柄边界、精确命令与覆盖率证据；记录最终 511 Passed、2 KnownDefect Skip、87.21% 行覆盖，以及 KD-009/KD-010、TRX 跳过计数兼容问题和平台验收缺口 |
 | 2026-10-24 | 经授权独立修复 KD-009/KD-010，摘除 Skip/KnownDefect；最新 Shared 530 Passed、零跳过、87.27% 行覆盖，macOS 平台 41 项适用用例通过，直接消费者 47 项通过；保留修复前历史、ImageSharp 还原告警限制及 Linux/Windows 待验证状态 |
 | 2026-10-25 | 记录阶段0基础设施、授权 Core 修复与专项复核、三平台同输入43+7项通过及确切命令；保留36/4、164/16历史 RED、PSR-001缓存记账修正及独立文档收口边界 |
+| 2026-10-27 | 按阶段 2 审计修复 I-1/I-2/I-3：补 50 项嵌套 schema 对照、完整 Engine/CLI 集合闭包、阶段 2 执行记录；KD-005 转已修复，保留 SR-004/KD-005-TEST-01 非阻塞 Minor |
