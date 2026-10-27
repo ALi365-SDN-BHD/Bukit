@@ -838,7 +838,7 @@ public sealed partial class SiteEngineIntegrationTests
         }
     }
 
-    [Fact]
+    [Fact, Trait("Category", "Integration")]
     public async Task BuildAsync_SeoInjectMode_InjectsHeadAndExcludesNoindexFromOutputs()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-seo-inject-test", Guid.NewGuid().ToString("N"));
@@ -961,6 +961,8 @@ public sealed partial class SiteEngineIntegrationTests
             await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
 
             var visibleHtml = File.ReadAllText(Path.Combine(root, "dist", "blog", "visible", "index.html"));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "hidden", "index.html")));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog", "expired", "index.html")));
             Assert.Contains("<link rel=\"canonical\" href=\"https://example.com/docs/blog/visible/\"", visibleHtml, StringComparison.Ordinal);
             Assert.Contains("<meta name=\"description\" content=\"Visible &lt;summary&gt; &amp; text\"", visibleHtml, StringComparison.Ordinal);
             Assert.Contains("<meta property=\"og:title\" content=\"Visible &quot;Post&quot; &amp; News\"", visibleHtml, StringComparison.Ordinal);

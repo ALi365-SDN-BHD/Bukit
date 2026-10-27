@@ -3,8 +3,25 @@ using Xunit;
 
 namespace Bukit.Engine.Tests;
 
+[Trait("Category", "Contract")]
 public sealed class CanonicalContentValidatorTests
 {
+    [Fact]
+    public void Validate_ShouldReportDuplicateContentIds()
+    {
+        var graph = new CanonicalContentGraph(
+        [
+            Record(id: "post-1"),
+            Record(id: "POST-1")
+        ], []);
+
+        var errors = CanonicalContentValidator.Validate(graph);
+
+        Assert.Contains(errors, error =>
+            error.Code == "canonical_duplicate_id" &&
+            error.Field == "identity.id" &&
+            error.SourcePath == "post-1");
+    }
     [Fact]
     public void Validate_ShouldReportRelationTargetGap_WhenRelationTargetIsBlank()
     {
@@ -57,9 +74,10 @@ public sealed class CanonicalContentValidatorTests
     private static ContentRecord Record(
         string? source = "markdown",
         string reviewStatus = "approved",
-        IReadOnlyList<ContentRelation>? relations = null)
+        IReadOnlyList<ContentRelation>? relations = null,
+        string id = "post-1")
         => new(
-            new ContentIdentity("post-1", "post-1", "post-1", "post", "published"),
+            new ContentIdentity(id, id, id, "post", "published"),
             new ContentPresentation("Post", "Summary", "<p>Body</p>", "en", []),
             new ContentClassification("post", "post", [], []),
             new ContentOwnership(null, null, null, null),

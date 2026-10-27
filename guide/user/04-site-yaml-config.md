@@ -343,7 +343,9 @@ other than HTTP(S) or root-relative paths fail the build.
 | `content.modelSchema.requireMediaDescription` | Require media descriptions. |
 | `content.modelSchema.requireMediaLicense` | Require media licenses. |
 | `content.modelSchema.requireEntityIds` | Require entity IDs. |
-| `content.modelSchema.requireRelationTargets` | Defaults to `true`. |
+| `content.modelSchema.requireRelationTargets` | Defaults to `true`. Blank targets are always invalid; when enabled, non-blank targets must resolve to a content record or entity. `translation-of` language keys and absolute HTTP(S) URLs are exempt. |
+
+Canonical validation reports `canonical_duplicate_id` when two documents share an id, `canonical_relation_target_missing` for a blank target, and `canonical_relation_target_unresolved` when a target cannot be resolved. Content targets resolve by id or slug; entity targets resolve by id or name. Root-relative paths are not treated as external targets.
 
 Publish audit trust-presence warnings follow this schema. `requireAuthor`
 enables `publish.author_missing`, `requireProvenance` enables

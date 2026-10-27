@@ -19,7 +19,7 @@ internal static class ContentModelSchemaValidator
             .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
         foreach (var record in graph.Records)
         {
-            ValidateRecord(record, schema, errors);
+            ValidateRecord(record, schema, graph, errors);
             documentsById.TryGetValue(record.Identity.Id, out var document);
             ValidateDocumentFields(record, document, schema, errors);
         }
@@ -30,6 +30,7 @@ internal static class ContentModelSchemaValidator
     private static void ValidateRecord(
         ContentRecord record,
         ContentModelSchema schema,
+        CanonicalContentGraph graph,
         List<ContentValidationIssue> errors)
     {
         CheckAllowed(schema.ContentTypes, record.Identity.ContentType, "identity.content_type", "canonical_content_type_invalid", record, errors);
@@ -72,9 +73,23 @@ internal static class ContentModelSchemaValidator
 
         if (schema.RequireRelationTargets)
         {
-            foreach (var relation in record.Relations.Where(x => string.IsNullOrWhiteSpace(x.Target)))
+            foreach (var relation in record.Relations)
             {
-                Add(errors, "relations.target", "canonical_relation_target_missing", $"Canonical relation '{relation.Type}' is missing a target.", record);
+                if (string.IsNullOrWhiteSpace(relation.Target))
+                {
+                    Add(errors, "relations.target", "canonical_relation_target_missing", $"Canonical relation '{relation.Type}' is missing a target.", record);
+                    continue;
+                }
+
+                if (!IsResolvedRelationTarget(graph, relation))
+                {
+                    Add(
+                        errors,
+                        "relations.target",
+                        "canonical_relation_target_unresolved",
+                        $"Canonical relation '{relation.Type}' target '{relation.Target}' does not resolve to a content record or entity.",
+                        record);
+                }
             }
         }
 
@@ -466,6 +481,51 @@ internal static class ContentModelSchemaValidator
         }
 
         return false;
+    }
+
+    private static bool IsResolvedRelationTarget(CanonicalContentGraph graph, ContentRelation relation)
+    {
+        if (string.Equals(relation.Type, "translation-of", StringComparison.OrdinalIgnoreCase))
+        {
+            // Translation targets are language keys, not content records or entities.
+            return true;
+        }
+
+        var target = (string.IsNullOrWhiteSpace(relation.TargetId) ? relation.Target : relation.TargetId).Trim();
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            return false;
+        }
+
+        if (Uri.TryCreate(target, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            return true;
+        }
+
+        var targetType = relation.TargetType?.Trim();
+        if (string.IsNullOrWhiteSpace(targetType) ||
+            string.Equals(targetType, "content", StringComparison.OrdinalIgnoreCase))
+        {
+            if (graph.Records.Any(record =>
+                string.Equals(record.Identity.Id, target, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(record.Identity.Slug, target, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(record.Identity.CanonicalUrlKey, target, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        if (string.Equals(targetType, "content", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return graph.Entities.Any(entity =>
+            (string.IsNullOrWhiteSpace(targetType) ||
+             string.Equals(entity.Type, targetType, StringComparison.OrdinalIgnoreCase)) &&
+            (string.Equals(entity.Id, target, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(entity.Name, target, StringComparison.OrdinalIgnoreCase)));
     }
 
     private static void Add(

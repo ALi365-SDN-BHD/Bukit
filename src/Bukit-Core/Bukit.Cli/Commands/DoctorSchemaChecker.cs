@@ -172,5 +172,7 @@ internal static class DoctorSchemaChecker
 
     private static bool IsBlockingSchemaError(string code)
         => code.Contains("required", StringComparison.OrdinalIgnoreCase) ||
-           code.Contains("missing", StringComparison.OrdinalIgnoreCase);
+           code.Contains("missing", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(code, "canonical_duplicate_id", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(code, "canonical_relation_target_unresolved", StringComparison.OrdinalIgnoreCase);
 }

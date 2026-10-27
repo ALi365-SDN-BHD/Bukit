@@ -145,7 +145,7 @@ public sealed partial class SiteEngineIntegrationTests
         finally { CleanupDir(root); }
     }
 
-    [Fact]
+    [Fact, Trait("Category", "Integration")]
     public async Task BodyProjection_DraftWithdrawalNeverLoadsHiddenBodyAndEmptyBodyStaysEmpty()
     {
         var (root, config) = CreateMediaSite();
@@ -157,6 +157,7 @@ public sealed partial class SiteEngineIntegrationTests
             using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "dist", "content/blog/one/index.html.json")));
             Assert.Equal("", json.RootElement.GetProperty("body").GetString());
             Assert.DoesNotContain("## Body", File.ReadAllText(Path.Combine(root, "dist", "content/blog/one/index.html.md")));
+            Assert.True(File.Exists(Path.Combine(root, "dist", "blog/one/index.html")));
             document = document with { CustomFields = new Dictionary<string, ContentField>(document.CustomFields!) { ["draft"] = new("bool", true) } };
             var hidden = new ProjectionBodyStore("PRIVATE DRAFT");
             await new SiteEngine(new TestLogger(), new ProjectionProviderFactory([document], hidden), new DefaultSearchIndexBuilder())
@@ -164,6 +165,7 @@ public sealed partial class SiteEngineIntegrationTests
             Assert.Equal(0, hidden.Calls);
             Assert.False(File.Exists(Path.Combine(root, "dist", "content/blog/one/index.html.json")));
             Assert.False(File.Exists(Path.Combine(root, "dist", "content/blog/one/index.html.md")));
+            Assert.False(File.Exists(Path.Combine(root, "dist", "blog/one/index.html")));
         }
         finally { CleanupDir(root); }
     }

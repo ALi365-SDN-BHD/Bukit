@@ -2,7 +2,7 @@
 
 > 日期：2026-10-24
 > 状态：草案，第 9 节待决事项已全部决定
-> 范围：`src/Bukit-Core`（14 个项目）；`src/Bukit-Plugins` 与 `src/Bukit-Labs` 后置，不在本期
+> 范围：`src/Bukit-Core`（18 个项目）；`src/Bukit-Plugins` 与 `src/Bukit-Labs` 后置，不在本期
 > 前提：按"从零开始"盘点测试需求；复用现有测试项目、辅助代码与 CI 入口，不以已有用例数量代替行为验证
 
 ## 1. 目的与背景
@@ -51,7 +51,7 @@ Bukit 是 .NET 10 Native AOT 静态站点引擎，当前处于企业内部优先
 
 沿用项目已有栈：xunit、coverlet、NetArchTest.Rules、BenchmarkDotNet。属性式随机测试（slug、路径规范化）可用 xunit 的 `Theory` 加种子化生成器实现，不新增依赖。
 
-14 个 Core 源项目复用现有 13 个 Core 测试项目：`Bukit.Cli` 与 `Bukit.Cli.Shared` 都映射到 `tests/Bukit.Cli.Tests`，其余 12 个源项目映射到 `tests/<源项目名>.Tests`。不另建 `Bukit.Cli.Shared.Tests`；架构专项使用现有 `tests/Bukit.Architecture.Tests`。CI 的 Core 测试项目入口以 `scripts/checks/coverage/list-core-projects.sh` 为准，每批闭包核对源项目、测试项目及实际执行入口，避免新增测试未被调度。
+18 个 Core 源项目复用现有 13 个 Core 测试项目：`Bukit.Cli` 与 `Bukit.Cli.Shared` 都映射到 `tests/Bukit.Cli.Tests`；`Bukit.Engine` 及其 5 个 `Bukit.Engine.*` 子项目映射到 `tests/Bukit.Engine.Tests`；`Bukit.Content` 由 `tests/Bukit.Content.Tests` 与 `tests/Bukit.Content.Notion.Tests` 覆盖；其余源项目映射到 `tests/<源项目名>.Tests`。不另建 `Bukit.Cli.Shared.Tests` 或 `Bukit.Content.Notion` 源项目；架构专项使用现有 `tests/Bukit.Architecture.Tests`。CI 的 Core 测试项目入口以 `scripts/checks/coverage/list-core-projects.sh` 为准，每批闭包核对源项目、测试项目及实际执行入口，避免新增测试未被调度。
 
 ### 4.3 约定
 
@@ -499,6 +499,51 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 
 出口：领域与内容各项目达到第 9 节的单项目覆盖率下限。
 
+#### 3.1 执行与证据（2026-10-27）
+
+**阶段 3：SUCCESS（审计 B/B 修复完成；限定复核与最终 delta 复核均通过）。**
+
+基线为 `89c2c015`（阶段 2 R-1 提交后）。阶段 3 初版只补测试；审计后按负责人决定 **B/B** 修改 Core：`requireRelationTargets` 改为解析目标，重复 content ID 改为报错。证据根为 `/Users/ali/.local/state/bukit-verification/content-phase3/`。
+
+| 要求 | 证据 |
+|---|---|
+| 领域专项 | `tests/Bukit.Content.Tests` **568/568**；`tests/Bukit.Content.Notion.Tests` **41/41**；`tests/Bukit.Notion.Tests` **427/427**；`tests/Bukit.Engine.Abstractions.Tests` **88/88**；完整 `tests/Bukit.Engine.Tests` **2671/2671**；`tests/Bukit.Architecture.Tests` **415/415**；全部 0 失败/跳过 |
+| 直接消费者（Doctor） | `tests/Bukit.Cli.Tests` **1076/1076**；新增 `canonical_duplicate_id` / `canonical_relation_target_unresolved` 阻断用例 |
+| 单项目覆盖率 | `Bukit.Content` **93.08% (3458/3715)**；`Bukit.Engine.Abstractions` **80.48% (606/753)**；`Bukit.Notion` **95.30% (1623/1703)**；均 ≥70%。`coverage-summary/coverage-summary.json`、`coverage-check.json`；工具 policy 为 0/0，70% 为人工核对 |
+| Canonical 类覆盖 | 完整 Engine 覆盖率：`CanonicalContentGraphBuilder` **94.63% (282/298)**、Helpers **89.13% (82/92)**、`CanonicalContentValidator` **100% (42/42)**、`ContentModelSchemaValidator` **84.03% (200/238)**；`canonical-coverage.json` |
+| `ContentDocument.Create` | draft/status 优先级、summary→description→excerpt 回退、categories→sections 与 tags 合并、显式 sections 优先、image/cover 媒体投影、translation/related/mentions 有向关系、`authoredBy` 标量/map 投影、`reviewed_at` 映射而 `verified_at` 不映射；`ContentDocumentTests` **24/24** |
+| Canonical 图与关系 | B/B 决定：重复 ID 报 `canonical_duplicate_id`；`requireRelationTargets=true` 时 target 必须解析到 content record 或 entity，`translation-of` 语言键与绝对 HTTP(S) URL 例外，未解析报 `canonical_relation_target_unresolved`；`CanonicalContentGraphContractTests` **4/4**、`CanonicalContentValidatorTests` **4/4**、`ContentModelSchemaValidatorRelationTargetTests` **12/12**、`ContentGraphValidateStageRelationTargetTests` **4/4** |
+| Markdown | 既有 front-matter/正文/TOC；新增 UTF-8 BOM、BOM+CRLF、CRLF 正文、正文 `---` 水平线端到端解析；`MarkdownFolderProviderTests` 通过 |
+| 媒体 | 既有 `ImageAssetLocalizerTests`、`ImageContentValidatorTests`、`ContentImageRewritePipelineTests`、`MediaIndexManagerTests` 覆盖本地化、签名/格式、重复引用、下载失败；无 Skip |
+| Notion（假传输） | 既有 `NotionContentSource*`、`NotionContentPropertyParser*`、`NotionDatabaseQueryBuilder`、`NotionBlock*`、`NotionWriteClient` 等覆盖属性映射、分页、限流重试、块渲染、HTML 转块、写入；`Bukit.Notion.Tests` **427/427** |
+| 组合提供者/缓存 | 既有 `CompositeContentProviderTests`、`CompositeContentBodyStoreTests`、`BodyCacheDecoratorTests` 覆盖多源冲突与 body 缓存；无 Skip |
+| 缓存记录 | `content-phase3/cache/*.record.json`；Content / Content.Notion / Notion / Engine.Abstractions / 完整 Engine / CLI / Architecture 均 CACHE HIT：`b4c3dba8...`、`25e98497...`、`6b7cc944...`、`19cc4cd4...`、`c50c0174...`、`743de8c7...`、`fb858da6...` |
+| 业务规则 | 既有 `DraftFilterStage_*`、`BuildAsync_SeoInjectMode_InjectsHeadAndExcludesNoindexFromOutputs`（hidden/expired 页面仍生成 HTML，只退出聚合）、`BuildAsync_LlmsTxt_ExcludesNoindexAndExpiredRoutes`；`BodyProjection_DraftWithdrawal...` 补 `index.html` 删除断言；`verified_at` 不映射 `reviewed_at`；完整 Engine 覆盖 |
+| 审查 | 审计复审（Critical 0 / Important 3 / Minor 7）后按 B/B 修复；限定复核与最终 delta 复核均通过（Critical 0 / Important 0）；A-1、M-1~M-7、D-1~D-4 已关闭；复核见 `content-phase3/audit-review.md` 与 `content-phase3/final-audit-review.md` |
+
+未运行 full/release、全解决方案、其他平台或远程 provider 门禁。
+
+#### 3.2 阶段 3 审计复审与修复（2026-10-27）
+
+审计结论为 **Critical 0 / Important 3 / Minor 7**，阶段 3 曾回退为 CONDITIONAL；本轮按负责人决定 **B/B** 完成修复。
+
+| 审计项 | 状态 | 修复与证据 |
+|---|---|---|
+| I-1 Canonical 表征固化未决定行为 | 已修复 | 负责人决定：`requireRelationTargets` 必须解析目标；重复 ID 必须报错。`ContentModelSchemaValidator` 新增 `canonical_relation_target_unresolved` 与目标解析（content ID/slug、entity ID/name、外部 HTTP(S) URL、`translation-of` 例外）；`CanonicalContentValidator` 新增 `canonical_duplicate_id`。原先“断言不报错”的测试已改写为报错契约测试 |
+| I-2 Engine/Architecture 闭包未跑全 | 已修复 | 完整 Engine **2671/2671**、Architecture **415/415**；`BodyProjection_DraftWithdrawal...` 已包含在完整 Engine；定向子集重新记录缓存 |
+| I-3 新测试缺少 Trait | 已修复 | 新增/修改测试使用 `Unit`、`Contract`、`Integration` 分类；`ContentDocumentTests` 为 Unit，Canonical/关系为 Contract，Markdown/SiteEngine 为 Integration |
+| Minor：VerifiedAt 代用 | 已修复 | 计划明确写成“`verified_at` front-matter 不映射到 `ReviewedAt`”；Core 无 `VerifiedAt` 符号 |
+| Minor：Canonical 覆盖率未统计 | 已修复 | 完整 Engine 覆盖率按类统计，见 3.1 的 Canonical 类覆盖行 |
+| Minor：Markdown 边界/Git 测试名 | 已修复 | 补 BOM+CRLF、CRLF 正文、正文 `---`；BOM 测试名改为 `LoadRawAsync_*` |
+| Minor：draft 只验证部分产物 | 已修复 | `BodyProjection_DraftWithdrawal...` 增加 `dist/blog/one/index.html` 不存在断言 |
+| Minor：作者资料投影未测 | 已修复 | 新增 `authoredBy` 标量/map/缺省测试；`ContentAuthorProfileProjectionReader` 覆盖率 **93.94%**，Engine.Abstractions 由 76.23% 升至 80.48% |
+| Minor：项目映射/目录残留 | 已修复 | 计划第 2 节与 §4.2 更新为 18 个源项目/13 个测试项目；§3.1 说明 Content.Notion.Tests 计入 Bukit.Content；删除 `src/Bukit-Core/Bukit.Content.Notion/` 未跟踪 `obj/bin` |
+| Minor：证据隐患 | 已修复 | TRX/coverage/summary/review 复制到 `content-phase3/evidence/`；重复运行以最终一次为主证据，缓存仅作指纹 |
+| Minor：projection/doctor 未消费新规则 | 已修复 | `ContentModelSchemaProjection.ValidateDocuments` 纳入 `CanonicalContentValidator`；Doctor 将 `canonical_duplicate_id`/`canonical_relation_target_unresolved` 视为阻断；新增 2 个 CLI 测试 |
+| Minor：resolver 边界/性能 | 已修复 | 补 target trim、TargetId-first、targetType mismatch、root-relative 用例；`O(records×relations)` 查询保留为已记录非阻塞性能项 |
+
+本轮 Core 修改为 `src/Bukit-Core/Bukit.Engine/CanonicalContentValidator.cs`、`src/Bukit-Core/Bukit.Engine/ContentModelSchemaValidator.cs`、`src/Bukit-Core/Bukit.Engine/ContentModelSchemaProjection.cs`、`src/Bukit-Core/Bukit.Cli/Commands/DoctorSchemaChecker.cs` 四个文件，以及 `guide/user/04-site-yaml-config.md` 的语义说明；其余为测试与计划。`warn`/`off` 模式下重复 ID 仍会进入图并按 `type/targetType/targetId` 合并关系；`strict` 模式会阻断，该限制已在审查中记录。
+
 ### 阶段 4：路由、主题、渲染
 
 - 路由：permalink 模板、分页、列表路由、冲突、路径安全。
@@ -651,3 +696,6 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | 2026-10-25 | 记录阶段0基础设施、授权 Core 修复与专项复核、三平台同输入43+7项通过及确切命令；保留36/4、164/16历史 RED、PSR-001缓存记账修正及独立文档收口边界 |
 | 2026-10-27 | 按阶段 2 审计修复 I-1/I-2/I-3：补 50 项嵌套 schema 对照、完整 Engine/CLI 集合闭包、阶段 2 执行记录；KD-005 转已修复，保留 SR-004/KD-005-TEST-01 非阻塞 Minor |
 | 2026-10-27 | 关闭 R-1：嵌套 schema 对照改为解析 `ConfigStrictFieldValidator` 的 `RequireOnly`/`ValidateSequenceMappings` 源文本，双向覆盖字段与路径并加负向自检；完整 Config 430/430、覆盖 89.45%；非阻塞 Minor 合并为 SR-004、M-1、M-2 / KD-005-TEST-01 三项 |
+| 2026-10-27 | 执行阶段 3：补 `ContentDocument` 回退/状态/关系/媒体、Markdown BOM/CRLF、Canonical 图重复 id/悬空引用/validator 表征用例；领域专项 566+41+427+85，Engine 定向 11/11；Content 93.06%、Engine.Abstractions 76.23%、Notion 95.30%，均 ≥70% |
+| 2026-10-27 | 阶段 3 审计复审（Critical 0 / Important 3 / Minor 7）后按 B/B 修复：`requireRelationTargets` 解析 content/entity 目标、重复 ID 报错；完整 Engine 2671/2671、Architecture 415/415、CLI 1076/1076；领域 568+41+427+88；Content 93.08%、Engine.Abstractions 80.48%、Notion 95.30%；补 Trait、Markdown 边界、作者投影、draft `index.html`、项目映射与证据复制 |
+| 2026-10-27 | 阶段 3 审计修复最终复核：Critical 0 / Important 0；A-1、M-1~M-7、D-1~D-4 关闭；完整 Engine 2671/2671、CLI 1076/1076、Architecture 415/415；15 个文件未提交 |

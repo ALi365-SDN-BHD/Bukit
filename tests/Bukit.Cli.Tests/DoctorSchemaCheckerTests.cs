@@ -8,8 +8,58 @@ using Xunit;
 namespace Bukit.Cli.Tests;
 
 [Collection("Console")]
+[Trait("Category", "Contract")]
 public sealed class DoctorSchemaCheckerTests
 {
+    [Fact]
+    public void CheckSchemaFieldCompleteness_UnresolvedRelationTargetIsBlocking()
+    {
+        var ctx = CreateContext(ConfigWithCollectionSchemas());
+        var routed = new[]
+        {
+            RoutedDocument("post-1", new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["collection"] = "post",
+                ["type"] = "post",
+                ["postOnly"] = "ok",
+                ["related_to"] = new[] { "missing-post" }
+            })
+        };
+
+        var output = CaptureConsoleOutput(() =>
+        {
+            var hasErrors = DoctorSchemaChecker.CheckSchemaFieldCompleteness(ctx, routed);
+            Assert.True(hasErrors);
+        });
+
+        Assert.Contains("[canonical_relation_target_unresolved]", output);
+    }
+
+    [Fact]
+    public void CheckSchemaFieldCompleteness_DuplicateContentIdsAreBlocking()
+    {
+        var ctx = CreateContext(ConfigWithCollectionSchemas());
+        var fields = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["collection"] = "post",
+            ["type"] = "post",
+            ["postOnly"] = "ok"
+        };
+        var routed = new[]
+        {
+            RoutedDocument("duplicate", fields),
+            RoutedDocument("duplicate", fields)
+        };
+
+        var output = CaptureConsoleOutput(() =>
+        {
+            var hasErrors = DoctorSchemaChecker.CheckSchemaFieldCompleteness(ctx, routed);
+            Assert.True(hasErrors);
+        });
+
+        Assert.Contains("[canonical_duplicate_id]", output);
+    }
+
     [Fact]
     public void CheckSchemaFieldCompleteness_UsesContentModelProjectionDiagnostics()
     {

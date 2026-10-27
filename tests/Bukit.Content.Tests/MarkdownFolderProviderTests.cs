@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
@@ -262,6 +263,127 @@ public sealed class MarkdownFolderProviderTests
             Assert.Equal("Main Title", toc[0].Text);
             Assert.Equal("main-title", toc[0].Id);
             Assert.Equal("first-section-1", toc[3].Id);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public async Task LoadRawAsync_Utf8BomFrontMatter_ParsesTitleAndTags()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-bom-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            var markdown = "---\ntitle: BOM Page\ntags: [a, b]\n---\n# Body";
+            await File.WriteAllTextAsync(
+                Path.Combine(root, "bom.md"),
+                markdown,
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
+            var result = await provider.LoadRawAsync();
+
+            var item = Assert.Single(result.Documents);
+            Assert.Equal("BOM Page", item.Title);
+            Assert.Equal(new[] { "a", "b" }, ContentFieldReader.GetTextList(item.CustomFields, "tags"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public async Task LoadRawAsync_Utf8BomWithCrLfFrontMatter_ParsesTitleAndBody()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-bom-crlf-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            var path = Path.Combine(root, "bom-crlf.md");
+            var markdown = "---\r\ntitle: BOM CRLF Page\r\ntags: [a, b]\r\n---\r\n# Body\r\nBody text\r\n";
+            await File.WriteAllTextAsync(path, markdown, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
+            var item = Assert.Single((await provider.LoadRawAsync()).Documents);
+
+            Assert.Equal("BOM CRLF Page", item.Title);
+            Assert.Equal(new[] { "a", "b" }, ContentFieldReader.GetTextList(item.CustomFields, "tags"));
+            var html = await MarkdownTextHelper.RenderHtmlFromFileAsync(path, CancellationToken.None);
+            Assert.Contains("<p>Body text</p>", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("title: BOM CRLF Page", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public async Task LoadRawAsync_CrLfFrontMatter_ParsesTitleAndBody()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-crlf-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            var path = Path.Combine(root, "crlf.md");
+            var markdown = "---\r\ntitle: CRLF Page\r\ntags: [a, b]\r\n---\r\n# Body\r\nBody text\r\n";
+            await File.WriteAllTextAsync(path, markdown);
+
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
+            var item = Assert.Single((await provider.LoadRawAsync()).Documents);
+
+            Assert.Equal("CRLF Page", item.Title);
+            Assert.Equal(new[] { "a", "b" }, ContentFieldReader.GetTextList(item.CustomFields, "tags"));
+            var html = await MarkdownTextHelper.RenderHtmlFromFileAsync(path, CancellationToken.None);
+            Assert.Contains("<h1 id=\"body\">Body</h1>", html, StringComparison.Ordinal);
+            Assert.Contains("<p>Body text</p>", html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public async Task RenderHtmlFromFileAsync_BodyHorizontalRule_IsKeptAfterFrontMatter()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-body-rule-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            var path = Path.Combine(root, "rule.md");
+            await File.WriteAllTextAsync(path, """
+            ---
+            title: Rule Page
+            ---
+            # Heading
+
+            ---
+
+            After rule.
+            """);
+
+            var html = await MarkdownTextHelper.RenderHtmlFromFileAsync(path, CancellationToken.None);
+
+            Assert.Contains("<hr", html, StringComparison.Ordinal);
+            Assert.Contains("<p>After rule.</p>", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("title: Rule Page", html, StringComparison.Ordinal);
         }
         finally
         {

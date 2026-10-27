@@ -12,6 +12,18 @@ internal static class CanonicalContentValidator
         }
 
         var errors = new List<ContentValidationIssue>();
+
+        foreach (var duplicate in graph.Records
+            .GroupBy(record => record.Identity.Id, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            errors.Add(new ContentValidationIssue(
+                "identity.id",
+                "canonical_duplicate_id",
+                $"Duplicate canonical content id '{duplicate.Key}'.",
+                duplicate.Key));
+        }
+
         foreach (var record in graph.Records)
         {
             if (record.Provenance.Source is not null &&
