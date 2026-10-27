@@ -1,4 +1,5 @@
 using Bukit.Engine.Plugins.BuiltIn;
+using Bukit.Shared;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
@@ -100,5 +101,29 @@ public sealed class TaxonomyRedirectWriterTests : IDisposable
         var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase);
 
         TaxonomyRedirectWriter.WriteRedirects(_tempDir, "tags", terms);
+    }
+
+    [Theory(Skip = "KD-004: aliases are only trimmed before path composition; enable after the authorized Core repair.")]
+    [Trait("Category", "KnownDefect")]
+    [Trait("Defect", "KD-004")]
+    [InlineData("../../escape")]
+    [InlineData("/absolute-escape")]
+    public void WriteRedirects_AliasTraversal_ThrowsAndWritesNothing(string alias)
+    {
+        var outputDir = Path.Combine(_tempDir, "output");
+        var terms = new Dictionary<string, TaxonomyTerm>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tech"] = new TaxonomyTerm("Tech", "tech")
+            {
+                Aliases = new[] { alias }
+            }
+        };
+
+        var failure = Record.Exception(() =>
+            TaxonomyRedirectWriter.WriteRedirects(outputDir, "tags", terms));
+
+        Assert.Empty(Directory.EnumerateFiles(_tempDir, "index.html", SearchOption.AllDirectories));
+        Assert.IsType<ConfigException>(failure);
+        Assert.Equal(DiagnosticCode.BuildOutputUnsafe, ((ConfigException)failure).Code);
     }
 }

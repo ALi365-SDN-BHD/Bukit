@@ -392,7 +392,7 @@ public sealed class CoverageGateTests
 
         var platform = Job(root, "platform-tests");
         Assert.Equal(["fast-contracts"], Needs(platform));
-        Assert.Equal("${{ " + coreTrigger + " }}", TryScalar(platform, "if"));
+        Assert.Equal("${{ " + coreTrigger + " || inputs.gate == 'platform' }}", TryScalar(platform, "if"));
         Assert.Equal("${{ matrix.runner }}", TryScalar(platform, "runs-on"));
         var matrix = Assert.IsType<YamlSequenceNode>(Get(Mapping(Mapping(platform, "strategy"), "matrix"), "include"));
         Assert.Equal(
@@ -402,7 +402,8 @@ public sealed class CoverageGateTests
         {
             "Bukit.PluginHost.Tests.SystemProcessRunnerTests", "Bukit.PluginHost.Tests.PluginPathValidatorTests",
             "Bukit.Engine.Tests.ExternalToolProcessRunnerTests", "Bukit.Engine.Tests.SafeOutputFileSystemTests",
-            "Bukit.Engine.Tests.DirectoryCopyFollowSymlinksTests", "Bukit.Shared.Tests.PlatformPathHelperTests",
+            "Bukit.Engine.Tests.DirectoryCopyFollowSymlinksTests", "Bukit.Engine.Tests.OutputDirectoryCleanerTests",
+            "Bukit.Engine.Tests.AssetPipelineTests", "Bukit.Shared.Tests.PlatformPathHelperTests",
             "Bukit.Shared.Tests.PathUtilsTests", "Bukit.Shared.Tests.PlatformSafeSourceFileOpenerTests",
             "Bukit.Cli.Tests.PreviewCommandTests", "Bukit.Cli.Tests.PreviewCommandExtendedTests", "Bukit.Cli.Tests.DevCommandTests"
         })

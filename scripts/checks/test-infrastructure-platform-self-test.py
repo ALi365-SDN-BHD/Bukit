@@ -49,7 +49,7 @@ def check(workflow):
         exec(compile(selection, "<platform-selection>", "exec"), env)
         expected = {
             "Bukit.PluginHost.Tests": ["SystemProcessRunnerTests", "PluginPathValidatorTests", "PluginProtocolProbeTests"],
-            "Bukit.Engine.Tests": ["ExternalToolProcessRunnerTests", "TestInfrastructureTests"],
+            "Bukit.Engine.Tests": ["ExternalToolProcessRunnerTests", "TestInfrastructureTests", "OutputDirectoryCleanerTests", "AssetPipelineTests"],
         }
         if os_name != "Linux":
             expected["Bukit.Engine.Tests"] += ["SafeOutputFileSystemTests", "DirectoryCopyFollowSymlinksTests"]

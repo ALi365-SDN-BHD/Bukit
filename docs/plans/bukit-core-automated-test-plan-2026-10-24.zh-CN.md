@@ -648,6 +648,48 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 
 出口：以上五项每项至少含正常、失败、边界三类用例；按第 4.3 节比较的增量等价测试通过，三个安全层文件分别达到第 9 节阈值并附第 4.4 节证据。
 
+#### 5.1 执行与证据（2026-10-27，2026-10-28 整改）
+
+**阶段 5：SUCCESS（两项 Important 已修复；最终只读复核 Critical 0 / Important 0）。**
+
+基线为 `b11fc4fe`。证据根为 `/Users/ali/.local/state/bukit-verification/content-phase5/`。
+
+| 要求 | 证据 |
+|---|---|
+| 三个安全文件覆盖率 | `OutputDirectoryCleaner` **96.30% (52/54)**、`BuildTransaction` **96.46% (191/198)**、`AssetOutputPlan` **99.34% (150/151)**；`security-layer.py` 全部 passed；完整 Engine 项目 **89.73% (14578/16247)** |
+| 完整闭包 | `tests/Bukit.Engine.Tests` **2697 总数 / 2694 通过 / 0 失败 / 3 KnownDefect Skip**；`tests/Bukit.Cli.Tests` **1077 / 1076 / 0 / 1 Skip**；`tests/Bukit.Architecture.Tests` **415/415**；`core-report-inventory.py --self-test` OK |
+| 覆盖率采集 | `engine-final2` 使用 `FullyQualifiedName!~HashUtilTests.Sha256HexForDirectory_Over&FullyQualifiedName!~TaxonomyRedirectWriterTests.WriteRedirects_AliasTraversal` 排除 2 个 KnownDefect Skip 后 **2694/2694、0 跳过**，`security-layer.py` 与完整 Engine 数字取自该次；覆盖率不把 Skip 计入通过 |
+| B1 KD-002/003/004 | 已补 RED 与 KnownDefect+Skip：`results/kd002-red` 1 失败、`results/kd003-004-red` 2 失败；最终用例带 `[Trait("Category","KnownDefect")]`、`[Trait("Defect","KD-编号")]` 且 Skip；KD-004 以 Theory 覆盖 `..` 与绝对路径，并先断言未写入任何文件；KD-003 覆盖总大小与文件数两种超限 |
+| B2 增量构建 | 新增 `RenderDependencyContributorInvalidationTests`：9 个 Contributor 各自同配置确定性/相关变更/边界断言；KD-003 覆盖超限同长度改动误命中；`DirectoryHashCacheTests` 3、`RenderDependencyHasherTests` 51 个方法、`IncrementalBuildEngineTests` 46 + Async 10、manifest v3/损坏 ownership 11 |
+| B3 AsyncLocal | 新增 `AsyncLocalFlowsIntoTaskRunAndSuppressedFlowIsIsolated`：`Task.Run` 继承映射、`ExecutionContext.SuppressFlow` 隔离、事务释放后恢复逻辑路径 |
+| B4 三类用例 | 见下表逐项对照 |
+| I2 跨平台 | `.github/workflows/ci.yaml` 的 `platform-tests` 已加入 `OutputDirectoryCleanerTests` 与 `AssetPipelineTests`；实际 `CI` run `40556553321`（`gate=platform`）在 **Linux x64 / Windows x64 / Darwin arm64** 执行 canonical `platform-tests`，全部选中类 0 失败/0 Skip，Cleaner 13、AssetPipeline 30 三平台均通过；`platform.json`、`dotnet-info.txt`、逐项目 TRX 存于 `results/platform-canonical2`；临时 run `40544532088` 仅作补充。该临时分支额外修复两项既有 CI 阻塞（文档链接、public API baseline）；平台选中类与当前工作树一致，随后仅改 Trait/文档/Architecture 断言，平台类未再变化 |
+| 审查 | 2026-10-28 复审确认 2 项 Important（Cleaner 非 macOS 静默 return、KD-004 未覆盖绝对路径/越界写入）已修复；最终只读复核 Critical 0 / Important 0，7 项 Minor 非阻塞；见 `stage5-important-fixes-review.md` |
+
+**五项逐项正常/失败/边界对照：**
+
+| 项 | 正常 | 失败 | 边界 |
+|---|---|---|---|
+| 1 `OutputDirectoryCleaner` | `CleanIfExists_WithMarker_DeletesOutput`、`EnsureCanClean_EmptyOutput_Allows`、`EnsureCanClean_RequireMarkerFalse_AllowsNonEmpty` | `CleanIfExists_NonEmptyWithoutMarker_Throws`、`EnsureCanClean_Root/FilesystemRoot/GitSegment/UserHome/SymlinkBelowRoot_Throws` | `CleanIfExists_MissingOutput_DoesNothing`、`EnsureCanClean_MissingOutputSegment_Returns`、`EnsureCanClean_ExistingDirectoryWithoutReparsePoint_Returns` |
+| 2 `BuildTransaction` | `CommitPreservesAbsoluteLinksAcrossTargetsAndWithinOutput`、`NotionAndMediaWriteSetCommitsTogetherOrPreservesOldBytes(commit=true)`、`NewOutputAndCacheParentCommitsOnceWithFormalOutputIdentity` | `FailureAndCancellationLeaveTargetsUnchanged`、`SwapFailureRollsBackAndPreservesBackupWhenRecoveryFails`、`ReadOnlyReadersCoexistButWritersConflictInBothDirections`、`SeparateProcessCannotClaimOverlappingResource` | `NestedDisjointBuildRetainsItsOwnMappingAndRestoresParentScope`、`AsyncLocalFlowsIntoTaskRunAndSuppressedFlowIsIsolated` |
+| 3 `AssetOutputPlan` | `ParentAndSiteStaticSameDestination_PreservesSiteOverride`、`FollowedFileSymlinkWithoutCollision_IsCopiedAndTracked` | `StaticAndAssetsSameDestination_FailsBeforeWriting`、`AssetsAndGeneratedTokensSameDestination_FailsBeforeWriting`、`StaticAndMediaSameDestination_FailsBeforeWriting`、`FollowedFileSymlinkCollision_IsDetectedBeforeWriting` | case-sensitive APFS **30/30**、symlink 循环/敏感文件/外部中间目录、`ThemeWithoutTokens_DoesNotCreateTokenClaim`、`FollowedSymlinkToCaseVariantExternalRoot...` |
+| 4 增量构建 | `PublicLifecycle_ReplayMatchesCleanBuild(incremental:true)` 9 步逐字节一致、`IncrementalBuildEngineTests` 46、`RenderDependencyContributorInvalidationTests` 9 个相关变更断言 | KD-003 两种超限 Skip RED、`BuildManifestTests` 11 中的损坏 ownership | 9 个 Contributor 的顺序/空集合/禁用插件/内部键边界、`DirectoryHashCacheTests` 3、manifest v3 |
+| 5 输出归属 | `AfterBuildAsync_TracksVariantAndFreshnessSidecarAsOwnedOutputs`、`AfterBuildAsync_SizeConfigReduced_DeletesStaleVariants` | `AfterBuildAsync_StaleVariantRebuildFails_RemovesVariantAndProjection`、`AfterBuildAsync_NoResizeTool_CleansOwnedStaleHistoricalVariant` | `PublicLifecycle_UntrackedFileSurvivesSuccessfulWithdrawal`、`PublicLifecycle_LegacyManifestRequiresMarker`、`AfterBuildAsync_CurrentSizeUserLookalikeWithoutOwnership_IsNeverOverwritten` |
+
+**整改说明：** B1 按第 6 节只补复现与 KnownDefect，不修改 Core 缺陷代码；B2 的 Contributor 用例直接引用 9 个 Contributor 类，补上 §5.1 原先缺失的 `RenderDependencyHasherTests` 与目录哈希边界；B3 补直接 AsyncLocal 用例。I1 见 5.2；I2 已把两个测试类接入 CI `platform-tests`；canonical run `40556553321` 在 Linux/Windows/macOS 均实际执行 Cleaner 13 + AssetPipeline 30，0 失败/0 Skip。
+
+已知有效的局部证据：在 case-sensitive APFS 卷上复跑 `AssetPipelineTests` **30/30**，修复前唯一的 `ExecuteAsync_FollowedSymlinkToCaseVariantExternalRoot_IsSkippedOnCaseSensitiveFileSystem` 失败已转绿。未运行 full/release、全解决方案或远程 provider 门禁；平台证据覆盖 canonical `platform-tests` 选中类。剩余非阻塞：`SkipException.ForSkip` 在 xUnit 2.9.3 下不等于 Skip、macOS 默认卷大小写变体链接被保守跳过、Cleaner 的 `LinkTarget` 分支仍属加固。
+
+#### 5.2 独立 Core 修复任务（2026-10-28 授权）
+
+用户于 2026-10-28 确认：把测试阶段涉及的两处 Core 改动拆为独立 Core 修复任务并保留，不并入阶段 5 测试结论。
+
+| 项 | 状态 | 证据与说明 |
+|---|---|---|
+| `DirectoryCopy.TryResolveSafeTarget` | 有效修复，保留 | case-sensitive APFS 上 `AssetPipelineTests` RED 29/30 → GREEN 30/30；改用 `PathUtils.IsSameOrSubPathOf`，跳过指向外部大小写变体目标的符号链接 |
+| `OutputDirectoryCleaner` | 已修复 | 根路径归一化 RED（输出为 `/` 时抛 `ArgumentException`）；删除不可达的文件系统根分支；macOS 用户目录比较改为 `OrdinalIgnoreCase`，新增跨平台 RED→GREEN 用例 `EnsureCanClean_UserHomeCaseVariant_FollowsPlatformComparison`；`LinkTarget` 保留为防御 |
+| 后续 | 待办 | 独立 Core 复核 `LinkTarget` 防御分支与大小写变体链接策略；阶段 5 结论不替代该任务 |
+
 ### 阶段 6：Engine 输出与审计
 
 - 内置插件逐个：Alias、Archive、DataFiles、Feed、ImageProcessing、LlmsTxt、Menu、PagesIndex、Pagination、RelatedContent、SearchIndex、Sitemap、Taxonomy、Analytics。
@@ -709,9 +751,9 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | 编号 | 缺陷或待复现条目 | 阶段 |
 |---|---|---|
 | KD-001 | `SeoExternalAuditor` 硬编码读取 `routes`，发布报告用 `documents` | 8 |
-| KD-002 | `clean` 删除 `.bukit`，含手写 `plugins.yaml` 与锁文件（决定：应保留） | 5 |
-| KD-003 | `HashUtil` 对超限文件只记长度，同长度改动会误命中缓存 | 5 |
-| KD-004 | `TaxonomyRedirectWriter` 别名经 `Trim` 后拼路径，是否可越界待复现（决定：含 `..` 或绝对路径应拒绝并报错） | 5 |
+| KD-002 | **已复现，KnownDefect+Skip，待授权修复**：`clean` 删除 `.bukit`，含手写 `plugins.yaml` 与锁文件（决定：应保留） | 5 |
+| KD-003 | **已复现，KnownDefect+Skip，待授权修复**：`HashUtil` 对超限文件只记长度，同长度改动会误命中缓存；总大小与文件数两种超限均有失败用例 | 5 |
+| KD-004 | **已复现，KnownDefect+Skip，待授权修复**：`TaxonomyRedirectWriter` 别名经 `Trim` 后拼路径；`..` 与绝对路径均写入文件（决定：应拒绝并报错，且不写入任何文件） | 5 |
 | KD-005 | **已修复并通过**：`ConfigCollectionReader` 缺必填键的 `modelSchema` 条目曾静默丢弃（决定：应加载时报错）；证据见 2.1 | 2 |
 | KD-006 | 无条目的 FAQPage、HowTo 走 Article 构建器，且引用输出两份 | 6 |
 | KD-007 | `StripHtmlToText` 丢失两个 script 或 style 块之间的文本 | 6 |
@@ -785,5 +827,14 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | 2026-10-27 | 阶段 3 审计修复最终复核：Critical 0 / Important 0；A-1、M-1~M-7、D-1~D-4 关闭；完整 Engine 2671/2671、CLI 1076/1076、Architecture 415/415；15 个文件未提交 |
 | 2026-10-27 | 执行阶段 4 基线：Routing 81/81（88.89%）、Theme 179/179（79.59%）、Rendering 346/346（90.31%）、Engine 路由 118/118、Architecture 415/415；补 permalink encoding、严格 theme.yaml、`content_model.slug` 与渲染确定性用例；按审计决定 C 按模板判定文件/目录（Core） |
 | 2026-10-27 | 阶段 4 最终复核：Critical 0 / Important 0；M-2/M-3/M-5/M-8/M-9/M-10 关闭，M-1/M-4/M-6/M-7 记录为非阻塞；Routing 88.89%、Theme 79.59%、Rendering 90.31%；10 个文件未提交 |
+| 2026-10-27 | 执行阶段 5 基线：OutputDirectoryCleaner 96.15%、BuildTransaction 96.46%、AssetOutputPlan 99.34%，均 ≥95%；Engine 2682/2682、Architecture 415/415；补 Cleaner 11 个安全边界用例并修复根路径/Unix symlink 检测；增量等价与 ownership 复用既有完整 Engine 用例 |
+| 2026-10-27 | 阶段 5 安全层：OutputDirectoryCleaner 96.23%、BuildTransaction 96.46%、AssetOutputPlan 99.34%，`security-layer.py` 通过；Engine 2683/2683、Architecture 415/415；case-sensitive APFS 上 AssetPipeline 30/30，修复 DirectoryCopy symlink 外部目标跳过与 Cleaner 根/用户目录/符号链接守卫 |
+| 2026-10-27 | 阶段 5 最终复核：Critical 0 / Important 0；I-1/I-2 关闭，6 项 Minor 非阻塞；Engine 2683/2683、Architecture 415/415、Cli 1076/1076；安全文件 51/53、191/198、150/151；4 个文件未提交 |
+| 2026-10-28 | 阶段 5 审计：**FAIL**。覆盖率/回归数字属实，但 KD-002/003/004 未复现、增量证据不足、AsyncLocal 无直接用例、缺五项三类对照表；测试阶段 Core 改动未授权、跨平台未接线。§5.1 状态改回 FAIL |
+| 2026-10-28 | 阶段 5 整改：KD-002/003/004 补 RED+KnownDefect+Skip；9 个 Contributor 失效/边界用例、AsyncLocal 直接用例、五项三类对照表；Engine 2693/2695（2 Skip）、Cli 1076/1077（1 Skip）、Architecture 415/415；安全文件 51/53、191/198、150/151；I1 拆 5.2，I2 待接 CI |
+| 2026-10-28 | 阶段 5 整改续：Cleaner 删除不可达根分支、macOS 用户目录大小写比较修复（RED→GREEN）；CI `platform-tests` 加入 Cleaner/AssetPipeline，临时运行 `40544532088` 的 43/43 后由 canonical run `40556553321` 取代；Engine 2694/2696（2 Skip）、Cli 1076/1077（1 Skip）、Architecture 415/415；安全文件 52/54、191/198、150/151 |
+| 2026-10-28 | 阶段 5 I2 复跑：实际 `CI` run `40556553321`（gate=platform）在 Linux x64/Windows x64/Darwin arm64 执行 canonical `platform-tests`，全绿；Cleaner 13、AssetPipeline 30 三平台通过；平台 `platform.json`/SDK/架构/逐项目 TRX 已归档 |
+| 2026-10-28 | 阶段 5 最终复核：Critical 0 / Important 0，6 项 Minor 非阻塞；阶段 5 判定 **SUCCESS**；12 个文件未提交 |
+| 2026-10-28 | 阶段 5 两项 Important 修复复核：Cleaner 13 在 Linux/Windows/macOS 实际执行；KD-004 覆盖 `..` 与绝对路径并断言不写入；canonical run `40556553321`；Critical 0 / Important 0；判定 **SUCCESS** |
 | 2026-10-27 | 经负责人授权的独立 Core 修复（4.3，复审 N-2）：显式 `route.url` 与 permalink 只对 `.html/.htm/.xml/.json/.txt` 视为文件，其余为目录；RED 8 失败 → GREEN Routing 98/98（88.96%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05 |
 | 2026-10-27 | 经负责人授权的独立 Core 修复（4.4）：`route.url` 与 permalink 末段为静态文件扩展名时构建失败并提示 `static/`/`assets/`；RED 10 失败 → GREEN Routing 112/112（90.24%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05/14；openspec 过期映射无法执行已记录 |

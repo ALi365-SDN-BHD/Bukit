@@ -172,4 +172,54 @@ public sealed class HashUtilTests
                 Directory.Delete(tempDir, recursive: true);
         }
     }
+
+    [Fact(Skip = "KD-003: over-file-limit files only hash path+length, so same-length edits collide; enable after the authorized Core repair.")]
+    [Trait("Category", "KnownDefect")]
+    [Trait("Defect", "KD-003")]
+    public void Sha256HexForDirectory_OverFileLimit_SameLengthContentChange_ChangesHash()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-hash-over-file-limit-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "a.txt"), "aaaa");
+            File.WriteAllText(Path.Combine(tempDir, "b.txt"), "bbbb");
+            var before = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 1, maxTotalSize: 1024);
+
+            File.WriteAllText(Path.Combine(tempDir, "b.txt"), "cccc");
+            var after = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 1, maxTotalSize: 1024);
+
+            Assert.NotEqual(before, after);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact(Skip = "KD-003: over-limit files only hash path+length, so same-length edits collide; enable after the authorized Core repair.")]
+    [Trait("Category", "KnownDefect")]
+    [Trait("Defect", "KD-003")]
+    public void Sha256HexForDirectory_OverLimit_SameLengthContentChange_ChangesHash()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit-hash-over-limit-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            File.WriteAllText(Path.Combine(tempDir, "a.txt"), "aaaa");
+            File.WriteAllText(Path.Combine(tempDir, "b.txt"), "bbbb");
+            var before = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 10, maxTotalSize: 4);
+
+            File.WriteAllText(Path.Combine(tempDir, "b.txt"), "cccc");
+            var after = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 10, maxTotalSize: 4);
+
+            Assert.NotEqual(before, after);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
+    }
 }

@@ -303,6 +303,29 @@ public sealed class BuildTransactionTests : IDisposable
         Assert.Equal(outer.OutputDir, BuildTransaction.Physical(Path.Combine(_root, "public")));
     }
 
+    [Fact]
+    public async Task AsyncLocalFlowsIntoTaskRunAndSuppressedFlowIsIsolated()
+    {
+        var logical = Path.Combine(_root, "public", "nested.txt");
+        string mapped;
+        using (var transaction = BuildTransaction.Begin(Config, _root, new(), _logger))
+        {
+            mapped = BuildTransaction.Physical(logical);
+            Assert.StartsWith(transaction.OutputDir, mapped, StringComparison.Ordinal);
+
+            Assert.Equal(mapped, await Task.Run(() => BuildTransaction.Physical(logical)));
+
+            Task<string> isolatedTask;
+            using (ExecutionContext.SuppressFlow())
+            {
+                isolatedTask = Task.Run(() => BuildTransaction.Physical(logical));
+            }
+            Assert.Equal(logical, await isolatedTask);
+        }
+
+        Assert.Equal(logical, BuildTransaction.Physical(logical));
+    }
+
     public void Dispose()
     {
         Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, _originalNotionToken);

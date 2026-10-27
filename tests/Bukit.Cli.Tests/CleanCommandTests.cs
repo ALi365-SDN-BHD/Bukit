@@ -307,6 +307,26 @@ theme:
         Assert.False(Directory.Exists(outputDir));
     }
 
+    [Fact(Skip = "KD-002: clean currently deletes the whole .bukit; enable after the authorized Core repair.")]
+    [Trait("Category", "KnownDefect")]
+    [Trait("Defect", "KD-002")]
+    public async Task RunAsync_WithConfig_PreservesPluginConfigAndLockFile()
+    {
+        var pluginDir = Path.Combine(_testDir, ".bukit");
+        Directory.CreateDirectory(pluginDir);
+        var pluginConfig = Path.Combine(pluginDir, "plugins.yaml");
+        var pluginLock = Path.Combine(pluginDir, "plugins.lock.yaml");
+        File.WriteAllText(pluginConfig, "plugins: []\n");
+        File.WriteAllText(pluginLock, "locked: true\n");
+        var configPath = Path.Combine(_testDir, "site.yaml");
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", new[] { "--config", configPath }));
+
+        Assert.Equal(0, exitCode);
+        Assert.True(File.Exists(pluginConfig));
+        Assert.True(File.Exists(pluginLock));
+    }
+
     private static void CreateDirectorySymlinkOrSkip(string linkPath, string targetPath)
     {
         try
