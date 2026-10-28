@@ -690,6 +690,65 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | `OutputDirectoryCleaner` | 已修复 | 根路径归一化 RED（输出为 `/` 时抛 `ArgumentException`）；删除不可达的文件系统根分支；macOS 用户目录比较改为 `OrdinalIgnoreCase`，新增跨平台 RED→GREEN 用例 `EnsureCanClean_UserHomeCaseVariant_FollowsPlatformComparison`；`LinkTarget` 保留为防御 |
 | 后续 | 待办 | 独立 Core 复核 `LinkTarget` 防御分支与大小写变体链接策略；阶段 5 结论不替代该任务 |
 
+#### 5.3 独立 Core 修复：KD-002 保留项目元数据（2026-10-28 授权）
+
+用户明确授权“先单独修 KD-002”，本任务不重开阶段 6，不涉及 KD-003/004 或 SCSS。仅修改 CLI `CleanCommand`：停止整体删除项目根 `.bukit`，保留配置、锁文件、未知文件及已有生成元数据；正常输出和 `.cache` 继续清理。显式输出为根 `.bukit` 或子目录时（含大小写变体、即使有 marker），在任何删除前拒绝并返回 2；`.bukit-output` 等兄弟目录不误拒绝。共享 Engine cleaner 和既有路径／marker／符号链接检查不变。
+
+独立清单为 `openspec/changes/fix-kd002-clean-metadata-retention/tasks.md`。持久证据根 `R=/Users/ali/.local/state/bukit-verification/kd002-clean-preserve-s2CkH1`；闭包 8 个允许路径、0 未映射，冻结并保留原有 48 个变更路径（包括不属于本任务的 `Directory.Build.props`）。先观察真实行为 RED：`red/tests.trx` 为 **56 通过 / 9 失败 / 0 Skip**；补大小写别名回归后 `red-case/tests.trx` 为 **56 通过 / 13 失败 / 0 Skip**。失败均为元数据被删或显式保护目标未拒绝，不是编译／环境失败；原 RED 未覆盖或混记。
+
+**KD-002：SUCCESS（本次授权范围）。** 完整 `CleanCommandTests` **29** + `ProgramEntryPointTests` **29** + `CliContractTests` **11** = **69 通过 / 0 失败 / 0 Skip**，实际退出码 0；见 `R/green.log`、`R/green/tests.trx`、`R/green-receipt.json`。原 KD-002 Skip/KnownDefect 排除已移除；既有路径、marker、符号链接和 CLI 契约用例保持启用。`git diff --check` 通过。
+
+一次独立专项复核 `R/specialty-review.md` 与一次控制器 delta-only 最终复核 `R/final-unified-review.md` 均为 **Critical 0 / Important 0 / Minor 0**。`R/final-review-scope.json` 仅生成一次；无跨任务交集、失效证据、未覆盖变更或未结阻塞，复用命中的专项证据，仅核对三项公开行为焦点。759 项运行输入保持通过时的字节；范围外原有变更（尤其 `Directory.Build.props`）不变。复核后仅回填结果／清单状态并做最终静态核对，不重跑未变化 fixture；原始证据、闭包、分类、缓存、队列及指标均持久保存在 R。
+
+确切 GREEN 命令：
+
+```sh
+dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter "FullyQualifiedName~CleanCommandTests|FullyQualifiedName~ProgramEntryPointTests|FullyQualifiedName~CliContractTests" --logger "trx;LogFileName=tests.trx" --results-directory /Users/ali/.local/state/bukit-verification/kd002-clean-preserve-s2CkH1/green
+git diff --check
+```
+
+仅验证本机 macOS arm64；不运行完整 Engine／CLI、全解决方案、覆盖率或 full/release 门禁，不自动提交、推送、合并。
+
+#### 5.4 独立 Core 修复：KD-004 redirect writer 边界（2026-10-28 授权）
+
+用户“按计划 执行”后，按 `docs/plans/2026-10-28-core-residual-risk-next-steps.md` 的交接先单独修 KD-004；本批不包含 KD-003、SCSS、阶段 7 或既有阶段 6 重验。仅修改内部 `TaxonomyRedirectWriter`，不新增 aliases 入口，不改共享路径策略、公开 API、依赖或 CI。普通生产构造链尚未发现非空 Aliases 入口；已证明的是 writer 函数级边界，不夸成已证实的远程利用。
+
+每次 writer 调用先校验全部 aliases 和最终 `index.html` 路径，再执行原写入；危险 alias、后置非法项、逃逸 routePrefix 及现有目录／文件符号链接均须以 `ConfigException` / `BuildOutputUnsafe` 拒绝，不创建目录／文件、不覆盖既有字节、不追加生成路径。保留正常／空／自别名、安全层级、Unicode、routePrefix、原 HTML／UTF-8 及路径记录行为。此预检不承诺整个 `AfterBuild` 或任意 I/O 失败的事务性。
+
+独立清单 `openspec/changes/fix-kd004-taxonomy-redirect-boundary/tasks.md`。持久证据根 `R=/Users/ali/.local/state/bukit-verification/kd004-redirect-boundary-bh6Eqt`；7 个允许路径全部映射，冻结原有 55 个变更路径的基线。`R/red/tests.trx` 为 **33 通过 / 19 预期失败 / 0 Skip**，实际退出码 1；包括不安全路径被写入、后置非法输入发生部分写入、外部链接目标被覆盖和错误类型不符，无编译／环境失败。
+
+**KD-004：SUCCESS（本批授权范围）。** 最终完整三类专项 `R/review-green/tests.trx` 为 **53 通过 / 0 失败 / 0 Skip**（writer 27 + page creator 23 + ensure terms 3），实际退出码 0；原 KD-004 Skip/KnownDefect 排除已移除。首轮 `R/green/tests.trx` 的 52/52 仅为候选证据：专项复核发现 Important I01（NUL 自别名在最终路径校验前被跳过），`R/review-red/tests.trx` 以真实 sentinel 覆盖复现 **1 失败 / 52 通过**，移动校验顺序后才得到最终 53/53；全部历史原件保留。
+
+一次专项复核 `R/specialty-review.md`、仅 I01 修补范围的 `R/specialty-rereview-I01.md` 已关闭唯一 Important；控制器唯一最终复核 `R/final-unified-review.md` 为 **Critical 0 / Important 0 / Minor 0 remaining**。`R/final-review-scope.json` 仅生成一次，无交集、失效证据、未覆盖改动或未结阻塞；复用当前命中缓存，仅核对两项公开行为焦点。722 项运行输入保持通过时的字节，范围外既有改动不变；复核后仅回填结果／清单并最终静态核对，未为刷新证据重跑 fixture。
+
+最终确切 GREEN 命令（原 RED 同过滤、结果目录 R/red；I01 补修 RED 为 R/review-red）：
+
+```sh
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter "FullyQualifiedName~TaxonomyRedirectWriterTests|FullyQualifiedName~TaxonomyEnsureTermsTests|FullyQualifiedName~TaxonomyPageCreatorTests" --logger "trx;LogFileName=tests.trx" --results-directory /Users/ali/.local/state/bukit-verification/kd004-redirect-boundary-bh6Eqt/review-green
+git diff --check
+```
+
+仅安排本机 macOS arm64；不跑完整 Engine、覆盖率、跨平台、全解决方案或 full/release 门禁，不提交／推送／合并。收口后停在 KD-003 策略确认点。
+
+#### 5.5 独立 Core 修复：KD-003 模板哈希预算降级（2026-10-28 授权方案 A）
+
+用户在 KD-004 收口后确认方案 A：保留默认每目录 10,000 文件／100 MiB 内容预算，超限不返回正常不完整摘要，当前变体关闭增量复用并继续完整渲染。不采用随机摘要、mtime 或只增大阈值，不新增公开 API、配置、依赖或 manifest 字段。只在 `HashUtil` 提供内部预算信号、`VariantManifestPlanner` 捕获该信号复用既有非增量分支；`DirectoryHashCache` 保持生产代码不变，工厂异常不缓存。一般 I/O、权限或其他 InvalidOperationException 不吞成降级；清空渲染复用 entries，但保留匹配输出根的归属及其他 manifest 状态。
+
+独立清单 `openspec/changes/fix-kd003-hash-budget-fallback/tasks.md`；持久证据根 `R=/Users/ali/.local/state/bukit-verification/kd003-budget-fallback-SkfsyV`。12 个允许路径全部映射、原有 60 个变更路径建立当前基线；范围外不得覆盖。原生产实现下 `R/red/tests.trx` 为 **147 通过 / 21 预期失败 / 0 Skip**，实际退出码 1；其中六项真实 planner→Scriban page/list 输出对照覆盖文件数／大小超限和 child/parent/user 三种布局，同长度且恢复 mtime 后产物仍为旧内容。其余 RED 是不完整摘要、缓存／日志及 manifest 降级契约，不是编译／环境失败。
+
+最终 fixture 使用现有 `DictionaryContentBodyStore` 及 body key 提供真实正文，不走无关的 inline-body 指纹首轮转换路径；页面／列表字节、同长度／同 mtime、降级、恢复普通复用及 ownership 断言均保留。原生产文件精确恢复至任务开始字节后，最终 `R/body-red/tests.trx` 再次得到 **147 通过 / 21 预期失败 / 0 Skip**，六组真实产物均为旧页面字节。原 `R/green/` 的六项普通复用控制失败和 `R/fixture-red/` 的正文供应错误保留为诊断记录，不算通过或最终有效 RED。
+
+最终结果：**SUCCESS（仅本批 KD-003 方案 A）**。`R/body-green/tests.trx` 为 **168 通过 / 0 失败 / 0 Skip**，实际退出码 0；`runtime-green-cache.json` 已记录并检查 HIT，HEAD、闭包内容、确切命令、环境设置状态及 SDK 均匹配。一次专项复核 `R/reviews/specialty-v1.md` 和唯一 delta-only 最终复核 `R/reviews/final-delta-v1.md` 各为 **Critical 0 / Important 0 / Minor 0**，无需补修；最终静态、范围保护、writer 和 metrics 结果记录于 `R/completion.json`。保留原 KD-003 RED 的输入／历史证据；已确认 A 的用例要求超限不提供可复用摘要，不再要求超限仍返回另一个完整摘要。
+
+确切最终 GREEN 命令（最终 RED 同过滤，独立结果目录 R/body-red）：
+
+```sh
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter "FullyQualifiedName~HashUtilTests|FullyQualifiedName~DirectoryHashCacheTests|FullyQualifiedName~LibraryDiagnosticOutputTests|FullyQualifiedName~RenderPipelineTests|FullyQualifiedName~IncrementalBuildEngineTests|FullyQualifiedName~IncrementalBuildEngineAsyncTests" --logger "trx;LogFileName=tests.trx" --results-directory /Users/ali/.local/state/bukit-verification/kd003-budget-fallback-SkfsyV/body-green
+git diff --check
+```
+
+本批不执行 SCSS、阶段 7、全 Engine、覆盖率、跨平台、全解决方案或 full/release 门禁，不提交／推送／合并；KD-002/004 与阶段 6 原授权结论不扩展也不重跑。
+
 ### 阶段 6：Engine 输出与审计
 
 - 内置插件逐个：Alias、Archive、DataFiles、Feed、ImageProcessing、LlmsTxt、Menu、PagesIndex、Pagination、RelatedContent、SearchIndex、Sitemap、Taxonomy、Analytics。
@@ -700,6 +759,235 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 - 对阶段 0 的当前 Core 报告清单逐项做契约校验，使用各报告声明版本对应的本地 schema。
 
 出口：Engine 达到第 9 节的单项目覆盖率下限；当前 Core 报告清单中的每份报告均有真实生成的通过用例，以及按对应 schema 拒绝错误字段或类型的失败用例。
+
+**现行进度见 §6.6。** §6.1–6.5 保留历史失败、撤回候选和当时 PARTIAL/BLOCKED 状态，不是当前完成证据。
+
+#### 6.1 首批测试与未完成项（2026-10-28）
+
+**阶段 6：PARTIAL，未达到出口。** 本批只补测试和记录，不修改 Core 或公开 schema。证据根 `R` 为 `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-GrS7jP`；结果与覆盖率按 `R` 中实际回执核对，历史阶段 5 覆盖率不冒充本批结果。
+
+| 项 | 本批证据与边界 |
+|---|---|
+| KD-007 搜索正文 | `SearchIndexBuilderTests.StripHtmlToText_SeparateBlocks_PreserveTextBetweenThem` 的 script/style 两个实际输入均 RED：预期保留 `visible-between`，实际仅 `visible-after`；见 `R/kd007-red/kd007-red.trx`。当时回归用例标记 `KnownDefect`、`Defect=KD-007` 和明确 Skip；xUnit 对跳过的 Theory 记为一条，不能算修复通过。`MarkdownBodyProjection` 和 `llms-full.txt` 也间接使用此剥离函数；用户后来授权修复，但安全边界阻塞，见 §6.4。 |
+| Engine 报告负例 | `TestInfrastructureTests` 读取 basic 站点真实构建产生的 14 份报告，每份先按自身清单绑定 schema 校验原件，再把必填字段改为错误类型并断言该字段被拒绝；含 Analytics v2。该证据不包含 CLI、PluginHost、无本地 schema 的四项，也不等同其余插件/审计行为已覆盖。 |
+| 定向回归 | `R/targeted/stage6-targeted.trx`：`SearchIndexBuilderTests` 与 `TestInfrastructureTests` 合计 **80 通过 / 0 失败 / 1 KnownDefect Skip**。首次编译曾因局部变量名冲突失败，改名后通过；没有将 Skip 计作通过。 |
+| Engine 项目专项 | 首次带覆盖率的完整 Engine 测试 **2693 通过 / 1 失败 / 4 KnownDefect Skip**，见 `R/engine/engine.trx`。失败为 `BuildAsync_ScssEnabled_PreservesSourceAndCompilesOnceAcrossLanguages` 找不到测试用 `sass.log`；相同覆盖率设置下单独执行 **1/1**（`R/scss-diagnostic/scss-diagnostic.trx`），尚未确定整套失败原因，不能以单测通过替代整套 GREEN，也不能将失败采集作为阶段出口覆盖率证据。后续诊断与最新专项见 §6.2。 |
+| CLI 报告 | 四种 CLI 报告均调用真实 writer、读取实际文件并校验对应 schema 及错误类型；三个原先仅内存序列化的用例现验证真实文件。CLI 错误 envelope 同时验证真实入口写到 stderr 的实例及负例；`R/cli-targeted2/cli-targeted.trx` 为 **49 通过 / 0 失败 / 1 KnownDefect Skip**，`R/cli-stderr/cli-stderr.trx` 为 **1/1**。完整 CLI 专项 `R/cli/cli.trx` 为 **1076 通过 / 0 失败 / 2 KnownDefect Skip**（KD-002、KD-011）；测试项目变更的 Architecture owner `R/architecture/architecture.trx` 为 **415/415**。首次 SEO insights 校验发现原测试反射构造了不符合 schema 的占位 route key，后改用符合 schema 的输入，原有其他用例不变。 |
+| KD-011 CLI error 契约 | 公开 `CliErrorRenderer.RenderJson` 接受 null command 并省略字段，但本地 schema 要求字段存在；正确行为测试 RED（`R/cli-error-red/cli-error-red.trx`，`$: missing command`），现标 KnownDefect+Skip。真实 CLI 入口无命令时直接显示帮助；未声称该输入来自当前入口。修复需要另行决定 API/schema 兼容方式并授权。 |
+| PluginHost 报告 | 正常真实 reporter 输出按显式本地绑定验证 schema，并对 `success` 错误类型做负例；`R/plugin-targeted/plugin-targeted.trx` 为 **5 通过 / 0 失败 / 1 KnownDefect Skip**，完整 PluginHost 专项 `R/pluginhost/pluginhost.trx` 为 **226 通过 / 0 失败 / 1 KnownDefect Skip**。生产 writer 的 `resourceLimitExceeded` 与 `networkPermissionGranted` 两个输入均被本地 schema 拒绝（`R/plugin-report-red/plugin-report-red.trx`，**2 RED**），登记为 KD-012；该报告不在 payload 声明 schema ID。 |
+| 待完成 | 当时其余内置插件和实际发布投影、搜索/SEO/GEO/审计行为矩阵、KD-011/012 的公开契约决定，以及每个无本地 schema 项的验收处理仍待完成。`agent-manifest` 当时声明 schema 但缺本地文件；metrics、search-index-index、theme-catalog 无声明和本地 schema。后续用户授权及本地 schema 状态见 §6.3。 |
+| KD-006 口径 | 空 FAQ/HowTo 落入 Article 构建分支仍待确认正确行为；Article 的 `citation` 与独立 WebPage 的 `mentions` 同时输出是 `guide/user/17-geo.md` 明示的兼容契约，不将其视为重复缺陷。 |
+
+**内置输出的现有测试入口盘点**：以下数字为 `R/engine/engine.trx` 中对应类的 Passed 行，来自有一项失败的整套运行；仅说明所列测试实际通过，不代表整套 GREEN 或该领域风险矩阵已完成。Feed、Sitemap、SearchIndex、LlmsTxt 不在当前内置插件注册表中，须以发布投影和真实构建为证据，不能只测同名旧插件类。
+
+| 输出 | 现有执行入口与 Passed 行 |
+|---|---|
+| Alias / Archive / DataFiles | `AliasPluginTests` 8；`ArchivePluginTests` 9；`DataFilesPluginTests` 68 |
+| ImageProcessing / Menu / PagesIndex | `ImageProcessingPluginTests` 47；`MenuPluginTests` 5；`PagesByIdDataPluginTests` 6 |
+| Pagination / RelatedContent / Taxonomy | `PaginationPluginDerivePagesTests` 14 与 `PaginationPluginCapabilityTests` 1；`RelatedContentPluginTests` 8；`TaxonomyPluginDerivePagesTests` 24 |
+| Analytics | `AnalyticsProviderTests` 11、`AnalyticsHtmlTransformTests` 24、`AnalyticsReportWriterTests` 8 |
+| Feed | `RssGeneratorTests` 20；`I18nMergedFeedProjectionTests` 5，含真实构建与投影接线 |
+| LlmsTxt | `LlmsProjectionIntegrationTests` 1；`I18nMergedFeedProjectionTests` 中真实多语言 GEO 构建通过 |
+| SearchIndex | `SearchIndexBuilderTests` 34 Passed、1 KD-007 Skip；`DefaultSearchIndexBuilderTests` 3；真实多语言 search 构建用例通过 |
+| Sitemap | `SiteEngineIntegrationTests.BuildAsync_FilteredLists_FromSiteYaml_RendersHtmlSitemapAndSeo` 与多语 hreflang/sitemap 构建用例通过 |
+
+本批定向命令：
+
+```sh
+R=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-GrS7jP
+
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --filter 'FullyQualifiedName~SearchIndexBuilderTests|FullyQualifiedName~TestInfrastructureTests' --logger 'trx;LogFileName=stage6-targeted.trx' --results-directory "$R/targeted"
+
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --settings coverage.runsettings --collect 'XPlat Code Coverage' --logger 'trx;LogFileName=engine.trx' --results-directory "$R/engine"
+
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --settings coverage.runsettings --collect 'XPlat Code Coverage' --filter 'FullyQualifiedName~BuildAsync_ScssEnabled_PreservesSourceAndCompilesOnceAcrossLanguages' --logger 'trx;LogFileName=scss-diagnostic.trx' --results-directory "$R/scss-diagnostic"
+
+dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --logger 'trx;LogFileName=cli.trx' --results-directory "$R/cli"
+
+dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release --logger 'trx;LogFileName=architecture.trx' --results-directory "$R/architecture"
+
+dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Release --logger 'trx;LogFileName=pluginhost.trx' --results-directory "$R/pluginhost"
+```
+
+#### 6.2 SCSS 与并发日志诊断（2026-10-28）
+
+**阶段 6 仍为 PARTIAL。** 本节证据根 `D` 为 `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-scss-diagnostic-ks3tlq`；继续只修改测试和计划，未修改 Core 或公开 schema。
+
+| 项 | 诊断结果与边界 |
+|---|---|
+| SCSS 偶发失败 | 首次失败耗时约 3.196 秒且缺少 `sass.log`；Sass 可执行文件探测的超时为 3 秒，但原失败没有记录探测日志，不能据此认定超时为根因。补充失败时输出 debug/warning 的断言后，同覆盖率设置下 `SiteEngineIntegrationTests` **118/118**，随后两次 Engine 专项中的 SCSS 用例也通过；问题未复现，根因未明。`D/site-engine/site-engine.trx`、`D/engine/engine-diagnostic.trx`、`D/engine-after/engine-after.trx`。 |
+| 另一次专项失败 | 修改测试替身前的完整 Engine 测试 **2693 通过 / 1 失败 / 4 Skip**；`BuildAsync_IncrementalBuildDeletesRemovedPages` 在并行页面渲染警告路径中抛 `List<T>.AddWithResize` 异常（`D/engine.log`）。测试私有 `TestLogger` 原用未同步的列表；直接并发回归在修改前 RED，预期 20000 条，实际 15143 条（`D/logger-red/logger-red.trx`）。这证实测试替身并发不安全，且与堆栈一致，但不能仅凭此证明该次异常的全部因果。 |
+| 测试替身修正 | 四级日志改为 `ConcurrentQueue<string>`，并保留并发回归；改后回归、增量构建失败用例和 SCSS 用例 **3/3**（`D/logger-green/logger-green.trx`）。公开 `ILogger` 未规定并发要求；Engine 并行渲染会经 `BuildDiagnosticLogger` 转发到调用方 logger，而该转发不串行化。调用方契约或 Core 是否须保障串行化需另行决定，不视为已修复。 |
+| 最新 Engine 专项 | 改后带覆盖率运行 **2695 通过 / 0 失败 / 4 KnownDefect Skip**（`D/engine-after/engine-after.trx`）；四个 Skip 分别为 KD-003 的两条、KD-004 和 KD-007，均不算通过。TRX 引用的覆盖率附件按第 1.4 节归并，`Bukit.Engine` 为 **89.73% (14578/16247)**，超过 70% 单项目门槛（`D/engine-after-coverage-summary.json`）；该数值不消除 Skip、未定契约或其余行为矩阵缺口。 |
+| 当时待决 schema | `agent-manifest` 已声明 v1 schema 但当时无本地文件；metrics v2、search-index-index v1、theme-catalog 当时无本地绑定。用户后来选择补齐四项，执行结果见 §6.3。theme-catalog 的 `version` 是主题版本，不能当 schema 版本。KD-007、KD-011、KD-012、空 FAQ/HowTo 与 `ILogger` 并发契约仍需单独决定和授权。 |
+
+诊断命令（完整专项在测试替身修正前后各一次，保留两次结果）：
+
+```sh
+D=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-scss-diagnostic-ks3tlq
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --settings coverage.runsettings --collect 'XPlat Code Coverage' --filter 'FullyQualifiedName~Bukit.Engine.Tests.SiteEngineIntegrationTests' --logger 'trx;LogFileName=site-engine.trx' --results-directory "$D/site-engine"
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --settings coverage.runsettings --collect 'XPlat Code Coverage' --logger 'trx;LogFileName=engine-diagnostic.trx' --results-directory "$D/engine"
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~TestLogger_ConcurrentCalls_PreserveAllMessages' --logger 'trx;LogFileName=logger-red.trx' --results-directory "$D/logger-red"
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~TestLogger_ConcurrentCalls_PreserveAllMessages|FullyQualifiedName~BuildAsync_IncrementalBuildDeletesRemovedPages|FullyQualifiedName~BuildAsync_ScssEnabled_PreservesSourceAndCompilesOnceAcrossLanguages' --logger 'trx;LogFileName=logger-green.trx' --results-directory "$D/logger-green"
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --settings coverage.runsettings --collect 'XPlat Code Coverage' --logger 'trx;LogFileName=engine-after.trx' --results-directory "$D/engine-after"
+```
+
+#### 6.3 四项本地 schema（2026-10-28）
+
+用户选择补齐四项本地 schema、真实产物与错误类型负例；未授权修改 Core 生产输出或修复既有缺陷。证据根 `S` 为 `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-schemas-MBpoak`。**阶段 6 仍为 PARTIAL。**
+
+| 项 | 本批结果与边界 |
+|---|---|
+| 四项绑定 | 新增 `agent-manifest.v1.schema.json`、`metrics.v2.schema.json`、`search-index-index.v1.schema.json` 和 `theme-catalog.schema.json`。前者匹配产物已声明的 schema ID；metrics 和 search-index-index 分别按已有 `version` 2、1 在清单中显式绑定；theme-catalog 无格式版本，清单不把其主题 `version` 当 schema 版本。后三项产物仍不声明 schema ID；本地绑定不代表对应 URL 已部署。 |
+| 测试先行 | 四项真实产物测试先因缺失各自 schema **4 RED**（`S/schemas-red/schemas-red.trx`），补齐后 **4/4**（`S/schemas-green/schemas-green.trx`）。复核发现版本负例只测了错误类型，改为同类型错误版本后再次 **4/4**（`S/schemas-version/schemas-version.trx`）。测试读取多语言构建的根及 en/zh-CN agent manifest、metrics、search.index.json，以及主题 writer 写出的非空和空目录；每项校验原件，并拒绝根级和有条目时的嵌套错误类型。三项版本化输出还验证同类型错误版本被拒绝。 |
+| 清单检查器 | 原检查器不允许无 payload schema 声明但有版本的显式绑定；新增自检先以 `Invalid explicit local binding` RED（`S/inventory-red.log`），再最小调整检查器。`python3 -B scripts/checks/core-report-inventory.py --self-test` **6 项通过**，当前清单为 **24 项 / 24 个本地 schema**；KD-011/012 契约冲突并未因此修复。 |
+| 专项与消费者 | 修改版本负例后的完整 Engine **2699 通过 / 0 失败 / 4 KnownDefect Skip**（`S/engine-final/engine-final.trx`）；主题目录测试 **4/4**、微信同步 loader/invoker 测试 **19/19**、Labs 主题命令测试 **11/11**，分别见 `S/theme`、`S/wechat`、`S/labs`，其直接消费者闭包未受测试代码调整影响。微信消费者现有测试使用自己的旧式 `bukit.agent-manifest` / `1.0.0` fixture，loader 不检查该标识；本批 schema 按当前 Core 声明的 ID / `1.0` 校验，不声称兼容旧式输入或已对本批真实构建做消费者端到端验证。 |
+| 未完成 | 本地 schema 使用仓库既有、限定词汇且 fail-closed 的 `LocalJsonSchema` 检查，未用独立 Draft 2020-12 验证器交叉验证。四项本地缺失已补，不代表所有报告现行契约均通过：KD-007、KD-011、KD-012、其他 KnownDefect Skip、SCSS 偶发根因以及 §6.1 的行为矩阵仍未完成。 |
+
+本批确切验证命令：
+
+```sh
+S=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-schemas-MBpoak
+python3 -B scripts/checks/core-report-inventory.py --self-test
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~ReportSchemaContractTests' --logger 'trx;LogFileName=schemas-green.trx' --results-directory "$S/schemas-green"
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --logger 'trx;LogFileName=engine.trx' --results-directory "$S/engine"
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~ReportSchemaContractTests' --logger 'trx;LogFileName=schemas-version.trx' --results-directory "$S/schemas-version"
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --logger 'trx;LogFileName=engine-final.trx' --results-directory "$S/engine-final"
+dotnet test tests/Bukit.Theme.Tests/Bukit.Theme.Tests.csproj -c Release --filter 'FullyQualifiedName~ThemeCatalogWriterTests' --logger 'trx;LogFileName=theme.trx' --results-directory "$S/theme"
+dotnet test tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj -c Release --filter 'FullyQualifiedName~WechatSyncInputLoaderTests|FullyQualifiedName~WechatSyncPluginInvokeCompatibilityTests' --logger 'trx;LogFileName=wechat.trx' --results-directory "$S/wechat"
+dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj -c Release --filter 'FullyQualifiedName~ThemeCommandTests' --logger 'trx;LogFileName=labs.trx' --results-directory "$S/labs"
+```
+
+#### 6.4 KD-007 授权修复受阻（2026-10-28）
+
+**当时 KD-007：BLOCKED，未修复；阶段 6 仍为 PARTIAL。** 用户已授权修复 KD-007。证据根 `K` 为 `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-kd007-tMUI8h`。真实构建回归确认 `search.json` 丢字；文档 Markdown 和 `llms-full.txt` 也调用此剥离函数，但该基线构建的断言在 search 处即失败，并未分别证明这两个产物的结果。该次生产代码尝试已撤回；用户随后确认扩大至 Markdown 消费路径，结果见 §6.5。
+
+| 证据 | 结果与边界 |
+|---|---|
+| 原始 RED | `K/red2/kd007-red2.trx`：4 个 script/style 大小写及属性回归和 1 个真实构建回归均失败，实际搜索正文丢失块间可见文字。首次 `K/red/kd007-red.trx` 中的集成失败使用了会转义 HTML 的 Markdown 输入，不作为隐藏块回归证据。 |
+| 安全边界 | 简单清除标签状态会把相似结束标签后的隐藏正文暴露出来（`K/security-red/security-red.trx`）；使用现有扫描器的宽松闭合匹配又会接受 `</ script>` 和非 ASCII 空格（`K/invalid-end-red/invalid-end-red.trx`）。恢复原始生产代码后，`K/baseline-red/baseline-red.trx` 直接确认合法换行/制表符属性也会让隐藏块正文进入文本输出；这项风险原本就存在，尚未修复。 |
+| 引号属性回归 | 进一步尝试在开标签带有引用中的 `>` 和 `</script>` / `</style>` 时将隐藏正文输出（`K/quoted-red/quoted-red.trx`，2 RED）。恢复本轮前的生产代码后，同两项 **2/2**（`K/quoted-baseline/quoted-baseline.trx`），确认该泄露是本次尝试引入的回归，不能保留该生产改动。先前整套或定向通过只对应中间实现，不是当前修复证据。 |
+| Markdown 消费路径的独立风险 | 对恢复后的 Release 二进制直接调用方法（`K/consumer-check/observed.txt`）：输入 `<script>hidden-before</ script><a href="/private">hidden-link</a>hidden-after</script>visible`，完整输入的 `StripHtmlToText` 返回 `visible`，但 `MarkdownBodyProjection.FromHtml` 输出隐藏正文和链接。宽松扫描将 `</ script>` 视为结束，再在剥离前提取内部链接，因此单改剥离函数无法阻止该路径的泄露。`llms-full.txt` 调用同一 Markdown 投影，但尚未对该具体输入运行真实构建验证。 |
+| 当时测试状态 | 保留安全回归和待修用例；当时基线本就失败的用例明确标记 `KnownDefect`、`Defect=KD-007`、Skip，Skip 不算通过。`InvalidClosingTag` 与 `QuotedOpeningAttribute` 保持启用，以防后续修复引入已观察到的泄露。恢复后定向运行 **20 通过 / 0 失败 / 5 Skip**（`K/baseline-status/baseline-status.trx`），未在该次恢复后重新运行完整 Engine。 |
+| 待决定 | 逐个补丁已暴露解析器结构性问题。建议在 `StripHtmlToText` 内正确识别引用属性及严格的 script/style 边界，安全处理未闭合隐藏块；同时在 `MarkdownBodyProjection` 处理上述独立的隐藏链接泄露，保留注释、实体、空格及合法链接的现有回归。不增加依赖，不改变共享扫描器、其他缺陷或公开 schema；实现前需用户确认扩大至 Markdown 消费路径。 |
+
+#### 6.5 扩大授权后的解析器验证（2026-10-28）
+
+**历史状态：当时 KD-007 为 BLOCKED，阶段 6 为 PARTIAL；现行决议和验证见 §6.6。** 用户当时确认同时处理剥离函数和 Markdown 隐藏链接，不新增依赖、不修改共享扫描器。证据根 `A` 为 `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-kd007-authorized-5wNoGe`。
+
+| 证据 | 结果与边界 |
+|---|---|
+| 基线 RED | 启用原有回归并补充隐藏链接、引用属性、大小写、空白、脚本转义和真实构建后，`A/red/red.trx` 为 **24 失败 / 64 通过**；失败包括丢字和 Markdown 提取隐藏链接。 |
+| 中间候选 | 无依赖的有界扫描候选曾通过定向 **95/95**（`A/focused-final/focused-final.trx`），完整 Engine 为 **2740 通过 / 0 失败 / 3 KnownDefect Skip**（`A/engine/engine.trx`）。这些结果只属于随后撤回的候选，不是当前修复或阶段出口证据。 |
+| 候选回归 | 候选在 `textarea` 等原始文本中把脚本示例当成真实标签，丢掉后续内容：`A/raw-context-red/raw-context-red.trx` 为 **8 RED**，恢复基线后同八项均通过。SVG CDATA 与带引号属性组合下，候选把实际 script 元素内的正文和链接输出：`A/svg-red/svg-red.trx` 为 **2 RED**；恢复基线后搜索剥离用例通过，但 Markdown 用例仍失败（`A/baseline-red/baseline-red.trx`）。Chromium `DOMParser` 确认该输入中的标记位于 SVG script 元素内。 |
+| 参考解析器边界 | Chromium 对照的 1728 个脚本边界组合未暴露候选中的隐藏标记或丢失可见标记（`A/browser-reference-summary.txt`），但不覆盖上述 SVG 反例，也不证明完整 HTML 安全。仓库其他项目使用的 AngleSharp 在 10 个畸形脚本转义组合上与 Chromium 对可见链接的判断不同（`A/reference.log`），不能未经验证直接视为安全替代。 |
+| 当前状态 | 本轮两处生产代码均已恢复至尝试前内容；保留新增回归。恢复后失败的测试方法标 `KnownDefect`、`Defect=KD-007` 和明确 Skip，基线通过的安全回归保持启用。恢复后定向运行 **78 通过 / 0 失败 / 12 Skip**（`A/baseline-status/baseline-status.trx`），Skip 不计通过；未在本轮回滚后重跑完整 Engine。 |
+| 下一步 | 自行实现的有界扫描器已出现多处结构性边界，不能继续以局部通过认定安全。需用户决定是否授权评估并在证据支持时为 Core 增加合适的 HTML 解析依赖，或明确接受保守丢弃部分可见文本；任何候选都必须先通过 SVG、双重转义、真实产物及既有回归。 |
+
+#### 6.6 审计前按指定顺序完成阶段 6 的历史证据（2026-10-28）
+
+**历史记录，当前验收见 §6.7。** 独立审计曾因 GEO 原始条目与 template/noscript/raw-text 投影反例重新打开 3/4/5；其修复与新专项／复核已在 §6.7 闭环。以下原执行数字、失败及复核均保留为历史证据，不冒充修复后的当前验收。
+
+用户要求严格按“行为矩阵 → KD-011/012 → FAQ/HowTo 与 logger → 独立 KD-007 → 报告、专项、覆盖率”执行。本轮在 `codex/stage6-completion` worktree 实施，原工作树 24 个未提交文件逐字节保留；不自动提交、推送或合并。唯一实施清单为 `openspec/changes/complete-core-stage6-validation/tasks.md`，行为及 24 报告正反例台账见 `docs/testing/core-stage6-behavior-matrix.md`。
+
+证据根 `R=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-completion-8WEr6X`。以下结果仅对应本轮，不复用已撤回候选的通过结果。
+
+| 顺序 | 决议与证据 |
+|---|---|
+| 1 行为矩阵 | 逐项盘点十个现行插件与 Feed/Sitemap/Search/Llms 发布投影，核对 76 个测试方法引用；`01-owner.json`。盘点不是运行通过证明。 |
+| 2 KD-011/012 | 先观察 CLI 1 RED、reporter 2 RED；只从 CLI schema required 移除 command，并声明 reporter 两个可选字段，保持输出字节和版本。CLI 37/37、PluginHost 26/26、Architecture owner 5/5；`02-*`。错误类型与未知字段仍拒绝。 |
+| 3 FAQ/HowTo、logger | 空集合不生成无效 FAQPage/HowTo，不伪造 Article；warn/strict/off 分别处理 missing-list 诊断。8 RED/2 个既有 off-mode 通过 → GEO/诊断/报告消费者 85/85。ILogger 明确要求线程安全，不保证跨 worker 顺序；ConsoleLogger 21/21，含 2000 条并发 JSON；`03-*`。citation 与独立 mentions 并存保留。 |
+| 4 独立 KD-007 | 原实现 30 RED/103 通过；复用中央已固定的 AngleSharp 1.5.2（Engine 新引用，无新版本），DOM 处理 namespace/CDATA/raw-text，源范围防护已证实的脚本转义缺陷。定向 133/133、0 Skip，含 search/Markdown/llms-full 三个独立真实构建断言；Architecture owner 43/43。与 Chromium 参考的 1728 组合及 Unicode/换行前缀变体共 6912 输入零差异；`04-*`。无 Native AOT 发布证明。 |
+| 5 收口 | 清理 5 个过期 knownGap，逐项绑定 24 报告真实生成正反例。完整 Engine 2764 通过/0 失败/3 个既有 KnownDefect Skip，行覆盖 14686/16335 = 89.91% ≥70%；CLI 100/100、PluginHost 26/26、Shared ConsoleLogger 21/21、Architecture 直接 owner 48/48。清单自检 6/6。见 `05-verification-summary.json` 与 `05-*/` TRX；第五步专项及唯一最终增量复核均无 Critical/Important，实施清单已全部完成。 |
+
+首轮完整 Engine 发现旧 `SeoPublisherJsonLdTests` 使用空 FAQ 来检查 publisher，2763 通过/1 失败/3 Skip；补真实问答并保留 publisher 断言后，直接消费者 51/51，完整重跑得上表结果。首轮失败覆盖率不计出口。矩阵 76 个引用在当前 TRX 均 Passed；24 报告逐项真实原件通过，字段错误类型被拒绝。
+
+SCSS 处置：完整 Engine 本次通过，保留缺 sass.log 时的诊断；历史偶发失败根因仍未明，之后通过不构成根因修复。KD-002/003/004 不在本轮修复授权内，3 个 Engine Skip 不计通过。阶段 7 二十次稳定性、其他平台、全 Core 覆盖率、全解决方案和发布门禁均不在本轮完成声明内。
+
+本轮最终确切专项命令（R 取本节证据根）：
+
+```sh
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --settings coverage.runsettings --collect "XPlat Code Coverage" --logger "trx;LogFileName=engine.trx" --results-directory "$R/05-engine-after"
+dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release --filter "FullyQualifiedName~ExternalAuthorityReportWriterTests|FullyQualifiedName~GenerativeCitationReportWriterTests|FullyQualifiedName~SeoInsightsReportWriterTests|FullyQualifiedName~SeoQuestionInsightsReportWriterTests|FullyQualifiedName~CliErrorRendererTests|FullyQualifiedName~ProgramEntryPointTests|FullyQualifiedName~SeoReportValidatorTests" --logger "trx;LogFileName=cli.trx" --results-directory "$R/05-cli"
+dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Release --filter "FullyQualifiedName~PluginLockAndReportTests|FullyQualifiedName~PluginProtocolClientTests" --logger "trx;LogFileName=plugin.trx" --results-directory "$R/05-plugin"
+dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release --filter FullyQualifiedName~ConsoleLoggerTests --logger "trx;LogFileName=shared.trx" --results-directory "$R/05-shared"
+dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj -c Release --filter "FullyQualifiedName~DependencyMatrixTests|FullyQualifiedName~EngineModuleBoundaryTests|FullyQualifiedName~Ad03C4ContentNotionBridgeInternalizationTests|FullyQualifiedName~G04D2GExecutionReportTests" --logger "trx;LogFileName=owner.trx" --results-directory "$R/05-owner"
+python3 -B scripts/checks/core-report-inventory.py --self-test
+git diff --check
+```
+
+覆盖率仅取成功完整 Engine TRX 引用的附件，按路径/行号归并并以原始比例判断 70%；`05-verification-summary.json` 保存附件路径、24 项报告、76 引用与 Skip 明细。代码稳定后未为刷新缓存重跑 fixture；首次失败和修正后的必要重跑分别保存，不混合统计。详细 closure、classification、缓存与 phase 指标均在 R。
+
+第五步只读专项复核 `05-specialty-review.md` 无 finding。`final-review-scope.json` 只生成一次，唯一最终增量复核 `final-unified-review.md` 批准收口：Critical 0 / Important 0 / Minor 1，唯一 Minor 是第四步已记录的无行为影响测试冗余块，无新增发现。此前确切命令缓存随后续闭包变化失效，最终完整专项替代它们；没有将历史缓存或撤回候选称为当前命中。最终仅更新结果状态，并静态核对 974 项实现输入仍为被验证的字节；不重跑未变化 fixture，不自动提交、推送、合并或归档变更。
+
+#### 6.7 独立审计后的最小修复与当前证据（2026-10-28）
+
+**阶段 6：本轮授权范围 COMPLETE；七项审计问题已修复并通过规定复核。** 用户授权深入定位并实际修复审计 I-01/I-02/I-03、M-01–M-04；现有 worktree 内单 writer 串行实施，保留审计前 44 个变更文件及原 974 项输入在授权范围外的字节，不自动提交。OpenSpec 3/4/5 均已完成；一次 combined spec-then-quality 专项复核与一次 delta-only 最终复核均为 0 Critical / 0 Important / 0 Minor。此结论不扩展到继承缺陷或全 Core／发布验收。
+
+当前证据根 `R=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-repairs-APNcZD`。闭包、分类、确切命令和原始 baseline 均先生成；21 个允许路径全部映射，无新增未映射文件。执行设计与确切 RED/GREEN 命令见 `docs/plans/2026-10-28-core-stage6-audit-repairs.md`，完整根因及替代方案见 R/implementation-report.md。
+
+| 修复 | 最小实施与可见证明 |
+|---|---|
+| I-01 GEO 原始条目绕过诊断 | parser 不再丢弃缺 question/answer、name/text 或非 map/null 条目，复用现有模型的空字符串交由既有 warn/strict/off 诊断。仅 JSON-LD 过滤无效条目，全无效无专用节点／无 Article 回退，合法 step 连续编号；真实 raw map→ContentDocument→BuildForContent→AnalyzeIndex。未改公开 Rendering 模型、schema、citation/mentions、publisher 或 author 策略。 |
+| I-02 HTML template 锚点作用域 | 用实际 IHtmlTemplateElement 与其 Content 转移状态保存／恢复外层锚点，非模板标签名深度计数；保留嵌套／未闭合／空模板、SVG 自闭合与 foreignObject 对照，以及真正畸形锚点最内层目标策略。初始两个额外 foreign-template 断言误当惰性 HTML 作用域，调查后改为既有非惰性策略对照，原 RED 保留；未放宽审计主反例。 |
+| I-03 noscript 字面链接 | IsScripting=true 下保留字面文本，像其他 raw-text 一样归一化后再供 Markdown 扫描；实际 LinkInline 仅真实 `/visible`，不是宣称可执行 XSS 已被证明。 |
+| M-01 搜索 raw-text 粘字 | 替换 textarea 没有 SourceReference，文本遍历补其边界；xmp/iframe/noembed/noframes 的 search／Markdown 精确保持 `before example after`，不改隐式 html/head/body 边界。 |
+| M-02/M-03/M-04 测试证据 | RelatedContent 禁用有两个匹配文档及显式索引／阈值，禁用和单文档均检查实际 RelatedPages；Archive 改证实 collection 边界，空内容测试承担矩阵不输出列，未新增缺日期拒绝策略；移除继承冗余 brace block。两个插件生产实现均未改，未跑 mutation gate。 |
+
+| 确切命令 key | 实际结果 | 原始证据（相对 R） |
+|---|---|---|
+| geo-red | 67 Passed / 72 Failed / 0 Skip，预期 RED | `geo-red.log`、`geo-red/tests.trx` |
+| geo-green | 139 Passed / 0 Failed / 0 Skip | `geo-green/tests.trx`、`geo-green-receipt.json` |
+| projection-red | 157 Passed / 18 Failed / 0 Skip | `projection-red.log`、`projection-red/tests.trx`；foreign oracle 更正单列 |
+| projection-green | 176 Passed / 0 Failed / 0 Skip | `projection-green/tests.trx`；增加一个空 HTML template 对照，保留所有旧 script/style/CDATA/entity/unsafe-URI 回归 |
+| 完整受影响 Engine 专项 | **2881 Passed / 0 Failed / 3 inherited NotExecuted** | `engine.log`、`engine/engine.trx`、`engine-receipt.json` |
+| Engine-only 行覆盖 | **14702/16351 = 89.91% ≥70%** | 成功 TRX 自身唯一 Cobertura 附件；路径+行号去重，`final-evidence.json` |
+
+完整 Engine 确切命令：
+
+```sh
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --settings coverage.runsettings --collect "XPlat Code Coverage" --logger "trx;LogFileName=engine.trx" --results-directory /private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-repairs-APNcZD/engine
+```
+
+新增 117 个用例（84 GEO、33 projection）；template/noscript/xmp × search/Markdown/llms-full 九个真实构建分别断言，后两者检查实际 LinkInline 目标。矩阵当前 88 个唯一方法引用均在新完整 Engine TRX Passed，引用数量不当作行为充分性证明。原三个 KD-003/004 未执行项不算通过；SCSS 本次通过，历史偶发根因仍未明。
+
+首次 Engine 后台工具调用误设 60 秒 timeout 导致进程终止、无 TRX；已确认无残余 testhost，失败日志／回执保留为 `engine-interrupted.*`，未改运行输入，以无工具 timeout 重启同一命令后得到上表证据。中断采集不用于覆盖率或 GREEN，不属于刷新缓存重跑。首个 GEO wrapper 的错误队列转换亦在报告保留，不重跑原 RED。
+
+成功确切命令缓存使用 HEAD、957 项 runtime-closure 输入、命令、SDK 10.0.100 和环境变量名称／状态（不存值）；`runtime-frozen-inputs.json` 冻结成功完整运行输入。GEO focused cache 随后续投影测试变化失效，只保留历史 TDD，完整 Engine 承担当前证明，不重跑 fixture 刷新。原 974 项输入在授权路径外不变，原 44 个变更中授权路径外 28 项逐字节保留，HEAD 不变；仅文档状态写入不改变运行证据。
+
+§6.6 的 CLI 100/100、PluginHost 26/26、ConsoleLogger 21/21、Architecture 48/48 是未变更领域的历史结果，本次未重跑，不冒称当前完整闭包 HIT。只运行授权的受影响完整 Engine 专项与 `git diff --check`；无全解决方案／发布门禁、新平台／浏览器矩阵、AOT 或二十次稳定性声明。
+
+当前 R 的 `specialty-review.md` 独立接受七项修复，`final-review-scope.json` 仅生成一次；唯一 `final-unified-review.md` 复用专项证据，只检查公共契约衔接与验收元数据，无失效证据、未覆盖变更或开放阻断项，批准状态回填。两次复核均为 0 Critical / 0 Important / 0 Minor。最后仅更新四份验收状态文档，核对 957 项成功运行输入仍匹配，并执行静态差异检查；没有再次运行 fixture 或扩大门禁。
+
+#### 6.8 独立 SCSS 有界诊断（2026-10-29）
+
+KD-003 方案 A 收口后，用户“继续执行”，按剩余风险计划单独执行任务 3，不重开阶段 6，也不进入阶段 7。仅增强原 `BuildAsync_ScssEnabled_PreservesSourceAndCompilesOnceAcrossLanguages`：假工具分别记录 probe/compile trace，原 `sass.log` 保持 compile-only；失败及成功均在 fixture 清理前保存脱敏日志、源文件／三语言 CSS 状态和总耗时。通过不启动进程／构建的合成失败自检验证同一保存路径，随后删除仅自检创建的输入；不添加实际构建 warm-up／重试。
+
+原有源 SCSS、compile 恰好一次及各语言 CSS 精确内容断言保留，生产 3 秒／5 秒超时及其他生产代码不变；`ExternalToolProcessRunnerTests` 不改，只按原计划完整运行。独立清单 `openspec/changes/diagnose-scss-missing-log/tasks.md`；证据根 `R=/Users/ali/.local/state/bukit-verification/scss-causal-diagnosis-z6Jmp9`。
+
+唯一带覆盖率专项 `R/diagnostic/tests.trx`：**20 通过 / 0 失败 / 0 Skip**、实际退出码 0。其中 `ExternalToolProcessRunnerTests` 19 个 TRX Passed 包含 1 个 Windows-only NOT_APPLICABLE（macOS 未执行其分支），另 1 个为原 SCSS 集成用例；不把它冒充 Windows 证明。真实构建及断言约 704 ms，probe/compile trace 各记录一次，`sass.log` 仍只有一条 compile，源及 en/fr/de CSS 原断言通过。合成异常由同一保存路径保留原异常、三份 sentinel trace、脱敏消息及缺失 CSS 状态，未启动额外进程／构建；与实际构建快照分开保存在 `R/captures/`。覆盖率附件原样保留（两处同哈希副本属于一次运行），不据此声称全 Engine 覆盖率出口。`R/diagnostic-analysis.json` 记录可观测事实及缺证；运行 GREEN 已缓存并检查 HIT。专项复核 `R/reviews/specialty-v1.md` 和唯一最终增量复核 `R/reviews/final-delta-v1.md` 各为 **Critical 0 / Important 0 / Minor 0**，无需补修或重跑；最终静态、范围保护、writer 及 metrics 记录于 `R/completion.json`。**有界诊断已收口；定因仍为 PARTIAL，本次未复现、历史根因仍未知，不标已修复**。进一步生产观测补证／修复须另行定界授权，不自动启动阶段 7。
+
+```sh
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --settings coverage.runsettings --collect "XPlat Code Coverage" --filter "FullyQualifiedName~ExternalToolProcessRunnerTests|FullyQualifiedName~SiteEngineIntegrationTests.BuildAsync_ScssEnabled_PreservesSourceAndCompilesOnceAcrossLanguages" --logger "trx;LogFileName=tests.trx" --results-directory /Users/ali/.local/state/bukit-verification/scss-causal-diagnosis-z6Jmp9/diagnostic
+git diff --check
+```
+
+测试专用 `BUKIT_TEST_SCSS_EVIDENCE` 由执行器指向 R 下的持久目录；测试不保存该变量或 PATH 的值，只保存设置状态和匹配布尔量。shell trace 的退出标记是分支自报，不代表已观测 wrapper 退出；成功探测／编译的独立进程退出码、stderr、耗时及调度延迟仍不可观测，明确记录为缺证。本机有界通过也不证明历史偶发故障已修复，不恢复或重跑旧临时附件。
+
+#### 6.9 独立 SCSS 生产观测补证（2026-10-29）
+
+用户在阶段范围澄清中明确选择 SCSS 生产观测补证，并批准新 Debug 事件全文遮蔽 stderr。**本批生产观测范围 SUCCESS，已收口；历史根因仍未知。** 阶段 6 原清单及七项审计修复保持已完成；本批不是重复审计或历史根因修复。§6.8 保留为当时诊断快照，成功返回进程的退出码／调用耗时缺口由本节补齐，不改其历史结论。独立计划 `docs/plans/2026-10-29-scss-process-observability.md`、OpenSpec `openspec/changes/observe-scss-process-attempts/`；证据根 `R=/Users/ali/.local/state/bukit-verification/scss-process-observation-Ycjxhu`，十个允许路径已映射，原有 73 个变更建立当前基线；最终静态、范围保护、writer 及 metrics 结果记录于 `R/completion.json`。
+
+仅 `ScssCompiler` 的两次调用复用同一个私有观测边界，输出配对 attempt ID、probe/compile、逻辑 sass/dart-sass、原超时参数、真实返回退出码及调用耗时；抛出时保持原异常并标明 exit/stderr unavailable。新 Debug 完全遮蔽 stderr 正文，只留状态和返回诊断字符串的 UTF-16 长度；不记录环境值、参数、路径、stdout、内容摘要或异常消息。补充日志 best-effort，不让新接收器异常取代工具结果。原 runner、3 秒／5 秒、选择顺序、取消、CSS 检查及 warning／Info 字节不改；原失败 warning 仍遵循其旧 stderr detail 行为，不冒称已统一脱敏。
+
+| 证据 | 结果与边界 |
+|---|---|
+| `R/red/tests.trx` | 10 项缺事件预期失败／93 通过／0 Skip，实际退出码 1；原生产精确基线，旧行为及真实源／CSS 断言均先通过。不是历史缺日志复现。 |
+| `R/green/tests.trx` | **104 通过／0 失败／0 Skip**，实际退出码 0：runner 类 29（含十个新增场景）、诊断日志类 74、原多语言用例 1；1 个 Windows-only NOT_APPLICABLE 不算 Windows 证明。RED 后额外加入 failing-Debug-sink 控制，解释数量增加 1。 |
+| 实际进程观测 | `R/captures/green/` 的真实构建 probe／compile 各返回 exit 0，调用耗时 163／26 ms；总构建及断言 521 ms，源内容与三语言 CSS 保留。`R/green-analysis.json` 记录原始出处、覆盖率附件及缺证。 |
+| 缓存／复核 | 运行 GREEN 已按 HEAD、闭包字节、确切命令、环境状态和 SDK 记录并检查 HIT；专项复核 `R/reviews/specialty-v1.md` 及唯一 delta-only 最终复核 `R/reviews/final-delta-v1.md` 各为 Critical 0／Important 0／Minor 0，无需补修或重跑。 |
+
+受控成功、fallback、拒绝、编译失败、缺 CSS、超时、取消及日志接收器故障验证的是观测与旧结果保持，不等于历史故障复现或修复。原始 stderr 有意遮蔽，抛错时 runner 未暴露结果、物理工具解析、OS 调度延迟仍不可观测；耗时含包装／清理，不能当作 Sass CPU 或超时根因。用户指南新增字段说明；不改公开 API／schema／配置／依赖／CI，不跑全 Engine、跨平台、稳定性循环、阶段 7 或发布门禁。
 
 ### 阶段 7：管线集成与端到端
 
@@ -751,15 +1039,17 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | 编号 | 缺陷或待复现条目 | 阶段 |
 |---|---|---|
 | KD-001 | `SeoExternalAuditor` 硬编码读取 `routes`，发布报告用 `documents` | 8 |
-| KD-002 | **已复现，KnownDefect+Skip，待授权修复**：`clean` 删除 `.bukit`，含手写 `plugins.yaml` 与锁文件（决定：应保留） | 5 |
-| KD-003 | **已复现，KnownDefect+Skip，待授权修复**：`HashUtil` 对超限文件只记长度，同长度改动会误命中缓存；总大小与文件数两种超限均有失败用例 | 5 |
-| KD-004 | **已复现，KnownDefect+Skip，待授权修复**：`TaxonomyRedirectWriter` 别名经 `Trim` 后拼路径；`..` 与绝对路径均写入文件（决定：应拒绝并报错，且不写入任何文件） | 5 |
+| KD-002 | **已独立修复并通过，移除 Skip**：项目根 `.bukit` 全量保留，显式元数据输出目标先拒绝，正常输出／缓存清理不变；四选择方式与真实入口专项 69/69，专项／最终增量复核均 0 Critical / 0 Important / 0 Minor；当前见 5.3，历史 RED 保留 | 5 |
+| KD-003 | **已按单独授权修复（方案 A）**：保留预算，超限禁用当前变体增量并完整渲染，不吞普通错误；最终 fixture 21 项行为 RED → 完整六类专项 168/168、0 Skip，六项真实产物对照通过，专项及唯一最终增量复核均 0/0/0，见 5.5 | 5 |
+| KD-004 | **已独立修复并通过，移除 Skip**：writer 全量预检后写入，危险 alias／路径／链接以 `BuildOutputUnsafe` 拒绝并保留既有字节；包含 NUL 自别名补修，完整专项 53/53、0 Skip，规定复核无剩余阻塞；见 5.4，不新增 aliases 入口 | 5 |
 | KD-005 | **已修复并通过**：`ConfigCollectionReader` 缺必填键的 `modelSchema` 条目曾静默丢弃（决定：应加载时报错）；证据见 2.1 | 2 |
-| KD-006 | 无条目的 FAQPage、HowTo 走 Article 构建器，且引用输出两份 | 6 |
-| KD-007 | `StripHtmlToText` 丢失两个 script 或 style 块之间的文本 | 6 |
+| KD-006 | **原空集合修复保留；原始不完整条目补修已验证并经两次规定复核接受**：诊断保留全部条目，JSON-LD 仅完整条目、全无效无专用节点／无 Article 回退，warn/strict/off；`mentions` 与 Article `citation` 并存。历史见 6.6，当前见 6.7 | 6 |
+| KD-007 | **原 Skip 已移除；审计后上下文补修已验证并经两次规定复核接受**：DOM 与窄脚本防护保留，新增 template/noscript/raw-text 及三个真实产物独立断言，当前 projection 176/176，见 6.7。6.4–6.6 保留历史，不冒充新闭包证明 | 6 |
 | KD-008 | `deploy --dry-run` 仍执行 clean 构建（决定：应不构建，只校验现有输出） | 8 |
 | KD-009 | **已修复并通过**：三入口共用歧义 URL 校验，拒绝 `/\attacker.example/payload`、反斜杠与嵌入控制字符；已移除 Skip/KnownDefect，证据见 1.7 | 1 |
 | KD-010 | **已修复并通过**：`IsSubPathOf` 先排除规范化后的相等路径，卷根自身返回 false，`IsSameOrSubPathOf` 仍返回 true；已移除 Skip/KnownDefect，证据见 1.7 | 1 |
+| KD-011 | **已修复并通过，移除 Skip**：保留公开 renderer 省略 null command；schema command 为可选 string/null，错误类型和未知字段仍拒绝。见 6.6 | 6 |
+| KD-012 | **已修复并通过，移除 Skip**：schema 声明已有 `resourceLimitExceeded: string`、`networkPermissionGranted: boolean` 可选字段，版本和未知字段拒绝不变。见 6.6 | 6 |
 
 阶段 1 的首次复现见 1.6；KD-009/KD-010 经用户明确授权，在独立 Core 任务中修复，最新结果见 1.7。没有证据表明修复前 KD-010 可直接绕过 `OutputDirectoryCleaner`：该消费者还有路径相等和卷根的独立拒绝条件；本次对应 CLI 消费者测试已通过。
 
@@ -836,5 +1126,6 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 | 2026-10-28 | 阶段 5 I2 复跑：实际 `CI` run `40556553321`（gate=platform）在 Linux x64/Windows x64/Darwin arm64 执行 canonical `platform-tests`，全绿；Cleaner 13、AssetPipeline 30 三平台通过；平台 `platform.json`/SDK/架构/逐项目 TRX 已归档 |
 | 2026-10-28 | 阶段 5 最终复核：Critical 0 / Important 0，6 项 Minor 非阻塞；阶段 5 判定 **SUCCESS**；12 个文件未提交 |
 | 2026-10-28 | 阶段 5 两项 Important 修复复核：Cleaner 13 在 Linux/Windows/macOS 实际执行；KD-004 覆盖 `..` 与绝对路径并断言不写入；canonical run `40556553321`；Critical 0 / Important 0；判定 **SUCCESS** |
+| 2026-10-28 | 经用户授权单独修复 KD-002：CLI clean 保留根 `.bukit`，拒绝显式元数据目标（含子目录／大小写变体），保留正常输出与 `.cache` 清理；RED 13 失败 → GREEN 清理／真实入口／CLI 契约 69/69、0 Skip；专项与唯一最终增量复核均 0/0/0。仅本机 macOS，不扩展阶段 6、KD-003/004、SCSS 或全量／发布验收；见 5.3 |
 | 2026-10-27 | 经负责人授权的独立 Core 修复（4.3，复审 N-2）：显式 `route.url` 与 permalink 只对 `.html/.htm/.xml/.json/.txt` 视为文件，其余为目录；RED 8 失败 → GREEN Routing 98/98（88.96%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05 |
 | 2026-10-27 | 经负责人授权的独立 Core 修复（4.4）：`route.url` 与 permalink 末段为静态文件扩展名时构建失败并提示 `static/`/`assets/`；RED 10 失败 → GREEN Routing 112/112（90.24%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05/14；openspec 过期映射无法执行已记录 |
