@@ -43,7 +43,7 @@ public sealed class DirectoryHashCacheTests
     }
 
     [Fact]
-    public void GetOrAdd_WithLargeDirectory_DoesNotThrow()
+    public void GetOrAdd_OverBudget_DoesNotCacheIncompleteHashAndCanRecover()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit-dhc-test-" + Guid.NewGuid().ToString("N"));
         try
@@ -55,9 +55,13 @@ public sealed class DirectoryHashCacheTests
             }
 
             var cache = new DirectoryHashCache(Logger, maxFiles: 5, maxTotalSize: 1024);
+            Assert.ThrowsAny<InvalidOperationException>(() => cache.GetOrAdd(tempDir));
+            for (var i = 5; i < 10; i++) File.Delete(Path.Combine(tempDir, $"file-{i:D4}.txt"));
+
             var result = cache.GetOrAdd(tempDir);
             Assert.NotNull(result);
             Assert.Equal(64, result.Length);
+            Assert.Equal(HashUtil.Sha256HexForDirectory(tempDir, Logger, 5, 1024), result);
 
             var result2 = cache.GetOrAdd(tempDir);
             Assert.Equal(result, result2);
@@ -67,5 +71,18 @@ public sealed class DirectoryHashCacheTests
             if (Directory.Exists(tempDir))
                 Directory.Delete(tempDir, recursive: true);
         }
+    }
+
+    [Fact]
+    public void GetOrAdd_OperationalFactoryFailure_PropagatesAndIsNotCached()
+    {
+        var calls = 0;
+        var failure = new IOException("test I/O failure");
+        var cache = new DirectoryHashCache(Logger, _ => ++calls == 1 ? throw failure : "complete");
+
+        Assert.Same(failure, Record.Exception(() => cache.GetOrAdd("layouts")));
+        Assert.Equal("complete", cache.GetOrAdd("layouts"));
+        Assert.Equal("complete", cache.GetOrAdd("layouts"));
+        Assert.Equal(2, calls);
     }
 }

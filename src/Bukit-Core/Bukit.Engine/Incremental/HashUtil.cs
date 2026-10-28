@@ -27,11 +27,6 @@ internal static class HashUtil
             return Sha256Hex(string.Empty);
         }
 
-        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        Span<byte> separator = stackalloc byte[1];
-        separator[0] = 0;
-        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
-
         var files = SafeFileEnumerator.EnumerateFiles(rootDir)
             .Select(p => new
             {
@@ -41,61 +36,44 @@ internal static class HashUtil
             .OrderBy(x => x.Relative, StringComparer.Ordinal)
             .ToList();
 
+        if (files.Count > maxFiles)
+        {
+            var message = $"Directory '{rootDir}' has {files.Count} files, exceeding limit of {maxFiles}. A complete directory hash cannot be computed.";
+            logger.Warn(message);
+            throw new DirectoryHashLimitExceededException(message);
+        }
+
+        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        Span<byte> separator = stackalloc byte[1];
+        separator[0] = 0;
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
         try
         {
             var totalSize = 0L;
-            var fileCount = files.Count;
-            var processedCount = 0;
-
-            if (fileCount > maxFiles)
-            {
-                logger.Warn($"Directory '{rootDir}' has {fileCount} files, exceeding limit of {maxFiles}. Only first {maxFiles} files will be processed.");
-            }
-
             foreach (var f in files)
             {
-                if (processedCount >= maxFiles)
-                {
-                    break;
-                }
-
                 var nameBytes = Encoding.UTF8.GetBytes(f.Relative);
                 hasher.AppendData(nameBytes);
                 hasher.AppendData(separator);
 
-                var fileInfo = new FileInfo(f.FullPath);
-                var fileLength = fileInfo.Length;
-
-                if (totalSize + fileLength > maxTotalSize && processedCount > 0)
-                {
-                    logger.Warn($"Directory '{rootDir}' total size exceeds limit of {maxTotalSize} bytes. Stopping content processing at file {processedCount} of {fileCount}.");
-                    hasher.AppendData(Encoding.UTF8.GetBytes($"skip:{f.Relative}:{fileLength}"));
-                    hasher.AppendData(separator);
-                    processedCount++;
-                    continue;
-                }
-
-                totalSize += fileLength;
-
                 using var stream = File.OpenRead(f.FullPath);
-                int read;
-                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+                while (true)
                 {
+                    var remaining = maxTotalSize - totalSize;
+                    // One extra byte distinguishes end-of-file from an exceeded content budget.
+                    var bytesToRead = remaining >= buffer.Length ? buffer.Length : (int)Math.Max(1, remaining + 1);
+                    var read = stream.Read(buffer, 0, bytesToRead);
+                    if (read == 0) break;
+                    if (read > remaining)
+                    {
+                        var message = $"Directory '{rootDir}' total size exceeds limit of {maxTotalSize} bytes. A complete directory hash cannot be computed.";
+                        logger.Warn(message);
+                        throw new DirectoryHashLimitExceededException(message);
+                    }
+                    totalSize += read;
                     hasher.AppendData(buffer.AsSpan(0, read));
                 }
 
-                hasher.AppendData(separator);
-                processedCount++;
-            }
-
-            for (var i = processedCount; i < fileCount; i++)
-            {
-                var f = files[i];
-                var nameBytes = Encoding.UTF8.GetBytes(f.Relative);
-                hasher.AppendData(nameBytes);
-                hasher.AppendData(separator);
-                var fileLength = new FileInfo(f.FullPath).Length;
-                hasher.AppendData(Encoding.UTF8.GetBytes($"skip:{f.Relative}:{fileLength}"));
                 hasher.AppendData(separator);
             }
         }
@@ -125,4 +103,8 @@ internal static class HashUtil
     {
         return (char)(value < 10 ? ('0' + value) : ('a' + (value - 10)));
     }
+}
+
+internal sealed class DirectoryHashLimitExceededException(string message) : InvalidOperationException(message)
+{
 }

@@ -230,6 +230,228 @@ public sealed class RenderPipelineTests
         }
     }
 
+    [Theory]
+    [InlineData("child", "files")]
+    [InlineData("parent", "files")]
+    [InlineData("user", "files")]
+    [InlineData("child", "size")]
+    [InlineData("parent", "size")]
+    [InlineData("user", "size")]
+    [Trait("Defect", "KD-003")]
+    public async Task ExecuteAsync_OverBudgetTemplateEdit_MatchesFullRenderAndRecoversReuse(string role, string limit)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-render-budget-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var context = CreateManifestContext(root) with
+            {
+                ParentLayoutsDir = Path.Combine(root, "parent-layouts"),
+                UserLayoutsDir = Path.Combine(root, "user-layouts")
+            };
+            foreach (var directory in new[] { context.LayoutsDir, context.ParentLayoutsDir!, context.UserLayoutsDir! })
+                Directory.CreateDirectory(directory);
+            var activeLayouts = role switch
+            {
+                "parent" => context.ParentLayoutsDir!,
+                "user" => context.UserLayoutsDir!,
+                _ => context.LayoutsDir
+            };
+            File.WriteAllText(Path.Combine(activeLayouts, "000-marker.txt"), "seed");
+            var templates = new Dictionary<string, string>
+            {
+                ["pages/post.html"] = "<p>old {{ page.title }}</p>",
+                ["pages/list.html"] = "<ul>old {{ site.name }}</ul>"
+            };
+            Directory.CreateDirectory(Path.Combine(activeLayouts, "pages"));
+            foreach (var (relative, text) in templates) File.WriteAllText(Path.Combine(activeLayouts, relative), text);
+            // External body isolates template reuse from the separate inline-body fingerprint fast path.
+            var document = ContentDocument.Create("hello", "Hello", "hello", DateTimeOffset.UnixEpoch, string.Empty, bodyKey: "hello-body");
+            var bodyStore = new DictionaryContentBodyStore(new Dictionary<string, ContentBody>
+            {
+                ["hello-body"] = new("<p>body</p>")
+            });
+            var pageRoute = new RouteInfo("/blog/hello/", "blog/hello/index.html", "pages/post.html");
+            var listRoute = new RouteInfo("/blog/", "blog/index.html", "pages/list.html");
+            RoutedContentDocument[] routed = [new(document, pageRoute)];
+            RenderEntry[] entries = [RenderEntry.ForPage(document, pageRoute), RenderEntry.ForList(listRoute, routed, false)];
+            var logger = new BudgetLogger();
+
+            async Task<(ManifestSetupResult Setup, RenderPipelineResult Result)> BuildAsync(
+                string outputName, bool incremental, int maxFiles = 10, long maxSize = 10000)
+            {
+                var variant = context with
+                {
+                    OutputDir = Path.Combine(root, outputName),
+                    Documents = [document],
+                    BodyStore = bodyStore,
+                    Overrides = new ConfigOverrides { Incremental = incremental, CacheDir = Path.Combine(root, "cache-" + outputName) }
+                };
+                var setup = VariantManifestPlanner.Create(variant, variant.Overrides,
+                    new DirectoryHashCache(logger, maxFiles: maxFiles, maxTotalSize: maxSize), logger);
+                var result = await new RenderPipeline().ExecuteAsync(new RenderPipelineContext(
+                    BodyStore: bodyStore,
+                    Renderer: new ScribanTemplateRendererAdapter(context.LayoutsDir, context.ParentLayoutsDir, userLayoutsDir: context.UserLayoutsDir),
+                    SiteModel: new SiteModel { Name = "test", Title = "Test", BaseUrl = "/", Language = "en" },
+                    Collections: null, LayoutsDir: context.LayoutsDir, ListPageContentMode: "auto", OutputPathEncoding: "pretty",
+                    OutputDir: variant.OutputDir, TemplateHash: setup.TemplateHash, RenderDependencyHash: "stable-dependency",
+                    IncrementalEnabled: setup.IncrementalEnabled, Manifest: setup.Manifest, ManifestEntries: setup.ManifestEntries,
+                    MaxDegreeOfParallelism: 1, Logger: logger, ListRouteGraph: ListRouteGraph.Empty,
+                    RenderDocuments: routed, RoutedDocuments: routed, PrecomputedEntries: entries));
+                setup.Manifest.OutputRoot = Path.GetFullPath(variant.OutputDir);
+                setup.Manifest.OwnedOutputs.UnionWith(result.CurrentKeys.Keys);
+                setup.Manifest.Save(setup.ManifestPath);
+                return (setup, result);
+            }
+
+            var maxFiles = limit == "files" ? 1 : 10;
+            var maxSize = limit == "size" ? 4 : 10000;
+            var first = await BuildAsync("dist", true, maxFiles, maxSize);
+            Assert.Equal(2, first.Result.RenderedCount);
+            foreach (var entry in entries)
+                Assert.Contains("old", File.ReadAllText(Path.Combine(root, "dist", entry.Route.OutputPath)), StringComparison.Ordinal);
+            foreach (var (relative, text) in templates)
+            {
+                var path = Path.Combine(activeLayouts, relative);
+                var length = new FileInfo(path).Length;
+                var mtime = File.GetLastWriteTimeUtc(path);
+                File.WriteAllText(path, text.Replace("old", "new", StringComparison.Ordinal));
+                File.SetLastWriteTimeUtc(path, mtime);
+                Assert.Equal(length, new FileInfo(path).Length);
+                Assert.Equal(mtime, File.GetLastWriteTimeUtc(path));
+            }
+
+            var changed = await BuildAsync("dist", true, maxFiles, maxSize);
+            await BuildAsync("reference", false);
+
+            Assert.Equal(Directory.GetFiles(Path.Combine(root, "reference"), "*", SearchOption.AllDirectories)
+                    .Select(path => Path.GetRelativePath(Path.Combine(root, "reference"), path)).OrderBy(path => path, StringComparer.Ordinal),
+                Directory.GetFiles(Path.Combine(root, "dist"), "*", SearchOption.AllDirectories)
+                    .Select(path => Path.GetRelativePath(Path.Combine(root, "dist"), path)).OrderBy(path => path, StringComparer.Ordinal));
+            foreach (var entry in entries)
+            {
+                var actualPath = Path.Combine(root, "dist", entry.Route.OutputPath);
+                Assert.Equal(File.ReadAllBytes(Path.Combine(root, "reference", entry.Route.OutputPath)), File.ReadAllBytes(actualPath));
+                Assert.Contains("new", File.ReadAllText(actualPath), StringComparison.Ordinal);
+            }
+            Assert.False(changed.Setup.IncrementalEnabled);
+            Assert.Empty(changed.Setup.TemplateHash);
+            Assert.Null(changed.Setup.ManifestEntries);
+            Assert.Empty(changed.Setup.Manifest.Entries);
+            Assert.Equal(2, changed.Result.RenderedCount);
+            Assert.Equal(0, changed.Result.SkippedCount);
+            Assert.Contains(logger.Warnings, message => message.Contains("incremental reuse disabled for this variant", StringComparison.Ordinal));
+
+            var recovered = await BuildAsync("dist", true);
+            var unchanged = await BuildAsync("dist", true);
+            Assert.True(recovered.Setup.IncrementalEnabled);
+            Assert.Equal(2, recovered.Result.RenderedCount);
+            Assert.True(unchanged.Setup.IncrementalEnabled);
+            Assert.Equal(0, unchanged.Result.RenderedCount);
+            Assert.Equal(2, unchanged.Result.SkippedCount);
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
+    }
+
+    [Fact]
+    public void ManifestPlanner_OverBudget_ClearsOnlyRenderReuseAndDoesNotDisableAnotherVariant()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-manifest-budget-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var context = CreateManifestContext(root);
+            Directory.CreateDirectory(context.LayoutsDir);
+            Directory.CreateDirectory(context.OutputDir);
+            File.WriteAllText(Path.Combine(context.LayoutsDir, "a.txt"), "a");
+            File.WriteAllText(Path.Combine(context.LayoutsDir, "b.txt"), "b");
+            var existing = new BuildManifest { OutputRoot = Path.GetFullPath(context.OutputDir), TemplateHash = "old" };
+            existing.Entries["old.html"] = new BuildManifestEntry { TemplateHash = "old" };
+            existing.OwnedOutputs.Add("owned.txt");
+            existing.Assets["asset.css"] = "asset-hash";
+            File.WriteAllText(Path.Combine(context.OutputDir, "owned.txt"), "retain");
+            existing.Save(PublicOutputLifecycle.ManifestPath(root, context.Overrides));
+            var logger = new BudgetLogger();
+            var cache = new DirectoryHashCache(logger, maxFiles: 1);
+
+            var setup = VariantManifestPlanner.Create(context, context.Overrides, cache, logger);
+
+            Assert.False(setup.IncrementalEnabled);
+            Assert.Null(setup.ManifestEntries);
+            Assert.Empty(setup.TemplateHash);
+            Assert.Empty(setup.Manifest.Entries);
+            Assert.Equal(["owned.txt"], setup.Manifest.OwnedOutputs);
+            Assert.Equal("asset-hash", setup.Manifest.Assets["asset.css"]);
+            Assert.Equal("retain", File.ReadAllText(Path.Combine(context.OutputDir, "owned.txt")));
+            var safe = context with { LayoutsDir = Path.Combine(root, "safe-layouts"), OutputDir = Path.Combine(root, "safe-output") };
+            Directory.CreateDirectory(safe.LayoutsDir);
+            File.WriteAllText(Path.Combine(safe.LayoutsDir, "only.txt"), "safe");
+            Assert.True(VariantManifestPlanner.Create(safe, safe.Overrides, cache, logger).IncrementalEnabled);
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
+    }
+
+    [Theory]
+    [InlineData("io")]
+    [InlineData("permission")]
+    [InlineData("other")]
+    public void ManifestPlanner_NonBudgetHashFailure_PropagatesUnchanged(string kind)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-manifest-error-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var context = CreateManifestContext(root);
+            Directory.CreateDirectory(context.LayoutsDir);
+            Exception failure = kind switch
+            {
+                "io" => new IOException("read failed"),
+                "permission" => new UnauthorizedAccessException("access denied"),
+                _ => new InvalidOperationException("not a budget failure")
+            };
+            var logger = new BudgetLogger();
+            var cache = new DirectoryHashCache(logger, _ => throw failure);
+
+            Assert.Same(failure, Record.Exception(() => VariantManifestPlanner.Create(context, context.Overrides, cache, logger)));
+            Assert.Empty(logger.Warnings);
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
+    }
+
+    [Fact]
+    public void ManifestPlanner_ExplicitNonincremental_DoesNotHashLayouts()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-manifest-nohash-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var context = CreateManifestContext(root);
+            Directory.CreateDirectory(context.LayoutsDir);
+            var calls = 0;
+            var logger = new BudgetLogger();
+            var cache = new DirectoryHashCache(logger, _ => { calls++; throw new IOException("must not read"); });
+
+            var setup = VariantManifestPlanner.Create(context, new ConfigOverrides { Incremental = false }, cache, logger);
+
+            Assert.False(setup.IncrementalEnabled);
+            Assert.Equal(0, calls);
+            Assert.Empty(logger.Warnings);
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
+    }
+
+    private static BuildVariantContext CreateManifestContext(string root)
+        => new(new AppConfig { Site = new SiteConfig { Name = "test", Title = "Test" }, Content = TestContent.Markdown() },
+            root, new ConfigOverrides(), [], CanonicalContentGraph.Empty, EmptyContentBodyStore.Instance,
+            Path.Combine(root, "dist"), "/", Path.Combine(root, "layouts"), Path.Combine(root, "assets"),
+            Path.Combine(root, "static"), Path.Combine(root, "media"),
+            new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(), null, null, "en", DateTimeOffset.UnixEpoch);
+
+    private sealed class BudgetLogger : ILogger
+    {
+        public ConcurrentQueue<string> Warnings { get; } = new();
+        public void Debug(string message) { }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Enqueue(message);
+        public void Error(string message) => throw new InvalidOperationException(message);
+    }
+
     private static IReadOnlyDictionary<string, CollectionConfig> CreateCollections()
         => new Dictionary<string, CollectionConfig>(StringComparer.OrdinalIgnoreCase)
         {

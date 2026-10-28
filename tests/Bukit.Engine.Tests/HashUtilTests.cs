@@ -127,7 +127,7 @@ public sealed class HashUtilTests
     }
 
     [Fact]
-    public void Sha256HexForDirectory_WithLargeFileCount_DoesNotThrow()
+    public void Sha256HexForDirectory_OverFileLimit_RejectsIncompleteHash()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit-hash-test-" + Guid.NewGuid().ToString("N"));
         try
@@ -138,9 +138,8 @@ public sealed class HashUtilTests
                 File.WriteAllText(Path.Combine(tempDir, $"file-{i:D4}.txt"), $"content-{i}");
             }
 
-            var result = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 5, maxTotalSize: 1024);
-            Assert.NotNull(result);
-            Assert.Equal(64, result.Length);
+            Assert.ThrowsAny<InvalidOperationException>(() =>
+                HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 5, maxTotalSize: 1024));
         }
         finally
         {
@@ -173,10 +172,9 @@ public sealed class HashUtilTests
         }
     }
 
-    [Fact(Skip = "KD-003: over-file-limit files only hash path+length, so same-length edits collide; enable after the authorized Core repair.")]
-    [Trait("Category", "KnownDefect")]
+    [Fact]
     [Trait("Defect", "KD-003")]
-    public void Sha256HexForDirectory_OverFileLimit_SameLengthContentChange_ChangesHash()
+    public void Sha256HexForDirectory_OverFileLimit_SameLengthChange_NeverReturnsIncompleteHash()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit-hash-over-file-limit-" + Guid.NewGuid().ToString("N"));
         try
@@ -184,12 +182,13 @@ public sealed class HashUtilTests
             Directory.CreateDirectory(tempDir);
             File.WriteAllText(Path.Combine(tempDir, "a.txt"), "aaaa");
             File.WriteAllText(Path.Combine(tempDir, "b.txt"), "bbbb");
-            var before = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 1, maxTotalSize: 1024);
+            var before = Record.Exception(() => HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 1, maxTotalSize: 1024));
 
             File.WriteAllText(Path.Combine(tempDir, "b.txt"), "cccc");
-            var after = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 1, maxTotalSize: 1024);
+            var after = Record.Exception(() => HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 1, maxTotalSize: 1024));
 
-            Assert.NotEqual(before, after);
+            Assert.IsAssignableFrom<InvalidOperationException>(before);
+            Assert.IsAssignableFrom<InvalidOperationException>(after);
         }
         finally
         {
@@ -198,10 +197,9 @@ public sealed class HashUtilTests
         }
     }
 
-    [Fact(Skip = "KD-003: over-limit files only hash path+length, so same-length edits collide; enable after the authorized Core repair.")]
-    [Trait("Category", "KnownDefect")]
+    [Fact]
     [Trait("Defect", "KD-003")]
-    public void Sha256HexForDirectory_OverLimit_SameLengthContentChange_ChangesHash()
+    public void Sha256HexForDirectory_OverSizeLimit_SameLengthChange_NeverReturnsIncompleteHash()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit-hash-over-limit-" + Guid.NewGuid().ToString("N"));
         try
@@ -209,17 +207,73 @@ public sealed class HashUtilTests
             Directory.CreateDirectory(tempDir);
             File.WriteAllText(Path.Combine(tempDir, "a.txt"), "aaaa");
             File.WriteAllText(Path.Combine(tempDir, "b.txt"), "bbbb");
-            var before = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 10, maxTotalSize: 4);
+            var before = Record.Exception(() => HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 10, maxTotalSize: 4));
 
             File.WriteAllText(Path.Combine(tempDir, "b.txt"), "cccc");
-            var after = HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 10, maxTotalSize: 4);
+            var after = Record.Exception(() => HashUtil.Sha256HexForDirectory(tempDir, Logger, maxFiles: 10, maxTotalSize: 4));
 
-            Assert.NotEqual(before, after);
+            Assert.IsAssignableFrom<InvalidOperationException>(before);
+            Assert.IsAssignableFrom<InvalidOperationException>(after);
         }
         finally
         {
             if (Directory.Exists(tempDir))
                 Directory.Delete(tempDir, recursive: true);
         }
+    }
+
+    [Theory]
+    [InlineData(2, 7)]
+    [InlineData(2, 3)]
+    [InlineData(0, 8)]
+    [InlineData(2, 0)]
+    public void Sha256HexForDirectory_ExceededBudgetIncludingFirstFile_RejectsIncompleteHash(int maxFiles, long maxSize)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-hash-budget-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "a.txt"), "aaaa");
+            File.WriteAllText(Path.Combine(root, "b.txt"), "bbbb");
+
+            Assert.ThrowsAny<InvalidOperationException>(() =>
+                HashUtil.Sha256HexForDirectory(root, Logger, maxFiles, maxSize));
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
+    }
+
+    [Fact]
+    public void Sha256HexForDirectory_ExactlyAtBudgets_IncludesAllContent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-hash-exact-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, "a.txt"), "aaaa");
+            var changed = Path.Combine(root, "b.txt");
+            File.WriteAllText(changed, "bbbb");
+            var before = HashUtil.Sha256HexForDirectory(root, Logger, 2, 8);
+            Assert.Equal(HashUtil.Sha256HexForDirectory(root, Logger), before);
+            Assert.Equal(HashUtil.Sha256Hex(Encoding.UTF8.GetBytes("a.txt\0aaaa\0b.txt\0bbbb\0")), before);
+
+            File.WriteAllText(changed, "cccc");
+
+            Assert.NotEqual(before, HashUtil.Sha256HexForDirectory(root, Logger, 2, 8));
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Sha256HexForDirectory_MissingOrEmptyDirectory_PreservesEmptyHash(bool exists)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-hash-empty-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            if (exists) Directory.CreateDirectory(root);
+            Assert.Equal(HashUtil.Sha256Hex(string.Empty), HashUtil.Sha256HexForDirectory(root, Logger, 0, 0));
+        }
+        finally { TestCleanup.DeleteDirectory(root); }
     }
 }
