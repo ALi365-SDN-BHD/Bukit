@@ -37,6 +37,15 @@ current project, targets reached through symlink/reparse-point segments, and
 non-empty unmarked directories. A refusal returns exit code 2 and preserves the
 target. Config-based clean and build recovery use the same cleaner.
 
+All `bukit clean` forms (default, `--dir`, `--config`, and `--site`) preserve the
+project-root `.bukit` directory, including plugin configuration, lock files,
+unknown user files, and generated metadata. Eligible output and the project
+`.cache` are still removed. Selecting project-root `.bukit` or one of its
+descendants as clean output is refused with exit code 2 before deleting anything,
+even with an output marker; case variants are also protected. Similarly named
+siblings such as `.bukit-output` remain eligible under the ordinary safety checks.
+This metadata-retention rule applies to CLI clean, not build recovery.
+
 ## Common Examples
 
 ```bash

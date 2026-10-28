@@ -280,14 +280,18 @@ theme:
         Assert.True(File.Exists(sentinel));
     }
 
-    [Fact]
-    public async Task RunAsync_WithDir_CleansMarkedOutputDirectory()
+    [Theory]
+    [InlineData("dist")]
+    [InlineData(".bukit-output")]
+    public async Task RunAsync_WithDir_CleansMarkedOutputDirectory(string directory)
     {
-        var outputDir = Path.Combine(_testDir, "dist");
+        var outputDir = Path.Combine(_testDir, directory);
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, ".bukit-output-marker"), "Bukit output directory");
         using var cwd = new CurrentDirectoryScope(_testDir);
 
         var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
-            CliTestHelper.CreateCommand("clean", new[] { "--dir", "dist" }));
+            CliTestHelper.CreateCommand("clean", new[] { "--dir", directory }));
 
         Assert.Equal(0, exitCode);
         Assert.False(Directory.Exists(outputDir));
@@ -307,24 +311,94 @@ theme:
         Assert.False(Directory.Exists(outputDir));
     }
 
-    [Fact(Skip = "KD-002: clean currently deletes the whole .bukit; enable after the authorized Core repair.")]
-    [Trait("Category", "KnownDefect")]
+    [Theory]
+    [InlineData("default")]
+    [InlineData("dir")]
+    [InlineData("config")]
+    [InlineData("site")]
     [Trait("Defect", "KD-002")]
-    public async Task RunAsync_WithConfig_PreservesPluginConfigAndLockFile()
+    public async Task RunAsync_PreservesProjectMetadataAndCleansOutputAndCache(string mode)
     {
         var pluginDir = Path.Combine(_testDir, ".bukit");
-        Directory.CreateDirectory(pluginDir);
-        var pluginConfig = Path.Combine(pluginDir, "plugins.yaml");
-        var pluginLock = Path.Combine(pluginDir, "plugins.lock.yaml");
-        File.WriteAllText(pluginConfig, "plugins: []\n");
-        File.WriteAllText(pluginLock, "locked: true\n");
-        var configPath = Path.Combine(_testDir, "site.yaml");
+        var files = new Dictionary<string, byte[]>
+        {
+            ["plugins.yaml"] = System.Text.Encoding.UTF8.GetBytes("# retain formatting\r\nversion: 1\r\nplugins: {}\r\n"),
+            ["plugins.lock.yaml"] = System.Text.Encoding.UTF8.GetBytes("version: 1\nresolved: {}\n"),
+            [Path.Combine("user", "custom.bin")] = [0, 255, 128, 10],
+            ["build-report.json"] = System.Text.Encoding.UTF8.GetBytes("{ \"retained\": true }\n")
+        };
+        foreach (var (relativePath, bytes) in files)
+        {
+            var path = Path.Combine(pluginDir, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllBytes(path, bytes);
+        }
+        var cacheDir = Path.Combine(_testDir, ".cache");
+        Directory.CreateDirectory(cacheDir);
+        File.WriteAllText(Path.Combine(cacheDir, "cached.txt"), "disposable");
+        var sitesDir = Path.Combine(_testDir, "sites");
+        Directory.CreateDirectory(sitesDir);
+        WriteConfig(Path.Combine(sitesDir, "example.yaml"), "dist");
+        using var cwd = new CurrentDirectoryScope(_testDir);
+        string[] args = mode switch
+        {
+            "config" => ["--config", Path.Combine(_testDir, "site.yaml")],
+            "site" => ["--site", "example"],
+            "dir" => ["--dir", "dist"],
+            _ => []
+        };
 
-        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", new[] { "--config", configPath }));
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", args));
 
         Assert.Equal(0, exitCode);
-        Assert.True(File.Exists(pluginConfig));
-        Assert.True(File.Exists(pluginLock));
+        Assert.False(Directory.Exists(Path.Combine(_testDir, "dist")));
+        Assert.False(Directory.Exists(cacheDir));
+        foreach (var (relativePath, bytes) in files)
+        {
+            var path = Path.Combine(pluginDir, relativePath);
+            Assert.True(File.Exists(path), $"User metadata was deleted: {relativePath}");
+            Assert.Equal(bytes, File.ReadAllBytes(path));
+        }
+        Assert.Equal(files.Count, Directory.EnumerateFiles(pluginDir, "*", SearchOption.AllDirectories).Count());
+    }
+
+    [Theory]
+    [InlineData(".bukit", false)]
+    [InlineData(".bukit", true)]
+    [InlineData(".bukit/user", false)]
+    [InlineData(".bukit/user", true)]
+    [InlineData(".BUKIT", false)]
+    [InlineData(".BUKIT", true)]
+    [InlineData(".BUKIT/user", false)]
+    [InlineData(".BUKIT/user", true)]
+    public async Task RunAsync_RefusesProjectMetadataAsOutput(string relativeOutput, bool configured)
+    {
+        var outputDir = Path.Combine(_testDir, relativeOutput);
+        var pluginDir = Path.Combine(_testDir, ".bukit");
+        Directory.CreateDirectory(outputDir);
+        Directory.CreateDirectory(pluginDir);
+        var pluginConfig = Path.Combine(pluginDir, "plugins.yaml");
+        var sentinel = Path.Combine(outputDir, "user.bin");
+        byte[] bytes = [0, 255, 128, 10];
+        File.WriteAllText(pluginConfig, "version: 1\nplugins: {}\n");
+        File.WriteAllBytes(sentinel, bytes);
+        File.WriteAllText(Path.Combine(outputDir, ".bukit-output-marker"), "Bukit output directory");
+        var cacheDir = Path.Combine(_testDir, ".cache");
+        Directory.CreateDirectory(cacheDir);
+        var cacheFile = Path.Combine(cacheDir, "cached.txt");
+        File.WriteAllText(cacheFile, "retain on refusal");
+        var configPath = Path.Combine(_testDir, "site.yaml");
+        WriteConfig(configPath, relativeOutput);
+        using var cwd = new CurrentDirectoryScope(_testDir);
+        string[] args = configured ? ["--config", configPath] : ["--dir", relativeOutput];
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", args));
+
+        Assert.Equal(2, exitCode);
+        Assert.Equal("version: 1\nplugins: {}\n", File.ReadAllText(pluginConfig));
+        Assert.Equal(bytes, File.ReadAllBytes(sentinel));
+        Assert.True(File.Exists(Path.Combine(outputDir, ".bukit-output-marker")));
+        Assert.Equal("retain on refusal", File.ReadAllText(cacheFile));
     }
 
     private static void CreateDirectorySymlinkOrSkip(string linkPath, string targetPath)
