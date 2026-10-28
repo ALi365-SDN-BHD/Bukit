@@ -1,4 +1,6 @@
 using System.Text;
+using Bukit.Engine.Output;
+using Bukit.Shared;
 
 namespace Bukit.Engine.Plugins.BuiltIn;
 
@@ -7,6 +9,7 @@ internal static class TaxonomyRedirectWriter
     internal static void WriteRedirects(string outputDir, string kind, Dictionary<string, TaxonomyTerm> terms, string? routePrefix = null, ICollection<string>? generatedPaths = null)
     {
         var normalizedRoutePrefix = TaxonomyPageCreator.NormalizeRoutePrefix(kind, routePrefix);
+        var redirects = new List<(string Path, string TargetUrl)>();
         foreach (var term in terms.Values)
         {
             if (term.Aliases is not { Count: > 0 })
@@ -24,33 +27,36 @@ internal static class TaxonomyRedirectWriter
                     continue;
                 }
 
-                if (aliasSlug.Equals(term.Slug, StringComparison.OrdinalIgnoreCase))
+                if (aliasSlug.StartsWith("/", StringComparison.Ordinal)
+                    || aliasSlug.Contains('\\')
+                    || aliasSlug.Contains(':')
+                    || aliasSlug.Split('/').Any(segment => segment is "." or ".."))
                 {
-                    continue;
+                    throw new ConfigException($"Unsafe taxonomy redirect alias '{aliasSlug}'. Use a safe relative slash-separated alias without '.' or '..' segments.", DiagnosticCode.BuildOutputUnsafe);
                 }
 
                 var aliasUrl = TaxonomyPageCreator.BuildTermUrl(normalizedRoutePrefix, aliasSlug);
-                var aliasDir = BuildOutputDirectory(outputDir, aliasUrl);
-                Directory.CreateDirectory(aliasDir);
-
-                var html = RenderRedirect(targetUrl);
-                var path = Path.Combine(aliasDir, "index.html");
-                File.WriteAllText(path, html, Encoding.UTF8);
-                generatedPaths?.Add(BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(outputDir, path)));
+                try
+                {
+                    var path = FileWriter.GetSafeFullPath(outputDir, Path.Combine(aliasUrl.Trim('/'), "index.html"));
+                    if (!aliasSlug.Equals(term.Slug, StringComparison.OrdinalIgnoreCase))
+                    {
+                        redirects.Add((path, targetUrl));
+                    }
+                }
+                catch (Exception ex) when (ex is OutputPathSecurityException or ArgumentException)
+                {
+                    throw new ConfigException($"Unsafe taxonomy redirect output for alias '{aliasSlug}'.", ex, DiagnosticCode.BuildOutputUnsafe);
+                }
             }
         }
-    }
 
-    private static string BuildOutputDirectory(string outputDir, string url)
-    {
-        var segments = url.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var path = outputDir;
-        foreach (var segment in segments)
+        foreach (var (path, targetUrl) in redirects)
         {
-            path = Path.Combine(path, segment);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, RenderRedirect(targetUrl), Encoding.UTF8);
+            generatedPaths?.Add(BuildPathUtils.NormalizeRelPath(Path.GetRelativePath(outputDir, path)));
         }
-
-        return path;
     }
 
     private static string RenderRedirect(string targetUrl)
