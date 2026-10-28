@@ -14,4 +14,25 @@
   <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Bukit.PluginSourceGenerator'">
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
   </PropertyGroup>
+
+  <!-- SkiaSharp 4.x 原生资源包会把 Windows 调试符号 libSkiaSharp.pdb
+       复制到每个输出目录（约 270 MB/项目）。非 Windows 构建用不到，
+       因此在复制/发布清单生成后立即从相应项中移除，避免白占磁盘。 -->
+  <Target Name="ExcludeSkiaSharpWindowsSymbolsFromBuild"
+          AfterTargets="ResolveLockFileCopyLocalFiles"
+          Condition="'$(OS)' != 'Windows_NT'">
+    <ItemGroup>
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+                               Condition="'%(Filename)%(Extension)' == 'libSkiaSharp.pdb'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="ExcludeSkiaSharpWindowsSymbolsFromPublish"
+          AfterTargets="ComputeResolvedFilesToPublishList"
+          Condition="'$(OS)' != 'Windows_NT'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                              Condition="'%(Filename)%(Extension)' == 'libSkiaSharp.pdb'" />
+    </ItemGroup>
+  </Target>
 </Project>
