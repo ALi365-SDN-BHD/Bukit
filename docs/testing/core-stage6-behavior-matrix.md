@@ -2,7 +2,7 @@
 
 2026-10-28。范围和顺序见 `openspec/changes/complete-core-stage6-validation/tasks.md`。
 
-**阶段 6：本轮授权范围已完成，审计七项问题已修复并经两次规定复核接受。** 当前 Engine 2881 Passed / 0 Failed / 3 继承 Skip，覆盖率 89.91% ≥70%；专项与唯一最终增量复核均为 0 Critical / 0 Important / 0 Minor。§5 原计数和复核保留为历史证据，§6 是修复后的当前证据；不把继承缺陷、其他平台、AOT 或阶段 7 稳定性算作完成。
+**阶段 6：本轮授权范围已完成，审计七项问题已修复并经两次规定复核接受。** 审计修复时 Engine 2881 Passed / 0 Failed / 3 继承 Skip，覆盖率 89.91% ≥70%；专项与唯一最终增量复核均为 0 Critical / 0 Important / 0 Minor。KD-002/003/004 随后单独修复，当前分支完整 Engine 为 **2934 Passed / 0 Failed / 0 Skip，Engine 行覆盖 89.92%**（§7）。§5 原计数和复核保留为历史证据，§6 是审计修复证据，§7 是当前分支证据；不把继承缺陷、其他平台、AOT 或阶段 7 稳定性算作完成。
 
 第一步只盘点入口和 76 个测试方法引用；盘点不等于通过。第四步以前的实际证据见 `tasks.md`，第五步历史证据见本文 §5，审计修复后的当前证据与复核见 §6。已有测试复用，不因盘点重复编写；未要求失败的纯数据投影不虚构异常契约。
 
@@ -17,7 +17,7 @@
 
 | 项 | 正常行为 | 失败／不输出行为 | 边界与接线 | 未闭环 |
 |---|---|---|---|---|
-| Alias | `AliasPluginTests.DerivePages_AliasesAsList_GeneratesRedirectPages` | `AliasPluginTests.DerivePages_AliasWithQueryOrFragment_Throws` | `AliasPluginTests.DerivePages_AliasWithTrailingSlash_Normalized` | KD-004 的别名路径安全属阶段 5，保留已知风险，不并入本轮修复 |
+| Alias | `AliasPluginTests.DerivePages_AliasesAsList_GeneratesRedirectPages` | `AliasPluginTests.DerivePages_AliasWithQueryOrFragment_Throws` | `AliasPluginTests.DerivePages_AliasWithTrailingSlash_Normalized` | KD-004 别名路径安全已在独立任务修复（主计划 5.4），当前完整 Engine 通过，见 §7 |
 | Archive | `ArchivePluginTests.DerivePages_CreatesYearAndMonthArchivePages` | `ArchivePluginTests.DerivePages_EmptyContent_ReturnsEmptyList` | `ArchivePluginTests.Archive_EqualPublishAt_IsInputOrderIndependent`；`ArchivePluginTests.DerivePages_ItemWithoutCollection_IsIgnored` | 空集合不输出；无 collection 的文档不进入归档，不声称缺日期拒绝，见 §6 |
 | DataFiles | `DataFilesPluginTests.DerivePages_LoadsYamlDataFile` | `DataFilesPluginTests.DerivePages_MalformedSupportedFile_ThrowsWithRelativePath` | `DataFilesPluginTests.DerivePages_TotalSizeLimitAcrossLanguages_FailsClosed`；`DataFilesPluginTests.OpenVerifiedDataFile_FileReplacedByExternalSymlink_Throws` | 本轮完整专项通过，见 §5 |
 | ImageProcessing | `ImageProcessingPluginTests.AfterBuild_WebpGeneratesOwnedCandidatesAndProgressivePicture` | `ImageProcessingPluginTests.AfterBuildAsync_StaleVariantRebuildFails_RemovesVariantAndProjection` | `ImageProcessingPluginTests.AfterBuildAsync_CancellationKillsChildAndRemovesPartialOutput`；`ImageProcessingPluginTests.AfterBuildAsync_HistoricalSizeUserLookalikeWithoutOwnership_IsNeverDeleted` | 进程／原生工具证据仅代表实际平台 |
@@ -25,7 +25,7 @@
 | PagesIndex | `PagesByIdDataPluginTests.DerivePages_PopulatesSiteDataPagesById` | `PagesByIdDataPluginTests.DerivePages_WhenCallerCancels_StopsFetcherAndDoesNotWriteCache` | `PagesByIdDataPluginTests.DerivePages_ShouldUseFirstCanonicalRecord_WhenGraphContainsDuplicateI18nIds` | 本轮完整专项通过，见 §5 |
 | Pagination | `PaginationPluginDerivePagesTests.DerivePages_MoreThanPageSize_GeneratesMultiplePages` | `PaginationPluginDerivePagesTests.DerivePages_NoPaginationCollection_ReturnsEmpty` | `PaginationPluginDerivePagesTests.DerivePages_ExactlyPageSize_ReturnsEmpty`；`PaginationPluginDerivePagesTests.DerivePages_WhenListRouteGraphOwnsPagination_ReturnsEmpty` | 无效 pageSize 属配置拒绝；接线不得重复所有权 |
 | RelatedContent | `RelatedContentPluginTests.DerivePages_SharedTags_CreatesRelatedLinks` | `RelatedContentPluginTests.DerivePages_NotEnabled_DoesNotWriteRelatedData` | `RelatedContentPluginTests.DerivePages_SingleItem_NoRelated`；`RelatedContentPluginTests.DerivePages_HighThreshold_ReducesMatches` | 禁用用两个匹配文档及显式索引／阈值；禁用与单文档均断言实际 RelatedPages 不写入，非仅空 derived 返回值，见 §6 |
-| Taxonomy | `TaxonomyPluginDerivePagesTests.DerivePages_GeneratesTermPagesForTags` | `TaxonomyPluginDerivePagesTests.DerivePages_OutputModeData_ReturnsEmpty` | `TaxonomyPluginDerivePagesTests.DerivePages_ZhCn_LocalizesConfiguredTermTitleAndPaginationSummary` | 继承 KD-004 路径风险；不另行扩权 |
+| Taxonomy | `TaxonomyPluginDerivePagesTests.DerivePages_GeneratesTermPagesForTags` | `TaxonomyPluginDerivePagesTests.DerivePages_OutputModeData_ReturnsEmpty` | `TaxonomyPluginDerivePagesTests.DerivePages_ZhCn_LocalizesConfiguredTermTitleAndPaginationSummary` | KD-004 重定向写入边界已修复（主计划 5.4）；`TaxonomyRedirectWriterTests` 尚未接入 `platform-tests` |
 | Analytics | `AnalyticsHtmlTransformTests.Transform_RendersFourProviders_InConfigurationOrderAndCorrectLocations` | `AnalyticsHtmlTransformTests.Transform_WhenProviderFails_RecordsTransformFailed` | `AnalyticsHtmlTransformTests.Transform_IsIdempotent_AndRemovesManagedBlocksForRemovedProviders`；`AnalyticsReportWriterTests.WriteIfEnabled_WhenSerializationFails_PreservesPreviousReportAndLeavesNoTempFiles` | 实际报告必须绑定 v2 |
 | Feed 投影 | `I18nMergedFeedProjectionTests.BuildAsync_MergedI18nFeeds_UseSharedStableLimitWindowInOutputsAndAudit` | `RssGeneratorTests.GenerateJsonFeed_RejectsTraversalBeforeWritingOutsideOutputRoot` | `RssGeneratorTests.AtomFeed_EmptyInput_IsByteStableAndUsesUnixEpoch`；`I18nMergedFeedProjectionTests.BuiltInPluginSource_DoesNotDoubleOwnProjectionAggregateOutputs` | 本轮完整专项通过，见 §5 |
 | Sitemap 投影 | `SitemapGeneratorTests.Generate_BasicSitemap_HasCorrectXmlStructure` | `SeoAuditReportWriterTests.Build_ReportsInvalidSitemapXml` | `SitemapGeneratorTests.Generate_EmptyRoutes_ProducesEmptyUrlset`；`SiteEngineIntegrationTests.BuildAsync_I18nFilteredListRoutes_EmitMutualHreflangInHtmlAndSitemap` | 本轮完整专项通过，见 §5 |
@@ -138,3 +138,15 @@ SCSS 用例在完整 Engine 本次通过，源 SCSS 保留且三个语言只编�
 §5 的 CLI 100/100、PluginHost 26/26、ConsoleLogger 21/21、Architecture 48/48 保留为未变更领域的历史结果，本次未重跑、未称为当前完整闭包 HIT。当前 R 的一次 combined spec-then-quality 专项复核 `specialty-review.md` 和一次 delta-only 最终复核 `final-unified-review.md` 均为 0 Critical / 0 Important / 0 Minor，接受全部七项修复。OpenSpec 3/4/5 均完成；最后仅回填验收状态，保持 957 项冻结运行输入不变，不为文档状态刷新重跑 fixture。完成声明仅限本轮授权的阶段 6 范围。
 
 KD-002/003/004、全 Core 覆盖率、stage-7 连续二十次稳定性、发布与全解决方案门禁不属于本轮新增授权。独立 JSON Schema 验证器交叉检查是可选增强，不新增为硬出口。
+
+## 7. 当前分支完整 Engine 复验（2026-10-29）
+
+§6 的证据根位于系统临时目录且已被清理，并早于 KD-003/KD-004 的 Engine 改动。经授权对 `codex/stage6-completion` 的 `79df55f8` 重跑完整 Engine 专项及覆盖率；持久证据根 `R=/Users/ali/.local/state/bukit-verification/stage6-engine-current-EzuJkM`，确切命令与边界见主计划 §6.10。
+
+| 验证 | 结果 | 证据（相对 R） |
+|---|---|---|
+| 完整 Engine 专项 | **2934 Passed / 0 Failed / 0 Skip**，退出码 0；无 KnownDefect Skip | `engine/engine.trx`、`engine.log` |
+| Engine 行覆盖 | **14701/16349 = 89.92% ≥70%** | `coverage/coverage-summary.json`、`final-evidence.json` |
+| 缓存 | 记录后检查 HIT | `engine-cache.json` |
+
+一个 Windows-only NOT_APPLICABLE 用例在 macOS 记为 Passed，不算 Windows 证明。CLI、PluginHost、Shared、Architecture 专项及 Linux/Windows `platform-tests` 本次未运行。

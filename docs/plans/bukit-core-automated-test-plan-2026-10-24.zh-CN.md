@@ -760,7 +760,7 @@ git diff --check
 
 出口：Engine 达到第 9 节的单项目覆盖率下限；当前 Core 报告清单中的每份报告均有真实生成的通过用例，以及按对应 schema 拒绝错误字段或类型的失败用例。
 
-**现行进度见 §6.6。** §6.1–6.5 保留历史失败、撤回候选和当时 PARTIAL/BLOCKED 状态，不是当前完成证据。
+**现行进度：清单与审计修复见 §6.6–6.7，当前完整 Engine 出口证据见 §6.10。** §6.1–6.5 保留历史失败、撤回候选和当时 PARTIAL/BLOCKED 状态，不是当前完成证据。
 
 #### 6.1 首批测试与未完成项（2026-10-28）
 
@@ -989,6 +989,24 @@ git diff --check
 
 受控成功、fallback、拒绝、编译失败、缺 CSS、超时、取消及日志接收器故障验证的是观测与旧结果保持，不等于历史故障复现或修复。原始 stderr 有意遮蔽，抛错时 runner 未暴露结果、物理工具解析、OS 调度延迟仍不可观测；耗时含包装／清理，不能当作 Sass CPU 或超时根因。用户指南新增字段说明；不改公开 API／schema／配置／依赖／CI，不跑全 Engine、跨平台、稳定性循环、阶段 7 或发布门禁。
 
+#### 6.10 当前分支完整 Engine 出口复验（2026-10-29）
+
+**Engine 出口证据：GREEN（本机 macOS arm64）；阶段 6 跨平台验证仍为缺口。** 只读审计发现：§6.7 的 2881 Passed／89.91% 证据根位于系统临时目录且已被清理，并早于 KD-003（`HashUtil`、`VariantManifestPlanner`）和 KD-004（`TaxonomyRedirectWriter`）的 Engine 改动；当前分支移除全部 KnownDefect Skip 后从未整体运行。用户授权对 `codex/stage6-completion` 的 `79df55f8` 运行一次完整 Engine 专项及覆盖率。持久证据根 `R=/Users/ali/.local/state/bukit-verification/stage6-engine-current-EzuJkM`；闭包 80 个变更路径全部映射（`R/closure.json`），分类为 fixture-exclusive，单独运行，无缓存可复用。
+
+```bash
+dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --settings coverage.runsettings --collect "XPlat Code Coverage" --logger "trx;LogFileName=engine.trx" --results-directory "$R/engine"
+```
+
+| 证据 | 结果与边界 |
+|---|---|
+| 完整 Engine 专项 | **2934 Passed／0 Failed／0 Skip**，实际退出码 0，约 111 秒；TRX 逐行 2934 条均为 Passed，无 NotExecuted。见 `R/engine/engine.trx`、`R/engine.log` |
+| KnownDefect | **0 个 Skip**。KD-002/003/004/007/011/012 相关用例首次在同一次完整运行中全部启用并通过 |
+| 平台 N/A | 1 个：`ExternalToolProcessRunnerTests.RunAsync_WindowsNativeProcess_CapturesOutputAndExitCode` 在 macOS 记为 Passed，不算 Windows 证明 |
+| Engine 行覆盖 | **14701/16349 = 89.92% ≥70%**；Engine.Assets 990/1200 = 82.50%。仅用成功 TRX 引用的 `In/*/coverage.cobertura.xml`（与 collector 副本 SHA-256 相同），按 `scripts/checks/coverage/summarize.py` 路径+行号归并，见 `R/coverage/coverage-summary.json`。汇总脚本对其他项目的低值与缺失报错来自顺带插桩，不是全 Core 门禁结论 |
+| 缓存／指标 | `R/engine-cache.json` 按 HEAD、闭包内容、确切命令、环境变量名状态和 SDK 10.0.100 记录并检查 HIT；`R/metrics.json` 记录 test 阶段；汇总见 `R/final-evidence.json` |
+
+未覆盖：CLI、PluginHost、Shared、Architecture 的改动只有 §6.6 的历史专项结果（其证据根同样已清理），本次未重跑；Linux／Windows `platform-tests`（`TestInfrastructureTests`、`ExternalToolProcessRunnerTests` 已改动但未在两平台运行；`TaxonomyRedirectWriterTests`、`CleanCommandTests` 尚未接入，前者的 `SkipException.ForSkip` 在 xUnit 2.9.3 下不等于 Skip）；全 Core 覆盖率、阶段 7 及发布门禁。SCSS 历史根因仍未知。
+
 ### 阶段 7：管线集成与端到端
 
 - 三个 fixture 站点完整构建，公共产物与 golden 快照按第 4.3 节逐字节比较，报告独立校验。
@@ -1129,3 +1147,4 @@ git diff --check
 | 2026-10-28 | 经用户授权单独修复 KD-002：CLI clean 保留根 `.bukit`，拒绝显式元数据目标（含子目录／大小写变体），保留正常输出与 `.cache` 清理；RED 13 失败 → GREEN 清理／真实入口／CLI 契约 69/69、0 Skip；专项与唯一最终增量复核均 0/0/0。仅本机 macOS，不扩展阶段 6、KD-003/004、SCSS 或全量／发布验收；见 5.3 |
 | 2026-10-27 | 经负责人授权的独立 Core 修复（4.3，复审 N-2）：显式 `route.url` 与 permalink 只对 `.html/.htm/.xml/.json/.txt` 视为文件，其余为目录；RED 8 失败 → GREEN Routing 98/98（88.96%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05 |
 | 2026-10-27 | 经负责人授权的独立 Core 修复（4.4）：`route.url` 与 permalink 末段为静态文件扩展名时构建失败并提示 `static/`/`assets/`；RED 10 失败 → GREEN Routing 112/112（90.24%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05/14；openspec 过期映射无法执行已记录 |
+| 2026-10-29 | 阶段 6 只读审计后经授权复验当前分支 `79df55f8`：完整 Engine 2934/2934、0 Skip（含全部已修复 KD）、Engine 行覆盖 89.92%，证据持久保存；跨平台与 CLI/PluginHost/Shared/Architecture 当前专项仍未验证；见 6.10 |
