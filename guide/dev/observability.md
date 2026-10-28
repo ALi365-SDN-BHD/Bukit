@@ -8,6 +8,12 @@ artifacts.
 `ConsoleLogger` supports `debug`, `info`, `warn`, and `error`. CI mode lowers
 normal output by using warning-oriented behavior in command paths.
 
+Custom `ILogger` implementations must be thread-safe: build workers may call
+any log level concurrently, and ordering between workers is not guaranteed.
+`ConsoleLogger` writes complete events under concurrent calls. The Engine's
+atomic diagnostic counters do not serialize callbacks into a custom logger;
+protect mutable collections in that logger itself.
+
 ## Metrics
 
 `--metrics` writes JSON stage timing. Variant stage metrics include content

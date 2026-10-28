@@ -7,6 +7,7 @@ using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Rendering;
 using Bukit.Shared;
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Xunit;
 using Xunit.Sdk;
@@ -17,15 +18,37 @@ public sealed partial class SiteEngineIntegrationTests
 {
     private sealed class TestLogger : ILogger
     {
-        public List<string> Debugs { get; } = new();
-        public List<string> Infos { get; } = new();
-        public List<string> Warnings { get; } = new();
-        public List<string> Errors { get; } = new();
+        public ConcurrentQueue<string> Debugs { get; } = new();
+        public ConcurrentQueue<string> Infos { get; } = new();
+        public ConcurrentQueue<string> Warnings { get; } = new();
+        public ConcurrentQueue<string> Errors { get; } = new();
 
-        public void Debug(string message) => Debugs.Add(message);
-        public void Info(string message) => Infos.Add(message);
-        public void Warn(string message) => Warnings.Add(message);
-        public void Error(string message) => Errors.Add(message);
+        public void Debug(string message) => Debugs.Enqueue(message);
+        public void Info(string message) => Infos.Enqueue(message);
+        public void Warn(string message) => Warnings.Enqueue(message);
+        public void Error(string message) => Errors.Enqueue(message);
+    }
+
+    [Fact]
+    public void TestLogger_ConcurrentCalls_PreserveAllMessages()
+    {
+        const int count = 20_000;
+        var logger = new TestLogger();
+
+        Parallel.For(0, count, new ParallelOptions { MaxDegreeOfParallelism = 4 }, index =>
+        {
+            var message = index.ToString();
+            logger.Debug(message);
+            logger.Info(message);
+            logger.Warn(message);
+            logger.Error(message);
+        });
+
+        foreach (var messages in new[] { logger.Debugs, logger.Infos, logger.Warnings, logger.Errors })
+        {
+            Assert.Equal(count, messages.Count);
+            Assert.Equal(count, messages.Distinct().Count());
+        }
     }
 
     private sealed class StaticContentProviderFactory : IContentProviderFactory
@@ -1733,11 +1756,17 @@ public sealed partial class SiteEngineIntegrationTests
             File.WriteAllText(sassPath, """
                 #!/bin/sh
                 if [ "$1" = "--version" ]; then
+                  printf 'start tool=fixture-sass-v1\n' >> "${BUKIT_TEST_SASS_LOG}.probe.trace"
                   echo "test-sass 1.0"
+                  printf 'exit code=0\n' >> "${BUKIT_TEST_SASS_LOG}.probe.trace"
                   exit 0
                 fi
+                printf 'start tool=fixture-sass-v1\n' >> "${BUKIT_TEST_SASS_LOG}.compile.trace"
                 printf 'compile\n' >> "$BUKIT_TEST_SASS_LOG"
                 printf 'body{color:red}' > "$2"
+                code=$?
+                printf 'exit code=%s\n' "$code" >> "${BUKIT_TEST_SASS_LOG}.compile.trace"
+                exit "$code"
                 """);
             File.SetUnixFileMode(
                 sassPath,
@@ -1780,25 +1809,119 @@ public sealed partial class SiteEngineIntegrationTests
                 }
             };
 
-            await CreateEmptySiteEngine(logger).BuildAsync(
-                config,
-                root,
-                new ConfigOverrides(),
-                CancellationToken.None);
+            var evidenceDir = Path.Combine(
+                Environment.GetEnvironmentVariable("BUKIT_TEST_SCSS_EVIDENCE")
+                    ?? Path.Combine(Path.GetTempPath(), "bukit-scss-diagnostics"),
+                Guid.NewGuid().ToString("N"));
+            string[] traceSuffixes = [string.Empty, ".probe.trace", ".compile.trace"];
+            string[] languages = ["en", "fr", "de"];
 
-            Assert.True(logger.Errors.Count == 0, string.Join(Environment.NewLine, logger.Errors));
-            Assert.True(File.Exists(scssPath));
-            Assert.Equal(source, File.ReadAllText(scssPath));
-            Assert.Equal(ignoredSource, File.ReadAllText(ignoredScssPath));
-            Assert.Equal(["compile"], File.ReadAllLines(sassLogPath));
-            foreach (var language in new[] { "en", "fr", "de" })
+            string Redact(string message) => message
+                .Replace(root, "<fixture>", StringComparison.Ordinal)
+                .Replace(Path.GetTempPath(), "<temp>/", StringComparison.Ordinal);
+
+            void SaveDiagnostics(string phase, Exception? failure, long elapsedMs)
             {
-                Assert.Equal(
-                    "body{color:red}",
-                    File.ReadAllText(Path.Combine(root, "dist", language, "stylesheets", "styles", "main.css")));
-                Assert.False(File.Exists(Path.Combine(root, "dist", language, "assets", "ignored.scss")));
-                Assert.False(File.Exists(Path.Combine(root, "dist", language, "assets", "ignored.css")));
+                var destination = Path.Combine(evidenceDir, phase);
+                Directory.CreateDirectory(destination);
+                foreach (var suffix in traceSuffixes)
+                {
+                    if (File.Exists(sassLogPath + suffix))
+                        File.Copy(sassLogPath + suffix, Path.Combine(destination, "sass.log" + suffix));
+                }
+                File.WriteAllText(Path.Combine(destination, "state.json"), JsonSerializer.Serialize(new
+                {
+                    phase,
+                    failure = failure?.GetType().Name,
+                    buildAndAssertionsElapsedMs = elapsedMs,
+                    expectedTool = "fixture-sass-v1",
+                    toolFileExists = File.Exists(sassPath),
+                    toolUserExecutable = File.Exists(sassPath) && (File.GetUnixFileMode(sassPath) & UnixFileMode.UserExecute) != 0,
+                    pathPrefixMatchesFixture = Environment.GetEnvironmentVariable("PATH")?.StartsWith(toolsDir + Path.PathSeparator, StringComparison.Ordinal) == true,
+                    logTargetMatchesFixture = Environment.GetEnvironmentVariable("BUKIT_TEST_SASS_LOG") == sassLogPath,
+                    environment = new[] { "PATH", "BUKIT_TEST_SASS_LOG", "BUKIT_TEST_SCSS_EVIDENCE" }.ToDictionary(
+                        name => name, name => Environment.GetEnvironmentVariable(name) switch { null => "unset", "" => "empty", _ => "set" }),
+                    debug = logger.Debugs.Select(Redact).ToArray(),
+                    warnings = logger.Warnings.Select(Redact).ToArray(),
+                    errors = logger.Errors.Select(Redact).ToArray(),
+                    sourceUnchanged = File.Exists(scssPath) && File.ReadAllText(scssPath) == source,
+                    ignoredSourceUnchanged = File.Exists(ignoredScssPath) && File.ReadAllText(ignoredScssPath) == ignoredSource,
+                    css = languages.Select(language =>
+                    {
+                        var path = Path.Combine(root, "dist", language, "stylesheets", "styles", "main.css");
+                        return new { language, exists = File.Exists(path), expected = "body{color:red}", actual = File.Exists(path) ? File.ReadAllText(path) : null };
+                    }).ToArray(),
+                    unobserved = new[] { "raw stderr content (intentionally fully redacted)", "exit/stderr for thrown runner attempts", "physical PATH resolution", "OS process scheduling latency" }
+                }, new JsonSerializerOptions { WriteIndented = true }));
             }
+
+            async Task WithDiagnosticsAsync(string phase, Func<Task> action)
+            {
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                Exception? failure = null;
+                try { await action(); }
+                catch (Exception ex) { failure = ex; throw; }
+                finally
+                {
+                    stopwatch.Stop();
+                    try { SaveDiagnostics(phase, failure, stopwatch.ElapsedMilliseconds); }
+                    catch (Exception captureFailure) when (failure is not null)
+                    {
+                        throw new AggregateException("SCSS failure and diagnostic capture failure.", failure, captureFailure);
+                    }
+                }
+            }
+
+            // Exercise failure retention without another process or build, then remove only these synthetic inputs.
+            foreach (var suffix in traceSuffixes) File.WriteAllText(sassLogPath + suffix, "capture-self-check\n");
+            logger.Debug($"event=scss.diagnostic.self_check file={root}");
+            var selfCheckFailure = new InvalidOperationException("diagnostic retention self-check");
+            Assert.Same(selfCheckFailure, await Record.ExceptionAsync(() =>
+                WithDiagnosticsAsync("self-check", () => Task.FromException(selfCheckFailure))));
+            foreach (var suffix in traceSuffixes)
+            {
+                Assert.Equal("capture-self-check\n", File.ReadAllText(Path.Combine(evidenceDir, "self-check", "sass.log" + suffix)));
+                File.Delete(sassLogPath + suffix);
+            }
+            using (var saved = JsonDocument.Parse(File.ReadAllText(Path.Combine(evidenceDir, "self-check", "state.json"))))
+            {
+                Assert.Equal(nameof(InvalidOperationException), saved.RootElement.GetProperty("failure").GetString());
+                Assert.Equal("event=scss.diagnostic.self_check file=<fixture>", saved.RootElement.GetProperty("debug")[0].GetString());
+                Assert.All(saved.RootElement.GetProperty("css").EnumerateArray(), css => Assert.False(css.GetProperty("exists").GetBoolean()));
+            }
+            Assert.True(logger.Debugs.TryDequeue(out _));
+
+            await WithDiagnosticsAsync("build", async () =>
+            {
+                await CreateEmptySiteEngine(logger).BuildAsync(
+                    config,
+                    root,
+                    new ConfigOverrides(),
+                    CancellationToken.None);
+
+                Assert.True(logger.Errors.Count == 0, string.Join(Environment.NewLine, logger.Errors));
+                Assert.True(File.Exists(scssPath));
+                Assert.Equal(source, File.ReadAllText(scssPath));
+                Assert.Equal(ignoredSource, File.ReadAllText(ignoredScssPath));
+                Assert.True(File.Exists(sassLogPath),
+                    $"Sass log missing. Debug: {string.Join("; ", logger.Debugs)}; Warnings: {string.Join("; ", logger.Warnings)}");
+                Assert.Equal(["compile"], File.ReadAllLines(sassLogPath));
+                foreach (var language in languages)
+                {
+                    Assert.Equal(
+                        "body{color:red}",
+                        File.ReadAllText(Path.Combine(root, "dist", language, "stylesheets", "styles", "main.css")));
+                    Assert.False(File.Exists(Path.Combine(root, "dist", language, "assets", "ignored.scss")));
+                    Assert.False(File.Exists(Path.Combine(root, "dist", language, "assets", "ignored.css")));
+                }
+                foreach (var suffix in new[] { ".probe.trace", ".compile.trace" })
+                    Assert.Equal(["start tool=fixture-sass-v1", "exit code=0"], File.ReadAllLines(sassLogPath + suffix));
+                var attempts = logger.Debugs.Where(message => message.StartsWith("event=scss.tool.end ", StringComparison.Ordinal)).ToArray();
+                Assert.Equal(2, attempts.Length);
+                foreach (var phase in new[] { "probe", "compile" })
+                    Assert.Contains(attempts, message => message.Contains($"phase={phase} tool=sass outcome=exit exit_code=0 ", StringComparison.Ordinal)
+                        && message.Contains("stderr=empty stderr_chars=0 error=none", StringComparison.Ordinal));
+            });
         }
         finally
         {

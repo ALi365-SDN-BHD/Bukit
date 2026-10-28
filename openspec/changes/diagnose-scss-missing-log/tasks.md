@@ -1,0 +1,9 @@
+# SCSS bounded diagnosis checklist
+
+- [x] 1. Confirm task-3 scope, freeze existing work, map/classify the six-path closure and acquire the sole writer. Production code and prior KD repairs remain unchanged.
+- [x] 2. Add independent fake-tool branch traces and before-cleanup diagnostic retention, including a failure-path self-check, without weakening original assertions or changing production timeouts. The one planned coverage run returned exit 0: TRX 20 passed / 0 failed / 0 Skip (one Windows-only NOT_APPLICABLE on macOS, not Windows proof). Traces, exact three-language CSS, unchanged source and negative retention self-check passed; coverage/logs/snapshots retained. Runtime GREEN cache recorded and checked HIT. Historical failure not reproduced; root cause still unknown.
+- [x] 3. Accept one specialty and one generated-scope delta-only final review; backfill only this diagnosis, verify outside bytes/static checks, cache eligible GREEN evidence, release writer and report metrics. Final mechanical results are recorded in `completion.json`, with static/cache and parent metrics evidence. Do not claim root-cause repair merely from a passing run.
+
+Specialty review `reviews/specialty-v1.md` and the single generated-scope final review `reviews/final-delta-v1.md` accepted: each Critical 0 / Important 0 / Minor 0, no repair or rerun required. Unchanged runtime GREEN evidence is reused. Bounded diagnosis complete; historical root cause still unknown, so causal resolution remains PARTIAL. Further production observation/repair needs separate authorization. Preserve the worktree and all uncommitted work; no commit/push/merge or archive.
+
+Evidence root: `/Users/ali/.local/state/bukit-verification/scss-causal-diagnosis-z6Jmp9`. No production change, full gate, stage 7, commit/push/merge or automatic retry.
