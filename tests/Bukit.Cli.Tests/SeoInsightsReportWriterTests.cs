@@ -275,7 +275,14 @@ public sealed class SeoInsightsReportWriterTests
     [Fact]
     public void Write_UsesExactTopLevelContractAndDeterministicUtf8Json()
     {
-        var report = SeoInsightsReportWriter.Assemble(CreateMatcher(), Datasets());
+        var matcher = CreateMatcher(
+        [
+            new("route:sha256:" + new string('0', 64), null, "/zero/", "/zero/"),
+            new("route:sha256:" + new string('1', 64), null, "/article/", "/article/"),
+            new("route:sha256:" + new string('2', 64), null, "/shared-b/", "/shared/"),
+            new("route:sha256:" + new string('3', 64), null, "/shared-a/", "/shared/")
+        ]);
+        var report = SeoInsightsReportWriter.Assemble(matcher, Datasets());
         var output = Path.Combine(Path.GetTempPath(), $"bukit-seo-{Guid.NewGuid():N}");
         try
         {
@@ -287,6 +294,7 @@ public sealed class SeoInsightsReportWriterTests
 
             Assert.Equal(first, second);
             Assert.EndsWith(Environment.NewLine, first, StringComparison.Ordinal);
+            ReportContractAssertions.Schema(first, "seo-insights-report.v1.schema.json", "sources");
             using var json = JsonDocument.Parse(first);
             Assert.Equal(
                 ["schema", "schemaVersion", "generatedAt", "window", "sources", "joinQuality", "routes", "unmatched", "ambiguous"],
@@ -375,9 +383,9 @@ public sealed class SeoInsightsReportWriterTests
         ];
     }
 
-    private static SeoObservationRouteMatcher CreateMatcher()
+    private static SeoObservationRouteMatcher CreateMatcher(IReadOnlyList<RouteDefinition>? routes = null)
     {
-        var routeMap = CreateRouteMap(
+        var routeMap = CreateRouteMap(routes ??
         [
             new("route:zero", null, "/zero/", "/zero/"),
             new("route:article", "content:article", "/article/", "/article/"),

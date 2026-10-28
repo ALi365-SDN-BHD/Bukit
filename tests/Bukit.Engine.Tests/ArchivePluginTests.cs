@@ -135,17 +135,18 @@ public sealed class ArchivePluginTests
     }
 
     [Fact]
-    public void DerivePages_ItemWithoutPublishDate_IsIgnored()
+    public void DerivePages_ItemWithoutCollection_IsIgnored()
     {
-        var itemNoDate = ContentDocument.Create(
+        var outsideCollection = ContentDocument.Create(
             id: "p0",
-            title: "No Date",
-            slug: "no-date",
-            publishAt: DateTimeOffset.MinValue,
-            contentHtml: "<p>no date</p>");
+            title: "Outside Collection",
+            slug: "outside-collection",
+            publishAt: new DateTimeOffset(2023, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            contentHtml: "<p>outside collection</p>");
+        Assert.True(string.IsNullOrWhiteSpace(outsideCollection.Record.Classification.Collection));
         var routed = new List<(ContentDocument Item, RouteInfo Route)>
         {
-            (itemNoDate, new RouteInfo("/blog/no-date/", "blog/no-date/index.html", "pages/post.html")),
+            (outsideCollection, new RouteInfo("/blog/outside-collection/", "blog/outside-collection/index.html", "pages/post.html")),
             (CreateItem("p1", "Post 1", "post-1", new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero)), new RouteInfo("/blog/post-1/", "blog/post-1/index.html", "pages/post.html")),
         };
         var (ctx, config) = CreateContext(routed);
@@ -155,6 +156,9 @@ public sealed class ArchivePluginTests
 
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2024/");
         Assert.Contains(derived, x => x.Route.Url == "/blog/archive/2024/01/");
+        Assert.Equal(3, derived.Count);
+        Assert.DoesNotContain(derived, x => x.Route.Url.Contains("/2023/", StringComparison.Ordinal));
+        Assert.All(derived, item => Assert.DoesNotContain("/blog/outside-collection/", item.Document.Body.Html ?? string.Empty));
     }
 
     [Fact]

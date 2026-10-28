@@ -200,6 +200,23 @@ public sealed class ConsoleLoggerTests
         }
     }
 
+    [Fact]
+    public void JsonFormat_ConcurrentCalls_PreserveEveryCompleteEvent()
+    {
+        var logger = new ConsoleLogger(LogLevel.Info, "json");
+        var output = CaptureStderr(() => Parallel.For(0, 2000, index => logger.Info($"event-{index}")));
+
+        var lines = output.Split(Environment.NewLine);
+        Assert.Equal(2000, lines.Length);
+        var messages = lines.Select(line =>
+        {
+            using var document = JsonDocument.Parse(line);
+            return document.RootElement.GetProperty("msg").GetString();
+        }).ToHashSet(StringComparer.Ordinal);
+        Assert.Equal(2000, messages.Count);
+        Assert.All(Enumerable.Range(0, 2000), index => Assert.Contains($"event-{index}", messages));
+    }
+
     private static string CaptureStderr(Action action)
     {
         var original = Console.Error;

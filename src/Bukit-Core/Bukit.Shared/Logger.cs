@@ -11,6 +11,8 @@ public enum LogLevel
     Error = 4
 }
 
+/// <summary>Receives log events, including concurrent events from build workers.</summary>
+/// <remarks>Implementations must be thread-safe. Ordering between concurrent callers is not guaranteed.</remarks>
 public interface ILogger
 {
     void Debug(string message);

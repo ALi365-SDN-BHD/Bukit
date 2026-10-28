@@ -236,11 +236,15 @@ public sealed class ExternalAuthorityReportWriterTests
             Options(),
             GeneratedAt);
 
-        var first = Serialize(inputs());
+        var report = inputs();
+        var first = Serialize(report);
         var second = Serialize(inputs());
 
         Assert.Equal(first, second);
         Assert.Contains("external-authority-report.v1.json", first, StringComparison.Ordinal);
+        var generated = ReportContractAssertions.Write(output => ExternalAuthorityReportWriter.Write(output, report), ExternalAuthorityReportWriter.FileName);
+        Assert.Equal(first + Environment.NewLine, generated);
+        ReportContractAssertions.Schema(generated, "external-authority-report.v1.schema.json", "sources");
     }
 
     private static string Serialize(ExternalAuthorityReport report)

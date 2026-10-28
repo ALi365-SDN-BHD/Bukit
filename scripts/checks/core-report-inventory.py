@@ -87,6 +87,18 @@ class InventoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Artifact filename"):
             check(self.root, self.inventory)
 
+    def test_explicit_local_binding_can_use_payload_version_without_schema_declaration(self):
+        record = self.inventory["records"][0]
+        record["declaredSchemaId"] = None
+        record["localSchemaId"] = "urn:test"
+        record["schemaStatus"] = "explicit-local-binding-no-payload-declaration"
+        (self.root / "test.cs").write_text('class ReportTests { void Writes() { var schema = "schema.json"; } }')
+        self.assertEqual((1, 1), check(self.root, self.inventory))
+        self.schema["properties"]["schemaVersion"]["const"] = "1.0"
+        self.write_schema()
+        with self.assertRaisesRegex(ValueError, "Stale schema version"):
+            check(self.root, self.inventory)
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -99,10 +111,10 @@ def main():
     root = Path(__file__).resolve().parents[2]
     inventory = json.loads(source(root, "docs/testing/core-report-inventory.json"))
     counts = check(root, inventory)
-    require({record["id"] for record in inventory["records"]} == CURRENT_IDS and counts == (24, 20), "Current producer inventory changed; update its explicit coverage")
+    require({record["id"] for record in inventory["records"]} == CURRENT_IDS and counts == (24, 24), "Current producer inventory changed; update its explicit coverage")
     analytics = next(record for record in inventory["records"] if record["id"] == "analytics-report")
     require(analytics["declaredSchemaId"] == "https://bukit.dev/schemas/analytics-report.v2.json" and analytics["versionBinding"]["value"] == "2.0", "Analytics must bind current v2")
-    print("Core report inventory: 24 records, 20 local schemas; known contract gaps retained")
+    print("Core report inventory: 24 records, 24 local schemas; static bindings validated (not generated-instance proof)")
     return 0
 
 

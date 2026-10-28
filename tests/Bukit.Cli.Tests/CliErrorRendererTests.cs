@@ -37,6 +37,7 @@ public sealed class CliErrorRendererTests
             """,
             json);
         Assert.False(json.EndsWith('\n'));
+        ReportContractAssertions.Schema(json, "cli-error.v1.schema.json", "exitCode");
     }
 
     [Fact]
@@ -87,6 +88,31 @@ public sealed class CliErrorRendererTests
             }
             """,
             json);
+    }
+
+    [Fact]
+    public void RenderJson_NullCommand_MatchesDeclaredSchema()
+    {
+        var json = CliErrorRenderer.RenderJson(null, 0, Array.Empty<CliErrorRenderer.CliErrorDiagnostic>());
+
+        ReportContractAssertions.Schema(json, "cli-error.v1.schema.json", "exitCode");
+    }
+
+    [Fact]
+    public void RenderJson_OptionalCommandSchema_RemainsStrictForWrongTypesAndUnknownFields()
+    {
+        var json = CliErrorRenderer.RenderJson(null, 0, Array.Empty<CliErrorRenderer.CliErrorDiagnostic>());
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "bukit-core.slnx"))) root = root.Parent;
+        Assert.NotNull(root);
+        using var schema = JsonDocument.Parse(File.ReadAllText(Path.Combine(root.FullName, "docs/schemas/cli-error.v1.schema.json")));
+        foreach (var field in new[] { "command", "unexpected" })
+        {
+            var invalid = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
+            invalid[field] = true;
+            var error = Assert.Throws<InvalidDataException>(() => Bukit.Engine.Tests.Infrastructure.LocalJsonSchema.AssertValid(JsonSerializer.SerializeToElement(invalid), schema.RootElement));
+            Assert.Contains(field, error.Message);
+        }
     }
 
     [Fact]

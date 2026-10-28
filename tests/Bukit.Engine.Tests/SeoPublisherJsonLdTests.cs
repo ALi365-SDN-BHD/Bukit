@@ -147,22 +147,27 @@ public sealed class SeoPublisherJsonLdTests
             document.RootElement.TryGetProperty("@type", out var type) &&
             type.GetString() == "FAQPage");
 
+        Assert.Single(faqPage.RootElement.GetProperty("mainEntity").EnumerateArray());
         Assert.False(faqPage.RootElement.TryGetProperty("publisher", out _));
     }
 
     private static SeoModel BuildForContent(AppConfig config, string schemaType)
     {
+        var fields = new Dictionary<string, object> { ["type"] = "post", ["schema_type"] = schemaType };
+        if (schemaType == "FAQPage")
+        {
+            fields["geo"] = new Dictionary<string, object>
+            {
+                ["faq"] = new List<object> { new Dictionary<string, object> { ["question"] = "Who publishes?", ["answer"] = "Example Publisher." } }
+            };
+        }
         var document = ContentDocument.Create(
             id: $"publisher-{schemaType}",
             title: "Publisher contract",
             slug: $"publisher-{schemaType.ToLowerInvariant()}",
             publishAt: new DateTimeOffset(2026, 7, 25, 0, 0, 0, TimeSpan.Zero),
             contentHtml: "<p>Publisher contract</p>",
-            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>
-            {
-                ["type"] = "post",
-                ["schema_type"] = schemaType
-            }));
+            fields: ContentFieldReader.ToFieldMap(fields));
         var route = new RouteInfo(
             $"/publisher-{schemaType.ToLowerInvariant()}/",
             $"publisher-{schemaType.ToLowerInvariant()}/index.html",

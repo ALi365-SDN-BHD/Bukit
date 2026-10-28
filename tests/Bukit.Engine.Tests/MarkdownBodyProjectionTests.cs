@@ -91,6 +91,91 @@ public sealed class MarkdownBodyProjectionTests
         Assert.DoesNotContain("href=\"javascript:", Markdown.ToHtml(markdown));
     }
 
+    [Theory]
+    [InlineData("script", "</ script>")]
+    [InlineData("script", "</scripture>")]
+    [InlineData("style", "</ style>")]
+    [InlineData("style", "</style\u00a0>")]
+    public void HiddenBlocks_InvalidClosingTags_CannotExposeLinksOrText(string tag, string invalidEnd)
+    {
+        var html = $"<a href='/before'>before</a><{tag} data-example='>'>hidden-one{invalidEnd}" +
+            $"<a href='/private'>hidden-link</a>hidden-two</{tag}><a href='/after'>after</a>";
+
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.Equal(new[] { "/before", "/after" }, Markdown.Parse(markdown).Descendants<LinkInline>().Select(link => link.Url));
+        Assert.DoesNotContain("hidden", markdown, StringComparison.Ordinal);
+        Assert.DoesNotContain("/private", markdown, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("script")]
+    [InlineData("style")]
+    public void UnclosedHiddenBlocks_CannotExposeLinksOrText(string tag)
+    {
+        var html = $"before<{tag}>hidden</ {tag}><a href='/private'>hidden-link</a>";
+
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.Equal("before", markdown);
+        Assert.Empty(Markdown.Parse(markdown).Descendants<LinkInline>());
+    }
+
+    [Fact]
+    public void DoubleEscapedScript_CannotExposeAnInnerLink()
+    {
+        const string html = "<script><!-- <script></script><a href='/private'>hidden-link</a></script><a href='/ok'>visible</a>";
+
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.Equal("/ok", Assert.Single(Markdown.Parse(markdown).Descendants<LinkInline>()).Url);
+        Assert.DoesNotContain("hidden-link", markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScriptEscapeEndsImmediately_PreservesLinksBetweenBlocks()
+    {
+        const string html = "<script><!--><script>hidden-one</script><a href='/between'>between</a>" +
+            "<script>hidden-two</script><a href='/after'>after</a>";
+
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.Equal(new[] { "/between", "/after" }, Markdown.Parse(markdown).Descendants<LinkInline>().Select(link => link.Url));
+        Assert.DoesNotContain("hidden", markdown, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("textarea")]
+    [InlineData("title")]
+    public void RawTextExample_DoesNotHideFollowingLink(string tag)
+    {
+        var html = $"<{tag}><script>example</scripture></{tag}><a href='/visible'>visible-after</a>";
+
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.Equal("/visible", Assert.Single(Markdown.Parse(markdown).Descendants<LinkInline>()).Url);
+    }
+
+    [Fact]
+    public void SvgCdataBeforeScript_DoesNotExposeHiddenLink()
+    {
+        const string html = "<svg><![CDATA[ > </fake a=x\" b=\" ]]><script>hidden-one</ script><a href=\"/secret\">HIDDENMARKER</a>hidden-two</script>visible\" ></svg>";
+
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.DoesNotContain("HIDDENMARKER", markdown, StringComparison.Ordinal);
+        Assert.DoesNotContain("/secret", markdown, StringComparison.Ordinal);
+        Assert.DoesNotContain("hidden-two", markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NestedScriptEscape_DoesNotExposeTheRemainder()
+    {
+        const string html = "<script><!--<!--<script>hidden</script><a href='/private'>hidden-tail</a>";
+
+        Assert.Equal(string.Empty, MarkdownBodyProjection.FromHtml(html));
+    }
+
     [Fact]
     public void NestedMalformedAnchors_PreserveTextAndOnlyTheInnermostTarget()
     {
@@ -100,6 +185,80 @@ public sealed class MarkdownBodyProjectionTests
         Assert.Contains("outer", markdown);
         Assert.EndsWith("tail", markdown);
     }
+
+    [Theory]
+    [InlineData("<a href='/outer'>before<template><a href='/hidden'>HIDDENMARKER</a></template>after</a>")]
+    [InlineData("<a href='/outer'>before<template><template><a href='/hidden'>HIDDENMARKER</a></template></template>after</a>")]
+    [InlineData("<a href='/outer'>before<template><a href='/hidden'>HIDDENMARKER</template>after</a>")]
+    [InlineData("<a href='/outer'>before<svg><template/></svg>after</a>")]
+    [InlineData("<a href='/outer'>before<template></template>after</a>")]
+    [InlineData("<a href='/outer'>before<template><svg><template/></svg><a href='/hidden'>HIDDENMARKER</a></template>after</a>")]
+    [InlineData("<a href='/outer'>before<svg><foreignObject><template><a href='/hidden'>HIDDENMARKER</a></template></foreignObject></svg>after</a>")]
+    [InlineData("<a href='/outer'>before<template><script>hidden</script><a href='/hidden'>HIDDENMARKER</a></template>after</a>")]
+    public void HtmlTemplateContents_CannotOverwriteOuterAnchor(string html)
+    {
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.Equal("/outer", Assert.Single(Markdown.Parse(markdown).Descendants<LinkInline>()).Url);
+        Assert.Contains("before", markdown);
+        Assert.Contains("after", markdown);
+        Assert.DoesNotContain("HIDDENMARKER", markdown);
+        Assert.DoesNotContain("/hidden", markdown);
+    }
+
+    [Theory]
+    [InlineData("<a href='/outer'>before<svg><template><a href='/hidden'>HIDDENMARKER</a></template></svg>after</a>")]
+    [InlineData("<a href='/outer'>before<svg><template><a href='/hidden'>HIDDENMARKER</a></svg>after</a>")]
+    public void ForeignTemplate_IsNotAnInertHtmlAnchorScope(string html)
+    {
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.Empty(Markdown.Parse(markdown).Descendants<LinkInline>());
+        Assert.Contains("before", markdown);
+        Assert.Contains("after", markdown);
+        Assert.DoesNotContain("HIDDENMARKER", markdown);
+    }
+
+    [Theory]
+    [InlineData("<a href='/outer'>before<template><a href='/hidden'>HIDDENMARKER</a>after</a>")]
+    [InlineData("<a href='/outer'>before<template/><a href='/hidden'>HIDDENMARKER</a>after</a>")]
+    public void UnclosedHtmlTemplate_DoesNotCloseOuterAnchor(string html)
+    {
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.Equal("before", markdown);
+        Assert.Empty(Markdown.Parse(markdown).Descendants<LinkInline>());
+    }
+
+    [Fact]
+    public void ExplicitlyClosedMalformedOuterAnchor_StillKeepsOnlyInnermostTarget()
+    {
+        const string html = "<a href='/outer'>before<a href='/inner'>inner</a>after</a>";
+
+        Assert.Equal("/inner", Assert.Single(Markdown.Parse(MarkdownBodyProjection.FromHtml(html)).Descendants<LinkInline>()).Url);
+    }
+
+    [Theory]
+    [InlineData("/raw")]
+    [InlineData("javascript:bad")]
+    public void Noscript_LiteralAnchorRemainsTextWithoutBecomingALink(string rawTarget)
+    {
+        var html = $"before<noscript><a href='{rawTarget}'>RAWLABEL</a></noscript><a href='/visible'>VISIBLEMARKER</a>";
+        var markdown = MarkdownBodyProjection.FromHtml(html);
+
+        Assert.Equal("/visible", Assert.Single(Markdown.Parse(markdown).Descendants<LinkInline>()).Url);
+        Assert.Contains($"&lt;a href='{rawTarget}'&gt;RAWLABEL&lt;/a&gt;", markdown);
+        Assert.Contains("before", markdown);
+        Assert.Empty(Markdown.Parse(markdown).Descendants<HtmlInline>());
+    }
+
+    [Theory]
+    [InlineData("xmp")]
+    [InlineData("iframe")]
+    [InlineData("noembed")]
+    [InlineData("noframes")]
+    public void NormalizedRawText_PreservesWordBoundaries(string tag)
+        => Assert.Equal("before example after", MarkdownBodyProjection.FromHtml($"before<{tag}>example</{tag}>after"));
 
     [Fact]
     public void ImagesAndAdjacentLinks_PreserveBodyOrderWithoutCreatingImages()

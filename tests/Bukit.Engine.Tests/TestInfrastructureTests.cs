@@ -330,6 +330,30 @@ public sealed class TestInfrastructureTests
             mutant["durationMs"] = "not a number";
             Assert.Throws<InvalidDataException>(() => ReportAssertions.Schema(Path.GetFileName(path), JsonSerializer.SerializeToElement(mutant)));
         }
+        foreach (var (fileName, field) in new[]
+        {
+            ("build-report.json", "durationMs"),
+            ("routes.json", "routes"),
+            ("assets.json", "assets"),
+            ("incremental-manifest.json", "enabled"),
+            ("security-report.json", "checks"),
+            ("release-bundle-checksums.json", "fileCount"),
+            ("artifact-manifest.json", "artifactCount"),
+            ("build-manifest-digest.json", "reportCount"),
+            ("publish-url-snapshot.json", "routes"),
+            ("seo-report.json", "routes"),
+            ("publish-audit-report.json", "documents"),
+            ("seo-route-map.json", "routes"),
+            ("geo-report.json", "geoScore"),
+            ("analytics-report.json", "processedHtml")
+        })
+        {
+            var generated = JsonNode.Parse(File.ReadAllText(Path.Combine(site.Output, ".bukit", fileName)))!.AsObject();
+            ReportAssertions.Schema(fileName, JsonSerializer.SerializeToElement(generated));
+            generated[field] = "wrong type";
+            var error = Assert.Throws<InvalidDataException>(() => ReportAssertions.Schema(fileName, JsonSerializer.SerializeToElement(generated)));
+            Assert.Contains(field, error.Message);
+        }
         var bytes = new byte[] { 0, 255, 2 };
         var hash = ReportAssertions.Hash(bytes);
         var aggregate = ReportAssertions.Hash(System.Text.Encoding.UTF8.GetBytes($"data.bin|{hash}|3\n"));

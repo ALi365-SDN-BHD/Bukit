@@ -201,11 +201,15 @@ public sealed class GenerativeCitationReportWriterTests
             Options(),
             GeneratedAt);
 
-        var first = Serialize(inputs());
+        var report = inputs();
+        var first = Serialize(report);
         var second = Serialize(inputs());
 
         Assert.Equal(first, second);
         Assert.Contains("generative-citation-report.v1.json", first, StringComparison.Ordinal);
+        var generated = ReportContractAssertions.Write(output => GenerativeCitationReportWriter.Write(output, report), GenerativeCitationReportWriter.FileName);
+        Assert.Equal(first + Environment.NewLine, generated);
+        ReportContractAssertions.Schema(generated, "generative-citation-report.v1.schema.json", "sources");
     }
 
     private static string Serialize(GenerativeCitationReport report)

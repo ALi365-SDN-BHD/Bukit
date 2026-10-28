@@ -3,7 +3,7 @@
   "$id": "https://bukit.dev/schemas/cli-error.v1.json",
   "title": "Bukit CLI Error Envelope",
   "type": "object",
-  "required": ["schema", "version", "command", "exitCode", "errors"],
+  "required": ["schema", "version", "exitCode", "errors"],
   "properties": {
     "schema": {
       "const": "https://bukit.dev/schemas/cli-error.v1.json"

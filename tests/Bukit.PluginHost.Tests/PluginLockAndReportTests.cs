@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Bukit.Engine.Tests.Infrastructure;
 using Bukit.Plugin.Abstractions.Config;
 using Bukit.Plugin.Abstractions.Manifest;
 using Bukit.Plugin.Abstractions.Results;
@@ -167,6 +168,11 @@ public sealed class PluginLockAndReportTests
             $"Execution report did not match {Path.GetRelativePath(RepoRoot, goldenPath)}.");
         AssertJsonSchema(schema.RootElement, actualDocument.RootElement);
         AssertJsonSchema(schema.RootElement, goldenDocument.RootElement);
+        LocalJsonSchema.AssertValid(actualDocument.RootElement, schema.RootElement);
+        var invalid = actual.DeepClone().AsObject();
+        invalid["success"] = "wrong type";
+        var schemaError = Assert.Throws<InvalidDataException>(() => LocalJsonSchema.AssertValid(JsonSerializer.SerializeToElement(invalid), schema.RootElement));
+        Assert.Contains("success", schemaError.Message);
         Assert.False(actual.AsObject().ContainsKey("stdout"));
         Assert.Contains("\"pluginId\": \"echo\"", json, StringComparison.Ordinal);
         Assert.Contains("\"pluginVersion\": \"0.1.0\"", json, StringComparison.Ordinal);
@@ -197,6 +203,34 @@ public sealed class PluginLockAndReportTests
         Assert.DoesNotContain("secret-token", json, StringComparison.Ordinal);
         Assert.Contains("token=***", json, StringComparison.Ordinal);
         Assert.Contains("\"PUBLIC_VALUE\": \"visible\"", json, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("resourceLimitExceeded")]
+    [InlineData("networkPermissionGranted")]
+    public async Task PluginExecutionReporter_OptionalProductionField_MatchesLocalSchema(string field)
+    {
+        using var directory = TestDirectory.Create();
+        var report = new PluginExecutionReport(
+            PluginId: "echo", Operation: "invoke", RequestId: "req-1", ProcessExitCode: 0,
+            Success: true, TimedOut: false, OutputLimitExceeded: false, StdoutBytes: 0, StderrBytes: 0, Stderr: "",
+            ResourceLimitExceeded: field == "resourceLimitExceeded" ? "cpu" : null,
+            NetworkPermissionGranted: field == "networkPermissionGranted" ? true : null);
+
+        var path = await new PluginExecutionReporter().WriteAsync(directory.Path, report, CancellationToken.None);
+        using var generated = JsonDocument.Parse(File.ReadAllText(path));
+        using var schema = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot, "docs", "schemas", "plugin-execution-report.v1.schema.json")));
+        Assert.True(generated.RootElement.TryGetProperty(field, out _));
+        LocalJsonSchema.AssertValid(generated.RootElement, schema.RootElement);
+
+        var invalid = JsonNode.Parse(generated.RootElement.GetRawText())!.AsObject();
+        invalid[field] = 123;
+        var error = Assert.Throws<InvalidDataException>(() => LocalJsonSchema.AssertValid(JsonSerializer.SerializeToElement(invalid), schema.RootElement));
+        Assert.Contains(field, error.Message);
+        invalid = JsonNode.Parse(generated.RootElement.GetRawText())!.AsObject();
+        invalid["unexpected"] = true;
+        error = Assert.Throws<InvalidDataException>(() => LocalJsonSchema.AssertValid(JsonSerializer.SerializeToElement(invalid), schema.RootElement));
+        Assert.Contains("unexpected", error.Message);
     }
 
     private static void AssertJsonSchema(

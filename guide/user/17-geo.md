@@ -26,6 +26,30 @@ many articles, and a negative value fails configuration validation. The default
 remains `20` when the field is omitted. Use `0` for collections whose article
 count grows over time, while monitoring the generated `llms.txt` file size.
 
+## FAQ and HowTo content
+
+`geo.schema_type: FAQPage` requires a nonempty `geo.faq` list; `HowTo`
+requires a nonempty `geo.steps` list. If the required list is absent or empty,
+Bukit omits that FAQPage/HowTo JSON-LD node instead of generating an invalid
+node or silently changing it to an Article. Configured generic WebPage and
+WebSite nodes remain available.
+
+`site.seo.diagnostics` controls the missing-list diagnostic: `warn` logs
+`geo.faq_items_missing` or `geo.howto_steps_missing`, `strict` fails the build,
+and `off` suppresses the diagnostic but still does not emit the invalid node.
+Nonempty lists retain every item for per-field diagnostics, including incomplete
+maps and non-map/null items. A FAQ item requires nonblank `question` and `answer`;
+a HowTo step requires nonblank `name` and `text`. Missing or blank values report
+`geo.faq_empty_question`, `geo.faq_empty_answer`, `geo.howto_step_empty_name` or
+`geo.howto_step_empty_text` through the same warn/strict/off policy. Non-map/null
+items have both required fields missing.
+
+Only complete items appear in JSON-LD, even when diagnostics are `off`. Mixed
+lists emit their valid items; HowTo positions stay contiguous. If no complete
+items remain, Bukit omits the specialized node without an Article fallback,
+while preserving generic nodes. Incomplete items do not disappear before
+diagnostics just because another item is valid.
+
 ## Citations and provenance
 
 Content-level `citations` entries under the frontmatter `geo` field connect an
