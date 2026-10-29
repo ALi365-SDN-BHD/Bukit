@@ -143,21 +143,30 @@ public sealed class SystemProcessRunnerTests
     {
         using TestDirectory directory = TestDirectory.Create();
         string markerPath = System.IO.Path.Combine(directory.Path, "timeout-completed.txt");
+        string readyPath = System.IO.Path.Combine(directory.Path, "timeout-ready.txt");
         string largeInput = new('x', 8 * 1024 * 1024);
         var runner = new SystemProcessRunner();
-        var stopwatch = Stopwatch.StartNew();
 
-        ProcessRunResult result = await runner.RunAsync(
+        // The runner's own timeout must fire; the 30 s hold keeps an unkilled child alive for the exit check.
+        Task<ProcessRunResult> run = runner.RunAsync(
             ProbeRequest(
-                arguments: ["ignore-stdin-then-mark", "30000", markerPath],
+                arguments: ["ready-ignore-stdin-then-mark", "30000", markerPath, readyPath],
                 stdin: largeInput,
-                timeoutMs: 150),
-            CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
+                timeoutMs: 3000),
+            CancellationToken.None);
+        using Process child = await WaitForReadyProbeAsync(readyPath, run);
+        try
+        {
+            ProcessRunResult result = await run.WaitAsync(TimeSpan.FromSeconds(15));
 
-        stopwatch.Stop();
-        Assert.True(result.TimedOut);
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5));
-        Assert.False(File.Exists(markerPath));
+            Assert.True(result.TimedOut);
+            Assert.True(await WaitForExitAsync(child, TimeSpan.FromSeconds(10)), "The timed-out probe process is still running.");
+            Assert.False(File.Exists(markerPath));
+        }
+        finally
+        {
+            KillIfRunning(child);
+        }
     }
 
     [Fact]
@@ -165,20 +174,32 @@ public sealed class SystemProcessRunnerTests
     {
         using TestDirectory directory = TestDirectory.Create();
         string markerPath = System.IO.Path.Combine(directory.Path, "cancel-completed.txt");
+        string readyPath = System.IO.Path.Combine(directory.Path, "cancel-ready.txt");
         string largeInput = new('x', 8 * 1024 * 1024);
         var runner = new SystemProcessRunner();
-        using var cts = new CancellationTokenSource(150);
+        using var cts = new CancellationTokenSource();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => runner.RunAsync(
-                ProbeRequest(
-                    arguments: ["ignore-stdin-then-mark", "1000", markerPath],
-                    stdin: largeInput,
-                    timeoutMs: 10000),
-                cts.Token).WaitAsync(TimeSpan.FromSeconds(5)));
+        Task<ProcessRunResult> run = runner.RunAsync(
+            ProbeRequest(
+                arguments: ["ready-ignore-stdin-then-mark", "30000", markerPath, readyPath],
+                stdin: largeInput,
+                timeoutMs: 60000),
+            cts.Token);
+        using Process child = await WaitForReadyProbeAsync(readyPath, run);
+        try
+        {
+            // Cancel only after the child is known to be running and the request is still blocked.
+            Assert.False(run.IsCompleted, "RunAsync finished before cancellation was requested.");
+            cts.Cancel();
 
-        await Task.Delay(1200);
-        Assert.False(File.Exists(markerPath));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run.WaitAsync(TimeSpan.FromSeconds(10)));
+            Assert.True(await WaitForExitAsync(child, TimeSpan.FromSeconds(10)), "The cancelled probe process is still running.");
+            Assert.False(File.Exists(markerPath));
+        }
+        finally
+        {
+            KillIfRunning(child);
+        }
     }
 
     [Fact]
@@ -543,6 +564,54 @@ public sealed class SystemProcessRunnerTests
         var dir = Path.Combine(Path.GetTempPath(), "bukit-tree-limits-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         return dir;
+    }
+
+    private static async Task<Process> WaitForReadyProbeAsync(string readyPath, Task run)
+    {
+        var elapsed = Stopwatch.StartNew();
+        while (!File.Exists(readyPath))
+        {
+            Assert.False(run.IsCompleted, "RunAsync finished before the probe reported readiness.");
+            Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(15), "The probe did not report readiness.");
+            await Task.Delay(20);
+        }
+
+        var child = Process.GetProcessById(int.Parse(
+            File.ReadAllText(readyPath), System.Globalization.CultureInfo.InvariantCulture));
+        if (child.HasExited || run.IsCompleted)
+        {
+            child.Dispose();
+            Assert.Fail("The probe exited before the test could watch it.");
+        }
+
+        return child;
+    }
+
+    private static async Task<bool> WaitForExitAsync(Process child, TimeSpan timeout)
+    {
+        var elapsed = Stopwatch.StartNew();
+        while (!child.HasExited && elapsed.Elapsed < timeout)
+        {
+            await Task.Delay(20);
+        }
+
+        return child.HasExited;
+    }
+
+    // Cleans up only the probe process this test started.
+    private static void KillIfRunning(Process child)
+    {
+        try
+        {
+            if (!child.HasExited)
+            {
+                child.Kill(entireProcessTree: true);
+                child.WaitForExit(5000);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+        }
     }
 
     private static bool IsProcessAlive(int pid)
