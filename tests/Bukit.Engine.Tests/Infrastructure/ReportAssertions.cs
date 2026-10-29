@@ -24,7 +24,8 @@ internal static class ReportAssertions
         LocalJsonSchema.AssertValid(report, schema.RootElement);
     }
 
-    public static void Generated(SiteBuilder site, BuildResult result, DateTimeOffset wallStart, DateTimeOffset wallEnd)
+    public static void Generated(SiteBuilder site, BuildResult result, DateTimeOffset wallStart, DateTimeOffset wallEnd,
+        bool priorOutputMarker = false, bool expectedIncremental = false)
     {
         var errors = new List<string>();
         void Check(string name, Action check)
@@ -80,12 +81,20 @@ internal static class ReportAssertions
             Assert.Equal(publicFiles, result.GeneratedFiles.Order(StringComparer.Ordinal));
 
             using var incremental = Report("incremental-manifest");
+            Assert.Equal(expectedIncremental, result.Incremental.Enabled);
             foreach (var counters in new[] { root.GetProperty("incremental"), incremental.RootElement })
             {
-                Assert.False(counters.GetProperty("enabled").GetBoolean());
-                Assert.Equal(0, counters.GetProperty("cacheHitCount").GetInt32());
-                Assert.Equal(result.Summary.PageCount, counters.GetProperty("cacheMissCount").GetInt32());
+                Assert.Equal(result.Incremental.Enabled, counters.GetProperty("enabled").GetBoolean());
+                Assert.Equal(result.Incremental.CacheHitCount, counters.GetProperty("cacheHitCount").GetInt32());
+                Assert.Equal(result.Incremental.CacheMissCount, counters.GetProperty("cacheMissCount").GetInt32());
+                if (!expectedIncremental)
+                {
+                    Assert.Equal(0, counters.GetProperty("cacheHitCount").GetInt32());
+                    Assert.Equal(result.Summary.PageCount, counters.GetProperty("cacheMissCount").GetInt32());
+                }
             }
+            Assert.Equal(result.Variants.Sum(variant => variant.SkippedCount), result.Incremental.CacheHitCount);
+            Assert.Equal(result.Variants.Sum(variant => variant.RenderedCount), result.Incremental.CacheMissCount);
             var variants = incremental.RootElement.GetProperty("variants").EnumerateArray().ToArray();
             Assert.Equal(result.Variants.Count, variants.Length);
             foreach (var variant in variants)
@@ -93,7 +102,8 @@ internal static class ReportAssertions
                 var expected = Assert.Single(result.Variants, item => item.Language == variant.GetProperty("language").GetString());
                 Assert.Equal(expected.OutputDir, variant.GetProperty("outputDir").GetString());
                 Assert.Equal(expected.RenderedCount, variant.GetProperty("renderedCount").GetInt32());
-                Assert.Equal(0, variant.GetProperty("skippedCount").GetInt32());
+                Assert.Equal(expected.SkippedCount, variant.GetProperty("skippedCount").GetInt32());
+                if (!expectedIncremental) Assert.Equal(0, variant.GetProperty("skippedCount").GetInt32());
             }
             Assert.Equal(result.Summary.PageCount, incremental.RootElement.GetProperty("renderReasons").EnumerateObject().Sum(pair => pair.Value.GetInt32()));
             Assert.True(File.Exists(Path.Combine(site.Cache, "build-manifest.json")));
@@ -126,8 +136,10 @@ internal static class ReportAssertions
                 Assert.Empty(analyticsRoot.GetProperty("providerTypes").EnumerateArray());
                 Assert.Equal(0, analyticsRoot.GetProperty("injectedHtml").GetInt32());
                 Assert.Equal(variant.RenderedCount, analyticsRoot.GetProperty("processedHtml").GetInt32());
-                Assert.Equal(analyticsRoot.GetProperty("processedHtml").GetInt32(),
-                    analyticsRoot.GetProperty("skippedByReason").EnumerateObject().Sum(pair => pair.Value.GetInt32()));
+                var skipped = analyticsRoot.GetProperty("skippedByReason");
+                Assert.Equal(variant.SkippedCount, skipped.TryGetProperty("incremental_unchanged", out var unchanged) ? unchanged.GetInt32() : 0);
+                Assert.Equal(variant.RenderedCount + variant.SkippedCount,
+                    skipped.EnumerateObject().Sum(pair => pair.Value.GetInt32()));
             });
         }
         using var snapshot = Report("publish-url-snapshot");
@@ -146,8 +158,8 @@ internal static class ReportAssertions
         var assetPaths = all.Keys.Where(path => !path.StartsWith(".bukit/", StringComparison.Ordinal) && path is not ".bukit-output-marker" and not ".bukit-build-state.json");
         Check("assets", () => Files(assets.RootElement, "assets", assetPaths, path => all[path]));
         using var release = Report("release-bundle-checksums");
-        // Clean builds write the marker after reports; recovery state is internal metadata.
-        Check("release-bundle-checksums", () => Files(release.RootElement, "files", all.Keys.Where(path => !path.StartsWith(".bukit/", StringComparison.Ordinal) && path is not ".bukit-output-marker" and not ".bukit-build-state.json"),
+        // A pre-existing marker is present during reporting; a new marker is written afterward.
+        Check("release-bundle-checksums", () => Files(release.RootElement, "files", all.Keys.Where(path => !path.StartsWith(".bukit/", StringComparison.Ordinal) && path != ".bukit-build-state.json" && (priorOutputMarker || path != ".bukit-output-marker")),
             path => all[path], "fileCount", "bundleHash"));
         using var artifacts = Report("artifact-manifest");
         var artifactPaths = expectedReports.Where(path => path.StartsWith(".bukit/", StringComparison.Ordinal))

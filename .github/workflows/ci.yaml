@@ -42,6 +42,8 @@ jobs:
         run: python3 -B scripts/checks/core-report-inventory.py --self-test
       - name: Check infrastructure platform selection
         run: python3 -B scripts/checks/test-infrastructure-platform-self-test.py
+      - name: Check disk-full volume safety
+        run: python3 -B scripts/checks/stage7-diskfull-self-test.py
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
@@ -126,6 +128,10 @@ jobs:
             os: Windows
             arch: x64
     steps:
+      - name: Preserve fixture input line endings
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v5
         with:
@@ -161,7 +167,7 @@ jobs:
 
           classes = {
               "Bukit.PluginHost.Tests": ["Bukit.PluginHost.Tests.SystemProcessRunnerTests", "Bukit.PluginHost.Tests.PluginPathValidatorTests", "Bukit.PluginHost.Tests.PluginProtocolProbeTests"],
-              "Bukit.Engine.Tests": ["Bukit.Engine.Tests.ExternalToolProcessRunnerTests", "Bukit.Engine.Tests.TestInfrastructureTests", "Bukit.Engine.Tests.OutputDirectoryCleanerTests", "Bukit.Engine.Tests.AssetPipelineTests", "Bukit.Engine.Tests.TaxonomyRedirectWriterTests"],
+              "Bukit.Engine.Tests": ["Bukit.Engine.Tests.ExternalToolProcessRunnerTests", "Bukit.Engine.Tests.TestInfrastructureTests", "Bukit.Engine.Tests.OutputDirectoryCleanerTests", "Bukit.Engine.Tests.AssetPipelineTests", "Bukit.Engine.Tests.TaxonomyRedirectWriterTests", "Bukit.Engine.Tests.Stage7GoldenTests", "Bukit.Engine.Tests.Stage7DeterminismTests", "Bukit.Engine.Tests.Stage7I18nAggregateTests", "Bukit.Engine.Tests.Stage7ParallelTests", "Bukit.Engine.Tests.Stage7FailureTests", "Bukit.Engine.Tests.Stage7PluginFailureTests"],
               "Bukit.Cli.Tests": ["Bukit.Cli.Tests.CleanCommandTests"],
           }
           if actual_os != "Linux":
@@ -245,6 +251,15 @@ jobs:
               (results / "platform.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
           if failed:
               raise SystemExit("Platform verification incomplete: " + ", ".join(failed))
+      - name: Run Unix disk-full specialty on an isolated volume
+        if: runner.os != 'Windows'
+        run: python3 -B scripts/checks/stage7-diskfull-unix.py
+      - name: Run Windows disk-full specialty on an isolated VHD
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/checks/stage7-diskfull-windows.ps1 -SelfTest
+          ./scripts/checks/stage7-diskfull-windows.ps1
       - uses: actions/upload-artifact@v7
         if: always()
         with:

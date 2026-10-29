@@ -15,6 +15,10 @@
     <Compile Remove="ExternalProtocolPluginTests.cs" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(BukitDiskFullTest)' == 'true'">
+    <Compile Include="..\Stage7DiskFull\Stage7DiskFullTests.cs" Link="Stage7DiskFullTests.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />

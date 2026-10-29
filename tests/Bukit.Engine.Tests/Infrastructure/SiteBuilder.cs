@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Rendering;
 using Bukit.Shared;
 
 namespace Bukit.Engine.Tests.Infrastructure;
@@ -89,7 +90,8 @@ internal sealed class SiteBuilder : IDisposable
     public void Markdown(string slug, string title, string body)
         => Sandbox.Write($"content/{slug}.md", $"---\nslug: {slug}\ntitle: {title}\npublishAt: 2024-06-01T00:00:00Z\ncollection: page\n---\n{body}\n");
 
-    public Task<BuildResult> BuildAsync(bool clean = true)
+    public Task<BuildResult> BuildAsync(bool clean = true, bool incremental = false, int jobs = 1,
+        Func<string, ITemplateRenderer>? rendererFactory = null)
     {
         var config = Config;
         if (Path.GetFullPath(config.Build.Output, Root) != Output || config.Content.Sources is not { Count: > 0 } sources ||
@@ -97,8 +99,8 @@ internal sealed class SiteBuilder : IDisposable
             config.Content.Media.DownloadToLocal || config.Content.Media.DownloadDir != "assets/uploads")
             throw new InvalidOperationException("Phase 0 build must keep output/cache and content in its sandbox.");
         var engine = new SiteEngine(new ConsoleLogger(LogLevel.Error), new DefaultContentProviderFactory(),
-            new DefaultSearchIndexBuilder(), null, new FixedClock());
-        return engine.BuildAsync(config, Root, new ConfigOverrides { Clean = clean, Incremental = false, Jobs = 1 });
+            new DefaultSearchIndexBuilder(), rendererFactory, new FixedClock());
+        return engine.BuildAsync(config, Root, new ConfigOverrides { Clean = clean, Incremental = incremental, Jobs = jobs });
     }
 
     public void Dispose() => Sandbox.Dispose();

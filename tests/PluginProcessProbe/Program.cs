@@ -217,9 +217,14 @@ switch (command)
             return 0;
         }
 
-    case "ignore-stdin-then-mark":
+    case "ready-ignore-stdin-then-mark":
         {
             int milliseconds = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
+            // Publish the PID atomically so the test can watch this exact process.
+            string readyPath = args[3];
+            await File.WriteAllTextAsync(readyPath + ".tmp",
+                Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            File.Move(readyPath + ".tmp", readyPath);
             await Task.Delay(milliseconds);
             await File.WriteAllTextAsync(args[2], "completed");
             return 0;

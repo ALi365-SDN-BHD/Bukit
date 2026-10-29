@@ -19,10 +19,30 @@ def check(workflow):
         "python3 -B scripts/checks/coverage/security-layer-self-test.py",
         "python3 -B scripts/checks/core-report-inventory.py --self-test",
         "python3 -B scripts/checks/test-infrastructure-platform-self-test.py",
+        "python3 -B scripts/checks/stage7-diskfull-self-test.py",
     }
     assert required <= set(re.findall(r"^        run: (.+)$", fast, re.M))
     assert all(fast.index(command) < fast.index("- name: Restore Core") for command in required)
-    step = re.search(r"(?ms)^      - name: Run non-instrumented platform specialties\n(.*?)(?=^      - |\Z)", job("platform-tests"))
+    platform = job("platform-tests")
+    checkout = """      - name: Preserve fixture input line endings
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: git config --global core.autocrlf false
+"""
+    assert checkout in platform and platform.index(checkout) < platform.index("- uses: actions/checkout@v7")
+    unix = """      - name: Run Unix disk-full specialty on an isolated volume
+        if: runner.os != 'Windows'
+        run: python3 -B scripts/checks/stage7-diskfull-unix.py
+"""
+    windows = """      - name: Run Windows disk-full specialty on an isolated VHD
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./scripts/checks/stage7-diskfull-windows.ps1 -SelfTest
+          ./scripts/checks/stage7-diskfull-windows.ps1
+"""
+    assert unix in platform and windows in platform and platform.index(windows) < platform.index("- uses: actions/upload-artifact@v7")
+    step = re.search(r"(?ms)^      - name: Run non-instrumented platform specialties\n(.*?)(?=^      - |\Z)", platform)
     assert step and "        shell: python\n" in step.group(1)
     tree = ast.parse(textwrap.dedent(step.group(1).split("        run: |\n", 1)[1]))
 
@@ -49,7 +69,7 @@ def check(workflow):
         exec(compile(selection, "<platform-selection>", "exec"), env)
         expected = {
             "Bukit.PluginHost.Tests": ["SystemProcessRunnerTests", "PluginPathValidatorTests", "PluginProtocolProbeTests"],
-            "Bukit.Engine.Tests": ["ExternalToolProcessRunnerTests", "TestInfrastructureTests", "OutputDirectoryCleanerTests", "AssetPipelineTests", "TaxonomyRedirectWriterTests"],
+            "Bukit.Engine.Tests": ["ExternalToolProcessRunnerTests", "TestInfrastructureTests", "OutputDirectoryCleanerTests", "AssetPipelineTests", "TaxonomyRedirectWriterTests", "Stage7GoldenTests", "Stage7DeterminismTests", "Stage7I18nAggregateTests", "Stage7ParallelTests", "Stage7FailureTests", "Stage7PluginFailureTests"],
             "Bukit.Cli.Tests": ["CleanCommandTests"],
         }
         if os_name != "Linux":
@@ -72,7 +92,12 @@ if __name__ == "__main__":
     for old, new in (("Bukit.Engine.Tests.TestInfrastructureTests", "Bukit.Engine.Tests.WrongTests"),
                      ("Bukit.PluginHost.Tests.PluginProtocolProbeTests", "Bukit.PluginHost.Tests.WrongTests"),
                      ("Bukit.Engine.Tests.TaxonomyRedirectWriterTests", "Bukit.Engine.Tests.WrongTests"),
+                     ("Bukit.Engine.Tests.Stage7GoldenTests", "Bukit.Engine.Tests.WrongTests"),
+                     ("Bukit.Engine.Tests.Stage7FailureTests", "Bukit.Engine.Tests.WrongTests"),
                      ("Bukit.Cli.Tests.CleanCommandTests", "Bukit.Cli.Tests.WrongTests"),
+                     ("git config --global core.autocrlf false", "true"),
+                     ("python3 -B scripts/checks/stage7-diskfull-unix.py", "true"),
+                     ("./scripts/checks/stage7-diskfull-windows.ps1 -SelfTest", "true"),
                      ('"--filter"', '"--wrong-filter"'),
                      ("python3 -B scripts/checks/core-report-inventory.py --self-test", "true")):
         assert old in workflow
@@ -82,4 +107,4 @@ if __name__ == "__main__":
             pass
         else:
             raise AssertionError("Owner check accepted mutation: " + old)
-    print("Infrastructure platform owner selfcheck: three OS selections, exact commands, helper order and six mutants passed")
+    print("Infrastructure platform owner selfcheck: three OS selections, exact commands, fixture checkout, disk-full steps and mutants passed")
