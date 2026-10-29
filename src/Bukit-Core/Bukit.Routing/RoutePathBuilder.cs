@@ -9,7 +9,7 @@ public static class RoutePathBuilder
     public static string NormalizeUrl(string url)
         => NormalizeUrl(url, IsFileUrl(url));
 
-    public static string NormalizeUrl(string url, bool isFileRoute)
+    internal static string NormalizeUrl(string url, bool isFileRoute)
     {
         var trimmed = (url ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(trimmed))

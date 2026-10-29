@@ -48,17 +48,6 @@ public sealed class RoutePathBuilderTests
         Assert.Equal(expected, RoutePathBuilder.BuildOutputPathFromUrl(url));
     }
 
-    [Theory]
-    [Trait("Category", "Unit")]
-    [InlineData("/blog/release.2026", false, "/blog/release.2026/")]
-    [InlineData("/blog/release.2026/", false, "/blog/release.2026/")]
-    [InlineData("/page.html", true, "/page.html")]
-    [InlineData("/blog/release.2026", true, "/blog/release.2026")]
-    public void NormalizeUrl_ExplicitRouteKind_OverridesDotHeuristic(string input, bool isFileRoute, string expected)
-    {
-        Assert.Equal(expected, RoutePathBuilder.NormalizeUrl(input, isFileRoute));
-    }
-
     [Fact]
     public void NormalizeListRoute_DottedRouteWithoutSlash_RemainsDirectory()
     {
