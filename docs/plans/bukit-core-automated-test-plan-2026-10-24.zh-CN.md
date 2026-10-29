@@ -1058,6 +1058,112 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --sett
 
 出口：golden 与确定性测试稳定通过，连续运行 20 次无抖动。
 
+#### 阶段 7 首批执行记录（2026-10-29）
+
+**状态：PARTIAL。** 从已合并阶段 6 的 `main` 提交 `3bcc6e068c997aa5a8d7a896ba15a9a7641deda7` 创建独立工作区；本批只新增 golden 测试与快照，不修改 Core 生产代码、原始 fixture 或公开契约。
+
+`Stage7GoldenTests` 复用现有 `SiteBuilder` 在隔离目录构建三个站点，以固定时钟、发布日期和站点 URL 生成可重复输入；taxonomy 站点还在隔离副本中设置分页及分类。测试先独立校验报告，再逐字节比较完整公共文件路径集合；另有路径增删与字节变化的负例。基准不在测试运行时更新。
+
+| 证据 | 实际结果 | 口径 |
+|---|---|---|
+| macOS arm64 | **47 通过、0 失败、0 跳过** | `Stage7GoldenTests` 4 + `TestInfrastructureTests` 43；Windows JSON 外层换行在此后规范化，不影响本机读取的 Unix 基准 |
+| [Linux / Windows 原生采集 #40809595691](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40809595691) | 各 **46/46** | 候选采集与基础设施测试，不计为 golden 复验 |
+| [Linux / Windows golden 复验 #40811061112](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40811061112) | 各 **4/4**，0 失败、0 跳过 | 实际 golden 测试；证据提交 `b89239113b8ef9cf445a78660ab216a0be4bcc0f`，989 项输入与主工作区一致，SDK 10.0.100、runtime 10.0.0 |
+
+三个站点分别固定 12、28、33 个公共文件。Linux 与 macOS 使用相同 `unix/` 基准；Windows 路径集合相同但分别有 10、23、31 个文件字节不同，使用原生采集的 `windows/` 基准，不对产物字节做换行归一化。详细命令、TRX 和证据位置见 `2026-10-29-core-stage7-golden-start.md`；原生证据工作流只存在于临时证据分支。
+
+**仍待完成：**连续两次构建和单文件修改后的增量／全量等价、缓存与渲染统计、并发、三类故障注入、完整多语言聚合和连续 20 次稳定性。现有 i18n fixture 的根输出包含 sitemap、search、llms、agent manifest，但不包含根 feed 或 robots。`PluginRegistry.BuildPlugins` 当前仅注册内置插件，尚不能将 PluginHost 进程崩溃单测当作真实构建管线的故障注入证据。未运行全量、覆盖率或发布门禁。
+
+#### 阶段 7 后续执行记录（2026-10-29）
+
+**历史判定：测试出口已满足；审计后修正为 PARTIAL。** 下述结果仍真实有效，但编辑后增量复用、非增量报告的独立断言及正式 CI 入口仍须补证。主阶段分支仍未提交、推送或合并，且未修改 Core 生产代码、原始 fixture 或公开契约。
+
+- `Stage7DeterminismTests` 比较无变动复建，以及修改一个 Markdown 后增量构建与相同最终输入的独立全量构建；每次独立校验报告、缓存和渲染统计。`Stage7ParallelTests` 用有界同步探针证明真实渲染重叠，再比较串行／并行公共文件的完整路径和原始字节。
+- `Stage7I18nAggregateTests` 在沙箱启用配置，检查两种语言的根 sitemap、RSS／Atom／JSON Feed、llms、robots、search 和 agent manifest。渲染中途异常与真实 strict 内置 `data-files` 插件异常分别检查正式输出、完整托管缓存及事务清理。
+- 用户确认阶段 7 的插件失败按真实内置插件异常验收；外部插件进程崩溃属于阶段 9，不以此处结果冒充。磁盘满专项在真实限额卷上触发原生磁盘满和 Core 写入失败，检查相同失败安全属性；只有显式 `-p:BukitDiskFullTest=true` 才编入该专项。
+
+| 证据 | 实际结果 | 口径 |
+|---|---|---|
+| macOS arm64 受影响普通专项 | **56/56**，0 失败、0 跳过 | 基础设施 43、报告契约 4、阶段 7 测试 9 |
+| macOS arm64 限额卷 | **2/2** | 隔离 32 MiB HFS+ 映像，包含拒绝不安全卷负例和真实写入磁盘满；卷已卸载 |
+| [Linux / Windows 原生专项 #40817294951](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40817294951) | 两平台各 **9/9** 普通阶段 7、**2/2** 磁盘满，0 失败、0 跳过 | 临时证据提交 `ac35002446ce3fb4fcd12d1ee1471ee61526dcf9`；1000 项输入与主工作区逐字节一致；SDK 10.0.100／runtime 10.0.0 |
+| 审计修复前版本稳定性（macOS arm64） | **20/20 轮、120/120 条通过**，0 失败、0 跳过 | 每轮 golden 4、增量确定性 1、真实并发 1；记录各轮 TRX、程序集及 995 项输入指纹；不作为修复后最终版本证据 |
+
+Linux 使用 32 MiB tmpfs；Windows 只初始化／格式化由新建 64 MiB VHD 映射且通过非系统盘、设备归属等检查的设备，安全自检通过且已卸载 VHD。CI 的 `platform-tests` 已显式选择各普通阶段 7 类；磁盘满由独立步骤运行，Windows 在检出前保留 fixture 的 LF 输入。直接 owner 自检通过；本批未运行全量测试、覆盖率或发布门禁。
+
+#### 跨平台生成文本换行差异（独立 Core 风险，2026-10-29）
+
+固定输入和 .NET 10.0.100 下，三个站点的 Linux／macOS 与 Windows 公共路径相同，但分别有 10、23、31 个文件的字节不同；Windows 的部分 HTML 同时含 LF 与 CRLF。taxonomy 的 5 个 JSON 连解析后的 `body` 字符串也分别包含 LF／CRLF。`SeoHtmlRenderer`、feed 生成器和 `TaxonomyPageCreator` 使用平台换行或 `AppendLine`；文件哈希及依赖这些哈希的发布包摘要因此可能因平台不同而不同。
+
+当前第 3 节及第 4.3 节只要求固定平台与工具链内确定性。用户确认将跨平台字节差异登记为独立 Core 风险，不阻塞阶段 7；本批不修改 Core，也不对实际产物做换行归一化。若以后要求跨平台字节一致，须单独确认 Core 生成文本、用户内容和静态资源的处理边界，再实施及验证。
+
+#### 阶段 7 审计修复进展（2026-10-29）
+
+**当时状态：PARTIAL（最终判定见本阶段末尾）。** 用户已授权在临时证据分支运行 `gate=platform`，包括其依赖的 `ci-fast` 和 Architecture 测试。正式 CI 在仅重跑 Windows 失败作业后成功，但首次出现的进程取消安全测试失败尚未查明；不运行全量解决方案测试、覆盖率或发布门禁。
+
+- 默认 taxonomy 场景的单文件编辑使 `pages-index` 暴露的 body 指纹改变全站渲染依赖；诊断为 0 命中、8 未命中，其中 6 项为 `render_dependency_changed`。保留该真实场景的增量／全量字节等价，另外在沙箱关闭 `pages-index`，验证编辑后有命中及 `unchanged`／`content_changed` 原因，并通过真实渲染器探针确认修改页重渲染、未修改页未重渲染。
+- 报告助手由调用方提供预期增量模式，非增量默认恢复零命中、全部页面未命中和各变体零跳过的独立断言。真实增量结果误作全量，以及报告与内存结果同步伪造错误缓存计数的两个负例均先 RED 后 GREEN。
+- macOS 受影响普通专项 **55/55**、限额卷直接消费者 **2/2**；最终程序集的 golden、两种增量场景与并发测试连续 **20/20 轮、140/140 条通过**，0 失败、0 跳过。每轮 4 条 golden 测试中，3 条是真实站点构建，1 条是比较器负例。
+- 本批证据根：`/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/stage7-audit-repair-8kno84nc/`；旧测试程序集的 20 轮不用于当前版本。
+
+#### 正式三平台 CI 与待决风险（2026-10-29）
+
+[正式 CI #40822628445](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40822628445) 使用临时证据提交 `8701fb177b4d2a87089b6991599ff630b173aad7`；运行前核对主工作区和该提交的 2433 个受跟踪／新增文件字节、类型和可执行位。Fast gate（含解决方案还原与格式检查）和 Architecture **415/415** 均在第一次通过。三平台实际 SDK 为 **10.0.403**、host runtime 为 **10.0.14**。
+
+| 平台 | 阶段 7 普通测试 | 真实磁盘满 | 来源与清理 |
+|---|---|---|---|
+| Linux x64 | **10/10** | **2/2** | 第一次；脚本成功执行 tmpfs 卸载及挂载状态检查 |
+| macOS arm64 | **10/10** | **2/2** | 第一次；日志记录 HFS+ 映像已 eject |
+| Windows x64 | **10/10** | **2/2** | 仅重跑失败作业后的第二次；VHD 安全自检通过、日志记录已卸载 |
+
+每个平台的 10 条包括 golden 4、增量 2、聚合／并发／渲染失败／内置插件失败各 1；均为实际通过，非平台 N/A。第二次 Windows 工件按 ID `12875778056` 下载并核对摘要，未与第一次同名工件混用。第一次 Windows 作业的 PluginHost 为 **50/51**，因此当次 VHD 步骤未执行；第二次为 **51/51**。完整 TRX、两次日志和工件摘要保存在上述证据根的 `official-platform/`。
+
+**待决 Important：**第一次 Windows 的 `RunAsync_CancellationDuringBlockedStdinWriteKillsProcess` 已收到取消异常，但发现探针的完成标记，违背测试对进程终止的预期；第二次及阶段 6 同 SDK 的旧运行均通过。现有日志不足以确定取消通知、阻塞的 stdin 写入、进程终止与标记写入的精确时序，也不能证明是测试抖动还是 Core 缺陷。用户已选择另立 Core 调查，阶段 7 继续保持 PARTIAL；当时未修改 PluginHost，也不因重跑通过而声称问题已修复。后续诊断及测试修正见下文。
+
+只读调查确认当前 Runner 要等 stdin 写入返回或抛错后才进入进程终止分支；[.NET 10.0.14 Windows 进程实现](https://github.com/dotnet/runtime/blob/v10.0.14/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.Windows.cs#L633-L636) 使用同步重定向管道，[运行时异步包装](https://github.com/dotnet/runtime/blob/v10.0.14/src/libraries/Common/src/System/Threading/AsyncOverSyncWithIoCancellation.cs) 会在线程池中尝试 `CancelSynchronousIo`。这些事实支持定向检查时序，但不能证明此次失败的根因。只读调查记录在证据根的 `windows-cancel-investigation/`。
+
+#### Windows 取消时序诊断（2026-10-29）
+
+经授权在临时证据分支运行两次 Windows 定向诊断：[#40826824451](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40826824451)（提交 `9a2bb4c6`）和 [#40828158420](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40828158420)（提交 `a1678369`）。两次的 PluginHost 相关专项均为 **53/53**，SDK 10.0.403／runtime 10.0.14，未修改 Core 生产代码。
+
+- 两次共 10 个就绪后主动取消样本：从取消请求到 `RunAsync` 返回约 3.8–5 ms，随后检查时进程已不存活。这些数据支持取消路径正常工作，但没有记录进程退出的精确时刻，也没有直接记录 stdin 写入何时返回。
+- 计时器样本中，名义 150 ms 的取消有 3 次明显延迟。767 ms、892 ms 是独立线程观察到令牌信号的时间，只是实际信号时间的上界；1052 ms 是另一轮记录的回调时间。其余样本约为 150–163 ms。
+- 两次诊断均未复现完成标记。原测试的 150 ms 计时器与子进程 1 s 窗口确实存在计时敏感性；线程池饱和是合理假设，但没有线程池计数或队列证据。首次失败时取消令牌触发、写入返回和进程终止的先后顺序仍未知，Core 取消缺陷既未被证明，也未被排除。
+
+#### PluginHost 进程终止测试修正（2026-10-29）
+
+经用户确认，只修改测试与测试探针，不修改 Core 生产代码。复核发现两个缺陷：取消测试依赖与子进程窗口竞争的计时器；超时测试的子进程停留 30 s，但 `RunAsync` 返回后立即检查完成标记，因此即使进程未被终止也会通过。
+
+- 探针模式 `ignore-stdin-then-mark` 只被这两个测试使用，现改为 `ready-ignore-stdin-then-mark`：先原子写出自身 PID 作为就绪信号，再停留 30 s，最后写完成标记。
+- `RunAsync_CancellationDuringBlockedStdinWriteKillsProcess`：等子进程就绪并取得该进程；确认请求仍未完成后主动取消，不再使用计时器。10 s 内须抛出取消异常，并在 10 s 内直接确认该进程已退出，且无完成标记。
+- `RunAsync_TimeoutBoundsBlockedStdinWriteAndKillsProcess`：同样等就绪并取得该进程，由 Runner 自身 3 s 超时触发；断言 `TimedOut`、该进程在 10 s 内退出，且无完成标记。
+- 两个测试的 `finally` 只清理本测试启动的进程。
+
+| 证据 | 结果 |
+|---|---|
+| 反向检查（macOS） | 临时让 Runner 在超时和取消时都不终止进程，两个测试均失败，分别报告进程仍在运行；随后用 Git 还原，`src/` 与 HEAD 一致，无残留探针进程 |
+| macOS 专项 | `SystemProcessRunnerTests`、`PluginPathValidatorTests`、`PluginProtocolProbeTests` **51/51**，0 跳过；闭包 68 个文件、无未映射项；GREEN 已缓存并检查 HIT |
+| [三平台 CI #40832277705](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40832277705) | `gate=platform` 第一次即成功，未重跑。临时证据提交 `92b9237175cbbc8b7a4c752a4f10ebec98e5f095`，推送前与工作区 2415 个文件逐字节一致；SDK 10.0.403 |
+
+| 平台 | PluginHost | 取消测试 | 超时测试 | 阶段 7 普通测试 | 真实磁盘满 |
+|---|---|---|---|---|---|
+| Windows x64 | **51/51** | 0.13 s | 3.02 s | **10/10** | **2/2** |
+| Linux x64 | **51/51** | 0.13 s | 3.06 s | **10/10** | **2/2** |
+| macOS arm64 | **51/51** | 0.23 s | 3.15 s | **10/10** | **2/2** |
+
+Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与阶段 6 已登记的允许名单一致。证据根为 `/Users/ali/.local/state/bukit-verification/stage7-pluginhost-kill-20261029/`，内含策略、闭包、缓存、反向检查与 CI 工件。
+
+修正后的测试在三平台单次运行中证明：就绪后的主动取消和 Runner 自身超时都终止了被观测的进程。这只是单次结果，不能解释首次 Windows 失败的根因。主阶段分支未提交、推送或合并；未运行全量解决方案测试、覆盖率或发布门禁。
+
+#### 阶段 7 最终判定（2026-10-29）
+
+**阶段 7：SUCCESS。** 用户明确接受下述遗留风险不阻塞本阶段。接受风险不等于风险已解决。
+
+- 出口达成：golden 与确定性测试最终程序集连续 **20/20 轮、140/140 条**通过；三平台阶段 7 普通测试各 **10/10**、真实磁盘满各 **2/2**，由正式 CI [#40822628445](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40822628445) 与 [#40832277705](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40832277705) 证明。审计提出的增量复用、非增量独立断言和正式 CI 入口缺口均已补证。
+- 已接受的遗留风险：#40822628445 第一次 Windows 作业中 `RunAsync_CancellationDuringBlockedStdinWriteKillsProcess` 失败（PluginHost 50/51），该记录保留。首次失败时取消令牌触发、stdin 写入返回与进程终止的先后顺序仍未知，Core 取消缺陷既未被证明，也未被排除。修正后的测试在三平台单次运行中通过，不构成根因证明。若该测试再次失败，应作为 Core 取消路径问题单独调查。
+- 其他已登记、不阻塞的事项：跨平台生成文本换行差异（独立 Core 风险）；外部插件进程崩溃留待阶段 9。
+- 未运行：全量解决方案测试、全 Core 覆盖率及发布门禁。主阶段分支未提交、推送或合并。
+
 ### 阶段 8：CLI
 
 - 解析器与帮助：选项、必填、冲突、未知参数、退出码。
