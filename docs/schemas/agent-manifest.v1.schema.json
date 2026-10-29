@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/agent-manifest.v1.json",
+  "title": "Bukit Agent Manifest",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "generatedAt", "documents"],
+  "properties": {
+    "schema": { "const": "https://bukit.dev/schemas/agent-manifest.v1.json" },
+    "schemaVersion": { "const": "1.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "canonicalId", "route", "language", "reviewStatus", "entities", "representations", "publishedAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "canonicalId": { "type": "string" },
+          "route": { "type": "string" },
+          "language": { "type": "string" },
+          "reviewStatus": { "type": "string" },
+          "entities": { "type": "array", "items": { "type": "string" } },
+          "representations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "url"],
+              "properties": { "kind": { "type": "string" }, "url": { "type": "string" } },
+              "additionalProperties": false
+            }
+          },
+          "publishedAt": { "type": "string", "format": "date-time" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

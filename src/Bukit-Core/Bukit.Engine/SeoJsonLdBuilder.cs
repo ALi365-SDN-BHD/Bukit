@@ -107,15 +107,25 @@ internal static class SeoJsonLdBuilder
             var effectiveType = schemaType ?? "BlogPosting";
             var effectiveAuthors = resolvedAuthors
                 ?? SeoAuthorResolver.Resolve(record, document.CustomFields, geo.GeoAuthor);
-            if (string.Equals(effectiveType, "FAQPage", StringComparison.OrdinalIgnoreCase) && geo.FaqItems is { Count: > 0 })
+            if (string.Equals(effectiveType, "FAQPage", StringComparison.OrdinalIgnoreCase))
             {
-                BuildFaqPageJsonLd(result, contentTitle, description, canonical, image, document, geo.FaqItems);
-                geoAuthorMergedIntoArticle = effectiveAuthors.UsesAuthorRelation;
+                var validItems = geo.FaqItems?.Where(item =>
+                    !string.IsNullOrWhiteSpace(item.Question) && !string.IsNullOrWhiteSpace(item.Answer)).ToArray();
+                if (validItems is { Length: > 0 })
+                {
+                    BuildFaqPageJsonLd(result, contentTitle, description, canonical, image, document, validItems);
+                    geoAuthorMergedIntoArticle = effectiveAuthors.UsesAuthorRelation;
+                }
             }
-            else if (string.Equals(effectiveType, "HowTo", StringComparison.OrdinalIgnoreCase) && geo.HowToSteps is { Count: > 0 })
+            else if (string.Equals(effectiveType, "HowTo", StringComparison.OrdinalIgnoreCase))
             {
-                BuildHowToJsonLd(result, contentTitle, description, canonical, image, document, geo.HowToSteps);
-                geoAuthorMergedIntoArticle = effectiveAuthors.UsesAuthorRelation;
+                var validSteps = geo.HowToSteps?.Where(step =>
+                    !string.IsNullOrWhiteSpace(step.Name) && !string.IsNullOrWhiteSpace(step.Text)).ToArray();
+                if (validSteps is { Length: > 0 })
+                {
+                    BuildHowToJsonLd(result, contentTitle, description, canonical, image, document, validSteps);
+                    geoAuthorMergedIntoArticle = effectiveAuthors.UsesAuthorRelation;
+                }
             }
             else
             {
@@ -543,10 +553,10 @@ internal static class SeoJsonLdBuilder
         string canonical,
         string? image,
         ContentDocument document,
-        IReadOnlyList<GeoHowToStepModel> steps)
+        GeoHowToStepModel[] steps)
     {
         var stepList = new List<Dictionary<string, object?>>();
-        for (var i = 0; i < steps.Count; i++)
+        for (var i = 0; i < steps.Length; i++)
         {
             var step = steps[i];
             var stepEntry = new Dictionary<string, object?>

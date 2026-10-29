@@ -231,11 +231,15 @@ public sealed class SeoQuestionInsightsReportWriterTests
             Options(),
             GeneratedAt);
 
-        var first = Serialize(inputs());
+        var report = inputs();
+        var first = Serialize(report);
         var second = Serialize(inputs());
 
         Assert.Equal(first, second);
         Assert.Contains("seo-question-insights-report.v1.json", first, StringComparison.Ordinal);
+        var generated = ReportContractAssertions.Write(output => SeoQuestionInsightsReportWriter.Write(output, report), SeoQuestionInsightsReportWriter.FileName);
+        Assert.Equal(first + Environment.NewLine, generated);
+        ReportContractAssertions.Schema(generated, "seo-question-insights-report.v1.schema.json", "sources");
     }
 
     private static string Serialize(SeoQuestionInsightsReport report)

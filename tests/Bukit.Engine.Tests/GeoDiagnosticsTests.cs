@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Abstractions.Plugins;
@@ -21,6 +22,161 @@ public sealed class GeoDiagnosticsTests
         public void Info(string message) { }
         public void Warn(string message) => Warnings.Add(message);
         public void Error(string message) => Errors.Add(message);
+    }
+
+    public static IEnumerable<object[]> IncompleteRawItems()
+    {
+        foreach (var type in new[] { "FAQPage", "HowTo" })
+        foreach (var defect in new[] { "missing-first", "blank-first", "missing-second", "blank-second", "non-map", "null" })
+        foreach (var mixed in new[] { false, true })
+        foreach (var mode in new[] { "warn", "strict", "off" })
+            yield return [type, defect, mixed, mode];
+    }
+
+    [Theory]
+    [MemberData(nameof(IncompleteRawItems))]
+    public void AnalyzeIndex_RawIncompleteItems_DiagnosesBeforeFilteringJsonLd(string type, string defect, bool mixed, string mode)
+    {
+        var faq = type == "FAQPage";
+        var first = faq ? "question" : "name";
+        var second = faq ? "answer" : "text";
+        var firstCode = faq ? "geo.faq_empty_question" : "geo.howto_step_empty_name";
+        var secondCode = faq ? "geo.faq_empty_answer" : "geo.howto_step_empty_text";
+        var malformed = defect is "non-map" or "null";
+        var bad = new Dictionary<string, object> { [first] = "Invalid", [second] = "Invalid text" };
+        var missingKey = defect.EndsWith("second", StringComparison.Ordinal) ? second : first;
+        if (defect.StartsWith("missing", StringComparison.Ordinal)) bad.Remove(missingKey);
+        if (defect.StartsWith("blank", StringComparison.Ordinal)) bad[missingKey] = " \t ";
+        object invalid = defect == "non-map" ? "not a map" : defect == "null" ? null! : bad;
+        var items = new List<object>();
+        if (mixed) items.Add(new Dictionary<string, object> { [first] = "First valid", [second] = "First text" });
+        items.Add(invalid);
+        if (mixed) items.Add(new Dictionary<string, object> { [first] = "Second valid", [second] = "Second text" });
+        var config = ConfigWithDiagnostics(mode);
+        var model = BuildRawGeoModel(config, new Dictionary<string, object>
+        {
+            ["schema_type"] = type,
+            [faq ? "faq" : "steps"] = items
+        });
+        var logger = new TestLogger();
+        var index = new Dictionary<string, SeoIndexEntry> { ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/") };
+        var models = new Dictionary<string, SeoModel> { ["a/index.html"] = model };
+        var codes = malformed ? new[] { firstCode, secondCode } : new[] { missingKey == first ? firstCode : secondCode };
+        void Analyze() => SeoDiagnostics.AnalyzeIndex(config, index, models, logger);
+
+        if (mode == "strict")
+        {
+            var error = Assert.Throws<ConfigException>(Analyze);
+            Assert.Contains(codes[0], error.Message);
+            Assert.Single(logger.Errors);
+            Assert.Contains(codes[0], logger.Errors[0]);
+            Assert.Empty(logger.Warnings);
+        }
+        else
+        {
+            Analyze();
+            Assert.Empty(logger.Errors);
+            Assert.Equal(mode == "off" ? 0 : codes.Length, logger.Warnings.Count);
+            if (mode == "warn")
+                foreach (var code in codes) Assert.Contains(logger.Warnings, message => message.Contains(code, StringComparison.Ordinal));
+        }
+
+        Assert.Equal(mixed ? 3 : 1, faq ? model.FaqItems!.Count : model.HowToSteps!.Count);
+        var nodes = model.JsonLd.Select(json =>
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.Clone();
+        }).ToArray();
+        Assert.Contains(nodes, node => node.GetProperty("@type").GetString() == "WebSite");
+        Assert.Contains(nodes, node => node.GetProperty("@type").GetString() == "WebPage");
+        Assert.DoesNotContain(nodes, node => node.GetProperty("@type").GetString() is "Article" or "BlogPosting");
+        if (!mixed)
+        {
+            Assert.DoesNotContain(nodes, node => node.GetProperty("@type").GetString() == type);
+            return;
+        }
+
+        var specialized = Assert.Single(nodes, node => node.GetProperty("@type").GetString() == type);
+        var emitted = specialized.GetProperty(faq ? "mainEntity" : "step").EnumerateArray().ToArray();
+        Assert.Equal(new[] { "First valid", "Second valid" }, emitted.Select(node => node.GetProperty("name").GetString()));
+        Assert.Equal(new[] { "First text", "Second text" }, emitted.Select(node => faq
+            ? node.GetProperty("acceptedAnswer").GetProperty("text").GetString()
+            : node.GetProperty("text").GetString()));
+        if (!faq) Assert.Equal(new[] { 1, 2 }, emitted.Select(node => node.GetProperty("position").GetInt32()));
+    }
+
+    [Theory]
+    [InlineData("FAQPage", false, "warn")]
+    [InlineData("FAQPage", false, "strict")]
+    [InlineData("FAQPage", false, "off")]
+    [InlineData("FAQPage", true, "warn")]
+    [InlineData("FAQPage", true, "strict")]
+    [InlineData("FAQPage", true, "off")]
+    [InlineData("HowTo", false, "warn")]
+    [InlineData("HowTo", false, "strict")]
+    [InlineData("HowTo", false, "off")]
+    [InlineData("HowTo", true, "warn")]
+    [InlineData("HowTo", true, "strict")]
+    [InlineData("HowTo", true, "off")]
+    public void AnalyzeIndex_RawMissingOrEmptyList_RetainsMissingListPolicy(string type, bool explicitEmpty, string mode)
+    {
+        var config = ConfigWithDiagnostics(mode);
+        var geo = new Dictionary<string, object> { ["schema_type"] = type };
+        if (explicitEmpty) geo[type == "FAQPage" ? "faq" : "steps"] = new List<object>();
+        var model = BuildRawGeoModel(config, geo);
+        var logger = new TestLogger();
+        var code = type == "FAQPage" ? "geo.faq_items_missing" : "geo.howto_steps_missing";
+        void Analyze() => SeoDiagnostics.AnalyzeIndex(config,
+            new Dictionary<string, SeoIndexEntry> { ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/") },
+            new Dictionary<string, SeoModel> { ["a/index.html"] = model }, logger);
+
+        if (mode == "strict") Assert.Contains(code, Assert.Throws<ConfigException>(Analyze).Message);
+        else
+        {
+            Analyze();
+            Assert.Equal(mode == "off" ? 0 : 1, logger.Warnings.Count);
+            if (mode == "warn") Assert.Contains(code, Assert.Single(logger.Warnings));
+        }
+        Assert.DoesNotContain(model.JsonLd, json =>
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.GetProperty("@type").GetString() == type;
+        });
+    }
+
+    private static SeoModel BuildRawGeoModel(AppConfig config, Dictionary<string, object> geo)
+    {
+        var document = ContentDocument.Create("a", "A", "a", DateTimeOffset.Parse("2026-10-28T00:00:00Z"), "<p>Body</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post", ["geo"] = geo }));
+        return SeoModelBuilder.BuildForContent(config, "/", document, new RouteInfo("/a/", "a/index.html", "pages/post.html"));
+    }
+
+    [Theory]
+    [InlineData("FAQPage", "geo.faq_items_missing", "warn")]
+    [InlineData("FAQPage", "geo.faq_items_missing", "strict")]
+    [InlineData("FAQPage", "geo.faq_items_missing", "off")]
+    [InlineData("HowTo", "geo.howto_steps_missing", "warn")]
+    [InlineData("HowTo", "geo.howto_steps_missing", "strict")]
+    [InlineData("HowTo", "geo.howto_steps_missing", "off")]
+    public void AnalyzeIndex_EmptyStructuredContent_UsesConfiguredDiagnosticPolicy(string type, string code, string mode)
+    {
+        var logger = new TestLogger();
+        var index = new Dictionary<string, SeoIndexEntry> { ["a/index.html"] = Entry("/a/", "a/index.html", "https://example.com/a/") };
+        var models = new Dictionary<string, SeoModel> { ["a/index.html"] = new() { Title = "A", Canonical = "https://example.com/a/", SchemaType = type, FaqItems = [], HowToSteps = [] } };
+        void Analyze() => SeoDiagnostics.AnalyzeIndex(ConfigWithDiagnostics(mode), index, models, logger);
+
+        if (mode == "strict")
+        {
+            var error = Assert.Throws<ConfigException>(Analyze);
+            Assert.Contains(code, error.Message);
+            Assert.Contains(logger.Errors, message => message.Contains(code, StringComparison.Ordinal));
+        }
+        else
+        {
+            Analyze();
+            Assert.Empty(logger.Errors);
+            Assert.Equal(mode == "off" ? 0 : 1, logger.Warnings.Count(message => message.Contains(code, StringComparison.Ordinal)));
+        }
     }
 
     [Fact]

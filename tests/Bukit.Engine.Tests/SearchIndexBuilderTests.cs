@@ -61,12 +61,190 @@ public sealed class SearchIndexBuilderTests
         Assert.Equal("content", result);
     }
 
+    [Theory]
+    [InlineData("script", "")]
+    [InlineData("style", "")]
+    [InlineData("ScRiPt", " type='text/javascript'")]
+    [InlineData("STyLe", " media='screen'")]
+    [InlineData("script", "\ntype='text/javascript'")]
+    [InlineData("style", "\tmedia='screen'")]
+    [InlineData("script", "\rtype='text/javascript'")]
+    [InlineData("style", "\fmedia='screen'")]
+    public void StripHtmlToText_SeparateBlocks_PreserveTextBetweenThem(string tag, string attributes)
+    {
+        var html = $"visible-before<{tag}{attributes}>hidden-one</{tag}>visible-between<{tag}{attributes}>hidden-two</{tag}>visible-after";
+
+        var result = SearchIndexBuilder.StripHtmlToText(html);
+
+        Assert.Equal("visible-before visible-between visible-after", result);
+        Assert.DoesNotContain("hidden-one", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("hidden-two", result, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("script")]
+    [InlineData("style")]
+    public void StripHtmlToText_SimilarClosingTag_DoesNotRevealHiddenBody(string tag)
+    {
+        var html = $"<{tag}>hidden-one</{tag}ure>hidden-two</{tag}>visible";
+
+        Assert.Equal("visible", SearchIndexBuilder.StripHtmlToText(html));
+    }
+
+    [Theory]
+    [InlineData("script", "</ script>")]
+    [InlineData("script", "</script\u00a0>")]
+    [InlineData("style", "</ style>")]
+    [InlineData("style", "</style\u00a0>")]
+    public void StripHtmlToText_InvalidClosingTag_DoesNotRevealHiddenBody(string tag, string invalidEnd)
+    {
+        var html = $"<{tag}>hidden-one{invalidEnd}hidden-two</{tag}>visible";
+
+        Assert.Equal("visible", SearchIndexBuilder.StripHtmlToText(html));
+    }
+
+    [Theory]
+    [InlineData("script")]
+    [InlineData("style")]
+    public void StripHtmlToText_QuotedOpeningAttribute_DoesNotRevealHiddenBody(string tag)
+    {
+        var html = $"<{tag} data-example=\">attribute</{tag}>still-attribute\">hidden-body</{tag}>visible";
+
+        Assert.Equal("visible", SearchIndexBuilder.StripHtmlToText(html));
+    }
+
+    [Theory]
+    [InlineData("script")]
+    [InlineData("style")]
+    public void StripHtmlToText_UnquotedAttributeWithQuote_DoesNotEndLaterQuotedAttribute(string tag)
+    {
+        var html = $"<{tag} malformed=x\" data-example=\">attribute</{tag}>still-attribute\">hidden-body</{tag}>visible";
+
+        Assert.Equal("visible", SearchIndexBuilder.StripHtmlToText(html));
+    }
+
+    [Theory]
+    [InlineData("scripture")]
+    [InlineData("stylesheet")]
+    public void StripHtmlToText_SimilarOpeningTag_PreservesVisibleText(string tag)
+        => Assert.Equal("visible", SearchIndexBuilder.StripHtmlToText($"<{tag}>visible</{tag}>"));
+
+    [Theory]
+    [InlineData("script")]
+    [InlineData("style")]
+    public void StripHtmlToText_UnclosedHiddenBlock_DoesNotRevealItsBody(string tag)
+    {
+        var html = $"visible<{tag}>hidden-one</{tag}ure>hidden-two";
+
+        Assert.Equal("visible", SearchIndexBuilder.StripHtmlToText(html));
+    }
+
+    [Theory]
+    [InlineData("script")]
+    [InlineData("style")]
+    public void StripHtmlToText_ClosingTagWithWhitespace_PreservesTextBetweenBlocks(string tag)
+    {
+        var html = $"<{tag}>hidden-one</{tag} >visible-between<{tag}>hidden-two</{tag} >visible-after";
+
+        Assert.Equal("visible-between visible-after", SearchIndexBuilder.StripHtmlToText(html));
+    }
+
+    [Fact]
+    public void StripHtmlToText_ScriptDoubleEscapedText_DoesNotEndAtTheInnerClosingTag()
+    {
+        const string html = "<script><!-- <script></script>hidden-after-inner-close</script>visible";
+
+        Assert.Equal("visible", SearchIndexBuilder.StripHtmlToText(html));
+    }
+
+    [Fact]
+    public void StripHtmlToText_ScriptEscapeEndsImmediately_PreservesFollowingBlocks()
+    {
+        const string html = "<script><!--><script>hidden-one</script>visible-between<script>hidden-two</script>visible-after";
+
+        Assert.Equal("visible-between visible-after", SearchIndexBuilder.StripHtmlToText(html));
+    }
+
+    [Theory]
+    [InlineData("textarea")]
+    [InlineData("title")]
+    [InlineData("xmp")]
+    [InlineData("iframe")]
+    [InlineData("noembed")]
+    [InlineData("noframes")]
+    public void StripHtmlToText_RawTextExample_DoesNotHideFollowingVisibleText(string tag)
+    {
+        var html = $"<{tag}><script>example</scripture></{tag}>visible-after";
+
+        Assert.Contains("visible-after", SearchIndexBuilder.StripHtmlToText(html), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("xmp")]
+    [InlineData("iframe")]
+    [InlineData("noembed")]
+    [InlineData("noframes")]
+    public void StripHtmlToText_NormalizedRawText_PreservesWordBoundaries(string tag)
+        => Assert.Equal("before example after", SearchIndexBuilder.StripHtmlToText($"before<{tag}>example</{tag}>after"));
+
+    [Fact]
+    public void StripHtmlToText_Noscript_PreservesLiteralMarkupAndFollowingText()
+        => Assert.Equal("before <a href='/raw'>RAWLABEL</a>  VISIBLEMARKER", SearchIndexBuilder.StripHtmlToText(
+            "before<noscript><a href='/raw'>RAWLABEL</a></noscript><a href='/visible'>VISIBLEMARKER</a>"));
+
+    [Fact]
+    public void StripHtmlToText_SvgCdataBeforeScript_DoesNotExposeHiddenBody()
+    {
+        const string html = "<svg><![CDATA[ > </fake a=x\" b=\" ]]><script>hidden-one</ script><a href=\"/secret\">HIDDENMARKER</a>hidden-two</script>visible\" ></svg>";
+
+        var result = SearchIndexBuilder.StripHtmlToText(html);
+
+        Assert.DoesNotContain("HIDDENMARKER", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("hidden-two", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StripHtmlToText_CommentWithScriptExample_PreservesFollowingVisibleText()
+    {
+        const string html = "before<!-- <script>example</script> -->visible";
+
+        Assert.Equal("before visible", SearchIndexBuilder.StripHtmlToText(html));
+    }
+
+    [Theory]
+    [InlineData("<!-->")]
+    [InlineData("<!--->")]
+    [InlineData("<!-- comment --!>")]
+    [InlineData("<!-- comment -->")]
+    public void StripHtmlToText_CommentClosingForms_DoNotHideFollowingText(string comment)
+        => Assert.Equal("before  after", SearchIndexBuilder.StripHtmlToText($"before{comment}<script>hidden</script>after"));
+
+    [Fact]
+    public void StripHtmlToText_ManyComments_PreservesFollowingText()
+    {
+        var html = "before" + string.Concat(Enumerable.Repeat("<!-- comment -->", 20000)) + "<script>hidden</script>after";
+
+        var result = SearchIndexBuilder.StripHtmlToText(html);
+
+        Assert.StartsWith("before", result);
+        Assert.EndsWith("after", result);
+        Assert.DoesNotContain("hidden", result, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void StripHtmlToText_HtmlComments_AreStripped()
     {
         var result = SearchIndexBuilder.StripHtmlToText("<!-- comment -->hello");
 
         Assert.Equal("hello", result);
+    }
+
+    [Fact]
+    public void StripHtmlToText_NestedScriptEscape_DoesNotExposeTheRemainder()
+    {
+        const string html = "<script><!--<!--<script>hidden</script><a href='/private'>hidden-tail</a>";
+
+        Assert.Equal(string.Empty, SearchIndexBuilder.StripHtmlToText(html));
     }
 
     [Fact]

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/search-index-index.v1.json",
+  "title": "Bukit Multilingual Search Index List v1",
+  "type": "object",
+  "required": ["version", "indexes"],
+  "properties": {
+    "version": { "const": 1 },
+    "indexes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["language", "path"],
+        "properties": { "language": { "type": "string" }, "path": { "type": "string" } },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

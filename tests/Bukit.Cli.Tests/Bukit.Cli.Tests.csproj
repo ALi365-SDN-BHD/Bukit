@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Bukit.Engine.Tests\Infrastructure\LocalJsonSchema.cs" Link="Infrastructure\LocalJsonSchema.cs" />
     <Compile Remove="PngImageReaderTests.cs" />
     <Compile Remove="StarterThemeScaffoldTests.cs" />
     <Compile Remove="StarterContentAuditTests.cs" />

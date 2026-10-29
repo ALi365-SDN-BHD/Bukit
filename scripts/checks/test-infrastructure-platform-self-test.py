@@ -49,12 +49,13 @@ def check(workflow):
         exec(compile(selection, "<platform-selection>", "exec"), env)
         expected = {
             "Bukit.PluginHost.Tests": ["SystemProcessRunnerTests", "PluginPathValidatorTests", "PluginProtocolProbeTests"],
-            "Bukit.Engine.Tests": ["ExternalToolProcessRunnerTests", "TestInfrastructureTests", "OutputDirectoryCleanerTests", "AssetPipelineTests"],
+            "Bukit.Engine.Tests": ["ExternalToolProcessRunnerTests", "TestInfrastructureTests", "OutputDirectoryCleanerTests", "AssetPipelineTests", "TaxonomyRedirectWriterTests"],
+            "Bukit.Cli.Tests": ["CleanCommandTests"],
         }
         if os_name != "Linux":
             expected["Bukit.Engine.Tests"] += ["SafeOutputFileSystemTests", "DirectoryCopyFollowSymlinksTests"]
             expected["Bukit.Shared.Tests"] = ["PlatformPathHelperTests", "PathUtilsTests", "PlatformSafeSourceFileOpenerTests"]
-            expected["Bukit.Cli.Tests"] = ["PreviewCommandTests", "PreviewCommandExtendedTests", "DevCommandTests"]
+            expected["Bukit.Cli.Tests"] += ["PreviewCommandTests", "PreviewCommandExtendedTests", "DevCommandTests"]
         expected = {project: [project + "." + name for name in names] for project, names in expected.items()}
         assert env["classes"] == expected, (os_name, env["classes"])
         for project, selected in env["classes"].items():
@@ -70,6 +71,8 @@ if __name__ == "__main__":
     check(workflow)
     for old, new in (("Bukit.Engine.Tests.TestInfrastructureTests", "Bukit.Engine.Tests.WrongTests"),
                      ("Bukit.PluginHost.Tests.PluginProtocolProbeTests", "Bukit.PluginHost.Tests.WrongTests"),
+                     ("Bukit.Engine.Tests.TaxonomyRedirectWriterTests", "Bukit.Engine.Tests.WrongTests"),
+                     ("Bukit.Cli.Tests.CleanCommandTests", "Bukit.Cli.Tests.WrongTests"),
                      ('"--filter"', '"--wrong-filter"'),
                      ("python3 -B scripts/checks/core-report-inventory.py --self-test", "true")):
         assert old in workflow
@@ -79,4 +82,4 @@ if __name__ == "__main__":
             pass
         else:
             raise AssertionError("Owner check accepted mutation: " + old)
-    print("Infrastructure platform owner selfcheck: three OS selections, exact commands, helper order and four mutants passed")
+    print("Infrastructure platform owner selfcheck: three OS selections, exact commands, helper order and six mutants passed")

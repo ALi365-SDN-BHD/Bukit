@@ -8,6 +8,7 @@ internal static partial class MarkdownBodyProjection
 {
     internal static string FromHtml(string html, string? sourceUrl = null)
     {
+        html = HtmlTextProjection.Sanitize(html);
         var result = new StringBuilder(html.Length);
         var offset = 0;
         var search = 0;

@@ -103,6 +103,39 @@ public sealed class ProgramEntryPointTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_Clean_PreservesProjectMetadataAndCleansOutputAndCache()
+    {
+        var outputDir = Path.Combine(_tempDir, "dist");
+        var cacheDir = Path.Combine(_tempDir, ".cache");
+        var pluginDir = Path.Combine(_tempDir, ".bukit");
+        Directory.CreateDirectory(outputDir);
+        Directory.CreateDirectory(cacheDir);
+        Directory.CreateDirectory(pluginDir);
+        File.WriteAllText(Path.Combine(outputDir, ".bukit-output-marker"), "Bukit output directory");
+        File.WriteAllText(Path.Combine(cacheDir, "cached.txt"), "disposable");
+        var pluginConfig = Path.Combine(pluginDir, "plugins.yaml");
+        var pluginLock = Path.Combine(pluginDir, "plugins.lock.yaml");
+        var unknown = Path.Combine(pluginDir, "custom.bin");
+        byte[] bytes = [0, 255, 128, 10];
+        File.WriteAllText(pluginConfig, "version: 1\r\nplugins: {}\r\n");
+        File.WriteAllText(pluginLock, "version: 1\nresolved: {}\n");
+        File.WriteAllBytes(unknown, bytes);
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+
+        var result = await InvokeEntryPointAsync(["clean", "--dir", "dist"]);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Cleaned:", result.StdOut, StringComparison.Ordinal);
+        Assert.Empty(result.StdErr);
+        Assert.False(Directory.Exists(outputDir));
+        Assert.False(Directory.Exists(cacheDir));
+        Assert.True(File.Exists(pluginConfig), "CLI clean deleted user plugin metadata.");
+        Assert.Equal("version: 1\r\nplugins: {}\r\n", File.ReadAllText(pluginConfig));
+        Assert.Equal("version: 1\nresolved: {}\n", File.ReadAllText(pluginLock));
+        Assert.Equal(bytes, File.ReadAllBytes(unknown));
+    }
+
+    [Fact]
     public async Task Main_UnknownCommand_WithJsonLogFormat_PrintsJsonDiagnostic()
     {
         var result = await InvokeEntryPointAsync(["missing-command", "--log-format=json"]);
@@ -111,6 +144,7 @@ public sealed class ProgramEntryPointTests : IDisposable
         Assert.Empty(result.StdOut);
 
         var envelope = result.StdErr.TrimEnd('\r', '\n');
+        ReportContractAssertions.Schema(envelope, "cli-error.v1.schema.json", "exitCode");
         using var payload = System.Text.Json.JsonDocument.Parse(envelope);
         var root = payload.RootElement;
         var error = Assert.Single(root.GetProperty("errors").EnumerateArray().ToArray());

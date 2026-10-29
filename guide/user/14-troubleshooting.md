@@ -67,9 +67,9 @@ the slug, collection permalink, or list route.
 
 ## Route Ends In A Static File Extension
 
-A `route.url` or permalink that ends in a static file extension such as `.css`,
+A route URL or permalink that ends in a static file extension such as `.css`,
 `.js`, `.pdf`, an image, font, archive, audio/video, or Office extension fails
-the build (`route.url` with the invalid internal URL code, permalink with the
+the build (route URL with the invalid internal URL code, permalink with the
 invalid permalink pattern code). Pages are rendered from templates, so these
 files cannot be routes. Put them in the theme's `static/` directory (copied to
 the same output path, e.g. `static/files/report.pdf` → `/files/report.pdf`) or
@@ -115,7 +115,39 @@ SEO, publish, and security reports use separate issue definitions. The build
 report `generatedFiles` list contains public output only and intentionally
 excludes `.bukit` reports and build state files.
 
+## SCSS Process Diagnostics
+
+For non-CI CLI builds, set `logging.level: debug` to see the SCSS tool start and
+end events. CI CLI builds retain their existing Warn minimum;
+library callers can collect Debug through their logger. Match the `attempt`
+ID to correlate probe/compile events even when workers interleave. `tool` is
+the logical `sass` or `dart-sass` candidate, not its physical resolved path.
+
+`exit_code` is the actual returned runner result. `elapsed_ms` measures the
+runner call, including wrapper/group setup, scheduling and cleanup, not Sass
+CPU time. A timeout/cancellation/error without a returned result reports
+`unavailable` for exit/stderr; it does not invent exit 0. A returned exit 0
+alone does not prove CSS exists. Probe/compile limits remain 3/5 seconds.
+
+New Debug events fully suppress stderr text: `stderr` is `empty`, `redacted`
+or `unavailable`; `stderr_chars` is the returned diagnostic string's UTF-16
+length (including any truncation marker), not raw stream bytes. They do not
+log stdout, environment values, arguments, paths or exception messages.
+These supplemental events are best-effort if a logger fails. Existing
+compile-failure warnings are unchanged and are not covered by this new
+masking guarantee. This observation does not establish the historical
+missing-log failure's cause or guarantee that it is fixed.
+
 ## Slow Builds
+
+Template directory fingerprints have a budget of 10,000 files and 100 MiB of
+content per directory (child, parent, or user layouts). If either budget is
+exceeded, Bukit warns and disables incremental reuse for the affected build
+variant, then renders it fully. It does not reuse a partial path/length-only
+fingerprint. This can make large-template builds slower, but avoids stale pages;
+normal incremental reuse can resume on subsequent builds once the directories
+fit the budgets. Ordinary read/permission failures are not treated as this
+budget fallback. Use `--no-incremental` to request full rendering explicitly.
 
 Use `--metrics` to inspect stage timing, `--jobs` to limit or increase render
 parallelism, and `--incremental` to reuse unchanged render results. For an

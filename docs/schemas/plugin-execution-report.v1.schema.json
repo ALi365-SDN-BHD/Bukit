@@ -113,6 +113,12 @@
     "outputLimitExceeded": {
       "type": "boolean"
     },
+    "resourceLimitExceeded": {
+      "type": "string"
+    },
+    "networkPermissionGranted": {
+      "type": "boolean"
+    },
     "stdoutBytes": {
       "type": "integer"
     },

@@ -36,6 +36,33 @@ public sealed class GeoSeoModelBuilderTests
         };
     }
 
+    [Theory]
+    [InlineData("FAQPage", "faq", false)]
+    [InlineData("FAQPage", "faq", true)]
+    [InlineData("HowTo", "steps", false)]
+    [InlineData("HowTo", "steps", true)]
+    public void BuildForContent_EmptyStructuredContent_OmitsInvalidTypeWithoutArticleFallback(string type, string field, bool explicitEmpty)
+    {
+        var config = CreateGeoConfig();
+        config = config with { Site = config.Site with { Seo = config.Site.Seo with { Schema = config.Site.Seo.Schema with { WebPage = true } } } };
+        var geo = new Dictionary<string, object> { ["schema_type"] = type };
+        if (explicitEmpty) geo[field] = new List<object>();
+        var item = ContentDocument.Create("empty", "Empty", "empty", DateTimeOffset.Parse("2026-10-28T00:00:00Z"), "<p>Body</p>",
+            ContentFieldReader.ToFieldMap(new Dictionary<string, object> { ["type"] = "post", ["collection"] = "post", ["geo"] = geo }));
+
+        var model = SeoModelBuilder.BuildForContent(config, "/", item, new RouteInfo("/empty/", "empty/index.html", "pages/post.html"));
+
+        var types = model.JsonLd.Select(json =>
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.GetProperty("@type").GetString();
+        }).ToArray();
+        Assert.Contains("WebPage", types);
+        Assert.DoesNotContain(type, types);
+        Assert.DoesNotContain("Article", types);
+        Assert.DoesNotContain("BlogPosting", types);
+    }
+
     [Fact]
     public void BuildForContent_WithGeoFaq_GeneratesFaqPageJsonLd()
     {

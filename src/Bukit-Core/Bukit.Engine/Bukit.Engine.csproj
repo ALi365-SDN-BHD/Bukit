@@ -21,6 +21,7 @@
     <ProjectReference Include="..\Bukit.Routing\Bukit.Routing.csproj" />
     <ProjectReference Include="..\Bukit.Shared\Bukit.Shared.csproj" />
     <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="AngleSharp" />
   </ItemGroup>
 
 </Project>

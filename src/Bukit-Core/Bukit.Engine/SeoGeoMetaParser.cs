@@ -104,15 +104,13 @@ internal static class SeoGeoMetaParser
         var result = new List<GeoFaqModel>();
         foreach (var item in items)
         {
-            if (item is IReadOnlyDictionary<string, object> entry)
+            // Keep incomplete items visible to diagnostics; only JSON-LD emission filters them.
+            var entry = item as IReadOnlyDictionary<string, object>;
+            result.Add(new GeoFaqModel
             {
-                var question = ReadGeoString(entry, "question");
-                var answer = ReadGeoString(entry, "answer");
-                if (!string.IsNullOrWhiteSpace(question) && !string.IsNullOrWhiteSpace(answer))
-                {
-                    result.Add(new GeoFaqModel { Question = question, Answer = answer });
-                }
-            }
+                Question = entry is null ? string.Empty : ReadGeoString(entry, "question") ?? string.Empty,
+                Answer = entry is null ? string.Empty : ReadGeoString(entry, "answer") ?? string.Empty
+            });
         }
 
         return result.Count == 0 ? null : result;
@@ -128,21 +126,14 @@ internal static class SeoGeoMetaParser
         var result = new List<GeoHowToStepModel>();
         foreach (var item in items)
         {
-            if (item is IReadOnlyDictionary<string, object> entry)
+            var entry = item as IReadOnlyDictionary<string, object>;
+            result.Add(new GeoHowToStepModel
             {
-                var name = ReadGeoString(entry, "name");
-                var text = ReadGeoString(entry, "text");
-                if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(text))
-                {
-                    result.Add(new GeoHowToStepModel
-                    {
-                        Name = name,
-                        Text = text,
-                        Image = ReadGeoString(entry, "image"),
-                        Url = ReadGeoString(entry, "url")
-                    });
-                }
-            }
+                Name = entry is null ? string.Empty : ReadGeoString(entry, "name") ?? string.Empty,
+                Text = entry is null ? string.Empty : ReadGeoString(entry, "text") ?? string.Empty,
+                Image = entry is null ? null : ReadGeoString(entry, "image"),
+                Url = entry is null ? null : ReadGeoString(entry, "url")
+            });
         }
 
         return result.Count == 0 ? null : result;

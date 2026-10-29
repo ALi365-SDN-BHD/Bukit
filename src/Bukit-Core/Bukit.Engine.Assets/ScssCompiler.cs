@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using Bukit.Config;
 using Bukit.Shared;
 
@@ -59,7 +60,7 @@ internal static class ScssCompiler
                 startInfo.ArgumentList.Add("--style=compressed");
                 try
                 {
-                    var result = await ExternalToolProcessRunner.RunAsync(
+                    var result = await RunSassProcessAsync("compile", sassCli,
                         startInfo,
                         TimeSpan.FromSeconds(5),
                         logger,
@@ -88,6 +89,45 @@ internal static class ScssCompiler
             {
                 logger.Warn($"event=scss.error file={Path.GetFileName(scssFile)} reason={ex.Message}");
             }
+        }
+    }
+
+    private static async Task<ExternalToolProcessResult> RunSassProcessAsync(
+        string phase, string tool, ProcessStartInfo startInfo, TimeSpan timeout,
+        ILogger logger, CancellationToken cancellationToken)
+    {
+        void Observe(string message)
+        {
+            // Supplemental diagnostics must not replace tool results or cancellation when a sink fails.
+            try { logger.Debug(message); }
+            catch { }
+        }
+
+        var attempt = Guid.NewGuid().ToString("N");
+        Observe($"event=scss.tool.start attempt={attempt} phase={phase} tool={tool} timeout_ms={timeout.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture)}");
+        var stopwatch = Stopwatch.StartNew();
+        ExternalToolProcessResult? result = null;
+        var outcome = "error";
+        var error = "none";
+        try
+        {
+            result = await ExternalToolProcessRunner.RunAsync(startInfo, timeout, logger, cancellationToken);
+            outcome = "exit";
+            return result;
+        }
+        catch (Exception ex)
+        {
+            outcome = ex is TimeoutException ? "timeout" : ex is OperationCanceledException ? "cancelled" : "error";
+            error = ex.GetType().Name;
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            var exitCode = result?.ExitCode.ToString(CultureInfo.InvariantCulture) ?? "unavailable";
+            var stderr = result is null ? "unavailable" : result.StandardError.Length == 0 ? "empty" : "redacted";
+            var stderrChars = result?.StandardError.Length.ToString(CultureInfo.InvariantCulture) ?? "unavailable";
+            Observe($"event=scss.tool.end attempt={attempt} phase={phase} tool={tool} outcome={outcome} exit_code={exitCode} elapsed_ms={stopwatch.ElapsedMilliseconds.ToString(CultureInfo.InvariantCulture)} stderr={stderr} stderr_chars={stderrChars} error={error}");
         }
     }
 
@@ -140,7 +180,7 @@ internal static class ScssCompiler
 
             try
             {
-                var result = await ExternalToolProcessRunner.RunAsync(new ProcessStartInfo
+                var result = await RunSassProcessAsync("probe", name, new ProcessStartInfo
                 {
                     FileName = name,
                     Arguments = "--version",

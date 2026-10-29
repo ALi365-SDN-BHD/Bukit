@@ -119,7 +119,7 @@ def check(root, inventory):
         if status == "declared-local":
             require(declared and local, "Missing declared/local binding: " + identity)
         elif status == "explicit-local-binding-no-payload-declaration":
-            require(declared is None and version is None and local, "Invalid explicit local binding")
+            require(declared is None and local, "Invalid explicit local binding")
             require(Path(local).name in source(root, record["tests"][0]["source"]), "Missing explicit test/schema association")
         elif status == "declared-but-local-schema-missing":
             require(declared and local is None and record.get("knownGap"), "Missing schema must remain an explicit gap")

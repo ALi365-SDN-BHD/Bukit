@@ -30,9 +30,19 @@ internal static class VariantManifestPlanner
         var manifestPath = suffix is null
             ? Path.Combine(cacheDir, "build-manifest.json")
             : Path.Combine(cacheDir, $"build-manifest.{suffix}.json");
-        var templateHash = incrementalEnabled
-            ? ComputeCompositeTemplateHash(context, templateHashCache)
-            : string.Empty;
+        var templateHash = string.Empty;
+        if (incrementalEnabled)
+        {
+            try
+            {
+                templateHash = ComputeCompositeTemplateHash(context, templateHashCache);
+            }
+            catch (DirectoryHashLimitExceededException ex)
+            {
+                logger.Warn($"Template directory hash limit exceeded; incremental reuse disabled for this variant. {ex.Message}");
+                incrementalEnabled = false;
+            }
+        }
         var manifest = BuildManifest.Load(manifestPath, logger);
         if (!PublicOutputLifecycle.SameRoot(manifest, context.OutputDir)) manifest = new BuildManifest();
         if (!incrementalEnabled) manifest.Entries.Clear();

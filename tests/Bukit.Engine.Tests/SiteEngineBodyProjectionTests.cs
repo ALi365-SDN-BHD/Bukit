@@ -7,12 +7,118 @@ using Bukit.Engine.Abstractions.Routing;
 using Bukit.Engine.Incremental;
 using Bukit.Rendering;
 using Bukit.Shared;
+using Markdig;
+using Markdig.Syntax;
+using Markdig.Syntax.Inlines;
 using Xunit;
 
 namespace Bukit.Engine.Tests;
 
 public sealed partial class SiteEngineIntegrationTests
 {
+    [Theory]
+    [InlineData("search")]
+    [InlineData("markdown")]
+    [InlineData("llms-full")]
+    public async Task BodyProjection_SeparateHiddenBlocksPreserveVisibleTextInPublicOutputs(string representation)
+    {
+        var (root, initial) = CreateMediaSite();
+        var config = initial with
+        {
+            Site = initial.Site with { Seo = new SeoConfig { Geo = new SeoGeoConfig { LlmsFullTxt = true } } },
+            Content = initial.Content with { Media = initial.Content.Media with { DownloadToLocal = false } }
+        };
+        const string html = "<script>script-hidden-one</ script><a href='/private-script'>script-hidden-link</a>script-hidden-middle</script>visible-between-script<script>script-hidden-two</script>visible-after-script" +
+            "<style>style-hidden-one</style\u00a0><a href='/private-style'>style-hidden-link</a>style-hidden-middle</style>visible-between-style<style>style-hidden-two</style>visible-after-style" +
+            "<a href='/public'>visible-link</a>";
+        try
+        {
+            var document = MediaDocument("one");
+            await new SiteEngine(new TestLogger(), new ProjectionProviderFactory([document], new ProjectionBodyStore(html)), new DefaultSearchIndexBuilder())
+                .BuildAsync(config, root, new ConfigOverrides());
+
+            var output = Path.Combine(root, "dist");
+            using var projection = JsonDocument.Parse(File.ReadAllText(Path.Combine(output, "content/blog/one/index.html.json")));
+            Assert.Equal(html, projection.RootElement.GetProperty("body").GetString());
+            using var search = JsonDocument.Parse(File.ReadAllText(Path.Combine(output, "search.json")));
+            var searchText = search.RootElement.EnumerateArray().Single(item => item.GetProperty("url").GetString() == "/blog/one/")
+                .GetProperty("content").GetString()!;
+            var markdown = File.ReadAllText(Path.Combine(output, "content/blog/one/index.html.md"));
+            var llmsFull = File.ReadAllText(Path.Combine(output, "llms-full.txt"));
+            var text = representation switch { "search" => searchText, "markdown" => markdown, _ => llmsFull };
+            foreach (var visible in new[] { "visible-between-script", "visible-after-script", "visible-between-style", "visible-after-style", "visible-link" })
+                Assert.Contains(visible, text, StringComparison.Ordinal);
+            foreach (var hidden in new[] { "script-hidden-one", "script-hidden-link", "script-hidden-middle", "script-hidden-two", "style-hidden-one", "style-hidden-link", "style-hidden-middle", "style-hidden-two", "/private-script", "/private-style" })
+                Assert.DoesNotContain(hidden, text, StringComparison.Ordinal);
+            Assert.Contains("/public", markdown, StringComparison.Ordinal);
+            Assert.Contains("/public", llmsFull, StringComparison.Ordinal);
+        }
+        finally { CleanupDir(root); }
+    }
+
+    [Theory]
+    [InlineData("template", "search")]
+    [InlineData("template", "markdown")]
+    [InlineData("template", "llms-full")]
+    [InlineData("noscript", "search")]
+    [InlineData("noscript", "markdown")]
+    [InlineData("noscript", "llms-full")]
+    [InlineData("xmp", "search")]
+    [InlineData("xmp", "markdown")]
+    [InlineData("xmp", "llms-full")]
+    public async Task BodyProjection_ParsingContextsPreservePublicTextAndActualLinks(string context, string representation)
+    {
+        var (root, initial) = CreateMediaSite();
+        var config = initial with
+        {
+            Site = initial.Site with { Seo = new SeoConfig { Geo = new SeoGeoConfig { LlmsFullTxt = true } } },
+            Content = initial.Content with { Media = initial.Content.Media with { DownloadToLocal = false } }
+        };
+        var html = context switch
+        {
+            "template" => "<a href='/outer'>before<template><a href='/hidden'>HIDDENMARKER</a></template>after</a>",
+            "noscript" => "before<noscript><a href='/raw'>RAWLABEL</a></noscript><a href='/visible'>VISIBLEMARKER</a>",
+            _ => "before<xmp>example</xmp>after"
+        };
+        try
+        {
+            await new SiteEngine(new TestLogger(), new ProjectionProviderFactory([MediaDocument("one")], new ProjectionBodyStore(html)), new DefaultSearchIndexBuilder())
+                .BuildAsync(config, root, new ConfigOverrides());
+
+            var output = Path.Combine(root, "dist");
+            string text;
+            if (representation == "search")
+            {
+                using var search = JsonDocument.Parse(File.ReadAllText(Path.Combine(output, "search.json")));
+                text = search.RootElement.EnumerateArray().Single(item => item.GetProperty("url").GetString() == "/blog/one/")
+                    .GetProperty("content").GetString()!;
+                Assert.Equal(context switch
+                {
+                    "template" => "before after",
+                    "noscript" => "before <a href='/raw'>RAWLABEL</a>  VISIBLEMARKER",
+                    _ => "before example after"
+                }, text);
+            }
+            else
+            {
+                text = File.ReadAllText(Path.Combine(output, representation == "markdown" ? "content/blog/one/index.html.md" : "llms-full.txt"));
+                var links = Markdown.Parse(text).Descendants<LinkInline>().ToArray();
+                if (context == "xmp")
+                {
+                    Assert.Empty(links);
+                    Assert.Contains("before example after", text);
+                }
+                else Assert.Equal(context == "template" ? "/outer" : "/visible", Assert.Single(links).Url);
+                if (context == "noscript")
+                    Assert.Contains("&lt;a href='/raw'&gt;RAWLABEL&lt;/a&gt;", text);
+            }
+            Assert.Contains("before", text);
+            if (context != "noscript") Assert.Contains("after", text);
+            Assert.DoesNotContain("HIDDENMARKER", text);
+        }
+        finally { CleanupDir(root); }
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]

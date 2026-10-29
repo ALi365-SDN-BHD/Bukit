@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/metrics.v2.json",
+  "title": "Bukit Build Metrics v2",
+  "type": "object",
+  "required": ["version", "ts", "site", "outputDir", "contentItems", "variants"],
+  "properties": {
+    "version": { "const": 2 },
+    "ts": { "type": "string", "format": "date-time" },
+    "site": {
+      "type": "object",
+      "required": ["name", "title", "url", "baseUrl", "language", "defaultLanguage", "languages"],
+      "properties": {
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": ["string", "null"] },
+        "baseUrl": { "type": "string" },
+        "language": { "type": "string" },
+        "defaultLanguage": { "type": ["string", "null"] },
+        "languages": { "type": ["array", "null"], "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "outputDir": { "type": "string" },
+    "contentItems": { "type": "integer" },
+    "variants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["language", "baseUrl", "outputDir", "routed", "derived", "rendered", "skipped", "reasons", "plugins", "stages"],
+        "properties": {
+          "language": { "type": "string" },
+          "baseUrl": { "type": "string" },
+          "outputDir": { "type": "string" },
+          "routed": { "type": "integer" },
+          "derived": { "type": "integer" },
+          "rendered": { "type": "integer" },
+          "skipped": { "type": "integer" },
+          "reasons": { "$ref": "#/$defs/integerMap" },
+          "plugins": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "hook", "durationMs", "success", "error"],
+              "properties": {
+                "name": { "type": "string" },
+                "hook": { "type": "string" },
+                "durationMs": { "type": "integer" },
+                "success": { "type": "boolean" },
+                "error": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          },
+          "stages": {
+            "type": "object",
+            "required": ["durationsMs", "counts"],
+            "properties": { "durationsMs": { "$ref": "#/$defs/integerMap" }, "counts": { "$ref": "#/$defs/integerMap" } },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "bodyCache": {
+      "type": "object",
+      "required": ["totalRequests", "cacheHits", "cacheMisses", "inlineBypasses", "uniqueBodies", "amplification", "cacheSkips"],
+      "properties": {
+        "totalRequests": { "type": "integer" },
+        "cacheHits": { "type": "integer" },
+        "cacheMisses": { "type": "integer" },
+        "inlineBypasses": { "type": "integer" },
+        "uniqueBodies": { "type": "integer" },
+        "amplification": { "type": "number" },
+        "cacheSkips": { "type": "integer" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": { "integerMap": { "type": "object", "additionalProperties": { "type": "integer" } } },
+  "additionalProperties": false
+}

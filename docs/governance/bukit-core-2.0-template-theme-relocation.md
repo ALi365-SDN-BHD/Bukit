@@ -3,7 +3,7 @@
 This independent change was approved on 2026-10-25 against base
 `ad13645205e8c61220a92835eb6f7d4e813dc1dc`. It is separate from the paused
 logger work and the Section task. Its contract is recorded in
-[`relocate-template-theme`](../../openspec/changes/relocate-template-theme/proposal.md).
+[`relocate-template-theme`](../../openspec/changes/archive/2026-10-26-relocate-template-theme/proposal.md).
 The direct compiled snapshot/check measures **428 → 426 types**, with
 **19 assemblies unchanged**. Specialty verification and the scheduled reviews
 remain separate acceptance evidence.

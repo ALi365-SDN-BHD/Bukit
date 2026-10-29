@@ -161,12 +161,13 @@ jobs:
 
           classes = {
               "Bukit.PluginHost.Tests": ["Bukit.PluginHost.Tests.SystemProcessRunnerTests", "Bukit.PluginHost.Tests.PluginPathValidatorTests", "Bukit.PluginHost.Tests.PluginProtocolProbeTests"],
-              "Bukit.Engine.Tests": ["Bukit.Engine.Tests.ExternalToolProcessRunnerTests", "Bukit.Engine.Tests.TestInfrastructureTests", "Bukit.Engine.Tests.OutputDirectoryCleanerTests", "Bukit.Engine.Tests.AssetPipelineTests"],
+              "Bukit.Engine.Tests": ["Bukit.Engine.Tests.ExternalToolProcessRunnerTests", "Bukit.Engine.Tests.TestInfrastructureTests", "Bukit.Engine.Tests.OutputDirectoryCleanerTests", "Bukit.Engine.Tests.AssetPipelineTests", "Bukit.Engine.Tests.TaxonomyRedirectWriterTests"],
+              "Bukit.Cli.Tests": ["Bukit.Cli.Tests.CleanCommandTests"],
           }
           if actual_os != "Linux":
               classes["Bukit.Engine.Tests"] += ["Bukit.Engine.Tests.SafeOutputFileSystemTests", "Bukit.Engine.Tests.DirectoryCopyFollowSymlinksTests"]
               classes["Bukit.Shared.Tests"] = ["Bukit.Shared.Tests.PlatformPathHelperTests", "Bukit.Shared.Tests.PathUtilsTests", "Bukit.Shared.Tests.PlatformSafeSourceFileOpenerTests"]
-              classes["Bukit.Cli.Tests"] = ["Bukit.Cli.Tests.PreviewCommandTests", "Bukit.Cli.Tests.PreviewCommandExtendedTests", "Bukit.Cli.Tests.DevCommandTests"]
+              classes["Bukit.Cli.Tests"] += ["Bukit.Cli.Tests.PreviewCommandTests", "Bukit.Cli.Tests.PreviewCommandExtendedTests", "Bukit.Cli.Tests.DevCommandTests"]
 
           posix_process_methods = {
               "RunAsync_CallerCancellationRemainsCancellationAndRequiresLogger",
@@ -176,6 +177,7 @@ jobs:
               "RunAsync_TimesOut_KillsDescendantBeforeDelayedWrite",
               "ScssCompiler_ExitZeroWithoutCss_PreservesSource",
               "ScssCompiler_EntryPointUnset_CompilesAllFilesToStagingTree",
+              "ScssCompiler_ProcessObservation_PreservesOutcomesAndMasksStderr",
               "RunAsync_OutputBeyondLimit_TerminatesAndThrowsBoundedDiagnostic",
               "ExternalTool_OutputBeyondLimit_TerminatesTreeAndReturnsBoundedDiagnostic",
               "RunAsync_Timeout_WithInheritedPipes_ReturnsWithinDrainDeadline",

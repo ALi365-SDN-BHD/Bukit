@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bukit.dev/schemas/theme-catalog.schema.json",
+  "title": "Bukit Theme Catalog",
+  "description": "The version property identifies the theme, not a schema version.",
+  "type": "object",
+  "required": ["theme", "version", "description", "extends", "sections", "components"],
+  "properties": {
+    "theme": { "type": "string" },
+    "version": { "type": ["string", "null"] },
+    "description": { "type": ["string", "null"] },
+    "extends": { "type": ["string", "null"] },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "description", "variants", "requiredProps", "optionalProps", "dataSources", "bestFor"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "variants": { "$ref": "#/$defs/nullableStrings" },
+          "requiredProps": { "$ref": "#/$defs/nullableStrings" },
+          "optionalProps": { "$ref": "#/$defs/nullableStrings" },
+          "dataSources": { "$ref": "#/$defs/nullableStrings" },
+          "bestFor": { "$ref": "#/$defs/nullableStrings" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "props"],
+        "properties": {
+          "name": { "type": "string" },
+          "props": { "type": ["object", "null"], "additionalProperties": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": { "nullableStrings": { "type": ["array", "null"], "items": { "type": "string" } } },
+  "additionalProperties": false
+}

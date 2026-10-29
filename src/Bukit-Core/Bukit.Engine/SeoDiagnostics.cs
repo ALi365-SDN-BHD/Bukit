@@ -116,6 +116,16 @@ internal static partial class SeoDiagnostics
     {
         foreach (var (key, model) in models)
         {
+            if (string.Equals(model.SchemaType, "FAQPage", StringComparison.OrdinalIgnoreCase) && model.FaqItems is not { Count: > 0 })
+            {
+                Report(config, logger, $"geo.faq_items_missing route={key}");
+            }
+
+            if (string.Equals(model.SchemaType, "HowTo", StringComparison.OrdinalIgnoreCase) && model.HowToSteps is not { Count: > 0 })
+            {
+                Report(config, logger, $"geo.howto_steps_missing route={key}");
+            }
+
             if (model.FaqItems is { Count: > 0 })
             {
                 foreach (var faq in model.FaqItems)

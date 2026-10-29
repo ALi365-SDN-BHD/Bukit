@@ -1,0 +1,9 @@
+# KD-003 option A checklist
+
+- [x] 1. Freeze mapped closure/current baseline and activate policy-aware regressions, including real planner-to-renderer byte comparisons; observe behavioral RED before production edits. Original implementation and final body-store fixture: 21 expected failures / 147 passed / 0 Skip, including six real stale page/list output comparisons across both budgets and all three layout roles (`red/`, `body-red/`). The intermediate `fixture-red/` body-resolution error is not behavioral RED evidence.
+- [x] 2. Implement the minimum budget signal and variant fallback, preserving complete hashes, error propagation and manifest shape/ownership; pass the complete six-class specialty and cache GREEN evidence. Final `body-green/tests.trx`: 168 passed / 0 failed / 0 Skip; `runtime-green-cache.json` recorded and checked HIT with matching HEAD, closure contents, exact command, environment state and SDK.
+- [x] 3. Accept one specialty review and one delta-only final review, backfill docs/KD-003 status, verify unrelated inputs, complete static checks and release the writer. Final mechanical results are recorded in `completion.json`, with static evidence and parent metrics in the evidence root.
+
+Specialty review `reviews/specialty-v1.md` and the single generated-scope delta-only final review `reviews/final-delta-v1.md` accepted: each Critical 0 / Important 0 / Minor 0; no code or test repair required. Runtime GREEN evidence remains unchanged and is reused, not refreshed by another fixture run. Preserve the existing worktree and all uncommitted work; no merge, push, commit or archive.
+
+Evidence root: `/Users/ali/.local/state/bukit-verification/kd003-budget-fallback-SkfsyV`. No DirectoryHashCache production edit is planned, no dependency/public API/CI change, no SCSS/stage 7, broad gate or commit.

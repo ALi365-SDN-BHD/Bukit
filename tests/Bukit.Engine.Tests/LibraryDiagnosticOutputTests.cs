@@ -116,12 +116,11 @@ public sealed class LibraryDiagnosticOutputTests : IDisposable
             case "HashFileLimit":
             case "HashSizeLimit":
                 for (int i = 0; i < 3; i++) File.WriteAllText(Path.Combine(source, $"{i}.txt"), "xx");
-                Assert.Equal(64, HashUtil.Sha256HexForDirectory(source, logger,
-                    maxFiles: site == "HashFileLimit" ? 1 : 10, maxTotalSize: site == "HashSizeLimit" ? 1 : 100).Length);
+                Assert.ThrowsAny<InvalidOperationException>(() => HashUtil.Sha256HexForDirectory(source, logger,
+                    maxFiles: site == "HashFileLimit" ? 1 : 10, maxTotalSize: site == "HashSizeLimit" ? 1 : 100));
                 return site == "HashFileLimit"
-                    ? [$"Directory '{source}' has 3 files, exceeding limit of 1. Only first 1 files will be processed."]
-                    : [$"Directory '{source}' total size exceeds limit of 1 bytes. Stopping content processing at file 1 of 3.",
-                       $"Directory '{source}' total size exceeds limit of 1 bytes. Stopping content processing at file 2 of 3."];
+                    ? [$"Directory '{source}' has 3 files, exceeding limit of 1. A complete directory hash cannot be computed."]
+                    : [$"Directory '{source}' total size exceeds limit of 1 bytes. A complete directory hash cannot be computed."];
             case "Manifest":
             case "CacheLoad":
                 string corrupt = Path.Combine(_root, "bad.json");

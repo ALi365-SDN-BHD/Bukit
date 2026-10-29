@@ -42,6 +42,13 @@ public static class CleanCommand
 
         try
         {
+            var metadataDir = Path.Combine(rootDir, ".bukit");
+            if (string.Equals(outputDir, metadataDir, StringComparison.OrdinalIgnoreCase)
+                || outputDir.StartsWith(metadataDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ConfigException($"Refusing to clean project metadata directory: {outputDir}. How to fix: select a dedicated output directory like 'dist' or 'public'.", DiagnosticCode.BuildOutputUnsafe);
+            }
+
             OutputDirectoryCleaner.CleanIfExists(rootDir, outputDir);
         }
         catch (ConfigException ex)
@@ -51,7 +58,6 @@ public static class CleanCommand
         }
 
         DeleteIfExists(Path.GetFullPath(Path.Combine(rootDir, ".cache")));
-        DeleteIfExists(Path.GetFullPath(Path.Combine(rootDir, ".bukit")));
 
         Console.WriteLine($"Cleaned: {outputDir}");
         return Task.FromResult(0);

@@ -540,6 +540,156 @@ public sealed class ExternalToolProcessRunnerTests(ITestOutputHelper output)
         }
     }
 
+    [Theory]
+    [InlineData("success")]
+    [InlineData("debug-sink-fails")]
+    [InlineData("probe-fallback")]
+    [InlineData("probe-rejected")]
+    [InlineData("compile-failed")]
+    [InlineData("output-missing")]
+    [InlineData("probe-timeout")]
+    [InlineData("compile-timeout")]
+    [InlineData("probe-cancel")]
+    [InlineData("compile-cancel")]
+    public async Task ScssCompiler_ProcessObservation_PreservesOutcomesAndMasksStderr(string scenario)
+    {
+        if (!RequireUnix()) return;
+        var root = CreateTempDir();
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            var assets = Path.Combine(root, "assets");
+            var tools = Path.Combine(root, "tools");
+            var generated = Path.Combine(root, "generated");
+            var callsPath = Path.Combine(root, "calls");
+            var marker = Path.Combine(root, "started");
+            Directory.CreateDirectory(assets);
+            var source = Path.Combine(assets, "main.scss");
+            File.WriteAllText(source, "body {}");
+            const string privateStderr = "private-scss-observation-token";
+            foreach (var tool in new[] { "sass", "dart-sass" })
+            {
+                var probeExit = scenario == "probe-rejected" || (scenario == "probe-fallback" && tool == "sass") ? 7 : 0;
+                var probe = scenario == "probe-timeout" && tool == "sass" ? "/bin/sleep 30; exit 0" : $"exit {probeExit}";
+                if (scenario == "probe-cancel" && tool == "sass")
+                    probe = $"printf started > '{EscapeSingleQuoted(marker)}'; /bin/sleep 30; exit 0";
+                var compile = scenario switch
+                {
+                    "compile-failed" => "exit 7",
+                    "output-missing" => "exit 0",
+                    "compile-timeout" => "/bin/sleep 30; exit 0",
+                    "compile-cancel" => $"printf started > '{EscapeSingleQuoted(marker)}'; /bin/sleep 30; exit 0",
+                    _ => "printf compiled > \"$2\"; exit 0"
+                };
+                var stderr = scenario == "output-missing" ? string.Empty : $"printf '{privateStderr}\\n' >&2";
+                WriteTool(tools, tool, $"""
+                    {stderr}
+                    if [ "$1" = "--version" ]; then
+                      printf 'probe:{tool}\n' >> '{EscapeSingleQuoted(callsPath)}'
+                      {probe}
+                    fi
+                    printf 'compile:{tool}\n' >> '{EscapeSingleQuoted(callsPath)}'
+                    {compile}
+                    """);
+            }
+            Environment.SetEnvironmentVariable("PATH", PrependPath(tools, originalPath));
+            var logger = new ScssObservationLogger(scenario == "debug-sink-fails");
+            var operation = ScssCompiler.CompileIfEnabled(assets,
+                new ScssConfig { Enabled = true, EntryPoint = "main.scss" }, logger,
+                cancellation.Token, generated);
+            bool? sawMarker = null;
+            if (scenario.EndsWith("-cancel", StringComparison.Ordinal))
+            {
+                var wait = Stopwatch.StartNew();
+                while (!File.Exists(marker) && !operation.IsCompleted && wait.Elapsed < TimeSpan.FromSeconds(10))
+                    await Task.Delay(10);
+                sawMarker = File.Exists(marker);
+                cancellation.Cancel();
+            }
+            var failure = await Record.ExceptionAsync(() => operation);
+            if (sawMarker is not null)
+            {
+                Assert.True(sawMarker.Value, "Cancellation must follow actual entry into the requested fake-tool branch.");
+                Assert.IsAssignableFrom<OperationCanceledException>(failure);
+            }
+            else Assert.Null(failure);
+            Assert.Equal("body {}", File.ReadAllText(source));
+            var producesCss = scenario is "success" or "debug-sink-fails" or "probe-fallback" or "probe-timeout";
+            Assert.Equal(producesCss, File.Exists(Path.Combine(generated, "main.css")));
+            if (producesCss) Assert.Equal("compiled", File.ReadAllText(Path.Combine(generated, "main.css")));
+            if (scenario == "probe-rejected") Assert.Contains(logger.Warnings, message => message.Contains("reason=sass_cli_not_found", StringComparison.Ordinal));
+            if (scenario == "compile-failed") Assert.Contains(logger.Warnings, message => message.Contains("reason=compile_failed", StringComparison.Ordinal));
+            if (scenario == "output-missing") Assert.Contains(logger.Warnings, message => message.Contains("reason=output_missing", StringComparison.Ordinal));
+            if (scenario == "compile-timeout") Assert.Contains(logger.Warnings, message => message.Contains("timed out after 5000ms", StringComparison.Ordinal));
+            string[] expectedCalls = scenario switch
+            {
+                "probe-cancel" => ["probe:sass"],
+                "probe-fallback" or "probe-timeout" => ["probe:sass", "probe:dart-sass", "compile:dart-sass"],
+                "probe-rejected" => ["probe:sass", "probe:dart-sass"],
+                _ => ["probe:sass", "compile:sass"]
+            };
+            Assert.Equal(expectedCalls, File.ReadAllLines(callsPath));
+            var starts = logger.Debugs.Where(message => message.StartsWith("event=scss.tool.start ", StringComparison.Ordinal)).ToArray();
+            var ends = logger.Debugs.Where(message => message.StartsWith("event=scss.tool.end ", StringComparison.Ordinal)).ToArray();
+            Assert.Equal(expectedCalls.Length, starts.Length);
+            Assert.Equal(expectedCalls.Length, ends.Length);
+            var attemptIds = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < ends.Length; i++)
+            {
+                var fields = ends[i].Split(' ').Select(part => part.Split('=', 2)).ToDictionary(parts => parts[0], parts => parts[1]);
+                Assert.True(Guid.TryParseExact(fields["attempt"], "N", out _));
+                Assert.True(attemptIds.Add(fields["attempt"]));
+                Assert.Equal(expectedCalls[i], fields["phase"] + ":" + fields["tool"]);
+                Assert.Contains(starts, message => message.Contains($"attempt={fields["attempt"]} phase={fields["phase"]} tool={fields["tool"]} ", StringComparison.Ordinal)
+                    && message.EndsWith(fields["phase"] == "probe" ? "timeout_ms=3000" : "timeout_ms=5000", StringComparison.Ordinal));
+                Assert.True(long.TryParse(fields["elapsed_ms"], System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out var elapsed) && elapsed >= 0);
+                var interrupted = fields["tool"] == "sass" && (scenario == fields["phase"] + "-timeout" || scenario == fields["phase"] + "-cancel");
+                Assert.Equal(interrupted ? scenario.EndsWith("-timeout", StringComparison.Ordinal) ? "timeout" : "cancelled" : "exit", fields["outcome"]);
+                if (interrupted)
+                {
+                    Assert.Equal("unavailable", fields["exit_code"]);
+                    Assert.Equal("unavailable", fields["stderr"]);
+                    Assert.Equal("unavailable", fields["stderr_chars"]);
+                    Assert.NotEqual("none", fields["error"]);
+                }
+                else
+                {
+                    var nonzero = scenario == "probe-rejected" || (scenario == "probe-fallback" && fields["tool"] == "sass") || (scenario == "compile-failed" && fields["phase"] == "compile");
+                    Assert.Equal(nonzero ? "7" : "0", fields["exit_code"]);
+                    Assert.Equal(scenario == "output-missing" ? "empty" : "redacted", fields["stderr"]);
+                    Assert.Equal(scenario == "output-missing" ? "0" : (privateStderr.Length + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), fields["stderr_chars"]);
+                    Assert.Equal("none", fields["error"]);
+                }
+            }
+            foreach (var message in starts.Concat(ends))
+            {
+                Assert.DoesNotContain(privateStderr, message, StringComparison.Ordinal);
+                Assert.DoesNotContain(root, message, StringComparison.Ordinal);
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", originalPath);
+            TestCleanup.DeleteDirectory(root);
+        }
+    }
+
+    private sealed class ScssObservationLogger(bool throwOnDebug = false) : ILogger
+    {
+        public System.Collections.Concurrent.ConcurrentQueue<string> Debugs { get; } = new();
+        public System.Collections.Concurrent.ConcurrentQueue<string> Warnings { get; } = new();
+        public void Debug(string message)
+        {
+            Debugs.Enqueue(message);
+            if (throwOnDebug) throw new InvalidOperationException("diagnostic sink failure");
+        }
+        public void Info(string message) { }
+        public void Warn(string message) => Warnings.Enqueue(message);
+        public void Error(string message) => throw new InvalidOperationException(message);
+    }
+
     private static ProcessStartInfo StartInfo(string tool) => new()
     {
         FileName = tool,

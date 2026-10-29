@@ -46,21 +46,31 @@ public sealed class RelatedContentPluginTests
     private static RouteInfo Route(string url) => new(url, $"out{url}index.html", "pages/post.html");
 
     [Fact]
-    public void DerivePages_NotEnabled_ReturnsEmpty()
+    public void DerivePages_NotEnabled_DoesNotWriteRelatedData()
     {
-        var config = CreateConfig(new RelatedConfig { Enabled = false });
+        var config = CreateConfig(new RelatedConfig
+        {
+            Enabled = false,
+            Threshold = 50,
+            Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
+        });
         var ctx = new BuildContext
         {
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            RoutedDocuments = new List<(ContentDocument, RouteInfo)> { (CreateItem("1", "A", "a", tags: "go"), Route("/a/")) }.ToRoutedDocuments(),
+            RoutedDocuments = new List<(ContentDocument, RouteInfo)>
+            {
+                (CreateItem("1", "A", "a", tags: "go", collection: "post"), Route("/a/")),
+                (CreateItem("2", "B", "b", tags: "go", collection: "post"), Route("/b/"))
+            }.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
         var derived = new RelatedContentPlugin(config).DerivePages(ctx);
         Assert.Empty(derived);
+        Assert.False(ctx.TryGet(BuildDataKeys.RelatedPages, out _));
     }
 
     [Fact]
@@ -163,19 +173,25 @@ public sealed class RelatedContentPluginTests
     [Fact]
     public void DerivePages_SingleItem_NoRelated()
     {
-        var config = CreateConfig(new RelatedConfig { Enabled = true });
+        var config = CreateConfig(new RelatedConfig
+        {
+            Enabled = true,
+            Threshold = 50,
+            Indices = new[] { new RelatedIndexConfig { Name = "tags", Weight = 100 } }
+        });
         var ctx = new BuildContext
         {
             RootDir = "/t",
             OutputDir = "/t/out",
             BaseUrl = "/",
             LayoutsDir = "/t/l",
-            RoutedDocuments = new List<(ContentDocument, RouteInfo)> { (CreateItem("1", "A", "a"), Route("/a/")) }.ToRoutedDocuments(),
+            RoutedDocuments = new List<(ContentDocument, RouteInfo)> { (CreateItem("1", "A", "a", tags: "go", collection: "post"), Route("/a/")) }.ToRoutedDocuments(),
             Logger = new ConsoleLogger(LogLevel.Error)
         };
 
         var derived = new RelatedContentPlugin(config).DerivePages(ctx);
         Assert.Empty(derived);
+        Assert.False(ctx.TryGet(BuildDataKeys.RelatedPages, out _));
     }
 
     [Fact]
