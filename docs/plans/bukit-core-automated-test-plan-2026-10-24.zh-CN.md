@@ -1345,7 +1345,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 | 出口项 | 结果 |
 |---|---|
-| 依赖矩阵 | `Ad01ConfigDecouplingTests` 继续覆盖 Abstractions→Config；新增 `CoreProjectReferenceBoundaryTests` 扫描全部 `src/Bukit-Core/**/*.csproj`，禁止引用 `src/Bukit-Plugins` 或 `src/Bukit-Labs`。完整 Architecture **416/416**，0 失败、0 跳过。 |
+| 依赖矩阵 | `Ad01ConfigDecouplingTests` 继续覆盖 Engine.Abstractions 与 Config 的解耦（不依赖 Config）；新增 `CoreProjectReferenceBoundaryTests` 扫描全部 `src/Bukit-Core/**/*.csproj`，禁止引用 `src/Bukit-Plugins` 或 `src/Bukit-Labs`，并同时覆盖 `\` 与 `/` 两种引用写法。完整 Architecture **420/420**，0 失败、0 跳过。 |
 | 公共 API 漂移 | `bash scripts/checks/public-api-drift.sh check Release` 退出 0；基线 18 个程序集 / 425 个类型与源码一致，无诊断。 |
 | 完整覆盖率 | `BUKIT_COVERAGE_ROOT=TestResults/coverage/stage10-final bash scripts/checks/coverage.sh Release`：整体 **90.81% (42724/47047)**，18 个源项目全部 ≥70%，见下表。 |
 | 安全层 | `BuildTransaction` **191/198 = 96.46%**、`OutputDirectoryCleaner` **52/54 = 96.30%**、`AssetOutputPlan` **150/151 = 99.34%**，均 ≥95%，`security-layer.py` 退出 0。 |
@@ -1391,7 +1391,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 | 质量目标 | 当前证据 |
 |---|---|
-| 确定性 | Stage 7 `Stage7DeterminismTests` / `Stage7GoldenTests` 在三平台实际执行通过；完整 Engine 2946/2946。 |
+| 确定性 | Stage 7 `Stage7DeterminismTests` / `Stage7GoldenTests` 在三平台实际执行通过；本机完整 Engine 覆盖采集 2946/2946。 |
 | 失败安全 | Stage 7 `Stage7FailureTests` / `Stage7PluginFailureTests` 三平台通过；失败安全快照沿用阶段 0/5 证据。 |
 | 增量正确 | 阶段 5/7 增量与全量对照证据；本阶段完整 Engine 覆盖 90.53%。 |
 | 路径安全 | 三平台 `OutputDirectoryCleanerTests` 13、`AssetPipelineTests` 30、`TaxonomyRedirectWriterTests` 27 通过；Shared 路径专项通过。 |
@@ -1402,7 +1402,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 **真实异常终止探针（阶段 9 延后项）：** `PluginProcessProbe` 新增 `self-kill` 模式（`Process.GetCurrentProcess().Kill()`；Unix 为 SIGKILL，Windows 为 TerminateProcess）；`PluginProtocolProbeTests` 新增真实异常终止用例，断言 `PluginExecutionFailed`、非零退出消息前缀及 15 秒内有界返回。聚焦 **8/8**、完整 PluginHost **278/278**，0 失败、0 跳过。该用例已由 `PluginProtocolProbeTests` 类过滤自动纳入三平台 `platform-tests`，无需新增 CI 过滤项；FailFast 未单独执行，登记为残余边界。
 
-**证据：** `D=/Users/ali/.local/state/bukit-verification/stage10-coverage-20261029`（`coverage/coverage-summary.json`、`coverage/coverage-summary.txt`、`security-layer.json`、`coverage.log`）；`D=/Users/ali/.local/state/bukit-verification/stage10-crash-probe-20261029`（`probe.trx`、`full/pluginhost.trx`、`closure.json`、`classification.json`、`cache.json`）；`D=/Users/ali/.local/state/bukit-verification/stage10-aot-20261029`（`package.log`、`smoke.log`、`artifacts/bukit-2.0.4-osx-arm64.tar.gz`、`artifacts/publish/osx-arm64/bukit`）；`D=/Users/ali/.local/state/bukit-verification/stage10-platform-ci-40904333690/artifacts`（三个平台的 `platform.json`、逐项目 TRX 与磁盘满专项）。`coverage.sh` 的 zsh 包装在完成后因只读变量 `status` 退出 1，门禁本身已输出 `Coverage check OK`；不做重复采集，日志已注明。
+**证据：** `D=/Users/ali/.local/state/bukit-verification/stage10-readiness-20261029`（`architecture-final2`、`public-api`、`coverage-self-tests`、`closure.json`、`cache`）；`D=/Users/ali/.local/state/bukit-verification/stage10-coverage-20261029`（`coverage/coverage-summary.json`、`coverage/coverage-summary.txt`、`security-layer.json`、`coverage.log`）；`D=/Users/ali/.local/state/bukit-verification/stage10-crash-probe-20261029`（`probe.trx`、`full/pluginhost.trx`、`closure.json`、`classification.json`、`cache.json`）；`D=/Users/ali/.local/state/bukit-verification/stage10-aot-20261029`（`package.log`、`smoke.log`、`artifacts/bukit-2.0.4-osx-arm64.tar.gz`、`artifacts/publish/osx-arm64/bukit`）；`D=/Users/ali/.local/state/bukit-verification/stage10-platform-ci-40904333690/artifacts`（三个平台的 `platform.json`、逐项目 TRX 与磁盘满专项）。`coverage.sh` 的 zsh 包装在完成后因只读变量 `status` 退出 1，门禁本身已输出 `Coverage check OK`；不做重复采集，日志已注明。
 
 出口：架构测试全绿、基线与源码一致，原生冒烟、覆盖率和三个平台专项均有对应证据；缺授权、缺执行或异常跳过均记录为未完成。
 
@@ -1516,4 +1516,4 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 2026-10-29 | 阶段 8 首批：基线 CLI 1092/1092、Cli 88.05%、Cli.Shared 96.73%；补命令与 CLI 参考文档一致性、真实裸仓库分支/CNAME、version/completion 退出码用例；经用户单独授权修复 KD-001/KD-008，移除 Skip；完整 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；四个 CLI 测试类接入三平台 `platform-tests`，owner 自检通过；阶段保持 PARTIAL，待 Linux/Windows 实际执行证据 |
 | 2026-10-29 | 阶段 9 测试批次 + I-01 授权修复：PluginHost 277/277、Abstractions 20/20，覆盖 85.50%/88.03%（手写源 100%）；补 manifest validator、CI policy、协议响应、哈希边界、清单版本门禁、DTO round-trip；经用户单独授权补充 `COOKIE`/`AUTHORIZATION` 掩码，RED 7 失败→GREEN，登记 KD-013；阶段 9 判定 **SUCCESS**；未跑全量/三平台/发布门禁；已提交到 `codex/stage9`，未推送 |
 | 2026-10-29 | 阶段 9 只读审计确认：SUCCESS 判定成立；该次覆盖率采集未使用 `coverage.runsettings`，88.03% 含生成代码；CI 门禁口径为手写源 204/204 = 100%（2026-10-29 更正）；执行证据已镜像到 `/Users/ali/.local/state/bukit-verification/stage9-plugin-*` 并逐文件校验；过度掩码取舍入档；S-01/M-01~M-03 非阻塞，真实崩溃探针与三平台分支按计划后置 |
-| 2026-10-29 | 阶段 10 执行：Architecture 416/416，public API drift 退出 0，完整覆盖率 90.81%（18 个源项目均 ≥70%，安全层 96.46%/96.30%/99.34%），macOS arm64 AOT 冒烟通过，三平台 CI `40904333690` 全绿；新增 Core→Plugins/Labs 守卫与真实异常终止 self-kill 用例；阶段 10 判定 **SUCCESS**；未跑全量解决方案或发布门禁 |
+| 2026-10-29 | 阶段 10 执行：Architecture 420/420，public API drift 退出 0，完整覆盖率 90.81%（18 个源项目均 ≥70%，安全层 96.46%/96.30%/99.34%），macOS arm64 AOT 冒烟通过，三平台 CI `40904333690` 全绿；新增 Core→Plugins/Labs 守卫（含反斜杠路径回归）与真实异常终止 self-kill 用例；阶段 10 判定 **SUCCESS**；未跑全量解决方案或发布门禁 |

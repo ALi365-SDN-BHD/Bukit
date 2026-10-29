@@ -50,7 +50,7 @@
     "pluginAbstractionsOwn": "4986/5664 = 88.03%",
     "pluginAbstractionsMerged": "4989/5664 = 88.08%",
     "pluginAbstractionsAuthored": "204/204 = 100%",
-    "denominator": "all Cobertura lines, including source-generated obj/.../*.g.cs"
+    "denominator": "collection without coverage.runsettings: all Cobertura lines, including source-generated obj/.../*.g.cs; CI gate (run-one.sh) excludes **/obj/**/*.g.cs and measures authored source 204/204 = 100%"
   },
   "reviews": {
     "stage9Final": "Critical 0 / Important 0 / Minor 3",
@@ -61,8 +61,8 @@
     "M-01 duplicate names raw ArgumentException",
     "M-02 hash missing-file raw I/O",
     "M-03 MaskText contract",
-    "real abnormal-termination crash probe deferred",
-    "Windows/Linux process-tree branches stage 10"
+    "real abnormal-termination crash probe: self-kill verified in stage 10; FailFast remains uncovered",
+    "Windows/Linux process-tree branches: verified in stage 10"
   ],
   "notes": [
     "cache records preserve original execution output paths",
