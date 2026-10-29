@@ -13,21 +13,56 @@ public sealed class CoreProjectReferenceBoundaryTests
         string pluginsRoot = Path.Combine(repoRoot, "src", "Bukit-Plugins");
         string labsRoot = Path.Combine(repoRoot, "src", "Bukit-Labs");
 
-        string[] offenders = Directory
+        string[] projects = Directory
             .EnumerateFiles(coreRoot, "*.csproj", SearchOption.AllDirectories)
+            .ToArray();
+        Assert.NotEmpty(projects);
+
+        string[] offenders = projects
             .SelectMany(project => XDocument.Load(project)
                 .Descendants("ProjectReference")
                 .Select(reference => reference.Attribute("Include")?.Value)
                 .Where(include => !string.IsNullOrWhiteSpace(include))
-                .Select(include => Path.GetFullPath(Path.Combine(Path.GetDirectoryName(project)!, include!))))
-            .Where(target => IsUnder(target, pluginsRoot) || IsUnder(target, labsRoot))
-            .Select(target => Path.GetRelativePath(repoRoot, target))
+                .Select(include => ResolveForbiddenTarget(project, include!, pluginsRoot, labsRoot))
+                .Where(target => target is not null)
+                .Select(target => Path.GetRelativePath(repoRoot, target!)))
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
 
         Assert.Empty(offenders);
-        Assert.True(IsUnder(Path.Combine(pluginsRoot, "Bukit.Clone", "Bukit.Clone.csproj"), pluginsRoot));
-        Assert.False(IsUnder(Path.Combine(coreRoot, "Bukit.Shared", "Bukit.Shared.csproj"), pluginsRoot));
+    }
+
+    [Theory]
+    [InlineData(@"..\..\Bukit-Plugins\Bukit.Clone\Bukit.Clone.csproj")]
+    [InlineData("../../Bukit-Plugins/Bukit.Clone/Bukit.Clone.csproj")]
+    [InlineData(@"..\..\Bukit-Labs\Bukit.Labs.Cli\Bukit.Labs.Cli.csproj")]
+    [InlineData("../../Bukit-Labs/Bukit.Labs.Cli/Bukit.Labs.Cli.csproj")]
+    public void ForbiddenReferences_AreDetectedInBothSeparatorStyles(string include)
+    {
+        string repoRoot = FindRepoRoot();
+        string project = Path.Combine(
+            repoRoot,
+            "src",
+            "Bukit-Core",
+            "Bukit.Content",
+            "Bukit.Content.csproj");
+
+        Assert.NotNull(ResolveForbiddenTarget(
+            project,
+            include,
+            Path.Combine(repoRoot, "src", "Bukit-Plugins"),
+            Path.Combine(repoRoot, "src", "Bukit-Labs")));
+    }
+
+    private static string? ResolveForbiddenTarget(
+        string projectPath,
+        string include,
+        string pluginsRoot,
+        string labsRoot)
+    {
+        string normalized = include.Replace('\\', Path.DirectorySeparatorChar);
+        string target = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(projectPath)!, normalized));
+        return IsUnder(target, pluginsRoot) || IsUnder(target, labsRoot) ? target : null;
     }
 
     private static bool IsUnder(string path, string root)
