@@ -12,16 +12,18 @@ public sealed class PluginCommandManifestValidatorTests
     [Fact]
     public void ValidateRuntimeCommands_EmptyStaticCommands_AllowsAnyRuntimeCommands()
     {
-        _validator.ValidateRuntimeCommands(
+        var exception = Record.Exception(() => _validator.ValidateRuntimeCommands(
             "echo",
             staticCommands: [],
-            runtimeCommands: [new PluginCommandSpec("runtime", "Runtime command")]);
+            runtimeCommands: [new PluginCommandSpec("runtime", "Runtime command")]));
+
+        Assert.Null(exception);
     }
 
     [Fact]
     public void ValidateRuntimeCommands_RuntimeSubset_AllowsNestedDeclarations()
     {
-        _validator.ValidateRuntimeCommands(
+        var exception = Record.Exception(() => _validator.ValidateRuntimeCommands(
             "echo",
             staticCommands:
             [
@@ -42,7 +44,9 @@ public sealed class PluginCommandManifestValidatorTests
                     Arguments: [new PluginArgumentSpec("value", "Value", Required: true)],
                     Options: [new PluginOptionSpec("--upper", "flag", "Uppercase")],
                     Subcommands: [new PluginCommandSpec("nested", "Runtime nested")])
-            ]);
+            ]));
+
+        Assert.Null(exception);
     }
 
     [Fact]

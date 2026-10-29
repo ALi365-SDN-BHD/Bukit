@@ -1308,6 +1308,19 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 - **用户接受的延后项：** 真实异常终止探针（SIGKILL/FailFast）留待所有阶段完成后统一补证；当前以既有 `exit 7` 崩溃用例为准，不声称已完成真实异常终止覆盖。
 - **未取得：** 三平台 CI、全量解决方案、完整 Core 覆盖率总门禁与发布门禁。阶段 9 出口不要求这些；Windows Job Object / Linux `/proc` 进程树分支仍按阶段 10 三平台计划验证，本机覆盖率不冒充。
 
+#### 阶段 9 指标口径补充与审计修补（2026-10-29）
+
+本节补充最终判定后的指标口径说明，并修补审计发现的两处断言弱点。阶段 9 判定维持 SUCCESS，不改变出口结论。
+
+- **Abstractions 分母构成：** 独立套件 Cobertura 分母 **5664 行**中，`obj/` 下 System.Text.Json 源生成文件占 **5460 行（约 96%）**，手写源仅 **204 行**。现行汇总器未排除生成代码，故 **4986/5664 = 88.03%** 合规，但该数字主要反映生成代码。阶段 10 起以“手写源 204/204 = 100%”作为主口径，并同时列出总比例。
+- **PluginHost 过滤口径：** 合并报告含 Shared、测试辅助程序等程序集，须按 `src/Bukit-Core/Bukit.PluginHost/` 路径过滤后，再按路径与行号去重取原始比例：**1519/1777 = 85.48%**（批次 `pluginhost-final2`，已复算）。I-01 运行所记 **1521/1779 = 85.50%** 本次审计未复算，以原记录为准。
+- **ProcessTree 分项：** `src/Bukit-Core/Bukit.PluginHost/ProcessTree/` 为 **110/254 = 43.31%**。其中 `PlatformProcessTreeLimiter.cs` 为 **108/252**；未覆盖的 144 行中：
+  - Windows Job 限制器类（`WindowsJobProcessTreeLimiter`）**60/60 未覆盖**，属 Windows 专属，按阶段 10 三平台验证。
+  - Linux 常量类（`LinuxConstants`）**8/8 未覆盖**，属 Linux 专属。
+  - 其余 **76 行**位于同时包含 macOS 与 Linux 分支的方法内（如 `EnumerateChildren`、`TryReadProcessUsage`、`TryReadStatField`），**尚未逐行归属到平台**；在完成手工拆分前，不得声称 macOS 可达分支已全部覆盖。
+- **断言补修：** `PluginCommandManifestValidatorTests` 中两个原本只靠“不抛异常”的用例（`ValidateRuntimeCommands_EmptyStaticCommands_AllowsAnyRuntimeCommands`、`ValidateRuntimeCommands_RuntimeSubset_AllowsNestedDeclarations`）已改为 `Record.Exception` 并断言为 `null`。聚焦 `PluginCommandManifestValidatorTests` **12/12** 通过；完整 `Bukit.PluginHost.Tests` **277/277**，0 失败、0 跳过。
+- **验证与状态：** 聚焦 `PluginCommandManifestValidatorTests` **12/12**、完整 `Bukit.PluginHost.Tests` **277/277**，均 0 失败、0 跳过；证据根 `R3=/Users/ali/.local/state/bukit-verification/stage9-audit-patch-20261029`。本次审计修补随阶段 9 提交入库；未运行 Abstractions 专项、全量解决方案或覆盖率总门禁。
+
 #### 阶段 9 审计确认（2026-10-29）
 
 只读审计结论：**阶段 9 的 SUCCESS 判定与代码和记录基本一致，未发现会推翻判定的问题；审计未重跑测试。** 对审计提出的三项注意：
