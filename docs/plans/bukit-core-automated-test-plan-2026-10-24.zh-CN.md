@@ -1247,7 +1247,78 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 
 出口：PluginHost 与 Plugin.Abstractions 分别达到第 9 节的单项目覆盖率下限；每类异常都有对应用例。
 
+#### 阶段 9 首批执行记录（2026-10-29）
+
+**状态：测试批次完成；I-01 已由独立 Core 授权任务修复；最终判定见本节末。**
+
+基线为已合并阶段 8 的 `main` 提交 `7a8b7135`，新建 `codex/stage9`。基线 PluginHost **228/228**、Plugin.Abstractions **15/15**，均 0 失败、0 跳过；PluginHost 行覆盖 **1444/1777 = 81.26%**，Plugin.Abstractions 独立套件 **2970/5664 = 52.44%**（合并 PluginHost 套件后 81.07%），独立套件低于 70% 下限；基线 TRX/Cobertura 保留在 `R/baseline/`。本批补充以下缺口：
+
+| 缺口 | 本批用例 | 结果 |
+|---|---|---|
+| `PluginCommandManifestValidator` 无直接用例（基线 0/120 行） | 新增 `PluginCommandManifestValidatorTests`：空静态命令放行、合法子集、重复命令、未知运行时命令、alias/argument/option 子集与 required/type 冲突、嵌套路径、参数校验 | 通过 |
+| `PluginCiPolicy` 仅覆盖 2/4 分支 | 补非 CI 放行、缺 sha256、sha256 未验证、permissions 非显式 | 通过 |
+| 协议响应校验分支缺失 | 补 handshake 的 type/success/缺失 identity，manifest 的 type/success/空命令，invoke 的 type/protocol/requestId | 通过 |
+| 密钥掩码只测 `NOTION_TOKEN` 值 | 新增 `PluginSecretMaskerTests`：五个键名片段、非密钥键、空值、环境掩码、最长值优先、空环境 | 通过 |
+| 哈希校验只测 match/mismatch | 补空路径、空期望值、大小写不敏感比较 | 通过 |
+| 清单版本加载门禁无直接用例 | 补 `manifestVersion` 0/2 经 `LoadAsync` 拒绝 | 通过 |
+| Abstractions 响应 DTO 独立套件偏薄 | 补 manifest request/request envelope、response envelope、handshake/invoke/manifest response 的 round-trip | 通过 |
+
+**最终专项：** PluginHost **271/271**、Plugin.Abstractions **20/20**，均 0 失败、0 跳过。首次 PluginHost 运行 **268/269**，失败原因是新加的大小写测试错误断言 `ExpectedSha256` 会被小写化；现有实现保留输入值，修正测试断言后通过，非产品缺陷，原始 TRX 保留。
+
+**覆盖率（本机 macOS arm64、SDK 10.0.100、Release；Cobertura 合并）：** PluginHost **1519/1777 = 85.48%**；Plugin.Abstractions 独立套件 **4986/5664 = 88.03%**，其中手写源 **204/204 = 100%**；合并 PluginHost 套件后 **4989/5664 = 88.08%**。两个项目均 ≥70%。
+
+**覆盖率口径：** Cobertura 分母按 `scripts/checks/coverage/summarize.py` 归并，当前包含 `obj/.../System.Text.Json.SourceGeneration/*.g.cs` 等生成代码；`docs/coverage-baselines.json` 与计划第 9 节均未规定排除生成代码。因此 88.03% 是现行 CI 门禁口径，手写源 204/204 是补充质量口径；生成/手写拆分见 `R/coverage-breakdown.json`。若阶段 10 要改为排除生成代码，应作为独立验证策略任务并同步所有项目，不能在本阶段事后改分母。
+
+**证据：** `R=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/stage9-plugin-batch1-20261029`（执行时根）；持久镜像 `D=/Users/ali/.local/state/bukit-verification/stage9-plugin-batch1-20261029` 与 `R` 逐字节一致，避免系统临时目录清理。基线 TRX/Cobertura 在 `R/baseline/`，`R/closure.json` 无未映射文件，`R/classification.json` 将两个专项归为 `dotnet-serial`，按 Abstractions → PluginHost 串行执行；最终 TRX 在 `R/green/abstractions-2/`、`R/green/pluginhost-4/`，覆盖率附件在 `R/coverage/abstractions-final/`、`R/coverage/pluginhost-final2/`，覆盖率汇总在 `R/coverage-summary.json`。cache record 的精确命令包含原 `R` 输出路径；在 `D` 上重跑应记录新的缓存条目，不能把 `D` 路径冒充原缓存命中。
+
+**确切命令：**
+
+```sh
+dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj -c Release --logger "trx;LogFileName=tests.trx" --results-directory "$R/green/abstractions-2"
+dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Release --logger "trx;LogFileName=tests.trx" --results-directory "$R/green/pluginhost-4"
+dotnet test tests/Bukit.Plugin.Abstractions.Tests/Bukit.Plugin.Abstractions.Tests.csproj -c Release --collect:"XPlat Code Coverage" --logger "trx;LogFileName=tests.trx" --results-directory "$R/coverage/abstractions-final"
+dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Release --collect:"XPlat Code Coverage" --logger "trx;LogFileName=tests.trx" --results-directory "$R/coverage/pluginhost-final2"
+```
+
+**专项复核（只读，2026-10-29）：** 首轮 Critical 0 / Important 1 / Minor 6（`R/reviews/specialty-v1.md`）；增量复评 Critical 0 / Important 1 / Minor 4（`R/reviews/specialty-v2.md`）；最终 delta-only 复核 Critical 0 / Important 1 / Minor 3（`R/reviews/final-delta-v1.md`）。Minor 中已在本批处理：DTO round-trip 增加 `success` 断言与 request/envelope 反序列化；清单版本门禁补测；CI 策略补 `DiagnosticCode` 断言；命令路径与基线证据补齐；cache record 使用与上方完全相同的含 logger/results-directory 命令，`cache check` 4/4 HIT（`R/cache/`）。该批次最终复核当时确认 I-01 仍为唯一 open Important，故当时不得标记 SUCCESS；I-01 随后按用户单独授权修复，见下节。以下事项不在本批修改：
+
+- **Important（已按用户单独授权修复，见下方 I-01 记录）：** 首轮复核发现 `PluginSecretMasker` 只覆盖 `NOTION_TOKEN`/`API_KEY`/`PASSWORD`/`TOKEN`/`SECRET` 五个片段；ADR §22.3 要求执行报告不得包含明文 `COOKIE`/`Authorization` 值。该发现已进入独立 Core 任务恢复 RED → GREEN，阶段 9 的“密钥掩码”现覆盖七个片段；修复前不具备完整 ADR 覆盖这一历史事实保留。
+- **Minor（Core 后续）：** 重复的 argument/option 名或运行时命令名会抛裸 `ArgumentException` 而非带诊断码的 `ConfigException`；`PluginHashVerifier` 对缺失/不可读文件抛原始 I/O 异常；`MaskText` 会掩码所有环境值而非仅密钥键，契约未定。
+- **平台边界：** CLI 加载器的“清单缺少当前 RID”分支属于阶段 8 CLI 范围，未在本阶段重跑；Windows Job Object / Linux `/proc` 进程树分支仍需阶段 10 三平台证据，本机覆盖率不冒充这些分支已覆盖。
+
+**未执行：** 全量解决方案测试、完整 Core 覆盖率总门禁、发布门禁、三平台 CI；本批新增用例均为平台无关，未改动既有进程/探针类。按用户决定，真实异常终止探针留待所有阶段完成后统一汇总补证，本阶段仍以既有 `exit 7` 崩溃用例为准。
+
+#### 阶段 9 I-01 授权修复（2026-10-29）
+
+用户单独授权后，以独立 Core 安全任务修复 I-01。OpenSpec：`openspec/changes/fix-plugin-secret-masker-cookie-authorization/`。生产修改仅为 `PluginSecretMasker.SecretKeyFragments` 增加 `COOKIE` 与 `AUTHORIZATION` 两个片段；不改报告 schema、公开 API、权限模型或 CLI。
+
+- **RED：** 新增 `COOKIE`/`HTTP_COOKIE`/`AUTHORIZATION`/`HTTP_AUTHORIZATION`/小写 `cookie` 五个掩码 theory 用例及一个真实 reporter 报告用例；聚焦 `PluginSecretMaskerTests|PluginLockAndReportTests` 为 **7 失败 / 21 通过 / 0 跳过**，失败均为断言失败（`***` 未出现、明文仍在），非编译失败。
+- **GREEN：** 聚焦 **28/28**；完整 PluginHost **277/277**，0 失败、0 跳过。PluginHost 行覆盖 **1521/1779 = 85.50%**（较批次 1 增加 2 行且均已覆盖）；Abstractions 覆盖不变（独立 4986/5664 = 88.03%，合并 4989/5664 = 88.08%）。
+- **证据：** `R2=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/stage9-plugin-secret-masker-20261029`（执行时根）；持久镜像 `D2=/Users/ali/.local/state/bukit-verification/stage9-plugin-secret-masker-20261029` 与 `R2` 逐字节一致。`R2/red/`、`R2/focused-green/`、`R2/green/`、`R2/coverage/`；`R2/closure.json` 无未映射文件；测试与覆盖率 cache record 均 `CACHE HIT`；`openspec validate fix-plugin-secret-masker-cookie-authorization --strict` 通过。
+- **掩码取舍：** 片段采用大小写不敏感子串匹配，`COOKIE_CONSENT_MODE`、`AUTHORIZATION_ENDPOINT` 等非密钥键也会写成 `***`。这是已接受的安全偏向，报告读取无功能影响；不改为精确键匹配，避免漏掉 `HTTP_COOKIE`/`PROXY_AUTHORIZATION` 等变体。
+- **复核：** 专项只读复核 **Critical 0 / Important 0 / Minor 2**（`R2/reviews/specialty-v1.md`）；唯一 delta-only 最终复核 **Critical 0 / Important 0 / Minor 2**（`R2/reviews/final-delta-v1.md`）。S-01：`PluginExecutionReporter` 仍原样写入插件可控的 `artifacts[].path`、`diagnostics[].code` 等字段，若插件主动把已授权 secret 回显到这些字段仍可能落盘；这是 I-01 之前已存在、且同样影响旧片段的独立问题，登记为后续 Core 事项，不扩大本任务。S-02：首份 diff 未包含未跟踪的新测试文件，最终复核 diff 已补齐；S-03：最终 diff 未包含三个未跟踪 OpenSpec 文件，已重新生成完整 diff。
+- **未执行：** 未跑全量解决方案、完整覆盖率总门禁、发布门禁或三平台 CI；未推送或合并；本任务随阶段 9 提交入库。
+
+#### 阶段 9 最终判定（2026-10-29）
+
+**阶段 9：SUCCESS。** 用户已确认本阶段范围并单独授权 I-01 修复；已提交到 `codex/stage9`，未推送。
+
+- **出口达成：** 测试批次 PluginHost 271/271、Abstractions 20/20；I-01 修复后完整 PluginHost 277/277，均 0 失败、0 跳过。PluginHost 行覆盖 **1521/1779 = 85.50%**；Abstractions 独立套件 **4986/5664 = 88.03%**（手写源 204/204 = 100%），合并 **4989/5664 = 88.08%**，均 ≥70%。协议正常/异常、锁文件、CI 策略、权限/路径/哈希/平台、密钥掩码均有对应用例。
+- **复核：** 批次复核与 I-01 修复复核的最终结果均为 **Critical 0 / Important 0**；I-01 已关闭并登记为 KD-013。剩余 Minor 为已披露的独立 Core 事项：S-01 插件可控报告字段回显、M-01 重复名称抛裸 `ArgumentException`、M-02 哈希缺失文件抛原始 I/O、M-03 `MaskText` 掩码范围契约。它们不阻塞本阶段出口。
+- **用户接受的延后项：** 真实异常终止探针（SIGKILL/FailFast）留待所有阶段完成后统一补证；当前以既有 `exit 7` 崩溃用例为准，不声称已完成真实异常终止覆盖。
+- **未取得：** 三平台 CI、全量解决方案、完整 Core 覆盖率总门禁与发布门禁。阶段 9 出口不要求这些；Windows Job Object / Linux `/proc` 进程树分支仍按阶段 10 三平台计划验证，本机覆盖率不冒充。
+
+#### 阶段 9 审计确认（2026-10-29）
+
+只读审计结论：**阶段 9 的 SUCCESS 判定与代码和记录基本一致，未发现会推翻判定的问题；审计未重跑测试。** 对审计提出的三项注意：
+
+- **覆盖率分母：** 已确认现行 CI 门禁 `summarize.py` 未排除生成代码，计划第 9 节也未规定排除；88.03% 继续作为门禁口径，手写源 204/204 作为补充口径。若阶段 10 改为排除生成代码，须作为独立验证策略任务同步全部项目。
+- **证据持久性：** 两个执行根已复制到 `/Users/ali/.local/state/bukit-verification/stage9-plugin-batch1-20261029` 与 `.../stage9-plugin-secret-masker-20261029`，所有已复制文件经 `diff -qr` 验证一致；计划与 OpenSpec 已记录持久镜像。另生成归档 `/Users/ali/.local/state/bukit-verification/stage9-evidence-20261029.tar.gz`（1.6 MB，SHA256 `6c8505e54d145b047b0d72b76748ca4815e960e9395bfb5848a2026fd6bd7cbf`），并提交到仓库 `docs/testing/evidence/stage9-20261029/`（含 README、manifest、归档与校验文件）；仓库不提交 24 MB 原始目录。cache record 的精确命令仍保留原执行路径，避免把镜像路径冒充缓存命中。
+- **过度掩码：** 已在 I-01 记录中明确：`COOKIE`/`AUTHORIZATION` 采用子串匹配，`COOKIE_CONSENT_MODE` 等非密钥键也会写 `***`；这是已接受的安全偏向，不改为精确键匹配。
+- **未闭环项：** S-01、M-01、M-02、M-03 仍开放且已登记，不阻塞阶段 9；真实崩溃探针与三平台进程树分支按既定计划后置。审计建议的重跑专项未被采用：当前 cache 记录与最终 TRX 均匹配，按 `AGENTS.md` 不对未变化输入重复运行。
+
 ### 阶段 10：架构与门禁
+
 
 - 依赖矩阵：`Engine.Abstractions` 不引用 `Config`；Core 不引用 Plugins 与 Labs。
 - 公共 API 漂移基线。
@@ -1279,6 +1350,7 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 | KD-010 | **已修复并通过**：`IsSubPathOf` 先排除规范化后的相等路径，卷根自身返回 false，`IsSameOrSubPathOf` 仍返回 true；已移除 Skip/KnownDefect，证据见 1.7 | 1 |
 | KD-011 | **已修复并通过，移除 Skip**：保留公开 renderer 省略 null command；schema command 为可选 string/null，错误类型和未知字段仍拒绝。见 6.6 | 6 |
 | KD-012 | **已修复并通过，移除 Skip**：schema 声明已有 `resourceLimitExceeded: string`、`networkPermissionGranted: boolean` 可选字段，版本和未知字段拒绝不变。见 6.6 | 6 |
+| KD-013 | **已按用户单独授权修复并通过**：`PluginSecretMasker` 环境键掩码补充 `COOKIE`/`AUTHORIZATION`（含 `HTTP_*`）；RED 7 失败 / 21 通过 → 聚焦 28/28、完整 PluginHost 277/277、行覆盖 85.50%；报告 schema、公开 API 与权限模型不变。见阶段 9 I-01 记录 | 9 |
 
 阶段 1 的首次复现见 1.6；KD-009/KD-010 经用户明确授权，在独立 Core 任务中修复，最新结果见 1.7。没有证据表明修复前 KD-010 可直接绕过 `OutputDirectoryCleaner`：该消费者还有路径相等和卷根的独立拒绝条件；本次对应 CLI 消费者测试已通过。
 
@@ -1364,3 +1436,5 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 | 2026-10-29 | 阶段 8 审计修复：无输出错误补充 `Run 'bukit build' first.`；确认 `--dry-run` 不校验 provider secrets 并补显式用例；补齐 `publish diff` 成功 0、`config schema` 失败 1；逐路径退出码矩阵入计划；CLI 1099/1099、0 跳过，Cli 88.22%、Cli.Shared 96.73%、Architecture 415/415；三平台 CI `40848651711` 全部成功 |
 | 2026-10-29 | 阶段 8 最终判定 **SUCCESS**：正式 CI `40844256570`（提交 `1fee2730`，SDK 10.0.403）三平台全部成功；CliContract 12、Completion 12、Deploy 12、Publish 4 在三平台实际执行，Windows 仅既有 1 项 DevPathGuard N/A；本地 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；首次运行 CA1502 超基线已修复并保留为诊断 |
 | 2026-10-29 | 阶段 8 首批：基线 CLI 1092/1092、Cli 88.05%、Cli.Shared 96.73%；补命令与 CLI 参考文档一致性、真实裸仓库分支/CNAME、version/completion 退出码用例；经用户单独授权修复 KD-001/KD-008，移除 Skip；完整 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；四个 CLI 测试类接入三平台 `platform-tests`，owner 自检通过；阶段保持 PARTIAL，待 Linux/Windows 实际执行证据 |
+| 2026-10-29 | 阶段 9 测试批次 + I-01 授权修复：PluginHost 277/277、Abstractions 20/20，覆盖 85.50%/88.03%（手写源 100%）；补 manifest validator、CI policy、协议响应、哈希边界、清单版本门禁、DTO round-trip；经用户单独授权补充 `COOKIE`/`AUTHORIZATION` 掩码，RED 7 失败→GREEN，登记 KD-013；阶段 9 判定 **SUCCESS**；未跑全量/三平台/发布门禁；已提交到 `codex/stage9`，未推送 |
+| 2026-10-29 | 阶段 9 只读审计确认：SUCCESS 判定成立；覆盖率分母包含生成代码属现行 CI 门禁口径，手写源 204/204 为补充；执行证据已镜像到 `/Users/ali/.local/state/bukit-verification/stage9-plugin-*` 并逐文件校验；过度掩码取舍入档；S-01/M-01~M-03 非阻塞，真实崩溃探针与三平台分支按计划后置 |

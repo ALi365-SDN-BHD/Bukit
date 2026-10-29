@@ -1,0 +1,5 @@
+# I-01 checklist
+
+- [x] 1. Add `COOKIE`/`AUTHORIZATION` (including `HTTP_*`) masker and report-environment regressions; observe behavioral RED before production edits. Preserve the existing five-fragment tests as historical evidence. RED: focused `PluginSecretMaskerTests` + `PluginLockAndReportTests`, 7 failed / 21 passed / 0 skipped.
+- [x] 2. Extend only `PluginSecretMasker.SecretKeyFragments`; run the complete PluginHost specialty, verify report bytes and existing non-secret visibility, and record/check GREEN cache evidence. GREEN: focused 28/28, full PluginHost 277/277; coverage 1521/1779 = 85.50%; test and coverage cache records checked HIT.
+- [x] 3. Accept one specialty review and one generated-scope delta-only final review; backfill stage 9/KD-013 status, run `git diff --check`, complete metrics and report the remaining Minor follow-ups. No commit, push, merge or stage 10. Final review: Critical 0 / Important 0 / Minor 2 (S-01 disclosed follow-up, S-02 resolved; S-03 diff completeness fixed). Stage 9 marked SUCCESS with the deferred true-crash probe and no three-platform CI.
