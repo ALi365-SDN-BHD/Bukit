@@ -1189,7 +1189,7 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 | 本地裸 git 仓库只验证 clone/push | 扩展 `DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive`，改用 `pages` 分支和 CNAME，并断言远端内容 | 通过（POSIX 真实 git） |
 | `version` 失败退出码、`completion` 成功退出码无直接用例 | 入口测试新增 `version --bogus` → 2；补 `completion bash` → 0 | 通过 |
 
-完整 CLI 专项 **1096/1096**、0 失败、0 跳过；`Bukit.Cli` 行覆盖 **7939/9010 = 88.11%**、`Bukit.Cli.Shared` **355/367 = 96.73%**；Architecture **415/415**。含有效 TRX 与 Cobertura 的最终证据为 `TestResults/coverage/cli-stage8-final2`。`CliContractTests`、`CompletionCommandTests`、`DeployCommandTests`、`PublishCommandTests` 已加入三平台 `platform-tests`，`test-infrastructure-platform-self-test.py` 直接 owner 自检通过；尚未触发正式 CI。
+完整 CLI 专项 **1096/1096**、0 失败、0 跳过；`Bukit.Cli` 行覆盖 **7942/9013 = 88.12%**、`Bukit.Cli.Shared` **355/367 = 96.73%**；Architecture **415/415**。含有效 TRX 与 Cobertura 的最终证据为 `TestResults/coverage/cli-stage8-final3`。`CliContractTests`、`CompletionCommandTests`、`DeployCommandTests`、`PublishCommandTests` 已加入三平台 `platform-tests`，`test-infrastructure-platform-self-test.py` 直接 owner 自检通过；正式 CI 见下文。
 
 **仍待完成：** Linux x64 与 Windows x64 的实际平台执行证据；未运行正式 `gate=platform`、全量解决方案测试、覆盖率门禁或发布门禁。取得三平台证据前阶段 8 保持 PARTIAL。
 
@@ -1315,4 +1315,4 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 | 2026-10-29 | 阶段 6 只读审计后经授权复验当前分支 `79df55f8`：完整 Engine 2934/2934、0 Skip（含全部已修复 KD）、Engine 行覆盖 89.92%，证据持久保存；跨平台与 CLI/PluginHost/Shared/Architecture 当前专项仍未验证；见 6.10 |
 | 2026-10-29 | 阶段 6 复审后经授权补跑非 Engine 专项（`800472a2`）：CLI 141/141、PluginHost 26/26、ConsoleLogger 21/21、Architecture owner 48/48，均 0 Skip；24 份报告正反例均有当前证据；§6.7 与矩阵 §6 标注为已清理的历史证据；见 6.11 |
 | 2026-10-29 | 接入 `TaxonomyRedirectWriterTests`、`CleanCommandTests` 至三平台 `platform-tests`；为通过 fast gate 修正既有断链、清除 5 条分析器回归、将 `NormalizeUrl(string, bool)` 改为 internal、补 Windows POSIX N/A 名单；CI run `40800207604` 三平台全部 success，完整 Engine 2934/2934、覆盖 89.92%；见 6.12 |
-| 2026-10-29 | 阶段 8 首批：基线 CLI 1092/1092、Cli 88.05%、Cli.Shared 96.73%；补命令与 CLI 参考文档一致性、真实裸仓库分支/CNAME、version/completion 退出码用例；经用户单独授权修复 KD-001/KD-008，移除 Skip；完整 CLI 1096/1096、0 跳过，Cli 88.11%、Cli.Shared 96.73%；四个 CLI 测试类接入三平台 `platform-tests`，owner 自检通过；阶段保持 PARTIAL，待 Linux/Windows 实际执行证据 |
+| 2026-10-29 | 阶段 8 首批：基线 CLI 1092/1092、Cli 88.05%、Cli.Shared 96.73%；补命令与 CLI 参考文档一致性、真实裸仓库分支/CNAME、version/completion 退出码用例；经用户单独授权修复 KD-001/KD-008，移除 Skip；完整 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；四个 CLI 测试类接入三平台 `platform-tests`，owner 自检通过；阶段保持 PARTIAL，待 Linux/Windows 实际执行证据 |
