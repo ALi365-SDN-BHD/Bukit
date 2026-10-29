@@ -59,10 +59,11 @@ public sealed class PluginProtocolProbeTests
             client.HandshakeAsync(plugin, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(20)));
 
         Assert.Equal(DiagnosticCode.PluginExecutionFailed, exception.Code);
-        Assert.StartsWith(
-            "plugin.executionFailed: Plugin process exited with code ",
-            exception.Message,
-            StringComparison.Ordinal);
+        // SIGKILL/TerminateProcess: Unix 137 (128 + 9), Windows TerminateProcess(-1).
+        int expectedExitCode = OperatingSystem.IsWindows() ? -1 : 137;
+        Assert.Equal(
+            $"plugin.executionFailed: Plugin process exited with code {expectedExitCode}.",
+            exception.Message);
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(15));
     }
 
