@@ -177,6 +177,7 @@ jobs:
               "RunAsync_TimesOut_KillsDescendantBeforeDelayedWrite",
               "ScssCompiler_ExitZeroWithoutCss_PreservesSource",
               "ScssCompiler_EntryPointUnset_CompilesAllFilesToStagingTree",
+              "ScssCompiler_ProcessObservation_PreservesOutcomesAndMasksStderr",
               "RunAsync_OutputBeyondLimit_TerminatesAndThrowsBoundedDiagnostic",
               "ExternalTool_OutputBeyondLimit_TerminatesTreeAndReturnsBoundedDiagnostic",
               "RunAsync_Timeout_WithInheritedPipes_ReturnsWithinDrainDeadline",
