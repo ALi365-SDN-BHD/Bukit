@@ -16,7 +16,8 @@ public sealed class CoreProjectReferenceBoundaryTests
         string[] projects = Directory
             .EnumerateFiles(coreRoot, "*.csproj", SearchOption.AllDirectories)
             .ToArray();
-        Assert.NotEmpty(projects);
+        // Plan §2 fixes the Core source-project count at 18; a count change must be reviewed with this guard.
+        Assert.Equal(18, projects.Length);
 
         string[] offenders = projects
             .SelectMany(project => XDocument.Load(project)
