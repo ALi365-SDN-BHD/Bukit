@@ -751,6 +751,10 @@ git diff --check
 
 ### 阶段 6：Engine 输出与审计
 
+**阶段 6：SUCCESS（2026-10-29 正式判定）。** 依据：Engine 出口——完整 Engine 2934 通过、0 失败、0 KnownDefect Skip，行覆盖 89.92%（§6.10、§6.12）；报告契约出口——24 份报告均有真实生成的正例与 schema 反例，CLI／PluginHost 承接的 6 份报告证据见 §6.11；平台专项——`TaxonomyRedirectWriterTests`、`CleanCommandTests`、`TestInfrastructureTests` 在 Linux x64、macOS arm64、Windows x64 实际执行并通过（CI run `40800207604`，`907544fd`，§6.12）。
+
+阶段 6 不包含以下项目，均不影响本判定：SCSS 历史偶发缺 sass.log 的根因仍未知（已有生产观测，见 §6.9）；全 Core 覆盖率门禁、`gate=core` 与发布门禁不属于阶段 6；阶段 7 及之后未开始。审计中列出的 Minor 项（schema 原地放宽、性能、搜索摘要中的原始标签等）按审计记录保留，不阻塞。
+
 - 内置插件逐个：Alias、Archive、DataFiles、Feed、ImageProcessing、LlmsTxt、Menu、PagesIndex、Pagination、RelatedContent、SearchIndex、Sitemap、Taxonomy、Analytics。
 - 搜索索引：HTML 去标签、script 与 style 处理、截断、片段。
 - SEO：JSON-LD 各类型、标题模板、canonical、hreflang、alternates、Open Graph。
