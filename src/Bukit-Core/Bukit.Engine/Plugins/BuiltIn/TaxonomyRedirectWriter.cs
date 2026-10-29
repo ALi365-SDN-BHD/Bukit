@@ -27,7 +27,7 @@ internal static class TaxonomyRedirectWriter
                     continue;
                 }
 
-                if (aliasSlug.StartsWith("/", StringComparison.Ordinal)
+                if (aliasSlug.StartsWith('/')
                     || aliasSlug.Contains('\\')
                     || aliasSlug.Contains(':')
                     || aliasSlug.Split('/').Any(segment => segment is "." or ".."))

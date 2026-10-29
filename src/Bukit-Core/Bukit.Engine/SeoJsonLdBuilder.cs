@@ -553,10 +553,10 @@ internal static class SeoJsonLdBuilder
         string canonical,
         string? image,
         ContentDocument document,
-        IReadOnlyList<GeoHowToStepModel> steps)
+        GeoHowToStepModel[] steps)
     {
         var stepList = new List<Dictionary<string, object?>>();
-        for (var i = 0; i < steps.Count; i++)
+        for (var i = 0; i < steps.Length; i++)
         {
             var step = steps[i];
             var stepEntry = new Dictionary<string, object?>

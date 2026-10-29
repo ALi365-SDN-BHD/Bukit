@@ -90,11 +90,11 @@ internal static class HtmlTextProjection
             // shortcut: AngleSharp 1.5.2 ends some escaped scripts too early; remove this guard only after browser-parity regressions pass upstream.
             var clean = new StringBuilder(html.Length);
             var copied = 0;
-            foreach (var script in scripts)
+            foreach (var (start, body) in scripts)
             {
-                if (script.Start < copied) continue;
-                clean.Append(html, copied, script.Start - copied).Append(' ');
-                copied = FindScriptEnd(html, script.Body);
+                if (start < copied) continue;
+                clean.Append(html, copied, start - copied).Append(' ');
+                copied = FindScriptEnd(html, body);
             }
             clean.Append(html, copied, html.Length - copied);
             document.Dispose();
@@ -104,6 +104,12 @@ internal static class HtmlTextProjection
             document = parser.ParseDocument(clean.ToString());
         }
 
+        ProjectElements(document, closedAnchors);
+        return document;
+    }
+
+    private static void ProjectElements(IDocument document, HashSet<int> closedAnchors)
+    {
         foreach (var element in document.All.ToArray())
         {
             if (element.LocalName is "script" or "style" or "template")
@@ -117,7 +123,6 @@ internal static class HtmlTextProjection
             else if (element.LocalName == "a" && (element.SourceReference is null || !closedAnchors.Contains(element.SourceReference.Position.Index)))
                 element.RemoveAttribute("href");
         }
-        return document;
     }
 
     private enum ScriptState { Data, Escaped, Dash, DashDash, DoubleEscaped, DoubleDash, DoubleDashDash }
@@ -177,7 +182,8 @@ internal static class HtmlTextProjection
 
     private static int ClosingTagEnd(string html, int start)
     {
-        using var source = new TextSource(new ReadOnlyMemoryTextSource(html.AsMemory(start)));
+        using var memory = new ReadOnlyMemoryTextSource(html.AsMemory(start));
+        using var source = new TextSource(memory);
         using var tokenizer = new HtmlTokenizer(source, HtmlEntityProvider.Resolver);
         var end = -1;
         tokenizer.OnToken = (_, range) => end = range.End.Index;
