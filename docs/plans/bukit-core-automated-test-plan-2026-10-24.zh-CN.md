@@ -760,7 +760,7 @@ git diff --check
 
 出口：Engine 达到第 9 节的单项目覆盖率下限；当前 Core 报告清单中的每份报告均有真实生成的通过用例，以及按对应 schema 拒绝错误字段或类型的失败用例。
 
-**现行进度：清单与审计修复见 §6.6–6.7；当前证据为 §6.10（完整 Engine 与覆盖率）和 §6.11（CLI／PluginHost／Shared／Architecture），剩余缺口为 Linux／Windows 平台专项。** §6.1–6.5 保留历史失败、撤回候选和当时 PARTIAL/BLOCKED 状态，不是当前完成证据。
+**现行进度：清单与审计修复见 §6.6–6.7；当前证据为 §6.10（完整 Engine 与覆盖率）、§6.11（CLI／PluginHost／Shared／Architecture）和 §6.12（Linux／macOS／Windows 平台专项）。** §6.1–6.5 保留历史失败、撤回候选和当时 PARTIAL/BLOCKED 状态，不是当前完成证据。
 
 #### 6.1 首批测试与未完成项（2026-10-28）
 
@@ -1020,6 +1020,30 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --sett
 
 四组均无 NOT_APPLICABLE；清单为上述 6 份报告绑定的全部测试方法均在 TRX 中为 Passed。四组均按 HEAD、闭包内容、确切命令、环境变量名状态和 SDK 10.0.100 记录缓存并检查 HIT（`C/*-cache.json`），指标见 `C/metrics.json`，汇总见 `C/final-evidence.json`。未运行：Linux／Windows `platform-tests`、全 Core 覆盖率、阶段 7 及发布门禁。
 
+#### 6.12 三平台 `platform-tests` 接线与 CI 证据（2026-10-29）
+
+**阶段 6 平台专项：GREEN（Linux x64／macOS arm64／Windows x64）。** 复审 I-2：`TestInfrastructureTests`、`ExternalToolProcessRunnerTests` 已改动但未在两平台运行，`TaxonomyRedirectWriterTests`、`CleanCommandTests` 未接入 `platform-tests`。经授权完成接线并推送 `codex/stage6-completion`，以 `workflow_dispatch gate=platform` 运行。`SkipException.ForSkip` 在 CI 中不会被当作通过：任何非 Passed 行都使平台验收失败，因此无需修改测试。
+
+| 提交 | 内容与验证 |
+|---|---|
+| `387ffb71` | 两个类加入三平台 `platform-tests`；owner 自检 `test-infrastructure-platform-self-test.py` 加两个变异（共六个）通过，`CoverageGateTests` 32/32。证据 `/Users/ali/.local/state/bukit-verification/stage6-platform-wiring-TlrACb` |
+| `4b93d968` | 修正 `main` 既有断链（`relocate-template-theme` 提案已归档），fast gate 文档链接检查通过 |
+| `3a99dcce` | 清除本阶段 Core 改动新增的 5 条分析器回归（IDE0042、CA1502、CA1859、CA1865、CA2000），只做行为不变的重构；ratchet 回到基线 657/657、421/421。完整 Engine **2934／0／0 Skip**，Engine 行覆盖 **89.92%（14704/16352）**，缓存 HIT；证据 `/Users/ali/.local/state/bukit-verification/stage6-engine-after-analyzer-ilnpp9` |
+| `f19c08d0` | 阶段 4 `b11fc4fe` 新增的公开重载 `RoutePathBuilder.NormalizeUrl(string, bool)` 改为 internal（public API drift 检查拒绝）；Routing 不得添加 friend assembly，故移除直接调用它的单元 theory，可达行为由 `RouteGeneratorTests` 经公开路径覆盖。Routing 108/108、Architecture 守卫 26/26、API drift OK；证据 `/Users/ali/.local/state/bukit-verification/routing-normalizeurl-internal-xHkEw3` |
+| `907544fd` | Windows 将 POSIX-only 的 `ScssCompiler_ProcessObservation_PreservesOutcomesAndMasksStderr` 报为 N/A，加入既有 POSIX 允许名单；该类 12 个 Unix-only 方法与名单逐一对齐 |
+
+最终 CI run `40800207604`（HEAD `907544fd`，SDK 10.0.403）：fast gate、Architecture contracts、fast contracts 与三平台全部 success。首次尝试 macOS 因 runner 无法访问 `api.nuget.org`（NU1301 No route to host）未能还原，属环境故障，未改代码，仅重跑失败任务（attempt 2）通过。
+
+| 平台 | PluginHost | Engine（执行／N/A） | Cli（执行／N/A） | Shared（执行／N/A） |
+|---|---|---|---|---|
+| Linux x64 | 51/51 | 141／1 | 29／0 | 不选 |
+| macOS arm64 | 51/51 | 156／1 | 196／0 | 41／1 |
+| Windows x64 | 51/51 | 136／21 | 195／1 | 40／2 |
+
+所有 TRX 行均为 Passed，无选中类适用数为零。`TaxonomyRedirectWriterTests` 27、`CleanCommandTests` 29、`TestInfrastructureTests` 43 在三平台均实际执行；`ExternalToolProcessRunnerTests` 在 Linux／macOS 执行 28、Windows 执行 8，其余为允许名单内 POSIX 进程用例。逐平台 `platform.json`、`dotnet-info.txt` 与 TRX 见 `/Users/ali/.local/state/bukit-verification/stage6-platform-ci4-RnFDSz/artifacts`，汇总 `final-evidence.json`；中间失败的 run `40795879565`、`40797555266`、`40798930266` 只作诊断记录。
+
+未运行：全 Core 覆盖率门禁、`gate=core`、阶段 7 及发布门禁。`f19c08d0` 未重跑完整 Engine：仅改变 Routing 内部可见性，Engine 不调用该重载，API drift 检查已完整编译解决方案。
+
 ### 阶段 7：管线集成与端到端
 
 - 三个 fixture 站点完整构建，公共产物与 golden 快照按第 4.3 节逐字节比较，报告独立校验。
@@ -1162,3 +1186,4 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --sett
 | 2026-10-27 | 经负责人授权的独立 Core 修复（4.4）：`route.url` 与 permalink 末段为静态文件扩展名时构建失败并提示 `static/`/`assets/`；RED 10 失败 → GREEN Routing 112/112（90.24%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05/14；openspec 过期映射无法执行已记录 |
 | 2026-10-29 | 阶段 6 只读审计后经授权复验当前分支 `79df55f8`：完整 Engine 2934/2934、0 Skip（含全部已修复 KD）、Engine 行覆盖 89.92%，证据持久保存；跨平台与 CLI/PluginHost/Shared/Architecture 当前专项仍未验证；见 6.10 |
 | 2026-10-29 | 阶段 6 复审后经授权补跑非 Engine 专项（`800472a2`）：CLI 141/141、PluginHost 26/26、ConsoleLogger 21/21、Architecture owner 48/48，均 0 Skip；24 份报告正反例均有当前证据；§6.7 与矩阵 §6 标注为已清理的历史证据；见 6.11 |
+| 2026-10-29 | 接入 `TaxonomyRedirectWriterTests`、`CleanCommandTests` 至三平台 `platform-tests`；为通过 fast gate 修正既有断链、清除 5 条分析器回归、将 `NormalizeUrl(string, bool)` 改为 internal、补 Windows POSIX N/A 名单；CI run `40800207604` 三平台全部 success，完整 Engine 2934/2934、覆盖 89.92%；见 6.12 |
