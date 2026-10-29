@@ -204,6 +204,55 @@ public sealed class TestInfrastructureTests
         Assert.NotNull(Record.Exception(Check));
     }
 
+    [Fact, Trait("Category", "Integration")]
+    public async Task GeneratedReport_DefaultFullExpectation_RejectsActualIncrementalBuild()
+    {
+        using var site = new SiteBuilder();
+        site.Markdown("alpha", "Alpha", "Body");
+        var started = DateTimeOffset.UtcNow;
+        var result = await site.BuildAsync(incremental: true);
+        var ended = DateTimeOffset.UtcNow;
+        Assert.True(result.Incremental.Enabled);
+
+        var error = Assert.ThrowsAny<Exception>(() => ReportAssertions.Generated(site, result, started, ended));
+        Assert.Contains("build/cache/routes semantics", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact, Trait("Category", "Integration")]
+    public async Task GeneratedReport_FullBuild_RejectsMatchingFalseCacheCounts()
+    {
+        using var site = new SiteBuilder();
+        site.Markdown("alpha", "Alpha", "Body");
+        site.Markdown("beta", "Beta", "Body");
+        var started = DateTimeOffset.UtcNow;
+        var result = await site.BuildAsync();
+        var ended = DateTimeOffset.UtcNow;
+        var variant = Assert.Single(result.Variants);
+        Assert.True(variant.RenderedCount > 0);
+        var changedVariant = variant with { RenderedCount = variant.RenderedCount - 1, SkippedCount = variant.SkippedCount + 1 };
+        var changedResult = result with
+        {
+            Incremental = result.Incremental with { CacheHitCount = 1, CacheMissCount = result.Incremental.CacheMissCount - 1 },
+            Variants = [changedVariant]
+        };
+        var buildPath = Path.Combine(site.Output, ".bukit/build-report.json");
+        var manifestPath = Path.Combine(site.Output, ".bukit/incremental-manifest.json");
+        var build = JsonNode.Parse(File.ReadAllText(buildPath))!;
+        var manifest = JsonNode.Parse(File.ReadAllText(manifestPath))!;
+        foreach (var counters in new[] { build["incremental"]!, manifest })
+        {
+            counters["cacheHitCount"] = changedResult.Incremental.CacheHitCount;
+            counters["cacheMissCount"] = changedResult.Incremental.CacheMissCount;
+        }
+        manifest["variants"]![0]!["renderedCount"] = changedVariant.RenderedCount;
+        manifest["variants"]![0]!["skippedCount"] = changedVariant.SkippedCount;
+        File.WriteAllText(buildPath, build.ToJsonString());
+        File.WriteAllText(manifestPath, manifest.ToJsonString());
+
+        var error = Assert.ThrowsAny<Exception>(() => ReportAssertions.Generated(site, changedResult, started, ended));
+        Assert.Contains("build/cache/routes semantics", error.Message, StringComparison.Ordinal);
+    }
+
     [Theory, Trait("Category", "Integration")]
     [InlineData(null)]
     [InlineData("basic-markdown-site")]
