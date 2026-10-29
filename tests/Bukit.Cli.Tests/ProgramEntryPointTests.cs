@@ -54,6 +54,15 @@ public sealed class ProgramEntryPointTests : IDisposable
     }
 
     [Fact]
+    public async Task Main_VersionUnknownOption_ReturnsTwo()
+    {
+        var result = await InvokeEntryPointAsync(["version", "--bogus"]);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("Unknown option", result.StdErr, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Main_VersionHelp_PrintsCommandUsage()
     {
         var result = await InvokeEntryPointAsync(["version", "--help"]);

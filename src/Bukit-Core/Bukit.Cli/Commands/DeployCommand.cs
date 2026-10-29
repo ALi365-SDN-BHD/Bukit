@@ -24,7 +24,7 @@ public static class DeployCommand
         try
         {
             (config, logger) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, command.GetBool("--ci"));
-            ConfigValidator.Validate(config, new ConfigValidationOptions { ValidateProviderSecrets = !skipBuild });
+            ConfigValidator.Validate(config, new ConfigValidationOptions { ValidateProviderSecrets = !skipBuild && !dryRun });
         }
         catch (ConfigException ex)
         {
@@ -61,7 +61,7 @@ public static class DeployCommand
             ? cliOutput
             : (config.Build.Output ?? "dist");
 
-        if (!skipBuild)
+        if (!skipBuild && !dryRun)
         {
             logger.Info("Building site before deploy...");
             var buildResult = await BuildCommand.RunLoadedInProcessAsync(
@@ -95,15 +95,8 @@ public static class DeployCommand
             ? Path.GetFullPath(effectiveOutput)
             : Path.GetFullPath(Path.Combine(resolved.RootDir, effectiveOutput));
 
-        if (skipBuild && !Directory.Exists(outputDir))
+        if ((skipBuild || dryRun) && !ValidateExistingOutput(outputDir, logger))
         {
-            logger.Error($"Output directory not found: {outputDir}");
-            return 1;
-        }
-
-        if (skipBuild && Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories).Length == 0)
-        {
-            logger.Error($"Output directory is empty: {outputDir}");
             return 1;
         }
 
@@ -156,5 +149,22 @@ public static class DeployCommand
 
         logger.Error($"Deployment failed: {result.Error}");
         return 1;
+    }
+
+    private static bool ValidateExistingOutput(string outputDir, ILogger logger)
+    {
+        if (!Directory.Exists(outputDir))
+        {
+            logger.Error($"Output directory not found: {outputDir}");
+            return false;
+        }
+
+        if (Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories).Length == 0)
+        {
+            logger.Error($"Output directory is empty: {outputDir}");
+            return false;
+        }
+
+        return true;
     }
 }

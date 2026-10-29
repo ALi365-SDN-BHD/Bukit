@@ -4,6 +4,7 @@ using Bukit.Cli.Tests;
 
 namespace Bukit.Cli.Tests;
 
+[Collection("Console")]
 public sealed class CompletionCommandTests
 {
     [Fact]
@@ -87,6 +88,26 @@ public sealed class CompletionCommandTests
         var script = CompletionCommand.Render(null!);
 
         Assert.Empty(script);
+    }
+
+    [Fact]
+    public async Task RunAsync_ValidShell_ReturnsZero()
+    {
+        using var writer = new StringWriter();
+        var originalOut = Console.Out;
+        int exitCode;
+        try
+        {
+            Console.SetOut(writer);
+            exitCode = await CompletionCommand.RunAsync(
+                CliTestHelper.CreateCommand("completion", new[] { "completion", "bash" }));
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        Assert.Equal(0, exitCode);
     }
 
     [Fact]

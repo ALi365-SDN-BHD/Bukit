@@ -1175,6 +1175,36 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 
 出口：Cli 与 Cli.Shared 分别达到第 9 节的单项目覆盖率下限；每个注册命令至少一个成功和一个失败退出码用例。
 
+#### 阶段 8 首批执行记录（2026-10-29）
+
+**状态：PARTIAL（KD 已修复，待三平台执行证据）。** 从已合并阶段 7 的 `main` 提交 `b90fd240` 创建 `codex/stage8` 工作区。经用户明确授权，本批除测试、CI 接线与计划文档外，修改了 `SeoExternalAuditor`/`SeoCommand` 与 `DeployCommand` 三处 Core 生产代码。
+
+现有注册表为 12 个顶层命令、23 个命令路径（含子命令）。基线完整 CLI 专项 `1092/1092`、0 跳过；`Bukit.Cli` 行覆盖 **7926/9002 = 88.05%**、`Bukit.Cli.Shared` **355/367 = 96.73%**，均 ≥70%。解析器、帮助、`build`/`doctor`/`config`/`preview`/`clean`、`seo`/`geo`/`publish`、`dev` 监听与 WebSocket、`deploy` 分支/CNAME/超时已有专项；本批补充并修复以下缺口：
+
+| 缺口 | 本批处理 | 结果 |
+|---|---|---|
+| KD-001：发布报告用 `documents`，外部审计硬读 `routes` | `SeoExternalAuditor` 同时支持 `routes`/`url` 与 `documents`/`routeUrl`；`PublishCommandTests` 新增 `--external` + 有效发布报告用例，canonical 与链接均使用回环地址；先 RED（实际退出 2，期望 1）后 GREEN | 修复通过，专项 4/4 |
+| KD-008：`--dry-run` 仍执行 clean 构建 | `DeployCommand` 在 `--dry-run` 时跳过构建和 provider secret 校验，只校验现有输出；`DeployCommandTests` 新增既有输出不被改动的用例；先 RED（`sentinel.txt` 被清理）后 GREEN | 修复通过 |
+| 命令与 CLI 参考文档无强制一致性检查 | `CliContractTests` 新增测试，双向比较注册表命令路径与 `guide/user/12-cli-reference.md` | 通过 |
+| 本地裸 git 仓库只验证 clone/push | 扩展 `DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive`，改用 `pages` 分支和 CNAME，并断言远端内容 | 通过（POSIX 真实 git） |
+| `version` 失败退出码、`completion` 成功退出码无直接用例 | 入口测试新增 `version --bogus` → 2；补 `completion bash` → 0 | 通过 |
+
+完整 CLI 专项 **1096/1096**、0 失败、0 跳过；`Bukit.Cli` 行覆盖 **7942/9013 = 88.12%**、`Bukit.Cli.Shared` **355/367 = 96.73%**；Architecture **415/415**。含有效 TRX 与 Cobertura 的最终证据为 `TestResults/coverage/cli-stage8-final3`。`CliContractTests`、`CompletionCommandTests`、`DeployCommandTests`、`PublishCommandTests` 已加入三平台 `platform-tests`，`test-infrastructure-platform-self-test.py` 直接 owner 自检通过；正式 CI 见下文。
+
+**仍待完成：** 正式三平台执行证据（见下节）。
+
+#### 阶段 8 最终判定（2026-10-29）
+
+**阶段 8：SUCCESS。** 正式 CI [run 40844256570](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40844256570) 对提交 `1fee2730` 执行 `gate=platform`，Fast gate、Fast contracts、Architecture 与三个平台全部成功；实际 SDK **10.0.403**。首次运行 `40842704489` 在 Fast gate 报 CA1502 复杂度 36 > 35，已在 `1fee2730` 通过提取 `DeployCommand.ValidateExistingOutput` 修复，保留为诊断记录。
+
+| 平台 | CLI 新增/受影响类实际执行数 | 允许的平台 N/A | 来源 |
+|---|---|---|---|
+| Linux x64 | CliContract 12、Completion 12、Deploy 12、Publish 4、Clean 29 | 0 | 第一次 |
+| macOS arm64 | 同上，另 Preview 20、PreviewExtended 78、Dev 69 | 0 | 第一次 |
+| Windows x64 | 同上，另 Preview 20、PreviewExtended 78、Dev 68 | 1（既有 DevPathGuard POSIX 比较） | 第一次 |
+
+三个平台均无失败、无未批准跳过、无验证缺口；`platform.json`、逐项目 TRX、`dotnet-info.txt` 与磁盘满专项位于 `/Users/ali/.local/state/bukit-verification/stage8-platform-ci-20261029/artifacts`。本地最终覆盖率证据仍为 `TestResults/coverage/cli-stage8-final3`：CLI 1096/1096、Cli 88.12%、Cli.Shared 96.73%。未运行全量解决方案测试、覆盖率总门禁或发布门禁。
+
 ### 阶段 9：插件体系
 
 - PluginHost：清单加载与迁移、平台选择、哈希与路径校验、权限评估、环境清空与白名单、密钥掩码。
@@ -1203,14 +1233,14 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 
 | 编号 | 缺陷或待复现条目 | 阶段 |
 |---|---|---|
-| KD-001 | `SeoExternalAuditor` 硬编码读取 `routes`，发布报告用 `documents` | 8 |
+| KD-001 | **已按用户单独授权修复并通过**：`SeoExternalAuditor` 显式接收已验证报告契约，分别读取 SEO 的 `routes`/`url` 与发布的 `documents`/`routeUrl`；回环 canonical 与链接用例 GREEN，完整 CLI 1096/1096，见阶段 8 首批记录 | 8 |
 | KD-002 | **已独立修复并通过，移除 Skip**：项目根 `.bukit` 全量保留，显式元数据输出目标先拒绝，正常输出／缓存清理不变；四选择方式与真实入口专项 69/69，专项／最终增量复核均 0 Critical / 0 Important / 0 Minor；当前见 5.3，历史 RED 保留 | 5 |
 | KD-003 | **已按单独授权修复（方案 A）**：保留预算，超限禁用当前变体增量并完整渲染，不吞普通错误；最终 fixture 21 项行为 RED → 完整六类专项 168/168、0 Skip，六项真实产物对照通过，专项及唯一最终增量复核均 0/0/0，见 5.5 | 5 |
 | KD-004 | **已独立修复并通过，移除 Skip**：writer 全量预检后写入，危险 alias／路径／链接以 `BuildOutputUnsafe` 拒绝并保留既有字节；包含 NUL 自别名补修，完整专项 53/53、0 Skip，规定复核无剩余阻塞；见 5.4，不新增 aliases 入口 | 5 |
 | KD-005 | **已修复并通过**：`ConfigCollectionReader` 缺必填键的 `modelSchema` 条目曾静默丢弃（决定：应加载时报错）；证据见 2.1 | 2 |
 | KD-006 | **原空集合修复保留；原始不完整条目补修已验证并经两次规定复核接受**：诊断保留全部条目，JSON-LD 仅完整条目、全无效无专用节点／无 Article 回退，warn/strict/off；`mentions` 与 Article `citation` 并存。历史见 6.6，当前见 6.7 | 6 |
 | KD-007 | **原 Skip 已移除；审计后上下文补修已验证并经两次规定复核接受**：DOM 与窄脚本防护保留，新增 template/noscript/raw-text 及三个真实产物独立断言，当前 projection 176/176，见 6.7。6.4–6.6 保留历史，不冒充新闭包证明 | 6 |
-| KD-008 | `deploy --dry-run` 仍执行 clean 构建（决定：应不构建，只校验现有输出） | 8 |
+| KD-008 | **已按用户单独授权修复并通过**：`deploy --dry-run` 不再构建，只校验现有输出并保留字节；RED 曾清理 `sentinel.txt`，GREEN 专项通过，完整 CLI 1096/1096，见阶段 8 首批记录 | 8 |
 | KD-009 | **已修复并通过**：三入口共用歧义 URL 校验，拒绝 `/\attacker.example/payload`、反斜杠与嵌入控制字符；已移除 Skip/KnownDefect，证据见 1.7 | 1 |
 | KD-010 | **已修复并通过**：`IsSubPathOf` 先排除规范化后的相等路径，卷根自身返回 false，`IsSameOrSubPathOf` 仍返回 true；已移除 Skip/KnownDefect，证据见 1.7 | 1 |
 | KD-011 | **已修复并通过，移除 Skip**：保留公开 renderer 省略 null command；schema command 为可选 string/null，错误类型和未知字段仍拒绝。见 6.6 | 6 |
@@ -1297,3 +1327,5 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 | 2026-10-29 | 阶段 6 只读审计后经授权复验当前分支 `79df55f8`：完整 Engine 2934/2934、0 Skip（含全部已修复 KD）、Engine 行覆盖 89.92%，证据持久保存；跨平台与 CLI/PluginHost/Shared/Architecture 当前专项仍未验证；见 6.10 |
 | 2026-10-29 | 阶段 6 复审后经授权补跑非 Engine 专项（`800472a2`）：CLI 141/141、PluginHost 26/26、ConsoleLogger 21/21、Architecture owner 48/48，均 0 Skip；24 份报告正反例均有当前证据；§6.7 与矩阵 §6 标注为已清理的历史证据；见 6.11 |
 | 2026-10-29 | 接入 `TaxonomyRedirectWriterTests`、`CleanCommandTests` 至三平台 `platform-tests`；为通过 fast gate 修正既有断链、清除 5 条分析器回归、将 `NormalizeUrl(string, bool)` 改为 internal、补 Windows POSIX N/A 名单；CI run `40800207604` 三平台全部 success，完整 Engine 2934/2934、覆盖 89.92%；见 6.12 |
+| 2026-10-29 | 阶段 8 最终判定 **SUCCESS**：正式 CI `40844256570`（提交 `1fee2730`，SDK 10.0.403）三平台全部成功；CliContract 12、Completion 12、Deploy 12、Publish 4 在三平台实际执行，Windows 仅既有 1 项 DevPathGuard N/A；本地 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；首次运行 CA1502 超基线已修复并保留为诊断 |
+| 2026-10-29 | 阶段 8 首批：基线 CLI 1092/1092、Cli 88.05%、Cli.Shared 96.73%；补命令与 CLI 参考文档一致性、真实裸仓库分支/CNAME、version/completion 退出码用例；经用户单独授权修复 KD-001/KD-008，移除 Skip；完整 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；四个 CLI 测试类接入三平台 `platform-tests`，owner 自检通过；阶段保持 PARTIAL，待 Linux/Windows 实际执行证据 |

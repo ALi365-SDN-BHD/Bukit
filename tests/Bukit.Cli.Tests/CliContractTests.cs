@@ -42,6 +42,43 @@ public sealed class CliContractTests
     }
 
     [Fact]
+    public void CliReference_DocumentsExactlyTheRegisteredCommandTree()
+    {
+        var repoRoot = FindRepoRoot();
+        var documented = new List<string>();
+        foreach (var line in File.ReadLines(Path.Combine(repoRoot, "guide", "user", "12-cli-reference.md")))
+        {
+            var cells = line.Split('|');
+            if (cells.Length >= 4 && cells[1].Trim() is var cell && cell.StartsWith('`') && cell.EndsWith('`'))
+            {
+                documented.Add(cell.Trim('`'));
+            }
+        }
+
+        var expected = CommandPathExtractor.ExtractAllCommandPaths(BukitCliSpecs.CreateRegistry());
+
+        Assert.Equal(
+            expected.OrderBy(path => path, StringComparer.OrdinalIgnoreCase),
+            documented.OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static string FindRepoRoot()
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "bukit-core.slnx")))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new InvalidOperationException("Unable to locate repository root for CLI reference checks.");
+    }
+
+    [Fact]
     public void Registry_SeoInsights_ExposesRequiredOfflineOptionsWithoutChangingAuditOrDiff()
     {
         var registry = BukitCliSpecs.CreateRegistry();
