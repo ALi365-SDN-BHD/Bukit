@@ -205,6 +205,36 @@ public sealed class PluginLockAndReportTests
         Assert.Contains("\"PUBLIC_VALUE\": \"visible\"", json, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task PluginExecutionReporter_MasksCookieAndAuthorizationValues()
+    {
+        using var directory = TestDirectory.Create();
+        var report = new PluginExecutionReport(
+            PluginId: "echo",
+            Operation: "invoke",
+            RequestId: "req-cookie",
+            ProcessExitCode: 0,
+            Success: true,
+            TimedOut: false,
+            OutputLimitExceeded: false,
+            StdoutBytes: 0,
+            StderrBytes: 0,
+            Stderr: "cookie=session-cookie authorization=Bearer raw-token",
+            Environment: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["COOKIE"] = "session-cookie",
+                ["HTTP_AUTHORIZATION"] = "Bearer raw-token"
+            });
+
+        string path = await new PluginExecutionReporter().WriteAsync(directory.Path, report, CancellationToken.None);
+        string json = File.ReadAllText(path);
+
+        Assert.Contains("\"COOKIE\": \"***\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"HTTP_AUTHORIZATION\": \"***\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("session-cookie", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("raw-token", json, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("resourceLimitExceeded")]
     [InlineData("networkPermissionGranted")]
@@ -354,6 +384,7 @@ public sealed class PluginLockAndReportTests
         ConfigException exception = Assert.Throws<ConfigException>(
             () => policy.Validate("echo", entry, platform, sha256Verified: true, isCi: true));
 
+        Assert.Equal(DiagnosticCode.PluginExecutionFailed, exception.Code);
         Assert.Contains("allowInCi=true", exception.Message, StringComparison.Ordinal);
     }
 
@@ -369,5 +400,73 @@ public sealed class PluginLockAndReportTests
         var platform = new PluginPlatformEntry("bin/osx-arm64/bukit-plugin-echo", new string('a', 64));
 
         policy.Validate("echo", entry, platform, sha256Verified: true, isCi: true);
+    }
+
+    [Fact]
+    public void PluginCiPolicy_AllowsNonCiPluginWithoutCiRequirements()
+    {
+        var policy = new PluginCiPolicy();
+        var entry = new PluginConfigEntry(
+            Enabled: true,
+            Source: "plugins/echo",
+            AllowInCi: false,
+            PermissionsExplicit: false);
+        var platform = new PluginPlatformEntry("bin/osx-arm64/bukit-plugin-echo", string.Empty);
+
+        policy.Validate("echo", entry, platform, sha256Verified: false, isCi: false);
+    }
+
+    [Fact]
+    public void PluginCiPolicy_RejectsPluginWithoutSha256InCi()
+    {
+        var policy = new PluginCiPolicy();
+        var entry = new PluginConfigEntry(
+            Enabled: true,
+            Source: "plugins/echo",
+            AllowInCi: true,
+            PermissionsExplicit: true);
+        var platform = new PluginPlatformEntry("bin/osx-arm64/bukit-plugin-echo", string.Empty);
+
+        ConfigException exception = Assert.Throws<ConfigException>(
+            () => policy.Validate("echo", entry, platform, sha256Verified: false, isCi: true));
+
+        Assert.Equal(DiagnosticCode.PluginExecutionFailed, exception.Code);
+        Assert.Contains("without verified sha256", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PluginCiPolicy_RejectsUnverifiedSha256InCi()
+    {
+        var policy = new PluginCiPolicy();
+        var entry = new PluginConfigEntry(
+            Enabled: true,
+            Source: "plugins/echo",
+            AllowInCi: true,
+            PermissionsExplicit: true);
+        var platform = new PluginPlatformEntry("bin/osx-arm64/bukit-plugin-echo", new string('a', 64));
+
+        ConfigException exception = Assert.Throws<ConfigException>(
+            () => policy.Validate("echo", entry, platform, sha256Verified: false, isCi: true));
+
+        Assert.Equal(DiagnosticCode.PluginExecutionFailed, exception.Code);
+        Assert.Contains("without verified sha256", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PluginCiPolicy_RejectsImplicitPermissionsInCi()
+    {
+        var policy = new PluginCiPolicy();
+        var entry = new PluginConfigEntry(
+            Enabled: true,
+            Source: "plugins/echo",
+            AllowInCi: true,
+            PermissionsExplicit: false);
+        var platform = new PluginPlatformEntry("bin/osx-arm64/bukit-plugin-echo", new string('a', 64));
+
+        ConfigException exception = Assert.Throws<ConfigException>(
+            () => policy.Validate("echo", entry, platform, sha256Verified: true, isCi: true));
+
+        Assert.Equal(DiagnosticCode.PluginExecutionFailed, exception.Code);
+        Assert.Contains("without explicit permissions", exception.Message, StringComparison.Ordinal);
     }
 }

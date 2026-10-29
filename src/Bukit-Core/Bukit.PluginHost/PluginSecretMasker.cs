@@ -7,6 +7,8 @@ internal static class PluginSecretMasker
         "NOTION_TOKEN",
         "API_KEY",
         "PASSWORD",
+        "COOKIE",
+        "AUTHORIZATION",
         "TOKEN",
         "SECRET"
     ];

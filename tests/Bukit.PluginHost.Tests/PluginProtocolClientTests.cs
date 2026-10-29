@@ -78,6 +78,53 @@ public sealed class PluginProtocolClientTests
             "Handshake plugin identity does not match resolved plugin.");
     }
 
+    [Theory]
+    [InlineData(
+        "manifestResponse",
+        "true",
+        "plugin.invalidResponse",
+        "Plugin response type must be handshakeResponse.")]
+    [InlineData(
+        "handshakeResponse",
+        "false",
+        "plugin.executionFailed",
+        "Plugin response reported failure.")]
+    public async Task HandshakeAsync_RejectsInvalidResponseEnvelope(
+        string responseType,
+        string success,
+        string expectedCode,
+        string expectedDetail)
+    {
+        var invoker = new StubPluginProcessInvoker(
+            "{\"type\":\"" + responseType +
+            "\",\"protocol\":\"bukit-plugin-v1\",\"requestId\":\"req-1\",\"success\":" +
+            success + "}");
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-1"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.HandshakeAsync(CreatePlugin(), CancellationToken.None));
+
+        AssertProtocolFailure(exception, expectedCode, expectedDetail);
+    }
+
+    [Fact]
+    public async Task HandshakeAsync_RejectsMissingPluginIdentity()
+    {
+        var invoker = new StubPluginProcessInvoker(
+            """
+            {"type":"handshakeResponse","protocol":"bukit-plugin-v1","requestId":"req-1","success":true}
+            """);
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-1"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.HandshakeAsync(CreatePlugin(), CancellationToken.None));
+
+        AssertProtocolFailure(
+            exception,
+            "plugin.invalidResponse",
+            "Handshake response must include plugin identity.");
+    }
+
     [Fact]
     public async Task GetManifestAsync_ReturnsCommandsAndPermissions()
     {
@@ -128,6 +175,40 @@ public sealed class PluginProtocolClientTests
             "Plugin process exited with code 7.");
     }
 
+    [Theory]
+    [InlineData(
+        "handshakeResponse",
+        "true",
+        "plugin.invalidResponse",
+        "Plugin response type must be manifestResponse.")]
+    [InlineData(
+        "manifestResponse",
+        "false",
+        "plugin.executionFailed",
+        "Plugin response reported failure.")]
+    [InlineData(
+        "manifestResponse",
+        "true",
+        "plugin.invalidResponse",
+        "Manifest response must include at least one command.")]
+    public async Task GetManifestAsync_RejectsInvalidResponseEnvelope(
+        string responseType,
+        string success,
+        string expectedCode,
+        string expectedDetail)
+    {
+        var invoker = new StubPluginProcessInvoker(
+            "{\"type\":\"" + responseType +
+            "\",\"protocol\":\"bukit-plugin-v1\",\"requestId\":\"req-2\",\"success\":" +
+            success + "}");
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-2"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.GetManifestAsync(CreatePlugin(), CancellationToken.None));
+
+        AssertProtocolFailure(exception, expectedCode, expectedDetail);
+    }
+
     [Fact]
     public async Task InvokeAsync_ReturnsResponseAndUsesInvokeTimeout()
     {
@@ -158,6 +239,46 @@ public sealed class PluginProtocolClientTests
             "plugin.invalidResponse",
             exception.Message,
             StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(
+        "manifestResponse",
+        "bukit-plugin-v1",
+        "req-3",
+        "plugin.invalidResponse",
+        "Plugin response type must be invokeResponse.")]
+    [InlineData(
+        "invokeResponse",
+        "bukit-plugin-v0",
+        "req-3",
+        "plugin.unsupportedProtocol",
+        "Plugin response protocol is unsupported.")]
+    [InlineData(
+        "invokeResponse",
+        "bukit-plugin-v1",
+        "other",
+        "plugin.invalidResponse",
+        "Plugin response requestId did not match request.")]
+    public async Task InvokeAsync_RejectsInvalidResponseEnvelope(
+        string responseType,
+        string protocol,
+        string requestId,
+        string expectedCode,
+        string expectedDetail)
+    {
+        using var directory = TestDirectory.Create();
+        var invoker = new StubPluginProcessInvoker(
+            "{\"type\":\"" + responseType +
+            "\",\"protocol\":\"" + protocol +
+            "\",\"requestId\":\"" + requestId +
+            "\",\"success\":true,\"exitCode\":0}");
+        var client = new PluginProtocolClient(invoker, new FixedRequestIdFactory("req-3"));
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => client.InvokeAsync(CreatePlugin(directory.Path), CreateInvokeRequest(directory.Path), CancellationToken.None));
+
+        AssertProtocolFailure(exception, expectedCode, expectedDetail);
     }
 
     [Fact]
