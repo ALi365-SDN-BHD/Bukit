@@ -5,8 +5,8 @@
   "baseCommit": "7a8b71350501ded16a5268b6bb7cef23afd6aa67",
   "archive": {
     "file": "stage9-evidence-20261029.tar.gz",
-    "bytes": 1693714,
-    "sha256": "6c8505e54d145b047b0d72b76748ca4815e960e9395bfb5848a2026fd6bd7cbf"
+    "bytes": 1758749,
+    "sha256": "7fcb0751726f1a7b9a7de097ae47902505d946156fada0439962311ad30dc28b"
   },
   "results": {
     "pluginHostFinal": {
@@ -33,6 +33,16 @@
       "passed": 28,
       "failed": 0,
       "skipped": 0
+    },
+    "auditPatchFocused": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    "auditPatchFull": {
+      "passed": 277,
+      "failed": 0,
+      "skipped": 0
     }
   },
   "coverage": {
@@ -57,6 +67,7 @@
   "notes": [
     "cache records preserve original execution output paths",
     "archive contains synthetic test strings only",
-    "raw durable mirror: /Users/ali/.local/state/bukit-verification/stage9-plugin-*"
+    "raw durable mirror: /Users/ali/.local/state/bukit-verification/stage9-*",
+    "audit-patch root contains the post-verdict validator-assertion rerun"
   ]
 }

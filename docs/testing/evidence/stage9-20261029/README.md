@@ -22,16 +22,19 @@ This directory keeps the complete stage 9 test and I-01 fix evidence in one comp
 | Abstractions handwritten source | 204 / 204 = 100% |
 | I-01 RED | 7 failed / 21 passed / 0 skipped (focused) |
 | I-01 focused GREEN | 28 / 28 passed |
+| Audit-patch validator focus | 12 / 12 passed |
+| Audit-patch full PluginHost | 277 / 277 passed, 0 failed, 0 skipped |
 | Reviews | Critical 0 / Important 0; remaining Minor items are recorded in the plan |
 
 The coverage denominator follows `scripts/checks/coverage/summarize.py`, which currently includes source-generated `obj/.../*.g.cs` files. `coverage-breakdown.json` inside the archive separates handwritten and generated lines.
 
 ## Archive contents
 
-`stage9-evidence-20261029.tar.gz` contains two roots:
+`stage9-evidence-20261029.tar.gz` contains three roots:
 
 - `stage9-plugin-batch1-20261029/` — baseline and final TRX, coverage XML, closure, classification, cache records, reviews, metrics, and coverage summaries for the stage 9 test batch.
 - `stage9-plugin-secret-masker-20261029/` — I-01 RED/focused/full GREEN TRX, coverage, cache records, OpenSpec validation log, review reports, review scope, and completion record.
+- `stage9-audit-patch-20261029/` — post-verdict validator-assertion rerun: focused `PluginCommandManifestValidatorTests` 12/12 and full PluginHost 277/277 TRX/logs.
 
 Verify the archive:
 
