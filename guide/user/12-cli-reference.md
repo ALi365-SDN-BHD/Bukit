@@ -30,6 +30,10 @@ This table is derived from `BukitCliSpecs.cs`.
 | `publish diff` | Compare publish audit reports. | `--baseline`, `--current`, `--max-new-errors`, `--max-new-warnings`, `--max-new-issues`, `--fail-on-new-code`, `--fail-on-route-removed`, `--fail-on-indexable-drop` |
 | `deploy` | Build if needed and deploy to GitHub Pages. | `--config`, `--site`, `--dry-run`, `--skip-build`, `--base-url`, `--site-url`, `--output`, `--branch`, `--message`, `--ci`, `--force` |
 
+`bukit deploy --dry-run` validates an existing build without rebuilding or
+requiring provider secrets. If the output directory is missing, it exits 1 and
+asks you to run `bukit build` first.
+
 `bukit clean --dir <path>` only removes an empty directory or a Bukit output
 directory containing `.bukit-output-marker`. It refuses the project root,
 user home, filesystem root, `.git` or a `.git` descendant, paths outside the

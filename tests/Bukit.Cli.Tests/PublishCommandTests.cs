@@ -77,6 +77,26 @@ public sealed class PublishCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_Diff_WithIdenticalValidReports_ReturnsZero()
+    {
+        var baselinePath = Path.Combine(_tempDir, "baseline.json");
+        var currentPath = Path.Combine(_tempDir, "current.json");
+        File.WriteAllText(baselinePath, ValidPublishReportJson());
+        File.WriteAllText(currentPath, ValidPublishReportJson());
+
+        var result = await InvokeAsync(new CliBoundCommand(
+            new Dictionary<string, string?>
+            {
+                ["--baseline"] = baselinePath,
+                ["--current"] = currentPath
+            },
+            ["diff"]));
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Publish diff: newIssues=0", result.StdOut, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunAsync_Diff_MissingBaselineAndCurrent_ReturnsTwo()
     {
         var result = await InvokeAsync(new CliBoundCommand(

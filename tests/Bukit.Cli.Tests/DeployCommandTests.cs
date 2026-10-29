@@ -290,7 +290,66 @@ public sealed class DeployCommandTests
                 Array.Empty<string>()));
 
             Assert.Equal(1, exitCode);
-            Assert.Contains("Output directory not found:", writer.ToString(), StringComparison.Ordinal);
+            Assert.Contains(
+                "Output directory not found:",
+                writer.ToString(),
+                StringComparison.Ordinal);
+            Assert.Contains("Run 'bukit build' first.", writer.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NOTION_TOKEN", originalToken);
+            Console.SetError(originalError);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RunAsync_DryRunWithoutSkipBuild_DoesNotRequireProviderSecrets()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));
+        var originalError = Console.Error;
+        var originalToken = Environment.GetEnvironmentVariable("NOTION_TOKEN");
+        var writer = new StringWriter();
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "dist"));
+            File.WriteAllText(Path.Combine(root, "dist", ".bukit-build-state.json"), "{\"version\":1,\"status\":\"completed\"}");
+            File.WriteAllText(Path.Combine(root, "dist", "index.html"), "<h1>Hello</h1>");
+            var siteYaml = Path.Combine(root, "site.yaml");
+            File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+            content:
+              sources:
+                - type: notion
+                  name: page
+                  notion:
+                    databaseId: abc
+            deploy:
+              provider: github-pages
+            """);
+
+            Environment.SetEnvironmentVariable("NOTION_TOKEN", null);
+            Console.SetError(writer);
+
+            var exitCode = await DeployCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = siteYaml,
+                    ["--dry-run"] = "true"
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Would deploy", writer.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain("NOTION_TOKEN", writer.ToString(), StringComparison.Ordinal);
         }
         finally
         {

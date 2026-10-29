@@ -235,6 +235,20 @@ public sealed class ConfigCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Schema_OutputPathIsDirectory_ReturnsOne()
+    {
+        var outputPath = Path.Combine(_rootDir, "schema-dir");
+        Directory.CreateDirectory(outputPath);
+
+        var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[]
+        {
+            "config", "schema", "--output", outputPath
+        }));
+
+        Assert.Equal(1, exitCode);
+    }
+
+    [Fact]
     public async Task RunAsync_NoSubcommand_ReturnsTwo()
     {
         var exitCode = await ConfigCommand.RunAsync(CliTestHelper.CreateCommand("config", new[] { "config" }));
