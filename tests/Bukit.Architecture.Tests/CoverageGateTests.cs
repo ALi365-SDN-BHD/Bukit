@@ -405,7 +405,8 @@ public sealed class CoverageGateTests
             "Bukit.Engine.Tests.DirectoryCopyFollowSymlinksTests", "Bukit.Engine.Tests.OutputDirectoryCleanerTests",
             "Bukit.Engine.Tests.AssetPipelineTests", "Bukit.Shared.Tests.PlatformPathHelperTests",
             "Bukit.Shared.Tests.PathUtilsTests", "Bukit.Shared.Tests.PlatformSafeSourceFileOpenerTests",
-            "Bukit.Cli.Tests.PreviewCommandTests", "Bukit.Cli.Tests.PreviewCommandExtendedTests", "Bukit.Cli.Tests.DevCommandTests"
+            "Bukit.Cli.Tests.PreviewCommandTests", "Bukit.Cli.Tests.PreviewCommandExtendedTests", "Bukit.Cli.Tests.DevCommandTests",
+            "Bukit.Engine.Tests.TaxonomyRedirectWriterTests", "Bukit.Cli.Tests.CleanCommandTests"
         })
             AssertRunContains(platform, name);
         AssertRunContains(platform, "FullyQualifiedName~");
