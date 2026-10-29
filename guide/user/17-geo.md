@@ -28,8 +28,8 @@ count grows over time, while monitoring the generated `llms.txt` file size.
 
 ## FAQ and HowTo content
 
-`geo.schema_type: FAQPage` requires a nonempty `geo.faq` list; `HowTo`
-requires a nonempty `geo.steps` list. If the required list is absent or empty,
+`geo.schema_type: FAQPage` requires a nonempty `faq` list in the page's geo block; `HowTo`
+requires a nonempty `steps` list in that block. If the required list is absent or empty,
 Bukit omits that FAQPage/HowTo JSON-LD node instead of generating an invalid
 node or silently changing it to an Article. Configured generic WebPage and
 WebSite nodes remain available.

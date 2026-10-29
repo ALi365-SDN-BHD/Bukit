@@ -297,7 +297,7 @@ directory with an `index.html`: `/blog/{slug}` with slug `release.2026` gives
 `download/<slug>.php/index.html`. A pattern that ends in a static file
 extension such as `/files/{slug}.pdf` or `/js/{slug}.js` fails the build: put
 those files in the theme's `static/` or `assets/` directory. Only the literal
-pattern is checked, so a slug such as `node.js` in `/blog/{slug}` is allowed.
+pattern is checked, so a dotted slug value in `/blog/{slug}` is allowed.
 
 Lists, pagination, filtered lists, archives, feeds, sitemap output policy,
 field scopes, and collection schema mode use `collection`. SEO

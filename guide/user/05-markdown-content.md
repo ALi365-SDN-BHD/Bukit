@@ -44,14 +44,14 @@ Common fields:
 | `tags`, `categories` | Taxonomy and related content inputs. |
 | `route` object with `url` | Optional route override; output path is derived from URL (see below). |
 
-A `route.url` whose last segment ends in `.html`, `.htm`, `.xml`, `.json`, or
+A route URL whose last segment ends in `.html`, `.htm`, `.xml`, `.json`, or
 `.txt` (any case) and has no trailing slash is written as that file:
 `/docs/page.html` → `docs/page.html`. Every other URL is a directory with an
 `index.html`, even when it contains a dot: `/docs/v1.0` → `/docs/v1.0/` and
 `docs/v1.0/index.html`. Add a trailing slash (`/docs/page.html/`) to force a
 directory.
 
-A `route.url` ending in a static file extension (`.css`, `.js`, `.pdf`, images,
+A route URL ending in a static file extension (`.css`, `.js`, `.pdf`, images,
 fonts, archives, audio/video, Office files) without a trailing slash fails the
 build; place such files in the theme's `static/` or `assets/` directory instead.
 See [Troubleshooting](14-troubleshooting.md#route-ends-in-a-static-file-extension).

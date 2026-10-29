@@ -67,9 +67,9 @@ the slug, collection permalink, or list route.
 
 ## Route Ends In A Static File Extension
 
-A `route.url` or permalink that ends in a static file extension such as `.css`,
+A route URL or permalink that ends in a static file extension such as `.css`,
 `.js`, `.pdf`, an image, font, archive, audio/video, or Office extension fails
-the build (`route.url` with the invalid internal URL code, permalink with the
+the build (route URL with the invalid internal URL code, permalink with the
 invalid permalink pattern code). Pages are rendered from templates, so these
 files cannot be routes. Put them in the theme's `static/` directory (copied to
 the same output path, e.g. `static/files/report.pdf` → `/files/report.pdf`) or
@@ -117,8 +117,8 @@ excludes `.bukit` reports and build state files.
 
 ## SCSS Process Diagnostics
 
-For non-CI CLI builds, set `logging.level: debug` to see `scss.tool.start` and
-`scss.tool.end` events. CI CLI builds retain their existing Warn minimum;
+For non-CI CLI builds, set `logging.level: debug` to see the SCSS tool start and
+end events. CI CLI builds retain their existing Warn minimum;
 library callers can collect Debug through their logger. Match the `attempt`
 ID to correlate probe/compile events even when workers interleave. `tool` is
 the logical `sass` or `dart-sass` candidate, not its physical resolved path.
