@@ -1237,7 +1237,7 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 
 `config`、`seo`、`geo`、`publish` 是无独立执行行为的父命令，分别由子命令成功路径覆盖；无子命令时返回 2。`dev` 为长驻服务，成功退出码由 `--help` 路径覆盖，服务行为另有 Dev/Preview 专项。
 
-修复后完整 CLI 专项 **1099/1099**、0 失败、0 跳过；`Bukit.Cli` 行覆盖 **7951/9013 = 88.22%**、`Bukit.Cli.Shared` **355/367 = 96.73%**；Architecture **415/415**；分析器棘轮 421/421。证据位于 `TestResults/coverage/cli-stage8-followup`。
+修复后完整 CLI 专项 **1099/1099**、0 失败、0 跳过；`Bukit.Cli` 行覆盖 **7951/9013 = 88.22%**、`Bukit.Cli.Shared` **355/367 = 96.73%**；Architecture **415/415**；分析器棘轮 421/421。证据位于 `TestResults/coverage/cli-stage8-followup`。正式 CI [run 40848651711](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40848651711)（提交 `b86f2b57`，SDK 10.0.403）Fast gate、Architecture、Fast contracts 与三平台全部成功；DeployCommandTests 13、PublishCommandTests 5 在三平台实际执行，Windows 仅既有 1 项 DevPathGuard N/A。平台证据位于 `/Users/ali/.local/state/bukit-verification/stage8-followup-ci-20261029/artifacts`。
 
 ### 阶段 9：插件体系
 
@@ -1361,6 +1361,6 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 | 2026-10-29 | 阶段 6 只读审计后经授权复验当前分支 `79df55f8`：完整 Engine 2934/2934、0 Skip（含全部已修复 KD）、Engine 行覆盖 89.92%，证据持久保存；跨平台与 CLI/PluginHost/Shared/Architecture 当前专项仍未验证；见 6.10 |
 | 2026-10-29 | 阶段 6 复审后经授权补跑非 Engine 专项（`800472a2`）：CLI 141/141、PluginHost 26/26、ConsoleLogger 21/21、Architecture owner 48/48，均 0 Skip；24 份报告正反例均有当前证据；§6.7 与矩阵 §6 标注为已清理的历史证据；见 6.11 |
 | 2026-10-29 | 接入 `TaxonomyRedirectWriterTests`、`CleanCommandTests` 至三平台 `platform-tests`；为通过 fast gate 修正既有断链、清除 5 条分析器回归、将 `NormalizeUrl(string, bool)` 改为 internal、补 Windows POSIX N/A 名单；CI run `40800207604` 三平台全部 success，完整 Engine 2934/2934、覆盖 89.92%；见 6.12 |
-| 2026-10-29 | 阶段 8 审计修复：无输出错误补充 `Run 'bukit build' first.`；确认 `--dry-run` 不校验 provider secrets 并补显式用例；补齐 `publish diff` 成功 0、`config schema` 失败 1；逐路径退出码矩阵入计划；CLI 1099/1099、0 跳过，Cli 88.22%、Cli.Shared 96.73%、Architecture 415/415 |
+| 2026-10-29 | 阶段 8 审计修复：无输出错误补充 `Run 'bukit build' first.`；确认 `--dry-run` 不校验 provider secrets 并补显式用例；补齐 `publish diff` 成功 0、`config schema` 失败 1；逐路径退出码矩阵入计划；CLI 1099/1099、0 跳过，Cli 88.22%、Cli.Shared 96.73%、Architecture 415/415；三平台 CI `40848651711` 全部成功 |
 | 2026-10-29 | 阶段 8 最终判定 **SUCCESS**：正式 CI `40844256570`（提交 `1fee2730`，SDK 10.0.403）三平台全部成功；CliContract 12、Completion 12、Deploy 12、Publish 4 在三平台实际执行，Windows 仅既有 1 项 DevPathGuard N/A；本地 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；首次运行 CA1502 超基线已修复并保留为诊断 |
 | 2026-10-29 | 阶段 8 首批：基线 CLI 1092/1092、Cli 88.05%、Cli.Shared 96.73%；补命令与 CLI 参考文档一致性、真实裸仓库分支/CNAME、version/completion 退出码用例；经用户单独授权修复 KD-001/KD-008，移除 Skip；完整 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；四个 CLI 测试类接入三平台 `platform-tests`，owner 自检通过；阶段保持 PARTIAL，待 Linux/Windows 实际执行证据 |
