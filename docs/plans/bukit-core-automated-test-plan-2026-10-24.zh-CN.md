@@ -1191,7 +1191,19 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 
 完整 CLI 专项 **1096/1096**、0 失败、0 跳过；`Bukit.Cli` 行覆盖 **7942/9013 = 88.12%**、`Bukit.Cli.Shared` **355/367 = 96.73%**；Architecture **415/415**。含有效 TRX 与 Cobertura 的最终证据为 `TestResults/coverage/cli-stage8-final3`。`CliContractTests`、`CompletionCommandTests`、`DeployCommandTests`、`PublishCommandTests` 已加入三平台 `platform-tests`，`test-infrastructure-platform-self-test.py` 直接 owner 自检通过；正式 CI 见下文。
 
-**仍待完成：** Linux x64 与 Windows x64 的实际平台执行证据；未运行正式 `gate=platform`、全量解决方案测试、覆盖率门禁或发布门禁。取得三平台证据前阶段 8 保持 PARTIAL。
+**仍待完成：** 正式三平台执行证据（见下节）。
+
+#### 阶段 8 最终判定（2026-10-29）
+
+**阶段 8：SUCCESS。** 正式 CI [run 40844256570](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40844256570) 对提交 `1fee2730` 执行 `gate=platform`，Fast gate、Fast contracts、Architecture 与三个平台全部成功；实际 SDK **10.0.403**。首次运行 `40842704489` 在 Fast gate 报 CA1502 复杂度 36 > 35，已在 `1fee2730` 通过提取 `DeployCommand.ValidateExistingOutput` 修复，保留为诊断记录。
+
+| 平台 | CLI 新增/受影响类实际执行数 | 允许的平台 N/A | 来源 |
+|---|---|---|---|
+| Linux x64 | CliContract 12、Completion 12、Deploy 12、Publish 4、Clean 29 | 0 | 第一次 |
+| macOS arm64 | 同上，另 Preview 20、PreviewExtended 78、Dev 69 | 0 | 第一次 |
+| Windows x64 | 同上，另 Preview 20、PreviewExtended 78、Dev 68 | 1（既有 DevPathGuard POSIX 比较） | 第一次 |
+
+三个平台均无失败、无未批准跳过、无验证缺口；`platform.json`、逐项目 TRX、`dotnet-info.txt` 与磁盘满专项位于 `/Users/ali/.local/state/bukit-verification/stage8-platform-ci-20261029/artifacts`。本地最终覆盖率证据仍为 `TestResults/coverage/cli-stage8-final3`：CLI 1096/1096、Cli 88.12%、Cli.Shared 96.73%。未运行全量解决方案测试、覆盖率总门禁或发布门禁。
 
 ### 阶段 9：插件体系
 
@@ -1315,4 +1327,5 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 | 2026-10-29 | 阶段 6 只读审计后经授权复验当前分支 `79df55f8`：完整 Engine 2934/2934、0 Skip（含全部已修复 KD）、Engine 行覆盖 89.92%，证据持久保存；跨平台与 CLI/PluginHost/Shared/Architecture 当前专项仍未验证；见 6.10 |
 | 2026-10-29 | 阶段 6 复审后经授权补跑非 Engine 专项（`800472a2`）：CLI 141/141、PluginHost 26/26、ConsoleLogger 21/21、Architecture owner 48/48，均 0 Skip；24 份报告正反例均有当前证据；§6.7 与矩阵 §6 标注为已清理的历史证据；见 6.11 |
 | 2026-10-29 | 接入 `TaxonomyRedirectWriterTests`、`CleanCommandTests` 至三平台 `platform-tests`；为通过 fast gate 修正既有断链、清除 5 条分析器回归、将 `NormalizeUrl(string, bool)` 改为 internal、补 Windows POSIX N/A 名单；CI run `40800207604` 三平台全部 success，完整 Engine 2934/2934、覆盖 89.92%；见 6.12 |
+| 2026-10-29 | 阶段 8 最终判定 **SUCCESS**：正式 CI `40844256570`（提交 `1fee2730`，SDK 10.0.403）三平台全部成功；CliContract 12、Completion 12、Deploy 12、Publish 4 在三平台实际执行，Windows 仅既有 1 项 DevPathGuard N/A；本地 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；首次运行 CA1502 超基线已修复并保留为诊断 |
 | 2026-10-29 | 阶段 8 首批：基线 CLI 1092/1092、Cli 88.05%、Cli.Shared 96.73%；补命令与 CLI 参考文档一致性、真实裸仓库分支/CNAME、version/completion 退出码用例；经用户单独授权修复 KD-001/KD-008，移除 Skip；完整 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；四个 CLI 测试类接入三平台 `platform-tests`，owner 自检通过；阶段保持 PARTIAL，待 Linux/Windows 实际执行证据 |
