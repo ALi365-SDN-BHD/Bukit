@@ -1239,11 +1239,11 @@ public sealed class GitHubPagesDeployProviderTests
         await Git("init");
         await Git("config", "user.name", "test");
         await Git("config", "user.email", "test@example.invalid");
-        await Git("checkout", "-b", "gh-pages");
+        await Git("checkout", "-b", "pages");
         File.WriteAllText(Path.Combine(scope.WorktreeDir, "old.html"), "old page");
         await Git("add", "old.html");
         await Git("commit", "-m", "seed");
-        await Git("push", remote, "gh-pages");
+        await Git("push", remote, "pages");
         await Git("remote", "add", "origin", "https://github.com/test/local.git");
         string Quote(string value) => "'" + value.Replace("'", "'\\''") + "'";
         WriteExecutable(scope.FakeGit.BinDir, "git", $"""
@@ -1255,10 +1255,14 @@ public sealed class GitHubPagesDeployProviderTests
             fi
             exec {Quote(realGit)} "$@"
             """);
-        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(keepHistory: true), CancellationToken.None);
+        var result = await new GitHubPagesDeployProvider().DeployAsync(
+            scope.CreateContext(keepHistory: true, branch: "pages", cname: "WWW.Example.Com"),
+            CancellationToken.None);
         Assert.True(result.Success, result.Error);
-        Assert.Equal("new page", (await Git("--git-dir", remote, "show", "gh-pages:index.html")).Trim());
-        var files = await Git("--git-dir", remote, "ls-tree", "--name-only", "gh-pages");
+        Assert.Equal("https://www.example.com", result.DeployedUrl);
+        Assert.Equal("new page", (await Git("--git-dir", remote, "show", "pages:index.html")).Trim());
+        Assert.Equal("www.example.com", (await Git("--git-dir", remote, "show", "pages:CNAME")).Trim());
+        var files = await Git("--git-dir", remote, "ls-tree", "--name-only", "pages");
         Assert.DoesNotContain("old.html", files);
         Assert.DoesNotContain("askpass", files);
         Assert.DoesNotContain(".bukit", files);

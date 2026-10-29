@@ -120,7 +120,7 @@ public static class SeoCommand
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(fullPath));
-            AuditReportContractValidator.ValidateReportContract(doc.RootElement, contract);
+            var validatedContract = AuditReportContractValidator.ValidateReportContract(doc.RootElement, contract);
             var summary = doc.RootElement.GetProperty("summary");
             var errorCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "errorCount");
             var warningCount = SeoReportValidator.ReadRequiredInt(summary, "summary", "warningCount");
@@ -138,7 +138,10 @@ public static class SeoCommand
 
             if (external)
             {
-                var externalResult = await SeoExternalAuditor.RunExternalAuditAsync(doc.RootElement, outputDir);
+                var externalResult = await SeoExternalAuditor.RunExternalAuditAsync(
+                    doc.RootElement,
+                    outputDir,
+                    validatedContract == SeoReportValidator.AuditReportContract.PublishOnly);
                 errorCount += externalResult.Errors;
                 warningCount += externalResult.Warnings;
             }

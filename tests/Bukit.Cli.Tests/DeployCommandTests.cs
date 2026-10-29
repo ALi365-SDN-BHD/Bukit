@@ -8,54 +8,6 @@ namespace Bukit.Cli.Tests;
 public sealed class DeployCommandTests
 {
     [Fact]
-    public async Task RunAsync_DryRunBuildUsesAlreadyLoadedConfigAndOutputOverride()
-    {
-        string root = Path.Combine(Path.GetTempPath(), "bukit-deploy-once-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(Path.Combine(root, "selected"));
-        string path = Path.Combine(root, "site.yaml");
-        File.WriteAllText(Path.Combine(root, "selected", "sentinel.txt"), "preserved");
-        File.WriteAllText(path, "site:\n  name: test\n  title: Test\n  url: https://example.com\ncontent:\n  sources:\n    - type: markdown\n      markdown:\n        dir: content\nbuild:\n  output: unused\n  followSymlinks: true\nlogging:\n  level: warn\n");
-        var original = Console.Error;
-        using var writer = new ConfigReplacingWriter(path);
-        try
-        {
-            Console.SetError(writer);
-            var command = new CliBoundCommand(new Dictionary<string, string?>
-            {
-                ["--config"] = path, ["--output"] = "selected", ["--dry-run"] = "true",
-                ["--base-url"] = "/override", ["--site-url"] = "https://override.example"
-            }, []);
-            var error = await Assert.ThrowsAsync<Bukit.Shared.ConfigException>(() => DeployCommand.RunAsync(command, "json"));
-            Assert.Contains(".bukit-output-marker", error.Message, StringComparison.Ordinal);
-            Assert.Equal(1, writer.Replacements);
-            using var warning = System.Text.Json.JsonDocument.Parse(writer.ToString());
-            Assert.Equal("Warn", warning.RootElement.GetProperty("level").GetString());
-            Assert.Equal("preserved", File.ReadAllText(Path.Combine(root, "selected", "sentinel.txt")));
-            Assert.False(Directory.Exists(Path.Combine(root, "unused")));
-            Assert.False(Directory.Exists(Path.Combine(root, ".git")));
-        }
-        finally
-        {
-            Console.SetError(original);
-            TestCleanup.DeleteDirectory(root);
-        }
-    }
-
-    private sealed class ConfigReplacingWriter(string path) : StringWriter
-    {
-        internal int Replacements { get; private set; }
-        public override void WriteLine(string? value)
-        {
-            base.WriteLine(value);
-            if (value?.Contains("build.followSymlinks", StringComparison.Ordinal) == true)
-            {
-                Replacements++;
-                File.WriteAllText(path, "site: [");
-            }
-        }
-    }
-
-    [Fact]
     public async Task RunAsync_BuildFails_PreservesOutputAndNeverEntersProvider()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-build-failure-" + Guid.NewGuid().ToString("N"));
@@ -169,6 +121,79 @@ public sealed class DeployCommandTests
     }
 
     [Fact]
+    public async Task RunAsync_DryRun_WithoutSkipBuild_DoesNotBuildOrModifyExistingOutput()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-dry-run-" + Guid.NewGuid().ToString("N"));
+        var originalError = Console.Error;
+        var writer = new StringWriter();
+
+        try
+        {
+            var outputDir = Path.Combine(root, "dist");
+            var layoutsDir = Path.Combine(root, "layouts");
+            Directory.CreateDirectory(outputDir);
+            Directory.CreateDirectory(Path.Combine(root, "content"));
+            Directory.CreateDirectory(Path.Combine(layoutsDir, "layouts"));
+            Directory.CreateDirectory(Path.Combine(layoutsDir, "pages"));
+            File.WriteAllText(Path.Combine(outputDir, ".bukit-output-marker"), "Bukit output directory");
+            File.WriteAllText(Path.Combine(outputDir, ".bukit-build-state.json"), "{\"version\":1,\"status\":\"completed\"}");
+            File.WriteAllText(Path.Combine(outputDir, "sentinel.txt"), "preserved");
+            File.WriteAllText(Path.Combine(root, "content", "page.md"), "---\ntitle: Page\ncollection: page\n---\nBody.");
+            File.WriteAllText(Path.Combine(layoutsDir, "layouts", "base.html"), "<!doctype html><html><body>{{ page.content }}</body></html>");
+            File.WriteAllText(Path.Combine(layoutsDir, "pages", "page.html"), "{% layout \"layouts/base.html\" %}<h1>{{ page.title }}</h1>{{ page.content }}");
+            File.WriteAllText(Path.Combine(layoutsDir, "pages", "index.html"), "{% layout \"layouts/base.html\" %}<h1>{{ page.title }}</h1>{{ page.content }}");
+            var siteYaml = Path.Combine(root, "site.yaml");
+            File.WriteAllText(siteYaml, """
+            site:
+              name: test
+              title: Test
+              url: https://example.com
+              collections:
+                page:
+                  permalink: /{slug}/
+                  template: pages/page.html
+            content:
+              sources:
+                - type: markdown
+                  name: page
+                  collection: page
+                  markdown:
+                    dir: content
+            theme:
+              layouts: layouts
+            deploy:
+              provider: github-pages
+            build:
+              output: dist
+            """);
+
+            Console.SetError(writer);
+
+            var exitCode = await DeployCommand.RunAsync(new CliBoundCommand(
+                new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["--config"] = siteYaml,
+                    ["--dry-run"] = "true"
+                },
+                Array.Empty<string>()));
+
+            Assert.Equal(0, exitCode);
+            Assert.Equal("preserved", File.ReadAllText(Path.Combine(outputDir, "sentinel.txt")));
+            Assert.Equal(
+                [".bukit-build-state.json", ".bukit-output-marker", "sentinel.txt"],
+                Directory.EnumerateFileSystemEntries(outputDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        }
+        finally
+        {
+            Console.SetError(originalError);
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_DryRunSkipBuildWithNotionSourceWithoutNotionToken_ReturnsZero()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));
@@ -227,7 +252,7 @@ public sealed class DeployCommandTests
     }
 
     [Fact]
-    public async Task RunAsync_DryRunWithoutSkipBuildAndNotionToken_ReturnsConfigError()
+    public async Task RunAsync_DryRunWithoutSkipBuild_MissingOutput_ReturnsErrorWithoutBuild()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-command-" + Guid.NewGuid().ToString("N"));
         var originalError = Console.Error;
@@ -265,7 +290,7 @@ public sealed class DeployCommandTests
                 Array.Empty<string>()));
 
             Assert.Equal(1, exitCode);
-            Assert.Contains("NOTION_TOKEN is required for notion provider", writer.ToString(), StringComparison.Ordinal);
+            Assert.Contains("Output directory not found:", writer.ToString(), StringComparison.Ordinal);
         }
         finally
         {

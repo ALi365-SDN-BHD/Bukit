@@ -70,7 +70,7 @@ def check(workflow):
         expected = {
             "Bukit.PluginHost.Tests": ["SystemProcessRunnerTests", "PluginPathValidatorTests", "PluginProtocolProbeTests"],
             "Bukit.Engine.Tests": ["ExternalToolProcessRunnerTests", "TestInfrastructureTests", "OutputDirectoryCleanerTests", "AssetPipelineTests", "TaxonomyRedirectWriterTests", "Stage7GoldenTests", "Stage7DeterminismTests", "Stage7I18nAggregateTests", "Stage7ParallelTests", "Stage7FailureTests", "Stage7PluginFailureTests"],
-            "Bukit.Cli.Tests": ["CleanCommandTests"],
+            "Bukit.Cli.Tests": ["CleanCommandTests", "CliContractTests", "CompletionCommandTests", "DeployCommandTests", "PublishCommandTests"],
         }
         if os_name != "Linux":
             expected["Bukit.Engine.Tests"] += ["SafeOutputFileSystemTests", "DirectoryCopyFollowSymlinksTests"]

@@ -48,6 +48,35 @@ public sealed class PublishCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_Audit_ExternalWithPublishReport_AuditsDocuments()
+    {
+        var dist = Path.Combine(_tempDir, "dist");
+        var bookkeeping = Path.Combine(dist, ".bukit");
+        Directory.CreateDirectory(Path.Combine(dist, "post"));
+        Directory.CreateDirectory(bookkeeping);
+        File.WriteAllText(Path.Combine(dist, "post", "index.html"),
+            "<html><body><a href=\"http://127.0.0.1:9/about\">About</a></body></html>");
+        File.WriteAllText(Path.Combine(dist, ".bukit-build-state.json"),
+            "{\"version\":1,\"status\":\"completed\"}");
+        var reportPath = Path.Combine(bookkeeping, "publish-audit-report.json");
+        File.WriteAllText(reportPath, ValidPublishReportJson("http://127.0.0.1:9/post/"));
+
+        var result = await InvokeAsync(new CliBoundCommand(
+            new Dictionary<string, string?>
+            {
+                ["--dir"] = dist,
+                ["--report"] = reportPath,
+                ["--external"] = "true"
+            },
+            ["audit"]));
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("external error seo.external_fetch_failed - canonical /post/", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("external warning seo.external_fetch_failed - link", result.StdOut, StringComparison.Ordinal);
+        Assert.Contains("http://127.0.0.1:9/about", result.StdOut, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunAsync_Diff_MissingBaselineAndCurrent_ReturnsTwo()
     {
         var result = await InvokeAsync(new CliBoundCommand(
@@ -79,7 +108,7 @@ public sealed class PublishCommandTests : IDisposable
         }
     }
 
-    private static string ValidPublishReportJson() => """
+    private static string ValidPublishReportJson(string canonical = "https://example.com/post/") => """
         {
           "schema": "https://bukit.dev/schemas/publish-audit-report.v1.json",
           "schemaVersion": "1.0",
@@ -90,7 +119,7 @@ public sealed class PublishCommandTests : IDisposable
             {
               "routeUrl": "/post/",
               "outputPath": "post/index.html",
-              "canonical": "https://example.com/post/",
+              "canonical": "__CANONICAL__",
               "indexable": true,
               "lastModified": "2026-01-01T00:00:00Z",
               "representationKinds": ["html", "semantic-html", "json", "markdown", "llms-full"],
@@ -118,5 +147,5 @@ public sealed class PublishCommandTests : IDisposable
             "warningCount": 0
           }
         }
-        """;
+        """.Replace("__CANONICAL__", canonical, StringComparison.Ordinal);
 }

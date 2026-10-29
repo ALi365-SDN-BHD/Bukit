@@ -7,7 +7,10 @@ namespace Bukit.Cli.Commands;
 
 internal static class SeoExternalAuditor
 {
-    internal static async Task<(int Errors, int Warnings)> RunExternalAuditAsync(JsonElement report, string outputDir)
+    internal static async Task<(int Errors, int Warnings)> RunExternalAuditAsync(
+        JsonElement report,
+        string outputDir,
+        bool isPublishReport = false)
     {
         var ssrfHandler = new System.Net.Http.SocketsHttpHandler
         {
@@ -19,16 +22,22 @@ internal static class SeoExternalAuditor
         var warnings = 0;
         var checkedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var route in report.GetProperty("routes").EnumerateArray())
+        var entries = isPublishReport ? report.GetProperty("documents") : report.GetProperty("routes");
+        var entryPath = isPublishReport ? "document" : "route";
+
+        foreach (var route in entries.EnumerateArray())
         {
-            var routeUrl = SeoReportValidator.ReadRequiredString(route, "route", "url");
-            var canonical = SeoReportValidator.ReadRequiredString(route, "route", "canonical");
+            var routeUrl = SeoReportValidator.ReadRequiredString(
+                route,
+                entryPath,
+                isPublishReport ? "routeUrl" : "url");
+            var canonical = SeoReportValidator.ReadRequiredString(route, entryPath, "canonical");
             if (await CheckUrlAsync(http, canonical, $"canonical {routeUrl}", checkedUrls, severity: "error"))
             {
                 errors++;
             }
 
-            var outputPath = Path.Combine(outputDir, SeoReportValidator.ReadRequiredString(route, "route", "outputPath"));
+            var outputPath = Path.Combine(outputDir, SeoReportValidator.ReadRequiredString(route, entryPath, "outputPath"));
             if (!File.Exists(outputPath))
             {
                 continue;

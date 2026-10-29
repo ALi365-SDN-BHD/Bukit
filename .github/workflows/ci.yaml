@@ -168,7 +168,7 @@ jobs:
           classes = {
               "Bukit.PluginHost.Tests": ["Bukit.PluginHost.Tests.SystemProcessRunnerTests", "Bukit.PluginHost.Tests.PluginPathValidatorTests", "Bukit.PluginHost.Tests.PluginProtocolProbeTests"],
               "Bukit.Engine.Tests": ["Bukit.Engine.Tests.ExternalToolProcessRunnerTests", "Bukit.Engine.Tests.TestInfrastructureTests", "Bukit.Engine.Tests.OutputDirectoryCleanerTests", "Bukit.Engine.Tests.AssetPipelineTests", "Bukit.Engine.Tests.TaxonomyRedirectWriterTests", "Bukit.Engine.Tests.Stage7GoldenTests", "Bukit.Engine.Tests.Stage7DeterminismTests", "Bukit.Engine.Tests.Stage7I18nAggregateTests", "Bukit.Engine.Tests.Stage7ParallelTests", "Bukit.Engine.Tests.Stage7FailureTests", "Bukit.Engine.Tests.Stage7PluginFailureTests"],
-              "Bukit.Cli.Tests": ["Bukit.Cli.Tests.CleanCommandTests"],
+              "Bukit.Cli.Tests": ["Bukit.Cli.Tests.CleanCommandTests", "Bukit.Cli.Tests.CliContractTests", "Bukit.Cli.Tests.CompletionCommandTests", "Bukit.Cli.Tests.DeployCommandTests", "Bukit.Cli.Tests.PublishCommandTests"],
           }
           if actual_os != "Linux":
               classes["Bukit.Engine.Tests"] += ["Bukit.Engine.Tests.SafeOutputFileSystemTests", "Bukit.Engine.Tests.DirectoryCopyFollowSymlinksTests"]
