@@ -1205,6 +1205,40 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 
 三个平台均无失败、无未批准跳过、无验证缺口；`platform.json`、逐项目 TRX、`dotnet-info.txt` 与磁盘满专项位于 `/Users/ali/.local/state/bukit-verification/stage8-platform-ci-20261029/artifacts`。本地最终覆盖率证据仍为 `TestResults/coverage/cli-stage8-final3`：CLI 1096/1096、Cli 88.12%、Cli.Shared 96.73%。未运行全量解决方案测试、覆盖率总门禁或发布门禁。
 
+#### 阶段 8 审计修复（2026-10-29）
+
+只读审计确认 CI 与三平台证据属实，并提出三项收口。经用户确认后执行：
+
+- **A（Core，已修）**：`deploy --dry-run` 或 `--skip-build` 缺少输出目录时，错误提示现在包含 `Run 'bukit build' first.`；测试断言完整提示，不再只匹配前缀。
+- **B（行为确认，无 Core 变更）**：接受 `--dry-run` 不校验 provider secrets。dry-run 的契约是“只校验现有输出”，`NOTION_TOKEN` 等属于构建/provider 输入。已补显式用例：有效输出 + Notion source + 无 token + 不带 `--skip-build` → 0；并同步第 9 节决定 4 与 CLI 参考文档。
+- **C（测试，已补）**：逐注册路径核对退出码。`publish diff` 增加相同报告的 0 用例，`config schema` 增加输出路径为目录时的 1 用例；其余路径沿用既有成功/失败用例。
+
+| 注册路径 | 成功退出码用例 | 失败退出码用例 |
+|---|---|---|
+| `build` | `ImportThenBuild_GeneratedListPageRendersListTitle` (0) | `RunAsync_MissingConfig_ReturnsExitCode2` (2) |
+| `doctor` | `RunAsync_Passes_WhenCollectionsNotConfiguredAndNoContentUsesOnlyHome` (0) | `RunAsync_ReturnsError_WhenThemeManifestHasUnknownField` (1) |
+| `config check` | `Check_ValidConfig_ReturnsZero` (0) | `Check_InvalidConfig_ReturnsOne` (1) |
+| `config schema` | `Schema_WritesJsonSchemaToOutputFile` (0) | `Schema_OutputPathIsDirectory_ReturnsOne` (1) |
+| `preview` | `RunAsync_ExplicitConfig_WinsOverNearestSiteYaml` (取消后 0) | `RunAsync_MissingDir_ReturnsExitCode2` (2) |
+| `dev` | `Main_DevHelp_PrintsLiveReloadDescription` (0) | `LoggerStartup_DevLanRefusalPrecedesMissingConfigAndUsesJsonBootstrap` (2) |
+| `clean` | `RunAsync_WithConfig_CleansOutput` (0) | `RunAsync_PathTraversal_ReturnsError` (2) |
+| `version` | `RunAsync_ReturnsZero` (0) | `Main_VersionUnknownOption_ReturnsTwo` (2) |
+| `completion` | `RunAsync_ValidShell_ReturnsZero` (0) | `RunAsync_InvalidShell_ReturnsTwo` (2) |
+| `seo audit` | `Main_SeoAudit_WithValidReport_ReturnsZero` (0) | `RunAsync_Audit_WhenReportMissing_ReturnsOne` (1) |
+| `seo diff` | `RunAsync_Diff_WithArgumentsAndNoChanges_ReturnsZero` (0) | `Diff_WhenContractRequiresPublishButSeoReportProvided_ReturnsTwo` (2) |
+| `seo insights` | `RunAsync_ValidInputs_WritesConfiguredReportAndCountsFindingsOnce` (0) | `RunAsync_SemanticallyDuplicateObservationPaths_ReturnsTwoWithoutLeakingPaths` (2) |
+| `seo question-insights` | `RunAsync_ValidInputs_WritesDefaultReportAndReturnsZero` (0) | `RunAsync_MissingTargets_ReturnsTwoWithStableCode` (2) |
+| `seo generative-insights` | `RunAsync_JoinGapWithoutStrict_ReturnsZeroWithGapClassification` (0) | `RunAsync_MissingObservations_ReturnsTwoWithStableCode` (2) |
+| `seo authority-insights` | `RunAsync_JoinGapWithoutStrict_ReturnsZeroWithGapClassification` (0) | `RunAsync_MissingObservations_ReturnsTwoWithStableCode` (2) |
+| `geo audit` | `Main_GeoAudit_WithValidReport_ReturnsZero` (0) | `RunAsync_Audit_WithInvalidJson_ReturnsOne` (1) |
+| `publish audit` | `RunAsync_Audit_WithExplicitValidReport_ReturnsZero` (0) | `Main_PublishAudit_WithoutReport_ReturnsOne` (1) |
+| `publish diff` | `RunAsync_Diff_WithIdenticalValidReports_ReturnsZero` (0) | `RunAsync_Diff_MissingBaselineAndCurrent_ReturnsTwo` (2) |
+| `deploy` | `RunAsync_DryRunSkipBuild_ReturnsZero` (0) | `RunAsync_DryRunWithoutSkipBuild_MissingOutput_ReturnsErrorWithoutBuild` (1) |
+
+`config`、`seo`、`geo`、`publish` 是无独立执行行为的父命令，分别由子命令成功路径覆盖；无子命令时返回 2。`dev` 为长驻服务，成功退出码由 `--help` 路径覆盖，服务行为另有 Dev/Preview 专项。
+
+修复后完整 CLI 专项 **1099/1099**、0 失败、0 跳过；`Bukit.Cli` 行覆盖 **7951/9013 = 88.22%**、`Bukit.Cli.Shared` **355/367 = 96.73%**；Architecture **415/415**；分析器棘轮 421/421。证据位于 `TestResults/coverage/cli-stage8-followup`。
+
 ### 阶段 9：插件体系
 
 - PluginHost：清单加载与迁移、平台选择、哈希与路径校验、权限评估、环境清空与白名单、密钥掩码。
@@ -1281,7 +1315,7 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 | 1 | 覆盖率目标 | 整体行覆盖 ≥ 84%，每个 Core 源项目 ≥ 70%；仅对 Engine 安全层上调：`BuildTransaction`、`OutputDirectoryCleaner`、`AssetOutputPlan` 各自行覆盖 ≥ 95% | 所有阶段统一使用本行阈值；阶段 5 按第 4.4 节分别验证安全层，最终验收另验整体与全部源项目 |
 | 2 | `modelSchema` 缺必填键的条目 | 加载时报错 | 阶段 2：测试期望抛 `ConfigException` |
 | 3 | `clean` 对 `.bukit/plugins.yaml` 与 `plugins.lock.yaml` | 保留，只删缓存与构建产物 | 阶段 5：测试期望配置与锁文件不被删除 |
-| 4 | `deploy --dry-run` | 不构建，只校验现有输出；无输出时给出明确错误，提示先 build | 阶段 8：测试期望输出目录不被改动 |
+| 4 | `deploy --dry-run` | 不构建，只校验现有输出；无输出时报错并提示先 build；不校验 provider secrets | 阶段 8：测试期望输出目录不被改动 |
 | 5 | 范围 | 只做 Core，外部插件与 Labs 后置 | 阶段 9 只含 PluginHost 与协议；阶段 11 及外部插件契约延后 |
 | 6 | 别名含 `..` 或绝对路径 | 拒绝并报错，给出诊断码 | 阶段 5：测试期望构建失败且不写入任何文件 |
 
@@ -1327,5 +1361,6 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 | 2026-10-29 | 阶段 6 只读审计后经授权复验当前分支 `79df55f8`：完整 Engine 2934/2934、0 Skip（含全部已修复 KD）、Engine 行覆盖 89.92%，证据持久保存；跨平台与 CLI/PluginHost/Shared/Architecture 当前专项仍未验证；见 6.10 |
 | 2026-10-29 | 阶段 6 复审后经授权补跑非 Engine 专项（`800472a2`）：CLI 141/141、PluginHost 26/26、ConsoleLogger 21/21、Architecture owner 48/48，均 0 Skip；24 份报告正反例均有当前证据；§6.7 与矩阵 §6 标注为已清理的历史证据；见 6.11 |
 | 2026-10-29 | 接入 `TaxonomyRedirectWriterTests`、`CleanCommandTests` 至三平台 `platform-tests`；为通过 fast gate 修正既有断链、清除 5 条分析器回归、将 `NormalizeUrl(string, bool)` 改为 internal、补 Windows POSIX N/A 名单；CI run `40800207604` 三平台全部 success，完整 Engine 2934/2934、覆盖 89.92%；见 6.12 |
+| 2026-10-29 | 阶段 8 审计修复：无输出错误补充 `Run 'bukit build' first.`；确认 `--dry-run` 不校验 provider secrets 并补显式用例；补齐 `publish diff` 成功 0、`config schema` 失败 1；逐路径退出码矩阵入计划；CLI 1099/1099、0 跳过，Cli 88.22%、Cli.Shared 96.73%、Architecture 415/415 |
 | 2026-10-29 | 阶段 8 最终判定 **SUCCESS**：正式 CI `40844256570`（提交 `1fee2730`，SDK 10.0.403）三平台全部成功；CliContract 12、Completion 12、Deploy 12、Publish 4 在三平台实际执行，Windows 仅既有 1 项 DevPathGuard N/A；本地 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；首次运行 CA1502 超基线已修复并保留为诊断 |
 | 2026-10-29 | 阶段 8 首批：基线 CLI 1092/1092、Cli 88.05%、Cli.Shared 96.73%；补命令与 CLI 参考文档一致性、真实裸仓库分支/CNAME、version/completion 退出码用例；经用户单独授权修复 KD-001/KD-008，移除 Skip；完整 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；四个 CLI 测试类接入三平台 `platform-tests`，owner 自检通过；阶段保持 PARTIAL，待 Linux/Windows 实际执行证据 |

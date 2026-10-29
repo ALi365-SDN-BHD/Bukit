@@ -155,7 +155,7 @@ public static class DeployCommand
     {
         if (!Directory.Exists(outputDir))
         {
-            logger.Error($"Output directory not found: {outputDir}");
+            logger.Error($"Output directory not found: {outputDir}. Run 'bukit build' first.");
             return false;
         }
 
