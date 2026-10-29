@@ -116,9 +116,9 @@ SCSS 用例在完整 Engine 本次通过，源 SCSS 保留且三个语言只编�
 
 历史最终状态更新后检查静态文档和 974 项实现输入不变；原工作树 24 个未提交文件及 HEAD 保持原样。上述历史缓存不因本次 Engine 修复而冒称当前闭包 HIT；未提交、推送或合并。
 
-## 6. 审计修复后的当前专项证据与已接受复核
+## 6. 审计修复后的专项证据与已接受复核（历史，证据根已清理）
 
-当前证据根 `R=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-repairs-APNcZD`；确切命令见 R/commands.json 及 `docs/plans/2026-10-28-core-stage6-audit-repairs.md`。
+当时证据根 `R=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-repairs-APNcZD`（系统临时目录，已被清理，现不可复核；当前证据见 §7）；确切命令见 R/commands.json 及 `docs/plans/2026-10-28-core-stage6-audit-repairs.md`。
 
 | 命令 key | 实际结果 | 证据（相对当前 R） |
 |---|---|---|
@@ -149,4 +149,15 @@ KD-002/003/004、全 Core 覆盖率、stage-7 连续二十次稳定性、发布�
 | Engine 行覆盖 | **14701/16349 = 89.92% ≥70%** | `coverage/coverage-summary.json`、`final-evidence.json` |
 | 缓存 | 记录后检查 HIT | `engine-cache.json` |
 
-一个 Windows-only NOT_APPLICABLE 用例在 macOS 记为 Passed，不算 Windows 证明。CLI、PluginHost、Shared、Architecture 专项及 Linux/Windows `platform-tests` 本次未运行。
+一个 Windows-only NOT_APPLICABLE 用例在 macOS 记为 Passed，不算 Windows 证明。
+
+同日经授权对 `800472a2`（相对上表仅文档变化）补跑非 Engine 专项，持久证据根 `C=/Users/ali/.local/state/bukit-verification/stage6-consumers-current-2ZqUpM`：
+
+| 验证 | 结果 | 证据（相对 C） |
+|---|---|---|
+| CLI 报告、错误 envelope、clean 与入口 | **141 Passed / 0 Failed / 0 Skip** | `cli/**/cli.trx`、`cli.log` |
+| PluginHost reporter 与调用方 | **26 / 0 / 0** | `plugin/**/plugin.trx` |
+| Shared ConsoleLogger | **21 / 0 / 0** | `shared/**/shared.trx` |
+| Architecture 直接 owner | **48 / 0 / 0** | `owner/**/owner.trx` |
+
+四组均记录缓存并检查 HIT（`*-cache.json`）。§4 中由 CLI／PluginHost 承接的 6 份报告（四个 CLI writer、cli-error、plugin-execution-report），其清单绑定的测试方法均在上述 TRX 中为 Passed，24 份报告正反例因此均有当前证据。Linux/Windows `platform-tests` 仍未运行。

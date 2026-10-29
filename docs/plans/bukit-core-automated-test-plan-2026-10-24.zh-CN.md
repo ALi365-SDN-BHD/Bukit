@@ -760,7 +760,7 @@ git diff --check
 
 出口：Engine 达到第 9 节的单项目覆盖率下限；当前 Core 报告清单中的每份报告均有真实生成的通过用例，以及按对应 schema 拒绝错误字段或类型的失败用例。
 
-**现行进度：清单与审计修复见 §6.6–6.7，当前完整 Engine 出口证据见 §6.10。** §6.1–6.5 保留历史失败、撤回候选和当时 PARTIAL/BLOCKED 状态，不是当前完成证据。
+**现行进度：清单与审计修复见 §6.6–6.7；当前证据为 §6.10（完整 Engine 与覆盖率）和 §6.11（CLI／PluginHost／Shared／Architecture），剩余缺口为 Linux／Windows 平台专项。** §6.1–6.5 保留历史失败、撤回候选和当时 PARTIAL/BLOCKED 状态，不是当前完成证据。
 
 #### 6.1 首批测试与未完成项（2026-10-28）
 
@@ -920,7 +920,7 @@ git diff --check
 
 第五步只读专项复核 `05-specialty-review.md` 无 finding。`final-review-scope.json` 只生成一次，唯一最终增量复核 `final-unified-review.md` 批准收口：Critical 0 / Important 0 / Minor 1，唯一 Minor 是第四步已记录的无行为影响测试冗余块，无新增发现。此前确切命令缓存随后续闭包变化失效，最终完整专项替代它们；没有将历史缓存或撤回候选称为当前命中。最终仅更新结果状态，并静态核对 974 项实现输入仍为被验证的字节；不重跑未变化 fixture，不自动提交、推送、合并或归档变更。
 
-#### 6.7 独立审计后的最小修复与当前证据（2026-10-28）
+#### 6.7 独立审计后的最小修复与当时证据（2026-10-28；证据根已清理，当前证据见 §6.10–6.11）
 
 **阶段 6：本轮授权范围 COMPLETE；七项审计问题已修复并通过规定复核。** 用户授权深入定位并实际修复审计 I-01/I-02/I-03、M-01–M-04；现有 worktree 内单 writer 串行实施，保留审计前 44 个变更文件及原 974 项输入在授权范围外的字节，不自动提交。OpenSpec 3/4/5 均已完成；一次 combined spec-then-quality 专项复核与一次 delta-only 最终复核均为 0 Critical / 0 Important / 0 Minor。此结论不扩展到继承缺陷或全 Core／发布验收。
 
@@ -1006,6 +1006,19 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --sett
 | 缓存／指标 | `R/engine-cache.json` 按 HEAD、闭包内容、确切命令、环境变量名状态和 SDK 10.0.100 记录并检查 HIT；`R/metrics.json` 记录 test 阶段；汇总见 `R/final-evidence.json` |
 
 未覆盖：CLI、PluginHost、Shared、Architecture 的改动只有 §6.6 的历史专项结果（其证据根同样已清理），本次未重跑；Linux／Windows `platform-tests`（`TestInfrastructureTests`、`ExternalToolProcessRunnerTests` 已改动但未在两平台运行；`TaxonomyRedirectWriterTests`、`CleanCommandTests` 尚未接入，前者的 `SkipException.ForSkip` 在 xUnit 2.9.3 下不等于 Skip）；全 Core 覆盖率、阶段 7 及发布门禁。SCSS 历史根因仍未知。
+
+#### 6.11 CLI、PluginHost、Shared 与 Architecture 当前专项（2026-10-29）
+
+**报告契约出口：24 份报告均有当前通过证据；阶段 6 仅剩跨平台缺口。** 复审发现 §4 台账中 6 份报告（`seo-insights-report`、`seo-question-insights-report`、`generative-citation-report`、`external-authority-report`、`cli-error`、`plugin-execution-report`）由 CLI／PluginHost 测试承接，其通过证据只存在于已清理的 §6.6 临时目录。经授权对 `800472a2`（相对 §6.10 仅文档变化）补跑 §6.6 的四条专项命令；CLI 过滤额外加入 KD-002 后改动的 `CleanCommandTests|CliContractTests`。持久证据根 `C=/Users/ali/.local/state/bukit-verification/stage6-consumers-current-2ZqUpM`，确切命令见 `C/commands.json`，闭包无未映射文件，四条命令均为 dotnet-serial，依次运行。
+
+| 专项 | 结果 | 证据（相对 C） |
+|---|---|---|
+| CLI（四个报告 writer、`CliErrorRendererTests`、`ProgramEntryPointTests`、`SeoReportValidatorTests`、`CleanCommandTests`、`CliContractTests`） | **141 Passed／0 Failed／0 Skip**，退出码 0 | `cli/**/cli.trx`、`cli.log` |
+| PluginHost（`PluginLockAndReportTests`、`PluginProtocolClientTests`） | **26／0／0** | `plugin/**/plugin.trx` |
+| Shared `ConsoleLoggerTests` | **21／0／0** | `shared/**/shared.trx` |
+| Architecture 直接 owner（4 类） | **48／0／0** | `owner/**/owner.trx` |
+
+四组均无 NOT_APPLICABLE；清单为上述 6 份报告绑定的全部测试方法均在 TRX 中为 Passed。四组均按 HEAD、闭包内容、确切命令、环境变量名状态和 SDK 10.0.100 记录缓存并检查 HIT（`C/*-cache.json`），指标见 `C/metrics.json`，汇总见 `C/final-evidence.json`。未运行：Linux／Windows `platform-tests`、全 Core 覆盖率、阶段 7 及发布门禁。
 
 ### 阶段 7：管线集成与端到端
 
@@ -1148,3 +1161,4 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --sett
 | 2026-10-27 | 经负责人授权的独立 Core 修复（4.3，复审 N-2）：显式 `route.url` 与 permalink 只对 `.html/.htm/.xml/.json/.txt` 视为文件，其余为目录；RED 8 失败 → GREEN Routing 98/98（88.96%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05 |
 | 2026-10-27 | 经负责人授权的独立 Core 修复（4.4）：`route.url` 与 permalink 末段为静态文件扩展名时构建失败并提示 `static/`/`assets/`；RED 10 失败 → GREEN Routing 112/112（90.24%）、Engine 2671/2671、Content 568/568、Architecture 415/415；同步用户文档 04/05/14；openspec 过期映射无法执行已记录 |
 | 2026-10-29 | 阶段 6 只读审计后经授权复验当前分支 `79df55f8`：完整 Engine 2934/2934、0 Skip（含全部已修复 KD）、Engine 行覆盖 89.92%，证据持久保存；跨平台与 CLI/PluginHost/Shared/Architecture 当前专项仍未验证；见 6.10 |
+| 2026-10-29 | 阶段 6 复审后经授权补跑非 Engine 专项（`800472a2`）：CLI 141/141、PluginHost 26/26、ConsoleLogger 21/21、Architecture owner 48/48，均 0 Skip；24 份报告正反例均有当前证据；§6.7 与矩阵 §6 标注为已清理的历史证据；见 6.11 |
