@@ -579,6 +579,39 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_RuntimeOnlyManifestPolicy_DuplicateNestedRuntimeCommand_ThrowsConfigException()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(staticCommands: string.Empty, manifestPolicy: "runtime-only");
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            commands:
+            [
+                new PluginCommandSpec(
+                    "runtime",
+                    "Runtime command",
+                    Subcommands:
+                    [
+                        new PluginCommandSpec("nested", "Nested"),
+                        new PluginCommandSpec("nested", "Duplicate nested")
+                    ])
+            ]);
+        var loader = new PluginCliLoader(
+            new PluginConfigLoader(PluginRuntimeOnlyContext.Test),
+            new PluginManifestLoader(),
+            new PluginPathValidator(),
+            new FixedPlatformResolver("test-rid"),
+            new PassingHashVerifier(),
+            client);
+
+        ConfigException exception = await Assert.ThrowsAsync<ConfigException>(
+            () => loader.LoadAsync(_tempDir, CancellationToken.None));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("runtime manifest declares duplicate command: runtime nested", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task LoadAsync_RuntimeOnlyManifestPolicy_InDefaultContext_ThrowsConfigException()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);
