@@ -90,7 +90,8 @@ public sealed class PluginCommandManifestValidator
         IReadOnlyList<PluginArgumentSpec> staticArguments,
         IReadOnlyList<PluginArgumentSpec> runtimeArguments)
     {
-        var declared = staticArguments.ToDictionary(argument => argument.Name, StringComparer.Ordinal);
+        IReadOnlyDictionary<string, PluginArgumentSpec> declared =
+            ToNamedMap(pluginId, commandPath, "argument", staticArguments, argument => argument.Name);
         foreach (PluginArgumentSpec runtimeArgument in runtimeArguments)
         {
             if (!declared.TryGetValue(runtimeArgument.Name, out PluginArgumentSpec? staticArgument))
@@ -115,7 +116,8 @@ public sealed class PluginCommandManifestValidator
         IReadOnlyList<PluginOptionSpec> staticOptions,
         IReadOnlyList<PluginOptionSpec> runtimeOptions)
     {
-        var declared = staticOptions.ToDictionary(option => option.Name, StringComparer.Ordinal);
+        IReadOnlyDictionary<string, PluginOptionSpec> declared =
+            ToNamedMap(pluginId, commandPath, "option", staticOptions, option => option.Name);
         foreach (PluginOptionSpec runtimeOption in runtimeOptions)
         {
             if (!declared.TryGetValue(runtimeOption.Name, out PluginOptionSpec? staticOption))
@@ -139,6 +141,28 @@ public sealed class PluginCommandManifestValidator
                     DiagnosticCode.ConfigInvalidValue);
             }
         }
+    }
+
+    private static IReadOnlyDictionary<string, T> ToNamedMap<T>(
+        string pluginId,
+        string commandPath,
+        string label,
+        IReadOnlyList<T> items,
+        Func<T, string> selectName)
+    {
+        var result = new Dictionary<string, T>(StringComparer.Ordinal);
+        foreach (T item in items)
+        {
+            string name = selectName(item);
+            if (!result.TryAdd(name, item))
+            {
+                throw new ConfigException(
+                    $"Plugin {pluginId} plugin.yaml declares duplicate {label} for command {commandPath}: {name}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        return result;
     }
 
     private static string BuildPath(string? parentPath, string name)
