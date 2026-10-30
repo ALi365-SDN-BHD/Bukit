@@ -552,6 +552,34 @@ public sealed class PluginCliIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_RuntimeOnlyManifestPolicy_WithStaticCommands_AllowsRuntimeOnlyCommands()
+    {
+        using var cwd = new CurrentDirectoryScope(_tempDir);
+        WriteRuntimePermissionPluginConfig(
+            staticCommands:
+            """
+            commands:
+              - name: allowed
+                summary: Allowed command
+            """,
+            manifestPolicy: "runtime-only");
+        var client = new RuntimePermissionProtocolClient(
+            new PluginPermissionSet(),
+            commands: [new PluginCommandSpec("runtime", "Runtime command")]);
+        var loader = new PluginCliLoader(
+            new PluginConfigLoader(PluginRuntimeOnlyContext.Test),
+            new PluginManifestLoader(),
+            new PluginPathValidator(),
+            new FixedPlatformResolver("test-rid"),
+            new PassingHashVerifier(),
+            client);
+
+        PluginCliLoadResult result = await loader.LoadAsync(_tempDir, CancellationToken.None);
+
+        Assert.NotNull(BukitCliDescriptors.ResolveDescriptor(result.Descriptors, "runtime"));
+    }
+
+    [Fact]
     public async Task LoadAsync_RuntimeOnlyManifestPolicy_DuplicateRuntimeCommand_ThrowsConfigException()
     {
         using var cwd = new CurrentDirectoryScope(_tempDir);

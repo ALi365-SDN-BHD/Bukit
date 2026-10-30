@@ -193,7 +193,9 @@ public sealed class PluginCliLoader
         PluginHandshakeResponse handshake = await _protocolClient.HandshakeAsync(resolved, cancellationToken);
         ValidateHandshakeIdentity(pluginId, manifest.Id, handshake.Plugin);
         PluginManifestResponse runtimeManifest = await _protocolClient.GetManifestAsync(resolved, cancellationToken);
-        _commandManifestValidator.ValidateRuntimeCommands(pluginId, manifest.Commands, runtimeManifest.Commands);
+        IReadOnlyList<PluginCommandSpec> staticCommandsForValidation =
+            IsRuntimeOnlyManifestPolicy(entry) ? [] : manifest.Commands;
+        _commandManifestValidator.ValidateRuntimeCommands(pluginId, staticCommandsForValidation, runtimeManifest.Commands);
 
         _permissionEvaluator.ValidateGrantedPermissions(pluginId, entry.Permissions, runtimeManifest.RequiredPermissions);
         IReadOnlyList<PluginCommandSpec> exposedCommands = SelectExposedCommands(
