@@ -31,7 +31,7 @@
 
 ## 任务 1：KD-004——先封闭 taxonomy redirect writer 写入边界
 
-**执行状态：SUCCESS（仅任务 1 授权范围）。** 独立清单 `openspec/changes/fix-kd004-taxonomy-redirect-boundary/tasks.md`；持久证据 `R=/Users/ali/.local/state/bukit-verification/kd004-redirect-boundary-bh6Eqt`。原 writer 19 RED / 33 passed → 首轮 GREEN 52/52；专项发现 I01（NUL 自别名跳过最终路径校验），再观察 1 RED / 52 passed 后修补顺序，最终 `R/review-green/tests.trx` 为 **53/53、0 失败、0 Skip**。I01 范围内复核已关闭，唯一最终 delta 复核无剩余 Critical/Important/Minor，`git diff --check` 通过；未变化运行输入和范围外既有改动保持字节不变。原 RED／候选 GREEN／专项 finding 保留，不冒充最终证明。下一步停在任务 2 的策略确认点，不自动启动 SCSS／阶段 7。
+**执行状态：SUCCESS（仅任务 1 授权范围）。** 独立清单 `openspec/changes/archive/2026-10-30-fix-kd004-taxonomy-redirect-boundary/tasks.md`；持久证据 `R=/Users/ali/.local/state/bukit-verification/kd004-redirect-boundary-bh6Eqt`。原 writer 19 RED / 33 passed → 首轮 GREEN 52/52；专项发现 I01（NUL 自别名跳过最终路径校验），再观察 1 RED / 52 passed 后修补顺序，最终 `R/review-green/tests.trx` 为 **53/53、0 失败、0 Skip**。I01 范围内复核已关闭，唯一最终 delta 复核无剩余 Critical/Important/Minor，`git diff --check` 通过；未变化运行输入和范围外既有改动保持字节不变。原 RED／候选 GREEN／专项 finding 保留，不冒充最终证明。下一步停在任务 2 的策略确认点，不自动启动 SCSS／阶段 7。
 
 **开始条件：** 用户明确授权单独修 KD-004。当前只证实内部 writer 的函数级缺陷；普通生产构造链未发现非空 Aliases 入口，不宣称已证明整站远程利用。
 
@@ -39,7 +39,7 @@
 - `src/Bukit-Core/Bukit.Engine/Plugins/BuiltIn/TaxonomyRedirectWriter.cs`
 - `tests/Bukit.Engine.Tests/TaxonomyRedirectWriterTests.cs`
 - `docs/plans/bukit-core-automated-test-plan-2026-10-24.zh-CN.md` 中 KD-004 状态及独立证据记录
-- 新建 `openspec/changes/fix-kd004-taxonomy-redirect-boundary/{proposal.md,tasks.md,specs/taxonomy-redirect-safety/spec.md}`
+- 新建 `openspec/changes/archive/2026-10-30-fix-kd004-taxonomy-redirect-boundary/{proposal.md,tasks.md,specs/taxonomy-redirect-safety/spec.md}`
 
 **只读消费者／复用点：** `TaxonomyPlugin.AfterBuild`、`TaxonomyPageCreator`、`FileWriter.GetSafeFullPath` 及其已有 `SafePathResolver`。不修改它们，不新增 aliases 配置／元数据接线，不改公开 API、输出编码或 HTML 转义策略。
 
@@ -80,7 +80,7 @@ git diff --check
 
 ## 任务 2：KD-003——先确认预算策略，再修增量正确性
 
-**执行状态：SUCCESS（仅任务 2 授权方案 A 范围）。** 独立清单 `openspec/changes/fix-kd003-hash-budget-fallback/tasks.md`；持久证据 `R=/Users/ali/.local/state/bukit-verification/kd003-budget-fallback-SkfsyV`，最终收口记录 `R/completion.json`。最终正文存储 fixture 在原生产实现上为 21 项预期失败／147 通过／0 Skip（`body-red/`），修复后完整六类专项为 168 通过／0 失败／0 Skip（`body-green/`）；运行证据已记录缓存并检查 HIT。专项复核 `reviews/specialty-v1.md` 和唯一 delta-only 最终复核 `reviews/final-delta-v1.md` 均为 Critical 0／Important 0／Minor 0，无需补修。仅两个生产文件修改，不修无关 inline-body 指纹路径；最终静态、范围保护、writer 及 metrics 结果以收口记录为准。不启动 SCSS／阶段 7，也不提交／推送／合并。
+**执行状态：SUCCESS（仅任务 2 授权方案 A 范围）。** 独立清单 `openspec/changes/archive/2026-10-30-fix-kd003-hash-budget-fallback/tasks.md`；持久证据 `R=/Users/ali/.local/state/bukit-verification/kd003-budget-fallback-SkfsyV`，最终收口记录 `R/completion.json`。最终正文存储 fixture 在原生产实现上为 21 项预期失败／147 通过／0 Skip（`body-red/`），修复后完整六类专项为 168 通过／0 失败／0 Skip（`body-green/`）；运行证据已记录缓存并检查 HIT。专项复核 `reviews/specialty-v1.md` 和唯一 delta-only 最终复核 `reviews/final-delta-v1.md` 均为 Critical 0／Important 0／Minor 0，无需补修。仅两个生产文件修改，不修无关 inline-body 指纹路径；最终静态、范围保护、writer 及 metrics 结果以收口记录为准。不启动 SCSS／阶段 7，也不提交／推送／合并。
 
 **开始条件：** KD-004 完成或被明确暂缓，用户单独授权 KD-003，并确认下列策略。默认 10,000 文件／100 MiB 是内容读取预算；漏失效不是 SHA-256 碰撞，而是被跳过的内容从未进入摘要。
 
@@ -120,7 +120,7 @@ git diff --check
 
 ## 任务 3：SCSS——独立、有界地补因果证据
 
-**执行状态：有界诊断已收口；定因仍为 PARTIAL（根因未知）。** 独立清单 `openspec/changes/diagnose-scss-missing-log/tasks.md`；证据根 `R=/Users/ali/.local/state/bukit-verification/scss-causal-diagnosis-z6Jmp9`，最终机械收口记录 `R/completion.json`。只改原集成用例及记录，增加探测／编译分支 trace 和失败保存自检；不改 `ExternalToolProcessRunnerTests` 或生产代码。唯一带覆盖率专项 `R/diagnostic/tests.trx` 为 20 通过／0 失败／0 Skip、实际退出码 0；其中 1 个 Windows 专用用例在本机记录 NOT_APPLICABLE，不是 Windows 执行证明。两路 trace 各一次、compile-only 日志一次、源内容及三语言 CSS 原断言和失败留存自检均通过，构建及断言总耗时约 704 ms；`R/captures/` 与覆盖率附件已持久留存，运行缓存记录并检查 HIT。专项复核 `R/reviews/specialty-v1.md` 与唯一最终增量复核 `R/reviews/final-delta-v1.md` 各为 Critical 0／Important 0／Minor 0，无需补修或重跑。本次未复现历史缺日志，不能标已修复。当前接口不暴露成功探测／编译的独立进程退出码、stderr、耗时或调度延迟，这些观测仍为缺证，不能凭历史约 3 秒耗时认定超时；进一步生产观测补证或修复须另行授权。
+**执行状态：有界诊断已收口；定因仍为 PARTIAL（根因未知）。** 独立清单 `openspec/changes/archive/2026-10-30-diagnose-scss-missing-log/tasks.md`；证据根 `R=/Users/ali/.local/state/bukit-verification/scss-causal-diagnosis-z6Jmp9`，最终机械收口记录 `R/completion.json`。只改原集成用例及记录，增加探测／编译分支 trace 和失败保存自检；不改 `ExternalToolProcessRunnerTests` 或生产代码。唯一带覆盖率专项 `R/diagnostic/tests.trx` 为 20 通过／0 失败／0 Skip、实际退出码 0；其中 1 个 Windows 专用用例在本机记录 NOT_APPLICABLE，不是 Windows 执行证明。两路 trace 各一次、compile-only 日志一次、源内容及三语言 CSS 原断言和失败留存自检均通过，构建及断言总耗时约 704 ms；`R/captures/` 与覆盖率附件已持久留存，运行缓存记录并检查 HIT。专项复核 `R/reviews/specialty-v1.md` 与唯一最终增量复核 `R/reviews/final-delta-v1.md` 各为 Critical 0／Important 0／Minor 0，无需补修或重跑。本次未复现历史缺日志，不能标已修复。当前接口不暴露成功探测／编译的独立进程退出码、stderr、耗时或调度延迟，这些观测仍为缺证，不能凭历史约 3 秒耗时认定超时；进一步生产观测补证或修复须另行授权。
 
 **开始条件：** 用户单独授权诊断。目标是定位缺日志发生在探测、编译、工具选择、日志路径还是进程调度／执行阶段，不承诺本轮必能复现或修好。
 
@@ -140,7 +140,7 @@ git diff --check
 
 ## 独立追加任务：SCSS 生产进程观测补证（2026-10-29）
 
-**执行状态：SUCCESS（仅生产观测补证），已收口；历史根因仍未知。** 用户已明确选定补证及全文遮蔽策略。独立计划 `docs/plans/2026-10-29-scss-process-observability.md`；清单 `openspec/changes/observe-scss-process-attempts/tasks.md`；证据 `R=/Users/ali/.local/state/bukit-verification/scss-process-observation-Ycjxhu`，最终机械收口 `R/completion.json`。仅 `ScssCompiler` 新增一个私有观测入口，复用原 runner，记录关联 attempt、固定阶段／候选、实际返回退出码、调用边界耗时、stderr 状态及字符数；不输出正文、参数、环境值、路径或异常消息。抛错无返回结果时明确 unavailable，新诊断接收器异常不替换工具结果或取消。
+**执行状态：SUCCESS（仅生产观测补证），已收口；历史根因仍未知。** 用户已明确选定补证及全文遮蔽策略。独立计划 `docs/plans/2026-10-29-scss-process-observability.md`；清单 `openspec/changes/archive/2026-10-30-observe-scss-process-attempts/tasks.md`；证据 `R=/Users/ali/.local/state/bukit-verification/scss-process-observation-Ycjxhu`，最终机械收口 `R/completion.json`。仅 `ScssCompiler` 新增一个私有观测入口，复用原 runner，记录关联 attempt、固定阶段／候选、实际返回退出码、调用边界耗时、stderr 状态及字符数；不输出正文、参数、环境值、路径或异常消息。抛错无返回结果时明确 unavailable，新诊断接收器异常不替换工具结果或取消。
 
 RED 为 10 项缺事件预期失败／93 通过／0 Skip，原生产字节及旧行为控制已确认；GREEN 为 **104 通过／0 失败／0 Skip**，含 1 个 Windows-only NOT_APPLICABLE，不是 Windows 执行证明。新增十个受控场景包含日志接收器故障控制；真实多语言构建记录 probe／compile 退出码均为 0，调用耗时 163／26 ms，总构建及断言 521 ms，源及三语言 CSS 原断言通过。运行 GREEN 已缓存并检查 HIT；专项复核 `R/reviews/specialty-v1.md` 和唯一最终增量复核 `R/reviews/final-delta-v1.md` 各为 Critical 0／Important 0／Minor 0，无需补修或重跑。
 

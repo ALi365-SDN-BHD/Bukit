@@ -18,7 +18,7 @@ Evidence root R: `/Users/ali/.local/state/bukit-verification/scss-process-observ
 
 ## Task 1: Behavioral observation RED
 
-Files: `tests/Bukit.Engine.Tests/ExternalToolProcessRunnerTests.cs`, the original SCSS method only in `SiteEngineIntegrationTests.cs`; three OpenSpec files under `openspec/changes/observe-scss-process-attempts/`; this plan, two existing plan/status docs and `guide/user/14-troubleshooting.md`.
+Files: `tests/Bukit.Engine.Tests/ExternalToolProcessRunnerTests.cs`, the original SCSS method only in `SiteEngineIntegrationTests.cs`; three OpenSpec files under `openspec/changes/archive/2026-10-30-observe-scss-process-attempts/`; this plan, two existing plan/status docs and `guide/user/14-troubleshooting.md`.
 
 1. Add nine real fake-tool cases to the existing runner-test class: success, nonzero-probe fallback, both probes rejected, compile failure, exit-zero missing output, probe/compile timeout and probe/compile cancellation. Record actual shell branches independently. Cancellation follows a real branch-entry marker, not a scheduling guess; cancel and await the operation before assertions/cleanup.
 2. Retain old CSS/source/outcome behavior and assert paired start/end attempt IDs, fixed phase/candidate, actual exits or unavailable, nonnegative elapsed, original timeout parameters, fully suppressed stderr and exact returned diagnostic-character counts. An additional logger-sink-failure control ensures supplemental Debug writes cannot change a successful tool result. Never treat a controlled injected timeout as reproduction of the historical defect.
