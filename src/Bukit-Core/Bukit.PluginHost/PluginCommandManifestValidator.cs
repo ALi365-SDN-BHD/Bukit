@@ -90,7 +90,7 @@ public sealed class PluginCommandManifestValidator
         IReadOnlyList<PluginArgumentSpec> staticArguments,
         IReadOnlyList<PluginArgumentSpec> runtimeArguments)
     {
-        IReadOnlyDictionary<string, PluginArgumentSpec> declared =
+        Dictionary<string, PluginArgumentSpec> declared =
             ToNamedMap(pluginId, commandPath, "argument", staticArguments, argument => argument.Name);
         foreach (PluginArgumentSpec runtimeArgument in runtimeArguments)
         {
@@ -116,7 +116,7 @@ public sealed class PluginCommandManifestValidator
         IReadOnlyList<PluginOptionSpec> staticOptions,
         IReadOnlyList<PluginOptionSpec> runtimeOptions)
     {
-        IReadOnlyDictionary<string, PluginOptionSpec> declared =
+        Dictionary<string, PluginOptionSpec> declared =
             ToNamedMap(pluginId, commandPath, "option", staticOptions, option => option.Name);
         foreach (PluginOptionSpec runtimeOption in runtimeOptions)
         {
@@ -143,7 +143,7 @@ public sealed class PluginCommandManifestValidator
         }
     }
 
-    private static IReadOnlyDictionary<string, T> ToNamedMap<T>(
+    private static Dictionary<string, T> ToNamedMap<T>(
         string pluginId,
         string commandPath,
         string label,
