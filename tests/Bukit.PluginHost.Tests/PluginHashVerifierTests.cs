@@ -80,7 +80,9 @@ public sealed class PluginHashVerifierTests
     public async Task VerifySha256Async_MissingFile_ReturnsNotFound()
     {
         using var directory = TestDirectory.Create();
-        string path = Path.Combine(directory.Path, "plugins", "echo", "bin", "missing");
+        string parent = Path.Combine(directory.Path, "plugins", "echo", "bin");
+        Directory.CreateDirectory(parent);
+        string path = Path.Combine(parent, "missing");
         var verifier = new PluginHashVerifier();
 
         PluginHashVerificationResult result = await verifier.VerifySha256Async(path, new string('0', 64), CancellationToken.None);
