@@ -1267,7 +1267,7 @@ Fast gate、Fast contracts 与 Architecture 也均通过；各平台 N/A 数与�
 
 **覆盖率（本机 macOS arm64、SDK 10.0.100、Release；Cobertura 合并）：** PluginHost **1519/1777 = 85.48%**；Plugin.Abstractions 独立套件 **4986/5664 = 88.03%**，其中手写源 **204/204 = 100%**；合并 PluginHost 套件后 **4989/5664 = 88.08%**。两个项目均 ≥70%。
 
-**覆盖率口径：** Cobertura 分母按 `scripts/checks/coverage/summarize.py` 归并，当前包含 `obj/.../System.Text.Json.SourceGeneration/*.g.cs` 等生成代码；`docs/coverage-baselines.json` 与计划第 9 节均未规定排除生成代码。因此 88.03% 是现行 CI 门禁口径，手写源 204/204 是补充质量口径；生成/手写拆分见 `R/coverage-breakdown.json`。若阶段 10 要改为排除生成代码，应作为独立验证策略任务并同步所有项目，不能在本阶段事后改分母。
+**覆盖率口径：** 本批 Cobertura 采集命令未使用 `coverage.runsettings`，因此分母包含 `obj/.../System.Text.Json.SourceGeneration/*.g.cs` 生成代码，88.03% 是含生成代码的采集值，不是现行 CI 门禁口径。CI 门禁 `run-one.sh` 会传 `coverage.runsettings`，排除 `**/obj/**/*.g.cs`；阶段 10 以该门禁口径重跑并同时记录总比例。生成/手写拆分见 `R/coverage-breakdown.json`。
 
 **证据：** `R=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/stage9-plugin-batch1-20261029`（执行时根）；持久镜像 `D=/Users/ali/.local/state/bukit-verification/stage9-plugin-batch1-20261029` 与 `R` 逐字节一致，避免系统临时目录清理。基线 TRX/Cobertura 在 `R/baseline/`，`R/closure.json` 无未映射文件，`R/classification.json` 将两个专项归为 `dotnet-serial`，按 Abstractions → PluginHost 串行执行；最终 TRX 在 `R/green/abstractions-2/`、`R/green/pluginhost-4/`，覆盖率附件在 `R/coverage/abstractions-final/`、`R/coverage/pluginhost-final2/`，覆盖率汇总在 `R/coverage-summary.json`。cache record 的精确命令包含原 `R` 输出路径；在 `D` 上重跑应记录新的缓存条目，不能把 `D` 路径冒充原缓存命中。
 
@@ -1312,7 +1312,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 本节补充最终判定后的指标口径说明，并修补审计发现的两处断言弱点。阶段 9 判定维持 SUCCESS，不改变出口结论。
 
-- **Abstractions 分母构成：** 独立套件 Cobertura 分母 **5664 行**中，`obj/` 下 System.Text.Json 源生成文件占 **5460 行（约 96%）**，手写源仅 **204 行**。现行汇总器未排除生成代码，故 **4986/5664 = 88.03%** 合规，但该数字主要反映生成代码。阶段 10 起以“手写源 204/204 = 100%”作为主口径，并同时列出总比例。
+- **Abstractions 分母构成：** 独立套件 Cobertura 分母 **5664 行**中，`obj/` 下 System.Text.Json 源生成文件占 **5460 行（约 96%）**，手写源仅 **204 行**。该次采集未使用 `coverage.runsettings`，故包含生成代码；**4986/5664 = 88.03%** 是含生成代码的采集值，不是 CI 门禁分母。CI 门禁通过 `run-one.sh` 使用 `coverage.runsettings` 排除 `**/obj/**/*.g.cs`，门禁口径为手写源 **204/204 = 100%**。阶段 10 以门禁口径重跑并同时记录总比例。
 - **PluginHost 过滤口径：** 合并报告含 Shared、测试辅助程序等程序集，须按 `src/Bukit-Core/Bukit.PluginHost/` 路径过滤后，再按路径与行号去重取原始比例：**1519/1777 = 85.48%**（批次 `pluginhost-final2`，已复算）。I-01 运行所记 **1521/1779 = 85.50%** 本次审计未复算，以原记录为准。
 - **ProcessTree 分项：** `src/Bukit-Core/Bukit.PluginHost/ProcessTree/` 为 **110/254 = 43.31%**。其中 `PlatformProcessTreeLimiter.cs` 为 **108/252**；未覆盖的 144 行中：
   - Windows Job 限制器类（`WindowsJobProcessTreeLimiter`）**60/60 未覆盖**，属 Windows 专属，按阶段 10 三平台验证。
@@ -1325,7 +1325,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 只读审计结论：**阶段 9 的 SUCCESS 判定与代码和记录基本一致，未发现会推翻判定的问题；审计未重跑测试。** 对审计提出的三项注意：
 
-- **覆盖率分母：** 已确认现行 CI 门禁 `summarize.py` 未排除生成代码，计划第 9 节也未规定排除；88.03% 继续作为门禁口径，手写源 204/204 作为补充口径。若阶段 10 改为排除生成代码，须作为独立验证策略任务同步全部项目。
+- **覆盖率分母（2026-10-30 更正）：** 该次采集未使用 `coverage.runsettings`，88.03% 含生成代码，不是现行 CI 门禁口径；CI 门禁 `run-one.sh` 使用 `coverage.runsettings` 排除 `**/obj/**/*.g.cs`，门禁口径为手写源 **204/204 = 100%**。阶段 10 以门禁口径重跑，并同时记录总比例。
 - **证据持久性：** 两个执行根已复制到 `/Users/ali/.local/state/bukit-verification/stage9-plugin-batch1-20261029` 与 `.../stage9-plugin-secret-masker-20261029`，所有已复制文件经 `diff -qr` 验证一致；计划与 OpenSpec 已记录持久镜像。另生成归档 `/Users/ali/.local/state/bukit-verification/stage9-evidence-20261029.tar.gz`（1.6 MB，SHA256 `6c8505e54d145b047b0d72b76748ca4815e960e9395bfb5848a2026fd6bd7cbf`），并提交到仓库 `docs/testing/evidence/stage9-20261029/`（含 README、manifest、归档与校验文件）；仓库不提交 24 MB 原始目录。cache record 的精确命令仍保留原执行路径，避免把镜像路径冒充缓存命中。
 - **过度掩码：** 已在 I-01 记录中明确：`COOKIE`/`AUTHORIZATION` 采用子串匹配，`COOKIE_CONSENT_MODE` 等非密钥键也会写 `***`；这是已接受的安全偏向，不改为精确键匹配。
 - **未闭环项：** S-01、M-01、M-02、M-03 仍开放且已登记，不阻塞阶段 9；真实崩溃探针与三平台进程树分支按既定计划后置。审计建议的重跑专项未被采用：当前 cache 记录与最终 TRX 均匹配，按 `AGENTS.md` 不对未变化输入重复运行。
@@ -1338,6 +1338,77 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 - AOT 发布冒烟：`PublishAot` 成功后，对实际原生可执行文件运行配置校验、完整构建和发布审计。复用 `bash scripts/smoke/release-artifacts.sh <archive-or-publish-dir> <rid>`，它将 fixture 复制到临时目录，再调用 `scripts/smoke/core.sh` 的 `config check`、`build --clean`、`publish audit`；只运行 `version` 不算通过。执行前按第 7 节单独明确授权并固定产物路径与 RID。
 - 覆盖率下限校验：第 4.4 节的整体、各源项目和三个安全层文件检查全部通过。
 - 平台专项：取得 Linux x64、macOS arm64、Windows x64 的实际执行证据，按第 7 节核对新增测试类的 CI 入口及适用用例数。
+
+#### 阶段 10 首批执行记录（2026-10-29）
+
+**状态：SUCCESS。** 入口为已合并阶段 9 的 `main` 提交 `e26354d1`，工作分支 `codex/stage10`。架构、API 基线、完整覆盖率、安全层、macOS arm64 AOT 冒烟与三平台 CI 均已取得证据。
+
+**授权记录：** 2026-10-29 用户明确授权批次 2（完整 Core 覆盖率采集）、批次 3（本机 osx-arm64 AOT 发布冒烟）与批次 4（推送 `codex/stage10` 并触发三平台 CI），同时同意阶段 9 覆盖率口径更正与真实异常终止探针纳入阶段 10 最终验收。本节不以“列入计划”代替授权；`stage10-readiness-20261029/README.md` 的 Pending 清单是授权前的入口盘点，已由本记录取代。
+
+| 出口项 | 结果 |
+|---|---|
+| 依赖矩阵 | `Ad01ConfigDecouplingTests` 继续覆盖 Engine.Abstractions 与 Config 的解耦（不依赖 Config）；新增 `CoreProjectReferenceBoundaryTests` 扫描全部 `src/Bukit-Core/**/*.csproj`，禁止引用 `src/Bukit-Plugins` 或 `src/Bukit-Labs`，并同时覆盖 `\` 与 `/` 两种引用写法。完整 Architecture **420/420**，0 失败、0 跳过。 |
+| 公共 API 漂移 | `bash scripts/checks/public-api-drift.sh check Release` 退出 0；基线 18 个程序集 / 425 个类型与源码一致，无诊断。 |
+| 完整覆盖率 | `BUKIT_COVERAGE_ROOT=TestResults/coverage/stage10-final bash scripts/checks/coverage.sh Release`：整体 **90.81% (42724/47047)**，18 个源项目全部 ≥70%，见下表。 |
+| 安全层 | `BuildTransaction` **191/198 = 96.46%**、`OutputDirectoryCleaner` **52/54 = 96.30%**、`AssetOutputPlan` **150/151 = 99.34%**，均 ≥95%，`security-layer.py` 退出 0。 |
+| AOT 冒烟 | `bash scripts/build/package-native-aot.sh 2.0.4 osx-arm64 <dir>` 成功生成 `bukit-2.0.4-osx-arm64.tar.gz`（原生 `bukit` 28.5 MB；archive SHA-256 `6ba112a25ac84285cab6acc5a6cd9bb19f16b7ff1344c365c83ff24d9f5ac936`）；`release-artifacts.sh <archive> osx-arm64` 解包后执行 `config check`、`build --clean`、`publish audit`，退出 0，publish errors=0（22 条 warnings，其中 publish 组 16 条，均为 minimal fixture 的内容质量告警）。 |
+| 三平台专项 | CI [run 40904333690](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40904333690)（提交 `28f74c07`，SDK 10.0.403）Fast gate、Architecture、Fast contracts 与 Linux x64 / macOS arm64 / Windows x64 全部成功；三平台 PluginHost 均执行 52 项（SystemProcessRunner 28 / PathValidator 16 / ProtocolProbe 8），0 平台 N/A。 |
+
+覆盖率采集共 **7009** 个测试通过、0 失败、0 跳过；其中 PluginHost 为新增异常终止用例前的 277 项。
+
+| 源项目 | 覆盖行/总行 | 行覆盖 |
+|---|---:|---:|
+| Bukit.Cli | 7951/9013 | 88.22% |
+| Bukit.Cli.Shared | 355/367 | 96.73% |
+| Bukit.Config | 3153/3316 | 95.08% |
+| Bukit.Content | 3470/3715 | 93.41% |
+| Bukit.Engine | 14803/16352 | 90.53% |
+| Bukit.Engine.Abstractions | 725/753 | 96.28% |
+| Bukit.Engine.Analytics | 594/612 | 97.06% |
+| Bukit.Engine.Assets | 993/1200 | 82.75% |
+| Bukit.Engine.Audit | 2176/2330 | 93.39% |
+| Bukit.Engine.Feeds | 481/528 | 91.10% |
+| Bukit.Engine.Primitives | 866/908 | 95.37% |
+| Bukit.Notion | 1633/1703 | 95.89% |
+| Bukit.Plugin.Abstractions | 204/204 | 100.00% |
+| Bukit.PluginHost | 1486/1732 | 85.80% |
+| Bukit.Rendering | 1489/1631 | 91.29% |
+| Bukit.Routing | 356/369 | 96.48% |
+| Bukit.Shared | 548/619 | 88.53% |
+| Bukit.Theme | 1441/1695 | 85.01% |
+
+#### 阶段 10 三平台证据（2026-10-29）
+
+**阶段 10：SUCCESS。** 正式 CI [run 40904333690](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40904333690) 对提交 `28f74c07` 执行 `gate=platform`；Fast gate、Architecture、Fast contracts 与三个平台全部成功，实际 SDK **10.0.403**。覆盖率作业在该 gate 下按设计跳过，完整覆盖率证据来自本机门禁采集。该 CI 之后新增了架构守卫的复核修复（`7d9ebe60`，测试代码）与文档；生产代码与平台测试未变，修正后的 Architecture **420/420** 由 fast gate [run 40907848663](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40907848663)（提交 `f78ac331`）验证。
+
+| 平台 | 实际 OS / 架构 | SDK | PluginHost 执行（SystemProcessRunner / PathValidator / ProtocolProbe） | 允许的 N/A | 结果 |
+|---|---|---|---:|---:|---|
+| Linux x64 | Linux / x64 | 10.0.403 | 28 / 16 / 8 | 1（Windows-only ExternalTool 方法） | success |
+| macOS arm64 | Darwin / arm64 | 10.0.403 | 28 / 16 / 8 | 2（Windows-only ExternalTool；Windows 路径比较） | success |
+| Windows x64 | Windows / x64 | 10.0.403 | 28 / 16 / 8 | 15 个唯一方法（12 个 POSIX 进程方法 + 3 个平台守卫） | success |
+
+三平台均无失败、无未批准跳过；PluginHost 三平台均 **52/52**、0 平台 N/A。Windows Job Object 与 Linux `/proc` 进程树分支由 `SystemProcessRunnerTests` 的 28 项实际执行；新增真实异常终止用例在三个平台各执行 1 项，均通过；最终精确退出码断言由 [run 40973740319](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40973740319)（提交 `b40184fb`）复跑三平台确认（Windows `-1`，Linux/macOS `137`）。`platform.json`、逐项目 TRX、`dotnet-info.txt` 与磁盘满专项位于 `D=/Users/ali/.local/state/bukit-verification/stage10-platform-ci-40904333690/artifacts/{Linux-x64,Darwin-arm64,Windows-x64}`；精确退出码复跑证据位于 `D=/Users/ali/.local/state/bukit-verification/stage10-exitcode-ci-40973740319/artifacts`。
+
+**验收映射（§10）：**
+
+| 质量目标 | 当前证据 |
+|---|---|
+| 确定性 | Stage 7 `Stage7DeterminismTests` / `Stage7GoldenTests` 在三平台实际执行通过；本机完整 Engine 覆盖采集 2946/2946。 |
+| 失败安全 | Stage 7 `Stage7FailureTests` / `Stage7PluginFailureTests` 三平台通过；失败安全快照沿用阶段 0/5 证据。 |
+| 增量正确 | 阶段 5/7 增量与全量对照证据；本阶段完整 Engine 覆盖 90.53%。 |
+| 路径安全 | 三平台 `OutputDirectoryCleanerTests` 13、`AssetPipelineTests` 30、`TaxonomyRedirectWriterTests` 27 通过；Shared 路径专项通过。 |
+| 契约稳定 | CI Fast gate 的 public API drift 退出 0；阶段 0 报告清单与 schema 用例沿用。 |
+| 覆盖率 | 整体 **90.81%**，18 个源项目全部 ≥70%，三个安全层文件均 ≥95%。 |
+
+**阶段 9 覆盖率口径更正：** 阶段 9 的 88.03% 采集未使用 `coverage.runsettings`，包含 5460 行 `obj/**/*.g.cs` 生成代码；CI 门禁 `run-one.sh` 使用该设置，门禁口径为手写源 **204/204 = 100%**。计划阶段 9 记录、修订记录与本节均按此更正，不再把 88.03% 当作 CI 门禁口径。
+
+**真实异常终止探针（阶段 9 延后项）：** `PluginProcessProbe` 新增 `self-kill` 模式（`Process.GetCurrentProcess().Kill()`；Unix 为 SIGKILL，Windows 为 TerminateProcess）；`PluginProtocolProbeTests` 新增真实异常终止用例，断言 `PluginExecutionFailed`、精确退出码（Unix **137** / Windows **-1**）及 15 秒内有界返回。聚焦 **8/8**、完整 PluginHost **278/278**，0 失败、0 跳过；三平台 CI [run 40973740319](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/40973740319)（提交 `b40184fb`）中该用例在 Windows 以 `-1`、Linux/macOS 以 `137` 各执行 1 次并全部通过。该用例已由 `PluginProtocolProbeTests` 类过滤自动纳入三平台 `platform-tests`，无需新增 CI 过滤项；FailFast 未单独执行，登记为残余边界。
+
+**只读专项复核与修复：** 复核 Critical 0 / Important 1 / Minor 4。Important 为守卫未把 `\` 归一化为平台分隔符，Unix CI 会漏检仓库常用写法；已在 `7d9ebe60` 修复为 `include.Replace('\\', Path.DirectorySeparatorChar)`，并新增 `\`/`/` × Plugins/Labs 四个负向 theory；聚焦 **5/5**、Architecture **420/420**，修正后 Ubuntu Architecture 由 fast gate `40907848663` 验证。delta 复核 Critical 0 / Important 0 / Minor 1，剩余 Minor 为本记录的证据路径与措辞，已在本记录修正。仍不在守卫范围：`Directory.Build.props/targets`、`<Reference>`、MSBuild property expansion、分号列表、symlink/8.3 与 macOS 大小写变体；FailFast 未单独覆盖。
+
+**审计修补（2026-10-30）：** 只读审计确认 SUCCESS 成立，提出 1 项 Important 与 4 项 Minor。Important 为授权记录缺失；本节已补 2026-10-29 的明确授权记录，`stage10-readiness-20261029/README.md` 的授权前 Pending 清单也已改为已授权/已执行。Minor 处理：阶段 9 归档 README 的“follows summarize.py”改为历史采集说明并与更正日期统一为 2026-10-30；AOT archive SHA-256 已写入正文本表；self-kill 改为精确退出码断言（Unix **137** / Windows **-1**）；守卫新增 Core 项目数 **18** 的断言，防止扫描范围静默缩小。修补后聚焦 **5/5**、Architecture **420/420**（本机 macOS arm64）；最终 fast gate `40971907989`（提交 `10b3cb11`）Architecture 与 Fast gate 均成功。self-kill 精确退出码由三平台 CI `40973740319` 证明（Windows `-1`，Linux/macOS `137`）。
+
+**证据：** `D=/Users/ali/.local/state/bukit-verification/stage10-readiness-20261029`（`architecture-final2` 的 416/416 修正前证据、`public-api`、`coverage-self-tests`、`closure.json`、`cache`）；`D=/Users/ali/.local/state/bukit-verification/stage10-guard-fix-20261029`（`focused/guard.trx` 5/5、`full/architecture.trx` 420/420、`closure.json`、`cache.json`）；`D=/Users/ali/.local/state/bukit-verification/stage10-audit-fix-20261030`（`focused/guard.trx` 5/5、`full/architecture.trx` 420/420、`cache.json`）；`D=/Users/ali/.local/state/bukit-verification/stage10-coverage-20261029`（`coverage/coverage-summary.json`、`coverage/coverage-summary.txt`、`security-layer.json`、`coverage.log`）；`D=/Users/ali/.local/state/bukit-verification/stage10-crash-probe-20261029`（`probe.trx`、`full/pluginhost.trx`、`closure.json`、`classification.json`、`cache.json`）；`D=/Users/ali/.local/state/bukit-verification/stage10-exitcode-20261030`（`focused/probe.trx` 8/8、`full/pluginhost.trx` 278/278）；`D=/Users/ali/.local/state/bukit-verification/stage10-exitcode-ci-40973740319/artifacts`（三个平台的 `platform.json` 与 PluginHost TRX，AbnormalTermination 各 1 次通过）；`D=/Users/ali/.local/state/bukit-verification/stage10-aot-20261029`（`package.log`、`smoke.log`、`artifacts/bukit-2.0.4-osx-arm64.tar.gz`、`artifacts/publish/osx-arm64/bukit`）；`D=/Users/ali/.local/state/bukit-verification/stage10-platform-ci-40904333690/artifacts`（三个平台的 `platform.json`、逐项目 TRX 与磁盘满专项）。`coverage.sh` 的 zsh 包装在完成后因只读变量 `status` 退出 1，门禁本身已输出 `Coverage check OK`；不做重复采集，日志已注明。
 
 出口：架构测试全绿、基线与源码一致，原生冒烟、覆盖率和三个平台专项均有对应证据；缺授权、缺执行或异常跳过均记录为未完成。
 
@@ -1450,4 +1521,6 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 2026-10-29 | 阶段 8 最终判定 **SUCCESS**：正式 CI `40844256570`（提交 `1fee2730`，SDK 10.0.403）三平台全部成功；CliContract 12、Completion 12、Deploy 12、Publish 4 在三平台实际执行，Windows 仅既有 1 项 DevPathGuard N/A；本地 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；首次运行 CA1502 超基线已修复并保留为诊断 |
 | 2026-10-29 | 阶段 8 首批：基线 CLI 1092/1092、Cli 88.05%、Cli.Shared 96.73%；补命令与 CLI 参考文档一致性、真实裸仓库分支/CNAME、version/completion 退出码用例；经用户单独授权修复 KD-001/KD-008，移除 Skip；完整 CLI 1096/1096、0 跳过，Cli 88.12%、Cli.Shared 96.73%；四个 CLI 测试类接入三平台 `platform-tests`，owner 自检通过；阶段保持 PARTIAL，待 Linux/Windows 实际执行证据 |
 | 2026-10-29 | 阶段 9 测试批次 + I-01 授权修复：PluginHost 277/277、Abstractions 20/20，覆盖 85.50%/88.03%（手写源 100%）；补 manifest validator、CI policy、协议响应、哈希边界、清单版本门禁、DTO round-trip；经用户单独授权补充 `COOKIE`/`AUTHORIZATION` 掩码，RED 7 失败→GREEN，登记 KD-013；阶段 9 判定 **SUCCESS**；未跑全量/三平台/发布门禁；已提交到 `codex/stage9`，未推送 |
-| 2026-10-29 | 阶段 9 只读审计确认：SUCCESS 判定成立；覆盖率分母包含生成代码属现行 CI 门禁口径，手写源 204/204 为补充；执行证据已镜像到 `/Users/ali/.local/state/bukit-verification/stage9-plugin-*` 并逐文件校验；过度掩码取舍入档；S-01/M-01~M-03 非阻塞，真实崩溃探针与三平台分支按计划后置 |
+| 2026-10-29 | 阶段 9 只读审计确认：SUCCESS 判定成立；该次覆盖率采集未使用 `coverage.runsettings`，88.03% 含生成代码；CI 门禁口径为手写源 204/204 = 100%（2026-10-30 更正）；执行证据已镜像到 `/Users/ali/.local/state/bukit-verification/stage9-plugin-*` 并逐文件校验；过度掩码取舍入档；S-01/M-01~M-03 非阻塞，真实崩溃探针与三平台分支按计划后置 |
+| 2026-10-29 | 阶段 10 执行：Architecture 420/420（修正后 fast gate `40907848663`），public API drift 退出 0，完整覆盖率 90.81%（18 个源项目均 ≥70%，安全层 96.46%/96.30%/99.34%），macOS arm64 AOT 冒烟通过，三平台 CI `40904333690` 全绿；新增 Core→Plugins/Labs 守卫（含反斜杠路径回归）与真实异常终止 self-kill 用例；阶段 10 判定 **SUCCESS**；未跑全量解决方案或发布门禁 |
+| 2026-10-30 | 阶段 10 审计修补：补 2026-10-29 完整覆盖率/AOT/三平台 CI 的明确授权记录；阶段 9 归档 README 与更正日期统一；AOT SHA-256 入正文；self-kill 改为精确退出码断言并经三平台 CI `40973740319` 验证（Windows -1，Linux/macOS 137）；守卫增加 Core 项目数 18 断言；聚焦 5/5、Architecture 420/420 |

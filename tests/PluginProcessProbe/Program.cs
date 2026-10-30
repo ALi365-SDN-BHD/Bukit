@@ -62,6 +62,13 @@ switch (command)
             return args.Length > 1 && int.TryParse(args[1], out int exitCode) ? exitCode : 1;
         }
 
+    case "self-kill":
+        {
+            Process.GetCurrentProcess().Kill();
+            await Task.Delay(30000);
+            return 0;
+        }
+
     case "stdout-bytes":
         {
             int count = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);

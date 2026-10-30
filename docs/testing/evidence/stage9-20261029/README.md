@@ -26,7 +26,9 @@ This directory keeps the complete stage 9 test and I-01 fix evidence in one comp
 | Audit-patch full PluginHost | 277 / 277 passed, 0 failed, 0 skipped |
 | Reviews | Critical 0 / Important 0; remaining Minor items are recorded in the plan |
 
-The coverage denominator follows `scripts/checks/coverage/summarize.py`, which currently includes source-generated `obj/.../*.g.cs` files. `coverage-breakdown.json` inside the archive separates handwritten and generated lines.
+The historical 88.03% collection used `scripts/checks/coverage/summarize.py` without `coverage.runsettings`, so it includes source-generated `obj/.../*.g.cs` files; `coverage-breakdown.json` inside the archive separates handwritten and generated lines. The CI gate definition is stated in the correction below.
+
+**Correction (2026-10-30):** this 88.03% collection did not pass `coverage.runsettings`; the CI gate (`run-one.sh`) excludes `**/obj/**/*.g.cs` and measures `Bukit.Plugin.Abstractions` at **204/204 = 100%**. The figures above remain historical collection data; the archived `coverage-breakdown.json` policy note is superseded by this correction.
 
 ## Archive contents
 
@@ -49,4 +51,4 @@ The plan record is `docs/plans/bukit-core-automated-test-plan-2026-10-24.zh-CN.m
 
 ## Open follow-ups
 
-S-01 (plugin-controlled report fields can echo a granted secret), M-01/M-02/M-03, the real abnormal-termination crash probe, and the Windows/Linux process-tree branches remain open and are recorded in the plan. They are not stage 9 blockers.
+S-01 (plugin-controlled report fields can echo a granted secret), M-01/M-02/M-03, and the FailFast boundary remain recorded in the plan; the self-kill abnormal-termination probe and the Windows/Linux process-tree branches were verified in stage 10.

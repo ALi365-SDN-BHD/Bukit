@@ -47,6 +47,26 @@ public sealed class PluginProtocolProbeTests
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(15));
     }
 
+    [Fact]
+    public async Task AbnormalTermination_RealProcessIsRejectedWithinBoundedTime()
+    {
+        using var directory = TestDirectory.Create();
+        var plugin = CreatePlugin(directory.Path, ["self-kill"]);
+        var client = new PluginProtocolClient(new PluginProcessInvoker(new SystemProcessRunner()), new PluginRequestIdFactory());
+        var stopwatch = Stopwatch.StartNew();
+
+        var exception = await Assert.ThrowsAsync<ConfigException>(() =>
+            client.HandshakeAsync(plugin, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(20)));
+
+        Assert.Equal(DiagnosticCode.PluginExecutionFailed, exception.Code);
+        // SIGKILL/TerminateProcess: Unix 137 (128 + 9), Windows TerminateProcess(-1).
+        int expectedExitCode = OperatingSystem.IsWindows() ? -1 : 137;
+        Assert.Equal(
+            $"plugin.executionFailed: Plugin process exited with code {expectedExitCode}.",
+            exception.Message);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(15));
+    }
+
     [Theory]
     [InlineData("exit", "7", 4096, 4096, "plugin.executionFailed: Plugin process exited with code 7.")]
     [InlineData("garbage", "json", 4096, 4096, "plugin.invalidResponse: Plugin stdout was not valid protocol JSON.")]
