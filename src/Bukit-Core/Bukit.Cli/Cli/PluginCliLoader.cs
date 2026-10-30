@@ -247,13 +247,31 @@ public sealed class PluginCliLoader
     private static bool IsCi()
         => string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase);
 
+    private static Dictionary<string, PluginCommandSpec> ToRuntimeCommandMap(
+        string pluginId,
+        IReadOnlyList<PluginCommandSpec> runtimeCommands)
+    {
+        var byName = new Dictionary<string, PluginCommandSpec>(StringComparer.Ordinal);
+        foreach (PluginCommandSpec command in runtimeCommands)
+        {
+            if (!byName.TryAdd(command.Name, command))
+            {
+                throw new ConfigException(
+                    $"Plugin {pluginId} runtime manifest declares duplicate command: {command.Name}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+        }
+
+        return byName;
+    }
+
     private static IReadOnlyList<PluginCommandSpec> SelectExposedCommands(
         string pluginId,
         PluginConfigEntry entry,
         IReadOnlyList<PluginCommandSpec> runtimeCommands)
     {
         IReadOnlyList<string> exposeCommands = entry.ExposeCommands;
-        var byName = runtimeCommands.ToDictionary(command => command.Name, StringComparer.Ordinal);
+        Dictionary<string, PluginCommandSpec> byName = ToRuntimeCommandMap(pluginId, runtimeCommands);
         var selected = new List<PluginCommandSpec>(exposeCommands.Count);
         foreach (string commandName in exposeCommands)
         {

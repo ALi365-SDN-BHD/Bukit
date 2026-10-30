@@ -14,6 +14,8 @@ public sealed class PluginCommandManifestValidator
         ArgumentNullException.ThrowIfNull(staticCommands);
         ArgumentNullException.ThrowIfNull(runtimeCommands);
 
+        ValidateRuntimeCommandTree(pluginId, runtimeCommands, parentPath: null);
+
         if (staticCommands.Count == 0)
         {
             return;
@@ -43,6 +45,25 @@ public sealed class PluginCommandManifestValidator
             ValidateArgumentSubset(pluginId, commandPath, staticCommand.Arguments, runtimeCommand.Arguments);
             ValidateOptionSubset(pluginId, commandPath, staticCommand.Options, runtimeCommand.Options);
             ValidateRuntimeCommands(pluginId, staticCommand.Subcommands, runtimeCommand.Subcommands, commandPath);
+        }
+    }
+
+    private static void ValidateRuntimeCommandTree(
+        string pluginId,
+        IReadOnlyList<PluginCommandSpec> commands,
+        string? parentPath)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (PluginCommandSpec command in commands)
+        {
+            if (!names.Add(command.Name))
+            {
+                throw new ConfigException(
+                    $"Plugin {pluginId} runtime manifest declares duplicate command: {BuildPath(parentPath, command.Name)}.",
+                    DiagnosticCode.ConfigInvalidValue);
+            }
+
+            ValidateRuntimeCommandTree(pluginId, command.Subcommands, BuildPath(parentPath, command.Name));
         }
     }
 
