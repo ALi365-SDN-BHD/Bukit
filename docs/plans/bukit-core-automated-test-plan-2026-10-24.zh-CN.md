@@ -1344,13 +1344,13 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 #### 阶段 9 M-01 runtime 命令重名收口（2026-10-30）
 
-用户授权执行下一项 Core 契约修复。分支 `codex/plugin-runtime-duplicates` 从 `main` `cf356b28` 创建；生产修改 `PluginCommandManifestValidator`（递归 runtime 命令树查重）与 `PluginCliLoader`（runtime-only 也调用 validator，并安全构建 runtime 命令映射），测试修改 PluginHost/CLI 两个既有测试类。提交 `dd631b76`、`78a4fe0d`。
+用户授权执行下一项 Core 契约修复。分支 `codex/plugin-runtime-duplicates` 从 `main` `cf356b28` 创建；生产修改 `PluginCommandManifestValidator`（递归 runtime 命令树查重）与 `PluginCliLoader`（runtime-only 保留静态子集语义，仅做 runtime 树查重，并安全构建 runtime 命令映射），测试修改 PluginHost/CLI 两个既有测试类。提交 `dd631b76`、`78a4fe0d`、`07243704`。
 
 - **行为：** runtime manifest 顶层或嵌套命令重名抛 `ConfigException` + `ConfigInvalidValue`，消息为 `Plugin {pluginId} runtime manifest declares duplicate command: {path}.`；`staticCommands` 为空时也查重。
-- **CLI：** `SelectExposedCommands` 不再用裸 `ToDictionary`；`PluginCliLoader` 对 runtime-only 清单也调用 validator（空静态清单时 validator 只做 runtime 树查重），因此 runtime-only 顶层与嵌套重名均转 `ConfigException`。
-- **RED：** PluginHost 3 失败 / 16 通过 / 0 跳过；CLI 顶层 1 失败 / 0 通过；失败为缺失查重与原始 `ArgumentException`。runtime-only 嵌套用例为修复后新增的守护覆盖。
-- **GREEN：** PluginHost 聚焦 19/19、完整 289/289；CLI 聚焦 2/2、完整 1101/1101；public API drift 退出 0；分析器棘轮 421/421；`dotnet format` 退出 0。
-- **证据：** `D=/Users/ali/.local/state/bukit-verification/plugin-runtime-duplicates-20261030`（`red/`、`green/`、`full/`、`public-api/`、`public-api-2/`、`ratchet.log`、`ratchet-2.log`、`format.log`、`closure.json`、`cache/`）。
+- **CLI：** `SelectExposedCommands` 不再用裸 `ToDictionary`；`PluginCliLoader` 对 runtime-only 清单传入空静态命令做 runtime 树查重（保留 runtime-only 不校验静态子集的既有语义），因此 runtime-only 顶层与嵌套重名均转 `ConfigException`。
+- **RED：** PluginHost 3 失败 / 16 通过 / 0 跳过；CLI 顶层 1 失败 / 0 通过；失败为缺失查重与原始 `ArgumentException`。runtime-only 嵌套与静态命令共存用例为修复后新增的守护覆盖。
+- **GREEN：** PluginHost 聚焦 19/19、完整 289/289；CLI 重复专项 2/2（runtime-only 全组 5/5）、完整 1102/1102；public API drift 退出 0；分析器棘轮 421/421；`dotnet format` 退出 0。
+- **证据：** `D=/Users/ali/.local/state/bukit-verification/plugin-runtime-duplicates-20261030`（`red/`、`green/`、`full/`、`public-api/`、`public-api-2/`、`public-api-3.log`、`ratchet.log`、`ratchet-2.log`、`ratchet-3.log`、`format.log`、`format-2.log`、`closure.json`、`cache/`）。
 - **未执行：** 全量解决方案、完整覆盖率、release/AOT、三平台 CI。
 
 ### 阶段 10：架构与门禁
@@ -1548,4 +1548,4 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 2026-10-29 | 阶段 10 执行：Architecture 420/420（修正后 fast gate `40907848663`），public API drift 退出 0，完整覆盖率 90.81%（18 个源项目均 ≥70%，安全层 96.46%/96.30%/99.34%），macOS arm64 AOT 冒烟通过，三平台 CI `40904333690` 全绿；新增 Core→Plugins/Labs 守卫（含反斜杠路径回归）与真实异常终止 self-kill 用例；阶段 10 判定 **SUCCESS**；未跑全量解决方案或发布门禁 |
 | 2026-10-30 | 阶段 10 审计修补：补 2026-10-29 完整覆盖率/AOT/三平台 CI 的明确授权记录；阶段 9 归档 README 与更正日期统一；AOT SHA-256 入正文；self-kill 改为精确退出码断言并经三平台 CI `40973740319` 验证（Windows -1，Linux/macOS 137）；守卫增加 Core 项目数 18 断言；聚焦 5/5、Architecture 420/420 |
 | 2026-10-30 | 阶段 9 M-01/M-02 错误契约收口：argument/option 重名改为 `ConfigException` + `ConfigInvalidValue`；哈希文件缺失/不可读返回失败结果而非原始 I/O；RED 7 失败/20 通过，GREEN 聚焦 27/27、PluginHost 286/286、CLI PluginCliIntegrationTests 40/40、public API drift 退出 0；runtime 命令重名随后续任务关闭，M-03、S-01 保持开放 |
-| 2026-10-30 | 阶段 9 M-01 runtime 命令重名收口：validator 递归查重、CLI 对 runtime-only 也校验并使用安全映射，顶层/嵌套重名抛 `ConfigException` + `ConfigInvalidValue`；RED 3+1 失败，GREEN PluginHost 289/289、CLI 1101/1101、public API drift 0、分析器 421/421；M-03、S-01 保持开放 |
+| 2026-10-30 | 阶段 9 M-01 runtime 命令重名收口：validator 递归查重、CLI 对 runtime-only 传入空静态命令做查重并保留既有语义，顶层/嵌套重名抛 `ConfigException` + `ConfigInvalidValue`；RED 3+1 失败，GREEN PluginHost 289/289、CLI 1102/1102、public API drift 0、分析器 421/421；M-03、S-01 保持开放 |
