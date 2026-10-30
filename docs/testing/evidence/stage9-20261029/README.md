@@ -47,7 +47,7 @@ tar -tzf stage9-evidence-20261029.tar.gz | head
 
 The archive contains synthetic test values such as `secret-token` and `session-cookie`; it does not contain real credentials. Cache records preserve the original execution output path, so a fresh run against a different path must record new cache evidence rather than claim the old hit.
 
-The plan record is `docs/plans/bukit-core-automated-test-plan-2026-10-24.zh-CN.md` (stage 9 sections). The I-01 OpenSpec change is `openspec/changes/fix-plugin-secret-masker-cookie-authorization/`.
+The plan record is `docs/plans/bukit-core-automated-test-plan-2026-10-24.zh-CN.md` (stage 9 sections). The I-01 OpenSpec change is `openspec/changes/archive/2026-10-30-fix-plugin-secret-masker-cookie-authorization/`.
 
 ## Open follow-ups
 

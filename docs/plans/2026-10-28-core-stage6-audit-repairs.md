@@ -10,7 +10,7 @@
 
 ---
 
-The user approved execution in the existing isolated worktree. No commit or new worktree is authorized. `openspec/changes/complete-core-stage6-validation/tasks.md` remains the sole checkbox ledger. Evidence root: `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-repairs-APNcZD` (R). All 21 allowed paths and their consumers are mapped in R/closure.json, R/runtime-closure.json and R/docs-closure.json; no unmapped path may be added without controller approval.
+The user approved execution in the existing isolated worktree. No commit or new worktree is authorized. `openspec/changes/archive/2026-10-30-complete-core-stage6-validation/tasks.md` remains the sole checkbox ledger. Evidence root: `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-repairs-APNcZD` (R). All 21 allowed paths and their consumers are mapped in R/closure.json, R/runtime-closure.json and R/docs-closure.json; no unmapped path may be added without controller approval.
 
 ## 1. GEO parser boundary (I-01)
 
@@ -41,7 +41,7 @@ Files: `tests/Bukit.Engine.Tests/RelatedContentPluginTests.cs`, `ArchivePluginTe
 
 ## 4. Complete affected specialty, then honest closeout
 
-Files: this plan, `docs/plans/bukit-core-automated-test-plan-2026-10-24.zh-CN.md`, `docs/testing/core-stage6-behavior-matrix.md`, `guide/user/17-geo.md`, and proposal/design/tasks/spec under `openspec/changes/complete-core-stage6-validation/`.
+Files: this plan, `docs/plans/bukit-core-automated-test-plan-2026-10-24.zh-CN.md`, `docs/testing/core-stage6-behavior-matrix.md`, `guide/user/17-geo.md`, and proposal/design/tasks/spec under `openspec/changes/archive/2026-10-30-complete-core-stage6-validation/`.
 
 1. Reopen existing tasks 3/4/5 and mark audit-repair-in-progress before implementation, retaining old evidence as history.
 2. Once runtime/tests stabilize, run `engine` exactly once unless a diagnosed real failure requires a justified rerun. Engine commands are fixture-exclusive: no repository edits during execution.

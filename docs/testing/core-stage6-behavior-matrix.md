@@ -1,6 +1,6 @@
 # 阶段 6：行为矩阵
 
-2026-10-28。范围和顺序见 `openspec/changes/complete-core-stage6-validation/tasks.md`。
+2026-10-28。范围和顺序见 `openspec/changes/archive/2026-10-30-complete-core-stage6-validation/tasks.md`。
 
 **阶段 6：本轮授权范围已完成，审计七项问题已修复并经两次规定复核接受。** 审计修复时 Engine 2881 Passed / 0 Failed / 3 继承 Skip，覆盖率 89.91% ≥70%；专项与唯一最终增量复核均为 0 Critical / 0 Important / 0 Minor。KD-002/003/004 随后单独修复，当前分支完整 Engine 为 **2934 Passed / 0 Failed / 0 Skip，Engine 行覆盖 89.92%**（§7）。§5 原计数和复核保留为历史证据，§6 是审计修复证据，§7 是当前分支证据；不把继承缺陷、其他平台、AOT 或阶段 7 稳定性算作完成。
 

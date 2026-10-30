@@ -694,7 +694,7 @@ dotnet test tests/Bukit.Shared.Tests/Bukit.Shared.Tests.csproj -c Release \
 
 用户明确授权“先单独修 KD-002”，本任务不重开阶段 6，不涉及 KD-003/004 或 SCSS。仅修改 CLI `CleanCommand`：停止整体删除项目根 `.bukit`，保留配置、锁文件、未知文件及已有生成元数据；正常输出和 `.cache` 继续清理。显式输出为根 `.bukit` 或子目录时（含大小写变体、即使有 marker），在任何删除前拒绝并返回 2；`.bukit-output` 等兄弟目录不误拒绝。共享 Engine cleaner 和既有路径／marker／符号链接检查不变。
 
-独立清单为 `openspec/changes/fix-kd002-clean-metadata-retention/tasks.md`。持久证据根 `R=/Users/ali/.local/state/bukit-verification/kd002-clean-preserve-s2CkH1`；闭包 8 个允许路径、0 未映射，冻结并保留原有 48 个变更路径（包括不属于本任务的 `Directory.Build.props`）。先观察真实行为 RED：`red/tests.trx` 为 **56 通过 / 9 失败 / 0 Skip**；补大小写别名回归后 `red-case/tests.trx` 为 **56 通过 / 13 失败 / 0 Skip**。失败均为元数据被删或显式保护目标未拒绝，不是编译／环境失败；原 RED 未覆盖或混记。
+独立清单为 `openspec/changes/archive/2026-10-30-fix-kd002-clean-metadata-retention/tasks.md`。持久证据根 `R=/Users/ali/.local/state/bukit-verification/kd002-clean-preserve-s2CkH1`；闭包 8 个允许路径、0 未映射，冻结并保留原有 48 个变更路径（包括不属于本任务的 `Directory.Build.props`）。先观察真实行为 RED：`red/tests.trx` 为 **56 通过 / 9 失败 / 0 Skip**；补大小写别名回归后 `red-case/tests.trx` 为 **56 通过 / 13 失败 / 0 Skip**。失败均为元数据被删或显式保护目标未拒绝，不是编译／环境失败；原 RED 未覆盖或混记。
 
 **KD-002：SUCCESS（本次授权范围）。** 完整 `CleanCommandTests` **29** + `ProgramEntryPointTests` **29** + `CliContractTests` **11** = **69 通过 / 0 失败 / 0 Skip**，实际退出码 0；见 `R/green.log`、`R/green/tests.trx`、`R/green-receipt.json`。原 KD-002 Skip/KnownDefect 排除已移除；既有路径、marker、符号链接和 CLI 契约用例保持启用。`git diff --check` 通过。
 
@@ -715,7 +715,7 @@ git diff --check
 
 每次 writer 调用先校验全部 aliases 和最终 `index.html` 路径，再执行原写入；危险 alias、后置非法项、逃逸 routePrefix 及现有目录／文件符号链接均须以 `ConfigException` / `BuildOutputUnsafe` 拒绝，不创建目录／文件、不覆盖既有字节、不追加生成路径。保留正常／空／自别名、安全层级、Unicode、routePrefix、原 HTML／UTF-8 及路径记录行为。此预检不承诺整个 `AfterBuild` 或任意 I/O 失败的事务性。
 
-独立清单 `openspec/changes/fix-kd004-taxonomy-redirect-boundary/tasks.md`。持久证据根 `R=/Users/ali/.local/state/bukit-verification/kd004-redirect-boundary-bh6Eqt`；7 个允许路径全部映射，冻结原有 55 个变更路径的基线。`R/red/tests.trx` 为 **33 通过 / 19 预期失败 / 0 Skip**，实际退出码 1；包括不安全路径被写入、后置非法输入发生部分写入、外部链接目标被覆盖和错误类型不符，无编译／环境失败。
+独立清单 `openspec/changes/archive/2026-10-30-fix-kd004-taxonomy-redirect-boundary/tasks.md`。持久证据根 `R=/Users/ali/.local/state/bukit-verification/kd004-redirect-boundary-bh6Eqt`；7 个允许路径全部映射，冻结原有 55 个变更路径的基线。`R/red/tests.trx` 为 **33 通过 / 19 预期失败 / 0 Skip**，实际退出码 1；包括不安全路径被写入、后置非法输入发生部分写入、外部链接目标被覆盖和错误类型不符，无编译／环境失败。
 
 **KD-004：SUCCESS（本批授权范围）。** 最终完整三类专项 `R/review-green/tests.trx` 为 **53 通过 / 0 失败 / 0 Skip**（writer 27 + page creator 23 + ensure terms 3），实际退出码 0；原 KD-004 Skip/KnownDefect 排除已移除。首轮 `R/green/tests.trx` 的 52/52 仅为候选证据：专项复核发现 Important I01（NUL 自别名在最终路径校验前被跳过），`R/review-red/tests.trx` 以真实 sentinel 覆盖复现 **1 失败 / 52 通过**，移动校验顺序后才得到最终 53/53；全部历史原件保留。
 
@@ -734,7 +734,7 @@ git diff --check
 
 用户在 KD-004 收口后确认方案 A：保留默认每目录 10,000 文件／100 MiB 内容预算，超限不返回正常不完整摘要，当前变体关闭增量复用并继续完整渲染。不采用随机摘要、mtime 或只增大阈值，不新增公开 API、配置、依赖或 manifest 字段。只在 `HashUtil` 提供内部预算信号、`VariantManifestPlanner` 捕获该信号复用既有非增量分支；`DirectoryHashCache` 保持生产代码不变，工厂异常不缓存。一般 I/O、权限或其他 InvalidOperationException 不吞成降级；清空渲染复用 entries，但保留匹配输出根的归属及其他 manifest 状态。
 
-独立清单 `openspec/changes/fix-kd003-hash-budget-fallback/tasks.md`；持久证据根 `R=/Users/ali/.local/state/bukit-verification/kd003-budget-fallback-SkfsyV`。12 个允许路径全部映射、原有 60 个变更路径建立当前基线；范围外不得覆盖。原生产实现下 `R/red/tests.trx` 为 **147 通过 / 21 预期失败 / 0 Skip**，实际退出码 1；其中六项真实 planner→Scriban page/list 输出对照覆盖文件数／大小超限和 child/parent/user 三种布局，同长度且恢复 mtime 后产物仍为旧内容。其余 RED 是不完整摘要、缓存／日志及 manifest 降级契约，不是编译／环境失败。
+独立清单 `openspec/changes/archive/2026-10-30-fix-kd003-hash-budget-fallback/tasks.md`；持久证据根 `R=/Users/ali/.local/state/bukit-verification/kd003-budget-fallback-SkfsyV`。12 个允许路径全部映射、原有 60 个变更路径建立当前基线；范围外不得覆盖。原生产实现下 `R/red/tests.trx` 为 **147 通过 / 21 预期失败 / 0 Skip**，实际退出码 1；其中六项真实 planner→Scriban page/list 输出对照覆盖文件数／大小超限和 child/parent/user 三种布局，同长度且恢复 mtime 后产物仍为旧内容。其余 RED 是不完整摘要、缓存／日志及 manifest 降级契约，不是编译／环境失败。
 
 最终 fixture 使用现有 `DictionaryContentBodyStore` 及 body key 提供真实正文，不走无关的 inline-body 指纹首轮转换路径；页面／列表字节、同长度／同 mtime、降级、恢复普通复用及 ownership 断言均保留。原生产文件精确恢复至任务开始字节后，最终 `R/body-red/tests.trx` 再次得到 **147 通过 / 21 预期失败 / 0 Skip**，六组真实产物均为旧页面字节。原 `R/green/` 的六项普通复用控制失败和 `R/fixture-red/` 的正文供应错误保留为诊断记录，不算通过或最终有效 RED。
 
@@ -892,7 +892,7 @@ dotnet test tests/Bukit.Labs.Cli.Tests/Bukit.Labs.Cli.Tests.csproj -c Release --
 
 **历史记录，当前验收见 §6.7。** 独立审计曾因 GEO 原始条目与 template/noscript/raw-text 投影反例重新打开 3/4/5；其修复与新专项／复核已在 §6.7 闭环。以下原执行数字、失败及复核均保留为历史证据，不冒充修复后的当前验收。
 
-用户要求严格按“行为矩阵 → KD-011/012 → FAQ/HowTo 与 logger → 独立 KD-007 → 报告、专项、覆盖率”执行。本轮在 `codex/stage6-completion` worktree 实施，原工作树 24 个未提交文件逐字节保留；不自动提交、推送或合并。唯一实施清单为 `openspec/changes/complete-core-stage6-validation/tasks.md`，行为及 24 报告正反例台账见 `docs/testing/core-stage6-behavior-matrix.md`。
+用户要求严格按“行为矩阵 → KD-011/012 → FAQ/HowTo 与 logger → 独立 KD-007 → 报告、专项、覆盖率”执行。本轮在 `codex/stage6-completion` worktree 实施，原工作树 24 个未提交文件逐字节保留；不自动提交、推送或合并。唯一实施清单为 `openspec/changes/archive/2026-10-30-complete-core-stage6-validation/tasks.md`，行为及 24 报告正反例台账见 `docs/testing/core-stage6-behavior-matrix.md`。
 
 证据根 `R=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-stage6-completion-8WEr6X`。以下结果仅对应本轮，不复用已撤回候选的通过结果。
 
@@ -967,7 +967,7 @@ dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj -c Release --sett
 
 KD-003 方案 A 收口后，用户“继续执行”，按剩余风险计划单独执行任务 3，不重开阶段 6，也不进入阶段 7。仅增强原 `BuildAsync_ScssEnabled_PreservesSourceAndCompilesOnceAcrossLanguages`：假工具分别记录 probe/compile trace，原 `sass.log` 保持 compile-only；失败及成功均在 fixture 清理前保存脱敏日志、源文件／三语言 CSS 状态和总耗时。通过不启动进程／构建的合成失败自检验证同一保存路径，随后删除仅自检创建的输入；不添加实际构建 warm-up／重试。
 
-原有源 SCSS、compile 恰好一次及各语言 CSS 精确内容断言保留，生产 3 秒／5 秒超时及其他生产代码不变；`ExternalToolProcessRunnerTests` 不改，只按原计划完整运行。独立清单 `openspec/changes/diagnose-scss-missing-log/tasks.md`；证据根 `R=/Users/ali/.local/state/bukit-verification/scss-causal-diagnosis-z6Jmp9`。
+原有源 SCSS、compile 恰好一次及各语言 CSS 精确内容断言保留，生产 3 秒／5 秒超时及其他生产代码不变；`ExternalToolProcessRunnerTests` 不改，只按原计划完整运行。独立清单 `openspec/changes/archive/2026-10-30-diagnose-scss-missing-log/tasks.md`；证据根 `R=/Users/ali/.local/state/bukit-verification/scss-causal-diagnosis-z6Jmp9`。
 
 唯一带覆盖率专项 `R/diagnostic/tests.trx`：**20 通过 / 0 失败 / 0 Skip**、实际退出码 0。其中 `ExternalToolProcessRunnerTests` 19 个 TRX Passed 包含 1 个 Windows-only NOT_APPLICABLE（macOS 未执行其分支），另 1 个为原 SCSS 集成用例；不把它冒充 Windows 证明。真实构建及断言约 704 ms，probe/compile trace 各记录一次，`sass.log` 仍只有一条 compile，源及 en/fr/de CSS 原断言通过。合成异常由同一保存路径保留原异常、三份 sentinel trace、脱敏消息及缺失 CSS 状态，未启动额外进程／构建；与实际构建快照分开保存在 `R/captures/`。覆盖率附件原样保留（两处同哈希副本属于一次运行），不据此声称全 Engine 覆盖率出口。`R/diagnostic-analysis.json` 记录可观测事实及缺证；运行 GREEN 已缓存并检查 HIT。专项复核 `R/reviews/specialty-v1.md` 和唯一最终增量复核 `R/reviews/final-delta-v1.md` 各为 **Critical 0 / Important 0 / Minor 0**，无需补修或重跑；最终静态、范围保护、writer 及 metrics 记录于 `R/completion.json`。**有界诊断已收口；定因仍为 PARTIAL，本次未复现、历史根因仍未知，不标已修复**。进一步生产观测补证／修复须另行定界授权，不自动启动阶段 7。
 
@@ -980,7 +980,7 @@ git diff --check
 
 #### 6.9 独立 SCSS 生产观测补证（2026-10-29）
 
-用户在阶段范围澄清中明确选择 SCSS 生产观测补证，并批准新 Debug 事件全文遮蔽 stderr。**本批生产观测范围 SUCCESS，已收口；历史根因仍未知。** 阶段 6 原清单及七项审计修复保持已完成；本批不是重复审计或历史根因修复。§6.8 保留为当时诊断快照，成功返回进程的退出码／调用耗时缺口由本节补齐，不改其历史结论。独立计划 `docs/plans/2026-10-29-scss-process-observability.md`、OpenSpec `openspec/changes/observe-scss-process-attempts/`；证据根 `R=/Users/ali/.local/state/bukit-verification/scss-process-observation-Ycjxhu`，十个允许路径已映射，原有 73 个变更建立当前基线；最终静态、范围保护、writer 及 metrics 结果记录于 `R/completion.json`。
+用户在阶段范围澄清中明确选择 SCSS 生产观测补证，并批准新 Debug 事件全文遮蔽 stderr。**本批生产观测范围 SUCCESS，已收口；历史根因仍未知。** 阶段 6 原清单及七项审计修复保持已完成；本批不是重复审计或历史根因修复。§6.8 保留为当时诊断快照，成功返回进程的退出码／调用耗时缺口由本节补齐，不改其历史结论。独立计划 `docs/plans/2026-10-29-scss-process-observability.md`、OpenSpec `openspec/changes/archive/2026-10-30-observe-scss-process-attempts/`；证据根 `R=/Users/ali/.local/state/bukit-verification/scss-process-observation-Ycjxhu`，十个允许路径已映射，原有 73 个变更建立当前基线；最终静态、范围保护、writer 及 metrics 结果记录于 `R/completion.json`。
 
 仅 `ScssCompiler` 的两次调用复用同一个私有观测边界，输出配对 attempt ID、probe/compile、逻辑 sass/dart-sass、原超时参数、真实返回退出码及调用耗时；抛出时保持原异常并标明 exit/stderr unavailable。新 Debug 完全遮蔽 stderr 正文，只留状态和返回诊断字符串的 UTF-16 长度；不记录环境值、参数、路径、stdout、内容摘要或异常消息。补充日志 best-effort，不让新接收器异常取代工具结果。原 runner、3 秒／5 秒、选择顺序、取消、CSS 检查及 warning／Info 字节不改；原失败 warning 仍遵循其旧 stderr detail 行为，不冒称已统一脱敏。
 
@@ -1290,7 +1290,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 #### 阶段 9 I-01 授权修复（2026-10-29）
 
-用户单独授权后，以独立 Core 安全任务修复 I-01。OpenSpec：`openspec/changes/fix-plugin-secret-masker-cookie-authorization/`。生产修改仅为 `PluginSecretMasker.SecretKeyFragments` 增加 `COOKIE` 与 `AUTHORIZATION` 两个片段；不改报告 schema、公开 API、权限模型或 CLI。
+用户单独授权后，以独立 Core 安全任务修复 I-01。OpenSpec：`openspec/changes/archive/2026-10-30-fix-plugin-secret-masker-cookie-authorization/`。生产修改仅为 `PluginSecretMasker.SecretKeyFragments` 增加 `COOKIE` 与 `AUTHORIZATION` 两个片段；不改报告 schema、公开 API、权限模型或 CLI。
 
 - **RED：** 新增 `COOKIE`/`HTTP_COOKIE`/`AUTHORIZATION`/`HTTP_AUTHORIZATION`/小写 `cookie` 五个掩码 theory 用例及一个真实 reporter 报告用例；聚焦 `PluginSecretMaskerTests|PluginLockAndReportTests` 为 **7 失败 / 21 通过 / 0 跳过**，失败均为断言失败（`***` 未出现、明文仍在），非编译失败。
 - **GREEN：** 聚焦 **28/28**；完整 PluginHost **277/277**，0 失败、0 跳过。PluginHost 行覆盖 **1521/1779 = 85.50%**（较批次 1 增加 2 行且均已覆盖）；Abstractions 覆盖不变（独立 4986/5664 = 88.03%，合并 4989/5664 = 88.08%）。
