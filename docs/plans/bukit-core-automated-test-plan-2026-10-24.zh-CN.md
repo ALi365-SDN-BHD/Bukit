@@ -1332,12 +1332,12 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 #### 阶段 9 M-01/M-02 错误契约收口（2026-10-30）
 
-用户单独授权执行 M-01 + M-02 Core 任务。分支 `codex/plugin-error-contracts` 从阶段 10 `d41a2b6a` 创建；单 writer，生产修改仅 `PluginCommandManifestValidator` 与 `PluginHashVerifier`，测试仅两个既有测试类。生产+测试提交 `98169d48`；本记录随文档提交。
+用户单独授权执行 M-01 + M-02 Core 任务。分支 `codex/plugin-error-contracts` 从阶段 10 `d41a2b6a` 创建；单 writer，生产修改仅 `PluginCommandManifestValidator` 与 `PluginHashVerifier`，测试仅两个既有测试类。生产+测试提交 `98169d48`、`921f7764`、`9285ed15`；本记录随文档提交。
 
 - **M-01：** `ValidateArgumentSubset`/`ValidateOptionSubset` 的 `ToDictionary` 改为共享 `ToNamedMap`；同一命令的静态 argument/option 重名抛 `ConfigException` + `ConfigInvalidValue`，消息为 `declares duplicate argument|option for command {path}: {name}.`，嵌套命令保留完整路径。范围仅静态清单 argument/option；runtime manifest 命令重名仍未修。
 - **M-02：** `VerifySha256Async` 捕获 `FileNotFoundException`/`DirectoryNotFoundException` → `Plugin executable was not found.`；`UnauthorizedAccessException` → `Plugin executable could not be read: access denied.`；其他 `IOException` → `Plugin executable could not be read.`；取消继续抛 `OperationCanceledException`，未捕获 `Exception`，签名与调用方未变。
 - **RED：** 新增 4 个 M-01 与 4 个 M-02 用例；聚焦 **7 失败 / 20 通过 / 0 跳过**，失败为原始 `ArgumentException`、`DirectoryNotFoundException`、`UnauthorizedAccessException`，取消守护用例通过。
-- **GREEN：** 聚焦 **27/27**；完整 PluginHost **286/286**；CLI `PluginCliIntegrationTests` **40/40**；`public-api-drift.sh check Release` 退出 0；均 0 失败、0 跳过。
+- **GREEN：** 聚焦 **27/27**；完整 PluginHost **286/286**；CLI `PluginCliIntegrationTests` **40/40**；`public-api-drift.sh check Release` 退出 0；均 0 失败、0 跳过。分析器棘轮保持 **421/421**（`ToNamedMap` 使用具体 `Dictionary` 类型，未增加 CA1859 预算）。
 - **测试边界：** `MissingFile` 用例先创建父目录，直接覆盖 `FileNotFoundException`；通用 `IOException` 分支未构造专用用例；目录路径用例按平台异常映射只断言 `could not be read` 前缀。复核后已补直接覆盖，仍保留这一非阻塞测试边界。
 - **证据：** `D=/Users/ali/.local/state/bukit-verification/plugin-error-contracts-20261030`（`red/`、`green-focused/`、`full/`、`cli/`、`public-api/`、`closure.json`、`cache/`）。
 - **未执行：** 全量解决方案、完整 Core 覆盖率、release/AOT、三平台 CI、push/PR/merge；runtime 命令重名、M-03、S-01 保持开放。
