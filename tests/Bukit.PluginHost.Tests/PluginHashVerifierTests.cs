@@ -75,4 +75,62 @@ public sealed class PluginHashVerifierTests
         Assert.True(result.Success);
         Assert.Equal(expected, result.ExpectedSha256);
     }
+
+    [Fact]
+    public async Task VerifySha256Async_MissingFile_ReturnsNotFound()
+    {
+        using var directory = TestDirectory.Create();
+        string parent = Path.Combine(directory.Path, "plugins", "echo", "bin");
+        Directory.CreateDirectory(parent);
+        string path = Path.Combine(parent, "missing");
+        var verifier = new PluginHashVerifier();
+
+        PluginHashVerificationResult result = await verifier.VerifySha256Async(path, new string('0', 64), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Empty(result.ActualSha256);
+        Assert.Equal("Plugin executable was not found.", result.Message);
+    }
+
+    [Fact]
+    public async Task VerifySha256Async_MissingParentDirectory_ReturnsNotFound()
+    {
+        using var directory = TestDirectory.Create();
+        string path = Path.Combine(directory.Path, "missing-parent", "bukit-plugin-echo");
+        var verifier = new PluginHashVerifier();
+
+        PluginHashVerificationResult result = await verifier.VerifySha256Async(path, new string('0', 64), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Empty(result.ActualSha256);
+        Assert.Equal("Plugin executable was not found.", result.Message);
+    }
+
+    [Fact]
+    public async Task VerifySha256Async_DirectoryPath_ReturnsReadFailure()
+    {
+        using var directory = TestDirectory.Create();
+        string path = Path.Combine(directory.Path, "plugin-directory");
+        Directory.CreateDirectory(path);
+        var verifier = new PluginHashVerifier();
+
+        PluginHashVerificationResult result = await verifier.VerifySha256Async(path, new string('0', 64), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Empty(result.ActualSha256);
+        Assert.StartsWith("Plugin executable could not be read", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task VerifySha256Async_CancelledToken_PropagatesCancellation()
+    {
+        using var directory = TestDirectory.Create();
+        string path = directory.Write("plugins/echo/bin/osx-arm64/bukit-plugin-echo", "hello");
+        var verifier = new PluginHashVerifier();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            verifier.VerifySha256Async(path, new string('0', 64), cancellation.Token));
+    }
 }

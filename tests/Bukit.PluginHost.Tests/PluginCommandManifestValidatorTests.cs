@@ -245,4 +245,120 @@ public sealed class PluginCommandManifestValidatorTests
             Assert.Throws<ArgumentNullException>(() =>
                 _validator.ValidateRuntimeCommands("echo", staticCommands: [], runtimeCommands: null!)).ParamName);
     }
+
+    [Fact]
+    public void ValidateRuntimeCommands_DuplicateStaticArgument_ThrowsWithPath()
+    {
+        ConfigException exception = Assert.Throws<ConfigException>(() =>
+            _validator.ValidateRuntimeCommands(
+                "echo",
+                staticCommands:
+                [
+                    new PluginCommandSpec(
+                        "echo",
+                        "Echo",
+                        Arguments:
+                        [
+                            new PluginArgumentSpec("value", "Value"),
+                            new PluginArgumentSpec("value", "Duplicate")
+                        ])
+                ],
+                runtimeCommands: [new PluginCommandSpec("echo", "Echo")]));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("declares duplicate argument for command echo: value", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateRuntimeCommands_DuplicateStaticOption_ThrowsWithPath()
+    {
+        ConfigException exception = Assert.Throws<ConfigException>(() =>
+            _validator.ValidateRuntimeCommands(
+                "echo",
+                staticCommands:
+                [
+                    new PluginCommandSpec(
+                        "echo",
+                        "Echo",
+                        Options:
+                        [
+                            new PluginOptionSpec("--upper", "flag", "Uppercase"),
+                            new PluginOptionSpec("--upper", "flag", "Duplicate")
+                        ])
+                ],
+                runtimeCommands: [new PluginCommandSpec("echo", "Echo")]));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("declares duplicate option for command echo: --upper", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateRuntimeCommands_DuplicateNestedArgument_ReportsFullPath()
+    {
+        ConfigException exception = Assert.Throws<ConfigException>(() =>
+            _validator.ValidateRuntimeCommands(
+                "echo",
+                staticCommands:
+                [
+                    new PluginCommandSpec(
+                        "echo",
+                        "Echo",
+                        Subcommands:
+                        [
+                            new PluginCommandSpec(
+                                "nested",
+                                "Nested",
+                                Arguments:
+                                [
+                                    new PluginArgumentSpec("value", "Value"),
+                                    new PluginArgumentSpec("value", "Duplicate")
+                                ])
+                        ])
+                ],
+                runtimeCommands:
+                [
+                    new PluginCommandSpec(
+                        "echo",
+                        "Echo",
+                        Subcommands: [new PluginCommandSpec("nested", "Nested")])
+                ]));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("declares duplicate argument for command echo nested: value", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidateRuntimeCommands_DuplicateNestedOption_ReportsFullPath()
+    {
+        ConfigException exception = Assert.Throws<ConfigException>(() =>
+            _validator.ValidateRuntimeCommands(
+                "echo",
+                staticCommands:
+                [
+                    new PluginCommandSpec(
+                        "echo",
+                        "Echo",
+                        Subcommands:
+                        [
+                            new PluginCommandSpec(
+                                "nested",
+                                "Nested",
+                                Options:
+                                [
+                                    new PluginOptionSpec("--upper", "flag", "Uppercase"),
+                                    new PluginOptionSpec("--upper", "flag", "Duplicate")
+                                ])
+                        ])
+                ],
+                runtimeCommands:
+                [
+                    new PluginCommandSpec(
+                        "echo",
+                        "Echo",
+                        Subcommands: [new PluginCommandSpec("nested", "Nested")])
+                ]));
+
+        Assert.Equal(DiagnosticCode.ConfigInvalidValue, exception.Code);
+        Assert.Contains("declares duplicate option for command echo nested: --upper", exception.Message, StringComparison.Ordinal);
+    }
 }
