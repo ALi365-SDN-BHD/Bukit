@@ -1467,11 +1467,11 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 - **门禁：** CI 与 release 的 coverage-summary 在 `summarize.py` 后调用 `security-layer.py`；本地 `coverage.sh` 同样执行；`run-one.sh` 拒绝任何 `NotExecuted`，`coverage-run-one-self-test.sh` 的 skip 模式改为预期失败。
 - **失败安全：** `Stage7FailureTests`、`Stage7PluginFailureTests`、`Stage7DiskFullTests` 参数化为 `clean=false/true`；新增 `PagesIndexCacheConsumer_WritesToStagingAndAbortPreservesFormalCache`，验证真实 pages-index 消费者写入暂存缓存、事务中止后正式缓存保持不变。
 - **Schema：** `content.sources[].notion.pageSize` 补齐 `maximum=100`；新增 100/101 边界与数值范围对照（pageSize/maxItems/renderConcurrency/maxRps/maxRetries 等）。
-- **追溯：** 九步增量对照改用 `OutputSnapshot.IsMetadata` 的精确根/语言目录规则并保留符号链接过滤；阶段 9 归档 SHA-256 更正为 `7fcb0751…dc28b`；阶段 0/1 证据已归档并建立文件—哈希索引（`historical/index.md`、`index.json`）；`invalid-utf8` 探针偶发失败入风险表，留存后定位到探针临时文件冲突。
+- **追溯：** 九步增量对照改用 `OutputSnapshot.IsMetadata` 的精确根/语言目录规则并保留符号链接过滤；阶段 9 归档 SHA-256 更正为 `7fcb0751…dc28b`；阶段 0/1 证据已归档并建立文件—哈希索引（`historical/index.md`、`index.json`）；`invalid-utf8` 探针偶发失败入风险表，根因定位为 Coverlet 对探针插桩产生的共享命中文件冲突，并已精确排除测试辅助程序集。
 - **GREEN：** Architecture **420/420**；Config **433/433**；Engine **2949/2949**；聚焦收口 **25/25**；`security-layer` 对阶段 10 现有 Cobertura **3/3 passed**；`coverage-run-one` 自检、workflow/boundary 自检、public API drift、分析器 421/421、`dotnet format` 均通过。
 - **复核收口：** 修复磁盘满 TRX 校验的 3 结果预期、补齐全分支 closure 映射、将 pages-index 用例名改为事务中止语义、新门禁调用统一 `python3 -B`；全分支 closure 无未映射文件。
 - **证据：** `D=/Users/ali/.local/state/bukit-verification/quality-gates-closeout-20261031`（`architecture-final/`、`config-final/`、`engine-final/`、`engine-full2/`、`security-layer/`、`public-api/`、`ratchet2.log`、`format2.log`、`closure-final.json`）。
-- **未执行：** 全量解决方案、完整覆盖率重采、release/AOT；`clean=true` 的真实磁盘满与三平台 CI 由合并 PR 触发。`invalid-utf8` 探针根因仍未定。
+- **未执行：** 全量解决方案、完整覆盖率重采、release/AOT；`clean=true` 的真实磁盘满与三平台 CI 由合并 PR 触发。`invalid-utf8` 探针根因已定位并修复：Coverlet 对 `PluginProcessProbe` 插桩产生共享 `/tmp` 命中文件，已精确排除该测试辅助程序集。
 
 ### 阶段 11：Labs 与导入、克隆（后置，不在本期）
 
@@ -1520,7 +1520,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 文件系统差异（大小写、符号链接、Windows） | 路径、链接、进程相关专项必须取得 Linux x64、macOS arm64、Windows x64 的实际证据；按第 7 节核对类过滤列表与适用用例，不能把条件跳过当作通过 |
 | 假传输与真实 Notion 行为偏差 | 假传输只验证本项目的请求构造与错误处理，不声称等价真实服务；微信业务后置 |
 | 竞态用例抖动 | 并发用例连续运行 20 次作为稳定标准 |
-| `invalid-utf8` 探针偶发失败 | 2026-10-31 已实现测试接缝留存（记录 exit/stderr/timeout/限额与耗时）；main run 41198008166 复现 `exit=134`，stderr 为 `/tmp/PluginProcessProbe_<guid>` 的 `IOException`（被另一进程占用），故不是 UTF-8 解析问题。已将 3 个真实进程测试类放入同一 xUnit collection 串行化，coverage 专项 10/10 通过；根因仍开放，等待更长绿色基线，不以重跑冒充修复 |
+| `invalid-utf8` 探针偶发失败 | **已关闭（2026-10-31）。** 根因：Coverlet 对 `PluginProcessProbe` 插桩，多个探针进程共享 `/tmp/PluginProcessProbe_<guid>` 命中文件；退出时 `Coverlet.Core.Instrumentation.Tracker...UnloadModule` 读取失败，进程以 134 退出（`EndOfStreamException`；更早表现为 `IOException`）。修复：`coverage.runsettings` 精确排除 `[PluginProcessProbe]*`，Architecture 契约锁定该排除并保留 `bukit-plugin-echo` 覆盖；隔离前 Linux 20 次中 4 次复现，修复后 10/10 通过。xUnit collection 保留为进程测试防御。 |
 
 用例总量为按"每百行 1 到 3 个"的经验比例粗估，不是精确数字。
 
@@ -1592,4 +1592,4 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 2026-10-31 | 阶段 9 S-01 报告字段掩码收口：artifact type/path、diagnostic code/severity、responseSummary diagnosticCodes 统一走 MaskText；RED 1 失败，GREEN 聚焦 3/3、PluginHost 293/293、public API drift 0、分析器 421/421；枚举校验另列 |
 | 2026-10-31 | 质量门禁审计修补：security-layer 接入 CI/release/local coverage；run-one 拒绝任何 Skip；clean=true 失败安全参数化；pages-index 缓存消费者事务回滚用例；Notion pageSize max=100 与 100/101 边界；增量对照改用精确元数据规则；归档哈希与失效证据说明；invalid-utf8 偶发失败入风险表 |
 | 2026-10-31 | 历史证据归档：下载并核对 run 40138709708、40111506691、40111976112 工件，归档 11 份本地 Shared TRX，建立阶段—提交—命令—工具链—文件—SHA-256 索引；缺失的临时根与非 TRX 记录明确标注；invalid-utf8 收窄到进程退出/排空路径，留存改造待单独授权 |
-| 2026-10-31 | invalid-utf8 收口推进：测试接缝留存 + 50 次隔离探针 0 复现；main CI 复现 exit=134 临时文件冲突；三个真实进程测试类同 collection 串行化，coverage 专项 10/10；根因保持开放 |
+| 2026-10-31 | invalid-utf8 根因收口：Coverlet 对 PluginProcessProbe 插桩产生共享 /tmp 命中文件，退出时 Tracker.UnloadModule 读取失败导致 exit 134；coverage.runsettings 精确排除 [PluginProcessProbe]*，Architecture 契约锁定；隔离前 Linux 4/20 复现，修复后 10/10；collection 保留为防御 |

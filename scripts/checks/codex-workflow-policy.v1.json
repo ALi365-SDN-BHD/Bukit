@@ -1337,6 +1337,19 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "coverage-runsettings",
+      "matches": [
+        "coverage.runsettings"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "bash scripts/checks/coverage-run-one-self-test.sh",
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "coverage-entrypoint",
       "matches": [
         "scripts/checks/coverage.sh"
