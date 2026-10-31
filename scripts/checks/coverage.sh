@@ -32,3 +32,8 @@ done < "$projects_file"
 
 bash scripts/checks/coverage/find-results.sh "$projects_root" "$expected_count" > "$files_list"
 run_step "coverage summary" bash scripts/checks/coverage/summarize.py "$policy" "$coverage_root" "$files_list"
+coverage_files=()
+while IFS= read -r coverage_file; do
+  coverage_files+=("$coverage_file")
+done < "$files_list"
+run_step "coverage security layer" python3 -B scripts/checks/coverage/security-layer.py "${coverage_files[@]}"

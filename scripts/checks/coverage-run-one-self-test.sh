@@ -66,11 +66,14 @@ for mode in good skipped only-attachment different extra missing-attachment esca
   [[ "$(wc -l < "$FAKE_CALLS" | tr -d ' ')" == 1 ]] || { cat "$scratch/output"; exit 1; }
   [[ -f "$scratch/results/sibling/keep.txt" ]]
   case "$mode" in
-    good|skipped|only-attachment)
+    good|only-attachment)
       [[ "$status" == 0 ]] || { cat "$scratch/output"; exit 1; }
       reports="$(bash scripts/checks/coverage/find-results.sh "$scratch/results/Fake.Tests" 1)"
       [[ "$reports" == "$scratch/results/Fake.Tests/_fake_run/In/agent/coverage.cobertura.xml" ]]
       [[ -f "$scratch/results/Fake.Tests/tests.trx" ]] ;;
+    skipped)
+      [[ "$status" == 1 ]] || { cat "$scratch/output"; exit 1; }
+      grep -Fq 'skipped tests are not accepted: ignored' "$scratch/output" ;;
     exit) [[ "$status" == 23 && -f "$scratch/results/Fake.Tests/diagnostic.txt" ]] ;;
     *) [[ "$status" == 1 ]] || { cat "$scratch/output"; exit 1; } ;;
   esac
@@ -80,6 +83,5 @@ for mode in good skipped only-attachment different extra missing-attachment esca
       [[ -e "$scratch/results/Fake.Tests/12345678-1234-1234-1234-123456789abc/coverage.cobertura.xml" ]] ;;
   esac
   [[ "$(cat "$scratch/results/outside/coverage.cobertura.xml")" == '<coverage />' ]]
-  [[ "$mode" != skipped ]] || grep -Fq 'TRX skipped: ignored' "$scratch/output"
 done
 echo 'coverage run-one self-test OK'

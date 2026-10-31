@@ -274,14 +274,17 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.False(scss.TryGetProperty("outDir", out _));
         Assert.False(scss.TryGetProperty("includePaths", out _));
 
-        var propertyMap = properties
+        var notionProperties = properties
             .GetProperty("content")
             .GetProperty("properties")
             .GetProperty("sources")
             .GetProperty("items")
             .GetProperty("properties")
             .GetProperty("notion")
-            .GetProperty("properties")
+            .GetProperty("properties");
+        Assert.Equal(1, notionProperties.GetProperty("pageSize").GetProperty("minimum").GetInt32());
+        Assert.Equal(100, notionProperties.GetProperty("pageSize").GetProperty("maximum").GetInt32());
+        var propertyMap = notionProperties
             .GetProperty("propertyMap")
             .GetProperty("properties");
         Assert.True(propertyMap.TryGetProperty("Title", out _));

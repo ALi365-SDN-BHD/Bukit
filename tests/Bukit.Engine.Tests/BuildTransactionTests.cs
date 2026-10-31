@@ -1,4 +1,5 @@
 using Bukit.Config;
+using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Shared;
 using Xunit;
 
@@ -289,6 +290,64 @@ public sealed class BuildTransactionTests : IDisposable
         });
         Assert.IsType<IOException>(exception);
         Assert.Contains("busy", exception.Message);
+    }
+
+    [Fact]
+    public void PagesIndexCacheConsumer_WritesToStagingAndAbortPreservesFormalCache()
+    {
+        string formalCache = Path.Combine(_root, "pages-cache.json");
+        File.WriteAllText(formalCache, "{\"old\":{\"url\":\"\",\"external_url\":\"https://old.example\"}}");
+        var config = Config with
+        {
+            Content = Config.Content with
+            {
+                Sources = [new() { Type = "notion", Notion = new() { DatabaseId = "db", CacheMode = "off" } }]
+            },
+            Theme = Config.Theme with
+            {
+                Params = new Dictionary<string, object>
+                {
+                    ["pages_index"] = new Dictionary<string, object>
+                    {
+                        ["resolve_notion"] = new Dictionary<string, object>
+                        {
+                            ["enabled"] = true,
+                            ["field_keys"] = new[] { "Related" },
+                            ["cache_mode"] = "readwrite",
+                            ["cache_path"] = "pages-cache.json"
+                        }
+                    }
+                }
+            }
+        };
+
+        string stagedCache;
+        using (var transaction = BuildTransaction.Begin(config, _root, new() { CacheDir = Path.Combine(_root, "cache") }, _logger))
+        {
+            string cachePath = PagesIndexCacheHelper.ResolveCachePath(_root, "pages-cache.json");
+            stagedCache = BuildTransaction.Physical(formalCache);
+            Assert.Equal(stagedCache, cachePath);
+            Assert.NotEqual(formalCache, cachePath);
+            Assert.Contains("old.example", File.ReadAllText(formalCache), StringComparison.Ordinal);
+
+            PagesIndexCacheHelper.TrySaveCache(cachePath, new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["new"] = new Dictionary<string, object>(StringComparer.Ordinal)
+                {
+                    ["url"] = "",
+                    ["external_url"] = "https://new.example"
+                }
+            }, _logger);
+
+            Assert.True(File.Exists(cachePath));
+            Assert.Contains("new.example", File.ReadAllText(cachePath), StringComparison.Ordinal);
+            Assert.DoesNotContain("new.example", File.ReadAllText(formalCache), StringComparison.Ordinal);
+        }
+
+        Assert.False(File.Exists(stagedCache));
+        Assert.Contains("old.example", File.ReadAllText(formalCache), StringComparison.Ordinal);
+        Assert.DoesNotContain("new.example", File.ReadAllText(formalCache), StringComparison.Ordinal);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_root, ".bukit-txn-*"));
     }
 
     [Fact]

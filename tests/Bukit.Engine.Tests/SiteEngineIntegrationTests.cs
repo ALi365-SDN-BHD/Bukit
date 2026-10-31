@@ -7,6 +7,7 @@ using Bukit.Routing;
 using Bukit.Engine.Abstractions.Routing;
 using Bukit.Rendering;
 using Bukit.Shared;
+using Bukit.Engine.Tests.Infrastructure;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Xunit;
@@ -5098,13 +5099,12 @@ public sealed partial class SiteEngineIntegrationTests
 
     private static string[] EnumeratePublicOutputFiles(string outputDir)
     {
+        // Public() intentionally rejects links; this inventory test creates links to prove
+        // they are not generated, so keep the link filter while aligning metadata rules.
         return Directory.EnumerateFiles(outputDir, "*", SearchOption.AllDirectories)
             .Where(path => !ContainsReparsePoint(outputDir, path))
             .Select(path => Path.GetRelativePath(outputDir, path).Replace('\\', '/'))
-            .Where(path => !path.Split('/').Any(segment =>
-                string.Equals(segment, ".bukit", StringComparison.OrdinalIgnoreCase)))
-            .Where(path => !string.Equals(path, ".bukit-build-state.json", StringComparison.OrdinalIgnoreCase))
-            .Where(path => !string.Equals(path, ".bukit-output-marker", StringComparison.OrdinalIgnoreCase))
+            .Where(path => !OutputSnapshot.IsMetadata(path, []))
             .Distinct(StringComparer.Ordinal)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ThenBy(path => path, StringComparer.Ordinal)

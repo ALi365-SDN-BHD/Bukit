@@ -475,7 +475,7 @@ public static class ConfigJsonSchemaGenerator
     private static JsonObject NotionSchema()
         => Obj(("type", "object"), ("properties", Obj(
             ("databaseId", StringSchema()),
-            ("pageSize", IntSchema(1)),
+            ("pageSize", IntSchema(1, 100)),
             ("maxItems", IntSchema(1)),
             ("renderContent", BoolSchema()),
             ("renderConcurrency", IntSchema(1)),

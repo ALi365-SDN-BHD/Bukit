@@ -24,20 +24,25 @@ def validate_trx(path):
     summary = root.find("{*}ResultSummary")
     counters = summary.find("{*}Counters")
     rows = root.findall("{*}Results/{*}UnitTestResult")
-    expected = {"RealOutputVolumeFull_PreservesFormalOutputAndCache", "UnsafeVolume_IsRejectedBeforeAnyWrites"}
-    methods = {item.get("id"): item.find("{*}TestMethod") for item in root.findall("{*}TestDefinitions/{*}UnitTest")}
-    if (summary.get("outcome") not in ("Completed", "Passed") or len(rows) != 2 or
-            any(int(counters.get(key, "-1")) != 2 for key in ("total", "executed", "passed")) or
+    prefix = "Bukit.Engine.Tests.Stage7DiskFullTests."
+    expected = {"RealOutputVolumeFull_PreservesFormalOutputAndCache(clean: False)", "RealOutputVolumeFull_PreservesFormalOutputAndCache(clean: True)", "UnsafeVolume_IsRejectedBeforeAnyWrites"}
+    units = {item.get("id"): item for item in root.findall("{*}TestDefinitions/{*}UnitTest")}
+    if (summary.get("outcome") not in ("Completed", "Passed") or len(rows) != 3 or
+            any(int(counters.get(key, "-1")) != 3 for key in ("total", "executed", "passed")) or
             any(int(counters.get(key, "0")) != 0 for key in ("failed", "error", "timeout", "aborted", "notExecuted")) or
             any(row.get("outcome") != "Passed" or "BUKIT_NOT_APPLICABLE:" in "".join(row.itertext()) for row in rows)):
         raise ValueError("Disk-full TRX has missing, failed, or skipped tests")
-    names = set()
+    names = []
     for row in rows:
-        method = methods.get(row.get("testId"))
+        unit = units.get(row.get("testId"))
+        method = unit.find("{*}TestMethod") if unit is not None else None
         if method is None or method.get("className", "").split(",")[0] != "Bukit.Engine.Tests.Stage7DiskFullTests":
             raise ValueError("Unexpected disk-full test class")
-        names.add(method.get("name"))
-    if names != expected:
+        name = unit.get("name", "")
+        if not name.startswith(prefix):
+            raise ValueError("Unexpected disk-full test name")
+        names.append(name[len(prefix):])
+    if sorted(names) != sorted(expected):
         raise ValueError("Unexpected disk-full test methods")
 
 
@@ -101,7 +106,7 @@ def main():
         print("Running bounded-volume specialty:", command, flush=True)
         subprocess.run(command, env=env, check=True, timeout=300)
         validate_trx(trx)
-        print("Disk-full specialty: 2 passed; actual volume bytes:", stat.f_blocks * stat.f_frsize, flush=True)
+        print("Disk-full specialty: 3 passed; actual volume bytes:", stat.f_blocks * stat.f_frsize, flush=True)
     finally:
         if mounted_by_us:
             command = ["hdiutil", "detach", device] if system == "Darwin" else ["sudo", "-n", "umount", str(mount)]

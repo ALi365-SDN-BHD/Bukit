@@ -14,8 +14,10 @@ public sealed class Stage7DiskFullTests
         Assert.Throws<InvalidOperationException>(() => ValidateVolume(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), "wrong"));
     }
 
-    [Fact, Trait("Category", "Integration")]
-    public async Task RealOutputVolumeFull_PreservesFormalOutputAndCache()
+    [Theory, Trait("Category", "Integration")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RealOutputVolumeFull_PreservesFormalOutputAndCache(bool clean)
     {
         var volume = Environment.GetEnvironmentVariable("BUKIT_STAGE7_DISK_VOLUME")
             ?? throw new InvalidOperationException("A disposable volume is required.");
@@ -43,7 +45,7 @@ public sealed class Stage7DiskFullTests
         IOException failure;
         try
         {
-            failure = await Assert.ThrowsAnyAsync<IOException>(() => site.BuildAsync(clean: false,
+            failure = await Assert.ThrowsAnyAsync<IOException>(() => site.BuildAsync(clean: clean,
                 rendererFactory: layouts => renderer = new FullVolumeRenderer(layouts, site.Output, filler)));
         }
         finally

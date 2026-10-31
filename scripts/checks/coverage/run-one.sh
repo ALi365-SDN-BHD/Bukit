@@ -50,12 +50,16 @@ try:
     skipped = [row for row in rows if row.get("outcome") == "NotExecuted"]
     for row in skipped:
         print("TRX skipped: " + row.get("testName", "unknown"))
+    if skipped:
+        raise ValueError(
+            "skipped tests are not accepted: "
+            + ", ".join(row.get("testName", "unknown") for row in skipped))
     valid = (summary.get("outcome") in ("Completed", "Passed") and len(passed) > 0
-             and len(rows) == len(passed) + len(skipped)
+             and len(rows) == len(passed)
              and int(counters.get("total", "-1")) == len(rows)
              and int(counters.get("executed", "-1")) == len(passed)
              and int(counters.get("passed", "-1")) == len(passed)
-             and int(counters.get("notExecuted", "0")) == len(skipped)
+             and int(counters.get("notExecuted", "0")) == 0
              and all(int(counters.get(key, "0")) == 0 for key in
                      ("failed", "error", "timeout", "aborted", "inconclusive", "notRunnable", "disconnected")))
     if not valid:

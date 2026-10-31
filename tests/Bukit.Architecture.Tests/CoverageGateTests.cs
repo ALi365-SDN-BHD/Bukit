@@ -19,6 +19,7 @@ public sealed class CoverageGateTests
         Assert.Contains("scripts/checks/coverage/run-one.sh", script, StringComparison.Ordinal);
         Assert.Contains("scripts/checks/coverage/find-results.sh", script, StringComparison.Ordinal);
         Assert.Contains("scripts/checks/coverage/summarize.py", script, StringComparison.Ordinal);
+        Assert.Contains("scripts/checks/coverage/security-layer.py", script, StringComparison.Ordinal);
         Assert.DoesNotContain("--collect:\"XPlat Code Coverage\"", script, StringComparison.Ordinal);
         Assert.DoesNotContain("coverage.cobertura.xml", script, StringComparison.Ordinal);
     }
@@ -301,6 +302,7 @@ public sealed class CoverageGateTests
         Assert.Equal(["coverage-plan", "coverage-projects"], Needs(summary));
         AssertRunContains(summary, "coverage/find-results.sh");
         AssertRunContains(summary, "coverage/summarize.py");
+        AssertRunContains(summary, "coverage/security-layer.py");
         AssertDownloadArtifact(summary, "core-coverage-project-*", "TestResults/coverage/projects");
         var summaryStep = Assert.Single(Steps(summary), step =>
             TryScalar(step, "run")?.Contains("coverage/find-results.sh", StringComparison.Ordinal) == true);

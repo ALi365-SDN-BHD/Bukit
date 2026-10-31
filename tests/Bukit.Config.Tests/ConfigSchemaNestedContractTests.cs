@@ -128,6 +128,58 @@ public sealed class ConfigSchemaNestedContractTests
     }
 
     [Fact]
+    public void Generate_NumericBounds_MatchSchemaDeclarations()
+    {
+        using var schema = JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
+        var failures = new List<string>();
+        var bounds = new (string Path, string Field, int Min, int? Max)[]
+        {
+            ("site/pagination", "pageSize", 1, null),
+            ("site/collections/*/pagination", "pageSize", 1, null),
+            ("site/collections/*/filteredLists[]", "pageSize", 1, null),
+            ("content/sources[]/notion", "pageSize", 1, 100),
+            ("content/sources[]/notion", "maxItems", 1, null),
+            ("content/sources[]/notion", "renderConcurrency", 1, null),
+            ("content/sources[]/notion", "maxRps", 1, null),
+            ("content/sources[]/notion", "maxRetries", 0, null),
+            ("content/sources[]/markdown", "maxItems", 1, null),
+            ("taxonomy", "pageSize", 1, null)
+        };
+
+        foreach (var (path, field, min, max) in bounds)
+        {
+            try
+            {
+                var property = Resolve(schema.RootElement, path)
+                    .GetProperty("properties")
+                    .GetProperty(field);
+                if (!property.TryGetProperty("minimum", out var minimum) || minimum.GetInt32() != min)
+                {
+                    failures.Add($"{path}.{field}: minimum != {min}");
+                }
+
+                if (max is null)
+                {
+                    if (property.TryGetProperty("maximum", out _))
+                    {
+                        failures.Add($"{path}.{field}: unexpected maximum");
+                    }
+                }
+                else if (!property.TryGetProperty("maximum", out var maximum) || maximum.GetInt32() != max.Value)
+                {
+                    failures.Add($"{path}.{field}: maximum != {max}");
+                }
+            }
+            catch (Exception exception)
+            {
+                failures.Add($"{path}.{field}: {exception.Message}");
+            }
+        }
+
+        Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+    }
+
+    [Fact]
     public void StrictValidatorSource_NestedWhitelistsMatchNestedCases()
     {
         var source = ReadValidatorSource();

@@ -193,6 +193,10 @@ jobs:
         run: |
           bash scripts/checks/coverage/find-results.sh TestResults/coverage/projects "$COVERAGE_PROJECT_COUNT" > TestResults/coverage/coverage-files.txt
           bash scripts/checks/coverage/summarize.py docs/coverage-baselines.json TestResults/coverage TestResults/coverage/coverage-files.txt
+      - name: Check safety-layer coverage
+        run: |
+          mapfile -t coverage_files < TestResults/coverage/coverage-files.txt
+          python3 -B scripts/checks/coverage/security-layer.py "${coverage_files[@]}"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
