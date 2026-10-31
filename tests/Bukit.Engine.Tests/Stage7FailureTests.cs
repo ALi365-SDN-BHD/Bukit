@@ -6,8 +6,10 @@ namespace Bukit.Engine.Tests;
 
 public sealed class Stage7FailureTests
 {
-    [Fact, Trait("Category", "Integration")]
-    public async Task MidRenderFailure_PreservesFormalOutputAndManagedCache()
+    [Theory, Trait("Category", "Integration")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MidRenderFailure_PreservesFormalOutputAndManagedCache(bool clean)
     {
         using var site = new SiteBuilder();
         foreach (var slug in new[] { "alpha", "beta", "gamma" })
@@ -20,7 +22,7 @@ public sealed class Stage7FailureTests
         var before = OutputSnapshot.Managed(("output", site.Output), ("cache", site.Cache));
         site.Markdown("alpha", "alpha", "Changed alpha");
         FailingRenderer? renderer = null;
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => site.BuildAsync(clean: false,
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => site.BuildAsync(clean: clean,
             rendererFactory: layouts => renderer = new FailingRenderer(layouts, site.Output)));
         Assert.Equal("stage7 injected render failure", error.Message);
         Assert.NotNull(renderer);

@@ -6,8 +6,10 @@ namespace Bukit.Engine.Tests;
 
 public sealed class Stage7PluginFailureTests
 {
-    [Fact, Trait("Category", "Integration")]
-    public async Task StrictBuiltInPluginFailure_PreservesFormalOutputAndManagedCache()
+    [Theory, Trait("Category", "Integration")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StrictBuiltInPluginFailure_PreservesFormalOutputAndManagedCache(bool clean)
     {
         using var site = new SiteBuilder();
         site.Markdown("alpha", "Alpha", "Original body");
@@ -19,7 +21,7 @@ public sealed class Stage7PluginFailureTests
         var before = OutputSnapshot.Managed(("output", site.Output), ("cache", site.Cache));
 
         site.Sandbox.Write("data/fault.toml", "invalid-for-bukit = true\n");
-        var error = await Assert.ThrowsAsync<ConfigException>(() => site.BuildAsync(clean: false));
+        var error = await Assert.ThrowsAsync<ConfigException>(() => site.BuildAsync(clean: clean));
         Assert.Equal(DiagnosticCode.ConfigInvalidValue, error.Code);
         Assert.Contains("Unsupported data file format: data/fault.toml", error.Message, StringComparison.Ordinal);
         before.AssertEqual(OutputSnapshot.Managed(("output", site.Output), ("cache", site.Cache)));

@@ -398,6 +398,37 @@ public sealed class ConfigLoaderTests : IDisposable
         Assert.Equal("Created", source.SortProperty);
     }
 
+    [Theory]
+    [InlineData(100, true)]
+    [InlineData(101, false)]
+    public void Load_NotionPageSize_EnforcesRuntimeRange(int pageSize, bool valid)
+    {
+        var yaml = $$"""
+            site:
+              name: myblog
+              title: My Blog
+            content:
+              sources:
+                - type: notion
+                  notion:
+                    databaseId: abc123def456
+                    pageSize: {{pageSize}}
+            """;
+        var path = WriteTempYaml(yaml);
+
+        if (valid)
+        {
+            var config = ConfigLoader.Load(path);
+            ConfigValidator.Validate(config, new ConfigValidationOptions { ValidateProviderSecrets = false });
+            Assert.Equal(pageSize, config.Content.Sources![0].Notion!.PageSize);
+            return;
+        }
+
+        var ex = Assert.Throws<ConfigException>(() =>
+            ConfigValidator.Validate(ConfigLoader.Load(path), new ConfigValidationOptions { ValidateProviderSecrets = false }));
+        Assert.Contains("pageSize must be between 1 and 100", ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Load_StableConfigContractFields_ParsesThroughStrictValidatorAndLoader()
     {
