@@ -92,6 +92,8 @@ Bukit 是 .NET 10 Native AOT 静态站点引擎，当前处于企业内部优先
 
 本节证据根目录 `R` 为 `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/core-phase0-rNC5Fv`；证据文件名均相对此目录。下表 `Infrastructure/` 相对于 `tests/Bukit.Engine.Tests/`；测试计数均为 Passed / Failed / Skip。此前 Shared 验收与图片迁移提交保留。
 
+**追溯说明（2026-10-31）：** 上述系统临时目录可能已被清理；原始执行根缺失不否定历史通过，也不构成当前绿色证据。可复用的替代证据以仓库内测试/归档及 `~/.local/state/bukit-verification/` 现存副本为准；缺失目录只标注追溯缺口，不重跑冒充历史结果。
+
 | 阶段 0 要求 | 文件 | 已执行证据 |
 |---|---|---|
 | 独立沙箱、文件/目录链接及 YAML/Markdown/主题构造；空站点与三个最小 fixture | `Infrastructure/SiteSandbox.cs`、`Infrastructure/SiteBuilder.cs`、`TestInfrastructureTests.cs`；复用 `tests/fixtures/{basic-markdown-site,i18n-site,taxonomy-site}/` 的 20 个显式输入 | 四场景各两次真实构建通过；日期固定，多语核对 en/zh-CN，分类法在沙箱设 pageSize=1 并验证两页/顺序/前后链接；`core-engine-green.trx` |
@@ -405,6 +407,8 @@ git diff --check -- src/Bukit-Core/Bukit.Shared/SafeUrl.cs src/Bukit-Core/Bukit.
 #### 1.8 Linux / Windows 补证与阶段出口（2026-10-25）
 
 **阶段 1：SUCCESS。三平台执行证据已齐，专项复核与一次 delta-only 最终复核完成，满足 1.5 的 Shared 阶段出口条件。** 用户明确要求补齐 Linux、Windows 证据，并选择、授权 GitHub Actions 临时专项分支。既有 SH-01～SH-12、KD-009/KD-010 修复及 1.6/1.7 历史结果保留。
+
+**追溯说明（2026-10-31）：** 1.x 的多个系统临时证据根可能已被清理；缺失目录不否定历史通过，也不作为当前绿色证据。替代索引以三平台 CI run、仓库内 TRX/归档及 `~/.local/state/bukit-verification/` 现存副本为准，缺失项标注追溯缺口，不重跑冒充历史结果。
 
 版本与执行环境：
 
@@ -1326,7 +1330,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 只读审计结论：**阶段 9 的 SUCCESS 判定与代码和记录基本一致，未发现会推翻判定的问题；审计未重跑测试。** 对审计提出的三项注意：
 
 - **覆盖率分母（2026-10-30 更正）：** 该次采集未使用 `coverage.runsettings`，88.03% 含生成代码，不是现行 CI 门禁口径；CI 门禁 `run-one.sh` 使用 `coverage.runsettings` 排除 `**/obj/**/*.g.cs`，门禁口径为手写源 **204/204 = 100%**。阶段 10 以门禁口径重跑，并同时记录总比例。
-- **证据持久性：** 两个执行根已复制到 `/Users/ali/.local/state/bukit-verification/stage9-plugin-batch1-20261029` 与 `.../stage9-plugin-secret-masker-20261029`，所有已复制文件经 `diff -qr` 验证一致；计划与 OpenSpec 已记录持久镜像。另生成归档 `/Users/ali/.local/state/bukit-verification/stage9-evidence-20261029.tar.gz`（1.6 MB，SHA256 `6c8505e54d145b047b0d72b76748ca4815e960e9395bfb5848a2026fd6bd7cbf`），并提交到仓库 `docs/testing/evidence/stage9-20261029/`（含 README、manifest、归档与校验文件）；仓库不提交 24 MB 原始目录。cache record 的精确命令仍保留原执行路径，避免把镜像路径冒充缓存命中。
+- **证据持久性：** 两个执行根已复制到 `/Users/ali/.local/state/bukit-verification/stage9-plugin-batch1-20261029` 与 `.../stage9-plugin-secret-masker-20261029`，所有已复制文件经 `diff -qr` 验证一致；计划与 OpenSpec 已记录持久镜像。另生成归档 `/Users/ali/.local/state/bukit-verification/stage9-evidence-20261029.tar.gz`（1.6 MB，SHA256 `7fcb0751726f1a7b9a7de097ae47902505d946156fada0439962311ad30dc28b`），并提交到仓库 `docs/testing/evidence/stage9-20261029/`（含 README、manifest、归档与校验文件）；仓库不提交 24 MB 原始目录。cache record 的精确命令仍保留原执行路径，避免把镜像路径冒充缓存命中。
 - **过度掩码：** 已在 I-01 记录中明确：`COOKIE`/`AUTHORIZATION` 采用子串匹配，`COOKIE_CONSENT_MODE` 等非密钥键也会写 `***`；这是已接受的安全偏向，不改为精确键匹配。
 - **未闭环项：** S-01 已于 2026-10-31 关闭；M-01（argument/option 与 runtime 命令重名）、M-02、M-03 已于 2026-10-30/31 关闭。它们不阻塞阶段 9；真实崩溃探针与三平台进程树分支按既定计划后置。审计建议的重跑专项未被采用：当前 cache 记录与最终 TRX 均匹配，按 `AGENTS.md` 不对未变化输入重复运行。
 
@@ -1456,6 +1460,18 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 出口：架构测试全绿、基线与源码一致，原生冒烟、覆盖率和三个平台专项均有对应证据；缺授权、缺执行或异常跳过均记录为未完成。
 
+#### 质量门禁审计修补（2026-10-31）
+
+用户授权按审计建议顺序完整执行。分支 `codex/quality-gates-closeout` 从 `main` `2e737d90` 创建；生产变更仅 `Notion` schema 的 `pageSize` 最大值，其余为门禁、测试和文档。提交 `71989b89`。
+
+- **门禁：** CI 与 release 的 coverage-summary 在 `summarize.py` 后调用 `security-layer.py`；本地 `coverage.sh` 同样执行；`run-one.sh` 拒绝任何 `NotExecuted`，`coverage-run-one-self-test.sh` 的 skip 模式改为预期失败。
+- **失败安全：** `Stage7FailureTests`、`Stage7PluginFailureTests`、`Stage7DiskFullTests` 参数化为 `clean=false/true`；新增 `PagesIndexCacheConsumer_UsesTransactionAndFailurePreservesFormalCache`，验证真实 pages-index 消费者写入暂存缓存、失败回滚保留正式缓存。
+- **Schema：** `content.sources[].notion.pageSize` 补齐 `maximum=100`；新增 100/101 边界与数值范围对照（pageSize/maxItems/renderConcurrency/maxRps/maxRetries 等）。
+- **追溯：** 九步增量对照改用 `OutputSnapshot.IsMetadata` 的精确根/语言目录规则并保留符号链接过滤；阶段 9 归档 SHA-256 更正为 `7fcb0751…dc28b`；阶段 0/1 增加临时证据根清理说明；`invalid-utf8` 探针偶发失败入风险表。
+- **GREEN：** Architecture **420/420**；Config **433/433**；Engine 受影响专项 **6/6**；`security-layer` 对阶段 10 现有 Cobertura **3/3 passed**；`coverage-run-one` 自检、workflow/boundary 自检、public API drift、分析器 421/421、`dotnet format` 均通过。
+- **证据：** `D=/Users/ali/.local/state/bukit-verification/quality-gates-closeout-20261031`（`architecture-full/`、`config-full/`、`engine-focused/`、`security-layer/`、`public-api/`、`ratchet.log`、`format.log`、`closure.json`）。
+- **未执行：** 全量解决方案、完整覆盖率重采、release/AOT；三平台 CI 由合并 PR 触发。`invalid-utf8` 探针根因仍未定。
+
 ### 阶段 11：Labs 与导入、克隆（后置，不在本期）
 
 仅补契约与冒烟：命令解析、输出结构、不联网路径。外部插件（IndexNow、WechatSync、Import、Clone）契约测试同样后置，不属于阶段 9 出口。
@@ -1503,6 +1519,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 文件系统差异（大小写、符号链接、Windows） | 路径、链接、进程相关专项必须取得 Linux x64、macOS arm64、Windows x64 的实际证据；按第 7 节核对类过滤列表与适用用例，不能把条件跳过当作通过 |
 | 假传输与真实 Notion 行为偏差 | 假传输只验证本项目的请求构造与错误处理，不声称等价真实服务；微信业务后置 |
 | 竞态用例抖动 | 并发用例连续运行 20 次作为稳定标准 |
+| `invalid-utf8` 探针偶发失败 | 2026-10-31 PR #78 首轮 coverage 中 `PluginProtocolProbeTests` 期望 `invalidResponse`，实际 `executionFailed`；重跑通过但根因未定。后续复现须保留完整 TRX、实际退出码与 stderr，按 `SystemProcessRunner` 取消/排空路径定向调查，不以重跑代替结论 |
 
 用例总量为按"每百行 1 到 3 个"的经验比例粗估，不是精确数字。
 
@@ -1572,3 +1589,4 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 2026-10-30 | 阶段 9 M-01 runtime 命令重名收口：validator 递归查重、CLI 对 runtime-only 传入空静态命令做查重并保留既有语义，顶层/嵌套重名抛 `ConfigException` + `ConfigInvalidValue`；RED 3+1 失败，GREEN PluginHost 289/289、CLI 1102/1102、public API drift 0、分析器 421/421；M-03、S-01 保持开放 |
 | 2026-10-31 | 阶段 9 M-03 MaskText 契约收口：明确按值、仅授权环境变量、非密钥键也掩码的安全偏向；新增 3 个契约用例；聚焦 19/19、PluginHost 292/292、public API drift 0、分析器 421/421；仅 S-01 保持开放 |
 | 2026-10-31 | 阶段 9 S-01 报告字段掩码收口：artifact type/path、diagnostic code/severity、responseSummary diagnosticCodes 统一走 MaskText；RED 1 失败，GREEN 聚焦 3/3、PluginHost 293/293、public API drift 0、分析器 421/421；枚举校验另列 |
+| 2026-10-31 | 质量门禁审计修补：security-layer 接入 CI/release/local coverage；run-one 拒绝任何 Skip；clean=true 失败安全参数化；pages-index 缓存消费者事务回滚用例；Notion pageSize max=100 与 100/101 边界；增量对照改用精确元数据规则；归档哈希与失效证据说明；invalid-utf8 偶发失败入风险表 |
