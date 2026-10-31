@@ -82,13 +82,106 @@ public sealed class PluginProtocolProbeTests
     {
         using var directory = TestDirectory.Create();
         var plugin = CreatePlugin(directory.Path, [command, argument], stdoutMaxBytes: stdoutMaxBytes, responseMaxBytes: responseMaxBytes);
-        var client = new PluginProtocolClient(new PluginProcessInvoker(new SystemProcessRunner()), new PluginRequestIdFactory());
+        var recorder = new RecordingProcessRunner(new SystemProcessRunner());
+        var client = new PluginProtocolClient(new PluginProcessInvoker(recorder), new PluginRequestIdFactory());
 
-        var exception = await Assert.ThrowsAsync<ConfigException>(() =>
-            client.HandshakeAsync(plugin, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(20)));
+        ConfigException? exception = null;
+        try
+        {
+            await client.HandshakeAsync(plugin, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(20));
+        }
+        catch (ConfigException ex)
+        {
+            exception = ex;
+        }
+        catch (Exception ex)
+        {
+            Assert.Fail($"Unexpected {ex.GetType().Name}: {ex.Message}{Environment.NewLine}Process: {recorder.Describe()}");
+            return;
+        }
+
+        if (exception is null)
+        {
+            Assert.Fail($"Expected ConfigException; Process: {recorder.Describe()}");
+            return;
+        }
 
         Assert.Equal(DiagnosticCode.PluginExecutionFailed, exception.Code);
-        Assert.Equal(diagnostic, exception.Message);
+        if (!string.Equals(diagnostic, exception.Message, StringComparison.Ordinal))
+        {
+            Assert.Fail($"Expected: {diagnostic}{Environment.NewLine}Actual: {exception.Message}{Environment.NewLine}Process: {recorder.Describe()}");
+        }
+    }
+
+    [Fact]
+    public async Task RecordingProcessRunner_DescribeIncludesProcessOutcome()
+    {
+        var runner = new RecordingProcessRunner(new StubProcessRunner(new ProcessRunResult(7, "out", "err", false, false)));
+
+        var result = await runner.RunAsync(
+            new ProcessRunRequest("dotnet", [], "", ".", TimeSpan.FromSeconds(1), 1, 1),
+            CancellationToken.None);
+
+        Assert.Equal(7, result.ExitCode);
+        var description = runner.Describe();
+        Assert.Contains("exit=7", description, StringComparison.Ordinal);
+        Assert.Contains("stderr=err", description, StringComparison.Ordinal);
+        Assert.Contains("elapsed=", description, StringComparison.Ordinal);
+    }
+
+    private sealed class StubProcessRunner(ProcessRunResult result) : IProcessRunner
+    {
+        public Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken)
+            => Task.FromResult(result);
+    }
+
+    private sealed class RecordingProcessRunner : IProcessRunner
+    {
+        private readonly IProcessRunner _inner;
+
+        public RecordingProcessRunner(IProcessRunner inner) => _inner = inner;
+
+        public ProcessRunResult? Result { get; private set; }
+
+        public Exception? Failure { get; private set; }
+
+        public TimeSpan Elapsed { get; private set; }
+
+        public async Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken)
+        {
+            long started = Stopwatch.GetTimestamp();
+            try
+            {
+                Result = await _inner.RunAsync(request, cancellationToken);
+                return Result;
+            }
+            catch (Exception exception)
+            {
+                Failure = exception;
+                throw;
+            }
+            finally
+            {
+                Elapsed = Stopwatch.GetElapsedTime(started);
+            }
+        }
+
+        public string Describe()
+        {
+            if (Result is null)
+            {
+                return Failure is null
+                    ? $"no process result; elapsed={Elapsed.TotalMilliseconds:F0}ms"
+                    : $"runner threw {Failure.GetType().Name}: {Failure.Message}; elapsed={Elapsed.TotalMilliseconds:F0}ms";
+            }
+
+            return $"exit={Result.ExitCode} timedOut={Result.TimedOut} outputLimitExceeded={Result.OutputLimitExceeded} " +
+                   $"limitStream={Result.OutputLimitStream?.ToString() ?? "null"} resourceLimit={Result.ResourceLimitExceeded ?? "null"} " +
+                   $"elapsed={Elapsed.TotalMilliseconds:F0}ms stderr={Quote(Result.Stderr)} stdout={Quote(Result.Stdout)}";
+        }
+
+        private static string Quote(string value)
+            => value.Length <= 512 ? value.Replace("\0", "\\0", StringComparison.Ordinal) : value[..512] + $"...({value.Length} chars)";
     }
 
     internal static ResolvedPlugin CreatePlugin(
