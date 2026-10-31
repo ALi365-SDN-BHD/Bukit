@@ -97,7 +97,7 @@ internal sealed class PluginExecutionReporter
         writer.WritePropertyName("artifacts");
         WriteArtifacts(writer, report.Artifacts, report.Environment);
         writer.WritePropertyName("responseSummary");
-        WriteResponseSummary(writer, report.ResponseSummary);
+        WriteResponseSummary(writer, report.ResponseSummary, report.Environment);
         writer.WriteEndObject();
         await writer.FlushAsync(cancellationToken);
         return reportPath;
@@ -163,8 +163,8 @@ internal sealed class PluginExecutionReporter
         foreach (PluginDiagnostic diagnostic in diagnostics)
         {
             writer.WriteStartObject();
-            writer.WriteString("code", diagnostic.Code);
-            writer.WriteString("severity", diagnostic.Severity);
+            writer.WriteString("code", PluginSecretMasker.MaskText(diagnostic.Code, environment));
+            writer.WriteString("severity", PluginSecretMasker.MaskText(diagnostic.Severity, environment));
             writer.WriteString("message", PluginSecretMasker.MaskText(diagnostic.Message, environment));
             WriteNullableMaskedString(writer, "path", diagnostic.Path, environment);
             writer.WriteEndObject();
@@ -182,8 +182,8 @@ internal sealed class PluginExecutionReporter
         foreach (PluginArtifact artifact in artifacts)
         {
             writer.WriteStartObject();
-            writer.WriteString("type", artifact.Type);
-            writer.WriteString("path", artifact.Path);
+            writer.WriteString("type", PluginSecretMasker.MaskText(artifact.Type, environment));
+            writer.WriteString("path", PluginSecretMasker.MaskText(artifact.Path, environment));
             WriteNullableMaskedString(writer, "description", artifact.Description, environment);
             writer.WriteEndObject();
         }
@@ -191,7 +191,10 @@ internal sealed class PluginExecutionReporter
         writer.WriteEndArray();
     }
 
-    private static void WriteResponseSummary(Utf8JsonWriter writer, PluginExecutionResponseSummary? summary)
+    private static void WriteResponseSummary(
+        Utf8JsonWriter writer,
+        PluginExecutionResponseSummary? summary,
+        IReadOnlyDictionary<string, string> environment)
     {
         if (summary is null)
         {
@@ -203,7 +206,13 @@ internal sealed class PluginExecutionReporter
         writer.WriteBoolean("success", summary.Success);
         writer.WriteNumber("exitCode", summary.ExitCode);
         writer.WritePropertyName("diagnosticCodes");
-        WriteStringArray(writer, summary.DiagnosticCodes);
+        writer.WriteStartArray();
+        foreach (string code in summary.DiagnosticCodes)
+        {
+            writer.WriteStringValue(PluginSecretMasker.MaskText(code, environment));
+        }
+
+        writer.WriteEndArray();
         writer.WriteNumber("artifactCount", summary.ArtifactCount);
         writer.WriteEndObject();
     }
