@@ -408,7 +408,7 @@ git diff --check -- src/Bukit-Core/Bukit.Shared/SafeUrl.cs src/Bukit-Core/Bukit.
 
 **阶段 1：SUCCESS。三平台执行证据已齐，专项复核与一次 delta-only 最终复核完成，满足 1.5 的 Shared 阶段出口条件。** 用户明确要求补齐 Linux、Windows 证据，并选择、授权 GitHub Actions 临时专项分支。既有 SH-01～SH-12、KD-009/KD-010 修复及 1.6/1.7 历史结果保留。
 
-**追溯说明（2026-10-31）：** 1.x 的多个系统临时证据根已被清理；缺失目录不否定历史通过，也不作为当前绿色证据。已核对本地 RED/GREEN/平台 TRX，并下载 Shared 远端工件（run 40111506691 仅取成功的 Windows full/platform 与 Linux platform；run 40111976112 取 Linux full），索引见同一 `historical/index.md`；缓存/复核日志不重建，缺失项标注缺口，不重跑冒充历史结果。
+**追溯说明（2026-10-31）：** 四个系统临时证据根（阶段 0 `core-phase0-rNC5Fv`、1.4/1.6 `shared-phase1-uwb8ppax`、1.7 `shared-kd-fix-hhynlaf9`、1.8 `shared-platform-TIfifB`）已被清理；缺失目录不否定历史通过，也不作为当前绿色证据。已核对本地 RED/GREEN/平台 TRX，并下载 Shared 远端工件（run 40111506691 仅取成功的 Windows full/platform 与 Linux platform；run 40111976112 取 Linux full），索引见同一 `historical/index.md`；缓存/复核日志不重建，缺失项标注缺口，不重跑冒充历史结果。
 
 版本与执行环境：
 
