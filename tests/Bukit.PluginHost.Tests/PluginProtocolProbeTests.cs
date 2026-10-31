@@ -117,7 +117,8 @@ public sealed class PluginProtocolProbeTests
     [Fact]
     public async Task RecordingProcessRunner_DescribeIncludesProcessOutcome()
     {
-        var runner = new RecordingProcessRunner(new StubProcessRunner(new ProcessRunResult(7, "out", "err", false, false)));
+        string stderr = new string('e', 1160) + ":tail-marker";
+        var runner = new RecordingProcessRunner(new StubProcessRunner(new ProcessRunResult(7, "out", stderr, false, false)));
 
         var result = await runner.RunAsync(
             new ProcessRunRequest("dotnet", [], "", ".", TimeSpan.FromSeconds(1), 1, 1),
@@ -126,7 +127,7 @@ public sealed class PluginProtocolProbeTests
         Assert.Equal(7, result.ExitCode);
         var description = runner.Describe();
         Assert.Contains("exit=7", description, StringComparison.Ordinal);
-        Assert.Contains("stderr=err", description, StringComparison.Ordinal);
+        Assert.Contains("stderr=" + stderr, description, StringComparison.Ordinal);
         Assert.Contains("elapsed=", description, StringComparison.Ordinal);
     }
 
@@ -176,13 +177,15 @@ public sealed class PluginProtocolProbeTests
                     : $"runner threw {Failure.GetType().Name}: {Failure.Message}; elapsed={Elapsed.TotalMilliseconds:F0}ms";
             }
 
+            // Stderr is already bounded by StderrMaxBytes; keep it whole so a runtime
+            // call stack is not truncated. Stdout stays short to keep the message readable.
             return $"exit={Result.ExitCode} timedOut={Result.TimedOut} outputLimitExceeded={Result.OutputLimitExceeded} " +
                    $"limitStream={Result.OutputLimitStream?.ToString() ?? "null"} resourceLimit={Result.ResourceLimitExceeded ?? "null"} " +
-                   $"elapsed={Elapsed.TotalMilliseconds:F0}ms stderr={Quote(Result.Stderr)} stdout={Quote(Result.Stdout)}";
+                   $"elapsed={Elapsed.TotalMilliseconds:F0}ms stderr={Quote(Result.Stderr, 4096)} stdout={Quote(Result.Stdout, 512)}";
         }
 
-        private static string Quote(string value)
-            => value.Length <= 512 ? value.Replace("\0", "\\0", StringComparison.Ordinal) : value[..512] + $"...({value.Length} chars)";
+        private static string Quote(string value, int maxLength)
+            => value.Length <= maxLength ? value.Replace("\0", "\\0", StringComparison.Ordinal) : value[..maxLength] + $"...({value.Length} chars)";
     }
 
     internal static ResolvedPlugin CreatePlugin(
