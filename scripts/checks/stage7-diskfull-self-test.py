@@ -28,8 +28,8 @@ with tempfile.TemporaryDirectory(prefix="stage7-disk-owner-") as temporary:
     definitions = ET.SubElement(root, "TestDefinitions")
     results = ET.SubElement(root, "Results")
     for index, name in enumerate(("RealOutputVolumeFull_PreservesFormalOutputAndCache(clean: False)", "RealOutputVolumeFull_PreservesFormalOutputAndCache(clean: True)", "UnsafeVolume_IsRejectedBeforeAnyWrites")):
-        unit = ET.SubElement(definitions, "UnitTest", id=str(index))
-        ET.SubElement(unit, "TestMethod", className="Bukit.Engine.Tests.Stage7DiskFullTests", name=name)
+        unit = ET.SubElement(definitions, "UnitTest", id=str(index), name="Bukit.Engine.Tests.Stage7DiskFullTests." + name)
+        ET.SubElement(unit, "TestMethod", className="Bukit.Engine.Tests.Stage7DiskFullTests", name=name.split("(", 1)[0])
         ET.SubElement(results, "UnitTestResult", testId=str(index), outcome="Passed")
     summary = ET.SubElement(root, "ResultSummary", outcome="Completed")
     ET.SubElement(summary, "Counters", total="3", executed="3", passed="3")
@@ -41,6 +41,17 @@ with tempfile.TemporaryDirectory(prefix="stage7-disk-owner-") as temporary:
         try:
             module.validate_trx(trx)
         except ValueError:
-            continue
-        raise AssertionError("Invalid disk-full result was accepted: " + mutation)
+            pass
+        else:
+            raise AssertionError("Invalid disk-full result was accepted: " + mutation)
+        results[0].set("outcome", "Passed")
+    results.remove(results[0])
+    summary.find("{*}Counters").attrib.update(total="2", executed="2", passed="2")
+    ET.ElementTree(root).write(trx)
+    try:
+        module.validate_trx(trx)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Two-result disk-full TRX was accepted")
 print("Stage 7 disk-full owner self-test passed")
