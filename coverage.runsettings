@@ -4,6 +4,8 @@
     <DataCollectors>
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
+          <!-- PluginProcessProbe is a child-process test helper; instrumenting it creates a shared /tmp hits file. -->
+          <Exclude>[PluginProcessProbe]*</Exclude>
           <ExcludeByFile>**/obj/**/*.g.cs,**/ThemeManifestYamlStaticContext.Generated.cs</ExcludeByFile>
         </Configuration>
       </DataCollector>

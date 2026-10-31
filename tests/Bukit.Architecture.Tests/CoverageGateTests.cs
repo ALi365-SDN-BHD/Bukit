@@ -113,13 +113,17 @@ public sealed class CoverageGateTests
     private static void AssertCoverageRunsettingsContract(string runsettings)
     {
         var document = XDocument.Parse(runsettings);
+        // Only the child-process test helper may be excluded; product assemblies stay instrumented.
+        var exclude = Assert.Single(document.Descendants("Exclude"));
+        Assert.Equal("[PluginProcessProbe]*", exclude.Value);
+        Assert.DoesNotContain("[Bukit.", exclude.Value, StringComparison.Ordinal);
+
         var excludeByFile = Assert.Single(document.Descendants("ExcludeByFile"));
 
         Assert.Equal(
             "**/obj/**/*.g.cs,**/ThemeManifestYamlStaticContext.Generated.cs",
             excludeByFile.Value);
         Assert.DoesNotContain("[Bukit.Theme]*", runsettings, StringComparison.Ordinal);
-        Assert.DoesNotContain("<Exclude>", runsettings, StringComparison.Ordinal);
     }
 
     [Fact]
