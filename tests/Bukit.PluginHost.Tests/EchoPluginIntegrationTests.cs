@@ -9,6 +9,7 @@ using Xunit;
 
 namespace Bukit.PluginHost.Tests;
 
+[Collection(ProcessProbeCollection.Name)]
 public sealed class EchoPluginIntegrationTests
 {
     [Fact]

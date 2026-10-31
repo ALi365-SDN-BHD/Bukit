@@ -8,6 +8,7 @@ using Xunit;
 namespace Bukit.PluginHost.Tests;
 
 [Trait("Category", "Integration")]
+[Collection(ProcessProbeCollection.Name)]
 public sealed class PluginProtocolProbeTests
 {
     [Fact]
