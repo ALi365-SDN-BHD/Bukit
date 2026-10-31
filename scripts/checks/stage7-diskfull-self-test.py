@@ -27,12 +27,12 @@ with tempfile.TemporaryDirectory(prefix="stage7-disk-owner-") as temporary:
     root = ET.Element("TestRun")
     definitions = ET.SubElement(root, "TestDefinitions")
     results = ET.SubElement(root, "Results")
-    for index, name in enumerate(("RealOutputVolumeFull_PreservesFormalOutputAndCache", "UnsafeVolume_IsRejectedBeforeAnyWrites")):
+    for index, name in enumerate(("RealOutputVolumeFull_PreservesFormalOutputAndCache(clean: False)", "RealOutputVolumeFull_PreservesFormalOutputAndCache(clean: True)", "UnsafeVolume_IsRejectedBeforeAnyWrites")):
         unit = ET.SubElement(definitions, "UnitTest", id=str(index))
         ET.SubElement(unit, "TestMethod", className="Bukit.Engine.Tests.Stage7DiskFullTests", name=name)
         ET.SubElement(results, "UnitTestResult", testId=str(index), outcome="Passed")
     summary = ET.SubElement(root, "ResultSummary", outcome="Completed")
-    ET.SubElement(summary, "Counters", total="2", executed="2", passed="2")
+    ET.SubElement(summary, "Counters", total="3", executed="3", passed="3")
     ET.ElementTree(root).write(trx)
     module.validate_trx(trx)
     for mutation in ("Failed", "NotExecuted"):

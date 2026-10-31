@@ -128,7 +128,7 @@ public sealed class ConfigSchemaNestedContractTests
     }
 
     [Fact]
-    public void Generate_NumericBounds_MatchRuntimeContracts()
+    public void Generate_NumericBounds_MatchSchemaDeclarations()
     {
         using var schema = JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
         var failures = new List<string>();

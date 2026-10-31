@@ -1309,6 +1309,34 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "core-test-plan-record",
+      "matches": [
+        "docs/plans/bukit-core-automated-test-plan-2026-10-24.zh-CN.md"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/docs/size-policy.sh",
+        "bash scripts/checks/docs/active-links.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "stage7-diskfull-owner",
+      "matches": [
+        "tests/Stage7DiskFull/Stage7DiskFullTests.cs",
+        "scripts/checks/stage7-diskfull-unix.py",
+        "scripts/checks/stage7-diskfull-windows.ps1",
+        "scripts/checks/stage7-diskfull-self-test.py"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "python3 -B scripts/checks/stage7-diskfull-self-test.py"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "coverage-entrypoint",
       "matches": [
         "scripts/checks/coverage.sh"

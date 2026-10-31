@@ -344,7 +344,7 @@ jobs:
       - name: Check safety-layer coverage
         run: |
           mapfile -t coverage_files < TestResults/coverage/coverage-files.txt
-          python3 scripts/checks/coverage/security-layer.py "${coverage_files[@]}"
+          python3 -B scripts/checks/coverage/security-layer.py "${coverage_files[@]}"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

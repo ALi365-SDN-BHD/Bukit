@@ -1462,14 +1462,15 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 
 #### 质量门禁审计修补（2026-10-31）
 
-用户授权按审计建议顺序完整执行。分支 `codex/quality-gates-closeout` 从 `main` `2e737d90` 创建；生产变更仅 `Notion` schema 的 `pageSize` 最大值，其余为门禁、测试和文档。提交 `71989b89`、`3df18b54`。
+用户授权按审计建议顺序完整执行。分支 `codex/quality-gates-closeout` 从 `main` `2e737d90` 创建；生产变更仅 `Notion` schema 的 `pageSize` 最大值，其余为门禁、测试和文档。提交 `2eefb215`、`71989b89`、`3df18b54`、`0c87accc`（其中 `2eefb215` 为门禁接线提交）。
 
 - **门禁：** CI 与 release 的 coverage-summary 在 `summarize.py` 后调用 `security-layer.py`；本地 `coverage.sh` 同样执行；`run-one.sh` 拒绝任何 `NotExecuted`，`coverage-run-one-self-test.sh` 的 skip 模式改为预期失败。
-- **失败安全：** `Stage7FailureTests`、`Stage7PluginFailureTests`、`Stage7DiskFullTests` 参数化为 `clean=false/true`；新增 `PagesIndexCacheConsumer_UsesTransactionAndFailurePreservesFormalCache`，验证真实 pages-index 消费者写入暂存缓存、失败回滚保留正式缓存。
+- **失败安全：** `Stage7FailureTests`、`Stage7PluginFailureTests`、`Stage7DiskFullTests` 参数化为 `clean=false/true`；新增 `PagesIndexCacheConsumer_WritesToStagingAndAbortPreservesFormalCache`，验证真实 pages-index 消费者写入暂存缓存、事务中止后正式缓存保持不变。
 - **Schema：** `content.sources[].notion.pageSize` 补齐 `maximum=100`；新增 100/101 边界与数值范围对照（pageSize/maxItems/renderConcurrency/maxRps/maxRetries 等）。
 - **追溯：** 九步增量对照改用 `OutputSnapshot.IsMetadata` 的精确根/语言目录规则并保留符号链接过滤；阶段 9 归档 SHA-256 更正为 `7fcb0751…dc28b`；阶段 0/1 增加临时证据根清理说明；`invalid-utf8` 探针偶发失败入风险表。
-- **GREEN：** Architecture **420/420**；Config **433/433**；Engine **2949/2949**；`security-layer` 对阶段 10 现有 Cobertura **3/3 passed**；`coverage-run-one` 自检、workflow/boundary 自检、public API drift、分析器 421/421、`dotnet format` 均通过。
-- **证据：** `D=/Users/ali/.local/state/bukit-verification/quality-gates-closeout-20261031`（`architecture-full/`、`config-full/`、`engine-full2/`、`security-layer/`、`public-api/`、`ratchet2.log`、`format2.log`、`closure.json`）。
+- **GREEN：** Architecture **420/420**；Config **433/433**；Engine **2949/2949**；聚焦收口 **25/25**；`security-layer` 对阶段 10 现有 Cobertura **3/3 passed**；`coverage-run-one` 自检、workflow/boundary 自检、public API drift、分析器 421/421、`dotnet format` 均通过。
+- **复核收口：** 修复磁盘满 TRX 校验的 3 结果预期、补齐全分支 closure 映射、将 pages-index 用例名改为事务中止语义、新门禁调用统一 `python3 -B`；全分支 closure 无未映射文件。
+- **证据：** `D=/Users/ali/.local/state/bukit-verification/quality-gates-closeout-20261031`（`architecture-final/`、`config-final/`、`engine-final/`、`engine-full2/`、`security-layer/`、`public-api/`、`ratchet2.log`、`format2.log`、`closure-final.json`）。
 - **未执行：** 全量解决方案、完整覆盖率重采、release/AOT；`clean=true` 的真实磁盘满与三平台 CI 由合并 PR 触发。`invalid-utf8` 探针根因仍未定。
 
 ### 阶段 11：Labs 与导入、克隆（后置，不在本期）

@@ -36,4 +36,4 @@ coverage_files=()
 while IFS= read -r coverage_file; do
   coverage_files+=("$coverage_file")
 done < "$files_list"
-run_step "coverage security layer" python3 scripts/checks/coverage/security-layer.py "${coverage_files[@]}"
+run_step "coverage security layer" python3 -B scripts/checks/coverage/security-layer.py "${coverage_files[@]}"

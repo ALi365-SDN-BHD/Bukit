@@ -293,7 +293,7 @@ public sealed class BuildTransactionTests : IDisposable
     }
 
     [Fact]
-    public void PagesIndexCacheConsumer_UsesTransactionAndFailurePreservesFormalCache()
+    public void PagesIndexCacheConsumer_WritesToStagingAndAbortPreservesFormalCache()
     {
         string formalCache = Path.Combine(_root, "pages-cache.json");
         File.WriteAllText(formalCache, "{\"old\":{\"url\":\"\",\"external_url\":\"https://old.example\"}}");

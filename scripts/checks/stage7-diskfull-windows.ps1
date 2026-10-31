@@ -91,7 +91,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Disk-full test command failed.' }
     & python -B scripts/checks/stage7-diskfull-unix.py --verify-trx $trx
     if ($LASTEXITCODE -ne 0) { throw 'Disk-full TRX verification failed.' }
-    Write-Host "Disk-full specialty: 2 passed; VHD volume bytes: $($volume.Size)"
+    Write-Host "Disk-full specialty: 3 passed; VHD volume bytes: $($volume.Size)"
 }
 finally {
     if ($attachedAttempted) {
