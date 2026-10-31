@@ -75,4 +75,43 @@ public sealed class PluginSecretMaskerTests
     {
         Assert.Equal("no secrets", PluginSecretMasker.MaskText("no secrets", new Dictionary<string, string>()));
     }
+
+    [Fact]
+    public void MaskText_MasksAuthorizedValueRegardlessOfKey()
+    {
+        string masked = PluginSecretMasker.MaskText(
+            "PATH=/usr/local/bin",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["PATH"] = "/usr/local/bin"
+            });
+
+        Assert.Equal("PATH=***", masked);
+    }
+
+    [Fact]
+    public void MaskText_MasksShortAuthorizedValue()
+    {
+        string masked = PluginSecretMasker.MaskText(
+            "LANG=C",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["LANG"] = "C"
+            });
+
+        Assert.Equal("LANG=***", masked);
+    }
+
+    [Fact]
+    public void MaskText_LeavesValuesNotPresentInAuthorizedEnvironment()
+    {
+        string masked = PluginSecretMasker.MaskText(
+            "public=/usr/local/bin",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["NOTION_TOKEN"] = "secret-token"
+            });
+
+        Assert.Equal("public=/usr/local/bin", masked);
+    }
 }
