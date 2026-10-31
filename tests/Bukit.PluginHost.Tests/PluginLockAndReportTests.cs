@@ -235,6 +235,52 @@ public sealed class PluginLockAndReportTests
         Assert.DoesNotContain("raw-token", json, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task PluginExecutionReporter_MasksPluginControlledDiagnosticAndArtifactFields()
+    {
+        using var directory = TestDirectory.Create();
+        var report = new PluginExecutionReport(
+            PluginId: "echo",
+            Operation: "invoke",
+            RequestId: "req-fields",
+            ProcessExitCode: 0,
+            Success: true,
+            TimedOut: false,
+            OutputLimitExceeded: false,
+            StdoutBytes: 0,
+            StderrBytes: 0,
+            Stderr: "",
+            Diagnostics:
+            [
+                new PluginDiagnostic("session-cookie", "session-cookie", "message", "session-cookie")
+            ],
+            Artifacts:
+            [
+                new PluginArtifact("session-cookie", "session-cookie", "description")
+            ],
+            ResponseSummary: new PluginExecutionResponseSummary(
+                Success: true,
+                ExitCode: 0,
+                DiagnosticCodes: ["session-cookie"],
+                ArtifactCount: 1),
+            Environment: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["COOKIE"] = "session-cookie"
+            });
+
+        string path = await new PluginExecutionReporter().WriteAsync(directory.Path, report, CancellationToken.None);
+        string json = File.ReadAllText(path);
+        JsonNode root = JsonNode.Parse(json)!;
+
+        Assert.Equal("***", root["diagnostics"]![0]!["code"]!.GetValue<string>());
+        Assert.Equal("***", root["diagnostics"]![0]!["severity"]!.GetValue<string>());
+        Assert.Equal("***", root["diagnostics"]![0]!["path"]!.GetValue<string>());
+        Assert.Equal("***", root["artifacts"]![0]!["type"]!.GetValue<string>());
+        Assert.Equal("***", root["artifacts"]![0]!["path"]!.GetValue<string>());
+        Assert.Equal("***", root["responseSummary"]!["diagnosticCodes"]![0]!.GetValue<string>());
+        Assert.DoesNotContain("session-cookie", json, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("resourceLimitExceeded")]
     [InlineData("networkPermissionGranted")]
