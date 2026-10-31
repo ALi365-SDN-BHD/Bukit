@@ -92,7 +92,7 @@ Bukit 是 .NET 10 Native AOT 静态站点引擎，当前处于企业内部优先
 
 本节证据根目录 `R` 为 `/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/core-phase0-rNC5Fv`；证据文件名均相对此目录。下表 `Infrastructure/` 相对于 `tests/Bukit.Engine.Tests/`；测试计数均为 Passed / Failed / Skip。此前 Shared 验收与图片迁移提交保留。
 
-**追溯说明（2026-10-31）：** 上述系统临时目录可能已被清理；原始执行根缺失不否定历史通过，也不构成当前绿色证据。可复用的替代证据以仓库内测试/归档及 `~/.local/state/bukit-verification/` 现存副本为准；缺失目录只标注追溯缺口，不重跑冒充历史结果。
+**追溯说明（2026-10-31）：** 上述系统临时目录已被清理；原始执行根缺失不否定历史通过，也不构成当前绿色证据。已下载并核对未过期远端工件（run 40138709708）与本地剩余 TRX，索引见 `~/.local/state/bukit-verification/quality-gates-closeout-20261031/historical/index.md`；非 TRX 日志/closure 不重建，缺失项只标注追溯缺口，不重跑冒充历史结果。
 
 | 阶段 0 要求 | 文件 | 已执行证据 |
 |---|---|---|
@@ -408,7 +408,7 @@ git diff --check -- src/Bukit-Core/Bukit.Shared/SafeUrl.cs src/Bukit-Core/Bukit.
 
 **阶段 1：SUCCESS。三平台执行证据已齐，专项复核与一次 delta-only 最终复核完成，满足 1.5 的 Shared 阶段出口条件。** 用户明确要求补齐 Linux、Windows 证据，并选择、授权 GitHub Actions 临时专项分支。既有 SH-01～SH-12、KD-009/KD-010 修复及 1.6/1.7 历史结果保留。
 
-**追溯说明（2026-10-31）：** 1.x 的多个系统临时证据根可能已被清理；缺失目录不否定历史通过，也不作为当前绿色证据。替代索引以三平台 CI run、仓库内 TRX/归档及 `~/.local/state/bukit-verification/` 现存副本为准，缺失项标注追溯缺口，不重跑冒充历史结果。
+**追溯说明（2026-10-31）：** 1.x 的多个系统临时证据根已被清理；缺失目录不否定历史通过，也不作为当前绿色证据。已核对本地 RED/GREEN/平台 TRX，并下载 Shared 远端工件（run 40111506691 仅取成功的 Windows full/platform 与 Linux platform；run 40111976112 取 Linux full），索引见同一 `historical/index.md`；缓存/复核日志不重建，缺失项标注缺口，不重跑冒充历史结果。
 
 版本与执行环境：
 
@@ -1467,7 +1467,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 - **门禁：** CI 与 release 的 coverage-summary 在 `summarize.py` 后调用 `security-layer.py`；本地 `coverage.sh` 同样执行；`run-one.sh` 拒绝任何 `NotExecuted`，`coverage-run-one-self-test.sh` 的 skip 模式改为预期失败。
 - **失败安全：** `Stage7FailureTests`、`Stage7PluginFailureTests`、`Stage7DiskFullTests` 参数化为 `clean=false/true`；新增 `PagesIndexCacheConsumer_WritesToStagingAndAbortPreservesFormalCache`，验证真实 pages-index 消费者写入暂存缓存、事务中止后正式缓存保持不变。
 - **Schema：** `content.sources[].notion.pageSize` 补齐 `maximum=100`；新增 100/101 边界与数值范围对照（pageSize/maxItems/renderConcurrency/maxRps/maxRetries 等）。
-- **追溯：** 九步增量对照改用 `OutputSnapshot.IsMetadata` 的精确根/语言目录规则并保留符号链接过滤；阶段 9 归档 SHA-256 更正为 `7fcb0751…dc28b`；阶段 0/1 增加临时证据根清理说明；`invalid-utf8` 探针偶发失败入风险表。
+- **追溯：** 九步增量对照改用 `OutputSnapshot.IsMetadata` 的精确根/语言目录规则并保留符号链接过滤；阶段 9 归档 SHA-256 更正为 `7fcb0751…dc28b`；阶段 0/1 证据已归档并建立文件—哈希索引（`historical/index.md`、`index.json`）；`invalid-utf8` 探针偶发失败入风险表并收窄到进程退出/排空路径。
 - **GREEN：** Architecture **420/420**；Config **433/433**；Engine **2949/2949**；聚焦收口 **25/25**；`security-layer` 对阶段 10 现有 Cobertura **3/3 passed**；`coverage-run-one` 自检、workflow/boundary 自检、public API drift、分析器 421/421、`dotnet format` 均通过。
 - **复核收口：** 修复磁盘满 TRX 校验的 3 结果预期、补齐全分支 closure 映射、将 pages-index 用例名改为事务中止语义、新门禁调用统一 `python3 -B`；全分支 closure 无未映射文件。
 - **证据：** `D=/Users/ali/.local/state/bukit-verification/quality-gates-closeout-20261031`（`architecture-final/`、`config-final/`、`engine-final/`、`engine-full2/`、`security-layer/`、`public-api/`、`ratchet2.log`、`format2.log`、`closure-final.json`）。
@@ -1520,7 +1520,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 文件系统差异（大小写、符号链接、Windows） | 路径、链接、进程相关专项必须取得 Linux x64、macOS arm64、Windows x64 的实际证据；按第 7 节核对类过滤列表与适用用例，不能把条件跳过当作通过 |
 | 假传输与真实 Notion 行为偏差 | 假传输只验证本项目的请求构造与错误处理，不声称等价真实服务；微信业务后置 |
 | 竞态用例抖动 | 并发用例连续运行 20 次作为稳定标准 |
-| `invalid-utf8` 探针偶发失败 | 2026-10-31 PR #78 首轮 coverage 中 `PluginProtocolProbeTests` 期望 `invalidResponse`，实际 `executionFailed`；重跑通过但根因未定。后续复现须保留完整 TRX、实际退出码与 stderr，按 `SystemProcessRunner` 取消/排空路径定向调查，不以重跑代替结论 |
+| `invalid-utf8` 探针偶发失败 | 2026-10-31 PR #78 首轮 coverage 中 `PluginProtocolProbeTests` 期望 `invalidResponse`，实际 `executionFailed`；源码先检查进程结果再解析 JSON，故先查子进程非零退出/排空失败，不先认定 UTF-8 解析。重跑通过但根因未定；失败 TRX 未保留完整异常退出码、stderr、`ProcessRunResult` 与时序。后续须先做一次有界留存（测试接缝记录这些结果），保留原预期，不以重跑代替结论 |
 
 用例总量为按"每百行 1 到 3 个"的经验比例粗估，不是精确数字。
 
@@ -1591,3 +1591,4 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 2026-10-31 | 阶段 9 M-03 MaskText 契约收口：明确按值、仅授权环境变量、非密钥键也掩码的安全偏向；新增 3 个契约用例；聚焦 19/19、PluginHost 292/292、public API drift 0、分析器 421/421；仅 S-01 保持开放 |
 | 2026-10-31 | 阶段 9 S-01 报告字段掩码收口：artifact type/path、diagnostic code/severity、responseSummary diagnosticCodes 统一走 MaskText；RED 1 失败，GREEN 聚焦 3/3、PluginHost 293/293、public API drift 0、分析器 421/421；枚举校验另列 |
 | 2026-10-31 | 质量门禁审计修补：security-layer 接入 CI/release/local coverage；run-one 拒绝任何 Skip；clean=true 失败安全参数化；pages-index 缓存消费者事务回滚用例；Notion pageSize max=100 与 100/101 边界；增量对照改用精确元数据规则；归档哈希与失效证据说明；invalid-utf8 偶发失败入风险表 |
+| 2026-10-31 | 历史证据归档：下载并核对 run 40138709708、40111506691、40111976112 工件，归档 11 份本地 Shared TRX，建立阶段—提交—命令—工具链—文件—SHA-256 索引；缺失的临时根与非 TRX 记录明确标注；invalid-utf8 收窄到进程退出/排空路径，留存改造待单独授权 |
