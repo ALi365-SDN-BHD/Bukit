@@ -1283,7 +1283,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 **专项复核（只读，2026-10-29）：** 首轮 Critical 0 / Important 1 / Minor 6（`R/reviews/specialty-v1.md`）；增量复评 Critical 0 / Important 1 / Minor 4（`R/reviews/specialty-v2.md`）；最终 delta-only 复核 Critical 0 / Important 1 / Minor 3（`R/reviews/final-delta-v1.md`）。Minor 中已在本批处理：DTO round-trip 增加 `success` 断言与 request/envelope 反序列化；清单版本门禁补测；CI 策略补 `DiagnosticCode` 断言；命令路径与基线证据补齐；cache record 使用与上方完全相同的含 logger/results-directory 命令，`cache check` 4/4 HIT（`R/cache/`）。该批次最终复核当时确认 I-01 仍为唯一 open Important，故当时不得标记 SUCCESS；I-01 随后按用户单独授权修复，见下节。以下事项不在本批修改：
 
 - **Important（已按用户单独授权修复，见下方 I-01 记录）：** 首轮复核发现 `PluginSecretMasker` 只覆盖 `NOTION_TOKEN`/`API_KEY`/`PASSWORD`/`TOKEN`/`SECRET` 五个片段；ADR §22.3 要求执行报告不得包含明文 `COOKIE`/`Authorization` 值。该发现已进入独立 Core 任务恢复 RED → GREEN，阶段 9 的“密钥掩码”现覆盖七个片段；修复前不具备完整 ADR 覆盖这一历史事实保留。
-- **Minor（Core 后续）：** 重复的 argument/option 名或运行时命令名会抛裸 `ArgumentException` 而非带诊断码的 `ConfigException`；`PluginHashVerifier` 对缺失/不可读文件抛原始 I/O 异常；`MaskText` 会掩码所有环境值而非仅密钥键，契约未定。（2026-10-30 更新：argument/option 与 runtime 命令重名、以及 M-02 均已关闭；M-03 也已关闭，仅 S-01 仍开放。）
+- **Minor（Core 后续）：** 重复的 argument/option 名或运行时命令名会抛裸 `ArgumentException` 而非带诊断码的 `ConfigException`；`PluginHashVerifier` 对缺失/不可读文件抛原始 I/O 异常；`MaskText` 会掩码所有环境值而非仅密钥键，契约未定。（2026-10-30 更新：argument/option 与 runtime 命令重名、以及 M-02 均已关闭；M-03 与 S-01 也已关闭。）
 - **平台边界：** CLI 加载器的“清单缺少当前 RID”分支属于阶段 8 CLI 范围，未在本阶段重跑；Windows Job Object / Linux `/proc` 进程树分支仍需阶段 10 三平台证据，本机覆盖率不冒充这些分支已覆盖。
 
 **未执行：** 全量解决方案测试、完整 Core 覆盖率总门禁、发布门禁、三平台 CI；本批新增用例均为平台无关，未改动既有进程/探针类。按用户决定，真实异常终止探针留待所有阶段完成后统一汇总补证，本阶段仍以既有 `exit 7` 崩溃用例为准。
@@ -1296,7 +1296,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 - **GREEN：** 聚焦 **28/28**；完整 PluginHost **277/277**，0 失败、0 跳过。PluginHost 行覆盖 **1521/1779 = 85.50%**（较批次 1 增加 2 行且均已覆盖）；Abstractions 覆盖不变（独立 4986/5664 = 88.03%，合并 4989/5664 = 88.08%）。
 - **证据：** `R2=/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/stage9-plugin-secret-masker-20261029`（执行时根）；持久镜像 `D2=/Users/ali/.local/state/bukit-verification/stage9-plugin-secret-masker-20261029` 与 `R2` 逐字节一致。`R2/red/`、`R2/focused-green/`、`R2/green/`、`R2/coverage/`；`R2/closure.json` 无未映射文件；测试与覆盖率 cache record 均 `CACHE HIT`；`openspec validate fix-plugin-secret-masker-cookie-authorization --strict` 通过。
 - **掩码取舍：** 片段采用大小写不敏感子串匹配，`COOKIE_CONSENT_MODE`、`AUTHORIZATION_ENDPOINT` 等非密钥键也会写成 `***`。这是已接受的安全偏向，报告读取无功能影响；不改为精确键匹配，避免漏掉 `HTTP_COOKIE`/`PROXY_AUTHORIZATION` 等变体。
-- **复核：** 专项只读复核 **Critical 0 / Important 0 / Minor 2**（`R2/reviews/specialty-v1.md`）；唯一 delta-only 最终复核 **Critical 0 / Important 0 / Minor 2**（`R2/reviews/final-delta-v1.md`）。S-01：`PluginExecutionReporter` 仍原样写入插件可控的 `artifacts[].path`、`diagnostics[].code` 等字段，若插件主动把已授权 secret 回显到这些字段仍可能落盘；这是 I-01 之前已存在、且同样影响旧片段的独立问题，登记为后续 Core 事项，不扩大本任务。S-02：首份 diff 未包含未跟踪的新测试文件，最终复核 diff 已补齐；S-03：最终 diff 未包含三个未跟踪 OpenSpec 文件，已重新生成完整 diff。
+- **复核：** 专项只读复核 **Critical 0 / Important 0 / Minor 2**（`R2/reviews/specialty-v1.md`）；唯一 delta-only 最终复核 **Critical 0 / Important 0 / Minor 2**（`R2/reviews/final-delta-v1.md`）。S-01：`PluginExecutionReporter` 仍原样写入插件可控的 `artifacts[].path`、`diagnostics[].code` 等字段，若插件主动把已授权 secret 回显到这些字段仍可能落盘；这是 I-01 之前已存在、且同样影响旧片段的独立问题，登记为后续 Core 事项，不扩大本任务。S-02：首份 diff 未包含未跟踪的新测试文件，最终复核 diff 已补齐；S-03：最终 diff 未包含三个未跟踪 OpenSpec 文件，已重新生成完整 diff。（2026-10-31 更新：S-01 已关闭，见“阶段 9 S-01 报告字段掩码收口”。）
 - **未执行：** 未跑全量解决方案、完整覆盖率总门禁、发布门禁或三平台 CI；未推送或合并；本任务随阶段 9 提交入库。
 
 #### 阶段 9 最终判定（2026-10-29）
@@ -1304,7 +1304,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 **阶段 9：SUCCESS。** 用户已确认本阶段范围并单独授权 I-01 修复；已提交到 `codex/stage9`，未推送。
 
 - **出口达成：** 测试批次 PluginHost 271/271、Abstractions 20/20；I-01 修复后完整 PluginHost 277/277，均 0 失败、0 跳过。PluginHost 行覆盖 **1521/1779 = 85.50%**；Abstractions 独立套件 **4986/5664 = 88.03%**（手写源 204/204 = 100%），合并 **4989/5664 = 88.08%**，均 ≥70%。协议正常/异常、锁文件、CI 策略、权限/路径/哈希/平台、密钥掩码均有对应用例。
-- **复核：** 批次复核与 I-01 修复复核的最终结果均为 **Critical 0 / Important 0**；I-01 已关闭并登记为 KD-013。剩余 Minor 为已披露的独立 Core 事项：S-01 插件可控报告字段回显、M-01 重复名称抛裸 `ArgumentException`、M-02 哈希缺失文件抛原始 I/O、M-03 `MaskText` 掩码范围契约。它们不阻塞本阶段出口。（2026-10-30 更新：M-01 的 argument/option 与 runtime 命令重名、M-02 均已关闭；M-03 也已关闭，仅 S-01 仍开放。）
+- **复核：** 批次复核与 I-01 修复复核的最终结果均为 **Critical 0 / Important 0**；I-01 已关闭并登记为 KD-013。剩余 Minor 为已披露的独立 Core 事项：S-01 插件可控报告字段回显、M-01 重复名称抛裸 `ArgumentException`、M-02 哈希缺失文件抛原始 I/O、M-03 `MaskText` 掩码范围契约。它们不阻塞本阶段出口。（2026-10-30/31 更新：M-01 的 argument/option 与 runtime 命令重名、M-02、M-03、S-01 均已关闭。）
 - **用户接受的延后项：** 真实异常终止探针（SIGKILL/FailFast）留待所有阶段完成后统一补证；当前以既有 `exit 7` 崩溃用例为准，不声称已完成真实异常终止覆盖。
 - **未取得：** 三平台 CI、全量解决方案、完整 Core 覆盖率总门禁与发布门禁。阶段 9 出口不要求这些；Windows Job Object / Linux `/proc` 进程树分支仍按阶段 10 三平台计划验证，本机覆盖率不冒充。
 
@@ -1328,7 +1328,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 - **覆盖率分母（2026-10-30 更正）：** 该次采集未使用 `coverage.runsettings`，88.03% 含生成代码，不是现行 CI 门禁口径；CI 门禁 `run-one.sh` 使用 `coverage.runsettings` 排除 `**/obj/**/*.g.cs`，门禁口径为手写源 **204/204 = 100%**。阶段 10 以门禁口径重跑，并同时记录总比例。
 - **证据持久性：** 两个执行根已复制到 `/Users/ali/.local/state/bukit-verification/stage9-plugin-batch1-20261029` 与 `.../stage9-plugin-secret-masker-20261029`，所有已复制文件经 `diff -qr` 验证一致；计划与 OpenSpec 已记录持久镜像。另生成归档 `/Users/ali/.local/state/bukit-verification/stage9-evidence-20261029.tar.gz`（1.6 MB，SHA256 `6c8505e54d145b047b0d72b76748ca4815e960e9395bfb5848a2026fd6bd7cbf`），并提交到仓库 `docs/testing/evidence/stage9-20261029/`（含 README、manifest、归档与校验文件）；仓库不提交 24 MB 原始目录。cache record 的精确命令仍保留原执行路径，避免把镜像路径冒充缓存命中。
 - **过度掩码：** 已在 I-01 记录中明确：`COOKIE`/`AUTHORIZATION` 采用子串匹配，`COOKIE_CONSENT_MODE` 等非密钥键也会写 `***`；这是已接受的安全偏向，不改为精确键匹配。
-- **未闭环项：** S-01 仍开放且已登记；M-01（argument/option 与 runtime 命令重名）、M-02、M-03 已于 2026-10-30/31 关闭。它们不阻塞阶段 9；真实崩溃探针与三平台进程树分支按既定计划后置。审计建议的重跑专项未被采用：当前 cache 记录与最终 TRX 均匹配，按 `AGENTS.md` 不对未变化输入重复运行。
+- **未闭环项：** S-01 已于 2026-10-31 关闭；M-01（argument/option 与 runtime 命令重名）、M-02、M-03 已于 2026-10-30/31 关闭。它们不阻塞阶段 9；真实崩溃探针与三平台进程树分支按既定计划后置。审计建议的重跑专项未被采用：当前 cache 记录与最终 TRX 均匹配，按 `AGENTS.md` 不对未变化输入重复运行。
 
 #### 阶段 9 M-01/M-02 错误契约收口（2026-10-30）
 
@@ -1340,7 +1340,7 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 - **GREEN：** 聚焦 **27/27**；完整 PluginHost **286/286**；CLI `PluginCliIntegrationTests` **40/40**；`public-api-drift.sh check Release` 退出 0；均 0 失败、0 跳过。分析器棘轮保持 **421/421**（`ToNamedMap` 使用具体 `Dictionary` 类型，未增加 CA1859 预算）。
 - **测试边界：** `MissingFile` 用例先创建父目录，直接覆盖 `FileNotFoundException`；通用 `IOException` 分支未构造专用用例；目录路径用例按平台异常映射只断言 `could not be read` 前缀。复核后已补直接覆盖，仍保留这一非阻塞测试边界。
 - **证据：** `D=/Users/ali/.local/state/bukit-verification/plugin-error-contracts-20261030`（`red/`、`green-focused/`、`full/`、`cli/`、`public-api/`、`closure.json`、`cache/`）。
-- **未执行：** 全量解决方案、完整 Core 覆盖率、release/AOT、三平台 CI、push/PR/merge；S-01 保持开放；M-03 与 runtime 命令重名已由后续任务关闭。
+- **未执行：** 全量解决方案、完整 Core 覆盖率、release/AOT、三平台 CI、push/PR/merge；S-01 也已关闭；M-03 与 runtime 命令重名已由后续任务关闭。
 
 #### 阶段 9 M-01 runtime 命令重名收口（2026-10-30）
 
@@ -1362,6 +1362,17 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 - **GREEN：** 聚焦 **19/19**；完整 PluginHost **292/292**；public API drift 退出 0；分析器棘轮 421/421；`dotnet format` 退出 0。
 - **证据：** `D=/Users/ali/.local/state/bukit-verification/plugin-masktext-contract-20261031`（`focused/`、`full/`、`public-api/`、`ratchet.log`、`format.log`、`closure.json`）。
 - **未执行：** 全量解决方案、完整覆盖率、release/AOT、三平台 CI。
+
+#### 阶段 9 S-01 报告字段掩码收口（2026-10-31）
+
+用户授权执行 S-01。分支 `codex/plugin-report-field-masking` 从 `main` `56b3ef8a` 创建；生产修改 `PluginExecutionReporter`，测试修改 `PluginLockAndReportTests`。提交 `879fa5e2`。
+
+- **范围：** `artifact.type`、`artifact.path`、`diagnostic.code`、`diagnostic.severity`、`responseSummary.diagnosticCodes` 统一走 `PluginSecretMasker.MaskText`；仅当值命中已授权环境 secret 时替换为 `***`，未命中保持原值。
+- **边界：** `commandPath`/`entry` 来自静态清单，`resourceLimitExceeded` 由宿主生成，不在本次掩码范围；`severity`/`artifact.type` 的枚举校验仍未定，作为独立 schema 决策。
+- **RED：** 新增真实 reporter 用例，secret 同时出现在 diagnostic code/severity/path、artifact type/path、responseSummary.diagnosticCodes；修复前 **1 失败**，实际保留 `session-cookie`。
+- **GREEN：** 聚焦 **3/3**（含既有 golden/schema 用例）；完整 PluginHost **293/293**；public API drift 退出 0；分析器棘轮 421/421；`dotnet format` 退出 0。
+- **证据：** `D=/Users/ali/.local/state/bukit-verification/plugin-report-field-masking-20261031`（`red2/`、`green2/`、`full2/`、`public-api/`、`ratchet2.log`、`format2.log`、`closure.json`）。
+- **未执行：** 全量解决方案、完整覆盖率、release/AOT、三平台 CI；枚举校验不在本批。
 
 ### 阶段 10：架构与门禁
 
@@ -1560,3 +1571,4 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 2026-10-30 | 阶段 9 M-01/M-02 错误契约收口：argument/option 重名改为 `ConfigException` + `ConfigInvalidValue`；哈希文件缺失/不可读返回失败结果而非原始 I/O；RED 7 失败/20 通过，GREEN 聚焦 27/27、PluginHost 286/286、CLI PluginCliIntegrationTests 40/40、public API drift 退出 0；runtime 命令重名随后续任务关闭，M-03、S-01 保持开放 |
 | 2026-10-30 | 阶段 9 M-01 runtime 命令重名收口：validator 递归查重、CLI 对 runtime-only 传入空静态命令做查重并保留既有语义，顶层/嵌套重名抛 `ConfigException` + `ConfigInvalidValue`；RED 3+1 失败，GREEN PluginHost 289/289、CLI 1102/1102、public API drift 0、分析器 421/421；M-03、S-01 保持开放 |
 | 2026-10-31 | 阶段 9 M-03 MaskText 契约收口：明确按值、仅授权环境变量、非密钥键也掩码的安全偏向；新增 3 个契约用例；聚焦 19/19、PluginHost 292/292、public API drift 0、分析器 421/421；仅 S-01 保持开放 |
+| 2026-10-31 | 阶段 9 S-01 报告字段掩码收口：artifact type/path、diagnostic code/severity、responseSummary diagnosticCodes 统一走 MaskText；RED 1 失败，GREEN 聚焦 3/3、PluginHost 293/293、public API drift 0、分析器 421/421；枚举校验另列 |
