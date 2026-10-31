@@ -1368,10 +1368,10 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 用户授权执行 S-01。分支 `codex/plugin-report-field-masking` 从 `main` `56b3ef8a` 创建；生产修改 `PluginExecutionReporter`，测试修改 `PluginLockAndReportTests`。提交 `879fa5e2`。
 
 - **范围：** `artifact.type`、`artifact.path`、`diagnostic.code`、`diagnostic.severity`、`responseSummary.diagnosticCodes` 统一走 `PluginSecretMasker.MaskText`；仅当值命中已授权环境 secret 时替换为 `***`，未命中保持原值。
-- **边界：** `commandPath`/`entry` 来自静态清单，`resourceLimitExceeded` 由宿主生成，不在本次掩码范围；`severity`/`artifact.type` 的枚举校验仍未定，作为独立 schema 决策。
+- **边界：** `commandPath`/`entry` 来自静态清单，`resourceLimitExceeded` 由宿主生成，不在本次掩码范围；枚举值若恰好命中授权 secret 也会显示 `***`，属于已接受的安全偏向；`severity`/`artifact.type` 的枚举校验仍未定，作为独立 schema 决策。
 - **RED：** 新增真实 reporter 用例，secret 同时出现在 diagnostic code/severity/path、artifact type/path、responseSummary.diagnosticCodes；修复前 **1 失败**，实际保留 `session-cookie`。
 - **GREEN：** 聚焦 **3/3**（含既有 golden/schema 用例）；完整 PluginHost **293/293**；public API drift 退出 0；分析器棘轮 421/421；`dotnet format` 退出 0。
-- **证据：** `D=/Users/ali/.local/state/bukit-verification/plugin-report-field-masking-20261031`（`red2/`、`green2/`、`full2/`、`public-api/`、`ratchet2.log`、`format2.log`、`closure.json`）。
+- **证据：** `D=/Users/ali/.local/state/bukit-verification/plugin-report-field-masking-20261031`（`red2/`、`green3/`、`full2/`、`public-api/`、`ratchet2.log`、`format2.log`、`closure.json`）。
 - **未执行：** 全量解决方案、完整覆盖率、release/AOT、三平台 CI；枚举校验不在本批。
 
 ### 阶段 10：架构与门禁
