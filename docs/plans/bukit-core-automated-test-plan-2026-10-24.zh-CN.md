@@ -1,7 +1,7 @@
 # Bukit Core 自动化测试计划书
 
 > 日期：2026-10-24
-> 状态：草案，第 9 节待决事项已全部决定
+> 状态：已完成（2026-10-31，Core 阶段 0–10）；阶段 11 后置，历史追溯限制保留
 > 范围：`src/Bukit-Core`（18 个项目）；`src/Bukit-Plugins` 与 `src/Bukit-Labs` 后置，不在本期
 > 前提：按"从零开始"盘点测试需求；复用现有测试项目、辅助代码与 CI 入口，不以已有用例数量代替行为验证
 
@@ -1547,6 +1547,15 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 3. 第 6 节每条都有测试与行为依据，处于"已修复并通过"或"已复现、显式跳过并说明原因"状态；若复现证明不构成缺陷，附依据并从缺陷清单移除，保留正确契约测试。
 4. 覆盖率按第 4.4 节取得证据并达到第 9 节统一阈值。
 
+### 最终验收结论（2026-10-31）
+
+**SUCCESS：本期 Core 阶段 0–10 满足上述验收条件，测试执行及审计整改已完成。**
+
+- **合并后验收：** PR #84 已合并为 `05c03716e19811bd9d1d4309ff04fc7025f92ca2`；main CI [run 41208035006](https://github.com/ALi365-SDN-BHD/Bukit/actions/runs/41208035006) 首轮成功，22 个作业全部成功，包含 Architecture、Fast gate、Fast contracts、Core tests、完整 Core coverage、安全层和三平台专项。
+- **当前覆盖率：** 整体 **90.70%（42713/47095）≥84%**，18 个 Core 源项目均 ≥70%，三个安全层文件检查通过（各自 ≥95%）。阶段 10 的历史采集值保留，不以本次指标覆盖其原始记录。
+- **整改与限制：** 阶段 9 归档哈希及 `invalid-utf8` 探针问题已关闭；阶段 0/1 历史证据整改关闭，历史非 TRX 原件缺失作为追溯限制保留。各阶段已接受的非阻塞边界不冒称全部消失。
+- **范围：** 阶段 11、Labs 与外部插件仍后置；原生 AOT 冒烟沿用阶段 10 已取得的证据，不宣称本次文档收尾重新执行了全量、release 或 AOT 门禁。
+
 ## 11. 修订记录
 
 | 日期 | 说明 |
@@ -1593,3 +1602,4 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 2026-10-31 | 质量门禁审计修补：security-layer 接入 CI/release/local coverage；run-one 拒绝任何 Skip；clean=true 失败安全参数化；pages-index 缓存消费者事务回滚用例；Notion pageSize max=100 与 100/101 边界；增量对照改用精确元数据规则；归档哈希与失效证据说明；invalid-utf8 偶发失败入风险表 |
 | 2026-10-31 | 历史证据归档：下载并核对 run 40138709708、40111506691、40111976112 工件，归档 11 份本地 Shared TRX，建立阶段—提交—命令—工具链—文件—SHA-256 索引；缺失的临时根与非 TRX 记录明确标注；invalid-utf8 收窄到进程退出/排空路径，留存改造待单独授权 |
 | 2026-10-31 | invalid-utf8 根因收口：Coverlet 对 PluginProcessProbe 插桩产生共享 /tmp 命中文件，退出时 Tracker.UnloadModule 读取失败导致 exit 134；coverage.runsettings 精确排除 [PluginProcessProbe]*，Architecture 契约锁定；隔离前 Linux 4/20 复现，修复后 10/10；collection 保留为防御 |
+| 2026-10-31 | 正式完成收口：主计划由草案同步为阶段 0–10 已完成，补齐 main@05c03716 的 CI 41208035006 首轮成功及当前覆盖率验收引用；历史缺证和已接受边界保留，过时诊断草稿逐字节归档至仓库外后移除；本次仅文档收尾，不重跑测试或门禁 |
