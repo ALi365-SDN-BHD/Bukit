@@ -1556,6 +1556,15 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 - **整改与限制：** 阶段 9 归档哈希及 `invalid-utf8` 探针问题已关闭；阶段 0/1 历史证据整改关闭，历史非 TRX 原件缺失作为追溯限制保留。各阶段已接受的非阻塞边界不冒称全部消失。
 - **范围：** 阶段 11、Labs 与外部插件仍后置；原生 AOT 冒烟沿用阶段 10 已取得的证据，不宣称本次文档收尾重新执行了全量、release 或 AOT 门禁。
 
+### 证据留存补齐与边界管理（2026-10-31）
+
+- **附件补齐：** 两份本地 Shared 完整专项 TRX 引用的原始 Cobertura XML 已按原相对路径补入 `~/.local/state/bukit-verification/quality-gates-closeout-20261031/historical/`，索引登记来源、大小与 SHA-256。原 19 份 TRX 字节及结果不变；`shared-phase1-full` 仍为历史失败／部分完成，`shared-kd-full` 保留成功状态，不把补归档当作新的 GREEN。
+- **调查保全：** 原 Windows 取消调查的 93 个文件（1,171,282 字节）已保存在该历史归档的 `investigations/stage7-windows-cancel-dz_z3buz/`，附逐文件清单；原临时目录未删除。部分远端日志、源码指纹、环境状态和覆盖率原件仍在，不应统称为“只剩 TRX”；丢失的本地过程原件仍不重建冒充。
+- **备份核验：** 补齐后的完整历史档案共 139 个文件，本地恢复演练及从用户指定的 `/Volumes/macPanel/Bukit-verification-backups/evidence-retention-20261031-dz_z3buz/` 读取恢复均通过全部哈希和 TRX 附件引用核验。macPanel 为独立 USB／exFAT 介质；本次证明独立介质复制与读取恢复，不证明异机／异地留存、加密或未来保管状态。原 5 个 Actions 工件当前未过期、API 到期日为 2027-01-22，但不是全部本地档案的长期完整备份。
+- **Windows 重新调查条件：** 原取消失败根因仍未确定。仅在修正后的就绪取消测试再次失败、取消后目标仍存活、返回／终止延迟超过既定边界，或实际使用出现取消后的持续写入／副作用时，启动单独调查并保存同一时间轴上的取消信号、stdin 写入返回、终止调用、进程退出和标记写入；不预设线程池饱和为定因，也不以 PR #84 的另一条故障链替代。
+- **换行契约：** 继续承诺相同输入在固定平台与工具链下重复生成相同公共字节，发布保持平台与工具链固定；Windows／Unix golden 各自逐字节验证，不承诺跨操作系统字节相同。若以后需要跨平台可复现发布，先决定引擎生成文本的规范化范围与必须原样保留的用户／静态字节，再授权独立 Core 任务；不对全部产物统一替换换行。
+- **回执与范围：** 本轮原件保全、清单及恢复回执在 `~/.local/state/bukit-verification/evidence-retention-20261031-dz_z3buz/`；只执行归档静态校验和恢复演练，不修改 Core、不重跑产品测试或门禁，不改变本期 SUCCESS 及已接受的非阻塞边界。
+
 ## 11. 修订记录
 
 | 日期 | 说明 |
@@ -1603,3 +1612,4 @@ dotnet test tests/Bukit.PluginHost.Tests/Bukit.PluginHost.Tests.csproj -c Releas
 | 2026-10-31 | 历史证据归档：下载并核对 run 40138709708、40111506691、40111976112 工件，归档 11 份本地 Shared TRX，建立阶段—提交—命令—工具链—文件—SHA-256 索引；缺失的临时根与非 TRX 记录明确标注；invalid-utf8 收窄到进程退出/排空路径，留存改造待单独授权 |
 | 2026-10-31 | invalid-utf8 根因收口：Coverlet 对 PluginProcessProbe 插桩产生共享 /tmp 命中文件，退出时 Tracker.UnloadModule 读取失败导致 exit 134；coverage.runsettings 精确排除 [PluginProcessProbe]*，Architecture 契约锁定；隔离前 Linux 4/20 复现，修复后 10/10；collection 保留为防御 |
 | 2026-10-31 | 正式完成收口：主计划由草案同步为阶段 0–10 已完成，补齐 main@05c03716 的 CI 41208035006 首轮成功及当前覆盖率验收引用；历史缺证和已接受边界保留，过时诊断草稿逐字节归档至仓库外后移除；本次仅文档收尾，不重跑测试或门禁 |
+| 2026-10-31 | 留存补齐：补入两份原 TRX 引用的 Shared 覆盖率附件，保全 Windows 调查 93 个原件；139 文件备份包完成本地及 macPanel 独立 USB 介质恢复核验，未宣称异机／异地留存；登记 Windows 重新调查条件及固定平台换行契约，不修改 Core 或重跑产品测试 |
