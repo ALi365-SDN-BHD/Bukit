@@ -27,6 +27,9 @@ internal static class PluginSecretMasker
         return masked;
     }
 
+    // Value-based on purpose: callers pass only plugin-authorized environment names, and any
+    // authorized value may be a secret regardless of its key. Over-masking common authorized
+    // values is accepted; do not switch to IsSecretKey here without a contract change.
     public static string MaskText(string value, IReadOnlyDictionary<string, string> environment)
     {
         if (string.IsNullOrEmpty(value) || environment.Count == 0)
