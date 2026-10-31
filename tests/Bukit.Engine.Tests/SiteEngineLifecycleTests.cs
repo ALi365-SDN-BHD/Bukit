@@ -357,7 +357,7 @@ public sealed partial class SiteEngineIntegrationTests
 
     private static void AssertNoAggregateReference(string output, string route)
     {
-        foreach (var path in OutputSnapshot.Public(output).Entries.Keys.Where(path =>
+        foreach (var path in OutputSnapshot.Public(output, "en", "zh").Entries.Keys.Where(path =>
                      !path.Contains("content/", StringComparison.Ordinal) &&
                      (path.EndsWith(".xml", StringComparison.Ordinal) || path.EndsWith(".json", StringComparison.Ordinal) || Path.GetFileName(path).StartsWith("llms", StringComparison.Ordinal))))
             Assert.DoesNotContain(route, File.ReadAllText(Path.Combine(output, path)), StringComparison.Ordinal);
@@ -381,7 +381,7 @@ public sealed partial class SiteEngineIntegrationTests
         => path is not null && File.Exists(Path.Combine(output, path)) ? File.ReadAllText(Path.Combine(output, path)) : "absent";
 
     private static string[] PublicHashes(string output)
-        => OutputSnapshot.Public(output).Entries.Keys
+        => OutputSnapshot.Public(output, "en", "zh").Entries.Keys
             .Select(path => path + " " + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(output, path)))))
             .ToArray();
 
