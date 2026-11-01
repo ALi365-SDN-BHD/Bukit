@@ -1778,6 +1778,81 @@
         "bash scripts/checks/coverage-run-one-self-test.sh",
         "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
       ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "bukit-importing-source",
+      "matches": [
+        "src/Bukit-Plugins/Bukit.Importing/*.cs",
+        "src/Bukit-Plugins/Bukit.Importing/**/*.cs",
+        "src/Bukit-Plugins/Bukit.Importing/Bukit.Importing.csproj"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj",
+        "dotnet test tests/Bukit.Plugin.Import.Tests/Bukit.Plugin.Import.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "bukit-importing-seed-tests",
+      "matches": [
+        "tests/Bukit.Importing.Tests/ImportSeedContentWriterTests.cs"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Importing.Tests/Bukit.Importing.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "bukit-wechat-sync",
+      "matches": [
+        "src/Bukit-Plugins/Bukit.WechatSyncing/*.cs",
+        "src/Bukit-Plugins/Bukit.WechatSyncing/**/*.cs",
+        "src/Bukit-Plugins/Bukit.WechatSyncing/Bukit.WechatSyncing.csproj",
+        "src/Bukit-Plugins/Bukit.Plugin.WechatSync/*.cs",
+        "src/Bukit-Plugins/Bukit.Plugin.WechatSync/**/*.cs",
+        "src/Bukit-Plugins/Bukit.Plugin.WechatSync/**/*.yaml",
+        "src/Bukit-Plugins/Bukit.Plugin.WechatSync/**/*.md",
+        "tests/Bukit.Plugin.WechatSync.Tests/*.cs",
+        "tests/Bukit.Plugin.WechatSync.Tests/**/*.cs",
+        "tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "wechat-sync-guide",
+      "matches": [
+        "guide/dev/plugins.md"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
+      "id": "release-changelog",
+      "matches": [
+        "CHANGELOG.md",
+        "CHANGELOG.ms.md",
+        "CHANGELOG.zh-CN.md"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/docs/active-links.sh",
+        "bash scripts/checks/docs/size-policy.sh"
+      ]
     }
   ],
   "resourceRules": [

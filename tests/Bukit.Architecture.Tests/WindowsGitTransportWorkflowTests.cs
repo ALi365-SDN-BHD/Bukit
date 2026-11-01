@@ -26,6 +26,7 @@ public sealed class WindowsGitTransportWorkflowTests
                      "DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndAskpass",
                      "DeployAsync_UserPagesRepoWithDotRemoteUrl_DeploysToRootGithubIoUrl",
                      "DeployAsync_CancelDuringPush_PropagatesOperationCanceledException_AndCleansUp",
+                     "EnsureMetadataWriteTargetIsNotLink_RejectsRegularAndDanglingSymlinks",
                      "FullyQualifiedName~", "validate(ET.parse(trx).getroot(), completed.returncode)",
                      "GIT_ALLOW_PROTOCOL=\"file\"", "exist_ok=False", "if residue:", "windows-git-evidence.json"
                  })
@@ -59,7 +60,7 @@ public sealed class WindowsGitTransportWorkflowTests
                 total = str(sum(expected.values()))
                 ET.SubElement(summary, "Counters", total=total, executed=total, passed=total, failed="0", notExecuted="0")
                 return root
-            assert sum(expected.values()) == 60
+            assert sum(expected.values()) == 61
             assert validate(sample(), 0) == expected
             mutations = [
                 lambda root: root.find("ResultSummary").set("outcome", "Failed"),

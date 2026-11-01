@@ -70,6 +70,54 @@ deliberately two-phase:
 Notification state remains under the exact `.cache/indexnow` directory.
 Dry-run performs no network call, key-file write, or state mutation.
 
+## WeChat Sync Draft Recovery
+
+The WeChat Sync plugin deliberately does not retry `draft/add` after the
+request may have reached WeChat. A timeout, transport failure, or unparseable
+response leaves the affected entry under `Operations` in
+`.cache/wechat-sync/sync-cache.json` with `State: "DraftSubmitting"`. Later
+runs report `plugin.wechat-sync.recoveryRequired` and refuse to submit that
+candidate again. `--force` and the force-retry environment variable do not
+bypass this guard because a second submit could create a duplicate draft.
+
+1. Stop automated publishing and back up the cache file before editing it.
+2. Find the affected `Operations` entry. Its property name is the candidate
+   `syncKey`; inspect `SourceKey`, `SourceId`, `Title`, `ContentHash`, `Target`,
+   and `UpdatedAt`.
+3. Check the WeChat draft box for the same title/source before deciding.
+4. If the draft exists, obtain its WeChat `media_id`, then change only that
+   operation from `DraftSubmitting` to `DraftCreated` and set `DraftId` to the
+   real `media_id`. Keep `ContentHash` and `Target` unchanged; do not invent a
+   `Records` entry. The next run finalizes a draft target or resumes publishing
+   for a publish target.
+5. If the draft does not exist, remove only that `Operations` entry so the next
+   run can create it. Removing the whole cache file also works but discards
+   unrelated records and thumbnail IDs.
+6. If the outcome is still unknown, leave the operation untouched. Do not run
+   the sync repeatedly or delete the cache as a shortcut.
+7. Keep the JSON valid: `DraftCreated` requires a non-empty `DraftId`, and a
+   malformed cache is rejected as a whole. Restore the backup and repeat the
+   review if validation fails.
+
+Example operation shape:
+
+```json
+"Operations": {
+  "post:my-article": {
+    "State": "DraftCreated",
+    "ContentHash": "existing-hash",
+    "Target": "draft",
+    "DraftId": "wechat-media-id",
+    "PublishId": null,
+    "UpdatedAt": "2026-11-01T00:00:00+00:00",
+    "SourceKey": "notion",
+    "SourceId": "page-id",
+    "Title": "My Article",
+    "LastPublishStatus": null
+  }
+}
+```
+
 The internal SRBiz install bundle is platform-specific. Its installer manifest
 records Core and plugin versions, the `osx-arm64` RID, relative install targets,
 and real SHA-256 archive, plugin-entry, and package hashes. `stagedEntry` is

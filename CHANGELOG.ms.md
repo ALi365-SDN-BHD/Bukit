@@ -15,6 +15,12 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
   Artifak ini untuk kegunaan dalaman, bukan keluaran awam atau keputusan gate
   release.
 
+### Pembaikan Audit
+
+- Menutup empat belas penemuan audit: front matter Markdown tidak sah kini gagal tertutup dan tidak menggugurkan metadata draf; deployment menolak penulisan melalui symlink `CNAME`/`.nojekyll`; Notion upsert membaca nilai medan unik sebenar dan menolak nilai hilang, tidak disokong, atau padanan berbilang halaman; WeChat berhenti mencuba semula penghantaran draf yang tidak pasti dan mengekalkan keadaan pemulihan.
+- Penyetempatan media hanya menulis semula rujukan imej; glob rekursif `**/` merangkumi fail pada akar kandungan; tatasusunan Seed ditulis sebagai jujukan YAML; pemantau Dev merangkumi direktori Markdown tersuai dan input tema warisan; cache Notion menyegarkan pautan bertandatangan yang tamat tempoh dan sasaran relation dalam talian; penyediaan data berbilang bahasa mematuhi pembatalan; Markdown memajukan tetapan auto-summary.
+- Menggunakan semula penyelesai laluan canonical bersama dan membuang logik laluan serta pembaca medan yang bertindih/tidak digunakan. Menambah liputan regresi dan panduan pemulihan `DraftSubmitting`.
+
 ### Keselamatan Dan Kebolehpercayaan
 
 - **Pembersihan output selamat (F-01)**: Clean eksplisit/konfigurasi, pembersihan build, dan recovery berkongsi cleaner terkawal. Root berbahaya, descendant `.git`, sasaran di luar projek atau symlink/reparse, dan direktori bukan kosong tanpa marker ditolak.

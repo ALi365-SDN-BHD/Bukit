@@ -23,6 +23,12 @@ All notable changes to Bukit will be documented in this file.
   public support, compatibility guarantees, SLA commitments, and a fixed
   release cadence are paused.
 
+### Audit Remediation
+
+- Closed fourteen review findings: invalid Markdown front matter now fails closed instead of dropping draft metadata; deployment refuses to write through `CNAME`/`.nojekyll` symlinks; Notion upsert resolves the configured unique field and rejects missing, unsupported, or multi-page matches; WeChat stops retrying ambiguous draft submissions and preserves recovery state.
+- Media localization now only rewrites image references, recursive `**/` globs include content-root files, seed arrays are emitted as YAML sequences, dev watching covers configured Markdown and inherited theme inputs, Notion caches refresh expired signed links and online relation targets, multilingual data preparation observes cancellation, and Markdown forwards auto-summary settings.
+- Reused the shared canonical path resolver and removed duplicate/dead path and field-reader helpers. Added regression coverage plus a recovery guide for `DraftSubmitting`.
+
 ### Security And Reliability
 
 - **Safe output cleanup (F-01)**: Explicit/configured clean, build cleanup, and recovery now share one guarded cleaner. Dangerous roots, `.git` descendants, outside-project and symlink/reparse targets, and non-empty unmarked directories are refused.

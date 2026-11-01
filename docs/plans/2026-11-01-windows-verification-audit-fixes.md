@@ -34,7 +34,8 @@ the production deployment contract and public API do not change.
    mapping, logging, or transport.
 5. Update `.github/workflows/ci.yaml` and
    `tests/Bukit.Architecture.Tests/WindowsGitTransportWorkflowTests.cs` to require
-   all 60 Windows cases, including the ten new shim calibration cases.
+   all 61 Windows cases, including the ten new shim calibration cases and the
+   deployment metadata symlink regression.
 6. Register the coverage selection owner and this plan in
    `scripts/checks/codex-workflow-policy.v1.json`, with exact mapping assertions
    in `scripts/checks/codex-workflow-self-test.d/closure-mappings.sh`.

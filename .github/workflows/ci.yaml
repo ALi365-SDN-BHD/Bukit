@@ -303,7 +303,7 @@ jobs:
               "Bukit.Cli.Tests.DeployGitTransportPrimitiveTests": 5,
               "Bukit.Cli.Tests.DeployIdentityTransportTests": 43,
               "Bukit.Cli.Tests.DeployWindowsRegressionTests": 7,
-              "Bukit.Cli.Tests.GitHubPagesDeployProviderTests": 5,
+              "Bukit.Cli.Tests.GitHubPagesDeployProviderTests": 6,
           }
           provider_methods = [
               "DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive",
@@ -311,6 +311,7 @@ jobs:
               "DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndAskpass",
               "DeployAsync_UserPagesRepoWithDotRemoteUrl_DeploysToRootGithubIoUrl",
               "DeployAsync_CancelDuringPush_PropagatesOperationCanceledException_AndCleansUp",
+              "EnsureMetadataWriteTargetIsNotLink_RejectsRegularAndDanglingSymlinks",
           ]
 
           def validate(root, return_code):

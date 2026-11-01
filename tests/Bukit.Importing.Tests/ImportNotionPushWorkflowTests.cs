@@ -601,6 +601,39 @@ databases:
     }
 
     [Fact]
+    public async Task NotionSeedPusher_UpsertMultipleUniqueMatchesFailsWithoutWriting()
+    {
+        int queryCount = 0;
+        int writeCount = 0;
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db-posts/query", StringComparison.Ordinal))
+            {
+                queryCount++;
+                return Json("""{ "results": [{ "id": "page-one" }, { "id": "page-two" }] }""");
+            }
+
+            writeCount++;
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        });
+        using var transport = CreateTrustedClient(
+            new NotionClientOptions { Token = "token", MaxRetries = 0 },
+            handler);
+        var record = new ImportSeedRecord(
+            "post", "Post", "duplicate", null, null, null, true, null, null);
+
+        var result = await NotionSeedPusher.PushAsync(new NotionWriteClient(transport), [record],
+            new NotionPushOptions("db-posts", Path.Combine(_rootDir, "multi-match-report.json"),
+                DryRun: false, Mode: "upsert", UniqueField: "Slug", WriteReport: false));
+
+        Assert.Equal(1, result.Failed);
+        Assert.Equal(1, queryCount);
+        Assert.Equal(0, writeCount);
+        Assert.Contains("matched 2 pages", result.Items.Single().Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task NotionSeedPusher_CancellationStopsBeforeLaterWrite()
     {
         using var cancellation = new CancellationTokenSource();

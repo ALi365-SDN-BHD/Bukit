@@ -14,6 +14,12 @@ Bukit 所有重要变更都将记录在此文件中。
   的 `osx-arm64` Core/插件内部安装清单。该产物仅供内部使用，不代表公开
   release 或 release gate 结果。
 
+### 审计修复
+
+- 关闭 14 项审计问题：非法 Markdown front matter 改为 fail-closed，不再丢失草稿标记；部署拒绝通过 `CNAME`/`.nojekyll` 符号链接写入；Notion upsert 读取真实唯一字段值，并拒绝缺失、不支持或多页命中；WeChat 提交结果不确定时停止重试并保留恢复状态。
+- 媒体本地化只处理图片引用；递归 `**/` glob 包含内容根目录文件；Seed 数组输出为 YAML 序列；Dev 监听覆盖自定义 Markdown 与继承主题输入；Notion 缓存刷新过期签名链接和在线关联目标；多语言数据准备响应取消；Markdown 转发自动摘要配置。
+- 复用共享 canonical 路径解析，删除重复/未使用的路径和字段读取逻辑；补充回归测试与 `DraftSubmitting` 恢复手册。
+
 ### 安全与可靠性修复
 
 - **安全输出清理（F-01）**：显式/配置式 clean、构建清理和 recovery 共用一个受保护 cleaner；危险 root、`.git` descendant、项目外与 symlink/reparse target、无 marker 非空目录都会被拒绝。

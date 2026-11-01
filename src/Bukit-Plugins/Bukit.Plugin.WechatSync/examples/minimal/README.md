@@ -14,3 +14,8 @@ Version `0.4.0` adds target-specific review gates. Draft sync defaults to
 when an explicit review status is absent. Sites with custom review vocabularies
 must pass explicit `--draft-review-statuses` and `--publish-review-statuses` values;
 the publish set must remain a subset of the draft set.
+
+If a run reports `plugin.wechat-sync.recoveryRequired`, follow the
+[WeChat Sync Draft Recovery](../../../../../guide/dev/plugins.md#wechat-sync-draft-recovery)
+manual before rerunning. Do not delete or force the cache to bypass an uncertain
+`DraftSubmitting` outcome.

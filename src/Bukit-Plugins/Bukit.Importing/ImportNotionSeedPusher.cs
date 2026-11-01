@@ -138,7 +138,16 @@ internal static partial class NotionSeedPusher
             return new QueryExistingPageResult(false, null, SafeError(response));
 
         var results = response.Payload!.Value.GetProperty("results");
-        if (results.GetArrayLength() > 0)
+        var matchCount = results.GetArrayLength();
+        if (matchCount > 1)
+        {
+            return new QueryExistingPageResult(
+                false,
+                null,
+                $"Unique field '{NotionPropertyNaming.Canonicalize(options.UniqueField ?? string.Empty)}' matched {matchCount} pages.");
+        }
+
+        if (matchCount == 1)
             return new QueryExistingPageResult(true, results[0].GetProperty("id").GetString(), null);
         return new QueryExistingPageResult(true, null, null);
     }
