@@ -189,12 +189,33 @@ public sealed class DeployGitTransportPrimitiveTests
         {
             try
             {
-                if (Directory.Exists(Root))
+                if (!Directory.Exists(Root))
                 {
-                    Directory.Delete(Root, recursive: true);
+                    return;
                 }
+
+                // Git marks object files read-only on Windows; clear attributes before
+                // deleting the temporary repository tree.
+                foreach (var entry in Directory.EnumerateFileSystemEntries(Root, "*", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        File.SetAttributes(entry, FileAttributes.Normal);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                    }
+                }
+
+                Directory.Delete(Root, recursive: true);
             }
             catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
             {
             }
         }
