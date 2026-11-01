@@ -1,5 +1,6 @@
 using Bukit.Config;
 using Bukit.Engine.Abstractions.Content;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net;
 using System.Text;
@@ -61,6 +62,7 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
     INotionRelationFallbackResolver INotionRelationFallbackResolverProvider.RelationFallbackResolver
         => CreateRelationFallbackResolver();
 
+    [SuppressMessage("Reliability", "CA2000", Justification = "The client and body gate transfer to the returned body store; the failure path disposes both.")]
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(_options.DatabaseId))
@@ -94,6 +96,7 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
         }
     }
 
+    [SuppressMessage("Reliability", "CA2000", Justification = "The body store owns the client and gate and is returned to the caller.")]
     private async Task<RawContentLoadResult> LoadCoreAsync(
         NotionContentClient client,
         SemaphoreSlim bodyGate,
@@ -355,8 +358,8 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
             }
 
             return html;
-        }, CancellationToken.None, onCacheEntryPublished: null, ownedClient: client, ownedGate: bodyGate,
-            relationFallbackResolver: relationResolver);
+        }, onCacheEntryPublished: null, ownedClient: client, ownedGate: bodyGate,
+            relationFallbackResolver: relationResolver, lifetimeToken: CancellationToken.None);
         foreach (var (pageId, body) in prefetchedBodies)
         {
             bodyStore.Seed(pageId, body);

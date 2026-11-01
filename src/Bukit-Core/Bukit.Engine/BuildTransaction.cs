@@ -52,8 +52,9 @@ internal sealed class BuildTransaction : IDisposable
     }
 
     internal static BuildTransaction Begin(AppConfig config, string rootDir, ConfigOverrides overrides, ILogger logger,
-        Action<string, string, bool>? move = null, Action<string, bool>? delete = null, CancellationToken cancellationToken = default,
-        IReadOnlyList<string>? contentSourceRoots = null, IReadOnlyList<string>? extraWriteTargets = null)
+        Action<string, string, bool>? move = null, Action<string, bool>? delete = null,
+        IReadOnlyList<string>? contentSourceRoots = null, IReadOnlyList<string>? extraWriteTargets = null,
+        CancellationToken cancellationToken = default)
     {
         config = ConfigApplier.Apply(config, overrides);
         ConfigValidator.Validate(config);
@@ -93,10 +94,9 @@ internal sealed class BuildTransaction : IDisposable
         config = ConfigApplier.Apply(config, overrides);
         var cache = ResourcePath(string.IsNullOrWhiteSpace(overrides.CacheDir) ? Path.Combine(rootDir, ".cache") : overrides.CacheDir);
         var media = ContentProviderFactory.BuildEffectiveMediaConfig(config.Content.Media, rootDir, Path.Combine(cache, "media")).DownloadDir;
-        return GetResources(config, rootDir, overrides, ResourcePath(outputDir), cache, media)
+        return [.. GetResources(config, rootDir, overrides, ResourcePath(outputDir), cache, media)
             .Where(static resource => resource.Write)
-            .Select(static resource => resource.Path)
-            .ToArray();
+            .Select(static resource => resource.Path)];
     }
 
     /// <summary>
@@ -141,7 +141,7 @@ internal sealed class BuildTransaction : IDisposable
     private static void ValidateResources(AppConfig config, string rootDir, string output, List<BuildResourceLease.Resource> resources,
         IReadOnlyList<string> contentSourceRoots, IReadOnlyList<string> extraWriteTargets, ILogger logger)
     {
-        ValidateSourceResources(config, rootDir, resources, contentSourceRoots, logger);
+        ValidateSourceResources(config, rootDir, resources, logger);
         foreach (var resource in resources.Where(r => r.Write))
         {
             if (BuildResourceLease.Same(resource.Path, rootDir) || BuildResourceLease.Contains(resource.Path, rootDir) || resource.Path.Split(Path.DirectorySeparatorChar).Contains(".git"))
@@ -158,7 +158,7 @@ internal sealed class BuildTransaction : IDisposable
     }
 
     private static void ValidateSourceResources(AppConfig config, string rootDir, List<BuildResourceLease.Resource> resources,
-        IReadOnlyList<string> contentSourceRoots, ILogger logger)
+        ILogger logger)
     {
         var theme = ThemePathResolver.Resolve(rootDir, config.Theme, logger);
         var inputs = new[] { theme.LayoutsDir, theme.AssetsDir, theme.StaticDir, theme.ParentLayoutsDir, theme.ParentAssetsDir, theme.ParentStaticDir, theme.UserLayoutsDir }
@@ -204,7 +204,9 @@ internal sealed class BuildTransaction : IDisposable
     internal static IReadOnlyList<string> WatchResources(AppConfig config, string root, string output, string cache)
     {
         var media = ContentProviderFactory.BuildEffectiveMediaConfig(config.Content.Media, root, Path.Combine(cache, "media")).DownloadDir;
-        return GetResources(config, root, new() { CacheDir = cache }, output, cache, media).Where(resource => resource.Write).Select(resource => resource.Path).ToArray();
+        return [.. GetResources(config, root, new() { CacheDir = cache }, output, cache, media)
+            .Where(resource => resource.Write)
+            .Select(resource => resource.Path)];
     }
 
     private static List<BuildResourceLease.Resource> GetResources(AppConfig config, string rootDir, ConfigOverrides overrides, string output, string cache, string media)

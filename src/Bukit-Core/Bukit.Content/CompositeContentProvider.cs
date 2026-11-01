@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Content.Notion;
 using Bukit.Shared;
@@ -43,6 +44,7 @@ public sealed class CompositeContentProvider : IContentProvider
     internal IReadOnlyList<IContentProvider> ChildProviders
         => _providers.Select(static provider => provider.Provider).ToArray();
 
+    [SuppressMessage("Reliability", "CA2000", Justification = "The composite body store owns the child stores and is returned to the caller.")]
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
         var tasks = new Task<RawContentLoadResult>[_providers.Count];

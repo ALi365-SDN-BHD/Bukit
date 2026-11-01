@@ -34,17 +34,17 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
         Func<ContentDocument, CancellationToken, Task<string>> htmlFactory,
         CancellationToken lifetimeToken,
         Action? onCacheEntryPublished)
-        : this(htmlFactory, lifetimeToken, onCacheEntryPublished, ownedClient: null, ownedGate: null, relationFallbackResolver: null)
+        : this(htmlFactory, onCacheEntryPublished, ownedClient: null, ownedGate: null, relationFallbackResolver: null, lifetimeToken)
     {
     }
 
     internal NotionBodyStore(
         Func<ContentDocument, CancellationToken, Task<string>> htmlFactory,
-        CancellationToken lifetimeToken,
         Action? onCacheEntryPublished,
         IDisposable? ownedClient,
         SemaphoreSlim? ownedGate,
-        INotionRelationFallbackResolver? relationFallbackResolver)
+        INotionRelationFallbackResolver? relationFallbackResolver,
+        CancellationToken lifetimeToken)
     {
         ArgumentNullException.ThrowIfNull(htmlFactory);
         _htmlFactory = htmlFactory;

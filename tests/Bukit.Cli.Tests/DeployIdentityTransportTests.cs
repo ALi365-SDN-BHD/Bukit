@@ -714,7 +714,7 @@ public sealed class DeployIdentityTransportTests
                 Force = force,
                 Logger = new TestLogger()
             };
-            return await new GitHubPagesDeployProvider().DeployAsync(context, projectRoot, CancellationToken.None);
+            return await GitHubPagesDeployProvider.DeployAsync(context, projectRoot, CancellationToken.None);
         }
 
         public async Task<string> GitAsync(string workingDirectory, params string[] arguments)

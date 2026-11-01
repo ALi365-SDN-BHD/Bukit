@@ -348,11 +348,11 @@ public sealed class NotionBodyStoreTests
                 await release.Task;
                 return "<p>active</p>";
             },
-            CancellationToken.None,
             onCacheEntryPublished: null,
             ownedClient,
             ownedGate,
-            relationFallbackResolver: null);
+            relationFallbackResolver: null,
+            lifetimeToken: CancellationToken.None);
         var item = Item("owned-active");
 
         var read = store.GetAsync(item);

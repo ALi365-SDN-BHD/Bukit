@@ -13,7 +13,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
     /// Deploys using <paramref name="projectRoot"/> for repository identity and transport
     /// context instead of the process working directory.
     /// </summary>
-    internal async Task<DeployResult> DeployAsync(DeployContext context, string projectRoot, CancellationToken ct)
+    internal static async Task<DeployResult> DeployAsync(DeployContext context, string projectRoot, CancellationToken ct)
     {
         var logger = context.Logger;
         var gitPath = ResolveGit(logger);

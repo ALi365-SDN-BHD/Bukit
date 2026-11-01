@@ -339,7 +339,9 @@ public sealed partial class GitHubPagesDeployProvider
         return output.Stdout.Trim();
     }
 
-    private static async Task<(int ExitCode, string Stdout, string Stderr)> RunGitAllowFailureAsync(
+    private sealed record GitCommandResult(int ExitCode, string Stdout, string Stderr);
+
+    private static async Task<GitCommandResult> RunGitAllowFailureAsync(
         string gitPath,
         string? workingDir,
         TimeSpan timeout,
@@ -350,7 +352,7 @@ public sealed partial class GitHubPagesDeployProvider
         var psi = CreateGitProcess(gitPath, workingDir, args);
         using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
         var output = await WaitForGitProcessAndDrainAsync(proc, timeout, ct, commandLine);
-        return (proc.ExitCode, output.Stdout, output.Stderr);
+        return new GitCommandResult(proc.ExitCode, output.Stdout, output.Stderr);
     }
 
     /// <summary>
