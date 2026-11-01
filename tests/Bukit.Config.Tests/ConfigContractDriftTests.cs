@@ -103,6 +103,12 @@ public sealed class ConfigContractDriftTests
         Assert.False(TryNormalizeConfigPath(reference, out _));
     }
 
+    [Fact]
+    public void InlineCodeSpanConfigReferences_IgnoreGitRemoteOriginUrl()
+    {
+        Assert.False(TryNormalizeConfigPath("remote.origin.url", out _));
+    }
+
     [Theory]
     [InlineData("site.title", "site.title")]
     [InlineData("markdown.dir", "content.sources[].markdown.dir")]
@@ -113,10 +119,14 @@ public sealed class ConfigContractDriftTests
         Assert.True(IsAllowedConfigPath(normalized, BuildAllowedConfigPaths()));
     }
 
-    [Fact]
-    public void InlineCodeSpanConfigReferences_RejectUnknownLowercasePaths()
+    [Theory]
+    [InlineData("site.notARealField")]
+    [InlineData("remote.origin.notARealField")]
+    [InlineData("remote.origin.urlTypo")]
+    [InlineData("remote.origin.url.extra")]
+    public void InlineCodeSpanConfigReferences_RejectUnknownLowercasePaths(string reference)
     {
-        Assert.True(TryNormalizeConfigPath("site.notARealField", out var normalized));
+        Assert.True(TryNormalizeConfigPath(reference, out var normalized));
         Assert.False(IsAllowedConfigPath(normalized, BuildAllowedConfigPaths()));
     }
 
@@ -340,7 +350,8 @@ public sealed class ConfigContractDriftTests
             }
         }
 
-        if (AllowedNegativeReferences.Contains(normalized))
+        if (normalized.Equals("remote.origin.url", StringComparison.Ordinal) ||
+            AllowedNegativeReferences.Contains(normalized))
         {
             return false;
         }
