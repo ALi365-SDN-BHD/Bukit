@@ -1420,6 +1420,18 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "core-five-findings-remediation-plan",
+      "matches": [
+        "docs/superpowers/plans/2026-11-01-bukit-core-five-findings-remediation-plan.zh-CN.md"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/codex-workflow-self-test.sh"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "quality-remediation-plan",
       "matches": [
         "docs/superpowers/plans/2026-09-09-bukit-quality-remediation.md"

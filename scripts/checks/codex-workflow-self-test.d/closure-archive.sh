@@ -1,3 +1,5 @@
+assert_closure_mapping "$closure_fixture" docs/superpowers/plans/2026-11-01-bukit-core-five-findings-remediation-plan.zh-CN.md '["bash scripts/checks/codex-workflow-self-test.sh"]' false
+
 for core_five_findings_archive_path in \
   openspec/changes/archive/2026-11-01-fix-core-five-findings/proposal.md \
   openspec/changes/archive/2026-11-01-fix-core-five-findings/design.md \

@@ -2,7 +2,7 @@
 
 唯一实施清单。只有取得实际证据的事项才勾选；证据位置记录在括号内。设计见
 `design.md`，验收要求见
-`/Users/ali/.opencode/plan/2026-11-01-bukit-core-five-findings-remediation-plan.zh-CN.md`。
+[修复方案](../../../../docs/superpowers/plans/2026-11-01-bukit-core-five-findings-remediation-plan.zh-CN.md)。
 外部证据目录：`/private/var/folders/f6/1xdrtq9j7030l4ww_sgnr0pw0000gn/T/opencode/bukit-five-findings/`。
 
 ## 0. 准备
