@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using Bukit.Shared;
 using Bukit.Shared.IO;
 using System.Text;
 
@@ -44,6 +45,20 @@ internal sealed class MarkdownBodyStore : IContentBodyStore
         using (var reader = new StreamReader(verified.Stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true))
         {
             markdown = await reader.ReadToEndAsync(cancellationToken);
+        }
+
+        // Verify the body actually read matches the fingerprint captured with the metadata.
+        // Documents without a captured fingerprint keep the legacy HTML-hash fallback.
+        var expectedFingerprint = ContentFieldReader.GetText(document.CustomFields, "bodyFingerprint");
+        if (!string.IsNullOrWhiteSpace(expectedFingerprint))
+        {
+            var actualFingerprint = MarkdownTextHelper.ComputeBodyFingerprint(markdown);
+            if (!string.Equals(expectedFingerprint, actualFingerprint, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ContentException(
+                    $"Markdown content changed while the build was running: {document.Source.SourcePath ?? document.Id}. " +
+                    "How to fix: keep the source stable during the build and rerun to publish the current content.");
+            }
         }
 
         return new ContentBody(MarkdownTextHelper.RenderHtml(markdown));

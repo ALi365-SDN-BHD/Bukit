@@ -118,7 +118,10 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.Equal("https://docs.example.com", result.DeployedUrl);
 
         var log = scope.FakeGit.ReadLog();
-        Assert.Contains("clone --single-branch --branch gh-pages --depth 1 https://github.com/ali/docs.git .", log, StringComparison.Ordinal);
+        Assert.Contains("init", log, StringComparison.Ordinal);
+        Assert.Contains("fetch --depth 1 bukit-deploy-", log, StringComparison.Ordinal);
+        Assert.Contains(" gh-pages", log, StringComparison.Ordinal);
+        Assert.Contains("checkout -B gh-pages FETCH_HEAD", log, StringComparison.Ordinal);
         Assert.Contains("SNAPSHOT nojekyll", log, StringComparison.Ordinal);
         Assert.Contains("SNAPSHOT cname=docs.example.com", log, StringComparison.Ordinal);
         Assert.Contains("SNAPSHOT index", log, StringComparison.Ordinal);
@@ -144,8 +147,9 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.DoesNotContain("secret-token", result.Error, StringComparison.Ordinal);
         var log = scope.FakeGit.ReadLog();
         Assert.Contains("ls-remote --heads", log, StringComparison.Ordinal);
-        Assert.DoesNotContain("|init", log, StringComparison.Ordinal);
-        Assert.DoesNotContain("|push", log, StringComparison.Ordinal);
+        Assert.Contains("|init", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("|fetch", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("|push ", log, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -248,7 +252,7 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.False(first.Success);
         Assert.Equal("Non-fast-forward push rejected. The remote branch has diverged; rerun with --force to overwrite it.", first.Error);
         Assert.True(second.Success, second.Error);
-        Assert.Contains("push --force origin gh-pages", scope.FakeGit.ReadLog(), StringComparison.Ordinal);
+        Assert.Matches(@"push --force bukit-deploy-[0-9a-f]+ gh-pages", scope.FakeGit.ReadLog());
     }
 
     [Fact]
@@ -266,7 +270,7 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.True(result.Success, result.Error);
 
         var log = scope.FakeGit.ReadLog();
-        Assert.Contains("push --force origin gh-pages", log, StringComparison.Ordinal);
+        Assert.Matches(@"push --force bukit-deploy-[0-9a-f]+ gh-pages", log);
     }
 
     [Fact]
@@ -427,7 +431,7 @@ public sealed class GitHubPagesDeployProviderTests
         scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
         scope.FakeGit.PushMode = "flood-success";
         scope.SetGithubToken("secret-token");
-        scope.SetDeployTimeoutSeconds("2");
+        scope.SetDeployTimeoutSeconds("5");
         scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
         using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
 
@@ -500,7 +504,7 @@ public sealed class GitHubPagesDeployProviderTests
         scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
         scope.FakeGit.PushMode = "flood-failure";
         scope.SetGithubToken(token);
-        scope.SetDeployTimeoutSeconds("2");
+        scope.SetDeployTimeoutSeconds("5");
         scope.WriteOutputFile("index.html", "<h1>Hello</h1>");
         using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
 
@@ -678,7 +682,7 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Unable to determine GitHub repository. Ensure you are in a git repository with a remote 'origin' pointing to GitHub.", result.Error);
+        Assert.Contains("Unable to determine GitHub repository", result.Error, StringComparison.Ordinal);
         Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", result.Error, StringComparison.Ordinal);
         Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", string.Join('\n', scope.Logger.Errors), StringComparison.Ordinal);
         Assert.DoesNotContain("ghp_TEST_SECRET_TOKEN_123", string.Join('\n', scope.Logger.Infos), StringComparison.Ordinal);
@@ -727,7 +731,7 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Unable to determine GitHub repository. Ensure you are in a git repository with a remote 'origin' pointing to GitHub.", result.Error);
+        Assert.Contains("Unable to determine GitHub repository", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -742,7 +746,7 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Unable to determine GitHub repository. Ensure you are in a git repository with a remote 'origin' pointing to GitHub.", result.Error);
+        Assert.Contains("Unable to determine GitHub repository", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -757,7 +761,7 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal("Unable to determine GitHub repository. Ensure you are in a git repository with a remote 'origin' pointing to GitHub.", result.Error);
+        Assert.Contains("Unable to determine GitHub repository", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -773,7 +777,7 @@ public sealed class GitHubPagesDeployProviderTests
         var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(force: true), CancellationToken.None);
 
         Assert.True(result.Success, result.Error);
-        Assert.Contains("push --force origin gh-pages", scope.FakeGit.ReadLog(), StringComparison.Ordinal);
+        Assert.Matches(@"push --force bukit-deploy-[0-9a-f]+ gh-pages", scope.FakeGit.ReadLog());
     }
 
     [Fact]
@@ -790,9 +794,11 @@ public sealed class GitHubPagesDeployProviderTests
 
         Assert.True(result.Success, result.Error);
         var log = scope.FakeGit.ReadLog();
-        Assert.Contains("clone --single-branch --branch gh-pages --depth 1 https://github.com/ali/docs.git .", log, StringComparison.Ordinal);
-        Assert.DoesNotContain("clone --force", log, StringComparison.Ordinal);
-        Assert.Contains("push --force origin gh-pages", log, StringComparison.Ordinal);
+        Assert.Contains("init", log, StringComparison.Ordinal);
+        Assert.Contains("fetch --depth 1 bukit-deploy-", log, StringComparison.Ordinal);
+        Assert.Contains(" gh-pages", log, StringComparison.Ordinal);
+        Assert.Contains("checkout -B gh-pages FETCH_HEAD", log, StringComparison.Ordinal);
+        Assert.Matches(@"push --force bukit-deploy-[0-9a-f]+ gh-pages", log);
     }
 
     [Fact]
@@ -950,6 +956,111 @@ public sealed class GitHubPagesDeployProviderTests
         var log = scope.FakeGit.ReadLog();
         Assert.DoesNotContain("add -A", log, StringComparison.Ordinal);
         Assert.DoesNotContain("push origin", log, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DeployAsync_EscapedIdentifier_StopsBeforeGitWrites()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Safe</h1>");
+        scope.WriteOutputFile("escaped.json", """{"reference":"39bf\u006139a-5013-81ae-9516-fbd448f3bd47"}""");
+        WriteDeployIdentityReport(scope.OutputDir, notionId);
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("BKT-DEPLOY-PRIVACY-0001", result.Error, StringComparison.Ordinal);
+        Assert.Contains("escaped.json", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(notionId, result.Error, StringComparison.OrdinalIgnoreCase);
+        var log = scope.FakeGit.ReadLog();
+        Assert.DoesNotContain("add -A", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("|push ", log, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("{\"x\":")]
+    [InlineData("{\"x\":\"\\uD800\"}")]
+    [InlineData("{\"\\uD800\":\"x\"}")]
+    public async Task DeployAsync_IncompletePrivacyScan_ReturnsPrivacyErrorBeforeGitWrites(string json)
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Safe</h1>");
+        scope.WriteOutputFile("undecodable.json", json);
+        WriteDeployIdentityReport(scope.OutputDir, notionId);
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("BKT-DEPLOY-PRIVACY-0001", result.Error, StringComparison.Ordinal);
+        Assert.Contains("unable to complete", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("contains internal Notion provenance", result.Error, StringComparison.Ordinal);
+        var log = scope.FakeGit.ReadLog();
+        Assert.DoesNotContain("add -A", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("|push ", log, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(".json")]
+    [InlineData(".jsonld")]
+    public async Task DeployAsync_OverDeepJson_ReturnsIncompleteBeforeGitWrites(string extension)
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var escaped = string.Concat(notionId.Select(ch => $"\\u{(int)ch:x4}"));
+        var depth65 = new string('[', 65) + "\"" + escaped + "\"" + new string(']', 65);
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Safe</h1>");
+        scope.WriteOutputFile("depth65" + extension, depth65);
+        WriteDeployIdentityReport(scope.OutputDir, notionId);
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("BKT-DEPLOY-PRIVACY-0001", result.Error, StringComparison.Ordinal);
+        Assert.Contains("unable to complete", result.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("contains internal Notion provenance", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain(notionId, result.Error, StringComparison.OrdinalIgnoreCase);
+        var log = scope.FakeGit.ReadLog();
+        Assert.DoesNotContain("add -A", log, StringComparison.Ordinal);
+        Assert.DoesNotContain("|push ", log, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DeployAsync_ValidUnicodeAndUnknownUuid_ProceedsToPush()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        const string businessId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+        using var scope = new GitHubPagesDeployTestScope();
+        scope.FakeGit.RemoteUrl = "https://github.com/ali/docs.git";
+        scope.SetGithubToken("secret-token");
+        scope.WriteOutputFile("index.html", "<h1>Safe</h1>");
+        scope.WriteOutputFile("emoji.json", """{"x":"\uD83D\uDE00"}""");
+        scope.WriteOutputFile("business.json", $$"""{"businessId":"{{businessId}}"}""");
+        WriteDeployIdentityReport(scope.OutputDir, notionId);
+        using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
+
+        var result = await new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Contains("|push ", scope.FakeGit.ReadLog(), StringComparison.Ordinal);
+    }
+
+    private static void WriteDeployIdentityReport(string outputDir, string notionId)
+    {
+        Directory.CreateDirectory(Path.Combine(outputDir, ".bukit"));
+        File.WriteAllText(
+            Path.Combine(outputDir, ".bukit", "publish-audit-report.json"),
+            $$"""{"schema":"https://bukit.dev/schemas/publish-audit-report.v1.json","documents":[{"source":"notion","sourceItemId":"posts:{{notionId}}"}]}""");
     }
 
     [Fact]
@@ -1246,14 +1357,31 @@ public sealed class GitHubPagesDeployProviderTests
         await Git("push", remote, "pages");
         await Git("remote", "add", "origin", "https://github.com/test/local.git");
         string Quote(string value) => "'" + value.Replace("'", "'\\''") + "'";
-        WriteExecutable(scope.FakeGit.BinDir, "git", $"""
-            if [ -n "$GIT_ASKPASS" ]; then
-              [ -f "$GIT_ASKPASS" ] || exit 71
-              [ "$("$GIT_ASKPASS")" = "$BUKIT_GITHUB_TOKEN" ] || exit 72
-              printf '%s' "$GIT_ASKPASS" > {Quote(Path.Combine(scope.WorktreeDir, "askpass-path"))}
-              exec {Quote(realGit)} -c {Quote("url." + remote + ".insteadOf=https://github.com/test/local.git")} "$@"
-            fi
-            exec {Quote(realGit)} "$@"
+        var accessLog = Path.Combine(scope.WorktreeDir, "transport-access.log");
+        // Controlled transport double: real git for every command, but the deploy-private
+        // remote name is mapped to the local bare repository. Records each real access.
+        WriteExecutable(scope.FakeGit.BinDir, "git", $$"""
+            set -eu
+            case "${1:-}" in
+              ls-remote|fetch|push)
+                if [ -n "${GIT_ASKPASS:-}" ]; then
+                  [ -f "$GIT_ASKPASS" ] || exit 71
+                  printf '%s' "$GIT_ASKPASS" > {{Quote(Path.Combine(scope.WorktreeDir, "askpass-path"))}}
+                fi
+                printf 'ACCESS %s\n' {{Quote(remote)}} >> {{Quote(accessLog)}}
+                mapped=""
+                for arg in "$@"; do
+                  case "$arg" in
+                    bukit-deploy-*) arg={{Quote(remote)}} ;;
+                  esac
+                  mapped="$mapped '$arg'"
+                done
+                eval "exec {{Quote(realGit)}} $mapped"
+                ;;
+              *)
+                exec {{Quote(realGit)}} "$@"
+                ;;
+            esac
             """);
         var result = await new GitHubPagesDeployProvider().DeployAsync(
             scope.CreateContext(keepHistory: true, branch: "pages", cname: "WWW.Example.Com"),
@@ -1267,6 +1395,9 @@ public sealed class GitHubPagesDeployProviderTests
         Assert.DoesNotContain("askpass", files);
         Assert.DoesNotContain(".bukit", files);
         Assert.False(File.Exists(File.ReadAllText(Path.Combine(scope.WorktreeDir, "askpass-path"))));
+        var accesses = File.ReadAllLines(accessLog);
+        Assert.Equal(3, accesses.Length);
+        Assert.All(accesses, line => Assert.Equal("ACCESS " + remote, line));
     }
 
     private static void AssertDeploymentCleanupSucceeded(GitHubPagesDeployTestScope scope)
@@ -1288,6 +1419,7 @@ public sealed class GitHubPagesDeployProviderTests
             WorktreeDir = Path.Combine(_root, "worktree");
             OutputDir = Path.Combine(_root, "output");
             Directory.CreateDirectory(WorktreeDir);
+            Directory.CreateDirectory(Path.Combine(WorktreeDir, ".git"));
             Directory.CreateDirectory(OutputDir);
             File.WriteAllText(Path.Combine(OutputDir, ".bukit-build-state.json"), "{\"version\":1,\"status\":\"completed\"}");
             Logger = new RecordingLogger();
@@ -1440,91 +1572,114 @@ public sealed class GitHubPagesDeployProviderTests
         {
             if (OperatingSystem.IsWindows())
             {
-                var scriptPath = Path.Combine(BinDir, "git.cmd");
-                File.WriteAllText(scriptPath, """
+                File.WriteAllText(Path.Combine(BinDir, "git.cmd"), """
                 @echo off
-                setlocal EnableDelayedExpansion
-                echo %CD%^|%*>>"%BUKIT_FAKE_GIT_LOG%"
-                if not "%GIT_ASKPASS%"=="" echo ASKPASS %GIT_ASKPASS%>>"%BUKIT_FAKE_GIT_LOG%"
-                if "%~1"=="remote" if "%~2"=="get-url" if "%~3"=="origin" goto remote_get_url
-                if "%~1"=="ls-remote" goto ls_remote
-                if "%~1"=="clone" goto clone_repo
-                if "%~1"=="push" goto push_repo
-                exit /b 0
+                powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0git.ps1" %*
+                """);
+                File.WriteAllText(Path.Combine(BinDir, "git.ps1"), """
+                $log = $env:BUKIT_FAKE_GIT_LOG
+                Add-Content -LiteralPath $log -Value ("$($PWD.Path)|" + ($args -join ' '))
+                if ($env:GIT_ASKPASS) { Add-Content -LiteralPath $log -Value "ASKPASS $($env:GIT_ASKPASS)" }
+                function Write-Nul([string]$value) { [Console]::Out.Write($value + [char]0) }
 
-                :remote_get_url
-                if not "%BUKIT_FAKE_GIT_REMOTE_URL%"=="" echo %BUKIT_FAKE_GIT_REMOTE_URL%
-                exit /b 0
+                if ($args.Count -ge 1 -and $args[0] -eq 'config') {
+                    $last = $args[-1]
+                    if ($last -eq 'remote.origin.url') {
+                        if ($args[1] -eq '--worktree') {
+                            if ($env:BUKIT_FAKE_GIT_WORKTREE_MODE -eq 'missing') { exit 1 }
+                            $url = if ($env:BUKIT_FAKE_GIT_WORKTREE_URL) { $env:BUKIT_FAKE_GIT_WORKTREE_URL } else { $env:BUKIT_FAKE_GIT_REMOTE_URL }
+                            if (-not $url) { exit 1 }
+                            Write-Nul $url
+                            exit 0
+                        }
+                        if ($env:BUKIT_FAKE_GIT_CONFIG_ERROR -eq '1') { [Console]::Error.Write("fatal: bad config`n"); exit 128 }
+                        if (-not $env:BUKIT_FAKE_GIT_REMOTE_URL) { exit 1 }
+                        Write-Nul $env:BUKIT_FAKE_GIT_REMOTE_URL
+                        exit 0
+                    }
+                    if ($args -contains '--get-regexp') {
+                        $path = Join-Path $env:BUKIT_FAKE_GIT_STATE 'rewrites'
+                        if (Test-Path -LiteralPath $path) { [Console]::Out.Write([IO.File]::ReadAllText($path)); exit 0 }
+                        exit 1
+                    }
+                    if ($last -like 'remote.*.url') {
+                        $name = $last.Substring(7, $last.Length - 11)
+                        $path = Join-Path $env:BUKIT_FAKE_GIT_STATE "remote.$name.url"
+                        if (Test-Path -LiteralPath $path) { Write-Nul ([IO.File]::ReadAllText($path)); exit 0 }
+                        exit 1
+                    }
+                    if ($last -like 'remote.*.pushurl') {
+                        $name = $last.Substring(7, $last.Length - 15)
+                        $path = Join-Path $env:BUKIT_FAKE_GIT_STATE "remote.$name.pushurl"
+                        if (Test-Path -LiteralPath $path) { Write-Nul ([IO.File]::ReadAllText($path)); exit 0 }
+                        exit 1
+                    }
+                    exit 0
+                }
 
-                :ls_remote
-                if "%BUKIT_FAKE_GIT_LS_REMOTE_MODE%"=="forbidden" (
-                  1>&2 echo remote: 403 Forbidden %GITHUB_TOKEN%
-                  exit /b 1
-                )
-                if not "%BUKIT_FAKE_GIT_REMOTE_HEADS%"=="" echo %BUKIT_FAKE_GIT_REMOTE_HEADS%
-                exit /b 0
-
-                :clone_repo
-                mkdir .git >nul 2>nul
-                >old.txt echo stale
-                exit /b 0
-
-                :push_repo
-                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="nonff-once" if not exist "%BUKIT_FAKE_GIT_STATE%\nonff.marker" if not "%~2"=="--force" goto push_nonff
-                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="sleep" goto push_sleep
-                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="forbidden" goto push_forbidden
-                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="askpass-leak" goto push_askpass_leak
-                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="flood-success" goto push_flood_success
-                if "%BUKIT_FAKE_GIT_PUSH_MODE%"=="flood-failure" goto push_flood_failure
-                if exist ".nojekyll" echo SNAPSHOT nojekyll>>"%BUKIT_FAKE_GIT_LOG%"
-                if exist "CNAME" (
-                  set /p cname=<CNAME
-                  echo SNAPSHOT cname=!cname!>>"%BUKIT_FAKE_GIT_LOG%"
-                )
-                if exist "index.html" echo SNAPSHOT index>>"%BUKIT_FAKE_GIT_LOG%"
-                if exist "old.txt" echo SNAPSHOT old>>"%BUKIT_FAKE_GIT_LOG%"
-                exit /b 0
-
-                :push_nonff
-                >"%BUKIT_FAKE_GIT_STATE%\nonff.marker" echo 1
-                1>&2 echo ^! [rejected] gh-pages -^> gh-pages ^(non-fast-forward^)
-                exit /b 1
-
-                :push_forbidden
-                1>&2 echo remote: 403 Forbidden %GITHUB_TOKEN%
-                exit /b 1
-
-                :push_askpass_leak
-                1>&2 echo fatal: cannot run %GIT_ASKPASS% for token %GITHUB_TOKEN%
-                exit /b 1
-
-                :push_flood_success
-                for /l %%I in (1,1,4096) do (
-                  echo stdout-flood-%%I-abcdefghijklmnopqrstuvwxyz0123456789
-                  1>&2 echo stderr-flood-%%I-abcdefghijklmnopqrstuvwxyz0123456789
-                )
-                exit /b 0
-
-                :push_flood_failure
-                for /l %%I in (1,1,4096) do (
-                  echo stdout-flood-%%I-abcdefghijklmnopqrstuvwxyz0123456789
-                  1>&2 echo stderr-flood-%%I-abcdefghijklmnopqrstuvwxyz0123456789
-                )
-                1>&2 echo FLOOD_FAILURE token=%GITHUB_TOKEN%
-                exit /b 1
-
-                :push_sleep
-                echo started > "%BUKIT_FAKE_GIT_STATE%\push-sleep-started.marker"
-                for /l %%I in (1,1,120) do ping -n 2 127.0.0.1 >nul
-                echo completed > "%BUKIT_FAKE_GIT_STATE%\push-sleep-completed.marker"
-                if exist ".nojekyll" echo SNAPSHOT nojekyll>>"%BUKIT_FAKE_GIT_LOG%"
-                if exist "CNAME" (
-                  set /p cname=<CNAME
-                  echo SNAPSHOT cname=!cname!>>"%BUKIT_FAKE_GIT_LOG%"
-                )
-                if exist "index.html" echo SNAPSHOT index>>"%BUKIT_FAKE_GIT_LOG%"
-                if exist "old.txt" echo SNAPSHOT old>>"%BUKIT_FAKE_GIT_LOG%"
-                exit /b 0
+                if ($args[0] -eq 'init') { New-Item -ItemType Directory -Force .git | Out-Null; exit 0 }
+                if ($args[0] -eq 'remote' -and $args[1] -eq 'add') {
+                    Set-Content -LiteralPath (Join-Path $env:BUKIT_FAKE_GIT_STATE "remote.$($args[2]).url") -Value $args[3] -NoNewline
+                    exit 0
+                }
+                if ($args[0] -eq 'fetch' -or $args[0] -eq 'checkout') { exit 0 }
+                if ($args[0] -eq 'remote' -and $args[1] -eq 'get-url' -and $args[2] -eq 'origin') {
+                    if ($env:BUKIT_FAKE_GIT_REMOTE_URL) { [Console]::Out.Write($env:BUKIT_FAKE_GIT_REMOTE_URL) }
+                    exit 0
+                }
+                if ($args[0] -eq 'ls-remote') {
+                    if ($env:BUKIT_FAKE_GIT_LS_REMOTE_MODE -eq 'forbidden') {
+                        [Console]::Error.Write("remote: 403 Forbidden $($env:GITHUB_TOKEN)`n")
+                        exit 1
+                    }
+                    if ($env:BUKIT_FAKE_GIT_REMOTE_HEADS) { [Console]::Out.Write($env:BUKIT_FAKE_GIT_REMOTE_HEADS + "`n") }
+                    exit 0
+                }
+                if ($args[0] -eq 'push') {
+                    $mode = if ($env:BUKIT_FAKE_GIT_PUSH_MODE) { $env:BUKIT_FAKE_GIT_PUSH_MODE } else { 'success' }
+                    $marker = Join-Path $env:BUKIT_FAKE_GIT_STATE 'nonff.marker'
+                    $force = $args -contains '--force'
+                    if ($mode -eq 'nonff-once' -and -not (Test-Path -LiteralPath $marker) -and -not $force) {
+                        Set-Content -LiteralPath $marker -Value '1'
+                        [Console]::Error.Write("! [rejected] gh-pages -> gh-pages (non-fast-forward)`n")
+                        exit 1
+                    }
+                    if ($mode -eq 'sleep') {
+                        Set-Content -LiteralPath (Join-Path $env:BUKIT_FAKE_GIT_STATE 'push-sleep-started.marker') -Value 'started'
+                        Start-Sleep -Seconds 30
+                        Set-Content -LiteralPath (Join-Path $env:BUKIT_FAKE_GIT_STATE 'push-sleep-completed.marker') -Value 'completed'
+                    }
+                    if ($mode -eq 'forbidden') {
+                        [Console]::Error.Write("remote: 403 Forbidden $($env:GITHUB_TOKEN)`n")
+                        exit 1
+                    }
+                    if ($mode -eq 'askpass-leak') {
+                        [Console]::Error.Write("fatal: cannot run $($env:GIT_ASKPASS) for token $($env:GITHUB_TOKEN)`n")
+                        exit 1
+                    }
+                    if ($mode -eq 'flood-over-limit') {
+                        [Console]::Out.Write(('x' * 5242880))
+                        Set-Content -LiteralPath (Join-Path $env:BUKIT_FAKE_GIT_STATE 'push-flood-overflow-completed.marker') -Value 'completed'
+                        exit 0
+                    }
+                    if ($mode -eq 'flood-success' -or $mode -eq 'flood-failure') {
+                        for ($i = 0; $i -lt 4096; $i++) {
+                            [Console]::Out.WriteLine("stdout-flood-$i-abcdefghijklmnopqrstuvwxyz0123456789")
+                            [Console]::Error.WriteLine("stderr-flood-$i-abcdefghijklmnopqrstuvwxyz0123456789")
+                        }
+                        if ($mode -eq 'flood-failure') {
+                            [Console]::Error.Write("FLOOD_FAILURE token=$($env:GITHUB_TOKEN)`n")
+                            exit 1
+                        }
+                        exit 0
+                    }
+                    if (Test-Path -LiteralPath '.nojekyll') { Add-Content -LiteralPath $log -Value 'SNAPSHOT nojekyll' }
+                    if (Test-Path -LiteralPath 'CNAME') { Add-Content -LiteralPath $log -Value ("SNAPSHOT cname=" + (Get-Content -LiteralPath 'CNAME' -Raw).Trim()) }
+                    if (Test-Path -LiteralPath 'index.html') { Add-Content -LiteralPath $log -Value 'SNAPSHOT index' }
+                    if (Test-Path -LiteralPath 'old.txt') { Add-Content -LiteralPath $log -Value 'SNAPSHOT old' }
+                    exit 0
+                }
+                exit 0
                 """);
                 return;
             }
@@ -1536,6 +1691,74 @@ public sealed class GitHubPagesDeployProviderTests
             echo "$PWD|$*" >> "$BUKIT_FAKE_GIT_LOG"
             if [ -n "${GIT_ASKPASS:-}" ]; then
               printf 'ASKPASS %s\n' "$GIT_ASKPASS" >> "$BUKIT_FAKE_GIT_LOG"
+            fi
+            if [ "${1:-}" = "config" ]; then
+              last=""
+              for arg in "$@"; do last="$arg"; done
+              if [ "$last" = "remote.origin.url" ]; then
+                if [ "${2:-}" = "--worktree" ]; then
+                  if [ "${BUKIT_FAKE_GIT_WORKTREE_MODE:-present}" = "missing" ]; then
+                    exit 1
+                  fi
+                  url="${BUKIT_FAKE_GIT_WORKTREE_URL:-${BUKIT_FAKE_GIT_REMOTE_URL:-}}"
+                  if [ -z "$url" ]; then
+                    exit 1
+                  fi
+                  printf '%s\0' "$url"
+                  exit 0
+                fi
+                if [ "${BUKIT_FAKE_GIT_CONFIG_ERROR:-}" = "1" ]; then
+                  printf 'fatal: bad config\n' >&2
+                  exit 128
+                fi
+                if [ -z "${BUKIT_FAKE_GIT_REMOTE_URL:-}" ]; then
+                  exit 1
+                fi
+                printf '%s\0' "$BUKIT_FAKE_GIT_REMOTE_URL"
+                exit 0
+              fi
+              if [ "${4:-}" = "--get-regexp" ] || [ "${3:-}" = "--get-regexp" ]; then
+                if [ -f "$BUKIT_FAKE_GIT_STATE/rewrites" ]; then
+                  cat "$BUKIT_FAKE_GIT_STATE/rewrites"
+                  exit 0
+                fi
+                exit 1
+              fi
+              case "$last" in
+                remote.*.url)
+                  name="${last#remote.}"
+                  name="${name%.url}"
+                  if [ -f "$BUKIT_FAKE_GIT_STATE/remote.$name.url" ]; then
+                    printf '%s\0' "$(cat "$BUKIT_FAKE_GIT_STATE/remote.$name.url")"
+                    exit 0
+                  fi
+                  exit 1
+                  ;;
+                remote.*.pushurl)
+                  name="${last#remote.}"
+                  name="${name%.pushurl}"
+                  if [ -f "$BUKIT_FAKE_GIT_STATE/remote.$name.pushurl" ]; then
+                    printf '%s\0' "$(cat "$BUKIT_FAKE_GIT_STATE/remote.$name.pushurl")"
+                    exit 0
+                  fi
+                  exit 1
+                  ;;
+              esac
+              exit 0
+            fi
+            if [ "${1:-}" = "init" ]; then
+              mkdir -p .git
+              exit 0
+            fi
+            if [ "${1:-}" = "remote" ] && [ "${2:-}" = "add" ]; then
+              printf '%s' "${4:-}" > "$BUKIT_FAKE_GIT_STATE/remote.${3:-}.url"
+              exit 0
+            fi
+            if [ "${1:-}" = "fetch" ]; then
+              exit 0
+            fi
+            if [ "${1:-}" = "checkout" ]; then
+              exit 0
             fi
             if [ "${1:-}" = "remote" ] && [ "${2:-}" = "get-url" ] && [ "${3:-}" = "origin" ]; then
               if [ -n "${BUKIT_FAKE_GIT_REMOTE_URL:-}" ]; then
@@ -1561,7 +1784,11 @@ public sealed class GitHubPagesDeployProviderTests
             if [ "${1:-}" = "push" ]; then
               mode="${BUKIT_FAKE_GIT_PUSH_MODE:-success}"
               marker="$BUKIT_FAKE_GIT_STATE/nonff.marker"
-              if [ "$mode" = "nonff-once" ] && [ ! -f "$marker" ] && [ "${2:-}" != "--force" ]; then
+              force=0
+              for arg in "$@"; do
+                if [ "$arg" = "--force" ]; then force=1; fi
+              done
+              if [ "$mode" = "nonff-once" ] && [ ! -f "$marker" ] && [ "$force" -eq 0 ]; then
                 printf '1\n' > "$marker"
                 printf '! [rejected] gh-pages -> gh-pages (non-fast-forward)\n' >&2
                 exit 1

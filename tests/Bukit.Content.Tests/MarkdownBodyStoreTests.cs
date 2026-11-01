@@ -151,4 +151,73 @@ public sealed class MarkdownBodyStoreTests
             Directory.Delete(outsideDir, recursive: true);
         }
     }
+
+    [Fact]
+    public async Task GetAsync_WithChangedMarkdownBody_FailsBeforeReturningContent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-markdown-body-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "page.md");
+        const string original = "---\ntitle: Page\n---\n# Heading\n\nBody A";
+        File.WriteAllText(file, original);
+        try
+        {
+            var item = ContentDocument.Create(
+                id: "page",
+                title: "Page",
+                slug: "page",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["bodyFingerprint"] = MarkdownTextHelper.ComputeBodyFingerprint(original)
+                }),
+                bodyKey: file);
+            var store = new MarkdownBodyStore(root);
+
+            File.WriteAllText(file, "---\ntitle: Page\n---\n# Heading\n\nBody B");
+            var exception = await Assert.ThrowsAsync<ContentException>(() => store.GetAsync(item.ToDocument()));
+
+            Assert.Contains("changed", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Body B", exception.Message, StringComparison.Ordinal);
+
+            File.WriteAllText(file, original);
+            var body = await store.GetAsync(item.ToDocument());
+            Assert.Contains("Heading", body.Html, StringComparison.Ordinal);
+            Assert.Contains("Body A", body.Html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task GetAsync_WithoutCapturedFingerprint_KeepsLegacyRendering()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-markdown-legacy-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "legacy.md");
+        File.WriteAllText(file, "---\ntitle: Legacy\n---\n# Legacy");
+        try
+        {
+            var item = ContentDocument.Create(
+                id: "legacy",
+                title: "Legacy",
+                slug: "legacy",
+                publishAt: DateTimeOffset.UtcNow,
+                contentHtml: null,
+                fields: null,
+                bodyKey: file);
+
+            var body = await new MarkdownBodyStore(root).GetAsync(item.ToDocument());
+
+            Assert.Contains("Legacy", body.Html, StringComparison.Ordinal);
+            Assert.DoesNotContain("title:", body.Html, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

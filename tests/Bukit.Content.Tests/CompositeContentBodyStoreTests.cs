@@ -17,6 +17,43 @@ public sealed class CompositeContentBodyStoreTests
     }
 
     [Fact]
+    public async Task DisposeAsync_FirstChildThrows_StillDisposesLaterChildren()
+    {
+        var later = new CountingDisposableBodyStore();
+        var composite = new CompositeContentBodyStore(new (string, IContentBodyStore)[]
+        {
+            ("bad", new ThrowingDisposableBodyStore()),
+            ("later", later)
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await composite.DisposeAsync());
+
+        Assert.Equal(1, later.DisposeCount);
+    }
+
+    private sealed class ThrowingDisposableBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(string.Empty));
+
+        public ValueTask DisposeAsync() => throw new InvalidOperationException("child dispose failed");
+    }
+
+    private sealed class CountingDisposableBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        public int DisposeCount { get; private set; }
+
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(string.Empty));
+
+        public ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Fact]
     public async Task GetAsync_HasContentHtml_ReturnsImmediately()
     {
         var inner = new DictionaryContentBodyStore(new Dictionary<string, ContentBody>());

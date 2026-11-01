@@ -121,6 +121,16 @@ internal sealed class WorktreeBuildRun
             ? Path.Combine(resolved.RootDir, ".cache")
             : Path.GetFullPath(overrides.CacheDir);
         WorktreeBuildPaths.EnsureDisjoint(finalOutputDir, finalCacheDir);
+        // Preflight the original project's real sources against the formal targets before
+        // the run lock, run directory, staging, or workers exist. Mapped worktree copies are
+        // not a substitute for the original project sources.
+        OutputDirectoryCleaner.EnsureNoSourceOverlap(
+            OutputDirectoryCleaner.GetConfiguredContentSources(effectiveConfig, resolved.RootDir),
+            BuildTransaction.ConfiguredWriteTargets(
+                effectiveConfig,
+                resolved.RootDir,
+                overrides with { CacheDir = finalCacheDir },
+                finalOutputDir));
         OutputDirectoryCleaner.EnsureCanClean(resolved.RootDir, finalOutputDir, effectiveConfig.Build.Clean);
 
         var runId = Guid.NewGuid().ToString("N");

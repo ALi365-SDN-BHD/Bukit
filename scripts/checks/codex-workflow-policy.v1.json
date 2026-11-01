@@ -1550,6 +1550,195 @@
       ],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "id": "fix-core-five-findings-contract",
+      "matches": [
+        "openspec/changes/fix-core-five-findings/proposal.md",
+        "openspec/changes/fix-core-five-findings/design.md",
+        "openspec/changes/fix-core-five-findings/tasks.md",
+        "openspec/changes/fix-core-five-findings/specs/in-process-build-transactions/spec.md",
+        "openspec/changes/fix-core-five-findings/specs/i18n-worktree-build/spec.md",
+        "openspec/changes/fix-core-five-findings/specs/core-deployment-identity/spec.md",
+        "openspec/changes/fix-core-five-findings/specs/core-report-contracts/spec.md",
+        "openspec/changes/fix-core-five-findings/specs/notion-load-resource-lifecycle/spec.md"
+      ],
+      "specialtyTests": [
+        "openspec validate fix-core-five-findings --type change --strict --no-interactive"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "static-parallel"
+    },
+    {
+      "id": "in-process-build-transactions-spec",
+      "matches": [
+        "openspec/specs/in-process-build-transactions/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
+        "dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj",
+        "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "i18n-worktree-build-spec",
+      "matches": [
+        "openspec/specs/i18n-worktree-build/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "notion-content-guide",
+      "matches": [
+        "guide/user/06-notion-content.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj",
+        "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "deploy-github-pages-guide",
+      "matches": [
+        "guide/user/13-deploy-github-pages.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "core-five-findings-public-surface",
+      "matches": [
+        "src/Bukit-Core/Bukit.Engine/BuildTransaction.cs",
+        "src/Bukit-Core/Bukit.Engine/OutputDirectoryCleaner.cs",
+        "src/Bukit-Core/Bukit.Engine/PageRenderDispatcher.cs",
+        "src/Bukit-Core/Bukit.Engine/SiteEngine.cs",
+        "src/Bukit-Core/Bukit.Engine.Audit/PublicOutputPrivacyCheck.cs",
+        "src/Bukit-Core/Bukit.Content/CompositeContentProvider.cs",
+        "src/Bukit-Core/Bukit.Content/Markdown/MarkdownBodyStore.cs",
+        "src/Bukit-Core/Bukit.Content/Markdown/MarkdownFolderProvider.cs",
+        "src/Bukit-Core/Bukit.Content/Markdown/MarkdownTextHelper.cs",
+        "src/Bukit-Core/Bukit.Content/Notion/NotionBodyStore.cs",
+        "src/Bukit-Core/Bukit.Content/Notion/NotionContentSource.cs",
+        "src/Bukit-Core/Bukit.Content/Notion/NotionRelationResolver.cs",
+        "src/Bukit-Core/Bukit.Cli/Commands/CleanCommand.cs",
+        "src/Bukit-Core/Bukit.Cli/Commands/DeployCommand.cs",
+        "src/Bukit-Core/Bukit.Cli/Commands/WorktreeBuildRun.cs",
+        "src/Bukit-Core/Bukit.Cli/Deploy/DeploymentPrivacyValidator.cs",
+        "src/Bukit-Core/Bukit.Cli/Deploy/GitHubPagesDeployProvider.cs",
+        "src/Bukit-Core/Bukit.Cli/Deploy/GitHubPagesDeployProvider.Git.cs",
+        "src/Bukit-Core/Bukit.Engine/Stages/ContentLoadStage.cs",
+        "src/Bukit-Core/Bukit.Content/CompositeContentBodyStore.cs"
+      ],
+      "specialtyTests": [
+        "dotnet build src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj --configuration Debug --nologo",
+        "dotnet run --project tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj --configuration Debug -- check docs/governance/bukit-core-public-api-baseline.v1.json \"$PWD\" Debug"
+      ],
+      "contractConsumerGlobs": [
+        "Directory.Build.props",
+        "Directory.Packages.props",
+        "docs/governance/bukit-core-public-api-baseline.v1.json",
+        "docs/schemas/bukit-core-public-api-baseline.v1.schema.json",
+        "global.json",
+        "src/Bukit-Core/Bukit.Cli.Shared/Bukit.Cli.Shared.csproj",
+        "src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj",
+        "src/Bukit-Core/Bukit.Config/Bukit.Config.csproj",
+        "src/Bukit-Core/Bukit.Content/Bukit.Content.csproj",
+        "src/Bukit-Core/Bukit.Engine.Abstractions/Bukit.Engine.Abstractions.csproj",
+        "src/Bukit-Core/Bukit.Engine.Analytics/Bukit.Engine.Analytics.csproj",
+        "src/Bukit-Core/Bukit.Engine.Assets/Bukit.Engine.Assets.csproj",
+        "src/Bukit-Core/Bukit.Engine.Audit/Bukit.Engine.Audit.csproj",
+        "src/Bukit-Core/Bukit.Engine.Feeds/Bukit.Engine.Feeds.csproj",
+        "src/Bukit-Core/Bukit.Engine.Primitives/Bukit.Engine.Primitives.csproj",
+        "src/Bukit-Core/Bukit.Engine/Bukit.Engine.csproj",
+        "src/Bukit-Core/Bukit.Notion/Bukit.Notion.csproj",
+        "src/Bukit-Core/Bukit.Plugin.Abstractions/Bukit.Plugin.Abstractions.csproj",
+        "src/Bukit-Core/Bukit.PluginHost/Bukit.PluginHost.csproj",
+        "src/Bukit-Core/Bukit.Rendering/Bukit.Rendering.csproj",
+        "src/Bukit-Core/Bukit.Routing/Bukit.Routing.csproj",
+        "src/Bukit-Core/Bukit.Shared/Bukit.Shared.csproj",
+        "src/Bukit-Core/Bukit.Theme/Bukit.Theme.csproj",
+        "tools/Bukit.PublicApiDrift/**/*.cs",
+        "tools/Bukit.PublicApiDrift/*.cs",
+        "tools/Bukit.PublicApiDrift/Bukit.PublicApiDrift.csproj"
+      ],
+      "publicContract": true,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "fix-core-five-findings-archive",
+      "matches": [
+        "openspec/changes/archive/2026-11-01-fix-core-five-findings/proposal.md",
+        "openspec/changes/archive/2026-11-01-fix-core-five-findings/design.md",
+        "openspec/changes/archive/2026-11-01-fix-core-five-findings/tasks.md",
+        "openspec/changes/archive/2026-11-01-fix-core-five-findings/specs/in-process-build-transactions/spec.md",
+        "openspec/changes/archive/2026-11-01-fix-core-five-findings/specs/i18n-worktree-build/spec.md",
+        "openspec/changes/archive/2026-11-01-fix-core-five-findings/specs/core-deployment-identity/spec.md",
+        "openspec/changes/archive/2026-11-01-fix-core-five-findings/specs/core-report-contracts/spec.md",
+        "openspec/changes/archive/2026-11-01-fix-core-five-findings/specs/notion-load-resource-lifecycle/spec.md"
+      ],
+      "specialtyTests": [
+        "openspec validate --all --strict --no-interactive"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "static-parallel"
+    },
+    {
+      "id": "core-deployment-identity-spec",
+      "matches": [
+        "openspec/specs/core-deployment-identity/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "notion-load-resource-lifecycle-spec",
+      "matches": [
+        "openspec/specs/notion-load-resource-lifecycle/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Content.Notion.Tests/Bukit.Content.Notion.Tests.csproj",
+        "dotnet test tests/Bukit.Content.Tests/Bukit.Content.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
+    },
+    {
+      "id": "core-report-contracts-privacy-spec",
+      "matches": [
+        "openspec/specs/core-report-contracts/spec.md"
+      ],
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj",
+        "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj"
+      ],
+      "contractConsumerGlobs": [],
+      "publicContract": false,
+      "resource": "dotnet-serial"
     }
   ],
   "resourceRules": [
@@ -1576,6 +1765,17 @@
         "**/*.cs",
         "*.csproj",
         "**/*.csproj"
+      ]
+    },
+    {
+      "class": "dotnet-serial",
+      "commandContains": [
+        "dotnet build src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj",
+        "tools/Bukit.PublicApiDrift"
+      ],
+      "matches": [
+        "src/Bukit-Core/Bukit.Cli/Bukit.Cli.csproj",
+        "tools/Bukit.PublicApiDrift/**"
       ]
     },
     {

@@ -1,5 +1,9 @@
 using Bukit.Theme;
 using Bukit.Config;
+using Bukit.Content;
+using Bukit.Content.Markdown;
+using Bukit.Content.Notion;
+using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine.Plugins.BuiltIn;
 using Bukit.Shared;
 
@@ -48,7 +52,8 @@ internal sealed class BuildTransaction : IDisposable
     }
 
     internal static BuildTransaction Begin(AppConfig config, string rootDir, ConfigOverrides overrides, ILogger logger,
-        Action<string, string, bool>? move = null, Action<string, bool>? delete = null, CancellationToken cancellationToken = default)
+        Action<string, string, bool>? move = null, Action<string, bool>? delete = null, CancellationToken cancellationToken = default,
+        IReadOnlyList<string>? contentSourceRoots = null, IReadOnlyList<string>? extraWriteTargets = null)
     {
         config = ConfigApplier.Apply(config, overrides);
         ConfigValidator.Validate(config);
@@ -62,7 +67,10 @@ internal sealed class BuildTransaction : IDisposable
             throw new ConfigException("Unsafe or overlapping build output/cache directories. How to fix: use a dedicated output subdirectory and separate cache directory.", DiagnosticCode.BuildOutputUnsafe);
         var media = ContentProviderFactory.BuildEffectiveMediaConfig(config.Content.Media, rootDir, Path.Combine(cache, "media")).DownloadDir;
         var resources = GetResources(config, rootDir, overrides, output, cache, media);
-        ValidateResources(config, rootDir, output, resources, logger);
+        // null means "resolve from the effective config"; an explicit empty list means the injected
+        // provider has no recognizable local root and must not fall back to the synthetic content dir.
+        var sources = contentSourceRoots ?? OutputDirectoryCleaner.GetConfiguredContentSources(config, rootDir);
+        ValidateResources(config, rootDir, output, resources, sources, extraWriteTargets ?? [], logger);
         var targets = CreateTargets(resources);
         var lease = BuildResourceLease.Acquire(resources);
         BuildTransaction? transaction = null;
@@ -80,9 +88,60 @@ internal sealed class BuildTransaction : IDisposable
         catch { if (transaction is null) lease.Dispose(); else transaction.Dispose(); throw; }
     }
 
-    private static void ValidateResources(AppConfig config, string rootDir, string output, List<BuildResourceLease.Resource> resources, ILogger logger)
+    internal static IReadOnlyList<string> ConfiguredWriteTargets(AppConfig config, string rootDir, ConfigOverrides overrides, string outputDir)
     {
-        ValidateSourceResources(config, rootDir, resources, logger);
+        config = ConfigApplier.Apply(config, overrides);
+        var cache = ResourcePath(string.IsNullOrWhiteSpace(overrides.CacheDir) ? Path.Combine(rootDir, ".cache") : overrides.CacheDir);
+        var media = ContentProviderFactory.BuildEffectiveMediaConfig(config.Content.Media, rootDir, Path.Combine(cache, "media")).DownloadDir;
+        return GetResources(config, rootDir, overrides, ResourcePath(outputDir), cache, media)
+            .Where(static resource => resource.Write)
+            .Select(static resource => resource.Path)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Reads real disk identities of built-in providers only; opaque custom providers keep
+    /// the prior output safety rules instead of guessing a hidden root.
+    /// </summary>
+    internal static (IReadOnlyList<string> SourceRoots, IReadOnlyList<string> WritableCaches) InspectContentProvider(
+        IContentProvider provider)
+    {
+        var roots = new List<string>();
+        var caches = new List<string>();
+        var seen = new HashSet<IContentProvider>(ReferenceEqualityComparer.Instance);
+        Visit(provider);
+        return (roots, caches);
+
+        void Visit(IContentProvider current)
+        {
+            if (!seen.Add(current))
+            {
+                return;
+            }
+
+            switch (current)
+            {
+                case MarkdownFolderProvider markdown when !string.IsNullOrWhiteSpace(markdown.ContentDirectory):
+                    roots.Add(markdown.ContentDirectory);
+                    break;
+                case CompositeContentProvider composite:
+                    foreach (var child in composite.ChildProviders)
+                    {
+                        Visit(child);
+                    }
+
+                    break;
+                case NotionContentSource notion:
+                    caches.AddRange(notion.WritableCacheTargets);
+                    break;
+            }
+        }
+    }
+
+    private static void ValidateResources(AppConfig config, string rootDir, string output, List<BuildResourceLease.Resource> resources,
+        IReadOnlyList<string> contentSourceRoots, IReadOnlyList<string> extraWriteTargets, ILogger logger)
+    {
+        ValidateSourceResources(config, rootDir, resources, contentSourceRoots, logger);
         foreach (var resource in resources.Where(r => r.Write))
         {
             if (BuildResourceLease.Same(resource.Path, rootDir) || BuildResourceLease.Contains(resource.Path, rootDir) || resource.Path.Split(Path.DirectorySeparatorChar).Contains(".git"))
@@ -93,9 +152,13 @@ internal sealed class BuildTransaction : IDisposable
         foreach (var reader in resources.Where(resource => !resource.Write))
             if (resources.Any(writer => writer.Write && (BuildResourceLease.Same(reader.Path, writer.Path) || reader.Directory && BuildResourceLease.Contains(reader.Path, writer.Path))))
                 throw new IOException($"Read-only cache overlaps a writer: {reader.Path}");
+        OutputDirectoryCleaner.EnsureNoSourceOverlap(
+            contentSourceRoots,
+            resources.Where(static resource => resource.Write).Select(static resource => resource.Path).Concat(extraWriteTargets));
     }
 
-    private static void ValidateSourceResources(AppConfig config, string rootDir, List<BuildResourceLease.Resource> resources, ILogger logger)
+    private static void ValidateSourceResources(AppConfig config, string rootDir, List<BuildResourceLease.Resource> resources,
+        IReadOnlyList<string> contentSourceRoots, ILogger logger)
     {
         var theme = ThemePathResolver.Resolve(rootDir, config.Theme, logger);
         var inputs = new[] { theme.LayoutsDir, theme.AssetsDir, theme.StaticDir, theme.ParentLayoutsDir, theme.ParentAssetsDir, theme.ParentStaticDir, theme.UserLayoutsDir }

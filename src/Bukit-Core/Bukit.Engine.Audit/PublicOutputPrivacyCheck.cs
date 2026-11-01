@@ -76,15 +76,20 @@ internal static partial class PublicOutputPrivacyCheck
             }
 
             var pathLeak = ContainsSensitiveToken(relativePath, sensitiveTokens);
-            var contentLeak = false;
+            var contentScan = FilePrivacyScan.Clean;
             if (s_textExtensions.Contains(Path.GetExtension(path)))
             {
-                contentLeak = ScanFileForLeaks(path, sensitiveTokens);
+                contentScan = ScanFileForLeaks(path, sensitiveTokens);
             }
 
-            if (pathLeak || contentLeak)
+            if (pathLeak || contentScan == FilePrivacyScan.Leak)
             {
                 errors.Add($"BKT-BUILD-SECURITY-PRIVACY-0001: public output contains internal Notion provenance at '{RedactPath(relativePath, sensitiveTokens)}'.");
+            }
+            else if (contentScan == FilePrivacyScan.Incomplete)
+            {
+                // Do not claim a confirmed leak; the scan could not prove the output clean.
+                errors.Add($"BKT-BUILD-SECURITY-PRIVACY-0001: unable to complete the Notion provenance privacy scan for public output at '{RedactPath(relativePath, sensitiveTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode.");
             }
         }
 
@@ -135,7 +140,7 @@ internal static partial class PublicOutputPrivacyCheck
     /// (early exit), avoiding full-file reads on large outputs.
     /// Falls back to full JSON parse for .json/.jsonld to catch Unicode escapes.
     /// </summary>
-    private static bool ScanFileForLeaks(string path, IReadOnlySet<string> sensitiveTokens)
+    private static FilePrivacyScan ScanFileForLeaks(string path, IReadOnlySet<string> sensitiveTokens)
     {
         var extension = Path.GetExtension(path);
         using var reader = new StreamReader(path);
@@ -143,53 +148,97 @@ internal static partial class PublicOutputPrivacyCheck
         {
             if (ContainsSensitiveToken(line, sensitiveTokens))
             {
-                return true;
+                return FilePrivacyScan.Leak;
             }
 
             if (LineProviderMarkerRegex().IsMatch(line) || JsonProviderMarkerRegex().IsMatch(line))
             {
-                return true;
+                return FilePrivacyScan.Leak;
             }
         }
 
-        // JSON fallback: parse full document to catch Unicode-escaped values
+        // JSON fallback: parse full document to catch Unicode-escaped values and names
         // (e.g. "not\u0069on") that streaming regex cannot detect.
         if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase) ||
             extension.Equals(".jsonld", StringComparison.OrdinalIgnoreCase))
         {
-            try
+            return ScanJson(File.ReadAllText(path), sensitiveTokens) switch
             {
-                var fullText = File.ReadAllText(path);
-                using var document = System.Text.Json.JsonDocument.Parse(fullText);
-                if (ContainsJsonProviderMarker(document.RootElement))
-                {
-                    return true;
-                }
-            }
-            catch (System.Text.Json.JsonException)
-            {
-                // Invalid JSON — already checked via regex above.
-            }
+                JsonPrivacyScan.Leak => FilePrivacyScan.Leak,
+                JsonPrivacyScan.Incomplete => FilePrivacyScan.Incomplete,
+                _ => FilePrivacyScan.Clean
+            };
         }
 
-        return false;
+        return FilePrivacyScan.Clean;
     }
 
-    private static bool ContainsJsonProviderMarker(System.Text.Json.JsonElement element)
+    /// <summary>
+    /// Shared JSON privacy scan for build and deployment checks. Parses once, then checks
+    /// decoded string values and property names against the caller's tokens. Parse errors,
+    /// depth exhaustion and string-decode failures finish as <see cref="JsonPrivacyScan.Incomplete"/>
+    /// instead of silently passing.
+    /// </summary>
+    internal static JsonPrivacyScan ScanJson(string json, IReadOnlySet<string> sensitiveTokens)
+    {
+        System.Text.Json.JsonDocument document;
+        try
+        {
+            document = System.Text.Json.JsonDocument.Parse(json);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return JsonPrivacyScan.Incomplete;
+        }
+
+        using (document)
+        {
+            try
+            {
+                return ContainsJsonLeak(document.RootElement, sensitiveTokens)
+                    ? JsonPrivacyScan.Leak
+                    : JsonPrivacyScan.Clean;
+            }
+            catch (JsonStringDecodeException)
+            {
+                // Only the narrow GetString()/JsonProperty.Name decode boundary is
+                // classified as incomplete; other InvalidOperationException paths keep
+                // their original failure behavior.
+                return JsonPrivacyScan.Incomplete;
+            }
+        }
+    }
+
+    private static bool ContainsJsonLeak(System.Text.Json.JsonElement element, IReadOnlySet<string> sensitiveTokens)
     {
         if (element.ValueKind == System.Text.Json.JsonValueKind.Object)
         {
             foreach (var property in element.EnumerateObject())
             {
-                if ((property.Name.Equals("source", StringComparison.OrdinalIgnoreCase) ||
-                     property.Name.Equals("sourceKey", StringComparison.OrdinalIgnoreCase)) &&
-                    property.Value.ValueKind == System.Text.Json.JsonValueKind.String &&
-                    string.Equals(property.Value.GetString(), "notion", StringComparison.OrdinalIgnoreCase))
+                string propertyName;
+                try
+                {
+                    propertyName = property.Name;
+                }
+                catch (InvalidOperationException)
+                {
+                    throw new JsonStringDecodeException();
+                }
+
+                if (ContainsSensitiveToken(propertyName, sensitiveTokens))
                 {
                     return true;
                 }
 
-                if (ContainsJsonProviderMarker(property.Value))
+                if ((propertyName.Equals("source", StringComparison.OrdinalIgnoreCase) ||
+                     propertyName.Equals("sourceKey", StringComparison.OrdinalIgnoreCase)) &&
+                    property.Value.ValueKind == System.Text.Json.JsonValueKind.String &&
+                    string.Equals(ReadJsonString(property.Value), "notion", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (ContainsJsonLeak(property.Value, sensitiveTokens))
                 {
                     return true;
                 }
@@ -199,14 +248,34 @@ internal static partial class PublicOutputPrivacyCheck
         {
             foreach (var item in element.EnumerateArray())
             {
-                if (ContainsJsonProviderMarker(item))
+                if (ContainsJsonLeak(item, sensitiveTokens))
                 {
                     return true;
                 }
             }
         }
+        else if (element.ValueKind == System.Text.Json.JsonValueKind.String)
+        {
+            return ContainsSensitiveToken(ReadJsonString(element) ?? string.Empty, sensitiveTokens);
+        }
 
         return false;
+    }
+
+    private static string? ReadJsonString(System.Text.Json.JsonElement element)
+    {
+        try
+        {
+            return element.GetString();
+        }
+        catch (InvalidOperationException)
+        {
+            throw new JsonStringDecodeException();
+        }
+    }
+
+    private sealed class JsonStringDecodeException : Exception
+    {
     }
 
     private static bool ContainsSensitiveToken(string value, IReadOnlySet<string> sensitiveTokens)
@@ -251,3 +320,17 @@ internal static partial class PublicOutputPrivacyCheck
 internal sealed record PublicOutputPrivacyCheckResult(
     string Status,
     IReadOnlyList<string> Errors);
+
+internal enum JsonPrivacyScan
+{
+    Clean,
+    Leak,
+    Incomplete
+}
+
+internal enum FilePrivacyScan
+{
+    Clean,
+    Leak,
+    Incomplete
+}

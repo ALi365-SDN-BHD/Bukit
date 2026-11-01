@@ -47,10 +47,19 @@ for fix_core_report_contracts_path in \
   openspec/changes/archive/2026-10-26-fix-core-report-contracts/design.md \
   openspec/changes/archive/2026-10-26-fix-core-report-contracts/proposal.md \
   openspec/changes/archive/2026-10-26-fix-core-report-contracts/specs/core-report-contracts/spec.md \
-  openspec/changes/archive/2026-10-26-fix-core-report-contracts/tasks.md \
-  openspec/specs/core-report-contracts/spec.md; do
+  openspec/changes/archive/2026-10-26-fix-core-report-contracts/tasks.md; do
   assert_closure_mapping "$closure_fixture" "$fix_core_report_contracts_path" '["dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj --filter FullyQualifiedName~SeoReportValidatorTests", "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj --filter \"FullyQualifiedName~TestInfrastructureTests|FullyQualifiedName~BuildReporterTests|FullyQualifiedName~SeoAuditReportWriterTests|FullyQualifiedName~PublishAuditReportWriterTests\"", "python3 -B scripts/checks/core-report-inventory.py --self-test"]' false
 done
+expect_exit 0 "${tool[@]}" closure --repo "$closure_fixture" --policy scripts/checks/codex-workflow-policy.v1.json --changed openspec/specs/core-report-contracts/spec.md
+python3 - "$command_output" <<'PY_REPORT_SPEC'
+import json
+import sys
+result = json.loads(sys.argv[1])
+commands = set(result["specialtyTests"])
+assert "dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj" in commands, commands
+assert "dotnet test tests/Bukit.Engine.Tests/Bukit.Engine.Tests.csproj" in commands, commands
+assert any("core-report-inventory" in c for c in commands), commands
+PY_REPORT_SPEC
 
 for fix_section_plugin_task_errors_path in \
   openspec/changes/fix-section-plugin-task-errors/design.md \

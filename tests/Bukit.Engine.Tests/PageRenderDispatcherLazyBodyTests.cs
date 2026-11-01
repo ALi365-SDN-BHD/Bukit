@@ -270,6 +270,116 @@ public sealed class PageRenderDispatcherLazyBodyTests
     }
 
     [Fact]
+    public async Task Dispatch_ColdBuildSavesStableHash_FirstHotBuildReusesAndLegacyHtmlHashConverges()
+    {
+        var item = ContentDocument.Create(
+            id: "inc-1",
+            title: "Incremental",
+            slug: "incremental",
+            publishAt: DateTimeOffset.Parse("2026-05-04T00:00:00Z"),
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["bodyFingerprint"] = "body-v1"
+            }),
+            bodyKey: "inc-1");
+        var route = new RouteInfo("/pages/incremental/", "pages/incremental/index.html", "pages/page.html");
+        var outputDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        var document = item.ToDocument();
+        var metadataHash = IncrementalBuildEngine.ComputeMetadataHash(document);
+
+        var entries = new ConcurrentDictionary<string, BuildManifestEntry>(StringComparer.Ordinal);
+        var coldStore = new CountingBodyStore();
+        var cold = await DispatchOnce(entries, new BuildManifest(), coldStore, outputDir, bundle: null);
+        Assert.Equal(1, cold.RenderedCount);
+        Assert.Equal(0, cold.SkippedCount);
+        Assert.Equal(1, coldStore.Count);
+
+        var key = BuildPathUtils.NormalizeRelPath(route.OutputPath);
+        var saved = entries[key];
+        Assert.Equal(IncrementalBuildEngine.ComputeStableContentHash(document, metadataHash), saved.ContentHash);
+
+        var hotStore = new ThrowingBodyStore();
+        var hot = await DispatchOnce(entries, new BuildManifest { Entries = entries.ToDictionary() }, hotStore, outputDir, templateHash: "template-hash");
+        Assert.Equal(0, hot.RenderedCount);
+        Assert.Equal(1, hot.SkippedCount);
+        Assert.Equal(0, hotStore.Count);
+
+        // A legacy HTML-hash entry converges after exactly one re-render.
+        var legacyEntries = new ConcurrentDictionary<string, BuildManifestEntry>(StringComparer.Ordinal)
+        {
+            [key] = new()
+            {
+                OutputPath = key,
+                Url = route.Url,
+                Template = route.Template,
+                MetadataHash = metadataHash,
+                ContentHash = IncrementalBuildEngine.ComputeContentHash(document, metadataHash, "<p>legacy html</p>"),
+                RouteHash = IncrementalBuildEngine.ComputeRouteHash(route),
+                TemplateHash = "template-hash"
+            }
+        };
+        var legacyStore = new CountingBodyStore();
+        var legacy = await DispatchOnce(legacyEntries, new BuildManifest { Entries = legacyEntries.ToDictionary() }, legacyStore, outputDir, templateHash: "template-hash");
+        Assert.Equal(1, legacy.RenderedCount);
+        Assert.Equal(IncrementalBuildEngine.ComputeStableContentHash(document, metadataHash), legacyEntries[key].ContentHash);
+        var convergedStore = new ThrowingBodyStore();
+        var converged = await DispatchOnce(legacyEntries, new BuildManifest { Entries = legacyEntries.ToDictionary() }, convergedStore, outputDir, templateHash: "template-hash");
+        Assert.Equal(1, converged.SkippedCount);
+        Assert.Equal(0, convergedStore.Count);
+
+        // Template change must re-render once and save a hash the next stable build can reuse.
+        var changedTemplate = await DispatchOnce(
+            legacyEntries, new BuildManifest { Entries = legacyEntries.ToDictionary() },
+            new CountingBodyStore(), outputDir, templateHash: "template-v2");
+        Assert.Equal(1, changedTemplate.RenderedCount);
+        Assert.Equal(0, changedTemplate.SkippedCount);
+        var stableAfterTemplate = new ThrowingBodyStore();
+        var stableTemplate = await DispatchOnce(
+            legacyEntries, new BuildManifest { Entries = legacyEntries.ToDictionary() },
+            stableAfterTemplate, outputDir, templateHash: "template-v2");
+        Assert.Equal(0, stableTemplate.RenderedCount);
+        Assert.Equal(1, stableTemplate.SkippedCount);
+        Assert.Equal(0, stableAfterTemplate.Count);
+    }
+
+    private static async Task<PageRenderDispatcher.DispatchResult> DispatchOnce(
+        ConcurrentDictionary<string, BuildManifestEntry> entries,
+        BuildManifest manifest,
+        IContentBodyStore bodyStore,
+        string outputDir,
+        string? bundle = null,
+        string templateHash = "template-hash")
+    {
+        var item = ContentDocument.Create(
+            id: "inc-1",
+            title: "Incremental",
+            slug: "incremental",
+            publishAt: DateTimeOffset.Parse("2026-05-04T00:00:00Z"),
+            contentHtml: null,
+            fields: ContentFieldReader.ToFieldMap(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["bodyFingerprint"] = "body-v1"
+            }),
+            bodyKey: "inc-1");
+        return await PageRenderDispatcher.DispatchAsync(
+            new[] { RenderEntry.ForPage(item.ToDocument(), new RouteInfo("/pages/incremental/", "pages/incremental/index.html", "pages/page.html")) },
+            bodyStore,
+            new CaptureRenderer(),
+            CreateSiteModel(),
+            outputDir,
+            templateHash,
+            renderDependencyHash: bundle ?? string.Empty,
+            incrementalEnabled: true,
+            manifest: manifest,
+            manifestEntries: entries,
+            currentKeys: new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+            maxDegreeOfParallelism: 1,
+            logger: new ConsoleLogger(LogLevel.Error),
+            cancellationToken: CancellationToken.None);
+    }
+
+    [Fact]
     public async Task RenderSpecialListsAsync_DoesNotHydrateBodies_WhenModeIsAuto_AndTemplateDoesNotUseContent()
     {
         var layoutsDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"), "layouts");

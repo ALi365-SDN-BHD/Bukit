@@ -204,6 +204,134 @@ public sealed class NotionCancellationTests
         }
     }
 
+    [Fact]
+    public async Task RelationResolver_EarlySchedulingExit_WaitsForStartedRequestsBeforeReturning()
+    {
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cacheReadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = new AsyncHandler(async (request, cancellationToken) =>
+        {
+            requestStarted.TrySetResult();
+            await releaseRequest.Task;
+            requestFinished.TrySetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"properties":{}}""", Encoding.UTF8, "application/json")
+            };
+        });
+        var client = CreateHandlerClient(handler);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tags"] = new("relation", new[] { "a-page", "b-page" })
+        };
+        var drafts = new[]
+        {
+            new NotionContentSource.PageDraft(
+                "source-page", "Source", "source", "article", DateTimeOffset.UtcNow, null, fields, ["tags"])
+        };
+        using var cancellation = new CancellationTokenSource();
+        var cacheReads = 0;
+
+        var resolveTask = NotionRelationResolver.ResolveMissingTaxonomyRelationTargetsWithReaderAsync(
+            client,
+            drafts,
+            new Dictionary<string, RelationTargetInfo>(),
+            relationTargetCache: null,
+            async (pageId, token) =>
+            {
+                if (Interlocked.Increment(ref cacheReads) == 1)
+                {
+                    return null;
+                }
+
+                cacheReadStarted.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return null;
+            },
+            renderConcurrency: 1,
+            logger: null,
+            cancellation.Token);
+
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await cacheReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        await Task.Delay(100);
+        Assert.False(resolveTask.IsCompleted, "resolver returned before the started request settled");
+
+        releaseRequest.TrySetResult();
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => resolveTask);
+        Assert.Equal(cancellation.Token, exception.CancellationToken);
+        Assert.True(requestFinished.Task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task RelationResolver_ThrowingCacheReader_WaitsForStartedRequestAndPreservesException()
+    {
+        var requestStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRequest = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = new AsyncHandler(async (request, cancellationToken) =>
+        {
+            requestStarted.TrySetResult();
+            await releaseRequest.Task;
+            requestFinished.TrySetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"properties":{}}""", Encoding.UTF8, "application/json")
+            };
+        });
+        var client = CreateHandlerClient(handler);
+        var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tags"] = new("relation", new[] { "a-page", "b-page" })
+        };
+        var drafts = new[]
+        {
+            new NotionContentSource.PageDraft(
+                "source-page", "Source", "source", "article", DateTimeOffset.UtcNow, null, fields, ["tags"])
+        };
+        var cacheReads = 0;
+
+        var resolveTask = NotionRelationResolver.ResolveMissingTaxonomyRelationTargetsWithReaderAsync(
+            client,
+            drafts,
+            new Dictionary<string, RelationTargetInfo>(),
+            relationTargetCache: null,
+            async (pageId, token) =>
+            {
+                if (Interlocked.Increment(ref cacheReads) == 1)
+                {
+                    return null;
+                }
+
+                throw new InvalidOperationException("cache reader failed");
+            },
+            renderConcurrency: 1,
+            logger: null,
+            CancellationToken.None);
+
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Task.Delay(100);
+        Assert.False(resolveTask.IsCompleted, "resolver returned before the started request settled");
+
+        releaseRequest.TrySetResult();
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => resolveTask);
+        Assert.Equal("cache reader failed", exception.Message);
+        Assert.True(requestFinished.Task.IsCompleted);
+    }
+
+    private sealed class AsyncHandler(
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+            => send(request, cancellationToken);
+    }
+
     private sealed class BlockingHandler(TaskCompletionSource requestStarted) : HttpMessageHandler
     {
         protected override async Task<HttpResponseMessage> SendAsync(

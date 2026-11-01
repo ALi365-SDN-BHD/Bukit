@@ -20,11 +20,13 @@ public static class CleanCommand
 
         string rootDir;
         string outputDir;
+        AppConfig? configured = null;
         if (usesConfiguredOutput)
         {
             var resolved = ConfigPathResolver.Resolve(configPath, site);
             rootDir = resolved.RootDir;
             var (config, _) = CommandConfigLoader.Load(resolved.FullConfigPath, logFormat, isCi: false);
+            configured = config;
             outputDir = Path.GetFullPath(Path.Combine(rootDir, config.Build.Output));
         }
         else
@@ -47,6 +49,15 @@ public static class CleanCommand
                 || outputDir.StartsWith(metadataDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             {
                 throw new ConfigException($"Refusing to clean project metadata directory: {outputDir}. How to fix: select a dedicated output directory like 'dist' or 'public'.", DiagnosticCode.BuildOutputUnsafe);
+            }
+
+            if (configured is not null)
+            {
+                // Check both deletion targets once before removing anything so a source
+                // conflict cannot cause a partial clean.
+                OutputDirectoryCleaner.EnsureNoSourceOverlap(
+                    OutputDirectoryCleaner.GetConfiguredContentSources(configured, rootDir),
+                    [outputDir, Path.GetFullPath(Path.Combine(rootDir, ".cache"))]);
             }
 
             OutputDirectoryCleaner.CleanIfExists(rootDir, outputDir);

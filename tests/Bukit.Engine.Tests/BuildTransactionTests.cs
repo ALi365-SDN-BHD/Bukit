@@ -390,6 +390,180 @@ public sealed class BuildTransactionTests : IDisposable
         Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, _originalNotionToken);
         Directory.Delete(_root, true);
     }
+
+    private AppConfig ConfigWithMarkdown(string dir, string output = "public", bool clean = false)
+        => new()
+        {
+            Site = new() { Name = "test", Title = "Test" },
+            Content = new() { Sources = [new() { Type = "markdown", Markdown = new() { Dir = dir } }] },
+            Build = new() { Output = output, Clean = clean }
+        };
+
+    private static string SnapshotHashes(string directory)
+        => string.Join("\n", Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+            .Order(StringComparer.Ordinal)
+            .Select(path => Path.GetRelativePath(directory, path) + ":" +
+                Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)))));
+
+    private static bool CaseInsensitiveFileSystem()
+    {
+        var probe = Path.Combine(Path.GetTempPath(), "bukit-case-probe-" + Guid.NewGuid().ToString("N"));
+        File.WriteAllText(probe, "x");
+        try
+        {
+            var alternate = Path.Combine(Path.GetDirectoryName(probe)!, Path.GetFileName(probe).ToUpperInvariant());
+            return File.Exists(alternate);
+        }
+        finally
+        {
+            File.Delete(probe);
+        }
+    }
+
+    [Fact]
+    public void Begin_RejectsConfiguredSourceEqualToOutputBeforeAnyWrite()
+    {
+        var source = Path.Combine(_root, "content-as-output");
+        Directory.CreateDirectory(source);
+        File.WriteAllText(Path.Combine(source, "draft.md"), "---\ntitle: Draft\n---\nbody");
+        var before = SnapshotHashes(source);
+
+        var error = Assert.Throws<ConfigException>(() =>
+            BuildTransaction.Begin(ConfigWithMarkdown("content-as-output", "content-as-output"), _root, new(), _logger));
+
+        Assert.Equal(DiagnosticCode.BuildOutputUnsafe, error.Code);
+        Assert.Equal(before, SnapshotHashes(source));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_root, ".bukit-txn-*"));
+    }
+
+    [Fact]
+    public void Begin_RejectsSourceEqualToOutputDespiteOldMarker()
+    {
+        var source = Path.Combine(_root, "content-marker");
+        Directory.CreateDirectory(source);
+        File.WriteAllText(Path.Combine(source, "draft.md"), "---\ntitle: Draft\n---\nbody");
+        File.WriteAllText(Path.Combine(source, ".bukit-output-marker"), "bukit-output\n");
+        var before = SnapshotHashes(source);
+
+        var error = Assert.Throws<ConfigException>(() =>
+            BuildTransaction.Begin(ConfigWithMarkdown("content-marker", "content-marker"), _root, new(), _logger));
+
+        Assert.Equal(DiagnosticCode.BuildOutputUnsafe, error.Code);
+        Assert.Equal(before, SnapshotHashes(source));
+    }
+
+    [Theory]
+    [InlineData("content", "content/site")]
+    [InlineData("content/site", "content")]
+    public void Begin_RejectsSourceAndOutputContainmentBothDirections(string sourceDir, string outputDir)
+    {
+        var config = ConfigWithMarkdown(sourceDir, outputDir);
+        var error = Assert.Throws<ConfigException>(() => BuildTransaction.Begin(config, _root, new(), _logger));
+        Assert.Equal(DiagnosticCode.BuildOutputUnsafe, error.Code);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_root, ".bukit-txn-*"));
+    }
+
+    [Fact]
+    public void Begin_RejectsSourceInsideCustomCacheOrMetricsTarget()
+    {
+        var cacheConflict = ConfigWithMarkdown("content");
+        Directory.CreateDirectory(Path.Combine(_root, "content"));
+        var cacheError = Assert.Throws<ConfigException>(() => BuildTransaction.Begin(
+            cacheConflict,
+            _root,
+            new() { CacheDir = Path.Combine(_root, "content", ".cache") },
+            _logger));
+        Assert.Equal(DiagnosticCode.BuildOutputUnsafe, cacheError.Code);
+
+        var metricsError = Assert.Throws<ConfigException>(() => BuildTransaction.Begin(
+            cacheConflict,
+            _root,
+            new() { MetricsPath = Path.Combine(_root, "content", "metrics.json") },
+            _logger));
+        Assert.Equal(DiagnosticCode.BuildOutputUnsafe, metricsError.Code);
+        Assert.False(File.Exists(Path.Combine(_root, "content", "metrics.json")));
+    }
+
+    [Fact]
+    public void Begin_RejectsSymlinkedAndCaseAliasedSourceIdentity()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var real = Path.Combine(_root, "real-content");
+        Directory.CreateDirectory(real);
+        File.WriteAllText(Path.Combine(real, "draft.md"), "body");
+        var link = Path.Combine(_root, "content-link");
+        Directory.CreateSymbolicLink(link, real);
+
+        var config = ConfigWithMarkdown("content-link", "real-content/site");
+        var error = Assert.Throws<ConfigException>(() => BuildTransaction.Begin(config, _root, new(), _logger));
+        Assert.Equal(DiagnosticCode.BuildOutputUnsafe, error.Code);
+
+        if (!CaseInsensitiveFileSystem())
+        {
+            return;
+        }
+
+        var aliasConfig = ConfigWithMarkdown("CONTENT-CASE", "content-case/site");
+        var aliasError = Assert.Throws<ConfigException>(() => BuildTransaction.Begin(aliasConfig, _root, new(), _logger));
+        Assert.Equal(DiagnosticCode.BuildOutputUnsafe, aliasError.Code);
+    }
+
+    [Fact]
+    public void Begin_DoesNotTreatSimilarNamesOrIndependentSourcesAsConflicts()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "content"));
+        using (var transaction = BuildTransaction.Begin(ConfigWithMarkdown("content", "content-old"), _root, new(), _logger))
+        {
+            Assert.True(Directory.Exists(transaction.OutputDir));
+        }
+
+        var multi = new AppConfig
+        {
+            Site = new() { Name = "test", Title = "Test" },
+            Content = new()
+            {
+                Sources =
+                [
+                    new() { Type = "markdown", Markdown = new() { Dir = "content-a" } },
+                    new() { Type = "markdown", Markdown = new() { Dir = "content-b" } }
+                ]
+            },
+            Build = new() { Output = "dist", Clean = false }
+        };
+        using (var transaction = BuildTransaction.Begin(multi, _root, new(), _logger))
+        {
+            Assert.True(Directory.Exists(transaction.OutputDir));
+        }
+    }
+
+    [Fact]
+    public void Begin_RejectsProjectRootSourceEvenWithPreciseIncludes()
+    {
+        var config = new AppConfig
+        {
+            Site = new() { Name = "test", Title = "Test" },
+            Content = new()
+            {
+                Sources =
+                [
+                    new()
+                    {
+                        Type = "markdown",
+                        Markdown = new() { Dir = ".", IncludePaths = ["only-this.md"] }
+                    }
+                ]
+            },
+            Build = new() { Output = "public", Clean = false }
+        };
+
+        var error = Assert.Throws<ConfigException>(() => BuildTransaction.Begin(config, _root, new(), _logger));
+        Assert.Equal(DiagnosticCode.BuildOutputUnsafe, error.Code);
+        Assert.Contains("dedicated directory", error.Message, StringComparison.Ordinal);
+    }
 }
 
 public sealed partial class SiteEngineIntegrationTests

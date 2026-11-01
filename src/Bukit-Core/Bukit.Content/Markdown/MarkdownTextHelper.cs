@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Security.Cryptography;
 
 namespace Bukit.Content.Markdown;
 
@@ -14,6 +15,17 @@ internal static class MarkdownTextHelper
     {
         var markdown = await File.ReadAllTextAsync(filePath, cancellationToken);
         return RenderHtml(markdown);
+    }
+
+    internal static string ComputeBodyFingerprint(string markdown)
+    {
+        var bodyMarkdown = markdown;
+        if (MarkdownFrontMatterParser.TryExtractFrontMatter(markdown, out _, out var body))
+        {
+            bodyMarkdown = body;
+        }
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(bodyMarkdown ?? string.Empty))).ToLowerInvariant();
     }
 
     internal static string RenderHtml(string markdown)

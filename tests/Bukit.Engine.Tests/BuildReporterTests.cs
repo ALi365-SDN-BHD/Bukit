@@ -777,6 +777,176 @@ public sealed class BuildReporterTests
         Assert.Null(ex);
     }
 
+    [Fact]
+    public void CreateSecurityReportData_DetectsEscapedIdentifiersInAllJsonPositions()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var compact = notionId.Replace("-", string.Empty, StringComparison.Ordinal);
+        var escaped = string.Concat(notionId.Select(ch => $"\\u{(int)ch:x4}"));
+        var escapedCompact = string.Concat(compact.Select(ch => $"\\u{(int)ch:x4}"));
+        var cases = new (string FileName, string Json)[]
+        {
+            ("partial.json", """{"reference":"39bf\u006139a-5013-81ae-9516-fbd448f3bd47"}"""),
+            ("full.json", "{\"reference\":\"" + escaped + "\"}"),
+            ("compact.json", "{\"reference\":\"" + escapedCompact + "\"}"),
+            ("nested.json", "{\"a\":[{\"b\":\"" + escaped + "\"}]}"),
+            ("property.json", "{\"" + escaped + "\":\"x\"}"),
+            ("top-level.json", "\"" + escaped + "\""),
+            ("projection.jsonld", "{\"reference\":\"" + escaped + "\"}")
+        };
+
+        foreach (var (fileName, json) in cases)
+        {
+            var tempDir = CreateTempDir();
+            File.WriteAllText(Path.Combine(tempDir, fileName), json);
+            var config = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+            var variant = CreateVariant(tempDir) with { ContentGraph = CreateNotionGraph(notionId) };
+
+            var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+            Assert.Equal("failed", data.PublicOutputPrivacy);
+            Assert.Contains(data.Errors, error => error.Contains(fileName, StringComparison.Ordinal));
+            Assert.DoesNotContain(data.Errors, error => error.Contains(notionId, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
+    public void CreateSecurityReportData_TreatsInvalidAndOverDeepJsonAsIncomplete()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var escaped = string.Concat(notionId.Select(ch => $"\\u{(int)ch:x4}"));
+        var depth64 = new string('[', 64) + "\"" + escaped + "\"" + new string(']', 64);
+        var depth65 = new string('[', 65) + "\"" + escaped + "\"" + new string(']', 65);
+        var cases = new (string FileName, string Json, bool ExpectLeak)[]
+        {
+            ("malformed-with-id.json", "{\"x\":\"" + notionId, true),
+            ("malformed.json", "{\"x\":", false),
+            ("depth64.json", depth64, true),
+            ("depth65.json", depth65, false),
+            ("depth65.jsonld", depth65, false)
+        };
+
+        foreach (var (fileName, json, expectLeak) in cases)
+        {
+            var tempDir = CreateTempDir();
+            File.WriteAllText(Path.Combine(tempDir, fileName), json);
+            var config = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+            var variant = CreateVariant(tempDir) with { ContentGraph = CreateNotionGraph(notionId) };
+
+            var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+            Assert.Equal("failed", data.PublicOutputPrivacy);
+            if (expectLeak)
+            {
+                Assert.True(
+                    data.Errors.Any(error => error.Contains(fileName, StringComparison.Ordinal) &&
+                        error.Contains("contains internal Notion provenance", StringComparison.Ordinal)),
+                    string.Join(" | ", data.Errors));
+            }
+            else
+            {
+                Assert.True(
+                    data.Errors.Any(error => error.Contains(fileName, StringComparison.Ordinal) &&
+                        error.Contains("unable to complete", StringComparison.OrdinalIgnoreCase)),
+                    string.Join(" | ", data.Errors));
+            }
+
+            Assert.DoesNotContain(data.Errors, error => error.Contains(notionId, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
+    public void CreateSecurityReportData_DepthBoundaryWithoutIdentifiersPassesInsideAndFailsIncompleteOutside()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var depth64 = new string('[', 64) + "\"ordinary text\"" + new string(']', 64);
+        var depth65 = new string('[', 65) + "\"ordinary text\"" + new string(']', 65);
+
+        foreach (var json in new[] { depth64 })
+        {
+            var tempDir = CreateTempDir();
+            File.WriteAllText(Path.Combine(tempDir, "depth64-no-id.json"), json);
+            var config = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+            var variant = CreateVariant(tempDir) with { ContentGraph = CreateNotionGraph(notionId) };
+
+            var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+            Assert.Equal("passed", data.PublicOutputPrivacy);
+            Assert.Empty(data.Errors);
+        }
+
+        foreach (var fileName in new[] { "depth65-no-id.json", "depth65-no-id.jsonld", "malformed-no-id.json" })
+        {
+            var tempDir = CreateTempDir();
+            var json = fileName.StartsWith("depth65", StringComparison.Ordinal) ? depth65 : "{\"x\":";
+            File.WriteAllText(Path.Combine(tempDir, fileName), json);
+            var config = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+            var variant = CreateVariant(tempDir) with { ContentGraph = CreateNotionGraph(notionId) };
+
+            var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+            Assert.Equal("failed", data.PublicOutputPrivacy);
+            Assert.True(
+                data.Errors.Any(error => error.Contains(fileName, StringComparison.Ordinal) &&
+                    error.Contains("unable to complete", StringComparison.OrdinalIgnoreCase)),
+                string.Join(" | ", data.Errors));
+            Assert.DoesNotContain(data.Errors, error =>
+                error.Contains("contains internal Notion provenance", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public void CreateSecurityReportData_TreatsUnpairedSurrogatesAsIncompleteAndAllowsValidPairs()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var invalid = new (string FileName, string Json)[]
+        {
+            ("unpaired-value.json", """{"x":"\uD800"}"""),
+            ("unpaired-name.json", """{"\uD800":"x"}"""),
+            ("unpaired-array.json", """["\uDC00"]"""),
+            ("unpaired-top.json", "\"\\uD800\"")
+        };
+        foreach (var (fileName, json) in invalid)
+        {
+            var tempDir = CreateTempDir();
+            File.WriteAllText(Path.Combine(tempDir, fileName), json);
+            var config = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+            var variant = CreateVariant(tempDir) with { ContentGraph = CreateNotionGraph(notionId) };
+
+            var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+            Assert.Equal("failed", data.PublicOutputPrivacy);
+            Assert.Contains(data.Errors, error => error.Contains(fileName, StringComparison.Ordinal) &&
+                error.Contains("unable to complete", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(data.Errors, error => error.Contains("\\uD800", StringComparison.OrdinalIgnoreCase));
+        }
+
+        var validDir = CreateTempDir();
+        File.WriteAllText(Path.Combine(validDir, "valid-pair.json"), """{"x":"\uD83D\uDE00"}""");
+        var validConfig = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+        var validVariant = CreateVariant(validDir) with { ContentGraph = CreateNotionGraph(notionId) };
+        var valid = BuildReporter.CreateSecurityReportData(validConfig, validDir, validDir, [validVariant]);
+        Assert.Equal("passed", valid.PublicOutputPrivacy);
+    }
+
+    [Fact]
+    public void CreateSecurityReportData_DoesNotMisreportUnknownUuidsTextOrLiteralBackslashes()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        const string businessId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+        var tempDir = CreateTempDir();
+        File.WriteAllText(Path.Combine(tempDir, "business.json"), $$"""{"businessId":"{{businessId}}"}""");
+        File.WriteAllText(Path.Combine(tempDir, "plain.txt"), "ordinary published text");
+        File.WriteAllText(Path.Combine(tempDir, "windows-path.json"), """{"path":"C:\\Users\\publisher\\site"}""");
+        var config = CreateConfig(enabled: true) with { Content = TestContent.Notion(notionId) };
+        var variant = CreateVariant(tempDir) with { ContentGraph = CreateNotionGraph(notionId) };
+
+        var data = BuildReporter.CreateSecurityReportData(config, tempDir, tempDir, [variant]);
+
+        Assert.Equal("passed", data.PublicOutputPrivacy);
+        Assert.Empty(data.Errors);
+    }
+
     private static string CreateTempDir()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));

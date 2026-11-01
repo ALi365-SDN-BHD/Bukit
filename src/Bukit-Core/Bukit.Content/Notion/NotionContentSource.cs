@@ -31,6 +31,33 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
     internal INotionRelationFallbackResolver CreateRelationFallbackResolver()
         => new SourceBoundedRelationFallbackResolver(_options, _logger, _clientFactory);
 
+    /// <summary>
+    /// Real writable cache targets for readwrite mode; relative paths keep provider
+    /// process semantics instead of the synthetic build root. Subdirectories are
+    /// included so an aliased pages/relations directory cannot escape the root check.
+    /// </summary>
+    internal IReadOnlyList<string> WritableCacheTargets
+    {
+        get
+        {
+            if (NotionCacheManager.NormalizeCacheMode(_options.CacheMode) != "readwrite" ||
+                string.IsNullOrWhiteSpace(_options.CacheDir))
+            {
+                return [];
+            }
+
+            var root = Path.GetFullPath(_options.CacheDir.Trim());
+            var targets = new List<string> { root, Path.Combine(root, "pages"), Path.Combine(root, "relations") };
+            var relations = Path.Combine(root, "relations");
+            if (Directory.Exists(relations))
+            {
+                targets.AddRange(Directory.EnumerateDirectories(relations).Select(Path.GetFullPath));
+            }
+
+            return targets;
+        }
+    }
+
     INotionRelationFallbackResolver INotionRelationFallbackResolverProvider.RelationFallbackResolver
         => CreateRelationFallbackResolver();
 
@@ -46,8 +73,33 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
             throw new ContentException("Notion Token is required.");
         }
 
-        using var client = _clientFactory();
+        // One load owns one client (continuous rate limiting) and one body gate.
+        var client = _clientFactory();
+        var renderConcurrency = _options.RenderConcurrency is > 0 ? _options.RenderConcurrency.Value : 4;
+        var bodyGate = new SemaphoreSlim(renderConcurrency, renderConcurrency);
+        var ownershipTransferred = false;
+        try
+        {
+            var result = await LoadCoreAsync(client, bodyGate, renderConcurrency, cancellationToken).ConfigureAwait(false);
+            ownershipTransferred = true;
+            return result;
+        }
+        finally
+        {
+            if (!ownershipTransferred)
+            {
+                bodyGate.Dispose();
+                client.Dispose();
+            }
+        }
+    }
 
+    private async Task<RawContentLoadResult> LoadCoreAsync(
+        NotionContentClient client,
+        SemaphoreSlim bodyGate,
+        int renderConcurrency,
+        CancellationToken cancellationToken)
+    {
         var drafts = new List<PageDraft>();
         var maxItems = _options.MaxItems is > 0 ? _options.MaxItems : null;
         var policyMode = NotionFieldProjectionHelper.NormalizePolicyMode(_options.FieldPolicyMode);
@@ -104,12 +156,15 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
                     var publishAt = ResolvePublishAt(page, props, pm, pageId);
 
                     var lastEditedTime = GetString(page, "last_edited_time");
+                    // The effective content mode changes the rendered body, so it must be
+                    // part of the stable fingerprint that decides incremental reuse.
+                    var bodyFingerprintBase = string.IsNullOrWhiteSpace(lastEditedTime) ? pageId : lastEditedTime;
 
                     var projectedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["source"] = "notion",
                         ["notionPageId"] = pageId,
-                        ["bodyFingerprint"] = string.IsNullOrWhiteSpace(lastEditedTime) ? pageId : lastEditedTime
+                        ["bodyFingerprint"] = $"{bodyFingerprintBase}:content={(_options.RenderContent ? "on" : "off")}"
                     };
                     if (DateTimeOffset.TryParse(
                             lastEditedTime,
@@ -175,7 +230,24 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
         });
         var draftIndex = NotionDraftIndex<PageDraft>.From(drafts, static d => d.PageId);
         var pageIndex = NotionRelationLinkBuilder.BuildIndex(targets);
-        pageIndex = await NotionRelationResolver.ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, relationTargetCache, _options.RenderConcurrency ?? 0, _logger, cancellationToken);
+        pageIndex = await NotionRelationResolver.ResolveMissingTaxonomyRelationTargetsAsync(client, drafts, pageIndex, relationTargetCache, renderConcurrency, _logger, cancellationToken);
+        var relationResolver = new SourceBoundedRelationFallbackResolver(_options, _logger, _clientFactory, client);
+
+        async Task<string> RenderBodyAsync(string pageId, string? lastEditedTime, CancellationToken token)
+        {
+            await bodyGate.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                // Each page gets its own renderer; the transport (and rate limiter) is shared.
+                var renderer = new NotionBlocksRenderer(client.Transport);
+                return await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, pageHtmlCache, pageId, lastEditedTime, token, _logger).ConfigureAwait(false);
+            }
+            finally
+            {
+                bodyGate.Release();
+            }
+        }
+
         // I-12: when rendering with AutoSummary, derive summaries for pages that lack one
         // BEFORE the raw/canonical documents are built, so the shared field dictionaries
         // are never mutated after publication. Prefetched HTML seeds the body store so it
@@ -189,20 +261,19 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
                 .ToArray();
             var parallelOptions = new ParallelOptions
             {
-                MaxDegreeOfParallelism = _options.RenderConcurrency is > 0 ? _options.RenderConcurrency.Value : 4,
+                MaxDegreeOfParallelism = renderConcurrency,
                 CancellationToken = cancellationToken
             };
             await Parallel.ForEachAsync(missingSummary, parallelOptions, async (draft, token) =>
             {
-                using var bodyClient = _clientFactory();
-                var renderer = new NotionBlocksRenderer(bodyClient.Transport);
-                var html = await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, pageHtmlCache, draft.PageId, draft.LastEditedTime, token, _logger);
+                var html = await RenderBodyAsync(draft.PageId, draft.LastEditedTime, token).ConfigureAwait(false);
+                // Record successful empty bodies too: cache-off reads must not repeat the request.
+                prefetchedBodies[draft.PageId] = new ContentBody(html);
                 if (string.IsNullOrWhiteSpace(html))
                 {
                     return;
                 }
 
-                prefetchedBodies[draft.PageId] = new ContentBody(html);
                 var extracted = NotionAutoSummary.ExtractFromHtml(html, _options.AutoSummaryMaxLength);
                 if (!string.IsNullOrWhiteSpace(extracted))
                 {
@@ -261,10 +332,7 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
             }
 
             var draft = draftIndex.GetRequired(item.Body.BodyKey ?? item.Id);
-
-            using var bodyClient = _clientFactory();
-            var renderer = new NotionBlocksRenderer(bodyClient.Transport);
-            var html = await NotionCacheManager.GetOrRenderPageHtmlAsync(renderer, pageHtmlCache, draft.PageId, draft.LastEditedTime, ct, _logger);
+            var html = await RenderBodyAsync(draft.PageId, draft.LastEditedTime, ct).ConfigureAwait(false);
 
             if (string.IsNullOrWhiteSpace(ContentFieldReader.GetText(item.CustomFields, "summary")) &&
                 _options.AutoSummary &&
@@ -287,7 +355,8 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
             }
 
             return html;
-        });
+        }, CancellationToken.None, onCacheEntryPublished: null, ownedClient: client, ownedGate: bodyGate,
+            relationFallbackResolver: relationResolver);
         foreach (var (pageId, body) in prefetchedBodies)
         {
             bodyStore.Seed(pageId, body);
@@ -339,7 +408,8 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
     private sealed class SourceBoundedRelationFallbackResolver(
         NotionContentSourceOptions options,
         ILogger? logger,
-        Func<NotionContentClient> clientFactory) : INotionRelationFallbackResolver
+        Func<NotionContentClient> clientFactory,
+        NotionContentClient? sharedClient = null) : INotionRelationFallbackResolver
     {
         public async Task<NotionRelationFallbackResult> ResolveAsync(
             IReadOnlyList<string> pageIds,
@@ -347,56 +417,67 @@ public sealed class NotionContentSource : IContentProvider, INotionRelationFallb
         {
             var targets = new List<RelationTargetInfo>();
             var failures = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            using var client = clientFactory();
-            foreach (var pageId in pageIds.Distinct(StringComparer.OrdinalIgnoreCase))
+            var client = sharedClient ?? clientFactory();
+            var ownsClient = sharedClient is null;
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                try
+                foreach (var pageId in pageIds.Distinct(StringComparer.OrdinalIgnoreCase))
                 {
-                    using var document = await client.GetAsync(NotionApiUrls.Pages(pageId), cancellationToken);
-                    var page = document.RootElement;
-                    var properties = page.TryGetProperty("properties", out var value) && value.ValueKind == JsonValueKind.Object
-                        ? value
-                        : default;
-                    var policyMode = NotionFieldProjectionHelper.NormalizePolicyMode(options.FieldPolicyMode);
-                    var fields = NotionContentPropertyParser.ExtractFields(
-                        properties,
-                        policyMode,
-                        policyMode == "whitelist" ? NotionFieldProjectionHelper.BuildAllowedSet(options.AllowedFields) : null,
-                        out _);
-                    fields = NotionFieldProjectionHelper.InjectPageCoverAndIcon(fields, page);
-                    var title = NotionContentPropertyParser.ExtractTitle(properties, options.PropertyMap);
-                    var slug = NotionContentPropertyParser.ExtractSlug(properties, options.PropertyMap);
-                    var type = NotionContentPropertyParser.ExtractType(properties, options.PropertyMap);
-                    if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(slug) || string.IsNullOrWhiteSpace(type))
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
                     {
-                        failures[pageId] = "notion.relation.invalid_target";
-                        continue;
-                    }
+                        using var document = await client.GetAsync(NotionApiUrls.Pages(pageId), cancellationToken);
+                        var page = document.RootElement;
+                        var properties = page.TryGetProperty("properties", out var value) && value.ValueKind == JsonValueKind.Object
+                            ? value
+                            : default;
+                        var policyMode = NotionFieldProjectionHelper.NormalizePolicyMode(options.FieldPolicyMode);
+                        var fields = NotionContentPropertyParser.ExtractFields(
+                            properties,
+                            policyMode,
+                            policyMode == "whitelist" ? NotionFieldProjectionHelper.BuildAllowedSet(options.AllowedFields) : null,
+                            out _);
+                        fields = NotionFieldProjectionHelper.InjectPageCoverAndIcon(fields, page);
+                        var title = NotionContentPropertyParser.ExtractTitle(properties, options.PropertyMap);
+                        var slug = NotionContentPropertyParser.ExtractSlug(properties, options.PropertyMap);
+                        var type = NotionContentPropertyParser.ExtractType(properties, options.PropertyMap);
+                        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(slug) || string.IsNullOrWhiteSpace(type))
+                        {
+                            failures[pageId] = "notion.relation.invalid_target";
+                            continue;
+                        }
 
-                    targets.Add(new RelationTargetInfo(
-                        pageId,
-                        title,
-                        slug,
-                        type,
-                        ContentFieldReader.GetText(fields, "url"),
-                        ContentFieldReader.GetText(fields, "image") ?? ContentFieldReader.GetText(fields, "cover"),
-                        ContentFieldReader.GetTextList(fields, "sameAs") ?? ContentFieldReader.GetTextList(fields, "same_as")));
+                        targets.Add(new RelationTargetInfo(
+                            pageId,
+                            title,
+                            slug,
+                            type,
+                            ContentFieldReader.GetText(fields, "url"),
+                            ContentFieldReader.GetText(fields, "image") ?? ContentFieldReader.GetText(fields, "cover"),
+                            ContentFieldReader.GetTextList(fields, "sameAs") ?? ContentFieldReader.GetTextList(fields, "same_as")));
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception) when (exception is
+                        NotionApiException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.NotFound } or
+                        ContentException { InnerException: NotionApiException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.NotFound } })
+                    {
+                        failures[pageId] = "notion.relation.permission_denied";
+                    }
+                    catch (Exception exception)
+                    {
+                        logger?.Warn($"event=notion.relation.resolve_failed pageId={pageId} message={exception.Message}");
+                        failures[pageId] = "notion.relation.unresolved";
+                    }
                 }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            }
+            finally
+            {
+                if (ownsClient)
                 {
-                    throw;
-                }
-                catch (Exception exception) when (exception is
-                    NotionApiException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.NotFound } or
-                    ContentException { InnerException: NotionApiException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.NotFound } })
-                {
-                    failures[pageId] = "notion.relation.permission_denied";
-                }
-                catch (Exception exception)
-                {
-                    logger?.Warn($"event=notion.relation.resolve_failed pageId={pageId} message={exception.Message}");
-                    failures[pageId] = "notion.relation.unresolved";
+                    client.Dispose();
                 }
             }
 

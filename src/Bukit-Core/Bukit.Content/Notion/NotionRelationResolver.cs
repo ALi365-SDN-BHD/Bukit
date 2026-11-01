@@ -15,6 +15,25 @@ internal static class NotionRelationResolver
         int renderConcurrency,
         ILogger? logger,
         CancellationToken cancellationToken)
+        => await ResolveMissingTaxonomyRelationTargetsWithReaderAsync(
+            client,
+            drafts,
+            existingIndex,
+            relationTargetCache,
+            relationTargetCache is null ? null : relationTargetCache.TryReadAsync,
+            renderConcurrency,
+            logger,
+            cancellationToken).ConfigureAwait(false);
+
+    internal static async Task<IReadOnlyDictionary<string, RelationTargetInfo>> ResolveMissingTaxonomyRelationTargetsWithReaderAsync(
+        NotionContentClient client,
+        IReadOnlyList<NotionContentSource.PageDraft> drafts,
+        IReadOnlyDictionary<string, RelationTargetInfo> existingIndex,
+        NotionRelationTargetCache? relationTargetCache,
+        Func<string, CancellationToken, Task<RelationTargetInfo?>>? cacheReader,
+        int renderConcurrency,
+        ILogger? logger,
+        CancellationToken cancellationToken)
     {
         var planStopwatch = Stopwatch.StartNew();
         var maxResolve = 200;
@@ -33,24 +52,42 @@ internal static class NotionRelationResolver
         var tasks = new Task<RelationTargetInfo?>[missing.Count];
         var resolveStopwatch = Stopwatch.StartNew();
         var cacheHits = 0;
-        for (var i = 0; i < missing.Count; i++)
+        try
         {
-            var pageId = missing[i];
-            if (relationTargetCache is not null)
+            for (var i = 0; i < missing.Count; i++)
             {
-                var cached = await relationTargetCache.TryReadAsync(pageId, cancellationToken);
-                if (cached is not null)
+                var pageId = missing[i];
+                if (cacheReader is not null)
                 {
-                    tasks[i] = Task.FromResult<RelationTargetInfo?>(cached);
-                    cacheHits++;
-                    continue;
+                    var cached = await cacheReader(pageId, cancellationToken);
+                    if (cached is not null)
+                    {
+                        tasks[i] = Task.FromResult<RelationTargetInfo?>(cached);
+                        cacheHits++;
+                        continue;
+                    }
                 }
+
+                tasks[i] = ResolveOneAsync(pageId);
             }
 
-            tasks[i] = ResolveOneAsync(pageId);
+            await Task.WhenAll(tasks);
         }
+        catch
+        {
+            // Scheduling can exit early (cache cancel/read failure) while requests are
+            // already in flight. Settle every started task before the semaphore/client
+            // owners observe completion; keep the original exception and token.
+            try
+            {
+                await Task.WhenAll(tasks.OfType<Task<RelationTargetInfo?>>());
+            }
+            catch
+            {
+            }
 
-        await Task.WhenAll(tasks);
+            throw;
+        }
         resolveStopwatch.Stop();
 
         Dictionary<string, RelationTargetInfo>? merged = null;

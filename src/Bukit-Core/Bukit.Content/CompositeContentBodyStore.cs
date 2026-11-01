@@ -1,4 +1,5 @@
 using Bukit.Engine.Abstractions.Content;
+using System.Runtime.ExceptionServices;
 namespace Bukit.Content;
 
 internal sealed class CompositeContentBodyStore : IContentBodyStore, IAsyncDisposable
@@ -118,6 +119,7 @@ internal sealed class CompositeContentBodyStore : IContentBodyStore, IAsyncDispo
     public async ValueTask DisposeAsync()
     {
         var disposed = new HashSet<IContentBodyStore>(ReferenceEqualityComparer.Instance);
+        Exception? firstFailure = null;
         foreach (var store in _allStores)
         {
             if (!disposed.Add(store))
@@ -125,14 +127,29 @@ internal sealed class CompositeContentBodyStore : IContentBodyStore, IAsyncDispo
                 continue;
             }
 
-            if (store is IAsyncDisposable asyncDisposable)
+            try
             {
-                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                if (store is IAsyncDisposable asyncDisposable)
+                {
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                }
+                else if (store is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
             }
-            else if (store is IDisposable disposable)
+            catch (Exception exception)
             {
-                disposable.Dispose();
+                // One child failing must not skip the remaining owned stores. Keep the
+                // first failure for the normal disposal path; load-failure cleanup
+                // suppresses disposal errors to preserve the original load exception.
+                firstFailure ??= exception;
             }
+        }
+
+        if (firstFailure is not null)
+        {
+            ExceptionDispatchInfo.Capture(firstFailure).Throw();
         }
     }
 }

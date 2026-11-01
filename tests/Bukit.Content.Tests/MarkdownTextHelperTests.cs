@@ -168,4 +168,24 @@ public sealed class MarkdownTextHelperTests
             File.Delete(filePath);
         }
     }
+
+    [Fact]
+    public void ComputeBodyFingerprint_StripsFrontMatterAndKeepsEncodingSemantics()
+    {
+        const string withFrontMatter = "---\ntitle: Page\ntags: [a, b]\n---\n# Heading\r\n\r\nBody 🌏";
+
+        Assert.True(MarkdownFrontMatterParser.TryExtractFrontMatter(withFrontMatter, out _, out var bodyOnly));
+        Assert.Equal(
+            MarkdownTextHelper.ComputeBodyFingerprint(bodyOnly),
+            MarkdownTextHelper.ComputeBodyFingerprint(withFrontMatter));
+        Assert.Equal(
+            MarkdownTextHelper.ComputeBodyFingerprint(withFrontMatter),
+            MarkdownTextHelper.ComputeBodyFingerprint(withFrontMatter));
+        Assert.NotEqual(
+            MarkdownTextHelper.ComputeBodyFingerprint(bodyOnly),
+            MarkdownTextHelper.ComputeBodyFingerprint(bodyOnly + " changed"));
+        Assert.Equal(
+            MarkdownTextHelper.ComputeBodyFingerprint(string.Empty),
+            MarkdownTextHelper.ComputeBodyFingerprint((string)null!));
+    }
 }

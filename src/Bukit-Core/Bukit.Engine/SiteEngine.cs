@@ -121,14 +121,19 @@ public sealed partial class SiteEngine
         var overrides = new ConfigOverrides { IsCI = options.IsCI, Incremental = false };
         var factory = new FixedContentProviderFactory(provider, _contentProviderFactory);
         var engine = new SiteEngine(_logger, factory, _searchIndexBuilder, _rendererFactory, _timeProvider);
-        await engine.BuildAsync(config, rootDir, overrides, cancellationToken);
+        // The synthetic config's default markdown source is not a disk fact for an injected
+        // provider; pass the real identities (possibly empty) explicitly.
+        var (sourceRoots, writableCaches) = BuildTransaction.InspectContentProvider(provider);
+        await engine.BuildCoreAsync(config, rootDir, overrides, cancellationToken, sourceRoots, writableCaches);
     }
 
     // -- core build orchestrator --
 
-    private async Task<BuildResult> BuildCoreAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken)
+    private async Task<BuildResult> BuildCoreAsync(AppConfig config, string rootDir, ConfigOverrides overrides, CancellationToken cancellationToken,
+        IReadOnlyList<string>? contentSourceRoots = null, IReadOnlyList<string>? extraWriteTargets = null)
     {
-        using var transaction = BuildTransaction.Begin(config, rootDir, overrides, _logger, cancellationToken: cancellationToken);
+        using var transaction = BuildTransaction.Begin(config, rootDir, overrides, _logger, cancellationToken: cancellationToken,
+            contentSourceRoots: contentSourceRoots, extraWriteTargets: extraWriteTargets);
         overrides = overrides with { CacheDir = transaction.CacheDir };
         var buildLogger = new BuildDiagnosticLogger(_logger);
         var plan = BuildPlanner.Plan(config, rootDir, overrides, buildLogger, _timeProvider.GetUtcNow());

@@ -139,31 +139,81 @@ public sealed partial class GitHubPagesDeployProvider
         return null;
     }
 
-    private static async Task<RepoInfo?> GetRepoInfoAsync(string gitPath, TimeSpan gitCommandTimeout, CancellationToken ct)
+    private static async Task<RepoInfo?> GetRepoInfoAsync(string gitPath, string projectRoot, TimeSpan gitCommandTimeout, CancellationToken ct)
     {
-        try
+        if (!IsInsideRepository(projectRoot))
         {
-            var url = await RunGitAndCaptureAsync(gitPath, null, gitCommandTimeout, ct, "remote", "get-url", "origin");
-            if (string.IsNullOrWhiteSpace(url))
+            // Not a repository at all: no project-scoped identity can exist.
+            return null;
+        }
+
+        var local = await RunGitAllowFailureAsync(gitPath, projectRoot, gitCommandTimeout, ct,
+            "config", "--local", "--includes", "--null", "--get-all", "remote.origin.url");
+        if (local.ExitCode is not (0 or 1))
+        {
+            throw new GitException($"git config remote.origin.url failed (exit {local.ExitCode}): {local.Stderr.Trim()}");
+        }
+
+        // A distinct worktree scope exists only when the repository enables it. Without the
+        // extension, --worktree is the local scope (and errors in linked worktrees).
+        var worktreeConfig = await RunGitAllowFailureAsync(gitPath, projectRoot, gitCommandTimeout, ct,
+            "config", "--local", "--bool", "--get", "extensions.worktreeConfig");
+        if (worktreeConfig.ExitCode is not (0 or 1))
+        {
+            throw new GitException($"git config extensions.worktreeConfig failed (exit {worktreeConfig.ExitCode}): {worktreeConfig.Stderr.Trim()}");
+        }
+
+        var selected = local;
+        if (worktreeConfig.ExitCode == 0 &&
+            string.Equals(worktreeConfig.Stdout.Trim(), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            var scoped = await RunGitAllowFailureAsync(gitPath, projectRoot, gitCommandTimeout, ct,
+                "config", "--worktree", "--includes", "--null", "--get-all", "remote.origin.url");
+            if (scoped.ExitCode is not (0 or 1))
             {
-                return null;
+                throw new GitException($"git config remote.origin.url failed (exit {scoped.ExitCode}): {scoped.Stderr.Trim()}");
             }
 
-            if (!TryParseGitHubRemoteUrl(url, out var repoInfo))
+            if (scoped.ExitCode == 0)
             {
-                return null;
+                selected = scoped;
             }
+        }
 
-            return repoInfo;
-        }
-        catch (GitTimeoutException)
-        {
-            throw;
-        }
-        catch
+        if (selected.ExitCode == 1)
         {
             return null;
         }
+
+        // Git fetch URL semantics use the first value; an empty or invalid first value wins
+        // over later values and must not fall through to lower scopes.
+        var first = FirstNulValue(selected.Stdout);
+        if (string.IsNullOrWhiteSpace(first) || !TryParseGitHubRemoteUrl(first, out var repoInfo))
+        {
+            return null;
+        }
+
+        return repoInfo;
+    }
+
+    private static string? FirstNulValue(string value)
+    {
+        var end = value.IndexOf('\0');
+        return end < 0 ? value : value[..end];
+    }
+
+    private static bool IsInsideRepository(string projectRoot)
+    {
+        for (var current = new DirectoryInfo(Path.GetFullPath(projectRoot)); current is not null; current = current.Parent)
+        {
+            var dotGit = Path.Combine(current.FullName, ".git");
+            if (Directory.Exists(dotGit) || File.Exists(dotGit))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TryParseGitHubRemoteUrl(string remoteUrl, out RepoInfo? repoInfo)
@@ -213,9 +263,9 @@ public sealed partial class GitHubPagesDeployProvider
         return true;
     }
 
-    private static async Task<bool> RemoteBranchExistsAsync(string gitPath, string token, string askpassScript, string remoteUrl, string branch, TimeSpan gitCommandTimeout, CancellationToken ct)
+    private static async Task<bool> RemoteBranchExistsAsync(string gitPath, string token, string askpassScript, string workingDir, string remoteName, string branch, TimeSpan gitCommandTimeout, CancellationToken ct)
     {
-        var output = await RunGitAuthAndCaptureAsync(gitPath, token, askpassScript, null, gitCommandTimeout, ct, "ls-remote", "--heads", remoteUrl, $"refs/heads/{branch}");
+        var output = await RunGitAuthAndCaptureAsync(gitPath, token, askpassScript, workingDir, gitCommandTimeout, ct, "ls-remote", "--heads", remoteName, $"refs/heads/{branch}");
         return !string.IsNullOrWhiteSpace(output);
     }
 
@@ -287,6 +337,90 @@ public sealed partial class GitHubPagesDeployProvider
         }
 
         return output.Stdout.Trim();
+    }
+
+    private static async Task<(int ExitCode, string Stdout, string Stderr)> RunGitAllowFailureAsync(
+        string gitPath,
+        string? workingDir,
+        TimeSpan timeout,
+        CancellationToken ct,
+        params string[] args)
+    {
+        var commandLine = string.Join(' ', args);
+        var psi = CreateGitProcess(gitPath, workingDir, args);
+        using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start git process.");
+        var output = await WaitForGitProcessAndDrainAsync(proc, timeout, ct, commandLine);
+        return (proc.ExitCode, output.Stdout, output.Stderr);
+    }
+
+    /// <summary>
+    /// Runs in the final transfer config context: the temporary repository already exists and
+    /// its private remote is configured, so conditional includes activated by those writes are
+    /// visible before any branch query, fetch or push.
+    /// </summary>
+    private static async Task EnsureTransportTargetAsync(
+        string gitPath,
+        string workingDir,
+        string remoteName,
+        string canonicalUrl,
+        TimeSpan timeout,
+        CancellationToken ct)
+    {
+        var rewrites = await RunGitAllowFailureAsync(gitPath, workingDir, timeout, ct,
+            "config", "--includes", "--null", "--get-regexp", "^url\\..*\\.(insteadof|pushinsteadof)$");
+        if (rewrites.ExitCode == 0)
+        {
+            foreach (var record in rewrites.Stdout.Split('\0'))
+            {
+                if (record.Length == 0)
+                {
+                    continue;
+                }
+
+                var separator = record.IndexOf('\n');
+                var rewriteValue = separator < 0 ? string.Empty : record[(separator + 1)..];
+                if (canonicalUrl.StartsWith(rewriteValue, StringComparison.Ordinal))
+                {
+                    // Never echo the raw key/base URL: it can carry another service's
+                    // userinfo credentials.
+                    throw new GitException(
+                        "Refusing to deploy because an active URL rewrite would change the GitHub Pages transport target. " +
+                        "Remove the matching insteadOf/pushInsteadOf rule from local, worktree, included, global or system Git config.");
+                }
+            }
+        }
+        else if (rewrites.ExitCode != 1)
+        {
+            throw new GitException($"git config URL rewrite query failed (exit {rewrites.ExitCode}): {rewrites.Stderr.Trim()}");
+        }
+
+        foreach (var key in new[] { $"remote.{remoteName}.url", $"remote.{remoteName}.pushurl" })
+        {
+            var values = await RunGitAllowFailureAsync(gitPath, workingDir, timeout, ct,
+                "config", "--local", "--includes", "--null", "--get-all", key);
+            if (values.ExitCode == 1)
+            {
+                if (key.EndsWith(".url", StringComparison.Ordinal))
+                {
+                    throw new GitException($"Private deploy remote is missing its canonical URL: {key}");
+                }
+
+                continue;
+            }
+
+            if (values.ExitCode != 0)
+            {
+                throw new GitException($"git config {key} query failed (exit {values.ExitCode}): {values.Stderr.Trim()}");
+            }
+
+            foreach (var url in values.Stdout.Split('\0'))
+            {
+                if (url.Length > 0 && !string.Equals(url, canonicalUrl, StringComparison.Ordinal))
+                {
+                    throw new GitException($"Private deploy remote has an extra or different transport URL for {key}; refusing to deploy.");
+                }
+            }
+        }
     }
 
     private static async Task<GitProcessOutput> WaitForGitProcessAndDrainAsync(
@@ -477,6 +611,26 @@ public sealed partial class GitHubPagesDeployProvider
         }
     }
 
+    private static readonly string[] InheritedRepositoryEnvironmentVariables =
+    [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_COMMON_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_IMPLICIT_WORK_TREE",
+        "GIT_GRAFT_FILE",
+        "GIT_NO_REPLACE_OBJECTS",
+        "GIT_REPLACE_REF_BASE",
+        "GIT_PREFIX",
+        "GIT_INTERNAL_SUPER_PREFIX",
+        "GIT_SHALLOW_FILE",
+        "GIT_CONFIG",
+        "GIT_CONFIG_PARAMETERS",
+        "GIT_CONFIG_COUNT"
+    ];
+
     private static ProcessStartInfo CreateGitProcess(string gitPath, string? workingDir, string[] args)
     {
         var psi = new ProcessStartInfo
@@ -491,6 +645,22 @@ public sealed partial class GitHubPagesDeployProvider
         if (workingDir is not null)
         {
             psi.WorkingDirectory = workingDir;
+        }
+
+        // Child git processes must never be redirected to another repository, index, object
+        // store, or runtime config. Normal credential/proxy/SSH settings stay inherited.
+        foreach (var name in InheritedRepositoryEnvironmentVariables)
+        {
+            psi.Environment.Remove(name);
+        }
+
+        foreach (var name in psi.Environment.Keys
+                     .Where(static name =>
+                         name.StartsWith("GIT_CONFIG_KEY_", StringComparison.Ordinal) ||
+                         name.StartsWith("GIT_CONFIG_VALUE_", StringComparison.Ordinal))
+                     .ToArray())
+        {
+            psi.Environment.Remove(name);
         }
 
         foreach (var arg in args)

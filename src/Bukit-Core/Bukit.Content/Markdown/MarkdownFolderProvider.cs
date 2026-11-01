@@ -1,7 +1,6 @@
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 using Bukit.Shared.IO;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -42,6 +41,11 @@ public sealed class MarkdownFolderProvider : IContentProvider
         _opener = opener;
         _logger = logger;
     }
+
+    /// <summary>
+    /// Read-only disk identity used by build source/write overlap checks.
+    /// </summary>
+    internal string ContentDirectory => Path.GetFullPath(_options.ContentDir);
 
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
@@ -175,7 +179,7 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 frontMatterValues["tableOfContents"] = tableOfContents;
             }
 
-            frontMatterValues["bodyFingerprint"] = ComputeBodyFingerprint(bodyMarkdown);
+            frontMatterValues["bodyFingerprint"] = MarkdownTextHelper.ComputeBodyFingerprint(markdown);
 
             DateTimeOffset? publishAt = null;
             if (frontMatterValues.TryGetValue("publishAt", out var publishObj) && publishObj is string publishText && MarkdownFieldBuilder.TryParseDateTimeOffset(publishText, out var dto))
@@ -200,12 +204,6 @@ public sealed class MarkdownFolderProvider : IContentProvider
         }
 
         return new RawContentLoadResult(items, new MarkdownBodyStore(sourceRoot, _opener));
-    }
-
-    private static string ComputeBodyFingerprint(string markdown)
-    {
-        var bytes = Encoding.UTF8.GetBytes(markdown ?? string.Empty);
-        return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
 
     private static IReadOnlyDictionary<string, object> BuildCanonicalFields(

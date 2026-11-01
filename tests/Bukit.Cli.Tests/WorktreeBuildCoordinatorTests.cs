@@ -478,6 +478,137 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         Assert.Single(worktrees.Output.Split('\n'), line => line.StartsWith("worktree ", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ExplicitMultilingualBuild_CliRejectsOriginalSourceEqualToOutputWithoutMarker()
+    {
+        var root = Path.Combine(_root, "source-equals-output");
+        var site = CreateSite(root);
+        await File.WriteAllTextAsync(site, (await File.ReadAllTextAsync(site)).Replace(
+            "output: dist", "output: content", StringComparison.Ordinal));
+        await InitializeRepositoryAsync(root);
+        var contentDir = Path.Combine(root, "content");
+        var before = SnapshotHashes(contentDir);
+        var repositoryRoot = (await RunProcessAsync("git", ["rev-parse", "--show-toplevel"], root)).Output.Trim();
+        var runsRoot = WorktreeBuildPaths.RunsRoot(repositoryRoot);
+
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("content source", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, SnapshotHashes(contentDir));
+        Assert.False(File.Exists(Path.Combine(contentDir, ".bukit-output-marker")));
+        Assert.False(Directory.Exists(runsRoot));
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_CliRejectsSourceEqualToOutputWithMarkerAndClean()
+    {
+        var root = Path.Combine(_root, "source-marker-output");
+        var site = CreateSite(root);
+        await File.WriteAllTextAsync(site, (await File.ReadAllTextAsync(site))
+            .Replace("output: dist", "output: content", StringComparison.Ordinal)
+            .Replace("clean: false", "clean: true", StringComparison.Ordinal));
+        await File.WriteAllTextAsync(Path.Combine(root, "content", ".bukit-output-marker"), "bukit-output\n");
+        await InitializeRepositoryAsync(root);
+        var contentDir = Path.Combine(root, "content");
+        var before = SnapshotHashes(contentDir);
+
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("content source", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, SnapshotHashes(contentDir));
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_CliRejectsMediaConflictAlone()
+    {
+        var root = Path.Combine(_root, "media-conflict");
+        var site = CreateSite(root);
+        await File.WriteAllTextAsync(site, (await File.ReadAllTextAsync(site)).Replace(
+            "content:\n  sources:",
+            "content:\n  media:\n    downloadToLocal: true\n    downloadDir: content/media\n  sources:",
+            StringComparison.Ordinal));
+        await InitializeRepositoryAsync(root);
+        var contentDir = Path.Combine(root, "content");
+        var before = SnapshotHashes(contentDir);
+
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site], root);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("content source", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, SnapshotHashes(contentDir));
+        Assert.False(Directory.Exists(Path.Combine(contentDir, "media")));
+        Assert.False(Directory.Exists(Path.Combine(root, "dist")));
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_CliRejectsCacheConflictAlone()
+    {
+        var root = Path.Combine(_root, "cache-conflict");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+        var contentDir = Path.Combine(root, "content");
+        var before = SnapshotHashes(contentDir);
+
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site,
+                "--cache-dir", Path.Combine(contentDir, "cache")], root);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("content source", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, SnapshotHashes(contentDir));
+        Assert.False(Directory.Exists(Path.Combine(contentDir, "cache")));
+        Assert.False(Directory.Exists(Path.Combine(root, "dist")));
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_CliRejectsMetricsConflictAlone()
+    {
+        var root = Path.Combine(_root, "metrics-conflict");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+        var contentDir = Path.Combine(root, "content");
+        var before = SnapshotHashes(contentDir);
+
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site,
+                "--metrics", Path.Combine(contentDir, "stats.json")], root);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("content source", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, SnapshotHashes(contentDir));
+        Assert.False(File.Exists(Path.Combine(contentDir, "stats.json")));
+        Assert.False(File.Exists(Path.Combine(contentDir, "stats.html")));
+        Assert.False(Directory.Exists(Path.Combine(root, "dist")));
+    }
+
+    [Fact]
+    public async Task ExplicitMultilingualBuild_CliSafeTargetsWithMetricsComplete()
+    {
+        var root = Path.Combine(_root, "independent-targets");
+        var site = CreateSite(root);
+        await InitializeRepositoryAsync(root);
+
+        var result = await RunProcessAsync("dotnet",
+            [typeof(BuildCommand).Assembly.Location, "build", "--config", site,
+                "--metrics", Path.Combine(root, "reports", "stats.json")], root);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(File.Exists(Path.Combine(root, "dist", "en", "index.html")));
+        Assert.True(File.Exists(Path.Combine(root, "reports", "stats.json")));
+        Assert.True(File.Exists(Path.Combine(root, "reports", "stats.html")));
+    }
+
+    private static string SnapshotHashes(string directory)
+        => string.Join("\n", Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+            .Order(StringComparer.Ordinal)
+            .Select(path => Path.GetRelativePath(directory, path) + ":" +
+                Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)))));
+
     private sealed class CancelOnContentLoadLogger(CancellationTokenSource cancellation) : ILogger
     {
         public bool Triggered { get; private set; }

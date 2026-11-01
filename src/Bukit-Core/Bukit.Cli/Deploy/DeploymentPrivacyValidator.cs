@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bukit.Engine;
 
 namespace Bukit.Cli.Deploy;
 
@@ -39,16 +40,37 @@ internal static partial class DeploymentPrivacyValidator
             }
 
             var pathLeak = ContainsSensitiveToken(relativePath, sensitiveTokens);
-            var contentLeak = false;
+            var contentScan = FilePrivacyScan.Clean;
             if (s_textExtensions.Contains(Path.GetExtension(path)))
             {
                 var text = File.ReadAllText(path);
-                contentLeak = ContainsSensitiveToken(text, sensitiveTokens) || ContainsProviderMarker(text, Path.GetExtension(path));
+                if (ContainsSensitiveToken(text, sensitiveTokens))
+                {
+                    contentScan = FilePrivacyScan.Leak;
+                }
+                else if (Path.GetExtension(path).Equals(".json", StringComparison.OrdinalIgnoreCase) ||
+                         Path.GetExtension(path).Equals(".jsonld", StringComparison.OrdinalIgnoreCase))
+                {
+                    contentScan = PublicOutputPrivacyCheck.ScanJson(text, sensitiveTokens) switch
+                    {
+                        JsonPrivacyScan.Leak => FilePrivacyScan.Leak,
+                        JsonPrivacyScan.Incomplete => FilePrivacyScan.Incomplete,
+                        _ => FilePrivacyScan.Clean
+                    };
+                }
+                else if (JsonProviderMarkerRegex().IsMatch(text) || LineProviderMarkerRegex().IsMatch(text))
+                {
+                    contentScan = FilePrivacyScan.Leak;
+                }
             }
 
-            if (pathLeak || contentLeak)
+            if (pathLeak || contentScan == FilePrivacyScan.Leak)
             {
                 errors.Add($"BKT-DEPLOY-PRIVACY-0001: staged public output contains internal Notion provenance at '{RedactPath(relativePath, sensitiveTokens)}'.");
+            }
+            else if (contentScan == FilePrivacyScan.Incomplete)
+            {
+                errors.Add($"BKT-DEPLOY-PRIVACY-0001: unable to complete the Notion provenance privacy scan for staged public output at '{RedactPath(relativePath, sensitiveTokens)}' because the JSON is malformed, too deep, or contains invalid Unicode; rebuild after fixing it.");
             }
         }
 
@@ -152,62 +174,6 @@ internal static partial class DeploymentPrivacyValidator
 
     private static bool ContainsSensitiveToken(string value, IReadOnlySet<string> sensitiveTokens)
         => sensitiveTokens.Any(token => value.Contains(token, StringComparison.OrdinalIgnoreCase));
-
-    private static bool ContainsProviderMarker(string value, string extension)
-    {
-        if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase) ||
-            extension.Equals(".jsonld", StringComparison.OrdinalIgnoreCase))
-        {
-            try
-            {
-                using var document = JsonDocument.Parse(value);
-                if (ContainsJsonProviderMarker(document.RootElement))
-                {
-                    return true;
-                }
-            }
-            catch (JsonException)
-            {
-                // Fall through to text checks for incomplete generated output.
-            }
-        }
-
-        return JsonProviderMarkerRegex().IsMatch(value) || LineProviderMarkerRegex().IsMatch(value);
-    }
-
-    private static bool ContainsJsonProviderMarker(JsonElement element)
-    {
-        if (element.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var property in element.EnumerateObject())
-            {
-                if ((property.Name.Equals("source", StringComparison.OrdinalIgnoreCase) ||
-                     property.Name.Equals("sourceKey", StringComparison.OrdinalIgnoreCase)) &&
-                    property.Value.ValueKind == JsonValueKind.String &&
-                    string.Equals(property.Value.GetString(), "notion", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
-                if (ContainsJsonProviderMarker(property.Value))
-                {
-                    return true;
-                }
-            }
-        }
-        else if (element.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in element.EnumerateArray())
-            {
-                if (ContainsJsonProviderMarker(item))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
 
     private static string RedactPath(string relativePath, IReadOnlySet<string> sensitiveTokens)
     {

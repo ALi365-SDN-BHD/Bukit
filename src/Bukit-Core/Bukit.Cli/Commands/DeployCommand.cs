@@ -139,7 +139,7 @@ public static class DeployCommand
         };
 
         var provider = new GitHubPagesDeployProvider();
-        var result = await provider.DeployAsync(context, CancellationToken.None);
+        var result = await provider.DeployAsync(context, resolved.RootDir, CancellationToken.None);
 
         if (result.Success)
         {

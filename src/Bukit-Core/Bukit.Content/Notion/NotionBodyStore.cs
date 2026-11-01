@@ -6,10 +6,13 @@ namespace Bukit.Content.Notion;
 internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
 {
     private readonly Func<ContentDocument, CancellationToken, Task<string>> _htmlFactory;
+    private readonly INotionRelationFallbackResolver? _relationFallbackResolver;
     private readonly ConcurrentDictionary<string, Lazy<Task<ContentBody>>> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _lifetimeCts;
     private readonly Action? _onCacheEntryPublished;
     private readonly object _admissionLock = new();
+    private readonly IDisposable? _ownedClient;
+    private readonly SemaphoreSlim? _ownedGate;
     private int _activeOperations;
     private bool _admissionClosed;
     private TaskCompletionSource<bool>? _drainTcs;
@@ -31,12 +34,34 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
         Func<ContentDocument, CancellationToken, Task<string>> htmlFactory,
         CancellationToken lifetimeToken,
         Action? onCacheEntryPublished)
+        : this(htmlFactory, lifetimeToken, onCacheEntryPublished, ownedClient: null, ownedGate: null, relationFallbackResolver: null)
+    {
+    }
+
+    internal NotionBodyStore(
+        Func<ContentDocument, CancellationToken, Task<string>> htmlFactory,
+        CancellationToken lifetimeToken,
+        Action? onCacheEntryPublished,
+        IDisposable? ownedClient,
+        SemaphoreSlim? ownedGate,
+        INotionRelationFallbackResolver? relationFallbackResolver)
     {
         ArgumentNullException.ThrowIfNull(htmlFactory);
         _htmlFactory = htmlFactory;
         _lifetimeCts = CancellationTokenSource.CreateLinkedTokenSource(lifetimeToken);
         _onCacheEntryPublished = onCacheEntryPublished;
+        _ownedClient = ownedClient;
+        _ownedGate = ownedGate;
+        _relationFallbackResolver = relationFallbackResolver;
     }
+
+    /// <summary>
+    /// Relation resolver bound to the same source load (shared client), preferred by
+    /// composite projections over creating a new independent resolver.
+    /// </summary>
+    internal INotionRelationFallbackResolver? RelationFallbackResolver => _relationFallbackResolver;
+
+    internal int CachedEntryCount => _cache.Count;
 
     /// <summary>
     /// Seeds a completed body result for a key (used by bounded summary prefetch so the
@@ -48,7 +73,7 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(body);
         _cache.TryAdd(
             key,
-            new Lazy<Task<ContentBody>>(() => Task.FromResult(body), LazyThreadSafetyMode.None));
+            new Lazy<Task<ContentBody>>(() => Task.FromResult(body), LazyThreadSafetyMode.ExecutionAndPublication));
     }
 
     public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
@@ -74,29 +99,87 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
         }
 
         var key = document.Body.BodyKey ?? document.Id;
-        var lazy = _cache.GetOrAdd(
-            key,
-            _ => new Lazy<Task<ContentBody>>(
-                async () => new ContentBody(await _htmlFactory(document, _lifetimeCts.Token)),
-                LazyThreadSafetyMode.ExecutionAndPublication));
-        _onCacheEntryPublished?.Invoke();
-
-        Task<ContentBody> sharedTask = lazy.Value;
-        try
+        var staleRetries = 0;
+        while (true)
         {
-            return await sharedTask.WaitAsync(cancellationToken);
+            var createdHere = false;
+            var lazy = _cache.GetOrAdd(
+                key,
+                _ =>
+                {
+                    createdHere = true;
+                    return new Lazy<Task<ContentBody>>(
+                        async () => new ContentBody(await _htmlFactory(document, _lifetimeCts.Token)),
+                        LazyThreadSafetyMode.ExecutionAndPublication);
+                });
+            _onCacheEntryPublished?.Invoke();
+
+            var sharedTask = lazy.Value;
+            // Acquisition can land in the window where a previous shared task has
+            // already completed as failed/cancelled but its continuation has not
+            // removed the entry. Such a terminal entry is stale for this read: remove
+            // it by identity and acquire a fresh attempt instead of replaying it.
+            if (!createdHere && (sharedTask.IsFaulted || sharedTask.IsCanceled) && staleRetries++ < 3)
+            {
+                if (RemoveEntry(key, lazy))
+                {
+                    _ = sharedTask.Exception;
+                    continue;
+                }
+            }
+
+            // A shared task may fail or be cancelled after its last waiter already left
+            // (waiter cancellation does not stop the shared work). Remove that entry by
+            // identity so a later same-key read starts a fresh attempt.
+            ObserveSharedTask(key, lazy, sharedTask);
+            try
+            {
+                return await sharedTask.WaitAsync(cancellationToken);
+            }
+            catch
+            {
+                if (sharedTask.IsFaulted || sharedTask.IsCanceled)
+                {
+                    RemoveEntry(key, lazy);
+                }
+
+                throw;
+            }
         }
-        catch
+    }
+
+    private void ObserveSharedTask(string key, Lazy<Task<ContentBody>> lazy, Task<ContentBody> sharedTask)
+    {
+        if (sharedTask.IsCompleted)
         {
             if (sharedTask.IsFaulted || sharedTask.IsCanceled)
             {
-                ((ICollection<KeyValuePair<string, Lazy<Task<ContentBody>>>>)_cache)
-                    .Remove(new KeyValuePair<string, Lazy<Task<ContentBody>>>(key, lazy));
+                RemoveEntry(key, lazy);
+                _ = sharedTask.Exception;
             }
 
-            throw;
+            return;
         }
+
+        _ = sharedTask.ContinueWith(
+            static (task, state) =>
+            {
+                var (store, entryKey, entry) = ((NotionBodyStore, string, Lazy<Task<ContentBody>>))state!;
+                if (task.IsFaulted || task.IsCanceled)
+                {
+                    store.RemoveEntry(entryKey, entry);
+                    _ = task.Exception;
+                }
+            },
+            (this, key, lazy),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
+
+    private bool RemoveEntry(string key, Lazy<Task<ContentBody>> lazy)
+        => ((ICollection<KeyValuePair<string, Lazy<Task<ContentBody>>>>)_cache)
+            .Remove(new KeyValuePair<string, Lazy<Task<ContentBody>>>(key, lazy));
 
     private void EnterOperation()
     {
@@ -167,6 +250,10 @@ internal sealed class NotionBodyStore : IContentBodyStore, IAsyncDisposable
         {
             _cache.Clear();
             _lifetimeCts.Dispose();
+            // Released only after every admitted/background operation that may use them
+            // has settled above.
+            _ownedGate?.Dispose();
+            _ownedClient?.Dispose();
         }
     }
 }

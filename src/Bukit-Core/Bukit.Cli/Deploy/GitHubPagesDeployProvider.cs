@@ -7,9 +7,15 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
     public string Name => "github-pages";
 
     public async Task<DeployResult> DeployAsync(DeployContext context, CancellationToken ct)
+        => await DeployAsync(context, Directory.GetCurrentDirectory(), ct);
+
+    /// <summary>
+    /// Deploys using <paramref name="projectRoot"/> for repository identity and transport
+    /// context instead of the process working directory.
+    /// </summary>
+    internal async Task<DeployResult> DeployAsync(DeployContext context, string projectRoot, CancellationToken ct)
     {
         var logger = context.Logger;
-
         var gitPath = ResolveGit(logger);
         if (gitPath is null)
         {
@@ -52,10 +58,21 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
         }
 
         var gitCommandTimeout = ResolveGitCommandTimeout();
-        var repoInfo = await GetRepoInfoAsync(gitPath, gitCommandTimeout, ct);
+        RepoInfo? repoInfo;
+        try
+        {
+            repoInfo = await GetRepoInfoAsync(gitPath, projectRoot, gitCommandTimeout, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            var sanitized = SanitizeError(ex.Message, token);
+            logger.Error($"Deployment failed: {sanitized}");
+            return new DeployResult { Success = false, Error = sanitized };
+        }
+
         if (repoInfo is null)
         {
-            return new DeployResult { Success = false, Error = "Unable to determine GitHub repository. Ensure you are in a git repository with a remote 'origin' pointing to GitHub." };
+            return new DeployResult { Success = false, Error = "Unable to determine GitHub repository. Ensure the configured project is a git repository with a local or worktree 'origin' pointing directly to GitHub." };
         }
 
         var isProjectPages = !repoInfo.RepoName.EndsWith(".github.io", StringComparison.OrdinalIgnoreCase);
@@ -73,6 +90,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
 
         var tempDir = Path.Combine(Path.GetTempPath(), $"bukit-deploy-{Guid.NewGuid():N}");
         var checkoutDir = Path.Combine(tempDir, "checkout");
+        var remoteName = $"bukit-deploy-{Guid.NewGuid():N}";
         string? askpassScript = null;
 
         try
@@ -81,26 +99,30 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
 
             askpassScript = CreateAskpassScript(tempDir, token);
             var remoteUrl = $"https://github.com/{repoInfo.Owner}/{repoInfo.RepoName}.git";
-            var branchExists = await RemoteBranchExistsAsync(gitPath, token, askpassScript, remoteUrl, branch, gitCommandTimeout, ct);
+            // Establish the final transport config context before any preflight or transport:
+            // the private remote and its URL live in this temporary repository's local config.
+            await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "init");
+            await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "remote", "add", remoteName, remoteUrl);
+
+            await EnsureTransportTargetAsync(gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
+            var branchExists = await RemoteBranchExistsAsync(gitPath, token, askpassScript, checkoutDir, remoteName, branch, gitCommandTimeout, ct);
 
             if (branchExists)
             {
-                logger.Info($"Cloning existing {branch} branch...");
-                if (context.KeepHistory)
-                {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "clone", "--single-branch", "--branch", branch, remoteUrl, ".");
-                }
-                else
-                {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "clone", "--single-branch", "--branch", branch, "--depth", "1", remoteUrl, ".");
-                }
+                logger.Info($"Fetching existing {branch} branch...");
+                await EnsureTransportTargetAsync(gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
+                string[] fetchArguments = context.KeepHistory
+                    ? ["fetch", remoteName, $"refs/heads/{branch}"]
+                    : ["fetch", "--depth", "1", remoteName, $"refs/heads/{branch}"];
+                await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, fetchArguments);
+                // FETCH_HEAD avoids writing into a checked-out unborn branch (the repository
+                // default branch), which Git refuses to fetch into.
+                await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "checkout", "-B", branch, "FETCH_HEAD");
             }
             else
             {
                 logger.Info($"Creating new {branch} branch...");
-                await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "init");
-                await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "checkout", "-b", branch);
-                await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "remote", "add", "origin", remoteUrl);
+                await RunGitAsync(gitPath, checkoutDir, gitCommandTimeout, ct, "checkout", "-B", branch);
             }
 
             foreach (var entry in Directory.GetFileSystemEntries(checkoutDir))
@@ -153,13 +175,14 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
 
             try
             {
+                await EnsureTransportTargetAsync(gitPath, checkoutDir, remoteName, remoteUrl, gitCommandTimeout, ct);
                 if (context.Force)
                 {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "push", "--force", "origin", branch);
+                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "push", "--force", remoteName, branch);
                 }
                 else
                 {
-                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "push", "origin", branch);
+                    await RunGitAuthAsync(gitPath, token, askpassScript, checkoutDir, gitCommandTimeout, ct, "push", remoteName, branch);
                 }
             }
             catch (Exception pushEx)

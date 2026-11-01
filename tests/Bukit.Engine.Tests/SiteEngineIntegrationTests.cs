@@ -1,5 +1,7 @@
 using Bukit.Config;
 using Bukit.Content;
+using Bukit.Content.Markdown;
+using Bukit.Content.Notion;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Engine;
 using Bukit.Engine.Incremental;
@@ -9,6 +11,7 @@ using Bukit.Rendering;
 using Bukit.Shared;
 using Bukit.Engine.Tests.Infrastructure;
 using System.Collections.Concurrent;
+using System.Text;
 using System.Text.Json;
 using Xunit;
 using Xunit.Sdk;
@@ -5035,6 +5038,482 @@ public sealed partial class SiteEngineIntegrationTests
             logger,
             new StaticContentProviderFactory(new RawContentLoadResult([], EmptyContentBodyStore.Instance)),
             new DefaultSearchIndexBuilder());
+
+    [Theory]
+    [InlineData("strict", false)]
+    [InlineData("warn", true)]
+    public async Task BuildAsync_EscapedJsonIdentifier_StrictBlocksAndWarnCompletesWithFailedReport(string mode, bool expectCommit)
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var (root, config) = CreateBuildReportHealthSite();
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "privacy-integration-token");
+            Directory.CreateDirectory(Path.Combine(root, "static"));
+            File.WriteAllText(
+                Path.Combine(root, "static", "escaped.json"),
+                $$"""{"reference":"39bf\u006139a-5013-81ae-9516-fbd448f3bd47"}""");
+            config = config with
+            {
+                Content = ContentConfigFactory.FromSources([TestContent.MarkdownSource(), TestContent.NotionSource(notionId, name: "notion-pages")]),
+                Build = config.Build with
+                {
+                    Clean = mode == "warn",
+                    Report = new BuildReportConfig { Enabled = true, SecurityFailMode = mode }
+                }
+            };
+
+            var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["title"] = new ContentField("text", "Notion Page"),
+                ["slug"] = new ContentField("text", "notion-page"),
+                ["type"] = new ContentField("text", "page"),
+                ["collection"] = new ContentField("text", "page"),
+                ["source"] = new ContentField("text", "notion"),
+                ["notionPageId"] = new ContentField("text", notionId),
+                ["language"] = new ContentField("text", "en")
+            };
+            var document = new RawContentDocument(
+                Id: notionId,
+                Title: "Notion Page",
+                Slug: "notion-page",
+                PublishAt: DateTimeOffset.UtcNow,
+                Body: new RawBody(BodyKey: notionId),
+                Properties: RawContentValue.FromFields(fields),
+                Source: new ContentSourceInfo("notion", notionId, notionId, "loaded"),
+                CustomFields: fields);
+            var load = new RawContentLoadResult([document], new DictionaryContentBodyStore(new Dictionary<string, string> { [notionId] = "<p>body</p>" }));
+
+            if (!expectCommit)
+            {
+                var outputDir = Path.Combine(root, "dist");
+                Directory.CreateDirectory(outputDir);
+                File.WriteAllText(Path.Combine(outputDir, ".bukit-output-marker"), "bukit-output\n");
+                File.WriteAllText(Path.Combine(outputDir, "sentinel.txt"), "old output");
+            }
+
+            var engine = new SiteEngine(new TestLogger(), new StaticContentProviderFactory(load), new DefaultSearchIndexBuilder());
+            WriteTestThemeTemplates(root);
+
+            if (expectCommit)
+            {
+                await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+                using var report = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "dist", ".bukit", "security-report.json")));
+                Assert.Equal("failed", report.RootElement.GetProperty("checks").GetProperty("publicOutputPrivacy").GetProperty("status").GetString());
+                Assert.True(File.Exists(Path.Combine(root, "dist", "escaped.json")));
+            }
+            else
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None));
+                Assert.Equal("old output", File.ReadAllText(Path.Combine(root, "dist", "sentinel.txt")));
+                Assert.False(File.Exists(Path.Combine(root, "dist", "escaped.json")));
+                Assert.False(File.Exists(Path.Combine(root, "dist", ".bukit", "security-report.json")));
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_IncompletePrivacyScan_StrictBlocksWithoutTouchingOutputCacheOrManifest()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var (root, config) = CreateBuildReportHealthSite();
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "privacy-integration-token");
+            Directory.CreateDirectory(Path.Combine(root, "static"));
+            File.WriteAllText(Path.Combine(root, "static", "undecodable.json"), "{\"\\uD800\":\"x\"}");
+            config = config with
+            {
+                Content = ContentConfigFactory.FromSources([TestContent.MarkdownSource(), TestContent.NotionSource(notionId, name: "notion-pages")]),
+                Build = config.Build with
+                {
+                    Clean = false,
+                    Report = new BuildReportConfig { Enabled = true, SecurityFailMode = "strict" }
+                }
+            };
+            var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["title"] = new ContentField("text", "Notion Page"),
+                ["slug"] = new ContentField("text", "notion-page"),
+                ["type"] = new ContentField("text", "page"),
+                ["collection"] = new ContentField("text", "page"),
+                ["source"] = new ContentField("text", "notion"),
+                ["notionPageId"] = new ContentField("text", notionId),
+                ["language"] = new ContentField("text", "en")
+            };
+            var document = new RawContentDocument(
+                Id: notionId, Title: "Notion Page", Slug: "notion-page", PublishAt: DateTimeOffset.UtcNow,
+                Body: new RawBody(BodyKey: notionId), Properties: RawContentValue.FromFields(fields),
+                Source: new ContentSourceInfo("notion", notionId, notionId, "loaded"), CustomFields: fields);
+            var load = new RawContentLoadResult([document],
+                new DictionaryContentBodyStore(new Dictionary<string, string> { [notionId] = "<p>body</p>" }));
+
+            var outputDir = Path.Combine(root, "dist");
+            Directory.CreateDirectory(outputDir);
+            File.WriteAllText(Path.Combine(outputDir, ".bukit-output-marker"), "bukit-output\n");
+            File.WriteAllText(Path.Combine(outputDir, "sentinel.txt"), "old output");
+            var cacheDir = Path.Combine(root, ".cache");
+            Directory.CreateDirectory(cacheDir);
+            File.WriteAllText(Path.Combine(cacheDir, "build-manifest.json"), "old-manifest");
+            var outputBefore = HashTree(outputDir);
+            var cacheBefore = HashTree(cacheDir);
+
+            var engine = new SiteEngine(new TestLogger(), new StaticContentProviderFactory(load), new DefaultSearchIndexBuilder());
+            WriteTestThemeTemplates(root);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                engine.BuildAsync(config, root, new ConfigOverrides { Clean = false }, CancellationToken.None));
+
+            Assert.Equal(outputBefore, HashTree(outputDir));
+            Assert.Equal(cacheBefore, HashTree(cacheDir));
+            Assert.Equal("old output", File.ReadAllText(Path.Combine(outputDir, "sentinel.txt")));
+            Assert.Equal("old-manifest", File.ReadAllText(Path.Combine(cacheDir, "build-manifest.json")));
+            Assert.False(File.Exists(Path.Combine(outputDir, ".bukit", "security-report.json")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
+            CleanupDir(root);
+        }
+    }
+
+    [Theory]
+    [InlineData("{\"a\":")]
+    [InlineData("{\"\\uD800\":\"x\"}")]
+    [InlineData("{\"x\":\"\\uD800\"}")]
+    public async Task BuildAsync_IncompletePrivacyScan_FailsSecurityReportWithoutUnclassifiedException(string malformedOrUndecodableJson)
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var (root, config) = CreateBuildReportHealthSite();
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "privacy-integration-token");
+            Directory.CreateDirectory(Path.Combine(root, "static"));
+            File.WriteAllText(Path.Combine(root, "static", "invalid.json"), malformedOrUndecodableJson);
+            config = config with
+            {
+                Content = ContentConfigFactory.FromSources([TestContent.MarkdownSource(), TestContent.NotionSource(notionId, name: "notion-pages")]),
+                Build = config.Build with
+                {
+                    Clean = true,
+                    Report = new BuildReportConfig { Enabled = true, SecurityFailMode = "warn" }
+                }
+            };
+            var fields = new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["title"] = new ContentField("text", "Notion Page"),
+                ["slug"] = new ContentField("text", "notion-page"),
+                ["type"] = new ContentField("text", "page"),
+                ["collection"] = new ContentField("text", "page"),
+                ["source"] = new ContentField("text", "notion"),
+                ["notionPageId"] = new ContentField("text", notionId),
+                ["language"] = new ContentField("text", "en")
+            };
+            var document = new RawContentDocument(
+                Id: notionId,
+                Title: "Notion Page",
+                Slug: "notion-page",
+                PublishAt: DateTimeOffset.UtcNow,
+                Body: new RawBody(BodyKey: notionId),
+                Properties: RawContentValue.FromFields(fields),
+                Source: new ContentSourceInfo("notion", notionId, notionId, "loaded"),
+                CustomFields: fields);
+            var load = new RawContentLoadResult([document], new DictionaryContentBodyStore(new Dictionary<string, string> { [notionId] = "<p>body</p>" }));
+            var engine = new SiteEngine(new TestLogger(), new StaticContentProviderFactory(load), new DefaultSearchIndexBuilder());
+            WriteTestThemeTemplates(root);
+
+            await engine.BuildAsync(config, root, new ConfigOverrides(), CancellationToken.None);
+
+            using var report = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "dist", ".bukit", "security-report.json")));
+            Assert.Equal("failed", report.RootElement.GetProperty("checks").GetProperty("publicOutputPrivacy").GetProperty("status").GetString());
+            var errors = report.RootElement.GetProperty("errors").EnumerateArray().Select(value => value.GetString()!).ToArray();
+            Assert.Contains(errors, error => error.Contains("unable to complete", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(errors, error => error.Contains(notionId, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_MarkdownBodyChangedBetweenMetadataAndBody_FailsBeforeCommitAndKeepsOldOutput()
+    {
+        var (root, config) = CreateBuildReportHealthSite();
+        var contentFile = Path.Combine(root, "content", "changing.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(contentFile)!);
+        const string versionA = "---\ntitle: Changing\ncollection: page\n---\n# Version A\n\noriginal body";
+        File.WriteAllText(contentFile, versionA);
+        config = config with { Build = config.Build with { Clean = false } };
+        try
+        {
+            var contentDir = Path.Combine(root, "content");
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "<html><body>{{ page.content }}</body></html>");
+            WriteTestThemeTemplates(root);
+            var firstEngine = new SiteEngine(new TestLogger(),
+                new SingleProviderFactory(new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir))),
+                new DefaultSearchIndexBuilder());
+
+            await firstEngine.BuildAsync(config, root, new ConfigOverrides { Clean = true, Incremental = true });
+            var outputHash = HashTree(Path.Combine(root, "dist"));
+            var cacheHash = HashTree(Path.Combine(root, ".cache"));
+            Assert.Contains("Version A", File.ReadAllText(Path.Combine(root, "dist", "pages", "changing", "index.html")), StringComparison.Ordinal);
+
+            var secondEngine = new SiteEngine(new TestLogger(),
+                new SingleProviderFactory(new SwappingProvider(
+                    new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir)),
+                    contentFile,
+                    "---\ntitle: Changing\ncollection: page\n---\n# Version B\n\nchanged body")),
+                new DefaultSearchIndexBuilder());
+
+            // Force this build to render (template change) so the delayed body is read
+            // while incremental mode is enabled.
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"),
+                "<html><body><article>{{ page.content }}</article></body></html>");
+
+            await Assert.ThrowsAsync<ContentException>(() =>
+                secondEngine.BuildAsync(config, root, new ConfigOverrides { Clean = false, Incremental = true }));
+
+            Assert.Equal(outputHash, HashTree(Path.Combine(root, "dist")));
+            Assert.Equal(cacheHash, HashTree(Path.Combine(root, ".cache")));
+            Assert.DoesNotContain("Version B", File.ReadAllText(Path.Combine(root, "dist", "pages", "changing", "index.html")), StringComparison.Ordinal);
+
+            File.WriteAllText(contentFile, versionA);
+            var restored = new SiteEngine(new TestLogger(),
+                new SingleProviderFactory(new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir))),
+                new DefaultSearchIndexBuilder());
+            var restoredResult = await restored.BuildAsync(config, root, new ConfigOverrides { Clean = false, Incremental = true });
+            Assert.Contains("Version A", File.ReadAllText(Path.Combine(root, "dist", "pages", "changing", "index.html")), StringComparison.Ordinal);
+            var stable = await restored.BuildAsync(config, root, new ConfigOverrides { Clean = false, Incremental = true });
+            Assert.True(stable.Incremental.CacheHitCount >= 1);
+            Assert.Contains("Version A", File.ReadAllText(Path.Combine(root, "dist", "pages", "changing", "index.html")), StringComparison.Ordinal);
+        }
+        finally
+        {
+            CleanupDir(root);
+        }
+    }
+
+    [Fact]
+    public async Task BuildAsync_NotionRenderContentModeSwitch_InvalidatesThenReusesInBothDirections()
+    {
+        const string notionId = "39bfa39a-5013-81ae-9516-fbd448f3bd47";
+        var (root, baseConfig) = CreateBuildReportHealthSite();
+        var originalToken = Environment.GetEnvironmentVariable(EnvironmentHelper.NotionTokenKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, "inc-09-token");
+            var config = baseConfig with
+            {
+                Content = TestContent.Notion(notionId) with { Media = new MediaConfig { DownloadToLocal = false } },
+                Build = baseConfig.Build with { Clean = true, Report = new BuildReportConfig { Enabled = false } }
+            };
+            File.WriteAllText(Path.Combine(root, "layouts", "pages", "page.html"), "<html><body>{{ page.content }}</body></html>");
+            WriteTestThemeTemplates(root);
+            var pagePath = Path.Combine(root, "dist", "pages", "notion-page", "index.html");
+
+            NotionContentSource CreateSource(bool renderContent)
+            {
+                var options = new NotionContentSourceOptions
+                {
+                    DatabaseId = "db-inc-09",
+                    Token = "token",
+                    FilterType = "none",
+                    FieldPolicyMode = "all",
+                    RenderContent = renderContent,
+                    RenderConcurrency = 2,
+                    MaxRps = 1000,
+                    MaxRetries = 0
+                };
+                return new NotionContentSource(options, logger: null,
+                    () => new NotionContentClient(options, new IncrementalNotionHandler(), static (_, _) => Task.CompletedTask));
+            }
+
+            var pageRenders = new List<int>();
+            async Task<BuildResult> BuildAsync(bool renderContent, bool clean)
+            {
+                var counter = new CountingPageRenderer(new ScribanTemplateRendererAdapter(Path.Combine(root, "layouts")), "/pages/notion-page/");
+                var engine = new SiteEngine(new TestLogger(), new SingleProviderFactory(CreateSource(renderContent)),
+                    new DefaultSearchIndexBuilder(), _ => counter);
+                var built = await engine.BuildAsync(config, root, new ConfigOverrides { Clean = clean, Incremental = true });
+                pageRenders.Add(counter.PageRenders);
+                return built;
+            }
+
+            async Task<string> BuildFullHtmlAsync(bool renderContent)
+            {
+                var (fullRoot, fullBase) = CreateBuildReportHealthSite();
+                try
+                {
+                    var fullConfig = fullBase with
+                    {
+                        Content = TestContent.Notion(notionId) with { Media = new MediaConfig { DownloadToLocal = false } },
+                        Build = fullBase.Build with { Clean = true, Report = new BuildReportConfig { Enabled = false } }
+                    };
+                    File.WriteAllText(Path.Combine(fullRoot, "layouts", "pages", "page.html"), "<html><body>{{ page.content }}</body></html>");
+                    WriteTestThemeTemplates(fullRoot);
+                    var engine = new SiteEngine(new TestLogger(), new SingleProviderFactory(CreateSource(renderContent)), new DefaultSearchIndexBuilder());
+                    await engine.BuildAsync(fullConfig, fullRoot, new ConfigOverrides { Clean = true, Incremental = false });
+                    return File.ReadAllText(Path.Combine(fullRoot, "dist", "pages", "notion-page", "index.html"));
+                }
+                finally
+                {
+                    CleanupDir(fullRoot);
+                }
+            }
+
+            var first = await BuildAsync(renderContent: true, clean: true);
+            Assert.Equal(0, first.Incremental.CacheHitCount);
+            Assert.Equal(1, pageRenders[^1]);
+            Assert.Contains("Notion body", File.ReadAllText(pagePath), StringComparison.Ordinal);
+
+            var disabled = await BuildAsync(renderContent: false, clean: false);
+            Assert.Equal(0, disabled.Incremental.CacheHitCount);
+            Assert.Equal(1, pageRenders[^1]);
+            Assert.DoesNotContain("Notion body", File.ReadAllText(pagePath), StringComparison.Ordinal);
+
+            var stableDisabled = await BuildAsync(renderContent: false, clean: false);
+            Assert.True(stableDisabled.Incremental.CacheHitCount >= 1);
+            Assert.Equal(0, pageRenders[^1]);
+            var disabledHtml = File.ReadAllText(pagePath);
+            Assert.DoesNotContain("Notion body", disabledHtml, StringComparison.Ordinal);
+            Assert.Equal(await BuildFullHtmlAsync(false), disabledHtml);
+
+            var enabled = await BuildAsync(renderContent: true, clean: false);
+            Assert.Equal(0, enabled.Incremental.CacheHitCount);
+            Assert.Equal(1, pageRenders[^1]);
+            Assert.Contains("Notion body", File.ReadAllText(pagePath), StringComparison.Ordinal);
+
+            var stableEnabled = await BuildAsync(renderContent: true, clean: false);
+            Assert.True(stableEnabled.Incremental.CacheHitCount >= 1);
+            Assert.Equal(0, pageRenders[^1]);
+            var enabledHtml = File.ReadAllText(pagePath);
+            Assert.Contains("Notion body", enabledHtml, StringComparison.Ordinal);
+            Assert.Equal(await BuildFullHtmlAsync(true), enabledHtml);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(EnvironmentHelper.NotionTokenKey, originalToken);
+            CleanupDir(root);
+        }
+    }
+
+    private sealed class CountingPageRenderer(ITemplateRenderer inner, string pageUrl) : ITemplateRenderer
+    {
+        public int PageRenders { get; private set; }
+
+        public string RenderPage(string templateRelativePath, PageModel model)
+        {
+            if (string.Equals(model.Page?.Url, pageUrl, StringComparison.Ordinal))
+            {
+                PageRenders++;
+            }
+
+            return inner.RenderPage(templateRelativePath, model);
+        }
+
+        public string RenderList(string templateRelativePath, ListPageModel model)
+            => inner.RenderList(templateRelativePath, model);
+    }
+
+    private sealed class SwappingProvider(IContentProvider inner, string path, string replacement) : IContentProvider
+    {
+        public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
+        {
+            var result = await inner.LoadRawAsync(cancellationToken);
+            return new RawContentLoadResult(result.Documents, new SwappingBodyStore(result.BodyStore, path, replacement));
+        }
+    }
+
+    private sealed class SwappingBodyStore(IContentBodyStore inner, string path, string replacement) : IContentBodyStore
+    {
+        private int _swapped;
+
+        public async Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Exchange(ref _swapped, 1) == 0)
+            {
+                File.WriteAllText(path, replacement);
+            }
+
+            return await inner.GetAsync(document, cancellationToken);
+        }
+    }
+
+    private sealed class SingleProviderFactory(IContentProvider provider) : IContentProviderFactory
+    {
+        public IContentProvider Create(AppConfig config, string rootDir, bool isCi, ILogger logger) => provider;
+
+        public Task<RawContentLoadResult> LocalizeContentImagesAsync(
+            RawContentLoadResult result, MediaConfig media, string rootDir, string cacheDir, ILogger logger, CancellationToken cancellationToken)
+            => Task.FromResult(result);
+    }
+
+    private sealed class IncrementalNotionHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var url = request.RequestUri!.AbsoluteUri;
+            if (request.Method == HttpMethod.Get && url == "https://api.notion.com/v1/databases/db-inc-09")
+            {
+                return Json("""
+                {"properties":{"Title":{},"Slug":{},"Type":{},"PublishAt":{},"Collection":{}}}
+                """);
+            }
+
+            if (request.Method == HttpMethod.Post && url == "https://api.notion.com/v1/databases/db-inc-09/query")
+            {
+                return Json("""
+                {
+                  "has_more": false,
+                  "results": [{
+                    "id": "notion-page-id",
+                    "created_time": "2026-01-02T03:04:05.000Z",
+                    "last_edited_time": "2026-05-15T12:00:00.000Z",
+                    "properties": {
+                      "Title": { "type": "title", "title": [{ "plain_text": "Notion Page" }] },
+                      "Slug": { "type": "rich_text", "rich_text": [{ "plain_text": "notion-page" }] },
+                      "Type": { "type": "select", "select": { "name": "page" } },
+                      "PublishAt": { "type": "date", "date": { "start": "2026-05-15T10:30:00+00:00" } },
+                      "Collection": { "type": "select", "select": { "name": "page" } }
+                    }
+                  }]
+                }
+                """);
+            }
+
+            if (request.Method == HttpMethod.Get && url.Contains("/v1/blocks/", StringComparison.Ordinal))
+            {
+                return Json("""
+                {"results":[{"type":"paragraph","paragraph":{"rich_text":[{"plain_text":"Notion body"}]}}],"has_more":false}
+                """);
+            }
+
+            return Json("{}");
+        }
+
+        private static Task<HttpResponseMessage> Json(string body)
+            => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            });
+    }
+
+    private static string HashTree(string directory)
+        => string.Join("\n", Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+            .Order(StringComparer.Ordinal)
+            .Select(path => Path.GetRelativePath(directory, path) + ":" +
+                Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(path)))));
 
     private static (string Root, AppConfig Config) CreateBuildReportHealthSite(
         bool multiLanguage = false,

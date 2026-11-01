@@ -120,12 +120,13 @@ internal static class PageRenderDispatcher
                             existing.RouteHash == rh && existing.RenderDependencyHash == entryRenderDependencyHash;
 
                         string? contentHash = null;
-                        if (canEvaluateSkip)
+                        if (IncrementalBuildEngine.TryComputeStableContentHash(document, bodyStore, mh, out var stableContentHash))
                         {
-                            if (IncrementalBuildEngine.TryComputeStableContentHash(document, bodyStore, mh, out var sch))
-                                contentHash = sch;
-                            else
-                                contentHash = await IncrementalBuildEngine.ComputeContentHashAsync(document, bodyStore, ct).ConfigureAwait(false);
+                            contentHash = stableContentHash;
+                        }
+                        else if (canEvaluateSkip)
+                        {
+                            contentHash = await IncrementalBuildEngine.ComputeContentHashAsync(document, bodyStore, ct).ConfigureAwait(false);
                         }
 
                         var canSkip = canEvaluateSkip && existing!.ContentHash == contentHash;

@@ -99,3 +99,35 @@ type also fails with a diagnostic identifying the page and property.
 Notion blocks are rendered by `NotionBlockRendererRegistry`. Built-in renderers
 cover headings, paragraphs, lists, tables, toggles, callouts, media, code,
 embeds, equations, synced blocks, and unsupported no-op block types.
+
+## Rate Limiting, Concurrency And Lifecycle
+
+One source load owns one Notion client and one body concurrency gate. The
+database query, relation resolution, summary prefetch, cross-source relation
+lookup, and lazy body reads for that load share the same rate-limit state, so
+`maxRps` and retry behaviour cover the whole load instead of resetting per page.
+`renderConcurrency` bounds active block-body renders for the same load.
+
+Each load result has independent resources. Multiple sources, even with the same
+token, each have their own budget; allocate `maxRps` per source when several
+sources share a token. Disposing a body store closes new reads, waits for
+already accepted renders, cancels and observes background work, then releases
+the client and gate.
+
+A cancelled waiter does not cancel a shared body render for other waiters. If a
+shared render fails or is cancelled after its last waiter left, the failure is
+removed so the next read starts a new attempt instead of replaying the old
+failure. Successfully prefetched empty or whitespace-only bodies are reused with
+`cacheMode: off`, so they are not requested twice.
+
+## Caching And Incremental Rendering
+
+`readwrite` creates the cache directory; `readonly` reads an existing cache and
+fails on a miss; `off` does not read or create the cache. The effective
+`renderContent` mode is part of the stable incremental fingerprint. Switching it
+in either direction invalidates the affected pages once; after the switch is
+stable, the next build reuses them again.
+
+A `readwrite` cache directory must not equal, contain, or sit inside a configured
+Markdown content source (or the reverse). Create writable Notion caches in a
+dedicated directory such as `.cache/notion`.

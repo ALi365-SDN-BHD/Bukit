@@ -398,6 +398,57 @@ public sealed class CompositeContentProviderTests
         Assert.Equal(1, storeB.DisposeCount);
     }
 
+    [Fact]
+    public async Task LoadRawAsync_FinalConstructionFails_NestedDisposeFailureStillReleasesLaterChild()
+    {
+        var later = new FixedHtmlBodyStore("later");
+        var nested = new CompositeContentBodyStore(new (string, IContentBodyStore)[]
+        {
+            ("bad", new ThrowingBodyStore()),
+            ("later", later)
+        });
+        var provider = new TestProvider(new RawContentLoadResult(
+            new[] { Document("a", "Doc A", "a") }, nested));
+        var composite = new CompositeContentProvider(new (string, string, IContentProvider)[]
+        {
+            (null!, "content", provider)
+        });
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() => composite.LoadRawAsync());
+
+        Assert.Equal(1, later.DisposeCount);
+    }
+
+    private sealed class ThrowingBodyStore : IContentBodyStore, IAsyncDisposable
+    {
+        public Task<ContentBody> GetAsync(ContentDocument document, CancellationToken cancellationToken = default)
+            => Task.FromResult(new ContentBody(string.Empty));
+
+        public ValueTask DisposeAsync() => throw new InvalidOperationException("nested dispose failed");
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_FinalCompositeConstructionFails_DisposesEachChildStoreOnce()
+    {
+        var storeA = new FixedHtmlBodyStore("bodyA");
+        var storeB = new FixedHtmlBodyStore("bodyB");
+        var providerA = new TestProvider(new RawContentLoadResult(
+            new[] { Document("a", "Doc A", "a") }, storeA));
+        var providerB = new TestProvider(new RawContentLoadResult(
+            new[] { Document("b", "Doc B", "b") }, storeB));
+        var composite = new CompositeContentProvider(new (string, string, IContentProvider)[]
+        {
+            (null!, "content", providerA),
+            ("src2", "content", providerB)
+        });
+
+        var exception = await Assert.ThrowsAsync<ArgumentNullException>(() => composite.LoadRawAsync());
+
+        Assert.Equal("key", exception.ParamName);
+        Assert.Equal(1, storeA.DisposeCount);
+        Assert.Equal(1, storeB.DisposeCount);
+    }
+
     private static ContentDocument ToContentDocument(RawContentDocument raw)
         => ContentDocumentFactory.CreateDocument(raw, raw.CustomFields);
 

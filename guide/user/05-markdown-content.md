@@ -84,6 +84,38 @@ for its target collections; it is not implicit multi-membership.
   rendered text.
 - Media URLs in body HTML can be localized through `content.media`.
 
+## Source Directory Protection
+
+A Markdown `dir` is protected as a whole source root. Build output, the default
+or custom cache, media downloads, external metrics files, and Notion writable
+caches must not equal, contain, or sit inside a configured Markdown source
+directory (and the reverse is also rejected). The check runs before staging,
+marker writes, cache creation, or clean deletion; `includePaths` and
+`includeGlobs` choose documents but do not narrow the protected root.
+
+`markdown.dir: "."` therefore conflicts with any in-project output or cache.
+Use a dedicated content directory such as `content/`. If a conflict is
+reported, change the source directory or the managed target; Bukit refuses the
+build instead of deleting or overwriting source files.
+
+The guarantee covers configured Markdown roots and the built-in injected
+Markdown/Composite and Notion writable-cache identities. A custom provider or
+opaque wrapper that reads hidden disk locations is outside this recognizable
+source boundary; it keeps the ordinary output safety rules and is not reported
+as source-protected.
+
+## Body Changes During a Build
+
+The Markdown provider captures a body-only SHA-256 fingerprint (front matter is
+excluded) with the document metadata. When the body is loaded later, Bukit
+verifies that the file still matches this fingerprint before rendering it.
+
+If the file changes between metadata loading and body rendering, the build
+fails before commit with a "content changed while the build was running"
+diagnostic. The previous output, cache, and manifest stay intact. Stop editing
+the file and rerun the build; Bukit then publishes the current content. The
+diagnostic never prints file contents.
+
 ## Publish Date Migration
 
 Markdown file modification times are not content metadata and no longer supply

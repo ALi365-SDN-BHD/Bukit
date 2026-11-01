@@ -57,6 +57,121 @@ theme:
     }
 
     [Fact]
+    public async Task RunAsync_WithConfig_RefusesSourceInsideCacheBeforeDeletingAnything()
+    {
+        var cacheSource = Path.Combine(_testDir, ".cache", "content");
+        Directory.CreateDirectory(cacheSource);
+        File.WriteAllText(Path.Combine(cacheSource, "draft.md"), "---\ntitle: Draft\n---\nbody");
+        var outputSentinel = Path.Combine(_testDir, "dist", "test.txt");
+        var configPath = Path.Combine(_testDir, "source-in-cache.yaml");
+        File.WriteAllText(configPath, """
+site:
+  name: test
+  title: Test
+  baseUrl: /
+build:
+  output: dist
+content:
+  sources:
+    - type: markdown
+      name: page
+      collection: page
+      markdown:
+        dir: .cache/content
+theme:
+  name: starter
+""");
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", ["--config", configPath]));
+
+        Assert.Equal(2, exitCode);
+        Assert.True(File.Exists(outputSentinel));
+        Assert.True(File.Exists(Path.Combine(_testDir, "dist", ".bukit-output-marker")));
+        Assert.Equal("---\ntitle: Draft\n---\nbody", File.ReadAllText(Path.Combine(cacheSource, "draft.md")));
+    }
+
+    [Fact]
+    public async Task RunAsync_WithConfig_CleansIndependentOutputAndCache()
+    {
+        var content = Path.Combine(_testDir, "content");
+        Directory.CreateDirectory(content);
+        File.WriteAllText(Path.Combine(content, "draft.md"), "---\ntitle: Draft\n---\nbody");
+        var cache = Path.Combine(_testDir, ".cache");
+        Directory.CreateDirectory(cache);
+        File.WriteAllText(Path.Combine(cache, "cached.txt"), "cache");
+        var configPath = Path.Combine(_testDir, "safe.yaml");
+        File.WriteAllText(configPath, """
+site:
+  name: test
+  title: Test
+  baseUrl: /
+build:
+  output: dist
+content:
+  sources:
+    - type: markdown
+      name: page
+      collection: page
+      markdown:
+        dir: content
+theme:
+  name: starter
+""");
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", ["--config", configPath]));
+
+        Assert.Equal(0, exitCode);
+        Assert.False(Directory.Exists(Path.Combine(_testDir, "dist")));
+        Assert.False(Directory.Exists(cache));
+        Assert.True(File.Exists(Path.Combine(content, "draft.md")));
+    }
+
+    [Fact]
+    public async Task RunAsync_WithConfig_CleansOutputWithMultipleIndependentContentSources()
+    {
+        var first = Path.Combine(_testDir, "content-a");
+        var second = Path.Combine(_testDir, "content-b");
+        Directory.CreateDirectory(first);
+        Directory.CreateDirectory(second);
+        File.WriteAllText(Path.Combine(first, "a.md"), "---\ntitle: A\n---\nAlpha");
+        File.WriteAllText(Path.Combine(second, "b.md"), "---\ntitle: B\n---\nBeta");
+        var cache = Path.Combine(_testDir, ".cache");
+        Directory.CreateDirectory(cache);
+        File.WriteAllText(Path.Combine(cache, "cached.txt"), "cache");
+        var configPath = Path.Combine(_testDir, "multi-source.yaml");
+        File.WriteAllText(configPath, """
+site:
+  name: test
+  title: Test
+  baseUrl: /
+build:
+  output: dist
+content:
+  sources:
+    - type: markdown
+      name: a
+      collection: page
+      markdown:
+        dir: content-a
+    - type: markdown
+      name: b
+      collection: page
+      markdown:
+        dir: content-b
+theme:
+  name: starter
+""");
+
+        var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(CliTestHelper.CreateCommand("clean", ["--config", configPath]));
+
+        Assert.Equal(0, exitCode);
+        Assert.False(Directory.Exists(Path.Combine(_testDir, "dist")));
+        Assert.False(Directory.Exists(cache));
+        Assert.True(File.Exists(Path.Combine(first, "a.md")));
+        Assert.True(File.Exists(Path.Combine(second, "b.md")));
+    }
+
+    [Fact]
     public async Task RunAsync_WithConfig_RefusesUnsafeOutputDirectory()
     {
         var gitDir = Path.Combine(_testDir, ".git");

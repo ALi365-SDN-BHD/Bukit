@@ -735,6 +735,94 @@ public sealed class NotionContentSourceEndToEndTests
         }
     }
 
+    [Fact]
+    public async Task BodyStore_WithAutoSummaryAndCacheOff_EmptyPrefetchIsReusedWithoutSecondBlockRequest()
+    {
+        var handler = new EmptyBodyNotionHandler();
+        var options = new NotionContentSourceOptions
+        {
+            DatabaseId = "db-empty",
+            Token = "token",
+            FilterType = "none",
+            FieldPolicyMode = "all",
+            RenderContent = true,
+            AutoSummary = true,
+            AutoSummaryMaxLength = 100,
+            CacheMode = "off",
+            MaxRetries = 0,
+            MaxRps = 100
+        };
+        NotionContentClient CreateClient() => new(options, handler, static (_, _) => Task.CompletedTask);
+
+        var result = await new NotionContentSource(options, logger: null, CreateClient).LoadRawAsync();
+
+        var document = Assert.Single(result.Documents);
+        Assert.Equal(1, handler.BlockRequestCount);
+        var body = await result.BodyStore.GetAsync(document);
+        Assert.Equal(string.Empty, body.Html.Trim());
+        Assert.Equal(1, handler.BlockRequestCount);
+        Assert.False(ContentFieldReader.TryGetField(document.CustomFields, "summary", out _));
+    }
+
+    private sealed class EmptyBodyNotionHandler : HttpMessageHandler
+    {
+        public int BlockRequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var url = request.RequestUri!.AbsoluteUri;
+            if (request.Method == HttpMethod.Get && url == "https://api.notion.com/v1/databases/db-empty")
+            {
+                return Json("""
+                {
+                  "properties": {
+                    "Title": {},
+                    "Slug": {},
+                    "Type": {},
+                    "PublishAt": {}
+                  }
+                }
+                """);
+            }
+
+            if (request.Method == HttpMethod.Post && url == "https://api.notion.com/v1/databases/db-empty/query")
+            {
+                return Json("""
+                {
+                  "has_more": false,
+                  "results": [
+                    {
+                      "id": "empty-page",
+                      "created_time": "2026-01-02T03:04:05.000Z",
+                      "last_edited_time": "2026-05-15T12:00:00.000Z",
+                      "properties": {
+                        "Title": { "type": "title", "title": [{ "plain_text": "Empty Page" }] },
+                        "Slug": { "type": "rich_text", "rich_text": [{ "plain_text": "empty-page" }] },
+                        "Type": { "type": "select", "select": { "name": "page" } },
+                        "PublishAt": { "type": "date", "date": { "start": "2026-05-15T10:30:00+00:00" } }
+                      }
+                    }
+                  ]
+                }
+                """);
+            }
+
+            if (request.Method == HttpMethod.Get && url.Contains("/v1/blocks/", StringComparison.Ordinal))
+            {
+                BlockRequestCount++;
+                return Json("""{"results":[],"has_more":false}""");
+            }
+
+            return Json("{}");
+        }
+
+        private static Task<HttpResponseMessage> Json(string body)
+            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            });
+    }
+
     private sealed class FakeNotionHandler : HttpMessageHandler
     {
         private readonly Dictionary<HttpRequestMessage, string> _requestBodies = new();

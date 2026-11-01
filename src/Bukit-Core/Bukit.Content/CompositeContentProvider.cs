@@ -37,6 +37,12 @@ public sealed class CompositeContentProvider : IContentProvider
         _schema = schema;
     }
 
+    /// <summary>
+    /// Read-only child identities used by build source/write overlap checks.
+    /// </summary>
+    internal IReadOnlyList<IContentProvider> ChildProviders
+        => _providers.Select(static provider => provider.Provider).ToArray();
+
     public async Task<RawContentLoadResult> LoadRawAsync(CancellationToken cancellationToken = default)
     {
         var tasks = new Task<RawContentLoadResult>[_providers.Count];
@@ -58,10 +64,15 @@ public sealed class CompositeContentProvider : IContentProvider
         var relationSources = new NotionRelationProjectionSource[_providers.Count];
         for (var i = 0; i < _providers.Count; i++)
         {
-            var resolver = _providers[i].Provider is INotionRelationFallbackResolverProvider provider
-                ? provider.RelationFallbackResolver
-                : null;
-            relationSources[i] = new NotionRelationProjectionSource(_providers[i].SourceKey, (await tasks[i]).Documents, resolver);
+            var result = await tasks[i];
+            // Prefer the resolver bound to this load (shared client); other providers keep
+            // their existing independent fallback behavior.
+            var resolver = result.BodyStore is NotionBodyStore { RelationFallbackResolver: { } boundResolver }
+                ? boundResolver
+                : _providers[i].Provider is INotionRelationFallbackResolverProvider provider
+                    ? provider.RelationFallbackResolver
+                    : null;
+            relationSources[i] = new NotionRelationProjectionSource(_providers[i].SourceKey, result.Documents, resolver);
         }
 
         IReadOnlyList<NotionRelationProjectionSource> projectedSources;
@@ -153,7 +164,15 @@ public sealed class CompositeContentProvider : IContentProvider
             throw;
         }
 
-        return new RawContentLoadResult(all, new CompositeContentBodyStore(orderedStores));
+        try
+        {
+            return new RawContentLoadResult(all, new CompositeContentBodyStore(orderedStores));
+        }
+        catch
+        {
+            await DisposeStoresAsync(orderedStores.Select(static entry => entry.Store)).ConfigureAwait(false);
+            throw;
+        }
     }
 
     private static async Task DisposeCompletedStoresAsync(Task<RawContentLoadResult>[] tasks)

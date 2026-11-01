@@ -280,6 +280,40 @@ public sealed class ContentStagesTests
     }
 
     [Fact]
+    public async Task ContentLoadStage_LoggerFailureAfterLoad_DisposesBodyStoreAndPreservesLogError()
+    {
+        var store = new TrackingBodyStore();
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["type"] = "page",
+            ["collection"] = "page",
+            ["sourceMode"] = "content",
+            ["sourceKey"] = "markdown"
+        });
+        var loadResult = new RawContentLoadResult(
+        [
+            new RawContentDocument(
+                Id: "article-1",
+                Title: "Article",
+                Slug: "article-1",
+                PublishAt: DateTimeOffset.UnixEpoch,
+                Body: new RawBody(InlineHtml: "<p>article</p>"),
+                Properties: RawContentValue.FromFields(fields),
+                CustomFields: fields)
+        ], store);
+        var stage = new ContentLoadStage(new StubContentProviderFactory(loadResult));
+        var input = new ContentStageInput(
+            Array.Empty<ContentDocument>(), EmptyContentBodyStore.Instance, Config(), NoOverrides,
+            "/root", "/cache", new ThrowingContentLoadedLogger());
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            stage.ExecuteAsync(input, CancellationToken.None));
+
+        Assert.Equal("content.loaded log failed", exception.Message);
+        Assert.Equal(1, store.DisposeCount);
+    }
+
+    [Fact]
     public async Task ContentLoadStage_PassesContentModelSchemaToNormalizer()
     {
         var loadResult = new RawContentLoadResult(
@@ -1307,6 +1341,21 @@ public sealed class ContentStagesTests
                       default: {{yamlDefault}}
             """);
         return path;
+    }
+
+    private sealed class ThrowingContentLoadedLogger : ILogger
+    {
+        public void Debug(string message) { }
+        public void Info(string message)
+        {
+            if (message.Contains("event=content.loaded", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("content.loaded log failed");
+            }
+        }
+
+        public void Warn(string message) { }
+        public void Error(string message) { }
     }
 
     private sealed class NoOpLogger : ILogger

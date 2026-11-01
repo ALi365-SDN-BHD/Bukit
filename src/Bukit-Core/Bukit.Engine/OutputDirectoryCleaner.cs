@@ -1,3 +1,4 @@
+using Bukit.Config;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
@@ -50,6 +51,64 @@ public static class OutputDirectoryCleaner
                 $"How to fix: review and move or remove the existing files, or set build.output to a dedicated empty output directory. " +
                 $"Then rerun the build; a successful build creates .bukit-output-marker automatically.",
                 DiagnosticCode.BuildOutputNoMarker);
+        }
+    }
+
+    internal static IReadOnlyList<string> GetConfiguredContentSources(AppConfig config, string rootDir)
+    {
+        var sources = new List<string>();
+        foreach (var source in config.Content.Sources ?? [])
+        {
+            if (!string.Equals(source.Type, "markdown", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(source.Markdown?.Dir))
+            {
+                continue;
+            }
+
+            sources.Add(BuildPathUtils.MakeAbsolute(rootDir, source.Markdown!.Dir));
+        }
+
+        return sources;
+    }
+
+    /// <summary>
+    /// Rejects known local content roots that overlap a managed write target in either direction.
+    /// Hidden disk roots of opaque custom providers are not inferred here.
+    /// </summary>
+    internal static void EnsureNoSourceOverlap(
+        IReadOnlyList<string> sourceRoots,
+        IEnumerable<string> writeTargets)
+    {
+        if (sourceRoots.Count == 0)
+        {
+            return;
+        }
+
+        var sources = sourceRoots
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .Select(BuildResourceLease.Canonical)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        foreach (var target in writeTargets)
+        {
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                continue;
+            }
+
+            var write = BuildResourceLease.Canonical(target);
+            foreach (var source in sources)
+            {
+                if (BuildResourceLease.Same(source, write) ||
+                    BuildResourceLease.Contains(source, write) ||
+                    BuildResourceLease.Contains(write, source))
+                {
+                    throw new ConfigException(
+                        $"Refusing to use a build content source as a managed write target: '{source}' overlaps '{write}'. " +
+                        "How to fix: move the content source to a dedicated directory outside build output, cache, media, metrics and Notion cache paths.",
+                        DiagnosticCode.BuildOutputUnsafe);
+                }
+            }
         }
     }
 
