@@ -250,9 +250,9 @@ public sealed class ContentImageRewritePipeline
             // List of string URLs (e.g. Notion "files" property with multiple entries)
             if (field.Value is IReadOnlyList<string> urls && urls.Count > 0)
             {
-                var localizable = isFileType
-                    ? urls.Where(HtmlMediaReferenceScanner.IsImageUrl).ToArray()
-                    : urls.ToArray();
+                string[] localizable = isFileType
+                    ? [.. urls.Where(HtmlMediaReferenceScanner.IsImageUrl)]
+                    : [.. urls];
                 if (localizable.Length == 0)
                 {
                     continue;

@@ -3,11 +3,10 @@ using System.Text.RegularExpressions;
 
 namespace Bukit.Content.Notion;
 
-internal static class NotionHtmlLinkExpiry
+internal static partial class NotionHtmlLinkExpiry
 {
-    private static readonly Regex UrlRegex = new(
-        @"https?://[^\s""'<>]+",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    [GeneratedRegex(@"https?://[^\s""'<>]+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex UrlRegex();
 
     internal static DateTimeOffset? GetEarliestExpiry(string? html)
     {
@@ -17,7 +16,7 @@ internal static class NotionHtmlLinkExpiry
         }
 
         DateTimeOffset? earliest = null;
-        foreach (Match match in UrlRegex.Matches(html))
+        foreach (Match match in UrlRegex().Matches(html))
         {
             var decoded = WebUtility.HtmlDecode(match.Value);
             if (!Uri.TryCreate(decoded, UriKind.Absolute, out var uri) ||
@@ -89,7 +88,7 @@ internal static class NotionHtmlLinkExpiry
     }
 
     private static bool TryGetDate(
-        IReadOnlyDictionary<string, string> query,
+        Dictionary<string, string> query,
         string key,
         out DateTimeOffset value)
     {
@@ -104,7 +103,7 @@ internal static class NotionHtmlLinkExpiry
     }
 
     private static bool TryGetSeconds(
-        IReadOnlyDictionary<string, string> query,
+        Dictionary<string, string> query,
         string key,
         out double value)
     {
@@ -130,7 +129,7 @@ internal static class NotionHtmlLinkExpiry
     }
 
     private static bool TryGetUnixSeconds(
-        IReadOnlyDictionary<string, string> query,
+        Dictionary<string, string> query,
         string key,
         out DateTimeOffset value)
     {

@@ -59,6 +59,14 @@ internal static class MarkdownFrontMatterParser
                string.Equals(normalized.TrimStart(), "---", StringComparison.Ordinal);
     }
 
+    internal static void ThrowIfUnterminated(string markdown, bool extracted, string path)
+    {
+        if (!extracted && StartsWithFrontMatterDelimiter(markdown))
+        {
+            throw new ContentException($"Invalid front matter in '{path}': missing closing '---'.");
+        }
+    }
+
     internal static IReadOnlyDictionary<string, object> ParseFrontMatter(string yaml, ILogger logger)
     {
         var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);

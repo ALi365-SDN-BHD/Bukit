@@ -135,7 +135,9 @@ public sealed class MarkdownFolderProvider : IContentProvider
             };
 
             var bodyMarkdown = markdown;
-            if (MarkdownFrontMatterParser.TryExtractFrontMatter(markdown, out var frontMatterYaml, out var body))
+            var hasFrontMatter = MarkdownFrontMatterParser.TryExtractFrontMatter(
+                markdown, out var frontMatterYaml, out var body);
+            if (hasFrontMatter)
             {
                 bodyMarkdown = body;
                 IReadOnlyDictionary<string, object> fm;
@@ -153,10 +155,8 @@ public sealed class MarkdownFolderProvider : IContentProvider
                     frontMatterValues[kv.Key] = kv.Value;
                 }
             }
-            else if (MarkdownFrontMatterParser.StartsWithFrontMatterDelimiter(markdown))
-            {
-                throw new ContentException($"Invalid front matter in '{file}': missing closing '---'.");
-            }
+
+            MarkdownFrontMatterParser.ThrowIfUnterminated(markdown, hasFrontMatter, file);
 
             if (!frontMatterValues.ContainsKey("type") &&
                 !string.IsNullOrWhiteSpace(_options.DefaultType))

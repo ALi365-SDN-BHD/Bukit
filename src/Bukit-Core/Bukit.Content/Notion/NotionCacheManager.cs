@@ -61,18 +61,7 @@ internal static class NotionCacheManager
                 var version = root.TryGetProperty("version", out var v) && v.TryGetInt32(out var vv) ? vv : 0;
                 var cachedLastEdited = root.TryGetProperty("lastEditedTime", out var let) && let.ValueKind == JsonValueKind.String ? let.GetString() : null;
                 var cachedHtml = root.TryGetProperty("html", out var h) && h.ValueKind == JsonValueKind.String ? h.GetString() : null;
-                DateTimeOffset? linksExpireAt = null;
-                if (root.TryGetProperty("linksExpireAt", out var expiry) && expiry.ValueKind == JsonValueKind.String)
-                {
-                    DateTimeOffset.TryParse(expiry.GetString(), CultureInfo.InvariantCulture,
-                        DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsedExpiry);
-                    if (parsedExpiry != default)
-                    {
-                        linksExpireAt = parsedExpiry;
-                    }
-                }
-
-                linksExpireAt ??= NotionHtmlLinkExpiry.GetEarliestExpiry(cachedHtml);
+                var linksExpireAt = ReadCachedLinksExpiry(root, cachedHtml);
                 var linksExpired = linksExpireAt is { } expireAt && expireAt <= DateTimeOffset.UtcNow;
 
                 if (version == 1 &&
@@ -115,15 +104,7 @@ internal static class NotionCacheManager
                     writer.WriteString("lastEditedTime", lastEditedTime);
                 }
                 writer.WriteString("html", html);
-                var apiExpiry = renderer.LastFileLinkExpiresAt;
-                var urlExpiry = NotionHtmlLinkExpiry.GetEarliestExpiry(html);
-                var linksExpireAt = apiExpiry is { } api && urlExpiry is { } url
-                    ? (api <= url ? api : url)
-                    : apiExpiry ?? urlExpiry;
-                if (linksExpireAt is { } expiry)
-                {
-                    writer.WriteString("linksExpireAt", expiry);
-                }
+                WriteLinksExpiry(writer, renderer, html);
                 writer.WriteEndObject();
             }
 
@@ -131,6 +112,35 @@ internal static class NotionCacheManager
         }
 
         return html;
+    }
+
+    private static DateTimeOffset? ReadCachedLinksExpiry(JsonElement root, string? cachedHtml)
+    {
+        DateTimeOffset? linksExpireAt = null;
+        if (root.TryGetProperty("linksExpireAt", out var expiry) && expiry.ValueKind == JsonValueKind.String)
+        {
+            DateTimeOffset.TryParse(expiry.GetString(), CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsedExpiry);
+            if (parsedExpiry != default)
+            {
+                linksExpireAt = parsedExpiry;
+            }
+        }
+
+        return linksExpireAt ?? NotionHtmlLinkExpiry.GetEarliestExpiry(cachedHtml);
+    }
+
+    private static void WriteLinksExpiry(Utf8JsonWriter writer, NotionBlocksRenderer renderer, string html)
+    {
+        var apiExpiry = renderer.LastFileLinkExpiresAt;
+        var urlExpiry = NotionHtmlLinkExpiry.GetEarliestExpiry(html);
+        var linksExpireAt = apiExpiry is { } api && urlExpiry is { } url
+            ? (api <= url ? api : url)
+            : apiExpiry ?? urlExpiry;
+        if (linksExpireAt is { } expiry)
+        {
+            writer.WriteString("linksExpireAt", expiry);
+        }
     }
 
     internal sealed record PageHtmlCache(string Mode, string RootDir, string PagesDir);
