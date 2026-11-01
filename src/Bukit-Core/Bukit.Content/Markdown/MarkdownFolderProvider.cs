@@ -153,6 +153,10 @@ public sealed class MarkdownFolderProvider : IContentProvider
                     frontMatterValues[kv.Key] = kv.Value;
                 }
             }
+            else if (MarkdownFrontMatterParser.StartsWithFrontMatterDelimiter(markdown))
+            {
+                throw new ContentException($"Invalid front matter in '{file}': missing closing '---'.");
+            }
 
             if (!frontMatterValues.ContainsKey("type") &&
                 !string.IsNullOrWhiteSpace(_options.DefaultType))

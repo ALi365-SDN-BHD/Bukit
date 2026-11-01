@@ -47,6 +47,18 @@ internal static class MarkdownFrontMatterParser
         return true;
     }
 
+    internal static bool StartsWithFrontMatterDelimiter(string markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+        {
+            return false;
+        }
+
+        var normalized = markdown.Replace("\r\n", "\n");
+        return normalized.StartsWith("---\n", StringComparison.Ordinal) ||
+               string.Equals(normalized.TrimStart(), "---", StringComparison.Ordinal);
+    }
+
     internal static IReadOnlyDictionary<string, object> ParseFrontMatter(string yaml, ILogger logger)
     {
         var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -66,7 +78,7 @@ internal static class MarkdownFrontMatterParser
 
             if (stream.Documents[0].RootNode is not YamlMappingNode root)
             {
-                return dict;
+                throw new ContentException("Front matter root must be a YAML mapping.");
             }
 
             foreach (var kv in root.Children)

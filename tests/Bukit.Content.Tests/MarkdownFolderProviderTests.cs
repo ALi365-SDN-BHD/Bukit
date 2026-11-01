@@ -563,20 +563,17 @@ public sealed class MarkdownFolderProviderTests
         }
     }
 
-    [Fact]
-    public async Task LoadRawAsync_MalformedFrontMatter_DoesNotLoadFileAndBlocksDraftLeak()
+    [Theory]
+    [InlineData("---\ntitle: [\ndraft: true\n---\n# Must not publish")]
+    [InlineData("---\ntitle: Page\ndraft: true\n# Missing closing delimiter")]
+    [InlineData("---\n- draft: true\n---\n# Root must be a mapping")]
+    public async Task LoadRawAsync_InvalidFrontMatter_DoesNotLoadFileAndBlocksDraftLeak(string markdown)
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-md-bad-frontmatter-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(root, "draft.md"), """
-                ---
-                title: [
-                draft: true
-                ---
-                # Must not publish
-                """);
+            await File.WriteAllTextAsync(Path.Combine(root, "draft.md"), markdown);
 
             var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
 
