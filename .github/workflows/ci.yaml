@@ -301,7 +301,7 @@ jobs:
 
           expected = {
               "Bukit.Cli.Tests.DeployGitTransportPrimitiveTests": 5,
-              "Bukit.Cli.Tests.DeployIdentityTransportTests": 33,
+              "Bukit.Cli.Tests.DeployIdentityTransportTests": 43,
               "Bukit.Cli.Tests.DeployWindowsRegressionTests": 7,
               "Bukit.Cli.Tests.GitHubPagesDeployProviderTests": 5,
           }

@@ -1751,6 +1751,33 @@
       "contractConsumerGlobs": [],
       "publicContract": false,
       "resource": "dotnet-serial"
+    },
+    {
+      "id": "windows-verification-audit-fixes",
+      "matches": [
+        "docs/plans/2026-11-01-windows-verification-audit-fixes.md",
+        "scripts/checks/coverage/list-core-projects.sh",
+        "scripts/checks/coverage/project-list-self-test.sh"
+      ],
+      "contractConsumerGlobs": [
+        ".github/workflows/ci.yaml",
+        ".github/workflows/release.yaml",
+        "scripts/checks/core-tests.sh",
+        "scripts/checks/coverage.sh",
+        "scripts/checks/coverage/matrix.py",
+        "scripts/checks/coverage/run-one.sh",
+        "tests/Bukit.Cli.Tests/PlatformFacts.cs",
+        "tests/Bukit.Cli.Tests/DeployWindowsRegressionTests.cs",
+        "tests/Bukit.Cli.Tests/GitHubPagesDeployProviderTests.cs"
+      ],
+      "publicContract": false,
+      "resource": "static-parallel",
+      "specialtyTests": [
+        "bash scripts/checks/coverage/project-list-self-test.sh",
+        "bash scripts/checks/coverage/matrix-self-test.sh",
+        "bash scripts/checks/coverage-run-one-self-test.sh",
+        "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"
+      ]
     }
   ],
   "resourceRules": [

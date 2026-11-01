@@ -580,6 +580,102 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal(before, scope.SnapshotEnvironment());
     }
 
+    [Theory]
+    [InlineData("direct")]
+    [InlineData("pushurl")]
+    [InlineData("insteadOf")]
+    [InlineData("pushInsteadOf")]
+    public async Task TransportShim_PushUsesEffectiveTarget(string configuration)
+    {
+        using var scope = new RealDeployScope();
+        var project = await CreateShimProjectAsync(scope);
+        const string a = "https://github.com/owner/repo-a.git";
+        const string b = "https://github.com/owner/repo-b.git";
+        if (configuration == "pushurl")
+            await scope.GitAsync(project, "config", "remote.bukit-deploy-shim.pushurl", a);
+        else if (configuration != "direct")
+            await scope.GitAsync(project, "config", $"url.{a}.{configuration}", b);
+
+        var expectedUrl = configuration == "direct" ? b : a;
+        var target = configuration == "direct" ? scope.BareRemote : scope.BareRemoteA;
+        var other = configuration == "direct" ? scope.BareRemoteA : scope.BareRemote;
+        Assert.Equal(expectedUrl, (await scope.GitAsync(project, "remote", "get-url", "--push", "--all", "bukit-deploy-shim")).Trim());
+
+        var result = await scope.ShimAsync(project, "push", "bukit-deploy-shim", "HEAD:refs/heads/shim-probe");
+
+        Assert.True(result.ExitCode == 0, result.Error);
+        Assert.Equal("shim-project", (await scope.GitAsync(scope.Root, "--git-dir", target, "show", "refs/heads/shim-probe:README.md")).Trim());
+        Assert.Empty((await scope.GitAsync(scope.Root, "--git-dir", other, "for-each-ref")).Trim());
+        Assert.StartsWith($"ACCESS {expectedUrl}|{target}|push ", Assert.Single(scope.Accesses), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("ls-remote", false)]
+    [InlineData("ls-remote", true)]
+    [InlineData("fetch", false)]
+    [InlineData("fetch", true)]
+    public async Task TransportShim_ReadUsesEffectiveFetchTarget(string command, bool rewrite)
+    {
+        using var scope = new RealDeployScope();
+        var project = await CreateShimProjectAsync(scope);
+        await scope.GitAsync(project, "push", scope.BareRemote, "HEAD:refs/heads/shim-probe");
+        var bHead = (await scope.GitAsync(project, "rev-parse", "HEAD")).Trim();
+        File.WriteAllText(Path.Combine(project, "README.md"), "remote A sentinel");
+        await scope.GitAsync(project, "add", "README.md");
+        await scope.GitAsync(project, "commit", "-m", "remote A");
+        await scope.GitAsync(project, "push", scope.BareRemoteA, "HEAD:refs/heads/shim-probe");
+        var aHead = (await scope.GitAsync(project, "rev-parse", "HEAD")).Trim();
+        Assert.NotEqual(aHead, bHead);
+        await scope.GitAsync(project, "config", "remote.bukit-deploy-shim.pushurl", "https://github.com/owner/repo-a.git");
+        if (rewrite)
+            await scope.GitAsync(project, "config", "url.https://github.com/owner/repo-a.git.insteadOf", "https://github.com/owner/repo-b.git");
+
+        var result = await scope.ShimAsync(project, command, "bukit-deploy-shim", "refs/heads/shim-probe");
+
+        Assert.True(result.ExitCode == 0, result.Error);
+        var actualHead = command == "fetch"
+            ? (await scope.GitAsync(project, "rev-parse", "FETCH_HEAD")).Trim()
+            : result.Output.Split('\t')[0];
+        Assert.Equal(rewrite ? aHead : bHead, actualHead);
+        var expectedUrl = $"https://github.com/owner/repo-{(rewrite ? "a" : "b")}.git";
+        var target = rewrite ? scope.BareRemoteA : scope.BareRemote;
+        Assert.StartsWith($"ACCESS {expectedUrl}|{target}|{command} ", Assert.Single(scope.Accesses), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("multiple")]
+    [InlineData("unmapped")]
+    public async Task TransportShim_InvalidEffectivePushTargetsFailBeforeAccess(string configuration)
+    {
+        using var scope = new RealDeployScope();
+        var project = await CreateShimProjectAsync(scope);
+        if (configuration == "multiple")
+        {
+            await scope.GitAsync(project, "config", "--add", "remote.bukit-deploy-shim.pushurl", "https://github.com/owner/repo-a.git");
+            await scope.GitAsync(project, "config", "--add", "remote.bukit-deploy-shim.pushurl", "https://github.com/owner/repo-b.git");
+        }
+        else
+            await scope.GitAsync(project, "config", "remote.bukit-deploy-shim.pushurl", "https://github.com/owner/unmapped.git");
+
+        var result = await scope.ShimAsync(project, "push", "bukit-deploy-shim", "HEAD:refs/heads/shim-probe");
+
+        Assert.Equal(93, result.ExitCode);
+        Assert.Contains(configuration == "multiple" ? "exactly one effective transport URL" : "no allowed local bare repository", result.Error, StringComparison.Ordinal);
+        Assert.Empty(scope.Accesses);
+        foreach (var remote in new[] { scope.BareRemoteA, scope.BareRemote })
+            Assert.Empty((await scope.GitAsync(scope.Root, "--git-dir", remote, "for-each-ref")).Trim());
+    }
+
+    private static async Task<string> CreateShimProjectAsync(RealDeployScope scope)
+    {
+        var project = await scope.CreateProjectAsync("shim-project", null);
+        await scope.GitAsync(project, "remote", "add", "bukit-deploy-shim", "https://github.com/owner/repo-b.git");
+        var askpass = Path.Combine(scope.Root, "shim-askpass");
+        File.WriteAllText(askpass, "local transport fixture");
+        scope.SetEnv("GIT_ASKPASS", askpass);
+        return project;
+    }
+
     private sealed class RealDeployScope : IDisposable
     {
         private readonly Dictionary<string, string?> _original = new(StringComparer.Ordinal);
@@ -798,6 +894,33 @@ public sealed class DeployIdentityTransportTests
             var error = await stderr;
             Assert.True(process.ExitCode == 0, $"git {string.Join(' ', arguments)} failed: {error}");
             return output;
+        }
+
+        public async Task<(int ExitCode, string Output, string Error)> ShimAsync(string workingDirectory, params string[] arguments)
+        {
+            var start = new ProcessStartInfo("dotnet")
+            {
+                WorkingDirectory = workingDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            start.ArgumentList.Add(WindowsGitShim.AssemblyPath);
+            foreach (var argument in arguments) start.ArgumentList.Add(argument);
+            using var process = Process.Start(start)!;
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+                await Task.WhenAll(output, error).WaitAsync(TimeSpan.FromSeconds(5));
+                return (process.ExitCode, await output, await error);
+            }
+            finally
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+            }
         }
 
         public string SnapshotRefs(string repository)

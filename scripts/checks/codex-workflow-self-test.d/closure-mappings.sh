@@ -180,6 +180,10 @@ for core_five_findings_contract_path in \
 done
 
 
+for windows_verification_path in docs/plans/2026-11-01-windows-verification-audit-fixes.md scripts/checks/coverage/list-core-projects.sh scripts/checks/coverage/project-list-self-test.sh; do
+  assert_closure_mapping "$closure_fixture" "$windows_verification_path" '["bash scripts/checks/coverage-run-one-self-test.sh", "bash scripts/checks/coverage/matrix-self-test.sh", "bash scripts/checks/coverage/project-list-self-test.sh", "dotnet test tests/Bukit.Architecture.Tests/Bukit.Architecture.Tests.csproj"]' false
+done
+
 for unmapped_remediation_path in .github/workflows/unplanned.yaml docs/governance/unplanned.md docs/superpowers/plans/unplanned.md; do
   expect_exit 0 "${tool[@]}" closure --repo "$closure_fixture" --policy scripts/checks/codex-workflow-policy.v1.json --changed "$unmapped_remediation_path"
   python3 - "$command_output" "$unmapped_remediation_path" <<'PY_CHECK'

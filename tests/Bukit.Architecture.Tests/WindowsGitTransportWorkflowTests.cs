@@ -59,7 +59,7 @@ public sealed class WindowsGitTransportWorkflowTests
                 total = str(sum(expected.values()))
                 ET.SubElement(summary, "Counters", total=total, executed=total, passed=total, failed="0", notExecuted="0")
                 return root
-            assert sum(expected.values()) == 50
+            assert sum(expected.values()) == 60
             assert validate(sample(), 0) == expected
             mutations = [
                 lambda root: root.find("ResultSummary").set("outcome", "Failed"),

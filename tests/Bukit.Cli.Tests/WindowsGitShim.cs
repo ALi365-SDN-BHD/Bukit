@@ -12,6 +12,8 @@ internal static class WindowsGitShim
 {
     private static readonly Lazy<string> ShimDirectory = new(BuildShim);
 
+    internal static string AssemblyPath => Path.Combine(ShimDirectory.Value, "BukitGitShim.dll");
+
     internal static void Install(string directory)
     {
         if (!OperatingSystem.IsWindows())
@@ -125,12 +127,15 @@ internal static class WindowsGitShim
             }
 
             var remote = remoteNames[0];
-            var query = CreateProcess(git, ["config", "--local", "--get", $"remote.{remote}.url"]);
+            string[] queryArguments = args[0] == "push"
+                ? ["remote", "get-url", "--push", "--all", remote]
+                : ["remote", "get-url", "--all", remote];
+            var query = CreateProcess(git, queryArguments);
             using var queryProcess = Process.Start(query) ?? throw new InvalidOperationException("Could not start real Git.");
             var queryOutput = queryProcess.StandardOutput.ReadToEndAsync();
             var queryError = queryProcess.StandardError.ReadToEndAsync();
             await queryProcess.WaitForExitAsync();
-            var url = (await queryOutput).Trim();
+            var output = (await queryOutput).ReplaceLineEndings("\n");
             var error = await queryError;
             if (queryProcess.ExitCode != 0)
             {
@@ -138,6 +143,13 @@ internal static class WindowsGitShim
                 return queryProcess.ExitCode;
             }
 
+            var urls = (output.EndsWith('\n') ? output[..^1] : output).Split('\n');
+            if (urls.Length != 1)
+            {
+                Console.Error.WriteLine("The test transport requires exactly one effective transport URL.");
+                return 93;
+            }
+            var url = urls[0];
             var targetVariable = url switch
             {
                 "https://github.com/owner/repo-a.git" => "BUKIT_DEPLOY_BARE_A",
