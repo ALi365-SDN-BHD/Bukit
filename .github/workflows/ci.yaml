@@ -267,6 +267,39 @@ jobs:
           path: TestResults/platform
           if-no-files-found: error
 
+  windows-git-transport:
+    name: "Windows real Git transport"
+    runs-on: windows-2025
+    needs: fast-contracts
+    timeout-minutes: 15
+    steps:
+      - name: Preserve fixture input line endings
+        shell: pwsh
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Record tool versions
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force TestResults/windows-git | Out-Null
+          dotnet --info | Out-File TestResults/windows-git/dotnet-info.txt
+          git --version | Out-File TestResults/windows-git/git-version.txt
+      - name: Run real Git transport primitives
+        shell: pwsh
+        run: |
+          dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release `
+            --filter "FullyQualifiedName~DeployGitTransportPrimitiveTests" `
+            --logger "trx;LogFileName=windows-git-transport.trx" `
+            --results-directory TestResults/windows-git
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-git-transport
+          path: TestResults/windows-git
+          if-no-files-found: error
+
   coverage-plan:
     name: Core coverage plan
     runs-on: ubuntu-latest
