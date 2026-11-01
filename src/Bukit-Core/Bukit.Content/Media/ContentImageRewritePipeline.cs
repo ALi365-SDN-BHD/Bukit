@@ -232,6 +232,11 @@ public sealed class ContentImageRewritePipeline
             // Single string URL
             if (field.Value is string s)
             {
+                if (isFileType && !HtmlMediaReferenceScanner.IsImageUrl(s))
+                {
+                    continue;
+                }
+
                 var localized = await LocalizeMemoizedAsync(s, localizeMemo, downloadGate, cancellationToken);
                 if (!string.Equals(localized, s, StringComparison.Ordinal))
                 {
@@ -245,11 +250,25 @@ public sealed class ContentImageRewritePipeline
             // List of string URLs (e.g. Notion "files" property with multiple entries)
             if (field.Value is IReadOnlyList<string> urls && urls.Count > 0)
             {
-                var localizedMap = await LocalizeDistinctUrlsAsync(urls, localizeMemo, downloadGate, cancellationToken);
+                var localizable = isFileType
+                    ? urls.Where(HtmlMediaReferenceScanner.IsImageUrl).ToArray()
+                    : urls.ToArray();
+                if (localizable.Length == 0)
+                {
+                    continue;
+                }
+
+                var localizedMap = await LocalizeDistinctUrlsAsync(localizable, localizeMemo, downloadGate, cancellationToken);
                 var rewritten = new List<string>(urls.Count);
                 var listChanged = false;
                 foreach (var url in urls)
                 {
+                    if (isFileType && !HtmlMediaReferenceScanner.IsImageUrl(url))
+                    {
+                        rewritten.Add(url);
+                        continue;
+                    }
+
                     var localized = localizedMap.TryGetValue(url ?? string.Empty, out var mapped)
                         ? mapped
                         : await LocalizeMemoizedAsync(url, localizeMemo, downloadGate, cancellationToken);

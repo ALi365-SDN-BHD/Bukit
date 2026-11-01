@@ -237,16 +237,11 @@ internal static class HtmlMediaReferenceScanner
 
         if (tagName.Equals("video", StringComparison.OrdinalIgnoreCase))
         {
-            if (attributeName.Equals("poster", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("src", StringComparison.OrdinalIgnoreCase)
-                || attributeName.Equals("data-src", StringComparison.OrdinalIgnoreCase))
+            // Only the poster is an image. Video src/data-src/srcset point at media
+            // (for example MP4), which must keep its original URL.
+            if (attributeName.Equals("poster", StringComparison.OrdinalIgnoreCase))
             {
                 kind = HtmlMediaReferenceKind.Url;
-                return true;
-            }
-            if (attributeName.Equals("srcset", StringComparison.OrdinalIgnoreCase))
-            {
-                kind = HtmlMediaReferenceKind.Srcset;
                 return true;
             }
             return false;
@@ -313,6 +308,17 @@ internal static class HtmlMediaReferenceScanner
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsAsciiWhitespace(char c)
         => c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
+
+    internal static bool IsImageUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var trimmed = value.Trim();
+        return IsImageHrefValue(trimmed, 0, trimmed.Length);
+    }
 
     /// <summary>
     /// Returns true if <paramref name="html"/>[valueStart..valueStart+valueLength] looks like

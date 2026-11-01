@@ -14,6 +14,12 @@ internal sealed class NotionRelationTargetCache
         _relationsDir = relationsDir;
     }
 
+    /// <summary>
+    /// Only offline (readonly) loads may reuse cached targets. Online loads must refresh
+    /// external titles, slugs and URLs so renames are visible on the next build.
+    /// </summary>
+    internal bool CanReadCachedTargets => _mode == "readonly";
+
     internal static NotionRelationTargetCache? Create(string? mode, string? rootDir, string? scope = null)
     {
         var normalizedMode = (mode ?? "off").Trim().ToLowerInvariant();

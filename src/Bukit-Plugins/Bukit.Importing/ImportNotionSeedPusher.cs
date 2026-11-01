@@ -129,11 +129,11 @@ internal static partial class NotionSeedPusher
         ImportSeedRecord record,
         CancellationToken ct)
     {
-        var uniqueValue = GetUniqueFieldValue(record, options.UniqueField);
-        if (string.IsNullOrWhiteSpace(uniqueValue)) return new QueryExistingPageResult(true, null, null);
+        var filter = BuildUniqueFilter(record, options);
+        if (!filter.Success)
+            return new QueryExistingPageResult(false, null, filter.Error);
 
-        var filterJson = BuildSlugFilterJson(options.UniqueField, uniqueValue);
-        var response = await client.QueryDatabaseAsync(options.DatabaseId, filterJson, ct);
+        var response = await client.QueryDatabaseAsync(options.DatabaseId, filter.Json!, ct);
         if (!response.IsSuccess)
             return new QueryExistingPageResult(false, null, SafeError(response));
 
@@ -143,17 +143,123 @@ internal static partial class NotionSeedPusher
         return new QueryExistingPageResult(true, null, null);
     }
 
-    private static string GetUniqueFieldValue(ImportSeedRecord record, string uniqueField)
+    private static (bool Success, string? Json, string? Error) BuildUniqueFilter(
+        ImportSeedRecord record,
+        NotionPushOptions options)
     {
-        return uniqueField switch
+        var propertyName = NotionPropertyNaming.Canonicalize(options.UniqueField ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(propertyName))
+            return (false, null, "Unique field name is empty.");
+
+        object? value;
+        string filterKind;
+        switch (propertyName)
         {
-            "Slug" => record.Slug,
-            "Title" => record.Title,
-            _ => record.Slug
-        };
+            case "Title":
+                value = record.Title;
+                filterKind = "title";
+                break;
+            case "Slug":
+                value = record.Slug;
+                filterKind = "rich_text";
+                break;
+            case "Type":
+                value = record.Collection;
+                filterKind = "select";
+                break;
+            case "Summary":
+                value = record.Summary;
+                filterKind = "rich_text";
+                break;
+            case "Language":
+                value = record.Language;
+                filterKind = "select";
+                break;
+            case "SeoTitle":
+                value = record.SeoTitle;
+                filterKind = "rich_text";
+                break;
+            case "SeoDescription":
+                value = record.SeoDescription;
+                filterKind = "rich_text";
+                break;
+            case "Published":
+                value = record.Published;
+                filterKind = "checkbox";
+                break;
+            case "Content":
+                return (false, null, "Unique field 'Content' is not a Notion property.");
+            default:
+                if (!TryGetExtraField(record, propertyName, out value))
+                    return (false, null, $"Unique field '{propertyName}' has no value for record '{record.Slug}'.");
+                if (!TryResolveFilterKind(value, propertyName, options.Schema, out filterKind))
+                    return (false, null, $"Unique field '{propertyName}' uses an unsupported value type.");
+                break;
+        }
+
+        if (value is null || value is string text && string.IsNullOrWhiteSpace(text))
+            return (false, null, $"Unique field '{propertyName}' has no value for record '{record.Slug}'.");
+
+        return (true, BuildUniqueFilterJson(propertyName, filterKind, value), null);
     }
 
-    private static string BuildSlugFilterJson(string propertyName, string value)
+    private static bool TryGetExtraField(ImportSeedRecord record, string propertyName, out object? value)
+    {
+        value = null;
+        if (record.ExtraFields is null)
+            return false;
+
+        foreach (var (name, candidate) in record.ExtraFields)
+        {
+            if (string.Equals(NotionPropertyNaming.Canonicalize(name), propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryResolveFilterKind(
+        object? value,
+        string propertyName,
+        IReadOnlyDictionary<string, string>? schema,
+        out string filterKind)
+    {
+        if (schema is not null && schema.TryGetValue(propertyName, out var declaredType))
+        {
+            filterKind = declaredType switch
+            {
+                "rich_text" => "rich_text",
+                "select" => "select",
+                "url" => "url",
+                "date" => "date",
+                "number" => "number",
+                "checkbox" => "checkbox",
+                _ => string.Empty
+            };
+            return filterKind.Length > 0;
+        }
+
+        switch (value)
+        {
+            case bool:
+                filterKind = "checkbox";
+                return true;
+            case int or long or float or double or decimal:
+                filterKind = "number";
+                return true;
+            case string:
+                filterKind = propertyName is "Link" or "Url" or "Href" ? "url" : "rich_text";
+                return true;
+            default:
+                filterKind = string.Empty;
+                return false;
+        }
+    }
+
+    private static string BuildUniqueFilterJson(string propertyName, string filterKind, object value)
     {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream);
@@ -161,8 +267,31 @@ internal static partial class NotionSeedPusher
         writer.WriteStartObject();
         writer.WriteStartObject("filter");
         writer.WriteString("property", propertyName);
-        writer.WriteStartObject("rich_text");
-        writer.WriteString("equals", value);
+        writer.WriteStartObject(filterKind);
+        switch (value)
+        {
+            case bool b:
+                writer.WriteBoolean("equals", b);
+                break;
+            case int i:
+                writer.WriteNumber("equals", i);
+                break;
+            case long l:
+                writer.WriteNumber("equals", l);
+                break;
+            case float f:
+                writer.WriteNumber("equals", f);
+                break;
+            case double d:
+                writer.WriteNumber("equals", d);
+                break;
+            case decimal m:
+                writer.WriteNumber("equals", m);
+                break;
+            default:
+                writer.WriteString("equals", value.ToString());
+                break;
+        }
         writer.WriteEndObject();
         writer.WriteEndObject();
         writer.WriteEndObject();

@@ -36,7 +36,8 @@ internal static class VariantDataSitePlanner
 
     internal static async Task<DataModuleResult> PrepareDataModulesStageAsync(
         BuildVariantContext context,
-        BuildStageMetricsCollector metrics)
+        BuildStageMetricsCollector metrics,
+        CancellationToken cancellationToken = default)
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var result = await PrepareDataModulesAsync(
@@ -44,7 +45,8 @@ internal static class VariantDataSitePlanner
             context.Config.Site.Language,
             context.BodyStore,
             context.Config.Content.Sources,
-            context.Config.Content.RouteMetadata).ConfigureAwait(false);
+            context.Config.Content.RouteMetadata,
+            cancellationToken).ConfigureAwait(false);
         stopwatch.Stop();
         metrics.AddDuration("prepareContent", stopwatch.ElapsedMilliseconds);
         return result;

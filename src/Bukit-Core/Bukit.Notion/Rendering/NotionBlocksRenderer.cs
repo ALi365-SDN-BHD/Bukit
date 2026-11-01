@@ -10,6 +10,13 @@ public sealed class NotionBlocksRenderer
     private readonly NotionClient _client;
     private readonly NotionBlockRendererRegistry _registry;
     private readonly NotionRenderContext _context;
+    private DateTimeOffset? _lastFileLinkExpiresAt;
+
+    /// <summary>
+    /// Earliest <c>expiry_time</c> observed while rendering the last page, when the
+    /// Notion payload exposes signed file link lifetimes.
+    /// </summary>
+    internal DateTimeOffset? LastFileLinkExpiresAt => _lastFileLinkExpiresAt;
 
     public NotionBlocksRenderer(NotionClient client)
         : this(client, NotionBlockRendererRegistry.CreateDefault())
@@ -33,6 +40,7 @@ public sealed class NotionBlocksRenderer
 
     public async Task<string> RenderPageAsync(string pageId, CancellationToken cancellationToken)
     {
+        _lastFileLinkExpiresAt = null;
         var sb = new StringBuilder();
         await RenderChildrenToBuilderAsync(pageId, sb, cancellationToken);
         return sb.ToString();
@@ -68,6 +76,7 @@ public sealed class NotionBlocksRenderer
             foreach (var block in results.EnumerateArray())
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                TrackFileLinkExpiry(block);
 
                 var type = GetString(block, "type");
                 if (type is null)
@@ -157,6 +166,39 @@ public sealed class NotionBlocksRenderer
         var nested = new StringBuilder();
         await RenderChildrenToBuilderAsync(id, nested, cancellationToken);
         return $"<li{colorClass}>{inner}{nested}</li>";
+    }
+
+    private void TrackFileLinkExpiry(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (property.NameEquals("expiry_time") &&
+                        property.Value.ValueKind == JsonValueKind.String &&
+                        DateTimeOffset.TryParse(property.Value.GetString(),
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.AssumeUniversal |
+                            System.Globalization.DateTimeStyles.AdjustToUniversal,
+                            out var expiry) &&
+                        (_lastFileLinkExpiresAt is null || expiry < _lastFileLinkExpiresAt.Value))
+                    {
+                        _lastFileLinkExpiresAt = expiry;
+                    }
+
+                    TrackFileLinkExpiry(property.Value);
+                }
+
+                break;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    TrackFileLinkExpiry(item);
+                }
+
+                break;
+        }
     }
 
     private static string? GetString(JsonElement obj, string name)

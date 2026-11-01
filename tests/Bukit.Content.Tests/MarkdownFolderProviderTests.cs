@@ -61,6 +61,7 @@ public sealed class MarkdownFolderProviderTests
     {
         var regex = InvokePrivateStatic<Regex>("BuildGlobRegex", "**/*.md");
 
+        Assert.True(regex.IsMatch("hello.md"));
         Assert.True(regex.IsMatch("a/b/hello.md"));
         Assert.True(regex.IsMatch("a/b/c/hello.md"));
         Assert.False(regex.IsMatch("a/b/hello.txt"));
@@ -552,6 +553,60 @@ public sealed class MarkdownFolderProviderTests
             Assert.Contains("<h1 id=\"visible\">Visible</h1>", html);
             Assert.Contains("<p>Body text</p>", html);
             Assert.DoesNotContain("title: Hidden", html);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_MalformedFrontMatter_DoesNotLoadFileAndBlocksDraftLeak()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-bad-frontmatter-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "draft.md"), """
+                ---
+                title: [
+                draft: true
+                ---
+                # Must not publish
+                """);
+
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(root));
+
+            var ex = await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
+            Assert.Contains("Invalid front matter", ex.Message, StringComparison.Ordinal);
+            Assert.Contains("draft.md", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LoadRawAsync_IncludeGlobRootAndNested_LoadsBoth()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-md-glob-root-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "nested"));
+            await File.WriteAllTextAsync(Path.Combine(root, "root.md"), "# Root");
+            await File.WriteAllTextAsync(Path.Combine(root, "nested", "child.md"), "# Child");
+
+            var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(
+                root,
+                IncludeGlobs: new[] { "**/*.md" }));
+
+            var result = await provider.LoadRawAsync();
+
+            Assert.Equal(new[] { "child", "root" }, result.Documents.Select(document => document.Slug).Order(StringComparer.Ordinal));
         }
         finally
         {

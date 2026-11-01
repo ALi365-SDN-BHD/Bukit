@@ -34,7 +34,8 @@ internal sealed partial class VariantBuildPipeline
 
         var dataModules = await VariantDataSitePlanner.PrepareDataModulesStageAsync(
             context,
-            variantStageMetrics);
+            variantStageMetrics,
+            cancellationToken);
         var routePipelineResult = await VariantRouteStage.ExecuteAsync(
             context,
             dataModules.DataDocuments,

@@ -87,8 +87,9 @@ internal static class MarkdownFrontMatterParser
         }
         catch (Exception ex)
         {
-            logger.Warn($"Failed to parse front matter: {ex.Message}");
-            return dict;
+            var message = $"Failed to parse front matter: {ex.Message}";
+            logger.Warn(message);
+            throw new ContentException(message, ex);
         }
     }
 

@@ -82,7 +82,7 @@ public static class DevCommand
             PreviewCommand.ShouldRemoveManagedAnalytics(config.Site),
             logger);
 
-        var watchedDirs = ResolveWatchDirs(rootDir, config);
+        var watchedDirs = ResolveWatchDirs(rootDir, config, logger);
         var excludedDirs = ResolveExcludedWatchDirs(rootDir, outputDir, cacheDir).Concat(BuildTransaction.WatchResources(config, rootDir, outputDir, cacheDir)).Distinct().ToArray();
         DevFileWatcher? watcher = null;
         if (ShouldStartWatcher(noWatch, watchedDirs.Count))
@@ -163,29 +163,41 @@ public static class DevCommand
         };
     }
 
-    internal static List<string> ResolveWatchDirs(string rootDir, AppConfig config)
+    internal static List<string> ResolveWatchDirs(string rootDir, AppConfig config, ILogger? logger = null)
     {
         var dirs = new List<string>();
+        var seen = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
-        var contentDir = Path.GetFullPath(Path.Combine(rootDir, "content"));
-        if (Directory.Exists(contentDir)) dirs.Add(contentDir);
-
-        if (!string.IsNullOrWhiteSpace(config.Theme.Name))
+        void AddIfExists(string? path)
         {
-            var themeDir = Path.GetFullPath(Path.Combine(rootDir, "themes", config.Theme.Name));
-            if (Directory.Exists(themeDir)) dirs.Add(themeDir);
-        }
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
 
-        void AddIfNotUnderTheme(string relPath)
-        {
-            var full = Path.GetFullPath(Path.Combine(rootDir, relPath));
-            if (Directory.Exists(full) && !dirs.Any(d => PathUtils.IsSameOrSubPathOf(full, d)))
+            var full = Path.GetFullPath(path);
+            if (Directory.Exists(full) && seen.Add(full))
+            {
                 dirs.Add(full);
+            }
         }
 
-        AddIfNotUnderTheme(config.Theme.Layouts);
-        AddIfNotUnderTheme(config.Theme.Assets);
-        AddIfNotUnderTheme(config.Theme.Static);
+        AddIfExists(Path.Combine(rootDir, "content"));
+        foreach (var source in config.Content.Sources ?? [])
+        {
+            if (source.Markdown is { } markdown)
+            {
+                AddIfExists(BuildPathUtils.MakeAbsolute(rootDir, markdown.Dir));
+            }
+        }
+
+        foreach (var themeInput in I18nWorktreeProtocol.ResolveThemeInputPaths(
+                     rootDir,
+                     config.Theme,
+                     logger ?? new ConsoleLogger(LogLevel.Warn)))
+        {
+            AddIfExists(themeInput);
+        }
 
         return dirs;
     }

@@ -212,6 +212,53 @@ public sealed class DevCommandTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void ResolveWatchDirs_IncludesCustomMarkdownAndParentThemeInputs()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-dev-watch-inputs-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var posts = Path.Combine(root, "posts");
+            var childTheme = Path.Combine(root, "themes", "child");
+            var parentTheme = Path.Combine(root, "themes", "base");
+            Directory.CreateDirectory(posts);
+            Directory.CreateDirectory(childTheme);
+            Directory.CreateDirectory(parentTheme);
+            File.WriteAllText(Path.Combine(childTheme, "theme.yaml"), "name: child\nextends: base\n");
+
+            var config = MinimalConfig() with
+            {
+                Theme = new ThemeConfig { Name = "child" },
+                Content = new ContentConfig
+                {
+                    Sources =
+                    [
+                        new ContentSourceConfig
+                        {
+                            Type = "markdown",
+                            Name = "posts",
+                            Collection = "post",
+                            Markdown = new MarkdownConfig { Dir = "posts" }
+                        }
+                    ]
+                }
+            };
+
+            var dirs = DevCommand.ResolveWatchDirs(root, config, new ConsoleLogger(LogLevel.Warn));
+
+            Assert.Contains(Path.GetFullPath(posts), dirs);
+            Assert.Contains(Path.GetFullPath(childTheme), dirs);
+            Assert.Contains(Path.GetFullPath(parentTheme), dirs);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void DevFileWatcher_ShouldIgnore_DynamicOutputCacheAndCommonGeneratedDirs()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-dev-ignore-" + Guid.NewGuid().ToString("N"));

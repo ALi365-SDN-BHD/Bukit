@@ -149,12 +149,14 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
             var nojekyllPath = Path.Combine(checkoutDir, ".nojekyll");
             if (!File.Exists(nojekyllPath))
             {
+                EnsureMetadataWriteTargetIsNotLink(nojekyllPath);
                 await File.WriteAllTextAsync(nojekyllPath, string.Empty, ct);
             }
 
             if (!string.IsNullOrWhiteSpace(cname))
             {
                 var cnamePath = Path.Combine(checkoutDir, "CNAME");
+                EnsureMetadataWriteTargetIsNotLink(cnamePath);
                 await File.WriteAllTextAsync(cnamePath, cname, ct);
             }
 

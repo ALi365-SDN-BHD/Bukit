@@ -337,13 +337,15 @@ public sealed class WechatSyncWorkflow
                 }
 
                 last = ex;
+                if (anyAddDraftInvoked)
+                {
+                    // Once the create request was submitted, an error is an unknown outcome.
+                    // Retrying could create a second draft; preserve DraftSubmitting for recovery.
+                    throw new DraftSubmissionOutcomeUnknownException(ex);
+                }
+
                 if (attempt >= options.MaxAttempts)
                 {
-                    if (anyAddDraftInvoked)
-                    {
-                        throw new DraftSubmissionOutcomeUnknownException(ex);
-                    }
-
                     break;
                 }
 

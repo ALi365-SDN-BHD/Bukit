@@ -20,7 +20,7 @@ internal static class NotionRelationResolver
             drafts,
             existingIndex,
             relationTargetCache,
-            relationTargetCache is null ? null : relationTargetCache.TryReadAsync,
+            relationTargetCache is { CanReadCachedTargets: true } ? relationTargetCache.TryReadAsync : null,
             renderConcurrency,
             logger,
             cancellationToken).ConfigureAwait(false);

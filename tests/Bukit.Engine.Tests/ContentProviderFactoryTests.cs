@@ -47,6 +47,49 @@ public sealed class ContentProviderFactoryTests
     }
 
     [Fact]
+    public async Task Create_WithMarkdownSource_ForwardsAutoSummaryConfiguration()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "bukit_test_content_" + Guid.NewGuid().ToString("N"));
+        var contentDir = Path.Combine(tempDir, "content");
+        Directory.CreateDirectory(contentDir);
+
+        try
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(contentDir, "page.md"),
+                "# Page\n\nThis summary comes from the markdown body and is truncated.");
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "Test",
+                    BaseUrl = "/",
+                    AutoSummary = true,
+                    AutoSummaryMaxLength = 24
+                },
+                Content = ContentConfigFactory.FromSources([TestContent.MarkdownSource()])
+            };
+            var logger = new ConsoleLogger(LogLevel.Debug);
+
+            var provider = ContentProviderFactory.Create(config, tempDir, false, logger);
+            var result = await provider.LoadRawAsync();
+            var document = Assert.Single(result.Documents);
+
+            var summary = ContentFieldReader.GetText(document.CustomFields, "summary");
+            Assert.False(string.IsNullOrWhiteSpace(summary));
+            Assert.True(summary!.Length <= 24);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
     public void Create_WithMultipleMarkdownSources_ReturnsCompositeProvider()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "bukit_test_content_" + Guid.NewGuid().ToString("N"));

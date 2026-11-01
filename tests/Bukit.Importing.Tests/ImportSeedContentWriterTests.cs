@@ -44,6 +44,37 @@ public sealed class ImportSeedContentWriterTests : IDisposable
     }
 
     [Fact]
+    public void WriteMarkdown_SerializesSequenceExtraFieldsAsYamlLists()
+    {
+        var record = new ImportSeedRecord(
+            Collection: "post",
+            Title: "Tagged",
+            Slug: "tagged",
+            Summary: null,
+            Content: null,
+            Language: null,
+            Published: true,
+            SeoTitle: null,
+            SeoDescription: null,
+            ExtraFields: new Dictionary<string, object?>
+            {
+                ["tags"] = new object?[] { "market", "china" }
+            });
+
+        Assert.Single(ImportSeedContentWriter.WriteMarkdown(_tempDir, [record], overwrite: false));
+
+        var markdown = File.ReadAllText(Path.Combine(_tempDir, "posts", "tagged.md"));
+        var yaml = markdown.Split("---", StringSplitOptions.RemoveEmptyEntries)[0];
+        var stream = new YamlDotNet.RepresentationModel.YamlStream();
+        stream.Load(new StringReader(yaml));
+        var root = Assert.IsType<YamlDotNet.RepresentationModel.YamlMappingNode>(stream.Documents[0].RootNode);
+        var tags = Assert.IsType<YamlDotNet.RepresentationModel.YamlSequenceNode>(
+            root.Children[new YamlDotNet.RepresentationModel.YamlScalarNode("tags")]);
+        Assert.Equal(new[] { "market", "china" }, tags.Children.Cast<YamlDotNet.RepresentationModel.YamlScalarNode>().Select(node => node.Value));
+        Assert.DoesNotContain("System.Object[]", markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void WriteMarkdown_SerializesScalarExtraFields_AndRespectsOverwriteFlag()
     {
         var record = new ImportSeedRecord(

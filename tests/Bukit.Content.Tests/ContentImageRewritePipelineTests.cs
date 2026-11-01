@@ -92,6 +92,40 @@ public sealed class ContentImageRewritePipelineTests
     }
 
     [Fact]
+    public async Task RewriteAsync_PreservesVideoSourceAndNonImageFileFields()
+    {
+        const string video = "https://media.example/clip.mp4";
+        const string pdf = "https://files.example/manual.pdf";
+        const string photo = "https://img.example/photo.jpg";
+        var item = ContentDocument.Create(
+            id: "1",
+            title: "t",
+            slug: "s",
+            publishAt: DateTimeOffset.UtcNow,
+            contentHtml: $"""<video poster="{photo}" src="{video}"></video>""",
+            fields: new Dictionary<string, ContentField>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["attachment"] = new ContentField("file", pdf),
+                ["gallery"] = new ContentField("files", new[] { pdf, photo })
+            });
+        var localizer = new MappingLocalizer(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [photo] = "/assets/uploads/photo.jpg"
+        });
+        var pipeline = new ContentImageRewritePipeline(new MediaConfig(), localizer);
+
+        var rewritten = Assert.Single(await pipeline.RewriteAsync(new[] { item }, CancellationToken.None));
+
+        Assert.Contains($"src=\"{video}\"", rewritten.Body.Html);
+        Assert.Contains("poster=\"/assets/uploads/photo.jpg\"", rewritten.Body.Html);
+        Assert.Equal(pdf, rewritten.CustomFields!["attachment"].Value);
+        var gallery = Assert.IsAssignableFrom<IReadOnlyList<string>>(rewritten.CustomFields["gallery"].Value);
+        Assert.Equal(new[] { pdf, "/assets/uploads/photo.jpg" }, gallery);
+        Assert.DoesNotContain(video, localizer.ReceivedUrls);
+        Assert.DoesNotContain(pdf, localizer.ReceivedUrls);
+    }
+
+    [Fact]
     public async Task RewriteAsync_RewritesHtmlAndFieldUrls()
     {
         var item = ContentDocument.Create(
@@ -565,7 +599,6 @@ public sealed class ContentImageRewritePipelineTests
                 "https://img.example/lazy.jpg",
                 "https://img.example/fallback.jpg",
                 "https://img.example/poster.jpg",
-                "https://media.example/clip.mp4",
                 "https://img.example/download.png?x=1&amp;y=2",
                 "https://img.example/span.gif"
             },

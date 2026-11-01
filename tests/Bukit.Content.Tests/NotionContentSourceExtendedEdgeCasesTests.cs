@@ -141,28 +141,17 @@ public sealed class NotionContentSourceExtendedEdgeCasesTests
     }
 
     [Fact]
-    public async Task LoadAsync_RelationCacheHit_SkipsApiCall()
+    public async Task LoadAsync_ReadonlyRelationCacheHit_SkipsApiCall()
     {
         var cacheDir = Path.Combine(Path.GetTempPath(), "bukit-rel-cache-" + Guid.NewGuid().ToString("N"));
         try
         {
             var target = new RelationTargetInfo("tag-1", "Cached Tag", "cached-tag", "page", "https://example.test/cached-tag");
-            var cache = NotionRelationTargetCache.Create("readwrite", cacheDir);
-            Assert.NotNull(cache);
-            await cache.WriteAsync(target, CancellationToken.None);
-
+            var writer = NotionRelationTargetCache.Create("readwrite", cacheDir);
+            Assert.NotNull(writer);
+            await writer.WriteAsync(target, CancellationToken.None);
             var handler = new RelationCacheHitHandler();
-            var options = new NotionContentSourceOptions
-            {
-                DatabaseId = "db-123",
-                Token = "secret-token",
-                RequestDelayMs = 0,
-                FilterType = "none",
-                RenderContent = false,
-                FieldPolicyMode = "all",
-                CacheMode = "readwrite",
-                CacheDir = cacheDir
-            };
+            var options = CreateRelationOptions(cacheDir, "readonly");
             NotionContentClient CreateClient() =>
                 new(options, handler, (_, _) => Task.CompletedTask);
             var provider = new NotionContentSource(options, logger: null, CreateClient);
@@ -185,6 +174,55 @@ public sealed class NotionContentSourceExtendedEdgeCasesTests
             }
         }
     }
+
+    [Fact]
+    public async Task LoadAsync_ReadwriteRelationCache_RefreshesExternalTargetNames()
+    {
+        var cacheDir = Path.Combine(Path.GetTempPath(), "bukit-rel-cache-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var target = new RelationTargetInfo("tag-1", "Cached Tag", "cached-tag", "page", "https://example.test/cached-tag");
+            var cache = NotionRelationTargetCache.Create("readwrite", cacheDir);
+            Assert.NotNull(cache);
+            await cache.WriteAsync(target, CancellationToken.None);
+
+            var handler = new RelationCacheHitHandler();
+            var options = CreateRelationOptions(cacheDir, "readwrite");
+            NotionContentClient CreateClient() =>
+                new(options, handler, (_, _) => Task.CompletedTask);
+            var provider = new NotionContentSource(options, logger: null, CreateClient);
+
+            var result = await provider.LoadRawAsync();
+            var item = Assert.Single(result.Documents);
+
+            Assert.True(ContentFieldReader.TryGetField(item.CustomFields, "tags", out var tagsField));
+            var tags = Assert.IsAssignableFrom<IEnumerable<string>>(tagsField.Value);
+            Assert.Equal(new[] { "Refreshed Tag" }, tags.ToArray());
+            Assert.Equal(1, handler.Count(HttpMethod.Get, "https://api.notion.com/v1/pages/tag-1"));
+            var refreshed = await cache.TryReadAsync("tag-1", CancellationToken.None);
+            Assert.Equal("Refreshed Tag", refreshed!.Title);
+            Assert.Equal("refreshed-tag", refreshed.Slug);
+        }
+        finally
+        {
+            if (Directory.Exists(cacheDir))
+            {
+                Directory.Delete(cacheDir, recursive: true);
+            }
+        }
+    }
+
+    private static NotionContentSourceOptions CreateRelationOptions(string cacheDir, string cacheMode) => new()
+    {
+        DatabaseId = "db-123",
+        Token = "secret-token",
+        RequestDelayMs = 0,
+        FilterType = "none",
+        RenderContent = false,
+        FieldPolicyMode = "all",
+        CacheMode = cacheMode,
+        CacheDir = cacheDir
+    };
 
     // ── Handlers ─────────────────────────────────────────────────────────
 
@@ -428,6 +466,30 @@ public sealed class NotionContentSourceExtendedEdgeCasesTests
                       }
                     }
                   ]
+                }
+                """);
+            }
+
+            if (request.Method == HttpMethod.Get && url.EndsWith("/pages/tag-1", StringComparison.Ordinal))
+            {
+                return Ok("""
+                {
+                  "id": "tag-1",
+                  "url": "https://www.notion.so/refreshed-tag",
+                  "properties": {
+                    "Title": {
+                      "type": "title",
+                      "title": [{ "plain_text": "Refreshed Tag" }]
+                    },
+                    "Slug": {
+                      "type": "rich_text",
+                      "rich_text": [{ "plain_text": "refreshed-tag" }]
+                    },
+                    "Type": {
+                      "type": "select",
+                      "select": { "name": "page" }
+                    }
+                  }
                 }
                 """);
             }

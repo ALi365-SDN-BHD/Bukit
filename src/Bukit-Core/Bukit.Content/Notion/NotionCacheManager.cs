@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Globalization;
 using System.Text.Json;
 using Bukit.Notion.Rendering;
 using Bukit.Shared;
@@ -60,10 +61,24 @@ internal static class NotionCacheManager
                 var version = root.TryGetProperty("version", out var v) && v.TryGetInt32(out var vv) ? vv : 0;
                 var cachedLastEdited = root.TryGetProperty("lastEditedTime", out var let) && let.ValueKind == JsonValueKind.String ? let.GetString() : null;
                 var cachedHtml = root.TryGetProperty("html", out var h) && h.ValueKind == JsonValueKind.String ? h.GetString() : null;
+                DateTimeOffset? linksExpireAt = null;
+                if (root.TryGetProperty("linksExpireAt", out var expiry) && expiry.ValueKind == JsonValueKind.String)
+                {
+                    DateTimeOffset.TryParse(expiry.GetString(), CultureInfo.InvariantCulture,
+                        DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsedExpiry);
+                    if (parsedExpiry != default)
+                    {
+                        linksExpireAt = parsedExpiry;
+                    }
+                }
+
+                linksExpireAt ??= NotionHtmlLinkExpiry.GetEarliestExpiry(cachedHtml);
+                var linksExpired = linksExpireAt is { } expireAt && expireAt <= DateTimeOffset.UtcNow;
 
                 if (version == 1 &&
                     string.Equals(cachedLastEdited, lastEditedTime, StringComparison.Ordinal) &&
-                    cachedHtml is not null)
+                    cachedHtml is not null &&
+                    (!linksExpired || cache.Mode == "readonly"))
                 {
                     return cachedHtml!;
                 }
@@ -100,6 +115,15 @@ internal static class NotionCacheManager
                     writer.WriteString("lastEditedTime", lastEditedTime);
                 }
                 writer.WriteString("html", html);
+                var apiExpiry = renderer.LastFileLinkExpiresAt;
+                var urlExpiry = NotionHtmlLinkExpiry.GetEarliestExpiry(html);
+                var linksExpireAt = apiExpiry is { } api && urlExpiry is { } url
+                    ? (api <= url ? api : url)
+                    : apiExpiry ?? urlExpiry;
+                if (linksExpireAt is { } expiry)
+                {
+                    writer.WriteString("linksExpireAt", expiry);
+                }
                 writer.WriteEndObject();
             }
 

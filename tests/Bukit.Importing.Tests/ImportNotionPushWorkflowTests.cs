@@ -537,6 +537,70 @@ databases:
     }
 
     [Fact]
+    public async Task NotionSeedPusher_UpsertCustomUniqueFieldQueriesItsRealValue()
+    {
+        string? filterBody = null;
+        int patchCount = 0;
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db-posts/query", StringComparison.Ordinal))
+            {
+                filterBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("""{ "results": [{ "id": "page-existing" }] }""");
+            }
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/pages/page-existing", StringComparison.Ordinal))
+            {
+                patchCount++;
+                return Json("{}");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        using var transport = CreateTrustedClient(
+            new NotionClientOptions { Token = "token", MaxRetries = 0 },
+            handler);
+        var record = new ImportSeedRecord(
+            "post", "Post", "slug-value", null, null, null, true, null, null,
+            new Dictionary<string, object?> { ["ExternalKey"] = "real-key" });
+
+        var result = await NotionSeedPusher.PushAsync(client: new NotionWriteClient(transport), [record],
+            new NotionPushOptions("db-posts", Path.Combine(_rootDir, "unique-report.json"),
+                DryRun: false, Mode: "upsert", UniqueField: "external_key", WriteReport: false));
+
+        Assert.Equal(1, result.Updated);
+        Assert.Equal(1, patchCount);
+        Assert.NotNull(filterBody);
+        using var filter = JsonDocument.Parse(filterBody!);
+        var property = filter.RootElement.GetProperty("filter");
+        Assert.Equal("ExternalKey", property.GetProperty("property").GetString());
+        Assert.Equal("real-key", property.GetProperty("rich_text").GetProperty("equals").GetString());
+    }
+
+    [Fact]
+    public async Task NotionSeedPusher_UpsertMissingUniqueFieldFailsBeforeQueryOrWrite()
+    {
+        int requestCount = 0;
+        using var handler = new StubHttpMessageHandler(_ =>
+        {
+            requestCount++;
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        using var transport = CreateTrustedClient(
+            new NotionClientOptions { Token = "token", MaxRetries = 0 },
+            handler);
+        var record = new ImportSeedRecord(
+            "post", "Post", "slug-value", null, null, null, true, null, null);
+
+        var result = await NotionSeedPusher.PushAsync(new NotionWriteClient(transport), [record],
+            new NotionPushOptions("db-posts", Path.Combine(_rootDir, "missing-unique-report.json"),
+                DryRun: false, Mode: "upsert", UniqueField: "MissingKey", WriteReport: false));
+
+        Assert.Equal(1, result.Failed);
+        Assert.Equal(0, requestCount);
+        Assert.Contains("has no value", result.Items.Single().Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task NotionSeedPusher_CancellationStopsBeforeLaterWrite()
     {
         using var cancellation = new CancellationTokenSource();

@@ -54,7 +54,7 @@ internal static class ContentProviderFactory
                 {
                     var md = s.Markdown ?? new MarkdownConfig();
                     var contentDir = BuildPathUtils.MakeAbsolute(rootDir, md.Dir);
-                    providers.Add((key, mode, s.Collection, s.AddToCollections, new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs), logger)));
+                    providers.Add((key, mode, s.Collection, s.AddToCollections, new MarkdownFolderProvider(new MarkdownFolderProviderOptions(contentDir, md.DefaultType, md.MaxItems, md.IncludePaths, md.IncludeGlobs, config.Site.AutoSummary, config.Site.AutoSummaryMaxLength), logger)));
                     continue;
                 }
 

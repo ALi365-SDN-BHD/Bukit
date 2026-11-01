@@ -19,6 +19,20 @@ public sealed partial class GitHubPagesDeployProvider
         }
     }
 
+    /// <summary>
+    /// Deployment metadata is written into a checkout whose branch contents are not trusted.
+    /// Refuse to follow a symlink (including a dangling one) left by that branch.
+    /// </summary>
+    internal static void EnsureMetadataWriteTargetIsNotLink(string path)
+    {
+        var fileLink = new FileInfo(path).LinkTarget;
+        var directoryLink = new DirectoryInfo(path).LinkTarget;
+        if (fileLink is not null || directoryLink is not null)
+        {
+            throw new IOException($"Refusing to write deployment metadata through a symbolic link: {Path.GetFileName(path)}");
+        }
+    }
+
     private static void DeleteDeploymentEntry(string path)
     {
         var attributes = File.GetAttributes(path);

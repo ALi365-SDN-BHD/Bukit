@@ -138,7 +138,16 @@ public sealed class MarkdownFolderProvider : IContentProvider
             if (MarkdownFrontMatterParser.TryExtractFrontMatter(markdown, out var frontMatterYaml, out var body))
             {
                 bodyMarkdown = body;
-                var fm = MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml, _logger);
+                IReadOnlyDictionary<string, object> fm;
+                try
+                {
+                    fm = MarkdownFrontMatterParser.ParseFrontMatter(frontMatterYaml, _logger);
+                }
+                catch (ContentException ex)
+                {
+                    throw new ContentException($"Invalid front matter in '{file}': {ex.Message}", ex);
+                }
+
                 foreach (var kv in fm)
                 {
                     frontMatterValues[kv.Key] = kv.Value;
@@ -269,8 +278,17 @@ public sealed class MarkdownFolderProvider : IContentProvider
                 var isDouble = i + 1 < pattern.Length && pattern[i + 1] == '*';
                 if (isDouble)
                 {
-                    sb.Append(".*");
-                    i++;
+                    // A trailing "**/" also matches the content root (zero directories).
+                    if (i + 2 < pattern.Length && pattern[i + 2] == '/')
+                    {
+                        sb.Append("(?:.*/)?");
+                        i += 2;
+                    }
+                    else
+                    {
+                        sb.Append(".*");
+                        i++;
+                    }
                 }
                 else
                 {

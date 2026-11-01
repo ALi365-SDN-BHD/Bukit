@@ -151,7 +151,7 @@ public sealed class LibraryDiagnosticOutputTests : IDisposable
             case "Markdown":
                 const string yaml = "title: [";
                 string yamlError = Record.Exception(() => new YamlStream().Load(new StringReader(yaml)))!.Message;
-                Assert.Empty(MarkdownFrontMatterParser.ParseFrontMatter(yaml, logger));
+                Assert.Throws<ContentException>(() => MarkdownFrontMatterParser.ParseFrontMatter(yaml, logger));
                 return [$"Failed to parse front matter: {yamlError}"];
             case "Security":
                 var app = new AppConfig
@@ -213,8 +213,8 @@ public sealed class LibraryDiagnosticOutputTests : IDisposable
             Content = TestContent.Markdown() with { Media = new MediaConfig { DownloadToLocal = false } }
         };
         var logger = new WarningLogger(new ConsoleLogger(LogLevel.Error));
-        var result = await ContentProviderFactory.Create(config, _root, false, logger).LoadRawAsync();
-        Assert.Equal("Fallback", Assert.Single(result.Documents).Title);
+        await Assert.ThrowsAsync<ContentException>(() =>
+            ContentProviderFactory.Create(config, _root, false, logger).LoadRawAsync());
         Assert.StartsWith("Failed to parse front matter: ", Assert.Single(logger.Messages));
     }
 
@@ -240,7 +240,7 @@ public sealed class LibraryDiagnosticOutputTests : IDisposable
             {
                 File.WriteAllText(Path.Combine(_root, "page.md"), "---\ntitle: [\n---\n# Fallback\n");
                 var provider = new MarkdownFolderProvider(new MarkdownFolderProviderOptions(_root));
-                Assert.Equal("Fallback", Assert.Single((await provider.LoadRawAsync()).Documents).Title);
+                await Assert.ThrowsAsync<ContentException>(() => provider.LoadRawAsync());
                 expected = "Failed to parse front matter: " + Record.Exception(() => new YamlStream().Load(new StringReader("title: [")))!.Message;
             }
         }

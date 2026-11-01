@@ -52,6 +52,33 @@ public sealed class VariantBuildPipelineTests : IDisposable
     }
 
     [Fact]
+    public async Task PrepareDataModulesStage_PropagatesLanguageCancellationToDataReads()
+    {
+        var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>
+        {
+            ["sourceKey"] = "shared",
+            ["sourceMode"] = "data",
+            ["type"] = "module"
+        });
+        var document = ContentDocument.Create("row", "Row", "row", DateTimeOffset.UtcNow, null, fields);
+        var config = CreateMinimalConfig();
+        var context = new BuildVariantContext(
+            config, _rootDir, new ConfigOverrides(), [document], CanonicalContentGraph.Empty,
+            new NoOpBodyStore(), Path.Combine(_rootDir, "dist"), "/",
+            Path.Combine(_rootDir, "layouts"), Path.Combine(_rootDir, "assets"), Path.Combine(_rootDir, "static"),
+            Path.Combine(_rootDir, "media"), new Dictionary<string, IReadOnlyList<SeoAlternateModel>>(),
+            null, null, "en", DateTimeOffset.UnixEpoch);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            VariantDataSitePlanner.PrepareDataModulesStageAsync(
+                context,
+                new BuildStageMetricsCollector(),
+                cancellation.Token));
+    }
+
+    [Fact]
     public async Task PrepareDataModules_AttachesRouteMetadataWithoutExposingReservedRowsAsModules()
     {
         var fields = ContentFieldReader.ToFieldMap(new Dictionary<string, object>

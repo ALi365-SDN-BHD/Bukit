@@ -11,6 +11,34 @@ namespace Bukit.Cli.Tests;
 public sealed class GitHubPagesDeployProviderTests
 {
     [Fact]
+    public void EnsureMetadataWriteTargetIsNotLink_RejectsRegularAndDanglingSymlinks()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-deploy-metadata-" + Guid.NewGuid().ToString("N"));
+        var target = Path.Combine(root, "outside.txt");
+        var link = Path.Combine(root, "CNAME");
+        var dangling = Path.Combine(root, "dangling-CNAME");
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllText(target, "secret");
+            File.WriteAllText(link, "docs.example.com");
+            Assert.Null(Record.Exception(() => GitHubPagesDeployProvider.EnsureMetadataWriteTargetIsNotLink(link)));
+
+            File.Delete(link);
+            File.CreateSymbolicLink(link, target);
+            Assert.Throws<IOException>(() => GitHubPagesDeployProvider.EnsureMetadataWriteTargetIsNotLink(link));
+
+            File.CreateSymbolicLink(dangling, Path.Combine(root, "missing.txt"));
+            Assert.Throws<IOException>(() => GitHubPagesDeployProvider.EnsureMetadataWriteTargetIsNotLink(dangling));
+            Assert.Equal("secret", File.ReadAllText(target));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task WaitForTerminationGraceAsync_IncompleteCleanup_ReturnsFalseWithinGrace()
     {
         var never = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

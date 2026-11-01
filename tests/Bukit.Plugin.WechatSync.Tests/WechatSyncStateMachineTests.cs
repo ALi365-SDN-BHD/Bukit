@@ -201,7 +201,7 @@ public sealed class WechatSyncStateMachineTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_AddDraftRetriesExhaustedReturnsRecoveryRequiredWithIntent()
+    public async Task RunAsync_AmbiguousAddDraftResponseStopsRetryingAndRequiresRecovery()
     {
         using var credentials = Credentials();
         var options = Options(credentials.AppIdName, credentials.SecretName) with { MaxAttempts = 2 };
@@ -215,7 +215,7 @@ public sealed class WechatSyncStateMachineTests : IDisposable
         Assert.False(result.Success);
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "plugin.wechat-sync.recoveryRequired");
         Assert.DoesNotContain(result.Diagnostics, diagnostic => diagnostic.Message.Contains("ambiguous", StringComparison.Ordinal));
-        Assert.Equal(2, gateway.AddDraftCount);
+        Assert.Equal(1, gateway.AddDraftCount);
         Assert.Equal("DraftSubmitting", LoadCache().Operations[SyncKey].State);
     }
 

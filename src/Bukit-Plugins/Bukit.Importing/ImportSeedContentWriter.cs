@@ -72,12 +72,18 @@ public static class ImportSeedContentWriter
             foreach (var (key, value) in record.ExtraFields)
             {
                 if (value is null) continue;
-                sb.AppendLine(value switch
+                if (value is IEnumerable<object?> sequence)
                 {
-                    bool b => $"{key}: {b.ToString().ToLowerInvariant()}",
-                    int or long or float or double or decimal => $"{key}: {value}",
-                    _ => $"{key}: \"{EscapeYaml(value.ToString() ?? "")}\""
-                });
+                    sb.AppendLine($"{key}:");
+                    foreach (var item in sequence)
+                    {
+                        sb.AppendLine($"  - {FormatYamlScalar(item)}");
+                    }
+
+                    continue;
+                }
+
+                sb.AppendLine($"{key}: {FormatYamlScalar(value)}");
             }
         }
         sb.AppendLine($"published: {record.Published.ToString().ToLowerInvariant()}");
@@ -87,6 +93,15 @@ public static class ImportSeedContentWriter
             sb.AppendLine(record.Content);
         return sb.ToString();
     }
+
+    private static string FormatYamlScalar(object? value)
+        => value switch
+        {
+            null => "null",
+            bool b => b.ToString().ToLowerInvariant(),
+            int or long or float or double or decimal => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!,
+            _ => $"\"{EscapeYaml(value.ToString() ?? string.Empty)}\""
+        };
 
     private static string EscapeYaml(string value)
     {
