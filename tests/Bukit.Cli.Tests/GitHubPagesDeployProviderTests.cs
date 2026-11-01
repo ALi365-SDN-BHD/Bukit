@@ -363,8 +363,9 @@ public sealed class GitHubPagesDeployProviderTests
         using var cts = new CancellationTokenSource();
         var deployTask = new GitHubPagesDeployProvider().DeployAsync(scope.CreateContext(), cts.Token);
 
-        var started = DateTime.UtcNow;
-        while (!File.Exists(scope.FakeGit.PushSleepStartedPath) && DateTime.UtcNow - started < TimeSpan.FromSeconds(2))
+        var started = Stopwatch.StartNew();
+        var readinessTimeout = OperatingSystem.IsWindows() ? TimeSpan.FromSeconds(30) : TimeSpan.FromSeconds(2);
+        while (!File.Exists(scope.FakeGit.PushSleepStartedPath) && !deployTask.IsCompleted && started.Elapsed < readinessTimeout)
         {
             await Task.Delay(25);
         }
@@ -1319,14 +1320,30 @@ public sealed class GitHubPagesDeployProviderTests
 
     [Fact]
     public async Task DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive()
+        => await DeployRealLocalGitAndAssertCleanupAsync("success");
+
+    [WindowsFact]
+    public async Task DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndAskpass()
+        => await DeployRealLocalGitAndAssertCleanupAsync("reject");
+
+    [WindowsFact]
+    public async Task DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndAskpass()
+        => await DeployRealLocalGitAndAssertCleanupAsync("wait");
+
+    private static async Task DeployRealLocalGitAndAssertCleanupAsync(string pushBehavior)
     {
-        if (OperatingSystem.IsWindows()) return;
         var realGit = InvokePrivateStatic<string?>(nameof(GitHubPagesDeployProvider), "ResolveGit", [null])!;
         using var scope = new GitHubPagesDeployTestScope();
         scope.SetGithubToken("dummy-token");
         scope.WriteOutputFile("index.html", "new page");
         using var cwd = new CurrentDirectoryScope(scope.WorktreeDir);
         var remote = Path.Combine(scope.WorktreeDir, "remote.git");
+        var accessLog = Path.Combine(scope.WorktreeDir, "transport-access.log");
+        if (OperatingSystem.IsWindows())
+        {
+            scope.UseRealGitShim(realGit, remote, accessLog, Path.Combine(scope.WorktreeDir, "askpass-path"), pushBehavior);
+        }
+
         async Task<string> Git(params string[] args)
         {
             var start = new ProcessStartInfo(realGit) { WorkingDirectory = scope.WorktreeDir, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
@@ -1357,10 +1374,11 @@ public sealed class GitHubPagesDeployProviderTests
         await Git("push", remote, "pages");
         await Git("remote", "add", "origin", "https://github.com/test/local.git");
         string Quote(string value) => "'" + value.Replace("'", "'\\''") + "'";
-        var accessLog = Path.Combine(scope.WorktreeDir, "transport-access.log");
         // Controlled transport double: real git for every command, but the deploy-private
         // remote name is mapped to the local bare repository. Records each real access.
-        WriteExecutable(scope.FakeGit.BinDir, "git", $$"""
+        if (!OperatingSystem.IsWindows())
+        {
+            WriteExecutable(scope.FakeGit.BinDir, "git", $$"""
             set -eu
             case "${1:-}" in
               ls-remote|fetch|push)
@@ -1383,18 +1401,53 @@ public sealed class GitHubPagesDeployProviderTests
                 ;;
             esac
             """);
-        var result = await new GitHubPagesDeployProvider().DeployAsync(
+        }
+        using var cancellation = new CancellationTokenSource();
+        var deployment = new GitHubPagesDeployProvider().DeployAsync(
             scope.CreateContext(keepHistory: true, branch: "pages", cname: "WWW.Example.Com"),
-            CancellationToken.None);
-        Assert.True(result.Success, result.Error);
-        Assert.Equal("https://www.example.com", result.DeployedUrl);
-        Assert.Equal("new page", (await Git("--git-dir", remote, "show", "pages:index.html")).Trim());
-        Assert.Equal("www.example.com", (await Git("--git-dir", remote, "show", "pages:CNAME")).Trim());
+            cancellation.Token);
+        if (pushBehavior == "wait")
+        {
+            var readiness = Stopwatch.StartNew();
+            var marker = Path.Combine(scope.WorktreeDir, "real-push-started");
+            try
+            {
+                while (!File.Exists(marker) && !deployment.IsCompleted && readiness.Elapsed < TimeSpan.FromSeconds(30))
+                {
+                    await Task.Delay(25);
+                }
+                Assert.True(File.Exists(marker), "Real Git fetch must finish and the push barrier must be reached before cancellation.");
+            }
+            finally
+            {
+                cancellation.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await deployment.WaitAsync(TimeSpan.FromSeconds(10)));
+            }
+        }
+        else
+        {
+            var result = await deployment;
+            if (pushBehavior == "success")
+            {
+                Assert.True(result.Success, result.Error);
+                Assert.Equal("https://www.example.com", result.DeployedUrl);
+                Assert.Equal("new page", (await Git("--git-dir", remote, "show", "pages:index.html")).Trim());
+                Assert.Equal("www.example.com", (await Git("--git-dir", remote, "show", "pages:CNAME")).Trim());
+            }
+            else
+            {
+                Assert.False(result.Success);
+                Assert.Contains("fixture push rejected", result.Error, StringComparison.Ordinal);
+            }
+        }
         var files = await Git("--git-dir", remote, "ls-tree", "--name-only", "pages");
-        Assert.DoesNotContain("old.html", files);
+        if (pushBehavior == "success") Assert.DoesNotContain("old.html", files);
+        else Assert.Equal("old page", (await Git("--git-dir", remote, "show", "pages:old.html")).Trim());
         Assert.DoesNotContain("askpass", files);
         Assert.DoesNotContain(".bukit", files);
-        Assert.False(File.Exists(File.ReadAllText(Path.Combine(scope.WorktreeDir, "askpass-path"))));
+        var askpass = File.ReadAllText(Path.Combine(scope.WorktreeDir, "askpass-path"));
+        Assert.False(File.Exists(askpass));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(askpass)), "The deployment temporary repository must be removed, including read-only Git objects.");
         var accesses = File.ReadAllLines(accessLog);
         Assert.Equal(3, accesses.Length);
         Assert.All(accesses, line => Assert.Equal("ACCESS " + remote, line));
@@ -1412,6 +1465,7 @@ public sealed class GitHubPagesDeployProviderTests
     {
         private readonly string _root;
         private readonly Dictionary<string, string?> _originalEnv = new(StringComparer.Ordinal);
+        private bool _hasRealGitRepositories;
 
         public GitHubPagesDeployTestScope(bool includeFakeGitInPath = true)
         {
@@ -1430,6 +1484,10 @@ public sealed class GitHubPagesDeployProviderTests
                 : string.Empty);
             SetEnv("BUKIT_FAKE_GIT_LOG", FakeGit.LogPath);
             SetEnv("BUKIT_FAKE_GIT_STATE", FakeGit.StateDir);
+            if (OperatingSystem.IsWindows())
+            {
+                SetEnv("BUKIT_TEST_GIT_SCRIPT", Path.Combine(FakeGit.BinDir, "git.ps1"));
+            }
         }
 
         public string WorktreeDir { get; }
@@ -1471,6 +1529,42 @@ public sealed class GitHubPagesDeployProviderTests
 
         public void SetDeployTimeoutSeconds(string? seconds) => SetEnv("BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS", seconds);
 
+        public void UseRealGitShim(string realGit, string remote, string accessLog, string askpassLog, string pushBehavior = "success")
+        {
+            _hasRealGitRepositories = true;
+            var config = Path.Combine(_root, "isolated.gitconfig");
+            File.WriteAllText(config, string.Empty);
+            foreach (var name in new[]
+                     {
+                         "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE",
+                         "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_IMPLICIT_WORK_TREE",
+                         "GIT_GRAFT_FILE", "GIT_NO_REPLACE_OBJECTS", "GIT_REPLACE_REF_BASE", "GIT_PREFIX",
+                         "GIT_INTERNAL_SUPER_PREFIX", "GIT_SHALLOW_FILE", "GIT_CONFIG",
+                         "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_CONFIG_NOSYSTEM"
+                     })
+            {
+                SetEnv(name, null);
+            }
+            foreach (var name in Environment.GetEnvironmentVariables().Keys.Cast<string>()
+                         .Where(name => name.StartsWith("GIT_CONFIG_KEY_", StringComparison.OrdinalIgnoreCase)
+                                        || name.StartsWith("GIT_CONFIG_VALUE_", StringComparison.OrdinalIgnoreCase))
+                         .ToArray())
+            {
+                SetEnv(name, null);
+            }
+            SetEnv("GIT_CONFIG_GLOBAL", config);
+            SetEnv("GIT_CONFIG_SYSTEM", config);
+            SetEnv("GIT_ALLOW_PROTOCOL", "file");
+            SetEnv("BUKIT_TEST_GIT_SCRIPT", null);
+            SetEnv("BUKIT_DEPLOY_REAL_GIT", realGit);
+            SetEnv("BUKIT_DEPLOY_BARE_B", remote);
+            SetEnv("BUKIT_DEPLOY_ACCESS_LOG", accessLog);
+            SetEnv("BUKIT_DEPLOY_ASKPASS_LOG", askpassLog);
+            SetEnv("BUKIT_DEPLOY_SIMPLE_LOG", "1");
+            SetEnv("BUKIT_DEPLOY_PUSH_BEHAVIOR", pushBehavior);
+            SetEnv("BUKIT_DEPLOY_PUSH_MARKER", Path.Combine(WorktreeDir, "real-push-started"));
+        }
+
         public void Dispose()
         {
             FakeGit.Dispose();
@@ -1482,6 +1576,18 @@ public sealed class GitHubPagesDeployProviderTests
 
             if (Directory.Exists(_root))
             {
+                if (_hasRealGitRepositories && OperatingSystem.IsWindows())
+                {
+                    var options = new EnumerationOptions
+                    {
+                        RecurseSubdirectories = true,
+                        AttributesToSkip = FileAttributes.ReparsePoint
+                    };
+                    foreach (var file in Directory.EnumerateFiles(_root, "*", options))
+                    {
+                        File.SetAttributes(file, File.GetAttributes(file) & ~FileAttributes.ReadOnly);
+                    }
+                }
                 Directory.Delete(_root, recursive: true);
             }
         }
@@ -1572,10 +1678,7 @@ public sealed class GitHubPagesDeployProviderTests
         {
             if (OperatingSystem.IsWindows())
             {
-                File.WriteAllText(Path.Combine(BinDir, "git.cmd"), """
-                @echo off
-                powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0git.ps1" %*
-                """);
+                WindowsGitShim.Install(BinDir);
                 File.WriteAllText(Path.Combine(BinDir, "git.ps1"), """
                 $log = $env:BUKIT_FAKE_GIT_LOG
                 Add-Content -LiteralPath $log -Value ("$($PWD.Path)|" + ($args -join ' '))

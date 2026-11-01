@@ -78,7 +78,9 @@ public sealed partial class GitHubPagesDeployProvider
     private static string? ResolveGit(ILogger? logger = null)
     {
         var paths = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        var names = OperatingSystem.IsWindows() ? new[] { "git.exe", "git.cmd" } : new[] { "git" };
+        // Batch wrappers parse shell metacharacters again even with ArgumentList.
+        // Deployment passes regexes and paths that must reach Git unchanged.
+        var names = OperatingSystem.IsWindows() ? new[] { "git.exe" } : new[] { "git" };
         foreach (var dir in paths.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             foreach (var name in names)
@@ -89,6 +91,12 @@ public sealed partial class GitHubPagesDeployProvider
                     return full;
                 }
             }
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            logger?.Warn("GitHub Pages deployment on Windows requires native git.exe in PATH; batch wrappers are not supported.");
+            return null;
         }
 
         try

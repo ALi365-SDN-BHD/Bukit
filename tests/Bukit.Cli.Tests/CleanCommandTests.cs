@@ -1,6 +1,5 @@
 using Bukit.Cli.Tests;
 using Xunit;
-using Xunit.Sdk;
 
 namespace Bukit.Cli.Tests;
 
@@ -268,7 +267,7 @@ theme:
 
         try
         {
-            CreateDirectorySymlinkOrSkip(alias, externalRoot);
+            CreateRequiredDirectorySymlink(alias, externalRoot);
 
             using var cwd = new CurrentDirectoryScope(_testDir);
             var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
@@ -297,7 +296,7 @@ theme:
 
         try
         {
-            CreateDirectorySymlinkOrSkip(alias, externalRoot);
+            CreateRequiredDirectorySymlink(alias, externalRoot);
 
             using var cwd = new CurrentDirectoryScope(_testDir);
             var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
@@ -347,8 +346,8 @@ theme:
 
         try
         {
-            CreateDirectorySymlinkOrSkip(cacheLink, cacheTarget);
-            CreateDirectorySymlinkOrSkip(bukitLink, bukitTarget);
+            CreateRequiredDirectorySymlink(cacheLink, cacheTarget);
+            CreateRequiredDirectorySymlink(bukitLink, bukitTarget);
 
             using var cwd = new CurrentDirectoryScope(_testDir);
             var exitCode = await Bukit.Cli.Commands.CleanCommand.RunAsync(
@@ -516,7 +515,7 @@ theme:
         Assert.Equal("retain on refusal", File.ReadAllText(cacheFile));
     }
 
-    private static void CreateDirectorySymlinkOrSkip(string linkPath, string targetPath)
+    private static void CreateRequiredDirectorySymlink(string linkPath, string targetPath)
     {
         try
         {
@@ -524,7 +523,8 @@ theme:
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            throw SkipException.ForSkip($"Directory symlinks are unavailable: {ex.GetType().Name}");
+            throw new InvalidOperationException(
+                "This security test requires directory symlinks. Enable Windows Developer Mode or use an account with symbolic-link creation privilege.", ex);
         }
     }
 

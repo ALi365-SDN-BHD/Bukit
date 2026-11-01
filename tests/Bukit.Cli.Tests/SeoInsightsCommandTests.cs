@@ -3,7 +3,6 @@ using Bukit.Cli.Commands;
 using Bukit.Cli.Shared.Cli.Binding;
 using Bukit.Cli.Shared.Cli.Parsing;
 using Xunit;
-using Xunit.Sdk;
 
 namespace Bukit.Cli.Tests;
 
@@ -107,7 +106,7 @@ public sealed class SeoInsightsCommandTests : IDisposable
     {
         var inputs = WriteValidInputs();
         var alias = Path.Combine(_tempDir, "source-alias");
-        CreateDirectorySymlinkOrSkip(alias, _tempDir);
+        CreateRequiredDirectorySymlink(alias, _tempDir);
         var sourceBytes = File.ReadAllBytes(inputs.Gsc);
         try
         {
@@ -136,7 +135,7 @@ public sealed class SeoInsightsCommandTests : IDisposable
     {
         var inputs = WriteValidInputs();
         var alias = Path.Combine(_tempDir, "output-alias");
-        CreateDirectorySymlinkOrSkip(alias, _tempDir);
+        CreateRequiredDirectorySymlink(alias, _tempDir);
         var sourcePath = sourceType switch
         {
             "routes" => inputs.RouteMap,
@@ -530,7 +529,7 @@ public sealed class SeoInsightsCommandTests : IDisposable
         }
         """;
 
-    private static void CreateDirectorySymlinkOrSkip(string linkPath, string targetPath)
+    private static void CreateRequiredDirectorySymlink(string linkPath, string targetPath)
     {
         try
         {
@@ -538,7 +537,8 @@ public sealed class SeoInsightsCommandTests : IDisposable
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
         {
-            throw SkipException.ForSkip($"Directory symlinks are unavailable: {exception.GetType().Name}");
+            throw new InvalidOperationException(
+                "This security test requires directory symlinks. Enable Windows Developer Mode or use an account with symbolic-link creation privilege.", exception);
         }
     }
 

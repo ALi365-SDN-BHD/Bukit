@@ -424,10 +424,10 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
             ownedWorktree = Assert.Single(await File.ReadAllLinesAsync(registry));
             Assert.True(Directory.Exists(ownedWorktree));
             var registered = (await RunProcessAsync("git", ["worktree", "list", "--porcelain"], root)).Output;
-            Assert.Contains(
-                "worktree " + PathUtils.GetCanonicalFullPath(ownedWorktree),
-                registered,
-                StringComparison.Ordinal);
+            Assert.Contains(registered.Split('\n'), line =>
+                line.StartsWith("worktree ", StringComparison.Ordinal) &&
+                string.Equals(PathUtils.GetCanonicalFullPath(line["worktree ".Length..].TrimEnd('\r')),
+                    PathUtils.GetCanonicalFullPath(ownedWorktree), PlatformPathHelper.PathComparison));
         }
         finally
         {
@@ -450,8 +450,7 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
         var site = CreateSite(root);
         await InitializeRepositoryAsync(root);
         var repository = (await RunProcessAsync("git", ["rev-parse", "--show-toplevel"], root)).Output.Trim();
-        var repositoryHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(repository)))[..16];
-        var runRoot = Path.Combine(Path.GetTempPath(), "bukit-i18n-worktrees", repositoryHash, "interrupted-run");
+        var runRoot = Path.Combine(WorktreeBuildPaths.RunsRoot(repository), "interrupted-run");
         var residualWorktree = Path.Combine(runRoot, "workers", "en");
         Directory.CreateDirectory(runRoot);
         Assert.Equal(0, (await RunProcessAsync("git", ["worktree", "add", "--detach", residualWorktree, "HEAD"], root)).ExitCode);
@@ -527,10 +526,13 @@ public sealed class WorktreeBuildCoordinatorTests : IDisposable
     {
         var root = Path.Combine(_root, "media-conflict");
         var site = CreateSite(root);
-        await File.WriteAllTextAsync(site, (await File.ReadAllTextAsync(site)).Replace(
+        var original = (await File.ReadAllTextAsync(site)).ReplaceLineEndings("\n");
+        var configured = original.Replace(
             "content:\n  sources:",
             "content:\n  media:\n    downloadToLocal: true\n    downloadDir: content/media\n  sources:",
-            StringComparison.Ordinal));
+            StringComparison.Ordinal);
+        Assert.NotEqual(original, configured);
+        await File.WriteAllTextAsync(site, configured);
         await InitializeRepositoryAsync(root);
         var contentDir = Path.Combine(root, "content");
         var before = SnapshotHashes(contentDir);

@@ -212,17 +212,7 @@ public sealed partial class GitHubPagesDeployProvider : IDeployProvider
         finally
         {
             CleanupAskpassScript(askpassScript);
-            try
-            {
-                if (Directory.Exists(tempDir))
-                {
-                    Directory.Delete(tempDir, recursive: true);
-                }
-            }
-            catch (Exception cleanupEx)
-            {
-                Console.Error.WriteLine($"Deploy: failed to clean up temp dir: {cleanupEx.GetType().Name}");
-            }
+            CleanupDeploymentDirectory(tempDir);
         }
     }
 

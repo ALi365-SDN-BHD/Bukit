@@ -286,13 +286,90 @@ jobs:
           New-Item -ItemType Directory -Force TestResults/windows-git | Out-Null
           dotnet --info | Out-File TestResults/windows-git/dotnet-info.txt
           git --version | Out-File TestResults/windows-git/git-version.txt
-      - name: Run real Git transport primitives
-        shell: pwsh
+      - name: Run real Git transport and deployment regressions
+        shell: python
         run: |
-          dotnet test tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj -c Release `
-            --filter "FullyQualifiedName~DeployGitTransportPrimitiveTests" `
-            --logger "trx;LogFileName=windows-git-transport.trx" `
-            --results-directory TestResults/windows-git
+          import collections
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import platform
+          import re
+          import subprocess
+          import xml.etree.ElementTree as ET
+
+          expected = {
+              "Bukit.Cli.Tests.DeployGitTransportPrimitiveTests": 5,
+              "Bukit.Cli.Tests.DeployIdentityTransportTests": 33,
+              "Bukit.Cli.Tests.DeployWindowsRegressionTests": 7,
+              "Bukit.Cli.Tests.GitHubPagesDeployProviderTests": 5,
+          }
+          provider_methods = [
+              "DeployAsync_RealLocalGitClonesAndPushesWithAskpassAlive",
+              "DeployAsync_RealLocalGitPushFailure_CleansReadOnlyObjectsAndAskpass",
+              "DeployAsync_RealLocalGitPushCancellation_CleansReadOnlyObjectsAndAskpass",
+              "DeployAsync_UserPagesRepoWithDotRemoteUrl_DeploysToRootGithubIoUrl",
+              "DeployAsync_CancelDuringPush_PropagatesOperationCanceledException_AndCleansUp",
+          ]
+
+          def validate(root, return_code):
+              rows = root.findall(".//{*}Results/{*}UnitTestResult")
+              actual = collections.Counter(row.get("testName", "").rsplit(".", 1)[0] for row in rows)
+              counters = root.find("{*}ResultSummary/{*}Counters")
+              if return_code != 0 or root.find("{*}ResultSummary").get("outcome") not in ("Completed", "Passed"):
+                  raise ValueError("Windows Git test process or result summary failed")
+              if actual != expected or counters is None:
+                  raise ValueError("Windows Git selection has missing, duplicate or unexpected tests")
+              total = sum(expected.values())
+              if any(int(counters.get(key, "-1")) != total for key in ("total", "executed", "passed")):
+                  raise ValueError("Windows Git counters do not prove every selected test passed")
+              if any(int(counters.get(key, "-1")) != 0 for key in ("failed", "notExecuted")):
+                  raise ValueError("Windows Git failures or skips are not allowed")
+              names = [row.get("testName", "") for row in rows]
+              if len(set(names)) != total or any(row.get("outcome") != "Passed" for row in rows):
+                  raise ValueError("Windows Git results contain duplicates or non-passing tests")
+              for method in provider_methods:
+                  if "Bukit.Cli.Tests.GitHubPagesDeployProviderTests." + method not in names:
+                      raise ValueError("Windows Git provider regression is missing: " + method)
+              if any("BUKIT_NOT_APPLICABLE:" in row.findtext("{*}Output/{*}StdOut", "") for row in rows):
+                  raise ValueError("Selected Windows Git test returned without exercising its body")
+              return dict(actual)
+
+          def main():
+              if platform.system() != "Windows":
+                  raise ValueError("Windows Git proof must execute on Windows")
+              results = Path(os.environ.get("BUKIT_WINDOWS_GIT_RESULTS", "TestResults/windows-git"))
+              results.mkdir(parents=True, exist_ok=True)
+              temp = Path(os.environ["RUNNER_TEMP"]) / "bukit-windows-git-fixtures"
+              temp.mkdir(parents=True, exist_ok=False)
+              empty_config = temp / "empty.gitconfig"
+              empty_config.write_text("", encoding="utf-8")
+              for name in list(os.environ):
+                  if name.startswith(("GIT_", "BUKIT_FAKE_GIT_", "BUKIT_DEPLOY_", "BUKIT_TEST_GIT_")):
+                      os.environ.pop(name)
+              os.environ.update(TEMP=str(temp), TMP=str(temp), GIT_CONFIG_GLOBAL=str(empty_config),
+                                GIT_CONFIG_SYSTEM=str(empty_config), GIT_ALLOW_PROTOCOL="file", GIT_TERMINAL_PROMPT="0",
+                                DOTNET_CLI_UI_LANGUAGE="en")
+              selected = list(expected)[:-1] + ["Bukit.Cli.Tests.GitHubPagesDeployProviderTests." + name for name in provider_methods]
+              trx = results / "windows-git-transport.trx"
+              command = ["dotnet", "test", "tests/Bukit.Cli.Tests/Bukit.Cli.Tests.csproj", "-c", "Release", "--filter",
+                         "|".join("FullyQualifiedName~" + name for name in selected), "--logger",
+                         "trx;LogFileName=windows-git-transport.trx", "--results-directory", str(results)]
+              completed = subprocess.run(command)
+              actual = validate(ET.parse(trx).getroot(), completed.returncode)
+              residue = [entry.name for entry in temp.iterdir() if re.fullmatch(r"bukit-deploy-[0-9a-f]{32}", entry.name)]
+              evidence = {"os": platform.system(), "sdk": subprocess.check_output(["dotnet", "--version"], text=True).strip(),
+                          "git": subprocess.check_output(["git", "--version"], text=True).strip(),
+                          "expected": expected, "executedByClass": actual, "deploymentTempResidue": residue,
+                          "trxSha256": hashlib.sha256(trx.read_bytes()).hexdigest()}
+              (results / "windows-git-evidence.json").write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
+              print(json.dumps(evidence, indent=2), flush=True)
+              if residue:
+                  raise ValueError("Windows Git deployment temporary repositories remained after tests")
+
+          if __name__ == "__main__":
+              main()
       - uses: actions/upload-artifact@v7
         if: always()
         with:

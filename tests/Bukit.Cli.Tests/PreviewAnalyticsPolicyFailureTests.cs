@@ -3,7 +3,6 @@ using System.Net.Sockets;
 using Bukit.Cli.Commands;
 using Bukit.Cli.Shared.Cli.Binding;
 using Xunit;
-using Xunit.Sdk;
 
 namespace Bukit.Cli.Tests;
 
@@ -39,12 +38,12 @@ public sealed class PreviewAnalyticsPolicyFailureTests : IDisposable
         Assert.Contains("Config", result.Error, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [UnixFact]
     public async Task RunAsync_WhenFallbackConfigCannotBeRead_ExitsBeforeServingAndReportsSource()
     {
         if (OperatingSystem.IsWindows())
         {
-            throw SkipException.ForSkip("Unix file modes are unavailable on Windows.");
+            throw new PlatformNotSupportedException("Unix file modes are unavailable on Windows.");
         }
 
         var outputDir = CreateOutput();
@@ -56,8 +55,8 @@ public sealed class PreviewAnalyticsPolicyFailureTests : IDisposable
         {
             if (CanRead(configPath))
             {
-                throw SkipException.ForSkip(
-                    "The current Unix identity can still read a mode-000 file; unreadable fallback cannot be exercised.");
+                throw new InvalidOperationException(
+                    "This permission test requires a Unix identity that cannot read a mode-000 file; use an unprivileged test account.");
             }
 
             var result = await RunCapturingErrorAsync(outputDir, cancellationAfter: TimeSpan.FromMilliseconds(250));

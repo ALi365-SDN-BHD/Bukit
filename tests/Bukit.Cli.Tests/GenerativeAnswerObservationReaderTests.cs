@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Nodes;
 using Bukit.Cli.Commands.SeoGenerativeInsights;
 using Bukit.Cli.Commands.SeoInsights;
 using Xunit;
@@ -142,11 +143,10 @@ public sealed class GenerativeAnswerObservationReaderTests : IDisposable
     [Fact]
     public void Validate_ExternalHttpCitationIsClassifiedExternalWithoutFailing()
     {
-        var json = Dataset().Replace(
-            "\"citedUrls\": [\n        \"https://www.example.com/a/\"\n      ]",
-            "\"citedUrls\": [\n        \"https://www.example.com/a/\",\n        \"https://third-party.example.org/source/\"\n      ]",
-            StringComparison.Ordinal);
-        var dataset = Read(json);
+        var json = JsonNode.Parse(Dataset())!;
+        json["rows"]![0]!["citedUrls"]!.AsArray().Add("https://third-party.example.org/source/");
+        var dataset = Read(json.ToJsonString());
+        Assert.Equal(2, Assert.Single(dataset.Rows).CitedUrls.Count);
 
         var validation = GenerativeAnswerObservationValidator.Validate(dataset, Options());
 
@@ -188,12 +188,10 @@ public sealed class GenerativeAnswerObservationReaderTests : IDisposable
     [Fact]
     public void Validate_DuplicateCitedUrlIsRejected()
     {
-        var json = Dataset().Replace(
-            "\"citedUrls\": [\n        \"https://www.example.com/a/\"\n      ]",
-            "\"citedUrls\": [\n        \"https://www.example.com/a/\",\n        \"https://www.example.com/a/\"\n      ]",
-            StringComparison.Ordinal);
-
-        var dataset = Read(json);
+        var json = JsonNode.Parse(Dataset())!;
+        json["rows"]![0]!["citedUrls"]!.AsArray().Add("https://www.example.com/a/");
+        var dataset = Read(json.ToJsonString());
+        Assert.Equal(2, Assert.Single(dataset.Rows).CitedUrls.Count);
 
         var exception = Assert.Throws<InvalidDataException>(
             () => GenerativeAnswerObservationValidator.Validate(dataset, Options()));

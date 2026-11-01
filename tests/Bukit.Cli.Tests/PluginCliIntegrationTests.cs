@@ -344,8 +344,9 @@ public sealed class PluginCliIntegrationTests : IDisposable
         using var cwd = new CurrentDirectoryScope(_tempDir);
         await InstallImportFixtureAsync(enabled: true);
         string configPath = Path.Combine(_tempDir, ".bukit", "plugins.yaml");
-        string config = File.ReadAllText(configPath)
-            .Replace("      - import\n      - notion", "      - import", StringComparison.Ordinal);
+        string original = File.ReadAllText(configPath).ReplaceLineEndings("\n");
+        string config = original.Replace("      - import\n      - notion", "      - import", StringComparison.Ordinal);
+        Assert.NotEqual(original, config);
         File.WriteAllText(configPath, config);
 
         var result = await InvokeEntryPointAsync(["notion", "push", "--input", "seed", "--dry-run"]);

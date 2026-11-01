@@ -10,10 +10,36 @@ namespace Bukit.Cli.Tests;
 [Collection("Console")]
 public sealed class DeployIdentityTransportTests
 {
-    [UnixFact]
+    [Fact]
     public async Task CrossProjectConfig_UsesConfiguredProjectIdentity()
     {
         using var scope = new RealDeployScope();
+        var a = await scope.CreateProjectAsync("project-a", "https://github.com/owner/repo-a.git");
+        var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
+        var refsBefore = scope.SnapshotRefs(a);
+        var indexBefore = File.ReadAllBytes(Path.Combine(a, ".git", "index"));
+        var sourceBefore = File.ReadAllBytes(Path.Combine(a, "README.md"));
+        using var cwd = new CurrentDirectoryScope(a);
+
+        var result = await scope.DeployAsync(b);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal("https://owner.github.io/repo-b", result.DeployedUrl);
+        Assert.NotEmpty(scope.Accesses);
+        Assert.All(scope.Accesses, line => Assert.Contains(scope.BareRemote, line, StringComparison.Ordinal));
+        Assert.DoesNotContain(scope.Accesses, line => line.Contains("repo-a.git", StringComparison.Ordinal));
+        Assert.DoesNotContain(scope.Accesses, line => line.Contains(scope.BareRemoteA, StringComparison.Ordinal));
+        Assert.Equal("new page", (await scope.GitAsync(scope.Root, "--git-dir", scope.BareRemote, "show", "refs/heads/gh-pages:index.html")).Trim());
+        Assert.Empty((await scope.GitAsync(scope.Root, "--git-dir", scope.BareRemoteA, "for-each-ref", "--format=%(refname)")).Trim());
+        Assert.Equal(refsBefore, scope.SnapshotRefs(a));
+        Assert.Equal(indexBefore, File.ReadAllBytes(Path.Combine(a, ".git", "index")));
+        Assert.Equal(sourceBefore, File.ReadAllBytes(Path.Combine(a, "README.md")));
+    }
+
+    [Fact]
+    public async Task CrossProjectConfig_WithSpacesAndUnicodeInPaths_UsesConfiguredProject()
+    {
+        using var scope = new RealDeployScope(specialPath: true);
         var a = await scope.CreateProjectAsync("project-a", "https://github.com/owner/repo-a.git");
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
         using var cwd = new CurrentDirectoryScope(a);
@@ -21,13 +47,12 @@ public sealed class DeployIdentityTransportTests
         var result = await scope.DeployAsync(b);
 
         Assert.True(result.Success, result.Error);
-        Assert.Equal("https://owner.github.io/repo-b", result.DeployedUrl);
+        Assert.NotEmpty(scope.Accesses);
         Assert.All(scope.Accesses, line => Assert.Contains(scope.BareRemote, line, StringComparison.Ordinal));
-        Assert.DoesNotContain(scope.Accesses, line => line.Contains("repo-a.git", StringComparison.Ordinal));
         Assert.DoesNotContain(scope.Accesses, line => line.Contains(scope.BareRemoteA, StringComparison.Ordinal));
     }
 
-    [UnixFact]
+    [Fact]
     public async Task CwdOutsideRepository_UsesConfiguredProjectIdentity()
     {
         using var scope = new RealDeployScope();
@@ -42,7 +67,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal("https://owner.github.io/repo-b", result.DeployedUrl);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task MissingProjectOrigin_FailsWithoutUsingOtherRepository()
     {
         using var scope = new RealDeployScope();
@@ -58,7 +83,23 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
+    public async Task UnmappedOrigin_IsRejectedByTransportDoubleWithoutAccess()
+    {
+        using var scope = new RealDeployScope();
+        var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/unmapped.git");
+
+        var result = await scope.DeployAsync(b);
+
+        Assert.False(result.Success);
+        Assert.Contains(OperatingSystem.IsWindows()
+            ? "no allowed local bare repository"
+            : "unexpected transport url", result.Error, StringComparison.Ordinal);
+        Assert.Empty(scope.Accesses);
+        Assert.Empty((await scope.GitAsync(scope.Root, "--git-dir", scope.BareRemote, "for-each-ref", "--format=%(refname)")).Trim());
+    }
+
+    [Fact]
     public async Task ConfigurationInRepositorySubdirectory_ResolvesOwningRepository()
     {
         using var scope = new RealDeployScope();
@@ -72,7 +113,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal("https://owner.github.io/repo-b", result.DeployedUrl);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task OutputOverride_DoesNotChangeRepositoryIdentity()
     {
         using var scope = new RealDeployScope();
@@ -86,7 +127,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal("https://owner.github.io/repo-b", result.DeployedUrl);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task InheritedGitDirFromOtherRepository_IsIgnored()
     {
         using var scope = new RealDeployScope();
@@ -100,7 +141,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal("https://owner.github.io/repo-b", result.DeployedUrl);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task InheritedRepositoryOverrides_DoNotRedirectIdentityOrStaging()
     {
         using var scope = new RealDeployScope();
@@ -127,7 +168,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal(headBefore, File.ReadAllText(Path.Combine(a, ".git", "HEAD")));
     }
 
-    [UnixFact]
+    [Fact]
     public async Task GlobalSameNameOrigin_DoesNotOverrideProjectOrigin()
     {
         using var scope = new RealDeployScope();
@@ -146,7 +187,7 @@ public sealed class DeployIdentityTransportTests
         Assert.NotEmpty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task WorktreeOriginWinsAndMissingWorktreeKeyFallsBackToLocal()
     {
         using var scope = new RealDeployScope();
@@ -163,7 +204,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal("https://owner.github.io/repo-worktree", overrideResult.DeployedUrl);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task EmptyFirstOriginValue_FailsInsteadOfUsingLaterValue()
     {
         using var scope = new RealDeployScope();
@@ -177,7 +218,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task LocalIncludeOrigin_IsUsedByScopedIdentity()
     {
         using var scope = new RealDeployScope();
@@ -195,7 +236,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal("https://owner.github.io/repo-included", result.DeployedUrl);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task InvalidFirstOriginValue_FailsInsteadOfUsingLaterValue()
     {
         using var scope = new RealDeployScope();
@@ -209,7 +250,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task SystemMatchingRewrite_BlocksTransport()
     {
         using var scope = new RealDeployScope();
@@ -226,7 +267,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task OriginConfigReadError_IsNotTreatedAsMissingKey()
     {
         using var scope = new RealDeployScope();
@@ -240,7 +281,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task MatchingUrlRewrite_BlocksTransportBeforeAnyAccess()
     {
         using var scope = new RealDeployScope();
@@ -257,7 +298,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task EmptyRewritePrefix_BlocksTransport()
     {
         using var scope = new RealDeployScope();
@@ -273,7 +314,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task GlobalMatchingRewrite_BlocksTransport()
     {
         using var scope = new RealDeployScope();
@@ -289,7 +330,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task UnrelatedUrlRewrite_StillDeploys()
     {
         using var scope = new RealDeployScope();
@@ -304,7 +345,7 @@ public sealed class DeployIdentityTransportTests
         Assert.True(result.Success, result.Error);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task HasConfigConditionalInclude_ActivatedByPrivateRemote_BlocksBeforeTransport()
     {
         using var scope = new RealDeployScope();
@@ -316,7 +357,7 @@ public sealed class DeployIdentityTransportTests
             """);
         scope.WriteGlobalConfig($"""
             [includeIf "hasconfig:remote.*.url:https://github.com/owner/repo-b.git"]
-                path = {include}
+                path = {include.Replace('\\', '/')}
             """);
 
         var result = await scope.DeployAsync(b);
@@ -326,7 +367,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task GitdirConditionalInclude_ActivatedByRepositoryInit_BlocksBeforeTransport()
     {
         using var scope = new RealDeployScope();
@@ -338,7 +379,7 @@ public sealed class DeployIdentityTransportTests
             """);
         scope.WriteGlobalConfig($"""
             [includeIf "gitdir:**/bukit-deploy-*/checkout/.git"]
-                path = {include}
+                path = {include.Replace('\\', '/')}
             """);
 
         var result = await scope.DeployAsync(b);
@@ -348,7 +389,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Empty(scope.Accesses);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task UnrelatedGitdirCondition_DoesNotBlock()
     {
         using var scope = new RealDeployScope();
@@ -363,7 +404,7 @@ public sealed class DeployIdentityTransportTests
         Assert.True(result.Success, result.Error);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task ExistingBranch_PreservesHistoryAndPushSemantics()
     {
         using var scope = new RealDeployScope();
@@ -380,7 +421,7 @@ public sealed class DeployIdentityTransportTests
         Assert.DoesNotContain("old.html", files);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task NewBranchAndShallowFetch_UsePrivateRemote()
     {
         using var scope = new RealDeployScope();
@@ -397,7 +438,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Contains("index.html", files);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task RepositoryDefaultBranchName_CanBeFetchedAndPushed()
     {
         using var scope = new RealDeployScope();
@@ -414,7 +455,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal("new page", (await scope.GitAsync(scope.Root, "--git-dir", scope.BareRemote, "show", "main:index.html")).Trim());
     }
 
-    [UnixFact]
+    [Fact]
     public async Task SameNameBranchAndTag_FetchesTheQueriedBranchHead()
     {
         using var scope = new RealDeployScope();
@@ -429,7 +470,7 @@ public sealed class DeployIdentityTransportTests
         Assert.DoesNotContain("tag-only.txt", tree);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task SameNameBranchAndTag_ShallowFetchUsesTheQueriedBranchHead()
     {
         using var scope = new RealDeployScope();
@@ -444,7 +485,7 @@ public sealed class DeployIdentityTransportTests
         Assert.DoesNotContain("tag-only.txt", tree);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task RewriteDiagnostic_DoesNotEchoBaseUrlCredentials()
     {
         using var scope = new RealDeployScope();
@@ -463,7 +504,7 @@ public sealed class DeployIdentityTransportTests
         Assert.DoesNotContain("evil.example", result.Error, StringComparison.Ordinal);
     }
 
-    [UnixFact]
+    [Fact]
     public async Task ForcePushAndRepeatedDeployments_Succeed()
     {
         using var scope = new RealDeployScope();
@@ -477,12 +518,15 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal(2, scope.Accesses.Count(line => line.Contains("--force", StringComparison.Ordinal)));
     }
 
-    [UnixFact]
+    [Fact]
     public async Task CliDeployWithConfig_UsesConfiguredProjectIdentityAndTransport()
     {
         using var scope = new RealDeployScope();
         var a = await scope.CreateProjectAsync("project-a", "https://github.com/owner/repo-a.git");
         var b = await scope.CreateProjectAsync("project-b", "https://github.com/owner/repo-b.git");
+        var refsBefore = scope.SnapshotRefs(a);
+        var indexBefore = File.ReadAllBytes(Path.Combine(a, ".git", "index"));
+        var sourceBefore = File.ReadAllBytes(Path.Combine(a, "README.md"));
         scope.WriteSiteConfig(b);
         scope.WriteOutput(Path.Combine(b, "dist"));
         using var cwd = new CurrentDirectoryScope(a);
@@ -498,9 +542,14 @@ public sealed class DeployIdentityTransportTests
             Assert.Contains(scope.BareRemote, line, StringComparison.Ordinal);
         });
         Assert.DoesNotContain(scope.Accesses, line => line.Contains("repo-a.git", StringComparison.Ordinal));
+        Assert.Equal("new page", (await scope.GitAsync(scope.Root, "--git-dir", scope.BareRemote, "show", "refs/heads/gh-pages:index.html")).Trim());
+        Assert.Empty((await scope.GitAsync(scope.Root, "--git-dir", scope.BareRemoteA, "for-each-ref", "--format=%(refname)")).Trim());
+        Assert.Equal(refsBefore, scope.SnapshotRefs(a));
+        Assert.Equal(indexBefore, File.ReadAllBytes(Path.Combine(a, ".git", "index")));
+        Assert.Equal(sourceBefore, File.ReadAllBytes(Path.Combine(a, "README.md")));
     }
 
-    [UnixFact]
+    [Fact]
     public async Task LinkedWorktree_UsesOwningProjectOriginAndKeepsParentEnvironment()
     {
         using var scope = new RealDeployScope();
@@ -516,7 +565,7 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal(before, scope.SnapshotEnvironment());
     }
 
-    [UnixFact]
+    [Fact]
     public async Task WorkingDirectoryAndAskpassEnvironmentRemainUntouched()
     {
         using var scope = new RealDeployScope();
@@ -531,17 +580,6 @@ public sealed class DeployIdentityTransportTests
         Assert.Equal(before, scope.SnapshotEnvironment());
     }
 
-    private sealed class UnixFactAttribute : FactAttribute
-    {
-        public UnixFactAttribute()
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                Skip = "Real local git transport double requires a POSIX shell (Windows path not verified here).";
-            }
-        }
-    }
-
     private sealed class RealDeployScope : IDisposable
     {
         private readonly Dictionary<string, string?> _original = new(StringComparer.Ordinal);
@@ -550,9 +588,10 @@ public sealed class DeployIdentityTransportTests
         private readonly string _globalConfig;
         private readonly string _systemConfig;
 
-        public RealDeployScope()
+        public RealDeployScope(bool specialPath = false)
         {
-            Root = Path.Combine(Path.GetTempPath(), "bukit-deploy-identity-" + Guid.NewGuid().ToString("N"));
+            var prefix = specialPath ? "bukit deploy & 测试 " : "bukit-deploy-identity-";
+            Root = Path.Combine(Path.GetTempPath(), prefix + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Root);
             _gitPath = ResolveGit();
             _binDir = Path.Combine(Root, "bin");
@@ -564,19 +603,51 @@ public sealed class DeployIdentityTransportTests
             File.WriteAllText(_globalConfig, string.Empty);
             _systemConfig = Path.Combine(Root, "system.gitconfig");
             File.WriteAllText(_systemConfig, string.Empty);
-            RunGit(Root, "--version").GetAwaiter().GetResult();
-            RunGit(Root, "init", "--bare", BareRemote).GetAwaiter().GetResult();
-            RunGit(Root, "init", "--bare", BareRemoteA).GetAwaiter().GetResult();
-            SetEnv("GIT_CONFIG_GLOBAL", _globalConfig);
-            SetEnv("GIT_CONFIG_SYSTEM", _systemConfig);
-            SetEnv("GITHUB_TOKEN", "dummy-deploy-token");
-            SetEnv("BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS", "20");
-            WriteWrapper();
-            SetEnv("BUKIT_DEPLOY_ACCESS_LOG", AccessLog);
-            SetEnv("BUKIT_DEPLOY_BARE_A", BareRemoteA);
-            SetEnv("BUKIT_DEPLOY_BARE_B", BareRemote);
-            SetEnv("BUKIT_DEPLOY_REAL_GIT", _gitPath);
-            SetEnv("PATH", _binDir + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
+            try
+            {
+                foreach (var name in new[]
+                         {
+                             "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE",
+                             "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_IMPLICIT_WORK_TREE",
+                             "GIT_GRAFT_FILE", "GIT_NO_REPLACE_OBJECTS", "GIT_REPLACE_REF_BASE", "GIT_PREFIX",
+                             "GIT_INTERNAL_SUPER_PREFIX", "GIT_SHALLOW_FILE", "GIT_CONFIG",
+                             "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_CONFIG_NOSYSTEM"
+                         })
+                {
+                    SetEnv(name, null);
+                }
+                foreach (var name in Environment.GetEnvironmentVariables().Keys.Cast<string>()
+                             .Where(name => name.StartsWith("GIT_CONFIG_KEY_", StringComparison.OrdinalIgnoreCase)
+                                            || name.StartsWith("GIT_CONFIG_VALUE_", StringComparison.OrdinalIgnoreCase))
+                             .ToArray())
+                {
+                    SetEnv(name, null);
+                }
+                SetEnv("GIT_CONFIG_GLOBAL", _globalConfig);
+                SetEnv("GIT_CONFIG_SYSTEM", _systemConfig);
+                SetEnv("GIT_ALLOW_PROTOCOL", "file");
+                RunGit(Root, "--version").GetAwaiter().GetResult();
+                RunGit(Root, "init", "--bare", BareRemote).GetAwaiter().GetResult();
+                RunGit(Root, "init", "--bare", BareRemoteA).GetAwaiter().GetResult();
+                SetEnv("GITHUB_TOKEN", "dummy-deploy-token");
+                SetEnv("BUKIT_DEPLOY_GIT_TIMEOUT_SECONDS", "20");
+                WriteWrapper();
+                SetEnv("BUKIT_DEPLOY_ACCESS_LOG", AccessLog);
+                SetEnv("BUKIT_DEPLOY_BARE_A", BareRemoteA);
+                SetEnv("BUKIT_DEPLOY_BARE_B", BareRemote);
+                SetEnv("BUKIT_DEPLOY_REAL_GIT", _gitPath);
+                SetEnv("BUKIT_TEST_GIT_SCRIPT", null);
+                SetEnv("BUKIT_DEPLOY_SIMPLE_LOG", null);
+                SetEnv("BUKIT_DEPLOY_ASKPASS_LOG", null);
+                SetEnv("BUKIT_DEPLOY_PUSH_BEHAVIOR", null);
+                SetEnv("BUKIT_DEPLOY_PUSH_MARKER", null);
+                SetEnv("PATH", _binDir + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
         }
 
         public string Root { get; }
@@ -745,10 +816,21 @@ public sealed class DeployIdentityTransportTests
             {
                 if (Directory.Exists(Root))
                 {
+                    if (OperatingSystem.IsWindows())
+                    {
+                        foreach (var file in Directory.EnumerateFiles(Root, "*", SearchOption.AllDirectories))
+                        {
+                            File.SetAttributes(file, File.GetAttributes(file) & ~FileAttributes.ReadOnly);
+                        }
+                    }
+
                     Directory.Delete(Root, recursive: true);
                 }
             }
             catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
             {
             }
         }
@@ -775,6 +857,12 @@ public sealed class DeployIdentityTransportTests
 
         private void WriteWrapper()
         {
+            if (OperatingSystem.IsWindows())
+            {
+                WindowsGitShim.Install(_binDir);
+                return;
+            }
+
             var wrapper = Path.Combine(_binDir, "git");
             var quote = (string value) => "'" + value.Replace("'", "'\\''") + "'";
             File.WriteAllText(wrapper, $$"""
