@@ -119,17 +119,24 @@ fi
 FAKE_DOTNET
 chmod +x "$scratch/bin/dotnet"
 
-# Each selector must name a test that exists in its own project, so a moved
-# test class fails here instead of only in the Release security job.
-entries="$(grep -oE '"tests/[^"|]+\.csproj(\|FullyQualifiedName~[A-Za-z0-9_]+)+"' "$script" | tr -d '"')"
+# Each selector must name a test declaration that exists in its own project, so
+# a moved or deleted test class fails here instead of only in the Release
+# security job. FullyQualifiedName~ is a substring match, so the declaration
+# only has to contain the selector text.
+all_entries="$(grep -oE '"tests/[^"|]+\.csproj\|[^"]*"' "$script" | tr -d '"')"
+entries="$(grep -E '^tests/[^|]+\.csproj(\|FullyQualifiedName~[A-Za-z0-9_.]+)+$' <<<"$all_entries" || true)"
 [[ -n "$entries" ]] || fail "no security project entries found"
+[[ "$all_entries" == "$entries" ]] || fail "security entries not understood by self-test: $(comm -23 <(sort <<<"$all_entries") <(sort <<<"$entries") | head -3)"
 while IFS= read -r entry; do
   IFS='|' read -r -a fields <<<"$entry"
   project_dir="$root/$(dirname "${fields[0]}")"
   [[ -f "$root/${fields[0]}" ]] || fail "security project missing: ${fields[0]}"
   for selector in "${fields[@]:1}"; do
     name="${selector#FullyQualifiedName~}"
-    grep -rqw --include='*.cs' -- "$name" "$project_dir" ||
+    name="${name##*.}"
+    id='[A-Za-z0-9_]*'"$name"'[A-Za-z0-9_]*'
+    grep -rqE --include='*.cs' --exclude-dir=bin --exclude-dir=obj -- \
+      "(class|record|struct)[[:space:]]+$id|[]A-Za-z0-9_>?]+[[:space:]]+$id[[:space:]]*\(" "$project_dir" ||
       fail "selector $name not found in ${fields[0]}"
   done
 done <<<"$entries"
