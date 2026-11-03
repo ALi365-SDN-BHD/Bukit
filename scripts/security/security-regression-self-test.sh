@@ -119,6 +119,21 @@ fi
 FAKE_DOTNET
 chmod +x "$scratch/bin/dotnet"
 
+# Each selector must name a test that exists in its own project, so a moved
+# test class fails here instead of only in the Release security job.
+entries="$(grep -oE '"tests/[^"|]+\.csproj(\|FullyQualifiedName~[A-Za-z0-9_]+)+"' "$script" | tr -d '"')"
+[[ -n "$entries" ]] || fail "no security project entries found"
+while IFS= read -r entry; do
+  IFS='|' read -r -a fields <<<"$entry"
+  project_dir="$root/$(dirname "${fields[0]}")"
+  [[ -f "$root/${fields[0]}" ]] || fail "security project missing: ${fields[0]}"
+  for selector in "${fields[@]:1}"; do
+    name="${selector#FullyQualifiedName~}"
+    grep -rqw --include='*.cs' -- "$name" "$project_dir" ||
+      fail "selector $name not found in ${fields[0]}"
+  done
+done <<<"$entries"
+
 FAKE_TRX_MODE=valid "$scratch/bin/dotnet" test fake.csproj \
   --filter "FullyQualifiedName~Suite.Case" \
   --logger "trx;LogFileName=malformed-selector.trx" \
