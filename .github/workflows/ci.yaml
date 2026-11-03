@@ -44,6 +44,8 @@ jobs:
         run: python3 -B scripts/checks/test-infrastructure-platform-self-test.py
       - name: Check disk-full volume safety
         run: python3 -B scripts/checks/stage7-diskfull-self-test.py
+      - name: Check security regression selectors
+        run: bash scripts/security/security-regression-self-test.sh
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json

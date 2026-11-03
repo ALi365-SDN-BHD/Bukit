@@ -40,6 +40,41 @@ All notable changes to Bukit will be documented in this file.
 - **Download-level media concurrency (F-07)**: Existing `content.media.maxConcurrency` now limits active localization downloads within rewrite-operation and localized-body-store scopes.
 - **Truthful build health (F-08)**: Existing `build-report.v1` fields now contain current build diagnostic counts and a stable public `generatedFiles` inventory; the frozen schema shape is unchanged.
 
+## [2.0.4] - 2026-09-13
+
+- **Build transactions**: documented build transactions and protected staged output paths; fixed build-transaction analysis regressions.
+- **Publish audit**: projection audits now track published URLs.
+- **Native packaging**: native packages are slimmed and incomplete artifacts are rejected.
+
+## [2.0.3] - 2026-09-12
+
+- **Responsive images**: isolated responsive image source discovery, repaired the responsive image lifecycle, preserved empty image format lists, and refreshed incremental media output when image formats change.
+- **Internal paths**: internal paths are protected from public output.
+- **CI**: hardened CI gates and release evidence verification; clarified release tag SHA validation.
+
+## [2.0.2] - 2026-09-12
+
+- **Images**: added responsive image processing with an ImageSharp fallback; optimized image-processing regexes and size normalization.
+
+## [2.0.1] - 2026-09-12
+
+- **Output safety**: the public output lifecycle now fails closed; `404.html` static output path is preserved; relative plugin paths are enforced.
+- **Preview**: Preview closes internal file serving and LAN exposure; internal path policy classifies by resolved physical target, closing in-root symlink alias bypass.
+- **Process execution**: external tools on macOS run through a process-group wrapper that removes shell interpolation.
+- **Content and SEO**: Markdown body projections preserve links; Notion caching and text parsing fixes; robots.txt audit rules are centralized; HTML routing and media discovery corrected; page titles included in Google Analytics config.
+- **CI**: unique coverage results are retained and platform fixtures bounded; `bukit-test.slnx` now includes `Bukit.Content.Notion.Tests`.
+
+## [2.0.0] - 2026-08-07
+
+- **Public API**: the reviewed 2.0 public API surface is accepted and a 2.x stability policy is defined; plugin process and manifest record binary contracts are preserved.
+- **SSRF and paths**: shared SSRF guard fails closed when host resolution is unsafe and retries public connection addresses; default path policy is published atomically; rooted absolute paths are normalized.
+- **Process groups**: Linux uses `setsid` for process-tree management.
+- **Engine**: simple page URL attributes are escaped; resolved output copy paths are honored.
+
+## [2.0.0-RC.1] - 2026-07-24
+
+- First 2.0 release candidate. Core is repositioned as an internal-first deterministic publishing compiler (see Product Positioning under Unreleased).
+
 ## [1.0.0] - 2026-06-09
 ### 1.0 Trust Hardening
 - **Config strict mode**: `ConfigRemovedFieldScanner` rejects all pre-1.0 config fields (`content.markdown`, `content.provider`, `site.rssMode`, etc.) with migration hints.
