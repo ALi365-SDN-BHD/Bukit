@@ -137,10 +137,13 @@ while IFS= read -r entry; do
     name="${selector#FullyQualifiedName~}"
     name="${name##*.}"
     id='[A-Za-z0-9_]*'"$name"'[A-Za-z0-9_]*'
-    decl_files="$(grep -rlE --include='*.cs' --exclude-dir=bin --exclude-dir=obj -- \
-      "(class|record|struct)[[:space:]]+$id|(public|internal)[[:space:]]+(async[[:space:]]+)?(Task|void)[[:space:]]+$id[[:space:]]*\(" "$project_dir" || true)"
-    # xargs -r is not portable to macOS; an empty list is handled by the guard.
-    [[ -n "$decl_files" ]] && xargs grep -lqE '\[(Fact|Theory)' <<<"$decl_files" ||
+    # NUL-delimited so checkout paths containing spaces stay intact.
+    found=0
+    while IFS= read -r -d '' decl_file; do
+      if grep -qE '\[(Fact|Theory)' "$decl_file"; then found=1; break; fi
+    done < <(grep -rlE --null --include='*.cs' --exclude-dir=bin --exclude-dir=obj -- \
+      "(class|record|struct)[[:space:]]+$id|(public|internal)[[:space:]]+(async[[:space:]]+)?(Task|void)[[:space:]]+$id[[:space:]]*\(" "$project_dir" || true)
+    [[ "$found" == 1 ]] ||
       fail "selector $name not found as a test declaration in ${fields[0]}"
   done
 done <<<"$entries"
