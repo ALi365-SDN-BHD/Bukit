@@ -55,6 +55,41 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 - 5 fail ujian baharu (38 kes ujian): `SlugHelperTests` (22), `TaxonomyHierarchyBuilderTests` (3), `TaxonomyMetadataLoaderTests` (6), `TaxonomyFeedWriterTests` (3), `TaxonomyRedirectWriterTests` (4)
 - Semua 1311 ujian lulus (Shared 67, Engine 793, Content 451)
 
+## [2.0.4] - 2026-09-13
+
+- **Transaksi binaan**: mendokumenkan transaksi binaan dan melindungi laluan output berperingkat; membetulkan regresi analisis transaksi binaan.
+- **Audit penerbitan**: audit unjuran kini menjejak URL yang diterbitkan.
+- **Pembungkusan natif**: pakej natif dikecilkan dan artifak tidak lengkap ditolak.
+
+## [2.0.3] - 2026-09-12
+
+- **Imej responsif**: mengasingkan penemuan sumber imej responsif, membaiki kitar hayat imej responsif, mengekalkan senarai format imej kosong, dan menyegarkan output media tokokan apabila format imej berubah.
+- **Laluan dalaman**: laluan dalaman dilindungi daripada output awam.
+- **CI**: memperkukuh pintu gerbang CI dan pengesahan bukti keluaran; menjelaskan pengesahan SHA tag keluaran.
+
+## [2.0.2] - 2026-09-12
+
+- **Imej**: menambah pemprosesan imej responsif dengan sandaran ImageSharp; mengoptimumkan regex pemprosesan imej dan normalisasi saiz.
+
+## [2.0.1] - 2026-09-12
+
+- **Keselamatan output**: kitar hayat output awam kini gagal-tutup; laluan output statik `404.html` dikekalkan; laluan relatif pemalam dikuatkuasakan.
+- **Preview**: Preview menutup penyajian fail dalaman dan pendedahan LAN; dasar laluan dalaman mengklasifikasi mengikut sasaran fizikal yang diselesaikan, menutup pintasan alias symlink dalam root.
+- **Pelaksanaan proses**: alat luaran di macOS dijalankan melalui pembungkus kumpulan proses yang menghapuskan interpolasi shell.
+- **Kandungan dan SEO**: unjuran badan Markdown mengekalkan pautan; pembetulan cache Notion dan penghuraian teks; peraturan audit robots.txt dipusatkan; penghalaan HTML dan penemuan media dibetulkan; tajuk halaman disertakan dalam konfigurasi Google Analytics.
+- **CI**: keputusan liputan unik dikekalkan dan fixture platform dihadkan; `bukit-test.slnx` kini termasuk `Bukit.Content.Notion.Tests`.
+
+## [2.0.0] - 2026-08-07
+
+- **API awam**: permukaan API awam 2.0 yang disemak diterima dan dasar kestabilan 2.x ditakrifkan; kontrak binari rekod proses dan manifest pemalam dikekalkan.
+- **SSRF dan laluan**: pengawal SSRF kongsi gagal-tutup apabila resolusi hos tidak selamat dan mencuba semula alamat sambungan awam; dasar laluan lalai diterbitkan secara atom; laluan mutlak berakar dinormalkan.
+- **Kumpulan proses**: Linux menggunakan `setsid` untuk pengurusan pokok proses.
+- **Enjin**: atribut URL halaman ringkas dilepaskan; laluan salinan output yang diselesaikan dihormati.
+
+## [2.0.0-RC.1] - 2026-07-24
+
+- Calon keluaran 2.0 pertama. Core diposisikan semula sebagai pengkompil penerbitan deterministik mengutamakan dalaman (lihat Kedudukan Produk di bawah Belum Dikeluarkan).
+
 ## [1.0.6] - 2026-05-21
 
 ### Added
