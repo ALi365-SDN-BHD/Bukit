@@ -4,6 +4,14 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Versi**: versi produk dalam `Directory.Build.props` ditetapkan kepada 2.0.7 supaya sepadan dengan barisan keluaran (v2.0.6 dikeluarkan ketika fail masih 2.0.4; binaan keluaran menimpanya dengan `-p:VersionPrefix`).
+- **Ujian kendiri regresi keselamatan**: setiap pemilih dalam `scripts/security/security-regression.sh` kini mesti sepadan dengan pengisytiharan ujian sebenar dalam fail yang mempunyai `[Fact]`/`[Theory]`; entri yang tidak dapat dihuraikan gagal dan bukan dilangkau; ujian kendiri dijalankan dalam pintu gerbang CI fast dan menyokong laluan checkout dengan ruang.
+- **Dokumen keluaran**: menambah seksyen log perubahan 2.0.0 hingga 2.0.6 dan senarai semak keluaran dalaman 2.0.
+
+## [2.0.6] - 2026-11-03
+
+- Mengintegrasikan peringkat Core 6-10 (penutupan output enjin dan audit, ujian hujung-ke-hujung saluran, liputan CLI dan pemalam, pintu gerbang seni bina/liputan/tiga platform), kontrak ralat pemalam dan penyamaran rahsia, serta pembetulan audit pintu gerbang ujian (PR #66-#86).
+
 ### Integrasi Dalaman SEO/GEO
 
 - Menambah kontrak publisher organisasi yang disahkan (`type`, output URL
@@ -54,6 +62,10 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 ### Ujian
 - 5 fail ujian baharu (38 kes ujian): `SlugHelperTests` (22), `TaxonomyHierarchyBuilderTests` (3), `TaxonomyMetadataLoaderTests` (6), `TaxonomyFeedWriterTests` (3), `TaxonomyRedirectWriterTests` (4)
 - Semua 1311 ujian lulus (Shared 67, Engine 793, Content 451)
+
+## [2.0.5]
+
+- Versi dilangkau: tiada tag `v2.0.5` atau GitHub Release.
 
 ## [2.0.4] - 2026-09-13
 
