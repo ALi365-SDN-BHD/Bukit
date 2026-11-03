@@ -126,6 +126,8 @@ chmod +x "$scratch/bin/dotnet"
 all_entries="$(grep -oE '"tests/[^"|]+\.csproj\|[^"]*"' "$script" | tr -d '"')"
 entries="$(grep -E '^tests/[^|]+\.csproj(\|FullyQualifiedName~[A-Za-z0-9_.]+)+$' <<<"$all_entries" || true)"
 [[ -n "$entries" ]] || fail "no security project entries found"
+[[ "$(grep -c 'tests/[^" ]*\.csproj' "$script")" == "$(wc -l <<<"$entries" | tr -d ' ')" ]] ||
+  fail "security entries in $script were not all extracted; keep one quoted entry per line"
 [[ "$all_entries" == "$entries" ]] || fail "security entries not understood by self-test: $(comm -23 <(sort <<<"$all_entries") <(sort <<<"$entries") | head -3)"
 while IFS= read -r entry; do
   IFS='|' read -r -a fields <<<"$entry"
@@ -135,9 +137,11 @@ while IFS= read -r entry; do
     name="${selector#FullyQualifiedName~}"
     name="${name##*.}"
     id='[A-Za-z0-9_]*'"$name"'[A-Za-z0-9_]*'
-    grep -rqE --include='*.cs' --exclude-dir=bin --exclude-dir=obj -- \
-      "(class|record|struct)[[:space:]]+$id|[]A-Za-z0-9_>?]+[[:space:]]+$id[[:space:]]*\(" "$project_dir" ||
-      fail "selector $name not found in ${fields[0]}"
+    decl_files="$(grep -rlE --include='*.cs' --exclude-dir=bin --exclude-dir=obj -- \
+      "(class|record|struct)[[:space:]]+$id|(public|internal)[[:space:]]+(async[[:space:]]+)?(Task|void)[[:space:]]+$id[[:space:]]*\(" "$project_dir" || true)"
+    # xargs -r is not portable to macOS; an empty list is handled by the guard.
+    [[ -n "$decl_files" ]] && xargs grep -lqE '\[(Fact|Theory)' <<<"$decl_files" ||
+      fail "selector $name not found as a test declaration in ${fields[0]}"
   done
 done <<<"$entries"
 
