@@ -19,7 +19,7 @@ public sealed class G04CPublicSurfacePilotTests
     }
 
     [Fact]
-    public void ProductVersion_IsTheApprovedTwoPointZeroFourRelease()
+    public void ProductVersion_IsTheApprovedTwoPointZeroSevenRelease()
     {
         var document = XDocument.Load(Path.Combine(RepoRoot, "Directory.Build.props"));
         var versions = document
@@ -28,7 +28,7 @@ public sealed class G04CPublicSurfacePilotTests
             .Select(element => element.Value)
             .ToArray();
 
-        Assert.Equal(["2.0.4"], versions);
+        Assert.Equal(["2.0.7"], versions);
     }
 
     [Fact]

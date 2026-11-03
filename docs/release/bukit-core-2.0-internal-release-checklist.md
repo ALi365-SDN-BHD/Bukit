@@ -11,7 +11,7 @@
 
 ## 1. Release identity
 
-- [ ] Target version recorded: `RELEASE_VERSION=` (current `Directory.Build.props`: 2.0.4)
+- [ ] Target version recorded: `RELEASE_VERSION=` (current `Directory.Build.props`: 2.0.7)
 - [ ] Release commit recorded: `RELEASE_COMMIT=`
 - [ ] Release owner and approver named, with approval reference
 - [ ] Release type decided: internal artifact only / exceptional public release
@@ -52,7 +52,7 @@ bash scripts/release/verify-release-assets.sh "$RELEASE_VERSION" "$RELEASE_COMMI
 ## 5. Go / no-go
 
 - [ ] No open Critical or Important findings
-- [ ] Rollback path recorded (previous tag: `v2.0.4`)
+- [ ] Rollback path recorded (previous tag: `v2.0.6`)
 - [ ] Approver sign-off: ____ date: ____
 
 ## Known gaps at drafting time

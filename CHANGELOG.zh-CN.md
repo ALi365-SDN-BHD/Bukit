@@ -4,6 +4,14 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **版本号**：`Directory.Build.props` 中的产品版本改为 2.0.7，与发布线一致（v2.0.6 发布时该文件仍为 2.0.4，发布构建通过 `-p:VersionPrefix` 覆盖版本）。
+- **安全回归自测**：`scripts/security/security-regression.sh` 中的每个 selector 现在必须匹配带 `[Fact]`/`[Theory]` 的文件中的真实测试声明；无法解析的条目会失败而不是被跳过；自测已纳入 CI fast gate，并支持含空格的检出路径。
+- **发布文档**：补充 2.0.0 至 2.0.6 的更新日志段落和 2.0 内部发布清单。
+
+## [2.0.6] - 2026-11-03
+
+- 集成 Core 阶段 6-10（Engine 输出与审计收口、管线端到端测试、CLI 与插件覆盖、架构/覆盖率/三平台门禁）、插件错误与密钥遮蔽契约，以及测试门禁审计修复（PR #66-#86）。
+
 ### SEO/GEO 内部集成
 
 - 新增已核验的组织 publisher 契约（`type`、绝对 HTTP(S) URL 输出与
@@ -53,6 +61,10 @@ Bukit 所有重要变更都将记录在此文件中。
 ### 测试
 - 新增 5 个测试文件（38 用例）：`SlugHelperTests`（22）、`TaxonomyHierarchyBuilderTests`（3）、`TaxonomyMetadataLoaderTests`（6）、`TaxonomyFeedWriterTests`（3）、`TaxonomyRedirectWriterTests`（4）
 - 全部 1311 测试通过（Shared 67、Engine 793、Content 451）
+
+## [2.0.5]
+
+- 版本跳过：不存在 `v2.0.5` tag 或 GitHub Release。
 
 ## [2.0.4] - 2026-09-13
 

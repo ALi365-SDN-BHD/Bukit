@@ -4,6 +4,14 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+- **Version**: product version in `Directory.Build.props` set to 2.0.7 to match the release line (v2.0.6 was released with the file still at 2.0.4; release builds override it with `-p:VersionPrefix`).
+- **Security regression self-test**: each selector in `scripts/security/security-regression.sh` must now match a real test declaration in a file carrying `[Fact]`/`[Theory]`; unparseable entries fail instead of being skipped; the self-test runs in the CI fast gate and handles checkout paths with spaces.
+- **Release docs**: added 2.0.0 to 2.0.6 changelog sections and the 2.0 internal release checklist.
+
+## [2.0.6] - 2026-11-03
+
+- Integrated Core stages 6-10 (engine output and audit closeout, pipeline end-to-end tests, CLI and plugin coverage, architecture/coverage/three-platform gates), plugin error and secret-masking contracts, and test-gate audit fixes (PRs #66-#86).
+
 ### SEO/GEO Internal Integration
 
 - Added the verified organization publisher contract (`type`, absolute HTTP(S)
@@ -39,6 +47,10 @@ All notable changes to Bukit will be documented in this file.
 - **Search content cap enforcement (F-06)**: Existing `site.search.maxContentLength` now applies to document, list, plugin, publish-projection, and multilingual search `content`; default/schema shape are unchanged.
 - **Download-level media concurrency (F-07)**: Existing `content.media.maxConcurrency` now limits active localization downloads within rewrite-operation and localized-body-store scopes.
 - **Truthful build health (F-08)**: Existing `build-report.v1` fields now contain current build diagnostic counts and a stable public `generatedFiles` inventory; the frozen schema shape is unchanged.
+
+## [2.0.5]
+
+- Version skipped: no `v2.0.5` tag or GitHub Release exists.
 
 ## [2.0.4] - 2026-09-13
 
