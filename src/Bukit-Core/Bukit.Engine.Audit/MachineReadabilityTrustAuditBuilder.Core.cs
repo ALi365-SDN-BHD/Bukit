@@ -48,6 +48,11 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
         var trustRequirements = TrustAuditRequirements.From(ContentModelSchemaFactory.FromConfig(config));
         var feedWindowRoutes = BuildFeedWindowRoutes(config, seoIndex.Values, recordsById);
+        // Pages whose canonical points outside the site's sitemap location are left out of
+        // the sitemap by design, so they must not be reported as missing from it.
+        var sitemapScope = string.IsNullOrWhiteSpace(config.Site.Url)
+            ? null
+            : new SitemapLocFilter(config.Site.Url, config.Site.BaseUrl);
         var searchActionExpected = config.Site.Seo.Enabled &&
                                    config.Site.Seo.Schema.SearchAction &&
                                    !string.IsNullOrWhiteSpace(config.Site.Search.Route);
@@ -83,6 +88,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var searchExpected = entry.Indexable && (sourceDocument is null || !SearchIndexDocuments.IsSearchExcluded(sourceDocument));
             var curation = sourceDocument is null ? null : LlmsCurationPolicyParser.Parse(sourceDocument);
             var llmsExcluded = curation is { IsExplicitlyExcluded: true };
+            var sitemapExpected = entry.Indexable && (sitemapScope is null || sitemapScope.IsInScope(entry.Canonical));
             var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
                 ? projectedSitemap
                 : entry.Indexable && ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>");
@@ -129,7 +135,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                     Feed: rssExpected,
                     Atom: atomFeedExpected,
                     JsonFeed: jsonFeedExpected,
-                    Sitemap: entry.Indexable,
+                    Sitemap: sitemapExpected,
                     Search: searchExpected,
                     Llms: llmsKindExpected,
                     LlmsFull: llmsFullKindExpected,
@@ -149,7 +155,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                 ManifestIncluded = manifestIncluded
             };
 
-            if (entry.Indexable && sitemapText is not null && !sitemapIncluded)
+            if (sitemapExpected && sitemapText is not null && !sitemapIncluded)
             {
                 seoIssues.Add(Warning("seo.sitemap_missing_url", entry.Route.Url, $"Indexable route is missing from sitemap: {entry.Canonical}."));
             }
@@ -187,7 +193,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             }
 
             AnalyzePublishDocument(document, trustRequirements, outputDir, publishIssues);
-            SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, searchIncluded, searchExpected, rssIncluded, rssExpected, atomFeedIncluded, atomFeedExpected, jsonFeedIncluded, jsonFeedExpected, llmsIncluded, llmsExpected, llmsFullIncluded, llmsFullExpected, manifestIncluded, robotsText, publishIssues);
+            SeoCompatibilityAuditRules.Analyze(document, sitemapIncluded, sitemapExpected, searchIncluded, searchExpected, rssIncluded, rssExpected, atomFeedIncluded, atomFeedExpected, jsonFeedIncluded, jsonFeedExpected, llmsIncluded, llmsExpected, llmsFullIncluded, llmsFullExpected, manifestIncluded, robotsText, publishIssues);
             publishDocuments.Add(document);
 
             var auditRoute = new SeoAuditRoute(

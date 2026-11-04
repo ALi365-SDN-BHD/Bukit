@@ -297,6 +297,10 @@ internal static partial class MachineReadabilityTrustAuditBuilder
         {
             kinds.RemoveAll(kind => string.Equals(kind, "search", StringComparison.OrdinalIgnoreCase));
         }
+        if (!expectation.Sitemap)
+        {
+            kinds.RemoveAll(kind => string.Equals(kind, "sitemap", StringComparison.OrdinalIgnoreCase));
+        }
         foreach (var kind in PublishRepresentationRegistry.ExpectedAggregateKinds(expectation))
         {
             AddKind(kinds, true, kind);

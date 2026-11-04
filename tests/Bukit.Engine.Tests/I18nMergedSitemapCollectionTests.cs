@@ -105,6 +105,106 @@ public sealed class I18nMergedSitemapCollectionTests
                 document.Record.Identity.ContentType);
     }
 
+    [Theory]
+    [InlineData("https://example.com", "https://example.com/repo/en/guides/")]
+    [InlineData(null, "/repo/en/guides/")]
+    public void GenerateRootOutputs_SubPathRoot_KeepsSingleBaseAndSitemapScope(string? siteUrl, string expectedLlmsPrefix)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-i18n-subpath", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var outputDir = Path.Combine(root, "dist");
+            var variantDir = Path.Combine(outputDir, "en");
+            var guide = Document("guide-1", "article", "guides");
+            var copy = Document("guide-copy", "article", "guides");
+            var syndicated = Document("guide-syndicated", "article", "guides");
+            var guideRoute = new RouteInfo("/guides/guide-1/", "guides/guide-1/index.html", "guide.html");
+            var copyRoute = new RouteInfo("/guides/copy/", "guides/copy/index.html", "guide.html");
+            var syndicatedRoute = new RouteInfo("/guides/syndicated/", "guides/syndicated/index.html", "guide.html");
+            foreach (var route in new[] { guideRoute, copyRoute, syndicatedRoute })
+            {
+                var path = Path.Combine(variantDir, route.OutputPath);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, "<html><head></head></html>");
+            }
+
+            var config = new AppConfig
+            {
+                Site = new SiteConfig
+                {
+                    Name = "test",
+                    Title = "Test",
+                    Url = siteUrl,
+                    BaseUrl = "/repo/",
+                    Languages = ["en", "zh"],
+                    SitemapMode = "merged"
+                },
+                Content = TestContent.Markdown()
+            };
+            var origin = siteUrl ?? string.Empty;
+            var guideCanonical = origin + "/repo/en/guides/guide-1/";
+            var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase)
+            {
+                [guideRoute.OutputPath] = Entry(guide, guideRoute, guideCanonical),
+                [copyRoute.OutputPath] = Entry(copy, copyRoute, guideCanonical),
+                [syndicatedRoute.OutputPath] = Entry(syndicated, syndicatedRoute, "https://medium.com/@someone/original")
+            };
+            var variant = new BuildVariantResult(
+                Language: "en",
+                OutputDir: variantDir,
+                BaseUrl: "/repo/en",
+                SearchSnippetsEnabled: false,
+                BodyStore: EmptyContentBodyStore.Instance,
+                DerivedRoutes: Array.Empty<(RouteInfo Route, DateTimeOffset LastModified)>(),
+                SeoIndex: seoIndex,
+                SeoModels: new Dictionary<string, Bukit.Rendering.SeoModel>(StringComparer.OrdinalIgnoreCase),
+                PluginExecutions: Array.Empty<PluginExecutionInfo>(),
+                RenderedCount: 3,
+                SkippedCount: 0,
+                RenderReasons: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                StageMetrics: BuildStageMetrics.Empty,
+                RoutedDocuments:
+                [
+                    new RoutedContentDocument(guide, guideRoute),
+                    new RoutedContentDocument(copy, copyRoute),
+                    new RoutedContentDocument(syndicated, syndicatedRoute)
+                ],
+                ContentGraph: CanonicalContentGraph.Empty,
+                ListRouteGraph: ListRouteGraph.Empty,
+                DerivedDocuments: []);
+
+            I18nOutputMerger.GenerateRootOutputs(
+                config,
+                outputDir,
+                "/repo",
+                [variant],
+                new ConsoleLogger(LogLevel.Error),
+                new DefaultSearchIndexBuilder());
+
+            var llms = File.ReadAllText(Path.Combine(outputDir, "llms.txt"));
+            Assert.Contains("(" + expectedLlmsPrefix + "guide-1/)", llms, StringComparison.Ordinal);
+            Assert.DoesNotContain("/repo/repo/", llms, StringComparison.Ordinal);
+
+            var sitemapPath = Path.Combine(outputDir, "sitemap.xml");
+            if (siteUrl is null)
+            {
+                Assert.False(File.Exists(sitemapPath));
+                return;
+            }
+
+            var sitemap = File.ReadAllText(sitemapPath);
+            Assert.Single(System.Text.RegularExpressions.Regex.Matches(sitemap, "<loc>https://example.com/repo/en/guides/guide-1/</loc>"));
+            Assert.DoesNotContain("medium.com", sitemap, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+
+        static SeoIndexEntry Entry(ContentDocument document, RouteInfo route, string canonical)
+            => new(route, canonical, null, true, document.PublishAt, document.Id, document.Record.Identity.ContentType);
+    }
+
     private static ContentDocument Document(string id, string type, string collection, bool excludeFromSitemap = false)
         => ContentDocument.Create(
             id,

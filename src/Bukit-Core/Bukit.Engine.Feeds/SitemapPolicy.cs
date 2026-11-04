@@ -5,6 +5,65 @@ using Bukit.Shared;
 
 namespace Bukit.Engine;
 
+internal enum SitemapLocDecision
+{
+    Accepted,
+    OutOfScope,
+    Duplicate
+}
+
+/// <summary>
+/// Sitemap locs are canonical URLs, but a sitemap may only list URLs under its own
+/// location (same host and base path), and each URL once. Pages whose canonical points
+/// to another host or outside the base path are left out; duplicate canonicals keep
+/// the first entry. The publish audit uses <see cref="IsInScope"/> so it does not
+/// expect those pages in the sitemap.
+/// </summary>
+internal sealed class SitemapLocFilter
+{
+    private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
+
+    internal SitemapLocFilter(string siteUrl, string baseUrl)
+    {
+        Scope = SitemapGenerator.BuildAbsoluteUrl(siteUrl, baseUrl, "/");
+    }
+
+    internal string Scope { get; }
+
+    internal bool IsInScope(string? canonical)
+        => !string.IsNullOrWhiteSpace(canonical) &&
+           canonical.StartsWith(Scope, StringComparison.OrdinalIgnoreCase);
+
+    internal SitemapLocDecision Evaluate(string? canonical)
+    {
+        if (!IsInScope(canonical))
+        {
+            return SitemapLocDecision.OutOfScope;
+        }
+
+        return _seen.Add(canonical!) ? SitemapLocDecision.Accepted : SitemapLocDecision.Duplicate;
+    }
+
+    internal bool TryAccept(string? canonical) => Evaluate(canonical) == SitemapLocDecision.Accepted;
+
+    /// <summary>Evaluates the canonical and logs why a route was left out.</summary>
+    internal bool TryAccept(string routeUrl, string? canonical, ILogger? logger)
+    {
+        var decision = Evaluate(canonical);
+        switch (decision)
+        {
+            case SitemapLocDecision.OutOfScope:
+                logger?.Info($"event=sitemap.canonical_out_of_scope route={routeUrl} canonical={canonical} scope={Scope}");
+                break;
+            case SitemapLocDecision.Duplicate:
+                logger?.Debug($"event=sitemap.canonical_duplicate route={routeUrl} canonical={canonical}");
+                break;
+        }
+
+        return decision == SitemapLocDecision.Accepted;
+    }
+}
+
 internal static partial class SitemapPolicy
 {
     internal static DateTimeOffset ResolveLastModified(ContentDocument document)
