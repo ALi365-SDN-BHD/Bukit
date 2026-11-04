@@ -4,6 +4,8 @@ All notable changes to Bukit will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.7] - 2026-11-04
+
 - **Version**: product version in `Directory.Build.props` set to 2.0.7 to match the release line (v2.0.6 was released with the file still at 2.0.4; release builds override it with `-p:VersionPrefix`).
 - **Security regression self-test**: each selector in `scripts/security/security-regression.sh` must now match a real test declaration in a file carrying `[Fact]`/`[Theory]`; unparseable entries fail instead of being skipped; the self-test runs in the CI fast gate and handles checkout paths with spaces.
 - **Release docs**: added 2.0.0 to 2.0.6 changelog sections and the 2.0 internal release checklist.

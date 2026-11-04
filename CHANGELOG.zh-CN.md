@@ -4,6 +4,8 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+## [2.0.7] - 2026-11-04
+
 - **版本号**：`Directory.Build.props` 中的产品版本改为 2.0.7，与发布线一致（v2.0.6 发布时该文件仍为 2.0.4，发布构建通过 `-p:VersionPrefix` 覆盖版本）。
 - **安全回归自测**：`scripts/security/security-regression.sh` 中的每个 selector 现在必须匹配带 `[Fact]`/`[Theory]` 的文件中的真实测试声明；无法解析的条目会失败而不是被跳过；自测已纳入 CI fast gate，并支持含空格的检出路径。
 - **发布文档**：补充 2.0.0 至 2.0.6 的更新日志段落和 2.0 内部发布清单。
