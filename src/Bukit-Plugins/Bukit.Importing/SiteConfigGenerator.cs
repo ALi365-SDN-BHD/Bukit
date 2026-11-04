@@ -49,7 +49,7 @@ internal static class SiteConfigGenerator
 
         var collections = new Dictionary<string, object?>(StringComparer.Ordinal);
 
-        if (pageTypes.Contains(PageType.Page) || pageTypes.Contains(PageType.Home))
+        if (pageTypes.Contains(PageType.Page) || pageTypes.Contains(PageType.Home) || pageTypes.Contains(PageType.Unknown))
         {
             collections["page"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
@@ -67,11 +67,11 @@ internal static class SiteConfigGenerator
             };
             if (pageTypes.Contains(PageType.PostList))
             {
-                var listName = !string.IsNullOrWhiteSpace(postListSlug)
+                var fallbackName = !string.IsNullOrWhiteSpace(postListSlug)
                     ? ThemeGenerator.SanitizeTemplateName(postListSlug)
                     : "insights";
                 post["listRoute"] = "/insights/";
-                post["listTemplate"] = $"pages/{listName}.html";
+                post["listTemplate"] = ListTemplate(PageType.PostList, fallbackName, plan, discoveredPages);
             }
             collections["post"] = post;
         }
@@ -86,7 +86,7 @@ internal static class SiteConfigGenerator
             if (pageTypes.Contains(PageType.CompanyList))
             {
                 company["listRoute"] = "/companies/";
-                company["listTemplate"] = "pages/companies.html";
+                company["listTemplate"] = ListTemplate(PageType.CompanyList, "companies", plan, discoveredPages);
             }
             collections["company"] = company;
         }
@@ -101,7 +101,7 @@ internal static class SiteConfigGenerator
             if (pageTypes.Contains(PageType.ServiceList))
             {
                 service["listRoute"] = "/services/";
-                service["listTemplate"] = "pages/services.html";
+                service["listTemplate"] = ListTemplate(PageType.ServiceList, "services", plan, discoveredPages);
             }
             collections["service"] = service;
         }
@@ -235,6 +235,19 @@ internal static class SiteConfigGenerator
                 ["dir"] = contentDir
             }
         };
+
+    // A list route renders the list page's own template, the same file ThemeGenerator wrote.
+    private static string ListTemplate(
+        PageType listType,
+        string fallbackName,
+        PageTemplatePlan? plan,
+        IReadOnlyList<DiscoveredPage>? discoveredPages)
+    {
+        var listPage = discoveredPages?.FirstOrDefault(p => p.Type == listType);
+        return plan is not null && listPage is not null
+            ? plan.PathFor(listPage)
+            : $"pages/{fallbackName}.html";
+    }
 
     // App pages render the demo page's own template, the same file ThemeGenerator wrote.
     private static string AppPageTemplate(

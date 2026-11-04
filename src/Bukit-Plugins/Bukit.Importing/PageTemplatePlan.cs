@@ -28,7 +28,7 @@ internal sealed class PageTemplatePlan
     {
         var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var used = new HashSet<string>(FallbackNames, StringComparer.OrdinalIgnoreCase);
-        var explicitOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var explicitOwners = new Dictionary<string, (string Page, RouteMapPage? Entry)>(StringComparer.OrdinalIgnoreCase);
 
         // Roles Core binds by name (home, list kinds) claim their names first.
         foreach (var page in pages)
@@ -47,6 +47,10 @@ internal sealed class PageTemplatePlan
                 names[Key(page.RelativePath)] = fixedName;
         }
 
+        // Core treats pages/index.html as the home template, and the importer writes a
+        // generic one when the demo has no home page. No other page may take the name.
+        used.Add("index");
+
         // Explicit route-map names next, so a derived name can never steal one.
         foreach (var page in pages)
         {
@@ -55,16 +59,22 @@ internal sealed class PageTemplatePlan
             if (explicitName is null)
                 continue;
 
+            var entry = PageClassifier.FindEntry(routeMap, Path.GetFileNameWithoutExtension(page.RelativePath));
             if (!used.Add(explicitName))
             {
-                var owner = explicitOwners.TryGetValue(explicitName, out var first) ? first : "another page";
+                // Same-named files in different folders (en/about.html, zh/about.html) match
+                // the same entry; the first one keeps the name, the others get derived names.
+                if (explicitOwners.TryGetValue(explicitName, out var first) && ReferenceEquals(first.Entry, entry))
+                    continue;
+
+                var owner = explicitOwners.TryGetValue(explicitName, out var other) ? other.Page : "another page";
                 throw new ImportException(
                     ImportErrorKind.UserInput,
                     $"Route map pages '{owner}' and '{page.RelativePath}' both use template '{explicitName}'. " +
                     "Every page must have its own template.");
             }
 
-            explicitOwners[explicitName] = page.RelativePath;
+            explicitOwners[explicitName] = (page.RelativePath, entry);
             names[key] = explicitName;
         }
 

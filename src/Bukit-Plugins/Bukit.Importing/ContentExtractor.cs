@@ -163,7 +163,7 @@ internal static partial class ContentExtractor
 
     private static void ExtractPageContent(DiscoveredPage page, ExtractedContent content)
     {
-        if (page.Type is PageType.PostList or PageType.CompanyList or PageType.ServiceList or PageType.Unknown)
+        if (page.Type is PageType.PostList or PageType.CompanyList or PageType.ServiceList)
             return;
 
         var h1 = H1Regex.Match(page.UniqueBody);
@@ -179,7 +179,9 @@ internal static partial class ContentExtractor
             {
                 PageType.Home => "index",
                 PageType.PostDetail => "post",
-                PageType.Page => "page",
+                // A page whose kind is not recognised is still a page: it gets a draft
+                // and renders with its own template instead of disappearing.
+                PageType.Page or PageType.Unknown => "page",
                 _ => "generic"
             },
             Summary = summary,

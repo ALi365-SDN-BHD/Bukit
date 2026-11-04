@@ -327,7 +327,7 @@ internal static partial class ThemeGenerator
         sb.AppendLine("    template: pages/index.html");
         sb.AppendLine("    required: true");
 
-        if (pageTypes.Contains(PageType.Page))
+        if (pageTypes.Contains(PageType.Page) || pageTypes.Contains(PageType.Unknown))
         {
             sb.AppendLine("  page:");
             sb.AppendLine("    template: pages/page.html");

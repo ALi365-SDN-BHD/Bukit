@@ -79,14 +79,13 @@ internal static class PageClassifier
     }
 
     internal static string? GetTemplate(RouteMapConfig? routeMap, string fileNameWithoutExtension)
-    {
-        if (routeMap == null) return null;
+        => FindEntry(routeMap, fileNameWithoutExtension)?.Template;
 
-        var match = routeMap.Pages.FirstOrDefault(p =>
+    /// <summary>The route-map entry for a demo file; entries match by file name only.</summary>
+    internal static RouteMapPage? FindEntry(RouteMapConfig? routeMap, string fileNameWithoutExtension)
+        => routeMap?.Pages.FirstOrDefault(p =>
             string.Equals(p.Source, $"{fileNameWithoutExtension}.html", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(Path.GetFileNameWithoutExtension(p.Source), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
-        return match?.Template;
-    }
 
     private static PageType ClassifyByContent(string html)
     {

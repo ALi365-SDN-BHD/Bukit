@@ -1325,6 +1325,146 @@ pages:
     }
 
     [Fact]
+    public void RouteMap_ExplicitListTemplates_AreUsedBySiteYamlListRoutes()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "blog.html"),
+            "<html><head><title>Blog</title></head><body><main><h1>Blog</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "article.html"),
+            "<html><head><title>Article</title></head><body><main><h1>Article</h1><p>Body.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "china-companies.html"),
+            "<html><head><title>China</title></head><body><main><h1>China</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "company.html"),
+            "<html><head><title>Company</title></head><body><main><h1>Company</h1><p>Body.</p></main></body></html>");
+        var routeMapPath = Path.Combine(_tempDir, "lists.routes.yaml");
+        File.WriteAllText(routeMapPath, """
+pages:
+  - source: blog.html
+    route: /insights/
+    type: PostList
+    template: news
+  - source: china-companies.html
+    route: /companies/
+    type: CompanyList
+    template: china-companies
+""");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "list-templates",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = routeMapPath
+        });
+
+        var pagesDir = Path.Combine(_tempDir, "themes", "list-templates", "layouts", "pages");
+        Assert.True(File.Exists(Path.Combine(pagesDir, "news.html")));
+        Assert.True(File.Exists(Path.Combine(pagesDir, "china-companies.html")));
+
+        var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "list-templates", "site.yaml"));
+        Assert.Contains("listTemplate: pages/news.html", siteYaml, StringComparison.Ordinal);
+        Assert.Contains("listTemplate: pages/china-companies.html", siteYaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("pages/blog.html", siteYaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("pages/companies.html", siteYaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_UnrecognisedPage_IsDraftedAndRenderedWithItsOwnTemplate()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "pricing.html"),
+            "<html><head><title>Pricing</title><style>.pricing{color:red}</style></head>" +
+            "<body><main><h1>Pricing</h1><p>Plans and prices.</p></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "unknown-page",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var draft = Path.Combine(_tempDir, "sites", "unknown-page", "content", "pages", "pricing.md");
+        Assert.True(File.Exists(draft), "An unrecognised page must still become a page.");
+        Assert.Contains("template: pages/pricing.html", File.ReadAllText(draft), StringComparison.Ordinal);
+        Assert.Contains(".pricing{", File.ReadAllText(
+            Path.Combine(_tempDir, "themes", "unknown-page", "layouts", "pages", "pricing.html")), StringComparison.Ordinal);
+
+        var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "unknown-page", "site.yaml"));
+        Assert.Contains("template: pages/page.html", siteYaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RouteMap_SameFileNameInTwoFolders_SharesTheEntryWithoutFailing()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        Directory.CreateDirectory(Path.Combine(_tempDir, "en"));
+        Directory.CreateDirectory(Path.Combine(_tempDir, "zh"));
+        File.WriteAllText(Path.Combine(_tempDir, "en", "about.html"),
+            "<html><head><title>About</title><style>.en{}</style></head><body><main><h1>About</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "zh", "about.html"),
+            "<html><head><title>关于</title><style>.zh{}</style></head><body><main><h1>关于</h1></main></body></html>");
+        var routeMapPath = Path.Combine(_tempDir, "about.routes.yaml");
+        File.WriteAllText(routeMapPath, """
+pages:
+  - source: about.html
+    route: /about/
+    type: Page
+    template: about
+""");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "same-name",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = routeMapPath
+        });
+
+        var pagesDir = Path.Combine(_tempDir, "themes", "same-name", "layouts", "pages");
+        var templates = Directory.GetFiles(pagesDir).Select(path => Path.GetFileName(path)!).ToArray();
+        Assert.Contains("about.html", templates);
+        Assert.Contains(templates, name => name.EndsWith("about.html", StringComparison.Ordinal) && name != "about.html");
+        var styles = templates.Where(name => name.Contains("about", StringComparison.Ordinal))
+            .Select(name => File.ReadAllText(Path.Combine(pagesDir, name))).ToArray();
+        Assert.Single(styles, text => text.Contains(".en{", StringComparison.Ordinal));
+        Assert.Single(styles, text => text.Contains(".zh{", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RouteMap_IndexFileTypedAsPage_DoesNotTakeTheHomeTemplate()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Landing</title><style>.landing{color:red}</style></head>" +
+            "<body><main><h1>Landing</h1><p>Landing body.</p></main></body></html>");
+        var routeMapPath = Path.Combine(_tempDir, "index.routes.yaml");
+        File.WriteAllText(routeMapPath, """
+pages:
+  - source: index.html
+    route: /landing/
+    type: Page
+""");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "index-as-page",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = routeMapPath
+        });
+
+        var pagesDir = Path.Combine(_tempDir, "themes", "index-as-page", "layouts", "pages");
+        Assert.DoesNotContain(".landing{", File.ReadAllText(Path.Combine(pagesDir, "index.html")), StringComparison.Ordinal);
+        Assert.Contains(".landing{", File.ReadAllText(Path.Combine(pagesDir, "index-2.html")), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Import_PostsWithoutTheirOwnPage_WarnAboutTheFallbackTemplate()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
