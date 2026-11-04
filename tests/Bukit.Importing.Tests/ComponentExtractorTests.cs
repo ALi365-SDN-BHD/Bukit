@@ -112,7 +112,7 @@ public sealed class ComponentExtractorTests
 
         var hero = components.First(c => c.Name == "hero");
         Assert.NotNull(hero.NormalizedTemplate);
-        Assert.Contains("{{ section.heading }}", hero.NormalizedTemplate);
+        Assert.Contains("{{ page.title }}", hero.NormalizedTemplate);
     }
 
     [Fact]

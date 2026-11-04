@@ -147,14 +147,14 @@ internal static partial class ComponentExtractor
         {
             var tagName = m.Groups[1].Value;
             if (!ListComponentNames.Contains(componentName))
-                return $"<{tagName}>{{{{ section.heading }}}}</{tagName}>";
+                return $"<{tagName}>{{{{ page.title }}}}</{tagName}>";
             return m.Value;
         });
 
         content = ParagraphRegex.Replace(content, m =>
         {
             if (!ListComponentNames.Contains(componentName))
-                return $"<p>{{{{ section.content }}}}</p>";
+                return "<p>{{ page.content }}</p>";
             return "<p>{{ item.summary }}</p>";
         });
 

@@ -92,7 +92,7 @@ public sealed class ThemeGeneratorTests : IDisposable
         var themeRoot = Path.Combine(_tempDir, "themes", themeName);
         Assert.Equal(themeRoot, result.ThemePath);
         Assert.Equal(3, result.PartialsGenerated);
-        Assert.Equal(5, result.TemplatesGenerated);
+        Assert.Equal(6, result.TemplatesGenerated);
 
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "header.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "nav.html")));

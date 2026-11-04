@@ -56,71 +56,130 @@ internal static partial class NotionSeedPusher
 
         var isUpsert = options.Mode.Equals("upsert", StringComparison.OrdinalIgnoreCase);
 
-        foreach (var record in records)
+        try
         {
-            string? existingPageId = null;
-            if (isUpsert)
+            foreach (var record in records)
             {
-                var queryResult = await QueryExistingPageAsync(client, options, record, cancellationToken);
-                if (!queryResult.QuerySucceeded)
+                try
                 {
-                    items.Add(new NotionPushItemResult(record, "query-failed", false, null,
-                        $"Schema query failed: {queryResult.Error}"));
-                    continue;
+                    items.Add(await PushRecordAsync(client, options, isUpsert, record, cancellationToken));
                 }
-                existingPageId = queryResult.PageId;
-            }
-
-            if (existingPageId != null)
-            {
-                var (success, pageId, error) = await UpdatePageAsync(client, options, existingPageId, record, cancellationToken);
-                if (success && isUpsert && !string.IsNullOrWhiteSpace(record.Content) &&
-                    (options.UpdateContent == "append" || options.UpdateContent == "replace"))
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    if (options.UpdateContent == "replace")
-                    {
-                        var (readSuccess, existingBlockIds) = await GetBlockChildrenIdsAsync(client, pageId!, cancellationToken);
-                        if (!readSuccess)
-                        {
-                            items.Add(new NotionPushItemResult(record, "replace-failed", false, pageId, "Failed to read existing block children."));
-                            continue;
-                        }
-                        var allDeleted = true;
-                        foreach (var blockId in existingBlockIds)
-                        {
-                            if (!await DeleteBlockAsync(client, blockId, cancellationToken))
-                                allDeleted = false;
-                        }
-                        if (!allDeleted)
-                        {
-                            items.Add(new NotionPushItemResult(record, "replace-failed", false, pageId, "Failed to delete one or more existing blocks."));
-                            continue;
-                        }
-                    }
-                    var blocksJson = HtmlToNotionBlockConverter.ToBlocksJson(record.Content);
-                    if (blocksJson != "[]")
-                    {
-                        var (appendSuccess, appendError) = await AppendBlockChildrenAsync(client, pageId!, blocksJson, cancellationToken);
-                        if (!appendSuccess)
-                        {
-                            items.Add(new NotionPushItemResult(record, "append-failed", false, pageId, appendError));
-                            continue;
-                        }
-                    }
+                    // One bad record must not abort the batch or skip the report.
+                    items.Add(new NotionPushItemResult(record, "error", false, null, ex.Message));
                 }
-                items.Add(new NotionPushItemResult(record, "updated", success, pageId, error));
-            }
-            else
-            {
-                var (success, pageId, error) = await CreatePageAsync(client, options, record, cancellationToken);
-                items.Add(new NotionPushItemResult(record, "created", success, pageId, error));
             }
         }
+        finally
+        {
+            if (options.WriteReport)
+                WriteReport(options.ReportPath, options.DatabaseId, dryRun: false, BuildResult(items));
+        }
 
-        var result = BuildResult(items);
-        if (options.WriteReport)
-            WriteReport(options.ReportPath, options.DatabaseId, dryRun: false, result);
-        return result;
+        return BuildResult(items);
+    }
+
+    private static async Task<NotionPushItemResult> PushRecordAsync(
+        NotionWriteClient client,
+        NotionPushOptions options,
+        bool isUpsert,
+        ImportSeedRecord record,
+        CancellationToken cancellationToken)
+    {
+        string? existingPageId = null;
+        if (isUpsert)
+        {
+            var queryResult = await QueryExistingPageAsync(client, options, record, cancellationToken);
+            if (!queryResult.QuerySucceeded)
+                return new NotionPushItemResult(record, "query-failed", false, null,
+                    $"Schema query failed: {queryResult.Error}");
+            existingPageId = queryResult.PageId;
+        }
+
+        if (existingPageId is null)
+        {
+            var (success, pageId, error) = await CreatePageAsync(client, options, record, cancellationToken);
+            return new NotionPushItemResult(record, "created", success, pageId, error);
+        }
+
+        var (updated, updatedPageId, updateError) =
+            await UpdatePageAsync(client, options, existingPageId, record, cancellationToken);
+        if (!updated || !IsContentUpdate(options.UpdateContent) || string.IsNullOrWhiteSpace(record.Content))
+            return new NotionPushItemResult(record, "updated", updated, updatedPageId, updateError);
+
+        return await UpdateContentAsync(client, options, record, updatedPageId!, cancellationToken);
+    }
+
+    private static bool IsContentUpdate(string updateContent)
+        => updateContent is "append" or "replace";
+
+    private static async Task<NotionPushItemResult> UpdateContentAsync(
+        NotionWriteClient client,
+        NotionPushOptions options,
+        ImportSeedRecord record,
+        string pageId,
+        CancellationToken cancellationToken)
+    {
+        var blocksJson = HtmlToNotionBlockConverter.ToBlocksJson(record.Content!);
+
+        // Replace appends the new body first: a failed write must never leave the
+        // page empty, which is what deleting the old blocks up front caused.
+        var (readSuccess, existingBlockIds) = options.UpdateContent == "replace"
+            ? await GetBlockChildrenIdsAsync(client, pageId, cancellationToken)
+            : (true, []);
+        if (!readSuccess)
+            return new NotionPushItemResult(record, "replace-failed", false, pageId,
+                "Failed to read existing block children.");
+
+        if (blocksJson != "[]")
+        {
+            var (appendSuccess, appendError) = await AppendBlocksAsync(client, pageId, blocksJson, cancellationToken);
+            if (!appendSuccess)
+                return new NotionPushItemResult(record, "append-failed", false, pageId, appendError);
+        }
+
+        foreach (var blockId in existingBlockIds)
+        {
+            if (!await DeleteBlockAsync(client, blockId, cancellationToken))
+                return new NotionPushItemResult(record, "replace-partial", false, pageId,
+                    "New content was appended but one or more old blocks could not be deleted.");
+        }
+
+        return new NotionPushItemResult(record, "updated", true, pageId, null);
+    }
+
+    private const int MaxBlocksPerRequest = 100;
+
+    private static async Task<(bool Success, string? Error)> AppendBlocksAsync(
+        NotionWriteClient client, string pageId, string blocksJson, CancellationToken ct)
+    {
+        foreach (var chunk in ChunkBlockJson(blocksJson, MaxBlocksPerRequest))
+        {
+            var (success, error) = await AppendBlockChildrenAsync(client, pageId, chunk, ct);
+            if (!success)
+                return (false, error);
+        }
+
+        return (true, null);
+    }
+
+    private static IEnumerable<string> ChunkBlockJson(string blocksJson, int size)
+    {
+        using var document = JsonDocument.Parse(blocksJson);
+        var chunk = new List<string>(size);
+        foreach (var block in document.RootElement.EnumerateArray())
+        {
+            chunk.Add(block.GetRawText());
+            if (chunk.Count < size)
+                continue;
+
+            yield return "[" + string.Join(",", chunk) + "]";
+            chunk.Clear();
+        }
+
+        if (chunk.Count > 0)
+            yield return "[" + string.Join(",", chunk) + "]";
     }
 
     private static async Task<QueryExistingPageResult> QueryExistingPageAsync(
@@ -312,12 +371,29 @@ internal static partial class NotionSeedPusher
     private static async Task<(bool Success, string? PageId, string? Error)> CreatePageAsync(
         NotionWriteClient client, NotionPushOptions options, ImportSeedRecord record, CancellationToken ct)
     {
+        var blocksJson = string.IsNullOrWhiteSpace(record.Content)
+            ? "[]"
+            : HtmlToNotionBlockConverter.ToBlocksJson(record.Content);
+        var chunks = ChunkBlockJson(blocksJson, MaxBlocksPerRequest).ToList();
+
         var response = await client.CreatePageAsync(
-            BuildCreatePagePayload(options.DatabaseId, record, options.Schema),
+            BuildCreatePagePayload(options.DatabaseId, record, options.Schema, chunks.FirstOrDefault()),
             ct);
-        if (response.IsSuccess)
-            return (true, ExtractPageId(response.Payload), null);
-        return (false, null, SafeError(response));
+        if (!response.IsSuccess)
+            return (false, null, SafeError(response));
+
+        var pageId = ExtractPageId(response.Payload);
+        if (pageId is null || chunks.Count <= 1)
+            return (true, pageId, null);
+
+        foreach (var chunk in chunks.Skip(1))
+        {
+            var (success, error) = await AppendBlockChildrenAsync(client, pageId, chunk, ct);
+            if (!success)
+                return (false, pageId, $"Page created but remaining content failed to append: {error}");
+        }
+
+        return (true, pageId, null);
     }
 
     private static async Task<(bool Success, string? PageId, string? Error)> UpdatePageAsync(
@@ -397,7 +473,8 @@ internal static partial class NotionSeedPusher
     private static string BuildCreatePagePayload(
         string databaseId,
         ImportSeedRecord record,
-        IReadOnlyDictionary<string, string>? schema)
+        IReadOnlyDictionary<string, string>? schema,
+        string? childrenJson)
     {
         using var stream = new MemoryStream();
         using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
@@ -409,14 +486,10 @@ internal static partial class NotionSeedPusher
 
         WriteProperties(writer, record, schema);
 
-        if (!string.IsNullOrWhiteSpace(record.Content))
+        if (!string.IsNullOrWhiteSpace(childrenJson) && childrenJson != "[]")
         {
-            var blocksJson = HtmlToNotionBlockConverter.ToBlocksJson(record.Content);
-            if (blocksJson != "[]")
-            {
-                writer.WritePropertyName("children");
-                writer.WriteRawValue(blocksJson);
-            }
+            writer.WritePropertyName("children");
+            writer.WriteRawValue(childrenJson);
         }
 
         writer.WriteEndObject();
@@ -495,7 +568,7 @@ internal static partial class NotionSeedPusher
             }
 
             var text = value.ToString();
-            if (string.IsNullOrWhiteSpace(text))
+            if (text is null)
                 continue;
 
             if (propertyName is "Link" or "Url" or "Href")
@@ -530,21 +603,30 @@ internal static partial class NotionSeedPusher
 
     private static void WriteRichTextProperty(Utf8JsonWriter writer, string name, string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return;
+        // null leaves the remote value untouched; an explicit empty string clears it.
+        if (value is null) return;
         writer.WriteStartObject(name);
         writer.WriteStartArray("rich_text");
-        WriteTextObject(writer, Truncate(value, 2000));
+        if (value.Length > 0)
+            WriteTextObject(writer, Truncate(value, 2000));
         writer.WriteEndArray();
         writer.WriteEndObject();
     }
 
     private static void WriteSelectProperty(Utf8JsonWriter writer, string name, string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return;
+        if (value is null) return;
         writer.WriteStartObject(name);
-        writer.WriteStartObject("select");
-        writer.WriteString("name", value);
-        writer.WriteEndObject();
+        if (value.Length == 0)
+        {
+            writer.WriteNull("select");
+        }
+        else
+        {
+            writer.WriteStartObject("select");
+            writer.WriteString("name", value);
+            writer.WriteEndObject();
+        }
         writer.WriteEndObject();
     }
 
@@ -562,10 +644,14 @@ internal static partial class NotionSeedPusher
         writer.WriteEndObject();
     }
 
-    private static void WriteUrlProperty(Utf8JsonWriter writer, string name, string value)
+    private static void WriteUrlProperty(Utf8JsonWriter writer, string name, string? value)
     {
+        if (value is null) return;
         writer.WriteStartObject(name);
-        writer.WriteString("url", value);
+        if (value.Length == 0)
+            writer.WriteNull("url");
+        else
+            writer.WriteString("url", value);
         writer.WriteEndObject();
     }
 

@@ -90,7 +90,6 @@ internal static partial class TemplateBodyTransformer
                 var tag = match.Groups["tag"].Value;
                 var attrs = match.Groups["attrs"].Value;
                 return "<" + tag + attrs + ">" + Environment.NewLine +
-                       "  {{ section = page }}" + Environment.NewLine +
                        "  {{ include 'components/" + componentName + ".html' }}" + Environment.NewLine +
                        "</" + tag + ">";
             });
@@ -103,7 +102,6 @@ internal static partial class TemplateBodyTransformer
                 var tag = match.Groups["tag"].Value;
                 var attrs = match.Groups["attrs"].Value;
                 return "<" + tag + attrs + ">" + Environment.NewLine +
-                       "  {{ section = page }}" + Environment.NewLine +
                        "  {{ include 'components/faq.html' }}" + Environment.NewLine +
                        "</" + tag + ">";
             });

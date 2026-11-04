@@ -30,6 +30,7 @@ internal static class ImportCommitter
 
         // Import assets (this writes to theme dir directly — assets are not subject to residue check)
         var assetResult = AssetImporter.Import(options, pages);
+        content = RewriteContentAssetPaths(content, assetResult.PathMappings);
 
         // Generate theme (layouts, pages, partials, theme.yaml)
         var result = ThemeGenerator.Generate(options, pages, layout, warnings, assetResult.PathMappings, routeMap);
@@ -88,6 +89,32 @@ internal static class ImportCommitter
         ImportReportWriter.Write(options, result, diagnostics);
 
         return result;
+    }
+
+    private static ExtractedContent RewriteContentAssetPaths(
+        ExtractedContent content,
+        Dictionary<string, string> mappings)
+    {
+        if (mappings.Count == 0)
+            return content;
+
+        string? Rewrite(string? value)
+            => string.IsNullOrWhiteSpace(value) ? value : AssetImporter.RewritePaths(value, mappings);
+
+        content.Pages = content.Pages
+            .Select(page => page with { Content = Rewrite(page.Content) })
+            .ToList();
+        content.Posts = content.Posts
+            .Select(post => post with { Content = Rewrite(post.Content) })
+            .ToList();
+        content.Companies = content.Companies
+            .Select(company => company with { Content = Rewrite(company.Content) })
+            .ToList();
+        content.Services = content.Services
+            .Select(service => service with { Content = Rewrite(service.Content) })
+            .ToList();
+
+        return content;
     }
 
 }

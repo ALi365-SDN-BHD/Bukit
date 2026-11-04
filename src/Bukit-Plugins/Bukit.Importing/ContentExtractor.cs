@@ -18,10 +18,10 @@ internal static partial class ContentExtractor
     private static readonly Regex SectionOuterRegex = SectionOuterPattern();
     private static readonly Regex SectionClassRegex = SectionClassPattern();
 
-    internal static ExtractedContent Extract(List<DiscoveredPage> pages)
+    internal static ExtractedContent Extract(List<DiscoveredPage> pages, RouteMapConfig? routeMap = null)
     {
         var content = new ExtractedContent();
-        ExtractNavigation(pages, content);
+        ExtractNavigation(pages, content, routeMap);
 
         foreach (var page in pages)
         {
@@ -31,20 +31,11 @@ internal static partial class ContentExtractor
             ExtractFaqs(page, content);
         }
 
-        content.Posts = content.Posts
-            .GroupBy(p => p.Title)
-            .Select(g => g.First())
-            .ToList();
-
-        content.Companies = content.Companies
-            .GroupBy(c => c.Title)
-            .Select(g => g.First())
-            .ToList();
-
-        content.Services = content.Services
-            .GroupBy(s => s.Title)
-            .Select(g => g.First())
-            .ToList();
+        // The list page yields a summary-only card; the detail page has the body.
+        // Keep the richer record instead of whichever page happened to sort first.
+        content.Posts = PreferDetail(content.Posts, p => p.Title, p => p.Content).ToList();
+        content.Companies = PreferDetail(content.Companies, c => c.Title, c => c.Content).ToList();
+        content.Services = PreferDetail(content.Services, s => s.Title, s => s.Content).ToList();
 
         content.Faqs = content.Faqs
             .GroupBy(f => f.Question)
@@ -54,7 +45,14 @@ internal static partial class ContentExtractor
         return content;
     }
 
-    private static void ExtractNavigation(List<DiscoveredPage> pages, ExtractedContent content)
+    private static IEnumerable<T> PreferDetail<T>(IEnumerable<T> records, Func<T, string> title, Func<T, string?> content)
+        => records
+            .GroupBy(title, StringComparer.Ordinal)
+            .Select(group => group
+                .OrderByDescending(record => !string.IsNullOrWhiteSpace(content(record)))
+                .First());
+
+    private static void ExtractNavigation(List<DiscoveredPage> pages, ExtractedContent content, RouteMapConfig? routeMap)
     {
         var candidate = pages
             .Select(page => NavigationMarkupExtractor.ExtractBest(page.BodyContent))
@@ -72,11 +70,47 @@ internal static partial class ContentExtractor
             {
                 Title = link.Title,
                 Slug = link.Slug,
-                Link = link.Href,
+                Link = ResolveNavigationHref(link.Href, pages, routeMap),
                 Order = order
             });
             order += 10;
         }
+    }
+
+    private static string ResolveNavigationHref(string href, List<DiscoveredPage> pages, RouteMapConfig? routeMap)
+    {
+        if (string.IsNullOrWhiteSpace(href) ||
+            href.StartsWith('#') ||
+            href.StartsWith("//", StringComparison.Ordinal) ||
+            href.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            href.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+            href.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) ||
+            href.StartsWith("tel:", StringComparison.OrdinalIgnoreCase))
+        {
+            return href;
+        }
+
+        var path = href.Split('#')[0].Split('?')[0];
+        if (path.Length == 0)
+            return href;
+
+        var normalized = path.TrimStart('/');
+        var fileName = Path.GetFileName(normalized);
+        var slug = normalized.Trim('/');
+        var page = pages.FirstOrDefault(candidate =>
+            string.Equals(candidate.RelativePath.Replace('\\', '/'), normalized, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileName(candidate.RelativePath), fileName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(candidate.Slug, slug, StringComparison.OrdinalIgnoreCase));
+        if (page is null)
+            return href;
+        if (page.Type == PageType.Home)
+            return "/";
+
+        var mapped = PageClassifier.GetRoute(routeMap, Path.GetFileNameWithoutExtension(page.RelativePath));
+        if (!string.IsNullOrWhiteSpace(mapped))
+            return mapped;
+
+        return string.IsNullOrWhiteSpace(page.Slug) ? href : $"/{page.Slug}/";
     }
 
     private static void ExtractPageContent(DiscoveredPage page, ExtractedContent content)

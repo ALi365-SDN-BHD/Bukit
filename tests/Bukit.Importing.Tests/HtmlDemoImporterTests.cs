@@ -486,8 +486,8 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         var hero = File.ReadAllText(Path.Combine(_tempDir, "themes", "component-test", "layouts", "components", "hero.html"));
         var faq = File.ReadAllText(Path.Combine(_tempDir, "themes", "component-test", "layouts", "components", "faq.html"));
-        Assert.Contains("<h1>{{ section.heading }}</h1>", hero);
-        Assert.Contains("<h3>{{ section.heading }}</h3>", faq);
+        Assert.Contains("<h1>{{ page.title }}</h1>", hero);
+        Assert.Contains("<h3>{{ page.title }}</h3>", faq);
         Assert.DoesNotContain("<1>", hero);
         Assert.DoesNotContain("<3>", faq);
     }
@@ -853,9 +853,95 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var aboutDraft = File.ReadAllText(Path.Combine(_tempDir, "sites", "content-loop-test", "content", "pages", "about.md"));
         Assert.Contains("\"content\": \"<p>About body.</p>", seed);
         Assert.Contains("Detailed body.", seed);
-        Assert.Contains("<p>About body.</p>", aboutDraft);
+        Assert.Contains("About body.", aboutDraft);
         Assert.Contains("Detailed body.", aboutDraft);
+        Assert.DoesNotContain("<p>About body.</p>", aboutDraft);
         Assert.DoesNotContain("<main>", aboutDraft);
+    }
+
+    [Fact]
+    public void Import_InlineHeadStyle_IsKeptInBaseLayout()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title><style>body{color:red}</style></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "inline-style",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var baseLayout = File.ReadAllText(Path.Combine(_tempDir, "themes", "inline-style", "layouts", "layouts", "base.html"));
+        Assert.Contains("body{color:red}", baseLayout, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_IndexOnlyDemo_GeneratesPageTemplateReferencedBySiteConfig()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "index-only",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "index-only", "layouts", "pages", "page.html")));
+        var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "index-only", "site.yaml"));
+        Assert.Contains("template: 'pages/page.html'", siteYaml, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_NestedPageAssets_ResolveRelativeToThePageDirectory()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "posts", "images"));
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "posts", "article.html"),
+            "<html><head><title>Article</title></head><body><main><h1>Article</h1><p>Body.</p><img src=\"images/photo.png\" alt=\"Photo\"></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "posts", "images", "photo.png"), "fake image");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "nested-assets",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "nested-assets", "static", "posts", "images", "photo.png")));
+        var draft = File.ReadAllText(Path.Combine(_tempDir, "sites", "nested-assets", "content", "posts", "article.md"));
+        Assert.Contains("![Photo](/posts/images/photo.png)", draft, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_CssAndReferencedAssets_KeepAResolvableRelativeLayout()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "assets", "css"));
+        Directory.CreateDirectory(Path.Combine(_tempDir, "assets", "img"));
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"assets/css/site.css\"></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "assets", "css", "site.css"), "body{background:url(../img/bg.png)}");
+        File.WriteAllText(Path.Combine(_tempDir, "assets", "img", "bg.png"), "fake image");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "css-assets",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var themeRoot = Path.Combine(_tempDir, "themes", "css-assets");
+        Assert.True(File.Exists(Path.Combine(themeRoot, "static", "assets", "css", "site.css")));
+        Assert.True(File.Exists(Path.Combine(themeRoot, "static", "assets", "img", "bg.png")));
+        var baseLayout = File.ReadAllText(Path.Combine(themeRoot, "layouts", "layouts", "base.html"));
+        Assert.Contains("/assets/css/site.css", baseLayout, StringComparison.Ordinal);
     }
 
     [Fact]

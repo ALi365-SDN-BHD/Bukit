@@ -178,6 +178,11 @@ public static class ImportNotionPushWorkflow
             reportPath = Path.Combine(inputDir, options.DryRun ? "notion-push-plan.json" : "notion-push-report.json");
         reportPath = Path.GetFullPath(reportPath);
 
+        FileStream? pushLock = options.DryRun ? null : TryAcquirePushLock(inputDir);
+        if (!options.DryRun && pushLock is null)
+            return 2;
+        using var _pushLock = pushLock;
+
         if (string.IsNullOrWhiteSpace(options.DatabaseMapPath) && !string.IsNullOrWhiteSpace(options.DatabaseId))
         {
             return await PushSingleDatabaseAsync(
@@ -252,37 +257,84 @@ public static class ImportNotionPushWorkflow
         var completedTargets = new List<NotionDatabaseTarget>();
         var pushResults = new List<(NotionDatabaseTarget Target, NotionPushResult Result)>();
         var failed = false;
+        var mapOutputPath = options.CreateMissingDatabases ||
+                            !string.IsNullOrWhiteSpace(options.GeneratedDatabaseMapPath)
+            ? NotionDatabaseMapReader.ResolveGeneratedMapPath(inputDir, databaseMapPath, options.GeneratedDatabaseMapPath)
+            : null;
 
-        foreach (var target in targets)
+        void RecordTarget(NotionDatabaseTarget target)
         {
-            var activeTarget = target;
-            var records = ImportSeedRecordReader.ReadSeedFile(inputDir, activeTarget.SeedFile, activeTarget.Collection);
-            var additionalSchemaFields = activeTarget.Schema!
-                .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
-                .Select(f => (Name: f.Key, ExpectedType: f.Value))
-                .ToArray();
-            if (string.IsNullOrWhiteSpace(activeTarget.DatabaseId))
-            {
-                if (options.DryRun)
-                {
-                    completedTargets.Add(activeTarget);
-                    pushResults.Add((activeTarget, BuildDryRunResult(inputDir, activeTarget)));
-                    continue;
-                }
+            var index = completedTargets.FindIndex(existing => existing.Key == target.Key);
+            if (index >= 0)
+                completedTargets[index] = target;
+            else
+                completedTargets.Add(target);
+        }
 
-                var createdDatabaseId = await CreateDatabaseAsync(
-                    client,
-                    options.ParentPageId!,
-                    activeTarget.Title,
-                    additionalSchemaFields);
-                if (string.IsNullOrWhiteSpace(createdDatabaseId))
+        // Every created database id is persisted immediately, and again on the way
+        // out, so a crash or a broken report write cannot lose it.
+        void PersistDatabaseMap()
+        {
+            if (mapOutputPath is not null)
+                NotionDatabaseMapReader.WriteDatabaseMap(mapOutputPath, completedTargets);
+        }
+
+        try
+        {
+            foreach (var target in targets)
+            {
+                var activeTarget = target;
+                var records = ImportSeedRecordReader.ReadSeedFile(inputDir, activeTarget.SeedFile, activeTarget.Collection);
+                var additionalSchemaFields = activeTarget.Schema!
+                    .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(f => (Name: f.Key, ExpectedType: f.Value))
+                    .ToArray();
+                if (string.IsNullOrWhiteSpace(activeTarget.DatabaseId))
                 {
-                    failed = true;
-                    pushResults.Add((activeTarget, new NotionPushResult(0, 0, 0, 0, 1, [])));
-                    continue;
+                    if (options.DryRun)
+                    {
+                        RecordTarget(activeTarget);
+                        pushResults.Add((activeTarget, BuildDryRunResult(inputDir, activeTarget)));
+                        continue;
+                    }
+
+                    var createdDatabaseId = await CreateDatabaseAsync(
+                        client,
+                        options.ParentPageId!,
+                        activeTarget.Title,
+                        additionalSchemaFields);
+                    if (string.IsNullOrWhiteSpace(createdDatabaseId))
+                    {
+                        failed = true;
+                        // Keep the target in the map so the next run retries it.
+                        RecordTarget(activeTarget);
+                        PersistDatabaseMap();
+                        pushResults.Add((activeTarget, new NotionPushResult(0, 0, 0, 0, 1, [])));
+                        continue;
+                    }
+                    activeTarget = activeTarget with { DatabaseId = createdDatabaseId };
+                    RecordTarget(activeTarget);
+                    PersistDatabaseMap();
+                    if (options.ValidateSchema)
+                    {
+                        var schemaReport = await NotionSchemaValidator.ValidateAsync(
+                            client,
+                            activeTarget.DatabaseId!,
+                            null,
+                            additionalSchemaFields);
+                        if (!schemaReport.Success)
+                        {
+                            failed = true;
+                            Console.Error.WriteLine($"Notion schema validation failed for {activeTarget.Key} ({activeTarget.DatabaseId}):");
+                            foreach (var f in schemaReport.FieldResults.Where(r => r.Result != "OK"))
+                                Console.Error.WriteLine($"  {f.Name}: {f.Result} - {f.Message}");
+                            pushResults.Add((activeTarget, new NotionPushResult(0, 0, 0, 0, 1, [])));
+                            RecordTarget(activeTarget);
+                            continue;
+                        }
+                    }
                 }
-                activeTarget = activeTarget with { DatabaseId = createdDatabaseId };
-                if (options.ValidateSchema)
+                else if (!options.DryRun && options.ValidateSchema)
                 {
                     var schemaReport = await NotionSchemaValidator.ValidateAsync(
                         client,
@@ -296,50 +348,31 @@ public static class ImportNotionPushWorkflow
                         foreach (var f in schemaReport.FieldResults.Where(r => r.Result != "OK"))
                             Console.Error.WriteLine($"  {f.Name}: {f.Result} - {f.Message}");
                         pushResults.Add((activeTarget, new NotionPushResult(0, 0, 0, 0, 1, [])));
-                        completedTargets.Add(activeTarget);
+                        RecordTarget(activeTarget);
                         continue;
                     }
                 }
-            }
-            else if (!options.DryRun && options.ValidateSchema)
-            {
-                var schemaReport = await NotionSchemaValidator.ValidateAsync(
-                    client,
-                    activeTarget.DatabaseId!,
-                    null,
-                    additionalSchemaFields);
-                if (!schemaReport.Success)
-                {
-                    failed = true;
-                    Console.Error.WriteLine($"Notion schema validation failed for {activeTarget.Key} ({activeTarget.DatabaseId}):");
-                    foreach (var f in schemaReport.FieldResults.Where(r => r.Result != "OK"))
-                        Console.Error.WriteLine($"  {f.Name}: {f.Result} - {f.Message}");
-                    pushResults.Add((activeTarget, new NotionPushResult(0, 0, 0, 0, 1, [])));
-                    completedTargets.Add(activeTarget);
-                    continue;
-                }
-            }
 
-            var result = await NotionSeedPusher.PushAsync(client, records, new NotionPushOptions(
-                DatabaseId: activeTarget.DatabaseId ?? "",
-                ReportPath: reportPath,
-                DryRun: options.DryRun,
-                Mode: mode,
-                UniqueField: activeTarget.UniqueField,
-                UpdateContent: updateContent,
-                WriteReport: false,
-                Schema: activeTarget.Schema));
-            if (result.Failed > 0) failed = true;
-            completedTargets.Add(activeTarget);
-            pushResults.Add((activeTarget, result));
+                var result = await NotionSeedPusher.PushAsync(client, records, new NotionPushOptions(
+                    DatabaseId: activeTarget.DatabaseId ?? "",
+                    ReportPath: reportPath,
+                    DryRun: options.DryRun,
+                    Mode: mode,
+                    UniqueField: activeTarget.UniqueField,
+                    UpdateContent: updateContent,
+                    WriteReport: false,
+                    Schema: activeTarget.Schema));
+                if (result.Failed > 0) failed = true;
+                RecordTarget(activeTarget);
+                pushResults.Add((activeTarget, result));
+            }
+        }
+        finally
+        {
+            PersistDatabaseMap();
         }
 
         WriteMultiDatabaseReport(reportPath, options.DryRun, completedTargets, pushResults);
-        if (options.CreateMissingDatabases || !string.IsNullOrWhiteSpace(options.GeneratedDatabaseMapPath))
-        {
-            var mapOutputPath = NotionDatabaseMapReader.ResolveGeneratedMapPath(inputDir, databaseMapPath, options.GeneratedDatabaseMapPath);
-            NotionDatabaseMapReader.WriteDatabaseMap(mapOutputPath, completedTargets);
-        }
 
         var totalRecords = pushResults.Sum(r => r.Result.Total);
         var totalCreated = pushResults.Sum(r => r.Result.Created);
@@ -487,6 +520,22 @@ public static class ImportNotionPushWorkflow
         return response.Payload is { } payload && payload.TryGetProperty("id", out var id)
             ? id.GetString()
             : null;
+    }
+
+    private static FileStream? TryAcquirePushLock(string inputDir)
+    {
+        var path = Path.Combine(inputDir, ".notion-push.lock");
+        try
+        {
+            return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        }
+        catch (IOException ex)
+        {
+            Console.Error.WriteLine(
+                $"Another Notion push is already running for {inputDir}. " +
+                $"Wait for it to finish; if the previous run was killed, remove '{path}' and retry. ({ex.Message})");
+            return null;
+        }
     }
 
     private static NotionClient CreateTransport(string token)

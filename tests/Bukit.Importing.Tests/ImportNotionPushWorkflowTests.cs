@@ -1328,6 +1328,321 @@ databases:
             ThemePath = Path.Combine(_rootDir, "themes", "demo")
         };
 
+    [Fact]
+    public async Task NotionSeedPusher_ReplaceAppendsNewBodyBeforeDeletingOldBlocks()
+    {
+        var calls = new List<string>();
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db/query", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "page-1" }] }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/pages/page-1", StringComparison.Ordinal))
+                return Json("{}");
+            if (request.Method == HttpMethod.Get && path.EndsWith("/blocks/page-1/children", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "old-1" }], "has_more": false }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/blocks/page-1/children", StringComparison.Ordinal))
+            {
+                calls.Add("append");
+                return Json("{}");
+            }
+            if (request.Method == HttpMethod.Delete && path.EndsWith("/blocks/old-1", StringComparison.Ordinal))
+            {
+                calls.Add("delete");
+                return Json("{}");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var transport = CreateTrustedClient(new NotionClientOptions { Token = "token", MaxRetries = 0 }, handler);
+        var record = new ImportSeedRecord("post", "Body", "body", null, "<p>New body</p>", null, true, null, null);
+
+        var result = await NotionSeedPusher.PushAsync(
+            new NotionWriteClient(transport),
+            [record],
+            new NotionPushOptions("db", Path.Combine(_rootDir, "replace.json"), DryRun: false,
+                Mode: "upsert", UpdateContent: "replace", WriteReport: false));
+
+        Assert.Equal(1, result.Updated);
+        Assert.Equal(["append", "delete"], calls);
+    }
+
+    [Fact]
+    public async Task NotionSeedPusher_ReplaceAppendFailureKeepsOldBlocks()
+    {
+        var deleted = 0;
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db/query", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "page-1" }] }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/pages/page-1", StringComparison.Ordinal))
+                return Json("{}");
+            if (request.Method == HttpMethod.Get && path.EndsWith("/blocks/page-1/children", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "old-1" }], "has_more": false }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/blocks/page-1/children", StringComparison.Ordinal))
+                return new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("""{"message":"too large"}""") };
+            if (request.Method == HttpMethod.Delete)
+            {
+                deleted++;
+                return Json("{}");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var transport = CreateTrustedClient(new NotionClientOptions { Token = "token", MaxRetries = 0 }, handler);
+        var record = new ImportSeedRecord("post", "Body", "body", null, "<p>New body</p>", null, true, null, null);
+
+        var result = await NotionSeedPusher.PushAsync(
+            new NotionWriteClient(transport),
+            [record],
+            new NotionPushOptions("db", Path.Combine(_rootDir, "replace-fail.json"), DryRun: false,
+                Mode: "upsert", UpdateContent: "replace", WriteReport: false));
+
+        Assert.Equal(1, result.Failed);
+        Assert.Equal("append-failed", result.Items.Single().Action);
+        Assert.Equal(0, deleted);
+    }
+
+    [Fact]
+    public async Task NotionSeedPusher_LargeBodyIsSplitIntoBatchesOfOneHundred()
+    {
+        var childCounts = new List<int>();
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/pages", StringComparison.Ordinal))
+            {
+                childCounts.Add(CountChildren(request));
+                return Json("""{ "id": "page-new" }""");
+            }
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/blocks/page-new/children", StringComparison.Ordinal))
+            {
+                childCounts.Add(CountChildren(request));
+                return Json("{}");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var transport = CreateTrustedClient(new NotionClientOptions { Token = "token", MaxRetries = 0 }, handler);
+        var content = string.Concat(Enumerable.Repeat("<p>paragraph</p>", 101));
+        var record = new ImportSeedRecord("post", "Long", "long", null, content, null, true, null, null);
+
+        var result = await NotionSeedPusher.PushAsync(
+            new NotionWriteClient(transport),
+            [record],
+            new NotionPushOptions("db", Path.Combine(_rootDir, "batched.json"), DryRun: false, WriteReport: false));
+
+        Assert.Equal(1, result.Created);
+        Assert.Equal([100, 1], childCounts);
+    }
+
+    [Fact]
+    public async Task NotionSeedPusher_ExplicitEmptyStringClearsRichText()
+    {
+        string? pagePayload = null;
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db/query", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "page-1" }] }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/pages/page-1", StringComparison.Ordinal))
+            {
+                pagePayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("{}");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var transport = CreateTrustedClient(new NotionClientOptions { Token = "token", MaxRetries = 0 }, handler);
+        var record = new ImportSeedRecord("post", "Clear", "clear", "", null, null, true, null, null);
+
+        await NotionSeedPusher.PushAsync(
+            new NotionWriteClient(transport),
+            [record],
+            new NotionPushOptions("db", Path.Combine(_rootDir, "clear.json"), DryRun: false,
+                Mode: "upsert", WriteReport: false));
+
+        using var document = JsonDocument.Parse(pagePayload!);
+        var summary = document.RootElement.GetProperty("properties").GetProperty("Summary");
+        Assert.Equal("rich_text", summary.EnumerateObject().Single().Name);
+        Assert.Empty(summary.GetProperty("rich_text").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task NotionSeedPusher_OneBadRecordDoesNotAbortTheBatch()
+    {
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db/query", StringComparison.Ordinal))
+            {
+                var body = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return body.Contains("bad-record", StringComparison.Ordinal)
+                    ? Json("{}") // missing "results" makes the query path throw
+                    : Json("""{ "results": [] }""");
+            }
+            if (request.Method == HttpMethod.Post && path.EndsWith("/pages", StringComparison.Ordinal))
+                return Json("""{ "id": "page-new" }""");
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var transport = CreateTrustedClient(new NotionClientOptions { Token = "token", MaxRetries = 0 }, handler);
+        var records = new[]
+        {
+            new ImportSeedRecord("post", "Bad", "bad-record", null, null, null, true, null, null),
+            new ImportSeedRecord("post", "Good", "good-record", null, null, null, true, null, null)
+        };
+
+        var result = await NotionSeedPusher.PushAsync(
+            new NotionWriteClient(transport),
+            records,
+            new NotionPushOptions("db", Path.Combine(_rootDir, "isolation.json"), DryRun: false,
+                Mode: "upsert", WriteReport: true));
+
+        Assert.Equal(2, result.Total);
+        Assert.Equal(1, result.Created);
+        Assert.Equal(1, result.Failed);
+        Assert.Equal("error", result.Items[0].Action);
+        Assert.True(File.Exists(Path.Combine(_rootDir, "isolation.json")));
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_SecondConcurrentPushIsRejected()
+    {
+        var inputDir = Path.Combine(_rootDir, "locked-seed");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "pages.json"), """[{ "title": "Page", "slug": "page" }]""");
+        using var held = new FileStream(
+            Path.Combine(inputDir, ".notion-push.lock"),
+            FileMode.OpenOrCreate,
+            FileAccess.ReadWrite,
+            FileShare.None);
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseId = "db",
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN"
+            }));
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("already running", result.StdErr, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_ReportFailureStillPersistsCreatedDatabaseId()
+    {
+        var inputDir = Path.Combine(_rootDir, "report-failure-seed");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "pages.json"), """[{ "title": "Page", "slug": "page" }]""");
+        File.WriteAllText(Path.Combine(inputDir, "map.yaml"), """
+databases:
+  pages:
+    title: Pages
+    seed: pages.json
+    collection: page
+    databaseId: ""
+    uniqueField: Slug
+""");
+        File.WriteAllText(Path.Combine(inputDir, "blocker"), "not a directory");
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases", StringComparison.Ordinal))
+                return Json("""{ "id": "db-created" }""");
+            if (request.Method == HttpMethod.Post && path.EndsWith("/pages", StringComparison.Ordinal))
+                return Json("""{ "id": "page-1" }""");
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+        TestHttpMessageHandlerFactory = () => handler;
+
+        await Assert.ThrowsAnyAsync<IOException>(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = Path.Combine(inputDir, "map.yaml"),
+                GeneratedDatabaseMapPath = Path.Combine(inputDir, "generated.yaml"),
+                CreateMissingDatabases = true,
+                ParentPageId = "parent",
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(inputDir, "blocker", "report.json")
+            }));
+
+        var generated = File.ReadAllText(Path.Combine(inputDir, "generated.yaml"));
+        Assert.Contains("db-created", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PushSeedDirectoryAsync_FailedDatabaseCreateStaysInGeneratedMap()
+    {
+        var inputDir = Path.Combine(_rootDir, "create-failure-seed");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "pages.json"), """[{ "title": "Page", "slug": "page" }]""");
+        File.WriteAllText(Path.Combine(inputDir, "map.yaml"), """
+databases:
+  pages:
+    title: Pages
+    seed: pages.json
+    collection: page
+    databaseId: ""
+    uniqueField: Slug
+""");
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+
+        using var handler = new StubHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("""{"message":"nope"}""") });
+        TestHttpMessageHandlerFactory = () => handler;
+
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = Path.Combine(inputDir, "map.yaml"),
+                GeneratedDatabaseMapPath = Path.Combine(inputDir, "generated.yaml"),
+                CreateMissingDatabases = true,
+                ParentPageId = "parent",
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = false,
+                ReportPath = Path.Combine(inputDir, "report.json")
+            }));
+
+        Assert.Equal(1, result.ExitCode);
+        var generated = File.ReadAllText(Path.Combine(inputDir, "generated.yaml"));
+        Assert.Contains("pages:", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("databaseId", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WriteDatabaseMap_QuotesTitlesSoTheMapReloads()
+    {
+        var inputDir = Path.Combine(_rootDir, "map-quoting");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "pages.json"), "[]");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+
+        NotionDatabaseMapReader.WriteDatabaseMap(mapPath, [
+            new NotionDatabaseTarget("pages", "FAQ: Pages #1", "pages.json", "page", "db-1", "Slug")
+        ]);
+
+        var reloaded = NotionDatabaseMapReader.ReadDatabaseMap(mapPath, inputDir, "Slug");
+
+        var target = Assert.Single(reloaded);
+        Assert.Equal("FAQ: Pages #1", target.Title);
+        Assert.Equal("db-1", target.DatabaseId);
+    }
+
+    private static int CountChildren(HttpRequestMessage request)
+    {
+        using var document = JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+        return document.RootElement.GetProperty("children").GetArrayLength();
+    }
+
     private static NotionClient CreateTrustedClient(
         NotionClientOptions options,
         HttpMessageHandler handler)

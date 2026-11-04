@@ -39,7 +39,7 @@ internal static class ImportAnalyzer
         }
 
         var components = options.ExtractContent ? ComponentExtractor.Extract(pages) : [];
-        var content = options.ExtractContent ? ContentExtractor.Extract(pages) : new ExtractedContent();
+        var content = options.ExtractContent ? ContentExtractor.Extract(pages, routeMap) : new ExtractedContent();
 
         if (options.ExtractContent)
         {

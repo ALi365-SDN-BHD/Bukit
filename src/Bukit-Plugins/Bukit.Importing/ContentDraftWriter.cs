@@ -79,7 +79,7 @@ internal static class ContentDraftWriter
         sb.Append(YamlEmitter.Emit(fields));
         sb.AppendLine("---");
         sb.AppendLine();
-        sb.AppendLine(content?.Trim() ?? "");
+        sb.AppendLine(HtmlToMarkdownConverter.Convert(content));
         File.WriteAllText(path, sb.ToString());
     }
 }

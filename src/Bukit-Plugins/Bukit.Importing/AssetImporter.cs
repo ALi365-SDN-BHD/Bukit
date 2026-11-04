@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Bukit.Shared;
 
 namespace Bukit.Importing;
 
@@ -38,11 +39,16 @@ internal static partial class AssetImporter
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        var fullInputPath = Path.GetFullPath(options.InputPath);
+
         foreach (var page in pages)
         {
-            foreach (var assetPath in page.AssetPaths)
+            var pageDir = Path.GetDirectoryName(page.RelativePath.Replace('\\', '/')) ?? "";
+
+            foreach (var rawAssetPath in page.AssetPaths)
             {
-                if (!seen.Add(assetPath)) continue;
+                var assetPath = StripQueryAndFragment(rawAssetPath);
+                if (string.IsNullOrWhiteSpace(assetPath)) continue;
 
                 if (!IsSafeAsset(assetPath))
                 {
@@ -53,13 +59,12 @@ internal static partial class AssetImporter
                 if (HtmlExtensions.Contains(Path.GetExtension(assetPath)))
                     continue;
 
-                var sourcePath = Path.GetFullPath(
-                    Path.Combine(options.InputPath, assetPath.TrimStart('/')));
+                // Relative asset paths are authored relative to the page, not the demo root.
+                var sourcePath = Path.GetFullPath(assetPath.StartsWith('/')
+                    ? Path.Combine(options.InputPath, assetPath.TrimStart('/'))
+                    : Path.Combine(options.InputPath, pageDir, assetPath));
 
-                var fullInputPath = Path.GetFullPath(options.InputPath);
-                if (!sourcePath.StartsWith(fullInputPath + Path.DirectorySeparatorChar,
-                        StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(sourcePath, fullInputPath, StringComparison.OrdinalIgnoreCase))
+                if (!PathUtils.IsSameOrSubPathOf(sourcePath, fullInputPath))
                 {
                     warnings.Add($"Path traversal rejected: {assetPath}");
                     continue;
@@ -67,20 +72,28 @@ internal static partial class AssetImporter
 
                 if (!File.Exists(sourcePath)) continue;
 
+                var canonicalRel = Path.GetRelativePath(fullInputPath, sourcePath).Replace('\\', '/');
+                if (canonicalRel.StartsWith("../", StringComparison.Ordinal)) continue;
+
+                var destUrl = "/" + canonicalRel;
+                if (!mappings.TryAdd(assetPath, destUrl) && mappings[assetPath] != destUrl)
+                {
+                    warnings.Add(
+                        $"Asset reference '{assetPath}' resolves to multiple files; kept '{mappings[assetPath]}'.");
+                }
+
+                if (!seen.Add(canonicalRel)) continue;
+
                 var isImage = ImageExtensions.Contains(
-                    Path.GetExtension(assetPath).ToLowerInvariant());
+                    Path.GetExtension(canonicalRel).ToLowerInvariant());
                 var destSubDir = isImage ? "assets" : "static";
-                var destPath = Path.Combine(themeDir, destSubDir,
-                    assetPath.TrimStart('/'));
+                var destPath = Path.Combine(themeDir, destSubDir, canonicalRel);
 
                 var destDir = Path.GetDirectoryName(destPath);
                 if (destDir is not null)
                     Directory.CreateDirectory(destDir);
 
                 File.Copy(sourcePath, destPath, overwrite: true);
-
-                var destRel = "/" + assetPath.TrimStart('/').Replace('\\', '/');
-                mappings[assetPath] = destRel;
                 count++;
             }
         }
@@ -95,7 +108,7 @@ internal static partial class AssetImporter
                     SensitiveNames.Contains(fileName))
                     continue;
 
-                var rel = Path.GetRelativePath(sourceAssetsDir, file);
+                var rel = Path.Combine("assets", Path.GetRelativePath(sourceAssetsDir, file));
                 var dest = Path.Combine(themeDir, "assets", rel);
                 if (!File.Exists(dest))
                 {
@@ -148,6 +161,12 @@ internal static partial class AssetImporter
                 }
             }
         }
+    }
+
+    private static string StripQueryAndFragment(string value)
+    {
+        var cut = value.IndexOfAny(['?', '#']);
+        return cut < 0 ? value : value[..cut];
     }
 
     internal static string RewritePaths(string content, Dictionary<string, string> mappings)

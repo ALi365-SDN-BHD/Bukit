@@ -87,6 +87,15 @@ internal static partial class ThemeGenerator
         foreach (var page in pages)
             pageTypes.Add(page.Type);
 
+        var pageTemplatePath = Path.Combine(themeDir, "layouts", "pages", "page.html");
+        if (!File.Exists(pageTemplatePath))
+        {
+            File.WriteAllText(pageTemplatePath,
+                "{% layout \"layouts/base.html\" %}" + Environment.NewLine +
+                GetDefaultTemplateBody(PageType.Page));
+            templateCount++;
+        }
+
         WriteThemeYaml(themeDir, options.ThemeName, pageTypes, pages.FirstOrDefault(p => p.Type == PageType.PostList)?.Slug);
 
         return new ImportResult
@@ -219,6 +228,10 @@ internal static partial class ThemeGenerator
 
         foreach (var css in cssLinks)
             sb.AppendLine($"  {RewriteHeadAssetTag(css.Trim(), pathMappings)}");
+
+        // Single-file demos keep their styles inline; dropping them left the site unstyled.
+        foreach (Match style in InlineStyleRegex.Matches(layout.HeadExtras ?? ""))
+            sb.AppendLine("  " + style.Value.Trim());
 
         sb.AppendLine("  {{ if page.fields.seo_title }}");
         sb.AppendLine("  <title>{{ page.fields.seo_title.value }} | {{ site.title }}</title>");
