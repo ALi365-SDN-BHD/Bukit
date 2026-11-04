@@ -117,13 +117,37 @@ public static class NotionBlockJsonWriter
         }
     }
 
+    private static readonly Dictionary<string, string> LanguageAliases = new(StringComparer.Ordinal)
+    {
+        ["js"] = "javascript",
+        ["jsx"] = "javascript",
+        ["ts"] = "typescript",
+        ["tsx"] = "typescript",
+        ["sh"] = "shell",
+        ["bash"] = "shell",
+        ["zsh"] = "shell",
+        ["py"] = "python",
+        ["rb"] = "ruby",
+        ["cs"] = "c#",
+        ["csharp"] = "c#",
+        ["cpp"] = "c++",
+        ["yml"] = "yaml",
+        ["md"] = "markdown",
+        ["txt"] = "plain text",
+        ["text"] = "plain text"
+    };
+
     internal static string NormalizeLanguage(string? language)
     {
         var value = (language ?? "").Trim();
         if (value.StartsWith("language-", StringComparison.OrdinalIgnoreCase))
             value = value["language-".Length..];
 
-        return string.IsNullOrWhiteSpace(value) ? "plain text" : value.ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(value))
+            return "plain text";
+
+        value = value.ToLowerInvariant();
+        return LanguageAliases.TryGetValue(value, out var mapped) ? mapped : value;
     }
 
     private static void WriteHeadingBlock(Utf8JsonWriter writer, string type, string text)
