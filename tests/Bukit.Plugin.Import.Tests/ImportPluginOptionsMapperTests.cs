@@ -182,6 +182,65 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
     }
 
     [Fact]
+    public void MapInvocation_NotionPushRejectsOutOfScopeDefaultReport()
+    {
+        var request = Request(
+            path: ["notion", "push"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--input"] = Json("seed"),
+                ["--database-id"] = Json("db-single"),
+                ["--dry-run"] = Json(true)
+            });
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.MapInvocation(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+        Assert.Contains("notion-push-plan.json", ex.Message);
+    }
+
+    [Fact]
+    public void MapInvocation_NotionPushRejectsOutOfScopeLock()
+    {
+        var request = Request(
+            path: ["notion", "push"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--input"] = Json("seed"),
+                ["--database-id"] = Json("db-single"),
+                ["--report"] = Json(".bukit/reports/plugin-output/import/report.json")
+            },
+            permissions: new PluginPermissionSet(Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"])));
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.MapInvocation(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+        Assert.Contains(".notion-push.lock", ex.Message);
+    }
+
+    [Fact]
+    public void MapInvocation_NotionPushInScopeSeed_AllowsDerivedDefaults()
+    {
+        var request = Request(
+            path: ["notion", "push"],
+            arguments: [],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--input"] = Json("data/seed"),
+                ["--database-id"] = Json("db-single"),
+                ["--dry-run"] = Json(true)
+            });
+
+        var invocation = ImportPluginOptionsMapper.MapInvocation(request);
+
+        var options = Assert.IsType<ImportNotionSeedPushOptions>(invocation.NotionPushOptions);
+        Assert.Equal(Path.Combine(_rootDir, "data", "seed"), options.InputDir);
+        Assert.Null(options.ReportPath);
+    }
+
+    [Fact]
     public void Map_Seed_RejectsSymlinkThatEscapesProjectRoot()
     {
         if (OperatingSystem.IsWindows())

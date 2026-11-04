@@ -54,6 +54,35 @@ Some **bold** and *italic* text.
     }
 
     [Fact]
+    public void Convert_AdjacentBlockDivs_KeepALineBreak()
+    {
+        var markdown = HtmlToMarkdownConverter.Convert(
+            "<div class=\"card\"><div>A</div><div>B</div></div>");
+
+        Assert.Equal("A\nB", markdown);
+    }
+
+    [Fact]
+    public void Convert_InlineContentInsideDiv_IsNotSplit()
+    {
+        var markdown = HtmlToMarkdownConverter.Convert(
+            "<div>Hello <span>world</span></div>");
+
+        Assert.Equal("Hello world", markdown);
+    }
+
+    [Fact]
+    public void Convert_TextThatLooksLikeMarkdownSyntax_IsEscaped()
+    {
+        var markdown = HtmlToMarkdownConverter.Convert(
+            "<p>1. Not a list</p><p># Not a heading</p><p>- Not a bullet</p>");
+
+        Assert.Contains("1\\. Not a list", markdown, StringComparison.Ordinal);
+        Assert.Contains("\\# Not a heading", markdown, StringComparison.Ordinal);
+        Assert.Contains("\\- Not a bullet", markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Convert_EmptyInput_ReturnsEmptyString()
     {
         Assert.Equal("", HtmlToMarkdownConverter.Convert(null));

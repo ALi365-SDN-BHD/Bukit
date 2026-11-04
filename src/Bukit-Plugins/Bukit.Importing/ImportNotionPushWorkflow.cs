@@ -271,6 +271,11 @@ public static class ImportNotionPushWorkflow
                 completedTargets.Add(target);
         }
 
+        // Start from every declared target so an interruption can never drop a
+        // collection from the generated map; ids are filled in as they are created.
+        foreach (var target in targets)
+            RecordTarget(target);
+
         // Every created database id is persisted immediately, and again on the way
         // out, so a crash or a broken report write cannot lose it.
         void PersistDatabaseMap()
@@ -378,7 +383,7 @@ public static class ImportNotionPushWorkflow
         var totalCreated = pushResults.Sum(r => r.Result.Created);
         var totalUpdated = pushResults.Sum(r => r.Result.Updated);
         var totalFailed = pushResults.Sum(r => r.Result.Failed);
-        Console.WriteLine($"notion push {(options.DryRun ? "dry-run" : "api")} complete: databases={completedTargets.Count} records={totalRecords} created={totalCreated} updated={totalUpdated} failed={totalFailed} report={reportPath}");
+        Console.WriteLine($"notion push {(options.DryRun ? "dry-run" : "api")} complete: databases={pushResults.Count} records={totalRecords} created={totalCreated} updated={totalUpdated} failed={totalFailed} report={reportPath}");
         if (failed)
         {
             Console.Error.WriteLine("Notion push failed for one or more databases. See report for details.");

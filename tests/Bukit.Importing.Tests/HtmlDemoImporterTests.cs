@@ -486,8 +486,11 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         var hero = File.ReadAllText(Path.Combine(_tempDir, "themes", "component-test", "layouts", "components", "hero.html"));
         var faq = File.ReadAllText(Path.Combine(_tempDir, "themes", "component-test", "layouts", "components", "faq.html"));
-        Assert.Contains("<h1>{{ page.title }}</h1>", hero);
-        Assert.Contains("<h3>{{ page.title }}</h3>", faq);
+        Assert.Contains("<h1>Hero</h1>", hero);
+        Assert.Contains("<p>Intro</p>", hero);
+        Assert.Contains("<h3>Q?</h3>", faq);
+        Assert.Contains("<p>A.</p>", faq);
+        Assert.DoesNotContain("{{ page.content }}", hero);
         Assert.DoesNotContain("<1>", hero);
         Assert.DoesNotContain("<3>", faq);
     }

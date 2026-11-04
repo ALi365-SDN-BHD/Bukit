@@ -154,6 +154,12 @@ public static class ImportPluginOptionsMapper
 
         var createMissing = ReadBool(request, "--create-missing-databases");
         var generatedMapValue = ReadString(request, "--generated-database-map");
+        var reportValue = ReadString(request, "--report");
+        var inputDir = ImportPluginPathGuard.ResolveOptionalPath(
+            rootDir,
+            workingDir,
+            ReadString(request, "--input"),
+            "--input") ?? "";
         var databaseMap = ImportPluginPathGuard.ResolveOptionalPath(
             rootDir,
             workingDir,
@@ -169,9 +175,12 @@ public static class ImportPluginOptionsMapper
                 "--database-map is rewritten when --create-missing-databases is used; it must stay inside the plugin's declared write scope.");
         }
 
+        EnsureDefaultOutputsAreWritable(
+            rootDir, inputDir, dryRun, createMissing, reportValue, generatedMapValue, databaseMap);
+
         return new ImportNotionSeedPushOptions
         {
-            InputDir = ImportPluginPathGuard.ResolveOptionalPath(rootDir, workingDir, ReadString(request, "--input"), "--input") ?? "",
+            InputDir = inputDir,
             DatabaseId = ReadString(request, "--database-id"),
             DatabaseMapPath = databaseMap,
             CreateMissingDatabases = createMissing,
@@ -186,9 +195,50 @@ public static class ImportPluginOptionsMapper
             UniqueField = ReadString(request, "--unique-field") ?? "Slug",
             UpdateContent = ReadString(request, "--update-content") ?? "",
             DryRun = dryRun,
-            ReportPath = ResolveWritablePath(rootDir, workingDir, ReadString(request, "--report"), "--report"),
+            ReportPath = ResolveWritablePath(rootDir, workingDir, reportValue, "--report"),
             ValidateSchema = !ReadBool(request, "--no-validate-schema")
         };
+    }
+
+    /// <summary>
+    /// Paths the workflow derives itself (default report, default generated map,
+    /// push lock) also have to stay inside the declared write scope.
+    /// </summary>
+    private static void EnsureDefaultOutputsAreWritable(
+        string rootDir,
+        string inputDir,
+        bool dryRun,
+        bool createMissing,
+        string? reportValue,
+        string? generatedMapValue,
+        string? databaseMap)
+    {
+        if (string.IsNullOrWhiteSpace(inputDir))
+            return;
+
+        var defaults = new List<string>();
+        if (!dryRun)
+            defaults.Add(Path.Combine(inputDir, ".notion-push.lock"));
+        if (string.IsNullOrWhiteSpace(reportValue))
+            defaults.Add(Path.Combine(inputDir, dryRun ? "notion-push-plan.json" : "notion-push-report.json"));
+        if (createMissing &&
+            string.IsNullOrWhiteSpace(generatedMapValue) &&
+            string.IsNullOrWhiteSpace(databaseMap))
+        {
+            defaults.Add(Path.Combine(inputDir, "notion-database-map.generated.yaml"));
+        }
+
+        foreach (var path in defaults)
+        {
+            if (!ImportPluginCommandSpecs.IsWritablePath(rootDir, path))
+            {
+                throw new ImportPluginOptionsException(
+                    "plugin.import.pathDenied",
+                    $"Default output '{path}' is outside the plugin's declared write scope: " +
+                    $"{string.Join(", ", ImportPluginCommandSpecs.WriteRoots)}. " +
+                    "Move the seed directory under one of those roots or pass an explicit output path.");
+            }
+        }
     }
 
     private static ImportNotionSchemaValidationOptions MapNotionValidateSchema(

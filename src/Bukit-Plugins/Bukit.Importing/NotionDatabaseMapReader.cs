@@ -161,7 +161,10 @@ internal static class NotionDatabaseMapReader
             databases[target.Key] = entry;
         }
 
-        File.WriteAllText(path, YamlEmitter.Emit([new("databases", databases)]));
+        // Write-then-rename so a crash cannot leave a truncated recovery map behind.
+        var tempPath = path + ".tmp";
+        File.WriteAllText(tempPath, YamlEmitter.Emit([new("databases", databases)]));
+        File.Move(tempPath, path, overwrite: true);
     }
 
     internal static string InferCollection(string key, string seedFile)

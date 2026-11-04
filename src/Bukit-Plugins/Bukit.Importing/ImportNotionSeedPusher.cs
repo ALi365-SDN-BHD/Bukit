@@ -105,7 +105,8 @@ internal static partial class NotionSeedPusher
 
         var (updated, updatedPageId, updateError) =
             await UpdatePageAsync(client, options, existingPageId, record, cancellationToken);
-        if (!updated || !IsContentUpdate(options.UpdateContent) || string.IsNullOrWhiteSpace(record.Content))
+        // null means "content was not provided"; an explicit "" clears the page body.
+        if (!updated || !IsContentUpdate(options.UpdateContent) || record.Content is null)
             return new NotionPushItemResult(record, "updated", updated, updatedPageId, updateError);
 
         return await UpdateContentAsync(client, options, record, updatedPageId!, cancellationToken);
@@ -518,7 +519,9 @@ internal static partial class NotionSeedPusher
     {
         writer.WriteStartObject("properties");
         WriteTitleProperty(writer, "Title", record.Title);
-        WriteRichTextProperty(writer, "Slug", record.Slug);
+        // Slug is the upsert identity; a missing slug must not wipe the remote value.
+        if (!string.IsNullOrEmpty(record.Slug))
+            WriteRichTextProperty(writer, "Slug", record.Slug);
         WriteSelectProperty(writer, "Type", record.Collection);
         WriteRichTextProperty(writer, "Summary", record.Summary);
         WriteSelectProperty(writer, "Language", record.Language);

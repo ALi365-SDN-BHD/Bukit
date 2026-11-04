@@ -1470,6 +1470,77 @@ databases:
     }
 
     [Fact]
+    public async Task NotionSeedPusher_MissingSlug_DoesNotClearRemoteSlug()
+    {
+        string? pagePayload = null;
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db/query", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "page-1" }] }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/pages/page-1", StringComparison.Ordinal))
+            {
+                pagePayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("{}");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var transport = CreateTrustedClient(new NotionClientOptions { Token = "token", MaxRetries = 0 }, handler);
+        var record = new ImportSeedRecord("post", "Same title", "", null, null, null, true, null, null);
+
+        await NotionSeedPusher.PushAsync(
+            new NotionWriteClient(transport),
+            [record],
+            new NotionPushOptions("db", Path.Combine(_rootDir, "slug.json"), DryRun: false,
+                Mode: "upsert", UniqueField: "Title", WriteReport: false));
+
+        using var document = JsonDocument.Parse(pagePayload!);
+        Assert.False(document.RootElement.GetProperty("properties").TryGetProperty("Slug", out _));
+    }
+
+    [Fact]
+    public async Task NotionSeedPusher_ExplicitEmptyContent_ClearsThePageBody()
+    {
+        var deleted = 0;
+        string? childrenPayload = null;
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/databases/db/query", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "page-1" }] }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/pages/page-1", StringComparison.Ordinal))
+                return Json("{}");
+            if (request.Method == HttpMethod.Get && path.EndsWith("/blocks/page-1/children", StringComparison.Ordinal))
+                return Json("""{ "results": [{ "id": "old-1" }, { "id": "old-2" }], "has_more": false }""");
+            if (request.Method == HttpMethod.Delete)
+            {
+                deleted++;
+                return Json("{}");
+            }
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/blocks/page-1/children", StringComparison.Ordinal))
+            {
+                childrenPayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("{}");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var transport = CreateTrustedClient(new NotionClientOptions { Token = "token", MaxRetries = 0 }, handler);
+        var record = new ImportSeedRecord("post", "Empty", "empty", null, "", null, true, null, null);
+
+        var result = await NotionSeedPusher.PushAsync(
+            new NotionWriteClient(transport),
+            [record],
+            new NotionPushOptions("db", Path.Combine(_rootDir, "empty-body.json"), DryRun: false,
+                Mode: "upsert", UpdateContent: "replace", WriteReport: false));
+
+        Assert.Equal(1, result.Updated);
+        Assert.Equal(2, deleted);
+        Assert.Null(childrenPayload);
+    }
+
+    [Fact]
     public async Task NotionSeedPusher_OneBadRecordDoesNotAbortTheBatch()
     {
         using var handler = new StubHttpMessageHandler(request =>
@@ -1584,12 +1655,19 @@ databases:
         var inputDir = Path.Combine(_rootDir, "create-failure-seed");
         Directory.CreateDirectory(inputDir);
         File.WriteAllText(Path.Combine(inputDir, "pages.json"), """[{ "title": "Page", "slug": "page" }]""");
+        File.WriteAllText(Path.Combine(inputDir, "posts.json"), """[{ "title": "Post", "slug": "post" }]""");
         File.WriteAllText(Path.Combine(inputDir, "map.yaml"), """
 databases:
   pages:
     title: Pages
     seed: pages.json
     collection: page
+    databaseId: ""
+    uniqueField: Slug
+  posts:
+    title: Posts
+    seed: posts.json
+    collection: post
     databaseId: ""
     uniqueField: Slug
 """);
@@ -1615,6 +1693,8 @@ databases:
         Assert.Equal(1, result.ExitCode);
         var generated = File.ReadAllText(Path.Combine(inputDir, "generated.yaml"));
         Assert.Contains("pages:", generated, StringComparison.Ordinal);
+        // The second collection was never processed, but an interrupted run must not drop it.
+        Assert.Contains("posts:", generated, StringComparison.Ordinal);
         Assert.DoesNotContain("databaseId", generated, StringComparison.Ordinal);
     }
 

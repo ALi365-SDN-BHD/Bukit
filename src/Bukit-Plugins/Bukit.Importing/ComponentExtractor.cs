@@ -141,34 +141,19 @@ internal static partial class ComponentExtractor
 """;
         }
 
-        var content = fragment;
+        // Section data is not wired up yet, so keep the demo copy verbatim instead of
+        // binding every heading/paragraph to page fields (which duplicated the body).
+        if (!ListComponentNames.Contains(componentName))
+            return fragment;
 
+        var content = ParagraphRegex.Replace(fragment, _ => "<p>{{ item.summary }}</p>");
+        content = LinkRegex.Replace(content, _ =>
+            "<a href=\"{{ item.url }}\">{{ item.title }}</a>");
         content = HeadingRegex.Replace(content, m =>
         {
             var tagName = m.Groups[1].Value;
-            if (!ListComponentNames.Contains(componentName))
-                return $"<{tagName}>{{{{ page.title }}}}</{tagName}>";
-            return m.Value;
+            return $"<{tagName}>{{{{ item.title }}}}</{tagName}>";
         });
-
-        content = ParagraphRegex.Replace(content, m =>
-        {
-            if (!ListComponentNames.Contains(componentName))
-                return "<p>{{ page.content }}</p>";
-            return "<p>{{ item.summary }}</p>";
-        });
-
-        if (ListComponentNames.Contains(componentName))
-        {
-            content = LinkRegex.Replace(content, m =>
-                $"<a href=\"{{{{ item.url }}}}\">{{{{ item.title }}}}</a>");
-
-            content = HeadingRegex.Replace(content, m =>
-            {
-                var tagName = m.Groups[1].Value;
-                return $"<{tagName}>{{{{ item.title }}}}</{tagName}>";
-            });
-        }
 
         return content;
     }

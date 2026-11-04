@@ -60,7 +60,7 @@ internal static class HtmlToMarkdownConverter
                 return;
 
             case "p":
-                var paragraph = Inline(element);
+                var paragraph = EscapeBlockStart(Inline(element));
                 if (paragraph.Length > 0)
                     sb.Append("\n\n").Append(paragraph).Append('\n');
                 return;
@@ -95,7 +95,7 @@ internal static class HtmlToMarkdownConverter
                 foreach (var item in element.Children.Where(child => child.LocalName == "li"))
                 {
                     var marker = element.LocalName == "ol" ? $"{index++}. " : "- ";
-                    var body = Inline(item);
+                    var body = EscapeBlockStart(Inline(item));
                     if (body.Length > 0)
                         sb.Append('\n').Append(marker).Append(body);
                 }
@@ -113,11 +113,50 @@ internal static class HtmlToMarkdownConverter
                 return;
 
             default:
+                if (!element.Children.Any(child => IsBlockTag(child)))
+                {
+                    sb.Append(Inline(element));
+                    return;
+                }
+
+                // Adjacent block children must not run together ("<div>A</div><div>B</div>").
                 foreach (var child in element.ChildNodes)
+                {
                     WriteBlock(sb, child);
+                    if (child is IElement blockChild && IsBlockTag(blockChild) && !EndsWithNewline(sb))
+                        sb.Append('\n');
+                }
+
                 return;
         }
     }
+
+    /// <summary>Keeps paragraph text that looks like Markdown syntax literal.</summary>
+    private static string EscapeBlockStart(string text)
+    {
+        if (text.Length == 0)
+            return text;
+
+        if (text[0] is '#' or '>' or '-' or '+' or '*')
+            return "\\" + text;
+
+        var dot = text.IndexOf(". ", StringComparison.Ordinal);
+        if (dot > 0 && dot <= 9 && text[..dot].All(char.IsAsciiDigit))
+            return text[..dot] + "\\" + text[dot..];
+
+        return text;
+    }
+
+    private static readonly HashSet<string> BlockTags = new(StringComparer.Ordinal)
+    {
+        "address", "article", "aside", "blockquote", "details", "div", "dl", "fieldset",
+        "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6",
+        "header", "hr", "li", "main", "nav", "ol", "p", "pre", "section", "table", "ul"
+    };
+
+    private static bool IsBlockTag(IElement element) => BlockTags.Contains(element.LocalName);
+
+    private static bool EndsWithNewline(StringBuilder sb) => sb.Length > 0 && sb[^1] == '\n';
 
     private static void WriteTable(StringBuilder sb, IElement table)
     {
