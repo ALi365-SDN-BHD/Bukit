@@ -94,9 +94,8 @@ public static class NotionBlockJsonWriter
                 writer.WriteEndObject();
                 writer.WriteEndObject();
                 writer.WriteEndArray();
-                writer.WriteStartObject("language");
-                writer.WriteString("name", code.Language);
-                writer.WriteEndObject();
+                // Notion expects the code language as a plain enum string, not an object.
+                writer.WriteString("language", NormalizeLanguage(code.Language));
                 writer.WriteEndObject();
                 writer.WriteEndObject();
                 break;
@@ -116,6 +115,15 @@ public static class NotionBlockJsonWriter
                 writer.WriteEndObject();
                 break;
         }
+    }
+
+    internal static string NormalizeLanguage(string? language)
+    {
+        var value = (language ?? "").Trim();
+        if (value.StartsWith("language-", StringComparison.OrdinalIgnoreCase))
+            value = value["language-".Length..];
+
+        return string.IsNullOrWhiteSpace(value) ? "plain text" : value.ToLowerInvariant();
     }
 
     private static void WriteHeadingBlock(Utf8JsonWriter writer, string type, string text)
