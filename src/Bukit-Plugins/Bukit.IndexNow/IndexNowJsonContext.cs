@@ -5,6 +5,7 @@ namespace Bukit.IndexNow;
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     PropertyNameCaseInsensitive = true,
+    NumberHandling = JsonNumberHandling.AllowReadingFromString,
     WriteIndented = true)]
 [JsonSerializable(typeof(PublishUrlSnapshotDocument))]
 [JsonSerializable(typeof(PublishUrlChangeSetDocument))]

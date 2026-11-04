@@ -627,6 +627,26 @@ public sealed class IndexNowPluginContractTests : IDisposable
     }
 
     [Fact]
+    public async Task StateStore_AcceptsStringVersionFromLegacyState()
+    {
+        var statePath = IndexNowStateStore.ResolveStateFile(_rootDir, ".cache/indexnow");
+        Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);
+        File.WriteAllText(statePath, """
+        {
+          "version": "1",
+          "deployed": [],
+          "notified": {},
+          "pending": []
+        }
+        """);
+
+        var state = await new IndexNowStateStore().LoadAsync(statePath);
+
+        Assert.Equal(1, state.Version);
+        Assert.Empty(state.Deployed);
+    }
+
+    [Fact]
     public async Task StateStore_UsesAtomicStateAndRejectsTraversalAndSymlinkEscape()
     {
         var valid = IndexNowStateStore.ResolveStateFile(_rootDir, ".cache/indexnow");

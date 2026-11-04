@@ -31,10 +31,10 @@
 
 ```text
 dotnet test tests/Bukit.Plugin.IndexNow.Tests/Bukit.Plugin.IndexNow.Tests.csproj
-Passed: 47 / 47
+Passed: 49 / 49
 
 dotnet test tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj
-Passed: 306 / 306
+Passed: 307 / 307
 
 bash scripts/checks/codex-workflow-self-test.sh
 codex workflow self-test OK
@@ -1670,3 +1670,137 @@ wechatsync exit=0 -> handshakeResponse success=true
 - WechatSync 无需额外 AOT 代码修改。
 - 两个插件均完成 osx-arm64 / Release / Native AOT 编译，并完成启动级 handshake 验证。
 - 未验证真实远端发布、完整插件业务 AOT smoke 或全量/发布门禁。
+
+---
+
+## 14. 审计复核：恢复文档、AOT JSON 兼容、HTTP 请求体回归
+
+审计对象：`dc635764`。
+
+结论：**0 Critical / 1 Important / 2 Minor，审计结论成立。**
+
+### 14.1 Important：Draft recovery 文档仍建议删除整个缓存
+
+位置：`guide/dev/plugins.md:134-136`
+
+当前文档：
+
+```text
+If the draft does not exist, remove only that Operations entry so the next
+run can create it. Removing the whole cache file also works but discards
+unrelated records and thumbnail IDs.
+```
+
+问题：
+
+- “删除整个缓存也可以”会清除：
+  - 其他候选的 `Operations`，包括 `DraftSubmitting` / `PublishSubmitting`；
+  - 成功 `Records`；
+  - `ThumbMediaIds`。
+- 其他未知操作失去 recovery guard 后，后续 sync 可能重新提交，造成重复草稿或重复发布。
+- 同一段第 6 步又说“不要删除缓存作为捷径”，前后矛盾。
+- 审计用假网关复现：只删除人工确认条目时，其他恢复保护正常；删除整个 v4 账号缓存后，同账号同内容额外创建 1 份草稿。
+
+这不是迁移代码回归，而是文档风险；因为会直接破坏防重复保护，仍然按 Important 处理。
+
+最小修复：
+
+- 删除“Removing the whole cache file also works...”整句。
+- 明确写成：
+  - 只移除已经人工核实、确定不存在的那个 `Operations` 条目；
+  - 绝不通过删除/替换整个账号缓存来解决单个未知操作；
+  - 保留其他 `Operations`、`Records`、`ThumbMediaIds`；
+  - 无法确认结果时保持条目不变，继续人工核实。
+- 可加一个文档级回归：断言 guide 不再包含“whole cache file also works”这类建议。
+
+### 14.2 Minor：IndexNow 字符串版 `version` 不再兼容
+
+位置：`src/Bukit-Plugins/Bukit.IndexNow/IndexNowJsonContext.cs:5-8`
+
+旧实现：
+
+```csharp
+new JsonSerializerOptions(JsonSerializerDefaults.Web)
+```
+
+Web defaults 除了 camelCase、大小写不敏感外，还允许从字符串读取数字（`NumberHandling.AllowReadingFromString`）。因此旧代码可读取：
+
+```json
+{ "version": "1", ... }
+```
+
+新的 source-generated context 没有设置 `NumberHandling`，默认严格数字，会拒绝字符串 `"1"`。
+
+影响：
+
+- 官方 `IndexNowStateStore` 写出的 `version` 是数字，正常文件不受影响。
+- 只有手工/历史生成的字符串版本状态文件会从“可读”变成 `invalidInput`。
+- 属于 Minor 兼容性变化。
+
+最小修复：
+
+在 `IndexNowJsonContext` 增加：
+
+```csharp
+NumberHandling = JsonNumberHandling.AllowReadingFromString
+```
+
+并补一条 `IndexNowStateStore` 回归：加载 `"version":"1"` 的数字等价状态，断言成功。若不修复，则应在文档/变更记录中明确这是有意的兼容性收紧。
+
+### 14.3 Minor：HTTP 请求体缺少持续回归断言
+
+位置：`tests/Bukit.Plugin.IndexNow.Tests/IndexNowHttpClientTests.cs:87-95`
+
+当前 `StubHandler` 只返回状态码，不读取 `request.Content`。测试验证了：
+
+- 重定向状态不被当作成功；
+- final URI 校验。
+
+但没有持续断言实际 POST body 的协议字段。审计本轮隔离检查确认当前 host/key/keyLocation/urlList 正确，但仓库测试不会在以后误改 DTO 或 `JsonPropertyName` 时失败。
+
+最小修复：
+
+新增一个捕获请求体的 handler/测试，断言：
+
+```json
+{
+  "host": "silushangxun.com",
+  "key": "key",
+  "keyLocation": "https://silushangxun.com/key.txt",
+  "urlList": ["https://silushangxun.com/page/"]
+}
+```
+
+至少断言：
+
+- 属性名精确为 `host`、`key`、`keyLocation`、`urlList`；
+- `urlList` 是数组且值正确；
+- Content-Type 为 `application/json`；
+- 不出现额外属性。
+
+### 14.4 建议执行顺序
+
+1. 先修 Important 文档：删除整缓存重置建议。
+2. 再修 Minor：`NumberHandling.AllowReadingFromString` + 字符串版本回归。
+3. 补 HTTP 请求体回归。
+4. 跑 IndexNow 49+、WechatSync 307+ 专项；文档改动无需 AOT 重跑，但 IndexNow 代码改动后应重跑一次 AOT publish。
+5. 不需要关闭 `NuGetAudit` 或 `TreatWarningsAsErrors`。
+
+### 14.5 本轮状态
+
+- 审计发现已按建议顺序修复。
+- Important 文档风险已消除。
+- 两个 Minor 已补兼容处理和回归。
+- 当前 AOT 与缓存迁移验证仍然有效。
+
+### 14.6 执行结果
+
+| 项目 | 修复 | 验证 |
+|---|---|---|
+| Important：恢复文档 | 删除“删除整个缓存也可以”，明确只能移除人工核实的单个 `Operations` 条目 | 新增文档回归 `RecoveryGuide_DoesNotRecommendDeletingTheWholeCache` |
+| Minor：字符串版 `version` | `IndexNowJsonContext` 增加 `AllowReadingFromString` | 新增 `StateStore_AcceptsStringVersionFromLegacyState` |
+| Minor：HTTP 请求体 | 新增捕获请求体测试，断言四个协议字段与 Content-Type | `SubmitAsync_WritesTheExpectedProtocolPayload` |
+| 专项测试 | IndexNow / WechatSync | `49/49`、`307/307` |
+| IndexNow AOT | NumberHandling 改动后重新 publish | osx-arm64 / Release 成功，handshake exit 0 |
+
+未关闭 `NuGetAudit`，未降低 `TreatWarningsAsErrors`，未使用 `NoWarn=IL2026/IL3050`。

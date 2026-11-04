@@ -142,6 +142,17 @@ public sealed class WechatSyncPluginCommandCompatibilityTests
     }
 
     [Fact]
+    public void RecoveryGuide_DoesNotRecommendDeletingTheWholeCache()
+    {
+        var guidePath = Path.Combine(RepoRoot, "guide", "dev", "plugins.md");
+        var text = File.ReadAllText(guidePath);
+
+        Assert.DoesNotContain("Removing the whole cache file also works", text, StringComparison.Ordinal);
+        Assert.Contains("Never delete or replace the whole", text, StringComparison.Ordinal);
+        Assert.Contains("remove only that manually verified `Operations`", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MinimalExample_DeclaresReviewStatusPolicyOptions()
     {
         var manifestPath = Path.Combine(

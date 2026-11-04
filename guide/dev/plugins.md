@@ -131,9 +131,11 @@ sync filters.
    real `media_id`. Keep `ContentHash` and `Target` unchanged; do not invent a
    `Records` entry. The next run finalizes a draft target or resumes publishing
    for a publish target.
-5. If the draft does not exist, remove only that `Operations` entry so the next
-   run can create it. Removing the whole cache file also works but discards
-   unrelated records and thumbnail IDs.
+5. If the draft does not exist, remove only that manually verified `Operations`
+   entry so the next run can create it. Never delete or replace the whole
+   account cache to resolve one operation: that discards other `Operations`
+   (including `DraftSubmitting`/`PublishSubmitting` recovery guards), success
+   records, and thumbnail IDs, and can create duplicate drafts or publishes.
 6. If the outcome is still unknown, leave the operation untouched. Do not run
    the sync repeatedly or delete the cache as a shortcut.
 7. Keep the JSON valid: `DraftCreated` requires a non-empty `DraftId`, and a
