@@ -139,6 +139,9 @@ public sealed class LlmsProjectionIntegrationTests
             }
 
             Assert.DoesNotContain("text/markdown", File.ReadAllText(Path.Combine(root, "dist", "blog/hidden/index.html")), StringComparison.Ordinal);
+            var expiredHtml = Path.Combine(root, "dist", "blog/expired/index.html");
+            // Expired pages are left out of agent-manifest.json, so they are not advertised either.
+            Assert.DoesNotContain("text/markdown", File.ReadAllText(expiredHtml), StringComparison.Ordinal);
             Assert.Contains("- [Agent manifest](https://example.com/agent-manifest.json): ", llms, StringComparison.Ordinal);
             Assert.True(File.Exists(Path.Combine(root, "dist", "agent-manifest.json")));
             Assert.Empty(logger.Errors);

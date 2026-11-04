@@ -44,17 +44,11 @@ internal sealed class SeoHtmlTransform(
 
     // Every routed content document gets content/<output path>.md and .json projections.
     // Only inject mode adds the links: in theme and off modes the theme owns the head.
-    // Noindex pages are not advertised.
+    // Pages left out of agent-manifest.json (noindex, unpublished, expired) are not advertised.
     private bool ShouldLinkRepresentations(HtmlTransformContext context, SeoModel? seo)
         => shouldInjectSeo &&
            config.Site.Seo.Geo.Enabled &&
            context.DocumentKind == HtmlDocumentKind.Content &&
            context.Document is not null &&
-           !IsNoIndex(seo?.Robots);
-
-    private static bool IsNoIndex(string? robots)
-        => !string.IsNullOrWhiteSpace(robots) &&
-           robots.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-               .Any(token => token.Equals("noindex", StringComparison.OrdinalIgnoreCase) ||
-                             token.Equals("none", StringComparison.OrdinalIgnoreCase));
+           SeoIndexBuilder.IsIndexableContent(context.Document, seo?.Robots, DateTimeOffset.UtcNow);
 }

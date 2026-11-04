@@ -200,11 +200,35 @@ public sealed class SeoHtmlRendererTests
     }
 
     [Fact]
-    public void InjectRepresentationLinks_KeepsThemeMarkdownAlternate()
+    public void InjectRepresentationLinks_SkipsOnlyLinksTheThemeAlreadyDeclares()
     {
-        var html = "<html><head><link rel=\"alternate\" type=\"text/markdown\" href=\"/custom.md\"></head><body></body></html>";
+        var html = "<html><head><link rel='alternate' type='text/markdown' href='/content/a.md'></head><body></body></html>";
+
+        var result = SeoHtmlRenderer.InjectRepresentationLinks(html, "/content/a.md", "/content/a.json");
+
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(result, "/content/a\\.md"));
+        Assert.Contains("<link rel=\"alternate\" type=\"application/json\" href=\"/content/a.json\" />", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InjectRepresentationLinks_LeavesHeadUnchangedWhenBothLinksAreDeclared()
+    {
+        var html = "<html><head><link rel=\"alternate\" href=\"/content/a.md\"><link href=\"/content/a.json\" rel=\"alternate\"></head></html>";
 
         Assert.Equal(html, SeoHtmlRenderer.InjectRepresentationLinks(html, "/content/a.md", "/content/a.json"));
+    }
+
+    [Fact]
+    public void InjectRepresentationLinks_IgnoresUnrelatedMarkdownMentionsAndOtherHrefs()
+    {
+        var html = "<html><head><script type=\"text/markdown\" id=\"tpl\"># x</script>" +
+                   "<link rel=\"alternate\" type=\"text/markdown\" href=\"/custom.md\">" +
+                   "<link rel=\"preload\" data-href=\"/content/a.json\"></head></html>";
+
+        var result = SeoHtmlRenderer.InjectRepresentationLinks(html, "/content/a.md", "/content/a.json");
+
+        Assert.Contains("href=\"/content/a.md\" />", result, StringComparison.Ordinal);
+        Assert.Contains("href=\"/content/a.json\" />", result, StringComparison.Ordinal);
     }
 
     [Fact]

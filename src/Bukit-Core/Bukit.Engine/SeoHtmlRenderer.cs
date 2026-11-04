@@ -1,10 +1,11 @@
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using Bukit.Rendering;
 
 namespace Bukit.Engine;
 
-internal static class SeoHtmlRenderer
+internal static partial class SeoHtmlRenderer
 {
     internal static string InjectIntoHead(string html, SeoModel? seo)
     {
@@ -28,7 +29,7 @@ internal static class SeoHtmlRenderer
 
     /// <summary>
     /// Adds <c>rel="alternate"</c> links to the page's Markdown and JSON versions so AI agents
-    /// can find them from the HTML. A theme that already declares a Markdown alternate keeps its own.
+    /// can find them from the HTML. A link whose href the theme already declares is not repeated.
     /// </summary>
     internal static string InjectRepresentationLinks(string html, string markdownUrl, string jsonUrl)
     {
@@ -38,16 +39,27 @@ internal static class SeoHtmlRenderer
         }
 
         var headContent = html[head.ContentStart..head.ContentEnd];
-        if (headContent.Contains("text/markdown", StringComparison.OrdinalIgnoreCase))
+        var declared = LinkHrefRegex().Matches(headContent)
+            .Select(match => WebUtility.HtmlDecode(match.Groups["href"].Value).Trim())
+            .ToHashSet(StringComparer.Ordinal);
+        var links = new StringBuilder();
+        if (!declared.Contains(markdownUrl))
         {
-            return html;
+            links.Append($"  <link rel=\"alternate\" type=\"text/markdown\" href=\"{Attr(markdownUrl)}\" />{Environment.NewLine}");
         }
 
-        var links =
-            $"  <link rel=\"alternate\" type=\"text/markdown\" href=\"{Attr(markdownUrl)}\" />{Environment.NewLine}" +
-            $"  <link rel=\"alternate\" type=\"application/json\" href=\"{Attr(jsonUrl)}\" />{Environment.NewLine}";
-        return html[..head.ContentStart] + headContent.TrimEnd() + Environment.NewLine + links + html[head.ContentEnd..];
+        if (!declared.Contains(jsonUrl))
+        {
+            links.Append($"  <link rel=\"alternate\" type=\"application/json\" href=\"{Attr(jsonUrl)}\" />{Environment.NewLine}");
+        }
+
+        return links.Length == 0
+            ? html
+            : html[..head.ContentStart] + headContent.TrimEnd() + Environment.NewLine + links + html[head.ContentEnd..];
     }
+
+    [GeneratedRegex(@"<link\b[^>]*?\shref\s*=\s*(?:""(?<href>[^""]*)""|'(?<href>[^']*)'|(?<href>[^\s>]+))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LinkHrefRegex();
 
     internal static string RenderHead(SeoModel seo)
     {

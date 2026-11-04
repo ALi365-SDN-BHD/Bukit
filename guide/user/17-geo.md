@@ -197,9 +197,10 @@ links in its `<head>`:
 <link rel="alternate" type="application/json" href="/content/blog/hello/index.html.json" />
 ```
 
-Bukit leaves them out for `noindex` pages, for pages that set
-`seo_inject: false`, and when `site.seo.geo.enabled` is `false`. A theme that
-already declares a `text/markdown` alternate keeps its own link.
+Bukit leaves them out for pages that are not in `agent-manifest.json`
+(`noindex`, unpublished, or expired), for pages that set `seo_inject: false`,
+and when `site.seo.geo.enabled` is `false`. If the theme's `<head>` already
+links the same URL, Bukit does not add that link again.
 
 In `renderMode: theme` or `off`, the theme owns the `<head>`, so Bukit does not
 add these links. Add them in your layout if you want them; the URL is the base

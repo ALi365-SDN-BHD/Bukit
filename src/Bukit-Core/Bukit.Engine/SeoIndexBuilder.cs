@@ -232,7 +232,7 @@ internal static class SeoIndexBuilder
         return ListPageMetadataBuilder.BuildSummary(config.Site, route, pagination);
     }
 
-    private static bool IsIndexableContent(ContentDocument document, string? robots, DateTimeOffset now)
+    internal static bool IsIndexableContent(ContentDocument document, string? robots, DateTimeOffset now)
     {
         if (!SeoModelBuilder.IsIndexable(robots))
         {
