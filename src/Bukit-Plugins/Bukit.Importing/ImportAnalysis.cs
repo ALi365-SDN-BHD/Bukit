@@ -12,4 +12,5 @@ internal sealed record ImportAnalysis(
     List<DiscoveredComponent> Components,
     ExtractedContent Content,
     RouteMapConfig? RouteMap,
-    AssetImporter.AssetImportResult AssetResult);
+    AssetImporter.AssetImportResult AssetResult,
+    PageTemplatePlan TemplatePlan);

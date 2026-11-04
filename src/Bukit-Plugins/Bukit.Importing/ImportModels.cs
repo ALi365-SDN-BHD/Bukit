@@ -125,6 +125,8 @@ public sealed record PageRecord
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+    /// <summary>Own template ("pages/x.html") of the demo page this record came from.</summary>
+    public string? TemplatePath { get; init; }
 }
 
 public sealed record SectionRecord
@@ -179,6 +181,8 @@ public sealed record PostRecord
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+    /// <summary>Own template ("pages/x.html") of the demo page this record came from.</summary>
+    public string? TemplatePath { get; init; }
 }
 
 public sealed record CompanyRecord
@@ -193,6 +197,8 @@ public sealed record CompanyRecord
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+    /// <summary>Own template ("pages/x.html") of the demo page this record came from.</summary>
+    public string? TemplatePath { get; init; }
 }
 
 public sealed record ServiceRecord
@@ -205,6 +211,8 @@ public sealed record ServiceRecord
     public bool Published { get; init; } = true;
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+    /// <summary>Own template ("pages/x.html") of the demo page this record came from.</summary>
+    public string? TemplatePath { get; init; }
 }
 
 public sealed record FaqRecord

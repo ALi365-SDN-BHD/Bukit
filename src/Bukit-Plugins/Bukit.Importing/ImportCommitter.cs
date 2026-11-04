@@ -33,7 +33,7 @@ internal static class ImportCommitter
         content = RewriteContentAssetPaths(content, assetResult.PathMappings);
 
         // Generate theme (layouts, pages, partials, theme.yaml)
-        var result = ThemeGenerator.Generate(options, pages, layout, warnings, assetResult.PathMappings, routeMap);
+        var result = ThemeGenerator.Generate(options, pages, layout, warnings, assetResult.PathMappings, routeMap, analysis.TemplatePlan);
         result = result with { AssetsCopied = assetResult.Count };
         result.Warnings.AddRange(assetResult.Warnings);
 
@@ -61,7 +61,7 @@ internal static class ImportCommitter
         }
 
         // Generate site.yaml
-        var siteYamlCreated = SiteConfigGenerator.Generate(options, routeMap, result.PageTypes, result.PostListSlug);
+        var siteYamlCreated = SiteConfigGenerator.Generate(options, routeMap, result.PageTypes, result.PostListSlug, analysis.TemplatePlan, pages);
 
         // Sync templates manifest
         var templatesSynced = HtmlDemoImporter.SyncTemplates(options, options.Force);
@@ -72,7 +72,7 @@ internal static class ImportCommitter
             TemplatesSynced = templatesSynced,
             SitePath = HtmlDemoImporter.GetSiteDir(options),
             Diagnostics = diagnostics,
-            ReportPages = ImportResultBuilder.BuildReportPages(pages, routeMap)
+            ReportPages = ImportResultBuilder.BuildReportPages(pages, routeMap, analysis.TemplatePlan)
         };
 
         // Transfer assets to static

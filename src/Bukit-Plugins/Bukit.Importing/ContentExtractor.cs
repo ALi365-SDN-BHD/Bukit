@@ -18,15 +18,22 @@ internal static partial class ContentExtractor
     private static readonly Regex SectionOuterRegex = SectionOuterPattern();
     private static readonly Regex SectionClassRegex = SectionClassPattern();
 
-    internal static ExtractedContent Extract(List<DiscoveredPage> pages, RouteMapConfig? routeMap = null)
+    internal static ExtractedContent Extract(
+        List<DiscoveredPage> pages,
+        RouteMapConfig? routeMap = null,
+        PageTemplatePlan? plan = null)
     {
         var content = new ExtractedContent();
         ExtractNavigation(pages, content, routeMap);
 
         foreach (var page in pages)
         {
+            var marks = (Pages: content.Pages.Count, Posts: content.Posts.Count,
+                Companies: content.Companies.Count, Services: content.Services.Count);
             ExtractPageContent(page, content);
             ExtractCollectionItems(page, content);
+            if (plan is not null)
+                AssignTemplate(content, page, plan.PathFor(page), marks);
             ExtractSections(page, content);
             ExtractFaqs(page, content);
         }
@@ -43,6 +50,28 @@ internal static partial class ContentExtractor
             .ToList();
 
         return content;
+    }
+
+    // Records a page produced are rendered by that page's own template. Cards read
+    // from a list page are not that page, so they keep the collection fallback.
+    private static void AssignTemplate(
+        ExtractedContent content,
+        DiscoveredPage page,
+        string templatePath,
+        (int Pages, int Posts, int Companies, int Services) marks)
+    {
+        for (var i = marks.Pages; i < content.Pages.Count; i++)
+            content.Pages[i] = content.Pages[i] with { TemplatePath = templatePath };
+
+        if (page.Type == PageType.PostDetail)
+            for (var i = marks.Posts; i < content.Posts.Count; i++)
+                content.Posts[i] = content.Posts[i] with { TemplatePath = templatePath };
+        if (page.Type == PageType.CompanyDetail)
+            for (var i = marks.Companies; i < content.Companies.Count; i++)
+                content.Companies[i] = content.Companies[i] with { TemplatePath = templatePath };
+        if (page.Type == PageType.ServiceDetail)
+            for (var i = marks.Services; i < content.Services.Count; i++)
+                content.Services[i] = content.Services[i] with { TemplatePath = templatePath };
     }
 
     private static IEnumerable<T> PreferDetail<T>(IEnumerable<T> records, Func<T, string> title, Func<T, string?> content)

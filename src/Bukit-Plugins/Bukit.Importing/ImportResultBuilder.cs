@@ -35,7 +35,7 @@ internal static class ImportResultBuilder
             AssetsCopied = pages.Sum(p => p.AssetPaths.Count),
             Warnings = warnings,
             Diagnostics = diagnostics,
-            ReportPages = BuildReportPages(pages, routeMap),
+            ReportPages = BuildReportPages(pages, routeMap, analysis.TemplatePlan),
             ReportComponents = BuildReportComponents(components),
             ReportSeedFiles = options.GenerateSeed ? BuildReportSeedFiles(options, content, pages, components) : [],
             PageTypes = pageTypes,
@@ -56,12 +56,15 @@ internal static class ImportResultBuilder
         => content.Pages.Count + content.Navigation.Count + content.Posts.Count + content.Companies.Count +
            content.Services.Count + content.Faqs.Count + content.Sections.Count;
 
-    internal static List<ImportReportPage> BuildReportPages(List<DiscoveredPage> pages, RouteMapConfig? routeMap)
+    internal static List<ImportReportPage> BuildReportPages(
+        List<DiscoveredPage> pages,
+        RouteMapConfig? routeMap,
+        PageTemplatePlan? plan = null)
         => pages.Select(p => new ImportReportPage(
             p.RelativePath,
             RouteForPage(p, routeMap),
             p.Type.ToString(),
-            TemplateForPage(p, routeMap),
+            plan?.NameFor(p) ?? TemplateForPage(p, routeMap),
             "generated")).ToList();
 
     internal static List<ImportReportComponent> BuildReportComponents(List<DiscoveredComponent> components)

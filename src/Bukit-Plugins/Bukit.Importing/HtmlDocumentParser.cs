@@ -6,6 +6,10 @@ namespace Bukit.Importing;
 
 internal static class HtmlDocumentParser
 {
+    private static readonly System.Text.RegularExpressions.Regex CssUrlRegex = new(
+        @"url\(\s*(?<quote>['""]?)(?<value>[^'"")]+)\k<quote>\s*\)",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
     private static readonly HtmlParser Parser = new(new HtmlParserOptions
     {
         IsKeepingSourceReferences = false,
@@ -101,6 +105,19 @@ internal static class HtmlDocumentParser
                 paths.Add(src);
             if (!string.IsNullOrWhiteSpace(href))
                 paths.Add(href);
+        }
+
+        // Inline CSS references assets too; they are copied and rewritten per page.
+        var inlineCss = document.QuerySelectorAll("style").Select(style => style.TextContent)
+            .Concat(document.QuerySelectorAll("[style]").Select(element => element.GetAttribute("style") ?? ""));
+        foreach (var css in inlineCss)
+        {
+            foreach (System.Text.RegularExpressions.Match match in CssUrlRegex.Matches(css))
+            {
+                var value = match.Groups["value"].Value.Trim();
+                if (value.Length > 0 && !value.StartsWith('#'))
+                    paths.Add(value);
+            }
         }
 
         return paths

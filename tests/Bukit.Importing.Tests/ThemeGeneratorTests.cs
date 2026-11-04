@@ -40,7 +40,7 @@ public sealed class ThemeGeneratorTests : IDisposable
     }
 
     [Fact]
-    public void Generate_WritesThemeFilesAndFallsBackOnDuplicateRouteMapTemplates()
+    public void Generate_GivesEveryPageItsOwnTemplateAndKeepsAssetsOutOfBase()
     {
         const string themeName = "true";
         var options = new HtmlDemoImportOptions
@@ -68,6 +68,7 @@ public sealed class ThemeGeneratorTests : IDisposable
             HeadExtras: "<link rel=\"stylesheet\" href=\"/css/site.css\" />",
             HeaderContainsNav: false);
 
+        // The home page always renders pages/index.html; "landing" therefore belongs to about only.
         var routeMap = new RouteMapConfig
         {
             Pages =
@@ -90,29 +91,43 @@ public sealed class ThemeGeneratorTests : IDisposable
             routeMap);
 
         var themeRoot = Path.Combine(_tempDir, "themes", themeName);
+        var pagesDir = Path.Combine(themeRoot, "layouts", "pages");
         Assert.Equal(themeRoot, result.ThemePath);
         Assert.Equal(3, result.PartialsGenerated);
+        // 3 page templates + page/list/post fallbacks.
         Assert.Equal(6, result.TemplatesGenerated);
 
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "header.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "nav.html")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "partials", "footer.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "landing.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "about.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "insights.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "index.html")));
-        Assert.True(File.Exists(Path.Combine(themeRoot, "layouts", "pages", "list.html")));
+        Assert.Equal(
+            new[] { "index.html", "insights.html", "landing.html", "list.html", "page.html", "post.html" },
+            Directory.GetFiles(pagesDir).Select(path => Path.GetFileName(path)!).Order(StringComparer.Ordinal).ToArray());
 
         var baseLayout = File.ReadAllText(Path.Combine(themeRoot, "layouts", "layouts", "base.html"));
-        Assert.Contains("{{ base_url }}/assets/site.css", baseLayout, StringComparison.Ordinal);
-        Assert.Contains("{{ base_url }}/assets/app.js", baseLayout, StringComparison.Ordinal);
+        Assert.DoesNotContain("site.css", baseLayout, StringComparison.Ordinal);
+        Assert.DoesNotContain("app.js", baseLayout, StringComparison.Ordinal);
+        Assert.Contains("{{ page_head }}", baseLayout, StringComparison.Ordinal);
+        Assert.Contains("{{ page_scripts }}", baseLayout, StringComparison.Ordinal);
         Assert.Contains("{{ include 'partials/header.html' }}", baseLayout, StringComparison.Ordinal);
         Assert.Contains("{{ include 'partials/nav.html' }}", baseLayout, StringComparison.Ordinal);
         Assert.Contains("{{ include 'partials/footer.html' }}", baseLayout, StringComparison.Ordinal);
 
-        var indexTemplate = File.ReadAllText(Path.Combine(themeRoot, "layouts", "pages", "index.html"));
-        Assert.Contains("<li><a href=\"/\">Home</a></li>", indexTemplate, StringComparison.Ordinal);
-        Assert.Contains("<li><a href=\"/about/\">About</a></li>", indexTemplate, StringComparison.Ordinal);
+        var home = File.ReadAllText(Path.Combine(pagesDir, "index.html"));
+        Assert.Contains("{{ capture page_head }}", home, StringComparison.Ordinal);
+        Assert.Contains("{{ base_url }}/assets/site.css", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("app.js", home, StringComparison.Ordinal);
+
+        var about = File.ReadAllText(Path.Combine(pagesDir, "landing.html"));
+        Assert.Contains("{{ base_url }}/assets/app.js", about, StringComparison.Ordinal);
+        Assert.DoesNotContain("site.css", about, StringComparison.Ordinal);
+
+        foreach (var fallback in new[] { "page.html", "list.html", "post.html" })
+        {
+            var text = File.ReadAllText(Path.Combine(pagesDir, fallback));
+            Assert.DoesNotContain("capture", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("assets/", text, StringComparison.Ordinal);
+        }
 
         var themeYaml = File.ReadAllText(Path.Combine(themeRoot, "theme.yaml"));
         Assert.Contains("name: \"true\"", themeYaml, StringComparison.Ordinal);

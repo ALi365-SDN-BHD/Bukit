@@ -21,13 +21,13 @@ internal static class ContentDraftWriter
             WritePageDraft(contentDir, page, claimed, options.Overwrite);
 
         foreach (var post in content.Posts)
-            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.SeoTitle, post.SeoDescription, claimed, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.SeoTitle, post.SeoDescription, post.TemplatePath, claimed, options.Overwrite);
 
         foreach (var company in content.Companies)
-            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.SeoTitle, company.SeoDescription, claimed, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.SeoTitle, company.SeoDescription, company.TemplatePath, claimed, options.Overwrite);
 
         foreach (var service in content.Services)
-            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.SeoTitle, service.SeoDescription, claimed, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.SeoTitle, service.SeoDescription, service.TemplatePath, claimed, options.Overwrite);
     }
 
     private static bool IsNotionBuildSource(HtmlDemoImportOptions options)
@@ -40,7 +40,7 @@ internal static class ContentDraftWriter
             ? contentDir
             : Path.Combine(contentDir, "pages");
         WriteCollectionDraft(dir, page.Title, slug, "page", page.Summary, page.Content,
-            page.SeoTitle, page.SeoDescription, claimed, overwrite);
+            page.SeoTitle, page.SeoDescription, page.TemplatePath, claimed, overwrite);
     }
 
     private static bool IsBuildPageDraft(PageRecord page)
@@ -56,6 +56,7 @@ internal static class ContentDraftWriter
         string? content,
         string? seoTitle,
         string? seoDescription,
+        string? templatePath,
         HashSet<string> claimed,
         bool overwrite)
     {
@@ -78,6 +79,8 @@ internal static class ContentDraftWriter
             new("title", title),
             new("slug", safeSlug),
             new("collection", collection),
+            // The demo page's own template; without one Core falls back to the collection template.
+            new("template", templatePath),
             new("summary", summary),
             new("seo_title", seoTitle),
             new("seo_desc", seoDescription),

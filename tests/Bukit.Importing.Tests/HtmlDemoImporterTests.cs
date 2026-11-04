@@ -87,10 +87,15 @@ public sealed class HtmlDemoImporterTests : IDisposable
         Assert.Contains("{{ page.fields.seo_desc.value }}", content);
         Assert.Contains("base_url = site.base_url", content);
         Assert.Contains("if base_url == \"/\"", content);
-        Assert.Contains("href=\"{{ base_url }}/assets/css/style.css\"", content);
+        Assert.DoesNotContain("style.css", content);
         Assert.DoesNotContain("page.seo_title", content);
         Assert.DoesNotContain("page.seo_description", content);
-        Assert.DoesNotContain("href=\"/assets/css/style.css\"", content);
+
+        // The stylesheet belongs to the home page, so its own template loads it.
+        var home = File.ReadAllText(Path.Combine(_tempDir, "themes", "base-layout-fields", "layouts", "pages", "index.html"));
+        Assert.Contains("base_url = site.base_url", home);
+        Assert.Contains("href=\"{{ base_url }}/assets/css/style.css\"", home);
+        Assert.DoesNotContain("href=\"/assets/css/style.css\"", home);
     }
 
     [Fact]
@@ -977,41 +982,113 @@ pages:
     }
 
     [Fact]
-    public void Import_InlineHeadStyle_IsKeptInBaseLayout()
+    public void Import_EveryPageOwnsItsTemplateAndAssets()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
-            "<html><head><title>Home</title><style>body{color:red}</style></head><body><main><h1>Home</h1></main></body></html>");
+            "<html><head><title>Home</title><link rel=\"stylesheet\" href=\"https://cdn.example/home.css\"><style>.home{color:red}</style></head>" +
+            "<body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title><link rel=\"stylesheet\" href=\"https://cdn.example/about.css\"><style>.about{color:blue}</style></head>" +
+            "<body><main><h1>About</h1><p>About body.</p></main><script src=\"https://cdn.example/about.js\"></script></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "contact.html"),
+            "<html><head><title>Contact</title><style>.contact{color:green}</style></head>" +
+            "<body><main><h1>Contact</h1><p>Contact body.</p></main></body></html>");
 
         HtmlDemoImporter.Import(new HtmlDemoImportOptions
         {
             InputPath = _tempDir,
-            ThemeName = "inline-style",
+            ThemeName = "own-templates",
             RootDir = _tempDir,
             Force = true
         });
 
-        var baseLayout = File.ReadAllText(Path.Combine(_tempDir, "themes", "inline-style", "layouts", "layouts", "base.html"));
-        Assert.Contains("body{color:red}", baseLayout, StringComparison.Ordinal);
+        var layoutsDir = Path.Combine(_tempDir, "themes", "own-templates", "layouts");
+        string Template(string name) => File.ReadAllText(Path.Combine(layoutsDir, "pages", name));
+        string[] markers = ["home.css", ".home{", "about.css", ".about{", "about.js", ".contact{"];
+
+        var baseLayout = File.ReadAllText(Path.Combine(layoutsDir, "layouts", "base.html"));
+        Assert.All(markers, marker => Assert.DoesNotContain(marker, baseLayout, StringComparison.Ordinal));
+
+        AssertOnly(Template("index.html"), markers, "home.css", ".home{");
+        AssertOnly(Template("about.html"), markers, "about.css", ".about{", "about.js");
+        AssertOnly(Template("contact.html"), markers, ".contact{");
+        AssertOnly(Template("page.html"), markers);
+
+        var aboutTemplate = Template("about.html");
+        Assert.True(
+            aboutTemplate.IndexOf("capture page_head", StringComparison.Ordinal) <
+            aboutTemplate.IndexOf("about.css", StringComparison.Ordinal));
+        Assert.True(
+            aboutTemplate.IndexOf("capture page_scripts", StringComparison.Ordinal) <
+            aboutTemplate.IndexOf("about.js", StringComparison.Ordinal));
+
+        var contentDir = Path.Combine(_tempDir, "sites", "own-templates", "content");
+        Assert.Contains("template: pages/about.html", File.ReadAllText(Path.Combine(contentDir, "pages", "about.md")), StringComparison.Ordinal);
+        Assert.Contains("template: pages/contact.html", File.ReadAllText(Path.Combine(contentDir, "pages", "contact.md")), StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Import_InlineStyleOnASubPage_IsKeptInBaseLayout()
+    public void Import_SharedFooterScript_MovesIntoEachPageTemplate()
     {
+        const string footer = "<footer><p>Shared footer text for every page</p></footer><script src=\"https://cdn.example/site.js\"></script>";
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
-            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+            $"<html><head><title>Home</title></head><body><header><nav><a href=\"index.html\">Home</a></nav></header>\n<main><h1>Home</h1></main>\n{footer}</body></html>");
         File.WriteAllText(Path.Combine(_tempDir, "about.html"),
-            "<html><head><title>About</title><style>.hero{color:blue}</style></head><body><main><h1>About</h1></main></body></html>");
+            $"<html><head><title>About</title></head><body><header><nav><a href=\"index.html\">Home</a></nav></header>\n<main><h1>About</h1></main>\n{footer}</body></html>");
 
         HtmlDemoImporter.Import(new HtmlDemoImportOptions
         {
             InputPath = _tempDir,
-            ThemeName = "subpage-style",
+            ThemeName = "footer-script",
             RootDir = _tempDir,
             Force = true
         });
 
-        var baseLayout = File.ReadAllText(Path.Combine(_tempDir, "themes", "subpage-style", "layouts", "layouts", "base.html"));
-        Assert.Contains(".hero{color:blue}", baseLayout, StringComparison.Ordinal);
+        var layoutsDir = Path.Combine(_tempDir, "themes", "footer-script", "layouts");
+        var footerPartial = Path.Combine(layoutsDir, "partials", "footer.html");
+        if (File.Exists(footerPartial))
+            Assert.DoesNotContain("site.js", File.ReadAllText(footerPartial), StringComparison.Ordinal);
+        Assert.DoesNotContain("site.js", File.ReadAllText(Path.Combine(layoutsDir, "layouts", "base.html")), StringComparison.Ordinal);
+        Assert.Contains("site.js", File.ReadAllText(Path.Combine(layoutsDir, "pages", "index.html")), StringComparison.Ordinal);
+        Assert.Contains("site.js", File.ReadAllText(Path.Combine(layoutsDir, "pages", "about.html")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Import_InlineStyle_RewritesUrlsAndEscapesScribanDelimiters()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "sub", "img"));
+        File.WriteAllText(Path.Combine(_tempDir, "sub", "img", "bg.png"), "fake image");
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "sub", "about.html"),
+            "<html><head><title>About</title><style>.hero{background:url('img/bg.png')}/*{{x}}*/</style></head>" +
+            "<body><main><h1>About</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "inline-css-urls",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var themeRoot = Path.Combine(_tempDir, "themes", "inline-css-urls");
+        var about = File.ReadAllText(Path.Combine(themeRoot, "layouts", "pages", "sub-about.html"));
+        Assert.Contains("url('{{ base_url }}/sub/img/bg.png')", about, StringComparison.Ordinal);
+        Assert.Contains("/*{{ '{{' }}x{{ '}}' }}*/", about, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(themeRoot, "static", "sub", "img", "bg.png")) ||
+                    File.Exists(Path.Combine(themeRoot, "assets", "sub", "img", "bg.png")));
+    }
+
+    private static void AssertOnly(string text, string[] markers, params string[] expected)
+    {
+        foreach (var marker in markers)
+        {
+            if (expected.Contains(marker))
+                Assert.Contains(marker, text, StringComparison.Ordinal);
+            else
+                Assert.DoesNotContain(marker, text, StringComparison.Ordinal);
+        }
     }
 
     [Fact]
@@ -1077,8 +1154,8 @@ pages:
         var themeRoot = Path.Combine(_tempDir, "themes", "css-assets");
         Assert.True(File.Exists(Path.Combine(themeRoot, "static", "assets", "css", "site.css")));
         Assert.True(File.Exists(Path.Combine(themeRoot, "static", "assets", "img", "bg.png")));
-        var baseLayout = File.ReadAllText(Path.Combine(themeRoot, "layouts", "layouts", "base.html"));
-        Assert.Contains("/assets/css/site.css", baseLayout, StringComparison.Ordinal);
+        var home = File.ReadAllText(Path.Combine(themeRoot, "layouts", "pages", "index.html"));
+        Assert.Contains("/assets/css/site.css", home, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1211,6 +1288,64 @@ pages:
 
         var pageTemplate = Path.Combine(_tempDir, "themes", "routemap-type-test", "layouts", "pages", "china-companies.html");
         Assert.True(File.Exists(pageTemplate), "Expected template china-companies.html to be generated from route-map");
+    }
+
+    [Fact]
+    public void RouteMap_TwoPagesWithTheSameTemplate_FailsAsUserInput()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "team.html"),
+            "<html><head><title>Team</title></head><body><main><h1>Team</h1></main></body></html>");
+        var routeMapPath = Path.Combine(_tempDir, "shared.routes.yaml");
+        File.WriteAllText(routeMapPath, """
+pages:
+  - source: about.html
+    route: /about/
+    template: shared
+  - source: team.html
+    route: /team/
+    template: shared
+""");
+
+        var error = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "shared-template",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = routeMapPath
+        }));
+
+        Assert.Equal(ImportErrorKind.UserInput, error.Kind);
+        Assert.Contains("shared", error.Message, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(Path.Combine(_tempDir, "themes", "shared-template")));
+    }
+
+    [Fact]
+    public void Import_PostsWithoutTheirOwnPage_WarnAboutTheFallbackTemplate()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "insights.html"),
+            "<html><head><title>Insights</title></head><body><main><h1>Insights</h1>" +
+            "<article class=\"article-card\"><h3>First Post</h3><p>One.</p></article>" +
+            "<article class=\"article-card\"><h3>Second Post</h3><p>Two.</p></article>" +
+            "</main></body></html>");
+
+        var result = HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "fallback-warning",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        Assert.Contains(result.Warnings, warning =>
+            warning.Contains("pages/post.html", StringComparison.Ordinal) &&
+            warning.Contains("first-post", StringComparison.Ordinal));
     }
 
     [Fact]

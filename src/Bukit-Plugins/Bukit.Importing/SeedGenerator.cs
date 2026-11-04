@@ -63,7 +63,7 @@ internal static class SeedGenerator
             sb.AppendLine($"    \"title\": {JsonStr(r.Title)},");
             sb.AppendLine($"    \"slug\": {JsonStr(r.Slug)},");
             sb.AppendLine($"    \"type\": {JsonStr(r.Type)},");
-            sb.AppendLine($"    \"template\": {JsonStr(r.Template)},");
+            sb.AppendLine($"    \"template\": {JsonVal(r.TemplatePath)},");
             sb.AppendLine($"    \"summary\": {JsonVal(r.Summary)},");
             sb.AppendLine($"    \"content\": {JsonVal(r.Content)},");
             sb.AppendLine($"    \"language\": {JsonStr(r.Language)},");
@@ -116,6 +116,7 @@ internal static class SeedGenerator
             sb.AppendLine($"    \"language\": {JsonStr(r.Language)},");
             sb.AppendLine($"    \"published\": {JsonBool(r.Published)},");
             sb.AppendLine($"    \"seo_title\": {JsonVal(r.SeoTitle)},");
+            sb.AppendLine($"    \"template\": {JsonVal(r.TemplatePath)},");
             sb.Append($"    \"seo_description\": {JsonVal(r.SeoDescription)}");
         });
     }
@@ -133,6 +134,7 @@ internal static class SeedGenerator
             sb.AppendLine($"    \"language\": {JsonStr(r.Language)},");
             sb.AppendLine($"    \"published\": {JsonBool(r.Published)},");
             sb.AppendLine($"    \"seo_title\": {JsonVal(r.SeoTitle)},");
+            sb.AppendLine($"    \"template\": {JsonVal(r.TemplatePath)},");
             sb.Append($"    \"seo_description\": {JsonVal(r.SeoDescription)}");
         });
     }
@@ -148,6 +150,7 @@ internal static class SeedGenerator
             sb.AppendLine($"    \"language\": {JsonStr(r.Language)},");
             sb.AppendLine($"    \"published\": {JsonBool(r.Published)},");
             sb.AppendLine($"    \"seo_title\": {JsonVal(r.SeoTitle)},");
+            sb.AppendLine($"    \"template\": {JsonVal(r.TemplatePath)},");
             sb.Append($"    \"seo_description\": {JsonVal(r.SeoDescription)}");
         });
     }
@@ -253,7 +256,7 @@ internal static class SeedGenerator
             YamlField(sb, "title", r.Title);
             YamlField(sb, "slug", r.Slug);
             YamlField(sb, "type", r.Type);
-            YamlField(sb, "template", r.Template);
+            YamlField(sb, "template", r.TemplatePath);
             YamlField(sb, "summary", r.Summary);
             YamlField(sb, "content", r.Content);
             YamlField(sb, "language", r.Language);
@@ -306,6 +309,7 @@ internal static class SeedGenerator
             YamlField(sb, "language", r.Language);
             YamlBool(sb, "published", r.Published);
             YamlField(sb, "seo_title", r.SeoTitle);
+            YamlField(sb, "template", r.TemplatePath);
             YamlField(sb, "seo_description", r.SeoDescription);
         });
     }
@@ -323,6 +327,7 @@ internal static class SeedGenerator
             YamlField(sb, "language", r.Language);
             YamlBool(sb, "published", r.Published);
             YamlField(sb, "seo_title", r.SeoTitle);
+            YamlField(sb, "template", r.TemplatePath);
             YamlField(sb, "seo_description", r.SeoDescription);
         });
     }
@@ -338,6 +343,7 @@ internal static class SeedGenerator
             YamlField(sb, "language", r.Language);
             YamlBool(sb, "published", r.Published);
             YamlField(sb, "seo_title", r.SeoTitle);
+            YamlField(sb, "template", r.TemplatePath);
             YamlField(sb, "seo_description", r.SeoDescription);
         });
     }

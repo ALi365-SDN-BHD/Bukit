@@ -38,12 +38,15 @@ internal static class ImportAnalyzer
                 HtmlDemoImporter.ThrowIfStrictDiagnostics(diagnostics);
         }
 
+        // Fails early (also on dry runs) when two pages claim the same template.
+        var templatePlan = PageTemplatePlan.Build(pages, routeMap);
         var components = options.ExtractContent ? ComponentExtractor.Extract(pages) : [];
-        var content = options.ExtractContent ? ContentExtractor.Extract(pages, routeMap) : new ExtractedContent();
+        var content = options.ExtractContent ? ContentExtractor.Extract(pages, routeMap, templatePlan) : new ExtractedContent();
 
         if (options.ExtractContent)
         {
             NavigationImportAdvisor.AddMissingNavigationWarnings(pages, content, warnings);
+            AddFallbackTemplateWarnings(content, warnings);
             ImportContentMetadataAuditor.AddDiagnostics(options, content, diagnostics);
         }
 
@@ -51,6 +54,29 @@ internal static class ImportAnalyzer
         // Return a placeholder — the real AssetImportResult is produced during commit.
         var assetResult = new AssetImporter.AssetImportResult(0, [], new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 
-        return new ImportAnalysis(pages, layout, warnings, diagnostics, components, content, routeMap, assetResult);
+        return new ImportAnalysis(pages, layout, warnings, diagnostics, components, content, routeMap, assetResult, templatePlan);
+    }
+
+    // Content without a demo page of its own renders with a generic fallback
+    // template, which carries no page styles or scripts.
+    private static void AddFallbackTemplateWarnings(ExtractedContent content, List<string> warnings)
+    {
+        AddFallbackWarning("post", "pages/post.html", content.Posts.Where(p => p.TemplatePath is null).Select(p => p.Slug), warnings);
+        AddFallbackWarning("company", "pages/company.html", content.Companies.Where(c => c.TemplatePath is null).Select(c => c.Slug), warnings);
+        AddFallbackWarning("service", "pages/service.html", content.Services.Where(s => s.TemplatePath is null).Select(s => s.Slug), warnings);
+        AddFallbackWarning("page", "pages/page.html", content.Pages.Where(p => p.TemplatePath is null).Select(p => p.Slug), warnings);
+    }
+
+    private static void AddFallbackWarning(string kind, string template, IEnumerable<string> slugs, List<string> warnings)
+    {
+        var list = slugs.Select(slug => string.IsNullOrEmpty(slug) ? "(no slug)" : slug).ToList();
+        if (list.Count == 0)
+            return;
+
+        const int shown = 10;
+        var names = string.Join(", ", list.Take(shown)) + (list.Count > shown ? $", … (+{list.Count - shown} more)" : "");
+        warnings.Add(
+            $"{list.Count} {kind} item(s) have no demo page of their own and will render with the fallback template " +
+            $"'{template}', which has no page styles or scripts: {names}. Add a template for them or style the fallback.");
     }
 }

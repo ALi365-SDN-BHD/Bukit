@@ -4,7 +4,13 @@ namespace Bukit.Importing;
 
 internal static class SiteConfigGenerator
 {
-    internal static bool Generate(HtmlDemoImportOptions options, RouteMapConfig? routeMap = null, HashSet<PageType>? pageTypes = null, string? postListSlug = null)
+    internal static bool Generate(
+        HtmlDemoImportOptions options,
+        RouteMapConfig? routeMap = null,
+        HashSet<PageType>? pageTypes = null,
+        string? postListSlug = null,
+        PageTemplatePlan? plan = null,
+        IReadOnlyList<DiscoveredPage>? discoveredPages = null)
     {
         var siteDir = HtmlDemoImporter.GetSiteDir(options);
         Directory.CreateDirectory(siteDir);
@@ -120,7 +126,7 @@ internal static class SiteConfigGenerator
                     var entry = new Dictionary<string, object?>(StringComparer.Ordinal)
                     {
                         ["route"] = page.Route,
-                        ["template"] = $"pages/{page.Template}.html"
+                        ["template"] = AppPageTemplate(page, plan, discoveredPages)
                     };
                     if (!string.IsNullOrWhiteSpace(page.Description))
                         entry["description"] = page.Description;
@@ -229,6 +235,20 @@ internal static class SiteConfigGenerator
                 ["dir"] = contentDir
             }
         };
+
+    // App pages render the demo page's own template, the same file ThemeGenerator wrote.
+    private static string AppPageTemplate(
+        RouteMapPage page,
+        PageTemplatePlan? plan,
+        IReadOnlyList<DiscoveredPage>? discoveredPages)
+    {
+        var sourceName = Path.GetFileNameWithoutExtension(page.Source);
+        var demoPage = discoveredPages?.FirstOrDefault(p =>
+            string.Equals(Path.GetFileNameWithoutExtension(p.RelativePath), sourceName, StringComparison.OrdinalIgnoreCase));
+        return plan is not null && demoPage is not null
+            ? plan.PathFor(demoPage)
+            : $"pages/{page.Template}.html";
+    }
 
     private static bool IsDefaultPageRoute(string route, string template)
     {
