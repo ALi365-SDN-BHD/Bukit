@@ -116,6 +116,23 @@ public sealed class ImportCommandWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_HtmlDemoMissingRouteMap_FailsWithoutWritingTheme()
+    {
+        var demoDir = CreateMinimalDemo();
+
+        var result = await ImportCommandWorkflow.RunAsync(BaseOptions("html-demo") with
+        {
+            DemoDir = demoDir,
+            ThemeName = "demo-theme",
+            RouteMapPath = "route-mpa.yaml"
+        });
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains(result.Messages, m => m.Level == "error" && m.Message.Contains("was not found", StringComparison.Ordinal));
+        Assert.False(Directory.Exists(Path.Combine(_rootDir, "themes", "demo-theme")));
+    }
+
+    [Fact]
     public async Task RunAsync_HtmlDemoPushNotionCannotCombineWithDryRun()
     {
         var demoDir = CreateMinimalDemo();

@@ -73,6 +73,24 @@ public sealed class RouteMapLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_MissingFile_ThrowsUserInputError()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"bukit-missing-route-map-{Guid.NewGuid():N}.yaml");
+
+        var ex = Assert.Throws<ImportException>(() => RouteMapLoader.Load(path));
+
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("was not found", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Load_NoPath_ReturnsNull()
+    {
+        Assert.Null(RouteMapLoader.Load(null));
+        Assert.Null(RouteMapLoader.Load(" "));
+    }
+
+    [Fact]
     public void Load_InvalidYaml_ThrowsUserInputError()
     {
         var path = WriteRouteMap("pages: [");

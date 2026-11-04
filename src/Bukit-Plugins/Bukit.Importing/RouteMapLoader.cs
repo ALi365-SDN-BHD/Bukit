@@ -6,8 +6,13 @@ internal static class RouteMapLoader
 {
     internal static RouteMapConfig? Load(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path))
             return null;
+
+        // An explicitly requested map that is missing (usually a typo) must fail,
+        // not silently fall back to heuristic routing.
+        if (!File.Exists(path))
+            throw Invalid(path, $"Route map '{path}' was not found.");
 
         YamlStream yaml;
         try
