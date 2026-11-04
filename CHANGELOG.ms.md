@@ -4,6 +4,8 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+## [2.0.7] - 2026-11-04
+
 - **Versi**: versi produk dalam `Directory.Build.props` ditetapkan kepada 2.0.7 supaya sepadan dengan barisan keluaran (v2.0.6 dikeluarkan ketika fail masih 2.0.4; binaan keluaran menimpanya dengan `-p:VersionPrefix`).
 - **Ujian kendiri regresi keselamatan**: setiap pemilih dalam `scripts/security/security-regression.sh` kini mesti sepadan dengan pengisytiharan ujian sebenar dalam fail yang mempunyai `[Fact]`/`[Theory]`; entri yang tidak dapat dihuraikan gagal dan bukan dilangkau; ujian kendiri dijalankan dalam pintu gerbang CI fast dan menyokong laluan checkout dengan ruang.
 - **Dokumen keluaran**: menambah seksyen log perubahan 2.0.0 hingga 2.0.6 dan senarai semak keluaran dalaman 2.0.
