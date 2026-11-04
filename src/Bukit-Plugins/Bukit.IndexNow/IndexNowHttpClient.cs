@@ -42,13 +42,15 @@ public sealed partial class IndexNowHttpClient : IIndexNowTransport
         IndexNowSubmissionPayload payload,
         CancellationToken cancellationToken)
     {
-        using var response = await _client.PostAsJsonAsync(Endpoint, new
-        {
-            host = payload.Host,
-            key = payload.Key,
-            keyLocation = payload.KeyLocation,
-            urlList = payload.Urls
-        }, cancellationToken);
+        using var response = await _client.PostAsJsonAsync(
+            Endpoint,
+            new IndexNowHttpSubmissionPayload(
+                payload.Host,
+                payload.Key,
+                payload.KeyLocation,
+                payload.Urls),
+            IndexNowJsonContext.Default.IndexNowHttpSubmissionPayload,
+            cancellationToken);
         EnsureResponseRequestUri(response, Endpoint);
         return new IndexNowSubmitResponse((int)response.StatusCode);
     }

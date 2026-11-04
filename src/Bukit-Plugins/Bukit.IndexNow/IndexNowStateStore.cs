@@ -6,11 +6,6 @@ namespace Bukit.IndexNow;
 
 public sealed class IndexNowStateStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
-
     public static string ResolveStateFile(string rootDir, string stateDir)
     {
         var root = Path.GetFullPath(rootDir);
@@ -36,7 +31,10 @@ public sealed class IndexNowStateStore
         }
 
         await using var stream = File.OpenRead(path);
-        var state = await JsonSerializer.DeserializeAsync<IndexNowState>(stream, JsonOptions, cancellationToken)
+        var state = await JsonSerializer.DeserializeAsync(
+                        stream,
+                        IndexNowJsonContext.Default.IndexNowState,
+                        cancellationToken)
                     ?? throw new InvalidDataException("IndexNow state document is empty.");
         if (state.Version != 1 || state.Deployed is null || state.Notified is null || state.Pending is null)
         {
@@ -118,7 +116,11 @@ public sealed class IndexNowStateStore
                              4096,
                              FileOptions.Asynchronous | FileOptions.WriteThrough))
             {
-                await JsonSerializer.SerializeAsync(stream, Normalize(state), JsonOptions, cancellationToken);
+                await JsonSerializer.SerializeAsync(
+                    stream,
+                    Normalize(state),
+                    IndexNowJsonContext.Default.IndexNowState,
+                    cancellationToken);
                 await stream.FlushAsync(cancellationToken);
                 stream.Flush(flushToDisk: true);
             }

@@ -43,6 +43,13 @@ python3 scripts/checks/codex-workflow.py closure ... 24 changed implementation f
 unmapped 0
 ```
 
+Native AOT（.NET SDK 10.0.403）：
+
+```text
+IndexNow   osx-arm64 / Release / PublishAot -> success, handshake exit 0
+WechatSync osx-arm64 / Release / PublishAot -> success, handshake exit 0
+```
+
 实现后专项审查发现 3 个 Important（WX-03 HTTP 默认图失败未回退默认 media ID；WX-04 旧缓存迁移提示不可执行；WX-05 `{}` / 缺少 reviewStatus 的 content JSON 仍可能空任务成功），均已修复并补充回归；最终专项复审为 0 Critical / 0 Important / 0 Minor。IN-01 的 Unix rename 竞态已在后续加固中改为 `FileMode.CreateNew` 直接写并补并发创建回归；WX-02 旧 media key 无回退属于安全优先的缓存命中率退化，已补注释和回归防止未来误加 fallback，不阻塞本批交付。
 
 ---
@@ -1585,3 +1592,81 @@ bukit wechat-sync sync ... --migrate-legacy-cache --confirm-legacy-app-id <curre
 3. 已更新 `guide/dev/plugins.md`。
 4. 已用旧 v3 fixture 做本地假网关验证；完整 WechatSync 专项 306/306 通过。
 5. 已有 v3 缓存的站点应按迁移步骤升级，不应归档后重试。
+
+---
+
+## 13. Native AOT 验证（.NET SDK 10.0.403）
+
+### 13.1 SDK 安装
+
+原环境：
+
+```text
+.NET SDK 10.0.100
+Microsoft.DotNet.ILCompiler 10.0.0
+NU1903（安全审计高危）
+```
+
+系统目录 `/usr/local/share/dotnet` 不可写，因此使用官方 `dotnet-install.sh` 安装到用户目录：
+
+```text
+/Users/ali/.dotnet/sdk/10.0.403
+```
+
+使用时需要：
+
+```text
+export DOTNET_ROOT="$HOME/.dotnet"
+export PATH="$HOME/.dotnet:$PATH"
+```
+
+`global.json` 仍为 `10.0.100` + `latestFeature`，在上述 PATH 下会选择 `10.0.403`。该 SDK 的 runtime/host 为 `10.0.14`，`NU1903` 不再出现。
+
+### 13.2 首次 AOT 结果与 IndexNow 修复
+
+安装新 SDK 后，WechatSync 直接 AOT 成功；IndexNow 进入编译后暴露真实 AOT 不兼容：
+
+```text
+IL2026 / IL3050
+- IndexNowHttpClient: HttpClientJsonExtensions.PostAsJsonAsync<T>
+- IndexNowSubmissionWorkflow: JsonSerializer.DeserializeAsync<T>
+- IndexNowStateStore: JsonSerializer.DeserializeAsync<T> / SerializeAsync<T>
+```
+
+根因是 `Bukit.IndexNow` 业务层使用反射式 `System.Text.Json`，而插件入口已使用 source generation。
+
+最小修复：
+
+- 新增 `IndexNowJsonContext`（source-generated）：
+  - `PublishUrlSnapshotDocument`
+  - `PublishUrlChangeSetDocument`
+  - `IndexNowState`
+  - `IndexNowHttpSubmissionPayload`
+- `IndexNowHttpClient` 改用带 `JsonTypeInfo` 的 `PostAsJsonAsync`，并使用显式 `urlList` 字段的 DTO。
+- `IndexNowSubmissionWorkflow.ReadAsync` 改为接收 `JsonTypeInfo<T>`。
+- `IndexNowStateStore` 改为 source-generated 序列化/反序列化。
+- 未使用 `NuGetAudit=false`、`TreatWarningsAsErrors=false` 或 `NoWarn=IL2026/IL3050`。
+
+### 13.3 AOT 编译与启动验证
+
+使用 `dotnet publish ... -c Release -r osx-arm64 --self-contained true -p:PublishAot=true`：
+
+| 插件 | 结果 | 产物 |
+|---|---|---|
+| IndexNow | 成功 | `bukit-plugin-indexnow`，Mach-O arm64，约 7.4 MB |
+| WechatSync | 成功 | `bukit-plugin-wechat-sync`，Mach-O arm64，约 8.0 MB |
+
+两个 AOT 可执行文件均运行 handshake：
+
+```text
+indexnow exit=0   -> handshakeResponse success=true
+wechatsync exit=0 -> handshakeResponse success=true
+```
+
+### 13.4 验证结论
+
+- `NU1903` 阻断已由 SDK 升级解决，未降低安全审计。
+- IndexNow 的 AOT 不兼容已通过 source-generated JSON 修复。
+- WechatSync 无需额外 AOT 代码修改。
+- 两个插件均完成 osx-arm64 / Release / Native AOT 编译，并完成启动级 handshake 验证。
+- 未验证真实远端发布、完整插件业务 AOT smoke 或全量/发布门禁。

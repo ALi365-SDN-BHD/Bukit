@@ -33,6 +33,12 @@ public sealed record IndexNowSubmissionPayload(
     string KeyLocation,
     IReadOnlyList<string> Urls);
 
+internal sealed record IndexNowHttpSubmissionPayload(
+    [property: JsonPropertyName("host")] string Host,
+    [property: JsonPropertyName("key")] string Key,
+    [property: JsonPropertyName("keyLocation")] string KeyLocation,
+    [property: JsonPropertyName("urlList")] IReadOnlyList<string> UrlList);
+
 public sealed record IndexNowPendingChange(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("url")] string Url,

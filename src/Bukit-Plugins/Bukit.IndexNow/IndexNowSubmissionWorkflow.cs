@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 
 namespace Bukit.IndexNow;
@@ -9,7 +10,6 @@ public sealed class IndexNowSubmissionWorkflow
     public const string Version = "0.1.0";
     private const int MaximumBatchSize = 10_000;
     private const int MaximumAttempts = 3;
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly Regex SemanticHashPattern = new(
         "^sha256:[0-9a-f]{64}$",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
@@ -36,8 +36,14 @@ public sealed class IndexNowSubmissionWorkflow
         {
             ValidateRequestPaths(request);
             var siteUrl = IndexNowUrlPolicy.ParseSiteUrl(request.SiteUrl.AbsoluteUri);
-            var snapshot = await ReadAsync<PublishUrlSnapshotDocument>(request.SnapshotPath, cancellationToken);
-            var changeSet = await ReadAsync<PublishUrlChangeSetDocument>(request.ChangeSetPath, cancellationToken);
+            var snapshot = await ReadAsync(
+                request.SnapshotPath,
+                IndexNowJsonContext.Default.PublishUrlSnapshotDocument,
+                cancellationToken);
+            var changeSet = await ReadAsync(
+                request.ChangeSetPath,
+                IndexNowJsonContext.Default.PublishUrlChangeSetDocument,
+                cancellationToken);
             ValidateSnapshot(snapshot, siteUrl);
             var changes = ValidateChanges(changeSet, snapshot);
 
@@ -443,10 +449,13 @@ public sealed class IndexNowSubmissionWorkflow
         }
     }
 
-    private static async Task<T> ReadAsync<T>(string path, CancellationToken cancellationToken)
+    private static async Task<T> ReadAsync<T>(
+        string path,
+        JsonTypeInfo<T> jsonTypeInfo,
+        CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(path);
-        return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, cancellationToken)
+        return await JsonSerializer.DeserializeAsync(stream, jsonTypeInfo, cancellationToken)
                ?? throw new InvalidDataException($"IndexNow input '{Path.GetFileName(path)}' is empty.");
     }
 
