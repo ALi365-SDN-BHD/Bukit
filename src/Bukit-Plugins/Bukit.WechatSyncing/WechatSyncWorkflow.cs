@@ -53,6 +53,9 @@ public sealed class WechatSyncWorkflow
         var messages = new List<WechatSyncMessage>();
         var diagnostics = new List<WechatSyncDiagnostic>();
         var baseCachePath = SyncCacheManager.ResolvePath(context.RootDir, options.CacheFile);
+        var migratedCachePath = options.MigrateLegacyCache
+            ? await MigrateLegacyCacheIfRequestedAsync(context, options, baseCachePath, cancellationToken)
+            : null;
         var plan = WechatSyncPlanner.Create(context, options, _utcNow());
         diagnostics.AddRange(plan.Exclusions.Select(exclusion => new WechatSyncDiagnostic(
             exclusion.Code,
@@ -64,15 +67,15 @@ public sealed class WechatSyncWorkflow
             const string message = "plugin wechat-sync skipped: no candidate content matched eligibility and filters";
             context.Logger.Info(message);
             messages.Add(new WechatSyncMessage("info", message));
-            return new WechatSyncResult(!plan.HasErrors, 0, 0, 0, messages, diagnostics, baseCachePath);
+            return new WechatSyncResult(!plan.HasErrors, 0, 0, 0, messages, diagnostics, migratedCachePath ?? baseCachePath);
         }
 
         var appId = ReadRequiredEnv(options.AppIdEnv);
-        var cachePath = SyncCacheManager.ResolveAccountPath(baseCachePath, appId);
+        var cachePath = migratedCachePath ?? SyncCacheManager.ResolveAccountPath(baseCachePath, appId);
         if (!File.Exists(cachePath) && File.Exists(baseCachePath))
         {
             throw new InvalidOperationException(
-                $"wechat-sync cache '{baseCachePath}' is not bound to a WeChat AppId and cannot be safely reused across accounts. Back it up, recover any DraftSubmitting/PublishSubmitting operations, then remove or archive it before retrying. This account will use '{cachePath}'.");
+                $"wechat-sync cache '{baseCachePath}' is a legacy unbound cache. Migrate it instead of archiving or removing it: rerun with --migrate-legacy-cache --confirm-legacy-cache-app-id '{appId}' after verifying the cache belongs to this account. Archiving or removing it discards sync records and recovery state and can create duplicate drafts or publishes.");
         }
 
         await using var runLock = await SyncCacheManager.AcquireRunLockAsync(
@@ -275,6 +278,76 @@ public sealed class WechatSyncWorkflow
 
         return new WechatSyncResult(diagnostics.All(x => !x.Severity.Equals("error", StringComparison.OrdinalIgnoreCase)),
             filtered.Count, synced, skipped, messages, diagnostics, cachePath);
+    }
+
+    private async Task<string> MigrateLegacyCacheIfRequestedAsync(
+        WechatSyncContext context,
+        WechatSyncOptions options,
+        string baseCachePath,
+        CancellationToken cancellationToken)
+    {
+        var appId = ReadRequiredEnv(options.AppIdEnv);
+        var cachePath = SyncCacheManager.ResolveAccountPath(baseCachePath, appId);
+        var accountCacheExists = File.Exists(cachePath);
+        var legacyCacheExists = File.Exists(baseCachePath);
+        if (!accountCacheExists && !legacyCacheExists)
+        {
+            throw new InvalidOperationException(
+                $"No legacy wechat-sync cache exists at '{baseCachePath}' to migrate.");
+        }
+
+        if (accountCacheExists)
+        {
+            if (legacyCacheExists)
+            {
+                throw new InvalidOperationException(
+                    $"wechat-sync found both legacy cache '{baseCachePath}' and account cache '{cachePath}'; refusing to merge. Back up one, then remove or archive the account cache before rerunning migration if you intend to adopt the legacy state.");
+            }
+
+            return cachePath;
+        }
+
+        var confirmed = options.ConfirmedLegacyAppId?.Trim();
+        if (string.IsNullOrWhiteSpace(confirmed) ||
+            !string.Equals(confirmed, appId, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "wechat-sync legacy cache migration requires --confirm-legacy-cache-app-id to exactly match the current AppId.");
+        }
+
+        await using var runLock = await SyncCacheManager.AcquireRunLockAsync(
+            context.RootDir,
+            cachePath,
+            _runLockTimeout,
+            cancellationToken);
+        runLock.ValidateIdentity();
+        if (!File.Exists(cachePath) && File.Exists(baseCachePath))
+        {
+            var migrated = SyncCacheManager.MigrateLegacyCache(
+                baseCachePath,
+                cachePath,
+                appId,
+                context.Logger);
+            var operationSummary = string.Join(
+                ", ",
+                migrated.Operations.Values
+                    .GroupBy(operation => operation.State, StringComparer.Ordinal)
+                    .OrderBy(group => group.Key, StringComparer.Ordinal)
+                    .Select(group => $"{group.Key}={group.Count()}"));
+            context.Logger.Info(
+                $"plugin wechat-sync migrated legacy cache: records={migrated.Records.Count} " +
+                $"thumbMediaIds={migrated.ThumbMediaIds.Count} operations={migrated.Operations.Count}" +
+                (string.IsNullOrWhiteSpace(operationSummary) ? string.Empty : $" ({operationSummary})"));
+        }
+
+        if (!File.Exists(cachePath) && !File.Exists(baseCachePath))
+        {
+            throw new InvalidOperationException(
+                $"wechat-sync legacy cache '{baseCachePath}' disappeared during migration.");
+        }
+
+        runLock.ValidateIdentity();
+        return cachePath;
     }
 
     private async Task<(SyncOperation Operation, bool CacheUpdated)> SyncWithRetryAsync(

@@ -33,6 +33,28 @@ public static class WechatSyncPluginOptionsMapper
         var appIdEnv = ReadString(request, "--app-id-env") ?? "WECHAT_APP_ID";
         var appSecretEnv = ReadString(request, "--app-secret-env") ?? "WECHAT_APP_SECRET";
         var forceEnv = ReadString(request, "--force-retry-ignore-cache-env") ?? "BUKIT_WECHAT_FORCE_RETRY";
+        var migrateLegacyCache = ReadBool(request, "--migrate-legacy-cache");
+        var confirmedLegacyAppId = ReadString(request, "--confirm-legacy-cache-app-id");
+        if (migrateLegacyCache && string.IsNullOrWhiteSpace(confirmedLegacyAppId))
+        {
+            throw new WechatSyncPluginOptionsException(
+                "plugin.wechat-sync.missingLegacyCacheAppId",
+                "--confirm-legacy-cache-app-id is required with --migrate-legacy-cache.");
+        }
+
+        if (!migrateLegacyCache && !string.IsNullOrWhiteSpace(confirmedLegacyAppId))
+        {
+            throw new WechatSyncPluginOptionsException(
+                "plugin.wechat-sync.invalidOption",
+                "--confirm-legacy-cache-app-id is only valid with --migrate-legacy-cache.");
+        }
+
+        if (dryRun && migrateLegacyCache)
+        {
+            throw new WechatSyncPluginOptionsException(
+                "plugin.wechat-sync.invalidOption",
+                "--migrate-legacy-cache cannot be combined with --dry-run.");
+        }
 
         if (!dryRun)
         {
@@ -125,7 +147,9 @@ public static class WechatSyncPluginOptionsMapper
             DefaultImageUrl: ReadString(request, "--default-image-url"))
         {
             DraftReviewStatuses = draftReviewStatuses,
-            PublishReviewStatuses = publishReviewStatuses
+            PublishReviewStatuses = publishReviewStatuses,
+            MigrateLegacyCache = migrateLegacyCache,
+            ConfirmedLegacyAppId = confirmedLegacyAppId
         };
 
         return new WechatSyncPluginMappedInvocation(

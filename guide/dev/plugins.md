@@ -83,9 +83,43 @@ by the plugin to locate the active file. Later runs report
 again. `--force` and the force-retry environment variable do not bypass this
 guard because a second submit could create a duplicate draft.
 
-> Legacy `.cache/wechat-sync/sync-cache.json` files without an AppId are not
-> reused. Back them up, recover any `DraftSubmitting`/`PublishSubmitting`
-> operations, then remove or archive them before retrying.
+### Legacy cache migration
+
+Legacy `.cache/wechat-sync/sync-cache.json` files without an AppId are not
+reused automatically. Do not archive or remove them and rerun: that loses
+`Records`, `ThumbMediaIds`, and `Operations` and can create duplicate drafts or
+publishes. Migrate the cache instead:
+
+1. Stop automated publishing and back up the legacy cache file.
+2. Confirm that the legacy cache belongs to the current WeChat AppId. If you
+   cannot confirm ownership, do not migrate it.
+3. Invoke the sync command once with the same `--output`, `--cache-file`, and
+   `--app-id-env` you normally use, plus:
+
+   ```text
+   --migrate-legacy-cache --confirm-legacy-cache-app-id <current-app-id>
+   ```
+
+   The confirmed value must exactly match the current AppId. Migration writes
+   the account-scoped v4 cache (`sync-cache.<appid-hash>.json`) and preserves
+   `Records`, `ThumbMediaIds`, and `Operations`; the legacy file is left in
+   place as a backup. If both the legacy file and the account cache already
+   exist, migration refuses instead of merging. Back up one, then remove or
+   archive the account cache before rerunning migration if you intend to adopt
+   the legacy state.
+4. Inspect the migration summary (`records`, `thumbMediaIds`, `operations`).
+   If `DraftSubmitting` or `PublishSubmitting` entries exist, follow the
+   recovery steps below before running a normal sync.
+5. Review the migration run result, then run a dry-run and a small sync (or the
+   next scheduled sync) and verify the `skipped`/`synced` counts. Archive the
+   legacy backup only after the migrated cache has been verified.
+
+The migration flags cannot be combined with `--dry-run`; the migration run also
+continues the normal sync after a successful migration. Migration runs before
+candidate filtering, so it also works when no content currently matches the
+sync filters.
+
+### Draft recovery
 
 1. Stop automated publishing and back up the active account-scoped cache file before editing it.
 2. Find the affected `Operations` entry. Its property name is the candidate

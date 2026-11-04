@@ -126,6 +126,73 @@ public sealed class WechatSyncPluginOptionsMapperTests : IDisposable
     }
 
     [Fact]
+    public void Map_MapsLegacyCacheMigrationOptions()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_MIGRATION_APP_ID", "app-a");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_MIGRATION_SECRET", "secret-a");
+        var request = Request(
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--app-id-env"] = Json(appId.Name),
+                ["--app-secret-env"] = Json(secret.Name),
+                ["--force-retry-ignore-cache-env"] = Json(""),
+                ["--migrate-legacy-cache"] = Json(true),
+                ["--confirm-legacy-cache-app-id"] = Json("app-a")
+            },
+            permissions: new PluginPermissionSet(
+                Network: true,
+                Environment: new PluginEnvironmentPermission(Read: [appId.Name, secret.Name])));
+
+        var invocation = WechatSyncPluginOptionsMapper.Map(request);
+
+        Assert.True(invocation.Options.MigrateLegacyCache);
+        Assert.Equal("app-a", invocation.Options.ConfirmedLegacyAppId);
+    }
+
+    [Fact]
+    public void Map_RejectsMigrationWithoutAppIdConfirmation()
+    {
+        var request = Request(
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--migrate-legacy-cache"] = Json(true)
+            });
+
+        var ex = Assert.Throws<WechatSyncPluginOptionsException>(() => WechatSyncPluginOptionsMapper.Map(request));
+
+        Assert.Equal("plugin.wechat-sync.missingLegacyCacheAppId", ex.Code);
+    }
+
+    [Fact]
+    public void Map_RejectsMigrationWithDryRunOrOrphanConfirmation()
+    {
+        var dryRunRequest = Request(
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--dry-run"] = Json(true),
+                ["--migrate-legacy-cache"] = Json(true),
+                ["--confirm-legacy-cache-app-id"] = Json("app-a")
+            });
+        var dryRun = Assert.Throws<WechatSyncPluginOptionsException>(() =>
+            WechatSyncPluginOptionsMapper.Map(dryRunRequest));
+        Assert.Equal("plugin.wechat-sync.invalidOption", dryRun.Code);
+
+        var orphanRequest = Request(
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--dry-run"] = Json(true),
+                ["--confirm-legacy-cache-app-id"] = Json("app-a")
+            });
+        var orphan = Assert.Throws<WechatSyncPluginOptionsException>(() =>
+            WechatSyncPluginOptionsMapper.Map(orphanRequest));
+        Assert.Equal("plugin.wechat-sync.invalidOption", orphan.Code);
+    }
+
+    [Fact]
     public void Map_NonDryRun_RejectsMissingNetworkGrant()
     {
         using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");

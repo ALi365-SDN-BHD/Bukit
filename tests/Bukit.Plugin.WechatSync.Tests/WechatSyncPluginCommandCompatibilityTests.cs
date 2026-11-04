@@ -14,6 +14,8 @@ public sealed class WechatSyncPluginCommandCompatibilityTests
         "--output",
         "--manifest",
         "--cache-file",
+        "--migrate-legacy-cache",
+        "--confirm-legacy-cache-app-id",
         "--source-names",
         "--content-types",
         "--default-types-when-missing",

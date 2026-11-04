@@ -21,6 +21,8 @@ public static class WechatSyncPluginCommandSpecs
                             StringOption("--output", "Bukit build output directory.", required: true),
                             StringOption("--manifest", "agent-manifest.json path."),
                             StringOption("--cache-file", "Sync cache path."),
+                            FlagOption("--migrate-legacy-cache", "Migrate a legacy unbound cache after explicit AppId confirmation."),
+                            StringOption("--confirm-legacy-cache-app-id", "Current WeChat AppId confirming legacy cache ownership."),
                             StringOption("--source-names", "Comma-separated source names."),
                             StringOption("--content-types", "Comma-separated content types."),
                             StringOption("--default-types-when-missing", "Comma-separated fallback content types."),

@@ -84,6 +84,99 @@ internal static class SyncCacheManager
         return Path.Combine(directory, $"{name}.{hash}{extension}");
     }
 
+    internal static SyncCache MigrateLegacyCache(
+        string legacyPath,
+        string accountPath,
+        string appId,
+        Bukit.Shared.ILogger logger)
+    {
+        if (string.IsNullOrWhiteSpace(appId))
+        {
+            throw new InvalidOperationException("wechat-sync account id must not be empty.");
+        }
+
+        if (File.Exists(accountPath))
+        {
+            throw new InvalidOperationException(
+                $"wechat-sync account cache '{accountPath}' already exists; refusing to merge legacy cache.");
+        }
+
+        if (!File.Exists(legacyPath))
+        {
+            throw new InvalidOperationException(
+                $"wechat-sync legacy cache '{legacyPath}' does not exist.");
+        }
+
+        var legacy = LoadCache(legacyPath, logger);
+        if (legacy.Version == 4 || !string.IsNullOrWhiteSpace(legacy.AppId))
+        {
+            throw new InvalidOperationException(
+                $"wechat-sync cache '{legacyPath}' is already bound to a WeChat AppId; migration is not required.");
+        }
+
+        var migrated = legacy with
+        {
+            Version = 4,
+            AppId = appId,
+            Records = new Dictionary<string, SyncRecord>(legacy.Records, StringComparer.Ordinal),
+            ThumbMediaIds = new Dictionary<string, string>(legacy.ThumbMediaIds, StringComparer.Ordinal),
+            Operations = new Dictionary<string, SyncOperation>(legacy.Operations, StringComparer.Ordinal)
+        };
+        SaveCache(accountPath, migrated);
+
+        try
+        {
+            var verified = LoadCache(accountPath, logger, appId);
+            if (verified.Version != 4 ||
+                !string.Equals(verified.AppId, appId, StringComparison.Ordinal) ||
+                !SameRecords(legacy.Records, verified.Records) ||
+                !SameThumbMediaIds(legacy.ThumbMediaIds, verified.ThumbMediaIds) ||
+                !SameOperations(legacy.Operations, verified.Operations))
+            {
+                throw new InvalidOperationException(
+                    $"wechat-sync migrated cache '{accountPath}' did not verify; legacy cache '{legacyPath}' is retained.");
+            }
+
+            return verified;
+        }
+        catch
+        {
+            TryDelete(accountPath);
+            throw;
+        }
+    }
+
+    private static bool SameRecords(
+        IReadOnlyDictionary<string, SyncRecord> left,
+        IReadOnlyDictionary<string, SyncRecord> right)
+        => left.Count == right.Count &&
+           left.All(pair => right.TryGetValue(pair.Key, out var value) && value == pair.Value);
+
+    private static bool SameThumbMediaIds(
+        IReadOnlyDictionary<string, string> left,
+        IReadOnlyDictionary<string, string> right)
+        => left.Count == right.Count &&
+           left.All(pair => right.TryGetValue(pair.Key, out var value) &&
+                            string.Equals(pair.Value, value, StringComparison.Ordinal));
+
+    private static bool SameOperations(
+        IReadOnlyDictionary<string, SyncOperation> left,
+        IReadOnlyDictionary<string, SyncOperation> right)
+        => left.Count == right.Count &&
+           left.All(pair => right.TryGetValue(pair.Key, out var value) && value == pair.Value);
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+            // Preserve the primary migration failure.
+        }
+    }
+
     internal static async Task<RunLockHandle> AcquireRunLockAsync(
         string rootDir,
         string cachePath,

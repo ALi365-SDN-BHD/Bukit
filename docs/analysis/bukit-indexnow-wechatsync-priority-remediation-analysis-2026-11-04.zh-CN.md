@@ -23,7 +23,7 @@
 | WX-01 | 已修复：只解码标签外文本，属性与代码块保留 |
 | WX-02 | 已修复：去重键区分大小写，规范化后去重，media key 保留 query |
 | WX-03 | 已修复：无封面时走默认图/默认 media ID 回退 |
-| WX-04 | 已修复：缓存按 AppId 隔离并持久化 AppId；旧版未绑定缓存拒绝自动复用 |
+| WX-04 | 已修复：缓存按 AppId 隔离并持久化 AppId；旧 v3 缓存支持人工确认 AppId 后迁移，保留 Records/ThumbMediaIds/Operations |
 | WX-05 | 已修复：manifest 字段/版本校验；声明 JSON 缺失或空对象明确失败 |
 | 验证缺口 | 已修复：IndexNow + WechatSync 相关源码/测试/csproj 均映射到专项测试 |
 
@@ -34,7 +34,7 @@ dotnet test tests/Bukit.Plugin.IndexNow.Tests/Bukit.Plugin.IndexNow.Tests.csproj
 Passed: 47 / 47
 
 dotnet test tests/Bukit.Plugin.WechatSync.Tests/Bukit.Plugin.WechatSync.Tests.csproj
-Passed: 296 / 296
+Passed: 306 / 306
 
 bash scripts/checks/codex-workflow-self-test.sh
 codex workflow self-test OK
@@ -1399,3 +1399,189 @@ https://cdn.example.com/image.png
 |---|---|---|---|
 | IN-01 Unix rename 竞态 | 已修复（方案 A） | 已改为 `FileMode.CreateNew` 直接写最终文件；并发写输出根时不再覆盖已存在业务文件 | 保留并发创建测试；崩溃半写场景 fail closed |
 | WX-02 旧 media key 无回退 | 不需要 | 回退会重新引入 query 变体错误合并；无 query URL 不受影响 | 已保留现状并补注释/回归，防止未来误加 fallback |
+
+---
+
+## 12. 审计复核：旧 v3 缓存升级会导致重复同步
+
+### 12.1 审计结论确认
+
+> **实施状态（2026-11-04）：已修复。** 采用方案 A：`--migrate-legacy-cache` + `--confirm-legacy-cache-app-id`，迁移保留 `Records`、`ThumbMediaIds`、`Operations`，旧缓存保留作备份。WechatSync 专项 306/306 通过。
+
+审计对象：`75545ec8` + `8cae4fbb`。
+
+结论：**审计发现成立，属于 Important，且比“额外创建 1 份草稿”更广。**
+
+当前实现：
+
+- `WechatSyncWorkflow.cs:70-76`：发现旧 `.cache/wechat-sync/sync-cache.json`（v2/v3，无 AppId）且账号缓存不存在时，直接抛出错误，提示“备份、恢复 submitting 操作、删除或归档后重试”。
+- `SyncCacheManager.LoadCache` 在 `expectedAppId` 非空时拒绝所有非 v4/无 AppId 的缓存。
+- `guide/dev/plugins.md:86-88` 也建议备份后删除/归档。
+
+因此用户按提示归档旧缓存后，新版会在账号路径创建**空 v4 缓存**。旧缓存中的 `Records`、`ThumbMediaIds`、`Operations` 全部丢失。
+
+### 12.2 影响范围
+
+| 旧缓存内容 | 归档后的后果 |
+|---|---|
+| `Records` 成功记录 | 相同内容不再命中，重新创建草稿；发布模式可能重新发布 |
+| `ThumbMediaIds` | 封面/默认图重新上传，浪费素材操作；若素材接口受限会中断 |
+| `Operations: DraftCreated` | 不再复用已有草稿，重新创建草稿 |
+| `Operations: PublishSubmitted` | 丢失 publishId，可能重复发布 |
+| `Operations: DraftSubmitting` | 丢失 recovery guard，可能重复提交草稿 |
+| `Operations: PublishSubmitting` | 丢失 recovery guard，可能重复发布 |
+
+审计报告只提到“旧成功记录迁移后不重复提交”，但 `Operations` 的丢失更危险：它会把原本必须人工恢复的 unknown outcome 变回“可以自动提交”。
+
+### 12.3 根因
+
+当前升级路径只有“拒绝旧缓存”和“归档后空缓存启动”两种状态，没有“把旧缓存绑定到当前 AppId 并迁移”的第三种状态。
+
+旧 v3 缓存没有 AppId，无法自动判断它属于哪个公众号；因此不能自动迁移，但也不能只让用户归档后重试。
+
+### 12.4 最小修复方向
+
+建议增加一次性、人工确认 AppId 的迁移路径，而不是继续建议归档重试。
+
+#### 方案 A（已实施）：显式迁移 flag
+
+在现有 `wechat-sync sync` 之外增加一次性迁移能力（独立子命令或显式 flag 均可），要求用户同时提供/确认：
+
+- 当前 `AppId`（非秘密，来自配置的 AppId 环境变量）；
+- 明确的迁移意图，不能是默认行为。
+
+建议参数形态（二选一）：
+
+```text
+bukit wechat-sync migrate-cache --output dist --confirm-app-id <current-app-id>
+```
+
+或：
+
+```text
+bukit wechat-sync sync ... --migrate-legacy-cache --confirm-legacy-app-id <current-app-id>
+```
+
+迁移步骤：
+
+1. 解析 `CacheFile` 得到旧 base path：`.cache/wechat-sync/sync-cache.json`。
+2. 用现有 `SyncCacheManager.LoadCache(basePath, logger)` 读取 v2/v3；保留其全部结构校验。
+3. 如果旧缓存已经是 v4/有 AppId：拒绝迁移（应走正常账号路径）。
+4. 如果目标账号路径已经存在：拒绝迁移，**不要自动合并**；让用户先备份/对比/决定。
+5. 校验用户确认的 AppId 与当前运行 AppId 一致；不一致直接失败。
+6. 生成 v4 缓存：
+   - `Version = 4`
+   - `AppId = 当前 AppId`
+   - `Records`、`ThumbMediaIds`、`Operations` 原样保留
+   - 不写入 AppSecret
+7. 使用现有 `SaveCache` 原子写入账号路径：
+   `.cache/wechat-sync/sync-cache.<appid-hash>.json`
+8. 保存后重新用 `LoadCache(accountPath, logger, appId)` 做 round-trip 校验，确认：
+   - 版本为 4；
+   - AppId 正确；
+   - Records/ThumbMediaIds/Operations 数量与迁移前一致。
+9. 输出迁移摘要（只输出数量/状态，不输出 secret）：
+   - records 数；
+   - thumb media ID 数；
+   - operations 按 state 计数；
+   - 如存在 `DraftSubmitting`/`PublishSubmitting`，明确提示需要先按 recovery 文档处理。
+10. **不自动删除旧缓存**：旧文件保留作为备份；迁移成功并完成一次验证后再由用户归档。
+
+#### 方案 B：只提供手工 JSON 迁移文档
+
+不推荐作为唯一方案。手工编辑容易漏字段、破坏 Operations 状态，也无法保证 round-trip 校验。可以作为迁移命令不可用时的兜底。
+
+### 12.5 迁移后的同步行为
+
+迁移完成后，正常 `sync` 应保持现有语义：
+
+- 相同 `ContentHash` 的 `Records` 命中 -> `skipped`，不创建新草稿。
+- `ThumbMediaIds` 命中 -> 不重复上传封面。
+- `DraftCreated` + target=draft -> 直接完成记录，不再创建草稿。
+- `DraftCreated` + target=publish -> 从已有 draftId 继续发布。
+- `PublishSubmitted` -> 只轮询已有 publishId，不重新发布。
+- `DraftSubmitting` / `PublishSubmitting` -> 继续 `recoveryRequired`，不自动重试。
+
+### 12.6 必须补的回归
+
+1. **成功记录迁移后不重复提交**
+   - 旧 v3 缓存含 `Records[syncKey]`，同 AppId、同内容。
+   - 迁移到账号 v4 后运行 sync。
+   - 断言 `Skipped=1`、`AddDraftCount=0`、旧记录仍在。
+
+2. **ThumbMediaIds 迁移后不重复上传**
+   - 旧缓存含封面 thumb media ID。
+   - 迁移后同内容运行。
+   - 断言 `UploadThumbCount=0` 或复用旧 media ID。
+
+3. **DraftCreated 迁移后复用草稿**
+   - 旧缓存含 `DraftCreated` + draftId，target=publish。
+   - 迁移后运行。
+   - 断言 publish 使用旧 draftId，`AddDraftCount=0`。
+
+4. **PublishSubmitted 迁移后不重复发布**
+   - 旧缓存含 `PublishSubmitted` + publishId。
+   - 迁移后运行。
+   - 断言只轮询旧 publishId，`PublishCount=0`。
+
+5. **Submitting 状态仍阻断**
+   - 旧缓存含 `DraftSubmitting` / `PublishSubmitting`。
+   - 迁移后运行。
+   - 断言 `recoveryRequired`、gateway 0 调用、operation 保留。
+
+6. **目标账号缓存已存在时拒绝迁移**
+   - 旧 base 与账号 v4 同时存在。
+   - 断言明确失败，不覆盖、不合并。
+
+7. **AppId 确认不一致时拒绝迁移**
+   - 用户确认值与当前 AppId 不同。
+   - 断言失败，旧缓存和目标文件均未改变。
+
+8. **迁移失败可回滚**
+   - 模拟 `SaveCache` 失败。
+   - 断言旧缓存仍在，账号文件未出现或保持原状。
+
+### 12.7 文档修改
+
+`guide/dev/plugins.md` 不应再建议“归档后重试”。应改为：
+
+1. 停止自动化发布，备份旧 `.cache/wechat-sync/sync-cache.json`。
+2. 确认旧缓存属于当前公众号 AppId；无法确认时不要迁移。
+3. 使用迁移命令/flag，把 Records、ThumbMediaIds、Operations 升级到 v4 账号文件。
+4. 检查迁移摘要；有 `DraftSubmitting`/`PublishSubmitting` 时先按 recovery 文档处理。
+5. 先跑 dry-run，再跑一次小范围 sync，确认 `skipped`/`synced` 符合预期。
+6. 验证成功后再归档旧缓存；不要直接删除后重跑。
+
+### 12.8 验收标准
+
+- 旧 v2/v3 缓存可以在人工确认 AppId 后迁移到 v4 账号缓存。
+- Records、ThumbMediaIds、Operations 全部保留，数量 round-trip 一致。
+- 同内容迁移后不重复创建草稿；发布状态不重复发布。
+- Submitting/unknown 状态仍然阻断，不因迁移丢失恢复保护。
+- 旧缓存不会被自动删除；目标缓存已存在时拒绝合并。
+- 文档明确禁止“归档后直接重试”的升级方式。
+- 不持久化 AppSecret。
+
+### 12.9 风险与决策点
+
+- **AppId 归属无法自动验证**：旧 v3 没有 AppId，只能人工确认。迁移命令必须显式要求确认，并在输出中展示缓存摘要；错误确认仍可能把 A 账号状态挂到 B 账号下。
+- **不要自动合并**：旧 base 与账号文件同时存在时，自动合并可能产生冲突记录/错误素材；必须拒绝并要求人工处理。
+- **旧缓存保留策略**：建议保留为备份，不自动删除；用户验证成功后再归档。
+- **迁移与正常 sync 的并发**：迁移应使用账号缓存路径的 run lock（或独立迁移锁），避免迁移写入期间另一个 sync 读取半成品；`SaveCache` 本身是原子替换，但仍应串行化。
+- **v2 缓存**：没有 Operations，迁移时按空 Operations 处理；其余字段保留。
+
+### 12.10 执行结果
+
+1. 已实现 `--migrate-legacy-cache` + `--confirm-legacy-cache-app-id` 与 round-trip 校验。
+2. 已补回归：
+   - 成功记录迁移后 skip，不重复创建草稿；
+   - `ThumbMediaIds` 迁移保留；
+   - `DraftSubmitting` 迁移后仍 `recoveryRequired`；
+   - `PublishSubmitted` 迁移后只轮询、不重复发布；
+   - 无候选内容时仍可迁移；
+   - AppId 确认不一致拒绝迁移；
+   - 无迁移 flag 拒绝并要求迁移而非归档；
+   - 账号缓存已存在时不合并。
+3. 已更新 `guide/dev/plugins.md`。
+4. 已用旧 v3 fixture 做本地假网关验证；完整 WechatSync 专项 306/306 通过。
+5. 已有 v3 缓存的站点应按迁移步骤升级，不应归档后重试。

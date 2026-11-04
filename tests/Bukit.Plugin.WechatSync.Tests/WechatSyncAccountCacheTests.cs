@@ -86,8 +86,8 @@ public sealed class WechatSyncAccountCacheTests : IDisposable
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             new WechatSyncWorkflow(gateway).RunAsync(ContextWithCover(), Options(appId.Name, secret.Name)));
 
-        Assert.Contains("not bound", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Back it up", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("legacy unbound cache", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("migrate", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, gateway.TotalCalls);
         Assert.True(File.Exists(legacyPath));
     }

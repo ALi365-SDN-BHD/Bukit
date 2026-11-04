@@ -59,6 +59,8 @@ public sealed record WechatSyncOptions(
 {
     public HashSet<string>? DraftReviewStatuses { get; init; }
     public HashSet<string>? PublishReviewStatuses { get; init; }
+    public bool MigrateLegacyCache { get; init; }
+    public string? ConfirmedLegacyAppId { get; init; }
 }
 
 public sealed record WechatSyncResult(

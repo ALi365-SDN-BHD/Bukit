@@ -25,6 +25,12 @@ commands:
           - name: --cache-file
             type: string
             description: Sync cache path.
+          - name: --migrate-legacy-cache
+            type: flag
+            description: Migrate a legacy unbound cache after explicit AppId confirmation.
+          - name: --confirm-legacy-cache-app-id
+            type: string
+            description: Current WeChat AppId confirming legacy cache ownership.
           - name: --source-names
             type: string
             description: Comma-separated source names.
