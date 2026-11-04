@@ -23,16 +23,39 @@ internal sealed class SitemapLocFilter
 {
     private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
 
+    private readonly string _scopeOrigin;
+    private readonly string _scopePath;
+
     internal SitemapLocFilter(string siteUrl, string baseUrl)
     {
         Scope = SitemapGenerator.BuildAbsoluteUrl(siteUrl, baseUrl, "/");
+        (_scopeOrigin, _scopePath) = SplitOrigin(Scope);
     }
 
     internal string Scope { get; }
 
+    /// <summary>
+    /// Scheme and host compare case-insensitively; the path compares case-sensitively,
+    /// because <c>/REPO/</c> is a different directory from <c>/repo/</c> on most hosts.
+    /// </summary>
     internal bool IsInScope(string? canonical)
-        => !string.IsNullOrWhiteSpace(canonical) &&
-           canonical.StartsWith(Scope, StringComparison.OrdinalIgnoreCase);
+    {
+        if (string.IsNullOrWhiteSpace(canonical))
+        {
+            return false;
+        }
+
+        var (origin, path) = SplitOrigin(canonical);
+        return string.Equals(origin, _scopeOrigin, StringComparison.OrdinalIgnoreCase) &&
+               path.StartsWith(_scopePath, StringComparison.Ordinal);
+    }
+
+    private static (string Origin, string Path) SplitOrigin(string url)
+    {
+        var schemeEnd = url.IndexOf("://", StringComparison.Ordinal);
+        var pathStart = schemeEnd < 0 ? -1 : url.IndexOf('/', schemeEnd + 3);
+        return pathStart < 0 ? (url, "/") : (url[..pathStart], url[pathStart..]);
+    }
 
     internal SitemapLocDecision Evaluate(string? canonical)
     {

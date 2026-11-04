@@ -48,11 +48,6 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.OrdinalIgnoreCase);
         var trustRequirements = TrustAuditRequirements.From(ContentModelSchemaFactory.FromConfig(config));
         var feedWindowRoutes = BuildFeedWindowRoutes(config, seoIndex.Values, recordsById);
-        // Pages whose canonical points outside the site's sitemap location are left out of
-        // the sitemap by design, so they must not be reported as missing from it.
-        var sitemapScope = string.IsNullOrWhiteSpace(config.Site.Url)
-            ? null
-            : new SitemapLocFilter(config.Site.Url, config.Site.BaseUrl);
         var searchActionExpected = config.Site.Seo.Enabled &&
                                    config.Site.Seo.Schema.SearchAction &&
                                    !string.IsNullOrWhiteSpace(config.Site.Search.Route);
@@ -88,7 +83,9 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var searchExpected = entry.Indexable && (sourceDocument is null || !SearchIndexDocuments.IsSearchExcluded(sourceDocument));
             var curation = sourceDocument is null ? null : LlmsCurationPolicyParser.Parse(sourceDocument);
             var llmsExcluded = curation is { IsExplicitlyExcluded: true };
-            var sitemapExpected = entry.Indexable && (sitemapScope is null || sitemapScope.IsInScope(entry.Canonical));
+            // Pages whose canonical points outside the site's sitemap location are left out of
+            // the sitemap by design, so they must not be reported as missing from it.
+            var sitemapExpected = entry.Indexable && SeoCompatibilityAuditRules.IsInSitemapScope(config.Site.Url, config.Site.BaseUrl, entry.Canonical);
             var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
                 ? projectedSitemap
                 : entry.Indexable && ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>");

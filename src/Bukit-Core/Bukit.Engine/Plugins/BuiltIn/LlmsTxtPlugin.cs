@@ -18,7 +18,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     }
 
     // llms.txt must start with "# Title"; a BOM would hide the H1 from strict parsers.
-    private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     public string Name => "llms-txt";
     public string Version => "1.0.0";

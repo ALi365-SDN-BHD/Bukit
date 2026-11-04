@@ -2,6 +2,13 @@ namespace Bukit.Engine.PublishAuditRules;
 
 internal static class SeoCompatibilityAuditRules
 {
+    /// <summary>
+    /// Whether the sitemap writers would list this canonical. Without <c>site.url</c> there is
+    /// no sitemap scope, so every canonical counts as in scope.
+    /// </summary>
+    internal static bool IsInSitemapScope(string? siteUrl, string baseUrl, string? canonical)
+        => string.IsNullOrWhiteSpace(siteUrl) || new SitemapLocFilter(siteUrl, baseUrl).IsInScope(canonical);
+
     internal static void Analyze(
         PublishDocument document,
         bool sitemapIncluded,

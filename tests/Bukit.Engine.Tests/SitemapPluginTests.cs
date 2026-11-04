@@ -204,6 +204,10 @@ public sealed class SitemapPluginTests
     [InlineData("https://example.com", "/repo/", "https://example.com/repository/a/", false)]
     [InlineData("https://example.com", "/repo/", "https://example.com/a/", false)]
     [InlineData("https://example.com", "/", "", false)]
+    [InlineData("https://example.com", "/repo/", "https://example.com/REPO/a/", false)]
+    [InlineData("https://example.com", "/repo/", "HTTPS://Example.COM/repo/a/", true)]
+    [InlineData("https://example.com", "/", "https://example.com", true)]
+    [InlineData("https://example.com:8443", "/", "https://example.com/a/", false)]
     public void SitemapLocFilter_AcceptsOnlyUrlsUnderSitemapLocation(string siteUrl, string baseUrl, string canonical, bool expected)
     {
         var filter = new SitemapLocFilter(siteUrl, baseUrl);
