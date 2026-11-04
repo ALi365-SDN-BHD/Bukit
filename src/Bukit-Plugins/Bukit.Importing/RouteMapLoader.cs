@@ -66,6 +66,14 @@ internal static class RouteMapLoader
                     continue;
                 }
 
+                if (!IsSafeTemplateName(page.Template))
+                {
+                    Console.Error.WriteLine(
+                        $"Route map entry '{page.Source}' has an invalid 'template' value '{page.Template}'. " +
+                        "Use a simple name (letters, digits, '-' or '_'), not a path.");
+                    return null;
+                }
+
                 config.Pages.Add(page);
             }
 
@@ -82,6 +90,10 @@ internal static class RouteMapLoader
             return null;
         }
     }
+
+    private static bool IsSafeTemplateName(string template)
+        => string.IsNullOrWhiteSpace(template) ||
+           template.All(c => char.IsLetterOrDigit(c) || c is '-' or '_');
 
     private static string ReadString(YamlMappingNode node, string key)
     {

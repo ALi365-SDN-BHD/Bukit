@@ -94,6 +94,27 @@ public sealed class ImportCommandWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_HtmlDemoDryRunWithVerify_DoesNotRunBuild()
+    {
+        var demoDir = CreateMinimalDemo();
+        var siteDir = Path.Combine(_rootDir, "sites", "demo-theme");
+        Directory.CreateDirectory(siteDir);
+        // Invalid site.yaml would make VerifyAsync fail; a dry run must never get there.
+        File.WriteAllText(Path.Combine(siteDir, "site.yaml"), "site: [");
+
+        var result = await ImportCommandWorkflow.RunAsync(BaseOptions("html-demo") with
+        {
+            DemoDir = demoDir,
+            ThemeName = "demo-theme",
+            DryRun = true,
+            Verify = true
+        });
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.DoesNotContain(result.Messages, m => m.Level == "error");
+    }
+
+    [Fact]
     public async Task RunAsync_HtmlDemoPushNotionCannotCombineWithDryRun()
     {
         var demoDir = CreateMinimalDemo();

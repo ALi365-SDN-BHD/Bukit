@@ -178,7 +178,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
     }
 
     [Fact]
-    public async Task Invoke_HtmlDemoSitePathProjectRoot_ReturnsSafeArtifactPaths()
+    public async Task Invoke_HtmlDemoSitePathOutsideWriteScope_ReturnsPathDenied()
     {
         CreateMinimalDemo();
 
@@ -191,10 +191,30 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
                 ["--site-path"] = Json(".")
             }));
 
+        Assert.False(response.Success);
+        Assert.Equal(2, response.ExitCode);
+        Assert.Contains(response.Diagnostics, diagnostic => diagnostic.Code == "plugin.import.pathDenied");
+        Assert.False(Directory.Exists(Path.Combine(_rootDir, "themes", "demo-theme")));
+    }
+
+    [Fact]
+    public async Task Invoke_HtmlDemoSitePathInScope_ReturnsSafeArtifactPaths()
+    {
+        CreateMinimalDemo();
+
+        var response = await ImportPluginInvoker.InvokeAsync(Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--site-path"] = Json("sites/demo-site")
+            }));
+
         Assert.True(response.Success);
         Assert.Equal(0, response.ExitCode);
         Assert.DoesNotContain(response.Artifacts, artifact => artifact.Path is "." or "");
-        Assert.Contains(response.Artifacts, artifact => artifact.Type == "site" && artifact.Path == "site.yaml");
+        Assert.Contains(response.Artifacts, artifact => artifact.Type == "site" && artifact.Path == "sites/demo-site");
     }
 
     [Fact]
@@ -234,15 +254,15 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
                 ["--input"] = Json("seed"),
                 ["--database-id"] = Json("db-single"),
                 ["--dry-run"] = Json(true),
-                ["--report"] = Json("reports/notion-plan.json")
+                ["--report"] = Json(".bukit/reports/plugin-output/import/notion-plan.json")
             }));
 
         Assert.True(response.Success);
         Assert.Equal(0, response.ExitCode);
-        Assert.True(File.Exists(Path.Combine(_rootDir, "reports", "notion-plan.json")));
+        Assert.True(File.Exists(Path.Combine(_rootDir, ".bukit", "reports", "plugin-output", "import", "notion-plan.json")));
         Assert.Contains(response.Messages, message => message.Message.Contains("notion push dry-run complete: records=1", StringComparison.Ordinal));
         var artifact = Assert.Single(response.Artifacts, artifact => artifact.Type == "report");
-        Assert.Equal("reports/notion-plan.json", artifact.Path);
+        Assert.Equal(".bukit/reports/plugin-output/import/notion-plan.json", artifact.Path);
     }
 
     [Fact]
@@ -292,7 +312,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
             options: new Dictionary<string, JsonElement>
             {
                 ["--database-id"] = Json("db-schema"),
-                ["--report"] = Json("reports/schema.json")
+                ["--report"] = Json(".bukit/reports/plugin-output/import/schema.json")
             },
             permissions: PermissionsWithNotionToken()));
 
@@ -300,7 +320,7 @@ public sealed class ImportPluginInvokeCompatibilityTests : IDisposable
         Assert.Equal(0, response.ExitCode);
         Assert.Contains(response.Messages, message => message.Message.Contains("schema validation: PASSED", StringComparison.Ordinal));
         var artifact = Assert.Single(response.Artifacts, artifact => artifact.Type == "report");
-        Assert.Equal("reports/schema.json", artifact.Path);
+        Assert.Equal(".bukit/reports/plugin-output/import/schema.json", artifact.Path);
     }
 
     [Fact]

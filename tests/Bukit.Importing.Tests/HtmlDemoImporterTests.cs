@@ -941,10 +941,11 @@ public sealed class HtmlDemoImporterTests : IDisposable
         var about = File.ReadAllText(Path.Combine(contentDir, "pages", "about.md"));
         var post = File.ReadAllText(Path.Combine(contentDir, "posts", "article-detail.md"));
         var company = File.ReadAllText(Path.Combine(contentDir, "companies", "company-detail.md"));
-        Assert.Contains("collection: \"page\"", index);
-        Assert.Contains("collection: \"page\"", about);
-        Assert.Contains("collection: \"post\"", post);
-        Assert.Contains("collection: \"company\"", company);
+        Assert.Contains("collection: page", index);
+        Assert.Contains("collection: page", about);
+        Assert.Contains("collection: post", post);
+        Assert.Contains("collection: company", company);
+        Assert.Contains("draft: false", index);
         Assert.False(File.Exists(Path.Combine(contentDir, "pages", "article-detail.md")));
         Assert.False(File.Exists(Path.Combine(contentDir, "pages", "company-detail.md")));
         Assert.DoesNotContain("type: \"", index);

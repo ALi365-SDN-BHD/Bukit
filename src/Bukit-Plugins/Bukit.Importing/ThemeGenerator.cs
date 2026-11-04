@@ -133,8 +133,8 @@ internal static partial class ThemeGenerator
         {
             var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
             var routeTemplate = PageClassifier.GetTemplate(routeMap, fileName);
-            if (routeTemplate != null)
-                return routeTemplate + ".html";
+            if (!string.IsNullOrWhiteSpace(routeTemplate))
+                return SanitizeTemplateName(routeTemplate) + ".html";
         }
 
         return page.Type switch

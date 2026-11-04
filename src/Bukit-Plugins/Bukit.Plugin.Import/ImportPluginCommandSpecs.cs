@@ -1,5 +1,6 @@
 using Bukit.Plugin.Abstractions.Manifest;
 using Bukit.Plugin.Abstractions.Security;
+using Bukit.Shared;
 
 namespace Bukit.Plugin.Import;
 
@@ -14,6 +15,16 @@ public static class ImportPluginCommandSpecs
         "./docs/research",
         ".bukit/reports/plugin-output/import"
     ];
+
+    /// <summary>Write roots declared in the manifest's permissions.filesystem.write.</summary>
+    public static IReadOnlyList<string> WriteRoots => FileSystemWrites;
+
+    public static bool IsWritablePath(string rootDir, string path)
+        => FileSystemWrites.Any(root =>
+            PathUtils.IsSameOrSubPathOf(path, Path.Combine(rootDir, NormalizeRoot(root))));
+
+    private static string NormalizeRoot(string root)
+        => root.StartsWith("./", StringComparison.Ordinal) ? root[2..] : root.TrimStart('/');
 
     public static IReadOnlyList<PluginCommandSpec> CreateCommands()
         =>

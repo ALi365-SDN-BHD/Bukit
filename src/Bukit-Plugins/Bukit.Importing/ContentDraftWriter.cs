@@ -20,13 +20,13 @@ internal static class ContentDraftWriter
             WritePageDraft(contentDir, page, options.Overwrite);
 
         foreach (var post in content.Posts)
-            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.SeoTitle, post.SeoDescription, options.Overwrite);
 
         foreach (var company in content.Companies)
-            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.SeoTitle, company.SeoDescription, options.Overwrite);
 
         foreach (var service in content.Services)
-            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.SeoTitle, service.SeoDescription, options.Overwrite);
     }
 
     private static bool IsNotionBuildSource(HtmlDemoImportOptions options)
@@ -38,7 +38,8 @@ internal static class ContentDraftWriter
         var dir = page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase)
             ? contentDir
             : Path.Combine(contentDir, "pages");
-        WriteCollectionDraft(dir, page.Title, slug, "page", page.Summary, page.Content, overwrite);
+        WriteCollectionDraft(dir, page.Title, slug, "page", page.Summary, page.Content,
+            page.SeoTitle, page.SeoDescription, overwrite);
     }
 
     private static bool IsBuildPageDraft(PageRecord page)
@@ -52,6 +53,8 @@ internal static class ContentDraftWriter
         string collection,
         string? summary,
         string? content,
+        string? seoTitle,
+        string? seoDescription,
         bool overwrite)
     {
         Directory.CreateDirectory(dir);
@@ -60,27 +63,23 @@ internal static class ContentDraftWriter
         var path = Path.Combine(dir, $"{safeSlug}.md");
         if (File.Exists(path) && !overwrite) return;
 
+        var fields = new List<KeyValuePair<string, object?>>
+        {
+            new("title", title),
+            new("slug", safeSlug),
+            new("collection", collection),
+            new("summary", summary),
+            new("seo_title", seoTitle),
+            new("seo_desc", seoDescription),
+            new("draft", false)
+        };
+
         var sb = new StringBuilder();
         sb.AppendLine("---");
-        sb.AppendLine($"title: \"{EscapeYaml(title)}\"");
-        sb.AppendLine($"slug: \"{EscapeYaml(safeSlug)}\"");
-        sb.AppendLine($"collection: \"{collection}\"");
-        if (!string.IsNullOrWhiteSpace(summary))
-            sb.AppendLine($"summary: \"{EscapeYaml(summary)}\"");
-        sb.AppendLine("published: true");
+        sb.Append(YamlEmitter.Emit(fields));
         sb.AppendLine("---");
         sb.AppendLine();
         sb.AppendLine(content?.Trim() ?? "");
         File.WriteAllText(path, sb.ToString());
-    }
-
-    private static string EscapeYaml(string value)
-    {
-        return value
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\n", "\\n")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t");
     }
 }

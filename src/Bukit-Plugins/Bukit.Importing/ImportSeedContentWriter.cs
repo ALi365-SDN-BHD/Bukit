@@ -1,5 +1,5 @@
-using System.Text;
 using Bukit.Shared;
+using System.Text;
 
 namespace Bukit.Importing;
 
@@ -12,11 +12,21 @@ public static class ImportSeedContentWriter
     {
         Directory.CreateDirectory(outputDir);
         var written = new List<string>();
+        var claimed = new HashSet<string>(PathComparer);
 
         foreach (var record in records)
         {
             var slug = GetEffectiveSlug(record);
             var path = ResolvePath(outputDir, record, slug);
+            if (!claimed.Add(path))
+            {
+                // Two records normalize to the same file; writing the second would
+                // silently destroy the first, so keep the first and report it.
+                Console.Error.WriteLine(
+                    $"Skipped duplicate seed output '{path}' (record '{record.Title}'). Check slugs that normalize to the same name.");
+                continue;
+            }
+
             if (File.Exists(path) && !overwrite) continue;
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -26,6 +36,9 @@ public static class ImportSeedContentWriter
 
         return written;
     }
+
+    private static StringComparer PathComparer =>
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private static string ResolvePath(string outputDir, ImportSeedRecord record, string slug)
     {
@@ -54,57 +67,36 @@ public static class ImportSeedContentWriter
 
     private static string BuildMarkdown(ImportSeedRecord record, string slug)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("---");
-        sb.AppendLine($"title: \"{EscapeYaml(record.Title)}\"");
-        sb.AppendLine($"slug: \"{EscapeYaml(slug)}\"");
-        sb.AppendLine($"type: \"{record.Collection}\"");
-        if (!string.IsNullOrWhiteSpace(record.Summary))
-            sb.AppendLine($"summary: \"{EscapeYaml(record.Summary)}\"");
-        if (!string.IsNullOrWhiteSpace(record.Language))
-            sb.AppendLine($"language: \"{EscapeYaml(record.Language)}\"");
-        if (!string.IsNullOrWhiteSpace(record.SeoTitle))
-            sb.AppendLine($"seo_title: \"{EscapeYaml(record.SeoTitle)}\"");
-        if (!string.IsNullOrWhiteSpace(record.SeoDescription))
-            sb.AppendLine($"seo_description: \"{EscapeYaml(record.SeoDescription)}\"");
+        var fields = new List<KeyValuePair<string, object?>>
+        {
+            new("title", record.Title),
+            new("slug", slug),
+            new("type", record.Collection),
+            new("summary", record.Summary),
+            new("language", record.Language),
+            new("seo_title", record.SeoTitle),
+            new("seo_desc", record.SeoDescription),
+            // Core only understands draft:true as unpublished; "published: false" is inert.
+            new("draft", !record.Published)
+        };
+
+        var known = new HashSet<string>(fields.Select(f => f.Key), StringComparer.OrdinalIgnoreCase);
         if (record.ExtraFields is not null)
         {
             foreach (var (key, value) in record.ExtraFields)
             {
-                if (value is null) continue;
-                if (value is IEnumerable<object?> sequence)
-                {
-                    sb.AppendLine($"{key}:");
-                    foreach (var item in sequence)
-                    {
-                        sb.AppendLine($"  - {FormatYamlScalar(item)}");
-                    }
-
-                    continue;
-                }
-
-                sb.AppendLine($"{key}: {FormatYamlScalar(value)}");
+                if (value is null || !known.Add(key)) continue;
+                fields.Add(new(key, value));
             }
         }
-        sb.AppendLine($"published: {record.Published.ToString().ToLowerInvariant()}");
+
+        var sb = new StringBuilder();
+        sb.AppendLine("---");
+        sb.Append(YamlEmitter.Emit(fields));
         sb.AppendLine("---");
         sb.AppendLine();
         if (!string.IsNullOrWhiteSpace(record.Content))
             sb.AppendLine(record.Content);
         return sb.ToString();
-    }
-
-    private static string FormatYamlScalar(object? value)
-        => value switch
-        {
-            null => "null",
-            bool b => b.ToString().ToLowerInvariant(),
-            int or long or float or double or decimal => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!,
-            _ => $"\"{EscapeYaml(value.ToString() ?? string.Empty)}\""
-        };
-
-    private static string EscapeYaml(string value)
-    {
-        return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 }

@@ -141,6 +141,34 @@ public sealed class RouteMapLoaderTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Load_TemplateWithPathTraversal_RejectsWholeMap()
+    {
+        var path = WriteRouteMap(
+            """
+            pages:
+              - source: about
+                route: /about/
+                type: Page
+                template: ../../outside
+            """);
+
+        var original = Console.Error;
+        using var stderr = new StringWriter();
+        try
+        {
+            Console.SetError(stderr);
+            var config = RouteMapLoader.Load(path);
+
+            Assert.Null(config);
+            Assert.Contains("invalid 'template'", stderr.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetError(original);
+        }
+    }
+
     private string WriteRouteMap(string yaml)
     {
         var path = Path.Combine(_tempDir, "routes.yaml");

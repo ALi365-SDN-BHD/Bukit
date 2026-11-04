@@ -135,25 +135,33 @@ internal static class NotionDatabaseMapReader
     internal static void WriteDatabaseMap(string path, IReadOnlyList<NotionDatabaseTarget> targets)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var sb = new StringBuilder();
-        sb.AppendLine("databases:");
+
+        var databases = new Dictionary<string, object?>(StringComparer.Ordinal);
         foreach (var target in targets)
         {
-            sb.AppendLine($"  {target.Key}:");
-            sb.AppendLine($"    title: {target.Title}");
-            sb.AppendLine($"    seed: {target.SeedFile}");
-            sb.AppendLine($"    collection: {target.Collection}");
+            var entry = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["title"] = target.Title,
+                ["seed"] = target.SeedFile,
+                ["collection"] = target.Collection
+            };
+
             if (!string.IsNullOrWhiteSpace(target.DatabaseId))
-                sb.AppendLine($"    databaseId: {target.DatabaseId}");
-            sb.AppendLine($"    uniqueField: {target.UniqueField}");
+                entry["databaseId"] = target.DatabaseId;
+
+            entry["uniqueField"] = target.UniqueField;
+
             if (target.Schema is { Count: > 0 })
             {
-                sb.AppendLine("    schema:");
-                foreach (var field in target.Schema.OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase))
-                    sb.AppendLine($"      {field.Key}: {field.Value}");
+                entry["schema"] = target.Schema
+                    .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(f => f.Key, f => (object?)f.Value, StringComparer.Ordinal);
             }
+
+            databases[target.Key] = entry;
         }
-        File.WriteAllText(path, sb.ToString());
+
+        File.WriteAllText(path, YamlEmitter.Emit([new("databases", databases)]));
     }
 
     internal static string InferCollection(string key, string seedFile)
