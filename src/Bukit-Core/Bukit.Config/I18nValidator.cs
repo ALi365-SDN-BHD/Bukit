@@ -133,9 +133,9 @@ internal static class I18nValidator
         }
 
         var geoAiBotMode = (site.Seo.Geo.AiBotMode ?? "allow").Trim().ToLowerInvariant();
-        if (geoAiBotMode is not ("allow" or "block" or "selective"))
+        if (geoAiBotMode is not ("allow" or "block-training" or "block" or "selective"))
         {
-            throw new ConfigException("site.seo.geo.aiBotMode must be allow|block|selective.");
+            throw new ConfigException("site.seo.geo.aiBotMode must be allow|block-training|block|selective.");
         }
 
         ValidateAnalytics(site.Analytics);

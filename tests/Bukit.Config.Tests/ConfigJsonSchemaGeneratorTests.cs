@@ -91,7 +91,10 @@ public sealed class ConfigJsonSchemaGeneratorTests
             .GetProperty("properties");
         Assert.True(geo.TryGetProperty("enabled", out _));
         Assert.True(geo.TryGetProperty("llmsTxtMaxArticles", out _));
-        Assert.True(geo.TryGetProperty("aiBotMode", out _));
+        Assert.True(geo.TryGetProperty("aiBotMode", out var aiBotMode));
+        Assert.Equal(
+            ["allow", "block-training", "block", "selective"],
+            aiBotMode.GetProperty("enum").EnumerateArray().Select(x => x.GetString() ?? string.Empty).ToArray());
         Assert.True(geo.TryGetProperty("aiBotAllowList", out _));
         Assert.True(geo.TryGetProperty("aiBotBlockList", out _));
         Assert.True(geo.TryGetProperty("llmsTxtOptionalLinks", out _));

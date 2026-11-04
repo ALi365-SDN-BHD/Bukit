@@ -23,22 +23,6 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
     public string Name => "llms-txt";
     public string Version => "1.0.0";
 
-    private static readonly string[] AiBots =
-    {
-        "GPTBot",
-        "ChatGPT-User",
-        "Google-Extended",
-        "Claude-Web",
-        "ClaudeBot",
-        "Anthropic-AI",
-        "PerplexityBot",
-        "Cohere-AI",
-        "CCBot",
-        "Diffbot",
-        "FacebookBot",
-        "OAI-SearchBot"
-    };
-
     public async Task AfterBuildAsync(BuildContext context, CancellationToken cancellationToken = default)
     {
         var geo = _config.Site.Seo.Geo;

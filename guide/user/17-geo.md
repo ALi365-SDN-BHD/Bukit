@@ -26,6 +26,51 @@ many articles, and a negative value fails configuration validation. The default
 remains `20` when the field is omitted. Use `0` for collections whose article
 count grows over time, while monitoring the generated `llms.txt` file size.
 
+## AI crawlers
+
+`aiBotMode` writes one `robots.txt` group per known AI crawler. Bukit sorts
+crawlers by what they fetch pages for:
+
+| Purpose | Crawlers | Effect of blocking |
+|---|---|---|
+| Training | `GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`, `Meta-ExternalAgent`, `CCBot`, `Bytespider`, `Amazonbot`, `cohere-ai`, `Diffbot` | Content is not used to train models. The site can still appear in AI answers. |
+| AI search | `OAI-SearchBot`, `Claude-SearchBot`, `PerplexityBot` | The site drops out of AI search results and cannot be cited. |
+| User fetch | `ChatGPT-User`, `Claude-User`, `Perplexity-User` | Assistants cannot open the page when a user asks about it. |
+
+| Mode | Result |
+|---|---|
+| `allow` (default) | Every known crawler is allowed. |
+| `block-training` | Training crawlers are blocked; AI search and user-fetch crawlers stay allowed. Use this to opt out of training while staying citable. |
+| `block` | Every known crawler is blocked, including AI search. The site disappears from AI answers. |
+| `selective` | With `aiBotAllowList`, only listed crawlers are allowed and other known crawlers are blocked. With only `aiBotBlockList`, just those crawlers are blocked. |
+
+In every mode, `aiBotAllowList` names are allowed and `aiBotBlockList` names
+are blocked; a name on both lists is blocked. Names Bukit does not know are
+added as extra groups.
+
+```yaml
+site:
+  url: https://example.com
+  seo:
+    robotsTxt:
+      enabled: true
+    geo:
+      aiBotMode: block-training
+```
+
+The policy only takes effect when `site.seo.robotsTxt.enabled` is `true` and
+`site.url` is set. Otherwise the build logs
+`event=robots.ai_policy_inactive` as a warning. A static `robots.txt` in your
+project is kept as is, so the policy is not written; the build logs the same
+event at info level.
+
+The publish audit reports `publish.ai_crawler_policy_conflict` only when an AI
+search or user-fetch crawler is blocked for an indexable page. Blocking
+training crawlers alone is not reported.
+
+Crawler names change often. The list reflects vendor documentation as of
+mid-2026; check each vendor's crawler page before relying on it.
+
 ## FAQ and HowTo content
 
 `geo.schema_type: FAQPage` requires a nonempty `faq` list in the page's geo block; `HowTo`

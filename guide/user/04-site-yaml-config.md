@@ -108,9 +108,9 @@ content:
 | `site.seo.geo.llmsTxt` | `true` | Writes `llms.txt` when build output is indexable. |
 | `site.seo.geo.llmsFullTxt` | `false` | Writes `llms-full.txt`. |
 | `site.seo.geo.llmsTxtMaxArticles` | `20` | `0` writes every published, indexable article in each collection; a positive integer caps each collection; a negative value fails configuration validation. |
-| `site.seo.geo.aiBotMode` | `allow` | `allow`, `block`, or `selective`. |
-| `site.seo.geo.aiBotAllowList` | none | Bot names allowed in selective mode. |
-| `site.seo.geo.aiBotBlockList` | none | Bot names blocked in selective mode. |
+| `site.seo.geo.aiBotMode` | `allow` | `allow`, `block-training`, `block`, or `selective`. Takes effect only when `site.seo.robotsTxt.enabled` is `true`; see [17 GEO](17-geo.md#ai-crawlers). |
+| `site.seo.geo.aiBotAllowList` | none | Crawler names always allowed. In `selective` mode, only these are allowed. |
+| `site.seo.geo.aiBotBlockList` | none | Crawler names always blocked. A name on both lists is blocked. |
 | `site.seo.geo.llmsTxtOptionalLinks[]` | none | Items with `title`, `url`, and optional `description`. |
 | `site.plugins.analytics.enabled` | `true` | Enables the Core built-in Analytics plugin lifecycle. When false, Bukit does not create or run its HTML transform. |
 | `site.analytics.enabled` | `true` | Enables Analytics output after the plugin lifecycle switch has allowed the plugin to run. |

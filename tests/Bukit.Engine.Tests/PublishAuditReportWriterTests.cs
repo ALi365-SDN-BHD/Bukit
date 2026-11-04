@@ -144,7 +144,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
             """);
         File.WriteAllText(Path.Combine(_outputDir, "search.json"), "[]");
         File.WriteAllText(Path.Combine(_outputDir, "robots.txt"), """
-            User-agent: GPTBot
+            User-agent: OAI-SearchBot
             Disallow: /
             Sitemap: https://example.com/sitemap.xml
             """);
@@ -450,7 +450,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
             """);
         File.WriteAllText(Path.Combine(_outputDir, "rss.xml"), "<rss><channel></channel></rss>");
         File.WriteAllText(Path.Combine(_outputDir, "robots.txt"), """
-            User-agent: GPTBot
+            User-agent: OAI-SearchBot
             Disallow: /
             Allow: /post/
             """);
@@ -841,7 +841,7 @@ public sealed class PublishAuditReportWriterTests : IDisposable
             </html>
             """);
         File.WriteAllText(Path.Combine(_outputDir, "robots.txt"), """
-            User-agent: GPTBot
+            User-agent: OAI-SearchBot
             Disallow:
 
             User-agent: Googlebot
@@ -862,14 +862,16 @@ public sealed class PublishAuditReportWriterTests : IDisposable
     }
 
     [Theory]
-    [InlineData("User-agent: *\nAllow: /\nUser-agent: GPTBot\nDisallow: /", true, false)]
-    [InlineData("User-agent: GPTBot\nDisallow: /\nUser-agent: ClaudeBot\nAllow: /", true, false)]
-    [InlineData("User-agent: *\nDisallow: /\nUser-agent: GPTBot\nAllow: /", true, true)]
-    [InlineData("User-agent: GPTBot\nDisallow: /\nAllow: /post/", false, false)]
-    [InlineData("User-agent: GPTBot\nDisallow: /\nUser-agent: gptbot\nAllow: /post/", false, false)]
-    [InlineData("User-agent: GPTBot\nUser-agent: ClaudeBot\nDisallow: /post/", true, false)]
+    [InlineData("User-agent: *\nAllow: /\nUser-agent: OAI-SearchBot\nDisallow: /", true, false)]
+    [InlineData("User-agent: OAI-SearchBot\nDisallow: /\nUser-agent: Claude-SearchBot\nAllow: /", true, false)]
+    [InlineData("User-agent: *\nDisallow: /\nUser-agent: OAI-SearchBot\nAllow: /", true, true)]
+    [InlineData("User-agent: OAI-SearchBot\nDisallow: /\nAllow: /post/", false, false)]
+    [InlineData("User-agent: OAI-SearchBot\nDisallow: /\nUser-agent: oai-searchbot\nAllow: /post/", false, false)]
+    [InlineData("User-agent: OAI-SearchBot\nUser-agent: Claude-SearchBot\nDisallow: /post/", true, false)]
     [InlineData("User-agent: Googlebot\nDisallow: /", false, false)]
-    [InlineData("User-agent: Cohere-AI\nDisallow: /", true, false)]
+    [InlineData("User-agent: Claude-User\nDisallow: /", true, false)]
+    [InlineData("User-agent: cohere-ai\nDisallow: /", false, false)]
+    [InlineData("User-agent: GPTBot\nUser-agent: ClaudeBot\nUser-agent: Google-Extended\nDisallow: /", false, false)]
     [InlineData("User-agent: *\nDisallow: /Post/", false, false)]
     [InlineData("User-agent : * # default group\nDisallow: /po* # matching prefix", true, true)]
     [InlineData("User-agent: *\nDisallow: /post$", false, false)]

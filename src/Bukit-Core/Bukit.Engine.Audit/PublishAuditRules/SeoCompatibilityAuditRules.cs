@@ -69,7 +69,7 @@ internal static class SeoCompatibilityAuditRules
 
         if (BlocksAiCrawler(robotsText, document.RouteUrl))
         {
-            issues.Add(Warning("publish.ai_crawler_policy_conflict", document.RouteUrl, "AI crawler policy blocks an indexable published route."));
+            issues.Add(Warning("publish.ai_crawler_policy_conflict", document.RouteUrl, "AI search crawler policy blocks an indexable published route, so it cannot be cited in AI answers."));
         }
     }
 
@@ -92,17 +92,12 @@ internal static class SeoCompatibilityAuditRules
         }
     }
 
-    private static readonly string[] AiAgents =
-    [
-        "GPTBot", "ChatGPT-User", "OAI-SearchBot", "ClaudeBot", "Claude-Web",
-        "anthropic-ai", "PerplexityBot", "Google-Extended", "CCBot", "Bytespider",
-        "Amazonbot", "Cohere-AI", "Diffbot", "FacebookBot"
-    ];
-
+    // Only AI search and user-fetch crawlers decide whether a page can be cited in AI answers.
+    // Blocking training crawlers (for example aiBotMode: block-training) is a deliberate choice, not a conflict.
     private static bool BlocksAiCrawler(string? robotsText, string routeUrl)
     {
         var rules = new RobotsTxtRules(robotsText);
-        return AiAgents.Any(agent => rules.IsBlocked(agent, routeUrl));
+        return AiCrawlerCatalog.VisibilityUserAgents.Any(agent => rules.IsBlocked(agent, routeUrl));
     }
 
     private static PublishAuditIssue Warning(string code, string? route, string message) => new("warning", code, route, message);
