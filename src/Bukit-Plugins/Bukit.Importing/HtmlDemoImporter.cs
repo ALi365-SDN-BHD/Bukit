@@ -150,7 +150,10 @@ public static class HtmlDemoImporter
     }
 
     internal static void WriteComponentTemplates(HtmlDemoImportOptions options,
-        List<DiscoveredComponent> components)
+        List<DiscoveredComponent> components,
+        Dictionary<string, string> pathMappings,
+        List<DiscoveredPage> pages,
+        RouteMapConfig? routeMap)
     {
         if (components.Count == 0) return;
 
@@ -163,7 +166,10 @@ public static class HtmlDemoImporter
 
             var filePath = Path.Combine(compDir, $"{component.Name}.html");
             if (File.Exists(filePath) && !options.Overwrite) continue;
-            File.WriteAllText(filePath, component.NormalizedTemplate);
+
+            var content = AssetImporter.RewritePaths(component.NormalizedTemplate, pathMappings);
+            content = ContentExtractor.RewriteNavigationLinks(content, pages, routeMap);
+            File.WriteAllText(filePath, content);
         }
     }
 

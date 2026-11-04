@@ -863,6 +863,120 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_RouteMapSlugEscapingTheContentDirectory_ThrowsBeforeWriting()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "route-map.yaml"), """
+pages:
+  - source: about.html
+    route: /about/
+    type: Page
+    template: about
+    slug: ../../../escaped
+""");
+
+        var ex = Assert.Throws<ImportException>(() => HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "slug-escape",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = Path.Combine(_tempDir, "route-map.yaml")
+        }));
+
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.False(File.Exists(Path.Combine(_tempDir, "escaped.md")));
+    }
+
+    [Fact]
+    public void Import_ValuesWithYamlSyntax_StayValidInSiteConfig()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "yaml-values",
+            RootDir = _tempDir,
+            Force = true,
+            Language = "zh: #1",
+            BaseUrl = "/base: #2"
+        });
+
+        var config = Bukit.Config.ConfigLoader.Load(Path.Combine(_tempDir, "sites", "yaml-values", "site.yaml"));
+
+        Assert.Equal("yaml-values", config.Site.Name);
+        Assert.Equal("zh: #1", config.Site.Language);
+        Assert.Equal("/base: #2", config.Site.BaseUrl);
+        Assert.Equal("dist", config.Build.Output);
+    }
+
+    [Fact]
+    public void Import_ComponentTemplates_RewriteAssetsAndNavigationLinks()
+    {
+        Directory.CreateDirectory(Path.Combine(_tempDir, "img"));
+        File.WriteAllText(Path.Combine(_tempDir, "img", "hero.png"), "fake image");
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><section class=\"hero\"><h1>Home</h1><p>Intro</p><img src=\"img/hero.png\" alt=\"Hero\"><a href=\"contact.html\">Talk</a></section></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "contact.html"),
+            "<html><head><title>Contact</title></head><body><main><h1>Contact</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "component-assets",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var hero = File.ReadAllText(Path.Combine(_tempDir, "themes", "component-assets", "layouts", "components", "hero.html"));
+        Assert.Contains("src=\"/img/hero.png\"", hero, StringComparison.Ordinal);
+        Assert.Contains("href=\"/contact/\"", hero, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "component-assets", "static", "img", "hero.png")));
+    }
+
+    [Fact]
+    public void Import_DuplicateContentSlug_KeepsTheFirstRecord()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "a.html"),
+            "<html><head><title>Alpha</title></head><body><main><h1>Alpha</h1><p>Body A.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "b.html"),
+            "<html><head><title>Beta</title></head><body><main><h1>Beta</h1><p>Body B.</p></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "route-map.yaml"), """
+pages:
+  - source: a.html
+    route: /a/
+    type: Page
+    template: page
+    slug: same-slug
+  - source: b.html
+    route: /b/
+    type: Page
+    template: page
+    slug: same-slug
+""");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "duplicate-slug",
+            RootDir = _tempDir,
+            Force = true,
+            RouteMapPath = Path.Combine(_tempDir, "route-map.yaml")
+        });
+
+        var draft = File.ReadAllText(Path.Combine(_tempDir, "sites", "duplicate-slug", "content", "pages", "same-slug.md"));
+        Assert.Contains("title: Alpha", draft, StringComparison.Ordinal);
+        Assert.DoesNotContain("Body B.", draft, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Import_InlineHeadStyle_IsKeptInBaseLayout()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
@@ -881,6 +995,26 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_InlineStyleOnASubPage_IsKeptInBaseLayout()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "about.html"),
+            "<html><head><title>About</title><style>.hero{color:blue}</style></head><body><main><h1>About</h1></main></body></html>");
+
+        HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir,
+            ThemeName = "subpage-style",
+            RootDir = _tempDir,
+            Force = true
+        });
+
+        var baseLayout = File.ReadAllText(Path.Combine(_tempDir, "themes", "subpage-style", "layouts", "layouts", "base.html"));
+        Assert.Contains(".hero{color:blue}", baseLayout, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Import_IndexOnlyDemo_GeneratesPageTemplateReferencedBySiteConfig()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),
@@ -896,7 +1030,7 @@ public sealed class HtmlDemoImporterTests : IDisposable
 
         Assert.True(File.Exists(Path.Combine(_tempDir, "themes", "index-only", "layouts", "pages", "page.html")));
         var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "index-only", "site.yaml"));
-        Assert.Contains("template: 'pages/page.html'", siteYaml, StringComparison.Ordinal);
+        Assert.Contains("template: pages/page.html", siteYaml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1103,6 +1237,9 @@ pages:
             "notion-seed/ directory must exist when using --content-source notion");
         Assert.True(File.Exists(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "notion-seed", "notion-database-map.yaml")),
             "default notion database map must be generated with notion seed files");
+
+        var config = Bukit.Config.ConfigLoader.Load(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "site.yaml"));
+        Assert.True(config.Content.Sources is { Count: >= 2 });
 
         var siteYaml = File.ReadAllText(Path.Combine(_tempDir, "sites", "notion-md-skip-test", "site.yaml"));
         Assert.Contains("sources:", siteYaml);

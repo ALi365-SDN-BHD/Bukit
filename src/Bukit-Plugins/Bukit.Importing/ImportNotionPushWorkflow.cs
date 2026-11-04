@@ -534,11 +534,11 @@ public static class ImportNotionPushWorkflow
         {
             return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Console.Error.WriteLine(
-                $"Another Notion push is already running for {inputDir}. " +
-                $"Wait for it to finish; if the previous run was killed, remove '{path}' and retry. ({ex.Message})");
+                $"Cannot start a Notion push for {inputDir}: the push lock '{path}' is held or the directory is not writable. " +
+                $"Wait for the other run to finish; if a previous run was killed, remove the lock file and retry. ({ex.Message})");
             return null;
         }
     }

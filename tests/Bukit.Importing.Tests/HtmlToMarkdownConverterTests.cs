@@ -83,6 +83,17 @@ Some **bold** and *italic* text.
     }
 
     [Fact]
+    public void Convert_LeadingEmphasisAndInlineDashes_AreNotEscaped()
+    {
+        var markdown = HtmlToMarkdownConverter.Convert(
+            "<p><strong>Warn</strong> now</p><p>-5 degrees</p><p>#tag</p>");
+
+        Assert.Contains("**Warn** now", markdown, StringComparison.Ordinal);
+        Assert.Contains("-5 degrees", markdown, StringComparison.Ordinal);
+        Assert.Contains("#tag", markdown, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Convert_EmptyInput_ReturnsEmptyString()
     {
         Assert.Equal("", HtmlToMarkdownConverter.Convert(null));

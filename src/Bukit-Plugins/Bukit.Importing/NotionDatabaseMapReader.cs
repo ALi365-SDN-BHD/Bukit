@@ -161,9 +161,14 @@ internal static class NotionDatabaseMapReader
             databases[target.Key] = entry;
         }
 
+        var content = YamlEmitter.Emit([new("databases", databases)]);
+        // A run that changed nothing must not rewrite (and reformat) the user's map.
+        if (File.Exists(path) && string.Equals(File.ReadAllText(path), content, StringComparison.Ordinal))
+            return;
+
         // Write-then-rename so a crash cannot leave a truncated recovery map behind.
         var tempPath = path + ".tmp";
-        File.WriteAllText(tempPath, YamlEmitter.Emit([new("databases", databases)]));
+        File.WriteAllText(tempPath, content);
         File.Move(tempPath, path, overwrite: true);
     }
 

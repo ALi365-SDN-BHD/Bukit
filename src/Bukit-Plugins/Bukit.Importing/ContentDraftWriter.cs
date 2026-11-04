@@ -15,31 +15,32 @@ internal static class ContentDraftWriter
         var siteDir = HtmlDemoImporter.GetSiteDir(options);
         var contentDir = Path.Combine(siteDir, "content");
         Directory.CreateDirectory(contentDir);
+        var claimed = new HashSet<string>(ImportWriteGuard.PathComparer);
 
         foreach (var page in content.Pages.Where(IsBuildPageDraft))
-            WritePageDraft(contentDir, page, options.Overwrite);
+            WritePageDraft(contentDir, page, claimed, options.Overwrite);
 
         foreach (var post in content.Posts)
-            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.SeoTitle, post.SeoDescription, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.SeoTitle, post.SeoDescription, claimed, options.Overwrite);
 
         foreach (var company in content.Companies)
-            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.SeoTitle, company.SeoDescription, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.SeoTitle, company.SeoDescription, claimed, options.Overwrite);
 
         foreach (var service in content.Services)
-            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.SeoTitle, service.SeoDescription, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.SeoTitle, service.SeoDescription, claimed, options.Overwrite);
     }
 
     private static bool IsNotionBuildSource(HtmlDemoImportOptions options)
         => options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase);
 
-    private static void WritePageDraft(string contentDir, PageRecord page, bool overwrite)
+    private static void WritePageDraft(string contentDir, PageRecord page, HashSet<string> claimed, bool overwrite)
     {
         var slug = string.IsNullOrWhiteSpace(page.Slug) ? "index" : page.Slug;
         var dir = page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase)
             ? contentDir
             : Path.Combine(contentDir, "pages");
         WriteCollectionDraft(dir, page.Title, slug, "page", page.Summary, page.Content,
-            page.SeoTitle, page.SeoDescription, overwrite);
+            page.SeoTitle, page.SeoDescription, claimed, overwrite);
     }
 
     private static bool IsBuildPageDraft(PageRecord page)
@@ -55,12 +56,21 @@ internal static class ContentDraftWriter
         string? content,
         string? seoTitle,
         string? seoDescription,
+        HashSet<string> claimed,
         bool overwrite)
     {
         Directory.CreateDirectory(dir);
 
         var safeSlug = string.IsNullOrWhiteSpace(slug) ? "index" : slug;
         var path = Path.Combine(dir, $"{safeSlug}.md");
+        if (!ImportWriteGuard.IsInside(path, dir))
+        {
+            Console.Error.WriteLine($"Skipped unsafe content slug '{safeSlug}' (record '{title}').");
+            return;
+        }
+
+        if (!ImportWriteGuard.TryClaim(claimed, path, $"record '{title}'"))
+            return;
         if (File.Exists(path) && !overwrite) return;
 
         var fields = new List<KeyValuePair<string, object?>>

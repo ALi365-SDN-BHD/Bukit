@@ -204,6 +204,9 @@ public static class ImportCommandWorkflow
                 };
         }
 
+        if (options.Verify && options.DryRun)
+            messages.Add(new ImportCommandMessage("info", "  Verify skipped (--dry-run)"));
+
         if (options.Verify && !options.DryRun)
         {
             var verifyCapture = await CaptureConsoleAsync(() => ImportVerifyWorkflow.VerifyAsync(result, rootDir, themeName));

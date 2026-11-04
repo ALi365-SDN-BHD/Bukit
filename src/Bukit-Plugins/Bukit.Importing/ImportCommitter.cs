@@ -40,7 +40,7 @@ internal static class ImportCommitter
         // Write component templates and content drafts
         if (options.ExtractContent)
         {
-            HtmlDemoImporter.WriteComponentTemplates(options, components);
+            HtmlDemoImporter.WriteComponentTemplates(options, components, assetResult.PathMappings, pages, routeMap);
             ContentDraftWriter.Write(options, content);
             NavigationImportAdvisor.AddMissingNavigationWarnings(pages, content, result.Warnings);
 

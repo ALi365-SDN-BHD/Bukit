@@ -77,6 +77,12 @@ internal static partial class ContentExtractor
         }
     }
 
+    internal static string RewriteNavigationLinks(string html, List<DiscoveredPage> pages, RouteMapConfig? routeMap)
+        => NavigationHrefPattern().Replace(html, match =>
+            match.Groups[1].Value +
+            ResolveNavigationHref(match.Groups[2].Value, pages, routeMap) +
+            match.Groups[3].Value);
+
     private static string ResolveNavigationHref(string href, List<DiscoveredPage> pages, RouteMapConfig? routeMap)
     {
         if (string.IsNullOrWhiteSpace(href) ||
@@ -443,6 +449,9 @@ internal static partial class ContentExtractor
         counter++;
         return $"{prefix}-{counter:D3}";
     }
+
+    [GeneratedRegex(@"(<a\b[^>]*?\bhref\s*=\s*[""'])([^""']*)([""'])", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex NavigationHrefPattern();
 
     [GeneratedRegex(@"<h1[^>]*>(.*?)</h1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex H1Pattern();

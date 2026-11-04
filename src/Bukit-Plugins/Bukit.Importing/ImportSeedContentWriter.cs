@@ -12,20 +12,15 @@ public static class ImportSeedContentWriter
     {
         Directory.CreateDirectory(outputDir);
         var written = new List<string>();
-        var claimed = new HashSet<string>(PathComparer);
+        var claimed = new HashSet<string>(ImportWriteGuard.PathComparer);
 
         foreach (var record in records)
         {
             var slug = GetEffectiveSlug(record);
             var path = ResolvePath(outputDir, record, slug);
-            if (!claimed.Add(path))
-            {
-                // Two records normalize to the same file; writing the second would
-                // silently destroy the first, so keep the first and report it.
-                Console.Error.WriteLine(
-                    $"Skipped duplicate seed output '{path}' (record '{record.Title}'). Check slugs that normalize to the same name.");
+            // Two records normalize to the same file; keep the first and report it.
+            if (!ImportWriteGuard.TryClaim(claimed, path, $"record '{record.Title}'"))
                 continue;
-            }
 
             if (File.Exists(path) && !overwrite) continue;
 
@@ -36,9 +31,6 @@ public static class ImportSeedContentWriter
 
         return written;
     }
-
-    private static StringComparer PathComparer =>
-        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 
     private static string ResolvePath(string outputDir, ImportSeedRecord record, string slug)
     {

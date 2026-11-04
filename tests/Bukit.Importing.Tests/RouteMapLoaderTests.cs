@@ -62,49 +62,25 @@ public sealed class RouteMapLoaderTests : IDisposable
     }
 
     [Fact]
-    public void Load_MissingPagesSequence_ReturnsNull()
+    public void Load_MissingPagesSequence_ThrowsUserInputError()
     {
         var path = WriteRouteMap("title: invalid");
 
-        var stderr = new StringWriter();
-        var original = Console.Error;
+        var ex = Assert.Throws<ImportException>(() => RouteMapLoader.Load(path));
 
-        try
-        {
-            Console.SetError(stderr);
-
-            var config = RouteMapLoader.Load(path);
-
-            Assert.Null(config);
-            Assert.Contains("missing the 'pages' sequence", stderr.ToString());
-        }
-        finally
-        {
-            Console.SetError(original);
-        }
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("missing the 'pages' sequence", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Load_InvalidYaml_ReturnsNull()
+    public void Load_InvalidYaml_ThrowsUserInputError()
     {
         var path = WriteRouteMap("pages: [");
 
-        var stderr = new StringWriter();
-        var original = Console.Error;
+        var ex = Assert.Throws<ImportException>(() => RouteMapLoader.Load(path));
 
-        try
-        {
-            Console.SetError(stderr);
-
-            var config = RouteMapLoader.Load(path);
-
-            Assert.Null(config);
-            Assert.Contains("Failed to parse route map", stderr.ToString());
-        }
-        finally
-        {
-            Console.SetError(original);
-        }
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("Failed to parse route map", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -133,7 +109,6 @@ public sealed class RouteMapLoaderTests : IDisposable
 
             var page = Assert.Single(config!.Pages);
             Assert.Equal("contact", page.Source);
-            Assert.Contains("missing required 'source' field", stderr.ToString());
         }
         finally
         {
@@ -142,7 +117,7 @@ public sealed class RouteMapLoaderTests : IDisposable
     }
 
     [Fact]
-    public void Load_TemplateWithPathTraversal_RejectsWholeMap()
+    public void Load_TemplateWithPathTraversal_ThrowsUserInputError()
     {
         var path = WriteRouteMap(
             """
@@ -153,20 +128,33 @@ public sealed class RouteMapLoaderTests : IDisposable
                 template: ../../outside
             """);
 
-        var original = Console.Error;
-        using var stderr = new StringWriter();
-        try
-        {
-            Console.SetError(stderr);
-            var config = RouteMapLoader.Load(path);
+        var ex = Assert.Throws<ImportException>(() => RouteMapLoader.Load(path));
 
-            Assert.Null(config);
-            Assert.Contains("invalid 'template'", stderr.ToString(), StringComparison.Ordinal);
-        }
-        finally
-        {
-            Console.SetError(original);
-        }
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("invalid 'template'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("../../escaped")]
+    [InlineData("nested/slug")]
+    [InlineData("..")]
+    [InlineData(" padded ")]
+    public void Load_SlugWithPathSemantics_ThrowsUserInputError(string slug)
+    {
+        var path = WriteRouteMap(
+            $"""
+            pages:
+              - source: about
+                route: /about/
+                type: Page
+                template: about
+                slug: "{slug}"
+            """);
+
+        var ex = Assert.Throws<ImportException>(() => RouteMapLoader.Load(path));
+
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("invalid 'slug'", ex.Message, StringComparison.Ordinal);
     }
 
     private string WriteRouteMap(string yaml)

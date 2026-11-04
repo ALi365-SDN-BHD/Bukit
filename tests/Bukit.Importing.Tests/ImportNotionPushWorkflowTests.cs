@@ -1600,7 +1600,7 @@ databases:
             }));
 
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains("already running", result.StdErr, StringComparison.Ordinal);
+        Assert.Contains("push lock", result.StdErr, StringComparison.Ordinal);
     }
 
     [Fact]

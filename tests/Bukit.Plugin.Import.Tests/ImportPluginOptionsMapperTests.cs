@@ -182,6 +182,47 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
     }
 
     [Fact]
+    public void Map_HtmlDemo_CreateMissingDatabasesRejectsDatabaseMapOutsideWriteScope()
+    {
+        var request = Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--push-notion"] = Json(true),
+                ["--create-missing-notion-databases"] = Json(true),
+                ["--notion-parent-page-id"] = Json("parent"),
+                ["--notion-database-map"] = Json(Path.Combine(_rootDir, "bukit.yaml"))
+            },
+            permissions: new PluginPermissionSet(Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"])));
+
+        var ex = Assert.Throws<ImportPluginOptionsException>(() => ImportPluginOptionsMapper.Map(request));
+
+        Assert.Equal("plugin.import.pathDenied", ex.Code);
+        Assert.Contains("--notion-database-map", ex.Message);
+    }
+
+    [Fact]
+    public void Map_HtmlDemo_ReadOnlyDatabaseMapOutsideWriteScopeIsAllowed()
+    {
+        var request = Request(
+            path: ["import", "html-demo"],
+            arguments: ["demo"],
+            options: new Dictionary<string, JsonElement>
+            {
+                ["--theme"] = Json("demo-theme"),
+                ["--push-notion"] = Json(true),
+                ["--notion-database-map"] = Json(Path.Combine(_rootDir, "bukit.yaml"))
+            },
+            permissions: new PluginPermissionSet(Environment: new PluginEnvironmentPermission(Read: ["NOTION_TOKEN"])));
+
+        var options = ImportPluginOptionsMapper.Map(request);
+
+        Assert.Equal(Path.Combine(_rootDir, "bukit.yaml"), options.NotionDatabaseMap);
+    }
+
+    [Fact]
     public void MapInvocation_NotionPushRejectsOutOfScopeDefaultReport()
     {
         var request = Request(

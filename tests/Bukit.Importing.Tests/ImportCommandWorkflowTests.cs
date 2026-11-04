@@ -112,6 +112,7 @@ public sealed class ImportCommandWorkflowTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         Assert.DoesNotContain(result.Messages, m => m.Level == "error");
+        Assert.Contains(result.Messages, m => m.Level == "info" && m.Message == "  Verify skipped (--dry-run)");
     }
 
     [Fact]

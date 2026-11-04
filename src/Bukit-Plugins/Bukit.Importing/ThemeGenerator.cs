@@ -45,8 +45,8 @@ internal static partial class ThemeGenerator
             partialCount++;
         }
 
-        var (cssLinks, scriptTags) = ExtractHeadAssets(layout.HeadExtras, pages);
-        WriteBaseLayout(themeDir, layout, cssLinks, scriptTags, pathMappings);
+        var (cssLinks, scriptTags, inlineStyles) = ExtractHeadAssets(layout.HeadExtras, pages);
+        WriteBaseLayout(themeDir, layout, cssLinks, scriptTags, inlineStyles, pathMappings);
 
         var templateCount = 0;
         var usedTemplateNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -114,12 +114,14 @@ internal static partial class ThemeGenerator
         };
     }
 
-    private static (List<string> CssLinks, List<string> ScriptTags) ExtractHeadAssets(
+    private static (List<string> CssLinks, List<string> ScriptTags, List<string> InlineStyles) ExtractHeadAssets(
         string headContent, List<DiscoveredPage> pages)
     {
         var cssLinks = new List<string>();
         var scriptTags = new List<string>();
+        var inlineStyles = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenStyles = new HashSet<string>(StringComparer.Ordinal);
 
         void AddFromText(string text)
         {
@@ -127,13 +129,15 @@ internal static partial class ThemeGenerator
                 if (seen.Add(m.Value)) cssLinks.Add(m.Value);
             foreach (Match m in ScriptSrcRegex.Matches(text))
                 if (seen.Add(m.Value)) scriptTags.Add(m.Value);
+            foreach (Match m in InlineStyleRegex.Matches(text))
+                if (seenStyles.Add(m.Value)) inlineStyles.Add(m.Value);
         }
 
         AddFromText(headContent);
         foreach (var page in pages)
             AddFromText(page.HeadContent ?? "");
 
-        return (cssLinks, scriptTags);
+        return (cssLinks, scriptTags, inlineStyles);
     }
 
     private static string GetTemplateFileName(DiscoveredPage page, RouteMapConfig? routeMap = null)
@@ -215,7 +219,7 @@ internal static partial class ThemeGenerator
             .Select(line => string.IsNullOrWhiteSpace(line) ? line : prefix + line));
 
     private static void WriteBaseLayout(string themeDir, LayoutExtractor.LayoutInfo layout,
-        List<string> cssLinks, List<string> scriptTags,
+        List<string> cssLinks, List<string> scriptTags, List<string> inlineStyles,
         Dictionary<string, string> pathMappings)
     {
         var sb = new StringBuilder();
@@ -230,8 +234,8 @@ internal static partial class ThemeGenerator
             sb.AppendLine($"  {RewriteHeadAssetTag(css.Trim(), pathMappings)}");
 
         // Single-file demos keep their styles inline; dropping them left the site unstyled.
-        foreach (Match style in InlineStyleRegex.Matches(layout.HeadExtras ?? ""))
-            sb.AppendLine("  " + style.Value.Trim());
+        foreach (var style in inlineStyles)
+            sb.AppendLine("  " + style.Trim());
 
         sb.AppendLine("  {{ if page.fields.seo_title }}");
         sb.AppendLine("  <title>{{ page.fields.seo_title.value }} | {{ site.title }}</title>");

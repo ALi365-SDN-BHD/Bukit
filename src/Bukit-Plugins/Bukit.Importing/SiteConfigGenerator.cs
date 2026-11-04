@@ -1,4 +1,3 @@
-using System.Text;
 using YamlDotNet.RepresentationModel;
 
 namespace Bukit.Importing;
@@ -28,64 +27,80 @@ internal static class SiteConfigGenerator
         // Default to all types if no page type info provided (backward compat)
         pageTypes ??= [PageType.Home, PageType.Page, PageType.PostDetail, PageType.PostList, PageType.CompanyDetail, PageType.CompanyList, PageType.ServiceDetail, PageType.ServiceList];
 
-        var sb = new StringBuilder();
-        sb.AppendLine("site:");
-        sb.AppendLine($"  name: {options.ThemeName}");
-        sb.AppendLine($"  title: {options.ThemeName}");
-        sb.AppendLine("  url: https://example.com");
-        sb.AppendLine("  description: Generated from HTML Demo");
-        var baseUrl = string.IsNullOrWhiteSpace(options.BaseUrl) ? "/" : options.BaseUrl;
-        sb.AppendLine($"  baseUrl: {baseUrl}");
-        sb.AppendLine($"  language: {options.Language}");
-        sb.AppendLine("  seo:");
-        sb.AppendLine("    renderMode: inject");
-        sb.AppendLine("  collections:");
+        var site = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["name"] = options.ThemeName,
+            ["title"] = options.ThemeName,
+            ["url"] = "https://example.com",
+            ["description"] = "Generated from HTML Demo",
+            ["baseUrl"] = string.IsNullOrWhiteSpace(options.BaseUrl) ? "/" : options.BaseUrl,
+            ["language"] = options.Language,
+            ["seo"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["renderMode"] = "inject"
+            }
+        };
+
+        var collections = new Dictionary<string, object?>(StringComparer.Ordinal);
 
         if (pageTypes.Contains(PageType.Page) || pageTypes.Contains(PageType.Home))
         {
-            sb.AppendLine("    page:");
-            sb.AppendLine("      permalink: '/{slug}/'");
-            sb.AppendLine("      template: 'pages/page.html'");
+            collections["page"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["permalink"] = "/{slug}/",
+                ["template"] = "pages/page.html"
+            };
         }
 
         if (pageTypes.Contains(PageType.PostDetail))
         {
-            sb.AppendLine("    post:");
-            sb.AppendLine("      permalink: '/insights/{slug}/'");
-            sb.AppendLine("      template: 'pages/post.html'");
+            var post = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["permalink"] = "/insights/{slug}/",
+                ["template"] = "pages/post.html"
+            };
             if (pageTypes.Contains(PageType.PostList))
             {
                 var listName = !string.IsNullOrWhiteSpace(postListSlug)
                     ? ThemeGenerator.SanitizeTemplateName(postListSlug)
                     : "insights";
-                sb.AppendLine("      listRoute: '/insights/'");
-                sb.AppendLine($"      listTemplate: 'pages/{listName}.html'");
+                post["listRoute"] = "/insights/";
+                post["listTemplate"] = $"pages/{listName}.html";
             }
+            collections["post"] = post;
         }
 
         if (pageTypes.Contains(PageType.CompanyDetail))
         {
-            sb.AppendLine("    company:");
-            sb.AppendLine("      permalink: '/companies/{slug}/'");
-            sb.AppendLine("      template: 'pages/company.html'");
+            var company = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["permalink"] = "/companies/{slug}/",
+                ["template"] = "pages/company.html"
+            };
             if (pageTypes.Contains(PageType.CompanyList))
             {
-                sb.AppendLine("      listRoute: '/companies/'");
-                sb.AppendLine("      listTemplate: 'pages/companies.html'");
+                company["listRoute"] = "/companies/";
+                company["listTemplate"] = "pages/companies.html";
             }
+            collections["company"] = company;
         }
 
         if (pageTypes.Contains(PageType.ServiceDetail))
         {
-            sb.AppendLine("    service:");
-            sb.AppendLine("      permalink: '/services/{slug}/'");
-            sb.AppendLine("      template: 'pages/service.html'");
+            var service = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["permalink"] = "/services/{slug}/",
+                ["template"] = "pages/service.html"
+            };
             if (pageTypes.Contains(PageType.ServiceList))
             {
-                sb.AppendLine("      listRoute: '/services/'");
-                sb.AppendLine("      listTemplate: 'pages/services.html'");
+                service["listRoute"] = "/services/";
+                service["listTemplate"] = "pages/services.html";
             }
+            collections["service"] = service;
         }
+
+        site["collections"] = collections;
 
         if (routeMap != null)
         {
@@ -96,96 +111,124 @@ internal static class SiteConfigGenerator
                 .ToList();
             if (appPages.Count > 0)
             {
-                sb.AppendLine("  appPages:");
+                var pages = new Dictionary<string, object?>(StringComparer.Ordinal);
                 foreach (var page in appPages)
                 {
                     var slug = !string.IsNullOrWhiteSpace(page.Slug)
                         ? page.Slug
                         : SanitizeAppPageSlug(page.Source);
-                    sb.AppendLine($"    {slug}:");
-                    sb.AppendLine($"      route: {page.Route}");
-                    sb.AppendLine($"      template: pages/{page.Template}.html");
+                    var entry = new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["route"] = page.Route,
+                        ["template"] = $"pages/{page.Template}.html"
+                    };
                     if (!string.IsNullOrWhiteSpace(page.Description))
-                        sb.AppendLine($"      description: {page.Description}");
+                        entry["description"] = page.Description;
+                    pages[slug] = entry;
                 }
+
+                site["appPages"] = pages;
             }
         }
 
+        var root = new Dictionary<string, object?>(StringComparer.Ordinal) { ["site"] = site };
+
+        var content = new Dictionary<string, object?>(StringComparer.Ordinal);
         if (options.ContentSource.Equals("notion", StringComparison.OrdinalIgnoreCase) &&
             options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase))
         {
-            var tokenEnv = !string.IsNullOrWhiteSpace(options.NotionTokenEnv)
-                ? options.NotionTokenEnv
-                : "NOTION_TOKEN";
-            var databaseTargets = string.IsNullOrWhiteSpace(options.NotionDatabaseId)
-                ? ReadNotionDatabaseTargets(options)
-                : [];
-
-            sb.AppendLine("content:");
-            if (databaseTargets.Count > 0)
-            {
-                sb.AppendLine("  sources:");
-                foreach (var target in databaseTargets)
-                {
-                    sb.AppendLine("    - type: notion");
-                    sb.AppendLine($"      name: {target.Key}");
-                    sb.AppendLine($"      mode: {target.Mode}");
-                    sb.AppendLine($"      collection: {target.Collection}");
-                    sb.AppendLine("      notion:");
-                    sb.AppendLine($"        databaseId: {target.DatabaseId}");
-                    sb.AppendLine($"        tokenEnv: {tokenEnv}");
-                    sb.AppendLine("        filterProperty: Published");
-                    sb.AppendLine("        filterType: checkbox_true");
-                    sb.AppendLine("        sortProperty: Title");
-                    sb.AppendLine("        sortDirection: ascending");
-                }
-            }
-            else
-            {
-                var dbId = !string.IsNullOrWhiteSpace(options.NotionDatabaseId)
-                    ? options.NotionDatabaseId
-                    : "${NOTION_DATABASE_ID}";
-                sb.AppendLine("  sources:");
-                sb.AppendLine("    - type: notion");
-                sb.AppendLine("      collection: page");
-                sb.AppendLine("      notion:");
-                sb.AppendLine($"        databaseId: {dbId}");
-                sb.AppendLine($"        tokenEnv: {tokenEnv}");
-                sb.AppendLine("        filterProperty: Published");
-                sb.AppendLine("        filterType: checkbox_true");
-                sb.AppendLine("        sortProperty: Title");
-                sb.AppendLine("        sortDirection: ascending");
-            }
+            content["sources"] = BuildNotionSources(options);
         }
         else
         {
-            sb.AppendLine("content:");
-            sb.AppendLine("  sources:");
-            AppendMarkdownSource(sb, "page", contentDir);
+            var sources = new List<object?> { BuildMarkdownSource("page", contentDir) };
             if (pageTypes.Contains(PageType.PostDetail))
-            {
-                AppendMarkdownSource(sb, "post", contentDir);
-            }
-
+                sources.Add(BuildMarkdownSource("post", contentDir));
             if (pageTypes.Contains(PageType.CompanyDetail))
-            {
-                AppendMarkdownSource(sb, "company", contentDir);
-            }
-
+                sources.Add(BuildMarkdownSource("company", contentDir));
             if (pageTypes.Contains(PageType.ServiceDetail))
-            {
-                AppendMarkdownSource(sb, "service", contentDir);
-            }
+                sources.Add(BuildMarkdownSource("service", contentDir));
+            content["sources"] = sources;
         }
-        sb.AppendLine("build:");
-        sb.AppendLine("  output: dist");
-        sb.AppendLine("  clean: true");
-        sb.AppendLine("theme:");
-        sb.AppendLine($"  name: {options.ThemeName}");
 
-        File.WriteAllText(yamlPath, sb.ToString());
+        root["content"] = content;
+        root["build"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["output"] = "dist",
+            ["clean"] = true
+        };
+        root["theme"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["name"] = options.ThemeName
+        };
+
+        File.WriteAllText(yamlPath, YamlEmitter.Emit(root));
         return true;
     }
+
+    private static List<object?> BuildNotionSources(HtmlDemoImportOptions options)
+    {
+        // Core reads the token from NOTION_TOKEN only; a tokenEnv key is rejected by
+        // the strict config validator, so it must not be emitted here.
+        var databaseTargets = string.IsNullOrWhiteSpace(options.NotionDatabaseId)
+            ? ReadNotionDatabaseTargets(options)
+            : [];
+
+        var sources = new List<object?>();
+        if (databaseTargets.Count > 0)
+        {
+            foreach (var target in databaseTargets)
+            {
+                sources.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["type"] = "notion",
+                    ["name"] = target.Key,
+                    ["mode"] = target.Mode,
+                    ["collection"] = target.Collection,
+                    ["notion"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["databaseId"] = target.DatabaseId,
+                        ["filterProperty"] = "Published",
+                        ["filterType"] = "checkbox_true",
+                        ["sortProperty"] = "Title",
+                        ["sortDirection"] = "ascending"
+                    }
+                });
+            }
+
+            return sources;
+        }
+
+        var databaseId = !string.IsNullOrWhiteSpace(options.NotionDatabaseId)
+            ? options.NotionDatabaseId
+            : "${NOTION_DATABASE_ID}";
+        sources.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["type"] = "notion",
+            ["collection"] = "page",
+            ["notion"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["databaseId"] = databaseId,
+                ["filterProperty"] = "Published",
+                ["filterType"] = "checkbox_true",
+                ["sortProperty"] = "Title",
+                ["sortDirection"] = "ascending"
+            }
+        });
+        return sources;
+    }
+
+    private static Dictionary<string, object?> BuildMarkdownSource(string collection, string contentDir)
+        => new(StringComparer.Ordinal)
+        {
+            ["type"] = "markdown",
+            ["name"] = collection,
+            ["collection"] = collection,
+            ["markdown"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["dir"] = contentDir
+            }
+        };
 
     private static bool IsDefaultPageRoute(string route, string template)
     {
@@ -208,15 +251,6 @@ internal static class SiteConfigGenerator
         while (result.Contains("--"))
             result = result.Replace("--", "-");
         return result.Trim('-').ToLowerInvariant();
-    }
-
-    private static void AppendMarkdownSource(StringBuilder sb, string collection, string contentDir)
-    {
-        sb.AppendLine("    - type: markdown");
-        sb.AppendLine($"      name: {collection}");
-        sb.AppendLine($"      collection: {collection}");
-        sb.AppendLine("      markdown:");
-        sb.AppendLine($"        dir: {contentDir}");
     }
 
     private static List<SiteConfigNotionTarget> ReadNotionDatabaseTargets(HtmlDemoImportOptions options)

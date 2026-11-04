@@ -131,18 +131,34 @@ internal static class HtmlToMarkdownConverter
         }
     }
 
-    /// <summary>Keeps paragraph text that looks like Markdown syntax literal.</summary>
+    /// <summary>Keeps paragraph text that would otherwise become a block construct.</summary>
     private static string EscapeBlockStart(string text)
     {
         if (text.Length == 0)
             return text;
 
-        if (text[0] is '#' or '>' or '-' or '+' or '*')
+        if (text[0] == '>')
             return "\\" + text;
 
-        var dot = text.IndexOf(". ", StringComparison.Ordinal);
-        if (dot > 0 && dot <= 9 && text[..dot].All(char.IsAsciiDigit))
-            return text[..dot] + "\\" + text[dot..];
+        if (text[0] == '#')
+        {
+            var hashes = 0;
+            while (hashes < text.Length && text[hashes] == '#')
+                hashes++;
+            return hashes == text.Length || char.IsWhiteSpace(text[hashes]) ? "\\" + text : text;
+        }
+
+        if (text[0] is '-' or '+' or '*')
+            return text.Length == 1 || char.IsWhiteSpace(text[1]) ? "\\" + text : text;
+
+        var digits = 0;
+        while (digits < text.Length && char.IsAsciiDigit(text[digits]))
+            digits++;
+        if (digits > 0 && digits < text.Length && text[digits] is '.' or ')' &&
+            (digits + 1 == text.Length || char.IsWhiteSpace(text[digits + 1])))
+        {
+            return text[..digits] + "\\" + text[digits..];
+        }
 
         return text;
     }
