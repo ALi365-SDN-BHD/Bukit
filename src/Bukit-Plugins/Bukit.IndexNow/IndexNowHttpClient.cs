@@ -12,12 +12,20 @@ public sealed partial class IndexNowHttpClient : IIndexNowTransport
 
     public IndexNowHttpClient(HttpClient? client = null)
     {
-        _client = client ?? SsrfGuard.CreateSafeHttpClient();
+        _client = client ?? new HttpClient(CreateDefaultHandler(), disposeHandler: true);
+    }
+
+    internal static SocketsHttpHandler CreateDefaultHandler()
+    {
+        var handler = SsrfGuard.CreateSafeHandler();
+        handler.AllowAutoRedirect = false;
+        return handler;
     }
 
     public async Task<IndexNowPageResponse> GetPageAsync(Uri url, CancellationToken cancellationToken)
     {
         using var response = await _client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        EnsureResponseRequestUri(response, url);
         string? canonical = null;
         string? body = null;
         if (response.StatusCode == HttpStatusCode.OK)
@@ -41,7 +49,18 @@ public sealed partial class IndexNowHttpClient : IIndexNowTransport
             keyLocation = payload.KeyLocation,
             urlList = payload.Urls
         }, cancellationToken);
+        EnsureResponseRequestUri(response, Endpoint);
         return new IndexNowSubmitResponse((int)response.StatusCode);
+    }
+
+    private static void EnsureResponseRequestUri(HttpResponseMessage response, Uri expected)
+    {
+        var actual = response.RequestMessage?.RequestUri;
+        if (actual is not null &&
+            !string.Equals(actual.AbsoluteUri, expected.AbsoluteUri, StringComparison.Ordinal))
+        {
+            throw new HttpRequestException("IndexNow HTTP response came from a redirected request.");
+        }
     }
 
     [GeneratedRegex(

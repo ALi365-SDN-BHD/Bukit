@@ -52,7 +52,7 @@ public sealed class WechatSyncWorkflow
     {
         var messages = new List<WechatSyncMessage>();
         var diagnostics = new List<WechatSyncDiagnostic>();
-        var cachePath = SyncCacheManager.ResolvePath(context.RootDir, options.CacheFile);
+        var baseCachePath = SyncCacheManager.ResolvePath(context.RootDir, options.CacheFile);
         var plan = WechatSyncPlanner.Create(context, options, _utcNow());
         diagnostics.AddRange(plan.Exclusions.Select(exclusion => new WechatSyncDiagnostic(
             exclusion.Code,
@@ -64,7 +64,15 @@ public sealed class WechatSyncWorkflow
             const string message = "plugin wechat-sync skipped: no candidate content matched eligibility and filters";
             context.Logger.Info(message);
             messages.Add(new WechatSyncMessage("info", message));
-            return new WechatSyncResult(!plan.HasErrors, 0, 0, 0, messages, diagnostics, cachePath);
+            return new WechatSyncResult(!plan.HasErrors, 0, 0, 0, messages, diagnostics, baseCachePath);
+        }
+
+        var appId = ReadRequiredEnv(options.AppIdEnv);
+        var cachePath = SyncCacheManager.ResolveAccountPath(baseCachePath, appId);
+        if (!File.Exists(cachePath) && File.Exists(baseCachePath))
+        {
+            throw new InvalidOperationException(
+                $"wechat-sync cache '{baseCachePath}' is not bound to a WeChat AppId and cannot be safely reused across accounts. Back it up, recover any DraftSubmitting/PublishSubmitting operations, then remove or archive it before retrying. This account will use '{cachePath}'.");
         }
 
         await using var runLock = await SyncCacheManager.AcquireRunLockAsync(
@@ -73,12 +81,11 @@ public sealed class WechatSyncWorkflow
             _runLockTimeout,
             cancellationToken);
         runLock.ValidateIdentity();
-        var cache = SyncCacheManager.LoadCache(cachePath, context.Logger);
+        var cache = SyncCacheManager.LoadCache(cachePath, context.Logger, appId);
         runLock.ValidateIdentity();
         var forceRetryIgnoreCache = options.Force || ReadTrueFromEnv(options.ForceRetryIgnoreCacheEnv);
         var filtered = plan.Candidates;
 
-        var appId = ReadRequiredEnv(options.AppIdEnv);
         var appSecret = ReadRequiredEnv(options.AppSecretEnv);
         var ownsGateway = _gateway is null;
         var gateway = _gateway ?? new WechatDraftGateway(context.Logger, appId, appSecret);
@@ -494,7 +501,7 @@ public sealed class WechatSyncWorkflow
             try
             {
                 runLock.ValidateIdentity();
-                var durable = SyncCacheManager.LoadCache(cachePath, logger);
+                var durable = SyncCacheManager.LoadCache(cachePath, logger, cache.AppId);
                 runLock.ValidateIdentity();
                 ReplaceCacheContents(cache, durable);
             }
@@ -512,6 +519,7 @@ public sealed class WechatSyncWorkflow
     private static SyncCache CloneCache(SyncCache cache)
         => new(cache.Version, new Dictionary<string, SyncRecord>(cache.Records, StringComparer.Ordinal))
         {
+            AppId = cache.AppId,
             ThumbMediaIds = new Dictionary<string, string>(cache.ThumbMediaIds, StringComparer.Ordinal),
             Operations = new Dictionary<string, SyncOperation>(cache.Operations, StringComparer.Ordinal)
         };

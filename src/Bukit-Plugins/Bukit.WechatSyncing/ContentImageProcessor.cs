@@ -45,8 +45,9 @@ internal sealed class ContentImageProcessor
             return html ?? string.Empty;
         }
 
-        // Track uploaded URLs to avoid duplicates
-        var uploadMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Track uploaded URLs to avoid duplicate uploads. URL paths and queries are
+        // case-sensitive, so this key must be ordinal rather than case-insensitive.
+        var uploadMap = new Dictionary<string, string>(StringComparer.Ordinal);
 
         // Find all <img> tags and process them
         var result = await ReplaceImgTagsAsync(html, uploadMap, context, cfg, cancellationToken);
@@ -121,18 +122,19 @@ internal sealed class ContentImageProcessor
             return null;
         }
 
-        // Check dedup map
-        if (uploadMap.TryGetValue(candidateUrl, out var cachedWechatUrl))
-        {
-            return BuildReplacedImgTag(imgTag, cachedWechatUrl, candidateUrl);
-        }
-
-        // Normalize URL to absolute
+        // Normalize URL to absolute before deduplication so relative and absolute
+        // references to the same resource share one upload.
         var absoluteUrl = NormalizeImageUrl(candidateUrl, cfg);
         if (string.IsNullOrWhiteSpace(absoluteUrl))
         {
             _logger.Warn($"plugin wechat-sync cannot resolve image URL: {candidateUrl}");
             return null;
+        }
+
+        // Check dedup map
+        if (uploadMap.TryGetValue(absoluteUrl, out var cachedWechatUrl))
+        {
+            return BuildReplacedImgTag(imgTag, cachedWechatUrl, candidateUrl);
         }
 
         // Try to download and upload
@@ -171,7 +173,7 @@ internal sealed class ContentImageProcessor
             }
 
             // Cache in dedup map
-            uploadMap[candidateUrl] = wechatUrl;
+            uploadMap[absoluteUrl] = wechatUrl;
             _logger.Info($"plugin wechat-sync uploaded inline image: {candidateUrl} -> {wechatUrl}");
 
             return BuildReplacedImgTag(imgTag, wechatUrl, candidateUrl);

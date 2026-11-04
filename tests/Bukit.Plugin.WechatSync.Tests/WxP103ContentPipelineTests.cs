@@ -135,12 +135,17 @@ public sealed class WxP103ContentPipelineTests : IDisposable
         var item = context.Routed[0].Item;
         var route = context.Routed[0].Route;
         var legacyHash = ComputeLegacyContentHash(item, route, html, options);
-        var cachePath = Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json");
+        var cachePath = SyncCacheManager.ResolveAccountPath(
+            SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/sync-cache.json"),
+            "app");
         Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-        SyncCacheManager.SaveCache(cachePath, new SyncCache(3, new Dictionary<string, SyncRecord>(StringComparer.Ordinal)
+        SyncCacheManager.SaveCache(cachePath, new SyncCache(4, new Dictionary<string, SyncRecord>(StringComparer.Ordinal)
         {
             ["notion:page-1"] = new SyncRecord(DateTimeOffset.UtcNow, "legacy-draft", legacyHash, "notion", "page-1", "Hello")
-        }));
+        })
+        {
+            AppId = "app"
+        });
 
         var result = await workflow.RunAsync(context, options);
         var cache = SyncCacheManager.LoadCache(cachePath, new ConsoleLogger(LogLevel.Error));
@@ -149,7 +154,7 @@ public sealed class WxP103ContentPipelineTests : IDisposable
         Assert.Equal(1, result.Synced);
         Assert.Equal(0, result.Skipped);
         Assert.Equal(1, gateway.AddDraftCount);
-        Assert.Equal(3, cache.Version);
+        Assert.Equal(4, cache.Version);
     }
 
     [Theory]

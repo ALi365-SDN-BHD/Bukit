@@ -461,10 +461,68 @@ public sealed class IndexNowPluginContractTests : IDisposable
         Assert.Equal($"deleted\nhttps://silushangxun.com/one/\n{Hash('c')}", state.Notified[url]);
     }
 
+    [Fact]
+    public async Task Workflow_StalePendingFromAnOlderSnapshotDoesNotBlockCurrentChange()
+    {
+        const string staleUrl = "https://silushangxun.com/old-a/";
+        const string currentUrl = "https://silushangxun.com/new-c/";
+        WriteSnapshot(currentUrl);
+        WriteChangeSet(("added", currentUrl, Hash('f')));
+        await SaveStateAsync(IndexNowState.Empty with
+        {
+            Pending = [new IndexNowPendingChange("added", staleUrl, Hash('d'))]
+        });
+        var transport = new FakeTransport
+        {
+            PageResponses = { [currentUrl] = new IndexNowPageResponse(200, currentUrl) },
+            SubmitResponses = { new IndexNowSubmitResponse(200) }
+        };
+
+        var result = await new IndexNowSubmissionWorkflow(transport, new FakeDelay())
+            .RunAsync(RequestForWorkflow("public-key"));
+
+        Assert.True(result.Success, string.Join(" | ", result.Diagnostics.Select(item => item.Message)));
+        Assert.Contains(result.Diagnostics, item => item.Code == "plugin.indexnow.pendingSuperseded");
+        var submission = Assert.Single(transport.Submissions);
+        Assert.Equal([currentUrl], submission.Urls);
+        var state = await LoadStateAsync();
+        Assert.Empty(state.Pending);
+        Assert.Equal($"added\n{currentUrl}\n{Hash('f')}", state.Notified[currentUrl]);
+    }
+
+    [Fact]
+    public async Task Workflow_StalePendingHashForAnExistingUrlDoesNotBlockCurrentChange()
+    {
+        const string staleUrl = "https://silushangxun.com/old-a/";
+        const string currentUrl = "https://silushangxun.com/new-c/";
+        WriteSnapshot(staleUrl, currentUrl);
+        WriteChangeSet(("added", currentUrl, Hash('f')));
+        await SaveStateAsync(IndexNowState.Empty with
+        {
+            Pending = [new IndexNowPendingChange("added", staleUrl, Hash('d'))]
+        });
+        var transport = new FakeTransport
+        {
+            PageResponses =
+            {
+                [currentUrl] = new IndexNowPageResponse(200, currentUrl)
+            },
+            SubmitResponses = { new IndexNowSubmitResponse(200) }
+        };
+
+        var result = await new IndexNowSubmissionWorkflow(transport, new FakeDelay())
+            .RunAsync(RequestForWorkflow("public-key"));
+
+        Assert.True(result.Success, string.Join(" | ", result.Diagnostics.Select(item => item.Message)));
+        Assert.Contains(result.Diagnostics, item => item.Code == "plugin.indexnow.pendingSuperseded");
+        Assert.Equal([currentUrl], Assert.Single(transport.Submissions).Urls);
+        Assert.Empty((await LoadStateAsync()).Pending);
+    }
+
     [Theory]
     [InlineData("unknown", "https://silushangxun.com/stale/", "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")]
-    [InlineData("added", "https://silushangxun.com/stale/", "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")]
-    [InlineData("deleted", "https://silushangxun.com.evil/stale/", "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")]
+    [InlineData("added", "https://silushangxun.com.evil/stale/", "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")]
+    [InlineData("deleted", "https://silushangxun.com/stale/", "not-a-hash")]
     public async Task Workflow_RejectsUntrustedPendingStateBeforeAnySideEffect(
         string type,
         string url,
@@ -629,7 +687,7 @@ public sealed class IndexNowPluginContractTests : IDisposable
     }
 
     [Fact]
-    public void KeyFileWriter_RejectsTargetSymlinkAndAtomicallyReplacesRegularFile()
+    public void KeyFileWriter_RejectsTargetSymlinkAndRefusesDifferentRegularFileButReusesSameContent()
     {
         const string key = "public-key";
         var target = Path.Combine(_outputDir, key + ".txt");
@@ -642,7 +700,12 @@ public sealed class IndexNowPluginContractTests : IDisposable
             Assert.Equal("outside-original", File.ReadAllText(outside));
 
             File.Delete(target);
-            File.WriteAllText(target, "old");
+            File.WriteAllText(target, "business-output");
+            var conflict = Assert.Throws<InvalidOperationException>(() => IndexNowKeyFileWriter.Write(_outputDir, key));
+            Assert.Contains("different content", conflict.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("business-output", File.ReadAllText(target));
+
+            File.WriteAllText(target, key);
             Assert.Equal(target, IndexNowKeyFileWriter.Write(_outputDir, key));
             Assert.Equal(key, File.ReadAllText(target));
             Assert.DoesNotContain(
@@ -658,6 +721,51 @@ public sealed class IndexNowPluginContractTests : IDisposable
 
             File.Delete(outside);
         }
+    }
+
+    [Fact]
+    public void KeyFileWriter_RejectsTargetCreatedAfterPrecheckWithoutOverwriting()
+    {
+        const string key = "public-key";
+        var target = Path.Combine(_outputDir, key + ".txt");
+
+        var conflict = Assert.Throws<InvalidOperationException>(() =>
+            IndexNowKeyFileWriter.Write(_outputDir, key, _ =>
+            {
+                File.WriteAllText(target, "business-output");
+            }));
+
+        Assert.Contains("different content", conflict.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("business-output", File.ReadAllText(target));
+    }
+
+    [Fact]
+    public async Task Workflow_DoesNotOverwriteExistingBusinessFileWhenKeyConflicts()
+    {
+        const string businessContent = "llms-full business output";
+        var target = Path.Combine(_outputDir, "llms-full.txt");
+        File.WriteAllText(target, businessContent);
+        WriteSnapshot("https://silushangxun.com/one/");
+        WriteChangeSet(("added", "https://silushangxun.com/one/", Hash('f')));
+        var transport = new FakeTransport
+        {
+            DefaultPageResponse = new IndexNowPageResponse(500, null)
+        };
+
+        var result = await new IndexNowSubmissionWorkflow(transport, new FakeDelay())
+            .RunAsync(new IndexNowSubmissionRequest(
+                _changeSetPath,
+                _snapshotPath,
+                new Uri("https://silushangxun.com/"),
+                Path.Combine(_rootDir, ".cache", "indexnow"),
+                _outputDir,
+                "llms-full",
+                false));
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, item => item.Code == "plugin.indexnow.invalidInput");
+        Assert.Equal(businessContent, File.ReadAllText(target));
+        Assert.Empty(transport.Submissions);
     }
 
     [Fact]

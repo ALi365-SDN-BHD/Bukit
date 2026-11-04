@@ -106,6 +106,43 @@ public sealed class WechatP104InlineImageTests : IDisposable
     }
 
     [Fact]
+    public async Task ProcessImagesAsync_DoesNotReuseLegacyQuerylessMediaIndexEntryForQueryUrl()
+    {
+        const string imageUrl = "https://cdn.example.com/image.png?v=A";
+        var gateway = new RecordingGateway();
+        var downloadCalls = 0;
+        var processor = new ContentImageProcessor(
+            gateway,
+            (_, _) =>
+            {
+                downloadCalls++;
+                return Task.FromException<byte[]>(new InvalidOperationException("network download failed"));
+            },
+            new SilentLogger());
+        var mediaDirectory = Path.Combine(_rootDir, ".cache", "media");
+        Directory.CreateDirectory(mediaDirectory);
+        File.WriteAllBytes(Path.Combine(mediaDirectory, "old.png"), TinyPng);
+        File.WriteAllText(Path.Combine(mediaDirectory, ".media-index.json"), """
+{
+  "entries": {
+    "https://cdn.example.com/image.png": "old.png"
+  }
+}
+""");
+        var context = WithMediaDownloadDir(Context($"<img src=\"{imageUrl}\">"), mediaDirectory);
+
+        var html = await processor.ProcessImagesAsync(
+            context,
+            $"<img src=\"{imageUrl}\">",
+            Options("app", "secret"),
+            CancellationToken.None);
+
+        Assert.Equal(1, downloadCalls);
+        Assert.Equal(0, gateway.UploadContentImageCount);
+        Assert.Contains($"src=\"{imageUrl}\"", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NormalizeForUpload_WithStrictOneMiBLimitNeverReturnsBoundarySizedPayload()
     {
         var normalized = ImageConverter.NormalizeForUpload(

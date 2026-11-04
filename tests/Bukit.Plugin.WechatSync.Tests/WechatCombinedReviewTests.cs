@@ -136,7 +136,9 @@ public sealed class WechatCombinedReviewTests : IDisposable
             ProcessImages: true);
 
     private string CachePath
-        => Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json");
+        => SyncCacheManager.ResolveAccountPath(
+            SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/sync-cache.json"),
+            "app");
 
     private SyncCache LoadCache()
         => SyncCacheManager.LoadCache(CachePath, new ConsoleLogger(LogLevel.Error));
@@ -160,9 +162,10 @@ public sealed class WechatCombinedReviewTests : IDisposable
             Title = "Stored title"
         };
         SyncCacheManager.SaveCache(CachePath, new SyncCache(
-            3,
+            4,
             new Dictionary<string, SyncRecord>(StringComparer.Ordinal))
         {
+            AppId = "app",
             Operations = new Dictionary<string, SyncOperation>(StringComparer.Ordinal)
             {
                 [SyncKey] = operation

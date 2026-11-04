@@ -6,6 +6,9 @@ namespace Bukit.IndexNow;
 public static partial class IndexNowKeyFileWriter
 {
     public static string Write(string outputRoot, string key)
+        => Write(outputRoot, key, beforeCreateTarget: null);
+
+    internal static string Write(string outputRoot, string key, Action<string>? beforeCreateTarget)
     {
         if (string.IsNullOrWhiteSpace(key) || !SafeKey().IsMatch(key))
         {
@@ -22,48 +25,86 @@ public static partial class IndexNowKeyFileWriter
             throw new InvalidOperationException("IndexNow key file must stay in the production output root.");
         }
 
+        if (Directory.Exists(path))
+        {
+            throw new InvalidOperationException("IndexNow key file target must not be a directory.");
+        }
+
         var targetInfo = new FileInfo(path);
         if (targetInfo.LinkTarget is not null)
         {
             throw new InvalidOperationException("IndexNow key file target must not be a symbolic link.");
         }
 
-        var temporary = Path.Combine(root, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
-        try
+        var keyBytes = Encoding.UTF8.GetBytes(key);
+        if (targetInfo.Exists)
         {
-            using (var stream = new FileStream(
-                       temporary,
-                       FileMode.CreateNew,
-                       FileAccess.Write,
-                       FileShare.None,
-                       4096,
-                       FileOptions.WriteThrough))
-            using (var writer = new StreamWriter(
-                       stream,
-                       new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
-                       leaveOpen: true))
+            if (HasExpectedContent(path, keyBytes))
             {
-                writer.Write(key);
-                writer.Flush();
-                stream.Flush(flushToDisk: true);
+                return path;
             }
 
+            throw new InvalidOperationException(
+                $"IndexNow key file '{path}' already exists with different content; refusing to overwrite.");
+        }
+
+        beforeCreateTarget?.Invoke(path);
+
+        var created = false;
+        try
+        {
+            using var stream = new FileStream(
+                path,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                4096,
+                FileOptions.WriteThrough);
+            created = true;
+            stream.Write(keyBytes);
+            stream.Flush(flushToDisk: true);
+            return path;
+        }
+        catch (IOException) when (!created && File.Exists(path))
+        {
             targetInfo.Refresh();
             if (targetInfo.LinkTarget is not null)
             {
                 throw new InvalidOperationException("IndexNow key file target must not be a symbolic link.");
             }
 
-            File.Move(temporary, path, overwrite: true);
+            if (!HasExpectedContent(path, keyBytes))
+            {
+                throw new InvalidOperationException(
+                    $"IndexNow key file '{path}' already exists with different content; refusing to overwrite.");
+            }
+
             return path;
         }
-        finally
+        catch
         {
-            if (File.Exists(temporary))
+            if (created)
             {
-                File.Delete(temporary);
+                try
+                {
+                    File.Delete(path);
+                }
+                catch
+                {
+                    // Preserve the primary write failure.
+                }
             }
+
+            throw;
         }
+    }
+
+    private static bool HasExpectedContent(string path, byte[] expected)
+    {
+        var info = new FileInfo(path);
+        return info.Exists &&
+               info.Length == expected.Length &&
+               File.ReadAllBytes(path).AsSpan().SequenceEqual(expected);
     }
 
     private static StringComparison PathComparison

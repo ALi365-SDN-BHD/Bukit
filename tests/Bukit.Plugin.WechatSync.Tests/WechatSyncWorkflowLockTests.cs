@@ -249,7 +249,7 @@ public sealed class WechatSyncWorkflowLockTests : IDisposable
         using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
         var realCachePath = CachePath();
         Directory.CreateDirectory(Path.GetDirectoryName(realCachePath)!);
-        File.WriteAllText(realCachePath, "{\"Version\":3,\"Records\":{},\"ThumbMediaIds\":{},\"Operations\":{}}");
+        File.WriteAllText(realCachePath, "{\"Version\":4,\"AppId\":\"app\",\"Records\":{},\"ThumbMediaIds\":{},\"Operations\":{}}");
         var aliasCachePath = Path.Combine(Path.GetDirectoryName(realCachePath)!, "alias.json");
         File.CreateSymbolicLink(aliasCachePath, realCachePath);
         var firstGateway = new ControllableGateway(blockDraft: true);
@@ -326,7 +326,9 @@ public sealed class WechatSyncWorkflowLockTests : IDisposable
     }
 
     private string CachePath()
-        => Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json");
+        => SyncCacheManager.ResolveAccountPath(
+            SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/sync-cache.json"),
+            "app");
 
     private WechatSyncContext Context()
         => CreateContext(_rootDir);

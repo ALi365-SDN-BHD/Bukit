@@ -322,6 +322,59 @@ public sealed class WechatSyncWorkflowTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_TextOnlyArticleUsesDefaultImageWithoutDefaultMediaId()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(
+            gateway,
+            downloadImageAsync: (_, _) => Task.FromResult(Array.Empty<byte>()));
+        var context = Context("<p>Hello</p>");
+        var defaultPath = Path.Combine(context.OutputDir, "assets", "default.png");
+        Directory.CreateDirectory(Path.GetDirectoryName(defaultPath)!);
+        File.WriteAllBytes(defaultPath, TinyPng);
+        var options = Options(appId.Name, secret.Name) with
+        {
+            DefaultThumbMediaId = null,
+            DefaultImageUrl = "/assets/default.png"
+        };
+
+        var result = await workflow.RunAsync(context, options);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Synced);
+        Assert.Equal(1, gateway.AddDraftCount);
+        Assert.Equal(1, gateway.UploadThumbCount);
+        Assert.Equal("uploaded-thumb", Assert.Single(gateway.Requests).ThumbMediaId);
+    }
+
+    [Fact]
+    public async Task RunAsync_TextOnlyArticleFallsBackToDefaultMediaIdWhenDefaultImageFails()
+    {
+        using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
+        using var secret = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_SECRET_" + Guid.NewGuid().ToString("N"), "secret");
+        var gateway = new FakeWechatDraftGateway();
+        var workflow = new WechatSyncWorkflow(
+            gateway,
+            downloadImageAsync: (_, _) => throw new InvalidOperationException("download failed"));
+        var context = Context("<p>Hello</p>");
+        var options = Options(appId.Name, secret.Name) with
+        {
+            DefaultThumbMediaId = "thumb-fallback",
+            DefaultImageUrl = "https://cdn.example.com/missing.png"
+        };
+
+        var result = await workflow.RunAsync(context, options);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Synced);
+        Assert.Equal(1, gateway.AddDraftCount);
+        Assert.Equal(0, gateway.UploadThumbCount);
+        Assert.Equal("thumb-fallback", Assert.Single(gateway.Requests).ThumbMediaId);
+    }
+
+    [Fact]
     public async Task RunAsync_ProtocolRelativeLocalCoverFileChangeBypassesExistingCacheRecord()
     {
         using var appId = new EnvironmentVariableScope("BUKIT_TEST_WECHAT_APP_ID_" + Guid.NewGuid().ToString("N"), "app");
@@ -687,7 +740,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
         Assert.Equal(0, result.Synced);
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "plugin.wechat-sync.publishFailed");
         var cache = SyncCacheManager.LoadCache(
-            Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json"),
+            CachePath(),
             new ConsoleLogger(LogLevel.Error));
         Assert.Empty(cache.Records);
         var operation = Assert.Single(cache.Operations).Value;
@@ -713,7 +766,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
 
         var result = await workflow.RunAsync(context, options);
 
-        var cache = SyncCacheManager.LoadCache(Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json"), new ConsoleLogger(LogLevel.Error));
+        var cache = SyncCacheManager.LoadCache(CachePath(), new ConsoleLogger(LogLevel.Error));
         Assert.False(result.Success);
         Assert.Empty(cache.Records);
         Assert.NotEmpty(cache.ThumbMediaIds);
@@ -737,7 +790,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
 
         var result = await workflow.RunAsync(context, options);
 
-        var cache = SyncCacheManager.LoadCache(Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json"), new ConsoleLogger(LogLevel.Error));
+        var cache = SyncCacheManager.LoadCache(CachePath(), new ConsoleLogger(LogLevel.Error));
         Assert.False(result.Success);
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Code == "plugin.wechat-sync.recoveryRequired");
         Assert.Empty(cache.Records);
@@ -760,7 +813,7 @@ public sealed class WechatSyncWorkflowTests : IDisposable
 
         var result = await workflow.RunAsync(context, options);
 
-        var cachePath = Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json");
+        var cachePath = CachePath();
         var cache = SyncCacheManager.LoadCache(cachePath, new ConsoleLogger(LogLevel.Error));
         Assert.False(result.Success);
         Assert.Equal(1, result.Synced);
@@ -1109,6 +1162,11 @@ public sealed class WechatSyncWorkflowTests : IDisposable
             Logger = context.Logger,
             Routed = context.Routed
         };
+
+    private string CachePath()
+        => SyncCacheManager.ResolveAccountPath(
+            SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/sync-cache.json"),
+            "app");
 
     private static WechatSyncOptions Options(string appIdEnv, string appSecretEnv)
         => new(

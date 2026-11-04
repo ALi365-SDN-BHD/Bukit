@@ -12,6 +12,8 @@ namespace Bukit.WechatSyncing;
 
 public sealed record SyncCache(int Version, Dictionary<string, SyncRecord> Records)
 {
+    public string? AppId { get; init; }
+
     public Dictionary<string, string> ThumbMediaIds { get; init; } = new(StringComparer.Ordinal);
 
     [JsonInclude]
@@ -64,6 +66,22 @@ internal static class SyncCacheManager
         }
 
         return path;
+    }
+
+    internal static string ResolveAccountPath(string cachePath, string appId)
+    {
+        if (string.IsNullOrWhiteSpace(appId))
+        {
+            throw new InvalidOperationException("wechat-sync account id must not be empty.");
+        }
+
+        var directory = Path.GetDirectoryName(cachePath)
+                        ?? throw new InvalidOperationException("wechat-sync cache path must have a parent directory.");
+        var name = Path.GetFileNameWithoutExtension(cachePath);
+        var extension = Path.GetExtension(cachePath);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(appId)))
+            .ToLowerInvariant()[..12];
+        return Path.Combine(directory, $"{name}.{hash}{extension}");
     }
 
     internal static async Task<RunLockHandle> AcquireRunLockAsync(
@@ -246,12 +264,15 @@ internal static class SyncCacheManager
         }
     }
 
-    internal static SyncCache LoadCache(string path, Bukit.Shared.ILogger logger)
+    internal static SyncCache LoadCache(
+        string path,
+        Bukit.Shared.ILogger logger,
+        string? expectedAppId = null)
     {
         ValidateCacheLocation(path, "cache file");
         if (!File.Exists(path))
         {
-            return CreateEmpty();
+            return CreateEmpty(expectedAppId);
         }
 
         _ = logger;
@@ -266,6 +287,21 @@ internal static class SyncCacheManager
 
             ValidateCache(cache);
 
+            if (expectedAppId is not null)
+            {
+                if (cache.Version != 4 || string.IsNullOrWhiteSpace(cache.AppId))
+                {
+                    throw new InvalidOperationException(
+                        $"wechat-sync cache '{path}' is not bound to a WeChat AppId; move or remove it before retrying.");
+                }
+
+                if (!string.Equals(cache.AppId, expectedAppId, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"wechat-sync cache '{path}' belongs to a different WeChat AppId; use a separate --cache-file for this account.");
+                }
+            }
+
             var thumbs = new Dictionary<string, string>(cache.ThumbMediaIds, StringComparer.Ordinal);
             var operations = cache.Version == 2
                 ? new Dictionary<string, SyncOperation>(StringComparer.Ordinal)
@@ -273,11 +309,15 @@ internal static class SyncCacheManager
 
             return cache with
             {
-                Version = 3,
+                Version = cache.Version == 4 ? 4 : 3,
                 Records = new Dictionary<string, SyncRecord>(cache.Records, StringComparer.Ordinal),
                 ThumbMediaIds = thumbs,
                 Operations = operations
             };
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -566,10 +606,11 @@ internal static class SyncCacheManager
         }
     }
 
-    private static SyncCache CreateEmpty()
+    private static SyncCache CreateEmpty(string? appId = null)
     {
-        return new SyncCache(3, new Dictionary<string, SyncRecord>(StringComparer.Ordinal))
+        return new SyncCache(appId is null ? 3 : 4, new Dictionary<string, SyncRecord>(StringComparer.Ordinal))
         {
+            AppId = appId,
             ThumbMediaIds = new Dictionary<string, string>(StringComparer.Ordinal),
             Operations = new Dictionary<string, SyncOperation>(StringComparer.Ordinal)
         };
@@ -577,12 +618,17 @@ internal static class SyncCacheManager
 
     private static void ValidateCache(SyncCache cache)
     {
-        if (cache.Version is not (2 or 3))
+        if (cache.Version is not (2 or 3 or 4))
         {
             throw new InvalidDataException($"Unsupported cache version '{cache.Version}'.");
         }
 
-        if (cache.Records is null || cache.ThumbMediaIds is null || (cache.Version == 3 && cache.Operations is null))
+        if (cache.Version == 4 && string.IsNullOrWhiteSpace(cache.AppId))
+        {
+            throw new InvalidDataException("Cache version 4 must be bound to a WeChat AppId.");
+        }
+
+        if (cache.Records is null || cache.ThumbMediaIds is null || (cache.Version >= 3 && cache.Operations is null))
         {
             throw new InvalidDataException("Cache collections must not be null.");
         }
@@ -606,7 +652,7 @@ internal static class SyncCacheManager
             throw new InvalidDataException("Cache contains an invalid thumb media record.");
         }
 
-        if (cache.Version != 3)
+        if (cache.Version < 3)
         {
             return;
         }

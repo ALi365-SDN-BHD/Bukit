@@ -165,6 +165,85 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_RejectsEmptyManifestObject()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, "agent-manifest.json"), "{}");
+
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() => LoadAsync(outputDir));
+
+        Assert.Contains("manifest", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LoadAsync_RejectsMissingDeclaredContentJson()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(outputDir);
+        WriteManifest(outputDir, "content/missing.json", "/posts/hello/");
+
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() => LoadAsync(outputDir));
+
+        Assert.Contains("content json missing", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content/missing.json", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_RejectsEmptyContentJsonObject()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(Path.Combine(outputDir, "content"));
+        WriteManifest(outputDir, "content/post-1.json", "/posts/hello/");
+        File.WriteAllText(Path.Combine(outputDir, "content", "post-1.json"), "{}");
+
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() => LoadAsync(outputDir));
+
+        Assert.Contains("content json", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content/post-1.json", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_RejectsContentJsonWithoutReviewStatus()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(Path.Combine(outputDir, "content"));
+        WriteManifest(outputDir, "content/post-1.json", "/posts/hello/");
+        File.WriteAllText(Path.Combine(outputDir, "content", "post-1.json"), """
+{
+  "id": "post-1",
+  "title": "Hello",
+  "route": "/posts/hello/",
+  "publishedAt": "2026-01-01T00:00:00Z"
+}
+""");
+
+        var ex = await Assert.ThrowsAsync<InvalidDataException>(() => LoadAsync(outputDir));
+
+        Assert.Contains("content json", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("content/post-1.json", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_AcceptsValidEmptyManifest()
+    {
+        var outputDir = Path.Combine(_rootDir, "dist");
+        Directory.CreateDirectory(outputDir);
+        File.WriteAllText(Path.Combine(outputDir, "agent-manifest.json"), """
+{
+  "schema": "https://bukit.dev/schemas/agent-manifest.v1.json",
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-01-01T00:00:00Z",
+  "documents": []
+}
+""");
+
+        var context = await LoadAsync(outputDir);
+
+        Assert.Empty(context.Routed);
+    }
+
+    [Fact]
     public async Task LoadAsync_RejectsDefaultManifestSymlinkEscapingOutputDirectory()
     {
         var outputDir = Path.Combine(_rootDir, "dist");
@@ -176,8 +255,8 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
             var outsideManifest = Path.Combine(outsideDir, "agent-manifest.json");
             File.WriteAllText(outsideManifest, """
 {
-  "schema": "bukit.agent-manifest",
-  "schemaVersion": "1.0.0",
+  "schema": "https://bukit.dev/schemas/agent-manifest.v1.json",
+  "schemaVersion": "1.0",
   "generatedAt": "2026-01-01T00:00:00Z",
   "documents": []
 }
@@ -218,8 +297,8 @@ public sealed class WechatSyncInputLoaderTests : IDisposable
             : ",\n        { \"kind\": \"html\", \"url\": \"" + htmlUrl + "\" }";
         File.WriteAllText(Path.Combine(outputDir, "agent-manifest.json"), $$"""
 {
-  "schema": "bukit.agent-manifest",
-  "schemaVersion": "1.0.0",
+  "schema": "https://bukit.dev/schemas/agent-manifest.v1.json",
+  "schemaVersion": "1.0",
   "generatedAt": "2026-01-01T00:00:00Z",
   "documents": [
     {

@@ -1808,6 +1808,28 @@
     },
     {
       "contractConsumerGlobs": [],
+      "id": "bukit-indexnow",
+      "matches": [
+        "src/Bukit-Plugins/Bukit.IndexNow/*.cs",
+        "src/Bukit-Plugins/Bukit.IndexNow/**/*.cs",
+        "src/Bukit-Plugins/Bukit.IndexNow/Bukit.IndexNow.csproj",
+        "src/Bukit-Plugins/Bukit.Plugin.IndexNow/*.cs",
+        "src/Bukit-Plugins/Bukit.Plugin.IndexNow/**/*.cs",
+        "src/Bukit-Plugins/Bukit.Plugin.IndexNow/Bukit.Plugin.IndexNow.csproj",
+        "src/Bukit-Plugins/Bukit.Plugin.IndexNow/**/*.yaml",
+        "src/Bukit-Plugins/Bukit.Plugin.IndexNow/**/*.md",
+        "tests/Bukit.Plugin.IndexNow.Tests/*.cs",
+        "tests/Bukit.Plugin.IndexNow.Tests/**/*.cs",
+        "tests/Bukit.Plugin.IndexNow.Tests/Bukit.Plugin.IndexNow.Tests.csproj"
+      ],
+      "publicContract": false,
+      "resource": "dotnet-serial",
+      "specialtyTests": [
+        "dotnet test tests/Bukit.Plugin.IndexNow.Tests/Bukit.Plugin.IndexNow.Tests.csproj"
+      ]
+    },
+    {
+      "contractConsumerGlobs": [],
       "id": "bukit-wechat-sync",
       "matches": [
         "src/Bukit-Plugins/Bukit.WechatSyncing/*.cs",
@@ -1815,6 +1837,7 @@
         "src/Bukit-Plugins/Bukit.WechatSyncing/Bukit.WechatSyncing.csproj",
         "src/Bukit-Plugins/Bukit.Plugin.WechatSync/*.cs",
         "src/Bukit-Plugins/Bukit.Plugin.WechatSync/**/*.cs",
+        "src/Bukit-Plugins/Bukit.Plugin.WechatSync/Bukit.Plugin.WechatSync.csproj",
         "src/Bukit-Plugins/Bukit.Plugin.WechatSync/**/*.yaml",
         "src/Bukit-Plugins/Bukit.Plugin.WechatSync/**/*.md",
         "tests/Bukit.Plugin.WechatSync.Tests/*.cs",

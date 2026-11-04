@@ -218,6 +218,46 @@ public sealed class WechatSyncPluginInvokeCompatibilityTests : IDisposable
     }
 
     [Fact]
+    public async Task Invoke_DryRunReturnsFailureWhenManifestIsEmptyObject()
+    {
+        Directory.CreateDirectory(Path.Combine(_rootDir, "dist"));
+        File.WriteAllText(Path.Combine(_rootDir, "dist", "agent-manifest.json"), "{}");
+
+        var response = await WechatSyncPluginInvoker.InvokeAsync(Request(
+            new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--dry-run"] = Json(true)
+            }));
+
+        Assert.False(response.Success);
+        Assert.Equal(1, response.ExitCode);
+        Assert.Contains(response.Diagnostics, diagnostic =>
+            diagnostic.Code == "plugin.wechat-sync.failed" &&
+            diagnostic.Message.Contains("manifest", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Invoke_DryRunReturnsFailureWhenDeclaredContentJsonIsMissing()
+    {
+        CreateMinimalBuildOutput();
+        File.Delete(Path.Combine(_rootDir, "dist", "content", "post-1.json"));
+
+        var response = await WechatSyncPluginInvoker.InvokeAsync(Request(
+            new Dictionary<string, JsonElement>
+            {
+                ["--output"] = Json("dist"),
+                ["--dry-run"] = Json(true)
+            }));
+
+        Assert.False(response.Success);
+        Assert.Equal(1, response.ExitCode);
+        Assert.Contains(response.Diagnostics, diagnostic =>
+            diagnostic.Code == "plugin.wechat-sync.failed" &&
+            diagnostic.Message.Contains("content json missing", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Invoke_DryRunReturnsFailureWhenManifestIsMissing()
     {
         Directory.CreateDirectory(Path.Combine(_rootDir, "dist"));
@@ -252,8 +292,8 @@ public sealed class WechatSyncPluginInvokeCompatibilityTests : IDisposable
         Directory.CreateDirectory(Path.Combine(_rootDir, "dist", "posts", "hello"));
         File.WriteAllText(Path.Combine(_rootDir, "dist", "agent-manifest.json"), """
 {
-  "schema": "bukit.agent-manifest",
-  "schemaVersion": "1.0.0",
+  "schema": "https://bukit.dev/schemas/agent-manifest.v1.json",
+  "schemaVersion": "1.0",
   "generatedAt": "2026-01-01T00:00:00Z",
   "documents": [
     {

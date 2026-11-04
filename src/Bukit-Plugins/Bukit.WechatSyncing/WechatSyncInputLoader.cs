@@ -5,6 +5,9 @@ namespace Bukit.WechatSyncing;
 
 public static class WechatSyncInputLoader
 {
+    private const string ManifestSchema = "https://bukit.dev/schemas/agent-manifest.v1.json";
+    private const string ManifestSchemaVersion = "1.0";
+
     public static async Task<WechatSyncContext> LoadAsync(
         string rootDir,
         string outputDir,
@@ -37,8 +40,10 @@ public static class WechatSyncInputLoader
             throw new InvalidOperationException($"wechat-sync manifest is empty or invalid: {manifestPath}");
         }
 
+        ValidateManifest(manifest, manifestPath);
+
         var routed = new List<(WechatSyncItem Item, WechatSyncRoute Route)>();
-        var documents = manifest.Documents ?? [];
+        var documents = manifest.Documents;
         foreach (var document in documents)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -55,8 +60,7 @@ public static class WechatSyncInputLoader
             var jsonPath = ResolveOutputPath(outputDir, Uri.UnescapeDataString(NormalizeHtmlLocatorUrl(jsonUrl, baseUrl)), "content json");
             if (!File.Exists(jsonPath))
             {
-                logger.Warn($"plugin wechat-sync content json missing: {jsonUrl}");
-                continue;
+                throw new InvalidDataException($"wechat-sync content json missing: {jsonUrl} ({jsonPath})");
             }
 
             await using var jsonStream = File.OpenRead(jsonPath);
@@ -66,9 +70,10 @@ public static class WechatSyncInputLoader
                 cancellationToken);
             if (content is null)
             {
-                logger.Warn($"plugin wechat-sync content json invalid: {jsonUrl}");
-                continue;
+                throw new InvalidDataException($"wechat-sync content json invalid: {jsonUrl} ({jsonPath})");
             }
+
+            ValidateContent(content, jsonUrl, jsonPath);
 
             var routeUrl = string.IsNullOrWhiteSpace(content.Route) ? document.Route : content.Route;
             var htmlUrl = document.Representations
@@ -133,6 +138,54 @@ public static class WechatSyncInputLoader
             Routed = routed,
             Logger = logger
         };
+    }
+
+    private static void ValidateManifest(ContentProjectionAgentManifest manifest, string path)
+    {
+        if (!string.Equals(manifest.Schema, ManifestSchema, StringComparison.Ordinal) ||
+            !string.Equals(manifest.SchemaVersion, ManifestSchemaVersion, StringComparison.Ordinal) ||
+            manifest.GeneratedAt == default ||
+            manifest.Documents is null)
+        {
+            throw new InvalidDataException($"wechat-sync manifest is invalid or unsupported: {path}");
+        }
+
+        foreach (var document in manifest.Documents)
+        {
+            if (document is null ||
+                string.IsNullOrWhiteSpace(document.Id) ||
+                string.IsNullOrWhiteSpace(document.CanonicalId) ||
+                string.IsNullOrWhiteSpace(document.Route) ||
+                document.Language is null ||
+                document.ReviewStatus is null ||
+                document.Entities is null ||
+                document.Representations is null ||
+                document.PublishedAt == default)
+            {
+                throw new InvalidDataException($"wechat-sync manifest document is invalid: {path}");
+            }
+
+            foreach (var representation in document.Representations)
+            {
+                if (representation is null ||
+                    string.IsNullOrWhiteSpace(representation.Kind) ||
+                    string.IsNullOrWhiteSpace(representation.Url))
+                {
+                    throw new InvalidDataException($"wechat-sync manifest representation is invalid: {path}");
+                }
+            }
+        }
+    }
+
+    private static void ValidateContent(ContentProjectionDocument content, string jsonUrl, string jsonPath)
+    {
+        if (string.IsNullOrWhiteSpace(content.Id) ||
+            string.IsNullOrWhiteSpace(content.Title) ||
+            string.IsNullOrWhiteSpace(content.ReviewStatus) ||
+            content.PublishedAt == default)
+        {
+            throw new InvalidDataException($"wechat-sync content json invalid: {jsonUrl} ({jsonPath})");
+        }
     }
 
     internal static string ResolveUnderRoot(string rootDir, string workingDir, string value, string name)

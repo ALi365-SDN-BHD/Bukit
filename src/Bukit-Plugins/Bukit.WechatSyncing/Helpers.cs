@@ -381,7 +381,10 @@ internal static class WechatSyncHelpers
             path = "/";
         }
 
-        return $"{scheme}://{host}{port}{path}";
+        // Query is part of the media identity. Do not add a legacy query-less
+        // fallback: the old key maps every query variant to one file, so reuse
+        // could return the wrong image.
+        return $"{scheme}://{host}{port}{path}{uri.Query}";
     }
 
     internal static string ResolveMediaCacheExtension(string sourceUrl)

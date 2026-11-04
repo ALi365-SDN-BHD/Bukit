@@ -74,13 +74,20 @@ Dry-run performs no network call, key-file write, or state mutation.
 
 The WeChat Sync plugin deliberately does not retry `draft/add` after the
 request may have reached WeChat. A timeout, transport failure, or unparseable
-response leaves the affected entry under `Operations` in
-`.cache/wechat-sync/sync-cache.json` with `State: "DraftSubmitting"`. Later
-runs report `plugin.wechat-sync.recoveryRequired` and refuse to submit that
-candidate again. `--force` and the force-retry environment variable do not
-bypass this guard because a second submit could create a duplicate draft.
+response leaves the affected entry under `Operations` in the active
+account-scoped cache file with `State: "DraftSubmitting"`. Cache files use
+`.cache/wechat-sync/sync-cache.<appid-hash>.json`, where `<appid-hash>` is
+derived from the non-secret WeChat AppId; use the `cache` artifact path reported
+by the plugin to locate the active file. Later runs report
+`plugin.wechat-sync.recoveryRequired` and refuse to submit that candidate
+again. `--force` and the force-retry environment variable do not bypass this
+guard because a second submit could create a duplicate draft.
 
-1. Stop automated publishing and back up the cache file before editing it.
+> Legacy `.cache/wechat-sync/sync-cache.json` files without an AppId are not
+> reused. Back them up, recover any `DraftSubmitting`/`PublishSubmitting`
+> operations, then remove or archive them before retrying.
+
+1. Stop automated publishing and back up the active account-scoped cache file before editing it.
 2. Find the affected `Operations` entry. Its property name is the candidate
    `syncKey`; inspect `SourceKey`, `SourceId`, `Title`, `ContentHash`, `Target`,
    and `UpdatedAt`.

@@ -40,12 +40,15 @@ internal sealed class ThumbResolver
         var thumbSource = ResolveThumbSource(item, cfg);
         if (string.IsNullOrWhiteSpace(thumbSource))
         {
-            if (!string.IsNullOrWhiteSpace(cfg.DefaultThumbMediaId))
+            var cachedThumbCount = cache.ThumbMediaIds.Count;
+            var defaultThumbMediaId = await TryUploadDefaultImageAsync(context, cfg, cache, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(defaultThumbMediaId))
             {
-                return (cfg.DefaultThumbMediaId.Trim(), false);
+                return (defaultThumbMediaId, cache.ThumbMediaIds.Count != cachedThumbCount);
             }
 
-            throw new InvalidOperationException("wechat-sync requires cover, first image in content, or wechat.defaultThumbMediaId.");
+            throw new InvalidOperationException(
+                "wechat-sync requires cover, first image in content, or a usable wechat.defaultImageUrl / wechat.defaultThumbMediaId.");
         }
 
         var thumbSourceText = thumbSource.Trim();
@@ -466,7 +469,8 @@ internal sealed class ThumbResolver
             return cfg.DefaultThumbMediaId?.Trim();
         }
 
-        return await TryDownloadAndUploadForDefaultAsync(absolute, cache, cancellationToken);
+        var uploadedFromHttp = await TryDownloadAndUploadForDefaultAsync(absolute, cache, cancellationToken);
+        return uploadedFromHttp ?? cfg.DefaultThumbMediaId?.Trim();
     }
 
     private async Task<string?> TryDownloadAndUploadForDefaultAsync(

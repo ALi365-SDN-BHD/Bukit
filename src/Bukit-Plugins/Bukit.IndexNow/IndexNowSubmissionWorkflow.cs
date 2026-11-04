@@ -59,9 +59,33 @@ public sealed class IndexNowSubmissionWorkflow
             var state = await _stateStore.LoadAsync(statePath, cancellationToken);
             var currentUrls = changes.Select(change => change.Url).ToHashSet(StringComparer.Ordinal);
             ValidateState(state);
+            var indexableRoutes = BuildIndexableRoutes(snapshot);
+            var pendingCandidates = new List<IndexNowPendingChange>();
+            foreach (var change in state.Pending)
+            {
+                if (change is not null && currentUrls.Contains(change.Url))
+                {
+                    continue;
+                }
+
+                ValidateChangeShape(change);
+                var pendingChange = change!;
+                if (IsStalePending(pendingChange, indexableRoutes))
+                {
+                    // shortcut: stale pending is discarded rather than rebased; update this
+                    // policy if the deployment baseline requires retrying old pending URLs.
+                    diagnostics.Add(new IndexNowDiagnostic(
+                        "plugin.indexnow.pendingSuperseded",
+                        "warning",
+                        $"Pending IndexNow change for {pendingChange.Url} no longer matches the current snapshot and was discarded."));
+                    continue;
+                }
+
+                pendingCandidates.Add(pendingChange);
+            }
+
             var recoveredPending = ValidateChanges(
-                    new PublishUrlChangeSetDocument(
-                        state.Pending.Where(change => !currentUrls.Contains(change.Url)).ToArray()),
+                    new PublishUrlChangeSetDocument(pendingCandidates),
                     snapshot)
                 .Where(change => !state.Notified.TryGetValue(change.Url, out var notified) ||
                                  !string.Equals(notified, IndexNowStateStore.Fingerprint(change), StringComparison.Ordinal))
@@ -112,7 +136,7 @@ public sealed class IndexNowSubmissionWorkflow
                 }
             }
 
-            if (diagnostics.Count > 0)
+            if (diagnostics.Any(item => item.Severity.Equals("error", StringComparison.OrdinalIgnoreCase)))
             {
                 return new IndexNowSubmissionResult(false, state.Deployed.Count, 0, state.Pending.Count, diagnostics);
             }
@@ -318,23 +342,11 @@ public sealed class IndexNowSubmissionWorkflow
         PublishUrlChangeSetDocument changeSet,
         PublishUrlSnapshotDocument snapshot)
     {
-        var routes = snapshot.Routes.Where(route => route.Indexable)
-            .GroupBy(route => route.Url, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var routes = BuildIndexableRoutes(snapshot);
         var changes = new List<IndexNowPendingChange>();
         foreach (var change in changeSet.Changes)
         {
-            if (change.Type is not ("added" or "updated" or "deleted"))
-            {
-                throw new InvalidOperationException("Change type must be added, updated, or deleted.");
-            }
-
-            _ = IndexNowUrlPolicy.ParseContentUrl(change.Url);
-            if (change.SemanticHash is null || !SemanticHashPattern.IsMatch(change.SemanticHash))
-            {
-                throw new InvalidOperationException("Change semanticHash must be a lowercase sha256 value.");
-            }
-
+            ValidateChangeShape(change);
             if (change.Type is "added" or "updated")
             {
                 if (!routes.TryGetValue(change.Url, out var route) ||
@@ -363,6 +375,49 @@ public sealed class IndexNowSubmissionWorkflow
             })
             .OrderBy(change => change.Url, StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static IReadOnlyDictionary<string, PublishUrlSnapshotRouteDocument> BuildIndexableRoutes(
+        PublishUrlSnapshotDocument snapshot)
+        => snapshot.Routes.Where(route => route.Indexable)
+            .GroupBy(route => route.Url, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+    private static void ValidateChangeShape(IndexNowPendingChange? change)
+    {
+        if (change is null)
+        {
+            throw new InvalidDataException("IndexNow change must not be null.");
+        }
+
+        if (change.Type is not ("added" or "updated" or "deleted"))
+        {
+            throw new InvalidOperationException("Change type must be added, updated, or deleted.");
+        }
+
+        if (string.IsNullOrWhiteSpace(change.Url))
+        {
+            throw new InvalidOperationException("Change URL is required.");
+        }
+
+        _ = IndexNowUrlPolicy.ParseContentUrl(change.Url);
+        if (change.SemanticHash is null || !SemanticHashPattern.IsMatch(change.SemanticHash))
+        {
+            throw new InvalidOperationException("Change semanticHash must be a lowercase sha256 value.");
+        }
+    }
+
+    private static bool IsStalePending(
+        IndexNowPendingChange change,
+        IReadOnlyDictionary<string, PublishUrlSnapshotRouteDocument> routes)
+    {
+        if (change.Type is "added" or "updated")
+        {
+            return !routes.TryGetValue(change.Url, out var route) ||
+                   !string.Equals(route.SemanticHash, change.SemanticHash, StringComparison.Ordinal);
+        }
+
+        return change.Type == "deleted" && routes.ContainsKey(change.Url);
     }
 
     private static void ValidateState(IndexNowState state)

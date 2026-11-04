@@ -14,7 +14,9 @@ public sealed class WechatSyncStateMachineTests : IDisposable
     public WechatSyncStateMachineTests()
     {
         _rootDir = Path.Combine(AppContext.BaseDirectory, "bukit-wechat-state-tests-" + Guid.NewGuid().ToString("N"));
-        _cachePath = Path.Combine(_rootDir, ".cache", "wechat-sync", "sync-cache.json");
+        _cachePath = SyncCacheManager.ResolveAccountPath(
+            SyncCacheManager.ResolvePath(_rootDir, ".cache/wechat-sync/sync-cache.json"),
+            "app");
         Directory.CreateDirectory(Path.GetDirectoryName(_cachePath)!);
     }
 
@@ -793,8 +795,9 @@ public sealed class WechatSyncStateMachineTests : IDisposable
             Title = "Hello",
             LastPublishStatus = lastPublishStatus
         };
-        var cache = new SyncCache(3, new Dictionary<string, SyncRecord>(StringComparer.Ordinal))
+        var cache = new SyncCache(4, new Dictionary<string, SyncRecord>(StringComparer.Ordinal))
         {
+            AppId = "app",
             Operations = new Dictionary<string, SyncOperation>(StringComparer.Ordinal)
             {
                 [SyncKey] = operation

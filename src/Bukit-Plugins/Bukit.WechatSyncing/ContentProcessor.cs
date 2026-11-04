@@ -106,9 +106,10 @@ internal static class ContentProcessor
             return html ?? string.Empty;
         }
 
-        // Process text nodes outside of pre/code/script/style tags
-        // We use a regex to split by these protected blocks and process only the text parts
-        var result = Regex.Replace(html, @"(<(?:pre|code|script|style)\b[^>]*>[\s\S]*?</(?:pre|code|script|style)>)|([^<]+)", match =>
+        // Process text nodes outside of protected blocks and tags.
+        // The tag branch is required: without it, a failed protected-block match
+        // lets [^<]+ start inside an opening tag and decode its attributes.
+        var result = Regex.Replace(html, @"(<(?:pre|code|script|style)\b[^>]*>[\s\S]*?</(?:pre|code|script|style)>)|(<(?=[A-Za-z!/?])(?:""[^""]*""|'[^']*'|[^'"">])*>)|([^<]+)", match =>
         {
             // Group 1: protected block - return as-is
             if (match.Groups[1].Success)
@@ -116,10 +117,16 @@ internal static class ContentProcessor
                 return match.Value;
             }
 
-            // Group 2: text content - decode entities
+            // Group 2: ordinary tag - attributes must stay encoded
             if (match.Groups[2].Success)
             {
-                return DecodeQuoteEntities(match.Groups[2].Value);
+                return match.Value;
+            }
+
+            // Group 3: text content - decode entities
+            if (match.Groups[3].Success)
+            {
+                return DecodeQuoteEntities(match.Groups[3].Value);
             }
 
             return match.Value;
