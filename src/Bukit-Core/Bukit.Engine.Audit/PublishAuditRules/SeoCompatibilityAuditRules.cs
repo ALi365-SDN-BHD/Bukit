@@ -5,6 +5,7 @@ internal static class SeoCompatibilityAuditRules
     internal static void Analyze(
         PublishDocument document,
         bool sitemapIncluded,
+        bool sitemapExpected,
         bool searchIncluded,
         bool searchExpected,
         bool rssIncluded,
@@ -26,7 +27,7 @@ internal static class SeoCompatibilityAuditRules
             return;
         }
 
-        if (!sitemapIncluded)
+        if (sitemapExpected && !sitemapIncluded)
         {
             issues.Add(Warning("publish.sitemap_missing_route", document.RouteUrl, "Indexable published content is missing from sitemap output."));
         }

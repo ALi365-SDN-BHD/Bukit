@@ -61,7 +61,7 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
                 continue;
             }
 
-            if (!locFilter.TryAccept(seo.Canonical))
+            if (!locFilter.TryAccept(seo.Route.Url, seo.Canonical, context.Logger))
             {
                 continue;
             }
@@ -89,34 +89,6 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
                config.Site.Collections is { Count: > 0 } collections &&
                collections.TryGetValue(collection, out var collectionConfig) &&
                !collectionConfig.Output.Sitemap;
-    }
-
-    /// <summary>
-    /// Sitemap locs are canonical URLs, but a sitemap may only list URLs under its own
-    /// location (same host and base path), and each URL once. Pages whose canonical points
-    /// to another host or outside the base path are left out; duplicate canonicals keep
-    /// the first entry.
-    /// </summary>
-    internal sealed class SitemapLocFilter
-    {
-        private readonly string _scope;
-        private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
-
-        internal SitemapLocFilter(string siteUrl, string baseUrl)
-        {
-            _scope = SeoModelBuilder.BuildAbsoluteUrl(siteUrl, baseUrl, "/");
-        }
-
-        internal bool TryAccept(string? canonical)
-        {
-            if (string.IsNullOrWhiteSpace(canonical) ||
-                !canonical.StartsWith(_scope, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            return _seen.Add(canonical);
-        }
     }
 
     private static HashSet<string> BuildListRouteSitemapExclusions(
