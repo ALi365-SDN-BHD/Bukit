@@ -204,7 +204,7 @@ public static class ConfigJsonSchemaGenerator
             ("llmsTxt", BoolSchema()),
             ("llmsFullTxt", BoolSchema()),
             ("llmsTxtMaxArticles", IntSchema(0)),
-            ("aiBotMode", EnumSchema("allow", "block", "selective")),
+            ("aiBotMode", EnumSchema("allow", "block-training", "block", "selective")),
             ("aiBotAllowList", StringArraySchema()),
             ("aiBotBlockList", StringArraySchema()),
             ("llmsTxtOptionalLinks", Obj(("type", "array"), ("items", LlmsTxtOptionalLinkSchema()))))));

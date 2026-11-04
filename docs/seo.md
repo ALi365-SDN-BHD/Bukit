@@ -291,6 +291,8 @@ plugin is the only supported Analytics output owner.
 
 `site.seo.robotsTxt.enabled: true` generates a basic `robots.txt` with a sitemap URL. Bukit does not overwrite an existing static `robots.txt`.
 
+When `site.seo.geo.enabled` is true, `robots.txt` also carries the AI crawler policy from `site.seo.geo.aiBotMode` (`allow`, `block-training`, `block`, or `selective`). Crawlers are grouped by purpose (training, AI search, user fetch), so `block-training` can opt out of model training while keeping the site citable in AI search. The policy is inactive without `robotsTxt.enabled` and `site.url`, and the build logs `event=robots.ai_policy_inactive` in that case. See `guide/user/17-geo.md` for the crawler list and mode details.
+
 ## Minimum Collection Index Policy
 
 `indexPolicy` under a collection controls thin-collection indexability.

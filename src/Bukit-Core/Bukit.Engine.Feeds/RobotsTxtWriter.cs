@@ -6,37 +6,33 @@ namespace Bukit.Engine;
 
 internal static class RobotsTxtWriter
 {
-    private static readonly string[] DefaultAiBots =
-    {
-        "GPTBot",
-        "ChatGPT-User",
-        "Google-Extended",
-        "Claude-Web",
-        "ClaudeBot",
-        "Anthropic-AI",
-        "PerplexityBot",
-        "Cohere-AI",
-        "CCBot",
-        "Diffbot",
-        "FacebookBot",
-        "OAI-SearchBot"
-    };
-
     internal static void WriteIfRequested(
         AppConfig config,
         string outputDir,
         string baseUrl,
         IReadOnlyDictionary<string, SeoIndexEntry> seoIndex,
-        IReadOnlyList<string>? sitemapUrls = null)
+        IReadOnlyList<string>? sitemapUrls = null,
+        ILogger? logger = null)
     {
+        var robotsPath = Path.Combine(outputDir, "robots.txt");
         if (!config.Site.Seo.RobotsTxt.Enabled || string.IsNullOrWhiteSpace(config.Site.Url))
         {
+            if (HasCustomAiPolicy(config.Site.Seo.Geo))
+            {
+                var reason = config.Site.Seo.RobotsTxt.Enabled ? "site_url_missing" : "robots_txt_disabled";
+                logger?.Warn($"event=robots.ai_policy_inactive reason={reason} message=site.seo.geo.aiBotMode and AI bot lists only take effect when site.seo.robotsTxt.enabled is true and site.url is set.");
+            }
+
             return;
         }
 
-        var robotsPath = Path.Combine(outputDir, "robots.txt");
         if (File.Exists(robotsPath))
         {
+            if (HasCustomAiPolicy(config.Site.Seo.Geo))
+            {
+                logger?.Info("event=robots.ai_policy_inactive reason=static_robots_txt message=A static robots.txt is kept as is, so the configured AI bot policy is not written.");
+            }
+
             return;
         }
 
@@ -56,66 +52,85 @@ internal static class RobotsTxtWriter
         var geo = config.Site.Seo.Geo;
         if (geo.Enabled)
         {
-            var aiBotMode = (geo.AiBotMode ?? "allow").Trim().ToLowerInvariant();
-            if (aiBotMode == "selective")
+            foreach (var (userAgent, allow) in BuildAiBotRules(geo))
             {
-                if (geo.AiBotAllowList is { Count: > 0 })
-                {
-                    foreach (var bot in geo.AiBotAllowList)
-                    {
-                        lines.Add(string.Empty);
-                        lines.Add($"User-agent: {bot}");
-                        lines.Add("Allow: /");
-                    }
-                }
-
-                if (geo.AiBotBlockList is { Count: > 0 })
-                {
-                    foreach (var bot in geo.AiBotBlockList)
-                    {
-                        lines.Add(string.Empty);
-                        lines.Add($"User-agent: {bot}");
-                        lines.Add("Disallow: /");
-                    }
-                }
-            }
-            else
-            {
-                var aiBots = GetAiBotList(geo, aiBotMode);
-                foreach (var bot in aiBots)
-                {
-                    lines.Add(string.Empty);
-                    lines.Add($"User-agent: {bot}");
-                    lines.Add(aiBotMode == "block" ? "Disallow: /" : "Allow: /");
-                }
+                lines.Add(string.Empty);
+                lines.Add($"User-agent: {userAgent}");
+                lines.Add(allow ? "Allow: /" : "Disallow: /");
             }
         }
 
         FileWriter.WriteUtf8(outputDir, "robots.txt", string.Join(Environment.NewLine, lines) + Environment.NewLine);
     }
 
-    private static IReadOnlyList<string> GetAiBotList(SeoGeoConfig geo, string aiBotMode)
+    /// <summary>
+    /// Builds one robots.txt group per AI crawler.
+    /// <list type="bullet">
+    /// <item><c>allow</c>: every known crawler is allowed.</item>
+    /// <item><c>block-training</c>: training crawlers are blocked; AI search and user-fetch crawlers stay allowed, so the site can still be cited.</item>
+    /// <item><c>block</c>: every known crawler is blocked, which also removes the site from AI search answers.</item>
+    /// <item><c>selective</c>: with an allow list, only listed crawlers are allowed and other known crawlers are blocked; with only a block list, just those are blocked.</item>
+    /// </list>
+    /// In every mode, <c>aiBotAllowList</c> entries are allowed and <c>aiBotBlockList</c> entries are blocked;
+    /// a crawler on both lists is blocked. Unknown names in either list are added as extra groups.
+    /// </summary>
+    internal static IReadOnlyList<(string UserAgent, bool Allow)> BuildAiBotRules(SeoGeoConfig geo)
     {
-        if (geo.AiBotBlockList is { Count: > 0 })
+        var mode = NormalizeMode(geo.AiBotMode);
+        var allowList = geo.AiBotAllowList ?? [];
+        var blockList = geo.AiBotBlockList ?? [];
+        if (mode == "selective" && allowList.Count == 0)
         {
-            var combined = new List<string>(DefaultAiBots);
-            foreach (var blocked in geo.AiBotBlockList)
+            // Only a block list: write just those groups; everything else follows "User-agent: *".
+            return Dedupe(blockList).Select(agent => (agent, false)).ToArray();
+        }
+
+        var allowSet = new HashSet<string>(Dedupe(allowList), StringComparer.OrdinalIgnoreCase);
+        var blockSet = new HashSet<string>(Dedupe(blockList), StringComparer.OrdinalIgnoreCase);
+        var agents = AiCrawlerCatalog.All.Select(crawler => crawler.UserAgent)
+            .Concat(allowList)
+            .Concat(blockList);
+        var purposes = AiCrawlerCatalog.All.ToDictionary(crawler => crawler.UserAgent, crawler => crawler.Purpose, StringComparer.OrdinalIgnoreCase);
+        return Dedupe(agents)
+            .Select(agent =>
             {
-                if (!combined.Contains(blocked, StringComparer.OrdinalIgnoreCase))
+                if (blockSet.Contains(agent))
                 {
-                    combined.Add(blocked);
+                    return (agent, false);
                 }
-            }
 
-            return combined;
-        }
+                if (allowSet.Contains(agent))
+                {
+                    return (agent, true);
+                }
 
-        if (geo.AiBotAllowList is { Count: > 0 })
+                var allowed = mode switch
+                {
+                    "block" or "selective" => false,
+                    "block-training" => !purposes.TryGetValue(agent, out var purpose) || purpose != AiCrawlerPurpose.Training,
+                    _ => true
+                };
+                return (agent, allowed);
+            })
+            .ToArray();
+    }
+
+    private static bool HasCustomAiPolicy(SeoGeoConfig geo)
+        => geo.Enabled &&
+           (NormalizeMode(geo.AiBotMode) != "allow" || geo.AiBotBlockList is { Count: > 0 });
+
+    private static string NormalizeMode(string? mode) => (mode ?? "allow").Trim().ToLowerInvariant();
+
+    private static IEnumerable<string> Dedupe(IEnumerable<string> agents)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var agent in agents)
         {
-            var allowSet = new HashSet<string>(geo.AiBotAllowList, StringComparer.OrdinalIgnoreCase);
-            return DefaultAiBots.Where(b => allowSet.Contains(b)).ToList();
+            var trimmed = agent?.Trim();
+            if (!string.IsNullOrEmpty(trimmed) && seen.Add(trimmed))
+            {
+                yield return trimmed;
+            }
         }
-
-        return DefaultAiBots;
     }
 }
