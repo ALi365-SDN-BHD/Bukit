@@ -17,7 +17,7 @@ public sealed record ImportConsoleCaptureResult<T>(
 /// Logging convention: lower-level classes (ImportAnalyzer, HtmlDemoImporter,
 /// ImportReportWriter, ContentDraftWriter) write progress/diagnostic output
 /// directly to Console.Out/Console.Error. The workflow layer (ImportCommandWorkflow)
-/// and the plugin adapter (ImportPluginConsoleCapture) wrap those calls with
+/// and the plugin invoker wrap those calls with
 /// this utility so that all console output is captured as structured messages
 /// rather than written to the actual process stdout/stderr.
 /// </para>
