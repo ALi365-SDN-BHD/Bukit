@@ -179,10 +179,33 @@ Curation changes llms projections only. Sitemap, search, RSS, robots, and
 
 | Output | Purpose |
 |---|---|
-| `llms.txt` | Compact list of important pages and links. |
+| `llms.txt` | Compact list of important pages and links. Its `## Optional` section links `agent-manifest.json`. |
 | `llms-full.txt` | Larger full-content file when enabled. |
+| `content/<page output path>.md` and `.json` | Markdown and JSON version of each content page, for example `content/blog/hello/index.html.md`. |
+| `agent-manifest.json` | Machine-readable index of every indexable page with links to its Markdown and JSON versions. |
 | `.bukit/geo-report.json` | Audit data for `geo audit`. |
 | publish audit fields | Whether AI-readable representations were generated and included. |
+
+### How AI agents find the Markdown and JSON versions
+
+In the default `renderMode: inject`, each indexable content page gets two
+links in its `<head>`:
+
+```html
+<link rel="alternate" type="text/markdown" href="/content/blog/hello/index.html.md" />
+<link rel="alternate" type="application/json" href="/content/blog/hello/index.html.json" />
+```
+
+Bukit leaves them out for `noindex` pages, for pages that set
+`seo_inject: false`, and when `site.seo.geo.enabled` is `false`. A theme that
+already declares a `text/markdown` alternate keeps its own link.
+
+In `renderMode: theme` or `off`, the theme owns the `<head>`, so Bukit does not
+add these links. Add them in your layout if you want them; the URL is the base
+URL plus `content/`, the page's output path, and `.md` or `.json`.
+
+Page links in `llms.txt` stay on the canonical HTML URLs. Agents that want
+Markdown can follow the `agent-manifest.json` link.
 
 ## Audit
 

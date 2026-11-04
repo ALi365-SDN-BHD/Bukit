@@ -26,6 +26,29 @@ internal static class SeoHtmlRenderer
         return beforeHeadContent + headContent.TrimEnd() + Environment.NewLine + seoHtml + afterHeadContent;
     }
 
+    /// <summary>
+    /// Adds <c>rel="alternate"</c> links to the page's Markdown and JSON versions so AI agents
+    /// can find them from the HTML. A theme that already declares a Markdown alternate keeps its own.
+    /// </summary>
+    internal static string InjectRepresentationLinks(string html, string markdownUrl, string jsonUrl)
+    {
+        if (string.IsNullOrWhiteSpace(html) || !HtmlHeadScanner.TryFindHead(html, out var head))
+        {
+            return html;
+        }
+
+        var headContent = html[head.ContentStart..head.ContentEnd];
+        if (headContent.Contains("text/markdown", StringComparison.OrdinalIgnoreCase))
+        {
+            return html;
+        }
+
+        var links =
+            $"  <link rel=\"alternate\" type=\"text/markdown\" href=\"{Attr(markdownUrl)}\" />{Environment.NewLine}" +
+            $"  <link rel=\"alternate\" type=\"application/json\" href=\"{Attr(jsonUrl)}\" />{Environment.NewLine}";
+        return html[..head.ContentStart] + headContent.TrimEnd() + Environment.NewLine + links + html[head.ContentEnd..];
+    }
+
     internal static string RenderHead(SeoModel seo)
     {
         var sb = new StringBuilder();

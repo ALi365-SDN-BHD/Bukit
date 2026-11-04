@@ -185,4 +185,34 @@ public sealed class SeoHtmlRendererTests
 
         return count;
     }
+
+    [Fact]
+    public void InjectRepresentationLinks_AddsMarkdownAndJsonAlternatesBeforeHeadClose()
+    {
+        var html = "<html><head><title>T</title></head><body></body></html>";
+
+        var result = SeoHtmlRenderer.InjectRepresentationLinks(html, "/content/a/index.html.md", "/content/a/index.html.json");
+
+        Assert.Contains("<link rel=\"alternate\" type=\"text/markdown\" href=\"/content/a/index.html.md\" />", result, StringComparison.Ordinal);
+        Assert.Contains("<link rel=\"alternate\" type=\"application/json\" href=\"/content/a/index.html.json\" />", result, StringComparison.Ordinal);
+        Assert.True(result.IndexOf("text/markdown", StringComparison.Ordinal) < result.IndexOf("</head>", StringComparison.Ordinal));
+        Assert.EndsWith("</head><body></body></html>", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void InjectRepresentationLinks_KeepsThemeMarkdownAlternate()
+    {
+        var html = "<html><head><link rel=\"alternate\" type=\"text/markdown\" href=\"/custom.md\"></head><body></body></html>";
+
+        Assert.Equal(html, SeoHtmlRenderer.InjectRepresentationLinks(html, "/content/a.md", "/content/a.json"));
+    }
+
+    [Fact]
+    public void InjectRepresentationLinks_EscapesUrlsAndIgnoresDocumentsWithoutHead()
+    {
+        var result = SeoHtmlRenderer.InjectRepresentationLinks("<html><head></head></html>", "/content/a\"b.md", "/content/a.json");
+        Assert.Contains("href=\"/content/a&quot;b.md\"", result, StringComparison.Ordinal);
+
+        Assert.Equal("<p>no head</p>", SeoHtmlRenderer.InjectRepresentationLinks("<p>no head</p>", "/a.md", "/a.json"));
+    }
 }

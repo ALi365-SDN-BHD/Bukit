@@ -65,6 +65,8 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Assert.Contains("Test Site", content, StringComparison.Ordinal);
         Assert.Contains("A test site", content, StringComparison.Ordinal);
         Assert.Contains("- [Test Page]", content, StringComparison.Ordinal);
+        // The standalone plugin path does not publish agent-manifest.json, so it must not link it.
+        Assert.DoesNotContain("Agent manifest", content, StringComparison.Ordinal);
     }
 
     [Fact]

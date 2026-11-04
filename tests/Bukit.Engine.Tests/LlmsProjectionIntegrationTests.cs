@@ -127,6 +127,20 @@ public sealed class LlmsProjectionIntegrationTests
                 Markdown.Parse(File.ReadAllText(Path.Combine(root, "async", "llms-full.txt"))).Descendants<LinkInline>().Select(link => link.Url));
             Assert.DoesNotContain("https://example.com/blog/hidden/", llmsFull, StringComparison.Ordinal);
             Assert.DoesNotContain("https://example.com/blog/expired/", llmsFull, StringComparison.Ordinal);
+
+            // AI agents can find each page's Markdown and JSON versions from the HTML and from llms.txt.
+            var visibleHtml = File.ReadAllText(Path.Combine(root, "dist", "blog/visible/index.html"));
+            foreach (var (type, extension) in new[] { ("text/markdown", ".md"), ("application/json", ".json") })
+            {
+                var href = System.Text.RegularExpressions.Regex.Match(
+                    visibleHtml, $"<link rel=\"alternate\" type=\"{type}\" href=\"([^\"]+)\"").Groups[1].Value;
+                Assert.Equal("/content/blog/visible/index.html" + extension, href);
+                Assert.True(File.Exists(Path.Combine(root, "dist", href.TrimStart('/'))));
+            }
+
+            Assert.DoesNotContain("text/markdown", File.ReadAllText(Path.Combine(root, "dist", "blog/hidden/index.html")), StringComparison.Ordinal);
+            Assert.Contains("- [Agent manifest](https://example.com/agent-manifest.json): ", llms, StringComparison.Ordinal);
+            Assert.True(File.Exists(Path.Combine(root, "dist", "agent-manifest.json")));
             Assert.Empty(logger.Errors);
         }
         finally
