@@ -33,7 +33,7 @@ crawlers by what they fetch pages for:
 
 | Purpose | Crawlers | Effect of blocking |
 |---|---|---|
-| Training | `GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`, `Meta-ExternalAgent`, `CCBot`, `Bytespider`, `Amazonbot`, `cohere-ai`, `Diffbot` | Content is not used to train models. The site can still appear in AI answers. |
+| Training | `GPTBot`, `ClaudeBot`, `Google-Extended`, `Applebot-Extended`, `Meta-ExternalAgent`, `CCBot`, `Bytespider`, `Amazonbot`, `cohere-ai`, `Diffbot`, plus the legacy tokens `FacebookBot`, `anthropic-ai`, `Claude-Web` | Content is not used to train models. The site can still appear in AI answers. |
 | AI search | `OAI-SearchBot`, `Claude-SearchBot`, `PerplexityBot` | The site drops out of AI search results and cannot be cited. |
 | User fetch | `ChatGPT-User`, `Claude-User`, `Perplexity-User` | Assistants cannot open the page when a user asks about it. |
 
@@ -42,7 +42,7 @@ crawlers by what they fetch pages for:
 | `allow` (default) | Every known crawler is allowed. |
 | `block-training` | Training crawlers are blocked; AI search and user-fetch crawlers stay allowed. Use this to opt out of training while staying citable. |
 | `block` | Every known crawler is blocked, including AI search. The site disappears from AI answers. |
-| `selective` | With `aiBotAllowList`, only listed crawlers are allowed and other known crawlers are blocked. With only `aiBotBlockList`, just those crawlers are blocked. |
+| `selective` | With `aiBotAllowList`, only listed crawlers are allowed and other known crawlers are blocked. With only `aiBotBlockList`, just those crawlers are blocked. The build warns with `event=robots.ai_search_blocked` when this blocks AI search or user-fetch crawlers you did not list. |
 
 In every mode, `aiBotAllowList` names are allowed and `aiBotBlockList` names
 are blocked; a name on both lists is blocked. Names Bukit does not know are
@@ -58,8 +58,9 @@ site:
       aiBotMode: block-training
 ```
 
-The policy only takes effect when `site.seo.robotsTxt.enabled` is `true` and
-`site.url` is set. Otherwise the build logs
+The policy only takes effect when `site.seo.geo.enabled` and
+`site.seo.robotsTxt.enabled` are `true` and `site.url` is set. Otherwise any
+non-default `aiBotMode` or AI bot list makes the build log
 `event=robots.ai_policy_inactive` as a warning. A static `robots.txt` in your
 project is kept as is, so the policy is not written; the build logs the same
 event at info level.

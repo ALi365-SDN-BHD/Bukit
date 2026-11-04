@@ -19,7 +19,7 @@ public sealed class RobotsTxtWriterTests : IDisposable
     public void Dispose() => TestCleanup.DeleteDirectory(_outputDir, recursive: true);
 
     [Fact]
-    public void AllowMode_AllowsEveryKnownCrawlerAndDropsRetiredNames()
+    public void AllowMode_AllowsEveryKnownCrawler()
     {
         var robots = Write(Geo("allow"));
 
@@ -28,9 +28,6 @@ public sealed class RobotsTxtWriterTests : IDisposable
             Assert.Equal("Allow: /", RuleFor(robots, crawler.UserAgent));
         }
 
-        Assert.DoesNotContain("Claude-Web", robots, StringComparison.Ordinal);
-        Assert.DoesNotContain("Anthropic-AI", robots, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("FacebookBot", robots, StringComparison.Ordinal);
         Assert.StartsWith("User-agent: *" + Environment.NewLine + "Allow: /", robots, StringComparison.Ordinal);
     }
 
@@ -62,6 +59,18 @@ public sealed class RobotsTxtWriterTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("block")]
+    [InlineData("block-training")]
+    public void BlockModes_StillCoverLegacyCrawlerTokens(string mode)
+    {
+        var robots = Write(Geo(mode));
+
+        Assert.Equal("Disallow: /", RuleFor(robots, "FacebookBot"));
+        Assert.Equal("Disallow: /", RuleFor(robots, "anthropic-ai"));
+        Assert.Equal("Disallow: /", RuleFor(robots, "Claude-Web"));
+    }
+
     [Fact]
     public void AllowMode_BlockListEntriesAreBlocked()
     {
@@ -81,6 +90,27 @@ public sealed class RobotsTxtWriterTests : IDisposable
         Assert.Equal("Allow: /", RuleFor(robots, "MyAgent"));
         Assert.Equal("Disallow: /", RuleFor(robots, "GPTBot"));
         Assert.Equal("Disallow: /", RuleFor(robots, "PerplexityBot"));
+    }
+
+    [Fact]
+    public void SelectiveMode_WarnsWhenAiSearchCrawlersAreBlockedImplicitly()
+    {
+        var logger = new RecordingLogger();
+        RobotsTxtWriter.WriteIfRequested(Config(Geo("selective", allow: ["OAI-SearchBot"], block: ["PerplexityBot"])), _outputDir, "/", IndexableIndex(), logger: logger);
+
+        var warning = Assert.Single(logger.Warnings);
+        Assert.Contains("event=robots.ai_search_blocked mode=selective", warning, StringComparison.Ordinal);
+        var agents = warning.Split("agents=")[1].Split(' ')[0].Split(',');
+        Assert.Equal(["Claude-SearchBot", "ChatGPT-User", "Claude-User", "Perplexity-User"], agents);
+    }
+
+    [Fact]
+    public void SelectiveMode_DoesNotWarnWhenEveryAiSearchCrawlerIsAllowed()
+    {
+        var logger = new RecordingLogger();
+        RobotsTxtWriter.WriteIfRequested(Config(Geo("selective", allow: [.. AiCrawlerCatalog.VisibilityUserAgents])), _outputDir, "/", IndexableIndex(), logger: logger);
+
+        Assert.Empty(logger.Warnings);
     }
 
     [Fact]
@@ -108,6 +138,28 @@ public sealed class RobotsTxtWriterTests : IDisposable
         var robots = Write(Geo("block") with { Enabled = false });
 
         Assert.DoesNotContain("GPTBot", robots, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeoDisabled_WarnsThatConfiguredAiPolicyIsInactive()
+    {
+        var logger = new RecordingLogger();
+        RobotsTxtWriter.WriteIfRequested(Config(Geo("block") with { Enabled = false }), _outputDir, "/", IndexableIndex(), logger: logger);
+
+        Assert.Contains(logger.Warnings, message =>
+            message.Contains("event=robots.ai_policy_inactive reason=geo_disabled", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AllowListOnly_WarnsWhenSiteUrlIsMissing()
+    {
+        var logger = new RecordingLogger();
+        var config = Config(Geo("allow", allow: ["MyAgent"]));
+        config = config with { Site = config.Site with { Url = null } };
+        RobotsTxtWriter.WriteIfRequested(config, _outputDir, "/", IndexableIndex(), logger: logger);
+
+        Assert.Contains(logger.Warnings, message =>
+            message.Contains("event=robots.ai_policy_inactive reason=site_url_missing", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -52,6 +52,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
                                    config.Site.Seo.Schema.SearchAction &&
                                    !string.IsNullOrWhiteSpace(config.Site.Search.Route);
 
+        var isInSitemapScope = SeoCompatibilityAuditRules.CreateSitemapScopeCheck(config.Site.Url, config.Site.BaseUrl);
         foreach (var (key, entry) in seoIndex.OrderBy(x => x.Value.Route.Url, StringComparer.OrdinalIgnoreCase))
         {
             seoModels.TryGetValue(key, out var model);
@@ -85,7 +86,7 @@ internal static partial class MachineReadabilityTrustAuditBuilder
             var llmsExcluded = curation is { IsExplicitlyExcluded: true };
             // Pages whose canonical points outside the site's sitemap location are left out of
             // the sitemap by design, so they must not be reported as missing from it.
-            var sitemapExpected = entry.Indexable && SeoCompatibilityAuditRules.IsInSitemapScope(config.Site.Url, config.Site.BaseUrl, entry.Canonical);
+            var sitemapExpected = entry.Indexable && isInSitemapScope(entry.Canonical);
             var sitemapIncluded = TryGetProjectionIncluded(projectionLookup, "sitemap", entry, out var projectedSitemap)
                 ? projectedSitemap
                 : entry.Indexable && ContainsInvariant(sitemapText, $"<loc>{entry.Canonical}</loc>");
