@@ -110,7 +110,20 @@ internal static partial class ContentExtractor
         if (!string.IsNullOrWhiteSpace(mapped))
             return mapped;
 
-        return string.IsNullOrWhiteSpace(page.Slug) ? href : $"/{page.Slug}/";
+        if (string.IsNullOrWhiteSpace(page.Slug))
+            return href;
+
+        // Mirrors the permalinks SiteConfigGenerator writes for each collection.
+        return page.Type switch
+        {
+            PageType.PostList => "/insights/",
+            PageType.CompanyList => "/companies/",
+            PageType.ServiceList => "/services/",
+            PageType.PostDetail => $"/insights/{page.Slug}/",
+            PageType.CompanyDetail => $"/companies/{page.Slug}/",
+            PageType.ServiceDetail => $"/services/{page.Slug}/",
+            _ => $"/{page.Slug}/"
+        };
     }
 
     private static void ExtractPageContent(DiscoveredPage page, ExtractedContent content)

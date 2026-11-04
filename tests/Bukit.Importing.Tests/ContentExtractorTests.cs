@@ -246,15 +246,19 @@ public sealed class ContentExtractorTests
         var pages = new List<DiscoveredPage>
         {
             MakePage(
-                """<body><header><nav><a href="/">Home</a><a href="about.html">About</a><a href="https://example.com/x">External</a></nav></header><main><h1>Home</h1></main></body>""",
+                """<body><header><nav><a href="/">Home</a><a href="about.html">About</a><a href="insights.html">Insights</a><a href="article.html">Article</a></nav></header><main><h1>Home</h1></main></body>""",
                 "", PageType.Home),
-            MakePage("<main><h1>About</h1></main>", "about")
+            MakePage("<main><h1>About</h1></main>", "about"),
+            MakePage("<main><h1>Article</h1></main>", "article", PageType.PostDetail),
+            MakePage("<main><h1>Insights</h1></main>", "insights", PageType.PostList)
         };
 
         var content = ContentExtractor.Extract(pages);
 
         Assert.Contains(content.Navigation, item => item.Link == "/");
         Assert.Contains(content.Navigation, item => item.Link == "/about/");
+        Assert.Contains(content.Navigation, item => item.Link == "/insights/");
+        Assert.Contains(content.Navigation, item => item.Link == "/insights/article/");
         Assert.DoesNotContain(content.Navigation, item => item.Link?.EndsWith(".html", StringComparison.Ordinal) == true);
     }
 
