@@ -4,6 +4,9 @@ Bukit 所有重要变更都将记录在此文件中。
 
 ## [Unreleased]
 
+- **AI 爬虫策略**：`robots.txt` 按用途（训练、AI 搜索、用户抓取）区分 AI 爬虫，新增 `aiBotMode: block-training`。行为变化：`selective` 模式配合 `aiBotAllowList` 时，其他已知爬虫（含 AI 搜索爬虫）都会被禁止，构建会输出 `event=robots.ai_search_blocked` 警告。配置了 AI 策略但无法写入时，构建会输出 `event=robots.ai_policy_inactive` 警告。
+- **Sitemap 范围**：sitemap 只列出位于 `site.url` + `baseUrl` 下的 canonical（默认端口和主机大小写已规范化），每个只列一次；发布审计不再要求 canonical 指向站外的页面出现在 sitemap 中。
+
 ## [2.0.7] - 2026-11-04
 
 - **版本号**：`Directory.Build.props` 中的产品版本改为 2.0.7，与发布线一致（v2.0.6 发布时该文件仍为 2.0.4，发布构建通过 `-p:VersionPrefix` 覆盖版本）。

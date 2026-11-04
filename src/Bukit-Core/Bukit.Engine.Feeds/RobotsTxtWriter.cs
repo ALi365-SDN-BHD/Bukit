@@ -15,12 +15,16 @@ internal static class RobotsTxtWriter
         ILogger? logger = null)
     {
         var robotsPath = Path.Combine(outputDir, "robots.txt");
+        var geo = config.Site.Seo.Geo;
+        var aiPolicyConfigured = HasConfiguredAiPolicy(geo);
         if (!config.Site.Seo.RobotsTxt.Enabled || string.IsNullOrWhiteSpace(config.Site.Url))
         {
-            if (HasCustomAiPolicy(config.Site.Seo.Geo))
+            if (aiPolicyConfigured)
             {
-                var reason = config.Site.Seo.RobotsTxt.Enabled ? "site_url_missing" : "robots_txt_disabled";
-                logger?.Warn($"event=robots.ai_policy_inactive reason={reason} message=site.seo.geo.aiBotMode and AI bot lists only take effect when site.seo.robotsTxt.enabled is true and site.url is set.");
+                var reason = !config.Site.Seo.RobotsTxt.Enabled ? "robots_txt_disabled"
+                    : !geo.Enabled ? "geo_disabled"
+                    : "site_url_missing";
+                LogInactivePolicy(logger, reason);
             }
 
             return;
@@ -28,12 +32,17 @@ internal static class RobotsTxtWriter
 
         if (File.Exists(robotsPath))
         {
-            if (HasCustomAiPolicy(config.Site.Seo.Geo))
+            if (aiPolicyConfigured)
             {
                 logger?.Info("event=robots.ai_policy_inactive reason=static_robots_txt message=A static robots.txt is kept as is, so the configured AI bot policy is not written.");
             }
 
             return;
+        }
+
+        if (aiPolicyConfigured && !geo.Enabled)
+        {
+            LogInactivePolicy(logger, "geo_disabled");
         }
 
         var lines = new List<string>
@@ -49,10 +58,11 @@ internal static class RobotsTxtWriter
             }
         }
 
-        var geo = config.Site.Seo.Geo;
         if (geo.Enabled)
         {
-            foreach (var (userAgent, allow) in BuildAiBotRules(geo))
+            var rules = BuildAiBotRules(geo);
+            WarnIfSelectiveBlocksAiSearch(geo, rules, logger);
+            foreach (var (userAgent, allow) in rules)
             {
                 lines.Add(string.Empty);
                 lines.Add($"User-agent: {userAgent}");
@@ -116,9 +126,35 @@ internal static class RobotsTxtWriter
         ];
     }
 
-    private static bool HasCustomAiPolicy(SeoGeoConfig geo)
-        => geo.Enabled &&
-           (NormalizeMode(geo.AiBotMode) != "allow" || geo.AiBotBlockList is { Count: > 0 });
+    // Any non-default AI crawler setting, whether or not GEO is enabled.
+    private static bool HasConfiguredAiPolicy(SeoGeoConfig geo)
+        => NormalizeMode(geo.AiBotMode) != "allow" ||
+           geo.AiBotAllowList is { Count: > 0 } ||
+           geo.AiBotBlockList is { Count: > 0 };
+
+    private static void LogInactivePolicy(ILogger? logger, string reason)
+        => logger?.Warn($"event=robots.ai_policy_inactive reason={reason} message=site.seo.geo.aiBotMode and AI bot lists only take effect when site.seo.geo.enabled and site.seo.robotsTxt.enabled are true and site.url is set.");
+
+    // Selective mode blocks every known crawler that is not on the allow list, AI search crawlers
+    // included. Say so, because that removes the site from AI search answers.
+    private static void WarnIfSelectiveBlocksAiSearch(SeoGeoConfig geo, IReadOnlyList<(string UserAgent, bool Allow)> rules, ILogger? logger)
+    {
+        if (logger is null || NormalizeMode(geo.AiBotMode) != "selective")
+        {
+            return;
+        }
+
+        var explicitlyBlocked = new HashSet<string>((geo.AiBotBlockList ?? []).Select(agent => agent.Trim()), StringComparer.OrdinalIgnoreCase);
+        var visibility = new HashSet<string>(AiCrawlerCatalog.VisibilityUserAgents, StringComparer.OrdinalIgnoreCase);
+        var implicitlyBlocked = rules
+            .Where(rule => !rule.Allow && visibility.Contains(rule.UserAgent) && !explicitlyBlocked.Contains(rule.UserAgent))
+            .Select(rule => rule.UserAgent)
+            .ToArray();
+        if (implicitlyBlocked.Length > 0)
+        {
+            logger.Warn($"event=robots.ai_search_blocked mode=selective agents={string.Join(',', implicitlyBlocked)} message=These AI search and user-fetch crawlers are not on site.seo.geo.aiBotAllowList, so they are blocked and the site cannot be cited in their AI answers. Add them to aiBotAllowList to stay citable.");
+        }
+    }
 
     private static string NormalizeMode(string? mode) => (mode ?? "allow").Trim().ToLowerInvariant();
 
@@ -170,6 +206,10 @@ internal static class AiCrawlerCatalog
         new("Amazonbot", AiCrawlerPurpose.Training),
         new("cohere-ai", AiCrawlerPurpose.Training),
         new("Diffbot", AiCrawlerPurpose.Training),
+        new("FacebookBot", AiCrawlerPurpose.Training),
+        // Legacy Anthropic tokens, kept so block modes still cover sites that see them.
+        new("anthropic-ai", AiCrawlerPurpose.Training),
+        new("Claude-Web", AiCrawlerPurpose.Training),
         new("OAI-SearchBot", AiCrawlerPurpose.Search),
         new("Claude-SearchBot", AiCrawlerPurpose.Search),
         new("PerplexityBot", AiCrawlerPurpose.Search),

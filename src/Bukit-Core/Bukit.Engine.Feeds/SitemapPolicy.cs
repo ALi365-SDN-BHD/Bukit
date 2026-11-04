@@ -50,8 +50,18 @@ internal sealed class SitemapLocFilter
                path.StartsWith(_scopePath, StringComparison.Ordinal);
     }
 
+    // Normalizes the origin so default ports, host case and a trailing host dot do not
+    // make a same-site URL look foreign. The path keeps its case.
     private static (string Origin, string Path) SplitOrigin(string url)
     {
+        if (Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            var host = uri.IdnHost.TrimEnd('.');
+            var origin = uri.IsDefaultPort ? $"{uri.Scheme}://{host}" : $"{uri.Scheme}://{host}:{uri.Port}";
+            return (origin, uri.AbsolutePath);
+        }
+
         var schemeEnd = url.IndexOf("://", StringComparison.Ordinal);
         var pathStart = schemeEnd < 0 ? -1 : url.IndexOf('/', schemeEnd + 3);
         return pathStart < 0 ? (url, "/") : (url[..pathStart], url[pathStart..]);
@@ -66,8 +76,6 @@ internal sealed class SitemapLocFilter
 
         return _seen.Add(canonical!) ? SitemapLocDecision.Accepted : SitemapLocDecision.Duplicate;
     }
-
-    internal bool TryAccept(string? canonical) => Evaluate(canonical) == SitemapLocDecision.Accepted;
 
     /// <summary>Evaluates the canonical and logs why a route was left out.</summary>
     internal bool TryAccept(string routeUrl, string? canonical, ILogger? logger)
