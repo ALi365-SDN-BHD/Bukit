@@ -136,6 +136,8 @@ Bukit builds a `SeoIndex` per final route, including content pages, derived page
 
 Canonical URLs are generated from `site.url + site.baseUrl + route.url` with normalized slashes. i18n alternate relationships become HTML `hreflang` links when related pages exist.
 
+Sitemap `<loc>` entries are canonical URLs, and a sitemap only lists URLs under its own location (`site.url + site.baseUrl`; for i18n `split` and `index` modes, the language base such as `/en/`). A page whose canonical points to another host or outside that base path, such as a syndicated post whose canonical is the original article, is left out of the sitemap. Pages that share a canonical are listed once. The SEO and publish audits do not report out-of-scope pages as `seo.sitemap_missing_url` or `publish.sitemap_missing_route`, and do not list `sitemap` in their `representationKinds`. Each left-out route is logged as `event=sitemap.canonical_out_of_scope` (info) or `event=sitemap.canonical_duplicate` (debug).
+
 Diagnostics run at both index and HTML levels. Bukit reports missing `site.url`, double-slash or external canonical URLs, duplicate canonical URLs across final routes, missing `x-default` on hreflang groups, missing core head tags, and duplicate canonical tags. Use `diagnostics: strict` in CI to fail the build instead of logging warnings.
 
 The schema audit requires a WebSite SearchAction only when the effective
