@@ -32,7 +32,7 @@ internal sealed class I18nRootSitemapWriter : II18nRootProjectionWriter
 
     private static void GenerateMergedSitemap(I18nRootProjectionWriterContext context, string siteUrl)
     {
-        _ = siteUrl;
+        var locFilter = new SitemapPlugin.SitemapLocFilter(siteUrl, context.RootBaseUrl);
         var excludeCache = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         bool IsExcludedFile(string absoluteHtmlPath)
         {
@@ -67,6 +67,11 @@ internal sealed class I18nRootSitemapWriter : II18nRootProjectionWriter
                 }
 
                 if (IsExcludedFile(Path.Combine(result.OutputDir, seo.Route.OutputPath)))
+                {
+                    continue;
+                }
+
+                if (!locFilter.TryAccept(seo.Canonical))
                 {
                     continue;
                 }

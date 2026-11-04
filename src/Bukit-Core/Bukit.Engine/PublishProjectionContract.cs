@@ -207,6 +207,7 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
 
         var logger = context.Logger ?? new ConsoleLogger(LogLevel.Error);
         var filtered = new List<(string AbsoluteUrl, DateTimeOffset? LastModified)>();
+        var locFilter = new SitemapPlugin.SitemapLocFilter(context.Config.Site.Url, context.BaseUrl);
         var documentExclusions = SitemapPlugin.BuildDocumentSitemapExclusions(
             context.Config,
             context.RoutedDocuments.Concat(context.DerivedDocuments));
@@ -228,6 +229,11 @@ internal sealed class SitemapPublishProjection : AggregatePublishProjectionBase
             }
 
             if (SitemapPolicy.ShouldExcludeFromSitemapFile(Path.Combine(context.OutputDir, seo.Route.OutputPath), logger))
+            {
+                continue;
+            }
+
+            if (!locFilter.TryAccept(seo.Canonical))
             {
                 continue;
             }
