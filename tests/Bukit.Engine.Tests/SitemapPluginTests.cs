@@ -132,6 +132,132 @@ public sealed class SitemapPluginTests
     }
 
     [Fact]
+    public void AfterBuild_ExternalAndDuplicateCanonicals_AreNotListed()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var outDir = Path.Combine(root, "dist");
+            var pages = new (string Slug, string Canonical)[]
+            {
+                ("a", "https://example.com/pages/a/"),
+                ("syndicated", "https://medium.com/@someone/original"),
+                ("copy-of-a", "https://example.com/pages/a/")
+            };
+            var context = CreateCanonicalContext(root, outDir, "/", pages);
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "n", Title = "t", Url = "https://example.com" },
+                Content = TestContent.Markdown()
+            };
+
+            new SitemapPlugin(config).AfterBuild(context);
+
+            var sitemap = File.ReadAllText(Path.Combine(outDir, "sitemap.xml"));
+            Assert.Single(System.Text.RegularExpressions.Regex.Matches(sitemap, "<loc>https://example.com/pages/a/</loc>"));
+            Assert.DoesNotContain("medium.com", sitemap, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void AfterBuild_SubPathBaseUrl_ListsOnlyUrlsUnderBase()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "bukit-tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var outDir = Path.Combine(root, "dist");
+            var pages = new (string Slug, string Canonical)[]
+            {
+                ("inside", "https://example.com/repo/pages/inside/"),
+                ("outside", "https://example.com/other-project/page/")
+            };
+            var context = CreateCanonicalContext(root, outDir, "/repo/", pages);
+            var config = new AppConfig
+            {
+                Site = new SiteConfig { Name = "n", Title = "t", Url = "https://example.com/", BaseUrl = "/repo/" },
+                Content = TestContent.Markdown()
+            };
+
+            new SitemapPlugin(config).AfterBuild(context);
+
+            var sitemap = File.ReadAllText(Path.Combine(outDir, "sitemap.xml"));
+            Assert.Contains("<loc>https://example.com/repo/pages/inside/</loc>", sitemap, StringComparison.Ordinal);
+            Assert.DoesNotContain("other-project", sitemap, StringComparison.Ordinal);
+        }
+        finally
+        {
+            TestCleanup.DeleteDirectory(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("https://example.com", "/", "https://example.com/a/", true)]
+    [InlineData("https://example.com", "/", "HTTPS://EXAMPLE.COM/a/", true)]
+    [InlineData("https://example.com", "/", "https://other.example/a/", false)]
+    [InlineData("https://example.com", "/", "https://example.com.evil.test/a/", false)]
+    [InlineData("https://example.com/", "/repo/", "https://example.com/repo/a/", true)]
+    [InlineData("https://example.com", "repo", "https://example.com/repo/", true)]
+    [InlineData("https://example.com", "/repo/", "https://example.com/repository/a/", false)]
+    [InlineData("https://example.com", "/repo/", "https://example.com/a/", false)]
+    [InlineData("https://example.com", "/", "", false)]
+    public void SitemapLocFilter_AcceptsOnlyUrlsUnderSitemapLocation(string siteUrl, string baseUrl, string canonical, bool expected)
+    {
+        var filter = new SitemapPlugin.SitemapLocFilter(siteUrl, baseUrl);
+
+        Assert.Equal(expected, filter.TryAccept(canonical));
+    }
+
+    [Fact]
+    public void SitemapLocFilter_RejectsRepeatedCanonical()
+    {
+        var filter = new SitemapPlugin.SitemapLocFilter("https://example.com", "/");
+
+        Assert.True(filter.TryAccept("https://example.com/a/"));
+        Assert.False(filter.TryAccept("https://example.com/a/"));
+        Assert.True(filter.TryAccept("https://example.com/b/"));
+    }
+
+    private static BuildContext CreateCanonicalContext(
+        string root,
+        string outDir,
+        string baseUrl,
+        IReadOnlyList<(string Slug, string Canonical)> pages)
+    {
+        var routed = new List<(ContentDocument Item, RouteInfo Route)>();
+        var seoIndex = new Dictionary<string, SeoIndexEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (slug, canonical) in pages)
+        {
+            var outputPath = $"pages/{slug}/index.html";
+            Directory.CreateDirectory(Path.Combine(outDir, "pages", slug));
+            File.WriteAllText(Path.Combine(outDir, outputPath), "<html><head></head></html>");
+            var item = ContentDocument.Create(
+                id: slug,
+                title: slug,
+                slug: slug,
+                publishAt: new DateTimeOffset(2024, 01, 02, 0, 0, 0, TimeSpan.Zero),
+                contentHtml: "");
+            var route = new RouteInfo($"/pages/{slug}/", outputPath, "pages/page.html");
+            routed.Add((item, route));
+            seoIndex[outputPath] = new SeoIndexEntry(route, canonical, Robots: null, Indexable: true, item.PublishAt, item.Id, "page");
+        }
+
+        return new BuildContext
+        {
+            RootDir = root,
+            OutputDir = outDir,
+            BaseUrl = baseUrl,
+            LayoutsDir = root,
+            RoutedDocuments = routed.ToRoutedDocuments(),
+            SeoIndex = seoIndex,
+            Logger = new ConsoleLogger(LogLevel.Error)
+        };
+    }
+
+    [Fact]
     public void AfterBuild_CollectionSitemapDisabledExcludesContentAndDerivedDocuments()
     {
         var root = Path.Combine(Path.GetTempPath(), "bukit-sitemap-collection", Guid.NewGuid().ToString("N"));

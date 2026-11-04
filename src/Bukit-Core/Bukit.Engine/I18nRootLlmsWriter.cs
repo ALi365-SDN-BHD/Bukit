@@ -4,6 +4,9 @@ namespace Bukit.Engine;
 
 internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
 {
+    // Merged routes already include the root base URL and language prefix.
+    private const string MergedRouteBaseUrl = "/";
+
     public IReadOnlyList<string> RepresentationKinds => ["llms", "llms-full"];
 
     public void Write(I18nRootProjectionWriterContext context, PublishRepresentation representation)
@@ -31,7 +34,7 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
         LlmsTxtPlugin.WriteLlmsTxt(
             context.Config,
             context.OutputDir,
-            context.RootBaseUrl,
+            MergedRouteBaseUrl,
             state.RoutedDocuments,
             state.DerivedDocuments,
             state.SeoIndex,
@@ -53,7 +56,7 @@ internal sealed class I18nRootLlmsWriter : II18nRootProjectionWriter
         LlmsTxtPlugin.WriteLlmsFullTxt(
             context.Config,
             context.OutputDir,
-            context.RootBaseUrl,
+            MergedRouteBaseUrl,
             state.RoutedDocuments,
             state.DerivedDocuments,
             state.ContentGraph,
