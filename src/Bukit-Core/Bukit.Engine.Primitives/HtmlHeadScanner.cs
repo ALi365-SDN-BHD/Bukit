@@ -409,36 +409,46 @@ internal static class HtmlTagAttributeReader
     internal static string? GetAttribute(string tag, string name)
     {
         var index = 1;
+        while (index < tag.Length && !char.IsWhiteSpace(tag[index]) && tag[index] != '>')
+        {
+            index++;
+        }
+
         while (index < tag.Length)
         {
-            while (index < tag.Length && !char.IsWhiteSpace(tag[index]) && tag[index] != '>')
-            {
-                index++;
-            }
-
             while (index < tag.Length && char.IsWhiteSpace(tag[index]))
             {
                 index++;
             }
 
-            if (index >= tag.Length || tag[index] is '>' or '/')
+            if (index >= tag.Length || tag[index] == '>')
             {
                 return null;
             }
 
-            var attrStart = index;
-            while (index < tag.Length && (char.IsLetterOrDigit(tag[index]) || tag[index] is '-' or '_' or ':'))
-            {
-                index++;
-            }
-
-            if (attrStart == index)
+            if (tag[index] == '/')
             {
                 index++;
                 continue;
             }
 
+            var attrStart = index;
+            while (index < tag.Length &&
+                   !char.IsWhiteSpace(tag[index]) &&
+                   tag[index] != '=' &&
+                   tag[index] != '>' &&
+                   tag[index] != '/')
+            {
+                index++;
+            }
+
             var attrName = tag[attrStart..index];
+            if (attrName.Length == 0)
+            {
+                index++;
+                continue;
+            }
+
             while (index < tag.Length && char.IsWhiteSpace(tag[index]))
             {
                 index++;
