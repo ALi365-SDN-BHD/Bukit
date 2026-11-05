@@ -19,6 +19,7 @@ internal static class ScribanModelKnownFields
         public const string Provenance = "provenance";
         public const string Trust = "trust";
         public const string Representations = "representations";
+        public const string RepresentationUrls = "representation_urls";
         public const string Seo = "seo";
     }
 
@@ -88,7 +89,7 @@ internal static class ScribanModelKnownFields
         PageFields.Summary, PageFields.TableOfContents, PageFields.TableOfContentsCamel,
         PageFields.PublishDate, PageFields.UpdatedAt, PageFields.Fields,
         PageFields.ContentModel, PageFields.ContentRecord, PageFields.Entities,
-        PageFields.Provenance, PageFields.Trust, PageFields.Representations, PageFields.Seo
+        PageFields.Provenance, PageFields.Trust, PageFields.Representations, PageFields.RepresentationUrls, PageFields.Seo
     };
 
     private static readonly HashSet<string> _siteFields = new(StringComparer.OrdinalIgnoreCase)
@@ -130,7 +131,7 @@ internal static class ScribanModelKnownFields
         PageFields.Summary, PageFields.TableOfContents, PageFields.TableOfContentsCamel,
         PageFields.PublishDate, PageFields.UpdatedAt, PageFields.Fields,
         PageFields.ContentModel, PageFields.ContentRecord, PageFields.Entities,
-        PageFields.Provenance, PageFields.Trust, PageFields.Representations, PageFields.Seo
+        PageFields.Provenance, PageFields.Trust, PageFields.Representations, PageFields.RepresentationUrls, PageFields.Seo
     };
 
     internal static readonly HashSet<string> KnownRootContexts = new(StringComparer.OrdinalIgnoreCase)
@@ -178,7 +179,7 @@ internal static class ScribanModelKnownFields
         {
             "seo" => IsKnownSeoField(parts, offset + 1),
             "fields" or "content_model" or "content_record" or "entities" or
-                "provenance" or "trust" or "representations" => true,
+                "provenance" or "trust" or "representations" or "representation_urls" => true,
             _ => false
         };
     }

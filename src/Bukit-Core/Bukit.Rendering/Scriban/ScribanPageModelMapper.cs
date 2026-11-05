@@ -50,6 +50,17 @@ internal static class ScribanPageModelMapper
             obj.SetValue("representations", representations, readOnly: true);
         }
 
+        if (model.RepresentationUrls is not null)
+        {
+            var urls = new ScriptObject();
+            foreach (var (kind, url) in model.RepresentationUrls)
+            {
+                urls.SetValue(kind, url, readOnly: true);
+            }
+
+            obj.SetValue("representation_urls", urls, readOnly: true);
+        }
+
         if (model.Seo is not null)
         {
             obj.SetValue("seo", ScribanSeoModelMapper.ToScriptObject(model.Seo), readOnly: true);

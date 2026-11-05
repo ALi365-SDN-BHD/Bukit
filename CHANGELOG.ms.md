@@ -6,6 +6,7 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 - **Polisi perangkak AI**: `robots.txt` mengumpulkan perangkak AI mengikut tujuan (latihan, carian AI, ambilan pengguna) dan menambah `aiBotMode: block-training` (ia juga menyekat `Google-Extended`, yang mengawal latihan dan grounding Gemini; binaan merekodkan `event=robots.ai_grounding_blocked`). Perubahan tingkah laku: mod `selective` dengan `aiBotAllowList` kini menyekat semua perangkak lain yang dikenali, termasuk perangkak carian AI; binaan memberi amaran `event=robots.ai_search_blocked`. Binaan juga memberi amaran `event=robots.ai_policy_inactive` apabila polisi AI dikonfigurasi tetapi tidak dapat ditulis.
 - **Skop sitemap**: sitemap hanya menyenaraikan canonical di bawah `site.url` + `baseUrl` (port lalai dan huruf hos dinormalkan), sekali setiap satu; audit penerbitan tidak lagi menjangka halaman yang canonical-nya menunjuk ke tempat lain.
+- **Penemuan ejen AI**: apabila GEO didayakan dalam mod `inject`, halaman kandungan yang boleh diindeks memautkan versi Markdown dan JSON-nya dengan `<link rel="alternate">`, dan `llms.txt` memautkan `agent-manifest.json` dalam bahagian `## Optional`. Menukar `site.seo.geo.enabled` kini memaparkan semula halaman dalam binaan tokokan. Dalam mod `theme` dan `off`, susun atur boleh membaca URL yang sama daripada `page.representation_urls`, yang hanya ditetapkan untuk halaman diterbitkan tanpa `noindex`. `agent-manifest.json` kini ditulis tanpa BOM UTF-8.
 
 ## [2.0.7] - 2026-11-04
 

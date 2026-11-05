@@ -183,10 +183,47 @@ Curation changes llms projections only. Sitemap, search, RSS, robots, and
 
 | Output | Purpose |
 |---|---|
-| `llms.txt` | Compact list of important pages and links. |
+| `llms.txt` | Compact list of important pages and links. Its `## Optional` section links `agent-manifest.json`. |
 | `llms-full.txt` | Larger full-content file when enabled. |
+| `content/<page output path>.md` and `.json` | Markdown and JSON version of each content page, for example `content/blog/hello/index.html.md`. |
+| `agent-manifest.json` | Machine-readable index of every indexable page with links to its Markdown and JSON versions. |
 | `.bukit/geo-report.json` | Audit data for `geo audit`. |
 | publish audit fields | Whether AI-readable representations were generated and included. |
+
+### How AI agents find the Markdown and JSON versions
+
+In the default `renderMode: inject`, each indexable content page gets two
+links in its `<head>`:
+
+```html
+<link rel="alternate" type="text/markdown" href="/content/blog/hello/index.html.md" />
+<link rel="alternate" type="application/json" href="/content/blog/hello/index.html.json" />
+```
+
+Bukit leaves them out for `noindex` and unpublished pages, for pages that set
+`seo_inject: false`, and when `site.seo.geo.enabled` is `false`. Expired pages
+keep their links, because their Markdown and JSON versions stay published; only
+aggregate files such as the sitemap and `agent-manifest.json` drop them. If the theme's `<head>` already
+links the same URL, Bukit does not add that link again.
+
+In `renderMode: theme` or `off`, the theme owns the `<head>`, so Bukit does not
+add these links. Published content pages without `noindex` expose the URLs as
+`page.representation_urls`, so a layout can add them itself:
+
+```html
+{{ if page.representation_urls }}
+<link rel="alternate" type="text/markdown" href="{{ page.representation_urls.markdown }}" />
+<link rel="alternate" type="application/json" href="{{ page.representation_urls.json }}" />
+{{ end }}
+```
+
+Keep the `if`: list pages, `noindex` pages and unpublished pages have no
+`page.representation_urls`. The Markdown and JSON files carry no `noindex`
+marker, so linking them from a `noindex` page would let search engines index
+the copy.
+
+Page links in `llms.txt` stay on the canonical HTML URLs. Agents that want
+Markdown can follow the `agent-manifest.json` link.
 
 ## Audit
 

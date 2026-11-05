@@ -184,6 +184,7 @@ public sealed class I18nMergedSitemapCollectionTests
             var llms = File.ReadAllText(Path.Combine(outputDir, "llms.txt"));
             Assert.Contains("(" + expectedLlmsPrefix + "guide-1/)", llms, StringComparison.Ordinal);
             Assert.DoesNotContain("/repo/repo/", llms, StringComparison.Ordinal);
+            Assert.Contains("[Agent manifest](" + (siteUrl ?? string.Empty) + "/repo/agent-manifest.json)", llms, StringComparison.Ordinal);
 
             var sitemapPath = Path.Combine(outputDir, "sitemap.xml");
             if (siteUrl is null)

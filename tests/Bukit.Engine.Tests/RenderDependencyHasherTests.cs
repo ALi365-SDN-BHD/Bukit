@@ -306,7 +306,7 @@ public sealed class RenderDependencyHasherTests
     public void Compute_BaseConfiguration_MatchesGoldenHash()
     {
         Assert.Equal(
-            "88d00a9a3e1ce4b44e4125772a6fc7b83f8c66cc8a5a065a61d622f239738486",
+            "d3e2fe3b74b4df06757538c635daca0ee864236aa554841381ab9d6d5dd1ef7b",
             RenderDependencyHasher.Compute(CreateBaseConfig(), s_emptySiteModel));
     }
 
@@ -315,7 +315,7 @@ public sealed class RenderDependencyHasherTests
     {
         // Golden hash for the canonical framed/type-tagged render dependency encoding.
         Assert.Equal(
-            "a242c8681281cec8bd47bfee773971db2de2762c4cdf2e44121aaf0f2194f44c",
+            "5553a9a02de83633807faea8cc3ec7e2de31105c47e845939521a3192db69075",
             RenderDependencyHasher.Compute(
                 CreateRepresentativeGoldenConfig(),
                 CreateRepresentativeGoldenSiteModel(),

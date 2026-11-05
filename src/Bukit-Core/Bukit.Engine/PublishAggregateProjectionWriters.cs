@@ -168,7 +168,8 @@ internal static class LlmsAggregateProjectionWriter
             context.DerivedDocuments,
             context.SeoIndex,
             context.SeoModels,
-            context.Config.Site.Seo.Geo);
+            context.Config.Site.Seo.Geo,
+            includeAgentManifest: true);
     }
 
     internal static void WriteLlmsFullTxt(PublishProjectionContext context)
