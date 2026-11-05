@@ -41,7 +41,7 @@ internal static class SeedGenerator
             WriteMedia(Path.Combine(seedDir, "media.json"), pages, options.Overwrite, manifest);
             WriteComponents(Path.Combine(seedDir, "components.json"), components, options.Overwrite, manifest);
             if (!isJson)
-                WriteDefaultNotionDatabaseMap(Path.Combine(seedDir, "notion-database-map.yaml"), options.Overwrite, manifest);
+                WriteDefaultNotionDatabaseMap(Path.Combine(seedDir, "notion-database-map.yaml"));
         }
 
         Console.WriteLine($"  种子数据生成完成: {seedDir}");
@@ -227,9 +227,11 @@ internal static class SeedGenerator
         });
     }
 
-    private static void WriteDefaultNotionDatabaseMap(string path, bool overwrite, ImportManifest? manifest = null)
+    private static void WriteDefaultNotionDatabaseMap(string path)
     {
-        if (manifest is not null ? !manifest.CanWrite(path) : File.Exists(path) && !overwrite)
+        // Created once and then owned by the user / the Notion push, which writes the
+        // database ids into it. Never replace it, or --force would wipe those ids.
+        if (File.Exists(path))
             return;
 
         var sb = new StringBuilder();
@@ -240,7 +242,6 @@ internal static class SeedGenerator
         WriteDatabaseMapEntry(sb, "companies", "Companies", "companies.json", "company");
         WriteDatabaseMapEntry(sb, "services", "Services", "services.json", "service");
         ImportWriteGuard.WriteAllTextAtomic(path, sb.ToString());
-        manifest?.Record(path);
     }
 
     private static void WriteDatabaseMapEntry(StringBuilder sb, string key, string title, string seed, string collection)

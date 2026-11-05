@@ -18,7 +18,7 @@ public static class ImportPluginCommandSpecs
 
     // --use writes the theme name back into the project config. These are single
     // files, not write roots, so --report bukit.yaml stays rejected.
-    private static readonly string[] WritableConfigFiles = ["./site.yaml", "./bukkit.yaml"];
+    private static readonly string[] WritableConfigFiles = ["./site.yaml", "./bukit.yaml"];
 
     /// <summary>Write roots declared in the manifest's permissions.filesystem.write.</summary>
     public static IReadOnlyList<string> WriteRoots => WriteDirectories;

@@ -1858,6 +1858,36 @@ pages:
     }
 
     [Fact]
+    public void Import_Force_KeepsDatabaseIdsWrittenIntoTheNotionMap()
+    {
+        var demo = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demo);
+        File.WriteAllText(Path.Combine(demo, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(demo, "company-detail.html"),
+            "<html><head><title>Company</title></head><body><main><h1>Company</h1><p>Body.</p></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = demo,
+            ThemeName = "map-ids",
+            RootDir = _tempDir
+        };
+
+        HtmlDemoImporter.Import(options);
+        var mapPath = Path.Combine(_tempDir, "sites", "map-ids", "notion-seed", "notion-database-map.yaml");
+        Assert.True(File.Exists(mapPath));
+
+        // The Notion push writes the created database ids back into this file.
+        File.WriteAllText(mapPath,
+            File.ReadAllText(mapPath).Replace("databaseId: \"\"", "databaseId: \"db-123\""));
+
+        HtmlDemoImporter.Import(options with { Force = true });
+
+        Assert.Contains("db-123", File.ReadAllText(mapPath), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Import_SensitiveNestedDirectory_ThrowsBeforePreservingHtml()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),

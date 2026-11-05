@@ -47,6 +47,20 @@ public sealed class HtmlDemoScannerTests : IDisposable
         Assert.Contains(pages, page => page.RelativePath == "about.htm");
     }
 
+    [Fact]
+    public void Scan_RootIndexHtmlAndHtm_PrefersHtml()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Html Home</title></head><body><main><h1>Html Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(_tempDir, "index.htm"),
+            "<html><head><title>Htm Home</title></head><body><main><h1>Htm Home</h1></main></body></html>");
+
+        var pages = HtmlDemoScanner.Scan(_tempDir);
+
+        var home = Assert.Single(pages);
+        Assert.Equal("Html Home", home.Title);
+    }
+
     [Theory]
     [InlineData("dist")]
     [InlineData("build")]

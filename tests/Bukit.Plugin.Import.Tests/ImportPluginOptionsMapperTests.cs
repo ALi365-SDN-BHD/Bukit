@@ -184,8 +184,10 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
         Assert.Contains("--use", ex.Message);
     }
 
-    [Fact]
-    public void Map_HtmlDemo_AllowsUseForTheDeclaredProjectConfig()
+    [Theory]
+    [InlineData("site.yaml")]
+    [InlineData("bukit.yaml")]
+    public void Map_HtmlDemo_AllowsUseForTheDeclaredProjectConfig(string configName)
     {
         var request = Request(
             path: ["import", "html-demo"],
@@ -194,13 +196,13 @@ public sealed class ImportPluginOptionsMapperTests : IDisposable
             {
                 ["--theme"] = Json("demo-theme"),
                 ["--use"] = Json(true),
-                ["--config"] = Json("site.yaml")
+                ["--config"] = Json(configName)
             });
 
         var options = ImportPluginOptionsMapper.Map(request);
 
         Assert.True(options.Use);
-        Assert.Equal(Path.Combine(_rootDir, "site.yaml"), options.ConfigPath);
+        Assert.Equal(Path.Combine(_rootDir, configName), options.ConfigPath);
     }
 
     [Fact]
