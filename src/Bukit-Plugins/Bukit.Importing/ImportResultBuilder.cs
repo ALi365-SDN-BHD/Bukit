@@ -1,8 +1,8 @@
 namespace Bukit.Importing;
 
 /// <summary>
-/// Builds ImportResult from analysis data. Used by both dry-run preview and real execution,
-/// ensuring consistent statistics and report data regardless of execution path.
+/// Builds ImportResult from analysis data. Used by the dry-run preview; counts that
+/// need files on disk are estimates there and are labeled as such by the report.
 /// </summary>
 internal static class ImportResultBuilder
 {

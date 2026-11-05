@@ -43,7 +43,7 @@ internal static class HtmlDocumentParser
                 slug = routeSlug;
         }
 
-        var (bodyOpening, uniqueBody, bodyClosing) = SplitBody(document);
+        var (bodyOpening, uniqueBody, bodyClosing) = SplitBody(document, pageType);
         var assetPaths = ExtractAssetPaths(document, html);
 
         return new DiscoveredPage
@@ -67,7 +67,7 @@ internal static class HtmlDocumentParser
         };
     }
 
-    private static (string opening, string unique, string closing) SplitBody(IDocument document)
+    private static (string opening, string unique, string closing) SplitBody(IDocument document, PageType pageType)
     {
         var body = document.Body;
         if (body == null)
@@ -77,43 +77,91 @@ internal static class HtmlDocumentParser
         if (string.IsNullOrWhiteSpace(bodyHtml))
             return ("", "", "");
 
-        var mainElement = body.QuerySelector("main") ?? body.QuerySelector("article");
-        if (mainElement == null)
+        // <main> is the page body. A single <article> is a detail page's body. Several
+        // <article> elements are list cards, so the body must keep all of them.
+        var mainElement = body.QuerySelector("main");
+        if (mainElement != null)
+            return SplitAround(bodyHtml, mainElement.OuterHtml);
+
+        var articles = body.QuerySelectorAll("article");
+        if (articles.Length == 1 &&
+            (pageType is PageType.PostDetail or PageType.CompanyDetail or PageType.ServiceDetail ||
+             articles[0].QuerySelector("h1") is not null))
         {
-            var docElement = body.QuerySelector("*");
-            if (docElement != null)
-            {
-                var outerHtml = docElement.OuterHtml;
-                var outerIndex = bodyHtml.IndexOf(outerHtml, StringComparison.Ordinal);
-                if (outerIndex > 0)
-                    return (bodyHtml[..outerIndex], outerHtml, "");
-            }
-            return ("", bodyHtml, "");
+            return SplitAround(bodyHtml, articles[0].OuterHtml);
         }
 
-        var uniqueOuter = mainElement.OuterHtml;
+        return SplitHeaderFooter(bodyHtml, body);
+    }
+
+    private static (string opening, string unique, string closing) SplitAround(string bodyHtml, string uniqueOuter)
+    {
         var index = bodyHtml.IndexOf(uniqueOuter, StringComparison.Ordinal);
         if (index < 0)
             return ("", bodyHtml, "");
 
-        var opening = bodyHtml[..index];
-        var closing = bodyHtml[(index + uniqueOuter.Length)..];
-        return (opening, uniqueOuter, closing);
+        return (bodyHtml[..index], uniqueOuter, bodyHtml[(index + uniqueOuter.Length)..]);
+    }
+
+    // With no <main>, the page still needs its header and footer removed from the
+    // unique body so they can become shared partials instead of page content.
+    private static (string opening, string unique, string closing) SplitHeaderFooter(string bodyHtml, IElement body)
+    {
+        var opening = "";
+        var unique = bodyHtml;
+        var closing = "";
+
+        var first = body.Children.FirstOrDefault();
+        if (first is { LocalName: "header" })
+        {
+            var end = IndexAfter(unique, first.OuterHtml);
+            if (end > 0)
+            {
+                opening = unique[..end];
+                unique = unique[end..];
+            }
+        }
+
+        var last = body.Children.LastOrDefault();
+        if (last is { LocalName: "footer" })
+        {
+            var index = unique.LastIndexOf(last.OuterHtml, StringComparison.Ordinal);
+            if (index >= 0)
+            {
+                closing = unique[index..];
+                unique = unique[..index];
+            }
+        }
+
+        return (opening, unique, closing);
+    }
+
+    private static int IndexAfter(string html, string value)
+    {
+        var index = html.IndexOf(value, StringComparison.Ordinal);
+        return index < 0 ? -1 : index + value.Length;
     }
 
     private static List<string> ExtractAssetPaths(IDocument document, string html)
     {
         var paths = new List<string>();
 
-        foreach (var element in document.QuerySelectorAll("[src], [href]"))
+        foreach (var element in document.QuerySelectorAll(
+                     "[src], [href], [data-src], [srcset], [data-srcset], [poster], [data-poster]"))
         {
-            var src = element.GetAttribute("src");
-            var href = element.GetAttribute("href");
+            foreach (var attribute in new[] { "src", "href", "data-src", "poster", "data-poster" })
+            {
+                var value = element.GetAttribute(attribute);
+                if (!string.IsNullOrWhiteSpace(value))
+                    paths.Add(value);
+            }
 
-            if (!string.IsNullOrWhiteSpace(src))
-                paths.Add(src);
-            if (!string.IsNullOrWhiteSpace(href))
-                paths.Add(href);
+            foreach (var attribute in new[] { "srcset", "data-srcset" })
+            {
+                var value = element.GetAttribute(attribute);
+                if (!string.IsNullOrWhiteSpace(value))
+                    paths.AddRange(SrcsetUrls(value));
+            }
         }
 
         // Inline CSS references assets too; they are copied and rewritten per page.
@@ -135,6 +183,16 @@ internal static class HtmlDocumentParser
                          !p.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static IEnumerable<string> SrcsetUrls(string srcset)
+    {
+        foreach (var candidate in srcset.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var url = candidate.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries)[0];
+            if (!string.IsNullOrWhiteSpace(url))
+                yield return url;
+        }
     }
 
     private static string? NonEmpty(string? value)

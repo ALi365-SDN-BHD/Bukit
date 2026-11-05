@@ -67,19 +67,60 @@ internal static partial class PageAssetCollector
         return RewriteAssetTag(tag.Trim(), pathMappings);
     }
 
-    /// <summary>Rewrites href/src through the asset mappings and prefixes base_url.</summary>
+    /// <summary>Rewrites asset attributes through the mappings and prefixes base_url.</summary>
     internal static string RewriteAssetTag(string tag, Dictionary<string, string> pathMappings)
+        => RewriteAssetAttributes(AssetImporter.RewritePaths(tag, pathMappings), pathMappings);
+
+    internal static string RewriteAssetAttributes(string html, Dictionary<string, string> pathMappings)
     {
-        var rewritten = AssetImporter.RewritePaths(tag, pathMappings);
+        html = SrcsetAttributeRegex.Replace(html, match =>
+        {
+            var attribute = match.Groups[1].Value;
+            var value = RewriteSrcset(match.Groups[2].Value, pathMappings, "{{ base_url }}");
+            return $"{attribute}=\"{value}\"";
+        });
         return RootRelativeAttributeRegex.Replace(
-            rewritten,
+            html,
             m => $"{m.Groups[1].Value}=\"{{{{ base_url }}}}{m.Groups[2].Value}\"");
+    }
+
+    internal static string RewriteSrcsets(string html, Dictionary<string, string> pathMappings, string basePath)
+        => SrcsetAttributeRegex.Replace(html, match =>
+        {
+            var attribute = match.Groups[1].Value;
+            var value = RewriteSrcset(match.Groups[2].Value, pathMappings, basePath);
+            return $"{attribute}=\"{value}\"";
+        });
+
+    private static string RewriteSrcset(
+        string srcset,
+        Dictionary<string, string> pathMappings,
+        string basePath)
+    {
+        var candidates = new List<string>();
+        foreach (var candidate in srcset.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = candidate.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+                continue;
+
+            var url = parts[0];
+            if (pathMappings.TryGetValue(url, out var mapped))
+                url = mapped;
+            if (url.StartsWith('/') && !url.StartsWith("//", StringComparison.Ordinal))
+                url = basePath + url;
+
+            parts[0] = url;
+            candidates.Add(string.Join(' ', parts));
+        }
+
+        return string.Join(", ", candidates);
     }
 
     // Inline CSS/JS is literal text; Scriban delimiters inside it must not execute.
     private static string EscapeScriban(string text) => ScribanText.Escape(text);
 
-    private static string RewriteCssUrls(string css, Dictionary<string, string> pathMappings)
+    internal static string RewriteCssUrls(string css, Dictionary<string, string> pathMappings)
         => CssUrlRegex.Replace(css, match =>
         {
             var quote = match.Groups["quote"].Value;
@@ -128,9 +169,13 @@ internal static partial class PageAssetCollector
     private static partial Regex SrcAttributePattern();
     private static readonly Regex SrcAttributeRegex = SrcAttributePattern();
 
-    [GeneratedRegex(@"\b(href|src)=[""'](/(?!/)[^""']*)[""']", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(href|src|data-src|poster|data-poster)=[""'](/(?!/)[^""']*)[""']", RegexOptions.IgnoreCase)]
     private static partial Regex RootRelativeAttributePattern();
     private static readonly Regex RootRelativeAttributeRegex = RootRelativeAttributePattern();
+
+    [GeneratedRegex(@"\b(srcset|data-srcset)\s*=\s*[""']([^""']*)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex SrcsetAttributePattern();
+    private static readonly Regex SrcsetAttributeRegex = SrcsetAttributePattern();
 
 
     [GeneratedRegex(@"url\(\s*(?<quote>['""]?)(?<value>[^'"")]+)\k<quote>\s*\)", RegexOptions.IgnoreCase)]

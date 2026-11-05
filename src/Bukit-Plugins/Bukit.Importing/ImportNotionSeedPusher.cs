@@ -391,7 +391,12 @@ internal static partial class NotionSeedPusher
         {
             var (success, error) = await AppendBlockChildrenAsync(client, pageId, chunk, ct);
             if (!success)
+            {
+                // Leaving a half-written page makes a retry create a second page with
+                // the same slug; remove the partial page before reporting the failure.
+                await DeleteBlockAsync(client, pageId, ct);
                 return (false, pageId, $"Page created but remaining content failed to append: {error}");
+            }
         }
 
         return (true, pageId, null);

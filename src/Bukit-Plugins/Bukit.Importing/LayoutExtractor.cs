@@ -10,8 +10,6 @@ internal static partial class LayoutExtractor
         string Footer,
         bool HeaderContainsNav);
 
-    private static readonly Regex HeaderRegex = HeaderTagPattern();
-    private static readonly Regex FooterRegex = FooterTagPattern();
     private static readonly Regex ClassAttrRegex = ClassAttrStripPattern();
 
     internal static LayoutInfo Extract(List<DiscoveredPage> pages, List<string> warnings)
@@ -241,12 +239,6 @@ internal static partial class LayoutExtractor
         return string.Join('\n', lines.Select(l =>
             l.Length >= minIndent ? l[minIndent..] : l.TrimStart()));
     }
-
-    [GeneratedRegex(@"<header[\s>]", RegexOptions.IgnoreCase)]
-    private static partial Regex HeaderTagPattern();
-
-    [GeneratedRegex(@"<footer[\s>]", RegexOptions.IgnoreCase)]
-    private static partial Regex FooterTagPattern();
 
     [GeneratedRegex(@"\s+(?:class|id)\s*=\s*""[^""]*""", RegexOptions.IgnoreCase)]
     private static partial Regex ClassAttrStripPattern();

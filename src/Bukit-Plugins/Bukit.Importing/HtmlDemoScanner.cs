@@ -1,18 +1,25 @@
+using Bukit.Shared;
+
 namespace Bukit.Importing;
 
 internal static class HtmlDemoScanner
 {
-    internal static List<DiscoveredPage> Scan(string inputPath, RouteMapConfig? routeMap = null)
+    internal static List<DiscoveredPage> Scan(
+        string inputPath,
+        RouteMapConfig? routeMap = null,
+        IReadOnlyList<string>? excludedRoots = null)
     {
         var pageFiles = DemoFiles.Enumerate(inputPath)
             .Where(IsPageFile)
             .ToList();
         var htmlFiles = pageFiles
             .Where(file => !ImportSafetyPatterns.IsBuiltOutputPath(inputPath, file))
+            .Where(file => excludedRoots is null ||
+                           !excludedRoots.Any(root => PathUtils.IsSameOrSubPathOf(file, root)))
             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var skippedBuilt = pageFiles.Count - htmlFiles.Count;
+        var skippedBuilt = pageFiles.Count(file => ImportSafetyPatterns.IsBuiltOutputPath(inputPath, file));
         if (skippedBuilt > 0)
             Console.WriteLine($"  Skipped {skippedBuilt} built page(s) under {string.Join("/, ", ImportSafetyPatterns.BuiltOutputDirectories)}/.");
 

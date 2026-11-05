@@ -87,15 +87,18 @@ internal static class ImportCommitter
 
         // Preserve original HTML before any writes
         if (options.PreserveHtml)
-            HtmlDemoImporter.PreserveOriginalHtml(options, pages);
+            HtmlDemoImporter.PreserveOriginalHtml(options);
 
         // Import assets (this writes to theme dir directly — assets are not subject to residue check)
         var assetResult = AssetImporter.Import(options, pages);
-        content = RewriteContentAssetPaths(content, assetResult.PathMappings);
+        content = RewriteContentAssetPaths(
+            content, assetResult.PathMappings, InternalLinkRewriter.BasePath(options.BaseUrl));
         content = PrefixContentBasePath(content, InternalLinkRewriter.BasePath(options.BaseUrl));
 
         // Generate theme (layouts, pages, partials, theme.yaml)
-        var result = ThemeGenerator.Generate(options, pages, layout, warnings, assetResult.PathMappings, routeMap, analysis.TemplatePlan);
+        var result = ThemeGenerator.Generate(
+            options, pages, layout, warnings, assetResult.PathMappings, routeMap,
+            analysis.TemplatePlan, components);
         result = result with { AssetsCopied = assetResult.Count };
         result.Warnings.AddRange(assetResult.Warnings);
 
@@ -104,7 +107,6 @@ internal static class ImportCommitter
         {
             HtmlDemoImporter.WriteComponentTemplates(options, components, assetResult.PathMappings, pages, routeMap, analysis.TemplatePlan);
             ContentDraftWriter.Write(options, content, manifest);
-            NavigationImportAdvisor.AddMissingNavigationWarnings(pages, content, result.Warnings);
 
             result = result with
             {
@@ -218,13 +220,14 @@ internal static class ImportCommitter
 
     private static ExtractedContent RewriteContentAssetPaths(
         ExtractedContent content,
-        Dictionary<string, string> mappings)
+        Dictionary<string, string> mappings,
+        string basePath)
     {
-        if (mappings.Count == 0)
-            return content;
-
         string? Rewrite(string? value)
-            => string.IsNullOrWhiteSpace(value) ? value : AssetImporter.RewritePaths(value, mappings);
+            => string.IsNullOrWhiteSpace(value)
+                ? value
+                : PageAssetCollector.RewriteSrcsets(
+                    AssetImporter.RewritePaths(value, mappings), mappings, basePath);
 
         content.Pages = content.Pages
             .Select(page => page with { Content = Rewrite(page.Content) })

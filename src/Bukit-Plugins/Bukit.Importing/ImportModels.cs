@@ -8,7 +8,7 @@ public sealed record HtmlDemoImportOptions
     public bool Force { get; init; }
     public bool Use { get; init; }
     public bool Verify { get; init; }
-    public string Language { get; init; } = "zh";
+    public string Language { get; init; } = "";
     public bool ExtractContent { get; init; } = true;
     public bool GenerateSeed { get; init; } = true;
     public string ContentSource { get; init; } = "notion";
@@ -108,6 +108,8 @@ public sealed record DiscoveredComponent
     public required string HtmlFragment { get; init; }
     public required List<DiscoveredPage> UsedBy { get; init; }
     public string? NormalizedTemplate { get; init; }
+    /// <summary>The demo CSS class this component was extracted from.</summary>
+    public string? SourceClass { get; init; }
 }
 
 public sealed record ExtractedContent

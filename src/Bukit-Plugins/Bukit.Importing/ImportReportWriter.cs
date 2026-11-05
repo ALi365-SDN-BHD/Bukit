@@ -70,11 +70,11 @@ internal static class ImportReportWriter
     {
         Console.WriteLine("=== DRY-RUN Analysis Results ===");
         Console.WriteLine($"  HTML pages scanned:   {result.PagesFound}");
-        Console.WriteLine($"  Templates to generate:  {result.TemplatesGenerated}");
-        Console.WriteLine($"  Partials to generate:   {result.PartialsGenerated}");
-        Console.WriteLine($"  Components to generate: {result.ComponentsGenerated}");
-        Console.WriteLine($"  Records to extract:     {result.RecordsExtracted}");
-        Console.WriteLine($"  Assets to copy:         {result.AssetsCopied}");
+        Console.WriteLine($"  Templates (estimated):  {result.TemplatesGenerated}");
+        Console.WriteLine($"  Partials (estimated):   {result.PartialsGenerated}");
+        Console.WriteLine($"  Components (estimated): {result.ComponentsGenerated}");
+        Console.WriteLine($"  Records (estimated):    {result.RecordsExtracted}");
+        Console.WriteLine($"  Assets (estimated):     {result.AssetsCopied}");
         Console.WriteLine("  (no files written)");
     }
 

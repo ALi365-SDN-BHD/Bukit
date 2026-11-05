@@ -10,15 +10,24 @@ internal static partial class TemplateBodyTransformer
         "pagination"
     ];
 
-    private static readonly string[] ListComponentClasses =
+    private static readonly (string ClassName, string ComponentName)[] ListComponents =
     [
-        "article-card", "company-card", "service-card", "card"
+        ("article-card", "article-card"),
+        ("post-card", "article-card"),
+        ("company-card", "company-card"),
+        ("service-card", "service-card"),
+        ("card", "card")
     ];
 
-    internal static string Transform(DiscoveredPage page, Dictionary<string, string> pathMappings)
+    internal static string Transform(
+        DiscoveredPage page,
+        Dictionary<string, string> pathMappings,
+        IReadOnlyList<DiscoveredComponent>? components = null)
     {
         // Escape demo text before this class adds template tags of its own.
         var body = ScribanText.Escape(AssetImporter.RewritePaths(page.UniqueBody, pathMappings).Trim());
+        body = PageAssetCollector.RewriteCssUrls(body, pathMappings);
+        body = PageAssetCollector.RewriteAssetAttributes(body, pathMappings);
         if (string.IsNullOrWhiteSpace(body))
         {
             return ThemeGenerator.GetDefaultTemplateBody(page.Type);
@@ -26,7 +35,8 @@ internal static partial class TemplateBodyTransformer
 
         return page.Type switch
         {
-            PageType.PostList or PageType.CompanyList or PageType.ServiceList => TransformList(body),
+            PageType.PostList or PageType.CompanyList or PageType.ServiceList =>
+                TransformList(body, page, components),
             PageType.Home => TransformHome(body),
             _ => TransformDetail(body)
         };
@@ -34,11 +44,9 @@ internal static partial class TemplateBodyTransformer
 
     // Core renders the home route from pages/index.html with no content record of
     // its own, so the home template keeps the demo's heading and copy as markup.
+    // Home cards are demo copy too; there is no collection list to bind them to.
     private static string TransformHome(string body)
-    {
-        var result = ReplaceSectionComponents(body);
-        return ReplaceListCards(result);
-    }
+        => ReplaceSectionComponents(body);
 
     private static string TransformDetail(string body)
     {
@@ -52,10 +60,13 @@ internal static partial class TemplateBodyTransformer
         return result;
     }
 
-    private static string TransformList(string body)
+    private static string TransformList(
+        string body,
+        DiscoveredPage page,
+        IReadOnlyList<DiscoveredComponent>? components)
     {
         var result = ReplaceFirstHeading(body, "page.title");
-        result = ReplaceListCards(result);
+        result = ReplaceListCards(result, page, components);
         if (!result.Contains("{{ for item in pages }}", StringComparison.Ordinal) &&
             !result.Contains("{{ for p in pages }}", StringComparison.Ordinal))
         {
@@ -88,19 +99,28 @@ internal static partial class TemplateBodyTransformer
         return result;
     }
 
-    private static string ReplaceListCards(string html)
+    private static string ReplaceListCards(
+        string html,
+        DiscoveredPage page,
+        IReadOnlyList<DiscoveredComponent>? components)
     {
-        var result = html;
-        foreach (var className in ListComponentClasses)
+        foreach (var (className, defaultName) in ListComponents)
         {
-            if (!ContainsClass(result, className)) continue;
+            if (!ContainsClass(html, className))
+                continue;
 
-            var componentName = className == "card" ? "card" : className;
-            result = ReplaceCardGroupWithLoop(result, className, componentName);
-            break;
+            var componentName = components?
+                .FirstOrDefault(c =>
+                    string.Equals(c.SourceClass, className, StringComparison.OrdinalIgnoreCase) &&
+                    c.UsedBy.Any(u => u.FilePath == page.FilePath))?
+                .Name ?? defaultName;
+
+            // A list page normally has one card group. Replace only the first
+            // contiguous group so a second group elsewhere is not swallowed.
+            return ReplaceCardGroupWithLoop(html, className, componentName);
         }
 
-        return result;
+        return html;
     }
 
     private static string ReplaceCardGroupWithLoop(string html, string className, string componentName)
@@ -112,7 +132,17 @@ internal static partial class TemplateBodyTransformer
         if (matches.Count == 0) return html;
 
         var first = matches[0];
-        var last = matches[^1];
+        var last = first;
+        for (var i = 1; i < matches.Count; i++)
+        {
+            var gapStart = last.Index + last.Length;
+            var gap = html[gapStart..matches[i].Index];
+            if (!string.IsNullOrWhiteSpace(RemoveComments(gap)))
+                break;
+
+            last = matches[i];
+        }
+
         // The card component is the whole card element; no extra wrapper per item.
         var loop = "{{ for item in pages }}" + Environment.NewLine +
                    "  {{ include 'components/" + componentName + ".html' }}" + Environment.NewLine +
@@ -122,6 +152,9 @@ internal static partial class TemplateBodyTransformer
         var end = last.Index + last.Length;
         return html[..start] + loop + html[end..];
     }
+
+    private static string RemoveComments(string html)
+        => CommentRegex().Replace(html, "");
 
     private static string ReplaceFirstHeading(string html, string variable)
     {
@@ -207,4 +240,7 @@ internal static partial class TemplateBodyTransformer
 
     [GeneratedRegex(@"(?<open><h1[^>]*>).*?(?<close></h1>)", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex H1Regex();
+
+    [GeneratedRegex(@"<!--.*?-->", RegexOptions.Singleline)]
+    private static partial Regex CommentRegex();
 }

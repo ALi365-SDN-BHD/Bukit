@@ -44,7 +44,7 @@ internal static class SiteConfigGenerator
             ["url"] = SiteIdentity.Url(demoPages, options.BaseUrl) ?? SiteIdentity.PlaceholderUrl,
             ["description"] = SiteIdentity.Description(demoPages) ?? "Generated from HTML Demo",
             ["baseUrl"] = SiteBaseUrl(options.BaseUrl),
-            ["language"] = options.Language,
+            ["language"] = ResolveLanguage(options.Language, discoveredPages),
             ["seo"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["renderMode"] = "inject"
@@ -343,6 +343,25 @@ internal static class SiteConfigGenerator
             : null;
 
     private sealed record SiteConfigNotionTarget(string Key, string Collection, string DatabaseId, string Mode);
+
+    // The explicit option wins. Otherwise the demo's own <html lang> is the best
+    // guess; fall back to Chinese, the importer's historical default.
+    internal static string ResolveLanguage(string? configured, IReadOnlyList<DiscoveredPage>? pages)
+    {
+        if (!string.IsNullOrWhiteSpace(configured))
+            return configured.Trim();
+
+        var language = pages?
+            .Select(page => page.Language?.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .GroupBy(value => value!, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Key)
+            .FirstOrDefault();
+
+        return string.IsNullOrWhiteSpace(language) ? "zh" : language;
+    }
 
     // An absolute --base-url names the site's address; baseUrl takes only its path.
     private static string SiteBaseUrl(string? baseUrl)

@@ -13,7 +13,8 @@ internal static partial class ThemeGenerator
         List<string> warnings,
         Dictionary<string, string> pathMappings,
         RouteMapConfig? routeMap = null,
-        PageTemplatePlan? plan = null)
+        PageTemplatePlan? plan = null,
+        IReadOnlyList<DiscoveredComponent>? components = null)
     {
         var themeDir = HtmlDemoImporter.GetThemeDir(options);
 
@@ -55,7 +56,7 @@ internal static partial class ThemeGenerator
         foreach (var page in pages)
         {
             var templatePath = Path.Combine(themeDir, "layouts", "pages", plan.NameFor(page) + ".html");
-            WritePageTemplate(templatePath, page, pathMappings, plan);
+            WritePageTemplate(templatePath, page, pathMappings, plan, components);
             templateCount++;
         }
 
@@ -228,7 +229,8 @@ internal static partial class ThemeGenerator
     }
 
     private static void WritePageTemplate(string templatePath, DiscoveredPage page,
-        Dictionary<string, string> pathMappings, PageTemplatePlan plan)
+        Dictionary<string, string> pathMappings, PageTemplatePlan plan,
+        IReadOnlyList<DiscoveredComponent>? components)
     {
         var assets = PageAssetCollector.Collect(page, pathMappings);
         var sb = new StringBuilder();
@@ -240,7 +242,7 @@ internal static partial class ThemeGenerator
         foreach (var script in assets.BodyStart)
             sb.AppendLine(script);
         sb.AppendLine(InternalLinkRewriter.RewriteTemplate(
-            TemplateBodyTransformer.Transform(page, pathMappings), page.RelativePath, plan));
+            TemplateBodyTransformer.Transform(page, pathMappings, components), page.RelativePath, plan));
         File.WriteAllText(templatePath, sb.ToString());
     }
 

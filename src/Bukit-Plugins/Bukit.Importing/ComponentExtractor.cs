@@ -16,69 +16,74 @@ internal static partial class ComponentExtractor
         [".card"] = "card",
     };
 
-    private static readonly HashSet<string> ListComponentNames = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> ListComponentClasses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "article-card", "company-card", "service-card", "card"
+        "article-card", "post-card", "company-card", "service-card", "card"
     };
 
     private static readonly Regex HtmlTagRegex = HtmlTagPattern();
     private static readonly Regex HeadingRegex = HeadingPattern();
     private static readonly Regex LinkRegex = LinkPattern();
     private static readonly Regex ParagraphRegex = ParagraphPattern();
+    private static readonly Regex ClassAttrRegex = ClassAttrPattern();
 
     internal static List<DiscoveredComponent> Extract(List<DiscoveredPage> pages)
     {
         var components = new List<DiscoveredComponent>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var page in pages)
         {
             foreach (var (cssClass, componentName) in ClassToComponent)
             {
                 var className = cssClass.StartsWith('.') ? cssClass[1..] : cssClass;
-                if (TemplateBodyTransformer.ContainsClass(page.FullHtml, className))
+                if (!TemplateBodyTransformer.ContainsClass(page.FullHtml, className))
+                    continue;
+
+                var fragment = ExtractComponentHtml(page, cssClass);
+                if (string.IsNullOrWhiteSpace(fragment))
+                    continue;
+
+                var normalized = DedupeKey(fragment);
+                var existing = components.FirstOrDefault(c =>
+                    string.Equals(c.SourceClass, className, StringComparison.OrdinalIgnoreCase) &&
+                    DedupeKey(c.HtmlFragment) == normalized);
+                if (existing is not null)
                 {
-                    var fragment = ExtractComponentHtml(page, cssClass);
-                    if (!string.IsNullOrWhiteSpace(fragment))
-                    {
-                        var dedupKey = componentName + "|" + NormalizeForDedup(fragment);
-                        if (!seen.Add(dedupKey))
-                        {
-                            var existingForDedup = components.FirstOrDefault(c =>
-                                c.Name == componentName &&
-                                NormalizeForDedup(c.HtmlFragment) == NormalizeForDedup(fragment));
-                            if (existingForDedup != null &&
-                                !existingForDedup.UsedBy.Any(u => u.FilePath == page.FilePath))
-                            {
-                                existingForDedup.UsedBy.Add(page);
-                            }
-                            continue;
-                        }
-                    }
-
-                    var existing = components.FirstOrDefault(c =>
-                        c.Name == componentName && c.UsedBy.Any(u => u.FilePath == page.FilePath));
-
-                    if (existing != null)
-                    {
-                        if (!existing.UsedBy.Any(u => u.FilePath == page.FilePath))
-                            existing.UsedBy.Add(page);
-                    }
-                    else
-                    {
-                        components.Add(new DiscoveredComponent
-                        {
-                            Name = componentName,
-                            HtmlFragment = fragment,
-                            UsedBy = [page],
-                            NormalizedTemplate = GenerateTemplate(fragment, componentName)
-                        });
-                    }
+                    if (!existing.UsedBy.Any(u => u.FilePath == page.FilePath))
+                        existing.UsedBy.Add(page);
+                    continue;
                 }
+
+                // Different markup for the same class is a different component, even
+                // though both use the same demo class. Give each its own file.
+                var name = componentName.Equals("pagination", StringComparison.OrdinalIgnoreCase)
+                    ? componentName
+                    : UniqueName(components, componentName);
+                components.Add(new DiscoveredComponent
+                {
+                    Name = name,
+                    SourceClass = className,
+                    HtmlFragment = fragment,
+                    UsedBy = [page],
+                    NormalizedTemplate = GenerateTemplate(fragment, name, className)
+                });
             }
         }
 
         return components;
+    }
+
+    private static string UniqueName(List<DiscoveredComponent> components, string baseName)
+    {
+        if (!components.Any(c => c.Name.Equals(baseName, StringComparison.OrdinalIgnoreCase)))
+            return baseName;
+
+        for (var n = 2; ; n++)
+        {
+            var name = $"{baseName}-{n}";
+            if (!components.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                return name;
+        }
     }
 
     private static string ExtractComponentHtml(DiscoveredPage page, string cssClass)
@@ -120,10 +125,10 @@ internal static partial class ComponentExtractor
         return depth == 0 ? rest[..pos] : "";
     }
 
-    private static string GenerateTemplate(string fragment, string componentName)
+    private static string GenerateTemplate(string fragment, string componentName, string className)
     {
         fragment = ScribanText.Escape(fragment);
-        if (componentName.Equals("pagination", StringComparison.OrdinalIgnoreCase))
+        if (className.Equals("pagination", StringComparison.OrdinalIgnoreCase))
         {
             return """
 {{ if pagination.has_prev }}
@@ -138,7 +143,7 @@ internal static partial class ComponentExtractor
 
         // Section data is not wired up yet, so keep the demo copy verbatim instead of
         // binding every heading/paragraph to page fields (which duplicated the body).
-        if (!ListComponentNames.Contains(componentName))
+        if (!ListComponentClasses.Contains(className))
             return fragment;
 
         var content = ParagraphRegex.Replace(fragment, _ => "<p>{{ item.summary }}</p>");
@@ -156,15 +161,22 @@ internal static partial class ComponentExtractor
         return content;
     }
 
-    private static string NormalizeForDedup(string html)
+    private static string DedupeKey(string html)
     {
-        var result = HtmlTagRegex.Replace(html, "<$1>");
-        result = Regex.Replace(result, ">[^<]+<", "><");
-        return result;
+        var structure = HtmlTagRegex.Replace(html, "<$1>");
+        structure = Regex.Replace(structure, ">[^<]+<", "><");
+        // Classes drive the design; keep them so two differently styled cards do
+        // not collapse into one component file.
+        var classes = string.Join("|", ClassAttrRegex.Matches(html)
+            .Select(match => match.Groups[1].Value.Trim()));
+        return structure + "|" + classes;
     }
 
     [GeneratedRegex(@"<([a-zA-Z][a-zA-Z0-9]*)(?:[^/>][^>]*)?>", RegexOptions.IgnoreCase)]
     private static partial Regex HtmlTagPattern();
+
+    [GeneratedRegex(@"\bclass\s*=\s*[""']([^""']*)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex ClassAttrPattern();
 
     [GeneratedRegex(@"<(h[1-6])[^>]*>.*?</\1>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex HeadingPattern();

@@ -128,7 +128,7 @@ public static class ImportPluginOptionsMapper
             ContentSource = ReadString(request, "--content-source") ?? "notion",
             BuildSource = ReadString(request, "--build-source") ?? "markdown",
             SitePath = sitePath,
-            Language = ReadString(request, "--language") ?? "zh",
+            Language = ReadString(request, "--language") ?? "",
             DryRun = dryRun,
             StrictMode = ResolveStrictMode(ReadString(request, "--strict")),
             Overwrite = ReadBool(request, "--overwrite"),

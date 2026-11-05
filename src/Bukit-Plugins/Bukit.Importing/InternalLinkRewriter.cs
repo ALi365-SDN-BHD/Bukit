@@ -106,6 +106,6 @@ internal static partial class InternalLinkRewriter
     private static bool IsRootRelative(string value)
         => value.StartsWith('/') && !value.StartsWith("//", StringComparison.Ordinal);
 
-    [GeneratedRegex(@"\b(?<attr>href|src)\s*=\s*(?<q>[""'])(?<value>[^""']*)\k<q>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?<attr>href|src|data-src|poster|data-poster)\s*=\s*(?<q>[""'])(?<value>[^""']*)\k<q>", RegexOptions.IgnoreCase)]
     private static partial Regex UrlAttributePattern();
 }

@@ -18,7 +18,7 @@ public sealed class ImportCommandOptionsCompatibilityTests
 
         Assert.Equal("notion", options.ContentSource);
         Assert.Equal("markdown", options.BuildSource);
-        Assert.Equal("zh", options.Language);
+        Assert.Equal("", options.Language);
         Assert.Equal("NOTION_TOKEN", options.NotionTokenEnv);
         Assert.True(options.ExtractContent);
         Assert.True(options.GenerateSeed);

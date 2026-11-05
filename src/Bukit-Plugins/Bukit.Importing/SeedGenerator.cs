@@ -9,6 +9,14 @@ internal static class SeedGenerator
         ImportManifest? manifest = null)
     {
         var siteDir = options.SitePath ?? Path.Combine(options.RootDir, "sites", options.ThemeName);
+        var language = SiteConfigGenerator.ResolveLanguage(options.Language, pages);
+        content.Pages = content.Pages.Select(record => record with { Language = language }).ToList();
+        content.Posts = content.Posts.Select(record => record with { Language = language }).ToList();
+        content.Companies = content.Companies.Select(record => record with { Language = language }).ToList();
+        content.Services = content.Services.Select(record => record with { Language = language }).ToList();
+        content.Navigation = content.Navigation.Select(record => record with { Language = language }).ToList();
+        content.Sections = content.Sections.Select(record => record with { Language = language }).ToList();
+        content.Faqs = content.Faqs.Select(record => record with { Language = language }).ToList();
         var isJson = options.ContentSource.Equals("json", StringComparison.OrdinalIgnoreCase);
         var isYaml = options.ContentSource.Equals("yaml", StringComparison.OrdinalIgnoreCase);
         var seedDir = isJson || isYaml
@@ -528,7 +536,12 @@ internal static class SeedGenerator
     private static string JsonBool(bool value) => value ? "true" : "false";
 
     // Core renders the home page from pages/index.html. A home record would publish a
-    // second copy (its empty slug falls back to the title, e.g. /首页/).
+    // second copy (its empty slug falls back to the title, e.g. /首页/). Detail pages
+    // already live in posts/companies/services; a page record would duplicate them.
     internal static List<PageRecord> SeedPages(ExtractedContent content)
-        => content.Pages.Where(page => !page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase)).ToList();
+        => content.Pages
+            .Where(page => !page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase))
+            .Where(page => page.Template.Length == 0 ||
+                           page.Template.Equals("page", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 }

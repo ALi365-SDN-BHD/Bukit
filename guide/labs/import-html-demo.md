@@ -62,9 +62,14 @@ Every demo page renders with its own template, and keeps its own `<link>`,
 `<style>`, and `<script>` tags. `pages/page.html`, `post.html`, `company.html`, and
 `service.html` are fallbacks for content that has no demo page of its own.
 
-The home template keeps the demo's markup as written; edit
-`themes/<theme>/layouts/pages/index.html` to change it. Other pages put their main
-text in a Markdown draft and keep the surrounding markup in the template.
+The home template keeps the demo's markup as written, including its cards; home cards
+stay static. List pages turn their card group into a loop over the collection, so
+edit the component under `themes/<theme>/layouts/components/` to change a list card.
+Other pages put their main text in a Markdown draft and keep the surrounding markup
+in the template.
+
+Lazy image attributes (`data-src`, `srcset`, `data-srcset`, `poster`) are copied and
+rewritten like `src`, so lazy-loading demos keep their images.
 
 Links may name either `.html` or `.htm`; when a link uses the other extension than
 the imported page, it is resolved to that page. A demo typo such as linking to
@@ -104,6 +109,8 @@ home page's canonical or `og:url` link, and the description from the home page's
 publishing, or canonical links and the sitemap point at the placeholder.
 
 Each page draft takes its `<meta name="description">` as `seo_desc`.
+`site.language` comes from `--language` when passed, otherwise the most common
+`<html lang>` value, otherwise `zh`.
 
 For a sub-path deploy, pass `--base-url /corp/` (or `https://example.org/corp/`);
 links and assets are written to work under that path.
@@ -147,6 +154,9 @@ A navigation database whose `Link` property has the url type fails schema
 validation on such values: change `Link` to rich text, or let the push create the
 database. The token comes from `NOTION_TOKEN`, or the
 variable named by `--notion-token-env`.
+
+`pages.json`/`pages.yaml` contains ordinary pages only; post, company and service
+detail records live in their own seed files, so they are not duplicated.
 
 `notion-seed/notion-database-map.yaml` is created on the first import and never
 overwritten: database ids written back by the push stay, and re-imports do not

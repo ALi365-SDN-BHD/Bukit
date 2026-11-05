@@ -127,7 +127,7 @@ public static class HtmlDemoImporter
         return Path.Combine(options.RootDir, "themes", options.ThemeName);
     }
 
-    internal static void PreserveOriginalHtml(HtmlDemoImportOptions options, List<DiscoveredPage> pages)
+    internal static void PreserveOriginalHtml(HtmlDemoImportOptions options)
     {
         var siteDir = GetSiteDir(options);
         var themeDir = GetThemeDir(options);
@@ -186,6 +186,8 @@ public static class HtmlDemoImporter
             if (File.Exists(filePath) && !options.Overwrite) continue;
 
             var content = AssetImporter.RewritePaths(component.NormalizedTemplate, pathMappings);
+            content = PageAssetCollector.RewriteCssUrls(content, pathMappings);
+            content = PageAssetCollector.RewriteAssetAttributes(content, pathMappings);
             // Components render inside page templates, which set base_url.
             var source = component.UsedBy.FirstOrDefault()?.RelativePath ?? "index.html";
             content = InternalLinkRewriter.RewriteTemplate(content, source, plan);

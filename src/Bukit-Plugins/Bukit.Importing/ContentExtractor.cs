@@ -612,11 +612,6 @@ internal static partial class ContentExtractor
         return Regex.Replace(StripHtml(html), @"\s+", " ").Trim();
     }
 
-    private static string Slugify(string text)
-    {
-        return SlugHelper.Slugify(text);
-    }
-
     private static string GetSlugWithFallback(string title, string prefix, ref int counter)
     {
         var slug = SlugHelper.Slugify(title);

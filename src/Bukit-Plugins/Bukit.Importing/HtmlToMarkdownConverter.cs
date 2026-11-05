@@ -249,6 +249,15 @@ internal static partial class HtmlToMarkdownConverter
                 return;
             case "img":
                 var src = element.GetAttribute("src") ?? "";
+                // A lazy image often has a placeholder in src and the real file in
+                // data-src; prefer the real file for the Markdown body.
+                if (src.Length == 0 || src.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                {
+                    src = element.GetAttribute("data-src")
+                          ?? element.GetAttribute("data-original")
+                          ?? FirstSrcsetUrl(element.GetAttribute("srcset"))
+                          ?? src;
+                }
                 if (src.Length > 0)
                     sb.Append($"![{element.GetAttribute("alt") ?? ""}]({src})");
                 return;
@@ -258,6 +267,15 @@ internal static partial class HtmlToMarkdownConverter
                 return;
         }
     }
+
+    private static string? FirstSrcsetUrl(string? srcset)
+        => string.IsNullOrWhiteSpace(srcset)
+            ? null
+            : srcset.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(candidate => candidate.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries))
+                .Where(parts => parts.Length > 0)
+                .Select(parts => parts[0])
+                .FirstOrDefault();
 
     private static string Collapse(string value)
         => string.Join(' ', value.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries));

@@ -1405,6 +1405,48 @@ databases:
     }
 
     [Fact]
+    public async Task NotionSeedPusher_AppendFailureArchivesThePartialPage()
+    {
+        var archived = new List<string>();
+        var appends = 0;
+        using var handler = new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Post && path.EndsWith("/pages", StringComparison.Ordinal))
+                return Json("""{ "id": "page-partial" }""");
+            if (request.Method == HttpMethod.Patch && path.EndsWith("/blocks/page-partial/children", StringComparison.Ordinal))
+            {
+                appends++;
+                return appends > 1
+                    ? Json("{}")
+                    : new HttpResponseMessage(HttpStatusCode.BadRequest)
+                    {
+                        Content = new StringContent("""{"message":"failed"}""")
+                    };
+            }
+            if (request.Method == HttpMethod.Delete && path.EndsWith("/blocks/page-partial", StringComparison.Ordinal))
+            {
+                archived.Add(path);
+                return Json("{}");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        using var transport = CreateTrustedClient(new NotionClientOptions { Token = "token", MaxRetries = 0 }, handler);
+        var content = string.Concat(Enumerable.Repeat("<p>paragraph</p>", 101));
+        var record = new ImportSeedRecord("post", "Long", "long", null, content, null, true, null, null);
+
+        var result = await NotionSeedPusher.PushAsync(
+            new NotionWriteClient(transport),
+            [record],
+            new NotionPushOptions("db", Path.Combine(_rootDir, "partial.json"), DryRun: false, WriteReport: false));
+
+        Assert.Equal(1, result.Failed);
+        Assert.Single(archived);
+        Assert.Contains("remaining content failed", result.Items.Single().Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task NotionSeedPusher_LargeBodyIsSplitIntoBatchesOfOneHundred()
     {
         var childCounts = new List<int>();
