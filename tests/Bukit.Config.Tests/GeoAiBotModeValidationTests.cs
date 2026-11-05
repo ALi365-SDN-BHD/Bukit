@@ -24,11 +24,32 @@ public sealed class GeoAiBotModeValidationTests
         Assert.Equal("site.seo.geo.aiBotMode must be allow|block-training|block|selective.", ex.Message);
     }
 
-    private static SiteConfig Site(string mode)
+    [Fact]
+    public void ValidateSite_AcceptsCrawlerTokens()
+    {
+        I18nValidator.ValidateSite(Site("selective", allow: ["OAI-SearchBot", " Claude_User ", "bot.v2"], block: ["GPTBot"]));
+    }
+
+    [Theory]
+    [InlineData("GPTBot\nDisallow: /")]
+    [InlineData("*")]
+    [InlineData("Bad Bot")]
+    [InlineData("User-agent: X")]
+    [InlineData("  ")]
+    public void ValidateSite_RejectsNamesThatWouldBreakRobotsTxt(string name)
+    {
+        var allowEx = Assert.Throws<ConfigException>(() => I18nValidator.ValidateSite(Site("allow", allow: ["GPTBot", name])));
+        Assert.StartsWith("site.seo.geo.aiBotAllowList[1] must be a crawler user-agent token", allowEx.Message, StringComparison.Ordinal);
+
+        var blockEx = Assert.Throws<ConfigException>(() => I18nValidator.ValidateSite(Site("allow", block: [name])));
+        Assert.StartsWith("site.seo.geo.aiBotBlockList[0] must be a crawler user-agent token", blockEx.Message, StringComparison.Ordinal);
+    }
+
+    private static SiteConfig Site(string mode, IReadOnlyList<string>? allow = null, IReadOnlyList<string>? block = null)
         => new()
         {
             Name = "test",
             Title = "Test",
-            Seo = new SeoConfig { Geo = new SeoGeoConfig { AiBotMode = mode } }
+            Seo = new SeoConfig { Geo = new SeoGeoConfig { AiBotMode = mode, AiBotAllowList = allow, AiBotBlockList = block } }
         };
 }
