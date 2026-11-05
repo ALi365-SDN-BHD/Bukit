@@ -7,11 +7,10 @@ internal sealed class GoogleTagManagerProvider : IAnalyticsProvider
     public AnalyticsHtmlFragments Render(
         ResolvedAnalyticsProvider provider,
         AnalyticsRenderContext context)
-        => Render(provider, context, includeNoScript: true);
+        => RenderFragments(provider, includeNoScript: true);
 
-    internal AnalyticsHtmlFragments Render(
+    internal static AnalyticsHtmlFragments RenderFragments(
         ResolvedAnalyticsProvider provider,
-        AnalyticsRenderContext context,
         bool includeNoScript)
     {
         var containerId = provider.Options["containerId"];

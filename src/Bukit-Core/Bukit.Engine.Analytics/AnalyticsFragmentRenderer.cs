@@ -28,11 +28,10 @@ internal static class AnalyticsFragmentRenderer
                 continue;
             }
 
-            if (renderer is GoogleTagManagerProvider googleTagManager)
+            if (renderer is GoogleTagManagerProvider)
             {
-                fragments.Add(googleTagManager.Render(
+                fragments.Add(GoogleTagManagerProvider.RenderFragments(
                     provider,
-                    renderContext,
                     includeNoScript: AllowsGoogleTagManagerNoScript(config.GoogleConsent)));
                 continue;
             }

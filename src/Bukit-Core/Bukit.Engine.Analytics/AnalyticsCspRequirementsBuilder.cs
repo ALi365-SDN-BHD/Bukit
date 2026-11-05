@@ -81,10 +81,10 @@ internal static class AnalyticsCspRequirementsBuilder
 
         return new AnalyticsCspRequirements(
             inlineHashes,
-            scriptOrigins.Order(StringComparer.Ordinal).ToArray(),
-            frameOrigins.Order(StringComparer.Ordinal).ToArray(),
-            connectSrc.Order(StringComparer.Ordinal).ToArray(),
-            imgSrc.Order(StringComparer.Ordinal).ToArray(),
+            [.. scriptOrigins.Order(StringComparer.Ordinal)],
+            [.. frameOrigins.Order(StringComparer.Ordinal)],
+            [.. connectSrc.Order(StringComparer.Ordinal)],
+            [.. imgSrc.Order(StringComparer.Ordinal)],
             dynamicContainerDestinationsUnknown);
     }
 
