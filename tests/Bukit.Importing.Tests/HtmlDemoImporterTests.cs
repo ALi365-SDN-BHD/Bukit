@@ -1123,6 +1123,36 @@ public sealed class HtmlDemoImporterTests : IDisposable
     }
 
     [Fact]
+    public void Import_SitePathIsProjectRoot_StillScansAndPreservesTheDemo()
+    {
+        // --site-path . with the demo under the project root: the site folder
+        // contains the demo, so it must not be treated as output to skip.
+        var demoDir = Path.Combine(_tempDir, "demo");
+        Directory.CreateDirectory(demoDir);
+        File.WriteAllText(Path.Combine(demoDir, "index.html"),
+            "<html><head><title>Home</title></head><body><main><h1>Home</h1></main></body></html>");
+        File.WriteAllText(Path.Combine(demoDir, "about.html"),
+            "<html><head><title>About</title></head><body><main><h1>About</h1></main></body></html>");
+
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = demoDir,
+            ThemeName = "root-site",
+            RootDir = _tempDir,
+            SitePath = _tempDir,
+            Force = true,
+            PreserveHtml = true,
+            ContentSource = "json"
+        };
+
+        var result = HtmlDemoImporter.Import(options);
+
+        Assert.Equal(2, result.PagesFound);
+        Assert.True(File.Exists(Path.Combine(_tempDir, "original-demo", "index.html")));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "original-demo", "about.html")));
+    }
+
+    [Fact]
     public void Import_ListPageWithTwoCardGroups_DoesNotDeleteTheSecondGroup()
     {
         File.WriteAllText(Path.Combine(_tempDir, "index.html"),

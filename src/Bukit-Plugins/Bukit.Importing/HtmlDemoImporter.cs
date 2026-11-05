@@ -127,16 +127,30 @@ public static class HtmlDemoImporter
         return Path.Combine(options.RootDir, "themes", options.ThemeName);
     }
 
+    /// <summary>
+    /// Output folders of this import that sit strictly inside the demo, such as
+    /// <c>sites/x</c> when the demo is the project root. A folder that is the demo
+    /// or contains it (<c>--site-path .</c> with the demo under the root) is not
+    /// listed, or every demo file would be skipped.
+    /// </summary>
+    internal static IReadOnlyList<string> GetOutputRootsInsideInput(HtmlDemoImportOptions options)
+    {
+        var siteDir = GetSiteDir(options);
+        return new[] { siteDir, GetThemeDir(options), Path.Combine(siteDir, "original-demo") }
+            .Where(root => PathUtils.IsSameOrSubPathOf(root, options.InputPath) &&
+                           !PathUtils.IsSameOrSubPathOf(options.InputPath, root))
+            .ToList();
+    }
+
     internal static void PreserveOriginalHtml(HtmlDemoImportOptions options)
     {
         var siteDir = GetSiteDir(options);
-        var themeDir = GetThemeDir(options);
         var preserveDir = Path.Combine(siteDir, "original-demo");
+        // The demo may be the project root; never copy this import's own output.
+        var outputRoots = GetOutputRootsInsideInput(options);
         var sourceFiles = DemoFiles.Enumerate(options.InputPath)
             .Where(file => !ImportSafetyPatterns.IsBuiltOutputPath(options.InputPath, file))
-            // The demo may be the project root; never copy this import's own output.
-            .Where(file => !PathUtils.IsSameOrSubPathOf(file, siteDir))
-            .Where(file => !PathUtils.IsSameOrSubPathOf(file, themeDir))
+            .Where(file => !outputRoots.Any(root => PathUtils.IsSameOrSubPathOf(file, root)))
             .Where(file => !IsImportLockFile(file))
             .ToList();
         Directory.CreateDirectory(preserveDir);

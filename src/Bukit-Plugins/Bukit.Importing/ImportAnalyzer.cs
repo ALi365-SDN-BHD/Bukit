@@ -11,11 +11,7 @@ internal static class ImportAnalyzer
         HtmlDemoImporter.ValidateInput(options);
 
         var routeMap = RouteMapLoader.Load(options.RouteMapPath);
-        var excludedOutputs = new[]
-        {
-            HtmlDemoImporter.GetSiteDir(options),
-            HtmlDemoImporter.GetThemeDir(options)
-        };
+        var excludedOutputs = HtmlDemoImporter.GetOutputRootsInsideInput(options);
         var pages = DetailPageLinker.Apply(
             HtmlDemoScanner.Scan(options.InputPath, routeMap, excludedOutputs), routeMap);
         var warnings = new List<string>();
