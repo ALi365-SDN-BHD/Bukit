@@ -232,21 +232,24 @@ internal static class SeoIndexBuilder
         return ListPageMetadataBuilder.BuildSummary(config.Site, route, pagination);
     }
 
-    internal static bool IsIndexableContent(ContentDocument document, string? robots, DateTimeOffset now)
+    private static bool IsIndexableContent(ContentDocument document, string? robots, DateTimeOffset now)
     {
-        if (!SeoModelBuilder.IsIndexable(robots))
+        if (!IsIndexableIgnoringExpiry(document, robots))
         {
             return false;
         }
 
-        var record = document.Record;
-        if (!string.Equals(record.Identity.Status, "published", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return record.Lifecycle.ExpiresAt is null || record.Lifecycle.ExpiresAt > now;
+        var expiresAt = document.Record.Lifecycle.ExpiresAt;
+        return expiresAt is null || expiresAt > now;
     }
+
+    /// <summary>
+    /// The clock-independent part of content indexability: not noindex and published. Per-page
+    /// outputs use this, so an incremental build that only crosses an expiry date matches a clean build.
+    /// </summary>
+    internal static bool IsIndexableIgnoringExpiry(ContentDocument document, string? robots)
+        => SeoModelBuilder.IsIndexable(robots) &&
+           string.Equals(document.Record.Identity.Status, "published", StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyDictionary<string, ContentField>? BuildListFields(
         AppConfig config,

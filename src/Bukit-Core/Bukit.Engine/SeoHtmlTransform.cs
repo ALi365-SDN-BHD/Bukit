@@ -36,7 +36,8 @@ internal sealed class SeoHtmlTransform(
             html = SeoHtmlRenderer.InjectRepresentationLinks(
                 html,
                 ContentProjectionPaths.GetContentProjectionUrl(route, ".md", config.Site.BaseUrl),
-                ContentProjectionPaths.GetContentProjectionUrl(route, ".json", config.Site.BaseUrl));
+                ContentProjectionPaths.GetContentProjectionUrl(route, ".json", config.Site.BaseUrl),
+                config.Site.Url);
         }
 
         return SeoDiagnostics.AnalyzeHtml(config, route, page.Seo, html, logger);
@@ -44,11 +45,13 @@ internal sealed class SeoHtmlTransform(
 
     // Every routed content document gets content/<output path>.md and .json projections.
     // Only inject mode adds the links: in theme and off modes the theme owns the head.
-    // Pages left out of agent-manifest.json (noindex, unpublished, expired) are not advertised.
+    // Noindex and unpublished pages are not advertised. Expiry is ignored on purpose: page HTML
+    // and its .md/.json versions do not depend on the build clock (only aggregates such as the
+    // sitemap and agent-manifest.json drop expired pages), so incremental builds match clean ones.
     private bool ShouldLinkRepresentations(HtmlTransformContext context, SeoModel? seo)
         => shouldInjectSeo &&
            config.Site.Seo.Geo.Enabled &&
            context.DocumentKind == HtmlDocumentKind.Content &&
            context.Document is not null &&
-           SeoIndexBuilder.IsIndexableContent(context.Document, seo?.Robots, DateTimeOffset.UtcNow);
+           SeoIndexBuilder.IsIndexableIgnoringExpiry(context.Document, seo?.Robots);
 }

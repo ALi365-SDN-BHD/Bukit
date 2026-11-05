@@ -198,9 +198,10 @@ links in its `<head>`:
 <link rel="alternate" type="application/json" href="/content/blog/hello/index.html.json" />
 ```
 
-Bukit leaves them out for pages that are not in `agent-manifest.json`
-(`noindex`, unpublished, or expired), for pages that set `seo_inject: false`,
-and when `site.seo.geo.enabled` is `false`. If the theme's `<head>` already
+Bukit leaves them out for `noindex` and unpublished pages, for pages that set
+`seo_inject: false`, and when `site.seo.geo.enabled` is `false`. Expired pages
+keep their links, because their Markdown and JSON versions stay published; only
+aggregate files such as the sitemap and `agent-manifest.json` drop them. If the theme's `<head>` already
 links the same URL, Bukit does not add that link again.
 
 In `renderMode: theme` or `off`, the theme owns the `<head>`, so Bukit does not

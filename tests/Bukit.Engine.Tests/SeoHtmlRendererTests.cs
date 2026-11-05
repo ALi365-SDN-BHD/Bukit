@@ -211,6 +211,18 @@ public sealed class SeoHtmlRendererTests
     }
 
     [Fact]
+    public void InjectRepresentationLinks_RecognizesAbsoluteUrlsUnderSiteUrl()
+    {
+        var html = "<html><head><link rel=\"alternate\" href=\"HTTPS://Example.com:443/repo/content/a.md\">" +
+                   "<link rel=\"alternate\" href=\"https://other.test/repo/content/a.json\"></head></html>";
+
+        var result = SeoHtmlRenderer.InjectRepresentationLinks(html, "/repo/content/a.md", "/repo/content/a.json", "https://example.com/");
+
+        Assert.DoesNotContain("href=\"/repo/content/a.md\"", result, StringComparison.Ordinal);
+        Assert.Contains("href=\"/repo/content/a.json\" />", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void InjectRepresentationLinks_LeavesHeadUnchangedWhenBothLinksAreDeclared()
     {
         var html = "<html><head><link rel=\"alternate\" href=\"/content/a.md\"><link href=\"/content/a.json\" rel=\"alternate\"></head></html>";

@@ -29,9 +29,10 @@ internal static partial class SeoHtmlRenderer
 
     /// <summary>
     /// Adds <c>rel="alternate"</c> links to the page's Markdown and JSON versions so AI agents
-    /// can find them from the HTML. A link whose href the theme already declares is not repeated.
+    /// can find them from the HTML. A link the theme already declares, as a root-relative URL or
+    /// as the absolute URL under <paramref name="siteUrl"/>, is not repeated.
     /// </summary>
-    internal static string InjectRepresentationLinks(string html, string markdownUrl, string jsonUrl)
+    internal static string InjectRepresentationLinks(string html, string markdownUrl, string jsonUrl, string? siteUrl = null)
     {
         if (string.IsNullOrWhiteSpace(html) || !HtmlHeadScanner.TryFindHead(html, out var head))
         {
@@ -40,15 +41,15 @@ internal static partial class SeoHtmlRenderer
 
         var headContent = html[head.ContentStart..head.ContentEnd];
         var declared = LinkHrefRegex().Matches(headContent)
-            .Select(match => WebUtility.HtmlDecode(match.Groups["href"].Value).Trim())
+            .Select(match => NormalizeHref(WebUtility.HtmlDecode(match.Groups["href"].Value)))
             .ToHashSet(StringComparer.Ordinal);
         var links = new StringBuilder();
-        if (!declared.Contains(markdownUrl))
+        if (!IsDeclared(declared, markdownUrl, siteUrl))
         {
             links.Append($"  <link rel=\"alternate\" type=\"text/markdown\" href=\"{Attr(markdownUrl)}\" />{Environment.NewLine}");
         }
 
-        if (!declared.Contains(jsonUrl))
+        if (!IsDeclared(declared, jsonUrl, siteUrl))
         {
             links.Append($"  <link rel=\"alternate\" type=\"application/json\" href=\"{Attr(jsonUrl)}\" />{Environment.NewLine}");
         }
@@ -56,6 +57,24 @@ internal static partial class SeoHtmlRenderer
         return links.Length == 0
             ? html
             : html[..head.ContentStart] + headContent.TrimEnd() + Environment.NewLine + links + html[head.ContentEnd..];
+    }
+
+    private static bool IsDeclared(HashSet<string> declared, string url, string? siteUrl)
+        => declared.Contains(NormalizeHref(url)) ||
+           (!string.IsNullOrWhiteSpace(siteUrl) && declared.Contains(NormalizeHref(siteUrl.Trim().TrimEnd('/') + url)));
+
+    // Absolute http(s) URLs compare with a lower-case origin and no default port; paths keep their case.
+    private static string NormalizeHref(string href)
+    {
+        var trimmed = href.Trim();
+        if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            var origin = uri.IsDefaultPort ? $"{uri.Scheme}://{uri.IdnHost}" : $"{uri.Scheme}://{uri.IdnHost}:{uri.Port}";
+            return origin + uri.PathAndQuery;
+        }
+
+        return trimmed;
     }
 
     [GeneratedRegex(@"<link\b[^>]*?\shref\s*=\s*(?:""(?<href>[^""]*)""|'(?<href>[^']*)'|(?<href>[^\s>]+))", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
