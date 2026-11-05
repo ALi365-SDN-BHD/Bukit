@@ -1743,6 +1743,81 @@ databases:
             $"{propertyName} should be created as Notion property type {expectedType}.");
     }
 
+    [Fact]
+    public async Task PushSeedDirectoryAsync_ExistingDatabaseWithoutTemplateOrUrl_PushesWithoutThem()
+    {
+        var inputDir = Path.Combine(_rootDir, "optional-properties");
+        Directory.CreateDirectory(inputDir);
+        File.WriteAllText(Path.Combine(inputDir, "pages.json"), """
+[
+  { "title": "About", "slug": "about", "content": "<p>About us</p>", "template": "pages/about.html", "url": "/company/about/" }
+]
+""");
+        var mapPath = Path.Combine(inputDir, "map.yaml");
+        File.WriteAllText(mapPath, """
+databases:
+  pages:
+    seed: pages.json
+    collection: page
+    databaseId: db-pages
+""");
+
+        string? pagePayload = null;
+        TestHttpMessageHandlerFactory = () => new StubHttpMessageHandler(request =>
+        {
+            var path = request.RequestUri?.AbsolutePath ?? "";
+            if (request.Method == HttpMethod.Get && path.EndsWith("/databases/db-pages", StringComparison.Ordinal))
+            {
+                // A database set up before the importer wrote Template and Url.
+                return Json("""
+{
+  "properties": {
+    "Title": { "type": "title" },
+    "Slug": { "type": "rich_text" },
+    "Type": { "type": "select" },
+    "Summary": { "type": "rich_text" },
+    "Language": { "type": "select" },
+    "Published": { "type": "checkbox" },
+    "SeoTitle": { "type": "rich_text" },
+    "SeoDescription": { "type": "rich_text" },
+    "URL": { "type": "url" }
+  }
+}
+""");
+            }
+            if (request.Method == HttpMethod.Post && path.EndsWith("/query", StringComparison.Ordinal))
+                return Json("""{ "results": [] }""");
+            if (request.Method == HttpMethod.Post && path.EndsWith("/pages", StringComparison.Ordinal))
+            {
+                pagePayload = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+                return Json("""{ "id": "page-created" }""");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent(path) };
+        });
+
+        using var token = new ImportingCommandTestSupport.EnvironmentVariableScope("BUKIT_IMPORT_TEST_NOTION_TOKEN", "secret");
+        var result = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportNotionPushWorkflow.PushSeedDirectoryAsync(new ImportNotionSeedPushOptions
+            {
+                InputDir = inputDir,
+                DatabaseMapPath = mapPath,
+                TokenEnv = "BUKIT_IMPORT_TEST_NOTION_TOKEN",
+                ValidateSchema = true,
+                ReportPath = Path.Combine(_rootDir, "optional-report.json")
+            }));
+
+        Assert.True(result.ExitCode == 0, result.StdErr + result.StdOut);
+        Assert.Contains("has no 'Template' property", result.StdOut, StringComparison.Ordinal);
+        // Names are case-sensitive; a near miss is named instead of reported as missing.
+        Assert.Contains("has a 'URL' property, but the push writes 'Url'", result.StdOut, StringComparison.Ordinal);
+        Assert.NotNull(pagePayload);
+        using var payload = JsonDocument.Parse(pagePayload!);
+        var properties = payload.RootElement.GetProperty("properties");
+        Assert.False(properties.TryGetProperty("Template", out _));
+        Assert.False(properties.TryGetProperty("Url", out _));
+        Assert.True(properties.TryGetProperty("Slug", out _));
+    }
+
     private static HttpResponseMessage Json(string body)
         => new(HttpStatusCode.OK)
         {

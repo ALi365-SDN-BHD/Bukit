@@ -24,7 +24,7 @@ internal static partial class ContentExtractor
         PageTemplatePlan? plan = null)
     {
         var content = new ExtractedContent();
-        ExtractNavigation(pages, content, routeMap);
+        ExtractNavigation(pages, content, routeMap, plan);
 
         foreach (var page in pages)
         {
@@ -155,15 +155,16 @@ internal static partial class ContentExtractor
                 .OrderByDescending(record => !string.IsNullOrWhiteSpace(content(record)))
                 .First());
 
-    private static void ExtractNavigation(List<DiscoveredPage> pages, ExtractedContent content, RouteMapConfig? routeMap)
+    private static void ExtractNavigation(
+        List<DiscoveredPage> pages, ExtractedContent content, RouteMapConfig? routeMap, PageTemplatePlan? plan)
     {
-        var candidate = pages
-            .Select(page => NavigationMarkupExtractor.ExtractBest(page.BodyContent))
-            .Where(candidate => candidate is not null)
-            .OrderByDescending(candidate => candidate!.Score)
+        var best = pages
+            .Select(page => (Page: page, Candidate: NavigationMarkupExtractor.ExtractBest(page.BodyContent)))
+            .Where(item => item.Candidate is not null)
+            .OrderByDescending(item => item.Candidate!.Score)
             .FirstOrDefault();
 
-        if (candidate is null)
+        if (best.Candidate is not { } candidate)
             return;
 
         var order = 10;
@@ -173,7 +174,9 @@ internal static partial class ContentExtractor
             {
                 Title = link.Title,
                 Slug = link.Slug,
-                Link = ResolveNavigationHref(link.Href, pages, routeMap),
+                // Hrefs are relative to the page the menu came from.
+                Link = (plan is null ? null : InternalLinkRewriter.PageUrl(link.Href, best.Page.RelativePath, plan))
+                       ?? ResolveNavigationHref(link.Href, pages, routeMap),
                 Order = order
             });
             order += 10;
@@ -215,7 +218,7 @@ internal static partial class ContentExtractor
         if (page.Type == PageType.Home)
             return "/";
 
-        var mapped = PageClassifier.GetRoute(routeMap, Path.GetFileNameWithoutExtension(page.RelativePath));
+        var mapped = PageClassifier.GetRoute(routeMap, page.RelativePath);
         if (!string.IsNullOrWhiteSpace(mapped))
             return mapped;
 
@@ -261,7 +264,8 @@ internal static partial class ContentExtractor
             Summary = summary,
             Content = ExtractContentBody(page.UniqueBody),
             SeoTitle = title,
-            SeoDescription = summary
+            // The demo's own description is what search engines show today.
+            SeoDescription = page.MetaDescription ?? summary
         });
     }
 
@@ -318,7 +322,7 @@ internal static partial class ContentExtractor
             if (string.IsNullOrWhiteSpace(title)) continue;
 
             var slugFromLink = link.Success
-                ? Path.GetFileNameWithoutExtension(link.Groups[1].Value.TrimEnd('/'))
+                ? PageClassifier.PageName(link.Groups[1].Value.Split('#', '?')[0].TrimEnd('/'))
                 : null;
 
             var slug = !string.IsNullOrWhiteSpace(slugFromLink)
@@ -353,7 +357,7 @@ internal static partial class ContentExtractor
                 Summary = ExtractSummary(page.UniqueBody),
                 Content = ExtractContentBody(page.UniqueBody),
                 SeoTitle = title,
-                SeoDescription = ExtractSummary(page.UniqueBody)
+                SeoDescription = page.MetaDescription ?? ExtractSummary(page.UniqueBody)
             });
         }
     }
@@ -397,7 +401,7 @@ internal static partial class ContentExtractor
             Summary = ExtractSummary(page.UniqueBody),
             Content = ExtractContentBody(page.UniqueBody),
             SeoTitle = title,
-            SeoDescription = ExtractSummary(page.UniqueBody)
+            SeoDescription = page.MetaDescription ?? ExtractSummary(page.UniqueBody)
         });
     }
 
@@ -440,7 +444,7 @@ internal static partial class ContentExtractor
             Summary = ExtractSummary(page.UniqueBody),
             Content = ExtractContentBody(page.UniqueBody),
             SeoTitle = title,
-            SeoDescription = ExtractSummary(page.UniqueBody)
+            SeoDescription = page.MetaDescription ?? ExtractSummary(page.UniqueBody)
         });
     }
 

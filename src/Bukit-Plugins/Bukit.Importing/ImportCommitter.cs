@@ -10,6 +10,32 @@ internal static class ImportCommitter
 {
     internal static ImportResult Commit(ImportAnalysis analysis, HtmlDemoImportOptions options)
     {
+        var manifest = ImportManifest.Load(HtmlDemoImporter.GetSiteDir(options), options.Overwrite);
+        var saved = false;
+        try
+        {
+            return CommitCore(analysis, options, manifest, () => saved = true);
+        }
+        catch when (!saved)
+        {
+            // Record what was written before the failure, so the next import still
+            // recognises those files as its own; remove nothing.
+            try
+            {
+                manifest.Save(cleanUp: false);
+            }
+            catch (Exception saveError) when (saveError is IOException or UnauthorizedAccessException)
+            {
+                // The import's own error matters more than a manifest that could not be written.
+            }
+
+            throw;
+        }
+    }
+
+    private static ImportResult CommitCore(
+        ImportAnalysis analysis, HtmlDemoImportOptions options, ImportManifest manifest, Action markSaved)
+    {
         var pages = analysis.Pages;
         var layout = analysis.Layout;
         var warnings = analysis.Warnings;
@@ -42,7 +68,7 @@ internal static class ImportCommitter
         if (options.ExtractContent)
         {
             HtmlDemoImporter.WriteComponentTemplates(options, components, assetResult.PathMappings, pages, routeMap, analysis.TemplatePlan);
-            ContentDraftWriter.Write(options, content);
+            ContentDraftWriter.Write(options, content, manifest);
             NavigationImportAdvisor.AddMissingNavigationWarnings(pages, content, result.Warnings);
 
             result = result with
@@ -62,7 +88,14 @@ internal static class ImportCommitter
         }
 
         // Generate site.yaml
-        var siteYamlCreated = SiteConfigGenerator.Generate(options, routeMap, result.PageTypes, result.PostListSlug, analysis.TemplatePlan, pages);
+        var siteYamlCreated = SiteConfigGenerator.Generate(options, routeMap, result.PageTypes, result.PostListSlug, analysis.TemplatePlan, pages, manifest);
+        // Only a site.yaml this import wrote can carry the placeholder; a kept one is the user's.
+        if (siteYamlCreated && SiteIdentity.Url(pages, options.BaseUrl) is null)
+        {
+            result.Warnings.Add(
+                $"The demo declares no canonical or og:url address, so site.yaml uses '{SiteIdentity.PlaceholderUrl}'. " +
+                "Set site.url to the real address (or pass an absolute --base-url), or canonical links and the sitemap point at the placeholder.");
+        }
 
         // Sync templates manifest
         var templatesSynced = HtmlDemoImporter.SyncTemplates(options, options.Force);
@@ -79,6 +112,12 @@ internal static class ImportCommitter
         // Transfer assets to static
         AssetImporter.TransferAssetsToStatic(options);
 
+        // Update or remove what the last import wrote, keeping files people edited.
+        manifest.Save();
+        markSaved();
+        result.Warnings.AddRange(manifest.Warnings);
+        AddMissingTemplateWarnings(HtmlDemoImporter.GetSiteDir(options), themeDir, result.Warnings);
+
         // Run residue analysis and strict check
         var hardcodedReport = TemplateResidueAnalyzer.Analyze(themeDir, null, routeMap);
         result = result with { HardcodedContentReport = hardcodedReport };
@@ -90,6 +129,41 @@ internal static class ImportCommitter
         ImportReportWriter.Write(options, result, diagnostics);
 
         return result;
+    }
+
+    // A draft kept from an earlier import can name a template this import no longer
+    // writes; Core would fail the build on it, so say which file to fix.
+    private static void AddMissingTemplateWarnings(string siteDir, string themeDir, List<string> warnings)
+    {
+        var contentDir = Path.Combine(siteDir, "content");
+        if (!Directory.Exists(contentDir))
+            return;
+
+        foreach (var draft in Directory.EnumerateFiles(contentDir, "*.md", SearchOption.AllDirectories))
+        {
+            var template = ReadFrontMatterValue(draft, "template");
+            if (string.IsNullOrWhiteSpace(template) || File.Exists(Path.Combine(themeDir, "layouts", template)))
+                continue;
+
+            warnings.Add(
+                $"Draft '{Path.GetRelativePath(siteDir, draft).Replace('\\', '/')}' uses template '{template}', " +
+                "which this import did not generate. Change its template or delete the draft, or the build fails.");
+        }
+    }
+
+    private static string? ReadFrontMatterValue(string path, string key)
+    {
+        using var reader = new StreamReader(path);
+        if (reader.ReadLine()?.Trim() != "---")
+            return null;
+
+        for (var line = reader.ReadLine(); line is not null && line.Trim() != "---"; line = reader.ReadLine())
+        {
+            if (line.StartsWith(key + ":", StringComparison.Ordinal))
+                return line[(key.Length + 1)..].Trim().Trim('"', '\'');
+        }
+
+        return null;
     }
 
     // Record content cannot read base_url, so a sub-path deploy needs it written in.

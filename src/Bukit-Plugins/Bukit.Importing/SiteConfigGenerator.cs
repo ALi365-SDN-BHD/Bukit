@@ -10,12 +10,14 @@ internal static class SiteConfigGenerator
         HashSet<PageType>? pageTypes = null,
         string? postListSlug = null,
         PageTemplatePlan? plan = null,
-        IReadOnlyList<DiscoveredPage>? discoveredPages = null)
+        IReadOnlyList<DiscoveredPage>? discoveredPages = null,
+        ImportManifest? manifest = null)
     {
         var siteDir = HtmlDemoImporter.GetSiteDir(options);
         Directory.CreateDirectory(siteDir);
         var yamlPath = Path.Combine(siteDir, "site.yaml");
-        if (File.Exists(yamlPath))
+        manifest?.Produced(yamlPath);
+        if (manifest is not null ? !manifest.CanWrite(yamlPath) : File.Exists(yamlPath))
         {
             Console.WriteLine("  site.yaml 已存在，跳过生成。建议手动检查。");
             return false;
@@ -33,13 +35,15 @@ internal static class SiteConfigGenerator
         // Default to all types if no page type info provided (backward compat)
         pageTypes ??= [PageType.Home, PageType.Page, PageType.PostDetail, PageType.PostList, PageType.CompanyDetail, PageType.CompanyList, PageType.ServiceDetail, PageType.ServiceList];
 
+        var demoPages = discoveredPages ?? [];
+        var siteName = SiteIdentity.Name(demoPages) ?? options.ThemeName;
         var site = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["name"] = options.ThemeName,
-            ["title"] = options.ThemeName,
-            ["url"] = "https://example.com",
-            ["description"] = "Generated from HTML Demo",
-            ["baseUrl"] = string.IsNullOrWhiteSpace(options.BaseUrl) ? "/" : options.BaseUrl,
+            ["name"] = siteName,
+            ["title"] = siteName,
+            ["url"] = SiteIdentity.Url(demoPages, options.BaseUrl) ?? SiteIdentity.PlaceholderUrl,
+            ["description"] = SiteIdentity.Description(demoPages) ?? "Generated from HTML Demo",
+            ["baseUrl"] = SiteBaseUrl(options.BaseUrl),
             ["language"] = options.Language,
             ["seo"] = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
@@ -156,6 +160,7 @@ internal static class SiteConfigGenerator
         };
 
         File.WriteAllText(yamlPath, YamlEmitter.Emit(root));
+        manifest?.Record(yamlPath);
         return true;
     }
 
@@ -338,4 +343,16 @@ internal static class SiteConfigGenerator
             : null;
 
     private sealed record SiteConfigNotionTarget(string Key, string Collection, string DatabaseId, string Mode);
+
+    // An absolute --base-url names the site's address; baseUrl takes only its path.
+    private static string SiteBaseUrl(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return "/";
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) || !uri.Scheme.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            return baseUrl;
+
+        var path = InternalLinkRewriter.BasePath(baseUrl);
+        return path.Length == 0 ? "/" : path + "/";
+    }
 }

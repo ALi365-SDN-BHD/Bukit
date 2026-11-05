@@ -290,6 +290,14 @@ public static class ImportNotionPushWorkflow
             {
                 var activeTarget = target;
                 var records = ImportSeedRecordReader.ReadSeedFile(inputDir, activeTarget.SeedFile, activeTarget.Collection);
+                if (!options.DryRun && !string.IsNullOrWhiteSpace(activeTarget.DatabaseId))
+                {
+                    var (kept, schema) = await OmitMissingOptionalPropertiesAsync(
+                        client, activeTarget.DatabaseId!, records, activeTarget.Schema!);
+                    records = kept;
+                    activeTarget = activeTarget with { Schema = schema };
+                }
+
                 var additionalSchemaFields = activeTarget.Schema!
                     .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
                     .Select(f => (Name: f.Key, ExpectedType: f.Value))
@@ -420,6 +428,16 @@ public static class ImportNotionPushWorkflow
         var token = Environment.GetEnvironmentVariable(tokenEnv) ?? "";
         using var transport = CreateTransport(dryRun ? "dry-run" : token);
         var client = new NotionWriteClient(transport);
+        if (!dryRun)
+        {
+            var (kept, schema) = await OmitMissingOptionalPropertiesAsync(client, databaseId, records, effectiveSchema);
+            records = kept;
+            effectiveSchema = new Dictionary<string, string>(schema, StringComparer.OrdinalIgnoreCase);
+            additionalSchemaFields = effectiveSchema
+                .OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(f => (Name: f.Key, ExpectedType: f.Value))
+                .ToArray();
+        }
         if (!dryRun && validateSchema)
         {
             var schemaReport = await NotionSchemaValidator.ValidateAsync(
@@ -452,6 +470,67 @@ public static class ImportNotionPushWorkflow
         }
 
         return 0;
+    }
+
+    // Template and Url carry each page's own template and route. Databases set up before
+    // the importer wrote them may lack these properties: push without them (pages then
+    // use their collection's template and permalink) instead of failing every record.
+    private static readonly (string Name, string Purpose)[] OptionalProperties =
+    [
+        ("Template", "per-page templates"),
+        ("Url", "per-page routes")
+    ];
+
+    private static async Task<(List<ImportSeedRecord> Records, IReadOnlyDictionary<string, string> Schema)>
+        OmitMissingOptionalPropertiesAsync(
+            NotionWriteClient client,
+            string databaseId,
+            List<ImportSeedRecord> records,
+            IReadOnlyDictionary<string, string> schema)
+    {
+        var wanted = OptionalProperties.Where(p => schema.ContainsKey(p.Name)).ToList();
+        if (wanted.Count == 0)
+            return (records, schema);
+
+        var response = await client.InspectDatabaseSchemaAsync(databaseId);
+        if (!response.IsSuccess || response.Payload is not { } payload ||
+            !payload.TryGetProperty("properties", out var properties))
+        {
+            return (records, schema);
+        }
+
+        var missing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var existing = properties.EnumerateObject().Select(property => property.Name).ToList();
+        foreach (var (name, purpose) in wanted)
+        {
+            if (existing.Contains(name, StringComparer.Ordinal))
+                continue;
+
+            missing.Add(name);
+            // Notion property names are case-sensitive: "URL" is not "Url".
+            var variant = existing.FirstOrDefault(p => p.Equals(name, StringComparison.OrdinalIgnoreCase));
+            Console.WriteLine(variant is not null
+                ? $"  Notion database {databaseId} has a '{variant}' property, but the push writes '{name}' " +
+                  $"(names are case-sensitive); pushing without it. Rename the property to '{name}' to keep {purpose}."
+                : $"  Notion database {databaseId} has no '{name}' property; pushing without it. " +
+                  $"Add a '{name}' property ({schema[name]}) to keep {purpose}.");
+        }
+
+        if (missing.Count == 0)
+            return (records, schema);
+
+        var kept = records.Select(record => record.ExtraFields is null
+                ? record
+                : record with
+                {
+                    ExtraFields = record.ExtraFields
+                        .Where(field => !missing.Contains(NotionPropertyNaming.Canonicalize(field.Key)))
+                        .ToDictionary(field => field.Key, field => field.Value, StringComparer.OrdinalIgnoreCase)
+                })
+            .ToList();
+        var trimmed = schema.Where(field => !missing.Contains(field.Key))
+            .ToDictionary(field => field.Key, field => field.Value, StringComparer.OrdinalIgnoreCase);
+        return (kept, trimmed);
     }
 
     private static List<NotionDatabaseTarget> BuildDefaultDatabaseTargets(string inputDir, string uniqueField)

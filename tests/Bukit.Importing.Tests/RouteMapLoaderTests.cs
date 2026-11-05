@@ -181,4 +181,19 @@ public sealed class RouteMapLoaderTests : IDisposable
         File.WriteAllText(path, yaml);
         return path;
     }
+
+    [Fact]
+    public void Load_UnknownType_ThrowsUserInputError()
+    {
+        var path = WriteRouteMap("""
+pages:
+  - source: news.html
+    type: post-list
+""");
+
+        var ex = Assert.Throws<ImportException>(() => RouteMapLoader.Load(path));
+
+        Assert.Equal(ImportErrorKind.UserInput, ex.Kind);
+        Assert.Contains("unknown 'type' value 'post-list'", ex.Message, StringComparison.Ordinal);
+    }
 }

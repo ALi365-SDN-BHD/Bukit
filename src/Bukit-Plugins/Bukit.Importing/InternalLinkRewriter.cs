@@ -82,7 +82,8 @@ internal static partial class InternalLinkRewriter
         return path == "/" ? "" : path;
     }
 
-    private static string? PageUrl(string href, string sourceRelativePath, PageTemplatePlan plan)
+    /// <summary>The site URL of the demo page an href points to, or null.</summary>
+    internal static string? PageUrl(string href, string sourceRelativePath, PageTemplatePlan plan)
     {
         var target = DemoLinks.ResolvePath(sourceRelativePath, href);
         if (target is null ||

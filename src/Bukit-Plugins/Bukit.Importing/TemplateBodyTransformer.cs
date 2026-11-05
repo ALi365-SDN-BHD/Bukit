@@ -16,7 +16,8 @@ internal static partial class TemplateBodyTransformer
 
     internal static string Transform(DiscoveredPage page, Dictionary<string, string> pathMappings)
     {
-        var body = AssetImporter.RewritePaths(page.UniqueBody, pathMappings).Trim();
+        // Escape demo text before this class adds template tags of its own.
+        var body = ScribanText.Escape(AssetImporter.RewritePaths(page.UniqueBody, pathMappings).Trim());
         if (string.IsNullOrWhiteSpace(body))
         {
             return ThemeGenerator.GetDefaultTemplateBody(page.Type);
@@ -30,19 +31,12 @@ internal static partial class TemplateBodyTransformer
         };
     }
 
+    // Core renders the home route from pages/index.html with no content record of
+    // its own, so the home template keeps the demo's heading and copy as markup.
     private static string TransformHome(string body)
     {
-        var result = ReplaceFirstHeading(body, "page.title");
-        result = ReplaceSectionComponents(result);
-        result = ReplaceListCards(result);
-        if (!result.Contains("{{ page.content }}", StringComparison.Ordinal) &&
-            !HasRecognizedSectionComponent(body) &&
-            !HasRecognizedListComponent(body))
-        {
-            result = ReplaceMainContentAfterHeading(result, "page.content");
-        }
-
-        return result;
+        var result = ReplaceSectionComponents(body);
+        return ReplaceListCards(result);
     }
 
     private static string TransformDetail(string body)

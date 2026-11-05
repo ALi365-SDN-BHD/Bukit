@@ -4,7 +4,7 @@ namespace Bukit.Importing;
 
 internal static class ContentDraftWriter
 {
-    internal static void Write(HtmlDemoImportOptions options, ExtractedContent content)
+    internal static void Write(HtmlDemoImportOptions options, ExtractedContent content, ImportManifest? manifest = null)
     {
         if (IsNotionBuildSource(options))
         {
@@ -15,29 +15,30 @@ internal static class ContentDraftWriter
         var siteDir = HtmlDemoImporter.GetSiteDir(options);
         var contentDir = Path.Combine(siteDir, "content");
         Directory.CreateDirectory(contentDir);
+        manifest?.Produced(contentDir);
         var claimed = new HashSet<string>(ImportWriteGuard.PathComparer);
 
         foreach (var page in content.Pages.Where(IsBuildPageDraft))
-            WritePageDraft(contentDir, page, claimed, options.Overwrite);
+            WritePageDraft(contentDir, page, claimed, options.Overwrite, manifest);
 
         foreach (var post in content.Posts)
-            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.SeoTitle, post.SeoDescription, post.TemplatePath, claimed, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "posts"), post.Title, post.Slug, "post", post.Summary, post.Content, post.SeoTitle, post.SeoDescription, post.TemplatePath, claimed, options.Overwrite, manifest);
 
         foreach (var company in content.Companies)
-            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.SeoTitle, company.SeoDescription, company.TemplatePath, claimed, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "companies"), company.Title, company.Slug, "company", company.Summary, company.Content, company.SeoTitle, company.SeoDescription, company.TemplatePath, claimed, options.Overwrite, manifest);
 
         foreach (var service in content.Services)
-            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.SeoTitle, service.SeoDescription, service.TemplatePath, claimed, options.Overwrite);
+            WriteCollectionDraft(Path.Combine(contentDir, "services"), service.Title, service.Slug, "service", service.Summary, service.Content, service.SeoTitle, service.SeoDescription, service.TemplatePath, claimed, options.Overwrite, manifest);
     }
 
     private static bool IsNotionBuildSource(HtmlDemoImportOptions options)
         => options.BuildSource.Equals("notion", StringComparison.OrdinalIgnoreCase);
 
-    private static void WritePageDraft(string contentDir, PageRecord page, HashSet<string> claimed, bool overwrite)
+    private static void WritePageDraft(string contentDir, PageRecord page, HashSet<string> claimed, bool overwrite, ImportManifest? manifest)
     {
         var slug = string.IsNullOrWhiteSpace(page.Slug) ? "index" : page.Slug;
         WriteCollectionDraft(Path.Combine(contentDir, "pages"), page.Title, slug, "page", page.Summary, page.Content,
-            page.SeoTitle, page.SeoDescription, page.TemplatePath, claimed, overwrite, page.Url);
+            page.SeoTitle, page.SeoDescription, page.TemplatePath, claimed, overwrite, manifest, page.Url);
     }
 
     // Core renders the home page at "/" from pages/index.html on its own; a home
@@ -58,6 +59,7 @@ internal static class ContentDraftWriter
         string? templatePath,
         HashSet<string> claimed,
         bool overwrite,
+        ImportManifest? manifest,
         string? url = null)
     {
         Directory.CreateDirectory(dir);
@@ -72,7 +74,7 @@ internal static class ContentDraftWriter
 
         if (!ImportWriteGuard.TryClaim(claimed, path, $"record '{title}'"))
             return;
-        if (File.Exists(path) && !overwrite) return;
+        if (manifest is not null ? !manifest.CanWrite(path) : File.Exists(path) && !overwrite) return;
 
         var fields = new List<KeyValuePair<string, object?>>
         {
@@ -96,5 +98,6 @@ internal static class ContentDraftWriter
         sb.AppendLine();
         sb.AppendLine(HtmlToMarkdownConverter.Convert(content));
         File.WriteAllText(path, sb.ToString());
+        manifest?.Record(path);
     }
 }

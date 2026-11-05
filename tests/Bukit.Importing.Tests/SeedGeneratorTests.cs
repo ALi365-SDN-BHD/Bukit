@@ -119,7 +119,7 @@ public sealed class SeedGeneratorTests : IDisposable
 
         var content = new ExtractedContent
         {
-            Pages = [new PageRecord { Title = "Home", Slug = "", Type = "Home" }],
+            Pages = [new PageRecord { Title = "About", Slug = "about", Type = "Page" }],
             Services = [new ServiceRecord { Title = "Consulting", Slug = "consulting" }]
         };
 
@@ -131,7 +131,7 @@ public sealed class SeedGeneratorTests : IDisposable
         Assert.True(File.Exists(Path.Combine(dataDir, "services.yaml")));
         Assert.False(File.Exists(Path.Combine(dataDir, "pages.json")));
         var yaml = File.ReadAllText(Path.Combine(dataDir, "pages.yaml"));
-        Assert.Contains("title: \"Home\"", yaml);
+        Assert.Contains("title: \"About\"", yaml);
     }
 
     [Fact]
@@ -215,7 +215,8 @@ public sealed class SeedGeneratorTests : IDisposable
 
         Assert.True(result);
         var json = File.ReadAllText(Path.Combine(_tempDir, "sites", "test-pages", "notion-seed", "pages.json"));
-        Assert.Contains("\"Home\"", json);
+        // The home page renders from pages/index.html, so it gets no seed record.
+        Assert.DoesNotContain("\"Home\"", json);
         Assert.Contains("\"About\"", json);
         Assert.Contains("\"about\"", json);
     }

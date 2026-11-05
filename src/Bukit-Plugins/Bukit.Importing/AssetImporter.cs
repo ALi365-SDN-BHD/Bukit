@@ -12,7 +12,7 @@ internal static partial class AssetImporter
 
     private static readonly HashSet<string> SensitiveNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".git", "node_modules", ".vscode", "dist", "build", ".npmrc"
+        ".git", "node_modules", ".vscode", ".npmrc"
     };
 
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -101,7 +101,7 @@ internal static partial class AssetImporter
         var sourceAssetsDir = Path.Combine(options.InputPath, "assets");
         if (Directory.Exists(sourceAssetsDir))
         {
-            foreach (var file in Directory.GetFiles(sourceAssetsDir, "*.*", SearchOption.AllDirectories))
+            foreach (var file in DemoFiles.Enumerate(sourceAssetsDir))
             {
                 var fileName = Path.GetFileName(file);
                 if (SensitiveExtensions.Contains(Path.GetExtension(fileName)) ||

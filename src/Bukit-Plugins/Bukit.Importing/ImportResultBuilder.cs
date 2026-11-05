@@ -82,7 +82,7 @@ internal static class ImportResultBuilder
         var ext = options.ContentSource.Equals("yaml", StringComparison.OrdinalIgnoreCase) ? "yaml" : "json";
         return
         [
-            new($"pages.{ext}", content.Pages.Count),
+            new($"pages.{ext}", SeedGenerator.SeedPages(content).Count),
             new($"navigation.{ext}", content.Navigation.Count),
             new($"sections.{ext}", content.Sections.Count),
             new($"posts.{ext}", content.Posts.Count),
@@ -96,8 +96,7 @@ internal static class ImportResultBuilder
 
     private static string RouteForPage(DiscoveredPage page, RouteMapConfig? routeMap = null)
     {
-        var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
-        var routeMapRoute = PageClassifier.GetRoute(routeMap, fileName);
+        var routeMapRoute = PageClassifier.GetRoute(routeMap, page.RelativePath);
         if (routeMapRoute != null)
             return routeMapRoute;
 
@@ -113,8 +112,7 @@ internal static class ImportResultBuilder
 
     private static string TemplateForPage(DiscoveredPage page, RouteMapConfig? routeMap = null)
     {
-        var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
-        var routeMapTemplate = PageClassifier.GetTemplate(routeMap, fileName);
+        var routeMapTemplate = PageClassifier.GetTemplate(routeMap, page.RelativePath);
         if (routeMapTemplate != null)
             return routeMapTemplate;
 

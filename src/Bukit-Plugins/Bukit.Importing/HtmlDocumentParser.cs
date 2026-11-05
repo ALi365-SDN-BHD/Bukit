@@ -18,22 +18,27 @@ internal static class HtmlDocumentParser
 
     internal static DiscoveredPage Parse(string filePath, string baseDir, RouteMapConfig? routeMap = null)
     {
-        var html = File.ReadAllText(filePath);
+        var html = DemoFiles.ReadHtml(filePath, out var guessedEncoding);
         var relativePath = Path.GetRelativePath(baseDir, filePath);
-        var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
-        var slug = fileNameWithoutExtension.Equals("index", StringComparison.OrdinalIgnoreCase)
+        // about/index.html is the "about" page; only the root index.html is the home page.
+        var pageName = PageClassifier.PageName(relativePath);
+        var slug = pageName.Equals("index", StringComparison.OrdinalIgnoreCase)
             ? ""
-            : SanitizeSlug(fileNameWithoutExtension);
+            : SanitizeSlug(pageName);
 
         var document = Parser.ParseDocument(html);
         var title = document.QuerySelector("title")?.TextContent?.Trim();
+        var metaDescription = NonEmpty(document.QuerySelector("meta[name='description' i]")?.GetAttribute("content"));
+        var canonicalUrl = NonEmpty(document.QuerySelector("link[rel='canonical' i]")?.GetAttribute("href"))
+                           ?? NonEmpty(document.QuerySelector("meta[property='og:url' i]")?.GetAttribute("content"));
+        var language = NonEmpty(document.DocumentElement?.GetAttribute("lang"));
         var headContent = document.Head?.InnerHtml?.Trim();
         var bodyContent = document.Body?.InnerHtml?.Trim() ?? html;
-        var pageType = PageClassifier.Classify(fileNameWithoutExtension, html, routeMap);
+        var pageType = PageClassifier.Classify(relativePath, html, routeMap);
 
         if (routeMap != null)
         {
-            var routeSlug = GetSlugFromRouteMap(routeMap, fileNameWithoutExtension);
+            var routeSlug = GetSlugFromRouteMap(routeMap, relativePath);
             if (routeSlug != null)
                 slug = routeSlug;
         }
@@ -48,6 +53,10 @@ internal static class HtmlDocumentParser
             Slug = slug,
             Type = pageType,
             Title = title,
+            MetaDescription = metaDescription,
+            CanonicalUrl = canonicalUrl,
+            Language = language,
+            GuessedEncoding = guessedEncoding,
             FullHtml = html,
             HeadContent = headContent,
             BodyContent = bodyContent,
@@ -128,6 +137,9 @@ internal static class HtmlDocumentParser
             .ToList();
     }
 
+    private static string? NonEmpty(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private static string SanitizeSlug(string name)
     {
         var chars = name.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' ? c : '-').ToArray();
@@ -137,11 +149,9 @@ internal static class HtmlDocumentParser
         return result.Trim('-').ToLowerInvariant();
     }
 
-    private static string? GetSlugFromRouteMap(RouteMapConfig routeMap, string fileNameWithoutExtension)
+    private static string? GetSlugFromRouteMap(RouteMapConfig routeMap, string relativePath)
     {
-        var match = routeMap.Pages.FirstOrDefault(p =>
-            string.Equals(p.Source, $"{fileNameWithoutExtension}.html", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(Path.GetFileNameWithoutExtension(p.Source), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
+        var match = PageClassifier.FindEntry(routeMap, relativePath);
         if (match == null || string.IsNullOrWhiteSpace(match.Route))
             return null;
 

@@ -918,6 +918,7 @@ pages:
 
         var config = Bukit.Config.ConfigLoader.Load(Path.Combine(_tempDir, "sites", "yaml-values", "site.yaml"));
 
+        // A generic "Home" title names no site, so the theme name is used.
         Assert.Equal("yaml-values", config.Site.Name);
         Assert.Equal("zh: #1", config.Site.Language);
         Assert.Equal("/base: #2", config.Site.BaseUrl);
@@ -1834,5 +1835,28 @@ pages:
             index += value.Length;
         }
         return count;
+    }
+
+    [Fact]
+    public void Import_WarnsAboutUnmatchedRouteMapEntriesAndOnlyAWrittenPlaceholderUrl()
+    {
+        File.WriteAllText(Path.Combine(_tempDir, "index.html"),
+            "<html><head><title>Acme</title></head><body><main><h1>Home</h1></main></body></html>");
+        var routeMap = Path.Combine(_tempDir, "routes.yaml");
+        File.WriteAllText(routeMap, "pages:\n  - source: page/about.html\n    route: /company/\n");
+        var options = new HtmlDemoImportOptions
+        {
+            InputPath = _tempDir, ThemeName = "warn", RootDir = _tempDir, Force = true, RouteMapPath = routeMap
+        };
+
+        var first = HtmlDemoImporter.Import(options);
+        Assert.Contains(first.Warnings, w => w.Contains("'page/about.html' matches no page", StringComparison.Ordinal));
+        Assert.Contains(first.Warnings, w => w.Contains("site.yaml uses 'https://example.com'", StringComparison.Ordinal));
+
+        // A site.yaml the user fixed is kept, and no longer reported as a placeholder.
+        var siteYaml = Path.Combine(_tempDir, "sites", "warn", "site.yaml");
+        File.WriteAllText(siteYaml, File.ReadAllText(siteYaml).Replace("https://example.com", "https://acme.example", StringComparison.Ordinal));
+        var second = HtmlDemoImporter.Import(options);
+        Assert.DoesNotContain(second.Warnings, w => w.Contains("site.yaml uses", StringComparison.Ordinal));
     }
 }

@@ -8,7 +8,8 @@ internal static class ImportSafetyPatterns
 {
     public static readonly string[] SensitiveFileNames =
     [
-        ".env", ".npmrc", ".git", "node_modules", ".vscode", "dist", "build",
+        // dist/ and build/ hold built CSS/JS in many templates; they are not secrets.
+        ".env", ".npmrc", ".git", "node_modules", ".vscode",
         "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"
     ];
 

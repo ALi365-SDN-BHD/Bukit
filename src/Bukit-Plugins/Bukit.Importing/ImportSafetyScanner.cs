@@ -6,11 +6,19 @@ internal static partial class ImportSafetyScanner
         HtmlDemoImportOptions options, List<DiscoveredPage> pages)
     {
         var diagnostics = new List<ImportDiagnostic>();
-        var htmlFiles = Directory.GetFiles(options.InputPath, "*.html", SearchOption.AllDirectories)
+        var htmlFiles = DemoFiles.Enumerate(options.InputPath, "*.html")
             .Select(path => Path.GetRelativePath(options.InputPath, path).Replace('\\', '/'))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         ScanSensitiveFiles(options.InputPath, diagnostics);
+        foreach (var link in DemoFiles.SymbolicLinks(options.InputPath))
+        {
+            diagnostics.Add(new ImportDiagnostic(
+                ImportDiagnosticSeverity.Warning,
+                "SYMLINK_SKIPPED",
+                $"跳过符号链接（不会被复制或导入）: {Path.GetRelativePath(options.InputPath, link)}",
+                link));
+        }
 
         foreach (var page in pages)
         {
@@ -25,7 +33,7 @@ internal static partial class ImportSafetyScanner
     {
         foreach (var pattern in ImportSafetyPatterns.SensitiveFileNames)
         {
-            var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
+            var fileMatches = DemoFiles.Enumerate(inputPath, pattern);
             foreach (var match in fileMatches)
             {
                 diagnostics.Add(new ImportDiagnostic(
@@ -35,7 +43,7 @@ internal static partial class ImportSafetyScanner
                     match));
             }
 
-            var dirMatches = Directory.GetDirectories(inputPath, pattern, SearchOption.AllDirectories);
+            var dirMatches = DemoFiles.EnumerateDirectories(inputPath, pattern);
             foreach (var match in dirMatches)
             {
                 diagnostics.Add(new ImportDiagnostic(
@@ -48,7 +56,7 @@ internal static partial class ImportSafetyScanner
 
         foreach (var pattern in ImportSafetyPatterns.SensitiveFilePatterns)
         {
-            var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
+            var matches = DemoFiles.Enumerate(inputPath, pattern);
             foreach (var match in matches)
             {
                 diagnostics.Add(new ImportDiagnostic(
@@ -59,7 +67,7 @@ internal static partial class ImportSafetyScanner
             }
         }
 
-        var allFiles = Directory.GetFiles(inputPath, "*.*", SearchOption.AllDirectories);
+        var allFiles = DemoFiles.Enumerate(inputPath);
         foreach (var file in allFiles)
         {
             var ext = Path.GetExtension(file);
@@ -136,6 +144,15 @@ internal static partial class ImportSafetyScanner
                 ImportDiagnosticSeverity.Warning,
                 "INLINE_EVENT_HANDLER",
                 "页面包含内联事件处理器 (onclick/onload/onerror)",
+                page.FilePath));
+        }
+
+        if (page.GuessedEncoding is { } guessed)
+        {
+            diagnostics.Add(new ImportDiagnostic(
+                ImportDiagnosticSeverity.Warning,
+                "ENCODING_GUESSED",
+                $"页面未声明编码且不是 UTF-8，已按 {guessed} 读取；如有乱码，请在页面中加入 <meta charset> 声明实际编码",
                 page.FilePath));
         }
 

@@ -17,7 +17,7 @@ internal static class SeedGenerator
 
         if (isYaml)
         {
-            WritePagesYaml(Path.Combine(seedDir, "pages.yaml"), content.Pages, options.Overwrite);
+            WritePagesYaml(Path.Combine(seedDir, "pages.yaml"), SeedPages(content), options.Overwrite);
             WriteNavigationYaml(Path.Combine(seedDir, "navigation.yaml"), content.Navigation, options.Overwrite);
             WriteSectionsYaml(Path.Combine(seedDir, "sections.yaml"), content.Sections, options.Overwrite);
             WritePostsYaml(Path.Combine(seedDir, "posts.yaml"), content.Posts, options.Overwrite);
@@ -29,7 +29,7 @@ internal static class SeedGenerator
         }
         else
         {
-            WritePages(Path.Combine(seedDir, "pages.json"), content.Pages, options.Overwrite);
+            WritePages(Path.Combine(seedDir, "pages.json"), SeedPages(content), options.Overwrite);
             WriteNavigation(Path.Combine(seedDir, "navigation.json"), content.Navigation, options.Overwrite);
             WriteSections(Path.Combine(seedDir, "sections.json"), content.Sections, options.Overwrite);
             WritePosts(Path.Combine(seedDir, "posts.json"), content.Posts, options.Overwrite);
@@ -43,7 +43,7 @@ internal static class SeedGenerator
         }
 
         Console.WriteLine($"  种子数据生成完成: {seedDir}");
-        Console.WriteLine($"    pages:     {content.Pages.Count}");
+        Console.WriteLine($"    pages:     {SeedPages(content).Count}");
         Console.WriteLine($"    navigation: {content.Navigation.Count}");
         Console.WriteLine($"    sections:  {content.Sections.Count}");
         Console.WriteLine($"    posts:     {content.Posts.Count}");
@@ -505,4 +505,9 @@ internal static class SeedGenerator
     }
 
     private static string JsonBool(bool value) => value ? "true" : "false";
+
+    // Core renders the home page from pages/index.html. A home record would publish a
+    // second copy (its empty slug falls back to the title, e.g. /首页/).
+    internal static List<PageRecord> SeedPages(ExtractedContent content)
+        => content.Pages.Where(page => !page.Type.Equals("Home", StringComparison.OrdinalIgnoreCase)).ToList();
 }

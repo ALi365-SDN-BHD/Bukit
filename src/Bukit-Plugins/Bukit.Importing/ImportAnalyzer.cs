@@ -40,6 +40,7 @@ internal static class ImportAnalyzer
 
         // Fails early (also on dry runs) when two pages claim the same template.
         var templatePlan = PageTemplatePlan.Build(pages, routeMap);
+        AddUnmatchedRouteMapWarnings(pages, routeMap, warnings);
         warnings.AddRange(templatePlan.RenamedSlugs);
         var components = options.ExtractContent ? ComponentExtractor.Extract(pages) : [];
         var content = options.ExtractContent ? ContentExtractor.Extract(pages, routeMap, templatePlan) : new ExtractedContent();
@@ -57,6 +58,19 @@ internal static class ImportAnalyzer
         var assetResult = new AssetImporter.AssetImportResult(0, [], new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 
         return new ImportAnalysis(pages, layout, warnings, diagnostics, components, content, routeMap, assetResult, templatePlan);
+    }
+
+    // An entry that matches no demo file (a typo, a moved page) would otherwise do nothing silently.
+    private static void AddUnmatchedRouteMapWarnings(List<DiscoveredPage> pages, RouteMapConfig? routeMap, List<string> warnings)
+    {
+        if (routeMap is null)
+            return;
+
+        var used = new HashSet<RouteMapPage>(
+            pages.Select(page => PageClassifier.FindEntry(routeMap, page.RelativePath)).OfType<RouteMapPage>(),
+            ReferenceEqualityComparer.Instance);
+        foreach (var entry in routeMap.Pages.Where(entry => !used.Contains(entry)))
+            warnings.Add($"Route map entry '{entry.Source}' matches no page in the demo and was ignored.");
     }
 
     // Content without a demo page of its own renders with a generic fallback

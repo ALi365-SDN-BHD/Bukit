@@ -33,7 +33,7 @@ internal static partial class DetailPageLinker
         bool CanRetype(DiscoveredPage page)
             => page.Type == PageType.Unknown &&
                string.IsNullOrWhiteSpace(
-                   PageClassifier.FindEntry(routeMap, Path.GetFileNameWithoutExtension(page.RelativePath))?.Type);
+                   PageClassifier.FindEntry(routeMap, page.RelativePath)?.Type);
 
         var retyped = new Dictionary<string, PageType>(StringComparer.OrdinalIgnoreCase);
 
@@ -70,7 +70,7 @@ internal static partial class DetailPageLinker
             if (retyped.ContainsKey(key) || !CanRetype(page))
                 continue;
 
-            var folder = Path.GetFileName(Path.GetDirectoryName(key) ?? "");
+            var folder = PageClassifier.PageFolder(key);
             if (FolderTypes.TryGetValue(folder, out var type))
                 retyped[key] = type;
         }

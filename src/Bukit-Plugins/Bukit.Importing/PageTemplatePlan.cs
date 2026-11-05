@@ -96,7 +96,7 @@ internal sealed class PageTemplatePlan
         var claimedEntries = new HashSet<RouteMapPage>(ReferenceEqualityComparer.Instance);
         foreach (var page in pages)
         {
-            var entry = PageClassifier.FindEntry(routeMap, Path.GetFileNameWithoutExtension(page.RelativePath));
+            var entry = PageClassifier.FindEntry(routeMap, page.RelativePath);
             if (entry is not null && claimedEntries.Add(entry))
                 ownedEntries[Key(page.RelativePath)] = entry;
         }
@@ -191,8 +191,7 @@ internal sealed class PageTemplatePlan
     // not a request to share that template.
     private static string? ExplicitName(DiscoveredPage page, RouteMapConfig? routeMap)
     {
-        var fileName = Path.GetFileNameWithoutExtension(page.RelativePath);
-        var name = NonEmpty(ThemeGenerator.SanitizeTemplateName(PageClassifier.GetTemplate(routeMap, fileName) ?? ""));
+        var name = NonEmpty(ThemeGenerator.SanitizeTemplateName(PageClassifier.GetTemplate(routeMap, page.RelativePath) ?? ""));
         return name is null || FallbackNames.Contains(name) || name.Equals("index", StringComparison.OrdinalIgnoreCase)
             ? null
             : name;
@@ -201,6 +200,9 @@ internal sealed class PageTemplatePlan
     private static string DerivedName(DiscoveredPage page)
     {
         var withoutExtension = Path.ChangeExtension(page.RelativePath.Replace('\\', '/'), null) ?? "";
+        // about/index.html is the "about" page.
+        if (withoutExtension.EndsWith("/index", StringComparison.OrdinalIgnoreCase))
+            withoutExtension = withoutExtension[..^"/index".Length];
         return NonEmpty(ThemeGenerator.SanitizeTemplateName(withoutExtension.Replace('/', '-'))) ?? "page-template";
     }
 

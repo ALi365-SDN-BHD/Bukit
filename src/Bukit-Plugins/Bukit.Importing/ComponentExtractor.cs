@@ -128,6 +128,7 @@ internal static partial class ComponentExtractor
 
     private static string GenerateTemplate(string fragment, string componentName)
     {
+        fragment = ScribanText.Escape(fragment);
         if (componentName.Equals("pagination", StringComparison.OrdinalIgnoreCase))
         {
             return """

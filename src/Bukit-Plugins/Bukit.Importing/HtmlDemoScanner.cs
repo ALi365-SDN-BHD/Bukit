@@ -4,7 +4,7 @@ internal static class HtmlDemoScanner
 {
     internal static List<DiscoveredPage> Scan(string inputPath, RouteMapConfig? routeMap = null)
     {
-        var htmlFiles = Directory.GetFiles(inputPath, "*.html", SearchOption.AllDirectories)
+        var htmlFiles = DemoFiles.Enumerate(inputPath, "*.html")
             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
             .ToList();
 

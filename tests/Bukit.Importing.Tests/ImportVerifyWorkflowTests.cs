@@ -217,4 +217,112 @@ pages:
 
         Assert.True(broken.Count == 0, string.Join(Environment.NewLine, broken));
     }
+
+    [Fact]
+    public async Task VerifyAsync_FolderStyleChineseDemo_KeepsEveryPageItsTextAndEncoding()
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var demoDir = Path.Combine(_rootDir, "folder-demo");
+        foreach (var dir in new[] { "about", "contact", Path.Combine("dist", "css") })
+            Directory.CreateDirectory(Path.Combine(demoDir, dir));
+        // Built CSS in dist/ is an ordinary asset, not a secret.
+        File.WriteAllText(Path.Combine(demoDir, "dist", "css", "app.css"), "body{margin:0}");
+
+        string Page(string title, string main, string charset = "utf-8", string head = "") =>
+            $"<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"{charset}\"><title>{title} - 华南精密</title>" +
+            $"<link rel=\"stylesheet\" href=\"/dist/css/app.css\">{head}</head><body>\n" +
+            "<header><nav><ul><li><a href=\"/\">首页</a></li><li><a href=\"/about/\">关于我们</a></li>" +
+            "<li><a href=\"/contact/\">联系我们</a></li></ul></nav></header>\n" +
+            $"<main>{main}</main>\n<footer><p>版权所有</p></footer></body></html>";
+
+        File.WriteAllText(Path.Combine(demoDir, "index.html"), Page("首页",
+            "<h1>精密制造</h1><p>欢迎访问华南精密。</p><div id=\"app\">{{ message }} {% raw %}</div>",
+            head: "<link rel=\"canonical\" href=\"https://www.example.cn/\">"));
+        File.WriteAllText(Path.Combine(demoDir, "about", "index.html"), Page("关于我们",
+            "<h1>关于我们</h1><p>公司成立于2006年。</p>",
+            head: "<meta name=\"description\" content=\"华南精密的发展历程\">"));
+        File.WriteAllBytes(Path.Combine(demoDir, "contact", "index.html"),
+            System.Text.Encoding.GetEncoding("GB18030").GetBytes(Page("联系我们", "<h1>联系我们</h1><p>联系电话 0755-1234。</p>", "gbk")));
+
+        var import = HtmlDemoImporter.Import(new HtmlDemoImportOptions
+        {
+            InputPath = demoDir,
+            ThemeName = "folder",
+            RootDir = _rootDir,
+            Force = true
+        });
+
+        var verify = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportVerifyWorkflow.VerifyAsync(import, _rootDir, "folder"));
+        Assert.True(verify.ExitCode == 0, verify.StdErr);
+
+        var dist = Path.Combine(_rootDir, "dist");
+        string Built(string url) => File.ReadAllText(Path.Combine(dist, url.Trim('/'), "index.html"));
+
+        // Folder pages are their folder's page, not more home pages.
+        var home = Built("/");
+        Assert.Contains("欢迎访问华南精密。", home, StringComparison.Ordinal);
+        Assert.Contains("href=\"/about/\"", home, StringComparison.Ordinal);
+        Assert.Contains("href=\"/contact/\"", home, StringComparison.Ordinal);
+        // Front-end template syntax in the demo prints as written.
+        Assert.Contains("{{ message }} {% raw %}", home, StringComparison.Ordinal);
+        Assert.Contains("公司成立于2006年。", Built("/about/"), StringComparison.Ordinal);
+        Assert.Contains("联系电话 0755-1234。", Built("/contact/"), StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(dist, "dist", "css", "app.css")), "dist/ assets must be copied.");
+
+        var config = Bukit.Config.ConfigLoader.Load(Path.Combine(_rootDir, "sites", "folder", "site.yaml"));
+        Assert.Equal("华南精密", config.Site.Name);
+        Assert.Equal("https://www.example.cn", config.Site.Url);
+        // The home page renders from pages/index.html; no seed record may publish it again.
+        Assert.DoesNotContain("pages/index.html",
+            File.ReadAllText(Path.Combine(_rootDir, "sites", "folder", "notion-seed", "pages.json")), StringComparison.Ordinal);
+        Assert.Contains("seo_desc: 华南精密的发展历程",
+            File.ReadAllText(Path.Combine(_rootDir, "sites", "folder", "content", "pages", "about.md")), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task VerifyAsync_ReimportWithForce_UpdatesUneditedFilesKeepsEditedOnesAndBuilds()
+    {
+        var demoDir = Path.Combine(_rootDir, "reimport-demo");
+        Directory.CreateDirectory(demoDir);
+        void WritePage(string file, string title, string text) =>
+            File.WriteAllText(Path.Combine(demoDir, file),
+                $"<html><head><title>{title} | Acme</title></head><body><main><h1>{title}</h1><p>{text}</p></main></body></html>");
+        WritePage("index.html", "Home", "Welcome.");
+        WritePage("about.html", "About", "Founded in 2006.");
+        WritePage("team.html", "Team", "Ten people.");
+        WritePage("contact.html", "Contact", "Call us.");
+
+        var options = new HtmlDemoImportOptions { InputPath = demoDir, ThemeName = "again", RootDir = _rootDir, Force = true };
+        HtmlDemoImporter.Import(options);
+        var pagesDir = Path.Combine(_rootDir, "sites", "again", "content", "pages");
+        File.AppendAllText(Path.Combine(pagesDir, "team.md"), "\nEdited by hand.\n");
+
+        // The demo changes: about's text, team's text, and contact is gone.
+        WritePage("about.html", "About", "Founded in 2008.");
+        WritePage("team.html", "Team", "Twelve people.");
+        File.Delete(Path.Combine(demoDir, "contact.html"));
+        var import = HtmlDemoImporter.Import(options);
+
+        Assert.Contains("Founded in 2008.", File.ReadAllText(Path.Combine(pagesDir, "about.md")), StringComparison.Ordinal);
+        var team = File.ReadAllText(Path.Combine(pagesDir, "team.md"));
+        Assert.Contains("Edited by hand.", team, StringComparison.Ordinal);
+        Assert.Contains("Ten people.", team, StringComparison.Ordinal);
+        Assert.Contains(import.Warnings, w => w.Contains("Kept 'content/pages/team.md'", StringComparison.Ordinal));
+        Assert.False(File.Exists(Path.Combine(pagesDir, "contact.md")), "A draft for a deleted page must be removed.");
+
+        var verify = await ImportingCommandTestSupport.CaptureAsync(() =>
+            ImportVerifyWorkflow.VerifyAsync(import, _rootDir, "again"));
+        Assert.True(verify.ExitCode == 0, verify.StdErr);
+        Assert.False(Directory.Exists(Path.Combine(_rootDir, "dist", "contact")));
+
+        // --overwrite replaces the hand-edited draft.
+        HtmlDemoImporter.Import(options with { Overwrite = true });
+        Assert.Contains("Twelve people.", File.ReadAllText(Path.Combine(pagesDir, "team.md")), StringComparison.Ordinal);
+
+        // An import that writes no drafts leaves the existing ones alone.
+        HtmlDemoImporter.Import(options with { ExtractContent = false });
+        Assert.True(File.Exists(Path.Combine(pagesDir, "about.md")), "Drafts must survive --no-extract-content.");
+        Assert.True(File.Exists(Path.Combine(pagesDir, "team.md")));
+    }
 }

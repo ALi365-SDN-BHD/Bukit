@@ -33,6 +33,14 @@ public sealed record DiscoveredPage
     public required string Slug { get; init; }
     public required PageType Type { get; init; }
     public string? Title { get; init; }
+    /// <summary>The page's &lt;meta name="description"&gt;, if it has one.</summary>
+    public string? MetaDescription { get; init; }
+    /// <summary>The page's canonical or og:url address, if it declares one.</summary>
+    public string? CanonicalUrl { get; init; }
+    /// <summary>The encoding guessed for a file that declares none and is not UTF-8.</summary>
+    public string? GuessedEncoding { get; init; }
+    /// <summary>The &lt;html lang&gt; value, if set.</summary>
+    public string? Language { get; init; }
     public string FullHtml { get; init; } = "";
     public string? HeadContent { get; init; }
     public string BodyContent { get; init; } = "";

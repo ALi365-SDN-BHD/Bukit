@@ -65,8 +65,7 @@ internal static partial class PageAssetCollector
     }
 
     // Inline CSS/JS is literal text; Scriban delimiters inside it must not execute.
-    private static string EscapeScriban(string text)
-        => ScribanDelimiterRegex.Replace(text, m => "{{ '" + m.Value + "' }}");
+    private static string EscapeScriban(string text) => ScribanText.Escape(text);
 
     private static string RewriteCssUrls(string css, Dictionary<string, string> pathMappings)
         => CssUrlRegex.Replace(css, match =>
@@ -116,9 +115,6 @@ internal static partial class PageAssetCollector
     private static partial Regex RootRelativeAttributePattern();
     private static readonly Regex RootRelativeAttributeRegex = RootRelativeAttributePattern();
 
-    [GeneratedRegex(@"\{%\{|\}%\}|\{\{|\}\}")]
-    private static partial Regex ScribanDelimiterPattern();
-    private static readonly Regex ScribanDelimiterRegex = ScribanDelimiterPattern();
 
     [GeneratedRegex(@"url\(\s*(?<quote>['""]?)(?<value>[^'"")]+)\k<quote>\s*\)", RegexOptions.IgnoreCase)]
     private static partial Regex CssUrlPattern();

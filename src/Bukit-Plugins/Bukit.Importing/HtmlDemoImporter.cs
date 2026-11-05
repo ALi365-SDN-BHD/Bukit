@@ -129,8 +129,7 @@ public static class HtmlDemoImporter
     {
         var siteDir = GetSiteDir(options);
         var preserveDir = Path.Combine(siteDir, "original-demo");
-        var sourceFiles = Directory.GetFiles(options.InputPath, "*", SearchOption.AllDirectories)
-            .ToList();
+        var sourceFiles = DemoFiles.Enumerate(options.InputPath).ToList();
         Directory.CreateDirectory(preserveDir);
 
         foreach (var file in sourceFiles)
@@ -204,7 +203,7 @@ public static class HtmlDemoImporter
         {
             if (pattern.Contains('*', StringComparison.Ordinal))
             {
-                var matches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
+                var matches = DemoFiles.Enumerate(inputPath, pattern);
                 if (matches.Length > 0)
                     throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive files ({pattern}): {Path.GetRelativePath(inputPath, matches[0])}");
             }
@@ -214,11 +213,11 @@ public static class HtmlDemoImporter
                 if (File.Exists(fullPath) || Directory.Exists(fullPath))
                     throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive item: {pattern}");
 
-                var fileMatches = Directory.GetFiles(inputPath, pattern, SearchOption.AllDirectories);
+                var fileMatches = DemoFiles.Enumerate(inputPath, pattern);
                 if (fileMatches.Length > 0)
                     throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive files ({pattern}): {Path.GetRelativePath(inputPath, fileMatches[0])}");
 
-                var dirMatches = Directory.GetDirectories(inputPath, pattern, SearchOption.AllDirectories);
+                var dirMatches = DemoFiles.EnumerateDirectories(inputPath, pattern);
                 if (dirMatches.Length > 0)
                     throw new ImportException(ImportErrorKind.UserInput, $"Input directory contains sensitive directory ({pattern}): {Path.GetRelativePath(inputPath, dirMatches[0])}");
             }

@@ -76,6 +76,15 @@ internal static class RouteMapLoader
                     "Use a simple name (letters, digits, '-' or '_'), not a path.");
             }
 
+            if (!string.IsNullOrWhiteSpace(page.Type) &&
+                PageClassifier.ParsePageType(page.Type) == PageType.Unknown &&
+                !page.Type.Trim().Equals("unknown", StringComparison.OrdinalIgnoreCase))
+            {
+                throw Invalid(path,
+                    $"Route map entry '{page.Source}' has an unknown 'type' value '{page.Type}'. " +
+                    "Use one of: home, page, postList, postDetail, companyList, companyDetail, serviceList, serviceDetail.");
+            }
+
             if (!IsSafeSlug(page.Slug))
             {
                 throw Invalid(path,
