@@ -2,9 +2,35 @@ namespace Bukit.Engine.PublishAuditRules;
 
 internal static class SeoCompatibilityAuditRules
 {
+    /// <summary>
+    /// Returns whether the sitemap writers would list a canonical. Build it once per audit.
+    /// Without <c>site.url</c> there is no sitemap scope, so every canonical counts as in scope.
+    /// </summary>
+    internal static Func<string?, bool> CreateSitemapScopeCheck(string? siteUrl, string baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(siteUrl))
+        {
+            return static _ => true;
+        }
+
+        var scope = new SitemapLocFilter(siteUrl, baseUrl);
+        return scope.IsInScope;
+    }
+
+    /// <summary>
+    /// Returns whether a canonical is listed in the sitemap, matching the identity the sitemap
+    /// writers dedupe by (origin case and default ports do not matter). Build it once per audit.
+    /// </summary>
+    internal static Func<string?, bool> CreateSitemapPresenceCheck(string? sitemapText)
+    {
+        var locKeys = SitemapCanonicalIdentity.ReadLocKeys(sitemapText);
+        return canonical => SitemapCanonicalIdentity.Contains(locKeys, canonical);
+    }
+
     internal static void Analyze(
         PublishDocument document,
         bool sitemapIncluded,
+        bool sitemapExpected,
         bool searchIncluded,
         bool searchExpected,
         bool rssIncluded,
@@ -26,7 +52,7 @@ internal static class SeoCompatibilityAuditRules
             return;
         }
 
-        if (!sitemapIncluded)
+        if (sitemapExpected && !sitemapIncluded)
         {
             issues.Add(Warning("publish.sitemap_missing_route", document.RouteUrl, "Indexable published content is missing from sitemap output."));
         }
@@ -68,7 +94,7 @@ internal static class SeoCompatibilityAuditRules
 
         if (BlocksAiCrawler(robotsText, document.RouteUrl))
         {
-            issues.Add(Warning("publish.ai_crawler_policy_conflict", document.RouteUrl, "AI crawler policy blocks an indexable published route."));
+            issues.Add(Warning("publish.ai_crawler_policy_conflict", document.RouteUrl, "AI search crawler policy blocks an indexable published route, so it cannot be cited in AI answers."));
         }
     }
 
@@ -91,17 +117,12 @@ internal static class SeoCompatibilityAuditRules
         }
     }
 
-    private static readonly string[] AiAgents =
-    [
-        "GPTBot", "ChatGPT-User", "OAI-SearchBot", "ClaudeBot", "Claude-Web",
-        "anthropic-ai", "PerplexityBot", "Google-Extended", "CCBot", "Bytespider",
-        "Amazonbot", "Cohere-AI", "Diffbot", "FacebookBot"
-    ];
-
+    // Only AI search and user-fetch crawlers decide whether a page can be cited in AI answers.
+    // Blocking training crawlers (for example aiBotMode: block-training) is a deliberate choice, not a conflict.
     private static bool BlocksAiCrawler(string? robotsText, string routeUrl)
     {
         var rules = new RobotsTxtRules(robotsText);
-        return AiAgents.Any(agent => rules.IsBlocked(agent, routeUrl));
+        return AiCrawlerCatalog.VisibilityUserAgents.Any(agent => rules.IsBlocked(agent, routeUrl));
     }
 
     private static PublishAuditIssue Warning(string code, string? route, string message) => new("warning", code, route, message);

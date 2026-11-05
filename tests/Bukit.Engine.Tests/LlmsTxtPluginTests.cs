@@ -115,6 +115,64 @@ public sealed class LlmsTxtPluginTests : IDisposable
         Assert.DoesNotContain("(/https://", content, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("/repo/")]
+    [InlineData("repo")]
+    public async Task AfterBuild_WithSubPathBaseUrl_WritesLinksUnderBaseUrl(string baseUrl)
+    {
+        var outputDir = Path.Combine(_root, "dist-subpath-" + baseUrl.Replace('/', '_'));
+        Directory.CreateDirectory(outputDir);
+        var (context, config) = CreateContext(outputDir, geoEnabled: true, llmsTxt: true, llmsFullTxt: true, baseUrl: baseUrl);
+
+        var plugin = new LlmsTxtPlugin(config);
+        await plugin.AfterBuildAsync(context);
+
+        var llms = File.ReadAllText(Path.Combine(outputDir, "llms.txt"), Encoding.UTF8);
+        var llmsFull = File.ReadAllText(Path.Combine(outputDir, "llms-full.txt"), Encoding.UTF8);
+        Assert.Contains("- [Test Page](https://example.com/repo/page-1/)", llms, StringComparison.Ordinal);
+        Assert.DoesNotContain("(https://example.com/page-1/)", llms, StringComparison.Ordinal);
+        Assert.Contains("URL: https://example.com/repo/page-1/", llmsFull, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AfterBuild_WritesLlmsFilesWithoutByteOrderMark()
+    {
+        var outputDir = Path.Combine(_root, "dist-no-bom");
+        Directory.CreateDirectory(outputDir);
+        var (context, config) = CreateContext(outputDir, geoEnabled: true, llmsTxt: true, llmsFullTxt: true);
+
+        var plugin = new LlmsTxtPlugin(config);
+        await plugin.AfterBuildAsync(context);
+
+        foreach (var fileName in new[] { "llms.txt", "llms-full.txt" })
+        {
+            var bytes = File.ReadAllBytes(Path.Combine(outputDir, fileName));
+            Assert.True(bytes.Length > 0, fileName);
+            Assert.Equal((byte)'#', bytes[0]);
+        }
+    }
+
+    [Fact]
+    public void WriteLlmsFullTxt_SyncFacade_WritesWithoutByteOrderMark()
+    {
+        var outputDir = Path.Combine(_root, "dist-no-bom-sync");
+        Directory.CreateDirectory(outputDir);
+        var (context, config) = CreateContext(outputDir, geoEnabled: true, llmsFullTxt: true);
+
+        LlmsTxtPlugin.WriteLlmsFullTxt(
+            config,
+            context.OutputDir,
+            context.BaseUrl,
+            context.RoutedDocuments,
+            context.DerivedDocuments,
+            context.ContentGraph,
+            context.SeoIndex,
+            context.BodyStore);
+
+        var bytes = File.ReadAllBytes(Path.Combine(outputDir, "llms-full.txt"));
+        Assert.Equal((byte)'#', bytes[0]);
+    }
+
     [Fact]
     public async Task AfterBuild_WithOptionalLinks_IncludesOptionalSection()
     {
@@ -716,7 +774,8 @@ public sealed class LlmsTxtPluginTests : IDisposable
         IReadOnlyList<LlmsTxtOptionalLink>? optionalLinks = null,
         string? itemSummary = null,
         string? itemSeoDesc = null,
-        string? itemDescription = null)
+        string? itemDescription = null,
+        string baseUrl = "/")
     {
         var fieldValues = new Dictionary<string, object>
         {
@@ -777,7 +836,7 @@ public sealed class LlmsTxtPluginTests : IDisposable
         {
             RootDir = _root,
             OutputDir = outputDir,
-            BaseUrl = "/",
+            BaseUrl = baseUrl,
             LayoutsDir = Path.Combine(_root, "layouts"),
             RoutedDocuments = new[] { (item, route) }.ToRoutedDocuments(),
             ContentGraph = new CanonicalContentGraph(

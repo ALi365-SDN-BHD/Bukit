@@ -33,6 +33,7 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
         }
 
         var filtered = new List<(string AbsoluteUrl, DateTimeOffset? LastModified)>(context.SeoIndex.Count);
+        var locFilter = new SitemapLocFilter(siteUrl, context.BaseUrl);
         var documentExclusions = BuildDocumentSitemapExclusions(
             _config,
             context.RoutedDocuments.Concat(context.DerivedDocuments));
@@ -56,6 +57,11 @@ internal sealed class SitemapPlugin : IBukitPlugin, IAfterBuildPlugin
 
             var absoluteHtmlPath = Path.Combine(context.OutputDir, seo.Route.OutputPath);
             if (SitemapPolicy.ShouldExcludeFromSitemapFile(absoluteHtmlPath, context.Logger))
+            {
+                continue;
+            }
+
+            if (!locFilter.TryAccept(seo.Route.Url, seo.Canonical, context.Logger))
             {
                 continue;
             }

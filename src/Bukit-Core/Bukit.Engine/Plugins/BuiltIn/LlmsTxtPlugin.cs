@@ -17,24 +17,11 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         _config = config;
     }
 
+    // llms.txt must start with "# Title"; a BOM would hide the H1 from strict parsers.
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
     public string Name => "llms-txt";
     public string Version => "1.0.0";
-
-    private static readonly string[] AiBots =
-    {
-        "GPTBot",
-        "ChatGPT-User",
-        "Google-Extended",
-        "Claude-Web",
-        "ClaudeBot",
-        "Anthropic-AI",
-        "PerplexityBot",
-        "Cohere-AI",
-        "CCBot",
-        "Diffbot",
-        "FacebookBot",
-        "OAI-SearchBot"
-    };
 
     public async Task AfterBuildAsync(BuildContext context, CancellationToken cancellationToken = default)
     {
@@ -349,7 +336,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
         var path = Path.Combine(outputDir, "llms.txt");
         Directory.CreateDirectory(outputDir);
-        File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+        File.WriteAllText(path, sb.ToString(), Utf8NoBom);
     }
 
     internal static async Task WriteLlmsFullTxtAsync(
@@ -455,7 +442,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
         var path = Path.Combine(outputDir, "llms-full.txt");
         Directory.CreateDirectory(outputDir);
-        await File.WriteAllTextAsync(path, sb.ToString(), Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+        await File.WriteAllTextAsync(path, sb.ToString(), Utf8NoBom, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -553,7 +540,7 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
 
         var path = Path.Combine(outputDir, "llms-full.txt");
         Directory.CreateDirectory(outputDir);
-        File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
+        File.WriteAllText(path, sb.ToString(), Utf8NoBom);
     }
 
     private static string MarkdownLink(string text, string url)
@@ -643,13 +630,16 @@ internal sealed class LlmsTxtPlugin : IBukitPlugin, IAfterBuildAsyncPlugin
         return b + u;
     }
 
+    // Route URLs exclude baseUrl, so llms links must carry it just like canonical URLs do.
     private static string BuildBase(AppConfig config, string baseUrl)
     {
+        var normalizedBaseUrl = SeoModelBuilder.NormalizeBaseUrl(baseUrl);
         if (!string.IsNullOrWhiteSpace(config.Site.Url))
         {
-            return config.Site.Url.Trim().TrimEnd('/');
+            var siteUrl = config.Site.Url.Trim().TrimEnd('/');
+            return normalizedBaseUrl == "/" ? siteUrl : siteUrl + normalizedBaseUrl;
         }
 
-        return baseUrl;
+        return normalizedBaseUrl;
     }
 }

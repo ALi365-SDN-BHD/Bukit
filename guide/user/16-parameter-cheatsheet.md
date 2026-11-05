@@ -165,7 +165,7 @@ Safety semantics that do not fit in the default-value table:
 | `site.seo.organization.type` | `Organization`, `NewsMediaOrganization` |
 | `site.seo.organization.url`, `logo` | Absolute HTTP(S), or root-relative with `site.url`; output is absolute |
 | `site.seo.organization.sameAs[]` | Explicit identity/profile URLs; empty values are omitted |
-| `site.seo.geo.aiBotMode` | `allow`, `block`, `selective` |
+| `site.seo.geo.aiBotMode` | `allow`, `block-training`, `block`, `selective` |
 | Provider `type` | `google-analytics`, `google-tag-manager`, `plausible`, `umami` |
 | Provider `measurementId` | `^G-[A-Z0-9]+$`; Google Analytics only |
 | Provider `containerId` | `^GTM-[A-Z0-9]+$`; Google Tag Manager only |

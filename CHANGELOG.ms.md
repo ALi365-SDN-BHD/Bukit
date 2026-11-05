@@ -4,6 +4,9 @@ Semua perubahan penting kepada Bukit akan didokumenkan dalam fail ini.
 
 ## [Belum Dikeluarkan]
 
+- **Polisi perangkak AI**: `robots.txt` mengumpulkan perangkak AI mengikut tujuan (latihan, carian AI, ambilan pengguna) dan menambah `aiBotMode: block-training` (ia juga menyekat `Google-Extended`, yang mengawal latihan dan grounding Gemini; binaan merekodkan `event=robots.ai_grounding_blocked`). Perubahan tingkah laku: mod `selective` dengan `aiBotAllowList` kini menyekat semua perangkak lain yang dikenali, termasuk perangkak carian AI; binaan memberi amaran `event=robots.ai_search_blocked`. Binaan juga memberi amaran `event=robots.ai_policy_inactive` apabila polisi AI dikonfigurasi tetapi tidak dapat ditulis.
+- **Skop sitemap**: sitemap hanya menyenaraikan canonical di bawah `site.url` + `baseUrl` (port lalai dan huruf hos dinormalkan), sekali setiap satu; audit penerbitan tidak lagi menjangka halaman yang canonical-nya menunjuk ke tempat lain.
+
 ## [2.0.7] - 2026-11-04
 
 - **Versi**: versi produk dalam `Directory.Build.props` ditetapkan kepada 2.0.7 supaya sepadan dengan barisan keluaran (v2.0.6 dikeluarkan ketika fail masih 2.0.4; binaan keluaran menimpanya dengan `-p:VersionPrefix`).

@@ -133,10 +133,13 @@ internal static class I18nValidator
         }
 
         var geoAiBotMode = (site.Seo.Geo.AiBotMode ?? "allow").Trim().ToLowerInvariant();
-        if (geoAiBotMode is not ("allow" or "block" or "selective"))
+        if (geoAiBotMode is not ("allow" or "block-training" or "block" or "selective"))
         {
-            throw new ConfigException("site.seo.geo.aiBotMode must be allow|block|selective.");
+            throw new ConfigException("site.seo.geo.aiBotMode must be allow|block-training|block|selective.");
         }
+
+        ValidateAiBotNames(site.Seo.Geo.AiBotAllowList, "aiBotAllowList");
+        ValidateAiBotNames(site.Seo.Geo.AiBotBlockList, "aiBotBlockList");
 
         ValidateAnalytics(site.Analytics);
 
@@ -160,6 +163,27 @@ internal static class I18nValidator
                 {
                     throw new ConfigException("site.plugins keys must be non-empty strings.");
                 }
+            }
+        }
+    }
+
+    // Each name becomes a "User-agent:" line in robots.txt. A line break, "*" or ":" would break
+    // the file or change rules for every crawler, so only robots.txt product-token characters pass.
+    private static void ValidateAiBotNames(IReadOnlyList<string>? names, string key)
+    {
+        if (names is null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < names.Count; i++)
+        {
+            var name = names[i]?.Trim();
+            if (string.IsNullOrEmpty(name) || !name.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.'))
+            {
+                throw new ConfigException(
+                    $"site.seo.geo.{key}[{i}] must be a crawler user-agent token (letters, digits, '-', '_', '.').",
+                    DiagnosticCode.ConfigInvalidValue);
             }
         }
     }

@@ -75,6 +75,29 @@ public sealed class ConfigJsonSchemaGeneratorTests
         Assert.Equal(expected, actual);
     }
 
+    [Theory]
+    [InlineData("aiBotAllowList")]
+    [InlineData("aiBotBlockList")]
+    public void Generate_AiBotLists_UseTheLoaderNameRule(string key)
+    {
+        using var doc = JsonDocument.Parse(ConfigJsonSchemaGenerator.Generate());
+        var pattern = doc.RootElement.GetProperty("properties")
+            .GetProperty("site").GetProperty("properties")
+            .GetProperty("seo").GetProperty("properties")
+            .GetProperty("geo").GetProperty("properties")
+            .GetProperty(key).GetProperty("items").GetProperty("pattern").GetString()!;
+
+        foreach (var accepted in new[] { "GPTBot", " Claude_User ", "bot.v2", "OAI-SearchBot" })
+        {
+            Assert.Matches(pattern, accepted);
+        }
+
+        foreach (var rejected in new[] { "GPTBot\nDisallow: /", "*", "Bad Bot", "User-agent: X", "  " })
+        {
+            Assert.DoesNotMatch(pattern, rejected);
+        }
+    }
+
     [Fact]
     public void Generate_StableConfigContractFields_MatchLoaderAndStrictValidatorNames()
     {
@@ -91,7 +114,10 @@ public sealed class ConfigJsonSchemaGeneratorTests
             .GetProperty("properties");
         Assert.True(geo.TryGetProperty("enabled", out _));
         Assert.True(geo.TryGetProperty("llmsTxtMaxArticles", out _));
-        Assert.True(geo.TryGetProperty("aiBotMode", out _));
+        Assert.True(geo.TryGetProperty("aiBotMode", out var aiBotMode));
+        Assert.Equal(
+            ["allow", "block-training", "block", "selective"],
+            aiBotMode.GetProperty("enum").EnumerateArray().Select(x => x.GetString() ?? string.Empty).ToArray());
         Assert.True(geo.TryGetProperty("aiBotAllowList", out _));
         Assert.True(geo.TryGetProperty("aiBotBlockList", out _));
         Assert.True(geo.TryGetProperty("llmsTxtOptionalLinks", out _));

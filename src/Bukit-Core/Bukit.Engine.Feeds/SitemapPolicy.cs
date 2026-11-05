@@ -1,9 +1,139 @@
+using System.Net;
 using System.Text.RegularExpressions;
 using Bukit.Content;
 using Bukit.Engine.Abstractions.Content;
 using Bukit.Shared;
 
 namespace Bukit.Engine;
+
+internal enum SitemapLocDecision
+{
+    Accepted,
+    OutOfScope,
+    Duplicate
+}
+
+/// <summary>
+/// Sitemap locs are canonical URLs, but a sitemap may only list URLs under its own
+/// location (same host and base path), and each URL once. Pages whose canonical points
+/// to another host or outside the base path are left out; duplicate canonicals keep
+/// the first entry. The publish audit uses <see cref="IsInScope"/> so it does not
+/// expect those pages in the sitemap.
+/// </summary>
+internal sealed class SitemapLocFilter
+{
+    private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
+
+    private readonly string _scopeOrigin;
+    private readonly string _scopePath;
+
+    internal SitemapLocFilter(string siteUrl, string baseUrl)
+    {
+        Scope = SitemapGenerator.BuildAbsoluteUrl(siteUrl, baseUrl, "/");
+        (_scopeOrigin, _scopePath, _) = SplitOrigin(Scope);
+    }
+
+    internal string Scope { get; }
+
+    /// <summary>
+    /// Scheme and host compare case-insensitively; the path compares case-sensitively,
+    /// because <c>/REPO/</c> is a different directory from <c>/repo/</c> on most hosts.
+    /// </summary>
+    internal bool IsInScope(string? canonical)
+    {
+        if (string.IsNullOrWhiteSpace(canonical))
+        {
+            return false;
+        }
+
+        var (origin, path, _) = SplitOrigin(canonical);
+        return string.Equals(origin, _scopeOrigin, StringComparison.OrdinalIgnoreCase) &&
+               path.StartsWith(_scopePath, StringComparison.Ordinal);
+    }
+
+    // Normalizes the origin so default ports, host case and a trailing host dot do not
+    // make a same-site URL look foreign. The path and query keep their case.
+    private static (string Origin, string Path, string Query) SplitOrigin(string url)
+    {
+        if (Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            var host = uri.IdnHost.TrimEnd('.');
+            var origin = uri.IsDefaultPort ? $"{uri.Scheme}://{host}" : $"{uri.Scheme}://{host}:{uri.Port}";
+            return (origin, uri.AbsolutePath, uri.Query);
+        }
+
+        var schemeEnd = url.IndexOf("://", StringComparison.Ordinal);
+        var pathStart = schemeEnd < 0 ? -1 : url.IndexOf('/', schemeEnd + 3);
+        return pathStart < 0 ? (url, "/", string.Empty) : (url[..pathStart], url[pathStart..], string.Empty);
+    }
+
+    /// <summary>
+    /// The identity of a canonical URL: two canonicals that differ only by origin spelling
+    /// (case, default port) are the same URL. Used for dedupe and for sitemap presence checks.
+    /// </summary>
+    internal static string CanonicalKey(string canonical)
+    {
+        var (origin, path, query) = SplitOrigin(canonical);
+        return origin.ToLowerInvariant() + path + query;
+    }
+
+    internal SitemapLocDecision Evaluate(string? canonical)
+    {
+        if (!IsInScope(canonical))
+        {
+            return SitemapLocDecision.OutOfScope;
+        }
+
+        return _seen.Add(CanonicalKey(canonical!)) ? SitemapLocDecision.Accepted : SitemapLocDecision.Duplicate;
+    }
+
+    /// <summary>Evaluates the canonical and logs why a route was left out.</summary>
+    internal bool TryAccept(string routeUrl, string? canonical, ILogger? logger)
+    {
+        var decision = Evaluate(canonical);
+        switch (decision)
+        {
+            case SitemapLocDecision.OutOfScope:
+                logger?.Info($"event=sitemap.canonical_out_of_scope route={routeUrl} canonical={canonical} scope={Scope}");
+                break;
+            case SitemapLocDecision.Duplicate:
+                logger?.Debug($"event=sitemap.canonical_duplicate route={routeUrl} canonical={canonical}");
+                break;
+        }
+
+        return decision == SitemapLocDecision.Accepted;
+    }
+}
+
+/// <summary>
+/// Answers "is this canonical in the sitemap?" with the same identity the sitemap writers
+/// dedupe by, so a route whose canonical differs only in origin spelling counts as present.
+/// </summary>
+internal static partial class SitemapCanonicalIdentity
+{
+    internal static HashSet<string> ReadLocKeys(string? sitemapXml)
+    {
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(sitemapXml))
+        {
+            return keys;
+        }
+
+        foreach (Match match in LocRegex().Matches(sitemapXml))
+        {
+            keys.Add(SitemapLocFilter.CanonicalKey(WebUtility.HtmlDecode(match.Groups["loc"].Value).Trim()));
+        }
+
+        return keys;
+    }
+
+    internal static bool Contains(IReadOnlySet<string> locKeys, string? canonical)
+        => !string.IsNullOrWhiteSpace(canonical) && locKeys.Contains(SitemapLocFilter.CanonicalKey(canonical));
+
+    [GeneratedRegex(@"<loc>\s*(?<loc>[^<]*?)\s*</loc>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LocRegex();
+}
 
 internal static partial class SitemapPolicy
 {
